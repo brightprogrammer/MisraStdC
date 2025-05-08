@@ -60,7 +60,7 @@ Str* StrPrintf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrStackInit(str, ne, scoped_body) VecStackInit(str, ne, NULL, NULL, scoped_body)
+#define StrInitStack(str, ne, scoped_body) VecInitStack(str, ne, scoped_body)
 
 ///
 /// Create a new string with given cstring of given length.

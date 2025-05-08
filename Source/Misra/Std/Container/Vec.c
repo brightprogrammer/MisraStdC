@@ -38,23 +38,6 @@ static inline char *vec_ptr_at(GenericVec *v, size_t idx, size_t item_size) {
     return v->data + vec_aligned_offset_at(v, idx, item_size);
 }
 
-void init_vec(
-    GenericVec       *vec,
-    size_t            item_size,
-    GenericCopyInit   copy_init,
-    GenericCopyDeinit copy_deinit,
-    size_t            alignment
-) {
-    if (!vec || !item_size || !alignment) {
-        LOG_FATAL("invalid arguments.");
-    }
-
-    memset(vec, 0, sizeof(GenericVec));
-    vec->alignment   = alignment;
-    vec->copy_init   = copy_init;
-    vec->copy_deinit = copy_deinit;
-}
-
 void init_vec_on_stack(
     GenericVec       *vec,
     char             *stack_mem,
@@ -129,7 +112,7 @@ void expand_vec(GenericVec *vec, size_t item_size) {
         ptr     = realloc(vec->data, n * vec_aligned_size(vec, item_size));
         if (!ptr) {
             Str syserr;
-            StrStackInit(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
                 LOG_FATAL("realloc() failed : %s.", SysStrError(errno, &syserr)->data);
             });
         }
@@ -154,7 +137,7 @@ void reserve_vec(GenericVec *vec, size_t item_size, size_t n) {
         char *ptr = realloc(vec->data, n * vec_aligned_size(vec, item_size));
         if (!ptr) {
             Str syserr;
-            StrStackInit(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
                 LOG_FATAL("realloc() failed : %s.", SysStrError(errno, &syserr)->data);
             });
         }
@@ -203,7 +186,7 @@ void reduce_space_vec(GenericVec *vec, size_t item_size) {
         ptr = realloc(vec->data, vec->length * vec_aligned_size(vec, item_size));
         if (!ptr) {
             Str syserr;
-            StrStackInit(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
                 LOG_FATAL("realloc() failed : %s.", SysStrError(errno, &syserr)->data);
             });
         }

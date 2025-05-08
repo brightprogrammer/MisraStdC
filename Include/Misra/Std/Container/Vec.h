@@ -58,46 +58,65 @@ typedef struct {
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
 ///
 /// USAGE:
-///   Vec(HttpRequest) requests;
-///   VecInit(&requests, NULL, NULL);
-///
-/// v[in,out] : Pointer to vector memory that needs to be initialized.
+///   Vec(HttpRequest) requests = VecInit();
 ///
 /// SUCCESS : Returns `v` on success
 /// FAILURE : Does not return on failure
 ///
-#define VecInit(v)                                                                                 \
-    (init_vec(                                                                                     \
-        GENERIC_VEC(v),                                                                            \
-        sizeof(VEC_DATA_TYPE(v)),                                                                  \
-        (GenericCopyInit)NULL,                                                                     \
-        (GenericCopyDeinit)NULL,                                                                   \
-        1                                                                                          \
-    ))
+#define VecInit()                                                                                  \
+    {.length      = 0,                                                                             \
+     .capacity    = 0,                                                                             \
+     .copy_init   = (GenericCopyInit)NULL,                                                         \
+     .copy_deinit = (GenericCopyDeinit)NULL,                                                       \
+     .data        = NULL,                                                                          \
+     .alignment   = 1}
 
 ///
 /// Initialize given vector. Default alignment is 1
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
 ///
 /// USAGE:
-///   Vec(HttpRequest) requests;
-///   VecInit(&requests, NULL, NULL);
+///   Vec(HttpRequest) requests = VecInitWithDeepCopy(RequestClone, RequestDeinit);
 ///
-/// v[in,out] : Pointer to vector memory that needs to be initialized.
 /// ci[in]    : Copy init method.
 /// cd[in]    : Copy deinit method.
 ///
 /// SUCCESS : Returns `v` on success
 /// FAILURE : Does not return on failure
 ///
-#define VecInitWithDeepCopy(v, ci, cd)                                                             \
-    (init_vec(                                                                                     \
-        GENERIC_VEC(v),                                                                            \
-        sizeof(VEC_DATA_TYPE(v)),                                                                  \
-        (GenericCopyInit)(void *)(ci),                                                             \
-        (GenericCopyDeinit)(void *)(cd),                                                           \
-        1                                                                                          \
-    ))
+#define VecInitWithDeepCopy(ci, cd)                                                                \
+    {.length      = 0,                                                                             \
+     .capacity    = 0,                                                                             \
+     .copy_init   = (GenericCopyInit)(ci),                                                         \
+     .copy_deinit = (GenericCopyDeinit)(cd),                                                       \
+     .data        = NULL,                                                                          \
+     .alignment   = 1}
+
+///
+/// Initialize given vector with given alignment.
+/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
+///
+/// Provided alignment is used to keep all objects at an aligned memory location,
+/// avoiding UB in some cases. It's recommended to use aligned vector when dealing with
+/// structs containing unions.
+///
+/// aln[in]   : Vector element alignment. All items will be stored by respecting the
+///             alignment boundary.
+///
+/// USAGE:
+///   Vec(Node) nodes;
+///   VecInitAligned(&nodes, 16);
+///
+/// SUCCESS : Returns `v` on success
+/// FAILURE : Does not return on failure
+///
+#define VecInitAligned(aln)                                                                        \
+    {.length      = 0,                                                                             \
+     .capacity    = 0,                                                                             \
+     .copy_init   = (GenericCopyInit)NULL,                                                         \
+     .copy_deinit = (GenericCopyDeinit)NULL,                                                       \
+     .data        = NULL,                                                                          \
+     .alignment   = (aln)}
 
 ///
 /// Initialize given vector with given alignment.
@@ -109,49 +128,23 @@ typedef struct {
 ///
 /// USAGE:
 ///   Vec(Node) nodes;
-///   VecAlignedInit(&nodes, 16);
+///   VecInitAligned(&nodes, 16);
 ///
-/// v[in,out] : Pointer to vector memory that needs to be initialized.
-///
-/// SUCCESS : Returns `v` on success
-/// FAILURE : Does not return on failure
-///
-#define VecAlignedInit(v, aln)                                                                     \
-    (init_vec(                                                                                     \
-        GENERIC_VEC(v),                                                                            \
-        sizeof(VEC_DATA_TYPE(v)),                                                                  \
-        (GenericCopyInit)NULL,                                                                     \
-        (GenericCopyDeinit)NULL,                                                                   \
-        aln                                                                                        \
-    ))
-
-///
-/// Initialize given vector with given alignment.
-/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
-///
-/// Provided alignment is used to keep all objects at an aligned memory location,
-/// avoiding UB in some cases. It's recommended to use aligned vector when dealing with
-/// structs containing unions.
-///
-/// USAGE:
-///   Vec(Node) nodes;
-///   VecAlignedInit(&nodes, 16);
-///
-/// v[in,out] : Pointer to vector memory that needs to be initialized.
 /// ci[in]    : Copy init method.
 /// cd[in]    : Copy deinit method.
+/// aln[in]   : Vector element alignment. All items will be stored by respecting the
+///             alignment boundary.
 ///
 /// SUCCESS : Returns `v` on success
 /// FAILURE : Does not return on failure
 ///
-#define VecAlignedInitWithDeepCopy(v, ci, cd, aln)                                                 \
-    (init_vec(                                                                                     \
-        GENERIC_VEC(v),                                                                            \
-        sizeof(VEC_DATA_TYPE(v)),                                                                  \
-        (GenericCopyInit)ci,                                                                       \
-        (GenericCopyDeinit)cd,                                                                     \
-        aln                                                                                        \
-    ))
+#define VecInitAlignedWithDeepCopy(ci, cd, aln)                                                    \
+    {.length      = 0,                                                                             \
+     .capacity    = 0,                                                                             \
+     .copy_init   = (GenericCopyInit)(ci),                                                         \
+     .copy_deinit = (GenericCopyDeinit)(cd),                                                       \
+     .data        = NULL,                                                                          \
+     .alignment   = (aln)}
 
 ///
 /// Initialize given vector using memory from stack.
@@ -166,33 +159,26 @@ typedef struct {
 ///
 /// USAGE:
 ///   Vec(i32) ids;
-///   VecStackInit(&ids, 64, NULL, NULL, {
+///   VecInitStack(&ids, 64, {
 ///         // scope where vector memory is available
 ///         MakeClientRequestToFillVector(&ids);
 ///         VecForeach(&ids, id, {
 ///             // some relevant logic
-///         })
+///         });
 ///
 ///         // Do not call deinit after use!!
 ///   });
 ///
 /// v[in,out] : Pointer to vector memory that needs to be initialized.
 /// ne[in]    : Number of elements to allocate stack memory for.
-/// ci[in]    : Copy init method.
-/// cd[in]    : Copy deinit method.
 ///
-#define VecStackInit(v, ne, ci, cd, scoped_body)                                                   \
+#define VecInitStack(v, ne, scoped_body)                                                           \
     do {                                                                                           \
-        VEC_DATA_TYPE(v) ___data___[ne] = {0};                                                     \
-        init_vec_on_stack(                                                                         \
-            GENERIC_VEC(v),                                                                        \
-            (char *)___data___,                                                                    \
-            ne,                                                                                    \
-            sizeof(VEC_DATA_TYPE(v)),                                                              \
-            (GenericCopyInit)(void *)(ci),                                                         \
-            (GenericCopyDeinit)(void *)(cd),                                                       \
-            1                                                                                      \
-        );                                                                                         \
+        VEC_DATA_TYPE(v) ___data___[(ne)] = {0};                                                   \
+                                                                                                   \
+        *(v)          = (__typeof__(*v))VecInit();                                                 \
+        (v)->capacity = (ne);                                                                      \
+        (v)->data     = &___data___[0];                                                            \
                                                                                                    \
         {scoped_body};                                                                             \
                                                                                                    \
@@ -214,7 +200,9 @@ typedef struct {
 ///
 /// USAGE:
 ///   Vec(Node*) nodes;
-///   VecStackInit(&nodes, 24, NULL, NULL, {
+///
+///   // initialize vector with stack memory, aligned with 124 byte boundary
+///   VecInitAlignedStack(&nodes, 24, 124, NULL, NULL, {
 ///         // scope where vector memory is available
 ///         FindAndFillAllNodes(&nodes, ... /* some other relevant data */);
 ///
@@ -230,26 +218,117 @@ typedef struct {
 ///
 /// v[in,out] : Pointer to vector memory that needs to be initialized.
 /// ne[in]    : Number of elements to allocate aligned stack memory for.
-/// ci[in]    : Copy init method.
-/// cd[in]    : Copy deinit method.
 /// aln[in]   : Alignment value to align all emenets to.
 ///
-#define VecStackAlignedInit(v, ne, ci, cd, aln, scoped_body)                                       \
+#define VecInitAlignedStack(v, ne, aln, scoped_body)                                               \
     do {                                                                                           \
-        char ___data___for_aligned[ALIGN_UP(sizeof(VEC_DATA_TYPE(v)), aln) * ne] = {0};            \
-        init_vec_on_stack(                                                                         \
-            GENERIC_VEC(v),                                                                        \
-            &___data___for_aligned[0],                                                             \
-            ne,                                                                                    \
-            sizeof(VEC_DATA_TYPE(v)),                                                              \
-            (GenericCopyInit)(void *)(ci),                                                         \
-            (GenericCopyDeinit)(void *)(cd),                                                       \
-            1                                                                                      \
-        );                                                                                         \
+        char ___data___[ALIGN_UP(sizeof(VEC_DATA_TYPE(v)), (aln)) * (ne)] = {0};                   \
+                                                                                                   \
+        *(v)          = (__typeof__(*v))VecInitAligned((aln));                                     \
+        (v)->capacity = (ne);                                                                      \
+        (v)->data     = (VEC_DATA_TYPE(v) *)&___data___[0];                                        \
                                                                                                    \
         {scoped_body};                                                                             \
                                                                                                    \
-        memset(___data___for_aligned, 0, sizeof(___data___for_aligned));                           \
+        memset(&___data___[0], 0, sizeof(___data___));                                             \
+        memset(v, 0, sizeof(*v));                                                                  \
+    } while (0)
+
+///
+/// Initialize given vector using memory from stack.
+/// Such vectors cannot be dynamically resized. Doing so is UB.
+/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
+///
+/// These vectors are best used where user doesn't get a chance to or does not want
+/// to deinit vector, given that no data in vector needs to be deinitialized.
+/// Example includes, but does not limit to a Vec(i8), Vec(f32), etc...
+///
+/// Stack inited vectors mustn't be deinited after use.
+///
+/// USAGE:
+///   Vec(ModelInfo) models;
+///   VecInitWithDeepCopyStack(&models, 64, ModelInfoInitClone, ModelInfoDeinit, {
+///         // scope where vector memory is available
+///         VecForeachPtr(&models, model, {
+///             Render(model);
+///         });
+///
+///         // Do not call deinit after use!!
+///   });
+///
+/// v[in,out] : Pointer to vector memory that needs to be initialized.
+/// ne[in]    : Number of elements to allocate stack memory for.
+/// ci[in]    : Copy init method for copying over elements in vector.
+/// cd[in]    : Copy deinit method for deiniting elements in vector.
+///
+#define VecInitWithDeepCopyStack(v, ne, ci, cd, scoped_body)                                       \
+    do {                                                                                           \
+        VEC_DATA_TYPE(v) ___data___[(ne)] = {0};                                                   \
+                                                                                                   \
+        *(v)          = (__typeof__(*v))VecInit();                                                 \
+        (v)->capacity = (ne);                                                                      \
+        (v)->data     = &___data___[0];                                                            \
+                                                                                                   \
+        {scoped_body};                                                                             \
+                                                                                                   \
+        if ((cd))                                                                                  \
+            VecForeachPtr((v), ve, { (cd)(ve); });                                                 \
+        else                                                                                       \
+            memset(&___data___[0], 0, sizeof(___data___));                                         \
+                                                                                                   \
+        memset(v, 0, sizeof(*v));                                                                  \
+    } while (0)
+
+///
+/// Initialize given vector with given alignment.
+/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
+///
+/// Provided alignment is used to keep all objects at an aligned memory location,
+/// avoiding UB in some cases. It's recommended to use aligned vector when dealing with
+/// structs containing unions.
+///
+/// These vectors are best used where user doesn't get a chance to or does not want
+/// to deinit vector, given that no data in vector needs to be deinitialized.
+/// Example includes, but does not limit to a Vec(i8), Vec(f32), etc...
+///
+/// USAGE:
+///   Vec(Node*) nodes;
+///
+///   // initialize vector with stack memory, aligned with 124 byte boundary
+///   VecInitAlignedStack(&nodes, 24, NodeInitCopy, NodeDeinit, 124, NULL, NULL, {
+///         // scope where vector memory is available
+///         FindAndFillAllNodes(&nodes, ... /* some other relevant data */);
+///
+///         UseNodes(&nodes);
+///
+///         VecForeach(&nodes, node, {
+///         });
+///
+///         // vector deinit will be called for you after this automatically
+///         // so any data held by the vector in this scope is invalid outside
+///   });
+///
+/// v[in,out] : Pointer to vector memory that needs to be initialized.
+/// ne[in]    : Number of elements to allocate aligned stack memory for.
+/// ci[in]    : Copy init method for copying over elements in vector.
+/// cd[in]    : Copy deinit method for deiniting elements in vector.
+/// aln[in]   : Alignment value to align all emenets to.
+///
+#define VecInitAlignedWithDeepCopyStack(v, ne, ci, cd, aln, scoped_body)                           \
+    do {                                                                                           \
+        char ___data___[ALIGN_UP(sizeof(VEC_DATA_TYPE(v)), (aln)) * (ne)] = {0};                   \
+                                                                                                   \
+        *(v)          = (__typeof__(*v))VecInitAligned((aln));                                     \
+        (v)->capacity = (ne);                                                                      \
+        (v)->data     = (VEC_DATA_TYPE(v) *)&___data___[0];                                        \
+                                                                                                   \
+        {scoped_body};                                                                             \
+                                                                                                   \
+        if ((cd))                                                                                  \
+            VecForeachPtr((v), ve, { (cd)(ve); });                                                 \
+        else                                                                                       \
+            memset(&___data___[0], 0, sizeof(___data___));                                         \
+                                                                                                   \
         memset(v, 0, sizeof(*v));                                                                  \
     } while (0)
 

@@ -4,8 +4,7 @@
 int main(int argc, char** argv) {
     LogInit(false);
 
-    Vec(int) iv;
-    VecInit(&iv);
+    Vec(int) iv = VecInit();
 
     VecPushBack(&iv, 10);
     VecFirst(&iv) = 20;

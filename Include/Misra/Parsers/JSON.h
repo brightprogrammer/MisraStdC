@@ -3,6 +3,7 @@
 
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Utility/StrIter.h>
 #include <Misra/Types.h>
 
 ///
@@ -20,7 +21,6 @@ typedef Vec(Str) StrVec;
 typedef Vec(i64) Si64Vec;
 typedef Vec(i64) F64Vec;
 
-
 typedef struct {
     bool is_float;
     union {
@@ -28,23 +28,6 @@ typedef struct {
         i64 i;
     };
 } Number;
-
-typedef struct {
-    const char* read_pos;
-    size        total_length;
-    size        remaining_length;
-} StrIter;
-
-StrIter StrIterMove(StrIter si, i64 n);
-
-#define StrIterNext(si) StrIterMove(si, 1)
-
-///
-/// Get a StrIter from given Str object.
-///
-#define StrIterFromStr(s)                                                                          \
-    {.read_pos = (s).data, .total_length = (s).length, .remaining_length = (s).length}
-
 
 typedef StrIter (*JArrayItemReader)(StrIter si, void* data);
 typedef StrIter (*JObjectValueReader)(StrIter si, Str* key, void* data);

@@ -13,7 +13,8 @@
 #ifndef MISRA_STD_UILITY_H
 #define MISRA_STD_UILITY_H
 
-#include <Misra/Std/Utility/MemIter.h>
+#include <Misra/Std/Utility/Iter.h>
 #include <Misra/Std/Utility/Pair.h>
+#include <Misra/Std/Utility/StrIter.h>
 
 #endif // MISRA_STD_UILITY_H
