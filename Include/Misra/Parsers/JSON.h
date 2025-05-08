@@ -400,35 +400,35 @@ Str* JWriteNumberArray(Str* json, bool is_float, Si64Vec* ivec, F64Vec* fvec, bo
 /// Str* (*Writer) (Str* str, void* object, bool has_comma),
 /// void* object,
 /// bool  has_comma
-#define JWriteObjectArray(json, Writer, object_arr, has_comma)                                     \
-    do {                                                                                           \
-        if (!(json)) {                                                                             \
-            LOG_ERROR("Invalid arguments.");                                                       \
-            break;                                                                                 \
-        }                                                                                          \
-                                                                                                   \
-        if (!Writer) {                                                                             \
-            LOG_ERROR("Invalid object writer provided.");                                          \
-            break;                                                                                 \
-        }                                                                                          \
-                                                                                                   \
-        if (!(object_arr)) {                                                                       \
-            LOG_ERROR("Invalid object array.");                                                    \
-            break;                                                                                 \
-        }                                                                                          \
-                                                                                                   \
-        StrPushBack((json), '[');                                                                  \
-        VecForeachPtrIdx((object_arr), item_ptr, idx, {                                            \
-            bool _has_comma = idx != (object_arr)->length - 1;                                     \
-            Writer((json), item_ptr, _has_comma);                                                  \
-        });                                                                                        \
-        StrPushBack((json), ']');                                                                  \
-                                                                                                   \
-        if (has_comma) {                                                                           \
-            StrPushBack((json), ',');                                                              \
-        }                                                                                          \
-                                                                                                   \
-        return json;                                                                               \
+#define JWriteObjectArray(json, Writer, object_arr, has_comma)                                                                                                                     \
+    do {                                                                                                                                                                           \
+        if (!(json)) {                                                                                                                                                             \
+            LOG_ERROR("Invalid arguments.");                                                                                                                                       \
+            break;                                                                                                                                                                 \
+        }                                                                                                                                                                          \
+                                                                                                                                                                                   \
+        if (!Writer) {                                                                                                                                                             \
+            LOG_ERROR("Invalid object writer provided.");                                                                                                                          \
+            break;                                                                                                                                                                 \
+        }                                                                                                                                                                          \
+                                                                                                                                                                                   \
+        if (!(object_arr)) {                                                                                                                                                       \
+            LOG_ERROR("Invalid object array.");                                                                                                                                    \
+            break;                                                                                                                                                                 \
+        }                                                                                                                                                                          \
+                                                                                                                                                                                   \
+        StrPushBack((json), '[');                                                                                                                                                  \
+        VecForeachPtrIdx((object_arr), item_ptr, idx, {                                                                                                                            \
+            bool _has_comma = idx != (object_arr)->length - 1;                                                                                                                     \
+            Writer((json), item_ptr, _has_comma);                                                                                                                                  \
+        });                                                                                                                                                                        \
+        StrPushBack((json), ']');                                                                                                                                                  \
+                                                                                                                                                                                   \
+        if (has_comma) {                                                                                                                                                           \
+            StrPushBack((json), ',');                                                                                                                                              \
+        }                                                                                                                                                                          \
+                                                                                                                                                                                   \
+        return json;                                                                                                                                                               \
     } while (0)
 
 ///
@@ -498,14 +498,7 @@ Str* JWriteStringKV(Str* json, const char* field_name, const char* value, bool h
 /// Returns:
 ///   Pointer to the updated `Str` if successful, `NULL` on error.
 ///
-Str* JWriteNumberKV(
-    Str*        json,
-    const char* field_name,
-    bool        is_float,
-    i64         int_val,
-    f64         float_val,
-    bool        has_comma
-);
+Str* JWriteNumberKV(Str* json, const char* field_name, bool is_float, i64 int_val, f64 float_val, bool has_comma);
 
 ///
 /// Appends an integer field to a JSON string.
@@ -575,14 +568,7 @@ Str* JWriteStrArrayKV(Str* json, const char* field_name, StrVec* strvec, bool ha
 /// Returns:
 ///   Pointer to the updated `Str` if successful, or `NULL` on error.
 ///
-Str* JWriteNumberArrayKV(
-    Str*        json,
-    const char* field_name,
-    bool        is_float,
-    Si64Vec*    ivec,
-    F64Vec*     fvec,
-    bool        has_comma
-);
+Str* JWriteNumberArrayKV(Str* json, const char* field_name, bool is_float, Si64Vec* ivec, F64Vec* fvec, bool has_comma);
 
 ///
 /// Appends an integer array field to a JSON string.
@@ -621,37 +607,37 @@ Str* JWriteFloatArrayKV(Str* json, const char* field_name, F64Vec* fvec, bool ha
 /// Str* (*Writer) (Str* str, void* object, bool has_comma),
 /// void* object,
 /// bool  has_comma
-#define JWriteObjectArrayKV(json, field_name, Writer, object_arr, has_comma)                       \
-    do {                                                                                           \
-        if (!(json)) {                                                                             \
-            LOG_ERROR("Invalid arguments.");                                                       \
-            break;                                                                                 \
-        }                                                                                          \
-        if (!(field_name) || !strlen(field_name)) {                                                \
-            LOG_ERROR("Invalid field name.");                                                      \
-            break;                                                                                 \
-        }                                                                                          \
-        if (!(Writer)) {                                                                           \
-            LOG_ERROR("Invalid object writer provided.");                                          \
-            break;                                                                                 \
-        }                                                                                          \
-        if (!(object_arr)) {                                                                       \
-            LOG_ERROR("Invalid object array.");                                                    \
-            break;                                                                                 \
-        }                                                                                          \
-                                                                                                   \
-        StrAppendf((json), "\"%s\":[", (field_name));                                              \
-        VecForeachPtrIdx((object_arr), item_ptr, idx, {                                            \
-            bool _has_comma = idx != (object_arr)->length - 1;                                     \
-            Writer((json), item_ptr, _has_comma);                                                  \
-        });                                                                                        \
-        StrPushBack((json), ']');                                                                  \
-                                                                                                   \
-        if (has_comma) {                                                                           \
-            StrPushBack((json), ',');                                                              \
-        }                                                                                          \
-                                                                                                   \
-        return (json);                                                                             \
+#define JWriteObjectArrayKV(json, field_name, Writer, object_arr, has_comma)                                                                                                       \
+    do {                                                                                                                                                                           \
+        if (!(json)) {                                                                                                                                                             \
+            LOG_ERROR("Invalid arguments.");                                                                                                                                       \
+            break;                                                                                                                                                                 \
+        }                                                                                                                                                                          \
+        if (!(field_name) || !strlen(field_name)) {                                                                                                                                \
+            LOG_ERROR("Invalid field name.");                                                                                                                                      \
+            break;                                                                                                                                                                 \
+        }                                                                                                                                                                          \
+        if (!(Writer)) {                                                                                                                                                           \
+            LOG_ERROR("Invalid object writer provided.");                                                                                                                          \
+            break;                                                                                                                                                                 \
+        }                                                                                                                                                                          \
+        if (!(object_arr)) {                                                                                                                                                       \
+            LOG_ERROR("Invalid object array.");                                                                                                                                    \
+            break;                                                                                                                                                                 \
+        }                                                                                                                                                                          \
+                                                                                                                                                                                   \
+        StrAppendf((json), "\"%s\":[", (field_name));                                                                                                                              \
+        VecForeachPtrIdx((object_arr), item_ptr, idx, {                                                                                                                            \
+            bool _has_comma = idx != (object_arr)->length - 1;                                                                                                                     \
+            Writer((json), item_ptr, _has_comma);                                                                                                                                  \
+        });                                                                                                                                                                        \
+        StrPushBack((json), ']');                                                                                                                                                  \
+                                                                                                                                                                                   \
+        if (has_comma) {                                                                                                                                                           \
+            StrPushBack((json), ',');                                                                                                                                              \
+        }                                                                                                                                                                          \
+                                                                                                                                                                                   \
+        return (json);                                                                                                                                                             \
     } while (0)
 
 #endif // MISRA_PARSERS_JSON_H

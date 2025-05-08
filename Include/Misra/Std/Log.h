@@ -15,15 +15,13 @@
 #include <Misra/Types.h>
 
 #ifdef _WIN32
-#    define LOG_FATAL(...)                                                                         \
-        (LogWrite(LOG_MESSAGE_TYPE_FATAL, __FUNCTION__, __LINE__, __VA_ARGS__), abort())
+#    define LOG_FATAL(...) (LogWrite(LOG_MESSAGE_TYPE_FATAL, __FUNCTION__, __LINE__, __VA_ARGS__), abort())
 
 #    define LOG_ERROR(...) LogWrite(LOG_MESSAGE_TYPE_ERROR, __FUNCTION__, __LINE__, __VA_ARGS__)
 
 #    define LOG_INFO(...) LogWrite(LOG_MESSAGE_TYPE_INFO, __FUNCTION__, __LINE__, __VA_ARGS__)
 #else
-#    define LOG_FATAL(...)                                                                         \
-        (LogWrite(LOG_MESSAGE_TYPE_FATAL, __FUNCTION__, __LINE__, __VA_ARGS__), abort())
+#    define LOG_FATAL(...) (LogWrite(LOG_MESSAGE_TYPE_FATAL, __FUNCTION__, __LINE__, __VA_ARGS__), abort())
 
 #    define LOG_ERROR(...) LogWrite(LOG_MESSAGE_TYPE_ERROR, __FUNCTION__, __LINE__, __VA_ARGS__)
 

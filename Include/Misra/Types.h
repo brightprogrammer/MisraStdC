@@ -29,18 +29,14 @@ typedef unsigned long size;
 #define CLAMP(x, hi, lo) MIN2(MAX2(lo, x), hi)
 
 // for any general alignment value (13, 8, 17, 144, etc...)
-#define ALIGN_UP(value, alignment)                                                                 \
-    ((alignment) > 1 ? (((value) + (alignment) - 1) / (alignment) * (alignment)) : (value))
+#define ALIGN_UP(value, alignment) ((alignment) > 1 ? (((value) + (alignment) - 1) / (alignment) * (alignment)) : (value))
 
-#define ALIGN_DOWN(value, alignment)                                                               \
-    ((alignment) > 1 ? ((value) / (alignment) * (alignment)) : (value))
+#define ALIGN_DOWN(value, alignment) ((alignment) > 1 ? ((value) / (alignment) * (alignment)) : (value))
 
 // for alignment value that is power of two, (2, 4, 8, 16, 32, ...)
-#define ALIGN_UP_POW2(value, alignment)                                                            \
-    ((alignment) > 1 ? (((value) + (alignment) - 1) & ~((alignment) - 1)) : (value))
+#define ALIGN_UP_POW2(value, alignment) ((alignment) > 1 ? (((value) + (alignment) - 1) & ~((alignment) - 1)) : (value))
 
-#define ALIGN_DOWN_POW2(value, alignment)                                                          \
-    ((alignment) > 1 ? ((value) & ~((alignment) - 1)) : (value))
+#define ALIGN_DOWN_POW2(value, alignment) ((alignment) > 1 ? ((value) & ~((alignment) - 1)) : (value))
 
 #ifndef true
 #    define true 1
@@ -58,10 +54,8 @@ typedef unsigned long size;
 #define FREE(x)    (free((void *)(x)), (x) = NULL)
 
 #define INVERT_ENDIANNESS2(x) (((x) >> 8) & 0xff) | (((x) & 0xff) << 8)
-#define INVERT_ENDIANNESS4(x)                                                                      \
-    (INVERT_ENDIANNESS2((x) & 0xffff) << 16) | INVERT_ENDIANNESS2(((x) >> 16) & 0xffff)
-#define INVERT_ENDIANNESS8(x)                                                                      \
-    (INVERT_ENDIANNESS4((x) & 0xffffffff) << 32) | INVERT_ENDIANNESS4(((x) >> 32) & 0xffffffff)
+#define INVERT_ENDIANNESS4(x) (INVERT_ENDIANNESS2((x) & 0xffff) << 16) | INVERT_ENDIANNESS2(((x) >> 16) & 0xffff)
+#define INVERT_ENDIANNESS8(x) (INVERT_ENDIANNESS4((x) & 0xffffffff) << 32) | INVERT_ENDIANNESS4(((x) >> 32) & 0xffffffff)
 
 /// Compatibility macro between MSVC and GCC/Clang
 #if defined(_MSC_VER)

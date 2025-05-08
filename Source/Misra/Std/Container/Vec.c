@@ -38,15 +38,7 @@ static inline char *vec_ptr_at(GenericVec *v, size_t idx, size_t item_size) {
     return v->data + vec_aligned_offset_at(v, idx, item_size);
 }
 
-void init_vec_on_stack(
-    GenericVec       *vec,
-    char             *stack_mem,
-    size_t            capacity,
-    size_t            item_size,
-    GenericCopyInit   copy_init,
-    GenericCopyDeinit copy_deinit,
-    size_t            alignment
-) {
+void init_vec_on_stack(GenericVec *vec, char *stack_mem, size_t capacity, size_t item_size, GenericCopyInit copy_init, GenericCopyDeinit copy_deinit, size_t alignment) {
     if (!vec || !item_size || !alignment) {
         LOG_FATAL("invalid arguments.");
     }
@@ -112,15 +104,9 @@ void expand_vec(GenericVec *vec, size_t item_size) {
         ptr     = realloc(vec->data, n * vec_aligned_size(vec, item_size));
         if (!ptr) {
             Str syserr;
-            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
-                LOG_FATAL("realloc() failed : %s.", SysStrError(errno, &syserr)->data);
-            });
+            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, { LOG_FATAL("realloc() failed : %s.", SysStrError(errno, &syserr)->data); });
         }
-        memset(
-            ptr + vec_aligned_offset_at(vec, vec->capacity, item_size),
-            0,
-            vec_aligned_size(vec, item_size) * (n - vec->capacity)
-        );
+        memset(ptr + vec_aligned_offset_at(vec, vec->capacity, item_size), 0, vec_aligned_size(vec, item_size) * (n - vec->capacity));
         vec->data     = ptr;
         vec->capacity = n;
     }
@@ -137,15 +123,9 @@ void reserve_vec(GenericVec *vec, size_t item_size, size_t n) {
         char *ptr = realloc(vec->data, n * vec_aligned_size(vec, item_size));
         if (!ptr) {
             Str syserr;
-            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
-                LOG_FATAL("realloc() failed : %s.", SysStrError(errno, &syserr)->data);
-            });
+            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, { LOG_FATAL("realloc() failed : %s.", SysStrError(errno, &syserr)->data); });
         }
-        memset(
-            ptr + vec_aligned_offset_at(vec, vec->capacity, item_size),
-            0,
-            vec_aligned_size(vec, item_size) * (n - vec->capacity)
-        );
+        memset(ptr + vec_aligned_offset_at(vec, vec->capacity, item_size), 0, vec_aligned_size(vec, item_size) * (n - vec->capacity));
         vec->data     = ptr;
         vec->capacity = n;
     }
@@ -186,9 +166,7 @@ void reduce_space_vec(GenericVec *vec, size_t item_size) {
         ptr = realloc(vec->data, vec->length * vec_aligned_size(vec, item_size));
         if (!ptr) {
             Str syserr;
-            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
-                LOG_FATAL("realloc() failed : %s.", SysStrError(errno, &syserr)->data);
-            });
+            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, { LOG_FATAL("realloc() failed : %s.", SysStrError(errno, &syserr)->data); });
         }
         vec->capacity = vec->length;
         vec->data     = ptr;
@@ -196,13 +174,7 @@ void reduce_space_vec(GenericVec *vec, size_t item_size) {
 }
 
 
-void insert_range_into_vec(
-    GenericVec *vec,
-    char       *item_data,
-    size_t      item_size,
-    size_t      idx,
-    size_t      count
-) {
+void insert_range_into_vec(GenericVec *vec, char *item_data, size_t item_size, size_t idx, size_t count) {
     if (!vec || !item_size || !item_data) {
         LOG_FATAL("invalid arguments.");
     }
@@ -216,11 +188,7 @@ void insert_range_into_vec(
     }
 
     if (idx < vec->length) {
-        memmove(
-            vec_ptr_at(vec, idx + count, item_size),
-            vec_ptr_at(vec, idx, item_size),
-            (vec->length - idx) * vec_aligned_size(vec, item_size)
-        );
+        memmove(vec_ptr_at(vec, idx + count, item_size), vec_ptr_at(vec, idx, item_size), (vec->length - idx) * vec_aligned_size(vec, item_size));
     }
 
     for (i64 i = 0; i < count; i++) {
@@ -235,13 +203,7 @@ void insert_range_into_vec(
     vec->length += count;
 }
 
-void insert_range_fast_into_vec(
-    GenericVec *vec,
-    char       *item_data,
-    size_t      item_size,
-    size_t      idx,
-    size_t      count
-) {
+void insert_range_fast_into_vec(GenericVec *vec, char *item_data, size_t item_size, size_t idx, size_t count) {
     if (!vec || !item_size || !item_data) {
         LOG_FATAL("invalid arguments.");
     }
@@ -256,11 +218,7 @@ void insert_range_fast_into_vec(
 
     if (idx < vec->length) {
         // move item at index to last and insert the new item directly at index
-        memmove(
-            vec_ptr_at(vec, vec->length, item_size),
-            vec_ptr_at(vec, idx, item_size),
-            vec_aligned_size(vec, item_size) * count
-        );
+        memmove(vec_ptr_at(vec, vec->length, item_size), vec_ptr_at(vec, idx, item_size), vec_aligned_size(vec, item_size) * count);
     }
 
     for (i64 i = 0; i < count; i++) {
@@ -276,13 +234,7 @@ void insert_range_fast_into_vec(
 }
 
 
-void remove_range_vec(
-    GenericVec *vec,
-    void       *removed_data,
-    size_t      item_size,
-    size_t      start,
-    size_t      count
-) {
+void remove_range_vec(GenericVec *vec, void *removed_data, size_t item_size, size_t start, size_t count) {
     if (!vec || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
@@ -293,11 +245,7 @@ void remove_range_vec(
 
     if (removed_data) {
         // make copy of data if user want's a copy
-        memcpy(
-            removed_data,
-            vec_ptr_at(vec, start, item_size),
-            count * vec_aligned_size(vec, item_size)
-        );
+        memcpy(removed_data, vec_ptr_at(vec, start, item_size), count * vec_aligned_size(vec, item_size));
     } else {
         // if no space provided to copy data over to, just destroy or memset it
         if (vec->copy_deinit) {
@@ -320,23 +268,13 @@ void remove_range_vec(
         // these elements appear after "start + count" index
         (vec->length - start - count) * vec_aligned_size(vec, item_size)
     );
-    memset(
-        vec_ptr_at(vec, (vec->length - count), item_size),
-        0,
-        count * vec_aligned_size(vec, item_size)
-    );
+    memset(vec_ptr_at(vec, (vec->length - count), item_size), 0, count * vec_aligned_size(vec, item_size));
 
     vec->length -= count;
 }
 
 
-void fast_remove_range_vec(
-    GenericVec *vec,
-    void       *removed_data,
-    size_t      item_size,
-    size_t      start,
-    size_t      count
-) {
+void fast_remove_range_vec(GenericVec *vec, void *removed_data, size_t item_size, size_t start, size_t count) {
     if (!vec || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
@@ -346,11 +284,7 @@ void fast_remove_range_vec(
     }
 
     if (removed_data) {
-        memcpy(
-            removed_data,
-            vec_ptr_at(vec, start, item_size),
-            count * vec_aligned_size(vec, item_size)
-        );
+        memcpy(removed_data, vec_ptr_at(vec, start, item_size), count * vec_aligned_size(vec, item_size));
     } else {
         if (vec->copy_deinit) {
             char *vec_data = vec_ptr_at(vec, start, item_size);
@@ -373,11 +307,7 @@ void fast_remove_range_vec(
         count * vec_aligned_size(vec, item_size)
     );
     // memset last count items to 0
-    memset(
-        vec_ptr_at(vec, (vec->length - count), item_size),
-        0,
-        count * vec_aligned_size(vec, item_size)
-    );
+    memset(vec_ptr_at(vec, (vec->length - count), item_size), 0, count * vec_aligned_size(vec, item_size));
 
     vec->length -= count;
 }
@@ -451,11 +381,7 @@ void push_arr_vec(GenericVec *vec, size_t item_size, char *arr, size_t count, si
 
     // shift data if being inserted in the middle
     if (pos < vec->length) {
-        memmove(
-            vec_ptr_at(vec, (pos + count), item_size),
-            vec_ptr_at(vec, pos, item_size),
-            count * vec_aligned_size(vec, item_size)
-        );
+        memmove(vec_ptr_at(vec, (pos + count), item_size), vec_ptr_at(vec, pos, item_size), count * vec_aligned_size(vec, item_size));
 
         memset(vec_ptr_at(vec, pos, item_size), 0, count * vec_aligned_size(vec, item_size));
     }

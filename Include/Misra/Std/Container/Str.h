@@ -15,14 +15,14 @@
 
 typedef Vec(char) Str;
 
-#define TempStrFromCStr(str, cstr, len)                                                            \
-    do {                                                                                           \
-        (str)->data        = (char*)(cstr);                                                        \
-        (str)->length      = (len);                                                                \
-        (str)->capacity    = (len);                                                                \
-        (str)->copy_init   = NULL;                                                                 \
-        (str)->copy_deinit = NULL;                                                                 \
-        (str)->alignment   = 1;                                                                    \
+#define TempStrFromCStr(str, cstr, len)                                                                                                                                            \
+    do {                                                                                                                                                                           \
+        (str)->data        = (char*)(cstr);                                                                                                                                        \
+        (str)->length      = (len);                                                                                                                                                \
+        (str)->capacity    = (len);                                                                                                                                                \
+        (str)->copy_init   = NULL;                                                                                                                                                 \
+        (str)->copy_deinit = NULL;                                                                                                                                                 \
+        (str)->alignment   = 1;                                                                                                                                                    \
     } while (0)
 
 #define TempStrFromZStr(str, zstr) TempStrFromCStr(str, zstr, strlen(zstr))
@@ -409,11 +409,10 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 ///
 #define StrFindCstr(str, key) strstr((str)->data, (key))
 
-#define StrForeachIdx(str, chr, idx, body)        VecForeachIdx((str), (chr), idx, {body})
-#define StrForeachReverseIdx(str, chr, idx, body) VecForeachReverseIdx((str), (chr), idx, {body})
-#define StrForeachPtrIdx(str, chrptr, idx, body)  VecForeachPtrIdx((str), (chrptr), idx, {body})
-#define StrForeachReversePtrIdx(str, chrptr, idx, body)                                            \
-    VecForeachPtrReverseIdx((str), (chrptr), idx, {body})
+#define StrForeachIdx(str, chr, idx, body)              VecForeachIdx((str), (chr), idx, {body})
+#define StrForeachReverseIdx(str, chr, idx, body)       VecForeachReverseIdx((str), (chr), idx, {body})
+#define StrForeachPtrIdx(str, chrptr, idx, body)        VecForeachPtrIdx((str), (chrptr), idx, {body})
+#define StrForeachReversePtrIdx(str, chrptr, idx, body) VecForeachPtrReverseIdx((str), (chrptr), idx, {body})
 
 #define StrForeach(str, chr, body)              VecForeach((str), (chr), {body})
 #define StrForeachReverse(str, chr, body)       VecForeachReverse((str), (chr), {body})
