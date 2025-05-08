@@ -1,0 +1,8 @@
+Build*/
+build*/
+compile_commands.json
+.cache/
+.ccls/
+Make
+.vs
+.vscode
