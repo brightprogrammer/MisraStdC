@@ -72,7 +72,7 @@ BreakBeforeBraces: Attach
 BreakBeforeInlineASMColon: Always
 BreakBeforeTernaryOperators: false
 BreakStringLiterals: true
-ColumnLimit: 180
+ColumnLimit: 120
 ContinuationIndentWidth: 4
 IncludeBlocks: Regroup
 IndentCaseBlocks: false

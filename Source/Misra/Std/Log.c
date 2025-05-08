@@ -26,14 +26,17 @@ void LogInit(bool redirect) {
         if (!localtime_r(&raw_time, &time_info)) {
 #endif
             Str syserr;
-            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, { LOG_ERROR("Failed to get localtime : %s", SysStrError(errno, &syserr)->data); });
+            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+                LOG_ERROR("Failed to get localtime : %s", SysStrError(errno, &syserr)->data);
+            });
             goto LOG_STREAM_FALLBACK;
         }
         strftime(time_buffer, sizeof(time_buffer), "%Y-%m-%d-%H-%M-%S", &time_info);
 
         // Get path to temp directory
         Str log_dir;
-        if (!SysGetEnv("TMP", &log_dir) && !SysGetEnv("TEMP", &log_dir) && !SysGetEnv("TMPDIR", &log_dir) && !SysGetEnv("TEMPDIR", &log_dir) && !SysGetEnv("PWD", &log_dir)) {
+        if (!SysGetEnv("TMP", &log_dir) && !SysGetEnv("TEMP", &log_dir) && !SysGetEnv("TMPDIR", &log_dir) &&
+            !SysGetEnv("TEMPDIR", &log_dir) && !SysGetEnv("PWD", &log_dir)) {
             Str syserr;
             StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
                 fprintf(
@@ -69,7 +72,9 @@ void LogInit(bool redirect) {
 
         if (e || !stderror) {
             Str syserr;
-            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, { LOG_ERROR("Failed to open log file : %s", SysStrError(e, &syserr)->data); });
+            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+                LOG_ERROR("Failed to open log file : %s", SysStrError(e, &syserr)->data);
+            });
             goto LOG_STREAM_FALLBACK;
         }
 
@@ -79,7 +84,9 @@ void LogInit(bool redirect) {
 
 LOG_STREAM_FALLBACK: {
     Str syserr;
-    StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, { fprintf(stderr, "Error opening log file, will write logs to stderr\n"); });
+    StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+        fprintf(stderr, "Error opening log file, will write logs to stderr\n");
+    });
     stderror = stderr;
 }
     } else {
@@ -130,7 +137,9 @@ void LogWrite(LogMessageType type, const char *tag, int line, const char *format
     if (!localtime_r(&raw_time, &time_info)) {
 #endif
         Str syserr;
-        StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, { LOG_ERROR("Failed to get localtime : %s", SysStrError(errno, &syserr)->data); });
+        StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+            LOG_ERROR("Failed to get localtime : %s", SysStrError(errno, &syserr)->data);
+        });
         return;
     }
     strftime(time_buffer, sizeof(time_buffer), "%Y-%m-%d-%H-%M-%S", &time_info);

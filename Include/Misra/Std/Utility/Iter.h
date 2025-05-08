@@ -17,12 +17,12 @@
 /// and one object in their lifetime.
 ///
 /// The designed API does not allow modifications to the data Iter is iterating over
-#define Iter(DTYPE)                                                                                                                                                                \
-    struct {                                                                                                                                                                       \
-        DTYPE* data;                                                                                                                                                               \
-        i64    length;                                                                                                                                                             \
-        i64    pos;                                                                                                                                                                \
-        size   alignment;                                                                                                                                                          \
+#define Iter(DTYPE)                                                                                                    \
+    struct {                                                                                                           \
+        DTYPE* data;                                                                                                   \
+        i64    length;                                                                                                 \
+        i64    pos;                                                                                                    \
+        size   alignment;                                                                                              \
     }
 
 #define IterInit()           {.data = NULL, .length = 0, .pos = 0, .alignment = 1}
@@ -69,7 +69,9 @@ typedef Iter(u64) QWordIter;
 ///           memory region is returned.
 /// FAILURE : If provided Iter is NULL_ITER(mi) then returns 0
 ///
-#define IterRemainingLength(mi) ((mi) ? (((mi)->pos >= 0 && (mi)->pos < IterLength(mi)) ? (IterLength(mi) - (mi)->pos - 1) : 0) : (LOG_ERROR("Iter: Invalid memory pointer"), 0))
+#define IterRemainingLength(mi)                                                                                        \
+    ((mi) ? (((mi)->pos >= 0 && (mi)->pos < IterLength(mi)) ? (IterLength(mi) - (mi)->pos) : 0) :                      \
+            (LOG_ERROR("Iter: Invalid memory pointer"), 0))
 
 ///
 /// Get total size of this Iter object
@@ -96,7 +98,11 @@ typedef Iter(u64) QWordIter;
 ///           then return pointer to memory to start/resume reading from.
 /// FAILURE : NULL_ITER_DATA(mi) othewise
 ///
-#define IterPos(mi) (IterRemainingLength(mi) ? (ITER_DATA_TYPE(mi)*)(((u64)(mi)->data) + (mi)->pos * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment)) : NULL_ITER_DATA(mi))
+#define IterPos(mi)                                                                                                    \
+    (IterRemainingLength(mi) ?                                                                                         \
+         (ITER_DATA_TYPE(mi)*)(((u64)(mi)->data) +                                                                     \
+                               (mi)->pos * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment)) :                    \
+         NULL_ITER_DATA(mi))
 
 ///
 /// Read object from memory iter, given that
@@ -108,7 +114,7 @@ typedef Iter(u64) QWordIter;
 /// SUCCESS : Data is copied from current read position to provided `dst`, and `mi` is returned
 /// FAILURE : NULL_ITER(mi) returned
 ///
-#define IterRead(mi) (IterRemainingLength(mi) ? ((mi)->data[(mi)->pos++]) : (LOG_ERROR("Iter: Not enough space left to read."), (ITER_DATA_TYPE(mi)) {0}))
+#define IterRead(mi) (IterRemainingLength(mi) ? ((mi)->data[(mi)->pos++]) : (ITER_DATA_TYPE(mi)) {0})
 
 ///
 /// Move current reading position of Iterator.
@@ -116,10 +122,10 @@ typedef Iter(u64) QWordIter;
 /// SUCCESS : Data is copied from current read position to provided `dst`, and `mi` is returned
 /// FAILURE : NULL_ITER(mi) returned
 ///
-#define IterMove(mi, n)                                                                                                                                                            \
-    (((IterRemainingLength(mi) + (i64)(n) <= IterLength(mi)) && (IterRemainingLength(mi) + (i64)(n) > 0)) ?                                                                        \
-         ((mi)->pos += (n), (mi)) :                                                                                                                                                \
-         (LOG_ERROR("Iter: Iterator will go out of range after changing position. Cannot move!"), NULL_ITER(mi)))
+#define IterMove(mi, n)                                                                                                \
+    (((IterRemainingLength(mi) - (i64)(n) <= IterLength(mi)) && (IterRemainingLength(mi) - (i64)(n) > 0)) ?            \
+         ((mi)->pos += (n), (mi)) :                                                                                    \
+         NULL_ITER(mi))
 
 #define IterNext(mi) IterMove(mi, 1)
 #define IterPrev(mi) IterMove(mi, -1)
@@ -137,6 +143,6 @@ typedef Iter(u64) QWordIter;
 /// SUCCESS : Data copied over to `dst` from current read position and `mi` is returned.
 /// FAILURE : NULL_ITER(mi) returned.
 ///
-#define IterPeek(mi) (IterRemainingLength(mi) ? ((mi)->data[(mi)->pos]) : (LOG_ERROR("Iter: Not enough space left to read."), (ITER_DATA_TYPE(mi)) {0}))
+#define IterPeek(mi) (IterRemainingLength(mi) ? ((mi)->data[(mi)->pos]) : (ITER_DATA_TYPE(mi)) {0})
 
 #endif // MISRA_STD_UTILITY_ITER_H

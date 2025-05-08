@@ -13,17 +13,17 @@ typedef Iter(char) StrIter;
 ///
 /// Get a StrIter from given Str object.
 ///
-#define StrIterFromStr(s) ((StrIter) {.data = (s).data, .length = (s).length, .read_pos = 0})
+#define StrIterFromStr(s) IterInitFromVec(s)
 
 ///
 /// Get a StrIter from given Str object.
 ///
-#define StrIterFromZstr(s) ((StrIter) {.data = (s), .length = strlen((s)), .read_pos = 0})
+#define StrIterFromZstr(s) ((StrIter) {.data = (s), .length = strlen((s)), .pos = 0, .alignment = 1})
 
 ///
 /// Get a StrIter from given Str object.
 ///
-#define StrIterFromCstr(s, n) ((StrIter) {.data = (s), .length = n, .read_pos = 0})
+#define StrIterFromCstr(s, n) ((StrIter) {.data = (s), .length = n, .pos = 0, .alignment = 1})
 
 ///
 /// Get total size of this StrIter object

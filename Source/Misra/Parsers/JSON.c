@@ -1,8 +1,7 @@
-#include <Misra/Parsers/Json.h>
+#include <Misra/Parsers/JSON.h>
 
 StrIter JSkipWhitespace(StrIter si) {
     if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("String iterator exhausted range. Nothing more left to read.");
         return si;
     }
 
@@ -23,6 +22,10 @@ StrIter JSkipWhitespace(StrIter si) {
 }
 
 StrIter JReadString(StrIter si, Str* str) {
+    if (!StrIterRemainingLength(&si)) {
+        return si;
+    }
+
     if (!str) {
         LOG_ERROR("Invalid str object to read into.");
         return si;
@@ -125,7 +128,6 @@ StrIter JReadString(StrIter si, Str* str) {
 
 StrIter JReadNumber(StrIter si, Number* num) {
     if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("String iterator exhausted range. Nothing more left to read.");
         return si;
     }
 
@@ -147,7 +149,9 @@ StrIter JReadNumber(StrIter si, Number* num) {
     bool is_flt             = false;
     bool has_exp            = false;
     bool has_exp_plus_minus = false;
-    while (StrIterRemainingLength(&si) && StrIterPeek(&si)) {
+    bool is_parsing         = true;
+
+    while (is_parsing && StrIterRemainingLength(&si) && StrIterPeek(&si)) {
         switch (StrIterPeek(&si)) {
             case 'E' :
             case 'e' :
@@ -192,8 +196,8 @@ StrIter JReadNumber(StrIter si, Number* num) {
                 // +/- can only appear after an exponent
                 if (!has_exp || has_exp_plus_minus) {
                     LOG_ERROR(
-                        "Invalid number. Exponent sign indicators '+' or '-' must appear after "
-                        "exponent 'E' or 'e' indicator."
+                        "Invalid number. Exponent sign indicators '+' or '-' "
+                        "must appear after exponent 'E' or 'e' indicator."
                     );
                     StrDeinit(&ns);
                     return saved_si;
@@ -204,48 +208,46 @@ StrIter JReadNumber(StrIter si, Number* num) {
                 break;
 
             default :
-                if (!ns.length) {
-                    LOG_ERROR("Failed to parse number. It's empty!");
-                    StrDeinit(&ns);
-                    return saved_si;
-                }
-
-                // convert to number
-                char* end = NULL;
-                if (is_flt) {
-                    num->f = strtod(ns.data, &end);
-                } else {
-                    num->i = strtoll(ns.data, &end, 10);
-                }
-                if (end == ns.data) {
-                    LOG_ERROR("Failed to convert string to number.");
-                    StrDeinit(&ns);
-                    return saved_si;
-                }
-
-                // negate
-                if (is_neg) {
-                    if (is_flt) {
-                        num->f *= -1;
-                    } else {
-                        num->i *= -1;
-                    }
-                }
-                num->is_float = is_flt;
-
-                StrDeinit(&ns);
-                return si;
+                is_parsing = false;
+                break;
         }
     }
 
-    LOG_ERROR("Invalid number. Unexpected end of input while parsing.");
+    if (!ns.length) {
+        LOG_ERROR("Failed to parse number. It's empty!");
+        StrDeinit(&ns);
+        return saved_si;
+    }
+
+    // convert to number
+    char* end = NULL;
+    if (is_flt) {
+        num->f = strtod(ns.data, &end);
+    } else {
+        num->i = strtoll(ns.data, &end, 10);
+    }
+    if (end == ns.data) {
+        LOG_ERROR("Failed to convert string to number.");
+        StrDeinit(&ns);
+        return saved_si;
+    }
+
+    // negate
+    if (is_neg) {
+        if (is_flt) {
+            num->f *= -1;
+        } else {
+            num->i *= -1;
+        }
+    }
+    num->is_float = is_flt;
+
     StrDeinit(&ns);
-    return saved_si;
+    return si;
 }
 
 StrIter JReadInteger(StrIter si, i64* val) {
     if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("String iterator exhausted range. Nothing more left to read.");
         return si;
     }
 
@@ -274,13 +276,7 @@ StrIter JReadInteger(StrIter si, i64* val) {
 }
 
 StrIter JReadFloat(StrIter si, f64* val) {
-    if (!si.pos) {
-        LOG_ERROR("Invalid reading position.");
-        return si;
-    }
-
     if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("String iterator exhausted range. Nothing more left to read.");
         return si;
     }
 
@@ -308,13 +304,7 @@ StrIter JReadFloat(StrIter si, f64* val) {
 }
 
 StrIter JReadBool(StrIter si, bool* b) {
-    if (!si.pos) {
-        LOG_ERROR("Invalid reading position.");
-        return si;
-    }
-
     if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("String iterator exhausted range. Nothing more left to read.");
         return si;
     }
 
@@ -352,14 +342,16 @@ StrIter JReadBool(StrIter si, bool* b) {
         LOG_ERROR("Failed to parse boolean value. Expected true/false. Invalid JSON");
         return saved_si;
     } else {
-        LOG_ERROR("Insufficient string length to parse a boolean value. Unexpected end of input.");
+        LOG_ERROR(
+            "Insufficient string length to parse a boolean value. Unexpected "
+            "end of input."
+        );
         return saved_si;
     }
 }
 
 StrIter JReadNull(StrIter si, bool* is_null) {
     if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("String iterator exhausted range. Nothing more left to read.");
         return si;
     }
 
@@ -385,14 +377,16 @@ StrIter JReadNull(StrIter si, bool* is_null) {
 
         return saved_si;
     } else {
-        LOG_ERROR("Insufficient string length to parse a boolean value. Unexpected end of input.");
+        LOG_ERROR(
+            "Insufficient string length to parse a boolean value. Unexpected "
+            "end of input."
+        );
         return saved_si;
     }
 }
 
 StrIter JReadObject(StrIter si, StrIter (*Reader)(StrIter si, Str* key, void* data), void* data) {
     if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("String iterator exhausted range. Nothing more left to read.");
         return si;
     }
 
@@ -412,7 +406,8 @@ StrIter JReadObject(StrIter si, StrIter (*Reader)(StrIter si, Str* key, void* da
 
     if (!Reader) {
         LOG_INFO(
-            "User didn't provide any value reader combinator to read from object KV. Values will "
+            "User didn't provide any value reader combinator to read from "
+            "object KV. Values will "
             "be skipped."
         );
     }
@@ -421,7 +416,10 @@ StrIter JReadObject(StrIter si, StrIter (*Reader)(StrIter si, Str* key, void* da
     while (StrIterPeek(&si) && StrIterPeek(&si) != '}') {
         if (expect_comma) {
             if (StrIterPeek(&si) != ',') {
-                LOG_ERROR("Expected ',' between key/value pairs in object. Invalid JSON object.");
+                LOG_ERROR(
+                    "Expected ',' between key/value pairs in object. Invalid "
+                    "JSON object."
+                );
                 return saved_si;
             }
             StrIterNext(&si); // skip comma
@@ -488,7 +486,6 @@ StrIter JReadObject(StrIter si, StrIter (*Reader)(StrIter si, Str* key, void* da
 
 StrIter JReadArray(StrIter si, StrIter (*Reader)(StrIter si, void* data), void* data) {
     if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("String iterator exhausted range. Nothing more left to read.");
         return si;
     }
 
@@ -562,7 +559,6 @@ StrIter JReadArray(StrIter si, StrIter (*Reader)(StrIter si, void* data), void* 
 ///
 StrIter readStringForArray(StrIter si, StrVec* svec) {
     if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("String iterator exhausted range. Nothing more left to read.");
         return si;
     }
 
@@ -583,7 +579,6 @@ StrIter readStringForArray(StrIter si, StrVec* svec) {
 
 StrIter JReadStringArray(StrIter si, StrVec* svec) {
     if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("String iterator exhausted range. Nothing more left to read.");
         return si;
     }
 
@@ -611,7 +606,6 @@ typedef struct {
 ///
 StrIter readNumberForArray(StrIter si, NumberArrayReaderData* data) {
     if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("String iterator exhausted range. Nothing more left to read.");
         return si;
     }
 
@@ -648,19 +642,18 @@ StrIter readNumberForArray(StrIter si, NumberArrayReaderData* data) {
     return si;
 }
 
-StrIter JReadNumberArray(StrIter si, bool is_float, Si64Vec* ivec, F64Vec* fvec) {
+StrIter JReadNumberArray(StrIter si, bool is_flt, Si64Vec* ivec, F64Vec* fvec) {
     if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("String iterator exhausted range. Nothing more left to read.");
         return si;
     }
 
-    if ((is_float && !fvec) || (!is_float && !ivec)) {
+    if ((is_flt && !fvec) || (!is_flt && !ivec)) {
         LOG_ERROR("Invalid number vectors.");
         return si;
     }
 
     NumberArrayReaderData data;
-    data.is_float = is_float;
+    data.is_float = is_flt;
     data.fvec     = fvec;
     data.ivec     = ivec;
 
@@ -669,7 +662,6 @@ StrIter JReadNumberArray(StrIter si, bool is_float, Si64Vec* ivec, F64Vec* fvec)
 
 StrIter JSkipValue(StrIter si) {
     if (!StrIterRemainingLength(&si)) {
-        LOG_ERROR("String iterator exhausted range. Nothing more left to read.");
         return si;
     }
 
@@ -683,7 +675,10 @@ StrIter JSkipValue(StrIter si) {
         si = JReadBool(si, &b);
 
         if (si.pos == before_si.pos) {
-            LOG_ERROR("Failed to read boolean value. Expected true/false. Invalid JSON.");
+            LOG_ERROR(
+                "Failed to read boolean value. Expected true/false. Invalid "
+                "JSON."
+            );
             return saved_si;
         }
 
@@ -697,7 +692,10 @@ StrIter JSkipValue(StrIter si) {
         si = JReadNull(si, &n);
 
         if (si.pos == before_si.pos) {
-            LOG_ERROR("Failed to read boolean value. Expected true/false. Invalid JSON.");
+            LOG_ERROR(
+                "Failed to read boolean value. Expected true/false. Invalid "
+                "JSON."
+            );
             return saved_si;
         }
 
@@ -1024,7 +1022,14 @@ Str* JWriteStrArrayKV(Str* json, const char* field_name, StrVec* strvec, bool ha
     return json;
 }
 
-Str* JWriteNumberArrayKV(Str* json, const char* field_name, bool is_float, Si64Vec* ivec, F64Vec* fvec, bool has_comma) {
+Str* JWriteNumberArrayKV(
+    Str*        json,
+    const char* field_name,
+    bool        is_float,
+    Si64Vec*    ivec,
+    F64Vec*     fvec,
+    bool        has_comma
+) {
     if (!json) {
         LOG_ERROR("Invalid arguments.");
         return NULL;

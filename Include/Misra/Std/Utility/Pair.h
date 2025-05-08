@@ -24,10 +24,10 @@
 #    define T(x) x
 #endif
 
-#define Pair(xT, yT)                                                                                                                                                               \
-    struct {                                                                                                                                                                       \
-        xT x;                                                                                                                                                                      \
-        yT y;                                                                                                                                                                      \
+#define Pair(xT, yT)                                                                                                   \
+    struct {                                                                                                           \
+        xT x;                                                                                                          \
+        yT y;                                                                                                          \
     }
 
 #endif // MISRA_STD_UTILITY_PAIR_H

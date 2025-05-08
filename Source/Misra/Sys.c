@@ -131,7 +131,9 @@ SysDirContents* SysGetDirContents(SysDirContents* dir_contents, const char* path
     DIR* dir = opendir(path);
     if (NULL == dir) {
         Str err;
-        StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, { LOG_ERROR("opendir() failed : %s.", SysStrError(errno, &err)->data); });
+        StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, {
+            LOG_ERROR("opendir() failed : %s.", SysStrError(errno, &err)->data);
+        });
         return NULL;
     }
 
@@ -206,14 +208,18 @@ i64 SysGetFileSize(const char* filename) {
     HANDLE file = CreateFileA(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
     if (file == INVALID_HANDLE_VALUE) {
         Str err;
-        StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, { LOG_ERROR("failed to open file: %s\n", SysStrError(errno, &err)->data); });
+        StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, {
+            LOG_ERROR("failed to open file: %s\n", SysStrError(errno, &err)->data);
+        });
         return -1;
     }
 
     LARGE_INTEGER file_size;
     if (!GetFileSizeEx(file, &file_size)) {
         Str err;
-        StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, { LOG_ERROR("failed to get file size: %s\n", SysStrError(errno, &err)->data); });
+        StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, {
+            LOG_ERROR("failed to get file size: %s\n", SysStrError(errno, &err)->data);
+        });
         CloseHandle(file);
         return -1;
     }
@@ -227,7 +233,9 @@ i64 SysGetFileSize(const char* filename) {
         return (i64)file_stat.st_size;
     } else {
         Str err;
-        StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, { LOG_ERROR("failed to get file size: %s\n", SysStrError(errno, &err)->data); });
+        StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, {
+            LOG_ERROR("failed to get file size: %s\n", SysStrError(errno, &err)->data);
+        });
         return -1;
     }
 #endif

@@ -29,7 +29,8 @@ typedef unsigned long size;
 #define CLAMP(x, hi, lo) MIN2(MAX2(lo, x), hi)
 
 // for any general alignment value (13, 8, 17, 144, etc...)
-#define ALIGN_UP(value, alignment) ((alignment) > 1 ? (((value) + (alignment) - 1) / (alignment) * (alignment)) : (value))
+#define ALIGN_UP(value, alignment)                                                                                     \
+    ((alignment) > 1 ? (((value) + (alignment) - 1) / (alignment) * (alignment)) : (value))
 
 #define ALIGN_DOWN(value, alignment) ((alignment) > 1 ? ((value) / (alignment) * (alignment)) : (value))
 
@@ -55,7 +56,8 @@ typedef unsigned long size;
 
 #define INVERT_ENDIANNESS2(x) (((x) >> 8) & 0xff) | (((x) & 0xff) << 8)
 #define INVERT_ENDIANNESS4(x) (INVERT_ENDIANNESS2((x) & 0xffff) << 16) | INVERT_ENDIANNESS2(((x) >> 16) & 0xffff)
-#define INVERT_ENDIANNESS8(x) (INVERT_ENDIANNESS4((x) & 0xffffffff) << 32) | INVERT_ENDIANNESS4(((x) >> 32) & 0xffffffff)
+#define INVERT_ENDIANNESS8(x)                                                                                          \
+    (INVERT_ENDIANNESS4((x) & 0xffffffff) << 32) | INVERT_ENDIANNESS4(((x) >> 32) & 0xffffffff)
 
 /// Compatibility macro between MSVC and GCC/Clang
 #if defined(_MSC_VER)

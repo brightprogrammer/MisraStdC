@@ -28,7 +28,13 @@ static inline char* strndup(const char* s, size n) {
 }
 #endif
 
-#define StrInitFromCstr(cstr, len) ((Str) {.data = strndup((char*)(cstr), (len)), .length = (len), .capacity = (len), .copy_init = NULL, .copy_deinit = NULL, .alignment = 1})
+#define StrInitFromCstr(cstr, len)                                                                                     \
+    ((Str) {.data        = strndup((char*)(cstr), (len)),                                                              \
+            .length      = (len),                                                                                      \
+            .capacity    = (len),                                                                                      \
+            .copy_init   = NULL,                                                                                       \
+            .copy_deinit = NULL,                                                                                       \
+            .alignment   = 1})
 
 #define StrInitFromZstr(zstr) StrInitFromCstr((zstr), strlen(zstr))
 
