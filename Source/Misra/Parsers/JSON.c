@@ -1,5 +1,164 @@
 #include <Misra/Parsers/JSON.h>
 
+static StrIter JReadObject(StrIter si, StrIter (*Reader)(StrIter si, Str* key, void* data), void* data) {
+    if (!StrIterRemainingLength(&si)) {
+        return si;
+    }
+
+    StrIter saved_si = si;
+    si               = JSkipWhitespace(si);
+
+    // starting of an object
+    if (StrIterPeek(&si) != '{') {
+        LOG_ERROR("Invalid object start. Expected '{'.");
+        return saved_si;
+    }
+    StrIterNext(&si);
+    si = JSkipWhitespace(si);
+
+    StrIter read_si;
+    bool    expect_comma = false;
+
+    if (!Reader) {
+        LOG_INFO(
+            "User didn't provide any value reader combinator to read from "
+            "object KV. Values will "
+            "be skipped."
+        );
+    }
+
+    // while not at the end of object.
+    while (StrIterPeek(&si) && StrIterPeek(&si) != '}') {
+        if (expect_comma) {
+            if (StrIterPeek(&si) != ',') {
+                LOG_ERROR(
+                    "Expected ',' between key/value pairs in object. Invalid "
+                    "JSON object."
+                );
+                return saved_si;
+            }
+            StrIterNext(&si); // skip comma
+            si = JSkipWhitespace(si);
+        }
+
+        Str key = StrInit();
+
+        // key start
+        read_si = JReadString(si, &key);
+        if (read_si.pos == si.pos) {
+            LOG_ERROR("Failed to read string key in object. Invalid JSON");
+            StrDeinit(&key);
+            return saved_si;
+        }
+        si = read_si;
+        si = JSkipWhitespace(si);
+
+        if (StrIterPeek(&si) != ':') {
+            LOG_ERROR("Expected ':' after key string. Failed to read JSON");
+            StrDeinit(&key);
+            return saved_si;
+        }
+        StrIterNext(&si);
+        si = JSkipWhitespace(si);
+
+        // try reading using user provided reader
+        if (Reader) {
+            read_si = Reader(si, &key, data);
+        } else {
+            read_si = si;
+        }
+
+        // if no advancement in read position
+        if (read_si.pos == si.pos) {
+            // skip the value
+            read_si = JSkipValue(si);
+
+            // if still no advancement in read position
+            if (read_si.pos == si.pos) {
+                LOG_ERROR("Failed to parse value. Invalid JSON.");
+                StrDeinit(&key);
+                return saved_si;
+            }
+
+            LOG_INFO("User skipped reading of '%s' field in JSON object.", key.data);
+        }
+        StrDeinit(&key);
+        si = read_si;
+        si = JSkipWhitespace(si);
+
+        // expect a comma after a successful key-value pair read
+        expect_comma = true;
+    }
+
+    if (StrIterPeek(&si) != '}') {
+        LOG_ERROR("Expected end of object '}' but found '%c'", StrIterPeek(&si));
+        return saved_si;
+    }
+
+    StrIterNext(&si);
+    return si;
+}
+
+static StrIter JReadArray(StrIter si, StrIter (*Reader)(StrIter si, void* data), void* data) {
+    if (!StrIterRemainingLength(&si)) {
+        return si;
+    }
+
+    StrIter saved_si = si;
+    si               = JSkipWhitespace(si);
+
+    // starting of an object
+    if (StrIterPeek(&si) != '[') {
+        LOG_ERROR("Invalid array start. Expected '['.");
+        return saved_si;
+    }
+    StrIterNext(&si);
+    si = JSkipWhitespace(si);
+
+    StrIter read_si;
+    bool    expect_comma = false;
+
+    // while not at the end of array.
+    while (StrIterPeek(&si) && StrIterPeek(&si) != ']') {
+        if (expect_comma) {
+            if (StrIterPeek(&si) != ',') {
+                LOG_ERROR("Expected ',' between values in array. Invalid JSON array.");
+                return saved_si;
+            }
+            StrIterNext(&si); // skip comma
+            si = JSkipWhitespace(si);
+        }
+
+        // try reading using user provided reader
+        if (Reader) {
+            read_si = Reader(si, data);
+        } else {
+            read_si = JSkipValue(si);
+        }
+
+        // if no advancement in read position
+        if (read_si.pos == si.pos) {
+            LOG_ERROR("Failed to parse value. Invalid JSON.");
+            return saved_si;
+        }
+
+        si = read_si;
+        si = JSkipWhitespace(si);
+
+        // expect a comma after a successful value read in array
+        expect_comma = true;
+    }
+
+    // end of array
+    if (StrIterPeek(&si) != ']') {
+        LOG_ERROR("Invalid end of array. Expected ']'.");
+        return saved_si;
+    }
+
+    StrIterNext(&si);
+    return si;
+}
+
 StrIter JSkipWhitespace(StrIter si) {
     if (!StrIterRemainingLength(&si)) {
         return si;
