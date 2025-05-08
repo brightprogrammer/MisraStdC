@@ -50,6 +50,22 @@ int main(int argc, char** argv) {
     VecForeach(&obj.strs, str, { printf("%s, ", str.data); });
     printf("]\n");
 
+    StrClear(&json);
+
+    JW_OBJ(json, {
+        JW_INT_KV(json, "ref", obj.ref);
+        JW_OBJ_KV(json, "data", {
+            JW_FLT_KV(json, "y_axis_val", obj.data.y);
+            JW_FLT_KV(json, "x_axis_val", obj.data.x);
+            JW_STR_KV(json, "gname", obj.data.n);
+        });
+        JW_STR_KV(json, "name", obj.name);
+        JW_ARR_KV(json, "strs", obj.strs, s, { JW_STR(json, s); });
+    });
+
+    // {"ref":40,"data":{"y_axis_val":133.455231,"x_axis_val":-22.244850,"gname":"a random graph"},"name":"misra","strs":["x","ah _ ha","lessa do something"]}
+    printf("%s\n", json.data);
+
     LogDeinit();
     return 0;
 }

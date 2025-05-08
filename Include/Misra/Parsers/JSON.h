@@ -283,362 +283,7 @@ StrIter JReadArray(StrIter si, JArrayItemReader Reader, void* data);
 ///
 StrIter JSkipValue(StrIter si);
 
-///
-/// Appends a boolean value to a JSON string.
-///
-/// This function appends `true` or `false` directly into the given JSON buffer.
-/// Intended for use when writing JSON arrays or raw values.
-///
-/// Parameters:
-///   json[in,out]   : Pointer to the destination JSON `Str` buffer.
-///   value[in]      : Boolean value to append (`true` or `false`).
-///   has_comma[in]  : If `true`, a terminal comma is added after the value.
-///
-/// Returns:
-///   Pointer to the updated `Str` if successful, or `NULL` on error.
-///
-Str* JWriteBool(Str* json, bool value, bool has_comma);
-
-///
-/// Appends a `null` value to a JSON string.
-///
-/// This function appends the literal `null` to the given JSON buffer.
-/// Intended for use when writing JSON arrays or raw values.
-///
-/// Parameters:
-///   json[in,out]   : Pointer to the destination JSON `Str` buffer.
-///   has_comma[in]  : If `true`, a terminal comma is added after the value.
-///
-/// Returns:
-///   Pointer to the updated `Str` if successful, or `NULL` on error.
-///
-Str* JWriteNull(Str* json, bool has_comma);
-
-///
-/// Appends a string value to a JSON string.
-///
-/// This function appends a quoted JSON string value (e.g., `"value"`) to the given buffer.
-/// Intended for use when writing JSON arrays or raw values.
-///
-/// Parameters:
-///   json[in,out]   : Pointer to the destination JSON `Str` buffer.
-///   value[in]      : The string value to append (must be non-null and non-empty).
-///   has_comma[in]  : If `true`, a terminal comma is added after the value.
-///
-/// Returns:
-///   Pointer to the updated `Str` if successful, or `NULL` on error.
-///
-Str* JWriteString(Str* json, const char* value, bool has_comma);
-
-///
-/// Appends a numeric value to a JSON string.
-///
-/// This function appends an integer or floating-point number to the JSON buffer,
-/// depending on the `is_float` flag. Intended for use when writing JSON arrays
-/// or raw values.
-///
-/// Parameters:
-///   json[in,out]   : Pointer to the destination JSON `Str` buffer.
-///   is_float[in]   : If `true`, appends `float_val`; otherwise, appends `int_val`.
-///   int_val[in]    : Integer value to append if `is_float` is `false`.
-///   float_val[in]  : Floating-point value to append if `is_float` is `true`.
-///   has_comma[in]  : If `true`, a terminal comma is added after the value.
-///
-/// Returns:
-///   Pointer to the updated `Str` if successful, or `NULL` on error.
-///
-Str* JWriteNumber(Str* json, bool is_float, i64 int_val, f64 float_val, bool has_comma);
-
-///
-/// Appends an array of strings to a JSON string.
-///
-/// This function adds a field to the JSON string containing an array of strings.
-/// It loops through the provided string vector (`strvec`) and appends each string to the array.
-///
-/// Parameters:
-///   json[in,out]     : Pointer to the destination `Str` JSON buffer.
-///   strvec[in]       : A vector of strings to be written to the JSON string (must be non-null).
-///   has_comma[in]    : If `true`, a terminal comma will be inserted after the array—used when appending multiple key-value pairs
-///                      to a JSON object.
-///
-/// Returns:
-///   Pointer to the updated `Str` if successful, `NULL` on error.
-///
-/// Notes:
-///   - The array is written as a JSON array, with each string enclosed in double quotes (`"string"`).
-///   - The `has_comma` parameter determines whether a comma is added after the array field. This is useful when appending
-///     multiple fields to a JSON object.
-///
-Str* JWriteStrArray(Str* json, StrVec* strvec, bool has_comma);
-
-///
-/// Appends an array of numbers to a JSON string.
-///
-/// This function adds a field to the JSON string containing an array of either integer or floating-point values.
-/// The type of numbers to write (integer or float) is determined by the `is_float` parameter. If `is_float` is `true`,
-/// the function writes values from the `fvec` (float vector), otherwise, it writes from the `ivec` (integer vector).
-///
-/// Parameters:
-///   json[in,out]     : Pointer to the destination `Str` JSON buffer.
-///   is_float[in]     : A boolean flag that determines whether the numbers are floats (`true`) or integers (`false`).
-///   ivec[in]         : A vector of integers to be written to the JSON string (only used if `is_float` is `false`).
-///   fvec[in]         : A vector of floating-point numbers to be written to the JSON string (only used if `is_float` is `true`).
-///   has_comma[in]    : If `true`, a terminal comma will be inserted after the array—used when appending multiple key-value pairs
-///                      to a JSON object.
-///
-/// Returns:
-///   Pointer to the updated `Str` if successful, `NULL` on error.
-///
-/// Notes:
-///   - If `is_float` is `true`, `fvec` must be non-null and `ivec` should be null.
-///   - If `is_float` is `false`, `ivec` must be non-null and `fvec` should be null.
-///   - If both vectors are provided or both are null, the function will log an error and return `NULL`.
-///
-Str* JWriteNumberArray(Str* json, bool is_float, Si64Vec* ivec, F64Vec* fvec, bool has_comma);
-
-/// Str* json,
-/// Str* (*Writer) (Str* str, void* object, bool has_comma),
-/// void* object,
-/// bool  has_comma
-#define JWriteObjectArray(json, Writer, object_arr, has_comma)                                                         \
-    do {                                                                                                               \
-        if (!(json)) {                                                                                                 \
-            LOG_ERROR("Invalid arguments.");                                                                           \
-            break;                                                                                                     \
-        }                                                                                                              \
-                                                                                                                       \
-        if (!Writer) {                                                                                                 \
-            LOG_ERROR("Invalid object writer provided.");                                                              \
-            break;                                                                                                     \
-        }                                                                                                              \
-                                                                                                                       \
-        if (!(object_arr)) {                                                                                           \
-            LOG_ERROR("Invalid object array.");                                                                        \
-            break;                                                                                                     \
-        }                                                                                                              \
-                                                                                                                       \
-        StrPushBack((json), '[');                                                                                      \
-        VecForeachPtrIdx((object_arr), item_ptr, idx, {                                                                \
-            bool _has_comma = idx != (object_arr)->length - 1;                                                         \
-            Writer((json), item_ptr, _has_comma);                                                                      \
-        });                                                                                                            \
-        StrPushBack((json), ']');                                                                                      \
-                                                                                                                       \
-        if (has_comma) {                                                                                               \
-            StrPushBack((json), ',');                                                                                  \
-        }                                                                                                              \
-                                                                                                                       \
-        return json;                                                                                                   \
-    } while (0)
-
-///
-/// Appends a boolean field to a JSON string.
-///
-/// This function adds a `"field_name": true` or `"field_name": false` pair to the given JSON string.
-///
-/// Parameters:
-///   json[in,out]     : Pointer to the destination `Str` JSON buffer.
-///   field_name[in]   : The name of the field (must be non-null and non-empty).
-///   value[in]        : Boolean value to write (`true` or `false`).
-///   has_comma[in]    : If `true`, a terminal comma will be inserted after the
-///                      field—used when appending multiple key-value pairs to a JSON object.
-///
-/// Returns:
-///   Pointer to the updated `Str` if successful, or `NULL` on error.
-///
-Str* JWriteBoolKV(Str* json, const char* field_name, bool value, bool has_comma);
-
-///
-/// Appends a null field to a JSON string.
-///
-/// This function adds a `"field_name": null` pair to the given JSON string.
-///
-/// Parameters:
-///   json[in,out]     : Pointer to the destination `Str` JSON buffer.
-///   field_name[in]   : The name of the field (must be non-null and non-empty).
-///   has_comma[in]    : If `true`, a terminal comma will be inserted after the
-///                      field—used when appending multiple key-value pairs to a JSON object.
-///
-/// Returns:
-///   Pointer to the updated `Str` if successful, or `NULL` on error.
-///
-Str* JWriteNullKV(Str* json, const char* field_name, bool has_comma);
-
-///
-/// Appends a string field to a JSON string.
-///
-/// This function adds a `"field_name": "value"` pair to the given JSON string.
-///
-/// Parameters:
-///   json[in,out]     : Pointer to the destination `Str` JSON buffer.
-///   field_name[in]   : The name of the field (must be non-null and non-empty).
-///   value[in]        : The string value to write (must be non-null and non-empty).
-///   has_comma[in]    : If `true`, a terminal comma will be inserted after the
-///                      field—used when appending multiple key-value pairs to a JSON object.
-///
-/// Returns:
-///   Pointer to the updated `Str` if successful, or `NULL` on error.
-///
-Str* JWriteStringKV(Str* json, const char* field_name, const char* value, bool has_comma);
-
-///
-/// Append a number field to a JSON string.
-///
-/// This function appends a `"field_name": number_value` pair to the given `Str` JSON string.
-///
-/// Parameters:
-///   json[in,out]      : Pointer to the destination JSON `Str` buffer.
-///   field_name[in]    : The name of the field (must be non-empty).
-///   is_float[in]      : Indicates whether the number is a float or integer.
-///   int_val[in]       : The integer value (used if `is_float` is false).
-///   float_val[in]     : The float value (used if `is_float` is true).
-///   has_comma[in]    : If `true`, a terminal comma will be inserted after the
-///                      field—used when appending multiple key-value pairs to a JSON object.
-///
-/// Returns:
-///   Pointer to the updated `Str` if successful, `NULL` on error.
-///
-Str* JWriteNumberKV(Str* json, const char* field_name, bool is_float, i64 int_val, f64 float_val, bool has_comma);
-
-///
-/// Appends an integer field to a JSON string.
-///
-/// This is a convenience wrapper over `JWriteNumberKV` for writing integer values.
-///
-/// Parameters:
-///   json[in,out]      : Pointer to the destination JSON `Str` buffer.
-///   field_name[in]    : Name of the field (must be non-null and non-empty).
-///   int_val[in]       : Integer value to write.
-///   has_comma[in]     : Whether to append a trailing comma.
-///
-/// Returns:
-///   Updated `Str*` if successful, `NULL` on error.
-///
-Str* JWriteIntegerKV(Str* json, const char* field_name, i64 int_val, bool has_comma);
-
-///
-/// Appends a floating-point field to a JSON string.
-///
-/// This is a convenience wrapper over `JWriteNumberKV` for writing float values.
-///
-/// Parameters:
-///   json[in,out]      : Pointer to the destination JSON `Str` buffer.
-///   field_name[in]    : Name of the field (must be non-null and non-empty).
-///   float_val[in]     : Floating-point value to write.
-///   has_comma[in]     : Whether to append a trailing comma.
-///
-/// Returns:
-///   Updated `Str*` if successful, `NULL` on error.
-///
-Str* JWriteFloatKV(Str* json, const char* field_name, f64 float_val, bool has_comma);
-
-///
-/// Appends a string array field to a JSON string.
-///
-/// This function adds a `"field_name": ["str1", "str2", ...]` pair to the given JSON string.
-///
-/// Parameters:
-///   json[in,out]     : Pointer to the destination `Str` JSON buffer.
-///   field_name[in]   : The name of the field (must be non-null and non-empty).
-///   strvec[in]       : Vector of strings to serialize (must be non-null).
-///   has_comma[in]    : If `true`, a terminal comma will be inserted after the
-///                      field—used when appending multiple key-value pairs to a JSON object.
-///
-/// Returns:
-///   Pointer to the updated `Str` if successful, or `NULL` on error.
-///
-Str* JWriteStrArrayKV(Str* json, const char* field_name, StrVec* strvec, bool has_comma);
-
-///
-/// Appends a number array field to a JSON string.
-///
-/// This function adds a `"field_name": [num1, num2, ...]` pair to the given JSON string,
-/// where the numbers are either integers or floating-point values.
-///
-/// Parameters:
-///   json[in,out]     : Pointer to the destination `Str` JSON buffer.
-///   field_name[in]   : The name of the field (must be non-null and non-empty).
-///   is_float[in]     : A boolean flag indicating whether the numbers are floats (`true`)
-///                      or integers (`false`).
-///   ivec[in]         : Vector of integers to serialize (must be non-null if `is_float` is `false`).
-///   fvec[in]         : Vector of floats to serialize (must be non-null if `is_float` is `true`).
-///   has_comma[in]    : If `true`, a terminal comma will be inserted after the
-///                      field—used when appending multiple key-value pairs to a JSON object.
-///
-/// Returns:
-///   Pointer to the updated `Str` if successful, or `NULL` on error.
-///
-Str* JWriteNumberArrayKV(Str* json, const char* field_name, bool is_float, Si64Vec* ivec, F64Vec* fvec, bool has_comma);
-
-///
-/// Appends an integer array field to a JSON string.
-///
-/// This is a convenience wrapper over `JWriteNumberArrayKV` for writing arrays of integers.
-///
-/// Parameters:
-///   json[in,out]      : Pointer to the destination JSON `Str` buffer.
-///   field_name[in]    : Name of the field (must be non-null and non-empty).
-///   ivec[in]          : Vector of integers to serialize (must be non-null).
-///   has_comma[in]     : Whether to append a trailing comma.
-///
-/// Returns:
-///   Updated `Str*` if successful, `NULL` on error.
-///
-Str* JWriteIntegerArrayKV(Str* json, const char* field_name, Si64Vec* ivec, bool has_comma);
-
-///
-/// Appends a float array field to a JSON string.
-///
-/// This is a convenience wrapper over `JWriteNumberArrayKV` for writing arrays of floats.
-///
-/// Parameters:
-///   json[in,out]      : Pointer to the destination JSON `Str` buffer.
-///   field_name[in]    : Name of the field (must be non-null and non-empty).
-///   fvec[in]          : Vector of floats to serialize (must be non-null).
-///   has_comma[in]     : Whether to append a trailing comma.
-///
-/// Returns:
-///   Updated `Str*` if successful, `NULL` on error.
-///
-Str* JWriteFloatArrayKV(Str* json, const char* field_name, F64Vec* fvec, bool has_comma);
-
-/// Str* json,
-/// const char* field_name
-/// Str* (*Writer) (Str* str, void* object, bool has_comma),
-/// void* object,
-/// bool  has_comma
-#define JWriteObjectArrayKV(json, field_name, Writer, object_arr, has_comma)                                           \
-    do {                                                                                                               \
-        if (!(json)) {                                                                                                 \
-            LOG_ERROR("Invalid arguments.");                                                                           \
-            break;                                                                                                     \
-        }                                                                                                              \
-        if (!(field_name) || !strlen(field_name)) {                                                                    \
-            LOG_ERROR("Invalid field name.");                                                                          \
-            break;                                                                                                     \
-        }                                                                                                              \
-        if (!(Writer)) {                                                                                               \
-            LOG_ERROR("Invalid object writer provided.");                                                              \
-            break;                                                                                                     \
-        }                                                                                                              \
-        if (!(object_arr)) {                                                                                           \
-            LOG_ERROR("Invalid object array.");                                                                        \
-            break;                                                                                                     \
-        }                                                                                                              \
-                                                                                                                       \
-        StrAppendf((json), "\"%s\":[", (field_name));                                                                  \
-        VecForeachPtrIdx((object_arr), item_ptr, idx, {                                                                \
-            bool _has_comma = idx != (object_arr)->length - 1;                                                         \
-            Writer((json), item_ptr, _has_comma);                                                                      \
-        });                                                                                                            \
-        StrPushBack((json), ']');                                                                                      \
-                                                                                                                       \
-        if (has_comma) {                                                                                               \
-            StrPushBack((json), ',');                                                                                  \
-        }                                                                                                              \
-                                                                                                                       \
-        return (json);                                                                                                 \
-    } while (0)
+// ---------------- JR Means JSON Read -------------------
 
 #define JR_STR(si, str)                                                                                                \
     do {                                                                                                               \
@@ -690,6 +335,21 @@ Str* JWriteFloatArrayKV(Str* json, const char* field_name, F64Vec* fvec, bool ha
         }                                                                                                              \
     } while (0)
 
+#define JR_BOOL(si, b)                                                                                                 \
+    do {                                                                                                               \
+        bool my_b = 0;                                                                                                 \
+        si        = JReadBool((si), &my_b);                                                                            \
+        (b)       = my_b;                                                                                              \
+    } while (0)
+
+#define JR_BOOL_KV(si, k, b)                                                                                           \
+    do {                                                                                                               \
+        if (!StrCmpCstr(&key, (k))) {                                                                                  \
+            bool my_b = 0;                                                                                             \
+            si        = JReadBool((si), &my_b);                                                                        \
+            (b)       = my_f;                                                                                          \
+        }                                                                                                              \
+    } while (0)
 
 #define JR_ARR(si, reader)                                                                                             \
     do {                                                                                                               \
@@ -883,5 +543,117 @@ Str* JWriteFloatArrayKV(Str* json, const char* field_name, F64Vec* fvec, bool ha
         }                                                                                                              \
     } while (0)
 
+// ---------------- JW Means JSON Write -------------------
+
+#define JW_OBJ(j, writer)                                                                                              \
+    do {                                                                                                               \
+        bool ___is_first___ = true;                                                                                    \
+        StrPushBack(&(j), '{');                                                                                        \
+        {writer};                                                                                                      \
+        StrPushBack(&(j), '}');                                                                                        \
+    } while (0)
+
+#define JW_OBJ_KV(j, k, writer)                                                                                        \
+    do {                                                                                                               \
+        if (___is_first___) {                                                                                          \
+            ___is_first___ = false;                                                                                    \
+        } else {                                                                                                       \
+            StrPushBack(&(j), ',');                                                                                    \
+        }                                                                                                              \
+        StrAppendf(&(j), "\"%s\":", k);                                                                                \
+        JW_OBJ(j, writer);                                                                                             \
+    } while (0)
+
+#define JW_ARR(j, arr, item, writer)                                                                                   \
+    do {                                                                                                               \
+        bool ___is_first___ = true;                                                                                    \
+        StrPushBack(&(j), '[');                                                                                        \
+        VecForeach(&(arr), item, {                                                                                     \
+            if (___is_first___) {                                                                                      \
+                ___is_first___ = false;                                                                                \
+            } else {                                                                                                   \
+                StrPushBack(&(j), ',');                                                                                \
+            }                                                                                                          \
+            { writer }                                                                                                 \
+        });                                                                                                            \
+        StrPushBack(&(j), ']');                                                                                        \
+    } while (0)
+
+#define JW_ARR_KV(j, k, arr, item, writer)                                                                             \
+    do {                                                                                                               \
+        if (___is_first___) {                                                                                          \
+            ___is_first___ = false;                                                                                    \
+        } else {                                                                                                       \
+            StrPushBack(&(j), ',');                                                                                    \
+        }                                                                                                              \
+        StrAppendf(&(j), "\"%s\":", k);                                                                                \
+        JW_ARR(j, arr, item, writer);                                                                                  \
+    } while (0)
+
+#define JW_INT(j, i)                                                                                                   \
+    do {                                                                                                               \
+        i64 my_int = (i);                                                                                              \
+        StrAppendf(&(j), "%lld", my_int);                                                                              \
+    } while (0)
+
+#define JW_INT_KV(j, k, i)                                                                                             \
+    do {                                                                                                               \
+        if (___is_first___) {                                                                                          \
+            ___is_first___ = false;                                                                                    \
+        } else {                                                                                                       \
+            StrPushBack(&(j), ',');                                                                                    \
+        }                                                                                                              \
+        StrAppendf(&(j), "\"%s\":", k);                                                                                \
+        JW_INT(j, i);                                                                                                  \
+    } while (0)
+
+#define JW_FLT(j, f)                                                                                                   \
+    do {                                                                                                               \
+        f64 my_flt = (f);                                                                                              \
+        StrAppendf(&(j), "%f", my_flt);                                                                                \
+    } while (0)
+
+#define JW_FLT_KV(j, k, f)                                                                                             \
+    do {                                                                                                               \
+        if (___is_first___) {                                                                                          \
+            ___is_first___ = false;                                                                                    \
+        } else {                                                                                                       \
+            StrPushBack(&(j), ',');                                                                                    \
+        }                                                                                                              \
+        StrAppendf(&(j), "\"%s\":", k);                                                                                \
+        JW_FLT(j, f);                                                                                                  \
+    } while (0)
+
+#define JW_STR(j, s)                                                                                                   \
+    do {                                                                                                               \
+        StrAppendf(&(j), "\"%s\"", (s).data);                                                                          \
+    } while (0)
+
+#define JW_STR_KV(j, k, s)                                                                                             \
+    do {                                                                                                               \
+        if (___is_first___) {                                                                                          \
+            ___is_first___ = false;                                                                                    \
+        } else {                                                                                                       \
+            StrPushBack(&(j), ',');                                                                                    \
+        }                                                                                                              \
+        StrAppendf(&(j), "\"%s\":", k);                                                                                \
+        JW_STR(j, s);                                                                                                  \
+    } while (0)
+
+#define JW_BOOL(j, b)                                                                                                  \
+    do {                                                                                                               \
+        StrAppendf(&(j), "\"%b\"", b);                                                                                 \
+    } while (0)
+
+#define JW_BOOL_KV(j, k, b)                                                                                            \
+    do {                                                                                                               \
+        if (___is_first___) {                                                                                          \
+            ___is_first___ = false;                                                                                    \
+        } else {                                                                                                       \
+            StrPushBack(&(j), ',');                                                                                    \
+        }                                                                                                              \
+        StrAppendf(&(j), "\"%s\":", k);                                                                                \
+        JW_BOOL(j, b);                                                                                                 \
+    } while (0)
 
 #endif // MISRA_PARSERS_JSON_H
