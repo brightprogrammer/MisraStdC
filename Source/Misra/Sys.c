@@ -25,7 +25,7 @@ struct SysMutex {
 #endif
 };
 
-const char* SysDirEntryTypeToZStr(SysDirEntryType type) {
+const char* SysDirEntryTypeToZstr(SysDirEntryType type) {
     switch (type) {
         case SYS_DIR_ENTRY_TYPE_UNKNOWN :
             return "Unknown";
@@ -81,9 +81,6 @@ SysDirContents* SysGetDirContents(SysDirContents* dir_contents, const char* path
         return NULL;
     }
 
-    // Initialize the directory contents vector
-    VecInitWithDeepCopy(dir_contents, SysDirEntryInitCopy, SysDirEntryDeinitCopy);
-
     // Construct the search path with a wildcard
     char search_path[MAX_PATH];
     snprintf(search_path, sizeof(search_path), "%s\\*", path);
@@ -114,8 +111,8 @@ SysDirContents* SysGetDirContents(SysDirContents* dir_contents, const char* path
             direntry.type = SYS_DIR_ENTRY_TYPE_UNKNOWN;
         }
 
-        StrInitFromZStr(&direntry.name, findFileData.cFileName); // Copy file name
-        VecPushBack(dir_contents, &direntry);
+        direntry.name = StrInitFromZstr(findFileData.cFileName); // Copy file name
+        VecPushBack(dir_contents, direntry);
 
     } while (FindNextFile(hFind, &findFileData) != 0);
 
@@ -131,13 +128,10 @@ SysDirContents* SysGetDirContents(SysDirContents* dir_contents, const char* path
         return NULL;
     }
 
-    // Make sure dir vec is cleared out and also has copy initer and deiniter methods
-    VecInitWithDeepCopy(dir_contents, SysDirEntryInitCopy, SysDirEntryDeinitCopy);
-
     DIR* dir = opendir(path);
     if (NULL == dir) {
         Str err;
-        StrStackInit(&err, SYS_ERROR_STR_MAX_LENGTH, { LOG_ERROR("opendir() failed : %s.", SysStrError(errno, &err)->data); });
+        StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, { LOG_ERROR("opendir() failed : %s.", SysStrError(errno, &err)->data); });
         return NULL;
     }
 
@@ -186,7 +180,7 @@ SysDirContents* SysGetDirContents(SysDirContents* dir_contents, const char* path
                 default :
                     direntry.type = SYS_DIR_ENTRY_TYPE_UNKNOWN;
             }
-            TempStrFromCStr(&direntry.name, entry->d_name, NAMELEN(entry));
+            direntry.name = StrInitFromCstr(entry->d_name, NAMELEN(entry));
             VecPushBack(dir_contents, direntry);
         }
     }
@@ -212,14 +206,14 @@ i64 SysGetFileSize(const char* filename) {
     HANDLE file = CreateFileA(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
     if (file == INVALID_HANDLE_VALUE) {
         Str err;
-        StrStackInit(&err, SYS_ERROR_STR_MAX_LENGTH, { LOG_ERROR("failed to open file: %s\n", SysStrError(errno, &err)->data); });
+        StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, { LOG_ERROR("failed to open file: %s\n", SysStrError(errno, &err)->data); });
         return -1;
     }
 
     LARGE_INTEGER file_size;
     if (!GetFileSizeEx(file, &file_size)) {
         Str err;
-        StrStackInit(&err, SYS_ERROR_STR_MAX_LENGTH, { LOG_ERROR("failed to get file size: %s\n", SysStrError(errno, &err)->data); });
+        StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, { LOG_ERROR("failed to get file size: %s\n", SysStrError(errno, &err)->data); });
         CloseHandle(file);
         return -1;
     }
@@ -233,7 +227,7 @@ i64 SysGetFileSize(const char* filename) {
         return (i64)file_stat.st_size;
     } else {
         Str err;
-        StrStackInit(&err, SYS_ERROR_STR_MAX_LENGTH, { LOG_ERROR("failed to get file size: %s\n", SysStrError(errno, &err)->data); });
+        StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, { LOG_ERROR("failed to get file size: %s\n", SysStrError(errno, &err)->data); });
         return -1;
     }
 #endif
@@ -260,7 +254,7 @@ Str* SysGetEnv(const char* name, Str* value) {
     // Get the value of the LIB environment variable.
     getenv_s(&requiredSize, env_var, requiredSize, name);
 
-    StrInit(value);
+    *value          = StrInit();
     value->data     = env_var;
     value->length   = requiredSize;
     value->capacity = requiredSize;
@@ -268,7 +262,7 @@ Str* SysGetEnv(const char* name, Str* value) {
 #else
     char* env_var = getenv(name);
     if (env_var) {
-        StrInitFromZStr(value, env_var);
+        *value = StrInitFromZstr(env_var);
         return value;
     }
     return NULL;

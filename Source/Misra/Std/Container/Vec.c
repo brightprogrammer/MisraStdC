@@ -43,9 +43,12 @@ void init_vec_on_stack(GenericVec *vec, char *stack_mem, size_t capacity, size_t
         LOG_FATAL("invalid arguments.");
     }
 
-    init_vec(vec, item_size, copy_init, copy_deinit, alignment);
-    vec->data     = stack_mem;
-    vec->capacity = capacity;
+    vec->copy_init   = copy_init;
+    vec->copy_deinit = copy_deinit;
+    vec->alignment   = alignment;
+    vec->data        = stack_mem;
+    vec->capacity    = capacity;
+    vec->length      = 0;
 }
 
 

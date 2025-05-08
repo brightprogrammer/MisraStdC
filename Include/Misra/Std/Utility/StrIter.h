@@ -1,7 +1,7 @@
 #ifndef MISRA_STD_UTILITY_STR_ITER_H
 #define MISRA_STD_UTILITY_STR_ITER_H
 
-#include <MIsra/Std/Utility/Iter.h>
+#include <Misra/Std/Utility/Iter.h>
 #include <Misra/Types.h>
 
 typedef Iter(char) StrIter;

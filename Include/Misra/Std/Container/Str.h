@@ -15,17 +15,22 @@
 
 typedef Vec(char) Str;
 
-#define TempStrFromCStr(str, cstr, len)                                                                                                                                            \
-    do {                                                                                                                                                                           \
-        (str)->data        = (char*)(cstr);                                                                                                                                        \
-        (str)->length      = (len);                                                                                                                                                \
-        (str)->capacity    = (len);                                                                                                                                                \
-        (str)->copy_init   = NULL;                                                                                                                                                 \
-        (str)->copy_deinit = NULL;                                                                                                                                                 \
-        (str)->alignment   = 1;                                                                                                                                                    \
-    } while (0)
+#ifdef _MSC_VER
+static inline char* strndup(const char* s, size n) {
+    size  len     = strnlen(s, n); // Only up to n
+    char* new_str = (char*)malloc(len + 1);
+    if (!new_str)
+        return NULL;
 
-#define TempStrFromZStr(str, zstr) TempStrFromCStr(str, zstr, strlen(zstr))
+    memcpy(new_str, s, len);
+    new_str[len] = '\0'; // Null-terminate
+    return new_str;
+}
+#endif
+
+#define StrInitFromCstr(cstr, len) ((Str) {.data = strndup((char*)(cstr), (len)), .length = (len), .capacity = (len), .copy_init = NULL, .copy_deinit = NULL, .alignment = 1})
+
+#define StrInitFromZstr(zstr) StrInitFromCstr((zstr), strlen(zstr))
 
 ///
 /// Init the string using the given format string and arguments.
@@ -47,8 +52,7 @@ Str* StrPrintf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrInit(str) VecInit(str)
-
+#define StrInit() ((Str)VecInit());
 
 ///
 /// Initialize given string but use memory from stack.
@@ -61,30 +65,6 @@ Str* StrPrintf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// FAILURE : NULL
 ///
 #define StrInitStack(str, ne, scoped_body) VecInitStack(str, ne, scoped_body)
-
-///
-/// Create a new string with given cstring of given length.
-///
-/// str[in,out] : Str to be initialized.
-/// cstr[in]    : const char array to create string from.
-/// len[in]     : Length to consume.
-///
-/// SUCCESS : `str`
-/// FAILURE : NULL
-///
-#define StrInitFromCStr(str, cstr, len) StrPushBackCStr((StrInit(str), str), (void*)cstr, len)
-
-///
-/// Create a new string with given null-terminated string
-///
-/// str[in,out] : Str to be initialized.
-/// cstr[in]    : const char array to create string from.
-/// len[in]     : Length to consume.
-///
-/// SUCCESS : `str`
-/// FAILURE : NULL
-///
-#define StrInitFromZStr(str, zstr) StrPushBackZStr((StrInit(str), str), (void*)zstr)
 
 ///
 /// Deinit vec by freeing all allocations.
