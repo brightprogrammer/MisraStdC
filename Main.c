@@ -56,8 +56,7 @@
 #define JR_ARR(si, reader)                                                                                             \
     do {                                                                                                               \
         if (!StrIterRemainingLength(&si)) {                                                                            \
-            LOG_ERROR("String iterator exhausted range. Nothing more left to read.");                                  \
-            return si;                                                                                                 \
+            break;                                                                                                     \
         }                                                                                                              \
                                                                                                                        \
         StrIter saved_si = si;                                                                                         \
@@ -72,18 +71,16 @@
         StrIterNext(&si);                                                                                              \
         si = JSkipWhitespace(si);                                                                                      \
                                                                                                                        \
-        StrIter read_si;                                                                                               \
-        bool    expect_comma = false;                                                                                  \
+        bool expect_comma = false;                                                                                     \
+        bool failed       = false;                                                                                     \
                                                                                                                        \
         /* while not at the end of array. */                                                                           \
         while (StrIterPeek(&si) && StrIterPeek(&si) != ']') {                                                          \
             if (expect_comma) {                                                                                        \
                 if (StrIterPeek(&si) != ',') {                                                                         \
-                    LOG_ERROR(                                                                                         \
-                        "Expected ',' between values in array. Invalid JSON "                                          \
-                        "array."                                                                                       \
-                    );                                                                                                 \
-                    si = saved_si;                                                                                     \
+                    LOG_ERROR("Expected ',' between values in array. Invalid JSON array.");                            \
+                    failed = true;                                                                                     \
+                    si     = saved_si;                                                                                 \
                     break;                                                                                             \
                 }                                                                                                      \
                 StrIterNext(&si); /* skip comma */                                                                     \
@@ -103,12 +100,12 @@
                 if (read_si.pos == si.pos) {                                                                           \
                     LOG_ERROR("Failed to parse value. Invalid JSON.");                                                 \
                     StrDeinit(&key);                                                                                   \
-                    si = saved_si;                                                                                     \
+                    failed = true;                                                                                     \
+                    si     = saved_si;                                                                                 \
                     break;                                                                                             \
                 }                                                                                                      \
+                si = read_si;                                                                                          \
             }                                                                                                          \
-                                                                                                                       \
-            si = read_si;                                                                                              \
             si = JSkipWhitespace(si);                                                                                  \
                                                                                                                        \
             /* expect a comma after a successful value read in array */                                                \
@@ -116,21 +113,22 @@
         }                                                                                                              \
                                                                                                                        \
         /* end of array */                                                                                             \
-        if (StrIterPeek(&si) != ']') {                                                                                 \
-            LOG_ERROR("Invalid end of array. Expected ']'.");                                                          \
-            si = saved_si;                                                                                             \
-            break;                                                                                                     \
-        }                                                                                                              \
+        if (!failed) {                                                                                                 \
+            if (StrIterPeek(&si) != ']') {                                                                             \
+                LOG_ERROR("Invalid end of array. Expected ']'.");                                                      \
+                failed = true;                                                                                         \
+                si     = saved_si;                                                                                     \
+                break;                                                                                                 \
+            }                                                                                                          \
                                                                                                                        \
-        StrIterNext(&si);                                                                                              \
-        return si;                                                                                                     \
+            StrIterNext(&si);                                                                                          \
+        }                                                                                                              \
     } while (0)
 
 
 #define JR_OBJ(si, reader)                                                                                             \
     do {                                                                                                               \
         if (!StrIterRemainingLength(&si)) {                                                                            \
-            LOG_ERROR("String iterator exhausted range. Nothing more left to read.");                                  \
             break;                                                                                                     \
         }                                                                                                              \
                                                                                                                        \
@@ -154,10 +152,7 @@
         while (StrIterPeek(&si) && StrIterPeek(&si) != '}') {                                                          \
             if (expect_comma) {                                                                                        \
                 if (StrIterPeek(&si) != ',') {                                                                         \
-                    LOG_ERROR(                                                                                         \
-                        "Expected ',' between key/value pairs in object. "                                             \
-                        "Invalid JSON object."                                                                         \
-                    );                                                                                                 \
+                    LOG_ERROR("Expected ',' between key/value pairs in object. Invalid JSON object.");                 \
                     failed = true;                                                                                     \
                     si     = saved_si;                                                                                 \
                     break;                                                                                             \
@@ -216,7 +211,6 @@
                 LOG_INFO("User skipped reading of '%s' field in JSON object.", key.data);                              \
                 si = read_si;                                                                                          \
             }                                                                                                          \
-                                                                                                                       \
             StrDeinit(&key);                                                                                           \
             si = JSkipWhitespace(si);                                                                                  \
                                                                                                                        \
@@ -237,24 +231,67 @@
         }                                                                                                              \
     } while (0)
 
+#define JR_OBJ_KV(si, k, reader)                                                                                       \
+    do {                                                                                                               \
+        if (!StrCmpCstr(&key, (k))) {                                                                                  \
+            JR_OBJ(si, reader);                                                                                        \
+        }                                                                                                              \
+    } while (0)
+
+#define JR_ARR_KV(si, k, reader)                                                                                       \
+    do {                                                                                                               \
+        if (!StrCmpCstr(&key, (k))) {                                                                                  \
+            JR_ARR(si, reader);                                                                                        \
+        }                                                                                                              \
+    } while (0)
+
+typedef Vec(Str) Strs;
+
 int main(int argc, char** argv) {
     LogInit(false);
 
-    Str     json = StrInitFromZstr("{   \"name\"  :    \"misra\",\"ref\":40}");
-    StrIter si   = StrIterFromStr(&json);
+    Str json = StrInitFromZstr(
+        "{   \"name\"  :    \"misra\", \"data\":{\"x_axis_val\":-22.24485,\"gname\":\"a random "
+        "graph\",\"y_axis_val\":133.455234} ,\"ref\":40, \"strs\":[\"x\", \"ah _ ha\", \"lessa do something\"]}"
+    );
+    StrIter si = StrIterFromStr(&json);
 
     struct {
-        Str name;
-        int ref;
+        struct {
+            float x;
+            float y;
+            Str   n;
+        } data;
+        Str  name;
+        int  ref;
+        Strs strs;
     } obj = {0};
 
+    obj.strs = (Strs)VecInit();
+
     JR_OBJ(si, {
-        JR_STR_KV(si, "name", obj.name);
         JR_INT_KV(si, "ref", obj.ref);
+        JR_OBJ_KV(si, "data", {
+            JR_FLT_KV(si, "y_axis_val", obj.data.y);
+            JR_FLT_KV(si, "x_axis_val", obj.data.x);
+            JR_STR_KV(si, "gname", obj.data.n);
+        });
+        JR_STR_KV(si, "name", obj.name);
+        JR_ARR_KV(si, "strs", {
+            Str tmp_s;
+            JR_STR(si, tmp_s);
+            VecPushBack(&obj.strs, tmp_s);
+        });
     });
 
     printf("Name : %s\n", obj.name.data);
     printf("Ref : %d\n", obj.ref);
+    printf("X : %f\n", obj.data.x);
+    printf("X : %f\n", obj.data.y);
+    printf("N : %s\n", obj.data.n.data);
+    printf("strs : [");
+    VecForeach(&obj.strs, str, { printf("%s, ", str.data); });
+    printf("]\n");
 
     LogDeinit();
     return 0;

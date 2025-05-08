@@ -100,8 +100,8 @@ typedef Iter(u64) QWordIter;
 ///
 #define IterPos(mi)                                                                                                    \
     (IterRemainingLength(mi) ?                                                                                         \
-         (ITER_DATA_TYPE(mi)*)(((u64)(mi)->data) +                                                                     \
-                               (mi)->pos * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment)) :                    \
+         (ITER_DATA_TYPE(mi)*)(((u64)(mi)->data) + (mi)->pos * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment)   \
+         ) :                                                                                                           \
          NULL_ITER_DATA(mi))
 
 ///
@@ -123,9 +123,10 @@ typedef Iter(u64) QWordIter;
 /// FAILURE : NULL_ITER(mi) returned
 ///
 #define IterMove(mi, n)                                                                                                \
-    (((IterRemainingLength(mi) - (i64)(n) <= IterLength(mi)) && (IterRemainingLength(mi) - (i64)(n) > 0)) ?            \
-         ((mi)->pos += (n), (mi)) :                                                                                    \
-         NULL_ITER(mi))
+    do {                                                                                                               \
+        if (((IterRemainingLength(mi) - (i64)(n) <= IterLength(mi)) && (IterRemainingLength(mi) - (i64)(n) >= 0)))     \
+            (mi)->pos += (n);                                                                                          \
+    } while (0)
 
 #define IterNext(mi) IterMove(mi, 1)
 #define IterPrev(mi) IterMove(mi, -1)
