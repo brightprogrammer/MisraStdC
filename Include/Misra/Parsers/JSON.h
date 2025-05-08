@@ -207,53 +207,6 @@ StrIter JReadBool(StrIter si, bool* b);
 StrIter JReadNull(StrIter si, bool* is_null);
 
 ///
-/// Strictly parse a JSON object.
-///
-/// This function parses a JSON object by reading key-value pairs. Each key is expected to be a string,
-/// and the corresponding value is processed using the provided `Reader` function. The object must be enclosed
-/// in curly braces `{}` and key-value pairs should be separated by commas.
-///
-/// si[in]    : `StrIter`. Iterator to the string being parsed.
-/// Reader[in]: Function pointer to a custom key-value reader that will process the key and value from the object.
-///             This function is expected to return an updated `StrIter` based on the key and value.
-/// data[in]  : Pointer to any user-specific data passed to the `Reader` function.
-///
-/// SUCCESS : Returns the updated string iterator (`StrIter`) after parsing the object.
-/// FAILURE : Returns the same value as the provided `si` if an error occurs during parsing.
-///           The error will be logged with the relevant details.
-///
-/// Error Cases:
-///   - Invalid reading position.
-///   - Exhausted string iterator range.
-///   - Missing or incorrect `Reader` function.
-///   - Invalid object start (`{`).
-///   - Missing or incorrect colon (`:`) between key and value.
-///   - Unexpected comma or missing comma between key-value pairs.
-///   - Invalid JSON format.
-///   - Invalid or missing object end (`}`).
-///
-StrIter JReadObject(StrIter si, JObjectValueReader Reader, void* data);
-
-///
-/// Reads a JSON array from a string iterator.
-///
-/// This function parses a JSON array from the input string and optionally uses a user-provided
-/// `Reader` function to handle each individual element. If no `Reader` is provided, it will skip
-/// over each value using a generic JSON value skipper.
-///
-/// Parameters:
-///   si[in]       : The input `StrIter` pointing to the beginning of the array.
-///   Reader[in]   : Optional function to read/process each array element.
-///                  If `NULL`, elements will be skipped using `JSkipValue`.
-///   data[in,out] : Optional user-provided data passed to the `Reader` function.
-///
-/// Returns:
-///   A `StrIter` pointing just past the end of the array (`]`) if successful,
-///   or the original iterator on error (no advancement).
-///
-StrIter JReadArray(StrIter si, JArrayItemReader Reader, void* data);
-
-///
 /// Skip the value at the current position in the string.
 ///
 /// This function is used to skip over the value at the current reading position in the string. It is primarily
