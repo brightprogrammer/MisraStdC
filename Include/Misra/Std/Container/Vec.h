@@ -104,8 +104,7 @@ typedef struct {
 ///             alignment boundary.
 ///
 /// USAGE:
-///   Vec(Node) nodes;
-///   VecInitAligned(&nodes, 16);
+///   Vec(Node) nodes = VecInitAligned(16);
 ///
 /// SUCCESS : Returns `v` on success
 /// FAILURE : Does not return on failure

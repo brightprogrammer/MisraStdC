@@ -236,8 +236,19 @@ StrIter JReadNull(StrIter si, bool* is_null);
 ///
 StrIter JSkipValue(StrIter si);
 
-// ---------------- JR Means JSON Read -------------------
-
+///
+/// Read a JSON string value from stream and assign to target.
+/// The resulting string is dynamically allocated in `Str` format.
+///
+/// si[in,out] : JSON stream iterator to read from.
+/// str[out]   : Destination `Str` to store the string.
+///
+/// USAGE:
+///   JR_STR(si, name);
+///
+/// SUCCESS : `str` contains the read string
+/// FAILURE : `si` updated to failure state on parse error
+///
 #define JR_STR(si, str)                                                                                                \
     do {                                                                                                               \
         Str my_str = StrInit();                                                                                        \
@@ -245,6 +256,19 @@ StrIter JSkipValue(StrIter si);
         (str)      = my_str;                                                                                           \
     } while (0)
 
+///
+/// Read a string key-value pair if key matches.
+///
+/// si[in,out] : JSON stream iterator to read from.
+/// k[in]      : Expected key name (C-string).
+/// str[out]   : Destination `Str` to store the value.
+///
+/// USAGE:
+///   JR_STR_KV(si, "username", user.name);
+///
+/// SUCCESS : `str` contains the value if key matched
+/// FAILURE : No-op if key does not match
+///
 #define JR_STR_KV(si, k, str)                                                                                          \
     do {                                                                                                               \
         if (!StrCmpCstr(&key, (k))) {                                                                                  \
@@ -254,7 +278,18 @@ StrIter JSkipValue(StrIter si);
         }                                                                                                              \
     } while (0)
 
-
+///
+/// Read a JSON integer value from stream and assign to target.
+///
+/// si[in,out] : JSON stream iterator to read from.
+/// i[out]     : Integer variable to store the value.
+///
+/// USAGE:
+///   JR_INT(si, count);
+///
+/// SUCCESS : `i` contains the parsed integer
+/// FAILURE : `si` updated to failure state on parse error
+///
 #define JR_INT(si, i)                                                                                                  \
     do {                                                                                                               \
         i64 my_int = 0;                                                                                                \
@@ -262,6 +297,19 @@ StrIter JSkipValue(StrIter si);
         (i)        = my_int;                                                                                           \
     } while (0)
 
+///
+/// Read an integer key-value pair if key matches.
+///
+/// si[in,out] : JSON stream iterator to read from.
+/// k[in]      : Expected key name (C-string).
+/// i[out]     : Integer variable to store the value.
+///
+/// USAGE:
+///   JR_INT_KV(si, "ref", obj.ref);
+///
+/// SUCCESS : `i` contains value if key matched
+/// FAILURE : No-op if key does not match
+///
 #define JR_INT_KV(si, k, i)                                                                                            \
     do {                                                                                                               \
         if (!StrCmpCstr(&key, (k))) {                                                                                  \
@@ -271,7 +319,18 @@ StrIter JSkipValue(StrIter si);
         }                                                                                                              \
     } while (0)
 
-
+///
+/// Read a JSON float value from stream and assign to target.
+///
+/// si[in,out] : JSON stream iterator to read from.
+/// f[out]     : Float variable to store the value.
+///
+/// USAGE:
+///   JR_FLT(si, temperature);
+///
+/// SUCCESS : `f` contains the parsed float
+/// FAILURE : `si` updated to failure state on parse error
+///
 #define JR_FLT(si, f)                                                                                                  \
     do {                                                                                                               \
         f64 my_flt = 0;                                                                                                \
@@ -279,6 +338,19 @@ StrIter JSkipValue(StrIter si);
         (f)        = my_flt;                                                                                           \
     } while (0)
 
+///
+/// Read a float key-value pair if key matches.
+///
+/// si[in,out] : JSON stream iterator to read from.
+/// k[in]      : Expected key name (C-string).
+/// f[out]     : Float variable to store the value.
+///
+/// USAGE:
+///   JR_FLT_KV(si, "x_axis_val", obj.data.x);
+///
+/// SUCCESS : `f` contains value if key matched
+/// FAILURE : No-op if key does not match
+///
 #define JR_FLT_KV(si, k, f)                                                                                            \
     do {                                                                                                               \
         if (!StrCmpCstr(&key, (k))) {                                                                                  \
@@ -288,6 +360,18 @@ StrIter JSkipValue(StrIter si);
         }                                                                                                              \
     } while (0)
 
+///
+/// Read a JSON boolean value from stream and assign to target.
+///
+/// si[in,out] : JSON stream iterator to read from.
+/// b[out]     : Boolean variable to store the value.
+///
+/// USAGE:
+///   JR_BOOL(si, is_active);
+///
+/// SUCCESS : `b` contains the parsed boolean
+/// FAILURE : `si` updated to failure state on parse error
+///
 #define JR_BOOL(si, b)                                                                                                 \
     do {                                                                                                               \
         bool my_b = 0;                                                                                                 \
@@ -295,15 +379,50 @@ StrIter JSkipValue(StrIter si);
         (b)       = my_b;                                                                                              \
     } while (0)
 
+///
+/// Read a boolean key-value pair if key matches.
+///
+/// si[in,out] : JSON stream iterator to read from.
+/// k[in]      : Expected key name (C-string).
+/// b[out]     : Boolean variable to store the value.
+///
+/// USAGE:
+///   JR_BOOL_KV(si, "enabled", flag);
+///
+/// SUCCESS : `b` contains value if key matched
+/// FAILURE : No-op if key does not match
+///
 #define JR_BOOL_KV(si, k, b)                                                                                           \
     do {                                                                                                               \
         if (!StrCmpCstr(&key, (k))) {                                                                                  \
             bool my_b = 0;                                                                                             \
             si        = JReadBool((si), &my_b);                                                                        \
-            (b)       = my_f;                                                                                          \
+            (b)       = my_b;                                                                                          \
         }                                                                                                              \
     } while (0)
 
+///
+/// Read a JSON array using a custom value reader expression.
+///
+/// The macro parses a JSON array and calls the user-provided code block for each element.
+/// If the value can't be parsed or reader fails to advance the iterator, the value is skipped.
+///
+/// si[in,out] : Stream iterator to read from.
+/// reader     : Code block to read each value.
+///
+/// USAGE:
+///   JR_ARR(si, {
+///       MyStruct tmp = {0};
+///       JR_OBJ(si, {
+///           JR_INT_KV(si, "x", tmp.x);
+///           JR_FLT_KV(si, "y", tmp.y);
+///       });
+///       VecPush(&data.items, tmp);
+///   });
+///
+/// SUCCESS : All values processed or skipped gracefully
+/// FAILURE : Logs error and restores `si` on structural or read failure
+///
 #define JR_ARR(si, reader)                                                                                             \
     do {                                                                                                               \
         if (!StrIterRemainingLength(&si)) {                                                                            \
@@ -376,7 +495,24 @@ StrIter JSkipValue(StrIter si);
         }                                                                                                              \
     } while (0)
 
-
+///
+/// Read a JSON object using a custom field reader expression.
+///
+/// The macro parses the object and invokes the provided code block for each key-value pair.
+/// If the key is not recognized or parsing fails, the value is skipped.
+///
+/// si[in,out] : Stream iterator to read from.
+/// reader     : Code block to handle each key-value pair. Can include JR_*_KV macros.
+///
+/// USAGE:
+///   JR_OBJ(si, {
+///       JR_STR_KV(si, "name", obj.name);
+///       JR_INT_KV(si, "id", obj.id);
+///   });
+///
+/// SUCCESS : Entire object read or skipped successfully
+/// FAILURE : Logs error and restores `si` on structural or read failure
+///
 #define JR_OBJ(si, reader)                                                                                             \
     do {                                                                                                               \
         if (!StrIterRemainingLength(&si)) {                                                                            \
@@ -482,6 +618,21 @@ StrIter JSkipValue(StrIter si);
         }                                                                                                              \
     } while (0)
 
+///
+/// Conditionally parse a JSON object if key matches expected name.
+///
+/// si[in,out] : Stream iterator to read from.
+/// k[in]      : Expected key name (C-string).
+/// reader     : Code block to handle key-value pairs in object.
+///
+/// USAGE:
+///   JR_OBJ_KV(si, "config", {
+///       JR_BOOL_KV(si, "debug", flags.debug_mode);
+///   });
+///
+/// SUCCESS : Object parsed if key matched
+/// FAILURE : No-op if key does not match
+///
 #define JR_OBJ_KV(si, k, reader)                                                                                       \
     do {                                                                                                               \
         if (!StrCmpCstr(&key, (k))) {                                                                                  \
@@ -489,6 +640,22 @@ StrIter JSkipValue(StrIter si);
         }                                                                                                              \
     } while (0)
 
+///
+/// Conditionally parse a JSON array if key matches expected name.
+///
+/// si[in,out] : Stream iterator to read from.
+/// k[in]      : Expected key name (C-string).
+/// reader     : Code block to handle array element parsing.
+///
+/// USAGE:
+///   JR_ARR_KV(si, "list", {
+///       JR_INT(si, val);
+///       VecPush(&arr, val);
+///   });
+///
+/// SUCCESS : Array parsed if key matched
+/// FAILURE : No-op if key does not match
+///
 #define JR_ARR_KV(si, k, reader)                                                                                       \
     do {                                                                                                               \
         if (!StrCmpCstr(&key, (k))) {                                                                                  \
@@ -496,8 +663,22 @@ StrIter JSkipValue(StrIter si);
         }                                                                                                              \
     } while (0)
 
-// ---------------- JW Means JSON Write -------------------
-
+///
+/// Begin a JSON object and write key-value entries using JW_*_KV macros.
+/// This macro must be used as a wrapper for other `JW_*_KV` macros to generate a JSON object.
+/// Tracks whether commas are needed between entries using an internal flag.
+///
+/// writer[in] : A block of code containing `JW_*_KV` calls for populating the object.
+///
+/// USAGE:
+///   JW_OBJ(json, {
+///       JW_STR_KV(json, "name", obj.name);
+///       JW_INT_KV(json, "ref", obj.ref);
+///   });
+///
+/// SUCCESS : Appends a valid JSON object to `json`
+/// FAILURE : Does not return on failure (relies on internal string operations)
+///
 #define JW_OBJ(j, writer)                                                                                              \
     do {                                                                                                               \
         bool ___is_first___ = true;                                                                                    \
@@ -506,6 +687,22 @@ StrIter JSkipValue(StrIter si);
         StrPushBack(&(j), '}');                                                                                        \
     } while (0)
 
+///
+/// Write a key and nested object inside an existing JSON object.
+/// Should be called inside `JW_OBJ`. Adds commas appropriately based on insertion order.
+///
+/// j[in,out] : The target string to append to.
+/// k[in]     : The key name to use in the JSON object.
+/// writer[in]: A block of code using `JW_*_KV` to populate the inner object.
+///
+/// USAGE:
+///   JW_OBJ_KV(json, "config", {
+///       JW_INT_KV(json, "timeout", 30);
+///   });
+///
+/// SUCCESS : Appends a nested JSON object under the given key
+/// FAILURE : Does not return on failure
+///
 #define JW_OBJ_KV(j, k, writer)                                                                                        \
     do {                                                                                                               \
         if (___is_first___) {                                                                                          \
@@ -517,6 +714,23 @@ StrIter JSkipValue(StrIter si);
         JW_OBJ(j, writer);                                                                                             \
     } while (0)
 
+///
+/// Write a JSON array from a vector. Each item is rendered using the provided `writer`.
+/// Handles inserting commas between elements.
+///
+/// j[in,out]  : The target string to append to.
+/// arr[in]    : A vector to iterate over.
+/// item[out]  : Iterator variable for the current item.
+/// writer[in] : Code block that appends JSON for each `item`.
+///
+/// USAGE:
+///   JW_ARR(json, some_vec, s, {
+///       JW_STR(json, s);
+///   });
+///
+/// SUCCESS : Appends a JSON array to `json`
+/// FAILURE : Does not return on failure
+///
 #define JW_ARR(j, arr, item, writer)                                                                                   \
     do {                                                                                                               \
         bool ___is_first___ = true;                                                                                    \
@@ -532,6 +746,24 @@ StrIter JSkipValue(StrIter si);
         StrPushBack(&(j), ']');                                                                                        \
     } while (0)
 
+///
+/// Write a key and an array value into a JSON object.
+/// Intended for use within a `JW_OBJ`. Adds commas automatically.
+///
+/// j[in,out]  : The target string to append to.
+/// k[in]      : Key name for the array.
+/// arr[in]    : A vector to iterate over.
+/// item[out]  : Iterator variable for the current item.
+/// writer[in] : Code block that appends JSON for each `item`.
+///
+/// USAGE:
+///   JW_ARR_KV(json, "tags", tag_vec, tag, {
+///       JW_STR(json, tag);
+///   });
+///
+/// SUCCESS : Appends a key-value array pair to `json`
+/// FAILURE : Does not return on failure
+///
 #define JW_ARR_KV(j, k, arr, item, writer)                                                                             \
     do {                                                                                                               \
         if (___is_first___) {                                                                                          \
@@ -543,12 +775,37 @@ StrIter JSkipValue(StrIter si);
         JW_ARR(j, arr, item, writer);                                                                                  \
     } while (0)
 
+///
+/// Append an integer value to a JSON string.
+///
+/// j[in,out] : The target string to append to.
+/// i[in]     : Integer value.
+///
+/// USAGE:
+///   JW_INT(json, 42);
+///
+/// SUCCESS : Appends a numeric value to `json`
+/// FAILURE : Does not return on failure
+///
 #define JW_INT(j, i)                                                                                                   \
     do {                                                                                                               \
         i64 my_int = (i);                                                                                              \
         StrAppendf(&(j), "%lld", my_int);                                                                              \
     } while (0)
 
+///
+/// Write a key and integer value to a JSON object.
+///
+/// j[in,out] : The target string to append to.
+/// k[in]     : Key name.
+/// i[in]     : Integer value.
+///
+/// USAGE:
+///   JW_INT_KV(json, "count", 5);
+///
+/// SUCCESS : Appends a key-value integer pair
+/// FAILURE : Does not return on failure
+///
 #define JW_INT_KV(j, k, i)                                                                                             \
     do {                                                                                                               \
         if (___is_first___) {                                                                                          \
@@ -560,12 +817,37 @@ StrIter JSkipValue(StrIter si);
         JW_INT(j, i);                                                                                                  \
     } while (0)
 
+///
+/// Append a floating-point value to a JSON string.
+///
+/// j[in,out] : The target string to append to.
+/// f[in]     : Floating-point value.
+///
+/// USAGE:
+///   JW_FLT(json, 3.14);
+///
+/// SUCCESS : Appends a float value to `json`
+/// FAILURE : Does not return on failure
+///
 #define JW_FLT(j, f)                                                                                                   \
     do {                                                                                                               \
         f64 my_flt = (f);                                                                                              \
         StrAppendf(&(j), "%f", my_flt);                                                                                \
     } while (0)
 
+///
+/// Write a key and float value to a JSON object.
+///
+/// j[in,out] : The target string to append to.
+/// k[in]     : Key name.
+/// f[in]     : Floating-point value.
+///
+/// USAGE:
+///   JW_FLT_KV(json, "pi", 3.14159);
+///
+/// SUCCESS : Appends a key-value float pair
+/// FAILURE : Does not return on failure
+///
 #define JW_FLT_KV(j, k, f)                                                                                             \
     do {                                                                                                               \
         if (___is_first___) {                                                                                          \
@@ -577,11 +859,36 @@ StrIter JSkipValue(StrIter si);
         JW_FLT(j, f);                                                                                                  \
     } while (0)
 
+///
+/// Append a string value (quoted) to the JSON.
+///
+/// j[in,out] : The target string to append to.
+/// s[in]     : A `Str` object containing the string.
+///
+/// USAGE:
+///   JW_STR(json, name);
+///
+/// SUCCESS : Appends a quoted string to `json`
+/// FAILURE : Does not return on failure
+///
 #define JW_STR(j, s)                                                                                                   \
     do {                                                                                                               \
         StrAppendf(&(j), "\"%s\"", (s).data);                                                                          \
     } while (0)
 
+///
+/// Write a key and string value into a JSON object.
+///
+/// j[in,out] : The target string to append to.
+/// k[in]     : Key name.
+/// s[in]     : A `Str` object containing the value.
+///
+/// USAGE:
+///   JW_STR_KV(json, "username", user.name);
+///
+/// SUCCESS : Appends a key-value string pair
+/// FAILURE : Does not return on failure
+///
 #define JW_STR_KV(j, k, s)                                                                                             \
     do {                                                                                                               \
         if (___is_first___) {                                                                                          \
@@ -593,11 +900,36 @@ StrIter JSkipValue(StrIter si);
         JW_STR(j, s);                                                                                                  \
     } while (0)
 
+///
+/// Append a boolean value to the JSON as a string "true"/"false".
+///
+/// j[in,out] : The target string to append to.
+/// b[in]     : Boolean value.
+///
+/// USAGE:
+///   JW_BOOL(json, true);
+///
+/// SUCCESS : Appends "true" or "false" as a string
+/// FAILURE : Does not return on failure
+///
 #define JW_BOOL(j, b)                                                                                                  \
     do {                                                                                                               \
         StrAppendf(&(j), "\"%b\"", b);                                                                                 \
     } while (0)
 
+///
+/// Write a key and boolean value into a JSON object.
+///
+/// j[in,out] : The target string to append to.
+/// k[in]     : Key name.
+/// b[in]     : Boolean value.
+///
+/// USAGE:
+///   JW_BOOL_KV(json, "is_active", user.active);
+///
+/// SUCCESS : Appends a key-value boolean pair
+/// FAILURE : Does not return on failure
+///
 #define JW_BOOL_KV(j, k, b)                                                                                            \
     do {                                                                                                               \
         if (___is_first___) {                                                                                          \
