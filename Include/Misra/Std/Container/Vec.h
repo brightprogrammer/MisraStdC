@@ -13,10 +13,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef VEC_DEFAULT_ALIGNMENT
-#    define VEC_DEFAULT_ALIGNMENT 8
-#endif
-
 typedef struct {
     size_t            length;
     size_t            capacity;
