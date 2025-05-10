@@ -42,6 +42,6 @@
 /// SUCCESS : Returns a malloc'd array with read file contents.
 /// FAILURE : NULL
 ///
-void *ReadCompleteFile(const char *filename, char **data, u64 *file_size, u64 *capacity);
+void *ReadCompleteFile(const char *filename, char **data, size *file_size, size *capacity);
 
 #endif // MISRA_FILE_H

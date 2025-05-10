@@ -12,7 +12,7 @@
 #include <Misra/Sys.h>
 #include <Misra/Types.h>
 
-void *ReadCompleteFile(const char *filename, char **data, u64 *file_size, u64 *capacity) {
+void *ReadCompleteFile(const char *filename, char **data, size *file_size, size *capacity) {
     if (!filename || !data || !file_size || !capacity) {
         LOG_ERROR("invalid arguments.");
         return NULL;

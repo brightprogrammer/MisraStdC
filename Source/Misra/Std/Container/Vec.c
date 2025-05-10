@@ -10,6 +10,10 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Sys.h>
 
+// NOTE: Because Str derives of Vec, the vector implementation is designed to always have actual capacity
+// one more than length and set the space just after length to 0 (memset to 0)
+// actual capacity may differ from stored capacity value
+
 static inline size_t vec_aligned_size(GenericVec *v, size_t item_size) {
     if (!v || !item_size) {
         LOG_FATAL("Invalid arguments. Aborting...");
@@ -101,34 +105,6 @@ void clear_vec(GenericVec *vec, size_t item_size) {
 
     vec->length = 0;
 }
-
-
-// Increase size for one more item to be stored.
-void expand_vec(GenericVec *vec, size_t item_size) {
-    if (!vec || !item_size) {
-        LOG_FATAL("invalid arguments.");
-    }
-
-    if (vec->length + 1 > vec->capacity) {
-        char *ptr;
-        int   n = (vec->capacity == 0) ? 1 : vec->capacity << 1;
-        ptr     = realloc(vec->data, n * vec_aligned_size(vec, item_size));
-        if (!ptr) {
-            Str syserr;
-            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
-                LOG_FATAL("realloc() failed : %s.", SysStrError(errno, &syserr)->data);
-            });
-        }
-        memset(
-            ptr + vec_aligned_offset_at(vec, vec->capacity, item_size),
-            0,
-            vec_aligned_size(vec, item_size) * (n - vec->capacity)
-        );
-        vec->data     = ptr;
-        vec->capacity = n;
-    }
-}
-
 
 // Reserve new space if n > capacity
 void reserve_vec(GenericVec *vec, size_t item_size, size_t n) {

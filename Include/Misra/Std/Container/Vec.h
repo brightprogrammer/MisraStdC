@@ -270,7 +270,7 @@ typedef struct {
 ///
 #define VecInitStack(v, ne, scoped_body)                                                                               \
     do {                                                                                                               \
-        VEC_DATA_TYPE(v) ___data___[(ne)] = {0};                                                                       \
+        VEC_DATA_TYPE(v) ___data___[(ne) + 1] = {0};                                                                   \
                                                                                                                        \
         *(v)          = (__typeof__(*v))VecInit();                                                                     \
         (v)->capacity = (ne);                                                                                          \
@@ -318,7 +318,7 @@ typedef struct {
 ///
 #define VecInitAlignedStack(v, ne, aln, scoped_body)                                                                   \
     do {                                                                                                               \
-        char ___data___[ALIGN_UP(sizeof(VEC_DATA_TYPE(v)), (aln)) * (ne)] = {0};                                       \
+        char ___data___[ALIGN_UP(sizeof(VEC_DATA_TYPE(v)), (aln)) * ((ne) + 1)] = {0};                                 \
                                                                                                                        \
         *(v)          = (__typeof__(*v))VecInitAligned((aln));                                                         \
         (v)->capacity = (ne);                                                                                          \
@@ -359,7 +359,7 @@ typedef struct {
 ///
 #define VecInitWithDeepCopyStack(v, ne, ci, cd, scoped_body)                                                           \
     do {                                                                                                               \
-        VEC_DATA_TYPE(v) ___data___[(ne)] = {0};                                                                       \
+        VEC_DATA_TYPE(v) ___data___[(ne) + 1] = {0};                                                                   \
                                                                                                                        \
         *(v)          = (__typeof__(*v))VecInit();                                                                     \
         (v)->capacity = (ne);                                                                                          \
@@ -412,7 +412,7 @@ typedef struct {
 ///
 #define VecInitAlignedWithDeepCopyStack(v, ne, ci, cd, aln, scoped_body)                                               \
     do {                                                                                                               \
-        char ___data___[ALIGN_UP(sizeof(VEC_DATA_TYPE(v)), (aln)) * (ne)] = {0};                                       \
+        char ___data___[ALIGN_UP(sizeof(VEC_DATA_TYPE(v)), (aln)) * ((ne) + 1)] = {0};                                 \
                                                                                                                        \
         *(v)          = (__typeof__(*v))VecInitAligned((aln));                                                         \
         (v)->capacity = (ne);                                                                                          \
@@ -1026,7 +1026,6 @@ void init_vec_on_stack(
 );
 void deinit_vec(GenericVec *vec, size item_size);
 void clear_vec(GenericVec *vec, size item_size);
-void expand_vec(GenericVec *vec, size item_size);
 void resize_vec(GenericVec *vec, size item_size, size new_size);
 void reserve_vec(GenericVec *vec, size item_size, size n);
 void reserve_pow2_vec(GenericVec *vec, size item_size, size n);
