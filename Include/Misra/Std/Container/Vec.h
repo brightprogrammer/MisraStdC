@@ -50,14 +50,11 @@ typedef struct {
 #define VEC_DATA_TYPE(v) __typeof__((v)->data[0])
 
 ///
-/// Initialize given vector. Default alignment is 1
+/// Initialize vector. Default alignment is 1
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
 ///
 /// USAGE:
 ///   Vec(HttpRequest) requests = VecInit();
-///
-/// SUCCESS : Returns `v` on success
-/// FAILURE : Does not return on failure
 ///
 #define VecInit()                                                                                                      \
     {.length      = 0,                                                                                                 \
@@ -68,7 +65,7 @@ typedef struct {
      .alignment   = 1}
 
 ///
-/// Initialize given vector. Default alignment is 1
+/// Initialize vector. Default alignment is 1
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
 ///
 /// USAGE:
@@ -76,9 +73,6 @@ typedef struct {
 ///
 /// ci[in]    : Copy init method.
 /// cd[in]    : Copy deinit method.
-///
-/// SUCCESS : Returns `v` on success
-/// FAILURE : Does not return on failure
 ///
 #define VecInitWithDeepCopy(ci, cd)                                                                                    \
     {.length      = 0,                                                                                                 \
@@ -89,7 +83,7 @@ typedef struct {
      .alignment   = 1}
 
 ///
-/// Initialize given vector with given alignment.
+/// Initialize vector with given alignment.
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
 ///
 /// Provided alignment is used to keep all objects at an aligned memory location,
@@ -102,9 +96,6 @@ typedef struct {
 /// USAGE:
 ///   Vec(Node) nodes = VecInitAligned(16);
 ///
-/// SUCCESS : Returns `v` on success
-/// FAILURE : Does not return on failure
-///
 #define VecInitAligned(aln)                                                                                            \
     {.length      = 0,                                                                                                 \
      .capacity    = 0,                                                                                                 \
@@ -114,7 +105,7 @@ typedef struct {
      .alignment   = (aln)}
 
 ///
-/// Initialize given vector with given alignment.
+/// Initialize vector with given alignment.
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
 ///
 /// Provided alignment is used to keep all objects at an aligned memory location,
@@ -130,9 +121,6 @@ typedef struct {
 /// aln[in]   : Vector element alignment. All items will be stored by respecting the
 ///             alignment boundary.
 ///
-/// SUCCESS : Returns `v` on success
-/// FAILURE : Does not return on failure
-///
 #define VecInitAlignedWithDeepCopy(ci, cd, aln)                                                                        \
     {.length      = 0,                                                                                                 \
      .capacity    = 0,                                                                                                 \
@@ -140,6 +128,91 @@ typedef struct {
      .copy_deinit = (GenericCopyDeinit)(cd),                                                                           \
      .data        = NULL,                                                                                              \
      .alignment   = (aln)}
+
+///
+/// Initialize given vector. Default alignment is 1
+/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
+///
+/// v[in] : Pointer to type of a vector to be initialized.
+///
+/// USAGE:
+///   Vec(HttpRequest) requests = VecInit();
+///
+#define VecInit_T(v)                                                                                                   \
+    ((__typeof__(*v)) {.length      = 0,                                                                               \
+                       .capacity    = 0,                                                                               \
+                       .copy_init   = (GenericCopyInit)NULL,                                                           \
+                       .copy_deinit = (GenericCopyDeinit)NULL,                                                         \
+                       .data        = NULL,                                                                            \
+                       .alignment   = 1})
+
+///
+/// Initialize given vector. Default alignment is 1
+/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
+///
+/// USAGE:
+///   Vec(HttpRequest) requests = VecInitWithDeepCopy(RequestClone, RequestDeinit);
+///
+/// v[in]  : Pointer to type of a vector to be initalized.
+/// ci[in] : Copy init method.
+/// cd[in] : Copy deinit method.
+///
+#define VecInitWithDeepCopy_T(v, ci, cd)                                                                               \
+    ((__typeof__(*v)) {.length      = 0,                                                                               \
+                       .capacity    = 0,                                                                               \
+                       .copy_init   = (GenericCopyInit)(ci),                                                           \
+                       .copy_deinit = (GenericCopyDeinit)(cd),                                                         \
+                       .data        = NULL,                                                                            \
+                       .alignment   = 1})
+
+///
+/// Initialize given vector with given alignment.
+/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
+///
+/// Provided alignment is used to keep all objects at an aligned memory location,
+/// avoiding UB in some cases. It's recommended to use aligned vector when dealing with
+/// structs containing unions.
+///
+/// v[in]   : Pointer to type of a vector to be initalized.
+/// aln[in] : Vector element alignment. All items will be stored by respecting the
+///             alignment boundary.
+///
+/// USAGE:
+///   Vec(Node) nodes = VecInitAligned(16);
+///
+#define VecInitAligned_T(v, aln)                                                                                       \
+    ((__typeof__(*v)) {.length      = 0,                                                                               \
+                       .capacity    = 0,                                                                               \
+                       .copy_init   = (GenericCopyInit)NULL,                                                           \
+                       .copy_deinit = (GenericCopyDeinit)NULL,                                                         \
+                       .data        = NULL,                                                                            \
+                       .alignment   = (aln)})
+
+///
+/// Initialize given vector with given alignment.
+/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
+///
+/// Provided alignment is used to keep all objects at an aligned memory location,
+/// avoiding UB in some cases. It's recommended to use aligned vector when dealing with
+/// structs containing unions.
+///
+/// USAGE:
+///   Vec(Node) nodes;
+///   VecInitAligned(&nodes, 16);
+///
+/// v[in]   : Pointer to type of a vector to be initalized.
+/// ci[in]  : Copy init method.
+/// cd[in]  : Copy deinit method.
+/// aln[in] : Vector element alignment. All items will be stored by respecting the
+///             alignment boundary.
+///
+#define VecInitAlignedWithDeepCopy_T(v, ci, cd, aln)                                                                   \
+    ((__typeof__(*v)) {.length      = 0,                                                                               \
+                       .capacity    = 0,                                                                               \
+                       .copy_init   = (GenericCopyInit)(ci),                                                           \
+                       .copy_deinit = (GenericCopyDeinit)(cd),                                                         \
+                       .data        = NULL,                                                                            \
+                       .alignment   = (aln)})
 
 ///
 /// Initialize given vector using memory from stack.

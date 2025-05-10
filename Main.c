@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
         Strs strs;
     } obj = {0};
 
-    obj.strs = (Strs)VecInit();
+    obj.strs = VecInit_T(&obj.strs);
 
     JR_OBJ(si, {
         JR_INT_KV(si, "ref", obj.ref);
