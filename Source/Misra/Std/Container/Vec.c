@@ -14,7 +14,7 @@
 // one more than length and set the space just after length to 0 (memset to 0)
 // actual capacity may differ from stored capacity value
 
-static inline size_t vec_aligned_size(GenericVec *v, size_t item_size) {
+static inline size vec_aligned_size(GenericVec *v, size item_size) {
     if (!v || !item_size) {
         LOG_FATAL("Invalid arguments. Aborting...");
     }
@@ -26,7 +26,7 @@ static inline size_t vec_aligned_size(GenericVec *v, size_t item_size) {
     return v->alignment > 1 ? ALIGN_UP_POW2(item_size, v->alignment) : item_size;
 }
 
-static inline size_t vec_aligned_offset_at(GenericVec *v, size_t idx, size_t item_size) {
+static inline size vec_aligned_offset_at(GenericVec *v, size idx, size item_size) {
     if (!v || !item_size) {
         LOG_FATAL("Invalid arguments. Aborting...");
     }
@@ -34,7 +34,7 @@ static inline size_t vec_aligned_offset_at(GenericVec *v, size_t idx, size_t ite
     return idx * vec_aligned_size(v, item_size);
 }
 
-static inline char *vec_ptr_at(GenericVec *v, size_t idx, size_t item_size) {
+static inline char *vec_ptr_at(GenericVec *v, size idx, size item_size) {
     if (!v || !item_size) {
         LOG_FATAL("Invalid arguments");
     }
@@ -45,11 +45,11 @@ static inline char *vec_ptr_at(GenericVec *v, size_t idx, size_t item_size) {
 void init_vec_on_stack(
     GenericVec       *vec,
     char             *stack_mem,
-    size_t            capacity,
-    size_t            item_size,
+    size              capacity,
+    size              item_size,
     GenericCopyInit   copy_init,
     GenericCopyDeinit copy_deinit,
-    size_t            alignment
+    size              alignment
 ) {
     if (!vec || !item_size || !alignment) {
         LOG_FATAL("invalid arguments.");
@@ -64,14 +64,14 @@ void init_vec_on_stack(
 }
 
 
-void deinit_vec(GenericVec *vec, size_t item_size) {
+void deinit_vec(GenericVec *vec, size item_size) {
     if (!vec || !item_size) {
         LOG_FATAL("invalid arguments");
     }
 
     if (vec->data) {
         if (vec->copy_deinit) {
-            for (size_t i = 0; i < vec->length; i++) {
+            for (size i = 0; i < vec->length; i++) {
                 vec->copy_deinit(vec_ptr_at(vec, i, item_size));
             }
         } else {
@@ -85,14 +85,14 @@ void deinit_vec(GenericVec *vec, size_t item_size) {
 }
 
 
-void clear_vec(GenericVec *vec, size_t item_size) {
+void clear_vec(GenericVec *vec, size item_size) {
     if (!vec || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
 
     if (vec->data) {
         if (vec->copy_deinit) {
-            for (size_t i = 0; i < vec->length; i++) {
+            for (size i = 0; i < vec->length; i++) {
                 // don't ever check the return value of deinit function
                 // it's not guaranteed to be a function that actually returns something!
                 // typecasting is not safe in C
@@ -107,7 +107,7 @@ void clear_vec(GenericVec *vec, size_t item_size) {
 }
 
 // Reserve new space if n > capacity
-void reserve_vec(GenericVec *vec, size_t item_size, size_t n) {
+void reserve_vec(GenericVec *vec, size item_size, size n) {
     if (!vec || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
@@ -133,12 +133,12 @@ void reserve_vec(GenericVec *vec, size_t item_size, size_t n) {
 }
 
 
-void reserve_pow2_vec(GenericVec *vec, size_t item_size, size_t n) {
+void reserve_pow2_vec(GenericVec *vec, size item_size, size n) {
     if (!vec || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
 
-    size_t n2 = 1;
+    size n2 = 1;
     if (n == 0) {
         return;
     }
@@ -151,7 +151,7 @@ void reserve_pow2_vec(GenericVec *vec, size_t item_size, size_t n) {
 }
 
 
-void reduce_space_vec(GenericVec *vec, size_t item_size) {
+void reduce_space_vec(GenericVec *vec, size item_size) {
     if (!vec || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
@@ -178,7 +178,7 @@ void reduce_space_vec(GenericVec *vec, size_t item_size) {
 }
 
 
-void insert_range_into_vec(GenericVec *vec, char *item_data, size_t item_size, size_t idx, size_t count) {
+void insert_range_into_vec(GenericVec *vec, char *item_data, size item_size, size idx, size count) {
     if (!vec || !item_size || !item_data) {
         LOG_FATAL("invalid arguments.");
     }
@@ -214,7 +214,7 @@ void insert_range_into_vec(GenericVec *vec, char *item_data, size_t item_size, s
     memset(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
 }
 
-void insert_range_fast_into_vec(GenericVec *vec, char *item_data, size_t item_size, size_t idx, size_t count) {
+void insert_range_fast_into_vec(GenericVec *vec, char *item_data, size item_size, size idx, size count) {
     if (!vec || !item_size || !item_data) {
         LOG_FATAL("invalid arguments.");
     }
@@ -252,7 +252,7 @@ void insert_range_fast_into_vec(GenericVec *vec, char *item_data, size_t item_si
 }
 
 
-void remove_range_vec(GenericVec *vec, void *removed_data, size_t item_size, size_t start, size_t count) {
+void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size start, size count) {
     if (!vec || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
@@ -268,7 +268,7 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size_t item_size, siz
         // if no space provided to copy data over to, just destroy or memset it
         if (vec->copy_deinit) {
             char *vec_data = vec_ptr_at(vec, start, item_size);
-            for (size_t s = 0; s < count; s++) {
+            for (size s = 0; s < count; s++) {
                 vec->copy_deinit(vec_data);
                 vec_data += vec_aligned_size(vec, item_size);
             }
@@ -295,7 +295,7 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size_t item_size, siz
 }
 
 
-void fast_remove_range_vec(GenericVec *vec, void *removed_data, size_t item_size, size_t start, size_t count) {
+void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size start, size count) {
     if (!vec || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
@@ -309,7 +309,7 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size_t item_size
     } else {
         if (vec->copy_deinit) {
             char *vec_data = vec_ptr_at(vec, start, item_size);
-            for (size_t s = 0; s < count; s++) {
+            for (size s = 0; s < count; s++) {
                 vec->copy_deinit(vec_data);
                 vec_data += vec_aligned_size(vec, item_size);
             }
@@ -337,7 +337,7 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size_t item_size
 }
 
 
-void qsort_vec(GenericVec *vec, size_t item_size, GenericCompare comp) {
+void qsort_vec(GenericVec *vec, size item_size, GenericCompare comp) {
     if (!vec || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
@@ -354,7 +354,7 @@ void qsort_vec(GenericVec *vec, size_t item_size, GenericCompare comp) {
 }
 
 
-void swap_vec(GenericVec *vec, size_t item_size, size_t idx1, size_t idx2) {
+void swap_vec(GenericVec *vec, size item_size, size idx1, size idx2) {
     if (!vec || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
@@ -381,19 +381,19 @@ void swap_vec(GenericVec *vec, size_t item_size, size_t idx1, size_t idx2) {
 }
 
 
-void reverse_vec(GenericVec *vec, size_t item_size) {
+void reverse_vec(GenericVec *vec, size item_size) {
     if (!vec || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
 
-    size_t i = vec->length / 2;
+    size i = vec->length / 2;
     while (i--) {
         swap_vec(vec, item_size, i, vec->length - (i + 1));
     }
 }
 
 
-void push_arr_vec(GenericVec *vec, size_t item_size, char *arr, size_t count, size_t pos) {
+void push_arr_vec(GenericVec *vec, size item_size, char *arr, size count, size pos) {
     if (!vec || !arr || !count || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
@@ -434,7 +434,7 @@ void push_arr_vec(GenericVec *vec, size_t item_size, char *arr, size_t count, si
 }
 
 
-void resize_vec(GenericVec *vec, size_t item_size, size_t new_size) {
+void resize_vec(GenericVec *vec, size item_size, size new_size) {
     if (!vec || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
