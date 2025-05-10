@@ -113,7 +113,9 @@ void reserve_vec(GenericVec *vec, size_t item_size, size_t n) {
     }
 
     if (n > vec->capacity) {
-        char *ptr = realloc(vec->data, n * vec_aligned_size(vec, item_size));
+        // make sure actual capacity is always at-least one greater than given capacity
+        // this way, actual capacity is always at least one greater than length of vector (as required for strings)
+        char *ptr = realloc(vec->data, (n + 1) * vec_aligned_size(vec, item_size));
         if (!ptr) {
             Str syserr;
             StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
@@ -123,7 +125,7 @@ void reserve_vec(GenericVec *vec, size_t item_size, size_t n) {
         memset(
             ptr + vec_aligned_offset_at(vec, vec->capacity, item_size),
             0,
-            vec_aligned_size(vec, item_size) * (n - vec->capacity)
+            vec_aligned_size(vec, item_size) * (n + 1 - vec->capacity)
         );
         vec->data     = ptr;
         vec->capacity = n;
@@ -162,7 +164,8 @@ void reduce_space_vec(GenericVec *vec, size_t item_size) {
         return;
     } else {
         char *ptr;
-        ptr = realloc(vec->data, vec->length * vec_aligned_size(vec, item_size));
+        // again make sure that actual capacity is at least one greater than length of vector (required for strings)
+        ptr = realloc(vec->data, (vec->length + 1) * vec_aligned_size(vec, item_size));
         if (!ptr) {
             Str syserr;
             StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
@@ -206,6 +209,9 @@ void insert_range_into_vec(GenericVec *vec, char *item_data, size_t item_size, s
     }
 
     vec->length += count;
+
+    // make sure space just after vector length is memeset to 0
+    memset(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
 }
 
 void insert_range_fast_into_vec(GenericVec *vec, char *item_data, size_t item_size, size_t idx, size_t count) {
@@ -239,7 +245,10 @@ void insert_range_fast_into_vec(GenericVec *vec, char *item_data, size_t item_si
         }
     }
 
-    vec->length += 1;
+    vec->length += count;
+
+    // make sure space just after vector length is memeset to 0
+    memset(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
 }
 
 
@@ -280,6 +289,9 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size_t item_size, siz
     memset(vec_ptr_at(vec, (vec->length - count), item_size), 0, count * vec_aligned_size(vec, item_size));
 
     vec->length -= count;
+
+    // make sure space just after vector length is memeset to 0
+    memset(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
 }
 
 
@@ -319,6 +331,9 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size_t item_size
     memset(vec_ptr_at(vec, (vec->length - count), item_size), 0, count * vec_aligned_size(vec, item_size));
 
     vec->length -= count;
+
+    // make sure space just after vector length is memeset to 0
+    memset(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
 }
 
 
@@ -413,6 +428,9 @@ void push_arr_vec(GenericVec *vec, size_t item_size, char *arr, size_t count, si
     }
 
     vec->length += count;
+
+    // make sure space just after vector length is memeset to 0
+    memset(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
 }
 
 
