@@ -39,3 +39,12 @@ executable(
     install: true
 
 )
+
+executable(
+    'MisraEnum',
+    files('Bin/MisraEnum.c'),
+    link_with: [misra_std],
+    c_args: common_c_args,
+    include_directories: inc_misra,
+    install: true
+)
