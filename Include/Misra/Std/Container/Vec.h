@@ -14,12 +14,12 @@
 #include <string.h>
 
 typedef struct {
-    size_t            length;
-    size_t            capacity;
+    size              length;
+    size              capacity;
     GenericCopyInit   copy_init;
     GenericCopyDeinit copy_deinit;
     char             *data;
-    size_t            alignment;
+    size              alignment;
 } GenericVec;
 
 ///
@@ -65,14 +65,35 @@ typedef struct {
      .alignment   = 1}
 
 ///
+/// Initialize given vector. Default alignment is 1
+/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
+///
+/// v[in] : Pointer to type of a vector to be initialized.
+///
+/// USAGE:
+///     void SomeInterestingFn(DataVec* data_vec) {
+///         *data_vec = VecInit_T(data);
+///
+///         // use vector
+///     }
+///
+#define VecInit_T(v)                                                                                                   \
+    ((__typeof__(*v)) {.length      = 0,                                                                               \
+                       .capacity    = 0,                                                                               \
+                       .copy_init   = (GenericCopyInit)NULL,                                                           \
+                       .copy_deinit = (GenericCopyDeinit)NULL,                                                         \
+                       .data        = NULL,                                                                            \
+                       .alignment   = 1})
+
+///
 /// Initialize vector. Default alignment is 1
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
 ///
-/// USAGE:
-///   Vec(HttpRequest) requests = VecInitWithDeepCopy(RequestClone, RequestDeinit);
-///
 /// ci[in]    : Copy init method.
 /// cd[in]    : Copy deinit method.
+///
+/// USAGE:
+///   Vec(HttpRequest) requests = VecInitWithDeepCopy(RequestClone, RequestDeinit);
 ///
 #define VecInitWithDeepCopy(ci, cd)                                                                                    \
     {.length      = 0,                                                                                                 \
@@ -81,6 +102,32 @@ typedef struct {
      .copy_deinit = (GenericCopyDeinit)(cd),                                                                           \
      .data        = NULL,                                                                                              \
      .alignment   = 1}
+
+///
+/// Initialize given vector. Default alignment is 1
+/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
+///
+/// v[in]  : Pointer to type of a vector to be initalized.
+/// ci[in] : Copy init method.
+/// cd[in] : Copy deinit method.
+///
+/// USAGE:
+///     bool DataInitClone(Data* dst, Data* src) { /* cloning logic...*/ }
+///     void DataDeinit(Data* d) { /* deinit logic... don't free "d" */ }
+///
+///     void SomeInterestingFn(DataVec* data_vec) {
+///         *data_vec = VecInitWithDeepCopy_T(data, DataInitClone, DataDeinit);
+///
+///         // use vector
+///     }
+///
+#define VecInitWithDeepCopy_T(v, ci, cd)                                                                               \
+    ((__typeof__(*v)) {.length      = 0,                                                                               \
+                       .capacity    = 0,                                                                               \
+                       .copy_init   = (GenericCopyInit)(ci),                                                           \
+                       .copy_deinit = (GenericCopyDeinit)(cd),                                                         \
+                       .data        = NULL,                                                                            \
+                       .alignment   = 1})
 
 ///
 /// Initialize vector with given alignment.
@@ -105,67 +152,6 @@ typedef struct {
      .alignment   = (aln)}
 
 ///
-/// Initialize vector with given alignment.
-/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
-///
-/// Provided alignment is used to keep all objects at an aligned memory location,
-/// avoiding UB in some cases. It's recommended to use aligned vector when dealing with
-/// structs containing unions.
-///
-/// USAGE:
-///   Vec(Node) nodes;
-///   VecInitAligned(&nodes, 16);
-///
-/// ci[in]    : Copy init method.
-/// cd[in]    : Copy deinit method.
-/// aln[in]   : Vector element alignment. All items will be stored by respecting the
-///             alignment boundary.
-///
-#define VecInitAlignedWithDeepCopy(ci, cd, aln)                                                                        \
-    {.length      = 0,                                                                                                 \
-     .capacity    = 0,                                                                                                 \
-     .copy_init   = (GenericCopyInit)(ci),                                                                             \
-     .copy_deinit = (GenericCopyDeinit)(cd),                                                                           \
-     .data        = NULL,                                                                                              \
-     .alignment   = (aln)}
-
-///
-/// Initialize given vector. Default alignment is 1
-/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
-///
-/// v[in] : Pointer to type of a vector to be initialized.
-///
-/// USAGE:
-///   Vec(HttpRequest) requests = VecInit();
-///
-#define VecInit_T(v)                                                                                                   \
-    ((__typeof__(*v)) {.length      = 0,                                                                               \
-                       .capacity    = 0,                                                                               \
-                       .copy_init   = (GenericCopyInit)NULL,                                                           \
-                       .copy_deinit = (GenericCopyDeinit)NULL,                                                         \
-                       .data        = NULL,                                                                            \
-                       .alignment   = 1})
-
-///
-/// Initialize given vector. Default alignment is 1
-/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
-///
-/// USAGE:
-///   Vec(HttpRequest) requests = VecInitWithDeepCopy(RequestClone, RequestDeinit);
-///
-/// v[in]  : Pointer to type of a vector to be initalized.
-/// ci[in] : Copy init method.
-/// cd[in] : Copy deinit method.
-///
-#define VecInitWithDeepCopy_T(v, ci, cd)                                                                               \
-    ((__typeof__(*v)) {.length      = 0,                                                                               \
-                       .capacity    = 0,                                                                               \
-                       .copy_init   = (GenericCopyInit)(ci),                                                           \
-                       .copy_deinit = (GenericCopyDeinit)(cd),                                                         \
-                       .data        = NULL,                                                                            \
-                       .alignment   = 1})
-
-///
 /// Initialize given vector with given alignment.
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
 ///
@@ -178,7 +164,14 @@ typedef struct {
 ///             alignment boundary.
 ///
 /// USAGE:
-///   Vec(Node) nodes = VecInitAligned(16);
+///     Vec(Node) nodes = VecInitAligned(16);
+///
+///     void SomeInterestingFn(DataVec* data_vec) {
+///         // align items in "data_vec" at 128 byte boundaries
+///         *data_vec = VecInitAligned_T(data, 128);
+///
+///         // use vector
+///     }
 ///
 #define VecInitAligned_T(v, aln)                                                                                       \
     ((__typeof__(*v)) {.length      = 0,                                                                               \
@@ -189,6 +182,31 @@ typedef struct {
                        .alignment   = (aln)})
 
 ///
+/// Initialize vector with given alignment.
+/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
+///
+/// Provided alignment is used to keep all objects at an aligned memory location,
+/// avoiding UB in some cases. It's recommended to use aligned vector when dealing with
+/// structs containing unions.
+///
+/// ci[in]    : Copy init method.
+/// cd[in]    : Copy deinit method.
+/// aln[in]   : Vector element alignment. All items will be stored by respecting the
+///             alignment boundary.
+///
+/// USAGE:
+///   typedef Vec(Node) NodeVec;
+///   NodeVec nodes = VecInitAligned(NodeInitCopy, NodeDeinit, 48);
+///
+#define VecInitAlignedWithDeepCopy(ci, cd, aln)                                                                        \
+    {.length      = 0,                                                                                                 \
+     .capacity    = 0,                                                                                                 \
+     .copy_init   = (GenericCopyInit)(ci),                                                                             \
+     .copy_deinit = (GenericCopyDeinit)(cd),                                                                           \
+     .data        = NULL,                                                                                              \
+     .alignment   = (aln)}
+
+///
 /// Initialize given vector with given alignment.
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
 ///
@@ -196,15 +214,25 @@ typedef struct {
 /// avoiding UB in some cases. It's recommended to use aligned vector when dealing with
 /// structs containing unions.
 ///
-/// USAGE:
-///   Vec(Node) nodes;
-///   VecInitAligned(&nodes, 16);
-///
 /// v[in]   : Pointer to type of a vector to be initalized.
 /// ci[in]  : Copy init method.
 /// cd[in]  : Copy deinit method.
 /// aln[in] : Vector element alignment. All items will be stored by respecting the
 ///             alignment boundary.
+///
+/// USAGE:
+///     bool DataInitClone(Data* dst, Data* src) { /* cloning logic...*/ }
+///     void DataDeinit(Data* d) { /* deinit logic... don't free "d" */ }
+///
+///     void SomeInterestingFn(DataVec* data_vec) {
+///         // align and store all items in vector at 32 byte boundaries
+///         *data_vec = VecInitAlignedWithDeepCopy_T(data, DataInitClone, DataDeinit, 32);
+///
+///         // use vector
+///         // always use VecAt to access elements in vector
+///         Data i1= VecAt(data_vec, 9); // get 10th item (index = 9)
+///         Data i2 = VecLast(data_vec); // get last item (index = whatever)
+///     }
 ///
 #define VecInitAlignedWithDeepCopy_T(v, ci, cd, aln)                                                                   \
     ((__typeof__(*v)) {.length      = 0,                                                                               \
@@ -225,6 +253,9 @@ typedef struct {
 ///
 /// Stack inited vectors mustn't be deinited after use.
 ///
+/// v[in,out] : Pointer to vector memory that needs to be initialized.
+/// ne[in]    : Number of elements to allocate stack memory for.
+///
 /// USAGE:
 ///   Vec(i32) ids;
 ///   VecInitStack(&ids, 64, {
@@ -236,9 +267,6 @@ typedef struct {
 ///
 ///         // Do not call deinit after use!!
 ///   });
-///
-/// v[in,out] : Pointer to vector memory that needs to be initialized.
-/// ne[in]    : Number of elements to allocate stack memory for.
 ///
 #define VecInitStack(v, ne, scoped_body)                                                                               \
     do {                                                                                                               \
@@ -266,6 +294,10 @@ typedef struct {
 /// to deinit vector, given that no data in vector needs to be deinitialized.
 /// Example includes, but does not limit to a Vec(i8), Vec(f32), etc...
 ///
+/// v[in,out] : Pointer to vector memory that needs to be initialized.
+/// ne[in]    : Number of elements to allocate aligned stack memory for.
+/// aln[in]   : Alignment value to align all emenets to.
+///
 /// USAGE:
 ///   Vec(Node*) nodes;
 ///
@@ -283,10 +315,6 @@ typedef struct {
 ///         // vector deinit will be called for you after this automatically
 ///         // so any data held by the vector in this scope is invalid outside
 ///   });
-///
-/// v[in,out] : Pointer to vector memory that needs to be initialized.
-/// ne[in]    : Number of elements to allocate aligned stack memory for.
-/// aln[in]   : Alignment value to align all emenets to.
 ///
 #define VecInitAlignedStack(v, ne, aln, scoped_body)                                                                   \
     do {                                                                                                               \
@@ -313,6 +341,11 @@ typedef struct {
 ///
 /// Stack inited vectors mustn't be deinited after use.
 ///
+/// v[in,out] : Pointer to vector memory that needs to be initialized.
+/// ne[in]    : Number of elements to allocate stack memory for.
+/// ci[in]    : Copy init method for copying over elements in vector.
+/// cd[in]    : Copy deinit method for deiniting elements in vector.
+///
 /// USAGE:
 ///   Vec(ModelInfo) models;
 ///   VecInitWithDeepCopyStack(&models, 64, ModelInfoInitClone, ModelInfoDeinit, {
@@ -323,11 +356,6 @@ typedef struct {
 ///
 ///         // Do not call deinit after use!!
 ///   });
-///
-/// v[in,out] : Pointer to vector memory that needs to be initialized.
-/// ne[in]    : Number of elements to allocate stack memory for.
-/// ci[in]    : Copy init method for copying over elements in vector.
-/// cd[in]    : Copy deinit method for deiniting elements in vector.
 ///
 #define VecInitWithDeepCopyStack(v, ne, ci, cd, scoped_body)                                                           \
     do {                                                                                                               \
@@ -359,6 +387,12 @@ typedef struct {
 /// to deinit vector, given that no data in vector needs to be deinitialized.
 /// Example includes, but does not limit to a Vec(i8), Vec(f32), etc...
 ///
+/// v[in,out] : Pointer to vector memory that needs to be initialized.
+/// ne[in]    : Number of elements to allocate aligned stack memory for.
+/// ci[in]    : Copy init method for copying over elements in vector.
+/// cd[in]    : Copy deinit method for deiniting elements in vector.
+/// aln[in]   : Alignment value to align all emenets to.
+///
 /// USAGE:
 ///   Vec(Node*) nodes;
 ///
@@ -375,12 +409,6 @@ typedef struct {
 ///         // vector deinit will be called for you after this automatically
 ///         // so any data held by the vector in this scope is invalid outside
 ///   });
-///
-/// v[in,out] : Pointer to vector memory that needs to be initialized.
-/// ne[in]    : Number of elements to allocate aligned stack memory for.
-/// ci[in]    : Copy init method for copying over elements in vector.
-/// cd[in]    : Copy deinit method for deiniting elements in vector.
-/// aln[in]   : Alignment value to align all emenets to.
 ///
 #define VecInitAlignedWithDeepCopyStack(v, ne, ci, cd, aln, scoped_body)                                               \
     do {                                                                                                               \
@@ -403,12 +431,12 @@ typedef struct {
 ///
 /// Deinit vec by freeing all allocations.
 ///
+/// v[in,out] : Pointer to vector to be destroyed
+///
 /// USAGE:
 ///   Vec(Model)* models = GetAllModels(...);
 ///   ... // use vector
 ///   DeinitVec(models)
-///
-/// v[in,out] : Pointer to vector to be destroyed
 ///
 #define VecDeinit(v) deinit_vec(GENERIC_VEC(v), sizeof(VEC_DATA_TYPE(v)))
 
@@ -420,26 +448,22 @@ typedef struct {
 ///
 /// In worst case this would to to O(n)
 ///
+/// v[in,out] : Vector to insert item into
+/// val[in]   : Value to be inserted
+/// idx[in]   : Index to insert item at.
+///
 /// USAGE:
 ///   // the data
 ///   int x = 10;
 ///   int y = 20;
 ///
 ///   // vector
-///   Vec(int) integers;
-///   VecInit(&integers, NULL, NULL);
+///   Vec(int) integers = VecInit();
 ///
 ///   // insert items
 ///   VecInsert(&integers, &x, 0); // x inserted at position 0
 ///   VecInsert(&integers, &y, 0); // x shifted one position and y is inserted
 ///   VecInsert(&integers, ((int[]){5}), 1); // x shifted one position and 5 is inserted at index 1
-///
-/// v[in,out] : Vector to insert item into
-/// val[in]   : Value to be inserted
-/// idx[in]   : Index to insert item at.
-///
-/// SUCCESS : Returns `v` the vector itself on success.
-/// FAILURE : Does not return on failure
 ///
 #define VecInsert(v, val, idx)                                                                                         \
     do {                                                                                                               \
@@ -462,9 +486,6 @@ typedef struct {
 /// val[in]   : Value to be inserted
 /// idx[in]   : Index to insert item at.
 ///
-/// SUCCESS : Returns `v` the vector itself on success.
-/// FAILURE : Does not return on failure
-///
 #define VecInsertFast(v, val, idx)                                                                                     \
     do {                                                                                                               \
         VEC_DATA_TYPE(v) __tmp__val = (val);                                                                           \
@@ -482,15 +503,11 @@ typedef struct {
 /// idx[in]   : Index to start inserting item at.
 /// count[in] : Number of items to insert.
 ///
-/// SUCCESS : Returns `v` the vector itself on success.
-/// FAILURE : Does not return on failure
-///
 #define VecInsertRange(v, varr, idx, count)                                                                            \
     do {                                                                                                               \
         VEC_DATA_TYPE(v) *__tmp__ptr = (varr);                                                                         \
         insert_range_into_vec(GENERIC_VEC(v), (char *)__tmp__ptr, sizeof(VEC_DATA_TYPE(v)), (idx), (count));           \
     } while (0)
-
 
 ///
 /// Quickly insert item into vector. Ordering of elements is not guaranteed
@@ -506,16 +523,11 @@ typedef struct {
 /// val[in]   : Value to be inserted
 /// idx[in]   : Index to insert item at.
 ///
-/// SUCCESS : Returns `v` the vector itself on success.
-/// FAILURE : Does not return on failure
-///
 #define VecInsertRangeFast(v, varr, idx, count)                                                                        \
     do {                                                                                                               \
         VEC_DATA_TYPE(v) __tmp__ptr = (varr);                                                                          \
         insert_range_fast_into_vec(GENERIC_VEC(v), (char *)&__tmp__ptr, sizeof(VEC_DATA_TYPE(v)), (idx), (count));     \
     } while (0)
-
-
 
 ///
 /// Remove item from vector at given index and store in given pointer.
@@ -525,9 +537,6 @@ typedef struct {
 /// ptr[out]  : Where removed item will be stored. If not provided then it's equivalent to
 ///             deleting the item at specified index.
 /// idx[in]   : Index in vector to remove item from.
-///
-/// SUCCESS : Returns `v` on success.
-/// FAILURE : Does not return on failure
 ///
 #define VecRemove(v, ptr, idx)                                                                                         \
     do {                                                                                                               \
@@ -545,9 +554,6 @@ typedef struct {
 ///             deleting the item at specified index.
 /// idx[in]   : Index in vector to remove item from.
 ///
-/// SUCCESS : Returns `v` on success.
-/// FAILURE : Does not return on failure
-///
 #define VecRemoveFast(v, ptr, idx)                                                                                     \
     do {                                                                                                               \
         VEC_DATA_TYPE(v) *p = (ptr);                                                                                   \
@@ -564,15 +570,11 @@ typedef struct {
 /// start[in] : Index in vector to removing items from.
 /// count[in] : Number of items from starting index.
 ///
-/// SUCCESS : Returns `v` on success.
-/// FAILURE : Does not return on failure
-///
 #define VecRemoveRange(v, ptr, start, count)                                                                           \
     do {                                                                                                               \
         VEC_DATA_TYPE(v) *p = (ptr);                                                                                   \
         remove_range_vec(GENERIC_VEC(v), (char *)p, sizeof(VEC_DATA_TYPE(v)), (start), (count));                       \
     } while (0)
-
 
 ///
 /// Remove item from vector at given index and store in given pointer.
@@ -584,9 +586,6 @@ typedef struct {
 ///             deleting the items in specified range.
 /// start[in] : Index in vector to removing items from.
 /// count[in] : Number of items from starting index.
-///
-/// SUCCESS : Returns `v` on success.
-/// FAILURE : Does not return on failure
 ///
 #define VecRemoveRangeFast(v, ptr, start, count)                                                                       \
     do {                                                                                                               \
@@ -600,9 +599,6 @@ typedef struct {
 /// v[in,out]   : Vector to push item into
 /// val[in] : Pointer to value to be pushed
 ///
-/// SUCCESS : Returns `v` the vector itself on success.
-/// FAILURE : Does not return on failure
-///
 #define VecPushBack(v, val) VecInsert((v), (val), (v)->length)
 
 ///
@@ -613,9 +609,6 @@ typedef struct {
 ///              to store memcopied data. If no pointer is provided, then it's equivalent
 ///              to deleting item from last position.
 ///
-/// SUCCESS : Returns `v` on success
-/// FAILURE : Does not return on failure
-///
 #define VecPopBack(v, ptr) VecRemove((v), (ptr), (v)->length - 1)
 
 ///
@@ -623,9 +616,6 @@ typedef struct {
 ///
 /// v[in,out]   : Vector to push item into
 /// val[in] : Pointer to value to be pushed
-///
-/// SUCCESS : Returns `v` the vector itself on success.
-/// FAILURE : Does not return on failure
 ///
 #define VecPushFront(v, val) VecInsert((v), (val), 0)
 
@@ -636,9 +626,6 @@ typedef struct {
 /// ptr[out]   : Popped item will be stored here. Make sure this has sufficient memory
 ///              to store memcopied data. If no pointer is provided, then it's equivalent
 ///              to deleting item from last position.
-///
-/// SUCCESS : Returns `v` on success
-/// FAILURE : Does not return on failure
 ///
 #define VecPopFront(v, ptr) VecRemove((v), (ptr), 0)
 
@@ -734,7 +721,7 @@ typedef struct {
 ///
 /// vec[in,out] : Vector to be cleared.
 ///
-/// SUCCESS :
+/// SUCCESS : `v`
 /// FAILURE : Does not return on failure
 ///
 #define VecClear(v) (clear_vec(GENERIC_VEC(v), sizeof(VEC_DATA_TYPE(v))))
@@ -761,9 +748,6 @@ typedef struct {
 /// v[in]   : Vector to get data from
 /// idx[in] : Index to get data at
 ///
-/// SUCCESS : Value at given index.
-/// FAILURE : Does not return on failure
-///
 #define VecAt(v, idx) ((VEC_DATA_TYPE(v) *)(VecAlignedOffsetAt(v, idx) + (char *)(v)->data))[0]
 
 ///
@@ -773,18 +757,12 @@ typedef struct {
 /// v[in]   : Vector to get data from
 /// idx[in] : Index to get data at
 ///
-/// SUCCESS : Value at given index.
-/// FAILURE : Does not return on failure
-///
 #define VecPtrAt(v, idx) (VEC_DATA_TYPE(v) *)(VecAlignedOffsetAt(v, idx) + (char *)(v)->data)
 
 ///
 /// Value of first element in vector.
 ///
 /// v[in] : Vector to get first element of.
-///
-/// SUCCESS : Value at first element
-/// FAILURE : Does not return on failure
 ///
 #define VecFirst(v) VecAt(v, 0)
 
@@ -793,9 +771,6 @@ typedef struct {
 ///
 /// v[in] : Vector to get last element of.
 ///
-/// SUCCESS : Value at first element
-/// FAILURE : Does not return on failure
-///
 #define VecLast(v) VecAt(v, (v)->length - 1)
 
 ///
@@ -803,18 +778,12 @@ typedef struct {
 ///
 /// v[in] : Vector to get beginning ptr of.
 ///
-/// SUCCESS : Value at first element
-/// FAILURE : Does not return on failure
-///
 #define VecBegin(v) VecPtrAt(v, 0)
 
 ///
 /// Pointer at the end (after last element) of vector
 ///
 /// v[in] : Vector to get end of.
-///
-/// SUCCESS : Value at first element
-/// FAILURE : Does not return on failure
 ///
 #define VecEnd(v) VecPtrAt(v, (v)->length)
 
@@ -878,15 +847,19 @@ typedef struct {
 #define VecInitClone(vd, vs) (VecDeinit(vd), VecMerge(vd, vs))
 
 ///
-/// Length of vector in bytes. Use this instead of multiplying
+/// Size of vector in bytes. Use this instead of multiplying
 /// size of item with vector length!
 ///
 /// v[in] : Vector to get length of
 ///
-/// SUCCESS : Size of vector in bytes
-/// FAILURE : Does not return on failure
-///
 #define VecSize(v) VecAlignedOffsetAt(v, v->length)
+
+///
+/// Length of vector.
+///
+/// v[in] : Vector to get length of
+///
+#define VecLen(v) VecAlignedOffsetAt(v, v->length)
 
 ///
 /// Reverse contents of this vector.
@@ -1037,34 +1010,34 @@ typedef struct {
 
 void init_vec(
     GenericVec       *vec,
-    size_t            item_size,
+    size              item_size,
     GenericCopyInit   copy_init,
     GenericCopyDeinit copy_deinit,
-    size_t            alignment
+    size              alignment
 );
 void init_vec_on_stack(
     GenericVec       *vec,
     char             *stack_mem,
-    size_t            capacity,
-    size_t            item_size,
+    size              capacity,
+    size              item_size,
     GenericCopyInit   copy_init,
     GenericCopyDeinit copy_deinit,
-    size_t            alignment
+    size              alignment
 );
-void deinit_vec(GenericVec *vec, size_t item_size);
-void clear_vec(GenericVec *vec, size_t item_size);
-void expand_vec(GenericVec *vec, size_t item_size);
-void resize_vec(GenericVec *vec, size_t item_size, size_t new_size);
-void reserve_vec(GenericVec *vec, size_t item_size, size_t n);
-void reserve_pow2_vec(GenericVec *vec, size_t item_size, size_t n);
-void reduce_space_vec(GenericVec *vec, size_t item_size);
-void insert_range_into_vec(GenericVec *vec, char *item_data, size_t item_size, size_t idx, size_t count);
-void insert_range_fast_into_vec(GenericVec *vec, char *item_data, size_t item_size, size_t idx, size_t count);
-void remove_range_vec(GenericVec *vec, void *removed_data, size_t item_size, size_t start, size_t count);
-void fast_remove_range_vec(GenericVec *vec, void *removed_data, size_t item_size, size_t start, size_t count);
-void qsort_vec(GenericVec *vec, size_t item_size, GenericCompare comp);
-void swap_vec(GenericVec *vec, size_t item_size, size_t idx1, size_t idx2);
-void reverse_vec(GenericVec *vec, size_t item_size);
-void push_arr_vec(GenericVec *vec, size_t item_size, char *arr, size_t count, size_t pos);
+void deinit_vec(GenericVec *vec, size item_size);
+void clear_vec(GenericVec *vec, size item_size);
+void expand_vec(GenericVec *vec, size item_size);
+void resize_vec(GenericVec *vec, size item_size, size new_size);
+void reserve_vec(GenericVec *vec, size item_size, size n);
+void reserve_pow2_vec(GenericVec *vec, size item_size, size n);
+void reduce_space_vec(GenericVec *vec, size item_size);
+void insert_range_into_vec(GenericVec *vec, char *item_data, size item_size, size idx, size count);
+void insert_range_fast_into_vec(GenericVec *vec, char *item_data, size item_size, size idx, size count);
+void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size start, size count);
+void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size start, size count);
+void qsort_vec(GenericVec *vec, size item_size, GenericCompare comp);
+void swap_vec(GenericVec *vec, size item_size, size idx1, size idx2);
+void reverse_vec(GenericVec *vec, size item_size);
+void push_arr_vec(GenericVec *vec, size item_size, char *arr, size count, size pos);
 
 #endif // MISRA_STD_CONTAINER_VEC_H
