@@ -137,17 +137,17 @@ int main(int argc, char** argv) {
             "%s %sFromZstr(const char* zstr) {\n"
             "    if(!zstr) {\n"
             "        LOG_ERROR(\"Invalid string provided. Cannot convert to enum.\");\n"
-            "        return %lld;\n"
+            "        return %s;\n"
             "    }\n",
             enum_name.data,
             enum_name.data,
             enum_name.data,
-            invalid_enum.name.length ? invalid_enum.value : 0
+            invalid_enum.name.length ? invalid_enum.name.data : "0"
         );
         VecForeach(&entries, e, {
             StrAppendf(
                 &code,
-                "    if(!strcmp(\"%s\", zstr, %zu)) {return %s;}\n",
+                "    if(!strncmp(\"%s\", zstr, %zu)) {return %s;}\n",
                 e.str.data,
                 e.str.length,
                 e.name.data
@@ -155,9 +155,9 @@ int main(int argc, char** argv) {
         });
         StrAppendf(
             &code,
-            "    return %lld;\n"
+            "    return %s;\n"
             "}\n",
-            invalid_enum.name.length ? invalid_enum.value : 0
+            invalid_enum.name.length ? invalid_enum.name.data : "0"
         );
 
         StrAppendf(
@@ -183,9 +183,9 @@ int main(int argc, char** argv) {
             &code,
             "        default: break;\n"
             "    }\n"
-            "    return %s;\n"
+            "    return \"%s\";\n"
             "}\n",
-            invalid_enum.name.data ? invalid_enum.name.data : "NULL"
+            invalid_enum.str.data ? invalid_enum.str.data : "NULL"
         );
     }
 
