@@ -1,4 +1,4 @@
-/// file      : bin/misraenum.h
+/// file      : bin/misraenum.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// copyright : Copyright (c) 2025, Siddharth Mishra, All rights reserved.
 ///
@@ -22,8 +22,7 @@
 ///
 ///
 
-#include <Misra/Parsers/JSON.h>
-#include <Misra/Std.h>
+#include <Misra.h>
 
 typedef struct {
     Str name;
