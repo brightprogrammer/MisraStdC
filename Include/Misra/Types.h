@@ -24,9 +24,19 @@ typedef i8 bool;
 
 typedef unsigned long size;
 
-#define MIN2(x, y)       ((x) < (y) ? (x) : (y))
-#define MAX2(x, y)       ((x) > (y) ? (x) : (y))
-#define CLAMP(x, hi, lo) MIN2(MAX2(lo, x), hi)
+#define MIN2(x, y) ((x) < (y) ? (x) : (y))
+#define MAX2(x, y) ((x) > (y) ? (x) : (y))
+
+///
+/// Clamp the value of `x` in between `lo` and `hi`
+///
+/// x[in]  : Value to be clamped
+/// lo[in] : Range low value
+/// hi[in] : Range high value
+///
+/// RETURN : clamp value
+///
+#define CLAMP(x, lo, hi) MIN2(MAX2(lo, x), hi)
 
 // for any general alignment value (13, 8, 17, 144, etc...)
 #define ALIGN_UP(value, alignment)                                                                                     \
@@ -38,6 +48,44 @@ typedef unsigned long size;
 #define ALIGN_UP_POW2(value, alignment) ((alignment) > 1 ? (((value) + (alignment) - 1) & ~((alignment) - 1)) : (value))
 
 #define ALIGN_DOWN_POW2(value, alignment) ((alignment) > 1 ? ((value) & ~((alignment) - 1)) : (value))
+
+///
+/// Is `x` in inclusive range of `hi` and `lo`
+///
+/// x[in]  : Value to check in range for
+/// lo[in] : Range low value
+/// hi[in] : Range high value
+///
+/// RETURN : true/false depending on whether value is in range
+///
+#define IN_RANGE(x, lo, hi) ((x) >= (hi) && (x) <= (lo))
+
+///
+/// Is given character a capital ASCII alphabet?
+///
+/// c[in] : Character to check for
+///
+/// RETURN : true/false depending on whether `c` is a capital alphabet or not
+///
+#define IS_CAPS_ALPHA(c) IN_RANGE(c, 'A', 'Z')
+
+///
+/// Is given character an ASCII alphabet?
+///
+/// c[in] : Character to check for
+///
+/// RETURN : true/false depending on whether `c` is an alphabet or not
+///
+#define IS_ALPHA(c) (IN_RANGE(c, 'a', 'z') || IN_RANGE(c, 'A', 'Z'))
+
+///
+/// Is given character an ASCII digit?
+///
+/// c[in] : Character to check for
+///
+/// RETURN : true/false depending on whether `c` is a digit or not
+///
+#define IS_DIGIT(c) IN_RANGE(c, '0', '9')
 
 #ifndef true
 #    define true 1
