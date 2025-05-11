@@ -74,7 +74,6 @@ void MaintainerDeinit(Maintainer* m) {
     VecDeinit(&m->socials);
 }
 
-typedef Vec(Str) Strs;
 typedef struct {
     Str         name;
     Str         description;
@@ -122,9 +121,9 @@ void ProjectDeinit(Project* p) {
                         Social s = {0};                                                                                \
                         JR_STR_KV(json, "platform_name", s.platform_name);                                             \
                         JR_STR_KV(json, "profile_url", s.profile_url);                                                 \
-                        VecPushBack(&m->socials, s);                                                                   \
+                        VecPushBack(&m.socials, s);                                                                    \
                     });                                                                                                \
-                    VecPushBack(&p->maintainers, m);                                                                   \
+                    VecPushBack(&p.maintainers, m);                                                                    \
                 });                                                                                                    \
             });                                                                                                        \
         });                                                                                                            \

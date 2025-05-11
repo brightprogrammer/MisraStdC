@@ -11,9 +11,11 @@
 
 // ct
 #include <Misra/Std/Container/Vec.h>
+#include <Misra/Std/Utility/StrIter.h>
 #include <Misra/Types.h>
 
 typedef Vec(char) Str;
+typedef Vec(Str) Strs;
 
 #ifdef _MSC_VER
 static inline char* strndup(const char* s, size n) {
@@ -393,7 +395,81 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : char* providing position of found string. Pointer is inside `str`.
 /// FAILURE : NULL
 ///
-#define StrFindCstr(str, key) strstr((str)->data, (key))
+#define StrFindZstr(str, key) strstr((str)->data, (key))
+
+///
+/// Split given string into multiple StrIter into the same string.
+/// This way the split operation can be performed without creating new strings,
+/// but instead just having an iterated view into the Str object.
+///
+/// This is best used when user never needs to make modifications and save
+/// the modifications. In other words, best used when only need iteration
+/// over string with some delimiters.
+///
+/// str[in] : Str object to split
+/// key[in] : Zero-terminated char pointer value to split based on
+///
+/// SUCCESS : StrIters vector of non-zero length
+/// FAILURE : StrIters vector of zero-length
+///
+#define StrSplitIntoIters(str, key) split_str_into_iters(str, key)
+
+///
+/// Split the given Str object into multiple Str objects stored in a vector
+/// of Str objects. Each Str object in returned vector is a new Str object
+/// and hence must be deinited after use. Calling `VecDeinit()` on the returned
+/// vector will do that for you automatically for all the objects.
+///
+/// This is best used when iterating over a delimited data is not the only goal,
+/// but also other modifications like stripping over whitespaces from returned Str objects.
+///
+/// str[in] : Str object to split
+/// key[in] : Zero-terminated char pointer value to split based on
+///
+/// SUCCESS : Strs vector of non-zero length
+/// FAILURE : Strs vector of zero-length
+///
+#define StrSplit(str, key) split_str(str, key)
+
+///
+/// Strip leading and trailing whitespace (or optional custom characters) from
+/// the given Str object. Returns a new Str object. Original is unmodified.
+/// The returned Str must be deinited after use.
+///
+/// str[in]            : Str object to strip
+/// chars_to_strip[in] : Optional zero-terminated char pointer specifying which characters to strip.
+///                      If NULL, standard ASCII whitespace is stripped.
+///
+/// SUCCESS : A new Str object with surrounding characters removed
+/// FAILURE : A zero-length Str object
+///
+#define StrStrip(str, chars_to_strip) StrStripImpl(str, chars_to_strip, 0)
+
+///
+/// Strip only leading whitespace (or optional custom characters) from the
+/// given Str object. Returns a new Str object. Original is unmodified.
+///
+/// str[in]            : Str object to strip
+/// chars_to_strip[in] : Optional zero-terminated char pointer specifying which characters to strip.
+///                      If NULL, standard ASCII whitespace is stripped.
+///
+/// SUCCESS : A new Str object with leading characters removed
+/// FAILURE : A zero-length Str object
+///
+#define StrLStrip(str, chars_to_strip) StrStripImpl(str, chars_to_strip, -1)
+
+///
+/// Strip only trailing whitespace (or optional custom characters) from the
+/// given Str object. Returns a new Str object. Original is unmodified.
+///
+/// str[in]            : Str object to strip
+/// chars_to_strip[in] : Optional zero-terminated char pointer specifying which characters to strip.
+///                      If NULL, standard ASCII whitespace is stripped.
+///
+/// SUCCESS : A new Str object with trailing characters removed
+/// FAILURE : A zero-length Str object
+///
+#define StrRStrip(str, chars_to_strip) StrStripImpl(str, chars_to_strip, 1)
 
 #define StrForeachIdx(str, chr, idx, body)              VecForeachIdx((str), (chr), idx, {body})
 #define StrForeachReverseIdx(str, chr, idx, body)       VecForeachReverseIdx((str), (chr), idx, {body})
@@ -407,5 +483,9 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 
 bool StrInitCopy(Str* dst, const Str* src);
 void StrDeinitCopy(Str* copy);
+
+StrIters split_str_into_iters(Str* s, const char* key);
+Strs     split_str(Str* s, const char* key);
+Str      strip_str(Str* s, const char* key, int split_direction);
 
 #endif // MISRA_STD_CONTAINER_STRING_H

@@ -1,10 +1,12 @@
 #ifndef MISRA_STD_UTILITY_STR_ITER_H
 #define MISRA_STD_UTILITY_STR_ITER_H
 
+#include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Utility/Iter.h>
 #include <Misra/Types.h>
 
 typedef Iter(char) StrIter;
+typedef Vec(StrIter) StrIters;
 
 #define StrIterMove(si, n) IterMove((si), (n))
 #define StrIterNext(si)    IterNext((si))
