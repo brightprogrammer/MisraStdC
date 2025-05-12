@@ -20,6 +20,6 @@
     "source_directories": ["Source", "Include"],
     "test_directories": [],
     "home_page": "README.md",
-    "build_dir": "build/doc"
+    "build_dir": "Docs/content/english/blog"
   }
 }

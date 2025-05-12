@@ -1,8 +1,8 @@
 ---
 # Banner
 banner:
-  title: "The Ultimate Starter Template You Need To Start Your Hugo Project"
-  content: "Hugoplate is a free starter template built with Hugo and TailwindCSS, providing everything you need to jumpstart your Hugo project and save valuable time."
+  title: "MisraStdC Documentation"
+  content: "A personal standard C library to make my life easier (and yours as well). The goal is to provide cross-platform, cross-compiler, type-safe and generic solutions. Search for any symbol to get started."
   image: "/images/banner.png"
   # button:
   #   enable: true
