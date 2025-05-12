@@ -394,7 +394,7 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrPushZStr(str, zstr, pos) StrPushCstr((str), (zstr), strlen(zstr), (pos))
+#define StrPushZstr(str, zstr, pos) StrPushCstr((str), (zstr), strlen(zstr), (pos))
 
 ///
 /// Push an array of chars with given length to the back of this string.
@@ -417,7 +417,7 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrPushBackZStr(str, zstr) StrPushBackCstr((str), (zstr), strlen((zstr)))
+#define StrPushBackZstr(str, zstr) StrPushBackCstr((str), (zstr), strlen((zstr)))
 
 ///
 /// Push a array of characters with given length to the front of this string
@@ -440,7 +440,7 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrPushFrontZStr(str, zstr) StrPushFrontCstr((str), (zstr), strlen((zstr)))
+#define StrPushFrontZstr(str, zstr) StrPushFrontCstr((str), (zstr), strlen((zstr)))
 
 ///
 /// Merge two strings and store the result in first string.
