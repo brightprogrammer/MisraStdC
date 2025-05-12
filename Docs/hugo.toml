@@ -28,7 +28,7 @@ ID = 'G-MEASUREMENT_ID' # see https://gohugo.io/templates/internal/#configure-go
 
 ########################## Permalinks ############################
 [permalinks.page]
-"pages" = "/:contentbasename/"
+"pages" = "/:slug/"
 
 
 ########################## Pagination ############################
