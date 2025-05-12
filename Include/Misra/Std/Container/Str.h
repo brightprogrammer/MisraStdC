@@ -75,11 +75,11 @@ Str* StrPrintf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 #define StrInitStack(str, ne, scoped_body) VecInitStack(str, ne, scoped_body)
 
 ///
-/// Deinit vec by freeing all allocations.
+/// Deinit str by freeing all allocations.
 ///
-/// str : Pointer to string to be destroyed
+/// str : Pointer to string to be deinited
 ///
-#define StrDeinit(str) VecDeinit(str)
+void StrDeinit(Str* str);
 
 ///
 /// Compare two Str objects
@@ -482,7 +482,6 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 #define StrForeachPtrReverse(str, chrptr, body) VecForeachPtrReverse((str), (chrptr), {body})
 
 bool StrInitCopy(Str* dst, const Str* src);
-void StrDeinitCopy(Str* copy);
 
 StrIters split_str_into_iters(Str* s, const char* key);
 Strs     split_str(Str* s, const char* key);

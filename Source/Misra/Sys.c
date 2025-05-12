@@ -68,7 +68,7 @@ SysDirEntry* SysDirEntryDeinitCopy(SysDirEntry* copy) {
         return NULL;
     }
 
-    StrDeinitCopy(&copy->name);
+    StrDeinit(&copy->name);
     copy->type = 0;
 
     return copy;
@@ -76,10 +76,12 @@ SysDirEntry* SysDirEntryDeinitCopy(SysDirEntry* copy) {
 
 #ifdef _WIN32
 // Windows-specific implementation using FindFirstFile/FindNextFile
-SysDirContents* SysGetDirContents(SysDirContents* dir_contents, const char* path) {
+SysDirContents SysGetDirContents(const char* path) {
     if (!dir_contents || !path) {
-        return NULL;
+        return SysDirContents {0};
     }
+
+    SysDirContents dc = VecInit();
 
     // Construct the search path with a wildcard
     char search_path[MAX_PATH];
@@ -89,8 +91,7 @@ SysDirContents* SysGetDirContents(SysDirContents* dir_contents, const char* path
     HANDLE          hFind = FindFirstFile(search_path, &findFileData);
 
     if (hFind == INVALID_HANDLE_VALUE) {
-        VecDeinit(dir_contents);
-        return NULL;
+        return (SysGetDirContents) {0};
     }
 
     do {
@@ -112,29 +113,30 @@ SysDirContents* SysGetDirContents(SysDirContents* dir_contents, const char* path
         }
 
         direntry.name = StrInitFromZstr(findFileData.cFileName); // Copy file name
-        VecPushBack(dir_contents, direntry);
-
+        VecPushBack(&dc, direntry);
     } while (FindNextFile(hFind, &findFileData) != 0);
 
     FindClose(hFind);
 
-    return dir_contents;
+    return dc;
 }
 #else
 // APPLE or Unix based system implementation using opendir/readdir
-SysDirContents* SysGetDirContents(SysDirContents* dir_contents, const char* path) {
-    if (!dir_contents || !path) {
+SysDirContents SysGetDirContents(const char* path) {
+    if (!path) {
         LOG_ERROR("invalid arguments.");
-        return NULL;
+        return (SysDirContents) {0};
     }
+
+    SysDirContents dc = VecInit();
 
     DIR* dir = opendir(path);
     if (NULL == dir) {
         Str err;
         StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, {
-            LOG_ERROR("opendir() failed : %s.", SysStrError(errno, &err)->data);
+            LOG_ERROR("opendir(\"%s\") failed : %s.", path, SysStrError(errno, &err)->data);
         });
-        return NULL;
+        return (SysDirContents) {0};
     }
 
     // Get value at specific index in name of directory entry
@@ -183,7 +185,7 @@ SysDirContents* SysGetDirContents(SysDirContents* dir_contents, const char* path
                     direntry.type = SYS_DIR_ENTRY_TYPE_UNKNOWN;
             }
             direntry.name = StrInitFromCstr(entry->d_name, NAMELEN(entry));
-            VecPushBack(dir_contents, direntry);
+            VecPushBack(&dc, direntry);
         }
     }
 
@@ -192,7 +194,7 @@ SysDirContents* SysGetDirContents(SysDirContents* dir_contents, const char* path
 
     closedir(dir);
 
-    return dir_contents;
+    return dc;
 }
 #endif
 

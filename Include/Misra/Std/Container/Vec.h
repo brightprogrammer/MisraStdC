@@ -790,9 +790,13 @@ typedef struct {
 ///
 /// Push a complete array into this vector.
 ///
+/// If array and count are both NULL and zero together correspondingly,
+/// then the function simply returns without any error. Any other combination
+/// is invalid and will result in an `abort()` call.
+///
 /// v[in,out] : Vector to insert array items into.
 /// arr[in]   : Array to be inserted.
-/// count[in] : Number (non-zero) of items in array.
+/// count[in] : Number of items in array.
 ///
 /// SUCCESS : `v`
 /// FAILURE : Does not return on failure
@@ -825,15 +829,40 @@ typedef struct {
 #define VecPushFrontArr(v, arr, count) VecPushArr((v), (arr), (count), 0)
 
 ///
-/// Merge two vectors and store the result in first vector.
+/// Merge two vectors and store the result in the first vector.
 ///
-/// v[in,out] : Vector to insert array items into.
-/// v2[in]   : Array to be inserted.
+/// Data is copied from `v2` into `v`. If a `copy_init` method is provided in `v`,
+/// each element from `v2` will be copied using that method. Otherwise, a raw memory
+/// copy is performed, which may be unsafe for complex or pointer-containing data.
+///
+/// The `copy_init` function must be set in `v` if ownership-safe copies are needed.
+///
+/// [in,out] v   : Destination vector that will receive data.
+/// [in]     v2  : Source vector to merge from.
 ///
 /// SUCCESS : `v`
 /// FAILURE : Does not return on failure
 ///
 #define VecMerge(v, v2) VecPushBackArr((v), (v2)->data, (v2)->length)
+
+///
+/// Merge `v2` into `v`, transferring ownership of `v2`'s data into `v`.
+///
+/// This macro ensures safe transfer when `v2` should no longer be used after merge.
+///
+/// [in,out] v   : Destination vector that will own the resulting data.
+/// [in,out] v2  : Source vector whose data is merged and deinitialized.
+///
+/// SUCCESS : `v`
+/// FAILURE : Does not return on failure
+///
+#define VecMergeAndOwn(v, v2)                                                                                          \
+    ((v2)->copy_init = (v)->copy_init,                                                                                 \
+     (v)->copy_init  = NULL,                                                                                           \
+     VecMerge((v), (v2)),                                                                                              \
+     (v)->copy_init    = (v2)->copy_init,                                                                              \
+     (v2)->copy_deinit = NULL,                                                                                         \
+     VecDeinit(v2))
 
 ///
 /// Initialize clone of vector from `vs` to `vd`.

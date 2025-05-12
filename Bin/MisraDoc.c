@@ -11,24 +11,24 @@
 ///     "project" : {
 ///         "name" : "MisraStdC",
 ///         "description" : "A Personal Standard Library",
-///         "source_code" : "https://github.com/brightprogrammer/MisraStdC"
+///         "source_code" : "https://github.com/brightprogrammer/MisraStdC",
 ///         "maintainers" : [
 ///             {
 ///                 "name" : "Siddharth Mishra",
 ///                 "bio" : "Hey There!",
 ///                 "username" : "brightprogrammer",
 ///                 "email" : "admin@brightprogrammer.in",
-///                 "socials" : {
-///                     "website" : "https://brightprogrammer.in",
-///                     "linkedin" : "https://linkedin.com/in/brightprogrammer",
-///                     "youtube" : "https://youtube.com/@brightprogrammer",
-///                     "x" : "https://x.com/brightprogramer"
-///                 }
+///                 "socials" : [
+///                     { "website" : "https://brightprogrammer.in" },
+///                     { "linkedin" : "https://linkedin.com/in/brightprogrammer" },
+///                     { "youtube" : "https://youtube.com/@brightprogrammer" },
+///                     { "x" : "https://x.com/brightprogramer" }
+///                 ]
 ///             }
 ///         ],
 ///         "source_directories" : ["Source", "Include"],
 ///         "test_directories" : ["Test"],
-///         "home_page" : "README.md"
+///         "home_page" : "README.md",
 ///         "build_dir" : "build/doc"
 ///     }
 /// }
@@ -103,7 +103,10 @@ void ProjectDeinit(Project* p) {
 
 #define JR_PROJECT(json, proj)                                                                                         \
     do {                                                                                                               \
-        Project p = {0};                                                                                               \
+        Project p            = {0};                                                                                    \
+        p.maintainers        = VecInit_T(&p.maintainers);                                                              \
+        p.test_directories   = VecInit_T(&p.test_directories);                                                         \
+        p.source_directories = VecInit_T(&p.source_directories);                                                       \
         JR_OBJ(json, {                                                                                                 \
             JR_OBJ_KV(json, "project", {                                                                               \
                 JR_STR_KV(json, "name", p.name);                                                                       \
@@ -111,19 +114,34 @@ void ProjectDeinit(Project* p) {
                 JR_STR_KV(json, "source_code", p.source_code);                                                         \
                 JR_STR_KV(json, "home_page", p.home_page);                                                             \
                 JR_STR_KV(json, "build_dir", p.build_dir);                                                             \
+                JR_ARR_KV(json, "test_directories", {                                                                  \
+                    Str s = StrInit();                                                                                 \
+                    JR_STR(json, s);                                                                                   \
+                    VecPushBack(&p.test_directories, s);                                                               \
+                });                                                                                                    \
+                JR_ARR_KV(json, "source_directories", {                                                                \
+                    Str s = StrInit();                                                                                 \
+                    JR_STR(json, s);                                                                                   \
+                    VecPushBack(&p.source_directories, s);                                                             \
+                });                                                                                                    \
                 JR_ARR_KV(json, "maintainers", {                                                                       \
-                    Maintainer m = {0};                                                                                \
-                    JR_STR_KV(json, "name", m.name);                                                                   \
-                    JR_STR_KV(json, "bio", m.bio);                                                                     \
-                    JR_STR_KV(json, "username", m.username);                                                           \
-                    JR_STR_KV(json, "email", m.email);                                                                 \
-                    JR_ARR_KV(json, "socials", {                                                                       \
-                        Social s = {0};                                                                                \
-                        JR_STR_KV(json, "platform_name", s.platform_name);                                             \
-                        JR_STR_KV(json, "profile_url", s.profile_url);                                                 \
-                        VecPushBack(&m.socials, s);                                                                    \
+                    JR_OBJ(json, {                                                                                     \
+                        Maintainer m = {0};                                                                            \
+                        m.socials    = VecInit_T(&m.socials);                                                          \
+                        JR_STR_KV(json, "name", m.name);                                                               \
+                        JR_STR_KV(json, "bio", m.bio);                                                                 \
+                        JR_STR_KV(json, "username", m.username);                                                       \
+                        JR_STR_KV(json, "email", m.email);                                                             \
+                        JR_ARR_KV(json, "socials", {                                                                   \
+                            JR_OBJ(json, {                                                                             \
+                                Social s = {0};                                                                        \
+                                StrInitCopy(&s.platform_name, &key);                                                   \
+                                JR_STR(json, s.profile_url);                                                           \
+                                VecPushBack(&m.socials, s);                                                            \
+                            });                                                                                        \
+                        });                                                                                            \
+                        VecPushBack(&p.maintainers, m);                                                                \
                     });                                                                                                \
-                    VecPushBack(&p.maintainers, m);                                                                    \
                 });                                                                                                    \
             });                                                                                                        \
         });                                                                                                            \
@@ -146,6 +164,45 @@ int main(int argc, char** argv) {
 
     Project project = {0};
     JR_PROJECT(json, project);
+
+    Strs dir_paths = VecInit();
+    VecMergeAndOwn(&dir_paths, &project.source_directories);
+    VecMergeAndOwn(&dir_paths, &project.test_directories);
+
+    Strs file_paths = VecInitWithDeepCopy(StrInitCopy, StrDeinit);
+    VecForeach(&dir_paths, dir_name, {
+        // keep track of current path we're exploring
+        Str current_path = StrInit();
+        StrMerge(&current_path, &dir_name);
+
+        SysDirContents dir_contents = SysGetDirContents(dir_name.data);
+        VecForeach(&dir_contents, dir_entry, {
+            // if it's a directory then store it for exploration lateron
+            if (dir_entry.type == SYS_DIR_ENTRY_TYPE_DIRECTORY) {
+                // create new directory path relative to current directory search path
+                Str dir_name = StrInit();
+                StrMerge(&dir_name, &current_path);
+                StrPushBack(&dir_name, '/');
+                StrMerge(&dir_name, &dir_entry.name);
+
+                // store the director name
+                VecPushBack(&dir_paths, dir_name);
+            } else if (dir_entry.type == SYS_DIR_ENTRY_TYPE_REGULAR_FILE) {
+                // create complete relative file path
+                Str file_path = StrInit();
+                StrMerge(&file_path, &current_path);
+                StrPushBack(&file_path, '/');
+                StrMerge(&file_path, &dir_entry.name);
+
+                // store discovered file name
+                VecPushBack(&file_paths, file_path);
+            }
+        });
+        VecDeinit(&dir_contents);
+    });
+    VecDeinit(&dir_paths);
+
+    VecForeach(&file_paths, file_path, { puts(file_path.data); });
 
     LogDeinit();
     return 0;

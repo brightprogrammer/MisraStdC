@@ -605,7 +605,7 @@ StrIter JSkipValue(StrIter si);
         while (StrIterPeek(&si) && StrIterPeek(&si) != '}') {                                                          \
             if (expect_comma) {                                                                                        \
                 if (StrIterPeek(&si) != ',') {                                                                         \
-                    LOG_ERROR("Expected ',' between key/value pairs in object. Invalid JSON object.");                 \
+                    LOG_ERROR("Expected ',' after key/value pairs in object. Invalid JSON object.");                   \
                     failed = true;                                                                                     \
                     si     = saved_si;                                                                                 \
                     break;                                                                                             \

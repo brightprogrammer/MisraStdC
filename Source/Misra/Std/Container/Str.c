@@ -94,18 +94,8 @@ bool StrInitCopy(Str* dst, const Str* src) {
 }
 
 
-void StrDeinitCopy(Str* copy) {
-    if (!copy) {
-        LOG_ERROR("invalid arguments.");
-        return;
-    }
-
-    if (copy->data) {
-        memset(copy->data, 0, copy->length);
-        free(copy->data);
-    }
-
-    memset(copy, 0, sizeof(Str));
+void StrDeinit(Str* copy) {
+    VecDeinit(copy);
 }
 
 StrIters split_str_into_iters(Str* s, const char* key) {

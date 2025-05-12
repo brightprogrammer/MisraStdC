@@ -394,6 +394,11 @@ void reverse_vec(GenericVec *vec, size item_size) {
 
 
 void push_arr_vec(GenericVec *vec, size item_size, char *arr, size count, size pos) {
+    // array is allowed to be NULL if count is 0 as well
+    if (!arr && !count) {
+        return;
+    }
+
     if (!vec || !arr || !count || !item_size) {
         LOG_FATAL("invalid arguments.");
     }

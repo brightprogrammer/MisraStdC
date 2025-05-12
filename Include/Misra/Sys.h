@@ -52,13 +52,12 @@ typedef Vec(SysDirEntry) SysDirContents;
 /// Read directory contents into a vector
 /// Current contents of the vector will be cleared out.
 ///
-/// dir[in,out] : Directory contents will be stored here.
 /// path[in]    : Path of directory get content of.
 ///
-/// SUCCESS : `dir`
-/// FAILURE : NULL
+/// SUCCESS : SysDirContents vector filled with directory contents data.
+/// FAILURE : Empty vector.
 ///
-SysDirContents *SysGetDirContents(SysDirContents *dir, const char *path);
+SysDirContents SysGetDirContents(const char *path);
 
 ///
 /// Get size of file without opening it.
