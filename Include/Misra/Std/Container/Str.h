@@ -128,6 +128,43 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 #define StrInsertCharAt(str, chr, idx) VecInsert((str), (chr), (str))
 
 ///
+/// Insert a string of given length into given Str at given index.
+///
+/// str[in,out] : Str object to insert into.
+/// zstr[in]    : Zero-terminated string to be inserted.
+/// idx[in]     : Index to insert the string at.
+/// len[in]     : Length of string or number of bytes to insert.
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
+#define StrInsertCstr(str, cstr, idx, len) VecInsertRange((str), (cstr), (idx), (len))
+
+///
+/// Insert a zero-terminated string into given Str at given index.
+///
+/// str[in,out] : Str object to insert into.
+/// zstr[in]    : Zero-terminated string to be inserted.
+/// idx[in]     : Index to insert the string at.
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
+#define StrInsertZstr(str, zstr, idx) StrInsertCstr((str), (zstr), (idx), strlen(cstr))
+
+///
+/// Insert contents of `str2` into `str` at given index.
+///
+/// str[in,out] : Str object to insert into.
+/// str2[in]    : Str object to be inserted.
+/// idx[in]     : Index to insert at.
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
+#define StrInsert(str, str2, idx) StrInsertCstr((str), (str2)->data, (dx), (str2)->length)
+
+///
 /// Push char into string.
 ///
 /// str[in] : Str to push char into
@@ -186,7 +223,7 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : Returns `str` on success.
 /// FAILURE : Returns NULL otherwise.
 ///
-#define StrRemoveCharAt(str, chr, idx) VecRemove((str), (chr), (idx))
+#define StrRemove(str, chr, idx) VecRemove((str), (chr), (idx))
 
 ///
 /// Remove data from string in given range [start, start + count)
@@ -197,25 +234,38 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// start[in] : Index in string to removing chars from.
 /// count[in] : Number of chars from starting index.
 ///
-/// SUCCESS : Returns `str` on success.
-/// FAILURE : Returns NULL otherwise.
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define StrRemoveRange(str, rd, start, count) VecRemoveRange((str), (rd), (start), (count))
 
 ///
 /// Delete last char from vec
 ///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
 #define StrDeleteLastChar(str) VecDeleteLast(str)
 
 ///
 /// Delete char at given index
 ///
-#define StrDeleteCharAt(str, idx) VecDelete((str), (idx))
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
+#define StrDelete(str, idx) VecDelete((str), (idx))
 
 ///
 /// Delete chars in given range [start, start + count)
 ///
-#define StrDeleteRange(str, start, count) VecRemoveRange((str), NULL, (start), (count))
+/// str[in,out] : Str to delete a sequence of characters from.
+/// start[in]   : Starting index to start deleting from.
+/// count[in]   : Number of characters to be deleted (including the starting index).
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
+#define StrDeleteRange(str, start, count) VecDeleteRange((str), (start), (count))
 
 ///
 /// Try reducing memory footprint of string.
@@ -225,8 +275,8 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 ///
 /// str[in,out] : Str
 ///
-/// SUCCESS : `str` on success
-/// FAILURE : NULL
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define StrTryReduceSpace(str) VecTryReduceSpace(str)
 
@@ -237,8 +287,8 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// idx1[in]  : Index/Position of first char.
 /// idx1[in]  : Index/Position of second char.
 ///
-/// SUCCESS : `str` on success
-/// FAILURE : NULL
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define StrSwapCharAt(str, idx1, idx2) VecSwapItems((str), (idx1), (idx2))
 
@@ -250,8 +300,8 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// vec[in,out] : Str to be resized.
 /// len[in]     : New length of string.
 ///
-/// SUCCESS : `str`
-/// FAILURE : NULL
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define StrResize(str, len) VecResize((str), (len))
 
@@ -261,8 +311,46 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// vec[in,out] : Str to be resized.
 /// len[in]     : New capacity of string.
 ///
-/// SUCCESS : `str`
-/// FAILURE : NULL
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
+#define StrDeleteRange(str, start, count) VecDeleteRange((str), (start), (count))
+
+///
+/// Try reducing memory footprint of string.
+/// This is to be used when we know actual allocated memory for vec is large,
+/// and we won't need it in future, so we can reduce it to whatever's required at
+/// the moment.
+///
+/// str[in,out] : Str
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
+#define StrTryReduceSpace(str) VecTryReduceSpace(str)
+
+///
+/// Swap chars at given indices.
+///
+/// str[in,out] : Str to swap chars in.
+/// idx1[in]  : Index/Position of first char.
+/// idx1[in]  : Index/Position of second char.
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
+#define StrSwapCharAt(str, idx1, idx2) VecSwapItems((str), (idx1), (idx2))
+
+///
+/// Resize string.
+/// If length is smaller than current capacity, string length is shrinked.
+/// If length is greater than current capacity, space is reserved and string is expanded.
+///
+/// vec[in,out] : Str to be resized.
+/// len[in]     : New length of string.
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define StrReserve(str, n) VecReserve((str), (n))
 
@@ -294,7 +382,7 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrPushCStr(str, cstr, len, pos) VecPushArr((str), (cstr), (count), (pos))
+#define StrPushCstr(str, cstr, len, pos) VecPushArr((str), (cstr), (count), (pos))
 
 ///
 /// Push a null-terminated string to this string
@@ -306,7 +394,7 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrPushZStr(str, zstr, pos) StrPushCStr((str), (zstr), strlen(zstr), (pos))
+#define StrPushZStr(str, zstr, pos) StrPushCstr((str), (zstr), strlen(zstr), (pos))
 
 ///
 /// Push an array of chars with given length to the back of this string.
@@ -318,7 +406,7 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrPushBackCStr(str, cstr, len) VecPushBackArr((str), (cstr), (len))
+#define StrPushBackCstr(str, cstr, len) VecPushBackArr((str), (cstr), (len))
 
 ///
 /// Push a null-terminated string to the back of string.
@@ -329,7 +417,7 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrPushBackZStr(str, zstr) StrPushBackCStr((str), (zstr), strlen((zstr)))
+#define StrPushBackZStr(str, zstr) StrPushBackCstr((str), (zstr), strlen((zstr)))
 
 ///
 /// Push a array of characters with given length to the front of this string
@@ -341,7 +429,7 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrPushFrontCStr(str, cstr, len) VecPushFrontArr((str), (cstr), (len))
+#define StrPushFrontCstr(str, cstr, len) VecPushFrontArr((str), (cstr), (len))
 
 ///
 /// Push a null-terminated string to the front of this string.
@@ -352,7 +440,7 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrPushFrontZStr(str, zstr) StrPushFrontCStr((str), (zstr), strlen((zstr)))
+#define StrPushFrontZStr(str, zstr) StrPushFrontCstr((str), (zstr), strlen((zstr)))
 
 ///
 /// Merge two strings and store the result in first string.
@@ -412,7 +500,7 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : StrIters vector of non-zero length
 /// FAILURE : StrIters vector of zero-length
 ///
-#define StrSplitIntoIters(str, key) split_str_into_iters(str, key)
+StrIters StrSplitToIters(Str* s, const char* key);
 
 ///
 /// Split the given Str object into multiple Str objects stored in a vector
@@ -429,7 +517,7 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : Strs vector of non-zero length
 /// FAILURE : Strs vector of zero-length
 ///
-#define StrSplit(str, key) split_str(str, key)
+Strs StrSplit(Str* s, const char* key);
 
 ///
 /// Strip leading and trailing whitespace (or optional custom characters) from
@@ -481,10 +569,133 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 #define StrForeachPtr(str, chrptr, body)        VecForeachPtr((str), (chrptr), {body})
 #define StrForeachPtrReverse(str, chrptr, body) VecForeachPtrReverse((str), (chrptr), {body})
 
+///
+/// Copy data from `src` to `dst`
+///
+/// dst[out] : Str object to copy into.
+/// src[in]  : Str object to copy from.
+///
+/// SUCCESS : true
+/// FAILURE : false
+///
 bool StrInitCopy(Str* dst, const Str* src);
 
-StrIters split_str_into_iters(Str* s, const char* key);
-Strs     split_str(Str* s, const char* key);
-Str      strip_str(Str* s, const char* key, int split_direction);
+///
+/// Check if string starts with a null-terminated string (Zstr).
+///
+/// s[in]     : Str to check.
+/// prefix[in]: Null-terminated prefix string.
+///
+/// SUCCESS : Returns true if `s` starts with `prefix`.
+/// FAILURE : Returns false.
+///
+bool StrStartsWithZstr(const Str* s, const char* prefix);
+
+///
+/// Check if string ends with a null-terminated string (Zstr).
+///
+/// s[in]     : Str to check.
+/// suffix[in]: Null-terminated suffix string.
+///
+/// SUCCESS : Returns true if `s` ends with `suffix`.
+/// FAILURE : Returns false.
+///
+bool StrEndsWithZstr(const Str* s, const char* suffix);
+
+///
+/// Check if string starts with a fixed-length C-style string (Cstr).
+///
+/// s[in]         : Str to check.
+/// prefix[in]    : Pointer to prefix character array.
+/// prefix_len[in]: Length of prefix.
+///
+/// SUCCESS : Returns true if `s` starts with `prefix`.
+/// FAILURE : Returns false.
+///
+bool StrStartsWithCstr(const Str* s, const char* prefix, size prefix_len);
+
+///
+/// Check if string ends with a fixed-length C-style string (Cstr).
+///
+/// s[in]         : Str to check.
+/// suffix[in]    : Pointer to suffix character array.
+/// suffix_len[in]: Length of suffix.
+///
+/// SUCCESS : Returns true if `s` ends with `suffix`.
+/// FAILURE : Returns false.
+///
+bool StrEndsWithCstr(const Str* s, const char* suffix, size suffix_len);
+
+///
+/// Check if string starts with another Str object.
+///
+/// s[in]     : Str to check.
+/// prefix[in]: Str to check as prefix.
+///
+/// SUCCESS : Returns true if `s` starts with `prefix`.
+/// FAILURE : Returns false.
+///
+bool StrStartsWith(const Str* s, const Str* prefix);
+
+///
+/// Check if string ends with another Str object.
+///
+/// s[in]     : Str to check.
+/// suffix[in]: Str to check as suffix.
+///
+/// SUCCESS : Returns true if `s` ends with `suffix`.
+/// FAILURE : Returns false.
+///
+bool StrEndsWith(const Str* s, const Str* suffix);
+
+///
+/// Replace occurrences of a null-terminated string (Zstr) in string.
+///
+/// s[in,out]      : Str to modify.
+/// match[in]      : Null-terminated match string.
+/// replacement[in]: Null-terminated replacement string.
+/// count[in]      : Maximum number of replacements. -1 means replace all occurences.
+///
+/// SUCCESS : Modifies `s` in place.
+/// FAILURE : No replacement if `match` not found.
+///
+void StrReplaceZstr(Str* s, const char* match, const char* replacement, size count);
+
+///
+/// Replace occurrences of a fixed-length string (Cstr) in string.
+///
+/// s[in,out]         : Str to modify.
+/// match[in]         : Match string pointer.
+/// match_len[in]     : Length of match string.
+/// replacement[in]   : Replacement string pointer.
+/// replacement_len[in]: Length of replacement string.
+/// count[in]         : Maximum number of replacements. -1 means replace all occurences.
+///
+/// SUCCESS : Modifies `s` in place.
+/// FAILURE : No replacement if `match` not found.
+///
+void StrReplaceCstr(
+    Str*        s,
+    const char* match,
+    size        match_len,
+    const char* replacement,
+    size        replacement_len,
+    size        count
+);
+
+///
+/// Replace occurrences of a Str in string with another Str.
+///
+/// s[in,out]     : Str to modify.
+/// match[in]     : Str to match.
+/// replacement[in]: Str to replace with.
+/// count[in]     : Maximum number of replacements. -1 means replace all occurences.
+///
+/// SUCCESS : Modifies `s` in place.
+/// FAILURE : No replacement if `match` not found.
+///
+void StrReplace(Str* s, const Str* match, const Str* replacement, size count);
+
+Str strip_str(Str* s, const char* key, int split_direction);
 
 #endif // MISRA_STD_CONTAINER_STRING_H

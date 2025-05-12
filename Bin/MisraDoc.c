@@ -148,6 +148,42 @@ void ProjectDeinit(Project* p) {
         (proj) = p;                                                                                                    \
     } while (0)
 
+///
+/// Run a scoped block and automatically deinitialize the object at the end.
+///
+/// Executes `scope_body` and ensures `obj_deinit(obj)` is called afterward,
+/// regardless of the block's control flow. This is similar to RAII-style
+/// resource management in C++ but implemented manually via a macro.
+///
+/// The object is passed by pointer. It is not copied or moved.
+///
+/// This macro ensures the object is only evaluated once by capturing it
+/// internally using `__typeof__`.
+///
+/// The memory pointed to by `obj` is **not** cleared after deinitialization;
+/// if zeroing is needed, do it inside `obj_deinit`.
+///
+/// Parameters:
+///     obj[in]         : Pointer to the object to manage.
+///     obj_deinit[in]  : Function or macro to deinitialize the object.
+///     scope_body[in]  : Block of code that uses the object.
+///
+/// Usage example:
+///     MyStruct s = MyStructInit();
+///     Scope(&s, MyStructDeinit, {
+///         UseStruct(&s);
+///     });
+///
+/// SUCCESS : Always continues execution after scope.
+/// FAILURE : Caller must handle errors inside the scoped body.
+///
+#define Scope(obj, obj_deinit, scope_body)                                                                             \
+    do {                                                                                                               \
+        __typeof__((obj)) __o_b_j = (obj);                                                                             \
+        {scope_body};                                                                                                  \
+        obj_deinit(__o_b_j);                                                                                           \
+    } while (0)
+
 int main(int argc, char** argv) {
     if (argc != 2) {
         fprintf(stderr, "USAGE : %s config.json\n", argc == 0 ? "MisraDoc" : argv[0]);
@@ -156,53 +192,65 @@ int main(int argc, char** argv) {
 
     LogInit(false);
 
-    const char* config = argv[1];
-
-    Str code = StrInit();
-    ReadCompleteFile(config, &code.data, &code.length, &code.capacity);
-    StrIter json = StrIterFromStr(&code);
+    const char* config_path = argv[1];
 
     Project project = {0};
-    JR_PROJECT(json, project);
-
-    Strs dir_paths = VecInit();
-    VecMergeAndOwn(&dir_paths, &project.source_directories);
-    VecMergeAndOwn(&dir_paths, &project.test_directories);
-
-    Strs file_paths = VecInitWithDeepCopy(StrInitCopy, StrDeinit);
-    VecForeach(&dir_paths, dir_name, {
-        // keep track of current path we're exploring
-        Str current_path = StrInit();
-        StrMerge(&current_path, &dir_name);
-
-        SysDirContents dir_contents = SysGetDirContents(dir_name.data);
-        VecForeach(&dir_contents, dir_entry, {
-            // if it's a directory then store it for exploration lateron
-            if (dir_entry.type == SYS_DIR_ENTRY_TYPE_DIRECTORY) {
-                // create new directory path relative to current directory search path
-                Str dir_name = StrInit();
-                StrMerge(&dir_name, &current_path);
-                StrPushBack(&dir_name, '/');
-                StrMerge(&dir_name, &dir_entry.name);
-
-                // store the director name
-                VecPushBack(&dir_paths, dir_name);
-            } else if (dir_entry.type == SYS_DIR_ENTRY_TYPE_REGULAR_FILE) {
-                // create complete relative file path
-                Str file_path = StrInit();
-                StrMerge(&file_path, &current_path);
-                StrPushBack(&file_path, '/');
-                StrMerge(&file_path, &dir_entry.name);
-
-                // store discovered file name
-                VecPushBack(&file_paths, file_path);
+    Scope(&project, ProjectDeinit, {
+        // read project config
+        Str config = StrInit();
+        Scope(&config, StrDeinit, {
+            if (!ReadCompleteFile(config_path, &config.data, &config.length, &config.capacity)) {
+                LOG_FATAL("Failed to read config file.");
             }
+            StrIter json = StrIterFromStr(&config);
+            JR_PROJECT(json, project);
         });
-        VecDeinit(&dir_contents);
-    });
-    VecDeinit(&dir_paths);
 
-    VecForeach(&file_paths, file_path, { puts(file_path.data); });
+        // recursively explore directories and get files that need documentation
+        Strs file_paths = VecInit();
+        Scope(&file_paths, VecDeinit, {
+            // temporary vector to store all directory paths to explore files in
+            Strs dir_paths = VecInit();
+            Scope(&dir_paths, VecDeinit, {
+                VecMergeAndOwn(&dir_paths, &project.source_directories);
+                VecMergeAndOwn(&dir_paths, &project.test_directories);
+
+                // recursively explore directories and get filenames
+                VecForeach(&dir_paths, dir_name, {
+                    // keep track of current path we're exploring
+                    Str current_path = StrInit();
+                    StrMerge(&current_path, &dir_name);
+
+                    SysDirContents dir_contents = SysGetDirContents(dir_name.data);
+                    Scope(&dir_contents, VecDeinit, {
+                        VecForeach(&dir_contents, dir_entry, {
+                            // if it's a directory then store it for exploration later on
+                            if (dir_entry.type == SYS_DIR_ENTRY_TYPE_DIRECTORY) {
+                                // create new directory path relative to current directory search path
+                                Str path = StrInit();
+                                StrMerge(&path, &current_path);
+                                StrPushBack(&path, '/');
+                                StrMerge(&path, &dir_entry.name);
+
+                                // store the directory name, ownersip transferred
+                                VecPushBack(&dir_paths, path);
+                            } else if (dir_entry.type == SYS_DIR_ENTRY_TYPE_REGULAR_FILE) {
+                                // create complete relative file path
+                                Str path = StrInit();
+                                StrMerge(&path, &current_path);
+                                StrPushBack(&path, '/');
+                                StrMerge(&path, &dir_entry.name);
+
+                                // store discovered file name, ownersip transferred
+                                VecPushBack(&file_paths, path);
+                            }
+                            // any other file type is not documented
+                        });
+                    });
+                });
+            });
+        });
+    });
 
     LogDeinit();
     return 0;

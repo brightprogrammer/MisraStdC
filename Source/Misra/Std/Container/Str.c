@@ -98,7 +98,7 @@ void StrDeinit(Str* copy) {
     VecDeinit(copy);
 }
 
-StrIters split_str_into_iters(Str* s, const char* key) {
+StrIters StrSplitToIters(Str* s, const char* key) {
     if (!s || !key) {
         LOG_ERROR("Invalid arguments.");
         return (StrIters) {0};
@@ -126,7 +126,7 @@ StrIters split_str_into_iters(Str* s, const char* key) {
     return sv;
 }
 
-Strs split_str(Str* s, const char* key) {
+Strs StrSplit(Str* s, const char* key) {
     if (!s || !key) {
         LOG_ERROR("Invalid arguments.");
         return (Strs) {0};
@@ -181,4 +181,74 @@ Str strip_str(Str* s, const char* chars_to_strip, int split_direction) {
 
     size new_len = end >= start ? (end - start + 1) : 0;
     return StrInitFromCstr(start, new_len);
+}
+
+static inline bool starts_with(const char* data, size data_len, const char* prefix, size prefix_len) {
+    return data_len >= prefix_len && memcmp(data, prefix, prefix_len) == 0;
+}
+
+static inline bool ends_with(const char* data, size data_len, const char* suffix, size suffix_len) {
+    return data_len >= suffix_len && memcmp(data + data_len - suffix_len, suffix, suffix_len) == 0;
+}
+
+
+bool StrStartsWithZstr(const Str* s, const char* prefix) {
+    return starts_with(s->data, s->length, prefix, strlen(prefix));
+}
+
+bool StrEndsWithZstr(const Str* s, const char* suffix) {
+    return ends_with(s->data, s->length, suffix, strlen(suffix));
+}
+
+bool StrStartsWithCstr(const Str* s, const char* prefix, size prefix_len) {
+    return starts_with(s->data, s->length, prefix, prefix_len);
+}
+
+bool StrEndsWithCstr(const Str* s, const char* suffix, size suffix_len) {
+    return ends_with(s->data, s->length, suffix, suffix_len);
+}
+
+bool StrStartsWith(const Str* s, const Str* prefix) {
+    return starts_with(s->data, s->length, prefix->data, prefix->length);
+}
+
+bool StrEndsWith(const Str* s, const Str* suffix) {
+    return ends_with(s->data, s->length, suffix->data, suffix->length);
+}
+
+// Helper: replace in-place all `match` → `replacement` up to `count`
+static void
+    str_replace(Str* s, const char* match, size match_len, const char* replacement, size replacement_len, size count) {
+    size i        = 0;
+    size replaced = 0;
+
+    while (i + match_len <= s->length && replaced < count) {
+        if (memcmp(s->data + i, match, match_len) == 0) {
+            StrDeleteRange(s, i, match_len);
+            StrInsertCstr(s, replacement, i, replacement_len);
+            i        += replacement_len;
+            replaced += 1;
+        } else {
+            i++;
+        }
+    }
+}
+
+void StrReplaceZstr(Str* s, const char* match, const char* replacement, size count) {
+    str_replace(s, match, strlen(match), replacement, strlen(replacement), count);
+}
+
+void StrReplaceCstr(
+    Str*        s,
+    const char* match,
+    size        match_len,
+    const char* replacement,
+    size        replacement_len,
+    size        count
+) {
+    str_replace(s, match, match_len, replacement, replacement_len, count);
+}
+
+void StrReplace(Str* s, const Str* match, const Str* replacement, size count) {
+    str_replace(s, match->data, match->length, replacement->data, replacement->length, count);
 }

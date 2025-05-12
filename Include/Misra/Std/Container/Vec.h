@@ -465,6 +465,9 @@ typedef struct {
 ///   VecInsert(&integers, &y, 0); // x shifted one position and y is inserted
 ///   VecInsert(&integers, ((int[]){5}), 1); // x shifted one position and 5 is inserted at index 1
 ///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
 #define VecInsert(v, val, idx)                                                                                         \
     do {                                                                                                               \
         VEC_DATA_TYPE(v) __tmp__val = (val);                                                                           \
@@ -486,6 +489,9 @@ typedef struct {
 /// val[in]   : Value to be inserted
 /// idx[in]   : Index to insert item at.
 ///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
 #define VecInsertFast(v, val, idx)                                                                                     \
     do {                                                                                                               \
         VEC_DATA_TYPE(v) __tmp__val = (val);                                                                           \
@@ -503,9 +509,12 @@ typedef struct {
 /// idx[in]   : Index to start inserting item at.
 /// count[in] : Number of items to insert.
 ///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
 #define VecInsertRange(v, varr, idx, count)                                                                            \
     do {                                                                                                               \
-        VEC_DATA_TYPE(v) *__tmp__ptr = (varr);                                                                         \
+        const VEC_DATA_TYPE(v) *__tmp__ptr = (varr);                                                                   \
         insert_range_into_vec(GENERIC_VEC(v), (char *)__tmp__ptr, sizeof(VEC_DATA_TYPE(v)), (idx), (count));           \
     } while (0)
 
@@ -523,6 +532,9 @@ typedef struct {
 /// val[in]   : Value to be inserted
 /// idx[in]   : Index to insert item at.
 ///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
 #define VecInsertRangeFast(v, varr, idx, count)                                                                        \
     do {                                                                                                               \
         VEC_DATA_TYPE(v) __tmp__ptr = (varr);                                                                          \
@@ -537,6 +549,9 @@ typedef struct {
 /// ptr[out]  : Where removed item will be stored. If not provided then it's equivalent to
 ///             deleting the item at specified index.
 /// idx[in]   : Index in vector to remove item from.
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define VecRemove(v, ptr, idx)                                                                                         \
     do {                                                                                                               \
@@ -554,6 +569,9 @@ typedef struct {
 ///             deleting the item at specified index.
 /// idx[in]   : Index in vector to remove item from.
 ///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
 #define VecRemoveFast(v, ptr, idx)                                                                                     \
     do {                                                                                                               \
         VEC_DATA_TYPE(v) *p = (ptr);                                                                                   \
@@ -569,6 +587,9 @@ typedef struct {
 ///             deleting the items in specified range.
 /// start[in] : Index in vector to removing items from.
 /// count[in] : Number of items from starting index.
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define VecRemoveRange(v, ptr, start, count)                                                                           \
     do {                                                                                                               \
@@ -587,6 +608,9 @@ typedef struct {
 /// start[in] : Index in vector to removing items from.
 /// count[in] : Number of items from starting index.
 ///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
 #define VecRemoveRangeFast(v, ptr, start, count)                                                                       \
     do {                                                                                                               \
         VEC_DATA_TYPE(v) *p = (ptr);                                                                                   \
@@ -599,6 +623,9 @@ typedef struct {
 /// v[in,out]   : Vector to push item into
 /// val[in] : Pointer to value to be pushed
 ///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
 #define VecPushBack(v, val) VecInsert((v), (val), (v)->length)
 
 ///
@@ -609,6 +636,9 @@ typedef struct {
 ///              to store memcopied data. If no pointer is provided, then it's equivalent
 ///              to deleting item from last position.
 ///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
 #define VecPopBack(v, ptr) VecRemove((v), (ptr), (v)->length - 1)
 
 ///
@@ -616,6 +646,9 @@ typedef struct {
 ///
 /// v[in,out]   : Vector to push item into
 /// val[in] : Pointer to value to be pushed
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define VecPushFront(v, val) VecInsert((v), (val), 0)
 
@@ -632,10 +665,16 @@ typedef struct {
 ///
 /// Delete last item from vec
 ///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
 #define VecDeleteLast(v) VecPopBack((v), NULL)
 
 ///
 /// Delete item at given index
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define VecDelete(v, idx) VecRemove((v), NULL, (idx))
 
@@ -643,16 +682,25 @@ typedef struct {
 /// Delete item at given index using faster implementation.
 /// Order preservation is not guaranteed
 ///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
 #define VecDeleteFast(v, idx) VecRemoveFast((v), NULL, (idx))
 
 ///
 /// Delete items in given range [start, start + count)
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define VecDeleteRange(v, start, count) VecRemoveRange((v), NULL, (start), (count))
 
 ///
 /// Delete items in given range [start, start + count) using faster implementation.
 /// Order preservation is not guaranteed
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define VecDeleteRangeFast(v, start, count) VecRemoveRangeFast((v), NULL, (start), (count))
 
@@ -662,8 +710,8 @@ typedef struct {
 /// v[in,out]  : Vector to be sorted.
 /// compare[in] : Compare function. Signature and behaviour must be similar to that of `strcmp`.
 ///
-/// SUCCESS : Returns `v` on success.
-/// FAILURE : Does not return on failure
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define VecSort(v, compare) (qsort_vec(GENERIC_VEC(v), sizeof(VEC_DATA_TYPE(v)), (GenericCompare)(compare)))
 
@@ -675,8 +723,8 @@ typedef struct {
 ///
 /// v[in,out] : Vector
 ///
-/// SUCCESS : `v` on success
-/// FAILURE : Does not return on failure
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define VecTryReduceSpace(v) (reduce_space_vec(GENERIC_VEC(v)))
 
@@ -687,8 +735,8 @@ typedef struct {
 /// idx1[in]  : Index/Position of first item.
 /// idx1[in]  : Index/Position of second item.
 ///
-/// SUCCESS : `v` on success
-/// FAILURE : Does not return on failure
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define VecSwapItems(v, idx1, idx2) (swap_vec(GENERIC_VEC(v), sizeof(VEC_DATA_TYPE(v)), (idx1), (idx2)))
 
@@ -700,8 +748,8 @@ typedef struct {
 /// vec[in,out] : Vector to be resized.
 /// len[in]     : New length of vector.
 ///
-/// SUCCESS : `v`
-/// FAILURE : Does not return on failure
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define VecResize(v, len) (resize_vec(GENERIC_VEC(v), sizeof(VEC_DATA_TYPE(v)), (len)))
 
@@ -711,8 +759,8 @@ typedef struct {
 /// vec[in,out] : Vector to be resized.
 /// len[in]     : New capacity of vector.
 ///
-/// SUCCESS : `v`
-/// FAILURE : Does not return on failure
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define VecReserve(v, n) (reserve_vec(GENERIC_VEC(v), sizeof(VEC_DATA_TYPE(v)), (n)))
 
@@ -721,8 +769,8 @@ typedef struct {
 ///
 /// vec[in,out] : Vector to be cleared.
 ///
-/// SUCCESS : `v`
-/// FAILURE : Does not return on failure
+/// SUCCESS : return
+/// FAILURE : Does not return
 ///
 #define VecClear(v) (clear_vec(GENERIC_VEC(v), sizeof(VEC_DATA_TYPE(v))))
 

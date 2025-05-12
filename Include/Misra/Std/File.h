@@ -39,9 +39,9 @@
 ///                    New capacity of `data` buffer is automatically stored here if
 ///                    realloc is performed.
 ///
-/// SUCCESS : Returns a malloc'd array with read file contents.
-/// FAILURE : NULL
+/// SUCCESS : true
+/// FAILURE : false
 ///
-void *ReadCompleteFile(const char *filename, char **data, size *file_size, size *capacity);
+bool ReadCompleteFile(const char *filename, char **data, size *file_size, size *capacity);
 
 #endif // MISRA_FILE_H

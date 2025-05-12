@@ -12,17 +12,17 @@
 #include <Misra/Sys.h>
 #include <Misra/Types.h>
 
-void *ReadCompleteFile(const char *filename, char **data, size *file_size, size *capacity) {
+bool ReadCompleteFile(const char *filename, char **data, size *file_size, size *capacity) {
     if (!filename || !data || !file_size || !capacity) {
         LOG_ERROR("invalid arguments.");
-        return NULL;
+        return false;
     }
 
     // get actual size of file
     i64 size = SysGetFileSize(filename);
     if (-1 == size) {
         LOG_ERROR("failed to get file size");
-        return NULL;
+        return false;
     }
 
     // allocate memory to hold the file contents if required
@@ -74,5 +74,5 @@ void *ReadCompleteFile(const char *filename, char **data, size *file_size, size 
     ((char *)buffer)[size] = 0; // null-termination for just in case.
     *data                  = buffer;
     *file_size             = size;
-    return buffer;
+    return true;
 }
