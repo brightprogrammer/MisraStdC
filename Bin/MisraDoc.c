@@ -249,6 +249,10 @@ int main(int argc, char** argv) {
                     });
                 });
             });
+
+            // TODO: first let's just emit markdown files that contain the whole code
+            // not only the documentation. This is to first setup the documentation pipeline
+            // and then worry about how to make it look and generate the documentation
         });
     });
 
