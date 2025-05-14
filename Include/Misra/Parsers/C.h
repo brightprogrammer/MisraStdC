@@ -264,6 +264,7 @@ typedef enum {
 
     EXPR_TYPE_MUL,
     EXPR_TYPE_DIV,
+    EXPR_TYPE_MOD,
     EXPR_TYPE_ADD,
     EXPR_TYPE_SUB,
     EXPR_TYPE_LSHIFT,
@@ -316,7 +317,7 @@ struct Expr {
         Expr *in_parens, *pre_inc, *post_inc, *pre_dec, *post_dec, *pre_plus, *pre_minus, *ref, *deref, *not, *lognot,
             *sizeof_expr;
 
-        Str sizeof_type_name, alignof_type_name;
+        // TODO: sizeof_type_name, alignof_type_name
 
         struct {
             Expr*               expr;
@@ -329,7 +330,7 @@ struct Expr {
         CompoundLiteral compound_literal;
 
         struct {
-            Str   type_name;
+            // TODO: type-name
             Expr* expr;
         } cast;
 

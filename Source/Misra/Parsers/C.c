@@ -1249,7 +1249,7 @@ bool cReadPostfixExpr(StrIter* si, Expr* e) {
         goto PARSE_FAILED;
     }
 
-    while (true) {
+    while (StrIterPeek(si)) {
         switch (StrIterPeek(si)) {
             case '[' : {
                 StrIterNext(si);
@@ -1608,6 +1608,305 @@ bool cReadUnaryExpr(StrIter* si, Expr* e) {
             }
         }
     }
+PARSE_FAILED:
+    ExprDeinit(e);
+    *si = saved_si;
+    return false;
+}
+
+bool cReadCastExpr(StrIter* si, Expr* e) {
+    if (!si || !e) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    StrIter saved_si = *si;
+    SkipWS(si);
+
+    if (StrIterPeek(si) == '(') {
+        StrIterNext(si);
+        SkipWS(si);
+        // TODO: type-name
+        Expr* xe     = NEW(Expr);
+        e->type      = EXPR_TYPE_CAST;
+        e->cast.expr = xe;
+        if (StrIterPeek(si) == ')') {
+            StrIterNext(si);
+            if (cReadCastExpr(si, xe)) {
+                return true;
+            } else {
+                LOG_ERROR("Expected cast expression.");
+                goto PARSE_FAILED;
+            }
+        } else {
+            LOG_ERROR("Expected ')' after a type name in cast expression, got '%c'", StrIterPeek(si));
+            goto PARSE_FAILED;
+        }
+    } else if (cReadUnaryExpr(si, e)) {
+        return true;
+    } else {
+        LOG_ERROR("Expected a unary expression or start of a cast expression.");
+        goto PARSE_FAILED;
+    }
+
+PARSE_FAILED:
+    ExprDeinit(e);
+    *si = saved_si;
+    return false;
+}
+
+bool cReadMulExpr(StrIter* si, Expr* e) {
+    if (!si || !e) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    StrIter saved_si = *si;
+    SkipWS(si);
+
+    if (cReadCastExpr(si, e)) {
+        SkipWS(si);
+
+        while (StrIterPeek(si)) {
+            switch (StrIterPeek(si)) {
+                case '*' :
+                case '/' :
+                case '%' : {
+                    char op = StrIterPeek(si);
+                    StrIterNext(si);
+                    SkipWS(si);
+                    Expr* l = NEW(Expr);
+                    Expr* r = NEW(Expr);
+                    memcpy(l, e, sizeof(Expr));
+                    e->mul.l = l;
+                    e->mul.r = r;
+                    e->type  = op == '*' ? EXPR_TYPE_MUL : op == '/' ? EXPR_TYPE_DIV : EXPR_TYPE_MOD;
+                    if (cReadCastExpr(si, r)) {
+                        SkipWS(si);
+                        break;
+                    } else {
+                        LOG_ERROR("Expected a cast expression after '%c'", op);
+                        goto PARSE_FAILED;
+                    }
+                    break;
+                }
+                default : {
+                    return true;
+                }
+            }
+        }
+    }
+
+PARSE_FAILED:
+    ExprDeinit(e);
+    *si = saved_si;
+    return false;
+}
+
+bool cReadAddExpr(StrIter* si, Expr* e) {
+    if (!si || !e) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    StrIter saved_si = *si;
+    SkipWS(si);
+
+    if (cReadMulExpr(si, e)) {
+        SkipWS(si);
+
+        while (StrIterPeek(si)) {
+            switch (StrIterPeek(si)) {
+                case '+' :
+                case '-' : {
+                    char op = StrIterPeek(si);
+                    StrIterNext(si);
+                    SkipWS(si);
+                    Expr* l = NEW(Expr);
+                    Expr* r = NEW(Expr);
+                    memcpy(l, e, sizeof(Expr));
+                    e->add.l = l;
+                    e->add.r = r;
+                    e->type  = op == '+' ? EXPR_TYPE_ADD : EXPR_TYPE_SUB;
+                    if (cReadMulExpr(si, r)) {
+                        SkipWS(si);
+                        break;
+                    } else {
+                        LOG_ERROR("Expected a multiplicative expression after '%c'", op);
+                        goto PARSE_FAILED;
+                    }
+                    break;
+                }
+                default : {
+                    return true;
+                }
+            }
+        }
+    }
+
+PARSE_FAILED:
+    ExprDeinit(e);
+    *si = saved_si;
+    return false;
+}
+
+bool cReadShiftExpr(StrIter* si, Expr* e) {
+    if (!si || !e) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    StrIter saved_si = *si;
+    SkipWS(si);
+
+    if (cReadAddExpr(si, e)) {
+        SkipWS(si);
+
+        while (StrIterPeek(si)) {
+            switch (StrIterPeek(si)) {
+                case '>' :
+                case '<' : {
+                    char op = StrIterPeek(si);
+                    StrIterNext(si);
+                    if (StrIterPeek(si) == op) {
+                        StrIterNext(si);
+                    } else {
+                        LOG_ERROR("Expected '%c%c', got '%c%c'", op, op, op, StrIterPeek(si));
+                        goto PARSE_FAILED;
+                    }
+
+                    SkipWS(si);
+                    Expr* l = NEW(Expr);
+                    Expr* r = NEW(Expr);
+                    memcpy(l, e, sizeof(Expr));
+                    e->lshift.l = l;
+                    e->lshift.r = r;
+                    e->type     = op == '<' ? EXPR_TYPE_LSHIFT : EXPR_TYPE_RSHIFT;
+                    if (cReadAddExpr(si, r)) {
+                        SkipWS(si);
+                        break;
+                    } else {
+                        LOG_ERROR("Expected a additive expression after '%c'", op);
+                        goto PARSE_FAILED;
+                    }
+                    break;
+                }
+                default : {
+                    return true;
+                }
+            }
+        }
+    }
+
+PARSE_FAILED:
+    ExprDeinit(e);
+    *si = saved_si;
+    return false;
+}
+
+bool cReadRelationalExpr(StrIter* si, Expr* e) {
+    if (!si || !e) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    StrIter saved_si = *si;
+    SkipWS(si);
+
+    if (cReadShiftExpr(si, e)) {
+        SkipWS(si);
+
+        while (StrIterPeek(si)) {
+            switch (StrIterPeek(si)) {
+                case '>' :
+                case '<' : {
+                    char opstr[3] = {0};
+                    opstr[0]      = StrIterPeek(si);
+                    StrIterNext(si);
+
+                    ExprType t = opstr[0] == '<' ? EXPR_TYPE_LT : EXPR_TYPE_GT;
+                    if (StrIterPeek(si) == '=') {
+                        StrIterNext(si);
+                        t        = opstr[0] == '<' ? EXPR_TYPE_LE : EXPR_TYPE_GE;
+                        opstr[1] = '=';
+                    }
+
+                    SkipWS(si);
+                    Expr* l = NEW(Expr);
+                    Expr* r = NEW(Expr);
+                    memcpy(l, e, sizeof(Expr));
+                    e->lt.l = l;
+                    e->lt.r = r;
+                    e->type = t;
+
+                    if (cReadShiftExpr(si, r)) {
+                        SkipWS(si);
+                        break;
+                    } else {
+                        LOG_ERROR("Expected a shift expression after '%s'", opstr);
+                        goto PARSE_FAILED;
+                    }
+                    break;
+                }
+                default : {
+                    return true;
+                }
+            }
+        }
+    }
+
+PARSE_FAILED:
+    ExprDeinit(e);
+    *si = saved_si;
+    return false;
+}
+
+bool cReadEqualityExpr(StrIter* si, Expr* e) {
+    if (!si || !e) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    StrIter saved_si = *si;
+    SkipWS(si);
+
+    if (cReadRelationalExpr(si, e)) {
+        SkipWS(si);
+
+        while (StrIterPeek(si)) {
+            switch (StrIterPeek(si)) {
+                case '=' :
+                case '!' : {
+                    char op = StrIterPeek(si);
+                    StrIterNext(si);
+
+                    ExprType t = EXPR_TYPE_INVALID;
+                    if (StrIterPeek(si) == '=') {
+                        StrIterNext(si);
+                        t = op == '!' ? EXPR_TYPE_NE : EXPR_TYPE_EQ;
+                    } else {
+                        LOG_ERROR("Expected a '=' after '%c' to make '==' or '!='", op);
+                        goto PARSE_FAILED;
+                    }
+
+                    SkipWS(si);
+                    Expr* l = NEW(Expr);
+                    Expr* r = NEW(Expr);
+                    memcpy(l, e, sizeof(Expr));
+                    e->eq.l = l;
+                    e->eq.r = r;
+                    e->type = t;
+
+                    if (cReadRelationalExpr(si, r)) {
+                        SkipWS(si);
+                        break;
+                    } else {
+                        LOG_ERROR("Expected a relation expression after '%c='", op);
+                        goto PARSE_FAILED;
+                    }
+                    break;
+                }
+                default : {
+                    return true;
+                }
+            }
+        }
+    }
+
 PARSE_FAILED:
     ExprDeinit(e);
     *si = saved_si;
