@@ -531,7 +531,7 @@ Strs StrSplit(Str* s, const char* key);
 /// SUCCESS : A new Str object with surrounding characters removed
 /// FAILURE : A zero-length Str object
 ///
-#define StrStrip(str, chars_to_strip) StrStripImpl(str, chars_to_strip, 0)
+#define StrStrip(str, chars_to_strip) strip_str(str, chars_to_strip, 0)
 
 ///
 /// Strip only leading whitespace (or optional custom characters) from the
@@ -544,7 +544,7 @@ Strs StrSplit(Str* s, const char* key);
 /// SUCCESS : A new Str object with leading characters removed
 /// FAILURE : A zero-length Str object
 ///
-#define StrLStrip(str, chars_to_strip) StrStripImpl(str, chars_to_strip, -1)
+#define StrLStrip(str, chars_to_strip) strip_str(str, chars_to_strip, -1)
 
 ///
 /// Strip only trailing whitespace (or optional custom characters) from the
@@ -557,7 +557,7 @@ Strs StrSplit(Str* s, const char* key);
 /// SUCCESS : A new Str object with trailing characters removed
 /// FAILURE : A zero-length Str object
 ///
-#define StrRStrip(str, chars_to_strip) StrStripImpl(str, chars_to_strip, 1)
+#define StrRStrip(str, chars_to_strip) strip_str(str, chars_to_strip, 1)
 
 #define StrForeachIdx(str, chr, idx, body)              VecForeachIdx((str), (chr), idx, {body})
 #define StrForeachReverseIdx(str, chr, idx, body)       VecForeachReverseIdx((str), (chr), idx, {body})

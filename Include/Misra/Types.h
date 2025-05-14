@@ -17,8 +17,9 @@ typedef unsigned short     u16;
 typedef unsigned int       u32;
 typedef unsigned long long u64;
 
-typedef float  f32;
-typedef double f64;
+typedef float       f32;
+typedef double      f64;
+typedef long double fl;
 
 typedef i8 bool;
 
@@ -58,7 +59,7 @@ typedef unsigned long size;
 ///
 /// RETURN : true/false depending on whether value is in range
 ///
-#define IN_RANGE(x, lo, hi) ((x) >= (hi) && (x) <= (lo))
+#define IN_RANGE(x, lo, hi) ((x) <= (hi) && (x) >= (lo))
 
 ///
 /// Is given character a capital ASCII alphabet?
@@ -86,6 +87,33 @@ typedef unsigned long size;
 /// RETURN : true/false depending on whether `c` is a digit or not
 ///
 #define IS_DIGIT(c) IN_RANGE(c, '0', '9')
+
+///
+/// Is given character an octal digit?
+///
+/// c[in] : Character to check for
+///
+/// RETURN : true/false depending on whether `c` is an octal digit or not
+///
+#define IS_OCT(c) IN_RANGE(c, '0', '7')
+
+///
+/// Is given character a hex digit?
+///
+/// c[in] : Character to check for
+///
+/// RETURN : true/false depending on whether `c` is a hex digit or not
+///
+#define IS_HEX(c) (IN_RANGE(c, '0', '9') || IN_RANGE(c, 'a', 'f') || IN_RANGE(c, 'A', 'F'))
+
+///
+/// Is given character either an alphabet or a digit?
+///
+/// c[in] : Character to check for
+///
+/// RETURN : true/false depending on whether `c` is an alphabet or not
+///
+#define IS_ALPHA_NUMERIC(c) (IS_ALPHA(c) || IS_DIGIT(c))
 
 #ifndef true
 #    define true 1

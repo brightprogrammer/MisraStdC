@@ -14,7 +14,7 @@ draft: false
 
 ## Description
 
-The Vec(T) macro provides a typesafe vector implementation similar to C++'s `std::vector<T>`.
+The `Vec(T)` macro provides a typesafe vector implementation similar to C++'s `std::vector<T>`.
 It creates a dynamically resizable array for any given type while maintaining type safety.
 
 ## Syntax
@@ -33,7 +33,7 @@ The macro expands to a struct with these members:
 | `capacity`    | `size`              | Total allocated storage capacity         |
 | `copy_init`   | `GenericCopyInit`   | Function for copy initialization         |
 | `copy_deinit` | `GenericCopyDeinit` | Function for copy deinitialization       |
-| `data`        | `T\*`               | Pointer to the array of elements         |
+| `data`        | `T*`                | Pointer to the array of elements         |
 | `alignment`   | `size`              | Memory alignment requirement             |
 
 ## Usage Examples
@@ -49,7 +49,7 @@ Vec(CustomStruct) my_data;
 Vec(float) real_numbers;
 
 // Vector of C-style strings
-Vec(const char\*) names;
+Vec(const char*) names;
 ```
 
 ## Notes

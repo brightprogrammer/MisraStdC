@@ -132,7 +132,7 @@ Strs StrSplit(Str* s, const char* key) {
         return (Strs) {0};
     }
 
-    Strs sv     = VecInit();
+    Strs sv     = VecInitWithDeepCopy(StrInitCopy, StrDeinit);
     size keylen = strlen(key);
 
     const char* prev = s->data;
