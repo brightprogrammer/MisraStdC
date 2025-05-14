@@ -1,4 +1,5 @@
 #include <Misra/Parsers/JSON.h>
+#include <stdlib.h>
 
 static StrIter JReadObject(StrIter si, StrIter (*Reader)(StrIter si, Str* key, void* data), void* data) {
     if (!StrIterRemainingLength(&si)) {

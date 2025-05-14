@@ -7,8 +7,6 @@
 #ifndef MISRA_STD_CONTAINER_STRING_H
 #define MISRA_STD_CONTAINER_STRING_H
 
-#include <string.h>
-
 // ct
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Utility/StrIter.h>

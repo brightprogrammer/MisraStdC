@@ -9,6 +9,13 @@
 
 #include <Misra/Types.h>
 
+typedef struct {
+    char* data;
+    i64   length;
+    i64   pos;
+    size  alignment;
+} GenericIter;
+
 /// Memory iterators are there to allow reading regions of memory by remembering current
 /// read position and the size limit. With proper checking we can guarantee that we can never
 /// overflow or underflow when reading a memory region
@@ -122,11 +129,7 @@ typedef Iter(u64) QWordIter;
 /// SUCCESS : Data is copied from current read position to provided `dst`, and `mi` is returned
 /// FAILURE : NULL_ITER(mi) returned
 ///
-#define IterMove(mi, n)                                                                                                \
-    do {                                                                                                               \
-        if (((IterRemainingLength(mi) - (i64)(n) <= IterLength(mi)) && (IterRemainingLength(mi) - (i64)(n) >= 0)))     \
-            (mi)->pos += (n);                                                                                          \
-    } while (0)
+#define IterMove(mi, n) move_iter((GenericIter*)mi, n)
 
 #define IterNext(mi) IterMove(mi, 1)
 #define IterPrev(mi) IterMove(mi, -1)
@@ -145,5 +148,7 @@ typedef Iter(u64) QWordIter;
 /// FAILURE : NULL_ITER(mi) returned.
 ///
 #define IterPeek(mi) (IterRemainingLength(mi) ? ((mi)->data[(mi)->pos]) : (ITER_DATA_TYPE(mi)) {0})
+
+bool move_iter(GenericIter* mi, i64 n);
 
 #endif // MISRA_STD_UTILITY_ITER_H

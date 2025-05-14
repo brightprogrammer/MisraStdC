@@ -9,9 +9,6 @@
 
 #include <Misra/Std/Container/Common.h>
 #include <Misra/Types.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 
 typedef struct {
     size              length;
