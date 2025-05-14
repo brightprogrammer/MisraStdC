@@ -1981,3 +1981,187 @@ PARSE_FAILED:
     *si = saved_si;
     return false;
 }
+
+bool cReadXorExpr(StrIter* si, Expr* e) {
+    if (!si || !e) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    StrIter saved_si = *si;
+    SkipWS(si);
+
+    if (cReadAndExpr(si, e)) {
+        SkipWS(si);
+
+        char c = StrIterPeek(si);
+        while (c == '^') {
+            StrIterNext(si);
+            SkipWS(si);
+
+            Expr* l = NEW(Expr);
+            Expr* r = NEW(Expr);
+            memcpy(l, e, sizeof(Expr));
+            e->xor.l = l;
+            e->xor.r = r;
+            e->type  = EXPR_TYPE_XOR;
+
+            if (cReadAndExpr(si, r)) {
+                SkipWS(si);
+            } else {
+                LOG_ERROR("Expected a and expression after '^'");
+                goto PARSE_FAILED;
+            }
+        }
+
+        return true;
+    } else {
+        LOG_ERROR("Expected and expression.");
+        goto PARSE_FAILED;
+    }
+
+PARSE_FAILED:
+    ExprDeinit(e);
+    *si = saved_si;
+    return false;
+}
+
+bool cReadOrExpr(StrIter* si, Expr* e) {
+    if (!si || !e) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    StrIter saved_si = *si;
+    SkipWS(si);
+
+    if (cReadXorExpr(si, e)) {
+        SkipWS(si);
+
+        char c = StrIterPeek(si);
+        while (c == '|') {
+            StrIterNext(si);
+            SkipWS(si);
+
+            Expr* l = NEW(Expr);
+            Expr* r = NEW(Expr);
+            memcpy(l, e, sizeof(Expr));
+            e->or.l = l;
+            e->or.r = r;
+            e->type = EXPR_TYPE_OR;
+
+            if (cReadXorExpr(si, r)) {
+                SkipWS(si);
+            } else {
+                LOG_ERROR("Expected a and expression after '|'");
+                goto PARSE_FAILED;
+            }
+        }
+
+        return true;
+    } else {
+        LOG_ERROR("Expected xor expression.");
+        goto PARSE_FAILED;
+    }
+
+PARSE_FAILED:
+    ExprDeinit(e);
+    *si = saved_si;
+    return false;
+}
+
+bool cReadLogAndExpr(StrIter* si, Expr* e) {
+    if (!si || !e) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    StrIter saved_si = *si;
+    SkipWS(si);
+
+    if (cReadOrExpr(si, e)) {
+        SkipWS(si);
+
+        char c = StrIterPeek(si);
+        while (c == '&') {
+            StrIterNext(si);
+            if (StrIterPeek(si) == '&') {
+                StrIterNext(si);
+                SkipWS(si);
+            } else {
+                LOG_ERROR("Expected '&&' for logical and expression, got '&%c'.", StrIterPeek(si));
+                goto PARSE_FAILED;
+            }
+
+            Expr* l = NEW(Expr);
+            Expr* r = NEW(Expr);
+            memcpy(l, e, sizeof(Expr));
+            e->logand.l = l;
+            e->logand.r = r;
+            e->type     = EXPR_TYPE_LOGAND;
+
+            if (cReadOrExpr(si, r)) {
+                SkipWS(si);
+            } else {
+                LOG_ERROR("Expected or-expression after '&&'");
+                goto PARSE_FAILED;
+            }
+        }
+
+        return true;
+    } else {
+        LOG_ERROR("Expected or-expression.");
+        goto PARSE_FAILED;
+    }
+
+PARSE_FAILED:
+    ExprDeinit(e);
+    *si = saved_si;
+    return false;
+}
+
+bool cReadLogOrExpr(StrIter* si, Expr* e) {
+    if (!si || !e) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    StrIter saved_si = *si;
+    SkipWS(si);
+
+    if (cReadOrExpr(si, e)) {
+        SkipWS(si);
+
+        char c = StrIterPeek(si);
+        while (c == '|') {
+            StrIterNext(si);
+            if (StrIterPeek(si) == '|') {
+                StrIterNext(si);
+                SkipWS(si);
+            } else {
+                LOG_ERROR("Expected '||' for logical and expression, got '|%c'.", StrIterPeek(si));
+                goto PARSE_FAILED;
+            }
+
+            Expr* l = NEW(Expr);
+            Expr* r = NEW(Expr);
+            memcpy(l, e, sizeof(Expr));
+            e->logor.l = l;
+            e->logor.r = r;
+            e->type    = EXPR_TYPE_LOGOR;
+
+            if (cReadOrExpr(si, r)) {
+                SkipWS(si);
+            } else {
+                LOG_ERROR("Expected logical and expression after '||'");
+                goto PARSE_FAILED;
+            }
+        }
+
+        return true;
+    } else {
+        LOG_ERROR("Expected logical and expression.");
+        goto PARSE_FAILED;
+    }
+
+PARSE_FAILED:
+    ExprDeinit(e);
+    *si = saved_si;
+    return false;
+}
