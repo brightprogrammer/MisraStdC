@@ -1114,9 +1114,17 @@ bool cReadStorageClassSpecifier(StrIter* si, StorageClassSpecifier* sc) {
     return false;
 }
 
+bool cReadCompoundLiteral(StrIter* si, CompoundLiteral* cl) {
+    if (!si || !cl) {
+        LOG_FATAL("Invalid arguments");
+    }
+    // TODO:
+}
+
 bool cReadExpr(StrIter* si, Expr* e);
 bool cReadAssignmentExpr(StrIter* si, Expr* e);
 bool cReadGenericAssociationList(StrIter* si, GenericAssociations* assocs);
+bool cReadArgListExpr(StrIter* si, Exprs* arg_list);
 
 void ExprDeinit(Expr* e) {
     if (!e) {
@@ -1214,6 +1222,155 @@ bool cReadPrimaryExpr(StrIter* si, Expr* e) {
     } else {
         *si = saved_si;
         return false;
+    }
+
+PARSE_FAILED:
+    ExprDeinit(e);
+    *si = saved_si;
+    return false;
+}
+
+bool cReadPostfixExpr(StrIter* si, Expr* e) {
+    if (!si || !e) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    StrIter saved_si = *si;
+    SkipWS(si);
+
+    if (cReadPrimaryExpr(si, e)) {
+    } else if (cReadCompoundLiteral(si, &e->compound_literal)) {
+        e->type = EXPR_TYPE_COMPOUND_LITERAL;
+    } else {
+        LOG_ERROR("Expected a primary expression or a compound literal.");
+        goto PARSE_FAILED;
+    }
+
+    while (true) {
+        switch (StrIterPeek(si)) {
+            case '[' : {
+                StrIterNext(si);
+                SkipWS(si);
+
+                Expr* r = NEW(Expr);
+                Expr* l = NEW(Expr);
+                memcpy(l, e, sizeof(Expr));
+
+                e->array_access.l = l;
+                e->array_access.r = r;
+                e->type           = EXPR_TYPE_ARRAY_ACCESS;
+
+                if (cReadExpr(si, r)) {
+                    SkipWS(si);
+                    if (StrIterPeek(si) == ']') {
+                        StrIterNext(si);
+                        break;
+                    } else {
+                        LOG_ERROR("Expected ']', got '%c'", StrIterPeek(si));
+                        goto PARSE_FAILED;
+                    }
+                } else {
+                    LOG_ERROR("Expected expression inside array acces '[]'.");
+                    goto PARSE_FAILED;
+                }
+                break;
+            }
+            case '(' : {
+                StrIterNext(si);
+                SkipWS(si);
+
+                Expr* l = NEW(Expr);
+                memcpy(l, e, sizeof(Expr));
+                e->call.expr = l;
+                e->type      = EXPR_TYPE_CALL;
+
+                // optional argument list
+                cReadArgListExpr(si, &e->call.arg_list);
+                SkipWS(si);
+
+                if (StrIterPeek(si) == ')') {
+                    StrIterNext(si);
+                    break;
+                } else {
+                    LOG_ERROR("Expected ')', got '%c'", StrIterPeek(si));
+                    goto PARSE_FAILED;
+                }
+                break;
+            }
+            case '.' : {
+                StrIterNext(si);
+                SkipWS(si);
+
+                Expr* r = NEW(Expr);
+                Expr* l = NEW(Expr);
+                memcpy(l, e, sizeof(Expr));
+
+                e->dot_access.l = l;
+                e->dot_access.r = r;
+                e->type         = EXPR_TYPE_DOT_ACCESS;
+
+                r->type = EXPR_TYPE_IDENTIFIER;
+                if (!cReadIdentifier(si, &r->identifier)) {
+                    LOG_ERROR("Expected identifier after '.' (member access).");
+                    goto PARSE_FAILED;
+                }
+                break;
+            }
+            case '-' : {
+                StrIterNext(si);
+                switch (StrIterPeek(si)) {
+                    case '>' : {
+                        StrIterNext(si);
+                        SkipWS(si);
+
+                        Expr* r = NEW(Expr);
+                        Expr* l = NEW(Expr);
+                        memcpy(l, e, sizeof(Expr));
+
+                        e->arrow_access.l = l;
+                        e->arrow_access.r = r;
+                        e->type           = EXPR_TYPE_ARROW_ACCESS;
+
+                        r->type = EXPR_TYPE_IDENTIFIER;
+                        if (!cReadIdentifier(si, &r->identifier)) {
+                            LOG_ERROR("Expected identifier after '->' (pointer access).");
+                            goto PARSE_FAILED;
+                        }
+                        break;
+                    }
+                    case '-' : {
+                        StrIterNext(si);
+                        Expr* l = NEW(Expr);
+                        memcpy(l, e, sizeof(Expr));
+                        e->dec  = l;
+                        e->type = EXPR_TYPE_POST_DECREMENT;
+                        break;
+                    }
+                    default : {
+                        LOG_ERROR("Expected a '>' or '-', got %c", StrIterPeek(si));
+                        goto PARSE_FAILED;
+                    }
+                }
+                break;
+            }
+            case '+' : {
+                StrIterNext(si);
+                if (StrIterPeek(si) == '+') {
+                    StrIterNext(si);
+                    Expr* l = NEW(Expr);
+                    memcpy(l, e, sizeof(Expr));
+                    e->inc  = l;
+                    e->type = EXPR_TYPE_POST_INCREMENT;
+                } else {
+                    LOG_ERROR("Expected '+', got '%c'", StrIterPeek(si));
+                    goto PARSE_FAILED;
+                }
+                break;
+            }
+            default :
+                return true;
+                break;
+        }
     }
 
 PARSE_FAILED:

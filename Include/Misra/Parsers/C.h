@@ -224,6 +224,12 @@ typedef enum {
 } StorageClassSpecifier;
 typedef Vec(StorageClassSpecifier) StorageClassSpecifiers;
 
+typedef struct {
+    StorageClassSpecifiers storage_class_specifiers;
+    Str                    type_name;
+    // TODO: braced initializer
+} CompoundLiteral;
+
 typedef enum {
     EXPR_TYPE_INVALID = 0,
     EXPR_TYPE_IDENTIFIER,
@@ -307,20 +313,17 @@ struct Expr {
         Constant      constant;
         StringLiteral string_literal;
 
-        Expr* in_parens;
+        Expr *in_parens, *inc, *dec;
 
         struct {
             Expr*               expr;
             GenericAssociations generic_associations;
         } generic_selection;
 
+        // NOTE: looks unused
         Exprs arg_list, comma_separated_list;
 
-        struct {
-            StorageClassSpecifiers storage_class_specifiers;
-            Str                    type_name;
-            Expr*                  braced_initializer;
-        } compound_literal;
+        CompoundLiteral compound_literal;
 
         struct {
             Str   type_name;
@@ -334,10 +337,15 @@ struct Expr {
         } ternary;
 
         struct {
+            Expr* expr;
+            Exprs arg_list;
+        } call;
+
+        struct {
             Expr* l;
             Expr* r;
-        } array_access, call, dot_access, arrow_access, increment, decrement, mul, div, mod, add, sub, lshift, rshift,
-            lt, gt, le, ge, eq, ne, and, xor, or, logand, logor;
+        } array_access, dot_access, arrow_access, increment, decrement, mul, div, mod, add, sub, lshift, rshift, lt, gt,
+            le, ge, eq, ne, and, xor, or, logand, logor;
     };
 };
 
