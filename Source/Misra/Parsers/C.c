@@ -24,12 +24,13 @@
     } while (0);
 
 bool SkipWS(StrIter* si) {
-    if (!StrIterRemainingLength(si)) {
-        return false;
+    if (!si) {
+        LOG_FATAL("Invalid arguments");
     }
 
-    while (StrIterPeek(si)) {
-        switch (StrIterPeek(si)) {
+    char c = StrIterPeek(si);
+    while (c) {
+        switch (c) {
             case ' ' :
             case '\t' :
             case '\r' :
@@ -38,12 +39,14 @@ bool SkipWS(StrIter* si) {
             case '\v' :
             case '\f' :
                 StrIterNext(si);
+                c = StrIterPeek(si);
                 break;
             default :
-                true;
+                return true;
         }
     }
-    return true;
+
+    return false;
 }
 
 bool cReadKeyword(StrIter* si, Keyword* k) {
@@ -56,7 +59,7 @@ bool cReadKeyword(StrIter* si, Keyword* k) {
 
     size rl = StrIterRemainingLength(si);
 #define MATCH(s, e)                                                                                                    \
-    if (strncmp(si->data + si->pos, s, MIN2(sizeof(s) - 1, rl)) == 0) {                                                \
+    if (strncmp(StrIterPos(si), s, MIN2(sizeof(s) - 1, rl)) == 0) {                                                    \
         StrIterMove(si, sizeof(s) - 1);                                                                                \
         *k = e;                                                                                                        \
         return true;                                                                                                   \
@@ -166,7 +169,7 @@ bool cReadIntegerSuffix(StrIter* si, IntegerSuffix* suffix) {
 
     size rl = StrIterRemainingLength(si);
 #define MATCH(s, e)                                                                                                    \
-    if (strncmp(si->data + si->pos, s, MIN2(sizeof(s) - 1, rl)) == 0) {                                                \
+    if (strncmp(StrIterPos(si), s, MIN2(sizeof(s) - 1, rl)) == 0) {                                                    \
         StrIterMove(si, sizeof(s) - 1);                                                                                \
         *suffix = e;                                                                                                   \
         return true;                                                                                                   \
@@ -343,7 +346,7 @@ bool cReadFloatSuffix(StrIter* si, FloatSuffix* suffix) {
 
     size rl = StrIterRemainingLength(si);
 #define MATCH(s, e)                                                                                                    \
-    if (strncmp(si->data + si->pos, s, MIN2(sizeof(s) - 1, rl)) == 0) {                                                \
+    if (strncmp(StrIterPos(si), s, MIN2(sizeof(s) - 1, rl)) == 0) {                                                    \
         StrIterMove(si, sizeof(s) - 1);                                                                                \
         *suffix = e;                                                                                                   \
         return true;                                                                                                   \
@@ -769,16 +772,15 @@ bool cReadPredefinedConstant(StrIter* si, PredefinedConstant* v) {
     SkipWS(si);
 
     size rl = StrIterRemainingLength(si);
-    if (!strncmp(si->data + si->pos, "false", MIN2(5, rl))) {
+    if (!strncmp(StrIterPos(si), "false", MIN2(5, rl))) {
         *v = PREDEFINED_CONSTANT_FALSE;
         StrIterMove(si, 5);
         return true;
-    } else if (!strncmp(si->data + si->pos, "true", MIN2(4, rl))) {
+    } else if (!strncmp(StrIterPos(si), "true", MIN2(4, rl))) {
         *v = PREDEFINED_CONSTANT_TRUE;
         StrIterMove(si, 4);
         return true;
-    } else if (!strncmp(si->data + si->pos, "nullptr", MIN2(7, rl)) ||
-               !strncmp(si->data + si->pos, "NULL", MIN2(4, rl))) {
+    } else if (!strncmp(StrIterPos(si), "nullptr", MIN2(7, rl)) || !strncmp(StrIterPos(si), "NULL", MIN2(4, rl))) {
         *v = PREDEFINED_CONSTANT_NULL;
         StrIterMove(si, 7);
         return true;
@@ -854,7 +856,7 @@ bool cReadPunctuator(StrIter* si, Punctuator* p) {
 
     size rl = StrIterRemainingLength(si);
 #define MATCH(s, e)                                                                                                    \
-    if (strncmp(si->data + si->pos, s, MIN2(sizeof(s) - 1, rl)) == 0) {                                                \
+    if (strncmp(StrIterPos(si), s, MIN2(sizeof(s) - 1, rl)) == 0) {                                                    \
         StrIterMove(si, sizeof(s) - 1);                                                                                \
         *p = e;                                                                                                        \
         return true;                                                                                                   \
@@ -1094,7 +1096,7 @@ bool cReadStorageClassSpecifier(StrIter* si, StorageClassSpecifier* sc) {
     }
 
 #define MATCH(s, e)                                                                                                    \
-    if (strncmp(si->data + si->pos, s, MIN2(sizeof(s) - 1, rl)) == 0) {                                                \
+    if (strncmp(StrIterPos(si), s, MIN2(sizeof(s) - 1, rl)) == 0) {                                                    \
         StrIterMove(si, sizeof(s) - 1);                                                                                \
         *sc = e;                                                                                                       \
         return true;                                                                                                   \
@@ -1125,6 +1127,7 @@ bool cReadExpr(StrIter* si, Expr* e);
 bool cReadAssignmentExpr(StrIter* si, Expr* e);
 bool cReadGenericAssociationList(StrIter* si, GenericAssociations* assocs);
 bool cReadArgListExpr(StrIter* si, Exprs* arg_list);
+bool cReadCastExpr(StrIter* si, Expr* e);
 
 void ExprDeinit(Expr* e) {
     if (!e) {
@@ -1169,7 +1172,7 @@ bool cReadPrimaryExpr(StrIter* si, Expr* e) {
             LOG_ERROR("Expected expression.");
             goto PARSE_FAILED;
         }
-    } else if (c == '_' && StrIterRemainingLength(si) >= 8 && !strncmp(si->data + si->pos, "_Generic", 8)) {
+    } else if (c == '_' && StrIterRemainingLength(si) >= 8 && !strncmp(StrIterPos(si), "_Generic", 8)) {
         StrIterMove(si, 8);
         SkipWS(si);
         PEEK(si, c);
@@ -1346,8 +1349,8 @@ bool cReadPostfixExpr(StrIter* si, Expr* e) {
                         StrIterNext(si);
                         Expr* l = NEW(Expr);
                         memcpy(l, e, sizeof(Expr));
-                        e->dec  = l;
-                        e->type = EXPR_TYPE_POST_DECREMENT;
+                        e->post_dec = l;
+                        e->type     = EXPR_TYPE_POST_DECREMENT;
                         break;
                     }
                     default : {
@@ -1363,8 +1366,8 @@ bool cReadPostfixExpr(StrIter* si, Expr* e) {
                     StrIterNext(si);
                     Expr* l = NEW(Expr);
                     memcpy(l, e, sizeof(Expr));
-                    e->inc  = l;
-                    e->type = EXPR_TYPE_POST_INCREMENT;
+                    e->post_inc = l;
+                    e->type     = EXPR_TYPE_POST_INCREMENT;
                 } else {
                     LOG_ERROR("Expected '+', got '%c'", StrIterPeek(si));
                     goto PARSE_FAILED;
@@ -1412,5 +1415,201 @@ bool cReadArgListExpr(StrIter* si, Exprs* arg_list) {
         return false;
     }
 
+    return false;
+}
+
+bool cReadUnaryExpr(StrIter* si, Expr* e) {
+    if (!si || !e) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    StrIter saved_si = *si;
+    SkipWS(si);
+
+    switch (StrIterPeek(si)) {
+        case '+' : {
+            StrIterNext(si);
+            if (StrIterPeek(si) == '+') {
+                StrIterNext(si);
+                SkipWS(si);
+                if (cReadUnaryExpr(si, e)) {
+                    Expr* xe = NEW(Expr);
+                    memcpy(xe, e, sizeof(Expr));
+                    e->type    = EXPR_TYPE_PRE_INCREMENT;
+                    e->pre_inc = xe;
+                    return true;
+                } else {
+                    LOG_ERROR("Expected a unary expression after '++'");
+                    goto PARSE_FAILED;
+                }
+            } else if (cReadCastExpr(si, e)) {
+                Expr* xe = NEW(Expr);
+                memcpy(xe, e, sizeof(Expr));
+                e->type     = EXPR_TYPE_PRE_PLUS;
+                e->pre_plus = xe;
+                return true;
+            } else {
+                LOG_ERROR("Expected a '+' or a cast expression after a '+', got '%c'", StrIterPeek(si));
+                goto PARSE_FAILED;
+            }
+        }
+        case '-' : {
+            StrIterNext(si);
+            if (StrIterPeek(si) == '-') {
+                StrIterNext(si);
+                SkipWS(si);
+                if (cReadUnaryExpr(si, e)) {
+                    Expr* xe = NEW(Expr);
+                    memcpy(xe, e, sizeof(Expr));
+                    e->type    = EXPR_TYPE_PRE_DECREMENT;
+                    e->pre_dec = xe;
+                    return true;
+                } else {
+                    LOG_ERROR("Expected a unary expression after '--'");
+                    goto PARSE_FAILED;
+                }
+            } else if (cReadCastExpr(si, e)) {
+                Expr* xe = NEW(Expr);
+                memcpy(xe, e, sizeof(Expr));
+                e->type      = EXPR_TYPE_PRE_MINUS;
+                e->pre_minus = xe;
+                return true;
+            } else {
+                LOG_ERROR("Expected a '-' or a cast expression after a '-', got '%c'", StrIterPeek(si));
+                goto PARSE_FAILED;
+            }
+        }
+        case '&' : {
+            StrIterNext(si);
+            SkipWS(si);
+            if (cReadCastExpr(si, e)) {
+                Expr* xe = NEW(Expr);
+                memcpy(xe, e, sizeof(Expr));
+                e->type = EXPR_TYPE_REF;
+                e->ref  = xe;
+                return true;
+            } else {
+                LOG_ERROR("Expected a unary expression after '&'");
+                goto PARSE_FAILED;
+            }
+        }
+        case '*' : {
+            StrIterNext(si);
+            SkipWS(si);
+            if (cReadCastExpr(si, e)) {
+                Expr* xe = NEW(Expr);
+                memcpy(xe, e, sizeof(Expr));
+                e->type  = EXPR_TYPE_DEREF;
+                e->deref = xe;
+                return true;
+            } else {
+                LOG_ERROR("Expected a unary expression after '*'");
+                goto PARSE_FAILED;
+            }
+        }
+        case '~' : {
+            StrIterNext(si);
+            SkipWS(si);
+            if (cReadCastExpr(si, e)) {
+                Expr* xe = NEW(Expr);
+                memcpy(xe, e, sizeof(Expr));
+                e->type = EXPR_TYPE_NOT;
+                e->not  = xe;
+                return true;
+            } else {
+                LOG_ERROR("Expected a unary expression after '~'");
+                goto PARSE_FAILED;
+            }
+        }
+        case '!' : {
+            StrIterNext(si);
+            SkipWS(si);
+            if (cReadCastExpr(si, e)) {
+                Expr* xe = NEW(Expr);
+                memcpy(xe, e, sizeof(Expr));
+                e->type   = EXPR_TYPE_LOGNOT;
+                e->lognot = xe;
+                return true;
+            } else {
+                LOG_ERROR("Expected a unary expression after '!'");
+                goto PARSE_FAILED;
+            }
+        }
+        case 's' : {
+            if (StrIterRemainingLength(si) > 6 && !strncmp(StrIterPos(si), "sizeof", 6)) {
+                StrIterMove(si, 6);
+                bool has_ws = SkipWS(si);
+                if (StrIterPeek(si) == '(') {
+                    StrIterNext(si);
+                    SkipWS(si);
+                    e->type = EXPR_TYPE_SIZEOF_TYPE;
+                    // TODO: type-name
+                    SkipWS(si);
+                    if (StrIterPeek(si) == ')') {
+                        StrIterNext(si);
+                        return true;
+                    } else {
+                        LOG_ERROR("Expecter ')' at the end of 'sizeof' operator, got '%c'", StrIterPeek(si));
+                        goto PARSE_FAILED;
+                    }
+                } else {
+                    if (!has_ws) {
+                        LOG_ERROR("Expected whitespace after 'sizeof' operator.");
+                        goto PARSE_FAILED;
+                    }
+                    if (cReadUnaryExpr(si, e)) {
+                        Expr* xe = NEW(Expr);
+                        memcpy(xe, e, sizeof(Expr));
+                        e->type        = EXPR_TYPE_SIZEOF_EXPR;
+                        e->sizeof_expr = xe;
+                        return true;
+                    } else {
+                        LOG_ERROR("Expected a unary expression after '!'");
+                        goto PARSE_FAILED;
+                    }
+                }
+            } else {
+                LOG_ERROR("Expected 'sizeof' operator.");
+                goto PARSE_FAILED;
+            }
+        }
+        case 'a' : {
+            if (StrIterRemainingLength(si) > 7 && !strncmp(StrIterPos(si), "alignof", 7)) {
+                StrIterMove(si, 7);
+                SkipWS(si);
+                if (StrIterPeek(si) == '(') {
+                    StrIterNext(si);
+                    SkipWS(si);
+                    e->type = EXPR_TYPE_ALIGNOF_TYPE;
+                    // TODO: type-name
+                    SkipWS(si);
+                    if (StrIterPeek(si) == ')') {
+                        StrIterNext(si);
+                        return true;
+                    } else {
+                        LOG_ERROR("Expecter ')' at the end of 'alignof' operator, got '%c'", StrIterPeek(si));
+                        goto PARSE_FAILED;
+                    }
+                } else {
+                    LOG_ERROR("Expected '(' after 'alignof' operator.");
+                    goto PARSE_FAILED;
+                }
+            } else {
+                LOG_ERROR("Expected 'alignof' operator.");
+                goto PARSE_FAILED;
+            }
+        }
+        default : {
+            if (cReadPostfixExpr(si, e)) {
+                return true;
+            } else {
+                LOG_ERROR("Expected postfix expression");
+                goto PARSE_FAILED;
+            }
+        }
+    }
+PARSE_FAILED:
+    ExprDeinit(e);
+    *si = saved_si;
     return false;
 }

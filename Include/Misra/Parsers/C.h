@@ -255,7 +255,7 @@ typedef enum {
     EXPR_TYPE_PRE_PLUS,
     EXPR_TYPE_PRE_MINUS,
     EXPR_TYPE_NOT,
-    EXPR_TYPE_LOG_NOT,
+    EXPR_TYPE_LOGNOT,
     EXPR_TYPE_SIZEOF_EXPR,
     EXPR_TYPE_SIZEOF_TYPE,
     EXPR_TYPE_ALIGNOF_TYPE,
@@ -313,7 +313,10 @@ struct Expr {
         Constant      constant;
         StringLiteral string_literal;
 
-        Expr *in_parens, *inc, *dec;
+        Expr *in_parens, *pre_inc, *post_inc, *pre_dec, *post_dec, *pre_plus, *pre_minus, *ref, *deref, *not, *lognot,
+            *sizeof_expr;
+
+        Str sizeof_type_name, alignof_type_name;
 
         struct {
             Expr*               expr;
@@ -344,8 +347,8 @@ struct Expr {
         struct {
             Expr* l;
             Expr* r;
-        } array_access, dot_access, arrow_access, increment, decrement, mul, div, mod, add, sub, lshift, rshift, lt, gt,
-            le, ge, eq, ne, and, xor, or, logand, logor;
+        } array_access, dot_access, arrow_access, mul, div, mod, add, sub, lshift, rshift, lt, gt, le, ge, eq, ne, and,
+            xor, or, logand, logor;
     };
 };
 
