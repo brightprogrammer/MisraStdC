@@ -2125,7 +2125,7 @@ bool cReadLogOrExpr(StrIter* si, Expr* e) {
     StrIter saved_si = *si;
     SkipWS(si);
 
-    if (cReadOrExpr(si, e)) {
+    if (cReadLogAndExpr(si, e)) {
         SkipWS(si);
 
         char c = StrIterPeek(si);
@@ -2135,7 +2135,7 @@ bool cReadLogOrExpr(StrIter* si, Expr* e) {
                 StrIterNext(si);
                 SkipWS(si);
             } else {
-                LOG_ERROR("Expected '||' for logical and expression, got '|%c'.", StrIterPeek(si));
+                LOG_ERROR("Expected '||' for logical-and expression, got '|%c'.", StrIterPeek(si));
                 goto PARSE_FAILED;
             }
 
@@ -2146,17 +2146,76 @@ bool cReadLogOrExpr(StrIter* si, Expr* e) {
             e->logor.r = r;
             e->type    = EXPR_TYPE_LOGOR;
 
-            if (cReadOrExpr(si, r)) {
+            if (cReadLogAndExpr(si, r)) {
                 SkipWS(si);
             } else {
-                LOG_ERROR("Expected logical and expression after '||'");
+                LOG_ERROR("Expected logical-and expression after '||'");
                 goto PARSE_FAILED;
             }
         }
 
         return true;
     } else {
-        LOG_ERROR("Expected logical and expression.");
+        LOG_ERROR("Expected logical-and expression.");
+        goto PARSE_FAILED;
+    }
+
+PARSE_FAILED:
+    ExprDeinit(e);
+    *si = saved_si;
+    return false;
+}
+
+bool cReadConditionalExpr(StrIter* si, Expr* e) {
+    if (!si || !e) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    StrIter saved_si = *si;
+    SkipWS(si);
+
+    if (cReadLogOrExpr(si, e)) {
+        SkipWS(si);
+
+        if (StrIterPeek(si) == '?') {
+            StrIterNext(si);
+            SkipWS(si);
+
+            Expr* c = NEW(Expr);
+            Expr* t = NEW(Expr);
+            Expr* f = NEW(Expr);
+            memcpy(c, e, sizeof(Expr));
+            e->ternary.c = c;
+            e->ternary.t = t;
+            e->ternary.f = f;
+            e->type      = EXPR_TYPE_TERNARY;
+
+            if (cReadExpr(si, t)) {
+                SkipWS(si);
+
+                if (StrIterPeek(si) == ':') {
+                    StrIterNext(si);
+                    SkipWS(si);
+
+                    if (cReadConditionalExpr(si, f)) {
+                        return true;
+                    } else {
+                        LOG_ERROR("Expected a conditional expression after ':'");
+                        goto PARSE_FAILED;
+                    }
+                } else {
+                    LOG_ERROR("Expected a ':' in a conditional expression, got '%c'", StrIterPeek(si));
+                    goto PARSE_FAILED;
+                }
+            } else {
+                LOG_ERROR("Expected an expression in true branch of conditional expression.");
+                goto PARSE_FAILED;
+            }
+        }
+
+        return true;
+    } else {
+        LOG_ERROR("Expected logical-or expression.");
         goto PARSE_FAILED;
     }
 
