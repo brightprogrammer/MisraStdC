@@ -1110,6 +1110,9 @@ bool cReadStorageClassSpecifier(StrIter* si, StorageClassSpecifier* sc) {
     MATCH("constexpr", STORAGE_CLASS_SPECIFIER_CONSTEXPR);
     MATCH("extern", STORAGE_CLASS_SPECIFIER_EXTERN);
     MATCH("register", STORAGE_CLASS_SPECIFIER_REGISTER);
+    MATCH("static", STORAGE_CLASS_SPECIFIER_STATIC);
+    MATCH("thread_local", STORAGE_CLASS_SPECIFIER_THREAD_LOCAL);
+    MATCH("typedef", STORAGE_CLASS_SPECIFIER_TYPEDEF);
 
 #undef MATCH
     *si = saved_si;
