@@ -1284,15 +1284,19 @@ bool cReadPostfixExpr(StrIter* si, Expr* e) {
                 e->call.expr = l;
                 e->type      = EXPR_TYPE_CALL;
 
-                // optional argument list
-                cReadArgListExpr(si, &e->call.arg_list);
-                SkipWS(si);
-
+                // optional argument list, check if bracket closes immediately
                 if (StrIterPeek(si) == ')') {
                     StrIterNext(si);
                     break;
                 } else {
-                    LOG_ERROR("Expected ')', got '%c'", StrIterPeek(si));
+                    cReadArgListExpr(si, &e->call.arg_list);
+                    SkipWS(si);
+
+                    if (StrIterPeek(si) == ')') {
+                        StrIterNext(si);
+                        break;
+                    } else
+                        LOG_ERROR("Expected ')', got '%c'", StrIterPeek(si));
                     goto PARSE_FAILED;
                 }
                 break;
@@ -1376,5 +1380,37 @@ bool cReadPostfixExpr(StrIter* si, Expr* e) {
 PARSE_FAILED:
     ExprDeinit(e);
     *si = saved_si;
+    return false;
+}
+
+bool cReadArgListExpr(StrIter* si, Exprs* arg_list) {
+    if (!si || !arg_list) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    StrIter saved_si = *si;
+    SkipWS(si);
+
+    *arg_list = VecInitWithDeepCopy_T(arg_list, NULL, ExprDestroy);
+
+    Expr* e = NEW(Expr);
+    while (cReadAssignmentExpr(si, e)) {
+        VecPushBack(arg_list, e);
+        SkipWS(si);
+        if (StrIterPeek(si) != ',') {
+            break;
+        } else {
+            StrIterNext(si);
+            SkipWS(si);
+        }
+    }
+
+    if (!arg_list->length) {
+        LOG_ERROR("Expected assignment expression.");
+        VecDeinit(arg_list);
+        *si = saved_si;
+        return false;
+    }
+
     return false;
 }
