@@ -351,7 +351,8 @@ struct Expr {
             Expr* l;
             Expr* r;
         } array_access, dot_access, arrow_access, mul, div, mod, add, sub, lshift, rshift, lt, gt, le, ge, eq, ne, and,
-            xor, or, logand, logor;
+            xor, or, logand, logor, assign, mul_assign, div_assign, add_assign, sub_assign, lshift_assign,
+            rshift_assign, and_assign, xor_assign, or_assign;
     };
 };
 

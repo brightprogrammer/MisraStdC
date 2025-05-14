@@ -2224,3 +2224,115 @@ PARSE_FAILED:
     *si = saved_si;
     return false;
 }
+
+bool cReadAssignmentExpr(StrIter* si, Expr* e) {
+    if (!si || !e) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    StrIter saved_si = *si;
+    SkipWS(si);
+
+    if (cReadUnaryExpr(si, e)) {
+        SkipWS(si);
+
+        ExprType et = EXPR_TYPE_INVALID;
+
+        if (StrIterPeek(si) == '=') {
+            et = EXPR_TYPE_ASSIGN;
+            StrIterNext(si);
+        } else if (StrIterPeekAt(si, 1) == '=') {
+            switch (StrIterPeek(si)) {
+                case '*' : {
+                    et = EXPR_TYPE_MUL_ASSIGN;
+                    break;
+                }
+                case '/' : {
+                    et = EXPR_TYPE_DIV_ASSIGN;
+                    break;
+                }
+                case '%' : {
+                    et = EXPR_TYPE_MOD_ASSIGN;
+                    break;
+                }
+                case '+' : {
+                    et = EXPR_TYPE_ADD_ASSIGN;
+                    break;
+                }
+                case '-' : {
+                    et = EXPR_TYPE_SUB_ASSIGN;
+                    break;
+                }
+                case '&' : {
+                    et = EXPR_TYPE_AND_ASSIGN;
+                    break;
+                }
+                case '^' : {
+                    et = EXPR_TYPE_XOR_ASSIGN;
+                    break;
+                }
+                case '|' : {
+                    et = EXPR_TYPE_OR_ASSIGN;
+                    break;
+                }
+                default : {
+                    return true;
+                }
+            }
+            StrIterMove(si, 2);
+        } else if (StrIterPeekAt(si, 2) == '=') {
+            if (StrIterPeek(si) == '<' && StrIterPeekAt(si, 1) == '<') {
+                et = EXPR_TYPE_LSHIFT_ASSIGN;
+            } else if (StrIterPeek(si) == '>' && StrIterPeekAt(si, 1) == '>') {
+                et = EXPR_TYPE_RSHIFT_ASSIGN;
+            } else {
+                return true;
+            }
+            StrIterMove(si, 3);
+        }
+
+        if (et) {
+            SkipWS(si);
+
+            Expr* l = NEW(Expr);
+            Expr* r = NEW(Expr);
+            memcpy(l, e, sizeof(Expr));
+            e->assign.l = l;
+            e->assign.r = r;
+            e->type     = EXPR_TYPE_ASSIGN;
+
+            if (cReadAssignmentExpr(si, r)) {
+                return true;
+            } else {
+                LOG_ERROR(
+                    "Expected an assignment expression after '%s'",
+                    (et == EXPR_TYPE_ASSIGN)        ? "=" :
+                    (et == EXPR_TYPE_MUL_ASSIGN)    ? "*=" :
+                    (et == EXPR_TYPE_DIV_ASSIGN)    ? "/=" :
+                    (et == EXPR_TYPE_MOD_ASSIGN)    ? "%=" :
+                    (et == EXPR_TYPE_ADD_ASSIGN)    ? "+=" :
+                    (et == EXPR_TYPE_SUB_ASSIGN)    ? "-=" :
+                    (et == EXPR_TYPE_AND_ASSIGN)    ? "&=" :
+                    (et == EXPR_TYPE_XOR_ASSIGN)    ? "^=" :
+                    (et == EXPR_TYPE_OR_ASSIGN)     ? "|=" :
+                    (et == EXPR_TYPE_LSHIFT_ASSIGN) ? "<<=" :
+                    (et == EXPR_TYPE_RSHIFT_ASSIGN) ? ">>=" :
+                                                      "unknown"
+                );
+                goto PARSE_FAILED;
+            }
+        }
+
+        return true;
+    } else if (cReadConditionalExpr(si, e)) {
+        return true;
+    } else {
+        LOG_ERROR("Expected a conditional expression or a unary expression.");
+        goto PARSE_FAILED;
+    }
+
+PARSE_FAILED:
+    ExprDeinit(e);
+    *si = saved_si;
+    return false;
+}

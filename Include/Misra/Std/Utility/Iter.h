@@ -149,6 +149,24 @@ typedef Iter(u64) QWordIter;
 ///
 #define IterPeek(mi) (IterRemainingLength(mi) ? ((mi)->data[(mi)->pos]) : (ITER_DATA_TYPE(mi)) {0})
 
+///
+/// Peek (not read) object from memory iter, given that
+/// - Provided Iter object is not NULL_ITER(mi).
+/// - There's space left to read.
+/// - Length of object data is being read into is an integral multiple of size of data type
+///   this memory iter is iterating over.
+///
+/// This is different from reading because it does not change current read position.
+/// This is good for making some decisions over data without changing the read position.
+///
+/// SUCCESS : Data copied over to `dst` from current read position and `mi` is returned.
+/// FAILURE : NULL_ITER(mi) returned.
+///
+#define IterPeekAt(mi, rel_idx)                                                                                        \
+    ((IterRemainingLength(mi) + rel_idx > 0) && (IterRemainingLength(mi) + rel_idx < IterLength(mi)) ?                 \
+         ((mi)->data[(mi)->pos + rel_idx]) :                                                                           \
+         (ITER_DATA_TYPE(mi)) {0})
+
 bool move_iter(GenericIter* mi, i64 n);
 
 #endif // MISRA_STD_UTILITY_ITER_H

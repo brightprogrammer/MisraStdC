@@ -98,4 +98,6 @@ typedef Vec(StrIter) StrIters;
 ///
 #define StrIterPeek(mi) IterPeek(mi)
 
+#define StrIterPeekAt(mi, rel_idx) IterPeekAt(mi, rel_idx)
+
 #endif // MISRA_STD_UTILITY_STR_ITER_H
