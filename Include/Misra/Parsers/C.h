@@ -295,7 +295,7 @@ typedef enum {
     EXPR_TYPE_XOR_ASSIGN,
     EXPR_TYPE_OR_ASSIGN,
 
-    EXPR_TYPE_COMMA_SEPARATED_LIST,
+    EXPR_TYPE_EXPRS, // a comma separated list of expressions
 } ExprType;
 
 typedef struct Expr Expr;
@@ -326,8 +326,7 @@ struct Expr {
             GenericAssociations generic_associations;
         } generic_selection;
 
-        // NOTE: looks unused
-        Exprs arg_list, comma_separated_list;
+        Exprs exprs;
 
         CompoundLiteral compound_literal;
 
@@ -344,7 +343,7 @@ struct Expr {
 
         struct {
             Expr* expr;
-            Exprs arg_list;
+            Expr* args;
         } call;
 
         struct {

@@ -1126,7 +1126,7 @@ bool cReadCompoundLiteral(StrIter* si, CompoundLiteral* cl) {
 bool cReadExpr(StrIter* si, Expr* e);
 bool cReadAssignmentExpr(StrIter* si, Expr* e);
 bool cReadGenericAssociationList(StrIter* si, GenericAssociations* assocs);
-bool cReadArgListExpr(StrIter* si, Exprs* arg_list);
+bool cReadArgListExpr(StrIter* si, Expr* e);
 bool cReadCastExpr(StrIter* si, Expr* e);
 
 void ExprDeinit(Expr* e) {
@@ -1258,7 +1258,6 @@ bool cReadPostfixExpr(StrIter* si, Expr* e) {
                 Expr* r = NEW(Expr);
                 Expr* l = NEW(Expr);
                 memcpy(l, e, sizeof(Expr));
-
                 e->array_access.l = l;
                 e->array_access.r = r;
                 e->type           = EXPR_TYPE_ARRAY_ACCESS;
@@ -1283,8 +1282,10 @@ bool cReadPostfixExpr(StrIter* si, Expr* e) {
                 SkipWS(si);
 
                 Expr* l = NEW(Expr);
+                Expr* r = NEW(Expr);
                 memcpy(l, e, sizeof(Expr));
                 e->call.expr = l;
+                e->call.args = r;
                 e->type      = EXPR_TYPE_CALL;
 
                 // optional argument list, check if bracket closes immediately
@@ -1292,7 +1293,7 @@ bool cReadPostfixExpr(StrIter* si, Expr* e) {
                     StrIterNext(si);
                     break;
                 } else {
-                    cReadArgListExpr(si, &e->call.arg_list);
+                    cReadArgListExpr(si, e->call.args);
                     SkipWS(si);
 
                     if (StrIterPeek(si) == ')') {
@@ -1386,34 +1387,44 @@ PARSE_FAILED:
     return false;
 }
 
-bool cReadArgListExpr(StrIter* si, Exprs* arg_list) {
-    if (!si || !arg_list) {
+bool cReadArgListExpr(StrIter* si, Expr* e) {
+    if (!si || !e) {
         LOG_FATAL("Invalid arguments");
     }
 
     StrIter saved_si = *si;
     SkipWS(si);
 
-    *arg_list = VecInitWithDeepCopy_T(arg_list, NULL, ExprDestroy);
-
-    Expr* e = NEW(Expr);
     if (cReadAssignmentExpr(si, e)) {
-        VecPushBack(arg_list, e);
         SkipWS(si);
 
-        // optional but repeated left associative comma operator and then an expression
-        while (StrIterPeek(si) == ',') {
-            StrIterNext(si);
-            SkipWS(si);
-            e = NEW(Expr);
+        if (StrIterPeek(si) == ',') {
+            // convert e to comma separated list expression type
+            // move current expression to first element of this expressions vector
+            Expr* xe = NEW(Expr);
+            memcpy(xe, e, sizeof(Expr));
+            e->exprs = VecInitWithDeepCopy_T(&e->exprs, NULL, ExprDestroy);
+            e->type  = EXPR_TYPE_EXPRS;
+            VecPushBack(&e->exprs, xe);
 
-            // expression associated with comma operator to it's left
-            if (cReadAssignmentExpr(si, e)) {
-                VecPushBack(arg_list, e);
+            // optional but repeated left associative comma operator and then an expression
+            // meaning if we have a comma, then we'll definitely have an assignment expressio
+            // otherwise it's wrong!
+            while (StrIterPeek(si) == ',') {
+                StrIterNext(si);
                 SkipWS(si);
-            } else {
-                LOG_ERROR("Expected an assignment expression after ',' in argument expression list.");
-                goto PARSE_FAILED;
+                e = NEW(Expr);
+
+                // expression associated with comma operator to it's left
+                xe = NEW(Expr);
+                VecPushBack(&e->exprs, xe);
+
+                if (cReadAssignmentExpr(si, xe)) {
+                    SkipWS(si);
+                } else {
+                    LOG_ERROR("Expected an assignment expression after ',' in argument expression list.");
+                    goto PARSE_FAILED;
+                }
             }
         }
 
@@ -1424,7 +1435,7 @@ bool cReadArgListExpr(StrIter* si, Exprs* arg_list) {
     }
 
 PARSE_FAILED:
-    VecDeinit(arg_list);
+    ExprDeinit(e);
     *si = saved_si;
     return false;
 }
@@ -2335,4 +2346,8 @@ PARSE_FAILED:
     ExprDeinit(e);
     *si = saved_si;
     return false;
+}
+
+bool cReadExpr(StrIter* si, Expr* e) {
+    return cReadArgListExpr(si, e);
 }
