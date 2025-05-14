@@ -1397,24 +1397,35 @@ bool cReadArgListExpr(StrIter* si, Exprs* arg_list) {
     *arg_list = VecInitWithDeepCopy_T(arg_list, NULL, ExprDestroy);
 
     Expr* e = NEW(Expr);
-    while (cReadAssignmentExpr(si, e)) {
+    if (cReadAssignmentExpr(si, e)) {
         VecPushBack(arg_list, e);
         SkipWS(si);
-        if (StrIterPeek(si) != ',') {
-            break;
-        } else {
+
+        // optional but repeated left associative comma operator and then an expression
+        while (StrIterPeek(si) == ',') {
             StrIterNext(si);
             SkipWS(si);
+            e = NEW(Expr);
+
+            // expression associated with comma operator to it's left
+            if (cReadAssignmentExpr(si, e)) {
+                VecPushBack(arg_list, e);
+                SkipWS(si);
+            } else {
+                LOG_ERROR("Expected an assignment expression after ',' in argument expression list.");
+                goto PARSE_FAILED;
+            }
         }
-    }
 
-    if (!arg_list->length) {
+        return true;
+    } else {
         LOG_ERROR("Expected assignment expression.");
-        VecDeinit(arg_list);
-        *si = saved_si;
-        return false;
+        goto PARSE_FAILED;
     }
 
+PARSE_FAILED:
+    VecDeinit(arg_list);
+    *si = saved_si;
     return false;
 }
 
@@ -1693,6 +1704,9 @@ bool cReadMulExpr(StrIter* si, Expr* e) {
                 }
             }
         }
+    } else {
+        LOG_ERROR("Expected cast expression.");
+        goto PARSE_FAILED;
     }
 
 PARSE_FAILED:
@@ -1739,6 +1753,9 @@ bool cReadAddExpr(StrIter* si, Expr* e) {
                 }
             }
         }
+    } else {
+        LOG_ERROR("Expected multiplicative expression.");
+        goto PARSE_FAILED;
     }
 
 PARSE_FAILED:
@@ -1792,6 +1809,9 @@ bool cReadShiftExpr(StrIter* si, Expr* e) {
                 }
             }
         }
+    } else {
+        LOG_ERROR("Expected additive expression.");
+        goto PARSE_FAILED;
     }
 
 PARSE_FAILED:
@@ -1848,6 +1868,9 @@ bool cReadRelationalExpr(StrIter* si, Expr* e) {
                 }
             }
         }
+    } else {
+        LOG_ERROR("Expected shift expression.");
+        goto PARSE_FAILED;
     }
 
 PARSE_FAILED:
@@ -1905,6 +1928,52 @@ bool cReadEqualityExpr(StrIter* si, Expr* e) {
                 }
             }
         }
+    } else {
+        LOG_ERROR("Expected relational expression.");
+        goto PARSE_FAILED;
+    }
+
+PARSE_FAILED:
+    ExprDeinit(e);
+    *si = saved_si;
+    return false;
+}
+
+bool cReadAndExpr(StrIter* si, Expr* e) {
+    if (!si || !e) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    StrIter saved_si = *si;
+    SkipWS(si);
+
+    if (cReadEqualityExpr(si, e)) {
+        SkipWS(si);
+
+        char c = StrIterPeek(si);
+        while (c == '&') {
+            StrIterNext(si);
+            SkipWS(si);
+
+            Expr* l = NEW(Expr);
+            Expr* r = NEW(Expr);
+            memcpy(l, e, sizeof(Expr));
+            e->and.l = l;
+            e->and.r = r;
+            e->type  = EXPR_TYPE_AND;
+
+            if (cReadEqualityExpr(si, r)) {
+                SkipWS(si);
+            } else {
+                LOG_ERROR("Expected a equality expression after '&'");
+                goto PARSE_FAILED;
+            }
+        }
+
+        return true;
+    } else {
+        LOG_ERROR("Expected equality expression.");
+        goto PARSE_FAILED;
     }
 
 PARSE_FAILED:
