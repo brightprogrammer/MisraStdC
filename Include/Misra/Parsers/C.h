@@ -11,6 +11,8 @@
 #include <Misra/Std/Container.h>
 #include <Misra/Types.h>
 
+typedef Str Identifier;
+
 typedef enum Keyword {
     KEYWORD_UNKNOWN = 0, // Not a keyword
     KEYWORD_ALIGNAS,
@@ -208,6 +210,27 @@ typedef enum {
     PUNCTUATOR_HASHHASH,     // ## or %:%:
 } Punctuator;
 
+typedef enum {
+    TOKEN_TYPE_INVALID,
+    TOKEN_TYPE_KEYWORD,
+    TOKEN_TYPE_IDENTIFIER,
+    TOKEN_TYPE_CONSTANT,
+    TOKEN_TYPE_STRING_LITERAL,
+    TOKEN_TYPE_PUNCTUATOR
+} TokenType;
+
+typedef struct {
+    TokenType type;
+    union {
+        Keyword       keyword;
+        Identifier    identifier;
+        Constant      constant;
+        StringLiteral string_literal;
+        Punctuator    punctuator;
+    };
+} Token;
+typedef Vec(Token) Tokens;
+
 typedef struct {
     bool is_local; // name is inside "" instead of <>
     Str  name;
@@ -315,7 +338,7 @@ struct Expr {
     ExprType type;
 
     union {
-        Str           identifier;
+        Identifier    identifier;
         Constant      constant;
         StringLiteral string_literal;
 
@@ -355,6 +378,160 @@ struct Expr {
         } array_access, dot_access, arrow_access, mul, div, mod, add, sub, lshift, rshift, lt, gt, le, ge, eq, ne, and,
             xor, or, logand, logor, assign, mul_assign, div_assign, add_assign, sub_assign, lshift_assign,
             rshift_assign, and_assign, xor_assign, or_assign;
+    };
+};
+
+// TODO: declaration
+
+typedef struct {
+    Str        prefix;
+    Identifier identifier;
+    Tokens     args;
+} Attribute;
+typedef Vec(Attribute) AttributeSpecifier;
+typedef Vec(AttributeSpecifier) AttributeSpecifierSequence;
+
+typedef enum {
+    TYPE_QUALIFIER_INVALID = 0,
+    TYPE_QUALIFIER_CONST,
+    TYPE_QUALIFIER_RESTRICT,
+    TYPE_QUALIFIER_VOLATILE,
+    TYPE_QUALIFIER_ATOMIC
+} TypeQualifier;
+typedef Vec(TypeQualifier) TypeQualifiers;
+
+typedef struct {
+    AttributeSpecifierSequence attribute_specifiers;
+    TypeQualifiers             type_qualifiers;
+} PointerAttributeSpecifierTypeQualifier;
+typedef Vec(PointerAttributeSpecifierTypeQualifier) Pointer;
+
+typedef enum {
+    DIRECT_DECLARATOR_TYPE_INVALID = 0,
+    DIRECT_DECLARATOR_TYPE_IDENTIFIER,
+    DIRECT_DECLARATOR_TYPE_IN_PARENS,
+    DIRECT_DECLARATOR_TYPE_ARRAY,
+    DIRECT_DECLARATOR_TYPE_FUNCTION,
+} DirectDeclaratorType;
+
+typedef struct Declarator       Declarator;
+typedef struct DirectDeclarator DirectDeclarator;
+typedef struct TypeSpecifier    TypeSpecifier;
+typedef Vec(TypeSpecifier*) TypeSpecifiers;
+
+typedef struct {
+    DirectDeclarator* direct_declarator;
+    TypeQualifiers    type_qualifiers;
+    Expr*             expr;
+
+    /// pos == 0 means "static" absent
+    /// pos == 1 means "static" before type_qualifiers
+    /// pos == 2 means "static" after  type_qualifiers
+    u8 static_pos;
+
+    /// true  :: has a * after type_qualifiers, and static == 0
+    /// false :: static_pos == 0 or static_pos == 1 or static_pos == 2
+    bool ptr;
+} ArrayDeclarator;
+
+typedef struct {
+    AttributeSpecifierSequence attribute_specifiers;
+
+} ParameterDeclaration;
+typedef Vec(ParameterDeclaration) ParameterDeclarations;
+
+typedef struct {
+    ParameterDeclarations parameter_declarations;
+    bool                  is_variadic;
+} ParameterTypeList;
+
+typedef struct {
+    DirectDeclarator* direct_declarator;
+    ParameterTypeList parameters;
+} FunctionDeclarator;
+
+typedef enum {
+    DECLARATION_SPECIFIER_TYPE_STORAGE_CLASS,
+    DECLARATION_SPECIFIER_TYPE_TYPE_QUALIFIER,
+    DECLARATION_SPECIFIER_TYPE_FUNCTION
+} DeclarationSpecifierType;
+
+typedef enum {
+    TYPE_SPECIFIER,
+    TYPE_QUALIFIER,
+    ALIGNMENT_SPECIFIER,
+} TypeSpecifierQualifierType;
+
+typedef struct {
+    TypeSpecifierQualifierType type;
+} TypeSpecifierQualifier;
+
+typedef struct {
+    DeclarationSpecifierType type;
+    StorageClassSpecifier    storage_class_specifier;
+    TypeSpecifierQualifier
+} DeclarationSpecififer;
+
+struct DirectDeclarator {
+    DirectDeclaratorType type;
+
+    union {
+        Identifier         identifier;
+        Declarator*        declarator;
+        ArrayDeclarator    array;
+        FunctionDeclarator function;
+    };
+};
+
+struct Declarator {
+    Pointer          pointer;
+    DirectDeclarator direct_declarator;
+};
+
+typedef enum {
+    TYPE_INVALID = 0,
+    TYPE_VOID,
+    TYPE_CHAR,
+    TYPE_SHORT,
+    TYPE_INT,
+    TYPE_LONG,
+    TYPE_FLOAT,
+    TYPE_DOUBLE,
+    TYPE_SIGNED,
+    TYPE_UNSIGNED,
+    TYPE_BITINT,
+    TYPE_BOOL,
+    TYPE_COMPLEX,
+    TYPE_COMPLEX32,
+    TYPE_COMPLEX64,
+    TYPE_COMPLEX128,
+    TYPE_ATOMIC,
+    TYPE_STRUCT,
+    TYPE_UNION,
+    TYPE_ENUM,
+    TYPE_TYPEDEF,
+    TYPE_TYPEOF,
+} Type;
+
+typedef struct {
+    AttributeSpecifierSequence attribute_specifiers;
+
+} MemberDeclaration;
+typedef Vec(MemberDeclaration) MemberDeclarations;
+
+typedef struct {
+    AttributeSpecifierSequence attribute_specifiers;
+    Identifier                 identifier;
+    MemberDeclarations         member_declarations;
+} Struct, Union;
+
+struct TypeSpecifier {
+    Type type;
+
+    union {
+        Expr*  constant_expr; ///> type == TYPE_SPECIFIER_TYPE_BITINT
+        Struct struct_t;
+        Union  union_t;
     };
 };
 
