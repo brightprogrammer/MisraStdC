@@ -77,8 +77,8 @@ SysDirEntry* SysDirEntryDeinitCopy(SysDirEntry* copy) {
 #ifdef _WIN32
 // Windows-specific implementation using FindFirstFile/FindNextFile
 SysDirContents SysGetDirContents(const char* path) {
-    if (!dir_contents || !path) {
-        return SysDirContents {0};
+    if (!path) {
+        return (SysDirContents) {0};
     }
 
     SysDirContents dc = VecInit();
@@ -91,7 +91,7 @@ SysDirContents SysGetDirContents(const char* path) {
     HANDLE          hFind = FindFirstFile(search_path, &findFileData);
 
     if (hFind == INVALID_HANDLE_VALUE) {
-        return (SysGetDirContents) {0};
+        return (SysDirContents) {0};
     }
 
     do {
