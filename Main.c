@@ -1,8 +1,9 @@
 #include <Misra/Parsers/JSON.h>
 #include <Misra/Std.h>
+#include <Misra/Std/Io.h>
 #include <Misra/Types.h>
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     LogInit(false);
 
     if (argc != 2) {
@@ -14,7 +15,9 @@ int main(int argc, char** argv) {
     Str code     = StrInit();
     ReadCompleteFile(filename.data, &code.data, &code.length, &code.capacity);
 
-    printf("%s", code.data);
+    Str out = StrInit();
+    StrWriteFmt(&out, "code : {#X2}", FMT(code));
+    puts(out.data);
 
     LogDeinit();
     return 0;

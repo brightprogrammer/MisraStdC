@@ -2,7 +2,7 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// copyright : Copyright (c) 2024, Siddharth Mishra, All rights reserved.
 ///
-/// logging suppor
+/// logging support
 
 #ifndef MISRA_STD_LOG_H
 #define MISRA_STD_LOG_H
