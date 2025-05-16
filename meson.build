@@ -10,6 +10,7 @@ inc_misra = include_directories('Source', 'Include')
 # Add the misra_std library
 misra_std_sources = files(
     'Source/Misra/Sys.c',
+    'Source/Misra/Std/Io.c',
     'Source/Misra/Std/Log.c',
     'Source/Misra/Std/File.c',
     'Source/Misra/Std/Container/Vec.c',
