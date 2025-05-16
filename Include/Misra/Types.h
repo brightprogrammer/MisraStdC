@@ -29,6 +29,10 @@ typedef unsigned long size;
 #define MIN2(x, y) ((x) < (y) ? (x) : (y))
 #define MAX2(x, y) ((x) > (y) ? (x) : (y))
 
+/// Make an lval usable with a pointer
+/// Pass any literal to this and then you can take it's address, like you do for a variable
+#define LVAL(x) ((__typeof__(x)[]) {(x)})[0]
+
 ///
 /// Clamp the value of `x` in between `lo` and `hi`
 ///

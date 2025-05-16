@@ -37,6 +37,32 @@ void _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
     }
 };
 
+void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s) {
+    if (!o || !s) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    const char *c = *s;
+    size        l = strlen(c);
+    if (c && l) {
+        if (fmt_info->is_hex) {
+            while (l) {
+                if (l > 1) {
+                    StrAppendf(o, fmt_info->is_caps ? "%.*X " : "%.*x ", (u32)fmt_info->width, (u32)*c);
+                } else {
+                    StrAppendf(o, fmt_info->is_caps ? "%.*X" : "%.*x", (u32)fmt_info->width, (u32)*c);
+                }
+                c++;
+                l--;
+            }
+        } else {
+            StrAppendf(o, "%s", c);
+        }
+    } else {
+        StrAppendf(o, "(null)");
+    }
+}
+
 void _write_u8(Str *o, FmtInfo *fmt_info, u8 *v) {
     if (!o || !v) {
         LOG_FATAL("Invalid arguments.");
@@ -131,6 +157,10 @@ void _write_i64(Str *o, FmtInfo *fmt_info, i64 *v) {
     } else {
         StrAppendf(o, "%lld", (long long)*v);
     }
+}
+
+void _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s) {
+    LOG_ERROR("Attempt to write unsupported type");
 }
 
 
@@ -259,6 +289,34 @@ const char *_read_i64(const char *i, i64 *v) {
 
     *v = (i64)val;
     return end;
+}
+
+const char *_read_Zstr(const char *input, const char **out) {
+    if (!input || !out) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    // Read until whitespace or end
+    const char *start = input;
+    while (*input && !isspace(*input)) {
+        input++;
+    }
+
+    size_t len  = input - start;
+    char  *copy = malloc(len + 1);
+    if (!copy) {
+        LOG_FATAL("Out of memory");
+    }
+    memcpy(copy, start, len);
+    copy[len] = '\0';
+
+    *out = copy;
+    return input;
+}
+
+const char *_read_UnsupportedType(const char *i, const char **s) {
+    LOG_ERROR("Attempt to read unsupported type.");
+    return i;
 }
 
 void StrWriteFmt(Str *o, const char *fmtstr, ...) {

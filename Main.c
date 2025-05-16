@@ -3,6 +3,7 @@
 #include <Misra/Std/Io.h>
 #include <Misra/Types.h>
 
+
 int main(int argc, char **argv) {
     LogInit(false);
 
@@ -16,7 +17,13 @@ int main(int argc, char **argv) {
     ReadCompleteFile(filename.data, &code.data, &code.length, &code.capacity);
 
     Str out = StrInit();
-    StrWriteFmt(&out, "code : {#X2}", FMT(code));
+
+    StrWriteFmt(&out, "HexQWords :\n{#X8}\n", FMT(code));
+    StrWriteFmt(&out, "String :\n{}\n", FMT(code));
+    const char *s = "const char strrrr go brrrrrr";
+    StrWriteFmt(&out, "Null-terminated String :\n{}\n", FMT(s));
+    StrWriteFmt(&out, "A boolean?? :\n{}\n", FMT(LVAL(true)));
+
     puts(out.data);
 
     LogDeinit();

@@ -40,7 +40,10 @@ typedef struct {
         i8: TO_TYPE_SPECIFIC_IO(i8, &(x)),                                                                             \
         i16: TO_TYPE_SPECIFIC_IO(i16, &(x)),                                                                           \
         i32: TO_TYPE_SPECIFIC_IO(i32, &(x)),                                                                           \
-        i64: TO_TYPE_SPECIFIC_IO(i64, &(x))                                                                            \
+        i64: TO_TYPE_SPECIFIC_IO(i64, &(x)),                                                                           \
+        const char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                 \
+        char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                       \
+        default: TO_TYPE_SPECIFIC_IO(UnsupportedType, NULL)                                                            \
     )
 
 ///
@@ -78,15 +81,18 @@ void StrWriteFmt(Str *o, const char *fmtstr, ...);
 const char *StrReadFmt(const char *input, const char *fmtstr, ...);
 
 // not for direct use
-void        _write_Str(Str *o, FmtInfo *fmt_info, Str *s);
-void        _write_u8(Str *o, FmtInfo *fmt_info, u8 *v);
-void        _write_u16(Str *o, FmtInfo *fmt_info, u16 *v);
-void        _write_u32(Str *o, FmtInfo *fmt_info, u32 *v);
-void        _write_u64(Str *o, FmtInfo *fmt_info, u64 *v);
-void        _write_i8(Str *o, FmtInfo *fmt_info, i8 *v);
-void        _write_i16(Str *o, FmtInfo *fmt_info, i16 *v);
-void        _write_i32(Str *o, FmtInfo *fmt_info, i32 *v);
-void        _write_i64(Str *o, FmtInfo *fmt_info, i64 *v);
+void _write_Str(Str *o, FmtInfo *fmt_info, Str *s);
+void _write_u8(Str *o, FmtInfo *fmt_info, u8 *v);
+void _write_u16(Str *o, FmtInfo *fmt_info, u16 *v);
+void _write_u32(Str *o, FmtInfo *fmt_info, u32 *v);
+void _write_u64(Str *o, FmtInfo *fmt_info, u64 *v);
+void _write_i8(Str *o, FmtInfo *fmt_info, i8 *v);
+void _write_i16(Str *o, FmtInfo *fmt_info, i16 *v);
+void _write_i32(Str *o, FmtInfo *fmt_info, i32 *v);
+void _write_i64(Str *o, FmtInfo *fmt_info, i64 *v);
+void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s);
+void _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s);
+
 const char *_read_Str(const char *i, Str *s);
 const char *_read_u8(const char *i, u8 *v);
 const char *_read_u16(const char *i, u16 *v);
@@ -96,5 +102,7 @@ const char *_read_i8(const char *i, i8 *v);
 const char *_read_i16(const char *i, i16 *v);
 const char *_read_i32(const char *i, i32 *v);
 const char *_read_i64(const char *i, i64 *v);
+const char *_read_Zstr(const char *i, const char **v);
+const char *_read_UnsupportedType(const char *i, const char **s);
 
 #endif // MISRA_STD_IO
