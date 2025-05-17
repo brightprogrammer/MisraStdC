@@ -400,7 +400,7 @@ def generate_markdown_file(symbol_name, symbol_data, usages, output_dir: Path):
 
 def process_source_files(root_directories, output_directory):
     """
-    Orchestrates the documentation generation process.
+    Orchestrates the documentation generation process, skipping the 'Docs' directory.
 
     Args:
         root_directories (list): A list of root directories to scan for source files.
@@ -412,8 +412,6 @@ def process_source_files(root_directories, output_directory):
 
     print("\n--- Starting Pass 1: Collecting symbols and file contents ---")
     for root_dir_str in root_directories:
-        if "Docs" in root_dir_str:
-            continue
         root_path = Path(root_dir_str).resolve()
         if not root_path.is_dir():
             print(f"Warning: Root path '{root_dir_str}' ({
@@ -422,6 +420,10 @@ def process_source_files(root_directories, output_directory):
         print(f"Pass 1: Scanning under root directory: {root_path}")
         for dirpath_str, _, filenames in os.walk(root_path):
             current_dir = Path(dirpath_str)
+            # Skip processing files within any directory named 'Docs' (case-insensitive)
+            if any(part.lower() == "docs" for part in current_dir.parts):
+                print(f"Skipping directory: {current_dir} (contains 'docs')")
+                continue
             for filename in filenames:
                 if filename.endswith((".c", ".h")):
                     file_to_process = (current_dir / filename).resolve()

@@ -1085,10 +1085,86 @@ typedef struct {
         }                                                                                                              \
     } while (0)
 
-#define VecForeach(v, var, body)           VecForeachIdx((v), (var), (____iter___), {body})
-#define VecForeachReverse(v, var, body)    VecForeachReverseIdx((v), (var), (____iter___), {body})
-#define VecForeachPtr(v, var, body)        VecForeachPtrIdx((v), (var), (____iter___), {body})
+///
+/// Iterate over each element `var` of the given vector `v`.
+/// This is a convenience macro that iterates forward using an internally managed index.
+/// The variable `var` is declared and defined by this macro.
+///
+/// v[in,out] : Vector to iterate over.
+/// var[in]   : Name of the variable to be used which will contain the value of the
+///             current element during iteration. The type of `var` will be the
+///             data type of the vector elements (obtained via `VEC_DATA_TYPE(v)`).
+/// body      : The block of code to be executed for each element of the vector.
+///
+/// SUCCESS : The `body` is executed for each element of the vector `v` from the
+///           beginning to the end.
+/// FAILURE : If the vector `v` is NULL or its length is zero, the loop body will not
+///           be executed. Any failures within the `VecForeachIdx` macro (like invalid
+///           index access) will result in a fatal log message and program termination.
+///
+#define VecForeach(v, var, body) VecForeachIdx((v), (var), (____iter___), {body})
+
+///
+/// Iterate over each element `var` of the given vector `v` in reverse order.
+/// This is a convenience macro that iterates backward using an internally managed index.
+/// The variable `var` is declared and defined by this macro.
+///
+/// v[in,out] : Vector to iterate over.
+/// var[in]   : Name of the variable to be used which will contain the value of the
+///             current element during iteration. The type of `var` will be the
+///             data type of the vector elements (obtained via `VEC_DATA_TYPE(v)`).
+/// body      : The block of code to be executed for each element of the vector.
+///
+/// SUCCESS : The `body` is executed for each element of the vector `v` from the
+///           end to the beginning.
+/// FAILURE : If the vector `v` is NULL or its length is zero, the loop body will not
+///           be executed. Any failures within the `VecForeachReverseIdx` macro (like
+///           invalid index access) will result in a fatal log message and program termination.
+///
+#define VecForeachReverse(v, var, body) VecForeachReverseIdx((v), (var), (____iter___), {body})
+
+///
+/// Iterate over each element `var` (as a pointer) of the given vector `v`.
+/// This is a convenience macro that iterates forward using an internally managed index
+/// and provides a pointer to each element. The variable `var` is declared and defined
+/// by this macro as a pointer to the vector's data type.
+///
+/// v[in,out] : Vector to iterate over.
+/// var[in]   : Name of the pointer variable to be used which will point to the
+///             current element during iteration. The type of `var` will be a pointer
+///             to the data type of the vector elements (obtained via
+///             `VEC_DATA_TYPE(v) *`).
+/// body      : The block of code to be executed for each element of the vector.
+///
+/// SUCCESS : The `body` is executed for each element of the vector `v` (with `var`
+///           pointing to the current element) from the beginning to the end.
+/// FAILURE : If the vector `v` is NULL or its length is zero, the loop body will not
+///           be executed. Any failures within the `VecForeachPtrIdx` macro (like invalid
+///           index access) will result in a fatal log message and program termination.
+///
+#define VecForeachPtr(v, var, body) VecForeachPtrIdx((v), (var), (____iter___), {body})
+
+///
+/// Iterate over each element `var` (as a pointer) of the given vector `v` in reverse order.
+/// This is a convenience macro that iterates backward using an internally managed index
+/// and provides a pointer to each element. The variable `var` is declared and defined
+/// by this macro as a pointer to the vector's data type.
+///
+/// v[in,out] : Vector to iterate over.
+/// var[in]   : Name of the pointer variable to be used which will point to the
+///             current element during iteration. The type of `var` will be a pointer
+///             to the data type of the vector elements (obtained via
+///             `VEC_DATA_TYPE(v) *`).
+/// body      : The block of code to be executed for each element of the vector.
+///
+/// SUCCESS : The `body` is executed for each element of the vector `v` (with `var`
+///           pointing to the current element) from the end to the beginning.
+/// FAILURE : If the vector `v` is NULL or its length is zero, the loop body will not
+///           be executed. Any failures within the `VecForeachPtrReverseIdx` macro (like
+///           invalid index access) will result in a fatal log message and program termination.
+///
 #define VecForeachPtrReverse(v, var, body) VecForeachPtrReverseIdx((v), (var), (____iter___), {body})
+
 
 void init_vec(
     GenericVec       *vec,
