@@ -6,6 +6,7 @@
 
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Sys.h>
 
 // stdc
 #include <ctype.h>
@@ -16,7 +17,7 @@ void StrWriteFmtInternal(Str *o, const char *fmtstr, TypeSpecificIO *argv, size 
     }
 
     const char *p         = fmtstr;
-    size_t      remaining = strlen(fmtstr);
+    size        remaining = strlen(fmtstr);
 
     while (remaining > 0) {
         if (remaining >= 2 && p[0] == '{' && p[1] == '{') {
@@ -32,7 +33,7 @@ void StrWriteFmtInternal(Str *o, const char *fmtstr, TypeSpecificIO *argv, size 
             remaining--;
 
             const char *start    = p;
-            size_t      spec_len = 0;
+            size        spec_len = 0;
 
             while (remaining > 0 && *p != '}') {
                 p++;
@@ -103,7 +104,7 @@ const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecif
     }
 
     const char *p         = fmtstr;
-    size_t      remaining = strlen(fmtstr);
+    size        remaining = strlen(fmtstr);
     const char *in        = input;
 
     while (remaining > 0) {
@@ -126,7 +127,7 @@ const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecif
             remaining--;
 
             const char *start    = p;
-            size_t      spec_len = 0;
+            size        spec_len = 0;
 
             while (remaining > 0 && *p != '}') {
                 p++;
@@ -171,7 +172,14 @@ const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecif
         } else {
             // Match exact character from format string
             if (!in || *in != *p) {
-                LOG_FATAL("Input does not match format string");
+                LOG_ERROR(
+                    "Input '%.*s' does not match format string '%.*s'",
+                    MIN2(remaining, 8),
+                    in,
+                    MIN2(remaining, 8),
+                    p
+                );
+                return NULL;
             }
             in++;
             p++;
@@ -180,6 +188,54 @@ const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecif
     }
 
     return in;
+}
+
+#if defined(_WIN32)
+#    include <io.h>
+#    define ISATTY _isatty
+#    define FILENO _fileno
+#else
+#    include <unistd.h>
+#    define ISATTY isatty
+#    define FILENO fileno
+#endif
+
+void FReadFmtInternal(FILE *file, const char *fmtstr, TypeSpecificIO *argv, size argc) {
+    if (!file || !fmtstr) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    Str buffer = StrInit();
+
+    int    c;
+    fpos_t start_pos;
+    bool   can_rollback = false;
+
+    // Try to check if the file is seekable
+    int fd = FILENO(file);
+    if (fd >= 0 && !ISATTY(fd)) {
+        if (fgetpos(file, &start_pos) == 0) {
+            can_rollback = true;
+        } else {
+            Str err = StrInit();
+            LOG_ERROR("Could not save file position for rollback: %s", SysStrError(errno, &err)->data);
+            StrDeinit(&err);
+        }
+    }
+
+    while ((c = fgetc(file)) != EOF && c != '\n') {
+        StrPushBack(&buffer, c);
+    }
+
+    if (!StrReadFmtInternal(buffer.data, fmtstr, argv, argc)) {
+        if (can_rollback) {
+            fsetpos(file, &start_pos);
+        } else {
+            LOG_ERROR("Parse failed, and rollback not possible on non-seekable input");
+        }
+    }
+
+    StrDeinit(&buffer);
 }
 
 void _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
@@ -340,9 +396,27 @@ const char *_read_Str(const char *i, Str *s) {
         LOG_FATAL("Invalid arguments.");
     }
 
+    const char *start = i;
+
     Str r = StrInit();
     while (*i && !isspace(*i)) {
-        StrPushBack(&r, *i);
+        if (*i == '"' || *i == '\'') {
+            char e = *i;
+            i++;
+            while (*i && *i != e) {
+                StrPushBack(&r, *i);
+                i++;
+            }
+
+            if (*i != e) {
+                LOG_ERROR("Unexpected end of string input, expected '%c'", e);
+                StrDeinit(&r);
+                return start;
+            }
+        } else {
+            StrPushBack(&r, *i);
+        }
+
         i++;
     }
     *s = r;
@@ -462,27 +536,41 @@ const char *_read_i64(const char *i, i64 *v) {
     return end;
 }
 
-const char *_read_Zstr(const char *input, const char **out) {
-    if (!input || !out) {
+const char *_read_Zstr(const char *i, const char **out) {
+    if (!i || !out) {
         LOG_FATAL("Invalid arguments.");
     }
 
-    // Read until whitespace or end
-    const char *start = input;
-    while (*input && !isspace(*input)) {
-        input++;
+    Str r = StrInit();
+
+    const char *start = i;
+    while (*i && !isspace(*i)) {
+        if (*i == '"' || *i == '\'') {
+            char e = *i;
+            i++;
+            while (*i && *i != e) {
+                StrPushBack(&r, *i);
+                i++;
+            }
+
+            if (*i != e) {
+                LOG_ERROR("Unexpected end of string input, expected '%c'", e);
+                StrDeinit(&r);
+                return start;
+            }
+        } else {
+            StrPushBack(&r, *i);
+        }
+
+        i++;
     }
 
-    size_t len  = input - start;
-    char  *copy = malloc(len + 1);
-    if (!copy) {
-        LOG_FATAL("Out of memory");
-    }
-    memcpy(copy, start, len);
-    copy[len] = '\0';
+    char *copy = malloc(r.length + 1);
+    memcpy(copy, r.data, r.length);
+    copy[r.length] = 0;
 
     *out = copy;
-    return input;
+    return i;
 }
 
 const char *_read_UnsupportedType(const char *i, const char **s) {

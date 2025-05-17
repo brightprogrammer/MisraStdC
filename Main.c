@@ -6,24 +6,25 @@
 int main(int argc, char **argv) {
     LogInit(false);
 
-    if (argc != 2) {
-        fprintf(stderr, "Need file name.\nUSAGE: %s <c-source>\n", argc > 0 ? argv[0] : "misra");
-        return 1;
-    }
-
-    Str filename = StrInitFromZstr(argv[1]);
-    Str code     = StrInit();
-    ReadCompleteFile(filename.data, &code.data, &code.length, &code.capacity);
-
-    WriteFmt("HexQWords :\n{#X2}\n", FMT(code));
-    WriteFmt("String :\n{}\n", FMT(code));
     const char *s = "const char strrrr go brrrrrr";
     WriteFmt("Null-terminated String :\n{}\n", FMT(s));
 
     i32 x = 0;
     StrReadFmt("integer : 1234", "integer : {}", FMT(x));
-    WriteFmt("read x = {}", FMT(x));
+    WriteFmt("read x = {}\n", FMT(x));
 
+    const char *uname;
+    WriteFmt("Tell me your name! format is username = <name>\n");
+    ReadFmt("username = {}", FMT(uname));
+    if (uname) {
+        WriteFmt("is your name {}? I'm smart, I know!\n", FMT(uname));
+        FREE(uname);
+    }
+    ReadFmt("uname = {}", FMT(uname));
+    if (uname) {
+        WriteFmt("is your name {}? I'm smart, I know!\n", FMT(uname));
+        FREE(uname);
+    }
 
     LogDeinit();
     return 0;

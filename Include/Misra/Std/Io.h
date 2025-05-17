@@ -10,6 +10,9 @@
 #include <Misra/Std/Container.h>
 #include <Misra/Types.h>
 
+// c
+#include <stdio.h>
+
 typedef struct {
     bool is_hex;
     bool is_caps;
@@ -90,6 +93,18 @@ void StrWriteFmtInternal(Str *o, const char *fmtstr, TypeSpecificIO *argv, size 
 ///
 const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecificIO *argv, size argc);
 
+///
+/// Read formatted data from file streams (stdin, or other file)
+///
+/// stream[in]
+/// fmtstr[in]
+/// argv[in]
+/// argc[in]
+///
+/// RETURBN
+///
+void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, size argc);
+
 #define StrWriteFmt(out, fmtstr, ...)                                                                                  \
     do {                                                                                                               \
         TypeSpecificIO argv[] = {__VA_ARGS__};                                                                         \
@@ -114,6 +129,15 @@ const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecif
     } while (0)
 
 #define WriteFmt(fmtstr, ...) FWriteFmt(stdout, fmtstr, __VA_ARGS__)
+
+#define FReadFmt(file, fmtstr, ...)                                                                                    \
+    do {                                                                                                               \
+        TypeSpecificIO argv[] = {__VA_ARGS__};                                                                         \
+        size           argc   = sizeof(argv) / sizeof(argv[0]);                                                        \
+        FReadFmtInternal((file), (fmtstr), &argv[0], argc);                                                            \
+    } while (0)
+
+#define ReadFmt(fmtstr, ...) FReadFmt(stdin, fmtstr, __VA_ARGS__)
 
 // not for direct use
 void _write_Str(Str *o, FmtInfo *fmt_info, Str *s);
