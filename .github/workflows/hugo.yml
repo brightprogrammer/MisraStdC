@@ -45,10 +45,14 @@ jobs:
       - name: Check paths
         run: |
           ls -l ../Scripts/DocuGen.py
-          ls -ld ../Source
+          ls -lR ../Include
 
       - name: Generate Documentation
-        run: python3 ../Scripts/DocuGen.py --root ../Source --output content/english/blog
+        run: |
+          echo "Current directory: $PWD"
+          echo "Files under ../Source:"
+          find ../Source -type f
+          python3 ../Scripts/DocuGen.py --root ../Include --output content/english/blog
 
       - name: Check paths after generatiom
         run: ls -l content/english/blog
