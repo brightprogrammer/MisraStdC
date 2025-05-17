@@ -25,12 +25,16 @@ print(f'Using output dir = {OUTPUT_DIR}')
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Regular expressions
+# Regular expressions (revised for robustness)
 comment_line_re = re.compile(r'^\s*///\s?(.*)')
-param_re = re.compile(r'^(\w+)\[(in|out|in,out)\]\s*:\s*(.+)')
-success_re = re.compile(r'^SUCCESS\s*:\s*(.+)')
-failure_re = re.compile(r'^FAILURE\s*:\s*(.+)')
-usage_start_re = re.compile(r'^USAGE\s*:\s*$')
+# Regexes for content lines (after '///' stripping), allowing leading spaces
+param_re = re.compile(r'^\s*(\w+)\[(in|out|in,out)\]\s*:\s*(.+)')
+success_re = re.compile(r'^\s*SUCCESS\s*:\s*(.+)')
+failure_re = re.compile(r'^\s*FAILURE\s*:\s*(.+)')
+usage_start_re = re.compile(r'^\s*USAGE\s*:\s*$')
+info_re = re.compile(r'^\s*INFO\s*:\s*(.*)')
+note_re = re.compile(r'^\s*NOTE\s*:\s*(.*)')
+warn_re = re.compile(r'^\s*WARN\s*:\s*(.*)')
 macro_or_func_re = re.compile(r'^\s*#define\s+(\w+)|^\s*(?:\w+\s+)+(\w+)\s*\(')
 
 
@@ -46,94 +50,113 @@ def parse_comment_block(lines, next_code_line=None):
     warn_lines = []
 
     section = "brief"
-    last_param = None
+    last_param = None  # Tracks the last parameter for multiline descriptions
 
-    for line in lines:
-        if not line.strip():
+    for line in lines:  # `lines` are already stripped of '/// ?' prefix by process_file
+
+        # MODIFICATION 1: Skip blank lines only if not in 'usage' section
+        if not line.strip() and section != "usage":
             continue
+        # If section is "usage" and line is blank (e.g., "" or "   "), it proceeds.
 
+        # Section detection
         if usage_start_re.match(line):
             section = "usage"
+            last_param = None  # Reset last_param
+            continue  # Don't add "USAGE:" line itself to usage_lines
+
+        elif param_match := param_re.match(line):
+            section = "params"
+            param_name, direction, desc = param_match.groups()
+            current_param = {
+                "name": param_name,
+                "direction": direction,
+                "desc": desc.strip()
+            }
+            params.append(current_param)
+            last_param = current_param  # Set for potential multiline description
             continue
 
         elif success_match := success_re.match(line):
             section = "success"
             success_lines = [success_match.group(1).strip()]
+            last_param = None  # Reset last_param
             continue
 
         elif failure_match := failure_re.match(line):
             section = "failure"
             failure_lines = [failure_match.group(1).strip()]
+            last_param = None  # Reset last_param
             continue
 
-        elif param_match := param_re.match(line):
-            section = "params"
-            param_name, direction, desc = param_match.groups()
-            params.append({
-                "name": param_name,
-                "direction": direction,
-                "desc": desc.strip()
-            })
-            last_param = params[-1]
-            continue
-
-        elif info_match := re.match(r"^///\s*INFO\s*:\s*(.*)", line):
+        # MODIFICATION 3: Corrected INFO/NOTE/WARN regex matching
+        elif info_match := info_re.match(line):
             section = "info"
             info_lines = [info_match.group(1).strip()]
+            last_param = None  # Reset last_param
             continue
 
-        elif note_match := re.match(r"^///\s*NOTE\s*:\s*(.*)", line):
+        elif note_match := note_re.match(line):
             section = "note"
             note_lines = [note_match.group(1).strip()]
+            last_param = None  # Reset last_param
             continue
 
-        elif warn_match := re.match(r"^///\s*WARN\s*:\s*(.*)", line):
+        elif warn_match := warn_re.match(line):
             section = "warn"
             warn_lines = [warn_match.group(1).strip()]
+            last_param = None  # Reset last_param
             continue
 
-        # Handle multiline for each section
+        # MODIFICATION 2: Handle multiline continuations for specific sections
+        # This block processes lines starting with a space, intended as continuations.
+        # It must only 'continue' if the line is consumed by one of these sections.
         if line.startswith(" "):
             if section == "params" and last_param:
                 last_param["desc"] += " " + line.strip()
-            elif section == "success":
+                continue  # Consumed as parameter description continuation
+            elif section == "success" and success_lines:  # Check list exists
                 success_lines.append(line.strip())
-            elif section == "failure":
+                continue  # Consumed as success description continuation
+            elif section == "failure" and failure_lines:
                 failure_lines.append(line.strip())
-            elif section == "info":
+                continue  # Consumed as failure description continuation
+            elif section == "info" and info_lines:
                 info_lines.append(line.strip())
-            elif section == "note":
+                continue  # Consumed as info description continuation
+            elif section == "note" and note_lines:
                 note_lines.append(line.strip())
-            elif section == "warn":
+                continue  # Consumed as note description continuation
+            elif section == "warn" and warn_lines:
                 warn_lines.append(line.strip())
-            continue
+                continue  # Consumed as warn description continuation
+            # If line started with a space but was not a continuation of the above
+            # (e.g., it's an indented brief line, or a USAGE code line),
+            # it will fall through to the next block.
 
+        # Append line to the current section's content
         if section == "brief":
-            brief_lines.append(line.strip())
+            # Only add non-empty stripped lines to brief
+            if line.strip():
+                brief_lines.append(line.strip())
         elif section == "usage":
-            usage_lines.append(line)
+            usage_lines.append(line)  # Preserve all lines as-is for USAGE code
+        # success_lines, failure_lines etc. are handled by their keyword match or multiline continuation.
 
     # Detect kind by analyzing the next_code_line (code right after docstring)
     kind = "function"  # default
-
     if next_code_line:
         code_line = next_code_line.strip()
-        # Macro detection: usually starts with #define or macro-like naming
         if code_line.startswith("#define") or re.match(r"^[A-Z0-9_]+\s*\(", code_line):
             kind = "macro"
-        # Type detection: struct, enum, union, typedef
         elif any(code_line.startswith(kw) for kw in ("struct ", "enum ", "union ", "typedef ")):
             kind = "type"
-        # Function detection: look for typical function pattern (return_type func_name(...))
         else:
-            # Optionally, check for function signature using regex:
             func_pattern = re.compile(
                 r"^[\w\*\s]+?\s+\**\w+\s*\([^;]*\)\s*;?$")
             if func_pattern.match(code_line):
                 kind = "function"
-            else:
-                # fallback if none matches:
-                kind = "function"
+            # else: kind remains "function" or previous fallback
 
     return {
         "brief": " ".join(brief_lines),
@@ -156,10 +179,11 @@ def write_markdown(symbol_name, doc):
         f.write("---\n")
         f.write(f'title: "{symbol_name}"\n')
         f.write(f'meta_title: "{symbol_name}"\n')
-        f.write(f'description: "Documentation for {
-                symbol_name} macro or function."\n')
+        f.write(f'description: "Documentation for {symbol_name} {
+                doc["kind"]}."\n')  # Made kind more specific
         f.write(f'date: {datetime.now().isoformat()}\n')
-        f.write(f"categories: [{doc["kind"]}]\n")
+        # Capitalized category
+        f.write(f'categories: ["{doc["kind"].capitalize()}"]\n')
         f.write("tags: [\"documentation\", \"generated\"]\n")
         f.write("draft: false\n")
         f.write("---\n\n")
@@ -168,8 +192,9 @@ def write_markdown(symbol_name, doc):
         f.write(f"# <center>`{symbol_name}`</center>\n\n")
 
         # Description
-        f.write("## Description\n\n")
-        f.write(doc["brief"] + "\n\n")
+        if doc["brief"]:  # Check if brief is not empty
+            f.write("## Description\n\n")
+            f.write(doc["brief"] + "\n\n")
 
         # Parameters
         if doc["params"]:
@@ -185,6 +210,7 @@ def write_markdown(symbol_name, doc):
         if doc["usage"]:
             f.write("## Usage\n\n")
             f.write("```c\n")
+            # doc["usage"] is already a multi-line string with preserved formatting
             f.write(doc["usage"])
             f.write("\n```\n\n")
 
@@ -216,28 +242,28 @@ def process_file(filepath):
     i = 0
     while i < len(lines):
         if comment_line_re.match(lines[i]):
-            comment_block = []
-            # Collect comment block lines without '///' prefix
+            comment_block_lines = []  # Renamed for clarity
+            # Collect comment block lines, stripping '/// ?' prefix
             while i < len(lines) and (m := comment_line_re.match(lines[i])):
-                comment_block.append(m.group(1))
+                # m.group(1) is the content after '/// ?'
+                comment_block_lines.append(m.group(1))
                 i += 1
 
-            # Skip blank lines after comment block
+            # Skip blank lines after comment block (before the code)
             while i < len(lines) and not lines[i].strip():
                 i += 1
 
             next_code_line = lines[i].strip() if i < len(lines) else None
 
             if next_code_line:
-                # Pass next_code_line to parse_comment_block for kind detection
                 doc = parse_comment_block(
-                    comment_block, next_code_line=next_code_line)
+                    comment_block_lines, next_code_line=next_code_line)
 
-                # Extract symbol name (macro or function)
                 match = macro_or_func_re.match(next_code_line)
                 if match:
                     symbol = match.group(1) or match.group(2)
-                    write_markdown(symbol, doc)
+                    if symbol:  # Ensure symbol was actually captured
+                        write_markdown(symbol, doc)
         else:
             i += 1
 
@@ -246,8 +272,11 @@ def walk_source_tree(root):
     for dirpath, _, filenames in os.walk(root):
         for filename in filenames:
             if filename.endswith((".c", ".h")):
+                print(f"Processing file: {os.path.join(
+                    dirpath, filename)}")  # Added log
                 process_file(os.path.join(dirpath, filename))
 
 
 if __name__ == "__main__":
     walk_source_tree(ROOT_DIR)
+    print("Documentation generation complete.")  # Added completion message
