@@ -51,7 +51,7 @@ jobs:
         run: python3 ../Scripts/DocuGen.py --root ../Source --output content/english/blog
 
       - name: Check paths after generatiom
-        run: ls -l contents/english/blog
+        run: ls -l content/english/blog
 
       - name: Build with Hugo
         env:
