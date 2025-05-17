@@ -53,9 +53,9 @@ typedef struct {
 /// Print out a formatted string with rust-style placeholders
 /// to given string "o"
 ///
-/// NOTE: Directly passing literals like FMT(1337) is not supported, especially const char*
-/// literals. For constants like integers, booleans, you can use `LVAL(r-value)`
-/// to convert an l-value to an r-value an then use in `FMT` like `FMT(LVAL(false))`
+/// WARN: Directly passing literals like `FMT(1337)` is not supported, especially const char*
+///       literals. For constants like integers, booleans, you can use `LVAL(r-value)`
+///       to convert an l-value to an r-value an then use in `FMT` like `FMT(LVAL(false))`
 ///
 /// Takes in TypeSpecificIO structures as arguments. Use FMT(.)
 /// to wrap any supported-type variable to it's TypeSpecificIO object.
