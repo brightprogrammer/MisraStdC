@@ -20,6 +20,9 @@ args = parser.parse_args()
 ROOT_DIR = args.root
 OUTPUT_DIR = args.output
 
+print(f'Using root dir = {ROOT_DIR}')
+print(f'Using output dir = {OUTPUT_DIR}')
+
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Regular expressions
