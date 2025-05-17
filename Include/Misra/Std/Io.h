@@ -96,12 +96,15 @@ const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecif
 ///
 /// Read formatted data from file streams (stdin, or other file)
 ///
-/// stream[in]
-/// fmtstr[in]
-/// argv[in]
-/// argc[in]
+/// stream[in] : `FILE*` we're reading from.
+/// fmtstr[in] : Format string to be used for reading. This must exactly describe input format.
+/// argv[in]   : Array of `TypeSpecificIO` structures describing where to read for each corresponding placeholder.
+/// argc[in]   : Number of `TypeSpecificIO` values in array.
 ///
-/// RETURBN
+/// SUCCESS : Compares fmtstr with stream of characters in `stream` and reads values at placeholders.
+///           A valid value will be stored in `FMT(.)` arg provided.
+/// FAILURE : Logs out error message and returns. If rollback is possible, then un-reads all the read data.
+///           Restoring original state. Method can also abort if something really unexpected is encountered.
 ///
 void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, size argc);
 

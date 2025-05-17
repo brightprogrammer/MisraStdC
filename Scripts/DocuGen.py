@@ -3,124 +3,234 @@ import re
 from pathlib import Path
 from datetime import datetime
 
-DOC_LINE_PATTERN = re.compile(r'^\s*/// ?(.*)')
-DECLARATION_LINE_PATTERN = re.compile(r'^\s*(.+?[* ]+)([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*;')
+# Configure this path as needed
+ROOT_DIR = "Include"
+OUTPUT_DIR = "Docs/content/english/blog"
 
-def parse_doc_block(doc_lines):
-    doc = {
-        "brief": [],
-        "params": [],
-        "usage": [],
-        "success": None,
-        "failure": None,
-    }
-    current = "brief"
-    for line in doc_lines:
-        content = line.strip()
-        if not content:
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# Regular expressions
+comment_line_re = re.compile(r'^\s*///\s?(.*)')
+param_re = re.compile(r'^(\w+)\[(in|out|in,out)\]\s*:\s*(.+)')
+success_re = re.compile(r'^SUCCESS\s*:\s*(.+)')
+failure_re = re.compile(r'^FAILURE\s*:\s*(.+)')
+usage_start_re = re.compile(r'^USAGE\s*:\s*$')
+macro_or_func_re = re.compile(r'^\s*#define\s+(\w+)|^\s*(?:\w+\s+)+(\w+)\s*\(')
+
+
+def parse_comment_block(lines, next_code_line=None):
+    brief_lines = []
+    params = []
+    usage_lines = []
+
+    success_lines = []
+    failure_lines = []
+    info_lines = []
+    note_lines = []
+    warn_lines = []
+
+    section = "brief"
+    last_param = None
+
+    for line in lines:
+        if not line.strip():
             continue
-        if content.startswith("param"):
-            doc["params"].append(content)
-        elif content.startswith("USAGE"):
-            current = "usage"
-        elif content.startswith("SUCCESS"):
-            doc["success"] = content.split(":", 1)[1].strip()
-        elif content.startswith("FAILURE"):
-            doc["failure"] = content.split(":", 1)[1].strip()
+
+        if usage_start_re.match(line):
+            section = "usage"
+            continue
+
+        elif success_match := success_re.match(line):
+            section = "success"
+            success_lines = [success_match.group(1).strip()]
+            continue
+
+        elif failure_match := failure_re.match(line):
+            section = "failure"
+            failure_lines = [failure_match.group(1).strip()]
+            continue
+
+        elif param_match := param_re.match(line):
+            section = "params"
+            param_name, direction, desc = param_match.groups()
+            params.append({
+                "name": param_name,
+                "direction": direction,
+                "desc": desc.strip()
+            })
+            last_param = params[-1]
+            continue
+
+        elif info_match := re.match(r"^///\s*INFO\s*:\s*(.*)", line):
+            section = "info"
+            info_lines = [info_match.group(1).strip()]
+            continue
+
+        elif note_match := re.match(r"^///\s*NOTE\s*:\s*(.*)", line):
+            section = "note"
+            note_lines = [note_match.group(1).strip()]
+            continue
+
+        elif warn_match := re.match(r"^///\s*WARN\s*:\s*(.*)", line):
+            section = "warn"
+            warn_lines = [warn_match.group(1).strip()]
+            continue
+
+        # Handle multiline for each section
+        if line.startswith(" "):
+            if section == "params" and last_param:
+                last_param["desc"] += " " + line.strip()
+            elif section == "success":
+                success_lines.append(line.strip())
+            elif section == "failure":
+                failure_lines.append(line.strip())
+            elif section == "info":
+                info_lines.append(line.strip())
+            elif section == "note":
+                note_lines.append(line.strip())
+            elif section == "warn":
+                warn_lines.append(line.strip())
+            continue
+
+        if section == "brief":
+            brief_lines.append(line.strip())
+        elif section == "usage":
+            usage_lines.append(line)
+
+    # Detect kind by analyzing the next_code_line (code right after docstring)
+    kind = "function"  # default
+
+    if next_code_line:
+        code_line = next_code_line.strip()
+        # Macro detection: usually starts with #define or macro-like naming
+        if code_line.startswith("#define") or re.match(r"^[A-Z0-9_]+\s*\(", code_line):
+            kind = "macro"
+        # Type detection: struct, enum, union, typedef
+        elif any(code_line.startswith(kw) for kw in ("struct ", "enum ", "union ", "typedef ")):
+            kind = "type"
+        # Function detection: look for typical function pattern (return_type func_name(...))
         else:
-            if current == "usage":
-                doc["usage"].append(content)
+            # Optionally, check for function signature using regex:
+            func_pattern = re.compile(
+                r"^[\w\*\s]+?\s+\**\w+\s*\([^;]*\)\s*;?$")
+            if func_pattern.match(code_line):
+                kind = "function"
             else:
-                doc["brief"].append(content)
-    return doc
+                # fallback if none matches:
+                kind = "function"
 
-def generate_markdown(symbol, doc, return_type, symbol_type="Function"):
-    today = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+    return {
+        "brief": " ".join(brief_lines),
+        "params": params,
+        "usage": "\n".join(usage_lines) if usage_lines else None,
+        "success": " ".join(success_lines) if success_lines else None,
+        "failure": " ".join(failure_lines) if failure_lines else None,
+        "info": " ".join(info_lines) if info_lines else None,
+        "note": " ".join(note_lines) if note_lines else None,
+        "warn": " ".join(warn_lines) if warn_lines else None,
+        "kind": kind,
+    }
 
-    # Infer categories/tags
-    categories = [symbol_type]
-    tags = [symbol.lower()]
-    
-    yaml_front_matter = f"""---
-title: "{symbol}"
-meta_title: "{symbol}"
-description: "{symbol_type} :: {symbol}"
-date: {today}
-categories: {categories}
-author: "Siddharth Mishra"
-tags: {tags}
-draft: false
----
 
-# <center>`{symbol}` - {symbol_type}</center>
-"""
+def write_markdown(symbol_name, doc):
+    out_path = Path(OUTPUT_DIR) / f"generated-doc-{symbol_name}.md"
+    with open(out_path, "w") as f:
+        # Write front matter
+        f.write("---\n")
+        f.write(f'title: "{symbol_name}"\n')
+        f.write(f'meta_title: "{symbol_name}"\n')
+        f.write(f'description: "Documentation for {
+                symbol_name} macro or function."\n')
+        f.write(f'date: {datetime.now().isoformat()}\n')
+        f.write(f"categories: [{doc["kind"]}]\n")
+        f.write("tags: [\"documentation\", \"generated\"]\n")
+        f.write("draft: false\n")
+        f.write("---\n\n")
 
-    md_body = ""
+        # Symbol title
+        f.write(f"# <center>`{symbol_name}`</center>\n\n")
 
-    if doc["brief"]:
-        md_body += "## Description\n" + "\n".join(doc["brief"]) + "\n\n"
+        # Description
+        f.write("## Description\n\n")
+        f.write(doc["brief"] + "\n\n")
 
-    md_body += "## Syntax\n```c\n"
-    params = "..." if not return_type else ", ".join([p for p in doc.get("params", [])])
-    md_body += f"{return_type.strip()} {symbol}(...);\n```\n\n"
+        # Parameters
+        if doc["params"]:
+            f.write("## Parameters\n\n")
+            f.write("| Name | Direction | Description |\n")
+            f.write("|------|-----------|-------------|\n")
+            for p in doc["params"]:
+                f.write(f"| `{p['name']}` | {
+                        p['direction']} | {p['desc']} |\n")
+            f.write("\n")
 
-    if doc["params"]:
-        md_body += "## Parameters\n"
-        for param in doc["params"]:
-            md_body += f"- {param}\n"
-        md_body += "\n"
+        # Usage
+        if doc["usage"]:
+            f.write("## Usage\n\n")
+            f.write("```c\n")
+            f.write(doc["usage"])
+            f.write("\n```\n\n")
 
-    if doc["usage"]:
-        md_body += "## Usage Examples\n```c\n" + "\n".join(doc["usage"]) + "\n```\n\n"
-
-    if doc["success"] or doc["failure"]:
-        md_body += "## Behavior\n"
+        # Success
         if doc["success"]:
-            md_body += f"**Success**: {doc['success']}\n\n"
+            f.write("## Success\n\n" + doc["success"] + "\n\n")
+
+        # Failure
         if doc["failure"]:
-            md_body += f"**Failure**: {doc['failure']}\n\n"
+            f.write("## Failure\n\n" + doc["failure"] + "\n\n")
 
-    if return_type:
-        md_body += f"**Returns**: `{return_type.strip()}`\n"
+        # Info messages
+        if doc.get("info"):
+            f.write("## Info\n\n" + doc["info"] + "\n\n")
 
-    return yaml_front_matter + "\n" + md_body
+        # Note
+        if doc.get("note"):
+            f.write("## Note\n\n" + doc["note"] + "\n\n")
 
-def extract_docs_from_file(filepath, output_dir):
-    with open(filepath, 'r', encoding='utf-8') as f:
+        # Warnings
+        if doc.get("warn"):
+            f.write("## Warning\n\n" + doc["warn"] + "\n\n")
+
+
+def process_file(filepath):
+    with open(filepath, "r") as f:
         lines = f.readlines()
 
-    docs = []
-    doc_lines = []
-    for i, line in enumerate(lines):
-        match = DOC_LINE_PATTERN.match(line)
-        if match:
-            doc_lines.append(match.group(1))
-        elif doc_lines:
-            # Look for function/type declaration right after doc block
-            decl_line = lines[i].strip()
-            decl_match = DECLARATION_LINE_PATTERN.match(decl_line)
-            if decl_match:
-                return_type, name, _ = decl_match.groups()
-                doc_data = parse_doc_block(doc_lines)
-                docs.append((name, doc_data, return_type))
-            doc_lines = []
+    i = 0
+    while i < len(lines):
+        if comment_line_re.match(lines[i]):
+            comment_block = []
+            # Collect comment block lines without '///' prefix
+            while i < len(lines) and (m := comment_line_re.match(lines[i])):
+                comment_block.append(m.group(1))
+                i += 1
 
-    # Write each doc to a separate .md file
-    for name, doc_data, return_type in docs:
-        md_content = generate_markdown(name, doc_data, return_type)
-        with open(output_dir / f"{name}.md", "w", encoding='utf-8') as f:
-            f.write(md_content)
+            # Skip blank lines after comment block
+            while i < len(lines) and not lines[i].strip():
+                i += 1
 
-def process_directory(dir_path, output_dir="Docs/content/english/blog"):
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+            next_code_line = lines[i].strip() if i < len(lines) else None
 
-    for root, _, files in os.walk(dir_path):
-        for file in files:
-            if file.endswith(".h") or file.endswith(".c"):
-                full_path = Path(root) / file
-                extract_docs_from_file(full_path, output_dir)
+            if next_code_line:
+                # Pass next_code_line to parse_comment_block for kind detection
+                doc = parse_comment_block(
+                    comment_block, next_code_line=next_code_line)
+
+                # Extract symbol name (macro or function)
+                match = macro_or_func_re.match(next_code_line)
+                if match:
+                    symbol = match.group(1) or match.group(2)
+                    write_markdown(symbol, doc)
+        else:
+            i += 1
+
+
+def walk_source_tree(root):
+    for dirpath, _, filenames in os.walk(root):
+        for filename in filenames:
+            if filename.endswith((".c", ".h")):
+                process_file(os.path.join(dirpath, filename))
+
 
 if __name__ == "__main__":
-    # Change this to the actual path
-    process_directory("Include")
+    walk_source_tree(ROOT_DIR)
