@@ -150,6 +150,7 @@ def parse_comment_block(lines, next_code_line=None):
 
 def write_markdown(symbol_name, doc):
     out_path = Path(OUTPUT_DIR) / f"generated-doc-{symbol_name}.md"
+    print(f"Writing: {out_path}")
     with open(out_path, "w") as f:
         # Write front matter
         f.write("---\n")
