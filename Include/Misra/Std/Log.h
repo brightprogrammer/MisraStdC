@@ -28,7 +28,7 @@
 #    define LOG_INFO(...) LogWrite(LOG_MESSAGE_TYPE_INFO, __FUNCTION__, __LINE__, __VA_ARGS__)
 #endif
 
-typedef enum {
+typedef enum LogMessageType {
     LOG_MESSAGE_TYPE_FATAL,
     LOG_MESSAGE_TYPE_ERROR,
     LOG_MESSAGE_TYPE_INFO

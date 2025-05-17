@@ -3,443 +3,457 @@ import re
 import argparse
 from pathlib import Path
 from datetime import datetime
-from urllib.parse import quote
 from pathlib import PurePosixPath
 
-# Default values
-# Changed to a list for multiple root dirs
-DEFAULT_ROOT_DIRS = ["Include", "Source"]
+# Configuration
+DEFAULT_ROOT_DIRS = ["."]
 DEFAULT_OUTPUT_DIR = "Docs/content/english/blog"
 
-# Global store for all parsed symbols and their associated data
-# Format: { 'symbol_name': {'name': ..., 'kind': ..., 'doc': ..., 'filepath': ..., 'def_lineno': ..., 'definition_line_content': ...}, ... }
-parsed_symbols_map = {}
+# Data Stores
+parsed_symbols = {}
+file_contents = {}
 
-# Global store for file contents to avoid re-reading
-# Format: { 'filepath_str': ['line1', 'line2', ...], ... }
-file_contents_map = {}
-
-# Regular expressions (revised for robustness)
-comment_line_re = re.compile(r'^\s*///\s?(.*)')
-# Regexes for content lines (after '///' stripping), allowing leading spaces
-param_re = re.compile(r'^\s*(\w+)\[(in|out|in,out)\]\s*:\s*(.+)')
-success_re = re.compile(r'^\s*SUCCESS\s*:\s*(.+)')
-failure_re = re.compile(r'^\s*FAILURE\s*:\s*(.+)')
-usage_start_re = re.compile(r'^\s*USAGE\s*:\s*$')
-info_re = re.compile(r'^\s*INFO\s*:\s*(.+)')
-note_re = re.compile(r'^\s*NOTE\s*:\s*(.+)')
-warn_re = re.compile(r'^\s*WARN\s*:\s*(.+)')
-macro_or_func_re = re.compile(r'^\s*#define\s+(\w+)|^\s*(?:\w+\s+)+(\w+)\s*\(')
+# Regular Expressions
+RE_COMMENT_LINE = re.compile(r'^\s*///\s?(.*)')
+RE_PARAM = re.compile(r'^\s*(\w+)\[(in|out|in,out)\]\s*:\s*(.+)')
+RE_SUCCESS = re.compile(r'^\s*SUCCESS\s*:\s*(.+)')
+RE_FAILURE = re.compile(r'^\s*FAILURE\s*:\s*(.+)')
+RE_USAGE_START = re.compile(r'^\s*USAGE\s*:\s*$')
+RE_INFO = re.compile(r'^\s*INFO\s*:\s*(.+)')
+RE_NOTE = re.compile(r'^\s*NOTE\s*:\s*(.+)')
+RE_WARN = re.compile(r'^\s*WARN\s*:\s*(.+)')
+RE_SYMBOL_DEFINITION = re.compile(
+    r'^\s*#define\s+(\w+)|^\s*(?:\w+\s+)+(\w+)\s*\(')
 
 
-def collect_symbols_and_content(filepath_obj: Path):
-    filepath_str = str(filepath_obj)
+def extract_symbols_and_store_content(file_path: Path):
+    """
+    Reads a file, extracts documented symbols (macros or functions),
+    and stores the file content for later usage analysis.
+
+    Args:
+        file_path (Path): The path to the C/H source file.
+    """
+    file_path_str = str(file_path)
     try:
-        with open(filepath_obj, "r", encoding='utf-8', errors='ignore') as f:
-            lines = f.readlines()
-        # Store file content for Pass 2
-        file_contents_map[filepath_str] = lines
-    except Exception as e:
-        print(f"Error reading file {filepath_str}: {e}")
+        with open(file_path, "r", encoding='utf-8', errors='ignore') as file:
+            lines = file.readlines()
+        file_contents[file_path_str] = lines
+    except Exception as error:
+        print(f"Error reading file {file_path_str}: {error}")
         return
 
-    local_i = 0
-    while local_i < len(lines):
-        current_line_content = lines[local_i]
-        if comment_line_re.match(current_line_content):
-            comment_block_lines_content = []
+    line_index = 0
+    while line_index < len(lines):
+        current_line = lines[line_index]
+        if RE_COMMENT_LINE.match(current_line):
+            comment_block = []
+            comment_index = line_index
+            while comment_index < len(lines) and (match := RE_COMMENT_LINE.match(lines[comment_index])):
+                comment_block.append(match.group(1))
+                comment_index += 1
 
-            idx_after_comment = local_i
-            while idx_after_comment < len(lines) and \
-                    (m := comment_line_re.match(lines[idx_after_comment])):
-                comment_block_lines_content.append(m.group(1))
-                idx_after_comment += 1
+            definition_index = comment_index
+            while definition_index < len(lines) and not lines[definition_index].strip():
+                definition_index += 1
 
-            idx_of_definition_line = idx_after_comment
-            while idx_of_definition_line < len(lines) and \
-                    not lines[idx_of_definition_line].strip():
-                idx_of_definition_line += 1
-
-            if idx_of_definition_line < len(lines):
-                next_code_line_content = lines[idx_of_definition_line].strip()
-                doc = parse_comment_block(comment_block_lines_content,
-                                          next_code_line=next_code_line_content)
-
-                match = macro_or_func_re.match(next_code_line_content)
-                if match:
-                    symbol_name = match.group(1) or match.group(2)
+            if definition_index < len(lines):
+                code_line = lines[definition_index].strip()
+                documentation = parse_comment_block(
+                    comment_block, next_code_line=code_line)
+                symbol_match = RE_SYMBOL_DEFINITION.match(code_line)
+                if symbol_match:
+                    symbol_name = symbol_match.group(
+                        1) or symbol_match.group(2)
                     if symbol_name:
-                        if symbol_name in parsed_symbols_map:
-                            # Basic duplicate handling: log and overwrite.
-                            # Consider more sophisticated handling if needed.
-                            print(f"Warning: Duplicate symbol '{symbol_name}' detected. "
-                                  f"Old: {parsed_symbols_map[symbol_name]['filepath']}:{
-                                      parsed_symbols_map[symbol_name]['def_lineno']}, "
-                                  f"New: {filepath_str}:{idx_of_definition_line + 1}. Overwriting.")
-                        parsed_symbols_map[symbol_name] = {
+                        if symbol_name in parsed_symbols:
+                            print(f"Warning: Duplicate symbol '{symbol_name}' found. "
+                                  f"Old: {parsed_symbols[symbol_name]['filepath']}:{
+                                      parsed_symbols[symbol_name]['def_lineno']}, "
+                                  f"New: {file_path_str}:{definition_index + 1}. Overwriting.")
+                        parsed_symbols[symbol_name] = {
                             "name": symbol_name,
-                            "kind": doc["kind"],
-                            "doc": doc,
-                            "filepath": filepath_str,
-                            "def_lineno": idx_of_definition_line + 1,  # 1-indexed
-                            "definition_line_content": next_code_line_content
+                            "kind": documentation["kind"],
+                            "doc": documentation,
+                            "filepath": file_path_str,
+                            "def_lineno": definition_index + 1,
+                            "definition_line_content": code_line
                         }
-
-            # Advance main loop counter past the processed block
-            # If a definition was found, start after it, otherwise after the comment block
-            local_i = (idx_of_definition_line + 1) \
-                if idx_of_definition_line < len(lines) and next_code_line_content \
-                else idx_after_comment
+                line_index = definition_index + 1
+            else:
+                line_index = comment_index
         else:
-            local_i += 1
+            line_index += 1
 
 
-def find_usages(current_symbols_map, all_file_contents_map, context_lines=2):
-    symbol_usages_xref = {name: [] for name in current_symbols_map}
+def find_symbol_usages(symbols, all_contents, context_lines=2):
+    """
+    Finds all occurrences of the documented symbols within the scanned files.
 
-    for symbol_name, symbol_data in current_symbols_map.items():
+    Args:
+        symbols (dict): A dictionary of parsed symbols.
+        all_contents (dict): A dictionary containing the content of each scanned file.
+        context_lines (int): The number of context lines to include in the usage snippet.
+
+    Returns:
+        dict: A dictionary where keys are symbol names and values are lists of usage locations.
+    """
+    symbol_usages = {name: [] for name in symbols}
+
+    for symbol_name, symbol_data in symbols.items():
         if not symbol_name:
             continue
-
         try:
             symbol_regex = re.compile(r'\b' + re.escape(symbol_name) + r'\b')
         except re.error:
             print(f"Warning: Could not compile regex for symbol '{
-                  symbol_name}'. Skipping usage scan for it.")
+                  symbol_name}'. Skipping usage scan.")
             continue
 
-        for filepath_str, lines in all_file_contents_map.items():
+        for file_path_str, lines in all_contents.items():
             in_block_comment = False
+            for line_num, line in enumerate(lines):
+                stripped_line = line.strip()
 
-            for line_num_0_indexed, line_content in enumerate(lines):
-                stripped = line_content.strip()
-
-                # Detect start and end of multiline comments
-                if "/*" in stripped:
+                if "/*" in stripped_line:
                     in_block_comment = True
-                if "*/" in stripped:
+                if "*/" in stripped_line:
                     in_block_comment = False
-                    continue  # Skip the line that ends a block comment
-
-                # Skip line if inside block comment or line comment
-                if in_block_comment or stripped.startswith("//"):
                     continue
 
-                if symbol_regex.search(line_content):
-                    is_definition_line = (
-                        filepath_str == symbol_data['filepath'] and
-                        (line_num_0_indexed + 1) == symbol_data['def_lineno']
+                if in_block_comment or stripped_line.startswith("//"):
+                    continue
+
+                if symbol_regex.search(line):
+                    is_definition = (
+                        file_path_str == symbol_data['filepath'] and
+                        (line_num + 1) == symbol_data['def_lineno']
                     )
+                    if not is_definition:
+                        start_index = max(0, line_num - context_lines)
+                        end_index = min(
+                            len(lines), line_num + context_lines + 1)
+                        snippet = lines[start_index:end_index]
 
-                    if not is_definition_line:
-                        # Extract context
-                        start = max(0, line_num_0_indexed - context_lines)
-                        end = min(len(lines), line_num_0_indexed +
-                                  context_lines + 1)
-                        snippet_lines = lines[start:end]
-
-                        # Extra: Skip snippets where all lines are commented
-                        if all(l.strip().startswith("//") or '/*' in l or '*/' in l for l in snippet_lines):
-                            continue
-
-                        code_snippet = '\n'.join(line.rstrip()
-                                                 for line in snippet_lines)
-
-                        symbol_usages_xref[symbol_name].append({
-                            "filepath": filepath_str,
-                            "lineno": line_num_0_indexed + 1,
-                            "code": code_snippet
-                        })
-
-    return symbol_usages_xref
+                        if not all(l.strip().startswith("//") or '/*' in l or '*/' in l for l in snippet):
+                            code_snippet = '\n'.join(
+                                s.rstrip() for s in snippet)
+                            symbol_usages[symbol_name].append({
+                                "filepath": file_path_str,
+                                "lineno": line_num + 1,
+                                "code": code_snippet
+                            })
+    return symbol_usages
 
 
-def parse_comment_block(lines, next_code_line=None):
-    brief_lines = []
+def parse_comment_block(comment_lines, next_code_line=None):
+    """
+    Parses a block of comment lines to extract documentation details.
+
+    Args:
+        comment_lines (list): A list of strings, where each string is a line from the comment block
+                             (stripped of the '/// ?' prefix).
+        next_code_line (str, optional): The line of code immediately following the comment block.
+                                         Used to determine the type of the documented symbol. Defaults to None.
+
+    Returns:
+        dict: A dictionary containing the parsed documentation elements.
+    """
+    brief = []
     params = []
-    usage_lines = []
+    usage = []
+    success = []
+    failure = []
+    info = []
+    note = []
+    warn = []
 
-    success_lines = []
-    failure_lines = []
-    info_lines = []
-    note_lines = []
-    warn_lines = []
+    current_section = "brief"
+    last_parameter = None
 
-    section = "brief"
-    last_param = None  # Tracks the last parameter for multiline descriptions
-
-    for line in lines:  # `lines` are already stripped of '/// ?' prefix by process_file
-
-        # MODIFICATION 1: Skip blank lines only if not in 'usage' section
-        if not line.strip() and section != "usage":
+    for line in comment_lines:
+        stripped_line = line.strip()
+        if not stripped_line and current_section != "usage":
             continue
-        # If section is "usage" and line is blank (e.g., "" or "   "), it proceeds.
 
-        # Section detection
-        if usage_start_re.match(line):
-            section = "usage"
-            last_param = None  # Reset last_param
-            continue  # Don't add "USAGE:" line itself to usage_lines
-
-        elif param_match := param_re.match(line):
-            section = "params"
-            param_name, direction, desc = param_match.groups()
-            current_param = {
-                "name": param_name,
-                "direction": direction,
-                "desc": desc.strip()
-            }
+        if RE_USAGE_START.match(line):
+            current_section = "usage"
+            last_parameter = None
+            continue
+        elif match := RE_PARAM.match(line):
+            current_section = "params"
+            param_name, direction, description = match.groups()
+            current_param = {"name": param_name,
+                             "direction": direction, "desc": description.strip()}
             params.append(current_param)
-            last_param = current_param  # Set for potential multiline description
+            last_parameter = current_param
+            continue
+        elif match := RE_SUCCESS.match(line):
+            current_section = "success"
+            success.append(match.group(1).strip())
+            last_parameter = None
+            continue
+        elif match := RE_FAILURE.match(line):
+            current_section = "failure"
+            failure.append(match.group(1).strip())
+            last_parameter = None
+            continue
+        elif match := RE_INFO.match(line):
+            current_section = "info"
+            info.append(match.group(1).strip())
+            last_parameter = None
+            continue
+        elif match := RE_NOTE.match(line):
+            current_section = "note"
+            note.append(match.group(1).strip())
+            last_parameter = None
+            continue
+        elif match := RE_WARN.match(line):
+            current_section = "warn"
+            warn.append(match.group(1).strip())
+            last_parameter = None
             continue
 
-        elif success_match := success_re.match(line):
-            section = "success"
-            success_lines = [success_match.group(1).strip()]
-            last_param = None  # Reset last_param
-            continue
-
-        elif failure_match := failure_re.match(line):
-            section = "failure"
-            failure_lines = [failure_match.group(1).strip()]
-            last_param = None  # Reset last_param
-            continue
-
-        # MODIFICATION 3: Corrected INFO/NOTE/WARN regex matching
-        elif info_match := info_re.match(line):
-            section = "info"
-            info_lines = [info_match.group(1).strip()]
-            last_param = None  # Reset last_param
-            continue
-
-        elif note_match := note_re.match(line):
-            section = "note"
-            note_lines = [note_match.group(1).strip()]
-            last_param = None  # Reset last_param
-            continue
-
-        elif warn_match := warn_re.match(line):
-            section = "warn"
-            warn_lines = [warn_match.group(1).strip()]
-            last_param = None  # Reset last_param
-            continue
-
-        # MODIFICATION 2: Handle multiline continuations for specific sections
-        # This block processes lines starting with a space, intended as continuations.
-        # It must only 'continue' if the line is consumed by one of these sections.
         if line.startswith(" "):
-            if section == "params" and last_param:
-                last_param["desc"] += " " + line.strip()
-                continue  # Consumed as parameter description continuation
-            elif section == "success" and success_lines:  # Check list exists
-                success_lines.append(line.strip())
-                continue  # Consumed as success description continuation
-            elif section == "failure" and failure_lines:
-                failure_lines.append(line.strip())
-                continue  # Consumed as failure description continuation
-            elif section == "info" and info_lines:
-                info_lines.append(line.strip())
-                continue  # Consumed as info description continuation
-            elif section == "note" and note_lines:
-                note_lines.append(line.strip())
-                continue  # Consumed as note description continuation
-            elif section == "warn" and warn_lines:
-                warn_lines.append(line.strip())
-                continue  # Consumed as warn description continuation
-            # If line started with a space but was not a continuation of the above
-            # (e.g., it's an indented brief line, or a USAGE code line),
-            # it will fall through to the next block.
+            if current_section == "params" and last_parameter:
+                last_parameter["desc"] += " " + stripped_line
+                continue
+            elif current_section == "success" and success:
+                success.append(stripped_line)
+                continue
+            elif current_section == "failure" and failure:
+                failure.append(stripped_line)
+                continue
+            elif current_section == "info" and info:
+                info.append(stripped_line)
+                continue
+            elif current_section == "note" and note:
+                note.append(stripped_line)
+                continue
+            elif current_section == "warn" and warn:
+                warn.append(stripped_line)
+                continue
 
-        # Append line to the current section's content
-        if section == "brief":
-            # Only add non-empty stripped lines to brief
-            if line.strip():
-                brief_lines.append(line.strip())
-        elif section == "usage":
-            usage_lines.append(line)  # Preserve all lines as-is for USAGE code
-        # success_lines, failure_lines etc. are handled by their keyword match or multiline continuation.
+        if current_section == "brief" and stripped_line:
+            brief.append(stripped_line)
+        elif current_section == "usage":
+            usage.append(line)
 
-    # Detect kind by analyzing the next_code_line (code right after docstring)
-    kind = "function"  # default
+    symbol_kind = "function"
     if next_code_line:
-        code_line = next_code_line.strip()
-        if code_line.startswith("#define") or re.match(r"^[A-Z0-9_]+\s*\(", code_line):
-            kind = "macro"
-        elif any(code_line.startswith(kw) for kw in ("struct ", "enum ", "union ", "typedef ")):
-            kind = "type"
+        code = next_code_line.strip()
+        if code.startswith("#define") or re.match(r"^[A-Z0-9_]+\s*\(", code):
+            symbol_kind = "macro"
+        elif any(code.startswith(kw) for kw in ("struct ", "enum ", "union ", "typedef ")):
+            symbol_kind = "type"
         else:
-            func_pattern = re.compile(
+            function_pattern = re.compile(
                 r"^[\w\*\s]+?\s+\**\w+\s*\([^;]*\)\s*;?$")
-            if func_pattern.match(code_line):
-                kind = "function"
-            # else: kind remains "function" or previous fallback
+            if function_pattern.match(code):
+                symbol_kind = "function"
+
+    # Regex patterns for symbol extraction
+    RE_MACRO_OR_FUNC = re.compile(
+        r'^\s*#define\s+(\w+)|'          # Macro pattern
+        r'^\s*(?:\w+\s+)+(\w+)\s*\('     # Function pattern
+    )
+    RE_TYPE_DECL = re.compile(
+        # Type declaration
+        r'^\s*(?:typedef\s+)?(struct|enum|union)\s*(?:{\s*)?(\w+)?|'
+        r'^\s*}\s*(\w+)\s*;'            # Typedef ending pattern
+    )
+
+    symbol_name = None
+    if next_code_line:
+        code = next_code_line.strip()
+
+        if symbol_kind == "macro":
+            if match := RE_MACRO_OR_FUNC.match(code):
+                symbol_name = match.group(1)
+
+        elif symbol_kind == "function":
+            if match := RE_MACRO_OR_FUNC.match(code):
+                symbol_name = match.group(2)
+
+        elif symbol_kind == "type":
+            # Handle both direct declarations and typedefs
+            if match := RE_TYPE_DECL.match(code):
+                # Group 2: struct/enum name (non-typedef)
+                # Group 3: typedef name (when at end)
+                symbol_name = match.group(2) or match.group(3)
 
     return {
-        "brief": " ".join(brief_lines),
+        "brief": " ".join(brief),
         "params": params,
-        "usage": "\n".join(usage_lines) if usage_lines else None,
-        "success": " ".join(success_lines) if success_lines else None,
-        "failure": " ".join(failure_lines) if failure_lines else None,
-        "info": " ".join(info_lines) if info_lines else None,
-        "note": " ".join(note_lines) if note_lines else None,
-        "warn": " ".join(warn_lines) if warn_lines else None,
-        "kind": kind,
+        "usage": "\n".join(usage) if usage else None,
+        "success": " ".join(success) if success else None,
+        "failure": " ".join(failure) if failure else None,
+        "info": " ".join(info) if info else None,
+        "note": " ".join(note) if note else None,
+        "warn": " ".join(warn) if warn else None,
+        "kind": symbol_kind,
+        "symbol_name": symbol_name,
     }
 
 
-def write_markdown(symbol_name, symbol_data_item, symbol_usages_list, resolved_output_dir: Path):
-    doc = symbol_data_item["doc"]
-    # output_file_path is absolute because resolved_output_dir is absolute
-    output_file_path = resolved_output_dir / f"generated-doc-{symbol_name}.md"
-    markdown_file_dir = output_file_path.parent  # also absolute
+def generate_markdown_file(symbol_name, symbol_data, usages, output_dir: Path):
+    """
+    Generates a Markdown file for a documented symbol.
 
-    print(f"Writing: {output_file_path}")
-    with open(output_file_path, "w", encoding='utf-8') as f:
-        f.write("---\n")
-        f.write(f'title: "{symbol_name}"\n')
-        f.write(f'meta_title: "{symbol_name}"\n')  # Added meta_title
-        f.write(f'description: "Documentation for {
-                symbol_name} {doc["kind"]}."\n')
-        f.write(f'date: {datetime.now().isoformat()}\n')
-        f.write(f'categories: ["{doc["kind"].capitalize()}"]\n')
-        f.write("tags: [\"documentation\", \"generated\", \"api\"]\n")
-        f.write("draft: false\n")
-        f.write("---\n\n")
+    Args:
+        symbol_name (str): The name of the documented symbol.
+        symbol_data (dict): The data associated with the symbol.
+        usages (list): A list of usage locations for the symbol.
+        output_dir (Path): The directory where the Markdown file should be written.
+    """
+    doc = symbol_data["doc"]
+    output_path = output_dir / f"generated-doc-{symbol_name}.md"
+    markdown_dir = output_path.parent
 
-        f.write(f"# <center>`{symbol_name}`</center>\n\n")
+    print(f"Writing: {output_path}")
+    with open(output_path, "w", encoding='utf-8') as markdown_file:
+        markdown_file.write("---\n")
+        markdown_file.write(f'title: "{symbol_name}"\n')
+        markdown_file.write(f'meta_title: "{symbol_name}"\n')
+        markdown_file.write(f'description: "Documentation for {
+                            symbol_name} {doc["kind"]}."\n')
+        markdown_file.write(f'date: {datetime.now().isoformat()}\n')
+        markdown_file.write(f'categories: ["{doc["kind"].capitalize()}"]\n')
+        markdown_file.write(
+            f"tags: [\"documentation\", \"generated\", {doc['symbol_name']}]\n")
+        markdown_file.write("draft: false\n")
+        markdown_file.write("---\n\n")
+
+        markdown_file.write(f"# <center>`{symbol_name}`</center>\n\n")
 
         if doc.get("brief"):
-            f.write("## Description\n\n")
-            f.write(doc["brief"] + "\n\n")
+            markdown_file.write("## Description\n\n")
+            markdown_file.write(doc["brief"] + "\n\n")
 
-        # Info messages
+        markdown_file.write("<!--more-->")
+
         if doc.get("info"):
-            f.write('{{< notice "info" >}}\n\n' +
-                    doc["info"] + '\n\n{{< /notice >}}\n\n')
+            markdown_file.write(
+                '{{< notice "info" >}}\n\n' + doc["info"] + '\n\n{{< /notice >}}\n\n')
 
-        # Note
         if doc.get("note"):
-            f.write('{{< notice "note" >}}\n\n' +
-                    doc["note"] + '\n\n{{< /notice >}}\n\n')
+            markdown_file.write(
+                '{{< notice "note" >}}\n\n' + doc["note"] + '\n\n{{< /notice >}}\n\n')
 
-        # Warnings
         if doc.get("warn"):
-            f.write('{{< notice "warning" >}}\n\n' +
-                    doc["warn"] + '\n\n{{< /notice >}}\n\n')
+            markdown_file.write(
+                '{{< notice "warning" >}}\n\n' + doc["warn"] + '\n\n{{< /notice >}}\n\n')
 
         if doc.get("params"):
-            f.write("## Parameters\n\n")
-            f.write("| Name | Direction | Description |\n")
-            f.write("|------|-----------|-------------|\n")
-            for p in doc["params"]:
-                f.write(f"| `{p['name']}` | {
-                        p['direction']} | {p['desc']} |\n")
-            f.write("\n\n")
+            markdown_file.write("## Parameters\n\n")
+            markdown_file.write("| Name | Direction | Description |\n")
+            markdown_file.write("|------|-----------|-------------|\n")
+            for param in doc["params"]:
+                markdown_file.write(f"| `{param['name']}` | {
+                                    param['direction']} | {param['desc']} |\n")
+            markdown_file.write("\n\n")
 
         if doc.get("usage"):
-            f.write("## Usage example (from documentation)\n\n")
-            f.write("```c\n")
-            f.write(doc["usage"])
-            f.write("\n```\n\n")
+            markdown_file.write("## Usage example (from documentation)\n\n")
+            markdown_file.write("```c\n")
+            markdown_file.write(doc["usage"])
+            markdown_file.write("\n```\n\n")
 
-        for section_key in ["success", "failure"]:
-            if doc.get(section_key):
-                f.write(f"## {section_key.capitalize()}\n\n{
-                        doc[section_key]}\n\n")
+        for section in ["success", "failure"]:
+            if doc.get(section):
+                markdown_file.write(f"## {section.capitalize()}\n\n{
+                                    doc[section]}\n\n")
 
-        f.write("{{< accordion \"Usage examples (Cross-references)\" >}}\n")
-        if symbol_usages_list:
-            for usage in symbol_usages_list:
-                # This is an absolute path
-                usage_file_path_obj = Path(usage['filepath'])
+        markdown_file.write("## Usage example (Cross-references)\n\n")
+        markdown_file.write(
+            "{{< accordion \"Usage examples (Cross-references)\" >}}\n")
+        if usages:
+            for usage_item in usages:
+                usage_file_path = Path(usage_item['filepath'])
                 try:
-                    # markdown_file_dir is absolute. usage_file_path_obj is absolute.
-                    relative_usage_path_str = os.path.relpath(
-                        usage_file_path_obj, start=markdown_file_dir)
-                    # Ensure forward slashes
-                    link_path = Path(relative_usage_path_str).as_posix()
+                    relative_path = os.path.relpath(
+                        usage_file_path, start=markdown_dir)
+                    link_path = Path(relative_path).as_posix()
                 except ValueError:
-                    link_path = Path(usage['filepath']).name
+                    link_path = usage_file_path.name
                     print(f"Warning: Could not create relative path for {
-                          usage['filepath']} from {markdown_file_dir}. Using filename.")
+                          usage_item['filepath']} from {markdown_dir}. Using filename.")
 
-                # Clean and indent code block
-                escaped_lines = usage['code'].splitlines()
-                cleaned_lines = ["    " + line.strip()
-                                 for line in escaped_lines]
-                escaped_code = '\n'.join(cleaned_lines)
+                posix_path = PurePosixPath(link_path)
+                cleaned_parts = [
+                    part for part in posix_path.parts if part != ".."]
+                cleaned_path = "/".join(cleaned_parts)
+                github_link = f"https://github.com/brightprogrammer/MisraStdC/blob/master/{
+                    cleaned_path}#L{usage_item['lineno']}"
 
-                # Convert to a Posix path and remove leading parent references
-                p = PurePosixPath(link_path)
+                indented_code = '\n'.join(
+                    ["    " + line.strip() for line in usage_item['code'].splitlines()])
 
-                # Remove all leading '..' parts:
-                parts = [part for part in p.parts if part != ".."]
-                clean_path = "/".join(parts)
-
-                print(clean_path)  # Output: Include/Misra/Std/Utility/StrIter.h
-
-                # Then build your URL:
-                github_url = f"https://github.com/brightprogrammer/MisraStdC/blob/master/{
-                    clean_path}#L{usage['lineno']}"
-
-                f.write(
-                    f'* In [`{Path(usage["filepath"]).name}:{usage["lineno"]}`]({github_url}):\n\n')
-                f.write(f"```c\n{escaped_code}\n```\n\n")
+                markdown_file.write(
+                    f'* In [`{usage_file_path.name}:{usage_item["lineno"]}`]({github_link}):\n\n')
+                markdown_file.write(f"```c\n{indented_code}\n```\n\n")
         else:
-            f.write("No external code usages found in the scanned files.\n")
-        f.write("{{< /accordion >}}\n\n")
+            markdown_file.write(
+                "No external code usages found in the scanned files.\n")
+        markdown_file.write("{{< /accordion >}}\n\n")
 
 
-def process_file(filepath):
-    with open(filepath, "r") as f:
-        lines = f.readlines()
+def process_source_files(root_directories, output_directory):
+    """
+    Orchestrates the documentation generation process.
 
-    i = 0
-    while i < len(lines):
-        if comment_line_re.match(lines[i]):
-            comment_block_lines = []  # Renamed for clarity
-            # Collect comment block lines, stripping '/// ?' prefix
-            while i < len(lines) and (m := comment_line_re.match(lines[i])):
-                # m.group(1) is the content after '/// ?'
-                comment_block_lines.append(m.group(1))
-                i += 1
+    Args:
+        root_directories (list): A list of root directories to scan for source files.
+        output_directory (str): The directory to output the generated documentation.
+    """
+    resolved_output_dir = Path(output_directory).resolve()
+    os.makedirs(resolved_output_dir, exist_ok=True)
+    print(f"Output directory: {resolved_output_dir}")
 
-            # Skip blank lines after comment block (before the code)
-            while i < len(lines) and not lines[i].strip():
-                i += 1
+    print("\n--- Starting Pass 1: Collecting symbols and file contents ---")
+    for root_dir_str in root_directories:
+        if "Docs" in root_dir_str:
+            continue
+        root_path = Path(root_dir_str).resolve()
+        if not root_path.is_dir():
+            print(f"Warning: Root path '{root_dir_str}' ({
+                  root_path}) is not a valid directory. Skipping.")
+            continue
+        print(f"Pass 1: Scanning under root directory: {root_path}")
+        for dirpath_str, _, filenames in os.walk(root_path):
+            current_dir = Path(dirpath_str)
+            for filename in filenames:
+                if filename.endswith((".c", ".h")):
+                    file_to_process = (current_dir / filename).resolve()
+                    extract_symbols_and_store_content(file_to_process)
+    print(f"--- Pass 1 complete. Found {len(parsed_symbols)
+                                        } unique symbols. Read {len(file_contents)} files. ---")
 
-            next_code_line = lines[i].strip() if i < len(lines) else None
+    print("\n--- Starting Pass 2: Finding symbol usages ---")
+    symbol_usage_map = find_symbol_usages(parsed_symbols, file_contents)
+    total_usages = sum(len(usages) for usages in symbol_usage_map.values())
+    print(
+        f"--- Pass 2 complete. Found {total_usages} total usage instances. ---")
 
-            if next_code_line:
-                doc = parse_comment_block(
-                    comment_block_lines, next_code_line=next_code_line)
+    print("\n--- Starting Pass 3: Generating Markdown files ---")
+    if not parsed_symbols:
+        print("No symbols found to document.")
+    else:
+        for symbol_name, symbol_data in parsed_symbols.items():
+            usages = symbol_usage_map.get(symbol_name, [])
+            generate_markdown_file(
+                symbol_name, symbol_data, usages, resolved_output_dir)
 
-                match = macro_or_func_re.match(next_code_line)
-                if match:
-                    symbol = match.group(1) or match.group(2)
-                    if symbol:  # Ensure symbol was actually captured
-                        write_markdown(symbol, doc)
-        else:
-            i += 1
-
-
-def walk_source_tree(root):
-    for dirpath, _, filenames in os.walk(root):
-        for filename in filenames:
-            if filename.endswith((".c", ".h")):
-                print(f"Processing file: {os.path.join(
-                    dirpath, filename)}")  # Added log
-                process_file(os.path.join(dirpath, filename))
+    print("\n--- Documentation generation complete. ---")
 
 
-# --- Main Execution ---
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Generate documentation from C comments with cross-references.")
     parser.add_argument(
         "--root",
-        default=DEFAULT_ROOT_DIRS,  # Default is now a list
-        nargs='+',  # Allows one or more arguments for --root
+        default=DEFAULT_ROOT_DIRS,
+        nargs='+',
         metavar='DIR',
         help=f"Root directory/directories to scan for source files. Can specify multiple. Default: {
             ' '.join(DEFAULT_ROOT_DIRS)}"
@@ -452,52 +466,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    ROOT_DIRS_list = args.root  # This will be a list of directory strings
-    OUTPUT_DIR_str = args.output
+    root_directories_list = args.root
+    output_directory_str = args.output
 
-    # Resolve OUTPUT_DIR to an absolute path and create it
-    resolved_output_dir = Path(OUTPUT_DIR_str).resolve()
-    os.makedirs(resolved_output_dir, exist_ok=True)
-    print(f"Output directory: {resolved_output_dir}")
-
-    # --- Pass 1: Collect symbols and file contents ---
-    print("\n--- Starting Pass 1: Collecting symbols and file contents ---")
-    for root_dir_item_str in ROOT_DIRS_list:
-        # Resolve each root dir to absolute
-        root_dir_path_obj = Path(root_dir_item_str).resolve()
-        if not root_dir_path_obj.is_dir():
-            print(f"Warning: Provided root path '{root_dir_item_str}' ({
-                  root_dir_path_obj}) is not a valid directory. Skipping.")
-            continue
-        print(f"Pass 1: Scanning under root directory: {root_dir_path_obj}")
-        for dirpath_str, _, filenames in os.walk(root_dir_path_obj):
-            current_dirpath_obj = Path(dirpath_str)
-            for filename in filenames:
-                if filename.endswith((".c", ".h")):
-                    # Construct absolute path for the file to be processed
-                    abs_filepath_to_process = (
-                        current_dirpath_obj / filename).resolve()
-                    # print(f"Pass 1: Processing {abs_filepath_to_process}") # Verbose
-                    collect_symbols_and_content(abs_filepath_to_process)
-    print(f"--- Pass 1 complete. Found {len(parsed_symbols_map)
-                                        } unique symbols. Read {len(file_contents_map)} files. ---")
-
-    # --- Pass 2: Find usages for all collected symbols ---
-    print("\n--- Starting Pass 2: Finding symbol usages ---")
-    symbol_usages_xref_map = find_usages(parsed_symbols_map, file_contents_map)
-    usage_count = sum(len(usages)
-                      for usages in symbol_usages_xref_map.values())
-    print(
-        f"--- Pass 2 complete. Found {usage_count} total usage instances. ---")
-
-    # --- Pass 3: Generate Markdown for each symbol ---
-    print("\n--- Starting Pass 3: Generating Markdown files ---")
-    if not parsed_symbols_map:
-        print("No symbols found to document.")
-    else:
-        for symbol_name_key, symbol_data in parsed_symbols_map.items():
-            usages = symbol_usages_xref_map.get(symbol_name_key, [])
-            write_markdown(symbol_name_key, symbol_data,
-                           usages, resolved_output_dir)
-
-    print("\n--- Documentation generation complete. ---")
+    process_source_files(root_directories_list, output_directory_str)

@@ -18,7 +18,7 @@
 
 #include <Misra.h>
 
-typedef struct {
+typedef struct Project {
     Str  build_dir;
     Strs source_directories;
     Strs test_directories;

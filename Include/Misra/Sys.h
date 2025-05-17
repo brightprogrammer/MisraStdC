@@ -39,7 +39,7 @@ typedef enum {
 ///
 const char *SysDirEntryTypeToZStr(SysDirEntryType type);
 
-typedef struct {
+typedef struct SysDirEntry {
     SysDirEntryType type;
     Str             name;
 } SysDirEntry;

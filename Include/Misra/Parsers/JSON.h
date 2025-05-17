@@ -87,7 +87,7 @@
 /// "key" : null
 ///
 
-typedef struct {
+typedef struct Number {
     bool is_float;
     union {
         f64 f;

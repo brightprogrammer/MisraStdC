@@ -24,7 +24,7 @@
 
 #include <Misra.h>
 
-typedef struct {
+typedef struct EnumEntry {
     Str name;
     Str str;
     i64 value;
