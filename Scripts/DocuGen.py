@@ -300,8 +300,8 @@ def generate_markdown_file(symbol_name, symbol_data, usages, output_dir: Path):
         markdown_file.write(f'categories: ["{doc["kind"].capitalize()}"]\n')
         # Assuming symbol_data is a dictionary that might contain a 'tags' key
         tags_string = ""
-        if "tags" in symbol_data and symbol_data["tags"]:
-            tags_string = ", ".join(f'"{tag}"' for tag in symbol_data["tags"])
+        if "tags" in doc and doc["tags"]:
+            tags_string = ", ".join(f'"{tag}"' for tag in doc["tags"])
 
         markdown_file.write(f'tags: ["documentation", "generated"{
                             ", " + tags_string if tags_string else ""}]\n')
