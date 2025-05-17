@@ -315,17 +315,17 @@ def write_markdown(symbol_name, symbol_data_item, symbol_usages_list, resolved_o
         # Info messages
         if doc.get("info"):
             f.write('{{< notice "info" >}}\n\n' +
-                    doc["info"] + '\n\n{{< /notice >}}')
+                    doc["info"] + '\n\n{{< /notice >}}\n\n')
 
         # Note
         if doc.get("note"):
             f.write('{{< notice "note" >}}\n\n' +
-                    doc["note"] + '\n\n{{< /notice >}}')
+                    doc["note"] + '\n\n{{< /notice >}}\n\n')
 
         # Warnings
         if doc.get("warn"):
             f.write('{{< notice "warning" >}}\n\n' +
-                    doc["warn"] + '\n\n{{< /notice >}}')
+                    doc["warn"] + '\n\n{{< /notice >}}\n\n')
 
         if doc.get("params"):
             f.write("## Parameters\n\n")
@@ -334,15 +334,15 @@ def write_markdown(symbol_name, symbol_data_item, symbol_usages_list, resolved_o
             for p in doc["params"]:
                 f.write(f"| `{p['name']}` | {
                         p['direction']} | {p['desc']} |\n")
-            f.write("\n")
+            f.write("\n\n")
 
         if doc.get("usage"):
-            f.write("## Usage (from documentation)\n\n")
+            f.write("## Usage example (from documentation)\n\n")
             f.write("```c\n")
             f.write(doc["usage"])
             f.write("\n```\n\n")
 
-        for section_key in ["success", "failure", "info", "note", "warn"]:
+        for section_key in ["success", "failure"]:
             if doc.get(section_key):
                 f.write(f"## {section_key.capitalize()}\n\n{
                         doc[section_key]}\n\n")
@@ -481,66 +481,6 @@ if __name__ == "__main__":
                     collect_symbols_and_content(abs_filepath_to_process)
     print(f"--- Pass 1 complete. Found {len(parsed_symbols_map)
                                         } unique symbols. Read {len(file_contents_map)} files. ---")
-
-    # --- Pass 2: Find usages for all collected symbols ---
-    print("\n--- Starting Pass 2: Finding symbol usages ---")
-    symbol_usages_xref_map = find_usages(parsed_symbols_map, file_contents_map)
-    usage_count = sum(len(usages)
-                      for usages in symbol_usages_xref_map.values())
-    print(
-        f"--- Pass 2 complete. Found {usage_count} total usage instances. ---")
-
-    # --- Pass 3: Generate Markdown for each symbol ---
-    print("\n--- Starting Pass 3: Generating Markdown files ---")
-    if not parsed_symbols_map:
-        print("No symbols found to document.")
-    else:
-        for symbol_name_key, symbol_data in parsed_symbols_map.items():
-            usages = symbol_usages_xref_map.get(symbol_name_key, [])
-            write_markdown(symbol_name_key, symbol_data,
-                           usages, resolved_output_dir)
-
-    print("\n--- Documentation generation complete. ---")
-
-    # --- Pass 2: Find usages for all collected symbols ---
-    print("\n--- Starting Pass 2: Finding symbol usages ---")
-    symbol_usages_xref_map = find_usages(parsed_symbols_map, file_contents_map)
-    usage_count = sum(len(usages)
-                      for usages in symbol_usages_xref_map.values())
-    print(
-        f"--- Pass 2 complete. Found {usage_count} total usage instances. ---")
-
-    # --- Pass 3: Generate Markdown for each symbol ---
-    print("\n--- Starting Pass 3: Generating Markdown files ---")
-    if not parsed_symbols_map:
-        print("No symbols found to document.")
-    else:
-        for symbol_name_key, symbol_data in parsed_symbols_map.items():
-            usages = symbol_usages_xref_map.get(symbol_name_key, [])
-            write_markdown(symbol_name_key, symbol_data,
-                           usages, resolved_output_dir)
-
-    print("\n--- Documentation generation complete. ---")
-
-    # --- Pass 2: Find usages for all collected symbols ---
-    print("\n--- Starting Pass 2: Finding symbol usages ---")
-    symbol_usages_xref_map = find_usages(parsed_symbols_map, file_contents_map)
-    usage_count = sum(len(usages)
-                      for usages in symbol_usages_xref_map.values())
-    print(
-        f"--- Pass 2 complete. Found {usage_count} total usage instances. ---")
-
-    # --- Pass 3: Generate Markdown for each symbol ---
-    print("\n--- Starting Pass 3: Generating Markdown files ---")
-    if not parsed_symbols_map:
-        print("No symbols found to document.")
-    else:
-        for symbol_name_key, symbol_data in parsed_symbols_map.items():
-            usages = symbol_usages_xref_map.get(symbol_name_key, [])
-            write_markdown(symbol_name_key, symbol_data,
-                           usages, resolved_output_dir)
-
-    print("\n--- Documentation generation complete. ---")
 
     # --- Pass 2: Find usages for all collected symbols ---
     print("\n--- Starting Pass 2: Finding symbol usages ---")

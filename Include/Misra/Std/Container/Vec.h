@@ -22,14 +22,19 @@ typedef struct {
     size              alignment;
 } GenericVec;
 
-///
-/// Cast any vector to a generic vector
-///
 #define GENERIC_VEC(x) ((GenericVec *)(void *)(x))
 
 ///
 /// Typesafe vector definition.
 /// This is much like C++ template std::vector<T>
+///
+/// NOTE: Using this directly like `Vec(T)` won't always work,
+///       because each time this is used it defines a new type, and two
+///       `Vec(T)`s are different from each other.
+///
+///       To deal with this, you must typedef vector for a specific type.
+///       Throughout the code, any time that is in plural form is generally
+///       a vector. Like `Strs` is a typedef of `Vec(Str)`.
 ///
 /// USAGE:
 ///   Vec(int) integers; // Vector of integers
