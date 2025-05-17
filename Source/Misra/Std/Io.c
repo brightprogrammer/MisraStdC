@@ -9,7 +9,178 @@
 
 // stdc
 #include <ctype.h>
-#include <stdarg.h>
+
+void StrWriteFmtInternal(Str *o, const char *fmtstr, TypeSpecificIO *argv, size argc) {
+    if (!o || !fmtstr) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    const char *p         = fmtstr;
+    size_t      remaining = strlen(fmtstr);
+
+    while (remaining > 0) {
+        if (remaining >= 2 && p[0] == '{' && p[1] == '{') {
+            StrPushBack(o, '{');
+            p         += 2;
+            remaining -= 2;
+        } else if (remaining >= 2 && p[0] == '}' && p[1] == '}') {
+            StrPushBack(o, '}');
+            p         += 2;
+            remaining -= 2;
+        } else if (p[0] == '{') {
+            p++;
+            remaining--;
+
+            const char *start    = p;
+            size_t      spec_len = 0;
+
+            while (remaining > 0 && *p != '}') {
+                p++;
+                remaining--;
+                spec_len++;
+            }
+
+            if (remaining == 0 || *p != '}') {
+                LOG_FATAL("Unmatched '{' in format string");
+            }
+
+            // Parse the specifier into a null-terminated string
+            char spec_buf[32] = {0}; // 31 chars max + NUL
+            if (spec_len >= sizeof(spec_buf)) {
+                LOG_FATAL("Format specifier too long");
+            }
+
+            if (!argc) {
+                LOG_FATAL("More placeholders than arguments.");
+            }
+
+            memcpy(spec_buf, start, spec_len);
+            spec_buf[spec_len] = '\0';
+
+            // Extract format info
+            FmtInfo     fi = {0};
+            const char *s  = spec_buf;
+
+            if (*s == '#') {
+                s++;
+                if (*s == 'x') {
+                    fi.is_hex  = true;
+                    fi.is_caps = false;
+                    s++;
+                } else if (*s == 'X') {
+                    fi.is_hex  = true;
+                    fi.is_caps = true;
+                    s++;
+                }
+            }
+
+            if (*s >= '0' && *s <= '9') {
+                fi.width = (int)strtol(s, NULL, 10);
+            }
+
+            // Consume closing '}'
+            p++;
+            remaining--;
+
+            // Write argument using type-specific writer
+            TypeSpecificIO *io = argv++;
+            argc--;
+            if (!io->writer) {
+                LOG_FATAL("Missing writer function");
+            }
+            io->writer(o, &fi, io->data);
+        } else {
+            StrPushBack(o, *p);
+            p++;
+            remaining--;
+        }
+    }
+}
+
+const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecificIO *argv, size argc) {
+    if (!input || !fmtstr) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    const char *p         = fmtstr;
+    size_t      remaining = strlen(fmtstr);
+    const char *in        = input;
+
+    while (remaining > 0) {
+        if (remaining >= 2 && p[0] == '{' && p[1] == '{') {
+            if (!in || *in != '{') {
+                LOG_FATAL("Expected '{' in input");
+            }
+            in++;
+            p         += 2;
+            remaining -= 2;
+        } else if (remaining >= 2 && p[0] == '}' && p[1] == '}') {
+            if (!in || *in != '}') {
+                LOG_FATAL("Expected '}' in input");
+            }
+            in++;
+            p         += 2;
+            remaining -= 2;
+        } else if (p[0] == '{') {
+            p++;
+            remaining--;
+
+            const char *start    = p;
+            size_t      spec_len = 0;
+
+            while (remaining > 0 && *p != '}') {
+                p++;
+                remaining--;
+                spec_len++;
+            }
+
+            if (remaining == 0 || *p != '}') {
+                LOG_FATAL("Unmatched '{' in format string");
+            }
+
+            // Parse optional specifier (ignored for now)
+            char spec_buf[32] = {0};
+            if (spec_len >= sizeof(spec_buf)) {
+                LOG_FATAL("Format specifier too long");
+            }
+
+            if (!argc) {
+                LOG_FATAL("More placeholders than arguments");
+            }
+
+            memcpy(spec_buf, start, spec_len);
+            spec_buf[spec_len] = '\0';
+
+            // Use the type-specific reader
+            TypeSpecificIO *io = argv++;
+            argc--;
+            if (!io->reader) {
+                LOG_FATAL("Missing reader function");
+            }
+
+            const char *next = io->reader(in, io->data);
+            if (!next || next < in) {
+                LOG_FATAL("Reader failed to advance input");
+            }
+
+            in = next;
+
+            // Skip closing '}'
+            p++;
+            remaining--;
+        } else {
+            // Match exact character from format string
+            if (!in || *in != *p) {
+                LOG_FATAL("Input does not match format string");
+            }
+            in++;
+            p++;
+            remaining--;
+        }
+    }
+
+    return in;
+}
 
 void _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
     if (!o || !s) {
@@ -317,174 +488,4 @@ const char *_read_Zstr(const char *input, const char **out) {
 const char *_read_UnsupportedType(const char *i, const char **s) {
     LOG_ERROR("Attempt to read unsupported type.");
     return i;
-}
-
-void StrWriteFmt(Str *o, const char *fmtstr, ...) {
-    if (!o || !fmtstr) {
-        LOG_FATAL("Invalid arguments");
-    }
-
-    va_list args;
-    va_start(args, fmtstr);
-
-    const char *p         = fmtstr;
-    size_t      remaining = strlen(fmtstr);
-
-    while (remaining > 0) {
-        if (remaining >= 2 && p[0] == '{' && p[1] == '{') {
-            StrPushBack(o, '{');
-            p         += 2;
-            remaining -= 2;
-        } else if (remaining >= 2 && p[0] == '}' && p[1] == '}') {
-            StrPushBack(o, '}');
-            p         += 2;
-            remaining -= 2;
-        } else if (p[0] == '{') {
-            p++;
-            remaining--;
-
-            const char *start    = p;
-            size_t      spec_len = 0;
-
-            while (remaining > 0 && *p != '}') {
-                p++;
-                remaining--;
-                spec_len++;
-            }
-
-            if (remaining == 0 || *p != '}') {
-                LOG_FATAL("Unmatched '{' in format string");
-            }
-
-            // Parse the specifier into a null-terminated string
-            char spec_buf[32] = {0}; // 31 chars max + NUL
-            if (spec_len >= sizeof(spec_buf)) {
-                LOG_ERROR("Format specifier too long");
-            }
-
-            memcpy(spec_buf, start, spec_len);
-            spec_buf[spec_len] = '\0';
-
-            // Extract format info
-            FmtInfo     fi = {0};
-            const char *s  = spec_buf;
-
-            if (*s == '#') {
-                s++;
-                if (*s == 'x') {
-                    fi.is_hex  = true;
-                    fi.is_caps = false;
-                    s++;
-                } else if (*s == 'X') {
-                    fi.is_hex  = true;
-                    fi.is_caps = true;
-                    s++;
-                }
-            }
-
-            if (*s >= '0' && *s <= '9') {
-                fi.width = (int)strtol(s, NULL, 10);
-            }
-
-            // Consume closing '}'
-            p++;
-            remaining--;
-
-            // Write argument using type-specific writer
-            TypeSpecificIO io = va_arg(args, TypeSpecificIO);
-            if (!io.writer) {
-                LOG_FATAL("Missing writer function");
-            }
-            io.writer(o, &fi, io.data);
-        } else {
-            StrPushBack(o, *p);
-            p++;
-            remaining--;
-        }
-    }
-
-    va_end(args);
-}
-
-const char *StrReadFmt(const char *input, const char *fmtstr, ...) {
-    if (!input || !fmtstr) {
-        LOG_FATAL("Invalid arguments");
-    }
-
-    const char *p         = fmtstr;
-    size_t      remaining = strlen(fmtstr);
-    const char *in        = input;
-
-    va_list args;
-    va_start(args, fmtstr);
-
-    while (remaining > 0) {
-        if (remaining >= 2 && p[0] == '{' && p[1] == '{') {
-            if (!in || *in != '{') {
-                LOG_FATAL("Expected '{' in input");
-            }
-            in++;
-            p         += 2;
-            remaining -= 2;
-        } else if (remaining >= 2 && p[0] == '}' && p[1] == '}') {
-            if (!in || *in != '}') {
-                LOG_FATAL("Expected '}' in input");
-            }
-            in++;
-            p         += 2;
-            remaining -= 2;
-        } else if (p[0] == '{') {
-            p++;
-            remaining--;
-
-            const char *start    = p;
-            size_t      spec_len = 0;
-
-            while (remaining > 0 && *p != '}') {
-                p++;
-                remaining--;
-                spec_len++;
-            }
-
-            if (remaining == 0 || *p != '}') {
-                LOG_FATAL("Unmatched '{' in format string");
-            }
-
-            // Parse optional specifier (ignored for now)
-            char spec_buf[32] = {0};
-            if (spec_len >= sizeof(spec_buf)) {
-                LOG_FATAL("Format specifier too long");
-            }
-            memcpy(spec_buf, start, spec_len);
-            spec_buf[spec_len] = '\0';
-
-            // Use the type-specific reader
-            TypeSpecificIO io = va_arg(args, TypeSpecificIO);
-            if (!io.reader) {
-                LOG_FATAL("Missing reader function");
-            }
-
-            const char *next = io.reader(in, io.data);
-            if (!next || next < in) {
-                LOG_FATAL("Reader failed to advance input");
-            }
-
-            in = next;
-
-            // Skip closing '}'
-            p++;
-            remaining--;
-        } else {
-            // Match exact character from format string
-            if (!in || *in != *p) {
-                LOG_FATAL("Input does not match format string");
-            }
-            in++;
-            p++;
-            remaining--;
-        }
-    }
-
-    va_end(args);
-    return in;
 }

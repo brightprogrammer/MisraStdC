@@ -33,6 +33,8 @@ typedef struct {
     _Generic(                                                                                                          \
         (x),                                                                                                           \
         Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                           \
+        const char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                 \
+        char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                       \
         u8: TO_TYPE_SPECIFIC_IO(u8, &(x)),                                                                             \
         u16: TO_TYPE_SPECIFIC_IO(u16, &(x)),                                                                           \
         u32: TO_TYPE_SPECIFIC_IO(u32, &(x)),                                                                           \
@@ -41,8 +43,6 @@ typedef struct {
         i16: TO_TYPE_SPECIFIC_IO(i16, &(x)),                                                                           \
         i32: TO_TYPE_SPECIFIC_IO(i32, &(x)),                                                                           \
         i64: TO_TYPE_SPECIFIC_IO(i64, &(x)),                                                                           \
-        const char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                 \
-        char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                       \
         default: TO_TYPE_SPECIFIC_IO(UnsupportedType, NULL)                                                            \
     )
 
@@ -50,13 +50,22 @@ typedef struct {
 /// Print out a formatted string with rust-style placeholders
 /// to given string "o"
 ///
+/// NOTE: Directly passing literals like FMT(1337) is not supported, especially const char*
+/// literals. For constants like integers, booleans, you can use `LVAL(r-value)`
+/// to convert an l-value to an r-value an then use in `FMT` like `FMT(LVAL(false))`
+///
 /// Takes in TypeSpecificIO structures as arguments. Use FMT(.)
 /// to wrap any supported-type variable to it's TypeSpecificIO object.
 ///
 /// o[out]     : Contents appended to this string.
 /// fmtstr[in] : Format string with placeholders.
+/// argv[in]   : Arguments that placeholders will be replaced with.
+/// argc[in]   : Number of arguments.
 ///
-void StrWriteFmt(Str *o, const char *fmtstr, ...);
+/// SUCCESS : Placeholders in `fmtstr` are replaced by passed arguments.
+/// FAILURE : Does not return, displays log messages.
+///
+void StrWriteFmtInternal(Str *o, const char *fmtstr, TypeSpecificIO *argv, size argc);
 
 ///
 /// Parse input string according to format string with rust-style placeholders,
@@ -67,18 +76,44 @@ void StrWriteFmt(Str *o, const char *fmtstr, ...);
 ///
 /// input[in]  : Input string to parse (null-terminated)
 /// fmtstr[in] : Format string with placeholders (null-terminated)
-/// ...        : Variable arguments of TypeSpecificIO to receive parsed values
+/// argv[in]   : Arguments that will be read into from placeholders.
+/// argc[in]   : Number of arguments.
 ///
-/// Returns pointer to remaining unparsed input string, or NULL on error.
-///
-/// Example:
+/// USAGE:
 ///   const char *input = "Count: 42, Name: Alice";
 ///   int count;
 ///   Str name;
-///   const char *remaining = StrReadFmt(input, "Count: {}, Name: {}",
-///     FMT(&count), FMT(&name));
+///   const char *remaining = StrReadFmt(input, "Count: {}, Name: {}", FMT(count), FMT(name));
 ///
-const char *StrReadFmt(const char *input, const char *fmtstr, ...);
+/// SUCCESS : After reading through `input`, returns back const char* to start reading from (from inside `input`)
+/// FAILURE : Does not return, displays log error messages.
+///
+const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecificIO *argv, size argc);
+
+#define StrWriteFmt(out, fmtstr, ...)                                                                                  \
+    do {                                                                                                               \
+        TypeSpecificIO argv[] = {__VA_ARGS__};                                                                         \
+        size           argc   = sizeof(argv) / sizeof(argv[0]);                                                        \
+        StrWriteFmtInternal((out), (fmtstr), &argv[0], argc);                                                          \
+    } while (0)
+
+#define StrReadFmt(out, fmtstr, ...)                                                                                   \
+    do {                                                                                                               \
+        TypeSpecificIO argv[] = {__VA_ARGS__};                                                                         \
+        size           argc   = sizeof(argv) / sizeof(argv[0]);                                                        \
+        StrReadFmtInternal((out), (fmtstr), &argv[0], argc);                                                           \
+    } while (0)
+
+#define FWriteFmt(stream, fmtstr, ...)                                                                                 \
+    do {                                                                                                               \
+        TypeSpecificIO argv[] = {__VA_ARGS__};                                                                         \
+        size           argc   = sizeof(argv) / sizeof(argv[0]);                                                        \
+        Str            out    = StrInit();                                                                             \
+        StrWriteFmtInternal(&out, (fmtstr), &argv[0], argc);                                                           \
+        fputs(out.data, (stream));                                                                                     \
+    } while (0)
+
+#define WriteFmt(fmtstr, ...) FWriteFmt(stdout, fmtstr, __VA_ARGS__)
 
 // not for direct use
 void _write_Str(Str *o, FmtInfo *fmt_info, Str *s);
