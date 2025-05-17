@@ -87,6 +87,7 @@
 /// "key" : null
 ///
 
+/// TAGS: Number, Union, DataType, JSON, NumericType
 typedef struct Number {
     bool is_float;
     union {
@@ -95,9 +96,6 @@ typedef struct Number {
     };
 } Number;
 
-typedef StrIter (*JArrayItemReader)(StrIter si, void* data);
-typedef StrIter (*JObjectValueReader)(StrIter si, Str* key, void* data);
-
 ///
 /// Skip whitespace from current reading position.
 ///
@@ -105,6 +103,8 @@ typedef StrIter (*JObjectValueReader)(StrIter si, Str* key, void* data);
 ///
 /// SUCCESS : Returns `StrIter` advanced past all whitespace
 /// FAILURE : Returns original `StrIter` if already at end
+///
+/// TAGS: JSON, Whitespace, Parsing, Utility
 ///
 StrIter JSkipWhitespace(StrIter si);
 
@@ -119,6 +119,8 @@ StrIter JSkipWhitespace(StrIter si);
 /// SUCCESS : Returns `StrIter` advanced past closing quote
 /// FAILURE : Returns original `StrIter` on error (invalid escape, missing quote, etc.)
 ///
+/// TAGS: JSON, String, Parsing, EscapeSequences
+///
 StrIter JReadString(StrIter si, Str* str);
 
 ///
@@ -129,6 +131,8 @@ StrIter JReadString(StrIter si, Str* str);
 ///
 /// SUCCESS : Returns `StrIter` advanced past number
 /// FAILURE : Returns original `StrIter` on error (invalid format, empty number, etc.)
+///
+/// TAGS: JSON, Number, Parsing, Numeric
 ///
 StrIter JReadNumber(StrIter si, Number* num);
 
@@ -141,6 +145,8 @@ StrIter JReadNumber(StrIter si, Number* num);
 /// SUCCESS : Returns `StrIter` advanced past parsed integer
 /// FAILURE : Returns original `StrIter` if float encountered or parsing fails
 ///
+/// TAGS: JSON, Integer, Parsing, Strict
+///
 StrIter JReadInteger(StrIter si, i64* val);
 
 ///
@@ -152,6 +158,8 @@ StrIter JReadInteger(StrIter si, i64* val);
 /// SUCCESS : Returns `StrIter` advanced past parsed float
 /// FAILURE : Returns original `StrIter` on error
 ///
+/// TAGS: JSON, Float, Parsing
+///
 StrIter JReadFloat(StrIter si, f64* val);
 
 ///
@@ -162,6 +170,8 @@ StrIter JReadFloat(StrIter si, f64* val);
 ///
 /// SUCCESS : Returns `StrIter` advanced past parsed boolean
 /// FAILURE : Returns original `StrIter` if invalid or unrecognized value
+///
+/// TAGS: JSON, Boolean, Parsing
 ///
 StrIter JReadBool(StrIter si, bool* b);
 
@@ -184,6 +194,8 @@ StrIter JReadNull(StrIter si, bool* is_null);
 /// SUCCESS : Returns updated `StrIter` after value is skipped
 /// FAILURE : Returns same `StrIter` on error (e.g. invalid type)
 ///
+/// TAGS: JSON, Parsing, Utility
+///
 StrIter JSkipValue(StrIter si);
 
 ///
@@ -198,6 +210,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : `str` contains the read string
 /// FAILURE : `si` updated to failure state on parse error
+///
+/// TAGS: JSON, Macro, Reader, String
 ///
 #define JR_STR(si, str)                                                                                                \
     do {                                                                                                               \
@@ -218,6 +232,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : `str` contains the value if key matched
 /// FAILURE : No-op if key does not match
+///
+/// TAGS: JSON, Macro, Reader, String, KeyValue
 ///
 #define JR_STR_KV(si, k, str)                                                                                          \
     do {                                                                                                               \
@@ -240,6 +256,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : `i` contains the parsed integer
 /// FAILURE : `si` updated to failure state on parse error
 ///
+/// TAGS: JSON, Macro, Reader, Integer
+///
 #define JR_INT(si, i)                                                                                                  \
     do {                                                                                                               \
         i64 my_int = 0;                                                                                                \
@@ -259,6 +277,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : `i` contains value if key matched
 /// FAILURE : No-op if key does not match
+///
+/// TAGS: JSON, Macro, Reader, Integer, KeyValue
 ///
 #define JR_INT_KV(si, k, i)                                                                                            \
     do {                                                                                                               \
@@ -281,6 +301,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : `f` contains the parsed float
 /// FAILURE : `si` updated to failure state on parse error
 ///
+/// TAGS: JSON, Macro, Reader, Float
+///
 #define JR_FLT(si, f)                                                                                                  \
     do {                                                                                                               \
         f64 my_flt = 0;                                                                                                \
@@ -300,6 +322,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : `f` contains value if key matched
 /// FAILURE : No-op if key does not match
+///
+/// TAGS: JSON, Macro, Reader, Float, KeyValue
 ///
 #define JR_FLT_KV(si, k, f)                                                                                            \
     do {                                                                                                               \
@@ -322,6 +346,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : `b` contains the parsed boolean
 /// FAILURE : `si` updated to failure state on parse error
 ///
+/// TAGS: JSON, Macro, Reader, Boolean
+///
 #define JR_BOOL(si, b)                                                                                                 \
     do {                                                                                                               \
         bool my_b = 0;                                                                                                 \
@@ -341,6 +367,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : `b` contains value if key matched
 /// FAILURE : No-op if key does not match
+///
+/// TAGS: JSON, Macro, Reader, Boolean, KeyValue
 ///
 #define JR_BOOL_KV(si, k, b)                                                                                           \
     do {                                                                                                               \
@@ -372,6 +400,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : All values processed or skipped gracefully
 /// FAILURE : Logs error and restores `si` on structural or read failure
+///
+/// TAGS: JSON, Macro, Reader, Array
 ///
 #define JR_ARR(si, reader)                                                                                             \
     do {                                                                                                               \
@@ -462,6 +492,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : Entire object read or skipped successfully
 /// FAILURE : Logs error and restores `si` on structural or read failure
+///
+/// TAGS: JSON, Macro, Reader, Object
 ///
 #define JR_OBJ(si, reader)                                                                                             \
     do {                                                                                                               \
@@ -583,6 +615,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : Object parsed if key matched
 /// FAILURE : No-op if key does not match
 ///
+/// TAGS: JSON, Macro, Reader, Object, KeyValue
+///
 #define JR_OBJ_KV(si, k, reader)                                                                                       \
     do {                                                                                                               \
         if (!StrCmpCstr(&key, (k))) {                                                                                  \
@@ -605,6 +639,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : Array parsed if key matched
 /// FAILURE : No-op if key does not match
+///
+/// TAGS: JSON, Macro, Reader, Array, KeyValue
 ///
 #define JR_ARR_KV(si, k, reader)                                                                                       \
     do {                                                                                                               \
@@ -629,6 +665,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : Appends a valid JSON object to `json`
 /// FAILURE : Does not return on failure (relies on internal string operations)
 ///
+/// TAGS: JSON, Macro, Writer, Object, Structure
+///
 #define JW_OBJ(j, writer)                                                                                              \
     do {                                                                                                               \
         bool ___is_first___ = true;                                                                                    \
@@ -652,6 +690,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : Appends a nested JSON object under the given key
 /// FAILURE : Does not return on failure
+///
+/// TAGS: JSON, Macro, Writer, Object, KeyValue, Nested
 ///
 #define JW_OBJ_KV(j, k, writer)                                                                                        \
     do {                                                                                                               \
@@ -680,6 +720,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : Appends a JSON array to `json`
 /// FAILURE : Does not return on failure
+///
+/// TAGS: JSON, Macro, Writer, Array, Structure
 ///
 #define JW_ARR(j, arr, item, writer)                                                                                   \
     do {                                                                                                               \
@@ -714,6 +756,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : Appends a key-value array pair to `json`
 /// FAILURE : Does not return on failure
 ///
+/// TAGS: JSON, Macro, Writer, Array, KeyValue
+///
 #define JW_ARR_KV(j, k, arr, item, writer)                                                                             \
     do {                                                                                                               \
         if (___is_first___) {                                                                                          \
@@ -737,6 +781,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : Appends a numeric value to `json`
 /// FAILURE : Does not return on failure
 ///
+/// TAGS: JSON, Macro, Writer, Integer, Numeric
+///
 #define JW_INT(j, i)                                                                                                   \
     do {                                                                                                               \
         i64 my_int = (i);                                                                                              \
@@ -755,6 +801,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : Appends a key-value integer pair
 /// FAILURE : Does not return on failure
+///
+/// TAGS: JSON, Macro, Writer, Integer, KeyValue
 ///
 #define JW_INT_KV(j, k, i)                                                                                             \
     do {                                                                                                               \
@@ -779,6 +827,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : Appends a float value to `json`
 /// FAILURE : Does not return on failure
 ///
+/// TAGS: JSON, Macro, Writer, Float, Numeric
+///
 #define JW_FLT(j, f)                                                                                                   \
     do {                                                                                                               \
         f64 my_flt = (f);                                                                                              \
@@ -797,6 +847,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : Appends a key-value float pair
 /// FAILURE : Does not return on failure
+///
+/// TAGS: JSON, Macro, Writer, Float, KeyValue
 ///
 #define JW_FLT_KV(j, k, f)                                                                                             \
     do {                                                                                                               \
@@ -821,6 +873,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : Appends a quoted string to `json`
 /// FAILURE : Does not return on failure
 ///
+/// TAGS: JSON, Macro, Writer, String
+///
 #define JW_STR(j, s)                                                                                                   \
     do {                                                                                                               \
         StrAppendf(&(j), "\"%s\"", (s).data);                                                                          \
@@ -838,6 +892,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : Appends a key-value string pair
 /// FAILURE : Does not return on failure
+///
+/// TAGS: JSON, Macro, Writer, String, KeyValue
 ///
 #define JW_STR_KV(j, k, s)                                                                                             \
     do {                                                                                                               \
@@ -862,6 +918,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : Appends "true" or "false" as a string
 /// FAILURE : Does not return on failure
 ///
+/// TAGS: JSON, Macro, Writer, Boolean
+///
 #define JW_BOOL(j, b)                                                                                                  \
     do {                                                                                                               \
         StrAppendf(&(j), "\"%b\"", b);                                                                                 \
@@ -879,6 +937,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : Appends a key-value boolean pair
 /// FAILURE : Does not return on failure
+///
+/// TAGS: JSON, Macro, Writer, Boolean, KeyValue
 ///
 #define JW_BOOL_KV(j, k, b)                                                                                            \
     do {                                                                                                               \

@@ -24,6 +24,7 @@ RE_NOTE = re.compile(r'^\s*NOTE\s*:\s*(.+)')
 RE_WARN = re.compile(r'^\s*WARN\s*:\s*(.+)')
 RE_SYMBOL_DEFINITION = re.compile(
     r'^\s*#define\s+(\w+)|^\s*(?:\w+\s+)+(\w+)\s*\(')
+RE_TAGS = re.compile(r"^\s*TAGS\s*:\s+(.*)")
 
 
 def extract_symbols_and_store_content(file_path: Path):
@@ -148,16 +149,16 @@ def find_symbol_usages(symbols, all_contents, context_lines=2):
 
 def parse_comment_block(comment_lines, next_code_line=None):
     """
-    Parses a block of comment lines to extract documentation details.
+    Parses a block of comment lines to extract documentation details, including tags.
 
     Args:
         comment_lines (list): A list of strings, where each string is a line from the comment block
-                             (stripped of the '/// ?' prefix).
+                                (stripped of the '/// ?' prefix).
         next_code_line (str, optional): The line of code immediately following the comment block.
                                          Used to determine the type of the documented symbol. Defaults to None.
 
     Returns:
-        dict: A dictionary containing the parsed documentation elements.
+        dict: A dictionary containing the parsed documentation elements, including 'tags'.
     """
     brief = []
     params = []
@@ -167,6 +168,7 @@ def parse_comment_block(comment_lines, next_code_line=None):
     info = []
     note = []
     warn = []
+    tags = []  # New list to store tags
 
     current_section = "brief"
     last_parameter = None
@@ -184,7 +186,8 @@ def parse_comment_block(comment_lines, next_code_line=None):
             current_section = "params"
             param_name, direction, description = match.groups()
             current_param = {"name": param_name,
-                             "direction": direction, "desc": description.strip()}
+                             "direction": direction,
+                             "desc": description.strip()}
             params.append(current_param)
             last_parameter = current_param
             continue
@@ -211,6 +214,12 @@ def parse_comment_block(comment_lines, next_code_line=None):
         elif match := RE_WARN.match(line):
             current_section = "warn"
             warn.append(match.group(1).strip())
+            last_parameter = None
+            continue
+        elif match := RE_TAGS.match(line):  # Handle the @tags section
+            current_section = "tags"
+            tags.extend([tag.strip()
+                        for tag in match.group(1).split(',') if tag.strip()])
             last_parameter = None
             continue
 
@@ -252,36 +261,6 @@ def parse_comment_block(comment_lines, next_code_line=None):
             if function_pattern.match(code):
                 symbol_kind = "function"
 
-    # Regex patterns for symbol extraction
-    RE_MACRO_OR_FUNC = re.compile(
-        r'^\s*#define\s+(\w+)|'          # Macro pattern
-        r'^\s*(?:\w+\s+)+(\w+)\s*\('     # Function pattern
-    )
-    RE_TYPE_DECL = re.compile(
-        # Type declaration
-        r'^\s*(?:typedef\s+)?(struct|enum|union)\s*(?:{\s*)?(\w+)?|'
-        r'^\s*}\s*(\w+)\s*;'            # Typedef ending pattern
-    )
-
-    symbol_name = None
-    if next_code_line:
-        code = next_code_line.strip()
-
-        if symbol_kind == "macro":
-            if match := RE_MACRO_OR_FUNC.match(code):
-                symbol_name = match.group(1)
-
-        elif symbol_kind == "function":
-            if match := RE_MACRO_OR_FUNC.match(code):
-                symbol_name = match.group(2)
-
-        elif symbol_kind == "type":
-            # Handle both direct declarations and typedefs
-            if match := RE_TYPE_DECL.match(code):
-                # Group 2: struct/enum name (non-typedef)
-                # Group 3: typedef name (when at end)
-                symbol_name = match.group(2) or match.group(3)
-
     return {
         "brief": " ".join(brief),
         "params": params,
@@ -291,8 +270,8 @@ def parse_comment_block(comment_lines, next_code_line=None):
         "info": " ".join(info) if info else None,
         "note": " ".join(note) if note else None,
         "warn": " ".join(warn) if warn else None,
+        "tags": tags if tags else None,  # Include the tags in the result
         "kind": symbol_kind,
-        "symbol_name": symbol_name,
     }
 
 
@@ -319,8 +298,13 @@ def generate_markdown_file(symbol_name, symbol_data, usages, output_dir: Path):
                             symbol_name} {doc["kind"]}."\n')
         markdown_file.write(f'date: {datetime.now().isoformat()}\n')
         markdown_file.write(f'categories: ["{doc["kind"].capitalize()}"]\n')
-        markdown_file.write(
-            f"tags: [\"documentation\", \"generated\", {doc['symbol_name']}]\n")
+        # Assuming symbol_data is a dictionary that might contain a 'tags' key
+        tags_string = ""
+        if "tags" in symbol_data and symbol_data["tags"]:
+            tags_string = ", ".join(f'"{tag}"' for tag in symbol_data["tags"])
+
+        markdown_file.write(f'tags: ["documentation", "generated"{
+                            ", " + tags_string if tags_string else ""}]\n')
         markdown_file.write("draft: false\n")
         markdown_file.write("---\n\n")
 
