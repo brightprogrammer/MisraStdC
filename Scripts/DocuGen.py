@@ -3,9 +3,12 @@ import re
 import argparse
 from pathlib import Path
 from datetime import datetime
+from urllib.parse import quote
+from pathlib import PurePosixPath
 
 # Default values
-DEFAULT_ROOT_DIRS = ["Include", "Source"]  # Changed to a list for multiple root dirs
+# Changed to a list for multiple root dirs
+DEFAULT_ROOT_DIRS = ["Include", "Source"]
 DEFAULT_OUTPUT_DIR = "Docs/content/english/blog"
 
 # Global store for all parsed symbols and their associated data
@@ -90,6 +93,7 @@ def collect_symbols_and_content(filepath_obj: Path):
         else:
             local_i += 1
 
+
 def find_usages(current_symbols_map, all_file_contents_map, context_lines=2):
     symbol_usages_xref = {name: [] for name in current_symbols_map}
 
@@ -100,7 +104,8 @@ def find_usages(current_symbols_map, all_file_contents_map, context_lines=2):
         try:
             symbol_regex = re.compile(r'\b' + re.escape(symbol_name) + r'\b')
         except re.error:
-            print(f"Warning: Could not compile regex for symbol '{symbol_name}'. Skipping usage scan for it.")
+            print(f"Warning: Could not compile regex for symbol '{
+                  symbol_name}'. Skipping usage scan for it.")
             continue
 
         for filepath_str, lines in all_file_contents_map.items():
@@ -129,14 +134,16 @@ def find_usages(current_symbols_map, all_file_contents_map, context_lines=2):
                     if not is_definition_line:
                         # Extract context
                         start = max(0, line_num_0_indexed - context_lines)
-                        end = min(len(lines), line_num_0_indexed + context_lines + 1)
+                        end = min(len(lines), line_num_0_indexed +
+                                  context_lines + 1)
                         snippet_lines = lines[start:end]
 
                         # Extra: Skip snippets where all lines are commented
                         if all(l.strip().startswith("//") or '/*' in l or '*/' in l for l in snippet_lines):
                             continue
 
-                        code_snippet = '\n'.join(line.rstrip() for line in snippet_lines)
+                        code_snippet = '\n'.join(line.rstrip()
+                                                 for line in snippet_lines)
 
                         symbol_usages_xref[symbol_name].append({
                             "filepath": filepath_str,
@@ -145,6 +152,7 @@ def find_usages(current_symbols_map, all_file_contents_map, context_lines=2):
                         })
 
     return symbol_usages_xref
+
 
 def parse_comment_block(lines, next_code_line=None):
     brief_lines = []
@@ -283,14 +291,15 @@ def write_markdown(symbol_name, symbol_data_item, symbol_usages_list, resolved_o
     doc = symbol_data_item["doc"]
     # output_file_path is absolute because resolved_output_dir is absolute
     output_file_path = resolved_output_dir / f"generated-doc-{symbol_name}.md"
-    markdown_file_dir = output_file_path.parent # also absolute
+    markdown_file_dir = output_file_path.parent  # also absolute
 
     print(f"Writing: {output_file_path}")
     with open(output_file_path, "w", encoding='utf-8') as f:
         f.write("---\n")
         f.write(f'title: "{symbol_name}"\n')
-        f.write(f'meta_title: "{symbol_name}"\n') # Added meta_title
-        f.write(f'description: "Documentation for {symbol_name} {doc["kind"]}."\n')
+        f.write(f'meta_title: "{symbol_name}"\n')  # Added meta_title
+        f.write(f'description: "Documentation for {
+                symbol_name} {doc["kind"]}."\n')
         f.write(f'date: {datetime.now().isoformat()}\n')
         f.write(f'categories: ["{doc["kind"].capitalize()}"]\n')
         f.write("tags: [\"documentation\", \"generated\", \"api\"]\n")
@@ -305,22 +314,26 @@ def write_markdown(symbol_name, symbol_data_item, symbol_usages_list, resolved_o
 
         # Info messages
         if doc.get("info"):
-            f.write('{{< notice "info" >}}\n\n' + doc["info"] + '\n\n{{< /notice >}}')
+            f.write('{{< notice "info" >}}\n\n' +
+                    doc["info"] + '\n\n{{< /notice >}}')
 
         # Note
         if doc.get("note"):
-            f.write('{{< notice "note" >}}\n\n' + doc["note"] + '\n\n{{< /notice >}}')
+            f.write('{{< notice "note" >}}\n\n' +
+                    doc["note"] + '\n\n{{< /notice >}}')
 
         # Warnings
         if doc.get("warn"):
-            f.write('{{< notice "warning" >}}\n\n' + doc["warn"] + '\n\n{{< /notice >}}')
+            f.write('{{< notice "warning" >}}\n\n' +
+                    doc["warn"] + '\n\n{{< /notice >}}')
 
         if doc.get("params"):
             f.write("## Parameters\n\n")
             f.write("| Name | Direction | Description |\n")
             f.write("|------|-----------|-------------|\n")
             for p in doc["params"]:
-                f.write(f"| `{p['name']}` | {p['direction']} | {p['desc']} |\n")
+                f.write(f"| `{p['name']}` | {
+                        p['direction']} | {p['desc']} |\n")
             f.write("\n")
 
         if doc.get("usage"):
@@ -328,33 +341,54 @@ def write_markdown(symbol_name, symbol_data_item, symbol_usages_list, resolved_o
             f.write("```c\n")
             f.write(doc["usage"])
             f.write("\n```\n\n")
-        
+
         for section_key in ["success", "failure", "info", "note", "warn"]:
             if doc.get(section_key):
-                f.write(f"## {section_key.capitalize()}\n\n{doc[section_key]}\n\n")
+                f.write(f"## {section_key.capitalize()}\n\n{
+                        doc[section_key]}\n\n")
 
         f.write("{{< accordion \"Usage examples (Cross-references)\" >}}\n")
         if symbol_usages_list:
             for usage in symbol_usages_list:
-                usage_file_path_obj = Path(usage['filepath']) # This is an absolute path
+                # This is an absolute path
+                usage_file_path_obj = Path(usage['filepath'])
                 try:
                     # markdown_file_dir is absolute. usage_file_path_obj is absolute.
-                    relative_usage_path_str = os.path.relpath(usage_file_path_obj, start=markdown_file_dir)
-                    link_path = Path(relative_usage_path_str).as_posix() # Ensure forward slashes
-                except ValueError: 
-                    link_path = Path(usage['filepath']).name 
-                    print(f"Warning: Could not create relative path for {usage['filepath']} from {markdown_file_dir}. Using filename.")
-                
+                    relative_usage_path_str = os.path.relpath(
+                        usage_file_path_obj, start=markdown_file_dir)
+                    # Ensure forward slashes
+                    link_path = Path(relative_usage_path_str).as_posix()
+                except ValueError:
+                    link_path = Path(usage['filepath']).name
+                    print(f"Warning: Could not create relative path for {
+                          usage['filepath']} from {markdown_file_dir}. Using filename.")
+
                 # Clean and indent code block
                 escaped_lines = usage['code'].splitlines()
-                cleaned_lines = ["    " + line.strip() for line in escaped_lines]
+                cleaned_lines = ["    " + line.strip()
+                                 for line in escaped_lines]
                 escaped_code = '\n'.join(cleaned_lines)
-                
-                f.write(f"* In [`{Path(usage['filepath']).name}:{usage['lineno']}`](https://github.com/brightprogrammer/MisraStdC/blob/master/{link_path}#L{usage['lineno']}):\n\n")
+
+                # Convert to a Posix path and remove leading parent references
+                p = PurePosixPath(link_path)
+
+                # Remove all leading '..' parts:
+                parts = [part for part in p.parts if part != ".."]
+                clean_path = "/".join(parts)
+
+                print(clean_path)  # Output: Include/Misra/Std/Utility/StrIter.h
+
+                # Then build your URL:
+                github_url = f"https://github.com/brightprogrammer/MisraStdC/blob/master/{
+                    clean_path}#L{usage['lineno']}"
+
+                f.write(
+                    f'* In [`{Path(usage["filepath"]).name}:{usage["lineno"]}`]({github_url}):\n\n')
                 f.write(f"```c\n{escaped_code}\n```\n\n")
         else:
             f.write("No external code usages found in the scanned files.\n")
         f.write("{{< /accordion >}}\n\n")
+
 
 def process_file(filepath):
     with open(filepath, "r") as f:
@@ -447,6 +481,66 @@ if __name__ == "__main__":
                     collect_symbols_and_content(abs_filepath_to_process)
     print(f"--- Pass 1 complete. Found {len(parsed_symbols_map)
                                         } unique symbols. Read {len(file_contents_map)} files. ---")
+
+    # --- Pass 2: Find usages for all collected symbols ---
+    print("\n--- Starting Pass 2: Finding symbol usages ---")
+    symbol_usages_xref_map = find_usages(parsed_symbols_map, file_contents_map)
+    usage_count = sum(len(usages)
+                      for usages in symbol_usages_xref_map.values())
+    print(
+        f"--- Pass 2 complete. Found {usage_count} total usage instances. ---")
+
+    # --- Pass 3: Generate Markdown for each symbol ---
+    print("\n--- Starting Pass 3: Generating Markdown files ---")
+    if not parsed_symbols_map:
+        print("No symbols found to document.")
+    else:
+        for symbol_name_key, symbol_data in parsed_symbols_map.items():
+            usages = symbol_usages_xref_map.get(symbol_name_key, [])
+            write_markdown(symbol_name_key, symbol_data,
+                           usages, resolved_output_dir)
+
+    print("\n--- Documentation generation complete. ---")
+
+    # --- Pass 2: Find usages for all collected symbols ---
+    print("\n--- Starting Pass 2: Finding symbol usages ---")
+    symbol_usages_xref_map = find_usages(parsed_symbols_map, file_contents_map)
+    usage_count = sum(len(usages)
+                      for usages in symbol_usages_xref_map.values())
+    print(
+        f"--- Pass 2 complete. Found {usage_count} total usage instances. ---")
+
+    # --- Pass 3: Generate Markdown for each symbol ---
+    print("\n--- Starting Pass 3: Generating Markdown files ---")
+    if not parsed_symbols_map:
+        print("No symbols found to document.")
+    else:
+        for symbol_name_key, symbol_data in parsed_symbols_map.items():
+            usages = symbol_usages_xref_map.get(symbol_name_key, [])
+            write_markdown(symbol_name_key, symbol_data,
+                           usages, resolved_output_dir)
+
+    print("\n--- Documentation generation complete. ---")
+
+    # --- Pass 2: Find usages for all collected symbols ---
+    print("\n--- Starting Pass 2: Finding symbol usages ---")
+    symbol_usages_xref_map = find_usages(parsed_symbols_map, file_contents_map)
+    usage_count = sum(len(usages)
+                      for usages in symbol_usages_xref_map.values())
+    print(
+        f"--- Pass 2 complete. Found {usage_count} total usage instances. ---")
+
+    # --- Pass 3: Generate Markdown for each symbol ---
+    print("\n--- Starting Pass 3: Generating Markdown files ---")
+    if not parsed_symbols_map:
+        print("No symbols found to document.")
+    else:
+        for symbol_name_key, symbol_data in parsed_symbols_map.items():
+            usages = symbol_usages_xref_map.get(symbol_name_key, [])
+            write_markdown(symbol_name_key, symbol_data,
+                           usages, resolved_output_dir)
+
+    print("\n--- Documentation generation complete. ---")
 
     # --- Pass 2: Find usages for all collected symbols ---
     print("\n--- Starting Pass 2: Finding symbol usages ---")
