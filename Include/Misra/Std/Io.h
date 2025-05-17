@@ -13,14 +13,41 @@
 // c
 #include <stdio.h>
 
+///
+/// Formatting configuration structure
+///
+/// TAGS: Formatting, Configuration
+///
 typedef struct FmtInfo {
     bool is_hex;
     bool is_caps;
     u8   width;
 } FmtInfo;
 
+///
+/// Type-specific write callback signature
+///
+/// TAGS: I/O, Callback, Generic
+///
 typedef void (*TypeSpecificWriter)(Str *o, FmtInfo *fmt_info, void *data);
+
+///
+/// Unified I/O operations container
+///
+/// TAGS: I/O, Generic, Container
+///
 typedef const char *(*TypeSpecificReader)(const char *i, void *data);
+
+///
+/// Create `TypeSpecificIO` for type T
+///
+/// T[in] : Type specifier
+/// d[in] : Data pointer
+///
+/// SUCCESS: Returns initialized `TypeSpecificIO ` structure
+/// FAILURE: Function cannot fail - compile-time operation
+///
+/// TAGS: I/O, Macro, TypeConversion, Generic
 typedef struct TypeSpecificIO {
     TypeSpecificWriter writer;
     TypeSpecificReader reader;
@@ -32,6 +59,15 @@ typedef struct TypeSpecificIO {
         .writer = (TypeSpecificWriter)_write_##T, .reader = (TypeSpecificReader)_read_##T, .data = (d)                 \
     }
 
+///
+/// Type-aware format specifier generator
+///
+/// x[in] : Value to format
+///
+/// SUCCESS: Returns `TypeSpecificIO` for supported types
+/// FAILURE: Returns unsupported type handler for unknown types
+///
+/// TAGS: Macro, TypeDispatch, Generic, I/O, Format
 #define FMT(x)                                                                                                         \
     _Generic(                                                                                                          \
         (x),                                                                                                           \
@@ -51,14 +87,14 @@ typedef struct TypeSpecificIO {
 
 ///
 /// Print out a formatted string with rust-style placeholders
-/// to given string "o"
+/// to given string `o`
 ///
 /// WARN: Directly passing literals like `FMT(1337)` is not supported, especially const char*
 ///       literals. For constants like integers, booleans, you can use `LVAL(r-value)`
 ///       to convert an l-value to an r-value an then use in `FMT` like `FMT(LVAL(false))`
 ///
-/// Takes in TypeSpecificIO structures as arguments. Use FMT(.)
-/// to wrap any supported-type variable to it's TypeSpecificIO object.
+/// Takes in `TypeSpecificIO` structures as arguments. Use `FMT(.)`
+/// to wrap any supported-type variable to it's `TypeSpecificIO` object.
 ///
 /// o[out]     : Contents appended to this string.
 /// fmtstr[in] : Format string with placeholders.
@@ -68,14 +104,16 @@ typedef struct TypeSpecificIO {
 /// SUCCESS : Placeholders in `fmtstr` are replaced by passed arguments.
 /// FAILURE : Does not return, displays log messages.
 ///
+/// TAGS: Formatting, I/O, String
+///
 void StrWriteFmtInternal(Str *o, const char *fmtstr, TypeSpecificIO *argv, size argc);
 
 ///
 /// Parse input string according to format string with rust-style placeholders,
-/// extracting values into provided TypeSpecificIO arguments.
+/// extracting values into provided `TypeSpecificIO` arguments.
 ///
-/// Takes in TypeSpecificIO structures as arguments. Use FMT(.) to wrap any
-/// supported-type variable to its TypeSpecificIO object.
+/// Takes in `TypeSpecificIO` structures as arguments. Use `FMT(.)` to wrap any
+/// supported-type variable to its `TypeSpecificIO` object.
 ///
 /// input[in]  : Input string to parse (null-terminated)
 /// fmtstr[in] : Format string with placeholders (null-terminated)
@@ -89,7 +127,9 @@ void StrWriteFmtInternal(Str *o, const char *fmtstr, TypeSpecificIO *argv, size 
 ///   const char *remaining = StrReadFmt(input, "Count: {}, Name: {}", FMT(count), FMT(name));
 ///
 /// SUCCESS : After reading through `input`, returns back const char* to start reading from (from inside `input`)
-/// FAILURE : Does not return, displays log error messages.
+/// FAILURE : Returns NULL if `fmtstr` does not match with input. In any other case of error, does not return.
+///
+/// TAGS: Formatting, I/O, Parsing
 ///
 const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecificIO *argv, size argc);
 
@@ -105,6 +145,9 @@ const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecif
 ///           A valid value will be stored in `FMT(.)` arg provided.
 /// FAILURE : Logs out error message and returns. If rollback is possible, then un-reads all the read data.
 ///           Restoring original state. Method can also abort if something really unexpected is encountered.
+///           Returns `NULL` if format string does not match with input `stream`.
+///
+/// TAGS: Formatting, I/O, File
 ///
 void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, size argc);
 
@@ -127,6 +170,8 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 /// FAILURE : Failure occurs within `StrWriteFmtInternal`. Refer to its documentation
 ///           for details on failure behavior (typically logs error messages and does not return).
 ///
+/// TAGS: Macro, Wrapper, Format, I/O
+///
 #define StrWriteFmt(out, fmtstr, ...)                                                                                  \
     do {                                                                                                               \
         TypeSpecificIO argv[] = {__VA_ARGS__};                                                                         \
@@ -147,6 +192,8 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///           of the `input` string after successful parsing.
 /// FAILURE : Failure occurs within `StrReadFmtInternal`. Refer to its documentation
 ///           for details on failure behavior (typically logs error messages and does not return).
+///
+/// TAGS: Macro, Wrapper, Format, Parsing, I/O
 ///
 #define StrReadFmt(input, fmtstr, ...)                                                                                 \
     do {                                                                                                               \
@@ -170,6 +217,8 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///           details on failure behavior (logs error message and returns, may rollback
 ///           read data, or abort in unexpected situations).
 ///
+/// TAGS: Macro, Wrapper, File, I/O
+///
 #define FReadFmt(file, fmtstr, ...)                                                                                    \
     do {                                                                                                               \
         TypeSpecificIO argv[] = {__VA_ARGS__};                                                                         \
@@ -191,6 +240,8 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 /// FAILURE : Failure might occur during memory allocation for the temporary string
 ///           or during the write operation to the stream (handled by `fputs`). Errors
 ///           from `StrWriteFmtInternal` (logging messages) might also occur.
+///
+/// TAGS: Macro, Wrapper, File, I/O
 ///
 #define FWriteFmt(stream, fmtstr, ...)                                                                                 \
     do {                                                                                                               \
@@ -217,6 +268,8 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///           or during the write operation to the stream (`fputs` or `fputc`). Errors
 ///           from `StrWriteFmtInternal` (logging messages) might also occur.
 ///
+/// TAGS: Macro, Wrapper, File, I/O
+///
 #define FWriteFmtLn(stream, fmtstr, ...)                                                                               \
     do {                                                                                                               \
         TypeSpecificIO argv[] = {__VA_ARGS__};                                                                         \
@@ -241,6 +294,8 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///           or during the write operation to `stdout` (handled by `fputs`). Errors
 ///           from `StrWriteFmtInternal` (logging messages) might also occur.
 ///
+/// TAGS: Macro, Convenience, Stdout, I/O
+///
 #define WriteFmt(fmtstr, ...) FWriteFmt(stdout, fmtstr, __VA_ARGS__)
 
 ///
@@ -256,6 +311,8 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 /// FAILURE : Failure might occur during memory allocation for the temporary string
 ///           or during the write operation to `stdout` (`fputs` or `fputc`). Errors
 ///           from `StrWriteFmtInternal` (logging messages) might also occur.
+///
+/// TAGS: Macro, Convenience, Stdout, I/O
 ///
 #define WriteFmtLn(fmtstr, ...) FWriteFmtLn(stdout, fmtstr, __VA_ARGS__)
 
@@ -273,6 +330,8 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 /// FAILURE : Failure occurs within `FReadFmtInternal`. Refer to its documentation for
 ///           details on failure behavior (logs error message and returns, may rollback
 ///           read data, or abort in unexpected situations).
+///
+/// TAGS: Macro, Convenience, Stdin, I/O
 ///
 #define ReadFmt(fmtstr, ...) FReadFmt(stdin, fmtstr, __VA_ARGS__)
 

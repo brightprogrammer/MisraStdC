@@ -303,8 +303,8 @@ def generate_markdown_file(symbol_name, symbol_data, usages, output_dir: Path):
         if "tags" in doc and doc["tags"]:
             tags_string = ", ".join(f'"{tag}"' for tag in doc["tags"])
 
-        markdown_file.write(f'tags: ["documentation", "generated"{
-                            ", " + tags_string if tags_string else ""}]\n')
+        markdown_file.write(
+            f'tags: [{tags_string if tags_string else ""}]\n')
         markdown_file.write("draft: false\n")
         markdown_file.write("---\n\n")
 
