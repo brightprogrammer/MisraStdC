@@ -350,12 +350,11 @@ def write_markdown(symbol_name, symbol_data_item, symbol_usages_list, resolved_o
                 cleaned_lines = ["    " + line.strip() for line in escaped_lines]
                 escaped_code = '\n'.join(cleaned_lines)
                 
-                f.write(f"* In [`{Path(usage['filepath']).name}:{usage['lineno']}`]({link_path}#L{usage['lineno']}):\n\n")
+                f.write(f"* In [`{Path(usage['filepath']).name}:{usage['lineno']}`](https://github.com/brightprogrammer/MisraStdC/blob/master/{link_path}#L{usage['lineno']}):\n\n")
                 f.write(f"```c\n{escaped_code}\n```\n\n")
         else:
             f.write("No external code usages found in the scanned files.\n")
         f.write("{{< /accordion >}}\n\n")
-
 
 def process_file(filepath):
     with open(filepath, "r") as f:
