@@ -43,7 +43,7 @@ jobs:
         run: npm install
 
       - name: Generate Documentation
-        run: python3 ../Scripts/DocuGen.py
+        run: python3 ../Scripts/DocuGen.py --root "../Source" --output "content/english/blog"
 
       - name: Build with Hugo
         env:

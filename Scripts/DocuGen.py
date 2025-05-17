@@ -1,11 +1,24 @@
 import os
 import re
+import argparse
 from pathlib import Path
 from datetime import datetime
 
-# Configure this path as needed
-ROOT_DIR = "Include"
-OUTPUT_DIR = "Docs/content/english/blog"
+# Default values
+DEFAULT_ROOT_DIR = "Include"
+DEFAULT_OUTPUT_DIR = "Docs/content/english/blog"
+
+# Parse command-line arguments
+parser = argparse.ArgumentParser(
+    description="Generate documentation from comments.")
+parser.add_argument("--root", default=DEFAULT_ROOT_DIR,
+                    help="Root directory to scan for source files.")
+parser.add_argument("--output", default=DEFAULT_OUTPUT_DIR,
+                    help="Directory to output generated documentation.")
+args = parser.parse_args()
+
+ROOT_DIR = args.root
+OUTPUT_DIR = args.output
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
