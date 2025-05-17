@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
     }
     ReadFmt("uname = {}", FMT(uname));
     if (uname) {
-        WriteFmt("is your name {}? I'm smart, I know!\n", FMT(uname));
+        WriteFmtLn("is your name {}? I'm smart, I know!", FMT(uname));
         FREE(uname);
     }
 

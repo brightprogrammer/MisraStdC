@@ -128,7 +128,18 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
         fputs(out.data, (stream));                                                                                     \
     } while (0)
 
-#define WriteFmt(fmtstr, ...) FWriteFmt(stdout, fmtstr, __VA_ARGS__)
+#define FWriteFmtLn(stream, fmtstr, ...)                                                                               \
+    do {                                                                                                               \
+        TypeSpecificIO argv[] = {__VA_ARGS__};                                                                         \
+        size           argc   = sizeof(argv) / sizeof(argv[0]);                                                        \
+        Str            out    = StrInit();                                                                             \
+        StrWriteFmtInternal(&out, (fmtstr), &argv[0], argc);                                                           \
+        fputs(out.data, (stream));                                                                                     \
+        fputc('\n', (stream));                                                                                         \
+    } while (0)
+
+#define WriteFmt(fmtstr, ...)   FWriteFmt(stdout, fmtstr, __VA_ARGS__)
+#define WriteFmtLn(fmtstr, ...) FWriteFmtLn(stdout, fmtstr, __VA_ARGS__)
 
 #define FReadFmt(file, fmtstr, ...)                                                                                    \
     do {                                                                                                               \

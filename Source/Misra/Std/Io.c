@@ -227,11 +227,13 @@ void FReadFmtInternal(FILE *file, const char *fmtstr, TypeSpecificIO *argv, size
         StrPushBack(&buffer, c);
     }
 
-    if (!StrReadFmtInternal(buffer.data, fmtstr, argv, argc)) {
-        if (can_rollback) {
-            fsetpos(file, &start_pos);
-        } else {
-            LOG_ERROR("Parse failed, and rollback not possible on non-seekable input");
+    if (buffer.length) {
+        if (!StrReadFmtInternal(buffer.data, fmtstr, argv, argc)) {
+            if (can_rollback) {
+                fsetpos(file, &start_pos);
+            } else {
+                LOG_ERROR("Parse failed, and rollback not possible on non-seekable input");
+            }
         }
     }
 
@@ -400,7 +402,11 @@ const char *_read_Str(const char *i, Str *s) {
 
     Str r = StrInit();
     while (*i && !isspace(*i)) {
-        if (*i == '"' || *i == '\'') {
+        if (*i == '\\' && (i[1] == '"' || i[1] == '\'')) {
+            StrPushBack(&r, i[0]);
+            StrPushBack(&r, i[1]);
+            i += 2;
+        } else if (*i == '"' || *i == '\'') {
             char e = *i;
             i++;
             while (*i && *i != e) {
@@ -545,7 +551,11 @@ const char *_read_Zstr(const char *i, const char **out) {
 
     const char *start = i;
     while (*i && !isspace(*i)) {
-        if (*i == '"' || *i == '\'') {
+        if (*i == '\\' && (i[1] == '"' || i[1] == '\'')) {
+            StrPushBack(&r, i[0]);
+            StrPushBack(&r, i[1]);
+            i += 1;
+        } else if (*i == '"' || *i == '\'') {
             char e = *i;
             i++;
             while (*i && *i != e) {
