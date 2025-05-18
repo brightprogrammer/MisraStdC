@@ -42,6 +42,21 @@ jobs:
       - name: Install Node.js dependencies
         run: npm install
 
+      - name: Check paths
+        run: |
+          ls -l ../Scripts/DocuGen.py
+          ls -lR ../Include
+
+      - name: Generate Documentation
+        run: |
+          echo "Current directory: $PWD"
+          echo "Files under ../Source:"
+          find ../Source -type f
+          python3 ../Scripts/DocuGen.py --root .. ../Bin --output content/english/blog
+
+      - name: Check paths after generatiom
+        run: ls -l content/english/blog
+
       - name: Build with Hugo
         env:
           HUGO_ENVIRONMENT: production

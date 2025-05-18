@@ -17,6 +17,9 @@
 /// and one object in their lifetime.
 ///
 /// The designed API does not allow modifications to the data Iter is iterating over
+///
+/// TAGS: Memory, Iterator, Safety
+///
 #define Iter(DTYPE)                                                                                                    \
     struct {                                                                                                           \
         DTYPE* data;                                                                                                   \
@@ -25,15 +28,51 @@
         size   alignment;                                                                                              \
     }
 
-#define IterInit()           {.data = NULL, .length = 0, .pos = 0, .alignment = 1}
+typedef Iter(u8) ByteIter;
+typedef Iter(u16) WordIter;
+typedef Iter(u32) DWordIter;
+typedef Iter(u64) QWordIter;
+
+///
+/// Initialize default `Iter` object
+///
+/// TAGS: Initialization, Memory
+///
+#define IterInit() {.data = NULL, .length = 0, .pos = 0, .alignment = 1}
+
+///
+/// Initialize `Iter` with custom alignment
+///
+/// aln[in] : Alignment requirement
+///
+/// TAGS: Initialization, Memory
+///
 #define IterInitAligned(aln) {.data = NULL, .length = 0, .pos = 0, .alignment = (aln)}
 
+///
+/// Initialize `Iter` from vector data
+///
+/// v[in] : Source vector
+///
+/// TAGS: Initialization, Container, Vector
+///
 #define IterInitFromVec(v) {.data = (v)->data, .length = (v)->length, .pos = 0, .alignment = (v)->alignment}
 
+///
+/// Initialize `Iter` from string
+///
+/// s[in] : Source string
+///
+/// TAGS: Initialization, Iter, String
+///
 #define IterInitFromStr(s) IterInitFromVec(s)
 
 ///
-/// Provides data type given Iter object is iterating over
+/// Get data type of `Iter` elements
+///
+/// mi[in] : `Iter` object
+///
+/// TAGS: Utility, TypeSafety, Iter
 ///
 #define ITER_DATA_TYPE(mi) __typeof__((mi)->data[0])
 
@@ -41,18 +80,24 @@
 /// Type specific NULL for given Iter object.
 /// Use this instead of NULL when comparing for nullity of Iter objects of same type.
 ///
+/// Null value for `Iter` objects
+///
+/// mi[in] : Type reference
+///
+/// TAGS: Utility, NullValue, Iter
+///
 #define NULL_ITER(mi) (__typeof__((mi)))0
 
 ///
 /// Type specific NULL for data type Iter object is iterating over.
 /// Use this instead of NULL when comparing for nullity of Iter objects of same type.
 ///
+/// Null value for `Iter` element pointers
+///
+/// mi[in] : Type reference
+///
+/// TAGS: Utility, NullValue, Iter
 #define NULL_ITER_DATA(mi) (ITER_DATA_TYPE(mi)*)0
-
-typedef Iter(u8) ByteIter;
-typedef Iter(u16) WordIter;
-typedef Iter(u32) DWordIter;
-typedef Iter(u64) QWordIter;
 
 ///
 /// Get total length of this Iter object
@@ -60,6 +105,9 @@ typedef Iter(u64) QWordIter;
 /// SUCCESS : If provided Iter object is not NULL_ITER(mi) then returns size in bytes of memory region
 ///           this Iter is iterating over.
 /// FAILURE : If provided Iter is NULL_ITER(mi) then returns 0
+///
+/// TAGS: Memory, Length, Iter
+///
 #define IterLength(mi) ((mi) ? ((mi)->length) : (LOG_ERROR("Iter: Invalid memory iter pointer"), 0))
 
 ///
@@ -68,6 +116,8 @@ typedef Iter(u64) QWordIter;
 /// SUCCESS : If provided Iter object is not NULL_ITER(mi) then remaining size left to read in
 ///           memory region is returned.
 /// FAILURE : If provided Iter is NULL_ITER(mi) then returns 0
+///
+/// TAGS: Memory, Iter, Length
 ///
 #define IterRemainingLength(mi)                                                                                        \
     ((mi) ? (((mi)->pos >= 0 && (mi)->pos < IterLength(mi)) ? (IterLength(mi) - (mi)->pos) : 0) :                      \
@@ -79,6 +129,9 @@ typedef Iter(u64) QWordIter;
 /// SUCCESS : If provided Iter object is not NULL_ITER(mi) then returns size in bytes of memory region
 ///           this Iter is iterating over.
 /// FAILURE : If provided Iter is NULL_ITER(mi) then returns 0
+///
+/// TAGS: Memory, Size, Iter
+///
 #define IterSize(mi) IterLength(mi) * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment)
 
 ///
@@ -87,6 +140,8 @@ typedef Iter(u64) QWordIter;
 /// SUCCESS : If provided Iter object is not NULL_ITER(mi) then remaining size left to read in
 ///           memory region is returned.
 /// FAILURE : If provided Iter is NULL_ITER(mi) then returns 0
+///
+/// TAGS: Memory, Iter, Size
 ///
 #define IterRemainingSize(mi) IterRemainingLength(mi) * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment)
 
@@ -97,6 +152,8 @@ typedef Iter(u64) QWordIter;
 /// SUCCESS : If provided Iter is not NULL_ITER_DATA(mi), and we have space left to read,
 ///           then return pointer to memory to start/resume reading from.
 /// FAILURE : NULL_ITER_DATA(mi) othewise
+///
+/// TAGS: Iter, Memory, Position
 ///
 #define IterPos(mi)                                                                                                    \
     (IterRemainingLength(mi) ?                                                                                         \
@@ -114,6 +171,8 @@ typedef Iter(u64) QWordIter;
 /// SUCCESS : Data is copied from current read position to provided `dst`, and `mi` is returned
 /// FAILURE : NULL_ITER(mi) returned
 ///
+/// TAGS: Memory, Iter, Read
+///
 #define IterRead(mi) (IterRemainingLength(mi) ? ((mi)->data[(mi)->pos++]) : (ITER_DATA_TYPE(mi)) {0})
 
 ///
@@ -122,13 +181,26 @@ typedef Iter(u64) QWordIter;
 /// SUCCESS : Data is copied from current read position to provided `dst`, and `mi` is returned
 /// FAILURE : NULL_ITER(mi) returned
 ///
+/// TAGS: Memory, Iter, Position
+///
 #define IterMove(mi, n)                                                                                                \
     do {                                                                                                               \
         if (((IterRemainingLength(mi) - (i64)(n) <= IterLength(mi)) && (IterRemainingLength(mi) - (i64)(n) >= 0)))     \
             (mi)->pos += (n);                                                                                          \
     } while (0)
 
+///
+/// Move to next element (wrapper for `IterMove`)
+///
+/// TAGS: Iter, Memory, Position
+///
 #define IterNext(mi) IterMove(mi, 1)
+
+///
+/// Move to previous element (wrapper for `IterMove`)
+///
+/// TAGS: Iter, Memory, Position
+///
 #define IterPrev(mi) IterMove(mi, -1)
 
 ///
@@ -143,6 +215,8 @@ typedef Iter(u64) QWordIter;
 ///
 /// SUCCESS : Data copied over to `dst` from current read position and `mi` is returned.
 /// FAILURE : NULL_ITER(mi) returned.
+///
+/// TAGS: Memory, Peek, Iter
 ///
 #define IterPeek(mi) (IterRemainingLength(mi) ? ((mi)->data[(mi)->pos]) : (ITER_DATA_TYPE(mi)) {0})
 

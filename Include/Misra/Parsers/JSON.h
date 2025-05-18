@@ -87,7 +87,8 @@
 /// "key" : null
 ///
 
-typedef struct {
+/// TAGS: Number, Union, DataType, JSON, NumericType
+typedef struct Number {
     bool is_float;
     union {
         f64 f;
@@ -95,210 +96,105 @@ typedef struct {
     };
 } Number;
 
-typedef StrIter (*JArrayItemReader)(StrIter si, void* data);
-typedef StrIter (*JObjectValueReader)(StrIter si, Str* key, void* data);
-
 ///
 /// Skip whitespace from current reading position.
 ///
 /// si[in] : Reading position to start looking for whitespace
 ///
-/// RETURN : `StrIter`
+/// SUCCESS : Returns `StrIter` advanced past all whitespace
+/// FAILURE : Returns original `StrIter` if already at end
+///
+/// TAGS: JSON, Whitespace, Parsing, Utility
 ///
 StrIter JSkipWhitespace(StrIter si);
 
 ///
-/// JReads a string from the given string iterator and stores the result in the provided `Str` object.
+/// Read a quoted string, handling escape sequences.
 ///
-/// This function parses a string enclosed in double quotes (`"`) and handles escape sequences such as `\\`, `\"`, `\n`, `\t`, etc.
-/// The parsed string is stored in the provided `Str` object, and the function will handle both normal characters and escape sequences.
-/// Note: Unicode escape sequences (e.g., `\uXXXX`) are not supported in this implementation.
+/// si[in]   : Current reading position in input string
+/// str[out] : Output string to store parsed result
 ///
-/// Parameters:
-///   si[in]    : The `StrIter` pointing to the current position in the input string, which will be parsed for a string value.
-///   str[out]  : A pointer to a `Str` object that will hold the parsed string. This object will be populated with the result of the parsing.
+/// NOTE: Unicode escape sequences like `\uXXXX` are not supported.
 ///
-/// Returns:
-///   A `StrIter` that points to the next position in the string after the parsed string. If the parsing fails, it will return the original `si` iterator.
+/// SUCCESS : Returns `StrIter` advanced past closing quote
+/// FAILURE : Returns original `StrIter` on error (invalid escape, missing quote, etc.)
 ///
-/// Errors:
-///   - Logs an error if the reading position is invalid or exhausted.
-///   - Logs an error if the `str` parameter is `NULL`.
-///   - Logs an error if there is an invalid escape sequence or an unsupported Unicode sequence.
-///   - Logs an error if the string cannot be parsed correctly (e.g., no closing quotation mark).
-///
-/// Example:
-///   StrIter si = some_str_iter;
-///   Str str;
-///   StrInit(&str);
-///   StrIter new_si = JReadString(si, &str);
-///   // Use the parsed string in `str` object
+/// TAGS: JSON, String, Parsing, EscapeSequences
 ///
 StrIter JReadString(StrIter si, Str* str);
 
 ///
-/// JReads a number from the given string iterator and stores the result in the provided `Number` object.
+/// Read a JSON number (int or float) from input string.
 ///
-/// This function handles parsing integers and floating-point numbers, including those with exponents. It supports both positive and negative values.
-/// It parses the number in a manner consistent with the JSON specification for numbers.
+/// si[in]   : Current reading position in input string
+/// num[out] : Output number object to hold parsed result
 ///
-/// Parameters:
-///   si[in]    : The `StrIter` pointing to the current position in the input string, which will be parsed for a number.
-///   num[out]  : A pointer to a `Number` object that will hold the parsed number (either an integer or floating-point value).
-///               This object will be populated with the result of the parsing, including the number's value and whether it is a floating-point number.
+/// SUCCESS : Returns `StrIter` advanced past number
+/// FAILURE : Returns original `StrIter` on error (invalid format, empty number, etc.)
 ///
-/// Returns:
-///   A `StrIter` that points to the next position in the string after the parsed number. If the parsing fails, it will return the original `si` iterator.
-///
-/// Errors:
-///   - Logs an error if the reading position is invalid or exhausted.
-///   - Logs an error if the `num` parameter is `NULL`.
-///   - Logs an error if there is an invalid number format (e.g., multiple decimal points, multiple exponent indicators, invalid characters).
-///   - Logs an error if the number is empty after parsing (e.g., no digits found).
-///   - Logs an error if the string cannot be converted to a valid number.
-///
-/// Example:
-///   StrIter si = some_str_iter;
-///   Number num;
-///   StrIter new_si = JReadNumber(si, &num);
-///   // Use the parsed number in `num` object
+/// TAGS: JSON, Number, Parsing, Numeric
 ///
 StrIter JReadNumber(StrIter si, Number* num);
 
 ///
-/// Strictly parses an integer from the string, failing if a floating-point value is encountered.
+/// Strictly read an integer from input string.
 ///
-/// This function will attempt to parse an integer from the current position of the string iterator. If a floating-point value is encountered, the parsing will fail, and no advancement will be made in the iterator. The parsed integer value will be stored in the `val` parameter.
+/// si[in]   : Current reading position in input string
+/// val[out] : Pointer to i64 to store parsed integer
 ///
-/// Parameters:
-///   si[in]   : The `StrIter` pointing to the current position in the input string where the integer should be parsed.
-///   val[out] : A pointer to an integer (`i64`) where the parsed value will be stored.
+/// SUCCESS : Returns `StrIter` advanced past parsed integer
+/// FAILURE : Returns original `StrIter` if float encountered or parsing fails
 ///
-/// Returns:
-///   A `StrIter` pointing to the next position after the parsed integer, or the original iterator if parsing fails.
-///
-/// Errors:
-///   - Logs an error if the reading position is invalid or exhausted.
-///   - Logs an error if the `val` pointer is `NULL`.
-///   - Logs an error if a floating-point value is encountered during parsing.
-///   - Logs an error if the integer parsing fails for any other reason.
-///
-/// Example:
-///   StrIter si = some_str_iter;
-///   i64 value;
-///   StrIter new_si = JReadInteger(si, &value);
-///   // Use the parsed integer in `value`
+/// TAGS: JSON, Integer, Parsing, Strict
 ///
 StrIter JReadInteger(StrIter si, i64* val);
 
 ///
-/// JReads a floating-point number from the string. If an integer is encountered, it will be converted to a float.
+/// Read a floating-point number from input string.
 ///
-/// This function parses a floating-point number from the current position of the string iterator. If an integer is encountered instead, it will be converted into a floating-point value. The parsed value is stored in the `val` parameter.
+/// si[in]   : Current reading position in input string
+/// val[out] : Pointer to f64 to store parsed value
 ///
-/// Parameters:
-///   si[in]   : The `StrIter` pointing to the current position in the input string where the floating-point number should be parsed.
-///   val[out] : A pointer to a float (`f64`) where the parsed value will be stored.
+/// SUCCESS : Returns `StrIter` advanced past parsed float
+/// FAILURE : Returns original `StrIter` on error
 ///
-/// Returns:
-///   A `StrIter` pointing to the next position after the parsed floating-point number, or the original iterator if parsing fails.
-///
-/// Errors:
-///   - Logs an error if the reading position is invalid or exhausted.
-///   - Logs an error if the `val` pointer is `NULL`.
-///   - Logs an error if the floating-point parsing fails for any other reason.
-///
-/// Example:
-///   StrIter si = some_str_iter;
-///   f64 value;
-///   StrIter new_si = JReadFloat(si, &value);
-///   // Use the parsed floating-point number in `value`
+/// TAGS: JSON, Float, Parsing
 ///
 StrIter JReadFloat(StrIter si, f64* val);
 
 ///
-/// JRead a boolean value ("true" or "false") from the string.
+/// Read a boolean value ("true" or "false") from input string.
 ///
-/// This function parses a boolean value from the current position of the string iterator. If the value is "true",
-/// the parsed value will be `true`. If the value is "false", it will be parsed as `false`. If anything else is encountered,
-/// the parsing fails, and the iterator is returned without advancement. The parsed boolean value is stored in the `b` parameter.
+/// si[in]   : Current reading position in input string
+/// b[out]   : Pointer to bool to store parsed result
 ///
-/// Parameters:
-///   si[in]   : The `StrIter` pointing to the current position in the input string where the boolean value should be parsed.
-///   b[out]   : A pointer to a boolean (`bool`) where the parsed value will be stored.
+/// SUCCESS : Returns `StrIter` advanced past parsed boolean
+/// FAILURE : Returns original `StrIter` if invalid or unrecognized value
 ///
-/// Returns:
-///   A `StrIter` pointing to the next position after the parsed boolean value, or the original iterator if parsing fails.
-///
-/// Errors:
-///   - Logs an error if the reading position is invalid or exhausted.
-///   - Logs an error if the `b` pointer is `NULL`.
-///   - Logs an error if the expected "true" or "false" value is not found.
-///   - Logs an error if the string length is insufficient to parse a boolean value.
-///
-/// Example:
-///   StrIter si = some_str_iter;
-///   bool value;
-///   StrIter new_si = JReadBool(si, &value);
-///   // Use the parsed boolean value in `value`
+/// TAGS: JSON, Boolean, Parsing
 ///
 StrIter JReadBool(StrIter si, bool* b);
 
 ///
-/// JRead a null value from the string.
+/// Read a "null" value from input string.
 ///
-/// This function parses a "null" value from the current position of the string iterator. If the value is "null",
-/// the parsed value will be set to `true` in the `is_null` parameter. If anything else is encountered, the parsing fails,
-/// and the iterator is returned without advancement. The result will indicate whether a "null" value was found.
+/// si[in]       : Current reading position in input string
+/// is_null[out] : Pointer to bool set to true if "null" found
 ///
-/// Parameters:
-///   si[in]       : The `StrIter` pointing to the current position in the input string where the null value should be parsed.
-///   is_null[out] : A pointer to a boolean (`bool`) that will be set to `true` if a "null" value is parsed, `false` otherwise.
-///
-/// Returns:
-///   A `StrIter` pointing to the next position after the parsed "null" value, or the original iterator if parsing fails.
-///
-/// Errors:
-///   - Logs an error if the reading position is invalid or exhausted.
-///   - Logs an error if the `is_null` pointer is `NULL`.
-///   - Logs an error if the expected "null" value is not found.
-///   - Logs an error if the string length is insufficient to parse a "null" value.
-///
-/// Example:
-///   StrIter si = some_str_iter;
-///   bool is_null_value;
-///   StrIter new_si = CheckNull(si, &is_null_value);
-///   // Use the result in `is_null_value`
+/// SUCCESS : Returns `StrIter` advanced past "null"
+/// FAILURE : Returns original `StrIter` if "null" not found
 ///
 StrIter JReadNull(StrIter si, bool* is_null);
 
 ///
-/// Skip the value at the current position in the string.
+/// Skip the current JSON value at reading position.
 ///
-/// This function is used to skip over the value at the current reading position in the string. It is primarily
-/// used when the `Reader` in `JReadObject` doesn't read a value, allowing for selective skipping of key-value
-/// pairs. It supports skipping different JSON value types like `true`, `false`, `null`, strings, numbers,
-/// objects, and arrays.
+/// si[in] : Current position in string iterator to skip value from
 ///
-/// si[in] : `StrIter`. Iterator to the current position in the string, where the value is to be skipped.
+/// SUCCESS : Returns updated `StrIter` after value is skipped
+/// FAILURE : Returns same `StrIter` on error (e.g. invalid type)
 ///
-/// SUCCESS : Returns the updated string iterator (`StrIter`) after skipping the value.
-/// FAILURE : Returns the same value as the provided `si` if an error occurs while skipping the value.
-///           The error will be logged with the relevant details.
-///
-/// Error Cases:
-///   - Invalid reading position.
-///   - Exhausted string iterator range.
-///   - Failed to parse a boolean (`true`, `false`), null, string, number, object, or array.
-///   - Invalid JSON value encountered.
-///
-/// Supported Value Types:
-///   - Boolean values: "true", "false".
-///   - Null value: "null".
-///   - String values: Enclosed in double quotes (`"`).
-///   - Numbers: Integer or floating-point numbers.
-///   - Objects: Enclosed in curly braces (`{}`).
-///   - Arrays: Enclosed in square brackets (`[]`).
+/// TAGS: JSON, Parsing, Utility
 ///
 StrIter JSkipValue(StrIter si);
 
@@ -314,6 +210,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : `str` contains the read string
 /// FAILURE : `si` updated to failure state on parse error
+///
+/// TAGS: JSON, Macro, Reader, String
 ///
 #define JR_STR(si, str)                                                                                                \
     do {                                                                                                               \
@@ -334,6 +232,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : `str` contains the value if key matched
 /// FAILURE : No-op if key does not match
+///
+/// TAGS: JSON, Macro, Reader, String, KeyValue
 ///
 #define JR_STR_KV(si, k, str)                                                                                          \
     do {                                                                                                               \
@@ -356,6 +256,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : `i` contains the parsed integer
 /// FAILURE : `si` updated to failure state on parse error
 ///
+/// TAGS: JSON, Macro, Reader, Integer
+///
 #define JR_INT(si, i)                                                                                                  \
     do {                                                                                                               \
         i64 my_int = 0;                                                                                                \
@@ -375,6 +277,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : `i` contains value if key matched
 /// FAILURE : No-op if key does not match
+///
+/// TAGS: JSON, Macro, Reader, Integer, KeyValue
 ///
 #define JR_INT_KV(si, k, i)                                                                                            \
     do {                                                                                                               \
@@ -397,6 +301,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : `f` contains the parsed float
 /// FAILURE : `si` updated to failure state on parse error
 ///
+/// TAGS: JSON, Macro, Reader, Float
+///
 #define JR_FLT(si, f)                                                                                                  \
     do {                                                                                                               \
         f64 my_flt = 0;                                                                                                \
@@ -416,6 +322,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : `f` contains value if key matched
 /// FAILURE : No-op if key does not match
+///
+/// TAGS: JSON, Macro, Reader, Float, KeyValue
 ///
 #define JR_FLT_KV(si, k, f)                                                                                            \
     do {                                                                                                               \
@@ -438,6 +346,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : `b` contains the parsed boolean
 /// FAILURE : `si` updated to failure state on parse error
 ///
+/// TAGS: JSON, Macro, Reader, Boolean
+///
 #define JR_BOOL(si, b)                                                                                                 \
     do {                                                                                                               \
         bool my_b = 0;                                                                                                 \
@@ -457,6 +367,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : `b` contains value if key matched
 /// FAILURE : No-op if key does not match
+///
+/// TAGS: JSON, Macro, Reader, Boolean, KeyValue
 ///
 #define JR_BOOL_KV(si, k, b)                                                                                           \
     do {                                                                                                               \
@@ -488,6 +400,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : All values processed or skipped gracefully
 /// FAILURE : Logs error and restores `si` on structural or read failure
+///
+/// TAGS: JSON, Macro, Reader, Array
 ///
 #define JR_ARR(si, reader)                                                                                             \
     do {                                                                                                               \
@@ -578,6 +492,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : Entire object read or skipped successfully
 /// FAILURE : Logs error and restores `si` on structural or read failure
+///
+/// TAGS: JSON, Macro, Reader, Object
 ///
 #define JR_OBJ(si, reader)                                                                                             \
     do {                                                                                                               \
@@ -699,6 +615,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : Object parsed if key matched
 /// FAILURE : No-op if key does not match
 ///
+/// TAGS: JSON, Macro, Reader, Object, KeyValue
+///
 #define JR_OBJ_KV(si, k, reader)                                                                                       \
     do {                                                                                                               \
         if (!StrCmpCstr(&key, (k))) {                                                                                  \
@@ -721,6 +639,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : Array parsed if key matched
 /// FAILURE : No-op if key does not match
+///
+/// TAGS: JSON, Macro, Reader, Array, KeyValue
 ///
 #define JR_ARR_KV(si, k, reader)                                                                                       \
     do {                                                                                                               \
@@ -745,6 +665,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : Appends a valid JSON object to `json`
 /// FAILURE : Does not return on failure (relies on internal string operations)
 ///
+/// TAGS: JSON, Macro, Writer, Object, Structure
+///
 #define JW_OBJ(j, writer)                                                                                              \
     do {                                                                                                               \
         bool ___is_first___ = true;                                                                                    \
@@ -768,6 +690,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : Appends a nested JSON object under the given key
 /// FAILURE : Does not return on failure
+///
+/// TAGS: JSON, Macro, Writer, Object, KeyValue, Nested
 ///
 #define JW_OBJ_KV(j, k, writer)                                                                                        \
     do {                                                                                                               \
@@ -796,6 +720,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : Appends a JSON array to `json`
 /// FAILURE : Does not return on failure
+///
+/// TAGS: JSON, Macro, Writer, Array, Structure
 ///
 #define JW_ARR(j, arr, item, writer)                                                                                   \
     do {                                                                                                               \
@@ -830,6 +756,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : Appends a key-value array pair to `json`
 /// FAILURE : Does not return on failure
 ///
+/// TAGS: JSON, Macro, Writer, Array, KeyValue
+///
 #define JW_ARR_KV(j, k, arr, item, writer)                                                                             \
     do {                                                                                                               \
         if (___is_first___) {                                                                                          \
@@ -853,6 +781,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : Appends a numeric value to `json`
 /// FAILURE : Does not return on failure
 ///
+/// TAGS: JSON, Macro, Writer, Integer, Numeric
+///
 #define JW_INT(j, i)                                                                                                   \
     do {                                                                                                               \
         i64 my_int = (i);                                                                                              \
@@ -871,6 +801,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : Appends a key-value integer pair
 /// FAILURE : Does not return on failure
+///
+/// TAGS: JSON, Macro, Writer, Integer, KeyValue
 ///
 #define JW_INT_KV(j, k, i)                                                                                             \
     do {                                                                                                               \
@@ -895,6 +827,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : Appends a float value to `json`
 /// FAILURE : Does not return on failure
 ///
+/// TAGS: JSON, Macro, Writer, Float, Numeric
+///
 #define JW_FLT(j, f)                                                                                                   \
     do {                                                                                                               \
         f64 my_flt = (f);                                                                                              \
@@ -913,6 +847,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : Appends a key-value float pair
 /// FAILURE : Does not return on failure
+///
+/// TAGS: JSON, Macro, Writer, Float, KeyValue
 ///
 #define JW_FLT_KV(j, k, f)                                                                                             \
     do {                                                                                                               \
@@ -937,6 +873,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : Appends a quoted string to `json`
 /// FAILURE : Does not return on failure
 ///
+/// TAGS: JSON, Macro, Writer, String
+///
 #define JW_STR(j, s)                                                                                                   \
     do {                                                                                                               \
         StrAppendf(&(j), "\"%s\"", (s).data);                                                                          \
@@ -954,6 +892,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : Appends a key-value string pair
 /// FAILURE : Does not return on failure
+///
+/// TAGS: JSON, Macro, Writer, String, KeyValue
 ///
 #define JW_STR_KV(j, k, s)                                                                                             \
     do {                                                                                                               \
@@ -978,6 +918,8 @@ StrIter JSkipValue(StrIter si);
 /// SUCCESS : Appends "true" or "false" as a string
 /// FAILURE : Does not return on failure
 ///
+/// TAGS: JSON, Macro, Writer, Boolean
+///
 #define JW_BOOL(j, b)                                                                                                  \
     do {                                                                                                               \
         StrAppendf(&(j), "\"%b\"", b);                                                                                 \
@@ -995,6 +937,8 @@ StrIter JSkipValue(StrIter si);
 ///
 /// SUCCESS : Appends a key-value boolean pair
 /// FAILURE : Does not return on failure
+///
+/// TAGS: JSON, Macro, Writer, Boolean, KeyValue
 ///
 #define JW_BOOL_KV(j, k, b)                                                                                            \
     do {                                                                                                               \

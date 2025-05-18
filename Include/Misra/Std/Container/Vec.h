@@ -22,20 +22,27 @@ typedef struct {
     size              alignment;
 } GenericVec;
 
-///
-/// Cast any vector to a generic vector
-///
 #define GENERIC_VEC(x) ((GenericVec *)(void *)(x))
 
 ///
 /// Typesafe vector definition.
 /// This is much like C++ template std::vector<T>
 ///
+/// NOTE: Using this directly like `Vec(T)` won't always work,
+///       because each time this is used it defines a new type, and two
+///       `Vec(T)`s are different from each other.
+///
+///       To deal with this, you must typedef vector for a specific type.
+///       Throughout the code, any time that is in plural form is generally
+///       a vector. Like `Strs` is a typedef of `Vec(Str)`.
+///
 /// USAGE:
 ///   Vec(int) integers; // Vector of integers
 ///   Vec(CustomStruct) my_data; // Vector of CustomStruct
 ///   Vec(float) real_numbers; // Vector of float values
 ///   Vec(const char*) names; Vector of c-style null-terminated strings
+///
+/// TAGS: Vec, Generic, Length, Size, Aligned, Pointer
 ///
 #define Vec(T)                                                                                                         \
     struct {                                                                                                           \
@@ -55,6 +62,8 @@ typedef struct {
 ///
 /// USAGE:
 ///   Vec(HttpRequest) requests = VecInit();
+///
+/// TAGS: Init, Vec, Length, Size, Aligned
 ///
 #define VecInit()                                                                                                      \
     {.length      = 0,                                                                                                 \
@@ -77,6 +86,8 @@ typedef struct {
 ///         // use vector
 ///     }
 ///
+/// TAGS: Init, Vec, Length, Size, Aligned
+///
 #define VecInit_T(v)                                                                                                   \
     ((__typeof__(*v)) {.length      = 0,                                                                               \
                        .capacity    = 0,                                                                               \
@@ -89,11 +100,13 @@ typedef struct {
 /// Initialize vector. Default alignment is 1
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
 ///
-/// ci[in]    : Copy init method.
-/// cd[in]    : Copy deinit method.
+/// ci[in]   : Copy init method.
+/// cd[in]   : Copy deinit method.
 ///
 /// USAGE:
 ///   Vec(HttpRequest) requests = VecInitWithDeepCopy(RequestClone, RequestDeinit);
+///
+/// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
 #define VecInitWithDeepCopy(ci, cd)                                                                                    \
     {.length      = 0,                                                                                                 \
@@ -121,6 +134,8 @@ typedef struct {
 ///         // use vector
 ///     }
 ///
+/// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
+///
 #define VecInitWithDeepCopy_T(v, ci, cd)                                                                               \
     ((__typeof__(*v)) {.length      = 0,                                                                               \
                        .capacity    = 0,                                                                               \
@@ -142,6 +157,8 @@ typedef struct {
 ///
 /// USAGE:
 ///   Vec(Node) nodes = VecInitAligned(16);
+///
+/// TAGS: Init, Vec, Length, Size, Aligned
 ///
 #define VecInitAligned(aln)                                                                                            \
     {.length      = 0,                                                                                                 \
@@ -173,6 +190,8 @@ typedef struct {
 ///         // use vector
 ///     }
 ///
+/// TAGS: Init, Vec, Length, Size, Aligned
+///
 #define VecInitAligned_T(v, aln)                                                                                       \
     ((__typeof__(*v)) {.length      = 0,                                                                               \
                        .capacity    = 0,                                                                               \
@@ -189,14 +208,16 @@ typedef struct {
 /// avoiding UB in some cases. It's recommended to use aligned vector when dealing with
 /// structs containing unions.
 ///
-/// ci[in]    : Copy init method.
-/// cd[in]    : Copy deinit method.
+/// ci[in]   : Copy init method.
+/// cd[in]   : Copy deinit method.
 /// aln[in]   : Vector element alignment. All items will be stored by respecting the
 ///             alignment boundary.
 ///
 /// USAGE:
 ///   typedef Vec(Node) NodeVec;
 ///   NodeVec nodes = VecInitAligned(NodeInitCopy, NodeDeinit, 48);
+///
+/// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
 #define VecInitAlignedWithDeepCopy(ci, cd, aln)                                                                        \
     {.length      = 0,                                                                                                 \
@@ -215,8 +236,8 @@ typedef struct {
 /// structs containing unions.
 ///
 /// v[in]   : Pointer to type of a vector to be initalized.
-/// ci[in]  : Copy init method.
-/// cd[in]  : Copy deinit method.
+/// ci[in]   : Copy init method.
+/// cd[in]   : Copy deinit method.
 /// aln[in] : Vector element alignment. All items will be stored by respecting the
 ///             alignment boundary.
 ///
@@ -233,6 +254,8 @@ typedef struct {
 ///         Data i1= VecAt(data_vec, 9); // get 10th item (index = 9)
 ///         Data i2 = VecLast(data_vec); // get last item (index = whatever)
 ///     }
+///
+/// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
 #define VecInitAlignedWithDeepCopy_T(v, ci, cd, aln)                                                                   \
     ((__typeof__(*v)) {.length      = 0,                                                                               \
@@ -259,14 +282,16 @@ typedef struct {
 /// USAGE:
 ///   Vec(i32) ids;
 ///   VecInitStack(&ids, 64, {
-///         // scope where vector memory is available
-///         MakeClientRequestToFillVector(&ids);
-///         VecForeach(&ids, id, {
-///             // some relevant logic
-///         });
+///       // scope where vector memory is available
+///       MakeClientRequestToFillVector(&ids);
+///       VecForeach(&ids, id, {
+///           // some relevant logic
+///       });
 ///
-///         // Do not call deinit after use!!
+///       // Do not call deinit after use!!
 ///   });
+///
+/// TAGS: Init, Vec, Stack, Length, Size, Array
 ///
 #define VecInitStack(v, ne, scoped_body)                                                                               \
     do {                                                                                                               \
@@ -302,19 +327,21 @@ typedef struct {
 ///   Vec(Node*) nodes;
 ///
 ///   // initialize vector with stack memory, aligned with 124 byte boundary
-///   VecInitAlignedStack(&nodes, 24, 124, NULL, NULL, {
-///         // scope where vector memory is available
-///         FindAndFillAllNodes(&nodes, ... /* some other relevant data */);
+///   VecInitAlignedStack(&nodes, 24, 124, {
+///       // scope where vector memory is available
+///       FindAndFillAllNodes(&nodes, ... /* some other relevant data */);
 ///
-///         UseNodes(&nodes);
+///       UseNodes(&nodes);
 ///
-///         VecForeach(&nodes, node, {
-///             DestroyNode(node);
-///         });
+///       VecForeach(&nodes, node, {
+///           DestroyNode(node);
+///       });
 ///
-///         // vector deinit will be called for you after this automatically
-///         // so any data held by the vector in this scope is invalid outside
+///       // vector deinit will be called for you after this automatically
+///       // so any data held by the vector in this scope is invalid outside
 ///   });
+///
+/// TAGS: Init, Vec, Stack, Aligned, Length, Size, Array
 ///
 #define VecInitAlignedStack(v, ne, aln, scoped_body)                                                                   \
     do {                                                                                                               \
@@ -1080,10 +1107,86 @@ typedef struct {
         }                                                                                                              \
     } while (0)
 
-#define VecForeach(v, var, body)           VecForeachIdx((v), (var), (____iter___), {body})
-#define VecForeachReverse(v, var, body)    VecForeachReverseIdx((v), (var), (____iter___), {body})
-#define VecForeachPtr(v, var, body)        VecForeachPtrIdx((v), (var), (____iter___), {body})
+///
+/// Iterate over each element `var` of the given vector `v`.
+/// This is a convenience macro that iterates forward using an internally managed index.
+/// The variable `var` is declared and defined by this macro.
+///
+/// v[in,out] : Vector to iterate over.
+/// var[in]   : Name of the variable to be used which will contain the value of the
+///             current element during iteration. The type of `var` will be the
+///             data type of the vector elements (obtained via `VEC_DATA_TYPE(v)`).
+/// body      : The block of code to be executed for each element of the vector.
+///
+/// SUCCESS : The `body` is executed for each element of the vector `v` from the
+///           beginning to the end.
+/// FAILURE : If the vector `v` is NULL or its length is zero, the loop body will not
+///           be executed. Any failures within the `VecForeachIdx` macro (like invalid
+///           index access) will result in a fatal log message and program termination.
+///
+#define VecForeach(v, var, body) VecForeachIdx((v), (var), (____iter___), {body})
+
+///
+/// Iterate over each element `var` of the given vector `v` in reverse order.
+/// This is a convenience macro that iterates backward using an internally managed index.
+/// The variable `var` is declared and defined by this macro.
+///
+/// v[in,out] : Vector to iterate over.
+/// var[in]   : Name of the variable to be used which will contain the value of the
+///             current element during iteration. The type of `var` will be the
+///             data type of the vector elements (obtained via `VEC_DATA_TYPE(v)`).
+/// body      : The block of code to be executed for each element of the vector.
+///
+/// SUCCESS : The `body` is executed for each element of the vector `v` from the
+///           end to the beginning.
+/// FAILURE : If the vector `v` is NULL or its length is zero, the loop body will not
+///           be executed. Any failures within the `VecForeachReverseIdx` macro (like
+///           invalid index access) will result in a fatal log message and program termination.
+///
+#define VecForeachReverse(v, var, body) VecForeachReverseIdx((v), (var), (____iter___), {body})
+
+///
+/// Iterate over each element `var` (as a pointer) of the given vector `v`.
+/// This is a convenience macro that iterates forward using an internally managed index
+/// and provides a pointer to each element. The variable `var` is declared and defined
+/// by this macro as a pointer to the vector's data type.
+///
+/// v[in,out] : Vector to iterate over.
+/// var[in]   : Name of the pointer variable to be used which will point to the
+///             current element during iteration. The type of `var` will be a pointer
+///             to the data type of the vector elements (obtained via
+///             `VEC_DATA_TYPE(v) *`).
+/// body      : The block of code to be executed for each element of the vector.
+///
+/// SUCCESS : The `body` is executed for each element of the vector `v` (with `var`
+///           pointing to the current element) from the beginning to the end.
+/// FAILURE : If the vector `v` is NULL or its length is zero, the loop body will not
+///           be executed. Any failures within the `VecForeachPtrIdx` macro (like invalid
+///           index access) will result in a fatal log message and program termination.
+///
+#define VecForeachPtr(v, var, body) VecForeachPtrIdx((v), (var), (____iter___), {body})
+
+///
+/// Iterate over each element `var` (as a pointer) of the given vector `v` in reverse order.
+/// This is a convenience macro that iterates backward using an internally managed index
+/// and provides a pointer to each element. The variable `var` is declared and defined
+/// by this macro as a pointer to the vector's data type.
+///
+/// v[in,out] : Vector to iterate over.
+/// var[in]   : Name of the pointer variable to be used which will point to the
+///             current element during iteration. The type of `var` will be a pointer
+///             to the data type of the vector elements (obtained via
+///             `VEC_DATA_TYPE(v) *`).
+/// body      : The block of code to be executed for each element of the vector.
+///
+/// SUCCESS : The `body` is executed for each element of the vector `v` (with `var`
+///           pointing to the current element) from the end to the beginning.
+/// FAILURE : If the vector `v` is NULL or its length is zero, the loop body will not
+///           be executed. Any failures within the `VecForeachPtrReverseIdx` macro (like
+///           invalid index access) will result in a fatal log message and program termination.
+///
 #define VecForeachPtrReverse(v, var, body) VecForeachPtrReverseIdx((v), (var), (____iter___), {body})
+
 
 void init_vec(
     GenericVec       *vec,
