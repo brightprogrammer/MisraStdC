@@ -1,7 +1,7 @@
 #include <Misra/Parsers/JSON.h>
 #include <Misra/Std.h>
 #include <Misra/Std/Io.h>
-#include <Misra/Tz2pes.h>
+#include <Misra/Types.h>
 
 ///
 /// Arbitrary length integer implementation.
@@ -51,7 +51,7 @@ typedef struct {
 /// FAILURE : Only fails when `z` is invalid, in which case it's UB,
 ///           or an abort in best case.
 ///
-#define IntLength(z) ((size)((z)->length)) 
+#define IntLength(z) ((size)((z)->length))
 
 // NOTE: above is just a trick to make the expression non assignable
 
@@ -185,9 +185,9 @@ void IntResize(Int* z, size num_bits) {
     // or if we're initializing a `ZERO` state `Int` object.
     if (IntLength(z) < num_bits || (!z->data && (IntLength(z) == num_bits))) {
         // store sign bit bc we might have to shift it lateron
-        bool signed = false;
+        bool sign = false;
         if (z->data) {
-            signed = IntSign(z);
+            sign = IntSign(z);
         }
 
         // resize
@@ -200,19 +200,19 @@ void IntResize(Int* z, size num_bits) {
             z->data = p;
 
             // shift sign bit
-            if (signed) {
+            if (sign) {
                 // unset old sign bit
-                size q = (IntLength(z) + 1) / 8;
-                size r = (IntLength(z) + 1) % 8;
-    		z->data[q] &= ~(1 << r);
+                size q      = (IntLength(z) + 1) / 8;
+                size r      = (IntLength(z) + 1) % 8;
+                z->data[q] &= ~(1 << r);
 
                 // set new sign bit
-                q = (num_bits + 1) / 8;
-                r = (num_bits + 1) % 8;
-    		z->data[q] |= (1 << r);
+                q           = (num_bits + 1) / 8;
+                r           = (num_bits + 1) % 8;
+                z->data[q] |= (1 << r);
             }
 
-            IntLength(z) = num_bits;
+            z->length = num_bits;
         }
     }
 }
@@ -281,10 +281,10 @@ bool IntIsZero(Int* z) {
         return true;
     }
 
-    size bitlen   = IntLength(z);           // user‐visible length in bits
-    size bytelen  = IntSize(z);             // ceil((bitlen + 1) / 8)
-    size full_bytes = bitlen / 8;           // number of whole‐byte magnitude
-    unsigned rem_bits  = bitlen % 8;          // leftover magnitude bits in last byte
+    size     bitlen     = IntLength(z); // user‐visible length in bits
+    size     bytelen    = IntSize(z);   // ceil((bitlen + 1) / 8)
+    size     full_bytes = bitlen / 8;   // number of whole‐byte magnitude
+    unsigned rem_bits   = bitlen % 8;   // leftover magnitude bits in last byte
 
     // Check all full bytes [0 … full_bytes-1]
     for (size i = 0; i < full_bytes; i++) {
@@ -295,7 +295,7 @@ bool IntIsZero(Int* z) {
 
     // If there are any remaining magnitude bits in the next byte, check those
     if (rem_bits) {
-	// mask to exclude sign bit
+        // mask to exclude sign bit
         u8 mask = (1 << rem_bits) - 1;
         if ((z->data[full_bytes] & mask) != 0) {
             return false;
@@ -352,7 +352,7 @@ int main(int argc, char** argv) {
     Int z1 = IntInit(1024);
     Int z2 = IntInit(1024);
 
-    r = IntAdd(z1, z2);
+    Int r = IntAdd(&z1, &z2);
 
     LogDeinit();
     return 0;
