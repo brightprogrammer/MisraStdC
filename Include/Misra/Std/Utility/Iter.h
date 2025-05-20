@@ -9,6 +9,7 @@
 
 #include <Misra/Types.h>
 
+///
 /// Memory iterators are there to allow reading regions of memory by remembering current
 /// read position and the size limit. With proper checking we can guarantee that we can never
 /// overflow or underflow when reading a memory region

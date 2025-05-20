@@ -42,6 +42,15 @@ typedef struct {
 ///   Vec(float) real_numbers; // Vector of float values
 ///   Vec(const char*) names; Vector of c-style null-terminated strings
 ///
+/// FIELDS:
+/// - length      : Number of items currently in vector (always <= capacity)
+/// - capacity    : Max number of items this vector can hold before doing a resize.
+/// - copy_init   : If provided then is used to create owned copies of items into vector.
+/// - copy_deinit : If provided then is used to deinit data held by vector.
+///                 Caution when dealing with shared ownership.
+/// - data        : Data held by vector. Don't access by direct indexing. Use `VecAt(..)`
+/// - alignment   : Alignment requirement for each item in vector.
+///
 /// TAGS: Vec, Generic, Length, Size, Aligned, Pointer
 ///
 #define Vec(T)                                                                                                         \

@@ -1,21 +1,11 @@
-
 import os
 import sys
 import re
 
-# Make sure we're using correct env before tring to import clang
-sys.path.append("C:\\Python313\\Lib\\site-packages")
-
 from pathlib import Path, PurePosixPath
 from datetime import datetime
-from clang.cindex import Index, CursorKind, Config
+from clang.cindex import Index, CursorKind, Config, TypeKind
 
-# CONFIGURATION
-PROJECT_ROOT = Path(".").resolve()
-OUTPUT_DIR = Path("Docs/content/english/blog").resolve()
-LIBCLANG_PATH = "C:/clang/bin/libclang.dll"  # Adjust to your system
-
-Config.set_library_file(LIBCLANG_PATH)
 
 def parse_comment(raw):
     """
@@ -74,66 +64,109 @@ def parse_comment(raw):
     for key in sections:
         if key == "fields":
             continue
-        sections[key] = "\n".join(sections[key]).strip()
+        sections[key] = "".join(sections[key]).strip()
 
-    sections["brief"] = "\n".join(sections["brief"]).strip()
+    sections["brief"] = "".join(sections["brief"]).strip()
     return sections
 
 
-def extract_types(cursor):
+def extract_types(cursor, generic_types):
     """
-    Recursively walk AST and extract typedef'd structs/unions/enums with their documentation.
-
-    Returns list of dicts:
-    {
-        "name": type_name,
-        "doc": { ... parsed comment sections ... },
-        "location": source file path (str),
-    }
+    Extracts documentation for typedefs, inheriting from generic types.
     """
+    generic_type_docs = {}
     results = []
 
-    def get_comment_for_node(node):
-        raw_comment = node.raw_comment
-        if raw_comment:
-            return raw_comment
-        # Fallback: try typedef parent comment if exists
-        parent = node.semantic_parent
-        if parent and parent.kind == CursorKind.TYPEDEF_DECL:
-            return parent.raw_comment
+    def get_underlying_type_decl(typedef_cursor):
+        """Resolve the underlying struct/union/enum declaration for a typedef"""
+        underlying_type = typedef_cursor.underlying_typedef_type
+        if underlying_type.kind == TypeKind.ELABORATED:
+            return underlying_type.get_declaration()
         return None
 
-    def visit(node):
-        # Process only typedef'd struct/union/enum
-        if node.kind in (CursorKind.STRUCT_DECL, CursorKind.UNION_DECL, CursorKind.ENUM_DECL):
-            # Determine the typedef alias name
-            typedef_name = None
-            parent = node.semantic_parent
-            if parent and parent.kind == CursorKind.TYPEDEF_DECL:
-                typedef_name = parent.spelling
+    def collect_members(decl_cursor):
+        """Collect fields or enum members from a struct/union/enum declaration"""
+        members = []
+        if decl_cursor.kind in (CursorKind.STRUCT_DECL, CursorKind.UNION_DECL):
+            for child in decl_cursor.get_children():
+                if child.kind == CursorKind.FIELD_DECL:
+                    members.append({
+                        "name": child.spelling,
+                        "type": child.type.spelling
+                    })
+        elif decl_cursor.kind == CursorKind.ENUM_DECL:
+            for child in decl_cursor.get_children():
+                if child.kind == CursorKind.ENUM_CONSTANT_DECL:
+                    members.append({
+                        "name": child.spelling,
+                        "value": child.enum_value
+                    })
+        return members
 
-            if not typedef_name:
-                # Try children for typedef decl (rare)
-                for c in node.get_children():
-                    if c.kind == CursorKind.TYPEDEF_DECL:
-                        typedef_name = c.spelling
+    def visit(node):
+        # Handle generic type documentation from #define
+        if node.kind == CursorKind.MACRO_DEFINITION:
+            for generic_type_name in generic_types:
+                if node.spelling == generic_type_name:
+                    # Get the raw text of the macro definition and the preceding comment
+                    extent = node.extent
+                    file_path = Path(extent.start.file.name)
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
+                        start_line = extent.start.line - 1
+                        comment_lines = []
+                        for i in range(start_line - 1, -1, -1):
+                            line = lines[i].strip()
+                            if line.startswith("///"):
+                                comment_lines.insert(0, line)
+                            else:
+                                break
+                        if comment_lines:
+                            raw_comment = "\n".join(comment_lines)
+                            generic_type_docs[generic_type_name] = parse_comment(
+                                raw_comment)
+                    break  # Found a matching generic type, no need to check others
+            else:
+                print(f"")
+
+        # Handle typedef declarations
+        elif node.kind == CursorKind.TYPEDEF_DECL:
+            typedef_name = node.spelling
+            decl = get_underlying_type_decl(node)
+            inherited_doc = {}
+
+            if decl and decl.kind in (
+                CursorKind.STRUCT_DECL,
+                CursorKind.UNION_DECL,
+                CursorKind.ENUM_DECL
+            ):
+                # Check if the underlying type's name looks like a generic type instantiation
+                for generic_type_name in generic_types:
+                    if decl.type.spelling.startswith(f"{generic_type_name}("):
+                        if generic_type_name in generic_type_docs:
+                            inherited_doc = generic_type_docs[generic_type_name]
                         break
 
-            # Final type name to document
-            type_name = typedef_name or node.spelling
+                # Get documentation from typedef itself
+                raw_comment = node.raw_comment
+                doc_sections = parse_comment(
+                    raw_comment) if raw_comment else {}
 
-            if type_name:
-                raw_comment = get_comment_for_node(node)
-                doc_sections = parse_comment(raw_comment) if raw_comment else {}
+                # Merge documentation (typedef-specific overrides generic)
+                merged_doc = inherited_doc.copy()
+                merged_doc.update(doc_sections)
 
                 location = node.location.file.name if node.location.file else "unknown"
+
                 results.append({
-                    "name": type_name,
-                    "doc": doc_sections,
+                    "name": typedef_name,
+                    "doc": merged_doc,
                     "location": location,
+                    "kind": decl.kind,
+                    "members": collect_members(decl)
                 })
 
-        # recurse children
+        # Recurse for children
         for c in node.get_children():
             visit(c)
 
@@ -148,9 +181,9 @@ def generate_markdown(type_entry, output_dir: Path):
     # Sanitize symbol name for filename
     symbol_name = type_entry["name"]
     safe_symbol = re.sub(r'[\\/*?:"<>|() \t]', '_', symbol_name)
-    
+
     doc = type_entry["doc"]
-    output_path = output_dir / f"generated-doc-{safe_symbol}.md"  # Use safe symbol here
+    output_path = output_dir / f"generated-doc-{safe_symbol}.md"
     markdown_dir = output_path.parent
 
     print(f"Writing: {output_path}")
@@ -167,23 +200,54 @@ def generate_markdown(type_entry, output_dir: Path):
 
         md.write(f"# <center>`{symbol_name}`</center>\n\n")
 
+        md.write("## Description\n\n")
         if doc.get("brief"):
-            md.write("## Description\n\n")
             md.write(doc["brief"] + "\n\n")
+        else:
+            md.write("No description provided\n\n")
 
-        md.write("<!--more-->")
+        md.write("<!--more-->\n")
 
         for notice_type, hugo_notice in [("info", "info"), ("note", "note"), ("warn", "warning")]:
             if doc.get(notice_type):
-                md.write(f'\n{{{{< notice "{hugo_notice}" >}}}}\n\n{doc[notice_type]}\n\n{{{{< /notice >}}}}\n')
+                md.write(f'\n{{{{< notice "{hugo_notice}" >}}}}\n\n{
+                         doc[notice_type]}\n\n{{{{< /notice >}}}}\n')
 
-        if doc.get("fields"):
-            md.write("## Fields\n\n")
-            md.write("| Name | Description |\n")
-            md.write("|------|-------------|\n")
-            for f in doc["fields"]:
-                md.write(f"| `{f['name']}` | {f['desc']} |\n")
-            md.write("\n\n")
+        # Handle members (fields/enum members)
+        kind = type_entry.get("kind")
+        members = type_entry.get("members", [])
+
+        if kind in (CursorKind.STRUCT_DECL, CursorKind.UNION_DECL):
+            md.write("\n## Fields\n\n")
+            if members:
+                field_descs = {f["name"]: f["desc"]
+                               for f in doc.get("fields", [])}
+                md.write("| Name | Type | Description |\n")
+                md.write("|------|------|-------------|\n")
+                for member in members:
+                    name = member.get("name", "")
+                    type_ = member.get("type", "")
+                    desc = field_descs.get(name, "")
+                    md.write(f"| `{name}` | `{type_}` | {
+                             desc if desc else "No description provided"} |\n")
+                md.write("\n")
+            else:
+                md.write("No fields.\n\n")
+        elif kind == CursorKind.ENUM_DECL:
+            md.write("\n## Enum Members\n\n")
+            if members:
+                enum_descs = {f["name"]: f["desc"]
+                              for f in doc.get("fields", [])}
+                md.write("| Name | Value | Description |\n")
+                md.write("|------|-------|-------------|\n")
+                for member in members:
+                    name = member.get("name", "")
+                    value = member.get("value", "")
+                    desc = enum_descs.get(name, "")
+                    md.write(f"| `{name}` | `{value}` | {desc} |\n")
+                md.write("\n")
+            else:
+                md.write("No members.\n\n")
 
         if doc.get("usage"):
             md.write("## Usage example (from documentation)\n\n")
@@ -202,13 +266,25 @@ def generate_markdown(type_entry, output_dir: Path):
 
 
 def main():
-    if len(sys.argv) < 3:
-        print("Usage: python3 generate_type_docs.py <root-directory> <output-directory>")
+    if len(sys.argv) < 4:
+        print("Usage: python3 generate_type_docs.py <root-directory> <output-directory> <generic-types-file>")
+        print("       <generic-types-file> should be a file containing a list of generic type macro names, one per line.")
         sys.exit(1)
 
     root_dir = Path(sys.argv[1])
     output_dir = Path(sys.argv[2])
+    generic_types_file = Path(sys.argv[3])
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with open(generic_types_file, 'r', encoding='utf-8') as f:
+            generic_type_names = [line.strip() for line in f if line.strip()]
+    except FileNotFoundError:
+        print(f"Error: Generic types file not found at {generic_types_file}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error reading generic types file: {e}")
+        sys.exit(1)
 
     # Collect all C and header files recursively
     c_files = []
@@ -227,10 +303,9 @@ def main():
         except Exception as e:
             print(f"Error parsing {file_path}: {e}")
             continue
-        types = extract_types(tu.cursor)
+        types = extract_types(tu.cursor, generic_type_names)
         for t in types:
             type_name = t['name']
-            # Overwrite existing entries; adjust logic if needed
             type_dict[type_name] = t
 
     print(f"Found {len(type_dict)} documented types.")
