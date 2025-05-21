@@ -1,7 +1,7 @@
-#include <Misra/Parsers/JSON.h>
 #include <Misra/Std.h>
-#include <Misra/Std/Io.h>
-#include <Misra/Types.h>
+
+// libc
+#include <stdlib.h>
 
 ///
 /// Arbitrary length integer implementation.

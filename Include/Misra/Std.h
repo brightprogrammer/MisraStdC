@@ -15,6 +15,7 @@
 
 #include <Misra/Std/Container.h>
 #include <Misra/Std/File.h>
+#include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Utility.h>
 

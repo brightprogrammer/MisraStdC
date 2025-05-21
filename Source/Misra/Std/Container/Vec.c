@@ -10,6 +10,9 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Sys.h>
 
+// libc
+#include <stdlib.h>
+
 // NOTE: Because Str derives of Vec, the vector implementation is designed to always have actual capacity
 // one more than length and set the space just after length to 0 (memset to 0)
 // actual capacity may differ from stored capacity value
@@ -118,7 +121,7 @@ void reserve_vec(GenericVec *vec, size item_size, size n) {
         char *ptr = realloc(vec->data, (n + 1) * vec_aligned_size(vec, item_size));
         if (!ptr) {
             Str syserr;
-            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+            StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
                 LOG_FATAL("realloc() failed : %s.", SysStrError(errno, &syserr)->data);
             });
         }
@@ -168,7 +171,7 @@ void reduce_space_vec(GenericVec *vec, size item_size) {
         ptr = realloc(vec->data, (vec->length + 1) * vec_aligned_size(vec, item_size));
         if (!ptr) {
             Str syserr;
-            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+            StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
                 LOG_FATAL("realloc() failed : %s.", SysStrError(errno, &syserr)->data);
             });
         }
@@ -391,49 +394,6 @@ void reverse_vec(GenericVec *vec, size item_size) {
         swap_vec(vec, item_size, i, vec->length - (i + 1));
     }
 }
-
-
-void push_arr_vec(GenericVec *vec, size item_size, char *arr, size count, size pos) {
-    if (!arr && !count)
-        return;
-
-    if (!vec || !arr || !count || !item_size) {
-        LOG_FATAL("invalid arguments.");
-    }
-
-    if (pos > vec->length) {
-        LOG_FATAL("vector index out of range.");
-    }
-
-    reserve_pow2_vec(vec, item_size, vec->length + count);
-
-    size aligned_size = vec_aligned_size(vec, item_size);
-
-    if (pos < vec->length) {
-        memmove(
-            vec_ptr_at(vec, pos + count, item_size),
-            vec_ptr_at(vec, pos, item_size),
-            (vec->length - pos) * aligned_size
-        );
-        memset(vec_ptr_at(vec, pos, item_size), 0, count * aligned_size);
-    }
-
-    if (vec->copy_init) {
-        char *data = vec_ptr_at(vec, pos, item_size);
-        for (size i = 0; i < count; ++i) {
-            vec->copy_init(data, arr);
-            arr  += aligned_size;
-            data += aligned_size;
-        }
-    } else {
-        memcpy(vec_ptr_at(vec, pos, item_size), arr, count * aligned_size);
-    }
-
-    vec->length += count;
-
-    memset(vec_ptr_at(vec, vec->length, item_size), 0, aligned_size);
-}
-
 
 void resize_vec(GenericVec *vec, size item_size, size new_size) {
     if (!vec || !item_size) {

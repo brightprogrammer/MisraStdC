@@ -79,6 +79,7 @@ static inline char* strndup(const char* s, size n) {
 /// Initialize a Str object using another one
 ///
 #define StrInitFromStr(str) StrInitFromCstr((str)->data, (str)->length)
+#define StrDup(str)         StrInitFromStr(str)
 
 ///
 /// Init the string using the given format string and arguments.
