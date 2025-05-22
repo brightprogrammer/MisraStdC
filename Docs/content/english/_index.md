@@ -2,7 +2,7 @@
 # Banner
 banner:
   title: "MisraStdC Documentation"
-  content: "A personal standard C library to make my life easier (and yours as well). The goal is to provide cross-platform, cross-compiler, type-safe and generic solutions. Search for any symbol to get started."
+  content: "A personal standard C library to make my life easier (and yours as well). The goal is to provide cross-platform, cross-compiler, type-safe and generic solutions. Search for any symbol to get started. This library is in NO WAY related to the MISRA-C standard."
   image: "/images/banner.png"
   # button:
   #   enable: true
