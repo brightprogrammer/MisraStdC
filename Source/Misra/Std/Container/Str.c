@@ -16,10 +16,7 @@
 static Str* string_va_printf(Str* str, const char* fmt, va_list args);
 
 Str* StrPrintf(Str* str, const char* fmt, ...) {
-    if (!str || !fmt) {
-        LOG_ERROR("invalid arguments");
-        return NULL;
-    }
+    ValidateStr(str);
 
     StrClear(str);
 
@@ -33,10 +30,7 @@ Str* StrPrintf(Str* str, const char* fmt, ...) {
 
 
 Str* StrAppendf(Str* str, const char* fmt, ...) {
-    if (!str || !fmt) {
-        LOG_ERROR("invalid arguments");
-        return NULL;
-    }
+    ValidateStr(str);
 
     va_list args;
     va_start(args, fmt);
@@ -48,10 +42,7 @@ Str* StrAppendf(Str* str, const char* fmt, ...) {
 
 
 Str* string_va_printf(Str* str, const char* fmt, va_list args) {
-    if (!str || !fmt) {
-        LOG_ERROR("invalid arguments");
-        return NULL;
-    }
+    ValidateStr(str);
 
     va_list args_copy;
     va_copy(args_copy, args);
@@ -79,10 +70,7 @@ Str* string_va_printf(Str* str, const char* fmt, va_list args) {
 
 
 bool StrInitCopy(Str* dst, const Str* src) {
-    if (!dst || !src) {
-        LOG_ERROR("invalid arguments.");
-        return false;
-    }
+    ValidateStr(src);
 
     memset(dst, 0, sizeof(Str));
     dst->copy_init   = src->copy_init;
@@ -90,19 +78,19 @@ bool StrInitCopy(Str* dst, const Str* src) {
     dst->alignment   = src->alignment;
 
     VecMerge(dst, src);
+    ValidateStr(dst);
+
     return true;
 }
 
 
 void StrDeinit(Str* copy) {
+    ValidateStr(copy);
     VecDeinit(copy);
 }
 
 StrIters StrSplitToIters(Str* s, const char* key) {
-    if (!s || !key) {
-        LOG_ERROR("Invalid arguments.");
-        return (StrIters) {0};
-    }
+    ValidateStr(s);
 
     StrIters sv     = VecInit();
     size     keylen = strlen(key);
@@ -127,10 +115,7 @@ StrIters StrSplitToIters(Str* s, const char* key) {
 }
 
 Strs StrSplit(Str* s, const char* key) {
-    if (!s || !key) {
-        LOG_ERROR("Invalid arguments.");
-        return (Strs) {0};
-    }
+    ValidateStr(s);
 
     Strs sv     = VecInitWithDeepCopy(NULL, StrDeinit);
     size keylen = strlen(key);
@@ -160,10 +145,7 @@ Strs StrSplit(Str* s, const char* key) {
 //                 = -1 means from left
 //                 = 1 means from right
 Str strip_str(Str* s, const char* chars_to_strip, int split_direction) {
-    if (!s) {
-        LOG_ERROR("Invalid string.");
-        return (Str) {0};
-    }
+    ValidateStr(s);
 
     const char* strip_chars = chars_to_strip ? chars_to_strip : " \t\n\r\v\f";
     const char* start       = s->data;
@@ -197,32 +179,39 @@ static inline bool ends_with(const char* data, size data_len, const char* suffix
 
 
 bool StrStartsWithZstr(const Str* s, const char* prefix) {
+    ValidateStr(s);
     return starts_with(s->data, s->length, prefix, strlen(prefix));
 }
 
 bool StrEndsWithZstr(const Str* s, const char* suffix) {
+    ValidateStr(s);
     return ends_with(s->data, s->length, suffix, strlen(suffix));
 }
 
 bool StrStartsWithCstr(const Str* s, const char* prefix, size prefix_len) {
+    ValidateStr(s);
     return starts_with(s->data, s->length, prefix, prefix_len);
 }
 
 bool StrEndsWithCstr(const Str* s, const char* suffix, size suffix_len) {
+    ValidateStr(s);
     return ends_with(s->data, s->length, suffix, suffix_len);
 }
 
 bool StrStartsWith(const Str* s, const Str* prefix) {
+    ValidateStr(s);
     return starts_with(s->data, s->length, prefix->data, prefix->length);
 }
 
 bool StrEndsWith(const Str* s, const Str* suffix) {
+    ValidateStr(s);
     return ends_with(s->data, s->length, suffix->data, suffix->length);
 }
 
 // Helper: replace in-place all `match` → `replacement` up to `count`
 static void
     str_replace(Str* s, const char* match, size match_len, const char* replacement, size replacement_len, size count) {
+    ValidateStr(s);
     size i        = 0;
     size replaced = 0;
 
@@ -239,6 +228,7 @@ static void
 }
 
 void StrReplaceZstr(Str* s, const char* match, const char* replacement, size count) {
+    ValidateStr(s);
     str_replace(s, match, strlen(match), replacement, strlen(replacement), count);
 }
 
@@ -250,9 +240,11 @@ void StrReplaceCstr(
     size        replacement_len,
     size        count
 ) {
+    ValidateStr(s);
     str_replace(s, match, match_len, replacement, replacement_len, count);
 }
 
 void StrReplace(Str* s, const Str* match, const Str* replacement, size count) {
+    ValidateStr(s);
     str_replace(s, match->data, match->length, replacement->data, replacement->length, count);
 }

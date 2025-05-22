@@ -18,9 +18,7 @@
 // actual capacity may differ from stored capacity value
 
 static inline size vec_aligned_size(GenericVec *v, size item_size) {
-    if (!v || !item_size) {
-        LOG_FATAL("Invalid arguments. Aborting...");
-    }
+    ValidateVec(v);
 
     if (!v->alignment) {
         LOG_FATAL("Invalid alignment. Did you initialize before use? Aborting...");
@@ -30,17 +28,13 @@ static inline size vec_aligned_size(GenericVec *v, size item_size) {
 }
 
 static inline size vec_aligned_offset_at(GenericVec *v, size idx, size item_size) {
-    if (!v || !item_size) {
-        LOG_FATAL("Invalid arguments. Aborting...");
-    }
+    ValidateVec(v);
 
     return idx * vec_aligned_size(v, item_size);
 }
 
 static inline char *vec_ptr_at(GenericVec *v, size idx, size item_size) {
-    if (!v || !item_size) {
-        LOG_FATAL("Invalid arguments");
-    }
+    ValidateVec(v);
 
     return v->data + vec_aligned_offset_at(v, idx, item_size);
 }
@@ -54,23 +48,19 @@ void init_vec_on_stack(
     GenericCopyDeinit copy_deinit,
     size              alignment
 ) {
-    if (!vec || !item_size || !alignment) {
-        LOG_FATAL("invalid arguments.");
-    }
-
     vec->copy_init   = copy_init;
     vec->copy_deinit = copy_deinit;
     vec->alignment   = alignment;
     vec->data        = stack_mem;
     vec->capacity    = capacity;
     vec->length      = 0;
+
+    ValidateVec(vec);
 }
 
 
 void deinit_vec(GenericVec *vec, size item_size) {
-    if (!vec || !item_size) {
-        LOG_FATAL("invalid arguments");
-    }
+    ValidateVec(vec);
 
     if (vec->data) {
         if (vec->copy_deinit) {
@@ -89,9 +79,7 @@ void deinit_vec(GenericVec *vec, size item_size) {
 
 
 void clear_vec(GenericVec *vec, size item_size) {
-    if (!vec || !item_size) {
-        LOG_FATAL("invalid arguments.");
-    }
+    ValidateVec(vec);
 
     if (vec->data) {
         if (vec->copy_deinit) {
@@ -111,9 +99,7 @@ void clear_vec(GenericVec *vec, size item_size) {
 
 // Reserve new space if n > capacity
 void reserve_vec(GenericVec *vec, size item_size, size n) {
-    if (!vec || !item_size) {
-        LOG_FATAL("invalid arguments.");
-    }
+    ValidateVec(vec);
 
     if (n > vec->capacity) {
         // make sure actual capacity is always at-least one greater than given capacity
@@ -137,9 +123,7 @@ void reserve_vec(GenericVec *vec, size item_size, size n) {
 
 
 void reserve_pow2_vec(GenericVec *vec, size item_size, size n) {
-    if (!vec || !item_size) {
-        LOG_FATAL("invalid arguments.");
-    }
+    ValidateVec(vec);
 
     size n2 = 1;
     if (n == 0) {
@@ -155,9 +139,7 @@ void reserve_pow2_vec(GenericVec *vec, size item_size, size n) {
 
 
 void reduce_space_vec(GenericVec *vec, size item_size) {
-    if (!vec || !item_size) {
-        LOG_FATAL("invalid arguments.");
-    }
+    ValidateVec(vec);
 
     if (vec->length == 0) {
         free(vec->data);
@@ -182,9 +164,7 @@ void reduce_space_vec(GenericVec *vec, size item_size) {
 
 
 void insert_range_into_vec(GenericVec *vec, char *item_data, size item_size, size idx, size count) {
-    if (!vec || !item_size || !item_data) {
-        LOG_FATAL("invalid arguments.");
-    }
+    ValidateVec(vec);
 
     if (idx > vec->length) {
         LOG_FATAL("vector index out of bounds, insertion at index greater than length");
@@ -218,9 +198,7 @@ void insert_range_into_vec(GenericVec *vec, char *item_data, size item_size, siz
 }
 
 void insert_range_fast_into_vec(GenericVec *vec, char *item_data, size item_size, size idx, size count) {
-    if (!vec || !item_size || !item_data) {
-        LOG_FATAL("invalid arguments.");
-    }
+    ValidateVec(vec);
 
     if (idx > vec->length) {
         LOG_FATAL("vector index out of bounds, insertion at index greater than length");
@@ -256,9 +234,7 @@ void insert_range_fast_into_vec(GenericVec *vec, char *item_data, size item_size
 
 
 void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size start, size count) {
-    if (!vec || !item_size) {
-        LOG_FATAL("invalid arguments.");
-    }
+    ValidateVec(vec);
 
     if (start + count > vec->length) {
         LOG_FATAL("vector range out of bounds.");
@@ -299,9 +275,7 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size 
 
 
 void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size start, size count) {
-    if (!vec || !item_size) {
-        LOG_FATAL("invalid arguments.");
-    }
+    ValidateVec(vec);
 
     if (start + count > vec->length) {
         LOG_FATAL("vector range out of bounds.");
@@ -341,9 +315,7 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
 
 
 void qsort_vec(GenericVec *vec, size item_size, GenericCompare comp) {
-    if (!vec || !item_size) {
-        LOG_FATAL("invalid arguments.");
-    }
+    ValidateVec(vec);
 
     if (vec_aligned_size(vec, item_size) != item_size) {
         LOG_FATAL(
@@ -358,9 +330,7 @@ void qsort_vec(GenericVec *vec, size item_size, GenericCompare comp) {
 
 
 void swap_vec(GenericVec *vec, size item_size, size idx1, size idx2) {
-    if (!vec || !item_size) {
-        LOG_FATAL("invalid arguments.");
-    }
+    ValidateVec(vec);
 
     if (idx1 >= vec->length || idx2 >= vec->length) {
         LOG_FATAL("vector index out of bounds.");
@@ -385,9 +355,7 @@ void swap_vec(GenericVec *vec, size item_size, size idx1, size idx2) {
 
 
 void reverse_vec(GenericVec *vec, size item_size) {
-    if (!vec || !item_size) {
-        LOG_FATAL("invalid arguments.");
-    }
+    ValidateVec(vec);
 
     size i = vec->length / 2;
     while (i--) {
@@ -396,9 +364,7 @@ void reverse_vec(GenericVec *vec, size item_size) {
 }
 
 void resize_vec(GenericVec *vec, size item_size, size new_size) {
-    if (!vec || !item_size) {
-        LOG_FATAL("invalid arguments.");
-    }
+    ValidateVec(vec);
 
     if (new_size <= vec->capacity) {
         // if we're shrinking then we need to remove some part of the data
