@@ -214,7 +214,7 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : Returns `str` the string itself on success.
 /// FAILURE : Returns `NULL` otherwise.
 ///
-#define StrPushBack(str, chr) VecPushBack((str), (chr))
+#define StrPushBack(str, chr) VecPushBackR((str), (chr))
 
 ///
 /// Pop char from string back.

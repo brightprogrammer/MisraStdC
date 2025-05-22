@@ -7,6 +7,7 @@
 #include <Misra/Std/Log.h>
 
 #include "Type.h"
+#include "Private.h"
 
 ///
 /// Get total length of this Iter object
@@ -17,8 +18,7 @@
 ///
 /// TAGS: Memory, Length, Iter
 ///
-#define IterLength(mi) ((mi) ? ((mi)->length) : (LOG_ERROR("Iter: Invalid memory iter pointer"), 0))
-
+#define IterLength(mi) ((mi)->length)
 ///
 /// Get remaining length left to read this memory iterator.
 ///
@@ -28,11 +28,7 @@
 ///
 /// TAGS: Memory, Iter, Length
 ///
-#define IterRemainingLength(mi)                                                                                        \
-    ((mi) ? (((mi)->dir == 1)  ? (((mi)->pos >= 0 && (mi)->pos < IterLength(mi)) ? (IterLength(mi) - (mi)->pos) : 0) : \
-             ((mi)->dir == -1) ? (((mi)->pos >= 0 && (mi)->pos < IterLength(mi)) ? ((mi)->pos + 1) : 0) :              \
-                                 LOG_FATAL("Iter: Invalid direction") :                                                                                  \
-            (LOG_FATAL("Iter: Invalid memory pointer"), 0))
+#define IterRemainingLength(mi) remaining_length_iter(GENERIC_ITER(mi), sizeof(ITER_DATA_TYPE(mi)))
 
 ///
 /// Get total size of this Iter object

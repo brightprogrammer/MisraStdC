@@ -34,7 +34,7 @@ void LogInit(bool redirect) {
         strftime(time_buffer, sizeof(time_buffer), "%Y-%m-%d-%H-%M-%S", &time_info);
 
         // Get path to temp directory
-        Str log_dir;
+        Str log_dir = StrInit();
         if (!SysGetEnv("TMP", &log_dir) && !SysGetEnv("TEMP", &log_dir) && !SysGetEnv("TMPDIR", &log_dir) &&
             !SysGetEnv("TEMPDIR", &log_dir) && !SysGetEnv("PWD", &log_dir)) {
             Str syserr;
@@ -51,7 +51,7 @@ void LogInit(bool redirect) {
         }
 
         // generate log file name
-        Str file_name;
+        Str file_name = StrInit();
         StrPrintf(&file_name, "%s/misra-%lu-%s", log_dir.data, SysGetCurrentProcessId(), time_buffer);
         fprintf(stderr, "storing logs in %s\n", file_name.data);
 

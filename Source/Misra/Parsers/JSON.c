@@ -1,6 +1,9 @@
 #include <Misra/Parsers/JSON.h>
 
-static StrIter JReadObject(StrIter si, StrIter (*Reader)(StrIter si, Str* key, void* data), void* data) {
+// libc
+#include <stdlib.h>
+
+static StrIter JSkipObject(StrIter si) {
     if (!StrIterRemainingLength(&si)) {
         return si;
     }
@@ -18,14 +21,6 @@ static StrIter JReadObject(StrIter si, StrIter (*Reader)(StrIter si, Str* key, v
 
     StrIter read_si;
     bool    expect_comma = false;
-
-    if (!Reader) {
-        LOG_INFO(
-            "User didn't provide any value reader combinator to read from "
-            "object KV. Values will "
-            "be skipped."
-        );
-    }
 
     // while not at the end of object.
     while (StrIterPeek(&si) && StrIterPeek(&si) != '}') {
@@ -61,27 +56,18 @@ static StrIter JReadObject(StrIter si, StrIter (*Reader)(StrIter si, Str* key, v
         StrIterNext(&si);
         si = JSkipWhitespace(si);
 
-        // try reading using user provided reader
-        if (Reader) {
-            read_si = Reader(si, &key, data);
-        } else {
-            read_si = si;
-        }
+        // skip values within object
+        read_si = JSkipValue(si);
 
-        // if no advancement in read position
+        // if still no advancement in read position
         if (read_si.pos == si.pos) {
-            // skip the value
-            read_si = JSkipValue(si);
-
-            // if still no advancement in read position
-            if (read_si.pos == si.pos) {
-                LOG_ERROR("Failed to parse value. Invalid JSON.");
-                StrDeinit(&key);
-                return saved_si;
-            }
-
-            LOG_INFO("User skipped reading of '%s' field in JSON object.", key.data);
+            LOG_ERROR("Failed to parse value. Invalid JSON.");
+            StrDeinit(&key);
+            return saved_si;
         }
+
+        LOG_INFO("User skipped reading of '%s' field in JSON object.", key.data);
+
         StrDeinit(&key);
         si = read_si;
         si = JSkipWhitespace(si);
@@ -99,7 +85,7 @@ static StrIter JReadObject(StrIter si, StrIter (*Reader)(StrIter si, Str* key, v
     return si;
 }
 
-static StrIter JReadArray(StrIter si, StrIter (*Reader)(StrIter si, void* data), void* data) {
+static StrIter JSkipArray(StrIter si) {
     if (!StrIterRemainingLength(&si)) {
         return si;
     }
@@ -129,12 +115,8 @@ static StrIter JReadArray(StrIter si, StrIter (*Reader)(StrIter si, void* data),
             si = JSkipWhitespace(si);
         }
 
-        // try reading using user provided reader
-        if (Reader) {
-            read_si = Reader(si, data);
-        } else {
-            read_si = JSkipValue(si);
-        }
+        // skip values within array
+        read_si = JSkipValue(si);
 
         // if no advancement in read position
         if (read_si.pos == si.pos) {
@@ -262,9 +244,13 @@ StrIter JReadString(StrIter si, Str* str) {
 
                         // espaced unicode sequence
                         case 'u' :
-                            LOG_ERROR("No unicode support");
-                            StrClear(str);
-                            return saved_si;
+                            LOG_ERROR(
+                                "No unicode support '%.*s'. Unicode sequence will be skipped.",
+                                MIN2(StrIterRemainingLength(&si), 6),
+                                si.data + si.pos - 1
+                            );
+                            StrIterMove(&si, 5);
+                            break;
 
                         default :
                             LOG_ERROR("Invalid JSON object key string.");
@@ -314,7 +300,7 @@ StrIter JReadNumber(StrIter si, Number* num) {
         switch (StrIterPeek(&si)) {
             case 'E' :
             case 'e' :
-                if (is_flt || has_exp) {
+                if (has_exp) {
                     LOG_ERROR("Invalid number. Multiple exponent indicators.");
                     StrDeinit(&ns);
                     return saved_si;
@@ -353,10 +339,18 @@ StrIter JReadNumber(StrIter si, Number* num) {
             case '-' :
             case '+' :
                 // +/- can only appear after an exponent
-                if (!has_exp || has_exp_plus_minus) {
+                if (!has_exp) {
                     LOG_ERROR(
                         "Invalid number. Exponent sign indicators '+' or '-' "
                         "must appear after exponent 'E' or 'e' indicator."
+                    );
+                    StrDeinit(&ns);
+                    return saved_si;
+                }
+                if (has_exp_plus_minus) {
+                    LOG_ERROR(
+                        "Invalid number. Multiple '+' or '-' in Number. "
+                        "Expected only once after 'e' or 'E'."
                     );
                     StrDeinit(&ns);
                     return saved_si;
@@ -373,7 +367,11 @@ StrIter JReadNumber(StrIter si, Number* num) {
     }
 
     if (!ns.length) {
-        LOG_ERROR("Failed to parse number. It's empty!");
+        LOG_ERROR(
+            "Failed to parse number. '%.*s'",
+            MIN2(StrIterRemainingLength(&saved_si), 8),
+            saved_si.data + saved_si.pos
+        );
         StrDeinit(&ns);
         return saved_si;
     }
@@ -619,7 +617,7 @@ StrIter JSkipValue(StrIter si) {
     // looks like starting of an object
     if (StrIterPeek(&si) == '{') {
         StrIter before_si = si;
-        si                = JReadObject(si, NULL, NULL);
+        si                = JSkipObject(si);
 
         if (si.pos == before_si.pos) {
             LOG_ERROR("Failed to read object. Expected an object. Invalid JSON.");
@@ -632,7 +630,7 @@ StrIter JSkipValue(StrIter si) {
     // looks like starting of an array
     if (StrIterPeek(&si) == '[') {
         StrIter before_si = si;
-        si                = JReadArray(si, NULL, NULL);
+        si                = JSkipArray(si);
 
         if (si.pos == before_si.pos) {
             LOG_ERROR("Failed to read array. Expected an array. Invalid JSON.");

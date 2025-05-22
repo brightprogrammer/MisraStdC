@@ -97,7 +97,7 @@ QualifierAlignment: Leave
 ReferenceAlignment: Right
 ReflowComments: true
 RemoveParentheses: Leave
-SortIncludes: CaseSensitive
+SortIncludes: Never
 SpaceAfterCStyleCast: false
 SpaceAfterLogicalNot: false
 SpaceAroundPointerQualifiers: Default

@@ -6,6 +6,16 @@
 
 #include <Misra/Types.h>
 
+typedef struct GenericIter {
+    void* data;
+    i64   length;
+    i64   pos;
+    size  alignment;
+    i8    dir;
+} GenericIter;
+
+#define GENERIC_ITER(x) ((GenericIter*)(void*)(x))
+
 ///
 /// Memory iterators are there to allow reading regions of memory by remembering current
 /// read position and the size limit. With proper checking we can guarantee that we can never

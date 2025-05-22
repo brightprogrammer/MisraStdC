@@ -46,8 +46,8 @@
 #define VecInsertL(v, lval, idx)                                                                                       \
     do {                                                                                                               \
         VEC_DATATYPE(v) __tmp__val = (lval);                                                                           \
-        insert_range_into_vec(GENERIC_VEC(&(v)), (char *)&__tmp__val, sizeof(VEC_DATATYPE(v)), (idx), 1);              \
-        if (!(v).copy_init) {                                                                                          \
+        insert_range_into_vec(GENERIC_VEC(v), (char *)&__tmp__val, sizeof(VEC_DATATYPE(v)), (idx), 1);                 \
+        if (!(v)->copy_init) {                                                                                         \
             memset(&(lval), 0, sizeof(lval));                                                                          \
         }                                                                                                              \
     } while (0)
@@ -83,7 +83,7 @@
 #define VecInsertR(v, rval, idx)                                                                                       \
     do {                                                                                                               \
         VEC_DATATYPE(v) __tmp__val = (rval);                                                                           \
-        insert_range_into_vec(GENERIC_VEC(&(v)), (char *)&__tmp__val, sizeof(VEC_DATATYPE(v)), (idx), 1);              \
+        insert_range_into_vec(GENERIC_VEC(v), (char *)&__tmp__val, sizeof(VEC_DATATYPE(v)), (idx), 1);                 \
     } while (0)
 
 ///
@@ -190,8 +190,8 @@
     do {                                                                                                               \
         const VEC_DATATYPE(v) *__tmp__ptr = (varr);                                                                    \
         insert_range_into_vec(GENERIC_VEC(v), (char *)__tmp__ptr, sizeof(VEC_DATATYPE(v)), (idx), (count));            \
-        if (!(v).copy_init) {                                                                                          \
-            memset((varr), 0, (count) * sizeof(*varr));                                                                \
+        if (!(v)->copy_init) {                                                                                         \
+            memset((void *)(varr), 0, (count) * sizeof(*varr));                                                        \
         }                                                                                                              \
     } while (0)
 
@@ -222,8 +222,8 @@
     do {                                                                                                               \
         const VEC_DATATYPE(v) *__tmp__ptr = (varr);                                                                    \
         insert_range_fast_into_vec(GENERIC_VEC(v), (char *)__tmp__ptr, sizeof(VEC_DATATYPE(v)), (idx), (count));       \
-        if (!(v).copy_init) {                                                                                          \
-            memset((varr), 0, (count) * sizeof(*varr));                                                                \
+        if (!(v)->copy_init) {                                                                                         \
+            memset((void *)(varr), 0, (count) * sizeof(*varr));                                                        \
         }                                                                                                              \
     } while (0)
 
