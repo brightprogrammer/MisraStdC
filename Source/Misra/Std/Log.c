@@ -26,7 +26,7 @@ void LogInit(bool redirect) {
         if (!localtime_r(&raw_time, &time_info)) {
 #endif
             Str syserr;
-            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+            StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
                 LOG_ERROR("Failed to get localtime : %s", SysStrError(errno, &syserr)->data);
             });
             goto LOG_STREAM_FALLBACK;
@@ -38,7 +38,7 @@ void LogInit(bool redirect) {
         if (!SysGetEnv("TMP", &log_dir) && !SysGetEnv("TEMP", &log_dir) && !SysGetEnv("TMPDIR", &log_dir) &&
             !SysGetEnv("TEMPDIR", &log_dir) && !SysGetEnv("PWD", &log_dir)) {
             Str syserr;
-            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+            StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
                 fprintf(
                     stderr,
                     "error opening logfile : %s\n"
@@ -72,7 +72,7 @@ void LogInit(bool redirect) {
 
         if (e || !stderror) {
             Str syserr;
-            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+            StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
                 LOG_ERROR("Failed to open log file : %s", SysStrError(e, &syserr)->data);
             });
             goto LOG_STREAM_FALLBACK;
@@ -84,7 +84,7 @@ void LogInit(bool redirect) {
 
 LOG_STREAM_FALLBACK: {
     Str syserr;
-    StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+    StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
         fprintf(stderr, "Error opening log file, will write logs to stderr\n");
     });
     stderror = stderr;
@@ -137,7 +137,7 @@ void LogWrite(LogMessageType type, const char *tag, int line, const char *format
     if (!localtime_r(&raw_time, &time_info)) {
 #endif
         Str syserr;
-        StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+        StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
             LOG_ERROR("Failed to get localtime : %s", SysStrError(errno, &syserr)->data);
         });
         return;

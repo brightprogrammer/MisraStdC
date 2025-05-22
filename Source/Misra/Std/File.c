@@ -31,7 +31,7 @@ bool ReadCompleteFile(const char *filename, char **data, size *file_size, size *
         buffer = realloc(buffer, size + 1);
         if (!buffer) {
             Str syserr;
-            StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+            StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
                 LOG_FATAL("malloc() failed : %s.", SysStrError(errno, &syserr)->data);
             });
         }
@@ -54,7 +54,7 @@ bool ReadCompleteFile(const char *filename, char **data, size *file_size, size *
         free(buffer);
 
         Str syserr;
-        StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+        StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
             LOG_ERROR("fopen() failed : %s.", SysStrError(e, &syserr)->data);
         });
     }
@@ -63,7 +63,7 @@ bool ReadCompleteFile(const char *filename, char **data, size *file_size, size *
     if (size != (i64)fread(buffer, 1, size, file)) {
         fclose(file);
         Str syserr;
-        StrInitStack(&syserr, SYS_ERROR_STR_MAX_LENGTH, {
+        StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
             LOG_ERROR("failed to read complete file. : %s", SysStrError(errno, &syserr)->data);
         });
     }

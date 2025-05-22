@@ -31,6 +31,13 @@ typedef struct {
     u8*  data;
 } Int;
 
+#define ValidateInt(z)                                                                                                 \
+    do {                                                                                                               \
+        if (!IntLength(z)) {                                                                                           \
+            LOG_FATAL("Non-zero Int length expected");                                                                 \
+        }                                                                                                              \
+    } while (0)
+
 ///
 /// Initialize a new integer of given length.
 ///
@@ -75,9 +82,8 @@ typedef struct {
 /// FAILURE : `abort` if `z` is invalid, indicating a bug in program.
 ///
 void IntDeinit(Int* z) {
-    if (!z || !IntLength(z)) {
-        LOG_FATAL("Invalid argument: invalid integer object");
-    }
+    ValidateInt(z);
+
     if (z->data) {
         FREE(z);
     }
@@ -95,9 +101,7 @@ void IntDeinit(Int* z) {
 /// FAILURE : If `z` is `NULL` then results in an abort, indicating a bug in program.
 ///
 bool IntBit(Int* z, size idx) {
-    if (!z || !IntLength(z)) {
-        LOG_FATAL("Invalid argument: invalid integer provided");
-    }
+    ValidateInt(z);
 
     // zero-state or index greater than integer bit length
     if (idx >= IntLength(z) || !z->data) {
@@ -125,7 +129,8 @@ bool IntBit(Int* z, size idx) {
 /// FAILURE : If `z` is `NULL` then results in an abort.
 ///
 bool IntMSB(Int* z) {
-    IntBit(z, z->length - 1);
+    ValidateInt(z);
+    return IntBit(z, z->length - 1);
 }
 
 ///
@@ -138,7 +143,8 @@ bool IntMSB(Int* z) {
 /// FAILURE : If `z` is `NULL` then results in an abort.
 ///
 bool IntLSB(Int* z) {
-    IntBit(z, 0);
+    ValidateInt(z);
+    return IntBit(z, 0);
 }
 
 ///
@@ -151,7 +157,8 @@ bool IntLSB(Int* z) {
 /// FAILURE : If `z` is `NULL` then results in an abort.
 ///
 bool IntSign(Int* z) {
-    IntBit(z, z->length);
+    ValidateInt(z);
+    return IntBit(z, z->length);
 }
 
 ///
@@ -172,9 +179,7 @@ bool IntSign(Int* z) {
 /// FAILURE : No resize operation performed. `abort` is called if given integer is invalid.
 ///
 void IntResize(Int* z, size num_bits) {
-    if (!z || !IntLength(z)) {
-        LOG_FATAL("Invalid arguments: invalid Int object");
-    }
+    ValidateInt(z);
 
     // resize to same length
     if ((num_bits < IntLength(z)) && !z->data) {
@@ -227,9 +232,7 @@ void IntResize(Int* z, size num_bits) {
 /// FAILURE : If `z` is `NULL` then results in an abort, indicating a bug in program.
 ///
 void IntSetBit(Int* z, size idx) {
-    if (!z || !IntLength(z)) {
-        LOG_FATAL("Invalid argument: invalid integer provided");
-    }
+    ValidateInt(z);
 
     // have enough storage to store at least bit at index `idx`
     IntResize(z, idx + 1);
@@ -250,9 +253,7 @@ void IntSetBit(Int* z, size idx) {
 /// FAILURE : If `z` is `NULL` then results in an abort, indicating a bug in program.
 ///
 void IntUnsetBit(Int* z, size idx) {
-    if (!z || !IntLength(z)) {
-        LOG_FATAL("Invalid argument: invalid integer provided");
-    }
+    ValidateInt(z);
 
     // have enough storage to store at least bit at index `idx`
     IntResize(z, idx + 1);
@@ -272,9 +273,7 @@ void IntUnsetBit(Int* z, size idx) {
 /// FAILURE : If `z` is `NULL` then `abort`.
 ///
 bool IntIsZero(Int* z) {
-    if (!z || !IntLength(z)) {
-        LOG_FATAL("Invalid argument: invalid integer object");
-    }
+    ValidateInt(z);
 
     // ZERO‐state if no storage yet
     if (!z->data) {
@@ -314,9 +313,8 @@ bool IntIsZero(Int* z) {
 /// SUCCESS : `Int`
 ///
 Int IntAdd(Int* z1, Int* z2) {
-    if (!z1 || !IntLength(z1) || !z2 || !IntLength(z2)) {
-        LOG_FATAL("Invalid arguments: invalid integer arguments to Add operation");
-    }
+    ValidateInt(z1);
+    ValidateInt(z2);
 
     // Length of result is usually the maximum of the length of the two operands,
     // but in case of overflow during addition, we need one extra bit.
@@ -335,12 +333,14 @@ Int IntAdd(Int* z1, Int* z2) {
 }
 
 Int IntSub(Int* z1, Int* z2) {
-    if (!z1 || !IntLength(z1) || !z2 || !IntLength(z2)) {
-        LOG_FATAL("Invalid arguments: invalid integer arguments to Add operation");
-    }
+    ValidateInt(z1);
+    ValidateInt(z2);
 }
 
 void _write_Int(Str* o, FmtInfo* fmt_info, Int* z) {
+    ValidateInt(z);
+    ValidateStr(o);
+
     if (!o || !fmt_info || !z) {
         LOG_FATAL("Invalid arguments");
     }

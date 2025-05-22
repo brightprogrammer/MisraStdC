@@ -4,8 +4,6 @@
 #ifndef MISRA_STD_UTILITY_ITER_ACCESS_H
 #define MISRA_STD_UTILITY_ITER_ACCESS_H
 
-#include <Misra/Std/Log.h>
-
 #include "Type.h"
 #include "Private.h"
 

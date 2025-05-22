@@ -4,10 +4,9 @@
 #ifndef MISRA_STD_CONTAINER_VEC_FOREACH_H
 #define MISRA_STD_CONTAINER_VEC_FOREACH_H
 
-// clang-format off
 #include "Type.h"
 #include "Private.h"
-// clang-format on
+#include <Misra/Std/Log.h>
 
 ///
 /// Iterate over each element `var` of given vector `v` at each index `idx` into the vector.
@@ -22,16 +21,10 @@
 ///
 #define VecForeachIdx(v, var, idx, body)                                                                               \
     do {                                                                                                               \
-        i64 idx             = 0;                                                                                       \
+        size idx            = 0;                                                                                       \
         VEC_DATATYPE(v) var = {0};                                                                                     \
         if ((v) && (v)->length) {                                                                                      \
             for ((idx) = 0; (idx) < (v)->length; ++(idx)) {                                                            \
-                if ((idx) < 0) {                                                                                       \
-                    LOG_FATAL(                                                                                         \
-                        "Vector range underflow : Invalid index reached "                                              \
-                        "during Foreach iteration."                                                                    \
-                    );                                                                                                 \
-                }                                                                                                      \
                 var = VecAt(v, idx);                                                                                   \
                 { body }                                                                                               \
             }                                                                                                          \
@@ -51,23 +44,12 @@
 ///
 #define VecForeachReverseIdx(v, var, idx, body)                                                                        \
     do {                                                                                                               \
-        i64 idx             = 0;                                                                                       \
+        size idx            = 0;                                                                                       \
         VEC_DATATYPE(v) var = {0};                                                                                     \
         if ((v) && (v)->length) {                                                                                      \
-            for ((idx) = (v)->length - 1; (idx) >= 0; --(idx)) {                                                       \
-                if ((idx) < 0) {                                                                                       \
-                    LOG_FATAL(                                                                                         \
-                        "Vector range underflow : Invalid index reached "                                              \
-                        "during Foreach reverse "                                                                      \
-                        "iteration."                                                                                   \
-                    );                                                                                                 \
-                }                                                                                                      \
+            for ((idx) = (v)->length - 1; (idx)-- > 0;) {                                                              \
                 if ((idx) >= (v)->length) {                                                                            \
-                    LOG_FATAL(                                                                                         \
-                        "Vector range overflow : Invalid index reached "                                               \
-                        "during Foreach reverse "                                                                      \
-                        "iteration."                                                                                   \
-                    );                                                                                                 \
+                    LOG_FATAL("Vector range overflow : Invalid index reached during Foreach reverse iteration.");      \
                 }                                                                                                      \
                 var = VecAt(v, idx);                                                                                   \
                 { body }                                                                                               \
@@ -88,15 +70,12 @@
 ///
 #define VecForeachPtrIdx(v, var, idx, body)                                                                            \
     do {                                                                                                               \
-        i64 idx              = 0;                                                                                      \
+        size idx             = 0;                                                                                      \
         VEC_DATATYPE(v) *var = {0};                                                                                    \
         if ((v) && (v)->length) {                                                                                      \
             for ((idx) = 0; (idx) < (v)->length; ++(idx)) {                                                            \
-                if ((idx) < 0) {                                                                                       \
-                    LOG_FATAL(                                                                                         \
-                        "Vector range underflow : Invalid index reached "                                              \
-                        "during Foreach iteration."                                                                    \
-                    );                                                                                                 \
+                if ((idx) >= (v)->length) {                                                                            \
+                    LOG_FATAL("Vector range overflow : Invalid index reached during Foreach reverse iteration.");      \
                 }                                                                                                      \
                 var = VecPtrAt(v, idx);                                                                                \
                 { body }                                                                                               \
@@ -117,23 +96,12 @@
 ///
 #define VecForeachPtrReverseIdx(v, var, idx, body)                                                                     \
     do {                                                                                                               \
-        i64 idx              = 0;                                                                                      \
+        size idx             = 0;                                                                                      \
         VEC_DATATYPE(v) *var = {0};                                                                                    \
         if ((v) && (v)->length) {                                                                                      \
-            for ((idx) = (v)->length - 1; (idx) >= 0; --(idx)) {                                                       \
-                if ((idx) < 0) {                                                                                       \
-                    LOG_FATAL(                                                                                         \
-                        "Vector range underflow : Invalid index reached "                                              \
-                        "during Foreach reverse "                                                                      \
-                        "iteration."                                                                                   \
-                    );                                                                                                 \
-                }                                                                                                      \
+            for ((idx) = (v)->length - 1; (idx)-- > 0;) {                                                              \
                 if ((idx) >= (v)->length) {                                                                            \
-                    LOG_FATAL(                                                                                         \
-                        "Vector range overflow : Invalid index reached "                                               \
-                        "during Foreach reverse "                                                                      \
-                        "iteration."                                                                                   \
-                    );                                                                                                 \
+                    LOG_FATAL("Vector range overflow : Invalid index reached during Foreach reverse iteration.");      \
                 }                                                                                                      \
                 var = VecPtrAt(v, idx);                                                                                \
                 { body }                                                                                               \

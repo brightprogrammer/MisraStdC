@@ -19,10 +19,7 @@
 /// SUCCESS : Alignment address.
 /// FAILURE : Does not return on failure
 ///
-#define VecAlignedOffsetAt(v, idx)                                                                                     \
-    ((v) ? ((idx) * ALIGN_UP(sizeof(VEC_DATATYPE(v)), (v)->alignment)) :                                               \
-           (LOG_FATAL("Invalid vector provided to VecAlignedOffsetAt! Aborting..."), 0))
-
+#define VecAlignedOffsetAt(v, idx) ((idx) * ALIGN_UP(sizeof(VEC_DATATYPE(v)), (v)->alignment))
 ///
 /// Value at given index in a vector.
 /// It's strongly recommended to always use this instead of directly accessing the data.

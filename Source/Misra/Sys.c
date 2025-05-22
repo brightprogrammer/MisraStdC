@@ -133,7 +133,7 @@ SysDirContents SysGetDirContents(const char* path) {
     DIR* dir = opendir(path);
     if (NULL == dir) {
         Str err;
-        StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, {
+        StrInitStack(err, SYS_ERROR_STR_MAX_LENGTH, {
             LOG_ERROR("opendir(\"%s\") failed : %s.", path, SysStrError(errno, &err)->data);
         });
         return (SysDirContents) {0};
@@ -200,17 +200,12 @@ SysDirContents SysGetDirContents(const char* path) {
 
 // Cross-platform function to get file size
 i64 SysGetFileSize(const char* filename) {
-    if (!filename) {
-        LOG_ERROR("invalid arguments.\n");
-        return -1;
-    }
-
 #ifdef _WIN32
     // Windows-specific code using GetFileSizeEx
     HANDLE file = CreateFileA(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
     if (file == INVALID_HANDLE_VALUE) {
         Str err;
-        StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, {
+        StrInitStack(err, SYS_ERROR_STR_MAX_LENGTH, {
             LOG_ERROR("failed to open file: %s\n", SysStrError(errno, &err)->data);
         });
         return -1;
@@ -219,7 +214,7 @@ i64 SysGetFileSize(const char* filename) {
     LARGE_INTEGER file_size;
     if (!GetFileSizeEx(file, &file_size)) {
         Str err;
-        StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, {
+        StrInitStack(err, SYS_ERROR_STR_MAX_LENGTH, {
             LOG_ERROR("failed to get file size: %s\n", SysStrError(errno, &err)->data);
         });
         CloseHandle(file);
@@ -235,7 +230,7 @@ i64 SysGetFileSize(const char* filename) {
         return (i64)file_stat.st_size;
     } else {
         Str err;
-        StrInitStack(&err, SYS_ERROR_STR_MAX_LENGTH, {
+        StrInitStack(err, SYS_ERROR_STR_MAX_LENGTH, {
             LOG_ERROR("failed to get file size: %s\n", SysStrError(errno, &err)->data);
         });
         return -1;
@@ -244,9 +239,6 @@ i64 SysGetFileSize(const char* filename) {
 }
 
 Str* SysGetEnv(const char* name, Str* value) {
-    if (!name || !value) {
-        return NULL;
-    }
 #ifdef _WIN32
     char*  env_var;
     size_t requiredSize;
@@ -298,9 +290,6 @@ SysMutex* SysMutexCreate() {
 }
 
 void SysMutexDestroy(SysMutex* m) {
-    if (!m) {
-        return;
-    }
 #ifdef _WIN32
     DeleteCriticalSection(&m->lock);
 #else
@@ -311,9 +300,6 @@ void SysMutexDestroy(SysMutex* m) {
 }
 
 SysMutex* SysMutexLock(SysMutex* m) {
-    if (!m) {
-        return NULL;
-    }
 #ifdef _WIN32
     EnterCriticalSection(&m->lock);
 #else
@@ -323,9 +309,6 @@ SysMutex* SysMutexLock(SysMutex* m) {
 }
 
 SysMutex* SysMutexUnlock(SysMutex* m) {
-    if (!m) {
-        return NULL;
-    }
 #ifdef _WIN32
     LeaveCriticalSection(&m->lock);
 #else
@@ -335,10 +318,6 @@ SysMutex* SysMutexUnlock(SysMutex* m) {
 }
 
 Str* SysStrError(i32 eno, Str* err_str) {
-    if (!err_str) {
-        LOG_ERROR("Invalid arguments");
-    }
-
     err_str->length = err_str->capacity = 128; // I hope it's enough on all platforms
     err_str->data                       = (char*)calloc(err_str->length, 1);
 #if _WIN32

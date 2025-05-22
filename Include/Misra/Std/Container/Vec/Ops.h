@@ -7,10 +7,8 @@
 #ifndef MISRA_STD_CONTAINER_VEC_OPS_H
 #define MISRA_STD_CONTAINER_VEC_OPS_H
 
-// clang-format off
 #include "Type.h"
 #include "Private.h"
-// clang-format on
 
 ///
 /// Sort given vector with given comparator using quicksort algorithm.

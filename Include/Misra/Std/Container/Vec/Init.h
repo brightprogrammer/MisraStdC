@@ -7,10 +7,8 @@
 #ifndef MISRA_STD_CONTAINER_VEC_INIT_H
 #define MISRA_STD_CONTAINER_VEC_INIT_H
 
-// clang-format off
 #include "Type.h"
 #include "Private.h"
-// clang-format on
 
 ///
 /// Initialize vector. Default alignment is 1

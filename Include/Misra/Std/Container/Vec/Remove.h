@@ -7,10 +7,8 @@
 #ifndef MISRA_STD_CONTAINER_VEC_REMOVE_H
 #define MISRA_STD_CONTAINER_VEC_REMOVE_H
 
-// clang-format off
 #include "Type.h"
 #include "Private.h"
-// clang-format on
 
 ///
 /// Remove item from vector at given index and store in given pointer.

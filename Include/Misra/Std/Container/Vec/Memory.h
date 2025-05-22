@@ -7,10 +7,8 @@
 #ifndef MISRA_STD_CONTAINER_VEC_MEMORY_H
 #define MISRA_STD_CONTAINER_VEC_MEMORY_H
 
-// clang-format off
 #include "Type.h"
 #include "Private.h"
-// clang-format on
 
 ///
 /// Try reducing memory footprint of vector.

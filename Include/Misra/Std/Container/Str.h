@@ -17,6 +17,9 @@
 typedef Vec(char) Str;
 typedef Vec(Str) Strs;
 
+#define ValidateStr(s)   ValidateVec(s)
+#define ValidateStrs(sv) ValidateVec(sv)
+
 #ifdef _MSC_VER
 static inline char* strndup(const char* s, size n) {
     size  len     = strnlen(s, n); // Only up to n

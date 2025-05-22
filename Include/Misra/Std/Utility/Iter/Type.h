@@ -5,16 +5,17 @@
 #define MISRA_STD_UTILITY_ITER_TYPE_H
 
 #include <Misra/Types.h>
+#include <Misra/Std/Log.h>
 
 typedef struct GenericIter {
-    void* data;
+    void *data;
     i64   length;
     i64   pos;
     size  alignment;
     i8    dir;
 } GenericIter;
 
-#define GENERIC_ITER(x) ((GenericIter*)(void*)(x))
+#define GENERIC_ITER(x) ((GenericIter *)(void *)(x))
 
 ///
 /// Memory iterators are there to allow reading regions of memory by remembering current
@@ -37,12 +38,29 @@ typedef struct GenericIter {
 ///
 #define Iter(DTYPE)                                                                                                    \
     struct {                                                                                                           \
-        DTYPE* data;                                                                                                   \
-        i64    length;                                                                                                 \
-        i64    pos;                                                                                                    \
+        DTYPE *data;                                                                                                   \
+        size   length;                                                                                                 \
+        size   pos;                                                                                                    \
         size   alignment;                                                                                              \
         i8     dir;                                                                                                    \
     }
+
+///
+/// Validate whether a given `Iter` object is valid. Not foolproof but will work most of the time.
+/// Aborts if provided `Iter` is not valid.
+///
+/// i[in] : Pointer to `Iter` object to validate.
+///
+/// SUCCESS : Continue execution, meaning given `Iter` object is most probably a valid `Iter`.
+/// FAILURE : `abort`
+///
+#define ValidateIter(i)                                                                                                \
+    do {                                                                                                               \
+        if (((i)->dir != -1 && (i)->dir != 1) || !(i)->alignment || !(i)->length || (i)->pos >= (i)->length) {         \
+            LOG_FATAL("Invalid iter object.");                                                                         \
+        }                                                                                                              \
+        (void)(*(char *)(void *)((i)->data));                                                                          \
+    } while (0)
 
 ///
 /// Get data type of `Iter` elements
@@ -74,6 +92,6 @@ typedef struct GenericIter {
 /// mi[in] : Type reference
 ///
 /// TAGS: Utility, NullValue, Iter
-#define NULL_ITER_DATA(mi) (ITER_DATA_TYPE(mi)*)0
+#define NULL_ITER_DATA(mi) (ITER_DATA_TYPE(mi) *)0
 
 #endif // MISRA_STD_UTILITY_ITER_TYPE_H

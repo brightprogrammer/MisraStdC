@@ -9,6 +9,30 @@ typedef Iter(char) StrIter;
 typedef Vec(StrIter) StrIters;
 
 ///
+/// Validate whether a given `StrIter` object is valid.
+/// Not foolproof but will work most of the time.
+/// Aborts if provided `StrIter` is not valid.
+///
+/// i[in] : Pointer to `StrIter` object to validate.
+///
+/// SUCCESS : Continue execution, meaning given `StrIter` object is most probably a valid `StrIter`.
+/// FAILURE : `abort`
+///
+#define ValidateStrIter(si) ValidateIter(si)
+
+///
+/// Validate whether a given `StrIters` object is valid.
+/// Not foolproof but will work most of the time.
+/// Aborts if provided `StrIters` is not valid.
+///
+/// i[in] : Pointer to `StrIters` object to validate.
+///
+/// SUCCESS : Continue execution, meaning given `StrIters` object is most probably a valid `StrIters`.
+/// FAILURE : `abort`
+///
+#define ValidateStrIters(siv) ValidateVec(siv);
+
+///
 /// Move string iterator position by `n` elements
 ///
 /// si[in,out] : `StrIter` to modify

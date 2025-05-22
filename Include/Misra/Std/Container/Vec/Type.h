@@ -9,6 +9,7 @@
 
 #include <Misra/Std/Container/Common.h>
 #include <Misra/Types.h>
+#include <Misra/Std/Log.h>
 
 typedef struct {
     size              length;
@@ -61,6 +62,26 @@ typedef struct {
     }
 
 #define VEC_DATATYPE(v) __typeof__((v)->data[0])
+
+///
+/// Validate whether a given `Vec` object is valid.
+/// Not foolproof but will work most of the time.
+/// Aborts if provided `Vec` is not valid.
+///
+/// i[in] : Pointer to `Vec` object to validate.
+///
+/// SUCCESS : Continue execution, meaning given `Vec` object is most probably a valid `Vec`.
+/// FAILURE : `abort`
+///
+#define ValidateVec(v)                                                                                                 \
+    do {                                                                                                               \
+        if (!(v)->alignment || (v)->length > (v)->capacity) {                                                          \
+            LOG_FATAL("Invalid vec object.");                                                                          \
+        }                                                                                                              \
+        if ((v)->data) {                                                                                               \
+            (void)(*(char *)(void *)((v)->data));                                                                      \
+        }                                                                                                              \
+    } while (0)
 
 
 #endif // MISRA_STD_CONTAINER_VEC_TYPE_H
