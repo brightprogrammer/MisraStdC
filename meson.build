@@ -15,6 +15,7 @@ misra_std_sources = files(
     'Source/Misra/Std/File.c',
     'Source/Misra/Std/Container/Vec.c',
     'Source/Misra/Std/Container/Str.c',
+    'Source/Misra/Std/Utility/Iter.c',
     'Source/Misra/Parsers/JSON.c'
 )
 

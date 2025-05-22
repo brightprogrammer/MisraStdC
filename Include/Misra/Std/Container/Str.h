@@ -241,7 +241,7 @@ Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 /// SUCCESS : Returns `str` the string itself on success.
 /// FAILURE : Returns `NULL` otherwise.
 ///
-#define StrPushFront(str, chr) VecPushFront((str), (chr))
+#define StrPushFront(str, chr) VecPushFrontR((str), (chr))
 
 ///
 /// Pop char from string front.

@@ -38,8 +38,8 @@ void ProjectDeinit(Project* p) {
 #define JR_PROJECT(json, proj)                                                                                         \
     do {                                                                                                               \
         Project p            = {0};                                                                                    \
-        p.test_directories   = VecInit_T(&p.test_directories);                                                         \
-        p.source_directories = VecInit_T(&p.source_directories);                                                       \
+        p.test_directories   = VecInitT(p.test_directories);                                                           \
+        p.source_directories = VecInitT(p.source_directories);                                                         \
         JR_OBJ(json, {                                                                                                 \
             JR_OBJ_KV(json, "project", {                                                                               \
                 JR_STR_KV(json, "build_dir", p.build_dir);                                                             \
@@ -112,7 +112,7 @@ int main(int argc, char** argv) {
             if (!ReadCompleteFile(config_path, &config.data, &config.length, &config.capacity)) {
                 LOG_FATAL("Failed to read config file.");
             }
-            StrIter json = StrIterFromStr(&config);
+            StrIter json = StrIterFromStr(config);
             JR_PROJECT(json, project);
         });
 
@@ -120,10 +120,10 @@ int main(int argc, char** argv) {
         Strs file_paths = VecInit();
         Scope(&file_paths, VecDeinit, {
             // temporary vector to store all directory paths to explore files in
-            Strs dir_paths = VecInit();
+            Strs dir_paths = VecInitWithDeepCopy(NULL, StrDeinit);
             Scope(&dir_paths, VecDeinit, {
-                VecMergeAndOwn(&dir_paths, &project.source_directories);
-                VecMergeAndOwn(&dir_paths, &project.test_directories);
+                VecMerge(&dir_paths, &project.source_directories);
+                VecMerge(&dir_paths, &project.test_directories);
 
                 // recursively explore directories and get filenames
                 VecForeach(&dir_paths, dir_name, {

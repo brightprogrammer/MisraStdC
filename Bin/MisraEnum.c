@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
 
     EnumEntries entries = VecInit();
 
-    StrIter json        = StrIterFromStr(&code);
+    StrIter json        = StrIterFromStr(code);
     Str     enum_name   = StrInit();
     bool    to_from_str = false;
 
