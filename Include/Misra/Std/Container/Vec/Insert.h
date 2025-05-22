@@ -15,7 +15,7 @@
 /// This preserves the ordering of elements. Best to be used with sorted vectors,
 /// if the sorted property is to be preserved.
 ///
-/// NOTE: Ownership of item is transferred to vector if no copy-init method is set.
+/// NOTE: Ownership of item is transferred to vector if no `copy_init` method is set.
 ///       This is to prevent multiple ownership of same object, once inserted into vector.
 ///       Object won't be usable after this call if `copy_init` is not set.
 ///
@@ -109,7 +109,7 @@
 /// Usage is exactly same as `VecInsert`, just the internal implementation is
 /// different.
 ///
-/// NOTE: Ownership of item is transferred to vector if no copy-init method is set.
+/// NOTE: Ownership of item is transferred to vector if no `copy_init` method is set.
 ///       This is to prevent multiple ownership of same object, once inserted into vector.
 ///       Object won't be usable after this call if `copy_init` is not set.
 ///
@@ -172,7 +172,7 @@
 /// This preserves the ordering of elements. Best to be used with sorted vectors,
 /// if the sorted property is to be preserved.
 ///
-/// NOTE: Ownership of items in array is transferred to vector if no copy-init method is set.
+/// NOTE: Ownership of items in array is transferred to vector if no `copy_init` method is set.
 ///       This is to prevent multiple ownership of same object, once inserted into vector.
 ///       Object won't be usable after this call if `copy_init` is not set.
 ///
@@ -205,7 +205,7 @@
 /// Usage is exactly same as `VecInsert`, just the internal implementation is
 /// different.
 ///
-/// NOTE: Ownership of items in array is transferred to vector if no copy-init method is set.
+/// NOTE: Ownership of items in array is transferred to vector if no `copy_init` method is set.
 ///       This is to prevent multiple ownership of same object, once inserted into vector.
 ///       Object won't be usable after this call if `copy_init` is not set.
 ///
