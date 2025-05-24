@@ -257,8 +257,9 @@
                                                                                                                        \
         {scoped_body}                                                                                                  \
                                                                                                                        \
-        VecDeinit(&(v));                                                                                               \
-    } while (0)
+        memset(___data___, 0, sizeof(___data___));                                                                     \
+        memset(&(v), 0, sizeof(v));                                                                                      \
+} while (0)
 
 ///
 /// Initialize given vector with given alignment.
@@ -306,7 +307,8 @@
                                                                                                                        \
         {scoped_body}                                                                                                  \
                                                                                                                        \
-        VecDeinit(&(v));                                                                                               \
+        memset(___data___, 0, sizeof(___data___));                                                                     \
+        memset(&(v), 0, sizeof(v));                                                                                      \
     } while (0)
 
 ///
@@ -346,7 +348,8 @@
                                                                                                                        \
         {scoped_body}                                                                                                  \
                                                                                                                        \
-        VecDeinit(&(v));                                                                                               \
+        memset(___data___, 0, sizeof(___data___));                                                                     \
+        memset(&(v), 0, sizeof(v));                                                                                      \
     } while (0)
 
 ///
@@ -394,7 +397,8 @@
                                                                                                                        \
         {scoped_body}                                                                                                  \
                                                                                                                        \
-        VecDeinit(&(v));                                                                                               \
+        memset(___data___, 0, sizeof(___data___));                                                                     \
+        memset(&(v), 0, sizeof(v));                                                                                      \
     } while (0)
 
 ///
