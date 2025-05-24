@@ -69,7 +69,7 @@ typedef struct GenericIter {
 ///
 /// TAGS: Utility, TypeSafety, Iter
 ///
-#define ITER_DATA_TYPE(mi) __typeof__((mi)->data[0])
+#define ITER_DATA_TYPE(mi) TYPE_OF((mi)->data[0])
 
 ///
 /// Type specific NULL for given Iter object.
@@ -81,7 +81,7 @@ typedef struct GenericIter {
 ///
 /// TAGS: Utility, NullValue, Iter
 ///
-#define NULL_ITER(mi) (__typeof__((mi)))0
+#define NULL_ITER(mi) (TYPE_OF((mi)))0
 
 ///
 /// Type specific NULL for data type Iter object is iterating over.

@@ -43,7 +43,7 @@
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
 #define VecInitT(v)                                                                                                    \
-    ((__typeof__(v)) {.length      = 0,                                                                                \
+    ((TYPE_OF(v)) {.length      = 0,                                                                                \
                       .capacity    = 0,                                                                                \
                       .copy_init   = (GenericCopyInit)NULL,                                                            \
                       .copy_deinit = (GenericCopyDeinit)NULL,                                                          \
@@ -91,7 +91,7 @@
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
 #define VecInitWithDeepCopyT(v, ci, cd)                                                                                \
-    ((__typeof__(v)) {.length      = 0,                                                                                \
+    ((TYPE_OF(v)) {.length      = 0,                                                                                \
                       .capacity    = 0,                                                                                \
                       .copy_init   = (GenericCopyInit)(ci),                                                            \
                       .copy_deinit = (GenericCopyDeinit)(cd),                                                          \
@@ -147,7 +147,7 @@
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
 #define VecInitAlignedT(v, aln)                                                                                        \
-    ((__typeof__(v)) {.length      = 0,                                                                                \
+    ((TYPE_OF(v)) {.length      = 0,                                                                                \
                       .capacity    = 0,                                                                                \
                       .copy_init   = (GenericCopyInit)NULL,                                                            \
                       .copy_deinit = (GenericCopyDeinit)NULL,                                                          \
@@ -212,7 +212,7 @@
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
 #define VecInitAlignedWithDeepCopyT(v, ci, cd, aln)                                                                    \
-    ((__typeof__(v)) {.length      = 0,                                                                                \
+    ((TYPE_OF(v)) {.length      = 0,                                                                                \
                       .capacity    = 0,                                                                                \
                       .copy_init   = (GenericCopyInit)(ci),                                                            \
                       .copy_deinit = (GenericCopyDeinit)(cd),                                                          \

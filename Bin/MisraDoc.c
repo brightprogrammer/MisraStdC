@@ -68,7 +68,7 @@ void ProjectDeinit(Project* p) {
 /// The object is passed by pointer. It is not copied or moved.
 ///
 /// This macro ensures the object is only evaluated once by capturing it
-/// internally using `__typeof__`.
+/// internally using `TYPE_OF`.
 ///
 /// The memory pointed to by `obj` is **not** cleared after deinitialization;
 /// if zeroing is needed, do it inside `obj_deinit`.
@@ -89,7 +89,7 @@ void ProjectDeinit(Project* p) {
 ///
 #define Scope(obj, obj_deinit, scope_body)                                                                             \
     do {                                                                                                               \
-        __typeof__((obj)) __o_b_j = (obj);                                                                             \
+        TYPE_OF((obj)) __o_b_j = (obj);                                                                             \
         {scope_body};                                                                                                  \
         obj_deinit(__o_b_j);                                                                                           \
     } while (0)

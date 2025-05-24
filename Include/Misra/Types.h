@@ -22,11 +22,37 @@ typedef unsigned long long u64;
 typedef float  f32;
 typedef double f64;
 
-typedef i8 bool;
-
 typedef unsigned long size;
 
-///
+// bool is already defined in C++
+#ifndef __cplusplus
+#    ifndef bool
+typedef i8 bool;
+#    endif
+
+#    ifndef true
+#        define true 1
+#    endif
+
+#    ifndef false
+#        define false 0
+#    endif
+
+#    ifndef NULL
+#        define NULL 0
+#    endif
+#endif
+
+// Why decltype() yelds a pointer to reference? : https://stackoverflow.com/a/45980559
+// What expressions yield a reference type when decltype is applied to them? : https://stackoverflow.com/a/17242295
+#if defined(__cplusplus)
+#    include <type_traits>
+#    define TYPE_OF(x) std::remove_reference<decltype ((x))>::type
+#else
+#    define TYPE_OF(x) __typeof__ ((x))
+#endif
+
+//
 /// Returns the smaller of two values `x` and `y`.
 ///
 /// x[in] : First value for comparison.
@@ -59,7 +85,7 @@ typedef unsigned long size;
 /// FAILURE: Function cannot fail - creates temporary storage unconditionally.
 ///
 /// TAGS: Memory, Utility, TypeConversion
-#define LVAL(x) ((__typeof__(x)[]) {(x)})[0]
+#define LVAL(x) ((TYPE_OF(x)[]) {(x)})[0]
 
 ///
 /// Clamps the value of `x` to be within the inclusive range [`lo`, `hi`].
@@ -168,18 +194,6 @@ typedef unsigned long size;
 ///
 /// TAGS: Character, Validation, Numeric
 #define IS_DIGIT(c) IN_RANGE(c, '0', '9')
-
-#ifndef true
-#    define true 1
-#endif
-
-#ifndef false
-#    define false 0
-#endif
-
-#ifndef NULL
-#    define NULL 0
-#endif
 
 ///
 /// Allocates zero-initialized memory for a type.

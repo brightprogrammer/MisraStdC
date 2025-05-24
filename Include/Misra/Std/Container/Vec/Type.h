@@ -61,7 +61,7 @@ typedef struct {
         size              alignment;                                                                                   \
     }
 
-#define VEC_DATATYPE(v) __typeof__((v)->data[0])
+#define VEC_DATATYPE(v) TYPE_OF((v)->data[0])
 
 ///
 /// Validate whether a given `Vec` object is valid.
