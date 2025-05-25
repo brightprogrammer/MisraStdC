@@ -159,7 +159,33 @@ const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecif
                 LOG_FATAL("Missing reader function");
             }
 
+            char *read_head = NULL;
+            if (remaining > 1) {
+                read_head             = (char *)in;
+                size        read_len  = strlen(in);
+                const char *read_tail = read_head + read_len;
+                while (read_head < read_tail) {
+                    if (*read_head == p[1]) {
+                        // null-terminate temporarily to keep read length constrained
+                        *read_head = 0;
+                        break;
+                    }
+
+                    read_head ++;
+                }
+
+                if (read_head == read_tail) {
+                    read_head = NULL;
+                }
+            }
+
             const char *next = io->reader(in, io->data);
+
+            // if input was null-terminated then put back the original character
+            if (read_head) {
+                *read_head = p[1];
+            }
+
             if (!next || next < in) {
                 LOG_FATAL("Reader failed to advance input");
             }
