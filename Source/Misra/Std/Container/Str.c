@@ -593,7 +593,25 @@ bool StrToU64(const Str* str, u64* value, u8 base) {
                 }
             }
         }
-        if (base == 0) base = 10;  // Default to decimal
+        
+        // If still auto-detect, check if it looks like a hex number without prefix
+        if (base == 0) {
+            // Check for hex characters (a-f) in the string
+            bool looks_like_hex = false;
+            for (size_t i = pos; i < str->length && !IS_SPACE(str->data[i]); i++) {
+                char c = str->data[i];
+                if ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+                    looks_like_hex = true;
+                    break;
+                }
+            }
+            
+            if (looks_like_hex) {
+                base = 16;
+            } else {
+                base = 10;  // Default to decimal
+            }
+        }
     }
     
     // Convert digits
@@ -689,20 +707,32 @@ bool StrToI64(const Str* str, i64* value, u8 base) {
     }
     
     // Convert using unsigned function
+    // Create a proper temporary string with all required fields
+    Str temp_str = {
+        .data = str->data + pos,
+        .length = str->length - pos,
+        .capacity = str->length - pos,
+        .copy_init = NULL,
+        .copy_deinit = NULL,
+        .alignment = 1
+    };
+    
     u64 unsigned_value;
-    if (!StrToU64(&(Str){.data = str->data + pos, .length = str->length - pos}, &unsigned_value, base)) {
+    if (!StrToU64(&temp_str, &unsigned_value, base)) {
         return false;
     }
     
     // Check for overflow
     if (negative) {
-        if (unsigned_value > ((u64)((i64)1 << 63))) {  // Replace INT64_MAX with bit manipulation
+        // Use 9223372036854775808ULL (2^63) for the minimum value magnitude
+        if (unsigned_value > 9223372036854775808ULL) {  // INT64_MIN absolute value
             LOG_ERROR("Overflow");
             return false;
         }
         *value = -(i64)unsigned_value;
     } else {
-        if (unsigned_value > ((u64)((i64)1 << 63) - 1)) {  // Replace INT64_MAX with bit manipulation
+        // Use 9223372036854775807ULL (2^63 - 1) for the maximum value
+        if (unsigned_value > 9223372036854775807ULL) {  // INT64_MAX
             LOG_ERROR("Overflow");
             return false;
         }
@@ -730,19 +760,87 @@ bool StrToF64(const Str* str, f64* value) {
         return false;
     }
     
-    // Check for special values
+    // Check for special values - ensuring they're exactly 'inf' or 'nan'
+    // followed by end of string or whitespace
     if (str->length - pos >= 3) {
         char c1 = TO_LOWER(str->data[pos]);
         char c2 = TO_LOWER(str->data[pos + 1]);
         char c3 = TO_LOWER(str->data[pos + 2]);
         
         if (c1 == 'n' && c2 == 'a' && c3 == 'n') {
-            *value = NAN;
-            return true;
+            // Make sure it's exactly "nan" (followed by whitespace or end of string)
+            if (str->length - pos == 3 || IS_SPACE(str->data[pos + 3])) {
+                *value = NAN;
+                return true;
+            }
         }
         if (c1 == 'i' && c2 == 'n' && c3 == 'f') {
-            *value = INFINITY;
-            return true;
+            // Make sure it's exactly "inf" (followed by whitespace or end of string)
+            if (str->length - pos == 3 || IS_SPACE(str->data[pos + 3])) {
+                *value = INFINITY;
+                return true;
+            }
+        }
+    }
+    
+    // Check for exponent overflow/underflow by examining the exponent in scientific notation
+    size_t check_pos = pos;
+    
+    // Skip past sign for exponent checking
+    if (check_pos < str->length && (str->data[check_pos] == '-' || str->data[check_pos] == '+')) {
+        check_pos++;
+    }
+    
+    // Skip past integer part for exponent checking
+    while (check_pos < str->length && IS_DIGIT(str->data[check_pos])) {
+        check_pos++;
+    }
+    
+    // Skip past decimal point and fractional part for exponent checking
+    if (check_pos < str->length && str->data[check_pos] == '.') {
+        check_pos++;
+        while (check_pos < str->length && IS_DIGIT(str->data[check_pos])) {
+            check_pos++;
+        }
+    }
+    
+    // If we have scientific notation, examine the exponent for overflow/underflow
+    if (check_pos < str->length && (str->data[check_pos] == 'e' || str->data[check_pos] == 'E')) {
+        check_pos++;
+        
+        // Get exponent sign
+        int exp_sign = 1;
+        if (check_pos < str->length) {
+            if (str->data[check_pos] == '-') {
+                exp_sign = -1;
+                check_pos++;
+            } else if (str->data[check_pos] == '+') {
+                check_pos++;
+            }
+        }
+        
+        // Parse exponent value
+        int exp_val = 0;
+        bool have_exp_digits = false;
+        
+        while (check_pos < str->length && IS_DIGIT(str->data[check_pos])) {
+            exp_val = exp_val * 10 + (str->data[check_pos] - '0');
+            have_exp_digits = true;
+            check_pos++;
+        }
+        
+        if (have_exp_digits) {
+            exp_val *= exp_sign;
+            
+            // Double has approx 15-17 decimal digits of precision
+            // The exponent range for double is approximately -308 to +308
+            if (exp_val > 308) {
+                LOG_ERROR("Exponent %d exceeds maximum representable f64 exponent (308)", exp_val);
+                return false;
+            } else if (exp_val <= -324) {
+                LOG_ERROR("Exponent %d is below minimum representable f64 exponent (-324)", exp_val);
+                return false;
+            }
         }
     }
     
@@ -751,6 +849,21 @@ bool StrToF64(const Str* str, f64* value) {
     if (str->data[pos] == '-') {
         negative = true;
         pos++;
+        
+        // Check for "-inf" after consuming the negative sign
+        if (str->length - pos >= 3) {
+            char c1 = TO_LOWER(str->data[pos]);
+            char c2 = TO_LOWER(str->data[pos + 1]);
+            char c3 = TO_LOWER(str->data[pos + 2]);
+            
+            if (c1 == 'i' && c2 == 'n' && c3 == 'f') {
+                // Make sure it's exactly "-inf" (followed by whitespace or end of string)
+                if (str->length - pos == 3 || IS_SPACE(str->data[pos + 3])) {
+                    *value = -INFINITY;
+                    return true;
+                }
+            }
+        }
     } else if (str->data[pos] == '+') {
         pos++;
     }

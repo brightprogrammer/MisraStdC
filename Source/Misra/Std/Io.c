@@ -669,8 +669,29 @@ void _write_u16(Str* o, FmtInfo* fmt_info, u16* v) {
 }
 
 void _write_u8(Str* o, FmtInfo* fmt_info, u8* v) {
-    u64 val = *v;
-    _write_u64(o, fmt_info, &val);
+    if (!o || !fmt_info || !v) {
+        LOG_FATAL("Invalid arguments");
+        return;
+    }
+
+    // Store original length to calculate content size later
+    size_t start_len = o->length;
+    
+    // Create temporary buffer for number formatting
+    Str temp = StrInit();
+    
+    // Use StrFromU64 directly with the appropriate base
+    StrFromU64(&temp, *v, 10, fmt_info->is_caps);
+    
+    // Merge the formatted number into output
+    StrMerge(o, &temp);
+    StrDeinit(&temp);
+    
+    // Apply padding if width is specified
+    if (fmt_info->width > 0) {
+        size_t content_len = o->length - start_len;
+        PadString(o, fmt_info->width, fmt_info->align, content_len);
+    }
 }
 
 void _write_i64(Str* o, FmtInfo* fmt_info, i64* v) {
@@ -986,7 +1007,7 @@ const char* _read_f64(const char* i, f64* v) {
     // Create a temporary Str for parsing
     Str temp = StrInitFromCstr(start, i - start);
     
-    // Use StrToF64 directly
+    // Use StrToF64 directly - bounds checking happens in StrToF64 now
     if (!StrToF64(&temp, v)) {
         LOG_ERROR("Failed to parse f64");
         StrDeinit(&temp);
@@ -1024,6 +1045,13 @@ const char* _read_u8(const char* i, u8* v) {
         return start;
     }
     
+    // Check for overflow
+    if (val > UINT8_MAX) {
+        LOG_ERROR("Value %llu exceeds u8 maximum (%u)", val, UINT8_MAX);
+        StrDeinit(&temp);
+        return start;
+    }
+    
     *v = (u8)val;
     StrDeinit(&temp);
     return i;
@@ -1056,6 +1084,13 @@ const char* _read_u16(const char* i, u16* v) {
         return start;
     }
     
+    // Check for overflow
+    if (val > UINT16_MAX) {
+        LOG_ERROR("Value %llu exceeds u16 maximum (%u)", val, UINT16_MAX);
+        StrDeinit(&temp);
+        return start;
+    }
+    
     *v = (u16)val;
     StrDeinit(&temp);
     return i;
@@ -1080,10 +1115,41 @@ const char* _read_u32(const char* i, u32* v) {
     // Create a temporary Str for parsing
     Str temp = StrInitFromCstr(start, i - start);
     
-    // Use StrToU64 directly
+    // Use StrToU64 directly (auto-detect base with 0)
     u64 val;
     if (!StrToU64(&temp, &val, 0)) {
+        // If parsing failed, check if this might be a hex number without 0x prefix
+        bool could_be_hex = false;
+        for (size_t idx = 0; idx < temp.length; idx++) {
+            char c = temp.data[idx];
+            if ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+                could_be_hex = true;
+                break;
+            }
+        }
+        
+        // Try again with base 16 if it looks like it could be hex
+        if (could_be_hex && StrToU64(&temp, &val, 16)) {
+            // Check for overflow after successful hex parsing
+            if (val > UINT32_MAX) {
+                LOG_ERROR("Value %llu exceeds u32 maximum (%u)", val, UINT32_MAX);
+                StrDeinit(&temp);
+                return start;
+            }
+            
+            *v = (u32)val;
+            StrDeinit(&temp);
+            return i;
+        }
+        
         LOG_ERROR("Failed to parse u32");
+        StrDeinit(&temp);
+        return start;
+    }
+    
+    // Check for overflow
+    if (val > UINT32_MAX) {
+        LOG_ERROR("Value %llu exceeds u32 maximum (%u)", val, UINT32_MAX);
         StrDeinit(&temp);
         return start;
     }
@@ -1150,6 +1216,13 @@ const char* _read_i8(const char* i, i8* v) {
         return start;
     }
     
+    // Check for overflow and underflow
+    if (val > INT8_MAX || val < INT8_MIN) {
+        LOG_ERROR("Value %lld outside i8 range (%d to %d)", val, INT8_MIN, INT8_MAX);
+        StrDeinit(&temp);
+        return start;
+    }
+    
     *v = (i8)val;
     StrDeinit(&temp);
     return i;
@@ -1178,6 +1251,13 @@ const char* _read_i16(const char* i, i16* v) {
     i64 val;
     if (!StrToI64(&temp, &val, 0)) {
         LOG_ERROR("Failed to parse i16");
+        StrDeinit(&temp);
+        return start;
+    }
+    
+    // Check for overflow and underflow
+    if (val > INT16_MAX || val < INT16_MIN) {
+        LOG_ERROR("Value %lld outside i16 range (%d to %d)", val, INT16_MIN, INT16_MAX);
         StrDeinit(&temp);
         return start;
     }
@@ -1211,6 +1291,13 @@ const char* _read_i32(const char* i, i32* v) {
     i64 val;
     if (!StrToI64(&temp, &val, 0)) {
         LOG_ERROR("Failed to parse i32");
+        StrDeinit(&temp);
+        return start;
+    }
+    
+    // Check for overflow and underflow
+    if (val > INT32_MAX || val < INT32_MIN) {
+        LOG_ERROR("Value %lld outside i32 range (%d to %d)", val, INT32_MIN, INT32_MAX);
         StrDeinit(&temp);
         return start;
     }

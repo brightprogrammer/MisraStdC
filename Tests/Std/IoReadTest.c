@@ -128,7 +128,7 @@ int main(void) {
         {
             i8 val;
             TestRead("binary with prefix", "0b101010", "{}", TEST_FMT(FMT(val)), 1, false);
-            TestRead("binary without prefix", "101010", "{}", TEST_FMT(FMT(val)), 1, false);
+            TestRead("binary without prefix", "101010", "{}", TEST_FMT(FMT(val)), 1, true);
             TestRead("binary negative", "-0b101010", "{}", TEST_FMT(FMT(val)), 1, false);
             
             // Test binary edge cases
@@ -337,6 +337,66 @@ int main(void) {
         TestRead("empty format", "", "{}", TEST_FMT(FMT(val)), 1, true);
         TestRead("invalid format", "42", "{:}", TEST_FMT(FMT(val)), 1, true);
         TestRead("mismatched format count", "42 43", "{}", TEST_FMT(FMT(val)), 1, true);
+    }
+    
+    // Test structured input formats
+    {
+        printf("[INFO] Testing structured input formats\n");
+        
+        // Simple structure with unsigned integer
+        {
+            u32 val = 0;
+            const char* input = "Value: 42";
+            const char* fmt = "Value: {}";
+            
+            TestRead("simple structure", input, fmt, TEST_FMT(FMT(val)), 1, false);
+        }
+        
+        // Simple structure with floating point
+        {
+            f64 val = 0.0;
+            const char* input = "Price: 19.99";
+            const char* fmt = "Price: {}";
+            
+            TestRead("simple float structure", input, fmt, TEST_FMT(FMT(val)), 1, false);
+        }
+        
+        // Simple structure with string
+        {
+            Str val = StrInit();
+            const char* input = "Name: Alice";
+            const char* fmt = "Name: {}";
+            
+            TestRead("simple string structure", input, fmt, TEST_FMT(FMT(val)), 1, false);
+            StrDeinit(&val);
+        }
+        
+        // Structure with two placeholders
+        // Note: When using multiple placeholders, separate them with whitespace around punctuation
+        // to avoid parsing issues.
+        {
+            u32 quantity = 0;
+            f64 price = 0.0;
+            
+            const char* input = "Quantity: 5 , Price: 19.99";
+            const char* fmt = "Quantity: {} , Price: {}";
+            
+            TestRead("two-field structure", input, fmt, 
+                    TEST_FMT(FMT(quantity), FMT(price)), 2, false);
+        }
+        
+        // Error cases
+        {
+            u32 val = 0;
+            
+            // Format doesn't match input
+            TestRead("mismatched format", "Count: 42", "Value: {}", 
+                    TEST_FMT(FMT(val)), 1, true);
+                    
+            // Extra content in input
+            TestRead("extra input", "Value: 42 extra", "Value: {}", 
+                    TEST_FMT(FMT(val)), 1, true);
+        }
     }
     
     printf("[INFO] All format reader tests completed\n");
