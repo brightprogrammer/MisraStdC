@@ -303,7 +303,7 @@ Str* StrFromU64(Str* str, u64 value, u8 base, bool uppercase) {
             StrPushBack(str, 'x');
             StrPushBack(str, '0');
         } else {
-            StrPushBack(str, '0');
+        StrPushBack(str, '0');
         }
         return str;
     }
@@ -432,7 +432,7 @@ static void append_fraction(Str* str, f64 frac, u8 precision) {
 Str* StrFromF64(Str* str, f64 value, u8 precision, bool force_sci, bool uppercase) {
     ValidateStr(str);
     StrClear(str);
-
+    
     // Handle special cases
     if (isnan(value)) {
         StrPushBackZstr(str, "nan");
@@ -475,13 +475,13 @@ Str* StrFromF64(Str* str, f64 value, u8 precision, bool force_sci, bool uppercas
         int exp = 0;
         f64 mantissa = value;
         
-        while (mantissa >= 10.0) {
-            mantissa /= 10.0;
-            exp++;
-        }
-        while (mantissa < 1.0) {
-            mantissa *= 10.0;
-            exp--;
+            while (mantissa >= 10.0) {
+                mantissa /= 10.0;
+                exp++;
+            }
+            while (mantissa < 1.0) {
+                mantissa *= 10.0;
+                exp--;
         }
         
         i64 int_part = (i64)mantissa;
@@ -512,7 +512,7 @@ Str* StrFromF64(Str* str, f64 value, u8 precision, bool force_sci, bool uppercas
     // Add the negative sign if needed, then the numeric part
     if (is_negative) {
         StrPushBack(str, '-');
-    }
+            }
     StrMerge(str, &temp);
     StrDeinit(&temp);
     

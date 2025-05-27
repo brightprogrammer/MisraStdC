@@ -105,3 +105,12 @@ executable(
     include_directories: inc_misra,
     install: false  # Tests don't need to be installed
 )
+
+executable(
+    'DebugFormat',
+    files('Tests/Std/DebugFormat.c'),
+    link_with: [misra_std],
+    c_args: common_c_args,
+    include_directories: inc_misra,
+    install: false  # Tests don't need to be installed
+)

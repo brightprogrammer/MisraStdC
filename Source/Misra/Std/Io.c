@@ -82,7 +82,7 @@ static bool ParseFormatSpec(const char* spec, size_t len, FmtInfo* fi) {
             case 'E': fi->is_scientific = true; fi->is_caps = true; found_type = true; break;
             case '?': fi->is_debug = true; found_type = true; break;
             default: break;
-        }
+            }
         if (found_type) {
             pos = type_pos + 1;
             break;
@@ -191,7 +191,7 @@ bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, size_t a
 
             // Extract format specifier
             size_t spec_len = brace_end - brace_start - 1;
-            
+
             // Parse format specifier
             FmtInfo fmt_info;
             if (spec_len == 0) {
@@ -218,17 +218,17 @@ bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, size_t a
                 LOG_ERROR("Not enough arguments for format string");
                 return false;
             }
-
+            
             // Get current argument
             TypeSpecificIO* arg = &args[arg_idx++];
             if (!arg->writer || !arg->data) {
                 LOG_ERROR("Invalid argument");
                 return false;
             }
-
+            
             // Write the formatted value
             arg->writer(o, &fmt_info, arg->data);
-
+            
             // Skip to end of format specifier
             i = brace_end;
         } else if (fmt[i] == '}') {
@@ -249,7 +249,7 @@ bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, size_t a
     if (arg_idx < argc) {
         LOG_ERROR("Too many arguments for format string");
         return false;
-    }
+        }
 
     return true;
 }
@@ -485,8 +485,8 @@ void _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
                 if (fmt_info->precision == 0) {
                     len = 0;
                 } else {
-                    len = MIN2(len, fmt_info->precision);
-                }
+                len = MIN2(len, fmt_info->precision);
+            }
             }
             
             // Copy string content
@@ -495,7 +495,7 @@ void _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
             }
         }
     }
-    
+
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size_t content_len = o->length - start_len;
@@ -511,7 +511,7 @@ void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s) {
 
     // Store original length to calculate content size later
     size_t start_len = o->length;
-    
+
     // Handle null or empty string
     if (!s || !*s) {
         StrPushBackZstr(o, "(null)");
@@ -551,7 +551,7 @@ void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s) {
                     len = 0;
                 } else {
                     len = MIN2(len, fmt_info->precision);
-                }
+            }
             }
             
             // Copy string content
@@ -560,7 +560,7 @@ void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s) {
             }
         }
     }
-    
+
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size_t content_len = o->length - start_len;
@@ -580,16 +580,18 @@ void _write_u64(Str* o, FmtInfo* fmt_info, u64* v) {
     // Create temporary buffer for number formatting
     Str temp = StrInit();
     
-    // Convert the number based on format
+    // Determine base based on format flags
+    u8 base = 10;  // default is decimal
     if (fmt_info->is_hex) {
-        StrFromU64(&temp, *v, 16, fmt_info->is_caps);
+        base = 16;
     } else if (fmt_info->is_binary) {
-        StrFromU64(&temp, *v, 2, false);
+        base = 2;
     } else if (fmt_info->is_octal) {
-        StrFromU64(&temp, *v, 8, false);
-    } else {
-        StrFromU64(&temp, *v, 10, false);
+        base = 8;
     }
+    
+    // Use StrFromU64 directly with the appropriate base
+    StrFromU64(&temp, *v, base, fmt_info->is_caps);
     
     // Merge the formatted number into output
     StrMerge(o, &temp);
@@ -629,24 +631,18 @@ void _write_i64(Str* o, FmtInfo* fmt_info, i64* v) {
     // Create temporary buffer for number formatting
     Str temp = StrInit();
     
-    // Handle negative numbers first
-    bool is_negative = *v < 0;
-    u64 abs_value = is_negative ? (u64)(-(*v)) : (u64)(*v);
-    
-    // Convert the number based on format
+    // Determine base based on format flags
+    u8 base = 10;  // default is decimal
     if (fmt_info->is_hex) {
-        StrPushBackZstr(&temp, "0x");
-        StrFromU64(&temp, abs_value, 16, fmt_info->is_caps);
+        base = 16;
     } else if (fmt_info->is_binary) {
-        StrPushBackZstr(&temp, "0b");
-        StrFromU64(&temp, abs_value, 2, false);
+        base = 2;
     } else if (fmt_info->is_octal) {
-        StrPushBackZstr(&temp, "0o");
-        StrFromU64(&temp, abs_value, 8, false);
-    } else {
-        // For decimal format, use StrFromI64 which handles the sign
-        StrFromI64(&temp, *v, 10, false);
+        base = 8;
     }
+    
+    // Use StrFromI64 directly with the appropriate base
+    StrFromI64(&temp, *v, base, fmt_info->is_caps);
     
     // Merge the formatted number into output
     StrMerge(o, &temp);

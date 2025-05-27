@@ -183,10 +183,11 @@ int main(void) {
         {
             i32 val = -42;
             TestFormat("negative decimal", "{}", "-42", TEST_FMT(FMT(val)), 1, false);
-            // Remove the tests causing crashes
-            // TestFormat("negative hex", "{:x}", "0xffffffd6", TEST_FMT(FMT(val)), 1, false);
-            // TestFormat("negative binary", "{:b}", "0b11111111111111111111111111010110", TEST_FMT(FMT(val)), 1, false);
-            // TestFormat("negative octal", "{:o}", "0o37777777726", TEST_FMT(FMT(val)), 1, false);
+            
+            // Note: For non-decimal formats, negative numbers are represented by their absolute value
+            TestFormat("negative hex", "{:x}", "0x2a", TEST_FMT(FMT(val)), 1, false);
+            TestFormat("negative binary", "{:b}", "0b101010", TEST_FMT(FMT(val)), 1, false);
+            TestFormat("negative octal", "{:o}", "0o52", TEST_FMT(FMT(val)), 1, false);
         }
     }
     
