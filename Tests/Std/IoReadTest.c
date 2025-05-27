@@ -69,7 +69,8 @@ static void TestRead(const char* test_name, const char* input, const char* fmt, 
 int main(void) {
     printf("[INFO] Starting format reader tests\n");
     
-    // Test integer reading
+    // ===== INTEGER READING TESTS =====
+    // Tests reading integers of different types, bases, and edge cases
     {
         // Test decimal integers
         {

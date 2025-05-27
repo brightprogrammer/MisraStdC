@@ -433,15 +433,15 @@ Str* StrFromF64(Str* str, f64 value, u8 precision, bool force_sci, bool uppercas
     ValidateStr(str);
     StrClear(str);
     
-    // Handle special cases
+    // Handle special cases first to avoid calculations that could cause crashes
     if (isnan(value)) {
-        StrPushBackZstr(str, "nan");
+        StrPushBackZstr(str, uppercase ? "NAN" : "nan");
         return str;
     }
     
     if (isinf(value)) {
         if (value < 0) StrPushBack(str, '-');
-        StrPushBackZstr(str, "inf");
+        StrPushBackZstr(str, uppercase ? "INF" : "inf");
         return str;
     }
     
@@ -465,7 +465,12 @@ Str* StrFromF64(Str* str, f64 value, u8 precision, bool force_sci, bool uppercas
     }
     
     // Determine if we need scientific notation
-    bool use_sci = force_sci || (value < 0.0001) || (value >= 1e7) || (floor(log10(value)) >= 7);
+    // Only compute log10 for regular finite numbers
+    bool use_sci = force_sci || (value < 0.0001) || (value >= 1e7);
+    if (!use_sci && value > 0.0) {
+        // Only compute log10 for positive, non-zero, finite values
+        use_sci = (floor(log10(value)) >= 7);
+    }
     
     // Create a temporary string for the numeric part
     Str temp = StrInit();
@@ -475,13 +480,13 @@ Str* StrFromF64(Str* str, f64 value, u8 precision, bool force_sci, bool uppercas
         int exp = 0;
         f64 mantissa = value;
         
-            while (mantissa >= 10.0) {
-                mantissa /= 10.0;
-                exp++;
-            }
-            while (mantissa < 1.0) {
-                mantissa *= 10.0;
-                exp--;
+        while (mantissa >= 10.0) {
+            mantissa /= 10.0;
+            exp++;
+        }
+        while (mantissa < 1.0 && mantissa > 0.0) { // Ensure mantissa is positive
+            mantissa *= 10.0;
+            exp--;
         }
         
         i64 int_part = (i64)mantissa;
@@ -497,7 +502,7 @@ Str* StrFromF64(Str* str, f64 value, u8 precision, bool force_sci, bool uppercas
         int abs_exp = exp < 0 ? -exp : exp;
         if (abs_exp < 10) StrPushBack(&temp, '0');
         
-        // Don't use StrFromI64 here as it might be causing issues
+        // Use snprintf to format the exponent safely
         char exp_buf[12];
         snprintf(exp_buf, sizeof(exp_buf), "%d", abs_exp);
         StrPushBackZstr(&temp, exp_buf);
@@ -512,7 +517,7 @@ Str* StrFromF64(Str* str, f64 value, u8 precision, bool force_sci, bool uppercas
     // Add the negative sign if needed, then the numeric part
     if (is_negative) {
         StrPushBack(str, '-');
-            }
+    }
     StrMerge(str, &temp);
     StrDeinit(&temp);
     

@@ -9,15 +9,6 @@
 // Helper macro to create TypeSpecificIO array
 #define TEST_FMT(...) (TypeSpecificIO[]){__VA_ARGS__}
 
-// Helper function to check if two strings are equal
-static bool StrEqual(const Str* a, const Str* b) {
-    if (!a || !b) return false;
-    if (a->length != b->length) return false;
-    if (a->length == 0) return true;  // Both empty
-    if (!a->data || !b->data) return false;
-    return memcmp(a->data, b->data, a->length) == 0;
-}
-
 // Helper function to run a format test in a forked process
 static void TestFormat(const char* test_name, const char* fmt, const char* expected, TypeSpecificIO* args, size_t argc, bool expect_error) {
     pid_t pid = fork();
@@ -45,7 +36,7 @@ static void TestFormat(const char* test_name, const char* fmt, const char* expec
         }
         
         // Check if the output matches the expected result
-        bool matches = StrEqual(&output, &expected_str);
+        bool matches = (StrCmp(&output, &expected_str) == 0);
         
         // Clean up
         StrDeinit(&output);
@@ -86,7 +77,8 @@ static void TestFormat(const char* test_name, const char* fmt, const char* expec
 int main(void) {
     printf("[INFO] Starting format writer tests\n");
     
-    // Test basic formatting
+    // ===== BASIC FORMATTING TESTS =====
+    // Tests basic string literals and escaped braces
     {
         printf("\n[INFO] Testing basic formatting\n");
         
@@ -101,7 +93,8 @@ int main(void) {
         TestFormat("double escaped", "{{{{", "{{", NULL, 0, false);
     }
     
-    // Test string formatting
+    // ===== STRING FORMATTING TESTS =====
+    // Tests formatting of strings with various alignments
     {
         printf("\n[INFO] Testing string formatting\n");
         
@@ -124,7 +117,8 @@ int main(void) {
         StrDeinit(&s);
     }
     
-    // Test integer formatting
+    // ===== INTEGER FORMATTING TESTS =====
+    // Tests formatting of integers in various bases and with different sizes
     {
         printf("\n[INFO] Testing integer formatting\n");
         
@@ -191,7 +185,8 @@ int main(void) {
         }
     }
     
-    // Test floating point formatting
+    // ===== FLOATING POINT FORMATTING TESTS =====
+    // Tests formatting of floating-point numbers with various precisions and notations
     {
         printf("\n[INFO] Testing floating point formatting\n");
         
@@ -238,14 +233,31 @@ int main(void) {
         
         // Test special values
         {
-            printf("[INFO] Testing special floating point values\n");
+            printf("[INFO] Testing special floating point values (skipped)\n");
             
-            // Skip the TestFormat calls for special values due to potential crashes
-            printf("[INFO] Skipping TestFormat for special values due to potential crashes\n");
+            // Skip tests for special values for now
+            /*
+            f64 inf = INFINITY;
+            f64 neg_inf = -INFINITY;
+            f64 nan_val = NAN;
+            
+            TestFormat("infinity", "{}", "inf", TEST_FMT(FMT(inf)), 1, false);
+            TestFormat("negative infinity", "{}", "-inf", TEST_FMT(FMT(neg_inf)), 1, false);
+            TestFormat("nan", "{}", "nan", TEST_FMT(FMT(nan_val)), 1, false);
+            
+            // Test special values with scientific notation
+            TestFormat("infinity scientific", "{:e}", "inf", TEST_FMT(FMT(inf)), 1, false);
+            TestFormat("nan scientific", "{:e}", "nan", TEST_FMT(FMT(nan_val)), 1, false);
+            
+            // Test special values with uppercase
+            TestFormat("infinity uppercase", "{:E}", "INF", TEST_FMT(FMT(inf)), 1, false);
+            TestFormat("nan uppercase", "{:E}", "NAN", TEST_FMT(FMT(nan_val)), 1, false);
+            */
         }
     }
     
-    // Test multiple arguments
+    // ===== MULTIPLE ARGUMENTS TESTS =====
+    // Tests formatting of multiple arguments in a single format string
     {
         printf("\n[INFO] Testing multiple arguments\n");
         
@@ -262,7 +274,8 @@ int main(void) {
         );
     }
     
-    // Test error cases
+    // ===== ERROR HANDLING TESTS =====
+    // Tests error handling for various format string issues
     {
         printf("\n[INFO] Testing error cases\n");
         
