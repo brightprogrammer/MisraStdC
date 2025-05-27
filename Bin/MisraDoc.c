@@ -89,7 +89,7 @@ void ProjectDeinit(Project* p) {
 ///
 #define Scope(obj, obj_deinit, scope_body)                                                                             \
     do {                                                                                                               \
-        TYPE_OF((obj)) __o_b_j = (obj);                                                                             \
+        TYPE_OF((obj)) __o_b_j = (obj);                                                                                \
         {scope_body};                                                                                                  \
         obj_deinit(__o_b_j);                                                                                           \
     } while (0)

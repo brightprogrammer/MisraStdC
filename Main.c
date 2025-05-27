@@ -282,7 +282,6 @@ bool IntIsZero(Int* z) {
     }
 
     size     bitlen     = IntLength(z); // user‐visible length in bits
-    size     bytelen    = IntSize(z);   // ceil((bitlen + 1) / 8)
     size     full_bytes = bitlen / 8;   // number of whole‐byte magnitude
     unsigned rem_bits   = bitlen % 8;   // leftover magnitude bits in last byte
 
@@ -336,6 +335,7 @@ Int IntAdd(Int* z1, Int* z2) {
 Int IntSub(Int* z1, Int* z2) {
     ValidateInt(z1);
     ValidateInt(z2);
+    return *z1; //XXX: subtracto p
 }
 
 void _write_Int(Str* o, FmtInfo* fmt_info, Int* z) {

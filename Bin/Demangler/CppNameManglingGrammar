@@ -1,6 +1,3 @@
-[.unresolved-qualifier-level (unit)]
-{simple-id}
-
 [.mangled-name]
 _Z {encoding}
 _Z {encoding} . <suffix> # Vendor Specific Suffix
@@ -212,8 +209,8 @@ Dp {type}                                      # pack expansion (C++11)
 [.extended-qualifier]
 U {source-name} [{template-args}] # vendor extended type qualifier
 
-[.CV-qualifiers (empty)]
-(empty)
+[.CV-qualifiers]
+(empty)      # empty string will also match
 r            # restrict
 V            # volatile
 K            # const
@@ -394,7 +391,7 @@ srN {unresolved-type} {unresolved-qualifier-level}+ E {base-unresolved-name}
 {decltype}                                      # decltype(p)::
 {substitution}
 
-[.unresolved-qualifier-level (unit)]
+[.unresolved-qualifier-level]
 {simple-id}
 
 [.simple-id]
