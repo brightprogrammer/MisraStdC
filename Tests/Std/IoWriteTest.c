@@ -233,10 +233,9 @@ int main(void) {
         
         // Test special values
         {
-            printf("[INFO] Testing special floating point values (skipped)\n");
+            printf("[INFO] Testing special floating point values\n");
             
-            // Skip tests for special values for now
-            /*
+            // Tests for special values
             f64 inf = INFINITY;
             f64 neg_inf = -INFINITY;
             f64 nan_val = NAN;
@@ -252,7 +251,6 @@ int main(void) {
             // Test special values with uppercase
             TestFormat("infinity uppercase", "{:E}", "INF", TEST_FMT(FMT(inf)), 1, false);
             TestFormat("nan uppercase", "{:E}", "NAN", TEST_FMT(FMT(nan_val)), 1, false);
-            */
         }
     }
     

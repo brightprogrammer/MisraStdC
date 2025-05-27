@@ -775,16 +775,46 @@ void _write_f64(Str* o, FmtInfo* fmt_info, f64* v) {
     // Store original length to calculate content size later
     size_t start_len = o->length;
     
-    // Create temporary buffer for number formatting
-    Str temp = StrInit();
-    
-    // Use StrFromF64 directly with the appropriate parameters
-    u8 precision = fmt_info->has_precision ? fmt_info->precision : 6;
-    StrFromF64(&temp, *v, precision, fmt_info->is_scientific, fmt_info->is_caps);
-    
-    // Merge the formatted number into output
-    StrMerge(o, &temp);
-    StrDeinit(&temp);
+    // Handle special cases directly here to avoid StrFromF64 issues
+    if (isnan(*v)) {
+        // Direct string append for NaN
+        if (fmt_info->is_caps) {
+            StrPushBack(o, 'N');
+            StrPushBack(o, 'A');
+            StrPushBack(o, 'N');
+        } else {
+            StrPushBack(o, 'n');
+            StrPushBack(o, 'a');
+            StrPushBack(o, 'n');
+        }
+    } else if (isinf(*v)) {
+        // Direct string append for infinity
+        if (*v < 0) {
+            StrPushBack(o, '-');
+        }
+        
+        if (fmt_info->is_caps) {
+            StrPushBack(o, 'I');
+            StrPushBack(o, 'N');
+            StrPushBack(o, 'F');
+        } else {
+            StrPushBack(o, 'i');
+            StrPushBack(o, 'n');
+            StrPushBack(o, 'f');
+        }
+    } else {
+        // Normal case - use StrFromF64
+        // Create temporary buffer for number formatting
+        Str temp = StrInit();
+        
+        // Use StrFromF64 directly with the appropriate parameters
+        u8 precision = fmt_info->has_precision ? fmt_info->precision : 6;
+        StrFromF64(&temp, *v, precision, fmt_info->is_scientific, fmt_info->is_caps);
+        
+        // Merge the formatted number into output
+        StrMerge(o, &temp);
+        StrDeinit(&temp);
+    }
     
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
@@ -1175,6 +1205,7 @@ const char* _read_i32(const char* i, i32* v) {
     
     // Create a temporary Str for parsing
     Str temp = StrInitFromCstr(start, i - start);
+    
     
     // Use StrToI64 directly
     i64 val;

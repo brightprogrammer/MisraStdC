@@ -435,13 +435,43 @@ Str* StrFromF64(Str* str, f64 value, u8 precision, bool force_sci, bool uppercas
     
     // Handle special cases first to avoid calculations that could cause crashes
     if (isnan(value)) {
-        StrPushBackZstr(str, uppercase ? "NAN" : "nan");
+        // Manually push characters instead of using StrPushBackZstr
+        const char* nan_str = uppercase ? "NAN" : "nan";
+        size_t len = 3; // "nan" or "NAN" is 3 characters
+        
+        // Ensure we have enough capacity
+        if (str->capacity < len) {
+            VecReserve(str, len);
+        }
+        
+        // Manually copy characters
+        for (size_t i = 0; i < len; i++) {
+            StrPushBack(str, nan_str[i]);
+        }
+        
         return str;
     }
     
     if (isinf(value)) {
-        if (value < 0) StrPushBack(str, '-');
-        StrPushBackZstr(str, uppercase ? "INF" : "inf");
+        // Manually push characters instead of using StrPushBackZstr
+        if (value < 0) {
+            StrPushBack(str, '-');
+        }
+        
+        const char* inf_str = uppercase ? "INF" : "inf";
+        size_t len = 3; // "inf" or "INF" is 3 characters
+        
+        // Ensure we have enough capacity
+        size_t total_needed = str->length + len;
+        if (str->capacity < total_needed) {
+            VecReserve(str, total_needed);
+        }
+        
+        // Manually copy characters
+        for (size_t i = 0; i < len; i++) {
+            StrPushBack(str, inf_str[i]);
+        }
+        
         return str;
     }
     
