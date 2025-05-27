@@ -7,7 +7,8 @@ Features :
 - Generic containers
   - `Vec(T)` : Work with any type in a type-safe manner with strict type checking.
   - `Str`    : Just a `typedef` of `Vec(char)` but provides it's own wrapper functions.
-  - `Map(K, V)` : Work in progress...
+  - `Map(K, V)` : Generic key-value hash-map storage container (Work in progress...)
+  - `Int` : A custom big int implementation (Work in progress...)
 - Rust style Fmt IO
   - `WriteFmt`, `ReadFmt` : To write and read from standard I/O in a type-safe formatted manner.
   - `StrWriteFmt`, `StrReadFmt` :  To write and read from strigs in a type-safe formatted manner.
