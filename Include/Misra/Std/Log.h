@@ -90,7 +90,7 @@ void LogInit(bool redirect);
 /// FAILURE: Some resources may leak (safe to call multiple times)
 ///
 /// TAGS: Logging, Cleanup, System
-void LogDeinit();
+void LogDeinit(void);
 
 ///
 /// Core log message generation function

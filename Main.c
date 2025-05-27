@@ -2,6 +2,7 @@
 
 // libc
 #include <stdlib.h>
+#include "Misra/Std/Container/Vec/Type.h"
 
 ///
 /// Arbitrary length integer implementation.
@@ -347,12 +348,16 @@ void _write_Int(Str* o, FmtInfo* fmt_info, Int* z) {
 }
 
 int main(int argc, char** argv) {
+    (void)argc;
+    (void)argv;
     LogInit(false);
 
     Int z1 = IntInit(1024);
     Int z2 = IntInit(1024);
 
     Int r = IntAdd(&z1, &z2);
+
+    (void)r;
 
     LogDeinit();
     return 0;

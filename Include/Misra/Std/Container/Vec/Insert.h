@@ -188,6 +188,13 @@
 ///
 #define VecInsertRange(v, varr, idx, count)                                                                            \
     do {                                                                                                               \
+        {                                                                                                              \
+            if (!varr) {                                                                                               \
+                LOG_FATAL("Expected a valid pointer");                                                                 \
+            }                                                                                                          \
+            const VEC_DATATYPE(v) __x = *(varr);                                                                       \
+            (void)__x;                                                                                                 \
+        }                                                                                                              \
         const VEC_DATATYPE(v) *__tmp__ptr = (varr);                                                                    \
         insert_range_into_vec(GENERIC_VEC(v), (char *)__tmp__ptr, sizeof(VEC_DATATYPE(v)), (idx), (count));            \
         if (!(v)->copy_init) {                                                                                         \
@@ -220,6 +227,13 @@
 ///
 #define VecInsertRangeFast(v, varr, idx, count)                                                                        \
     do {                                                                                                               \
+        {                                                                                                              \
+            if (!varr) {                                                                                               \
+                LOG_FATAL("Expected a valid pointer");                                                                 \
+            }                                                                                                          \
+            const VEC_DATATYPE(v) __x = *(varr);                                                                       \
+            (void)__x;                                                                                                 \
+        }                                                                                                              \
         const VEC_DATATYPE(v) *__tmp__ptr = (varr);                                                                    \
         insert_range_fast_into_vec(GENERIC_VEC(v), (char *)__tmp__ptr, sizeof(VEC_DATATYPE(v)), (idx), (count));       \
         if (!(v)->copy_init) {                                                                                         \

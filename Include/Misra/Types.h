@@ -22,7 +22,15 @@ typedef unsigned long long u64;
 typedef float  f32;
 typedef double f64;
 
+#ifdef _MSC_VER
+#    if defined(_WIN64)
+typedef unsigned long long size;
+#    else
 typedef unsigned long size;
+#    endif
+#else
+typedef unsigned long size;
+#endif
 
 // bool is already defined in C++
 #ifndef __cplusplus
@@ -43,13 +51,14 @@ typedef i8 bool;
 #    endif
 #endif
 
+
 // Why decltype() yelds a pointer to reference? : https://stackoverflow.com/a/45980559
 // What expressions yield a reference type when decltype is applied to them? : https://stackoverflow.com/a/17242295
 #if defined(__cplusplus)
 #    include <type_traits>
-#    define TYPE_OF(x) std::remove_reference<decltype ((x))>::type
+#    define TYPE_OF(x) std::remove_reference<decltype((x))>::type
 #else
-#    define TYPE_OF(x) __typeof__ ((x))
+#    define TYPE_OF(x) __typeof__((x))
 #endif
 
 //
@@ -267,6 +276,5 @@ typedef i8 bool;
 /// TAGS: Compiler, Compatibility, Validation
 #    define FORMAT_STRING(fmt_pos, va_arg_pos) __attribute((format(printf, fmt_pos, va_arg_pos)))
 #endif
-
 
 #endif // MISRA_TYPES_H

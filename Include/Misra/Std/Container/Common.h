@@ -30,6 +30,7 @@
 
 typedef bool (*GenericCopyInit)(void *dst, void *src);
 typedef void (*GenericCopyDeinit)(void *copy);
-typedef int (*GenericCompare)(const void *first, const void *second);
+typedef i32 (*GenericCompare)(const void *first, const void *second);
+typedef u64 (*GenericHash)(const void *data, u32 size);
 
 #endif // MISRA_STD_CONTAINER_COMMON_H

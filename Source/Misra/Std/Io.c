@@ -171,7 +171,7 @@ const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecif
                         break;
                     }
 
-                    read_head ++;
+                    read_head++;
                 }
 
                 if (read_head == read_tail) {
@@ -290,7 +290,7 @@ void _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
     } else {
         StrAppendf(o, "(null)");
     }
-};
+}
 
 void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s) {
     if (!o || !s) {
@@ -415,6 +415,9 @@ void _write_i64(Str *o, FmtInfo *fmt_info, i64 *v) {
 }
 
 void _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s) {
+    (void)o;
+    (void)fmt_info;
+    (void)s;
     LOG_ERROR("Attempt to write unsupported type");
 }
 
@@ -454,7 +457,7 @@ const char *_read_Str(const char *i, Str *s) {
     *s = r;
 
     return i;
-};
+}
 
 const char *_read_u8(const char *i, u8 *v) {
     if (!i || !v)
@@ -610,6 +613,7 @@ const char *_read_Zstr(const char *i, const char **out) {
 }
 
 const char *_read_UnsupportedType(const char *i, const char **s) {
+    (void)s;
     LOG_ERROR("Attempt to read unsupported type.");
     return i;
 }

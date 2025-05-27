@@ -92,8 +92,7 @@
 ///
 /// TAGS: Initialization, Memory
 ///
-#define IterInitRevAlignedT(i, aln)                                                                                    \
-    ((TYPE_OF(i)) {.data = NULL, .length = 0, .pos = 0, .alignment = (aln), .dir = -1})
+#define IterInitRevAlignedT(i, aln) ((TYPE_OF(i)) {.data = NULL, .length = 0, .pos = 0, .alignment = (aln), .dir = -1})
 
 ///
 /// Initialize `Iter` from vector data to iterate in forward direction.

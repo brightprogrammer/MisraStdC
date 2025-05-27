@@ -26,7 +26,7 @@
 ///
 /// TAGS: Memory, Iter, Length
 ///
-#define IterRemainingLength(mi) remaining_length_iter(GENERIC_ITER(mi), sizeof(ITER_DATA_TYPE(mi)))
+#define IterRemainingLength(mi) remaining_length_iter(GENERIC_ITER(mi))
 
 ///
 /// Get total size of this Iter object
@@ -62,8 +62,8 @@
 ///
 #define IterPos(mi)                                                                                                    \
     (IterRemainingLength(mi) ?                                                                                         \
-         (ITER_DATA_TYPE(mi) *)(((u64)(mi)->data) + (mi)->pos * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment)  \
-         ) :                                                                                                           \
+         (ITER_DATA_TYPE(mi) *)(((u64)(mi)->data) +                                                                    \
+                                (mi)->pos * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment)) :                   \
          NULL_ITER_DATA(mi))
 
 ///

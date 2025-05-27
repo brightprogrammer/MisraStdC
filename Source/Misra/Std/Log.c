@@ -95,7 +95,7 @@ LOG_STREAM_FALLBACK: {
 }
 
 
-void LogDeinit() {
+void LogDeinit(void) {
     if (stderror && stderror != stderr) {
         fclose(stderror);
     }

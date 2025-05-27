@@ -131,7 +131,7 @@ Str *SysGetEnv(const char *name, Str *value);
 ///
 /// TAGS: System, Process
 ///
-SysProcessId SysGetCurrentProcessId();
+SysProcessId SysGetCurrentProcessId(void);
 
 ///
 /// Create a platform-independent mutex object.
@@ -141,7 +141,7 @@ SysProcessId SysGetCurrentProcessId();
 ///
 /// TAGS: System, Threading, Synchronization
 ///
-SysMutex *SysMutexCreate();
+SysMutex *SysMutexCreate(void);
 
 ///
 /// Destroy the provided mutex object.

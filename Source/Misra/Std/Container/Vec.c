@@ -39,26 +39,6 @@ static inline char *vec_ptr_at(GenericVec *v, size idx, size item_size) {
     return v->data + vec_aligned_offset_at(v, idx, item_size);
 }
 
-void init_vec_on_stack(
-    GenericVec       *vec,
-    char             *stack_mem,
-    size              capacity,
-    size              item_size,
-    GenericCopyInit   copy_init,
-    GenericCopyDeinit copy_deinit,
-    size              alignment
-) {
-    vec->copy_init   = copy_init;
-    vec->copy_deinit = copy_deinit;
-    vec->alignment   = alignment;
-    vec->data        = stack_mem;
-    vec->capacity    = capacity;
-    vec->length      = 0;
-
-    ValidateVec(vec);
-}
-
-
 void deinit_vec(GenericVec *vec, size item_size) {
     ValidateVec(vec);
 
@@ -113,7 +93,7 @@ void reserve_vec(GenericVec *vec, size item_size, size n) {
         }
         // it's mandatory to set the pointer here, because next call to any vec_ will do a validation check
         // this could've resulted in a heap-use-after-free bug, which was caught with help of ValidateVec
-        vec->data     = ptr;
+        vec->data = ptr;
         memset(
             ptr + vec_aligned_offset_at(vec, vec->capacity, item_size),
             0,
@@ -184,7 +164,7 @@ void insert_range_into_vec(GenericVec *vec, char *item_data, size item_size, siz
         );
     }
 
-    for (i64 i = 0; i < count; i++) {
+    for (size i = 0; i < count; i++) {
         if (vec->copy_init) {
             memset(vec_ptr_at(vec, idx + i, item_size), 0, item_size);
             vec->copy_init(vec_ptr_at(vec, idx + i, item_size), item_data + i * item_size);
@@ -219,7 +199,7 @@ void insert_range_fast_into_vec(GenericVec *vec, char *item_data, size item_size
         );
     }
 
-    for (i64 i = 0; i < count; i++) {
+    for (size i = 0; i < count; i++) {
         if (vec->copy_init) {
             memset(vec_ptr_at(vec, idx + i, item_size), 0, item_size);
             vec->copy_init(vec_ptr_at(vec, idx + i, item_size), item_data + i * item_size);

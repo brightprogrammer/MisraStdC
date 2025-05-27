@@ -271,7 +271,7 @@ Str* SysGetEnv(const char* name, Str* value) {
 #endif
 }
 
-unsigned long SysGetCurrentProcessId() {
+unsigned long SysGetCurrentProcessId(void) {
 #ifdef _WIN32
     return (unsigned long)GetCurrentProcessId(); // Windows API
 #else
@@ -279,7 +279,7 @@ unsigned long SysGetCurrentProcessId() {
 #endif
 }
 
-SysMutex* SysMutexCreate() {
+SysMutex* SysMutexCreate(void) {
     SysMutex* m = NEW(SysMutex);
 #ifdef _WIN32
     InitializeCriticalSection(&m->lock);

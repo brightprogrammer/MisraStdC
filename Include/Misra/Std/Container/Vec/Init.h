@@ -27,6 +27,7 @@
      .data        = NULL,                                                                                              \
      .alignment   = 1}
 
+#ifdef __cplusplus
 ///
 /// Initialize given vector. Default alignment is 1
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
@@ -42,13 +43,24 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
-#define VecInitT(v)                                                                                                    \
-    ((TYPE_OF(v)) {.length      = 0,                                                                                \
-                      .capacity    = 0,                                                                                \
-                      .copy_init   = (GenericCopyInit)NULL,                                                            \
-                      .copy_deinit = (GenericCopyDeinit)NULL,                                                          \
-                      .data        = NULL,                                                                             \
-                      .alignment   = 1})
+#    define VecInitT(v)                                                                                                \
+        (TYPE_OF(v) {                                                                                                  \
+            .length      = 0,                                                                                          \
+            .capacity    = 0,                                                                                          \
+            .copy_init   = (GenericCopyInit)NULL,                                                                      \
+            .copy_deinit = (GenericCopyDeinit)NULL,                                                                    \
+            .data        = NULL,                                                                                       \
+            .alignment   = 1                                                                                           \
+        })
+#else
+#    define VecInitT(v)                                                                                                \
+        ((TYPE_OF(v)) {.length      = 0,                                                                               \
+                       .capacity    = 0,                                                                               \
+                       .copy_init   = (GenericCopyInit)NULL,                                                           \
+                       .copy_deinit = (GenericCopyDeinit)NULL,                                                         \
+                       .data        = NULL,                                                                            \
+                       .alignment   = 1})
+#endif
 
 ///
 /// Initialize vector. Default alignment is 1
@@ -70,6 +82,7 @@
      .data        = NULL,                                                                                              \
      .alignment   = 1}
 
+#ifdef __cplusplus
 ///
 /// Initialize given vector. Default alignment is 1
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
@@ -90,13 +103,24 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
-#define VecInitWithDeepCopyT(v, ci, cd)                                                                                \
-    ((TYPE_OF(v)) {.length      = 0,                                                                                \
-                      .capacity    = 0,                                                                                \
-                      .copy_init   = (GenericCopyInit)(ci),                                                            \
-                      .copy_deinit = (GenericCopyDeinit)(cd),                                                          \
-                      .data        = NULL,                                                                             \
-                      .alignment   = 1})
+#    define VecInitWithDeepCopyT(v, ci, cd)                                                                            \
+        (TYPE_OF(v) {                                                                                                  \
+            .length      = 0,                                                                                          \
+            .capacity    = 0,                                                                                          \
+            .copy_init   = (GenericCopyInit)(ci),                                                                      \
+            .copy_deinit = (GenericCopyDeinit)(cd),                                                                    \
+            .data        = NULL,                                                                                       \
+            .alignment   = 1                                                                                           \
+        })
+#else
+#    define VecInitWithDeepCopyT(v, ci, cd)                                                                            \
+        ((TYPE_OF(v)) {.length      = 0,                                                                               \
+                       .capacity    = 0,                                                                               \
+                       .copy_init   = (GenericCopyInit)(ci),                                                           \
+                       .copy_deinit = (GenericCopyDeinit)(cd),                                                         \
+                       .data        = NULL,                                                                            \
+                       .alignment   = 1})
+#endif
 
 ///
 /// Initialize vector with given alignment.
@@ -122,6 +146,7 @@
      .data        = NULL,                                                                                              \
      .alignment   = (aln)}
 
+#ifdef __cplusplus
 ///
 /// Initialize given vector with given alignment.
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
@@ -146,13 +171,24 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
-#define VecInitAlignedT(v, aln)                                                                                        \
-    ((TYPE_OF(v)) {.length      = 0,                                                                                \
-                      .capacity    = 0,                                                                                \
-                      .copy_init   = (GenericCopyInit)NULL,                                                            \
-                      .copy_deinit = (GenericCopyDeinit)NULL,                                                          \
-                      .data        = NULL,                                                                             \
-                      .alignment   = (aln)})
+#    define VecInitAlignedT(v, aln)                                                                                    \
+        (TYPE_OF(v) {                                                                                                  \
+            .length      = 0,                                                                                          \
+            .capacity    = 0,                                                                                          \
+            .copy_init   = (GenericCopyInit)NULL,                                                                      \
+            .copy_deinit = (GenericCopyDeinit)NULL,                                                                    \
+            .data        = NULL,                                                                                       \
+            .alignment   = (aln)                                                                                       \
+        })
+#else
+#    define VecInitAlignedT(v, aln)                                                                                    \
+        ((TYPE_OF(v)) {.length      = 0,                                                                               \
+                       .capacity    = 0,                                                                               \
+                       .copy_init   = (GenericCopyInit)NULL,                                                           \
+                       .copy_deinit = (GenericCopyDeinit)NULL,                                                         \
+                       .data        = NULL,                                                                            \
+                       .alignment   = (aln)})
+#endif
 
 ///
 /// Initialize vector with given alignment.
@@ -181,6 +217,7 @@
      .data        = NULL,                                                                                              \
      .alignment   = (aln)}
 
+#ifdef __cplusplus
 ///
 /// Initialize given vector with given alignment.
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
@@ -211,13 +248,24 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
-#define VecInitAlignedWithDeepCopyT(v, ci, cd, aln)                                                                    \
-    ((TYPE_OF(v)) {.length      = 0,                                                                                \
-                      .capacity    = 0,                                                                                \
-                      .copy_init   = (GenericCopyInit)(ci),                                                            \
-                      .copy_deinit = (GenericCopyDeinit)(cd),                                                          \
-                      .data        = NULL,                                                                             \
-                      .alignment   = (aln)})
+#    define VecInitAlignedWithDeepCopyT(v, ci, cd, aln)                                                                \
+        (TYPE_OF(v) {                                                                                                  \
+            .length      = 0,                                                                                          \
+            .capacity    = 0,                                                                                          \
+            .copy_init   = (GenericCopyInit)(ci),                                                                      \
+            .copy_deinit = (GenericCopyDeinit)(cd),                                                                    \
+            .data        = NULL,                                                                                       \
+            .alignment   = (aln)                                                                                       \
+        })
+#else
+#    define VecInitAlignedWithDeepCopyT(v, ci, cd, aln)                                                                \
+        ((TYPE_OF(v)) {.length      = 0,                                                                               \
+                       .capacity    = 0,                                                                               \
+                       .copy_init   = (GenericCopyInit)(ci),                                                           \
+                       .copy_deinit = (GenericCopyDeinit)(cd),                                                         \
+                       .data        = NULL,                                                                            \
+                       .alignment   = (aln)})
+#endif
 
 ///
 /// Initialize given vector using memory from stack.
@@ -258,8 +306,8 @@
         {scoped_body}                                                                                                  \
                                                                                                                        \
         memset(___data___, 0, sizeof(___data___));                                                                     \
-        memset(&(v), 0, sizeof(v));                                                                                      \
-} while (0)
+        memset(&(v), 0, sizeof(v));                                                                                    \
+    } while (0)
 
 ///
 /// Initialize given vector with given alignment.
@@ -308,7 +356,7 @@
         {scoped_body}                                                                                                  \
                                                                                                                        \
         memset(___data___, 0, sizeof(___data___));                                                                     \
-        memset(&(v), 0, sizeof(v));                                                                                      \
+        memset(&(v), 0, sizeof(v));                                                                                    \
     } while (0)
 
 ///
@@ -349,7 +397,7 @@
         {scoped_body}                                                                                                  \
                                                                                                                        \
         memset(___data___, 0, sizeof(___data___));                                                                     \
-        memset(&(v), 0, sizeof(v));                                                                                      \
+        memset(&(v), 0, sizeof(v));                                                                                    \
     } while (0)
 
 ///
@@ -398,7 +446,7 @@
         {scoped_body}                                                                                                  \
                                                                                                                        \
         memset(___data___, 0, sizeof(___data___));                                                                     \
-        memset(&(v), 0, sizeof(v));                                                                                      \
+        memset(&(v), 0, sizeof(v));                                                                                    \
     } while (0)
 
 ///
