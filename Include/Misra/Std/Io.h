@@ -14,17 +14,6 @@
 #include <stdio.h>
 
 ///
-/// Formatting configuration structure
-///
-/// TAGS: Formatting, Configuration
-///
-typedef struct FmtInfo {
-    bool is_hex;
-    bool is_caps;
-    u8   width;
-} FmtInfo;
-
-///
 /// Type-specific write callback signature
 ///
 /// TAGS: I/O, Callback, Generic
@@ -82,6 +71,8 @@ typedef struct TypeSpecificIO {
         i16: TO_TYPE_SPECIFIC_IO(i16, &(x)),                                                                           \
         i32: TO_TYPE_SPECIFIC_IO(i32, &(x)),                                                                           \
         i64: TO_TYPE_SPECIFIC_IO(i64, &(x)),                                                                           \
+        f32: TO_TYPE_SPECIFIC_IO(f32, &(x)),                                                                           \
+        f64: TO_TYPE_SPECIFIC_IO(f64, &(x)),                                                                           \
         default: TO_TYPE_SPECIFIC_IO(UnsupportedType, NULL)                                                            \
     )
 
@@ -347,6 +338,8 @@ void _write_i32(Str *o, FmtInfo *fmt_info, i32 *v);
 void _write_i64(Str *o, FmtInfo *fmt_info, i64 *v);
 void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s);
 void _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s);
+void _write_f32(Str *o, FmtInfo *fmt_info, f32 *v);
+void _write_f64(Str *o, FmtInfo *fmt_info, f64 *v);
 
 const char *_read_Str(const char *i, Str *s);
 const char *_read_u8(const char *i, u8 *v);
@@ -359,5 +352,7 @@ const char *_read_i32(const char *i, i32 *v);
 const char *_read_i64(const char *i, i64 *v);
 const char *_read_Zstr(const char *i, const char **v);
 const char *_read_UnsupportedType(const char *i, const char **s);
+const char *_read_f32(const char *i, f32 *v);
+const char *_read_f64(const char *i, f64 *v);
 
 #endif // MISRA_STD_IO

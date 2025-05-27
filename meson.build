@@ -31,6 +31,7 @@ misra_std_sources = files(
     'Source/Misra/Std/Io.c',
     'Source/Misra/Std/Log.c',
     'Source/Misra/Std/File.c',
+    'Source/Misra/Std/Memory.c',
     'Source/Misra/Std/Container/Vec.c',
     'Source/Misra/Std/Container/Str.c',
     'Source/Misra/Std/Utility/Iter.c',
@@ -57,7 +58,6 @@ executable(
     c_args: common_c_args,
     include_directories: inc_misra,
     install: true
-
 )
 
 executable(
@@ -85,4 +85,14 @@ executable(
     c_args: common_c_args,
     include_directories: inc_misra,
     install: true
+)
+
+# Tests
+executable(
+    'IoTest',
+    files('Tests/Std/IoTest.c'),
+    link_with: [misra_std],
+    c_args: common_c_args,
+    include_directories: inc_misra,
+    install: false  # Tests don't need to be installed
 )
