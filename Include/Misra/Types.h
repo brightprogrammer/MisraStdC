@@ -7,6 +7,8 @@
 #ifndef MISRA_TYPES_H
 #define MISRA_TYPES_H
 
+#include <stdarg.h>
+
 // signed types
 typedef signed char      i8;
 typedef signed short     i16;
@@ -205,6 +207,50 @@ typedef i8 bool;
 #define IS_DIGIT(c) IN_RANGE(c, '0', '9')
 
 ///
+/// Checks if the given character `c` is a whitespace character.
+///
+/// c[in] : The character to check.
+///
+/// SUCCESS: Returns true for space, tab, newline, carriage return, vertical tab, form feed.
+/// FAILURE: Function cannot fail - always returns boolean result.
+///
+/// TAGS: Character, Validation, Whitespace
+#define IS_SPACE(c) ((c) == ' ' || (c) == '\t' || (c) == '\n' || (c) == '\r' || (c) == '\v' || (c) == '\f')
+
+///
+/// Checks if the given character `c` is a hexadecimal digit.
+///
+/// c[in] : The character to check.
+///
+/// SUCCESS: Returns true for 0-9, a-f, A-F, false otherwise.
+/// FAILURE: Function cannot fail - always returns boolean result.
+///
+/// TAGS: Character, Validation, Hexadecimal
+#define IS_XDIGIT(c) (IS_DIGIT(c) || IN_RANGE(c, 'a', 'f') || IN_RANGE(c, 'A', 'F'))
+
+///
+/// Converts a character to lowercase.
+///
+/// c[in] : The character to convert.
+///
+/// SUCCESS: Returns lowercase version if uppercase, otherwise returns unchanged.
+/// FAILURE: Function cannot fail - always returns a character.
+///
+/// TAGS: Character, Conversion, Case
+#define TO_LOWER(c) (IS_CAPS_ALPHA(c) ? ((c) + ('a' - 'A')) : (c))
+
+///
+/// Converts a character to uppercase.
+///
+/// c[in] : The character to convert.
+///
+/// SUCCESS: Returns uppercase version if lowercase, otherwise returns unchanged.
+/// FAILURE: Function cannot fail - always returns a character.
+///
+/// TAGS: Character, Conversion, Case
+#define TO_UPPER(c) (IN_RANGE(c, 'a', 'z') ? ((c) - ('a' - 'A')) : (c))
+
+///
 /// Allocates zero-initialized memory for a type.
 ///
 /// tname[in] : Type name to allocate memory for.
@@ -331,5 +377,180 @@ typedef struct {
     bool is_scientific;
     bool is_caps;
 } FmtInfo;
+
+///
+/// Compare memory regions.
+///
+/// p1[in]  : First memory region.
+/// p2[in]  : Second memory region.
+/// n[in]   : Number of bytes to compare.
+///
+/// SUCCESS: Returns 0 if equal, <0 if p1<p2, >0 if p1>p2.
+/// FAILURE: Function cannot fail - always returns comparison result.
+///
+/// TAGS: Memory, Comparison, Safety
+static inline i32 MemCmp(const void* p1, const void* p2, size n) {
+    const u8* s1 = (const u8*)p1;
+    const u8* s2 = (const u8*)p2;
+    while (n--) {
+        if (*s1 != *s2) {
+            return *s1 - *s2;
+        }
+        s1++;
+        s2++;
+    }
+    return 0;
+}
+
+///
+/// Copy memory from source to destination.
+///
+/// dst[out] : Destination memory region.
+/// src[in]  : Source memory region.
+/// n[in]    : Number of bytes to copy.
+///
+/// SUCCESS: Returns destination pointer.
+/// FAILURE: Function cannot fail if regions don't overlap.
+///
+/// TAGS: Memory, Copy, Safety
+static inline void* MemCpy(void* dst, const void* src, size n) {
+    u8* d = (u8*)dst;
+    const u8* s = (const u8*)src;
+    while (n--) {
+        *d++ = *s++;
+    }
+    return dst;
+}
+
+///
+/// Move memory from source to destination, handling overlapping regions.
+///
+/// dst[out] : Destination memory region.
+/// src[in]  : Source memory region.
+/// n[in]    : Number of bytes to move.
+///
+/// SUCCESS: Returns destination pointer.
+/// FAILURE: Function cannot fail.
+///
+/// TAGS: Memory, Move, Safety
+static inline void* MemMove(void* dst, const void* src, size n) {
+    u8* d = (u8*)dst;
+    const u8* s = (const u8*)src;
+    if (d < s) {
+        while (n--) {
+            *d++ = *s++;
+        }
+    } else if (d > s) {
+        d += n;
+        s += n;
+        while (n--) {
+            *--d = *--s;
+        }
+    }
+    return dst;
+}
+
+///
+/// Set memory region to a value.
+///
+/// dst[out] : Memory region to set.
+/// val[in]  : Value to set (converted to unsigned char).
+/// n[in]    : Number of bytes to set.
+///
+/// SUCCESS: Returns destination pointer.
+/// FAILURE: Function cannot fail.
+///
+/// TAGS: Memory, Set, Safety
+static inline void* MemSet(void* dst, i32 val, size n) {
+    u8* d = (u8*)dst;
+    while (n--) {
+        *d++ = (u8)val;
+    }
+    return dst;
+}
+
+///
+/// Get length of a null-terminated string.
+///
+/// str[in] : Null-terminated string.
+///
+/// SUCCESS: Returns number of characters before null terminator.
+/// FAILURE: Function cannot fail if str is valid.
+///
+/// TAGS: String, Length, Safety
+static inline size ZstrLen(const char* str) {
+    const char* s = str;
+    while (*s) s++;
+    return s - str;
+}
+
+///
+/// Compare two strings lexicographically.
+///
+/// s1[in] : First string.
+/// s2[in] : Second string.
+///
+/// SUCCESS: Returns 0 if equal, <0 if s1<s2, >0 if s1>s2.
+/// FAILURE: Function cannot fail if strings are valid.
+///
+/// TAGS: String, Comparison, Safety
+static inline i32 ZstrCmp(const char* s1, const char* s2) {
+    while (*s1 && *s1 == *s2) {
+        s1++;
+        s2++;
+    }
+    return *(const u8*)s1 - *(const u8*)s2;
+}
+
+///
+/// Compare two strings lexicographically up to n characters.
+///
+/// s1[in] : First string.
+/// s2[in] : Second string.
+/// n[in]  : Maximum number of characters to compare.
+///
+/// SUCCESS: Returns 0 if equal, <0 if s1<s2, >0 if s1>s2.
+/// FAILURE: Function cannot fail if strings are valid.
+///
+/// TAGS: String, Comparison, Safety
+static inline i32 ZstrNCmp(const char* s1, const char* s2, size n) {
+    while (n && *s1 && *s1 == *s2) {
+        s1++;
+        s2++;
+        n--;
+    }
+    return n ? *(const u8*)s1 - *(const u8*)s2 : 0;
+}
+
+///
+/// Find first occurrence of needle in haystack.
+///
+/// haystack[in] : String to search in.
+/// needle[in]   : String to search for.
+///
+/// SUCCESS: Returns pointer to first occurrence or NULL if not found.
+/// FAILURE: Returns NULL if either string is invalid.
+///
+/// TAGS: String, Search, Safety
+static inline char* ZstrStr(const char* haystack, const char* needle) {
+    if (!*needle) return (char*)haystack;
+    
+    const char* p2;
+    const char* p1_advance = haystack;
+    for (p2 = needle; *p2; p2++) {
+        p1_advance++;  // increment ahead of time
+    }
+    p2 = needle;
+    while (*p1_advance) {  // test the end of pattern
+        p1_advance = haystack;
+        while (1) {
+            if (!*p2) return (char*)haystack;
+            if (*p1_advance++ != *p2++) break;
+        }
+        p2 = needle;
+        haystack++;
+    }
+    return NULL;
+}
 
 #endif // MISRA_TYPES_H

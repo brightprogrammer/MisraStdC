@@ -14,269 +14,244 @@
 
 // Helper function to parse format specifiers
 static bool ParseFormatSpec(const char* spec, size_t len, FmtInfo* fi) {
-    // Reset format info
-    SetMemory(fi, 0, sizeof(FmtInfo));
-    
-    // Early return if empty spec
-    if (len == 0) return true;
-    
-    const char* p = spec;
-    const char* end = spec + len;
-    
-    // Check for named/positional parameter
-    if (isalpha(*p) || isdigit(*p)) {
-        while (p < end && (isalnum(*p) || *p == '_')) p++;
+    if (!spec || !fi) {
+        LOG_FATAL("Invalid arguments to ParseFormatSpec");
+        return false;
     }
+    // Empty format specifier is allowed, but spec pointer must not be NULL
     
-    // Skip colon for format spec
-    bool has_colon = false;
-    if (p < end && *p == ':') {
-        has_colon = true;
-        p++;
-        
-        // Skip whitespace after colon
-        while (p < end && isspace(*p)) p++;
-        
-        // If we have a colon, we must have valid format specifiers after it
-        if (p >= end) {
-            LOG_ERROR("Empty format specifier after ':'");
-            return false;
-        }
-        
-        // If we have a colon, we must have at least one format specifier
-        bool has_format_spec = false;
-        const char* peek = p;
-        
-        // Check for alignment
-        if (*peek == '<' || *peek == '>' || *peek == '^') {
-            has_format_spec = true;
-        }
-        // Check for width
-        else if (isdigit(*peek)) {
-            has_format_spec = true;
-        }
-        // Check for precision
-        else if (*peek == '.') {
-            has_format_spec = true;
-        }
-        // Check for format type
-        else {
-            switch (*peek) {
-                case 'x': case 'X':
-                case 'b': case 'o':
-                case '?':
-                case 'e': case 'E':
-                    has_format_spec = true;
-                    break;
-            }
-        }
-        
-        if (!has_format_spec) {
-            LOG_ERROR("No valid format specifiers after ':'");
+    // Initialize format info with defaults
+    *fi = (FmtInfo){
+        .align = ALIGN_RIGHT,
+        .width = 0,
+        .precision = 6,
+        .has_precision = false,
+        .is_hex = false,
+        .is_binary = false,
+        .is_octal = false,
+        .is_debug = false,
+        .is_scientific = false,
+        .is_caps = false
+    };
+    
+    size_t pos = 0;
+    
+    // Skip initial colon if present
+    if (pos < len && spec[pos] == ':') {
+        pos++;
+        // After colon, we must have some format specifier
+        if (pos >= len) {
+            LOG_ERROR("Empty format specifier after colon");
             return false;
         }
     }
     
-    // Handle alignment
-    if (p < end) {
-        switch (*p) {
-            case '<': // Left align
-                fi->align = ALIGN_LEFT;
-                p++;
-                break;
-            case '>': // Right align
-                fi->align = ALIGN_RIGHT;
-                p++;
-                break;
-            case '^': // Center align
-                fi->align = ALIGN_CENTER;
-                p++;
-                break;
+    // Parse alignment
+    if (pos < len) {
+        switch (spec[pos]) {
+            case '<': fi->align = ALIGN_LEFT; pos++; break;
+            case '>': fi->align = ALIGN_RIGHT; pos++; break;
+            case '^': fi->align = ALIGN_CENTER; pos++; break;
+            default: break;
         }
     }
     
-    // Handle width
-    if (p < end && isdigit(*p)) {
-        fi->width = 0;
-        while (p < end && isdigit(*p)) {
-            fi->width = fi->width * 10 + (*p - '0');
-            p++;
+    // Parse width
+    if (pos < len && spec[pos] >= '0' && spec[pos] <= '9') {
+        size_t width = 0;
+        while (pos < len && spec[pos] >= '0' && spec[pos] <= '9') {
+            width = width * 10 + (spec[pos] - '0');
+            pos++;
+        }
+        if (width > 0) {
+            fi->width = width;
         }
     }
     
-    // Handle precision
-    if (p < end && *p == '.') {
-        p++;
-        if (p >= end || !isdigit(*p)) {
-            LOG_ERROR("Invalid precision specification");
-            return false;
+    // Parse format type first (before precision)
+    bool found_type = false;
+    size_t type_pos = pos;
+    while (type_pos < len) {
+        if (spec[type_pos] == '.') break;  // Stop at precision
+        switch (spec[type_pos]) {
+            case 'x': fi->is_hex = true; found_type = true; break;
+            case 'X': fi->is_hex = true; fi->is_caps = true; found_type = true; break;
+            case 'b': fi->is_binary = true; found_type = true; break;
+            case 'o': fi->is_octal = true; found_type = true; break;
+            case 'e': fi->is_scientific = true; found_type = true; break;
+            case 'E': fi->is_scientific = true; fi->is_caps = true; found_type = true; break;
+            case '?': fi->is_debug = true; found_type = true; break;
+            default: break;
         }
-        fi->precision = 0;
-        while (p < end && isdigit(*p)) {
-            fi->precision = fi->precision * 10 + (*p - '0');
-            p++;
+        if (found_type) {
+            pos = type_pos + 1;
+            break;
+        }
+        type_pos++;
+    }
+    
+    // Parse precision
+    if (pos < len && spec[pos] == '.') {
+        pos++;
+        if (pos >= len || spec[pos] < '0' || spec[pos] > '9') {
+            return false; // Precision must be followed by digits
+        }
+        size_t precision = 0;
+        while (pos < len && spec[pos] >= '0' && spec[pos] <= '9') {
+            precision = precision * 10 + (spec[pos] - '0');
+            pos++;
         }
         fi->has_precision = true;
+        fi->precision = precision;
     }
     
-    // Skip whitespace before format type
-    while (p < end && isspace(*p)) p++;
-    
-    // Handle format type
-    if (p < end) {
-        switch (*p) {
-            case 'x':
-                fi->is_hex = true;
-                fi->is_caps = false;
-                p++;
-                break;
-            case 'X':
-                fi->is_hex = true;
-                fi->is_caps = true;
-                p++;
-                break;
-            case 'b':
-                fi->is_binary = true;
-                p++;
-                break;
-            case 'o':
-                fi->is_octal = true;
-                p++;
-                break;
-            case '?':
-                fi->is_debug = true;
-                p++;
-                break;
-            case 'e':
-                fi->is_scientific = true;
-                fi->is_caps = false;
-                p++;
-                break;
-            case 'E':
-                fi->is_scientific = true;
-                fi->is_caps = true;
-                p++;
-                break;
-            default:
-                if (has_colon) {  // Only error if we had a colon
-                    LOG_ERROR("Invalid format specifier '%c'", *p);
-                    return false;
-                }
-                break;  // No format type is valid if no colon
+    // Parse any remaining format type after precision
+    if (!found_type) {
+        while (pos < len) {
+            switch (spec[pos]) {
+                case 'x': fi->is_hex = true; break;
+                case 'X': fi->is_hex = true; fi->is_caps = true; break;
+                case 'b': fi->is_binary = true; break;
+                case 'o': fi->is_octal = true; break;
+                case 'e': fi->is_scientific = true; break;
+                case 'E': fi->is_scientific = true; fi->is_caps = true; break;
+                case '?': fi->is_debug = true; break;
+                default: return false; // Invalid format type
+            }
+            pos++;
         }
-    } else if (has_colon) {
-        // If we had a colon but no format type, that's an error
-        LOG_ERROR("Missing format type after ':'");
-        return false;
-    }
-    
-    // Skip trailing whitespace
-    while (p < end && isspace(*p)) p++;
-    
-    // Ensure we consumed all characters
-    if (p < end) {
-        LOG_ERROR("Invalid characters in format specifier");
-        return false;
     }
     
     return true;
 }
 
-void StrWriteFmtInternal(Str* o, const char* fmtstr, TypeSpecificIO* argv, size argc) {
-    if (!o || !fmtstr) {
-        LOG_FATAL("Invalid arguments");
-    }
-
-    const char* p = fmtstr;
-    size remaining = strlen(fmtstr);
-    size arg_index = 0;  // Current argument index for positional params
-
-    while (remaining > 0) {
-        if (remaining >= 2 && p[0] == '{' && p[1] == '{') {
-            StrPushBack(o, '{');
-            p += 2;
-            remaining -= 2;
-        } else if (remaining >= 2 && p[0] == '}' && p[1] == '}') {
-            StrPushBack(o, '}');
-            p += 2;
-            remaining -= 2;
-        } else if (p[0] == '{') {
-            p++;
-            remaining--;
-
-            const char* start = p;
-            size spec_len = 0;
-
-            // Find closing brace
-            while (remaining > 0 && *p != '}') {
-                p++;
-                remaining--;
-                spec_len++;
-            }
-
-            if (remaining == 0 || *p != '}') {
-                LOG_FATAL("Unmatched '{' in format string");
-            }
-
-            // Parse the specifier
-            char spec_buf[32] = {0};
-            if (spec_len >= sizeof(spec_buf)) {
-                LOG_FATAL("Format specifier too long");
-            }
-
-            if (!argc) {
-                LOG_FATAL("More placeholders than arguments");
-            }
-
-            memcpy(spec_buf, start, spec_len);
-            spec_buf[spec_len] = '\0';
-
-            // Parse format info
-            FmtInfo fi = {0};
-            if (!ParseFormatSpec(spec_buf, spec_len, &fi)) {
-                LOG_ERROR("Invalid format specifier");
-                return;
-            }
-
-            // Get the argument to format
-            size target_arg = arg_index;
-            
-            // Check for positional parameter
-            if (isdigit(spec_buf[0]) || (spec_buf[0] == '-' && isdigit(spec_buf[1]))) {
-                char* endptr;
-                long pos = strtol(spec_buf, &endptr, 10);
-                if (pos < 0 || endptr == spec_buf) {
-                    LOG_FATAL("Invalid position index");
-                }
-                target_arg = (size)pos;
-            }
-            // Named parameters would be handled here
-            
-            if (target_arg >= argc) {
-                LOG_FATAL("Positional parameter index out of range");
-            }
-            
-            // Write the argument
-            TypeSpecificIO* io = &argv[target_arg];
-            if (!io->writer) {
-                LOG_FATAL("Missing writer function");
-            }
-            io->writer(o, &fi, io->data);
-            
-            // Advance argument index for next non-positional parameter
-            if (!isdigit(spec_buf[0]) && spec_buf[0] != '-') {
-                arg_index++;
-            }
-
-            // Consume closing '}'
-            p++;
-            remaining--;
-        } else {
-            StrPushBack(o, *p);
-            p++;
-            remaining--;
+// Helper function to pad string with spaces
+static void PadString(Str* o, size_t width, Alignment align, size_t content_len) {
+    if (content_len >= width) return;
+    
+    size_t pad_len = width - content_len;
+    
+    if (align == ALIGN_RIGHT) {
+        // Pad on left
+        for (size_t i = 0; i < pad_len; i++) {
+            StrPushFront(o, ' ');
+        }
+    } else if (align == ALIGN_LEFT) {
+        // Pad on right
+        for (size_t i = 0; i < pad_len; i++) {
+            StrPushBack(o, ' ');
+        }
+    } else { // ALIGN_CENTER
+        size_t left_pad = pad_len / 2;
+        size_t right_pad = pad_len - left_pad;
+        
+        // Pad on left
+        for (size_t i = 0; i < left_pad; i++) {
+            StrPushFront(o, ' ');
+        }
+        
+        // Pad on right
+        for (size_t i = 0; i < right_pad; i++) {
+            StrPushBack(o, ' ');
         }
     }
+}
+
+bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, size_t argc) {
+    if (!o || !fmt) {
+        LOG_FATAL("Invalid arguments");
+        return false;
+    }
+
+    size_t arg_idx = 0;
+    size_t fmt_len = 0;
+    while (fmt[fmt_len]) fmt_len++;
+
+    for (size_t i = 0; i < fmt_len; i++) {
+        if (fmt[i] == '{') {
+            // Check for escaped brace
+            if (i + 1 < fmt_len && fmt[i + 1] == '{') {
+                StrPushBack(o, '{');
+                i++; // Skip next brace
+                continue;
+            }
+
+            // Find closing brace
+            size_t brace_start = i;
+            size_t brace_end = i + 1;
+            while (brace_end < fmt_len && fmt[brace_end] != '}') {
+                brace_end++;
+            }
+
+            // Error if no closing brace found
+            if (brace_end >= fmt_len) {
+                LOG_ERROR("Unclosed format specifier");
+                return false;
+            }
+
+            // Extract format specifier
+            size_t spec_len = brace_end - brace_start - 1;
+            
+            // Parse format specifier
+            FmtInfo fmt_info;
+            if (spec_len == 0) {
+                // Empty format specifier {} is allowed, initialize with defaults
+                fmt_info = (FmtInfo){
+                    .align = ALIGN_RIGHT,
+                    .width = 0,
+                    .precision = 6,
+                    .has_precision = false,
+                    .is_hex = false,
+                    .is_binary = false,
+                    .is_octal = false,
+                    .is_debug = false,
+                    .is_scientific = false,
+                    .is_caps = false
+                };
+            } else if (!ParseFormatSpec(fmt + brace_start + 1, spec_len, &fmt_info)) {
+                LOG_ERROR("Invalid format specifier");
+                return false;
+            }
+
+            // Check if we have enough arguments
+            if (arg_idx >= argc) {
+                LOG_ERROR("Not enough arguments for format string");
+                return false;
+            }
+
+            // Get current argument
+            TypeSpecificIO* arg = &args[arg_idx++];
+            if (!arg->writer || !arg->data) {
+                LOG_ERROR("Invalid argument");
+                return false;
+            }
+
+            // Write the formatted value
+            arg->writer(o, &fmt_info, arg->data);
+
+            // Skip to end of format specifier
+            i = brace_end;
+        } else if (fmt[i] == '}') {
+            // Check for escaped brace
+            if (i + 1 < fmt_len && fmt[i + 1] == '}') {
+                StrPushBack(o, '}');
+                i++; // Skip next brace
+                continue;
+            }
+            LOG_ERROR("Unmatched closing brace");
+            return false;
+        } else {
+            StrPushBack(o, fmt[i]);
+        }
+    }
+
+    // Check if we used all arguments
+    if (arg_idx < argc) {
+        LOG_ERROR("Too many arguments for format string");
+        return false;
+    }
+
+    return true;
 }
 
 const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecificIO *argv, size argc) {
@@ -463,104 +438,64 @@ void FReadFmtInternal(FILE *file, const char *fmtstr, TypeSpecificIO *argv, size
     StrDeinit(&buffer);
 }
 
-// Helper function to pad string with spaces
-static void PadString(Str* o, size_t width, Alignment align, size_t content_len) {
-    if (width <= content_len) return;
-    
-    size_t pad_len = width - content_len;
-    Str temp = StrInit();
-    
-    switch (align) {
-        case ALIGN_LEFT:
-            // Original content followed by spaces
-            for (size_t i = 0; i < pad_len; i++) {
-                StrPushBack(o, ' ');
-            }
-            break;
-            
-        case ALIGN_RIGHT:
-            // Spaces followed by original content
-            for (size_t i = 0; i < pad_len; i++) {
-                StrPushBack(&temp, ' ');
-            }
-            // Copy original content to temp
-            for (size_t i = 0; i < content_len; i++) {
-                StrPushBack(&temp, o->data[i]);
-            }
-            // Clear original and copy back
-            StrClear(o);
-            for (size_t i = 0; i < temp.length; i++) {
-                StrPushBack(o, temp.data[i]);
-            }
-            break;
-            
-        case ALIGN_CENTER: {
-            size_t left_pad = pad_len / 2;
-            size_t right_pad = pad_len - left_pad;
-            
-            // Left padding
-            for (size_t i = 0; i < left_pad; i++) {
-                StrPushBack(&temp, ' ');
-            }
-            
-            // Original content
-            for (size_t i = 0; i < content_len; i++) {
-                StrPushBack(&temp, o->data[i]);
-            }
-            
-            // Right padding
-            for (size_t i = 0; i < right_pad; i++) {
-                StrPushBack(&temp, ' ');
-            }
-            
-            // Copy back to original
-            StrClear(o);
-            for (size_t i = 0; i < temp.length; i++) {
-                StrPushBack(o, temp.data[i]);
-            }
-            break;
-        }
-    }
-    
-    StrDeinit(&temp);
-}
-
 void _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
     if (!o || !fmt_info) {
-        LOG_FATAL("Invalid arguments.");
+        LOG_FATAL("Invalid arguments");
+        return;
     }
 
     // Store original length to calculate content size later
     size_t start_len = o->length;
     
-    // Handle null or empty string
-    if (!s || !s->data) {
-        StrAppendf(o, "(null)");
-    } else {
+    // Handle null string
+    if (!s) {
+        StrPushBackZstr(o, "(null)");
+    }
+    // Handle null data pointer
+    else if (!s->data) {
+        StrPushBackZstr(o, "(null)");
+    }
+    // Handle empty string - don't need special handling, just apply padding if needed
+    else if (s->length == 0) {
+        // Empty string - no action needed, padding will be applied below
+    }
+    else {
         if (fmt_info->is_hex) {
-            char *c = s->data;
-            size  l = s->length;
-            while (l) {
-                if (l > 1) {
-                    StrAppendf(o, fmt_info->is_caps ? "%.*X " : "%.*x ", (u32)fmt_info->width, (u32)*c);
-                } else {
-                    StrAppendf(o, fmt_info->is_caps ? "%.*X" : "%.*x", (u32)fmt_info->width, (u32)*c);
+            // Format each character as hex
+            for (size_t i = 0; i < s->length; i++) {
+                if (i > 0) {
+                    StrPushBack(o, ' ');
                 }
-                c++;
-                l--;
+                // Create hex string for each character
+                Str hex = StrInit();
+                StrFromU64(&hex, (u8)s->data[i], 16, fmt_info->is_caps);
+                // Ensure 2 digits with leading zero
+                if (hex.length == 1) {
+                    StrPushFront(&hex, '0');
+                }
+                StrPushBackZstr(o, "0x");
+                StrMerge(o, &hex);
+                StrDeinit(&hex);
             }
         } else {
-            // If width is specified and less than string length, truncate
+            // If precision is specified, use it as max length
             size_t len = s->length;
-            if (fmt_info->width > 0 && fmt_info->width < len) {
-                len = fmt_info->width;
+            if (fmt_info->has_precision) {
+                // Precision 0 means empty string (not an error)
+                if (fmt_info->precision == 0) {
+                    len = 0;
+                } else {
+                    len = MIN2(len, fmt_info->precision);
+                }
             }
+            
+            // Copy string content
             for (size_t i = 0; i < len; i++) {
                 StrPushBack(o, s->data[i]);
             }
         }
     }
-
+    
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size_t content_len = o->length - start_len;
@@ -570,37 +505,62 @@ void _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
 
 void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s) {
     if (!o || !fmt_info) {
-        LOG_FATAL("Invalid arguments.");
+        LOG_FATAL("Invalid arguments");
+        return;
     }
 
     // Store original length to calculate content size later
     size_t start_len = o->length;
-
-    const char *str = *s;
-    if (!str) {
-        StrAppendf(o, "(null)");
+    
+    // Handle null or empty string
+    if (!s || !*s) {
+        StrPushBackZstr(o, "(null)");
+    } else if ((*s)[0] == '\0') {
+        // Empty string - don't need special handling, just apply padding if needed
     } else {
         if (fmt_info->is_hex) {
-            while (*str) {
-                if (*(str + 1)) {
-                    StrAppendf(o, fmt_info->is_caps ? "%.*X " : "%.*x ", (u32)fmt_info->width, (u32)*str);
-                } else {
-                    StrAppendf(o, fmt_info->is_caps ? "%.*X" : "%.*x", (u32)fmt_info->width, (u32)*str);
+            // Format each character as hex
+            const char* str = *s;
+            size_t i = 0;
+            while (str[i]) {
+                if (i > 0) {
+                    StrPushBack(o, ' ');
                 }
-                str++;
+                // Create hex string for each character
+                Str hex = StrInit();
+                StrFromU64(&hex, (u8)str[i], 16, fmt_info->is_caps);
+                // Ensure 2 digits with leading zero
+                if (hex.length == 1) {
+                    StrPushFront(&hex, '0');
+                }
+                StrPushBackZstr(o, "0x");
+                StrMerge(o, &hex);
+                StrDeinit(&hex);
+                i++;
             }
         } else {
-            // If width is specified and less than string length, truncate
-            size_t len = strlen(str);
-            if (fmt_info->width > 0 && fmt_info->width < len) {
-                len = fmt_info->width;
+            // Get string length
+            size_t len = 0;
+            const char* str = *s;
+            while (str[len]) len++;
+            
+            // If precision is specified, use it as max length
+            if (fmt_info->has_precision) {
+                // Precision 0 means empty string (not an error)
+                if (fmt_info->precision == 0) {
+                    len = 0;
+                } else {
+                    len = MIN2(len, fmt_info->precision);
+                }
             }
+            
+            // Copy string content
             for (size_t i = 0; i < len; i++) {
                 StrPushBack(o, str[i]);
             }
         }
     }
-
+    
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size_t content_len = o->length - start_len;
@@ -611,6 +571,7 @@ void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s) {
 void _write_u64(Str* o, FmtInfo* fmt_info, u64* v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
+        return;
     }
 
     // Store original length to calculate content size later
@@ -619,82 +580,15 @@ void _write_u64(Str* o, FmtInfo* fmt_info, u64* v) {
     // Create temporary buffer for number formatting
     Str temp = StrInit();
     
-    // Handle different bases
+    // Convert the number based on format
     if (fmt_info->is_hex) {
-        // Add 0x prefix for hex
-        StrPushBack(&temp, '0');
-        StrPushBack(&temp, fmt_info->is_caps ? 'X' : 'x');
-        
-        // Convert to hex
-        u64 val = *v;
-        Str hex = StrInit();
-        do {
-            u8 digit = val & 0xF;
-            char c = digit < 10 ? '0' + digit : (fmt_info->is_caps ? 'A' : 'a') + (digit - 10);
-            StrPushBack(&hex, c);
-            val >>= 4;
-        } while (val);
-        
-        // Reverse the hex string
-        for (size_t i = hex.length; i > 0; i--) {
-            StrPushBack(&temp, hex.data[i - 1]);
-        }
-        StrDeinit(&hex);
-        
+        StrFromU64(&temp, *v, 16, fmt_info->is_caps);
     } else if (fmt_info->is_binary) {
-        // Add 0b prefix for binary
-        StrPushBack(&temp, '0');
-        StrPushBack(&temp, 'b');
-        
-        // Convert to binary
-        u64 val = *v;
-        if (val == 0) {
-            StrPushBack(&temp, '0');
-        } else {
-            Str bin = StrInit();
-            while (val) {
-                StrPushBack(&bin, '0' + (val & 1));
-                val >>= 1;
-            }
-            
-            // Reverse the binary string
-            for (size_t i = bin.length; i > 0; i--) {
-                StrPushBack(&temp, bin.data[i - 1]);
-            }
-            StrDeinit(&bin);
-        }
+        StrFromU64(&temp, *v, 2, false);
     } else if (fmt_info->is_octal) {
-        // Add 0o prefix for octal
-        StrPushBack(&temp, '0');
-        StrPushBack(&temp, 'o');
-        
-        // Convert to octal
-        u64 val = *v;
-        Str oct = StrInit();
-        do {
-            StrPushBack(&oct, '0' + (val & 7));
-            val >>= 3;
-        } while (val);
-        
-        // Reverse the octal string
-        for (size_t i = oct.length; i > 0; i--) {
-            StrPushBack(&temp, oct.data[i - 1]);
-        }
-        StrDeinit(&oct);
+        StrFromU64(&temp, *v, 8, false);
     } else {
-        // Decimal format
-        u64 val = *v;
-        Str dec = StrInit();
-        do {
-            StrPushBack(&dec, '0' + (val % 10));
-            val /= 10;
-        } while (val);
-        
-        // Reverse the decimal string
-        for (size_t i = dec.length; i > 0; i--) {
-            StrPushBack(&temp, dec.data[i - 1]);
-        }
-        StrDeinit(&dec);
+        StrFromU64(&temp, *v, 10, false);
     }
     
     // Merge the formatted number into output
@@ -709,19 +603,16 @@ void _write_u64(Str* o, FmtInfo* fmt_info, u64* v) {
 }
 
 void _write_u32(Str* o, FmtInfo* fmt_info, u32* v) {
-    // Convert to u64 and use the u64 writer
     u64 val = *v;
     _write_u64(o, fmt_info, &val);
 }
 
 void _write_u16(Str* o, FmtInfo* fmt_info, u16* v) {
-    // Convert to u64 and use the u64 writer
     u64 val = *v;
     _write_u64(o, fmt_info, &val);
 }
 
 void _write_u8(Str* o, FmtInfo* fmt_info, u8* v) {
-    // Convert to u64 and use the u64 writer
     u64 val = *v;
     _write_u64(o, fmt_info, &val);
 }
@@ -729,6 +620,7 @@ void _write_u8(Str* o, FmtInfo* fmt_info, u8* v) {
 void _write_i64(Str* o, FmtInfo* fmt_info, i64* v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
+        return;
     }
 
     // Store original length to calculate content size later
@@ -737,98 +629,23 @@ void _write_i64(Str* o, FmtInfo* fmt_info, i64* v) {
     // Create temporary buffer for number formatting
     Str temp = StrInit();
     
-    // Handle different bases
+    // Handle negative numbers first
+    bool is_negative = *v < 0;
+    u64 abs_value = is_negative ? (u64)(-(*v)) : (u64)(*v);
+    
+    // Convert the number based on format
     if (fmt_info->is_hex) {
-        // Add 0x prefix for hex (always lowercase)
-        StrPushBack(&temp, '0');
-        StrPushBack(&temp, 'x');
-        
-        // Convert to hex - use unsigned representation for hex
-        // For negative numbers, we only want the lower 32 bits
-        u64 val = (u64)(*v & 0xFFFFFFFF);  // Mask to 32 bits
-        Str hex = StrInit();
-        do {
-            u8 digit = val & 0xF;
-            char c = digit < 10 ? '0' + digit : (fmt_info->is_caps ? 'A' : 'a') + (digit - 10);
-            StrPushBack(&hex, c);
-            val >>= 4;
-        } while (val);
-        
-        // Reverse the hex string
-        for (size_t i = hex.length; i > 0; i--) {
-            StrPushBack(&temp, hex.data[i - 1]);
-        }
-        StrDeinit(&hex);
-        
+        StrPushBackZstr(&temp, "0x");
+        StrFromU64(&temp, abs_value, 16, fmt_info->is_caps);
     } else if (fmt_info->is_binary) {
-        // Add 0b prefix for binary
-        if (*v < 0) {
-            StrPushBack(&temp, '-');
-        }
-        StrPushBack(&temp, '0');
-        StrPushBack(&temp, 'b');
-        
-        // Convert to binary
-        i64 val = *v < 0 ? -(*v) : *v;
-        if (val == 0) {
-            StrPushBack(&temp, '0');
-        } else {
-            Str bin = StrInit();
-            while (val) {
-                StrPushBack(&bin, '0' + (val & 1));
-                val >>= 1;
-            }
-            
-            // Reverse the binary string
-            for (size_t i = bin.length; i > 0; i--) {
-                StrPushBack(&temp, bin.data[i - 1]);
-            }
-            StrDeinit(&bin);
-        }
+        StrPushBackZstr(&temp, "0b");
+        StrFromU64(&temp, abs_value, 2, false);
     } else if (fmt_info->is_octal) {
-        // Add 0o prefix for octal
-        if (*v < 0) {
-            StrPushBack(&temp, '-');
-        }
-        StrPushBack(&temp, '0');
-        StrPushBack(&temp, 'o');
-        
-        // Convert to octal
-        i64 val = *v < 0 ? -(*v) : *v;
-        Str oct = StrInit();
-        do {
-            StrPushBack(&oct, '0' + (val & 7));
-            val >>= 3;
-        } while (val);
-        
-        // Reverse the octal string
-        for (size_t i = oct.length; i > 0; i--) {
-            StrPushBack(&temp, oct.data[i - 1]);
-        }
-        StrDeinit(&oct);
+        StrPushBackZstr(&temp, "0o");
+        StrFromU64(&temp, abs_value, 8, false);
     } else {
-        // Decimal format
-        i64 val = *v;
-        bool is_negative = val < 0;
-        if (is_negative) {
-            val = -val;
-        }
-        
-        Str dec = StrInit();
-        do {
-            StrPushBack(&dec, '0' + (val % 10));
-            val /= 10;
-        } while (val);
-        
-        if (is_negative) {
-            StrPushBack(&temp, '-');
-        }
-        
-        // Reverse the decimal string
-        for (size_t i = dec.length; i > 0; i--) {
-            StrPushBack(&temp, dec.data[i - 1]);
-        }
-        StrDeinit(&dec);
+        // For decimal format, use StrFromI64 which handles the sign
+        StrFromI64(&temp, *v, 10, false);
     }
     
     // Merge the formatted number into output
@@ -843,19 +660,16 @@ void _write_i64(Str* o, FmtInfo* fmt_info, i64* v) {
 }
 
 void _write_i32(Str* o, FmtInfo* fmt_info, i32* v) {
-    // Convert to i64 and use the i64 writer
     i64 val = *v;
     _write_i64(o, fmt_info, &val);
 }
 
 void _write_i16(Str* o, FmtInfo* fmt_info, i16* v) {
-    // Convert to i64 and use the i64 writer
     i64 val = *v;
     _write_i64(o, fmt_info, &val);
 }
 
 void _write_i8(Str* o, FmtInfo* fmt_info, i8* v) {
-    // Convert to i64 and use the i64 writer
     i64 val = *v;
     _write_i64(o, fmt_info, &val);
 }
@@ -863,6 +677,7 @@ void _write_i8(Str* o, FmtInfo* fmt_info, i8* v) {
 void _write_f64(Str* o, FmtInfo* fmt_info, f64* v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
+        return;
     }
 
     // Store original length to calculate content size later
@@ -871,79 +686,12 @@ void _write_f64(Str* o, FmtInfo* fmt_info, f64* v) {
     // Create temporary buffer for number formatting
     Str temp = StrInit();
     
-    // Handle special values first
-    if (isnan(*v)) {
-        StrAppendf(&temp, "nan");
-    } else if (isinf(*v)) {
-        StrAppendf(&temp, "inf");
-    } else {
-        // Handle scientific notation
-        if (fmt_info->is_scientific || 
-            (*v != 0 && (fabs(*v) < 0.0001 || fabs(*v) > 9999999.0))) {  // Auto scientific for very large/small
-            // Get mantissa and exponent using frexp
-            int bin_exp;
-            f64 mantissa = frexp(*v, &bin_exp);
-            
-            // Convert binary exponent to decimal exponent
-            // log10(2) ≈ 0.301, so multiply by that to get decimal exponent
-            i32 dec_exp = (i32)(bin_exp * 0.301029995663981);
-            
-            // Adjust mantissa to be in [1.0, 10.0)
-            mantissa = mantissa * pow(2.0, bin_exp - dec_exp * log2(10.0));
-            
-            // Handle edge cases where mantissa is slightly below 1.0
-            if (mantissa < 1.0) {
-                mantissa *= 10.0;
-                dec_exp--;
-            }
-            
-            // Format mantissa with precision
-            size_t precision = fmt_info->has_precision ? fmt_info->precision : 5;
-            if (*v < 0) StrPushBack(&temp, '-');
-            
-            // Format mantissa with precision and trim trailing zeros
-            char buf[32];
-            snprintf(buf, sizeof(buf), "%.*f", (u32)precision, mantissa);
-            
-            // Trim trailing zeros after decimal point
-            char* decimal = strchr(buf, '.');
-            if (decimal) {
-                char* end = decimal + strlen(decimal) - 1;
-                while (end > decimal && *end == '0') {
-                    *end = '\0';
-                    end--;
-                }
-                if (end == decimal) *end = '\0';  // Remove decimal point if no fractional part
-            }
-            
-            StrAppendf(&temp, "%s", buf);
-            
-            // Add exponent
-            StrPushBack(&temp, fmt_info->is_caps ? 'E' : 'e');
-            StrPushBack(&temp, dec_exp < 0 ? '-' : '+');
-            StrAppendf(&temp, "%d", abs(dec_exp));  // No leading zeros
-        } else {
-            // Regular decimal format
-            size_t precision = fmt_info->has_precision ? fmt_info->precision : 11;
-            
-            // Format with precision and trim trailing zeros
-            char buf[64];  // Increased buffer size for very large numbers
-            snprintf(buf, sizeof(buf), "%.*f", (u32)precision, *v);
-            
-            // Trim trailing zeros after decimal point
-            char* decimal = strchr(buf, '.');
-            if (decimal) {
-                char* end = decimal + strlen(decimal) - 1;
-                while (end > decimal && *end == '0') {
-                    *end = '\0';
-                    end--;
-                }
-                if (end == decimal) *end = '\0';  // Remove decimal point if no fractional part
-            }
-            
-            StrAppendf(&temp, "%s", buf);
-        }
-    }
+    // Format the number using StrFromF64, which already handles special cases
+    // (NaN, inf, zeros, etc.)
+    u8 precision = fmt_info->has_precision ? fmt_info->precision : 6;
+    
+    // Pass the scientific notation flag to StrFromF64
+    StrFromF64(&temp, *v, precision, fmt_info->is_scientific, fmt_info->is_caps);
     
     // Merge the formatted number into output
     StrMerge(o, &temp);
@@ -957,7 +705,6 @@ void _write_f64(Str* o, FmtInfo* fmt_info, f64* v) {
 }
 
 void _write_f32(Str* o, FmtInfo* fmt_info, f32* v) {
-    // Convert to f64 and use the f64 writer
     f64 val = *v;
     _write_f64(o, fmt_info, &val);
 }

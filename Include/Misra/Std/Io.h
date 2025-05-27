@@ -97,7 +97,7 @@ typedef struct TypeSpecificIO {
 ///
 /// TAGS: Formatting, I/O, String
 ///
-void StrWriteFmtInternal(Str *o, const char *fmtstr, TypeSpecificIO *argv, size argc);
+bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, size_t argc);
 
 ///
 /// Parse input string according to format string with rust-style placeholders,

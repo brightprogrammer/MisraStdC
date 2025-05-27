@@ -89,8 +89,8 @@ executable(
 
 # Tests
 executable(
-    'IoTest',
-    files('Tests/Std/IoTest.c'),
+    'IoWriteTest',
+    files('Tests/Std/IoWriteTest.c'),
     link_with: [misra_std],
     c_args: common_c_args,
     include_directories: inc_misra,
