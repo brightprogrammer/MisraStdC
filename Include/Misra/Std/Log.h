@@ -16,11 +16,11 @@
 #include <Misra/Types.h>
 
 // #ifdef _WIN32
-// #    define LOG_FATAL(...) (LogWrite(LOG_MESSAGE_TYPE_FATAL, __FUNCTION__, __LINE__, __VA_ARGS__), abort())
+// #    define LOG_FATAL(...) (LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, __VA_ARGS__), abort())
 //
-// #    define LOG_ERROR(...) LogWrite(LOG_MESSAGE_TYPE_ERROR, __FUNCTION__, __LINE__, __VA_ARGS__)
+// #    define LOG_ERROR(...) LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, __VA_ARGS__)
 //
-// #    define LOG_INFO(...) LogWrite(LOG_MESSAGE_TYPE_INFO, __FUNCTION__, __LINE__, __VA_ARGS__)
+// #    define LOG_INFO(...) LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, __VA_ARGS__)
 // #else
 ///
 /// Writes a fatal log message and aborts the program.
@@ -32,7 +32,7 @@
 ///
 /// TAGS: Logging, Macro, Fatal, System
 ///
-#define LOG_FATAL(...) (LogWrite(LOG_MESSAGE_TYPE_FATAL, __FUNCTION__, __LINE__, __VA_ARGS__), abort())
+#define LOG_FATAL(...) (LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, __VA_ARGS__), abort())
 
 ///
 /// Writes an error-level log message.
@@ -44,7 +44,7 @@
 ///
 /// TAGS: Logging, Macro, Error, System
 ///
-#define LOG_ERROR(...) LogWrite(LOG_MESSAGE_TYPE_ERROR, __FUNCTION__, __LINE__, __VA_ARGS__)
+#define LOG_ERROR(...) LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, __VA_ARGS__)
 
 ///
 /// Writes an informational log message.
@@ -56,7 +56,7 @@
 ///
 /// TAGS: Logging, Macro, Info, System
 ///
-#define LOG_INFO(...) LogWrite(LOG_MESSAGE_TYPE_INFO, __FUNCTION__, __LINE__, __VA_ARGS__)
+#define LOG_INFO(...) LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, __VA_ARGS__)
 // #endif
 
 ///
