@@ -932,6 +932,8 @@ const char* _read_Str(const char* i, Str* s) {
     if (!i || !s)
         LOG_FATAL("Invalid arguments");
 
+    ValidateStr(s);
+
     // Skip leading whitespace
     while (IS_SPACE(*i))
         i++;
@@ -941,9 +943,6 @@ const char* _read_Str(const char* i, Str* s) {
         LOG_ERROR("Empty input string");
         return i;
     }
-
-    // Initialize output string
-    *s = StrInit();
 
     // Check for quoted string
     char quote = 0;

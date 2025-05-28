@@ -168,7 +168,9 @@ bool test_str_split(void) {
         result = result && (ZstrCompare(split.data[1].data, "World") == 0);
         result = result && (ZstrCompare(split.data[2].data, "Test") == 0);
     }
-    
+
+    VecDeinit(&split);
+
     // Test StrSplitToIters
     StrIters iters = StrSplitToIters(&s, ",");
     result = result && (iters.length == 3);
@@ -193,7 +195,6 @@ bool test_str_split(void) {
         result = result && (ZstrCompare(buffer3, "Test") == 0);
     }
     
-    VecDeinit(&split);
     VecDeinit(&iters);
     StrDeinit(&s);
     return result;

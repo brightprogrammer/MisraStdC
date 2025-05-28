@@ -1,9 +1,7 @@
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
-#include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <string.h>
 #include <math.h>  // For fabs()
 
 // Define epsilon for float comparisons
