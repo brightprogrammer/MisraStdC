@@ -583,4 +583,47 @@ static inline char* ZstrFindSubstring(const char* haystack, const char* needle) 
     return NULL;
 }
 
+///
+/// Find first occurrence of a substring of specified length in haystack.
+///
+/// haystack[in] : String to search in.
+/// needle[in]   : Substring to search for.
+/// needle_len[in]: Length of the substring to search for.
+///
+/// SUCCESS: Returns pointer to first occurrence or NULL if not found.
+/// FAILURE: Returns NULL if haystack is invalid or needle is NULL.
+///
+/// TAGS: String, Search, Safety
+static inline char* ZstrFindSubstringN(const char* haystack, const char* needle, size needle_len) {
+    if (!haystack || !needle) return NULL;
+    
+    // Empty needle matches at the start of haystack
+    if (needle_len == 0) return (char*)haystack;
+    
+    // First character to match
+    char first_char = *needle;
+    
+    // Calculate haystack length
+    size haystack_len = ZstrLen(haystack);
+    
+    // Search through haystack
+    size pos = 0;
+    while (pos <= haystack_len - needle_len) {
+        // Find the first character
+        if (haystack[pos] != first_char) {
+            pos++;
+            continue;
+        }
+        
+        // Compare the substring
+        if (MemCompare(haystack + pos, needle, needle_len) == 0) {
+            return (char*)(haystack + pos);
+        }
+        
+        pos++;
+    }
+    
+    return NULL;
+}
+
 #endif // MISRA_TYPES_H
