@@ -105,6 +105,16 @@ io_read_test = executable(
     install: false  # Tests don't need to be installed
 )
 
+str_test = executable(
+    'StrTest',
+    files('Tests/Std/StrTest.c'),
+    link_with: [misra_std],
+    c_args: common_c_args,
+    include_directories: inc_misra,
+    install: false  # Tests don't need to be installed
+)
+
 # Register tests with Meson's test system
 test('IoWriteTest', io_write_test)
 test('IoReadTest', io_read_test)
+test('StrTest', str_test)
