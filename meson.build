@@ -88,8 +88,8 @@ executable(
 )
 # Tests
 io_write_test = executable(
-    'IoWriteTest',
-    files('Tests/Std/IoWriteTest.c'),
+    'Io.Write',
+    files('Tests/Std/Io.Write.c'),
     link_with: [misra_std],
     c_args: common_c_args,
     include_directories: inc_misra,
@@ -97,8 +97,8 @@ io_write_test = executable(
 )
 
 io_read_test = executable(
-    'IoReadTest',
-    files('Tests/Std/IoReadTest.c'),
+    'Io.Read',
+    files('Tests/Std/Io.Read.c'),
     link_with: [misra_std],
     c_args: common_c_args,
     include_directories: inc_misra,
@@ -106,7 +106,7 @@ io_read_test = executable(
 )
 
 str_test = executable(
-    'StrTest',
+    'Str.Test',
     files('Tests/Std/StrTest.c'),
     link_with: [misra_std],
     c_args: common_c_args,
@@ -115,6 +115,6 @@ str_test = executable(
 )
 
 # Register tests with Meson's test system
-test('IoWriteTest', io_write_test)
-test('IoReadTest', io_read_test)
-test('StrTest', str_test)
+test('Io.Write', io_write_test)
+test('Io.Read', io_read_test)
+test('Str.Test', str_test)
