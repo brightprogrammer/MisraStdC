@@ -8,7 +8,7 @@
 #define MISRA_FILE_H
 
 #include <stddef.h>
-#include <stdint.h>
+#include <stdio.h>
 
 // decompiler
 #include <Misra/Std/Container/Str.h>

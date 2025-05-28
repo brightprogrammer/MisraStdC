@@ -2,7 +2,6 @@
 #include <Misra/Std/Log.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <stdint.h> // For UINT32_MAX
 #include <math.h>   // For INFINITY and NAN
 #include <string.h> // For strlen
 #include <stdbool.h>

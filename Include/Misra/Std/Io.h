@@ -78,7 +78,7 @@ typedef struct TypeSpecificIO {
 
 ///
 /// Print out a formatted string with rust-style placeholders
-/// to given string `o`
+/// to given string `o`.
 ///
 /// WARN: Directly passing literals like `FMT(1337)` is not supported, especially const char*
 ///       literals. For constants like integers, booleans, you can use `LVAL(r-value)`
@@ -97,7 +97,7 @@ typedef struct TypeSpecificIO {
 ///
 /// TAGS: Formatting, I/O, String
 ///
-bool StrWriteFmtInternal(Str *o, const char *fmt, TypeSpecificIO *args, size_t argc);
+bool StrWriteFmtInternal(Str *o, const char *fmt, TypeSpecificIO *args, size argc);
 
 ///
 /// Parse input string according to format string with rust-style placeholders,
