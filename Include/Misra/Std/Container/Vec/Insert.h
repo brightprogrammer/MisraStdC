@@ -1,6 +1,6 @@
 /// file      : std/container/vec/insert.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
-/// copyright : Copyright (c) 2025, Siddharth Mishra, All rights reserved.
+/// This is free and unencumbered software released into the public domain.
 ///
 /// Insert items into vector in different ways.
 

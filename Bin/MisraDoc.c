@@ -1,6 +1,6 @@
 /// file      : bin/misradoc.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
-/// copyright : Copyright (c) 2025, Siddharth Mishra, All rights reserved.
+/// This is free and unencumbered software released into the public domain.
 ///
 /// Tool to generate documentation for Misra style of documentation of symbols.
 /// Extracts documentation comments from source and generates documentation based on that.

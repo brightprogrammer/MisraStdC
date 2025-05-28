@@ -1,6 +1,6 @@
 /// file      : std/io.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
-/// copyright : Copyright (c) 2024, Siddharth Mishra, All rights reserved.
+/// This is free and unencumbered software released into the public domain.
 ///
 /// formatted reading/writing and other magical stuff
 

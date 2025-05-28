@@ -1,5 +1,5 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
-/// copyright : Copyright (c) 2025, Siddharth Mishra, All rights reserved.
+/// This is free and unencumbered software released into the public domain.
 
 #ifndef MISRA_STD_UTILITY_ITER_TYPE_H
 #define MISRA_STD_UTILITY_ITER_TYPE_H

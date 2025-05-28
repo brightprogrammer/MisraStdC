@@ -1,6 +1,6 @@
 /// file      : std/container/str/init.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
-/// copyright : Copyright (c) 2025, Siddharth Mishra, All rights reserved.
+/// This is free and unencumbered software released into the public domain.
 ///
 /// Initialization functions for Str
 
@@ -14,6 +14,16 @@ extern "C" {
 #endif
 
 #ifdef __cplusplus
+#    define StrInitFromCstr(cstr, len)                                                                                 \
+        (Str {                                                                                                         \
+            .data        = ZstrDupN((char*)(cstr), (len)),                                                             \
+            .length      = (len),                                                                                      \
+            .capacity    = (len),                                                                                      \
+            .copy_init   = NULL,                                                                                       \
+            .copy_deinit = NULL,                                                                                       \
+            .alignment   = 1                                                                                           \
+        })
+#else
 ///
 /// Initializes a Str object from a C-style string (`cstr`) with a specified length (`len`).
 /// This macro creates a new Str object and copies up to `len` characters from `cstr`.
@@ -31,16 +41,6 @@ extern "C" {
 ///           uninitialized or zero. It's crucial to check the `data` field for NULL
 ///           after using this macro to handle potential memory allocation errors.
 ///
-#    define StrInitFromCstr(cstr, len)                                                                                 \
-        (Str {                                                                                                         \
-            .data        = ZstrDupN((char*)(cstr), (len)),                                                             \
-            .length      = (len),                                                                                      \
-            .capacity    = (len),                                                                                      \
-            .copy_init   = NULL,                                                                                       \
-            .copy_deinit = NULL,                                                                                       \
-            .alignment   = 1                                                                                           \
-        })
-#else
 #    define StrInitFromCstr(cstr, len)                                                                                 \
         ((Str) {.data        = ZstrDupN((char*)(cstr), (len)),                                                         \
                 .length      = (len),                                                                                  \
@@ -89,6 +89,8 @@ extern "C" {
     Str* StrPrintf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 
 #ifdef __cplusplus
+#    define StrInit() (StrVecInit())
+#else
 ///
 /// Initialize given string.
 ///
@@ -97,8 +99,6 @@ extern "C" {
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#    define StrInit() (StrVecInit())
-#else
 #    define StrInit() ((Str)VecInit())
 #endif
 

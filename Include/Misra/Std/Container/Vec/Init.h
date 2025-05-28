@@ -1,6 +1,6 @@
 /// file      : std/container/vec/init.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
-/// copyright : Copyright (c) 2025, Siddharth Mishra, All rights reserved.
+/// This is free and unencumbered software released into the public domain.
 ///
 /// Different types of initializers for a vector.
 
@@ -28,6 +28,16 @@
      .alignment   = 1}
 
 #ifdef __cplusplus
+#    define VecInitT(v)                                                                                                \
+        (TYPE_OF(v) {                                                                                                  \
+            .length      = 0,                                                                                          \
+            .capacity    = 0,                                                                                          \
+            .copy_init   = (GenericCopyInit)NULL,                                                                      \
+            .copy_deinit = (GenericCopyDeinit)NULL,                                                                    \
+            .data        = NULL,                                                                                       \
+            .alignment   = 1                                                                                           \
+        })
+#else
 ///
 /// Initialize given vector. Default alignment is 1
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
@@ -43,16 +53,6 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
-#    define VecInitT(v)                                                                                                \
-        (TYPE_OF(v) {                                                                                                  \
-            .length      = 0,                                                                                          \
-            .capacity    = 0,                                                                                          \
-            .copy_init   = (GenericCopyInit)NULL,                                                                      \
-            .copy_deinit = (GenericCopyDeinit)NULL,                                                                    \
-            .data        = NULL,                                                                                       \
-            .alignment   = 1                                                                                           \
-        })
-#else
 #    define VecInitT(v)                                                                                                \
         ((TYPE_OF(v)) {.length      = 0,                                                                               \
                        .capacity    = 0,                                                                               \
@@ -83,6 +83,16 @@
      .alignment   = 1}
 
 #ifdef __cplusplus
+#    define VecInitWithDeepCopyT(v, ci, cd)                                                                            \
+        (TYPE_OF(v) {                                                                                                  \
+            .length      = 0,                                                                                          \
+            .capacity    = 0,                                                                                          \
+            .copy_init   = (GenericCopyInit)(ci),                                                                      \
+            .copy_deinit = (GenericCopyDeinit)(cd),                                                                    \
+            .data        = NULL,                                                                                       \
+            .alignment   = 1                                                                                           \
+        })
+#else
 ///
 /// Initialize given vector. Default alignment is 1
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
@@ -103,16 +113,6 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
-#    define VecInitWithDeepCopyT(v, ci, cd)                                                                            \
-        (TYPE_OF(v) {                                                                                                  \
-            .length      = 0,                                                                                          \
-            .capacity    = 0,                                                                                          \
-            .copy_init   = (GenericCopyInit)(ci),                                                                      \
-            .copy_deinit = (GenericCopyDeinit)(cd),                                                                    \
-            .data        = NULL,                                                                                       \
-            .alignment   = 1                                                                                           \
-        })
-#else
 #    define VecInitWithDeepCopyT(v, ci, cd)                                                                            \
         ((TYPE_OF(v)) {.length      = 0,                                                                               \
                        .capacity    = 0,                                                                               \
@@ -147,6 +147,16 @@
      .alignment   = (aln)}
 
 #ifdef __cplusplus
+#    define VecInitAlignedT(v, aln)                                                                                    \
+        (TYPE_OF(v) {                                                                                                  \
+            .length      = 0,                                                                                          \
+            .capacity    = 0,                                                                                          \
+            .copy_init   = (GenericCopyInit)NULL,                                                                      \
+            .copy_deinit = (GenericCopyDeinit)NULL,                                                                    \
+            .data        = NULL,                                                                                       \
+            .alignment   = (aln)                                                                                       \
+        })
+#else
 ///
 /// Initialize given vector with given alignment.
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
@@ -171,16 +181,6 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
-#    define VecInitAlignedT(v, aln)                                                                                    \
-        (TYPE_OF(v) {                                                                                                  \
-            .length      = 0,                                                                                          \
-            .capacity    = 0,                                                                                          \
-            .copy_init   = (GenericCopyInit)NULL,                                                                      \
-            .copy_deinit = (GenericCopyDeinit)NULL,                                                                    \
-            .data        = NULL,                                                                                       \
-            .alignment   = (aln)                                                                                       \
-        })
-#else
 #    define VecInitAlignedT(v, aln)                                                                                    \
         ((TYPE_OF(v)) {.length      = 0,                                                                               \
                        .capacity    = 0,                                                                               \
@@ -218,6 +218,16 @@
      .alignment   = (aln)}
 
 #ifdef __cplusplus
+#    define VecInitAlignedWithDeepCopyT(v, ci, cd, aln)                                                                \
+        (TYPE_OF(v) {                                                                                                  \
+            .length      = 0,                                                                                          \
+            .capacity    = 0,                                                                                          \
+            .copy_init   = (GenericCopyInit)(ci),                                                                      \
+            .copy_deinit = (GenericCopyDeinit)(cd),                                                                    \
+            .data        = NULL,                                                                                       \
+            .alignment   = (aln)                                                                                       \
+        })
+#else
 ///
 /// Initialize given vector with given alignment.
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
@@ -248,16 +258,6 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
-#    define VecInitAlignedWithDeepCopyT(v, ci, cd, aln)                                                                \
-        (TYPE_OF(v) {                                                                                                  \
-            .length      = 0,                                                                                          \
-            .capacity    = 0,                                                                                          \
-            .copy_init   = (GenericCopyInit)(ci),                                                                      \
-            .copy_deinit = (GenericCopyDeinit)(cd),                                                                    \
-            .data        = NULL,                                                                                       \
-            .alignment   = (aln)                                                                                       \
-        })
-#else
 #    define VecInitAlignedWithDeepCopyT(v, ci, cd, aln)                                                                \
         ((TYPE_OF(v)) {.length      = 0,                                                                               \
                        .capacity    = 0,                                                                               \

@@ -1,6 +1,6 @@
 /// file      : bin/misraenum.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
-/// copyright : Copyright (c) 2025, Siddharth Mishra, All rights reserved.
+/// This is free and unencumbered software released into the public domain.
 ///
 /// Tool takes in JSON specification of a C enum and then emits C code for the
 /// corresponding enum type, along with functions to convert to and from string

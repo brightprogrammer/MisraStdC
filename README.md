@@ -2,26 +2,63 @@
 
 [![Build and Test](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test.yml/badge.svg)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test.yml)
 
-A library to make programming in C less painful for you and me.
+A modern, type-safe C library designed to make programming in C less painful and more productive. MisraStdC provides generic containers, string handling, and formatted I/O inspired by higher-level languages while maintaining C's performance and control.
 
-Features :
-- MSVC, GCC, Clang, all three major compilers supported
-- Generic containers
-  - `Vec(T)` : Work with any type in a type-safe manner with strict type checking.
-  - `Str`    : Just a `typedef` of `Vec(char)` but provides it's own wrapper functions.
-  - `Map(K, V)` : Generic key-value hash-map storage container (Work in progress...)
-  - `Int` : A custom big int implementation (Work in progress...)
-- Rust style Fmt IO
-  - `WriteFmt`, `ReadFmt` : To write and read from standard I/O in a type-safe formatted manner.
-  - `StrWriteFmt`, `StrReadFmt` :  To write and read from strigs in a type-safe formatted manner.
+## Features
 
-Take a look at [docs](https://docs.brightprogrammer.in) to get a list of functions and generic macros with their usage examples.
+- **Cross-platform compatibility**: Supports MSVC, GCC, and Clang
+- **Type-safe generic containers**:
+  - `Vec(T)`: Generic vector with strict type checking
+  - `Str`: String handling (specialized `Vec(char)`)
+  - `Map(K, V)`: Generic key-value hash-map storage (WIP)
+  - `Int`: Custom big integer implementation (WIP)
+- **Rust-style formatted I/O**:
+  - `WriteFmt`, `ReadFmt`: Type-safe formatted standard I/O
+  - `StrWriteFmt`, `StrReadFmt`: Type-safe formatted string operations
+- **JSON parsing and serialization**
+- **Memory safety** with proper initialization and cleanup functions
 
-## Example
+## Installation
 
-Here are examples demonstrating the key features of MisraStdC:
+### Prerequisites
+
+- C compiler (GCC, Clang, or MSVC)
+- [Meson](https://mesonbuild.com/) build system
+- [Ninja](https://ninja-build.org/) build tool
+
+### Building from Source
+
+```bash
+# Clone the repository with submodules
+git clone --recursive https://github.com/brightprogrammer/MisraStdC.git
+cd MisraStdC
+
+# Configure the build
+meson setup builddir
+
+# Build the library
+ninja -C builddir
+
+# Run tests
+ninja -C builddir test
+```
+
+### Build Options
+
+For development with sanitizers (recommended for debugging):
+
+```bash
+meson setup builddir -Db_sanitize=address,undefined -Db_lundef=false
+```
+
+## Documentation
+
+Comprehensive API documentation is available at [docs.brightprogrammer.in](https://docs.brightprogrammer.in).
+
+## Examples
 
 ### Vector Container (Vec)
+
 ```c
 #include <Misra.h>
 
@@ -79,84 +116,8 @@ int main() {
 }
 ```
 
-### Vector with Complex Types
-```c
-#include <Misra.h>
-
-// Simple type (no pointers/resources)
-typedef struct {
-    int x;
-    int y;
-} Point;
-
-// Complex type with owned resources
-typedef struct {
-    int id;
-    Vec(int) data;
-} ComplexType;
-
-// Copy initialization for deep copying
-bool ComplexTypeCopyInit(ComplexType* dst, const ComplexType* src) {
-    dst->id = src->id;
-    dst->data = VecInit();
-    
-    // Copy all elements from source vector
-    VecForeachIdx(&src->data, val, idx, {
-        VecInsertR(&dst->data, val, idx);
-    });
-    return true;
-}
-
-// Proper cleanup of owned resources
-void ComplexTypeDeinit(ComplexType* ct) {
-    VecDeinit(&ct->data);
-}
-
-int main() {
-    // 1. Vector of simple types (no init/deinit needed)
-    Vec(Point) points = VecInit();  // No copy_init or copy_deinit
-    
-    Point p1 = {1, 2};
-    Point p2 = {3, 4};
-    VecInsertL(&points, &p1, 0);
-    VecInsertL(&points, &p2, 1);
-    
-    // Simple deletion (no cleanup needed)
-    VecDelete(&points, 0);  // Safe to just delete
-    
-    // 2. Vector of complex types with resource management
-    Vec(ComplexType) objects = VecInitWithDeepCopy(ComplexTypeCopyInit, ComplexTypeDeinit);
-    
-    // Create and insert items
-    ComplexType item = {
-        .id = 1,
-        .data = VecInit()
-    };
-    VecInsertR(&item.data, 42, 0);
-    VecInsertR(&item.data, 43, 1);
-    
-    // Insert with ownership transfer
-    VecInsertL(&objects, &item, 0);  // item is now owned by vector
-    
-    // Two ways to handle removal:
-    
-    // Method 1: Remove and manually cleanup
-    ComplexType removed;
-    VecRemove(&objects, &removed, 0);
-    ComplexTypeDeinit(&removed);
-    
-    // Method 2: Direct deletion (vector handles cleanup)
-    // Since we provided ComplexTypeDeinit during initialization,
-    // the vector will automatically call it when deleting items
-    VecDelete(&objects, 0);  // ComplexTypeDeinit is called automatically
-    
-    // Cleanup
-    VecDeinit(&points);      // Simple cleanup, no per-element deinit
-    VecDeinit(&objects);     // Calls ComplexTypeDeinit for each remaining element
-}
-```
-
 ### String Operations (Str)
+
 ```c
 #include <Misra.h>
 
@@ -201,6 +162,7 @@ int main() {
 ```
 
 ### Formatted I/O
+
 ```c
 #include <Misra.h>
 
@@ -246,6 +208,7 @@ int main() {
 ```
 
 ### JSON Parsing and Writing
+
 ```c
 #include <Misra.h>
 
@@ -349,56 +312,78 @@ int main() {
 }
 ```
 
-The example demonstrates:
-1. Reading complex nested JSON structures
-2. Writing JSON with proper formatting
-3. Working with arrays and objects
-4. Type-safe value handling
-5. Proper memory management
+### Working with Complex Types
+
+```c
+#include <Misra.h>
+
+// Complex type with owned resources
+typedef struct {
+    int id;
+    Vec(int) data;
+} ComplexType;
+
+// Copy initialization for deep copying
+bool ComplexTypeCopyInit(ComplexType* dst, const ComplexType* src) {
+    dst->id = src->id;
+    dst->data = VecInit();
+    
+    // Copy all elements from source vector
+    VecForeachIdx(&src->data, val, idx, {
+        VecInsertR(&dst->data, val, idx);
+    });
+    return true;
+}
+
+// Proper cleanup of owned resources
+void ComplexTypeDeinit(ComplexType* ct) {
+    VecDeinit(&ct->data);
+}
+
+int main() {
+    // Vector of complex types with resource management
+    Vec(ComplexType) objects = VecInitWithDeepCopy(ComplexTypeCopyInit, ComplexTypeDeinit);
+    
+    // Create and insert items
+    ComplexType item = {
+        .id = 1,
+        .data = VecInit()
+    };
+    VecInsertR(&item.data, 42, 0);
+    VecInsertR(&item.data, 43, 1);
+    
+    // Insert with ownership transfer
+    VecInsertL(&objects, &item, 0);  // item is now owned by vector
+    
+    // Direct deletion (vector handles cleanup)
+    // Since we provided ComplexTypeDeinit during initialization,
+    // the vector will automatically call it when deleting items
+    VecDelete(&objects, 0);  // ComplexTypeDeinit is called automatically
+    
+    // Cleanup
+    VecDeinit(&objects);     // Calls ComplexTypeDeinit for each remaining element
+}
+```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-All files in this repo that are copyrighted by me are available under Apache 2.0 License if you're
-using this for non-commercial usage and under GPLv3 if you're using this for any commercial use case.
-I also reserve the right to make the licensing of copyrighted files less restrictive for any entity
-I wish to do it for. This means if you're a commercial entity and if you have my explicit permission
-you can use it under a license no more restrictive than GPLv3.
+This project is dedicated to the public domain under the [Unlicense](LICENSE.md).
 
-I intend to keep this library as open source and accessible as possible.
+This means you are free to:
+- Use the code for any purpose
+- Change the code in any way
+- Share the code with anyone
+- Distribute the code
+- Sell the code or derivative works
 
-### Apache 2.0 (For Non-Commercial Use Case)
-
-```
-Copyright 2025 Siddharth Mishra
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-```
-
-### GNU GPL 3.0 (For Commercial Use Case)
-
-```
-Copyright (C) 2025  Siddharth Mishra
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-```
+No attribution is required. See the [LICENSE.md](LICENSE.md) file for details.

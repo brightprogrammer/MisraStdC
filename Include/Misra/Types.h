@@ -1,6 +1,6 @@
 /// file      : misra/types.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
-/// copyright : Copyright (c) 2024, Siddharth Mishra, Anvie Labs, All rights reserved.
+/// This is free and unencumbered software released into the public domain.
 ///
 /// Common type definitions, macro definitions and other misc utilities
 
