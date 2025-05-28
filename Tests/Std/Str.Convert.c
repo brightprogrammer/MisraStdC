@@ -21,32 +21,32 @@ bool test_str_from_u64(void) {
     
     // Test decimal conversion
     StrFromU64(&s, 12345, 10, false);
-    bool result = (strcmp(s.data, "12345") == 0);
+    bool result = (ZstrCompare(s.data, "12345") == 0);
     
     // Test hexadecimal conversion (lowercase)
     StrClear(&s);
     StrFromU64(&s, 0xABCD, 16, false);
-    result = result && (strcmp(s.data, "0xabcd") == 0);
+    result = result && (ZstrCompare(s.data, "0xabcd") == 0);
     
     // Test hexadecimal conversion (uppercase)
     StrClear(&s);
     StrFromU64(&s, 0xABCD, 16, true);
-    result = result && (strcmp(s.data, "0xABCD") == 0);
+    result = result && (ZstrCompare(s.data, "0xABCD") == 0);
     
     // Test binary conversion
     StrClear(&s);
     StrFromU64(&s, 42, 2, false);
-    result = result && (strcmp(s.data, "0b101010") == 0);
+    result = result && (ZstrCompare(s.data, "0b101010") == 0);
     
     // Test octal conversion
     StrClear(&s);
     StrFromU64(&s, 42, 8, false);
-    result = result && (strcmp(s.data, "0o52") == 0);
+    result = result && (ZstrCompare(s.data, "0o52") == 0);
     
     // Test zero
     StrClear(&s);
     StrFromU64(&s, 0, 10, false);
-    result = result && (strcmp(s.data, "0") == 0);
+    result = result && (ZstrCompare(s.data, "0") == 0);
     
     StrDeinit(&s);
     return result;
@@ -60,12 +60,12 @@ bool test_str_from_i64(void) {
     
     // Test positive decimal conversion
     StrFromI64(&s, 12345, 10, false);
-    bool result = (strcmp(s.data, "12345") == 0);
+    bool result = (ZstrCompare(s.data, "12345") == 0);
     
     // Test negative decimal conversion
     StrClear(&s);
     StrFromI64(&s, -12345, 10, false);
-    result = result && (strcmp(s.data, "-12345") == 0);
+    result = result && (ZstrCompare(s.data, "-12345") == 0);
     
     // Test hexadecimal conversion of negative number (check only for prefix, not exact value)
     StrClear(&s);
@@ -75,12 +75,12 @@ bool test_str_from_i64(void) {
     // Test zero
     StrClear(&s);
     StrFromI64(&s, 0, 10, false);
-    result = result && (strcmp(s.data, "0") == 0);
+    result = result && (ZstrCompare(s.data, "0") == 0);
     
     // Test binary conversion
     StrClear(&s);
     StrFromI64(&s, 42, 2, false);
-    result = result && (strcmp(s.data, "0b101010") == 0);
+    result = result && (ZstrCompare(s.data, "0b101010") == 0);
     
     StrDeinit(&s);
     return result;
@@ -94,57 +94,57 @@ bool test_str_from_f64(void) {
     
     // Test integer conversion
     StrFromF64(&s, 123.0, 2, false, false);
-    bool result = (strcmp(s.data, "123.00") == 0);
+    bool result = (ZstrCompare(s.data, "123.00") == 0);
     
     // Test fractional conversion
     StrClear(&s);
     StrFromF64(&s, 123.456, 3, false, false);
-    result = result && (strcmp(s.data, "123.456") == 0);
+    result = result && (ZstrCompare(s.data, "123.456") == 0);
     
     // Test negative number
     StrClear(&s);
     StrFromF64(&s, -123.456, 3, false, false);
-    result = result && (strcmp(s.data, "-123.456") == 0);
+    result = result && (ZstrCompare(s.data, "-123.456") == 0);
     
     // Test scientific notation (forced)
     StrClear(&s);
     StrFromF64(&s, 123.456, 3, true, false);
-    result = result && (strcmp(s.data, "1.235e+02") == 0);
+    result = result && (ZstrCompare(s.data, "1.235e+02") == 0);
     
     // Test scientific notation (uppercase)
     StrClear(&s);
     StrFromF64(&s, 123.456, 3, true, true);
-    result = result && (strcmp(s.data, "1.235E+02") == 0);
+    result = result && (ZstrCompare(s.data, "1.235E+02") == 0);
     
     // Test very small number (auto scientific notation)
     StrClear(&s);
     StrFromF64(&s, 0.0000123, 3, false, false);
-    result = result && (strcmp(s.data, "1.230e-05") == 0);
+    result = result && (ZstrCompare(s.data, "1.230e-05") == 0);
     
     // Test very large number (auto scientific notation)
     StrClear(&s);
     StrFromF64(&s, 1234567890123.0, 2, false, false);
-    result = result && (strcmp(s.data, "1.23e+12") == 0);
+    result = result && (ZstrCompare(s.data, "1.23e+12") == 0);
     
     // Test zero
     StrClear(&s);
     StrFromF64(&s, 0.0, 2, false, false);
-    result = result && (strcmp(s.data, "0.00") == 0);
+    result = result && (ZstrCompare(s.data, "0.00") == 0);
     
     // Test infinity
     StrClear(&s);
     StrFromF64(&s, INFINITY, 2, false, false);
-    result = result && (strcmp(s.data, "inf") == 0);
+    result = result && (ZstrCompare(s.data, "inf") == 0);
     
     // Test negative infinity
     StrClear(&s);
     StrFromF64(&s, -INFINITY, 2, false, false);
-    result = result && (strcmp(s.data, "-inf") == 0);
+    result = result && (ZstrCompare(s.data, "-inf") == 0);
     
     // Test NaN
     StrClear(&s);
     StrFromF64(&s, NAN, 2, false, false);
-    result = result && (strcmp(s.data, "nan") == 0);
+    result = result && (ZstrCompare(s.data, "nan") == 0);
     
     StrDeinit(&s);
     return result;

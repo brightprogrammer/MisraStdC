@@ -58,11 +58,11 @@ bool test_str_find(void) {
     
     // Test StrFindStr with match at end
     const char* found1 = StrFindStr(&haystack, &needle1);
-    bool result = (found1 != NULL && strcmp(found1, "World") == 0);
+    bool result = (found1 != NULL && ZstrCompare(found1, "World") == 0);
     
     // Test StrFindStr with match at beginning
     const char* found2 = StrFindStr(&haystack, &needle2);
-    result = result && (found2 != NULL && strcmp(found2, "Hello World") == 0);
+    result = result && (found2 != NULL && ZstrCompare(found2, "Hello World") == 0);
     
     // Test StrFindStr with no match
     const char* found3 = StrFindStr(&haystack, &needle3);
@@ -70,7 +70,7 @@ bool test_str_find(void) {
     
     // Test StrFindZstr
     const char* found4 = StrFindZstr(&haystack, "World");
-    result = result && (found4 != NULL && strcmp(found4, "World") == 0);
+    result = result && (found4 != NULL && ZstrCompare(found4, "World") == 0);
     
     // Test StrFindCstr
     const char* found5 = StrFindCstr(&haystack, "Wor", 3);
@@ -126,19 +126,19 @@ bool test_str_replace(void) {
     // Test StrReplaceZstr
     Str s1 = StrInitFromZstr("Hello World");
     StrReplaceZstr(&s1, "World", "Universe", 1);
-    bool result = (strcmp(s1.data, "Hello Universe") == 0);
+    bool result = (ZstrCompare(s1.data, "Hello Universe") == 0);
     
     // Test multiple replacements
     StrDeinit(&s1);
     s1 = StrInitFromZstr("Hello Hello Hello");
     StrReplaceZstr(&s1, "Hello", "Hi", 2);
-    result = result && (strcmp(s1.data, "Hi Hi Hello") == 0);
+    result = result && (ZstrCompare(s1.data, "Hi Hi Hello") == 0);
     
     // Test StrReplaceCstr - use the full "World" string instead of just "Wo"
     StrDeinit(&s1);
     s1 = StrInitFromZstr("Hello World");
     StrReplaceCstr(&s1, "World", 5, "Universe", 8, 1);
-    result = result && (strcmp(s1.data, "Hello Universe") == 0);
+    result = result && (ZstrCompare(s1.data, "Hello Universe") == 0);
     
     // Test StrReplace
     StrDeinit(&s1);
@@ -146,7 +146,7 @@ bool test_str_replace(void) {
     Str find = StrInitFromZstr("World");
     Str replace = StrInitFromZstr("Universe");
     StrReplace(&s1, &find, &replace, 1);
-    result = result && (strcmp(s1.data, "Hello Universe") == 0);
+    result = result && (ZstrCompare(s1.data, "Hello Universe") == 0);
     
     StrDeinit(&s1);
     StrDeinit(&find);
@@ -164,9 +164,9 @@ bool test_str_split(void) {
     
     bool result = (split.length == 3);
     if (split.length >= 3) {
-        result = result && (strcmp(split.data[0].data, "Hello") == 0);
-        result = result && (strcmp(split.data[1].data, "World") == 0);
-        result = result && (strcmp(split.data[2].data, "Test") == 0);
+        result = result && (ZstrCompare(split.data[0].data, "Hello") == 0);
+        result = result && (ZstrCompare(split.data[1].data, "World") == 0);
+        result = result && (ZstrCompare(split.data[2].data, "Test") == 0);
     }
     
     // Test StrSplitToIters
@@ -178,19 +178,19 @@ bool test_str_split(void) {
         StrIter* iter1 = &iters.data[0];
         char buffer1[10] = {0};
         memcpy(buffer1, iter1->data, iter1->length);
-        result = result && (strcmp(buffer1, "Hello") == 0);
+        result = result && (ZstrCompare(buffer1, "Hello") == 0);
         
         // Check second iterator
         StrIter* iter2 = &iters.data[1];
         char buffer2[10] = {0};
         memcpy(buffer2, iter2->data, iter2->length);
-        result = result && (strcmp(buffer2, "World") == 0);
+        result = result && (ZstrCompare(buffer2, "World") == 0);
         
         // Check third iterator
         StrIter* iter3 = &iters.data[2];
         char buffer3[10] = {0};
         memcpy(buffer3, iter3->data, iter3->length);
-        result = result && (strcmp(buffer3, "Test") == 0);
+        result = result && (ZstrCompare(buffer3, "Test") == 0);
     }
     
     VecDeinit(&split);
@@ -206,17 +206,17 @@ bool test_str_strip(void) {
     // Test StrLStrip
     Str s1 = StrInitFromZstr("  Hello  ");
     Str stripped = StrLStrip(&s1, NULL);
-    bool result = (strcmp(stripped.data, "Hello  ") == 0);
+    bool result = (ZstrCompare(stripped.data, "Hello  ") == 0);
     StrDeinit(&stripped);
     
     // Test StrRStrip
     stripped = StrRStrip(&s1, NULL);
-    result = result && (strcmp(stripped.data, "  Hello") == 0);
+    result = result && (ZstrCompare(stripped.data, "  Hello") == 0);
     StrDeinit(&stripped);
     
     // Test StrStrip
     stripped = StrStrip(&s1, NULL);
-    result = result && (strcmp(stripped.data, "Hello") == 0);
+    result = result && (ZstrCompare(stripped.data, "Hello") == 0);
     StrDeinit(&stripped);
     
     // Test with custom strip characters
@@ -224,15 +224,15 @@ bool test_str_strip(void) {
     s1 = StrInitFromZstr("***Hello***");
     
     stripped = StrLStrip(&s1, "*");
-    result = result && (strcmp(stripped.data, "Hello***") == 0);
+    result = result && (ZstrCompare(stripped.data, "Hello***") == 0);
     StrDeinit(&stripped);
     
     stripped = StrRStrip(&s1, "*");
-    result = result && (strcmp(stripped.data, "***Hello") == 0);
+    result = result && (ZstrCompare(stripped.data, "***Hello") == 0);
     StrDeinit(&stripped);
     
     stripped = StrStrip(&s1, "*");
-    result = result && (strcmp(stripped.data, "Hello") == 0);
+    result = result && (ZstrCompare(stripped.data, "Hello") == 0);
     StrDeinit(&stripped);
     
     StrDeinit(&s1);

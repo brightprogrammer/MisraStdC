@@ -24,14 +24,14 @@ bool test_str_pop_back(void) {
     StrPopBack(&s, &c);
     
     // Check that the character was popped correctly
-    bool result = (c == 'o' && strcmp(s.data, "Hell") == 0);
+    bool result = (c == 'o' && ZstrCompare(s.data, "Hell") == 0);
     
     // Pop another character without storing it - avoid passing NULL directly
     char ignored;
     StrPopBack(&s, &ignored);
     
     // Check that the character was removed
-    result = result && (strcmp(s.data, "Hel") == 0);
+    result = result && (ZstrCompare(s.data, "Hel") == 0);
     
     StrDeinit(&s);
     return result;
@@ -48,14 +48,14 @@ bool test_str_pop_front(void) {
     StrPopFront(&s, &c);
     
     // Check that the character was popped correctly
-    bool result = (c == 'H' && strcmp(s.data, "ello") == 0);
+    bool result = (c == 'H' && ZstrCompare(s.data, "ello") == 0);
     
     // Pop another character without storing it - avoid passing NULL directly
     char ignored;
     StrPopFront(&s, &ignored);
     
     // Check that the character was removed
-    result = result && (strcmp(s.data, "llo") == 0);
+    result = result && (ZstrCompare(s.data, "llo") == 0);
     
     StrDeinit(&s);
     return result;
@@ -72,14 +72,14 @@ bool test_str_remove(void) {
     StrRemove(&s, &c, 2);
     
     // Check that the character was removed correctly
-    bool result = (c == 'l' && strcmp(s.data, "Helo") == 0);
+    bool result = (c == 'l' && ZstrCompare(s.data, "Helo") == 0);
     
     // Remove another character without storing it - avoid passing NULL directly
     char ignored;
     StrRemove(&s, &ignored, 1);
     
     // Check that the character was removed
-    result = result && (strcmp(s.data, "Hlo") == 0);
+    result = result && (ZstrCompare(s.data, "Hlo") == 0);
     
     StrDeinit(&s);
     return result;
@@ -99,14 +99,14 @@ bool test_str_remove_range(void) {
     StrRemoveRange(&s, buffer, 5, 5);
     
     // Check that the characters were removed correctly
-    bool result = (strcmp(buffer, " Worl") == 0 && strcmp(s.data, "Hellod") == 0);
+    bool result = (ZstrCompare(buffer, " Worl") == 0 && ZstrCompare(s.data, "Hellod") == 0);
     
     // Remove another range without storing it - use a temporary buffer instead of NULL
     char ignored[2];
     StrRemoveRange(&s, ignored, 4, 2);
     
     // Check that the characters were removed
-    result = result && (strcmp(s.data, "Hell") == 0);
+    result = result && (ZstrCompare(s.data, "Hell") == 0);
     
     StrDeinit(&s);
     return result;
@@ -122,13 +122,13 @@ bool test_str_delete_last_char(void) {
     StrDeleteLastChar(&s);
     
     // Check that the character was deleted
-    bool result = (strcmp(s.data, "Hell") == 0);
+    bool result = (ZstrCompare(s.data, "Hell") == 0);
     
     // Delete another character
     StrDeleteLastChar(&s);
     
     // Check that the character was deleted
-    result = result && (strcmp(s.data, "Hel") == 0);
+    result = result && (ZstrCompare(s.data, "Hel") == 0);
     
     StrDeinit(&s);
     return result;
@@ -144,13 +144,13 @@ bool test_str_delete(void) {
     StrDelete(&s, 2);
     
     // Check that the character was deleted
-    bool result = (strcmp(s.data, "Helo") == 0);
+    bool result = (ZstrCompare(s.data, "Helo") == 0);
     
     // Delete another character
     StrDelete(&s, 1);
     
     // Check that the character was deleted
-    result = result && (strcmp(s.data, "Hlo") == 0);
+    result = result && (ZstrCompare(s.data, "Hlo") == 0);
     
     StrDeinit(&s);
     return result;
@@ -166,13 +166,13 @@ bool test_str_delete_range(void) {
     StrDeleteRange(&s, 5, 6);
     
     // Check that the characters were deleted
-    bool result = (strcmp(s.data, "Hello") == 0);
+    bool result = (ZstrCompare(s.data, "Hello") == 0);
     
     // Delete another range
     StrDeleteRange(&s, 2, 2);
     
     // Check that the characters were deleted
-    result = result && (strcmp(s.data, "Heo") == 0);
+    result = result && (ZstrCompare(s.data, "Heo") == 0);
     
     StrDeinit(&s);
     return result;

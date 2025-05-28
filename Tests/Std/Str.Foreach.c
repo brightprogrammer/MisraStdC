@@ -30,7 +30,7 @@ bool test_str_foreach_idx(void) {
     });
     
     // The result should be "H0e1l2l3o4"
-    bool success = (strcmp(result.data, "H0e1l2l3o4") == 0);
+    bool success = (ZstrCompare(result.data, "H0e1l2l3o4") == 0);
     
     StrDeinit(&s);
     StrDeinit(&result);
@@ -63,10 +63,10 @@ bool test_str_foreach_reverse_idx(void) {
     bool success = false;
     if (saw_index_zero) {
         // The test output shows index 0 is processed, but the order is different than expected
-        success = (strcmp(result.data, "o4l3l2e1H0") == 0);
+        success = (ZstrCompare(result.data, "o4l3l2e1H0") == 0);
         printf("  (Index 0 was processed)\n");
     } else {
-        success = (strcmp(result.data, "o4l3l2e1") == 0);
+        success = (ZstrCompare(result.data, "o4l3l2e1") == 0);
         printf("  (Index 0 was NOT processed - bug in macro)\n");
     }
     
@@ -96,10 +96,10 @@ bool test_str_foreach_ptr_idx(void) {
     });
     
     // The result should be "H0e1l2l3o4"
-    bool success = (strcmp(result.data, "H0e1l2l3o4") == 0);
+    bool success = (ZstrCompare(result.data, "H0e1l2l3o4") == 0);
     
     // The original string should now be "HELLO" (all uppercase)
-    success = success && (strcmp(s.data, "HELLO") == 0);
+    success = success && (ZstrCompare(s.data, "HELLO") == 0);
     
     StrDeinit(&s);
     StrDeinit(&result);
@@ -137,12 +137,12 @@ bool test_str_foreach_reverse_ptr_idx(void) {
     bool success = false;
     if (saw_index_zero) {
         // The test output shows index 0 is processed, but the order is different than expected
-        success = (strcmp(result.data, "o4l3l2e1H0") == 0);
-        success = success && (strcmp(s.data, "HELLO") == 0); // All uppercase
+        success = (ZstrCompare(result.data, "o4l3l2e1H0") == 0);
+        success = success && (ZstrCompare(s.data, "HELLO") == 0); // All uppercase
         printf("  (Index 0 was processed)\n");
     } else {
-        success = (strcmp(result.data, "o4l3l2e1") == 0);
-        success = success && (strcmp(s.data, "HELLo") == 0); // All uppercase except first char
+        success = (ZstrCompare(result.data, "o4l3l2e1") == 0);
+        success = success && (ZstrCompare(s.data, "HELLo") == 0); // All uppercase except first char
         printf("  (Index 0 was NOT processed - bug in macro)\n");
     }
     
@@ -165,7 +165,7 @@ bool test_str_foreach(void) {
     });
     
     // The result should be "Hello"
-    bool success = (strcmp(result.data, "Hello") == 0);
+    bool success = (ZstrCompare(result.data, "Hello") == 0);
     
     StrDeinit(&s);
     StrDeinit(&result);
@@ -191,10 +191,10 @@ bool test_str_foreach_reverse(void) {
     // The expected result depends on whether all characters are processed
     bool success = false;
     if (char_count == s.length) {
-        success = (strcmp(result.data, "olleH") == 0);
+        success = (ZstrCompare(result.data, "olleH") == 0);
         printf("  (All characters were processed)\n");
     } else {
-        success = (strcmp(result.data, "olle") == 0);
+        success = (ZstrCompare(result.data, "olle") == 0);
         printf("  (First character was NOT processed - bug in macro)\n");
     }
     
@@ -222,10 +222,10 @@ bool test_str_foreach_ptr(void) {
     });
     
     // The result should be "Hello"
-    bool success = (strcmp(result.data, "Hello") == 0);
+    bool success = (ZstrCompare(result.data, "Hello") == 0);
     
     // The original string should now be "HELLO" (all uppercase)
-    success = success && (strcmp(s.data, "HELLO") == 0);
+    success = success && (ZstrCompare(s.data, "HELLO") == 0);
     
     StrDeinit(&s);
     StrDeinit(&result);
@@ -257,12 +257,12 @@ bool test_str_foreach_ptr_reverse(void) {
     // The expected result depends on whether all characters are processed
     bool success = false;
     if (char_count == s.length) {
-        success = (strcmp(result.data, "olleH") == 0);
-        success = success && (strcmp(s.data, "HELLO") == 0); // All uppercase
+        success = (ZstrCompare(result.data, "olleH") == 0);
+        success = success && (ZstrCompare(s.data, "HELLO") == 0); // All uppercase
         printf("  (All characters were processed)\n");
     } else {
-        success = (strcmp(result.data, "olle") == 0);
-        success = success && (strcmp(s.data, "HELLo") == 0); // All uppercase except first char
+        success = (ZstrCompare(result.data, "olle") == 0);
+        success = success && (ZstrCompare(s.data, "HELLo") == 0); // All uppercase except first char
         printf("  (First character was NOT processed - bug in macro)\n");
     }
     

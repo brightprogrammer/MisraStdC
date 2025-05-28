@@ -142,7 +142,7 @@ bool test_str_reverse(void) {
     StrReverse(&s);
     
     // Check that the string was reversed
-    bool result = (strcmp(s.data, "olleH") == 0);
+    bool result = (ZstrCompare(s.data, "olleH") == 0);
     
     // Test with an even-length string
     StrDeinit(&s);
@@ -152,7 +152,7 @@ bool test_str_reverse(void) {
     StrReverse(&s);
     
     // Check that the string was reversed
-    result = result && (strcmp(s.data, "dcba") == 0);
+    result = result && (ZstrCompare(s.data, "dcba") == 0);
     
     // Test with a single-character string
     StrDeinit(&s);
@@ -162,7 +162,7 @@ bool test_str_reverse(void) {
     StrReverse(&s);
     
     // Check that the string is unchanged
-    result = result && (strcmp(s.data, "a") == 0);
+    result = result && (ZstrCompare(s.data, "a") == 0);
     
     // Test with an empty string
     StrDeinit(&s);

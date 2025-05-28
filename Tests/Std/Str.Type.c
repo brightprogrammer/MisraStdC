@@ -25,7 +25,7 @@ bool test_str_type(void) {
     StrPushBack(&s, 'o');
     
     bool result = (s.length == 5 && 
-                  strcmp(s.data, "Hello") == 0);
+                  ZstrCompare(s.data, "Hello") == 0);
     
     StrDeinit(&s);
     return result;
@@ -53,8 +53,8 @@ bool test_strs_type(void) {
         Str* str1 = &VecAt(&sv, 0);
         Str* str2 = &VecAt(&sv, 1);
         
-        result = result && (strcmp(str1->data, "Hello") == 0);
-        result = result && (strcmp(str2->data, "World") == 0);
+        result = result && (ZstrCompare(str1->data, "Hello") == 0);
+        result = result && (ZstrCompare(str2->data, "World") == 0);
     }
     
     VecDeinit(&sv); // This should call StrDeinit on each element

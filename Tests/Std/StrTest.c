@@ -40,7 +40,7 @@ bool test_str_init_from_zstr(void) {
     ValidateStr(&s);  // Validate the string
     
     bool result = (s.length == strlen(test_str) && 
-                  strcmp(s.data, test_str) == 0);
+                  ZstrCompare(s.data, test_str) == 0);
     
     StrDeinit(&s);
     return result;
@@ -78,7 +78,7 @@ bool test_str_init_copy(void) {
     
     bool result = (success && 
                   dst.length == src.length && 
-                  strcmp(dst.data, src.data) == 0);
+                  ZstrCompare(dst.data, src.data) == 0);
     
     StrDeinit(&src);
     StrDeinit(&dst);
@@ -101,7 +101,7 @@ bool test_str_push_back(void) {
     ValidateStr(&s);  // Validate after modifications
     
     bool result = (s.length == 5 && 
-                  strcmp(s.data, "Hello") == 0);
+                  ZstrCompare(s.data, "Hello") == 0);
     
     StrDeinit(&s);
     return result;
@@ -123,7 +123,7 @@ bool test_str_push_back_zstr(void) {
     ValidateStr(&s);  // Validate after all modifications
     
     bool result = (s.length == 13 && 
-                  strcmp(s.data, "Hello, World!") == 0);
+                  ZstrCompare(s.data, "Hello, World!") == 0);
     
     StrDeinit(&s);
     return result;

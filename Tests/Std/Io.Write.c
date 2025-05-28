@@ -35,17 +35,17 @@ bool test_basic_formatting(void) {
 
     // Test literal text
     StrWriteFmt(&output, "Hello, world!");
-    success = success && (strcmp(output.data, "Hello, world!") == 0);
+    success = success && (ZstrCompare(output.data, "Hello, world!") == 0);
     StrClear(&output);
 
     // Test escaped braces
     StrWriteFmt(&output, "{{Hello}}");
-    success = success && (strcmp(output.data, "{Hello}") == 0);
+    success = success && (ZstrCompare(output.data, "{Hello}") == 0);
     StrClear(&output);
 
     // Test double escaped braces
     StrWriteFmt(&output, "{{{{");
-    success = success && (strcmp(output.data, "{{") == 0);
+    success = success && (ZstrCompare(output.data, "{{") == 0);
 
     StrDeinit(&output);
     return success;
@@ -61,7 +61,7 @@ bool test_string_formatting(void) {
     // Test basic string
     const char* str = "Hello";
     StrWriteFmt(&output, "{}", FMT(str));
-    success = success && (strcmp(output.data, "Hello") == 0);
+    success = success && (ZstrCompare(output.data, "Hello") == 0);
     StrClear(&output);
 
     // Test empty string
@@ -72,21 +72,21 @@ bool test_string_formatting(void) {
 
     // Test string with width and alignment
     StrWriteFmt(&output, "{:>10}", FMT(str));
-    success = success && (strcmp(output.data, "     Hello") == 0);
+    success = success && (ZstrCompare(output.data, "     Hello") == 0);
     StrClear(&output);
 
     StrWriteFmt(&output, "{:<10}", FMT(str));
-    success = success && (strcmp(output.data, "Hello     ") == 0);
+    success = success && (ZstrCompare(output.data, "Hello     ") == 0);
     StrClear(&output);
 
     StrWriteFmt(&output, "{:^10}", FMT(str));
-    success = success && (strcmp(output.data, "  Hello   ") == 0);
+    success = success && (ZstrCompare(output.data, "  Hello   ") == 0);
     StrClear(&output);
 
     // Test Str object
     Str s = StrInitFromZstr("World");
     StrWriteFmt(&output, "{}", FMT(s));
-    success = success && (strcmp(output.data, "World") == 0);
+    success = success && (ZstrCompare(output.data, "World") == 0);
     StrDeinit(&s);
 
     StrDeinit(&output);
@@ -103,64 +103,64 @@ bool test_integer_decimal_formatting(void) {
     // Test signed integers
     i8 i8_val = -42;
     StrWriteFmt(&output, "{}", FMT(i8_val));
-    success = success && (strcmp(output.data, "-42") == 0);
+    success = success && (ZstrCompare(output.data, "-42") == 0);
     StrClear(&output);
 
     i16 i16_val = -1234;
     StrWriteFmt(&output, "{}", FMT(i16_val));
-    success = success && (strcmp(output.data, "-1234") == 0);
+    success = success && (ZstrCompare(output.data, "-1234") == 0);
     StrClear(&output);
 
     i32 i32_val = -123456;
     StrWriteFmt(&output, "{}", FMT(i32_val));
-    success = success && (strcmp(output.data, "-123456") == 0);
+    success = success && (ZstrCompare(output.data, "-123456") == 0);
     StrClear(&output);
 
     i64 i64_val = -1234567890LL;
     StrWriteFmt(&output, "{}", FMT(i64_val));
-    success = success && (strcmp(output.data, "-1234567890") == 0);
+    success = success && (ZstrCompare(output.data, "-1234567890") == 0);
     StrClear(&output);
 
     // Test unsigned integers
     u8 u8_val = 42;
     StrWriteFmt(&output, "{}", FMT(u8_val));
-    success = success && (strcmp(output.data, "42") == 0);
+    success = success && (ZstrCompare(output.data, "42") == 0);
     StrClear(&output);
 
     u16 u16_val = 1234;
     StrWriteFmt(&output, "{}", FMT(u16_val));
-    success = success && (strcmp(output.data, "1234") == 0);
+    success = success && (ZstrCompare(output.data, "1234") == 0);
     StrClear(&output);
 
     u32 u32_val = 123456;
     StrWriteFmt(&output, "{}", FMT(u32_val));
-    success = success && (strcmp(output.data, "123456") == 0);
+    success = success && (ZstrCompare(output.data, "123456") == 0);
     StrClear(&output);
 
     u64 u64_val = 1234567890ULL;
     StrWriteFmt(&output, "{}", FMT(u64_val));
-    success = success && (strcmp(output.data, "1234567890") == 0);
+    success = success && (ZstrCompare(output.data, "1234567890") == 0);
     StrClear(&output);
 
     // Test edge cases
     i8 i8_max = 127;
     StrWriteFmt(&output, "{}", FMT(i8_max));
-    success = success && (strcmp(output.data, "127") == 0);
+    success = success && (ZstrCompare(output.data, "127") == 0);
     StrClear(&output);
 
     i8 i8_min = -128;
     StrWriteFmt(&output, "{}", FMT(i8_min));
-    success = success && (strcmp(output.data, "-128") == 0);
+    success = success && (ZstrCompare(output.data, "-128") == 0);
     StrClear(&output);
 
     u8 u8_max = 255;
     StrWriteFmt(&output, "{}", FMT(u8_max));
-    success = success && (strcmp(output.data, "255") == 0);
+    success = success && (ZstrCompare(output.data, "255") == 0);
     StrClear(&output);
 
     u8 u8_min = 0;
     StrWriteFmt(&output, "{}", FMT(u8_min));
-    success = success && (strcmp(output.data, "0") == 0);
+    success = success && (ZstrCompare(output.data, "0") == 0);
 
     StrDeinit(&output);
     return success;
@@ -175,11 +175,11 @@ bool test_integer_hex_formatting(void) {
 
     u32 val = 0xDEADBEEF;
     StrWriteFmt(&output, "{:x}", FMT(val));
-    success = success && (strcmp(output.data, "0xdeadbeef") == 0);
+    success = success && (ZstrCompare(output.data, "0xdeadbeef") == 0);
     StrClear(&output);
 
     StrWriteFmt(&output, "{:X}", FMT(val));
-    success = success && (strcmp(output.data, "0xDEADBEEF") == 0);
+    success = success && (ZstrCompare(output.data, "0xDEADBEEF") == 0);
 
     StrDeinit(&output);
     return success;
@@ -194,7 +194,7 @@ bool test_integer_binary_formatting(void) {
 
     u8 val = 0xA5; // 10100101 in binary
     StrWriteFmt(&output, "{:b}", FMT(val));
-    success = success && (strcmp(output.data, "0b10100101") == 0);
+    success = success && (ZstrCompare(output.data, "0b10100101") == 0);
 
     StrDeinit(&output);
     return success;
@@ -209,7 +209,7 @@ bool test_integer_octal_formatting(void) {
 
     u16 val = 0777;
     StrWriteFmt(&output, "{:o}", FMT(val));
-    success = success && (strcmp(output.data, "0o777") == 0);
+    success = success && (ZstrCompare(output.data, "0o777") == 0);
 
     StrDeinit(&output);
     return success;
@@ -224,12 +224,12 @@ bool test_float_basic_formatting(void) {
 
     f32 f32_val = 3.14159f;
     StrWriteFmt(&output, "{}", FMT(f32_val));
-    success = success && (strcmp(output.data, "3.141590") == 0);
+    success = success && (ZstrCompare(output.data, "3.141590") == 0);
     StrClear(&output);
 
     f64 f64_val = 2.71828;
     StrWriteFmt(&output, "{}", FMT(f64_val));
-    success = success && (strcmp(output.data, "2.718280") == 0);
+    success = success && (ZstrCompare(output.data, "2.718280") == 0);
 
     StrDeinit(&output);
     return success;
@@ -246,15 +246,15 @@ bool test_float_precision_formatting(void) {
 
     // Test different precisions
     StrWriteFmt(&output, "{:.2}", FMT(val));
-    success = success && (strcmp(output.data, "3.14") == 0);
+    success = success && (ZstrCompare(output.data, "3.14") == 0);
     StrClear(&output);
 
     StrWriteFmt(&output, "{:.0}", FMT(val));
-    success = success && (strcmp(output.data, "3") == 0);
+    success = success && (ZstrCompare(output.data, "3") == 0);
     StrClear(&output);
 
     StrWriteFmt(&output, "{:.10}", FMT(val));
-    success = success && (strcmp(output.data, "3.1415926536") == 0);
+    success = success && (ZstrCompare(output.data, "3.1415926536") == 0);
 
     StrDeinit(&output);
     return success;
@@ -270,18 +270,18 @@ bool test_float_special_values(void) {
     // Test infinity
     f64 pos_inf = INFINITY;
     StrWriteFmt(&output, "{}", FMT(pos_inf));
-    success = success && (strcmp(output.data, "inf") == 0);
+    success = success && (ZstrCompare(output.data, "inf") == 0);
     StrClear(&output);
 
     f64 neg_inf = -INFINITY;
     StrWriteFmt(&output, "{}", FMT(neg_inf));
-    success = success && (strcmp(output.data, "-inf") == 0);
+    success = success && (ZstrCompare(output.data, "-inf") == 0);
     StrClear(&output);
 
     // Test NaN
     f64 nan_val = NAN;
     StrWriteFmt(&output, "{}", FMT(nan_val));
-    success = success && (strcmp(output.data, "nan") == 0);
+    success = success && (ZstrCompare(output.data, "nan") == 0);
 
     StrDeinit(&output);
     return success;
@@ -297,29 +297,29 @@ bool test_width_alignment_formatting(void) {
     // Test with integers
     i32 val = 42;
     StrWriteFmt(&output, "{:5}", FMT(val));
-    success = success && (strcmp(output.data, "   42") == 0);
+    success = success && (ZstrCompare(output.data, "   42") == 0);
     StrClear(&output);
 
     StrWriteFmt(&output, "{:<5}", FMT(val));
-    success = success && (strcmp(output.data, "42   ") == 0);
+    success = success && (ZstrCompare(output.data, "42   ") == 0);
     StrClear(&output);
 
     StrWriteFmt(&output, "{:^5}", FMT(val));
-    success = success && (strcmp(output.data, " 42  ") == 0);
+    success = success && (ZstrCompare(output.data, " 42  ") == 0);
     StrClear(&output);
 
     // Test with strings
     const char* str = "abc";
     StrWriteFmt(&output, "{:5}", FMT(str));
-    success = success && (strcmp(output.data, "  abc") == 0);
+    success = success && (ZstrCompare(output.data, "  abc") == 0);
     StrClear(&output);
 
     StrWriteFmt(&output, "{:<5}", FMT(str));
-    success = success && (strcmp(output.data, "abc  ") == 0);
+    success = success && (ZstrCompare(output.data, "abc  ") == 0);
     StrClear(&output);
 
     StrWriteFmt(&output, "{:^5}", FMT(str));
-    success = success && (strcmp(output.data, " abc ") == 0);
+    success = success && (ZstrCompare(output.data, " abc ") == 0);
 
     StrDeinit(&output);
     return success;
@@ -337,12 +337,12 @@ bool test_multiple_arguments(void) {
     f64         pi    = 3.14;
 
     StrWriteFmt(&output, "{} {} {}", FMT(hello), FMT(num), FMT(pi));
-    success = success && (strcmp(output.data, "Hello 42 3.140000") == 0);
+    success = success && (ZstrCompare(output.data, "Hello 42 3.140000") == 0);
     StrClear(&output);
 
     // Instead of using positional arguments, we'll just reorder the arguments themselves
     StrWriteFmt(&output, "{} {} {}", FMT(pi), FMT(hello), FMT(num));
-    success = success && (strcmp(output.data, "3.140000 Hello 42") == 0);
+    success = success && (ZstrCompare(output.data, "3.140000 Hello 42") == 0);
 
     StrDeinit(&output);
     return success;

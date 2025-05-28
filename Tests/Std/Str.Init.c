@@ -64,7 +64,7 @@ bool test_str_init_from_zstr(void) {
     
     // Check that it's initialized correctly
     bool result = (s.length == strlen(test_str) && 
-                  strcmp(s.data, test_str) == 0);
+                  ZstrCompare(s.data, test_str) == 0);
     
     StrDeinit(&s);
     return result;
@@ -83,7 +83,7 @@ bool test_str_init_from_str(void) {
     
     // Check that dst is initialized correctly
     bool result = (dst.length == src.length && 
-                  strcmp(dst.data, src.data) == 0);
+                  ZstrCompare(dst.data, src.data) == 0);
     
     StrDeinit(&src);
     StrDeinit(&dst);
@@ -103,7 +103,7 @@ bool test_str_dup(void) {
     
     // Check that dst is initialized correctly
     bool result = (dst.length == src.length && 
-                  strcmp(dst.data, src.data) == 0);
+                  ZstrCompare(dst.data, src.data) == 0);
     
     StrDeinit(&src);
     StrDeinit(&dst);
@@ -121,7 +121,7 @@ bool test_str_printf(void) {
     ValidateStr(&s);
     
     // Check that it's initialized correctly
-    bool result = (strcmp(s.data, "Hello, World!") == 0);
+    bool result = (ZstrCompare(s.data, "Hello, World!") == 0);
     
     StrDeinit(&s);
     return result;
@@ -143,7 +143,7 @@ bool test_str_init_stack(void) {
         ValidateStr(&stack_str);
         
         // Check that it works correctly
-        if (strcmp(stack_str.data, "Hello, Stack!") != 0) {
+        if (ZstrCompare(stack_str.data, "Hello, Stack!") != 0) {
             result = false;
         }
         
@@ -178,7 +178,7 @@ bool test_str_init_copy(void) {
     // Check that the copy was successful
     bool result = (success && 
                   dst.length == src.length && 
-                  strcmp(dst.data, src.data) == 0);
+                  ZstrCompare(dst.data, src.data) == 0);
     
     StrDeinit(&src);
     StrDeinit(&dst);

@@ -14,7 +14,7 @@
 /// Sort given vector with given comparator using quicksort algorithm.
 ///
 /// v[in,out]  : Vector to be sorted.
-/// compare[in] : Compare function. Signature and behaviour must be similar to that of `strcmp`.
+/// compare[in] : Compare function. Signature and behaviour must be similar to that of `ZstrCompare`.
 ///
 /// SUCCESS : return
 /// FAILURE : Does not return
