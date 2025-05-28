@@ -52,7 +52,7 @@ jobs:
           echo "Current directory: $PWD"
           echo "Files under ../Source:"
           find ../Source -type f
-          python3 ../Scripts/DocuGen.py --root .. ../Bin --output content/english/blog
+          python3 ../Scripts/DocuGen.py --root .. ../Bin ../Tests --output content/english/blog
 
       - name: Check paths after generatiom
         run: ls -l content/english/blog
