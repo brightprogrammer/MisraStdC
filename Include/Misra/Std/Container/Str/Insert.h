@@ -70,6 +70,7 @@ extern "C" {
 /// str[in,out] : Str to insert array chars into.
 /// cstr[in]    : array of characters with given length to be inserted.
 /// len [in]    : Number of characters to be appended.
+/// pos[in]     : Position to insert at.
 ///
 /// SUCCESS : `str`
 /// FAILURE : NULL
@@ -82,6 +83,7 @@ extern "C" {
 ///
 /// str[in,out] : Str to insert array chars into.
 /// zstr[in]    : Null-terminated string to be appended.
+/// pos[in]     : Position to insert at.
 ///
 /// SUCCESS : `str`
 /// FAILURE : NULL

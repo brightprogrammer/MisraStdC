@@ -280,7 +280,7 @@
 /// SUCCESS : return
 /// FAILURE : Does not return
 ///
-#define VecInsertRangeFastL(v, varr, idx, count)                                                                        \
+#define VecInsertRangeFastL(v, varr, idx, count)                                                                       \
     do {                                                                                                               \
         {                                                                                                              \
             if (!varr) {                                                                                               \
@@ -318,7 +318,7 @@
 /// SUCCESS : return
 /// FAILURE : Does not return
 ///
-#define VecInsertRangeFastR(v, varr, idx, count)                                                                        \
+#define VecInsertRangeFastR(v, varr, idx, count)                                                                       \
     do {                                                                                                               \
         {                                                                                                              \
             if (!varr) {                                                                                               \
@@ -509,14 +509,16 @@
 /// SUCCESS : `v`
 /// FAILURE : Does not return on failure
 ///
-#define VecMergeL(v, v2)                                                                                              \
-    do {                                                                                                              \
-        VecPushBackArrL((v), (v2)->data, (v2)->length);                                                               \
-        /* Free the source vector's data and reset its state */                                                       \
-        if ((v2)->data) {                                                                                             \
-            free((v2)->data);                                                                                         \
-            MemSet((v2), 0, sizeof(*(v2)));                                                                           \
-        }                                                                                                             \
+#define VecMergeL(v, v2)                                                                                               \
+    do {                                                                                                               \
+        VecPushBackArrL((v), (v2)->data, (v2)->length);                                                                \
+        /* Free the source vector's data and reset its state */                                                        \
+        if ((v2)->data) {                                                                                              \
+            free((v2)->data);                                                                                          \
+            (v2)->data = NULL;  /* Explicitly set to NULL to maintain validity */                                      \
+            (v2)->length   = 0;                                                                                        \
+            (v2)->capacity = 0;                                                                                        \
+        }                                                                                                              \
     } while (0)
 
 ///

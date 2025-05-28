@@ -21,7 +21,7 @@
 /// SUCCESS : return
 /// FAILURE : Does not return
 ///
-#define VecTryReduceSpace(v) (reduce_space_vec(GENERIC_VEC(v)))
+#define VecTryReduceSpace(v) (reduce_space_vec(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v))))
 
 ///
 /// Resize vector.

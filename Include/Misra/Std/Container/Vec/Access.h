@@ -57,14 +57,14 @@
 ///
 /// v[in] : Vector to get beginning ptr of.
 ///
-#define VecBegin(v) IterInitFromVec(v)
+#define VecBegin(v) ((v)->data)
 
 ///
 /// Pointer at the end (after last element) of vector
 ///
 /// v[in] : Vector to get end of.
 ///
-#define VecEnd(v) IterInitRevFromVec(v)
+#define VecEnd(v) ((char*)(v)->data + VecAlignedOffsetAt((v), (v)->length))
 
 ///
 /// Size of vector in bytes. Use this instead of multiplying

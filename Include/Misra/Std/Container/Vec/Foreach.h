@@ -47,12 +47,13 @@
         size idx            = 0;                                                                                       \
         VEC_DATATYPE(v) var = {0};                                                                                     \
         if ((v) && (v)->length) {                                                                                      \
-            for ((idx) = (v)->length - 1; (idx)-- > 0;) {                                                              \
+            for ((idx) = (v)->length - 1; (idx) < (v)->length; --(idx)) {                                              \
                 if ((idx) >= (v)->length) {                                                                            \
                     LOG_FATAL("Vector range overflow : Invalid index reached during Foreach reverse iteration.");      \
                 }                                                                                                      \
                 var = VecAt(v, idx);                                                                                   \
                 { body }                                                                                               \
+                if (idx == 0) break; /* Stop after processing index 0 */                                               \
             }                                                                                                          \
         }                                                                                                              \
     } while (0)
@@ -99,12 +100,13 @@
         size idx             = 0;                                                                                      \
         VEC_DATATYPE(v) *var = {0};                                                                                    \
         if ((v) && (v)->length) {                                                                                      \
-            for ((idx) = (v)->length - 1; (idx)-- > 0;) {                                                              \
+            for ((idx) = (v)->length - 1; (idx) < (v)->length; --(idx)) {                                              \
                 if ((idx) >= (v)->length) {                                                                            \
                     LOG_FATAL("Vector range overflow : Invalid index reached during Foreach reverse iteration.");      \
                 }                                                                                                      \
                 var = VecPtrAt(v, idx);                                                                                \
                 { body }                                                                                               \
+                if (idx == 0) break; /* Stop after processing index 0 */                                               \
             }                                                                                                          \
         }                                                                                                              \
     } while (0)

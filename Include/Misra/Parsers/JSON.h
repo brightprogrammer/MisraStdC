@@ -237,7 +237,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_STR_KV(si, k, str)                                                                                          \
     do {                                                                                                               \
-        if (!StrCmpCstr(&key, (k))) {                                                                                  \
+        if (!StrCmpCstr(&key, (k), ZstrLen(k))) {                                                                     \
             Str my_str = StrInit();                                                                                    \
             si         = JReadString((si), &my_str);                                                                   \
             (str)      = my_str;                                                                                       \
@@ -282,7 +282,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_INT_KV(si, k, i)                                                                                            \
     do {                                                                                                               \
-        if (!StrCmpCstr(&key, (k))) {                                                                                  \
+        if (!StrCmpCstr(&key, (k), ZstrLen(k))) {                                                                     \
             i64 my_int = 0;                                                                                            \
             si         = JReadInteger((si), &my_int);                                                                  \
             (i)        = my_int;                                                                                       \
@@ -327,7 +327,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_FLT_KV(si, k, f)                                                                                            \
     do {                                                                                                               \
-        if (!StrCmpCstr(&key, (k))) {                                                                                  \
+        if (!StrCmpCstr(&key, (k), ZstrLen(k))) {                                                                     \
             f64 my_flt = 0;                                                                                            \
             si         = JReadFloat((si), &my_flt);                                                                    \
             (f)        = my_flt;                                                                                       \
@@ -372,7 +372,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_BOOL_KV(si, k, b)                                                                                           \
     do {                                                                                                               \
-        if (!StrCmpCstr(&key, (k))) {                                                                                  \
+        if (!StrCmpCstr(&key, (k), ZstrLen(k))) {                                                                     \
             bool my_b = 0;                                                                                             \
             si        = JReadBool((si), &my_b);                                                                        \
             (b)       = my_b;                                                                                          \
@@ -619,7 +619,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_OBJ_KV(si, k, reader)                                                                                       \
     do {                                                                                                               \
-        if (!StrCmpCstr(&key, (k))) {                                                                                  \
+        if (!StrCmpCstr(&key, (k), ZstrLen(k))) {                                                                     \
             JR_OBJ(si, reader);                                                                                        \
         }                                                                                                              \
     } while (0)
@@ -644,7 +644,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_ARR_KV(si, k, reader)                                                                                       \
     do {                                                                                                               \
-        if (!StrCmpCstr(&key, (k))) {                                                                                  \
+        if (!StrCmpCstr(&key, (k), ZstrLen(k))) {                                                                     \
             JR_ARR(si, reader);                                                                                        \
         }                                                                                                              \
     } while (0)

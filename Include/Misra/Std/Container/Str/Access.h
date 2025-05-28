@@ -36,12 +36,12 @@ extern "C" {
 ///
 /// Access character at given index
 ///
-#define StrCharAt(str)    VecAt(str, idx)
+#define StrCharAt(str, idx)    VecAt(str, idx)
 
 ///
 /// Get pointer to character at given index
 ///
-#define StrCharPtrAt(str) VecPtrAt(str, idx)
+#define StrCharPtrAt(str, idx) VecPtrAt(str, idx)
 
 #ifdef __cplusplus
 }

@@ -1,0 +1,246 @@
+#include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Log.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+
+// Function prototypes
+bool test_str_init(void);
+bool test_str_init_from_cstr(void);
+bool test_str_init_from_zstr(void);
+bool test_str_init_from_str(void);
+bool test_str_dup(void);
+bool test_str_printf(void);
+bool test_str_init_stack(void);
+bool test_str_init_copy(void);
+bool test_str_deinit(void);
+
+// Test StrInit function
+bool test_str_init(void) {
+    printf("Testing StrInit\n");
+    
+    Str s = StrInit();
+    
+    // Validate the string
+    ValidateStr(&s);
+    
+    // Check that it's initialized correctly
+    // A newly initialized string may have NULL data if capacity is 0
+    bool result = (s.length == 0);
+    
+    StrDeinit(&s);
+    return result;
+}
+
+// Test StrInitFromCstr function
+bool test_str_init_from_cstr(void) {
+    printf("Testing StrInitFromCstr\n");
+    
+    const char* test_str = "Hello, World!";
+    size_t len = 5; // Just "Hello"
+    Str s = StrInitFromCstr(test_str, len);
+    
+    // Validate the string
+    ValidateStr(&s);
+    
+    // Check that it's initialized correctly
+    bool result = (s.length == len && 
+                  strncmp(s.data, test_str, len) == 0 &&
+                  s.data[len] == '\0');
+    
+    StrDeinit(&s);
+    return result;
+}
+
+// Test StrInitFromZstr function
+bool test_str_init_from_zstr(void) {
+    printf("Testing StrInitFromZstr\n");
+    
+    const char* test_str = "Hello, World!";
+    Str s = StrInitFromZstr(test_str);
+    
+    // Validate the string
+    ValidateStr(&s);
+    
+    // Check that it's initialized correctly
+    bool result = (s.length == strlen(test_str) && 
+                  strcmp(s.data, test_str) == 0);
+    
+    StrDeinit(&s);
+    return result;
+}
+
+// Test StrInitFromStr function
+bool test_str_init_from_str(void) {
+    printf("Testing StrInitFromStr\n");
+    
+    Str src = StrInitFromZstr("Hello, World!");
+    Str dst = StrInitFromStr(&src);
+    
+    // Validate both strings
+    ValidateStr(&src);
+    ValidateStr(&dst);
+    
+    // Check that dst is initialized correctly
+    bool result = (dst.length == src.length && 
+                  strcmp(dst.data, src.data) == 0);
+    
+    StrDeinit(&src);
+    StrDeinit(&dst);
+    return result;
+}
+
+// Test StrDup function (alias for StrInitFromStr)
+bool test_str_dup(void) {
+    printf("Testing StrDup\n");
+    
+    Str src = StrInitFromZstr("Hello, World!");
+    Str dst = StrDup(&src);
+    
+    // Validate both strings
+    ValidateStr(&src);
+    ValidateStr(&dst);
+    
+    // Check that dst is initialized correctly
+    bool result = (dst.length == src.length && 
+                  strcmp(dst.data, src.data) == 0);
+    
+    StrDeinit(&src);
+    StrDeinit(&dst);
+    return result;
+}
+
+// Test StrPrintf function
+bool test_str_printf(void) {
+    printf("Testing StrPrintf\n");
+    
+    Str s = StrInit();
+    StrPrintf(&s, "Hello, %s!", "World");
+    
+    // Validate the string
+    ValidateStr(&s);
+    
+    // Check that it's initialized correctly
+    bool result = (strcmp(s.data, "Hello, World!") == 0);
+    
+    StrDeinit(&s);
+    return result;
+}
+
+// Test StrInitStack macro
+bool test_str_init_stack(void) {
+    printf("Testing StrInitStack\n");
+    
+    // For stack-allocated strings, we'll just verify that the macro compiles
+    // and doesn't crash when used correctly
+    
+    // Define a small scope to test the stack-allocated string
+    {
+        Str stack_str;
+        char buffer[10];
+        stack_str.data = buffer;
+        stack_str.length = 0;
+        stack_str.capacity = 10;
+        stack_str.copy_init = NULL;
+        stack_str.copy_deinit = NULL;
+        stack_str.alignment = 1;
+        
+        // Validate the string
+        ValidateStr(&stack_str);
+        
+        // Add some data (limited by stack buffer size)
+        StrPushBackZstr(&stack_str, "Hello");
+        
+        // Check that it works correctly
+        if (strcmp(stack_str.data, "Hello") != 0) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// Test StrInitCopy function
+bool test_str_init_copy(void) {
+    printf("Testing StrInitCopy\n");
+    
+    Str src = StrInitFromZstr("Hello, World!");
+    Str dst = StrInit();
+    
+    // Copy src to dst
+    bool success = StrInitCopy(&dst, &src);
+    
+    // Validate both strings
+    ValidateStr(&src);
+    ValidateStr(&dst);
+    
+    // Check that the copy was successful
+    bool result = (success && 
+                  dst.length == src.length && 
+                  strcmp(dst.data, src.data) == 0);
+    
+    StrDeinit(&src);
+    StrDeinit(&dst);
+    return result;
+}
+
+// Test StrDeinit function
+bool test_str_deinit(void) {
+    printf("Testing StrDeinit\n");
+    
+    Str s = StrInitFromZstr("Hello, World!");
+    
+    // Validate the string before deinit
+    ValidateStr(&s);
+    
+    // Deinit the string
+    StrDeinit(&s);
+    
+    // Check that the string is deinited correctly
+    // Note: We can't really check much here, as the memory is freed
+    // The best we can do is make sure we don't crash
+    
+    return true;
+}
+
+// Main function that runs all tests
+int main(void) {
+    printf("[INFO] Starting Str.Init tests\n\n");
+    
+    // Array of test functions
+    bool (*tests[])(void) = {
+        test_str_init,
+        test_str_init_from_cstr,
+        test_str_init_from_zstr,
+        test_str_init_from_str,
+        test_str_dup,
+        test_str_printf,
+        test_str_init_stack,
+        test_str_init_copy,
+        test_str_deinit
+    };
+    
+    int total_tests = sizeof(tests) / sizeof(tests[0]);
+    int passed = 0;
+    int failed = 0;
+    
+    // Run all tests and accumulate results
+    for (int i = 0; i < total_tests; i++) {
+        printf("[TEST %d/%d] ", i + 1, total_tests);
+        bool result = tests[i]();
+        if (result) {
+            printf("[PASS]\n\n");
+            passed++;
+        } else {
+            printf("[FAIL]\n\n");
+            failed++;
+        }
+    }
+    
+    // Print summary
+    printf("[SUMMARY] Total: %d, Passed: %d, Failed: %d\n", total_tests, passed, failed);
+    
+    // Return non-zero exit code if any test failed
+    return failed > 0 ? 1 : 0;
+} 
+

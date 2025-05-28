@@ -26,18 +26,19 @@ extern "C" {
 /// RETURN : +ve or -ve depending on above or below in lexical ordering
 /// RETURN : 0 if both are equal
 ///
-#define StrCmp(str, ostr) memcmp((str)->data, (ostr)->data, MIN2((str)->length, (ostr)->length))
+#define StrCmp(str, ostr) ZstrCompare((str)->data, (ostr)->data)
 
 ///
-/// Compare string with another const char*
+/// Compare string with another const char* of specified length
 ///
-/// str[in]  : Pointer to Str object to compare with.
-/// cstr[in] : String to compare with.
+/// str[in]      : Pointer to Str object to compare with.
+/// cstr[in]     : String to compare with.
+/// cstr_len[in] : Length of the C string to compare.
 ///
 /// RETURN : +ve or -ve depending on above or below in lexical ordering
 /// RETURN : 0 if both are equal
 ///
-#define StrCmpCstr(str, cstr) strncmp((str)->data, cstr, (str)->length)
+#define StrCmpCstr(str, cstr, cstr_len) ZstrCompareN((str)->data, cstr, cstr_len)
 
 //
 // Find Operations
