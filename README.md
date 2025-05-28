@@ -1,5 +1,7 @@
 # MisraStdC
 
+[![Build and Test](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test.yml/badge.svg)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test.yml)
+
 A library to make programming in C less painful for you and me.
 
 Features :

@@ -1,0 +1,80 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, master ]
+    paths-ignore:
+      - '**/*.md'
+      - 'Docs/**'
+  pull_request:
+    branches: [ main, master ]
+    paths-ignore:
+      - '**/*.md'
+      - 'Docs/**'
+
+jobs:
+  build-and-test:
+    name: Build and Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            packages: ninja-build python3-pip
+            setup: sudo pip3 install meson
+            meson_options: -Db_sanitize=address,undefined -Db_lundef=false
+          - os: macos-latest
+            packages: ninja meson
+            setup: echo "Meson already installed via Homebrew"
+            meson_options: -Db_sanitize=address,undefined -Db_lundef=false
+          - os: windows-latest
+            setup: pip install meson ninja
+            meson_options: ""
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+        
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+        
+    - name: Install dependencies (Linux/macOS)
+      if: matrix.os != 'windows-latest'
+      run: |
+        if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.packages }}
+        elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+          brew install ${{ matrix.packages }}
+        fi
+        ${{ matrix.setup }}
+        
+    - name: Install dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        ${{ matrix.setup }}
+      shell: pwsh
+      
+    - name: Configure
+      run: |
+        meson setup builddir ${{ matrix.meson_options }}
+      
+    - name: Build
+      run: |
+        ninja -C builddir
+        
+    - name: Test
+      run: |
+        ninja -C builddir test
+        
+    - name: Upload test logs if failure
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: test-logs-${{ matrix.os }}
+        path: builddir/meson-logs/testlog.txt 
