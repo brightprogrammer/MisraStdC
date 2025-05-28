@@ -24,11 +24,19 @@ A modern C23 library designed to make programming in C less painful and more pro
 
 ## Requirements
 
-- **C23 compatible compiler** (GCC 13+, Clang 16+, or MSVC with Clang/C2)
-  - C23 is required for features like `__VA_OPT__` which enables proper handling of empty variadic macro arguments
-  - This allows for cleaner API usage, especially with formatted I/O macros
-- [Meson](https://mesonbuild.com/) build system
-- [Ninja](https://ninja-build.org/) build tool
+- **C23 compatible compiler**:
+  - **GCC**: Version 13.0 or newer
+  - **Clang**: Version 16.0 or newer
+  - **MSVC**: Not supported directly; use Clang/C2 for Windows builds
+  
+- **Why C23?** This library requires C23 support for several critical features:
+  - `__VA_OPT__` for proper handling of empty variadic macro arguments
+  - Standard `bool` type and `true`/`false` constants
+  - These features enable a cleaner API, especially for formatted I/O macros like `StrWriteFmt`
+  
+- **Build System**:
+  - [Meson](https://mesonbuild.com/) build system (version 0.60.0 or newer)
+  - [Ninja](https://ninja-build.org/) build tool
 
 ## Installation
 

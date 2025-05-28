@@ -23,10 +23,13 @@ jobs:
         
     - name: Install dependencies
       run: |
-        brew install ninja meson
+        brew install ninja meson llvm@17
+        echo "$(brew --prefix llvm@17)/bin" >> $GITHUB_PATH
         
-    - name: Configure
+    - name: Configure with LLVM Clang
       run: |
+        export CC="$(brew --prefix llvm@17)/bin/clang"
+        export CXX="$(brew --prefix llvm@17)/bin/clang++"
         meson setup builddir -Db_sanitize=address,undefined -Db_lundef=false
       
     - name: Build
