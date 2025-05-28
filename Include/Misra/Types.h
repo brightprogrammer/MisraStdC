@@ -36,18 +36,20 @@ typedef unsigned long size;
 typedef unsigned long size;
 #endif
 
-// bool is already defined in C++
+// bool is already defined in C++ and C23
 #ifndef __cplusplus
-#    ifndef bool
+#    if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201710L
+#        ifndef bool
 typedef i8 bool;
-#    endif
+#        endif
 
-#    ifndef true
-#        define true 1
-#    endif
+#        ifndef true
+#            define true 1
+#        endif
 
-#    ifndef false
-#        define false 0
+#        ifndef false
+#            define false 0
+#        endif
 #    endif
 
 #    ifndef NULL

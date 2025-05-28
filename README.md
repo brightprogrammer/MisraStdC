@@ -4,7 +4,7 @@
 [![macOS Build](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-macos.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-macos.yml)
 [![Windows Build](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows.yml)
 
-A modern, type-safe C library designed to make programming in C less painful and more productive. MisraStdC provides generic containers, string handling, and formatted I/O inspired by higher-level languages while maintaining C's performance and control.
+A modern C23 library designed to make programming in C less painful and more productive, written in pure C. MisraStdC provides generic containers, string handling, and formatted I/O inspired by higher-level languages while maintaining C's performance and control.
 
 > **Disclaimer:** This library is **not** related to the MISRA C standard or guidelines. The name "MisraStdC" comes from the author's name, Siddharth Mishra, who is commonly known as "Misra" among friends.
 
@@ -22,13 +22,15 @@ A modern, type-safe C library designed to make programming in C less painful and
 - **JSON parsing and serialization**
 - **Memory safety** with proper initialization and cleanup functions
 
-## Installation
+## Requirements
 
-### Prerequisites
-
-- C compiler (GCC, Clang, or MSVC)
+- **C23 compatible compiler** (GCC 13+, Clang 16+, or MSVC with Clang/C2)
+  - C23 is required for features like `__VA_OPT__` which enables proper handling of empty variadic macro arguments
+  - This allows for cleaner API usage, especially with formatted I/O macros
 - [Meson](https://mesonbuild.com/) build system
 - [Ninja](https://ninja-build.org/) build tool
+
+## Installation
 
 ### Building from Source
 

@@ -72,14 +72,14 @@
 #define VecForeachPtrIdx(v, var, idx, body)                                                                            \
     do {                                                                                                               \
         size idx             = 0;                                                                                      \
-        VEC_DATATYPE(v) *var = {0};                                                                                    \
+        VEC_DATATYPE(v) *var = NULL;                                                                                   \
         if ((v) && (v)->length) {                                                                                      \
             for ((idx) = 0; (idx) < (v)->length; ++(idx)) {                                                            \
                 if ((idx) >= (v)->length) {                                                                            \
-                    LOG_FATAL("Vector range overflow : Invalid index reached during Foreach reverse iteration.");      \
+                    LOG_FATAL("Vector range overflow : Invalid index reached during Foreach iteration.");              \
                 }                                                                                                      \
                 var = VecPtrAt(v, idx);                                                                                \
-                { body }                                                                                               \
+                body                                                                                                   \
             }                                                                                                          \
         }                                                                                                              \
     } while (0)
@@ -150,7 +150,7 @@
 #define VecForeachReverse(v, var, body) VecForeachReverseIdx((v), (var), (____iter___), {body})
 
 ///
-/// Iterate over each element `var` (as a pointer) of the given vector `v`.
+/// Iterate over each element `var` of the given vector `v` (as a pointer).
 /// This is a convenience macro that iterates forward using an internally managed index
 /// and provides a pointer to each element. The variable `var` is declared and defined
 /// by this macro as a pointer to the vector's data type.
@@ -168,7 +168,20 @@
 ///           be executed. Any failures within the `VecForeachPtrIdx` macro (like invalid
 ///           index access) will result in a fatal log message and program termination.
 ///
-#define VecForeachPtr(v, var, body) VecForeachPtrIdx((v), (var), (____iter___), {body})
+#define VecForeachPtr(v, var, body)                                                                                    \
+    do {                                                                                                               \
+        size ____iter___             = 0;                                                                              \
+        VEC_DATATYPE(v) *var = NULL;                                                                                   \
+        if ((v) && (v)->length) {                                                                                      \
+            for (____iter___ = 0; ____iter___ < (v)->length; ++____iter___) {                                          \
+                if (____iter___ >= (v)->length) {                                                                      \
+                    LOG_FATAL("Vector range overflow : Invalid index reached during Foreach iteration.");              \
+                }                                                                                                      \
+                var = VecPtrAt(v, ____iter___);                                                                        \
+                body                                                                                                   \
+            }                                                                                                          \
+        }                                                                                                              \
+    } while (0)
 
 ///
 /// Iterate over each element `var` (as a pointer) of the given vector `v` in reverse order.
