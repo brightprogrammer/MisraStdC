@@ -1,5 +1,5 @@
 project('misra', 'c',
-    default_options: ['buildtype=debug', 'optimization=0', 'b_lto=false', 'c_std=c2x']
+    default_options: ['buildtype=debug', 'optimization=0', 'b_lto=false', 'c_std=c11']
 )
 
 cc = meson.get_compiler('c')
@@ -10,7 +10,7 @@ if cc.get_id() in ['gcc', 'clang']
     '-Wextra',
     '-Wpedantic',
     '-Werror',
-    '-std=c2x',  # Explicitly add C23 support
+    '-std=c11',  # Explicitly set C11 support
   ]
 elif cc.get_id() == 'msvc'
   warning_flags += [

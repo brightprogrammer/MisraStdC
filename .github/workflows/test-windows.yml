@@ -25,33 +25,10 @@ jobs:
       run: |
         pip install meson ninja
       shell: pwsh
-      
-    - name: Install LLVM and Clang
-      run: |
-        choco install llvm --version=17.0.6
-        echo "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-      shell: pwsh
-      
-    - name: Create Clang native file
-      run: |
-        New-Item -Path .github -ItemType Directory -Force
-        @"
-        [binaries]
-        c = 'clang'
-        cpp = 'clang++'
-        ar = 'llvm-ar'
-        strip = 'llvm-strip'
-        objcopy = 'llvm-objcopy'
-        objdump = 'llvm-objdump'
-        ranlib = 'llvm-ranlib'
-        "@ | Out-File -FilePath .github/windows-clang.ini -Encoding utf8
-      shell: pwsh
         
-    - name: Configure with Clang
+    - name: Configure with MSVC
       run: |
-        $env:CC = "clang"
-        $env:CXX = "clang++"
-        meson setup builddir --native-file=.github/windows-clang.ini
+        meson setup builddir
       shell: pwsh
       
     - name: Build

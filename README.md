@@ -4,7 +4,7 @@
 [![macOS Build](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-macos.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-macos.yml)
 [![Windows Build](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows.yml)
 
-A modern C23 library designed to make programming in C less painful and more productive, written in pure C. MisraStdC provides generic containers, string handling, and formatted I/O inspired by higher-level languages while maintaining C's performance and control.
+A modern C11 library designed to make programming in C less painful and more productive, written in pure C. MisraStdC provides generic containers, string handling, and formatted I/O inspired by higher-level languages while maintaining C's performance and control.
 
 > **Disclaimer:** This library is **not** related to the MISRA C standard or guidelines. The name "MisraStdC" comes from the author's name, Siddharth Mishra, who is commonly known as "Misra" among friends.
 
@@ -24,15 +24,10 @@ A modern C23 library designed to make programming in C less painful and more pro
 
 ## Requirements
 
-- **C23 compatible compiler**:
-  - **GCC**: Version 13.0 or newer
-  - **Clang**: Version 16.0 or newer
-  - **MSVC**: Not supported directly; use Clang/C2 for Windows builds
-  
-- **Why C23?** This library requires C23 support for several critical features:
-  - `__VA_OPT__` for proper handling of empty variadic macro arguments
-  - Standard `bool` type and `true`/`false` constants
-  - These features enable a cleaner API, especially for formatted I/O macros like `StrWriteFmt`
+- **C11 compatible compiler**:
+  - **GCC**: Version 4.9 or newer
+  - **Clang**: Version 3.4 or newer
+  - **MSVC**: Visual Studio 2019 or newer
   
 - **Build System**:
   - [Meson](https://mesonbuild.com/) build system (version 0.60.0 or newer)
