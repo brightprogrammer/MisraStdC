@@ -167,7 +167,7 @@
 #define VecInsertFast(v, lval, idx) VecInsertFastR((v), (lval), (idx))
 
 ///
-/// Insert item into vector of it's type.
+/// Insert array of items into vector, with L-value semantics.
 /// Insertion index must not exceed vector length.
 /// This preserves the ordering of elements. Best to be used with sorted vectors,
 /// if the sorted property is to be preserved.
@@ -186,7 +186,7 @@
 /// SUCCESS : return
 /// FAILURE : Does not return
 ///
-#define VecInsertRange(v, varr, idx, count)                                                                            \
+#define VecInsertRangeL(v, varr, idx, count)                                                                           \
     do {                                                                                                               \
         {                                                                                                              \
             if (!varr) {                                                                                               \
@@ -203,14 +203,44 @@
     } while (0)
 
 ///
-/// Quickly insert item into vector. Ordering of elements is not guaranteed
-/// to be preserved. This call makes significant difference only for sufficiently
-/// large vectors and when `idx` is quite less than `(v)->length`.
+/// Insert array of items into vector, with R-value semantics.
+/// Insertion index must not exceed vector length.
+/// This preserves the ordering of elements. Best to be used with sorted vectors,
+/// if the sorted property is to be preserved.
 ///
-/// Insertion time is guaranteed to be constant for same data types.
+/// NOTE: Unlike VecInsertRangeL, this does NOT zero out the source array after insertion
+///       regardless of copy_init settings. Use this for temporary arrays or when you need
+///       to maintain the source array.
 ///
-/// Usage is exactly same as `VecInsert`, just the internal implementation is
-/// different.
+/// INFO: If `copy_init` is set, then vector will create it's own copy of items.
+///
+/// v[in,out] : Vector to insert item into
+/// val[in]   : Array of items to be inserted
+/// idx[in]   : Index to start inserting item at.
+/// count[in] : Number of items to insert.
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
+#define VecInsertRangeR(v, varr, idx, count)                                                                           \
+    do {                                                                                                               \
+        {                                                                                                              \
+            if (!varr) {                                                                                               \
+                LOG_FATAL("Expected a valid pointer");                                                                 \
+            }                                                                                                          \
+            const VEC_DATATYPE(v) __x = *(varr);                                                                       \
+            (void)__x;                                                                                                 \
+        }                                                                                                              \
+        const VEC_DATATYPE(v) *__tmp__ptr = (varr);                                                                    \
+        insert_range_into_vec(GENERIC_VEC(v), (char *)__tmp__ptr, sizeof(VEC_DATATYPE(v)), (idx), (count));            \
+    } while (0)
+
+///
+/// Insert array of items into vector of it's type.
+/// By default, this uses L-value semantics (ownership transfer).
+/// Insertion index must not exceed vector length.
+/// This preserves the ordering of elements. Best to be used with sorted vectors,
+/// if the sorted property is to be preserved.
 ///
 /// NOTE: Ownership of items in array is transferred to vector if no `copy_init` method is set.
 ///       This is to prevent multiple ownership of same object, once inserted into vector.
@@ -219,13 +249,38 @@
 /// INFO: If `copy_init` is set, then vector will create it's own copy of items.
 ///
 /// v[in,out] : Vector to insert item into
-/// val[in]   : Value to be inserted
-/// idx[in]   : Index to insert item at.
+/// val[in]   : Array of items to be inserted
+/// idx[in]   : Index to start inserting item at.
+/// count[in] : Number of items to insert.
 ///
 /// SUCCESS : return
 /// FAILURE : Does not return
 ///
-#define VecInsertRangeFast(v, varr, idx, count)                                                                        \
+#define VecInsertRange(v, varr, idx, count) VecInsertRangeL((v), (varr), (idx), (count))
+
+///
+/// Quickly insert array of items into vector, with L-value semantics.
+/// Ordering of elements is not guaranteed to be preserved.
+/// This call makes significant difference only for sufficiently
+/// large vectors and when `idx` is quite less than `(v)->length`.
+///
+/// Insertion time is guaranteed to be constant for same data types.
+///
+/// NOTE: Ownership of items in array is transferred to vector if no `copy_init` method is set.
+///       This is to prevent multiple ownership of same object, once inserted into vector.
+///       Object won't be usable after this call if `copy_init` is not set.
+///
+/// INFO: If `copy_init` is set, then vector will create it's own copy of items.
+///
+/// v[in,out] : Vector to insert item into
+/// val[in]   : Array of items to be inserted
+/// idx[in]   : Index to insert item at.
+/// count[in] : Number of items to insert.
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
+#define VecInsertRangeFastL(v, varr, idx, count)                                                                        \
     do {                                                                                                               \
         {                                                                                                              \
             if (!varr) {                                                                                               \
@@ -242,7 +297,67 @@
     } while (0)
 
 ///
-/// Push a complete array into this vector.
+/// Quickly insert array of items into vector, with R-value semantics.
+/// Ordering of elements is not guaranteed to be preserved.
+/// This call makes significant difference only for sufficiently
+/// large vectors and when `idx` is quite less than `(v)->length`.
+///
+/// Insertion time is guaranteed to be constant for same data types.
+///
+/// NOTE: Unlike VecInsertRangeFastL, this does NOT zero out the source array after insertion
+///       regardless of copy_init settings. Use this for temporary arrays or when you need
+///       to maintain the source array.
+///
+/// INFO: If `copy_init` is set, then vector will create it's own copy of items.
+///
+/// v[in,out] : Vector to insert item into
+/// val[in]   : Array of items to be inserted
+/// idx[in]   : Index to insert item at.
+/// count[in] : Number of items to insert.
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
+#define VecInsertRangeFastR(v, varr, idx, count)                                                                        \
+    do {                                                                                                               \
+        {                                                                                                              \
+            if (!varr) {                                                                                               \
+                LOG_FATAL("Expected a valid pointer");                                                                 \
+            }                                                                                                          \
+            const VEC_DATATYPE(v) __x = *(varr);                                                                       \
+            (void)__x;                                                                                                 \
+        }                                                                                                              \
+        const VEC_DATATYPE(v) *__tmp__ptr = (varr);                                                                    \
+        insert_range_fast_into_vec(GENERIC_VEC(v), (char *)__tmp__ptr, sizeof(VEC_DATATYPE(v)), (idx), (count));       \
+    } while (0)
+
+///
+/// Quickly insert array of items into vector.
+/// By default, this uses L-value semantics (ownership transfer).
+/// Ordering of elements is not guaranteed to be preserved.
+/// This call makes significant difference only for sufficiently
+/// large vectors and when `idx` is quite less than `(v)->length`.
+///
+/// Insertion time is guaranteed to be constant for same data types.
+///
+/// NOTE: Ownership of items in array is transferred to vector if no `copy_init` method is set.
+///       This is to prevent multiple ownership of same object, once inserted into vector.
+///       Object won't be usable after this call if `copy_init` is not set.
+///
+/// INFO: If `copy_init` is set, then vector will create it's own copy of items.
+///
+/// v[in,out] : Vector to insert item into
+/// val[in]   : Array of items to be inserted
+/// idx[in]   : Index to insert item at.
+/// count[in] : Number of items to insert.
+///
+/// SUCCESS : return
+/// FAILURE : Does not return
+///
+#define VecInsertRangeFast(v, varr, idx, count) VecInsertRangeFastL((v), (varr), (idx), (count))
+
+///
+/// Push a complete array into this vector, with L-value semantics.
 ///
 /// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of items.
 ///
@@ -253,10 +368,25 @@
 /// SUCCESS : `v`
 /// FAILURE : Does not return on failure
 ///
-#define VecPushBackArr(v, arr, count) VecInsertRange((v), (arr), (v)->length, (count))
+#define VecPushBackArrL(v, arr, count) VecInsertRangeL((v), (arr), (v)->length, (count))
+
+///
+/// Push a complete array into this vector, with R-value semantics.
+///
+/// NOTE: Unlike VecPushBackArrL, this does NOT zero out the source array after insertion.
+///
+/// v[in,out] : Vector to insert array items into.
+/// arr[in]   : Array to be inserted.
+/// count[in] : Number (non-zero) of items in array.
+///
+/// SUCCESS : `v`
+/// FAILURE : Does not return on failure
+///
+#define VecPushBackArrR(v, arr, count) VecInsertRangeR((v), (arr), (v)->length, (count))
 
 ///
 /// Push a complete array into this vector.
+/// By default, this uses L-value semantics (ownership transfer).
 ///
 /// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of items.
 ///
@@ -267,11 +397,10 @@
 /// SUCCESS : `v`
 /// FAILURE : Does not return on failure
 ///
-#define VecPushFrontArr(v, arr, count) VecInsertRange((v), (arr), 0, (count))
+#define VecPushBackArr(v, arr, count) VecPushBackArrL((v), (arr), (count))
 
 ///
-/// Push a complete array into this vector without preserving the order of elements
-/// in vector.
+/// Push a complete array into this vector front, with L-value semantics.
 ///
 /// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of items.
 ///
@@ -282,10 +411,84 @@
 /// SUCCESS : `v`
 /// FAILURE : Does not return on failure
 ///
-#define VecPushFrontArrFast(v, arr, count) VecInsertRangeFast((v), (arr), 0, (count))
+#define VecPushFrontArrL(v, arr, count) VecInsertRangeL((v), (arr), 0, (count))
 
 ///
-/// Merge two vectors and store the result in the first vector.
+/// Push a complete array into this vector front, with R-value semantics.
+///
+/// NOTE: Unlike VecPushFrontArrL, this does NOT zero out the source array after insertion.
+///
+/// v[in,out] : Vector to insert array items into.
+/// arr[in]   : Array to be inserted.
+/// count[in] : Number (non-zero) of items in array.
+///
+/// SUCCESS : `v`
+/// FAILURE : Does not return on failure
+///
+#define VecPushFrontArrR(v, arr, count) VecInsertRangeR((v), (arr), 0, (count))
+
+///
+/// Push a complete array into this vector front.
+/// By default, this uses L-value semantics (ownership transfer).
+///
+/// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of items.
+///
+/// v[in,out] : Vector to insert array items into.
+/// arr[in]   : Array to be inserted.
+/// count[in] : Number (non-zero) of items in array.
+///
+/// SUCCESS : `v`
+/// FAILURE : Does not return on failure
+///
+#define VecPushFrontArr(v, arr, count) VecPushFrontArrL((v), (arr), (count))
+
+///
+/// Push a complete array into this vector front without preserving the order
+/// of elements in vector, with L-value semantics.
+///
+/// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of items.
+///
+/// v[in,out] : Vector to insert array items into.
+/// arr[in]   : Array to be inserted.
+/// count[in] : Number (non-zero) of items in array.
+///
+/// SUCCESS : `v`
+/// FAILURE : Does not return on failure
+///
+#define VecPushFrontArrFastL(v, arr, count) VecInsertRangeFastL((v), (arr), 0, (count))
+
+///
+/// Push a complete array into this vector front without preserving the order
+/// of elements in vector, with R-value semantics.
+///
+/// NOTE: Unlike VecPushFrontArrFastL, this does NOT zero out the source array after insertion.
+///
+/// v[in,out] : Vector to insert array items into.
+/// arr[in]   : Array to be inserted.
+/// count[in] : Number (non-zero) of items in array.
+///
+/// SUCCESS : `v`
+/// FAILURE : Does not return on failure
+///
+#define VecPushFrontArrFastR(v, arr, count) VecInsertRangeFastR((v), (arr), 0, (count))
+
+///
+/// Push a complete array into this vector front without preserving the order of elements
+/// in vector. By default, this uses L-value semantics (ownership transfer).
+///
+/// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of items.
+///
+/// v[in,out] : Vector to insert array items into.
+/// arr[in]   : Array to be inserted.
+/// count[in] : Number (non-zero) of items in array.
+///
+/// SUCCESS : `v`
+/// FAILURE : Does not return on failure
+///
+#define VecPushFrontArrFast(v, arr, count) VecPushFrontArrFastL((v), (arr), (count))
+
+///
+/// Merge two vectors and store the result in the first vector, with L-value semantics.
 ///
 /// Data is copied from `v2` into `v`. If a `copy_init` method is provided in `v`,
 /// each element from `v2` will be copied using that method. Otherwise, a raw memory
@@ -301,7 +504,46 @@
 /// SUCCESS : `v`
 /// FAILURE : Does not return on failure
 ///
-#define VecMerge(v, v2) VecPushBackArr((v), (v2)->data, (v2)->length)
+#define VecMergeL(v, v2) VecPushBackArrL((v), (v2)->data, (v2)->length)
+
+///
+/// Merge two vectors and store the result in the first vector, with R-value semantics.
+///
+/// Data is copied from `v2` into `v`. If a `copy_init` method is provided in `v`,
+/// each element from `v2` will be copied using that method. Otherwise, a raw memory
+/// copy is performed, which may be unsafe for complex or pointer-containing data.
+///
+/// NOTE: Unlike VecMergeL, this does NOT zero out the source vector's data after merging.
+///
+/// The `copy_init` function must be set in `v` if ownership-safe copies are needed.
+///
+/// [in,out] v   : Destination vector that will receive data.
+/// [in]     v2  : Source vector to merge from.
+///
+/// SUCCESS : `v`
+/// FAILURE : Does not return on failure
+///
+#define VecMergeR(v, v2) VecPushBackArrR((v), (v2)->data, (v2)->length)
+
+///
+/// Merge two vectors and store the result in the first vector.
+/// By default, this uses L-value semantics (ownership transfer).
+///
+/// Data is copied from `v2` into `v`. If a `copy_init` method is provided in `v`,
+/// each element from `v2` will be copied using that method. Otherwise, a raw memory
+/// copy is performed, which may be unsafe for complex or pointer-containing data.
+///
+/// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of items.
+///
+/// The `copy_init` function must be set in `v` if ownership-safe copies are needed.
+///
+/// [in,out] v   : Destination vector that will receive data.
+/// [in]     v2  : Source vector to merge from.
+///
+/// SUCCESS : `v`
+/// FAILURE : Does not return on failure
+///
+#define VecMerge(v, v2) VecMergeL((v), (v2))
 
 ///
 /// Push an l-value into vector back.
@@ -329,6 +571,7 @@
 
 ///
 /// Push item into vector back.
+///
 /// Default behaviour is same as `VecPushBackL`
 ///
 /// v[in,out] : Vector to push item into

@@ -470,7 +470,7 @@ extern "C" {
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrPushBackCstr(str, cstr, len) VecPushBackArr((str), (cstr), (len))
+#define StrPushBackCstr(str, cstr, len) VecPushBackArrR((str), (cstr), (len))
 
 ///
 /// Push a null-terminated string to the back of string.
@@ -493,7 +493,7 @@ extern "C" {
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrPushFrontCstr(str, cstr, len) VecPushFrontArr((str), (cstr), (len))
+#define StrPushFrontCstr(str, cstr, len) VecPushFrontArrR((str), (cstr), (len))
 
 ///
 /// Push a null-terminated string to the front of this string.
