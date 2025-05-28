@@ -131,33 +131,34 @@ bool test_str_printf(void) {
 bool test_str_init_stack(void) {
     printf("Testing StrInitStack\n");
     
-    // For stack-allocated strings, we'll just verify that the macro compiles
-    // and doesn't crash when used correctly
+    bool result = true;
     
-    // Define a small scope to test the stack-allocated string
-    {
-        Str stack_str;
-        char buffer[10];
-        stack_str.data = buffer;
-        stack_str.length = 0;
-        stack_str.capacity = 10;
-        stack_str.copy_init = NULL;
-        stack_str.copy_deinit = NULL;
-        stack_str.alignment = 1;
+    // Test with the actual StrInitStack macro
+    Str stack_str;
+    StrInitStack(stack_str, 20, {
+        // Inside the scope where the stack string is valid
+        StrPushBackZstr(&stack_str, "Hello, Stack!");
         
         // Validate the string
         ValidateStr(&stack_str);
         
-        // Add some data (limited by stack buffer size)
-        StrPushBackZstr(&stack_str, "Hello");
-        
         // Check that it works correctly
-        if (strcmp(stack_str.data, "Hello") != 0) {
-            return false;
+        if (strcmp(stack_str.data, "Hello, Stack!") != 0) {
+            result = false;
         }
+        
+        // Check capacity is as expected
+        if (stack_str.capacity != 20) {
+            result = false;
+        }
+    });
+    
+    // After the scope, stack_str should be zeroed out
+    if (stack_str.data != NULL || stack_str.length != 0 || stack_str.capacity != 0) {
+        result = false;
     }
     
-    return true;
+    return result;
 }
 
 // Test StrInitCopy function
