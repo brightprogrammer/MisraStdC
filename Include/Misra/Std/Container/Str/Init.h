@@ -27,13 +27,13 @@ extern "C" {
 ///           `copy_init` and `copy_deinit` are set to NULL, and `alignment` is set to 1.
 ///
 /// FAILURE : Returns a Str object with `data` set to NULL if memory allocation using
-///           `strndup` fails. In such a case, `length` and `capacity` will likely be
+///           `ZstrDupN` fails. In such a case, `length` and `capacity` will likely be
 ///           uninitialized or zero. It's crucial to check the `data` field for NULL
 ///           after using this macro to handle potential memory allocation errors.
 ///
 #    define StrInitFromCstr(cstr, len)                                                                                 \
         (Str {                                                                                                         \
-            .data        = strndup((char*)(cstr), (len)),                                                              \
+            .data        = ZstrDupN((char*)(cstr), (len)),                                                             \
             .length      = (len),                                                                                      \
             .capacity    = (len),                                                                                      \
             .copy_init   = NULL,                                                                                       \
@@ -42,7 +42,7 @@ extern "C" {
         })
 #else
 #    define StrInitFromCstr(cstr, len)                                                                                 \
-        ((Str) {.data        = strndup((char*)(cstr), (len)),                                                          \
+        ((Str) {.data        = ZstrDupN((char*)(cstr), (len)),                                                         \
                 .length      = (len),                                                                                  \
                 .capacity    = (len),                                                                                  \
                 .copy_init   = NULL,                                                                                   \

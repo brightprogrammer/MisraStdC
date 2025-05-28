@@ -14,9 +14,9 @@
 #include "Str/Remove.h"
 #include "Str/Access.h"
 #include "Str/Memory.h"
-#include "Str/Modify.h"
 #include "Str/Convert.h"
 #include "Str/Foreach.h"
+#include "Str/Ops.h"
 // clang-format on
 
 #endif // MISRA_STD_CONTAINER_STR_H 

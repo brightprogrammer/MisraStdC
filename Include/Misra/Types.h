@@ -8,6 +8,8 @@
 #define MISRA_TYPES_H
 
 #include <stdarg.h>
+#include <string.h>  // For strncmp, memcpy, etc.
+#include <stdlib.h>  // For malloc
 
 // signed types
 typedef signed char      i8;
@@ -514,12 +516,40 @@ static inline i32 ZstrCompare(const char* s1, const char* s2) {
 ///
 /// TAGS: String, Comparison, Safety
 static inline i32 ZstrCompareN(const char* s1, const char* s2, size n) {
-    while (n && *s1 && *s1 == *s2) {
-        s1++;
-        s2++;
-        n--;
-    }
-    return n ? *(const u8*)s1 - *(const u8*)s2 : 0;
+    if (!s1 || !s2)
+        return s1 == s2 ? 0 : (s1 ? 1 : -1);
+
+    return strncmp(s1, s2, n);
+}
+
+///
+/// Duplicates a string up to the specified length.
+/// Creates a new null-terminated string by allocating memory and copying
+/// at most n characters from the source string.
+///
+/// src[in] : Source string to duplicate.
+/// n[in]   : Maximum number of characters to copy.
+///
+/// SUCCESS : Returns a pointer to the newly allocated duplicate string.
+/// FAILURE : Returns NULL if memory allocation fails or if src is NULL.
+///
+/// TAGS: String, Memory, Allocation
+///
+static inline char* ZstrDupN(const char* src, size n) {
+    if (!src)
+        return NULL;
+
+    size len = 0;
+    while (len < n && src[len])
+        len++;
+
+    char* new_str = (char*)malloc(len + 1);
+    if (!new_str)
+        return NULL;
+
+    MemCopy(new_str, src, len);
+    new_str[len] = '\0'; // Null-terminate
+    return new_str;
 }
 
 ///

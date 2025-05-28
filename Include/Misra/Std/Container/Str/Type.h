@@ -32,17 +32,4 @@ typedef Vec(Str) Strs;
 ///
 #define ValidateStrs(sv) ValidateVec(sv)
 
-#ifdef _MSC_VER
-    static inline char* strndup(const char* s, size n) {
-        size  len     = strnlen(s, n); // Only up to n
-        char* new_str = (char*)malloc(len + 1);
-        if (!new_str)
-            return NULL;
-
-        memcpy(new_str, s, len);
-        new_str[len] = '\0'; // Null-terminate
-        return new_str;
-    }
-#endif
-
 #endif // MISRA_STD_CONTAINER_STR_TYPE_H 
