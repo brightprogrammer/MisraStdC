@@ -6,6 +6,8 @@
 
 A modern, type-safe C library designed to make programming in C less painful and more productive. MisraStdC provides generic containers, string handling, and formatted I/O inspired by higher-level languages while maintaining C's performance and control.
 
+> **Disclaimer:** This library is **not** related to the MISRA C standard or guidelines. The name "MisraStdC" comes from the author's name, Siddharth Mishra, who is commonly known as "Misra" among friends.
+
 ## Features
 
 - **Cross-platform compatibility**: Supports MSVC, GCC, and Clang
