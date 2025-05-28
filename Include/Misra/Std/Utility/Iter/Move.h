@@ -13,8 +13,7 @@
 ///
 #define IterMove(mi, n)                                                                                                \
     do {                                                                                                               \
-        if (((IterRemainingLength(mi) - (mi)->dir * (i64)(n) <= IterLength(mi)) &&                                     \
-             (IterRemainingLength(mi) - (mi)->dir * (i64)(n) >= 0)))                                                   \
+        if (IterRemainingLength(mi) - (mi)->dir * (n) <= IterLength(mi))                                               \
             (mi)->pos += (mi)->dir * (n);                                                                              \
     } while (0)
 

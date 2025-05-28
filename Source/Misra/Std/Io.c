@@ -4,6 +4,10 @@
 ///
 /// formatted reading/writing and other magical stuff
 
+// Required for fileno
+// Reference : https://forums.freebsd.org/threads/strerror_r-best-practices-posix-vs-gnu.92296/
+#define _POSIX_C_SOURCE 200112L
+
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Sys.h>

@@ -24,6 +24,8 @@ add_project_arguments(warning_flags, language: 'c')
 # Custom compile args
 common_c_args = []
 
+math_dep = cc.find_library('m', required: false)
+
 inc_misra = include_directories('Source', 'Include')
 
 # Add the misra_std library
@@ -43,6 +45,7 @@ misra_std = static_library(
     'misra_std',
     misra_std_sources,
     c_args: common_c_args,
+    dependencies: math_dep,
     include_directories: inc_misra,
     install: true
 )

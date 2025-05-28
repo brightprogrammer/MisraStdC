@@ -8,6 +8,7 @@
 #define MISRA_STD_CONTAINER_STR_INIT_H
 
 #include "Type.h"
+#include <Misra/Std/Memory.h>
 
 #ifdef __cplusplus
 extern "C" {

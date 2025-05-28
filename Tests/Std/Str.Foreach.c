@@ -26,6 +26,7 @@ bool test_str_foreach_idx(void) {
         // Append the character and its index to the result string
         Str buffer = StrInit();
         StrWriteFmt(&buffer, "{}{}", FMT(chr), FMT(idx));
+        if(!buffer.data) {LOG_FATAL("Failed to write");}
         StrMergeL(&result, &buffer);
     });
     

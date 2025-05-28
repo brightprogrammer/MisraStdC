@@ -4,6 +4,10 @@
 ///
 /// Portable system functions
 
+// required for strerror_r
+// Reference : https://forums.freebsd.org/threads/strerror_r-best-practices-posix-vs-gnu.92296/
+#define _POSIX_C_SOURCE 200112L
+
 #include <Misra/Std.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Sys.h>
@@ -35,8 +39,6 @@ const char* SysDirEntryTypeToZstr(SysDirEntryType type) {
             return "Directory";
         case SYS_DIR_ENTRY_TYPE_PIPE :
             return "Pipe";
-        case SYS_DIR_ENTRY_TYPE_SOCKET :
-            return "Socket";
         case SYS_DIR_ENTRY_TYPE_CHARACTER_DEVICE :
             return "Character Device";
         case SYS_DIR_ENTRY_TYPE_BLOCK_DEVICE :
@@ -157,32 +159,29 @@ SysDirContents SysGetDirContents(const char* path) {
         } else if ('.' == DNAME_AT(0) && '.' == DNAME_AT(1) && 0 == DNAME_AT(2)) {
             continue;
         } else {
+            Str entry_path = StrInit();
+            StrWriteFmt(&entry_path, "{}/{}", FMT(path), FMT(entry->d_name));
+
+            struct stat path_stat;
+            stat(entry_path.data, &path_stat);
+
+            StrDeinit(&entry_path);
+
             SysDirEntry direntry = {0};
-            switch (entry->d_type) {
-                case DT_REG :
-                    direntry.type = SYS_DIR_ENTRY_TYPE_REGULAR_FILE;
-                    break;
-                case DT_DIR :
-                    direntry.type = SYS_DIR_ENTRY_TYPE_DIRECTORY;
-                    break;
-                case DT_FIFO :
-                    direntry.type = SYS_DIR_ENTRY_TYPE_PIPE;
-                    break;
-                case DT_SOCK :
-                    direntry.type = SYS_DIR_ENTRY_TYPE_SOCKET;
-                    break;
-                case DT_CHR :
-                    direntry.type = SYS_DIR_ENTRY_TYPE_CHARACTER_DEVICE;
-                    break;
-                case DT_BLK :
-                    direntry.type = SYS_DIR_ENTRY_TYPE_BLOCK_DEVICE;
-                    break;
-                case DT_LNK :
-                    direntry.type = SYS_DIR_ENTRY_TYPE_SYMBOLIC_LINK;
-                    break;
-                case DT_UNKNOWN :
-                default :
-                    direntry.type = SYS_DIR_ENTRY_TYPE_UNKNOWN;
+            if (S_ISREG(path_stat.st_mode)) {
+                direntry.type = SYS_DIR_ENTRY_TYPE_REGULAR_FILE;
+            } else if (S_ISDIR(path_stat.st_mode)) {
+                direntry.type = SYS_DIR_ENTRY_TYPE_DIRECTORY;
+            } else if (S_ISFIFO(path_stat.st_mode)) {
+                direntry.type = SYS_DIR_ENTRY_TYPE_PIPE;
+            } else if (S_ISCHR(path_stat.st_mode)) {
+                direntry.type = SYS_DIR_ENTRY_TYPE_CHARACTER_DEVICE;
+            } else if (S_ISBLK(path_stat.st_mode)) {
+                direntry.type = SYS_DIR_ENTRY_TYPE_BLOCK_DEVICE;
+            } else if (S_ISLNK(path_stat.st_mode)) {
+                direntry.type = SYS_DIR_ENTRY_TYPE_SYMBOLIC_LINK;
+            } else {
+                direntry.type = SYS_DIR_ENTRY_TYPE_UNKNOWN;
             }
             direntry.name = StrInitFromCstr(entry->d_name, NAMELEN(entry));
             VecPushBack(&dc, direntry);
@@ -332,3 +331,4 @@ Str* SysStrError(i32 eno, Str* err_str) {
 
     return err_str;
 }
+

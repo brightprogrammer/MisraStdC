@@ -14,6 +14,49 @@
 #include <stdio.h>
 
 ///
+/// Defines text alignment options for formatted output.
+///
+/// ALIGN_LEFT   : Left-aligned text.
+/// ALIGN_RIGHT  : Right-aligned text.
+/// ALIGN_CENTER : Center-aligned text.
+///
+/// TAGS: Formatting, Alignment, Text
+typedef enum {
+    ALIGN_LEFT,
+    ALIGN_RIGHT,
+    ALIGN_CENTER
+} Alignment;
+
+///
+/// Stores formatting information for text output.
+///
+/// align          : Text alignment (left, right, center).
+/// width          : Minimum field width.
+/// precision     : Number of decimal places for floating point.
+/// has_precision : Whether precision was specified.
+/// is_hex        : Format as hexadecimal.
+/// is_binary     : Format as binary.
+/// is_octal      : Format as octal.
+/// is_debug      : Debug format mode.
+/// is_scientific : Scientific notation for floats.
+/// is_caps       : Use capital letters for hex/scientific.
+///
+/// TAGS: Formatting, Text, Configuration
+typedef struct {
+    Alignment align;
+    size width;
+    size precision;
+    bool has_precision;
+    bool is_hex;
+    bool is_binary;
+    bool is_octal;
+    bool is_debug;
+    bool is_scientific;
+    bool is_caps;
+} FmtInfo;
+
+
+///
 /// Type-specific write callback signature
 ///
 /// TAGS: I/O, Callback, Generic

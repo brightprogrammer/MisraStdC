@@ -515,7 +515,7 @@
         /* Free the source vector's data and reset its state */                                                        \
         if ((v2)->data) {                                                                                              \
             free((v2)->data);                                                                                          \
-            (v2)->data = NULL;  /* Explicitly set to NULL to maintain validity */                                      \
+            (v2)->data     = NULL;                                                                                     \
             (v2)->length   = 0;                                                                                        \
             (v2)->capacity = 0;                                                                                        \
         }                                                                                                              \

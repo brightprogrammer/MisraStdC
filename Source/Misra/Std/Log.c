@@ -1,3 +1,7 @@
+// Required for localtime_r
+// Reference : https://forums.freebsd.org/threads/strerror_r-best-practices-posix-vs-gnu.92296/
+#define _POSIX_C_SOURCE 200112L
+
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
