@@ -65,6 +65,18 @@ extern "C" {
 ///
 #define StrFindZstr(str, key) ZstrFindSubstring((str)->data, (key))
 
+///
+/// Find a fixed-length substring in a Str object.
+///
+/// str[in]     : Str object to find str into.
+/// key[in]     : Substring to look for.
+/// key_len[in] : Length of the substring to look for.
+///
+/// SUCCESS : char* providing position of found string. Pointer is inside `str`.
+/// FAILURE : NULL
+///
+#define StrFindCstr(str, key, key_len) ZstrFindSubstringN((str)->data, (key), (key_len))
+
 //
 // Prefix/Suffix Operations
 //
