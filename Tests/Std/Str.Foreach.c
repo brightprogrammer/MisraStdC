@@ -1,6 +1,6 @@
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Log.h>
-#include <stdbool.h>
+#include <Misra/Std/Io.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -24,9 +24,9 @@ bool test_str_foreach_idx(void) {
     Str result = StrInit();
     StrForeachIdx(&s, chr, idx, {
         // Append the character and its index to the result string
-        char buffer[10];
-        snprintf(buffer, sizeof(buffer), "%c%zu", chr, idx);
-        StrPushBackZstr(&result, buffer);
+        Str buffer = StrInit();
+        StrWriteFmt(&buffer, "{}{}", FMT(chr), FMT(idx));
+        StrMergeL(&result, &buffer);
     });
     
     // The result should be "H0e1l2l3o4"
@@ -54,9 +54,9 @@ bool test_str_foreach_reverse_idx(void) {
         }
         
         // Append the character and its index to the result string
-        char buffer[10];
-        snprintf(buffer, sizeof(buffer), "%c%zu", chr, idx);
-        StrPushBackZstr(&result, buffer);
+        Str buffer = StrInit();
+        StrWriteFmt(&buffer, "{}{}", FMT(chr), FMT(idx));
+        StrMergeL(&result, &buffer);
     });
     
     // The expected result depends on whether index 0 is processed
@@ -85,9 +85,9 @@ bool test_str_foreach_ptr_idx(void) {
     Str result = StrInit();
     StrForeachPtrIdx(&s, chrptr, idx, {
         // Append the character (via pointer) and its index to the result string
-        char buffer[10];
-        snprintf(buffer, sizeof(buffer), "%c%zu", *chrptr, idx);
-        StrPushBackZstr(&result, buffer);
+        Str buffer = StrInit();
+        StrWriteFmt(&buffer, "{}{}", FMT(*chrptr), FMT(idx));
+        StrMergeL(&result, &buffer);
         
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {
@@ -123,9 +123,9 @@ bool test_str_foreach_reverse_ptr_idx(void) {
         }
         
         // Append the character (via pointer) and its index to the result string
-        char buffer[10];
-        snprintf(buffer, sizeof(buffer), "%c%zu", *chrptr, idx);
-        StrPushBackZstr(&result, buffer);
+        Str buffer = StrInit();
+        StrWriteFmt(&buffer, "{}{}", FMT(*chrptr), FMT(idx));
+        StrMergeL(&result, &buffer);
         
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {
