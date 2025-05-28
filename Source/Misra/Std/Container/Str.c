@@ -8,7 +8,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Types.h>
@@ -97,7 +96,7 @@ StrIters StrSplitToIters(Str* s, const char* key) {
     const char* end  = s->data + s->length;
 
     while (prev <= end) {
-        const char* next = ZstrStr(prev, key);
+        const char* next = ZstrFindSubstring(prev, key);
         if (next) {
             StrIter si = {.data = (char*)prev, .length = next - prev, .pos = 0, .alignment = 1};
             VecPushBack(&sv, si);
@@ -123,12 +122,12 @@ Strs StrSplit(Str* s, const char* key) {
     if (prev) {
         const char* end = s->data + s->length;
         while (prev <= end) {
-            const char* next = ZstrStr(prev, key);
+            const char* next = ZstrFindSubstring(prev, key);
             if (next) {
                 VecPushBack(&sv, StrInitFromCstr(prev, next - prev));    // exclude delimiter
                 prev = next + keylen;                                    // skip past delimiter
             } else {
-                if (ZstrNCmp(prev, key, end - prev)) {
+                if (ZstrCompareN(prev, key, end - prev)) {
                     VecPushBack(&sv, StrInitFromCstr(prev, end - prev)); // remaining part
                 }
                 break;
@@ -178,11 +177,11 @@ Str strip_str(Str* s, const char* chars_to_strip, int split_direction) {
 }
 
 static inline bool starts_with(const char* data, size data_len, const char* prefix, size prefix_len) {
-    return data_len >= prefix_len && MemCmp(data, prefix, prefix_len) == 0;
+    return data_len >= prefix_len && MemCompare(data, prefix, prefix_len) == 0;
 }
 
 static inline bool ends_with(const char* data, size data_len, const char* suffix, size suffix_len) {
-    return data_len >= suffix_len && MemCmp(data + data_len - suffix_len, suffix, suffix_len) == 0;
+    return data_len >= suffix_len && MemCompare(data + data_len - suffix_len, suffix, suffix_len) == 0;
 }
 
 bool StrStartsWithZstr(const Str* s, const char* prefix) {
@@ -223,7 +222,7 @@ str_replace(Str* s, const char* match, size match_len, const char* replacement, 
     size replaced = 0;
 
     while (i + match_len <= s->length && replaced < count) {
-        if (MemCmp(s->data + i, match, match_len) == 0) {
+        if (MemCompare(s->data + i, match, match_len) == 0) {
             StrDeleteRange(s, i, match_len);
             StrInsertCstr(s, replacement, i, replacement_len);
             i        += replacement_len;

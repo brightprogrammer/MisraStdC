@@ -389,7 +389,7 @@ typedef struct {
 /// FAILURE: Function cannot fail - always returns comparison result.
 ///
 /// TAGS: Memory, Comparison, Safety
-static inline i32 MemCmp(const void* p1, const void* p2, size n) {
+static inline i32 MemCompare(const void* p1, const void* p2, size n) {
     const u8* s1 = (const u8*)p1;
     const u8* s2 = (const u8*)p2;
     while (n--) {
@@ -413,7 +413,7 @@ static inline i32 MemCmp(const void* p1, const void* p2, size n) {
 /// FAILURE: Function cannot fail if regions don't overlap.
 ///
 /// TAGS: Memory, Copy, Safety
-static inline void* MemCpy(void* dst, const void* src, size n) {
+static inline void* MemCopy(void* dst, const void* src, size n) {
     u8* d = (u8*)dst;
     const u8* s = (const u8*)src;
     while (n--) {
@@ -494,7 +494,7 @@ static inline size ZstrLen(const char* str) {
 /// FAILURE: Function cannot fail if strings are valid.
 ///
 /// TAGS: String, Comparison, Safety
-static inline i32 ZstrCmp(const char* s1, const char* s2) {
+static inline i32 ZstrCompare(const char* s1, const char* s2) {
     while (*s1 && *s1 == *s2) {
         s1++;
         s2++;
@@ -513,7 +513,7 @@ static inline i32 ZstrCmp(const char* s1, const char* s2) {
 /// FAILURE: Function cannot fail if strings are valid.
 ///
 /// TAGS: String, Comparison, Safety
-static inline i32 ZstrNCmp(const char* s1, const char* s2, size n) {
+static inline i32 ZstrCompareN(const char* s1, const char* s2, size n) {
     while (n && *s1 && *s1 == *s2) {
         s1++;
         s2++;
@@ -532,7 +532,7 @@ static inline i32 ZstrNCmp(const char* s1, const char* s2, size n) {
 /// FAILURE: Returns NULL if either string is invalid.
 ///
 /// TAGS: String, Search, Safety
-static inline char* ZstrStr(const char* haystack, const char* needle) {
+static inline char* ZstrFindSubstring(const char* haystack, const char* needle) {
     if (!*needle) return (char*)haystack;
     
     const char* p2;
