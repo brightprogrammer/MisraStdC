@@ -183,12 +183,12 @@ int main(int argc, char** argv) {
 
                         Str md_code = StrInit();
                         Scope(&md_code, StrDeinit, {
-                            StrAppendf(
-                                &md_code,
+                            // Create template strings for StrWriteFmt with escaped braces
+                            const char* mdHeader = 
                                 "---\n"
-                                "title: \"%s\"\n"
-                                "meta_title: \"%s\"\n"
-                                "description: \"Documentation for %s\"\n"
+                                "title: \"{}\"\n"
+                                "meta_title: \"{}\"\n"
+                                "description: \"Documentation for {}\"\n"
                                 "date: 2025-05-12T05:00:00Z\n"
                                 "# image: \"/images/image-placeholder.png\"\n"
                                 "categories: [\"Vec\", \"Macro\", \"Generic\"]\n"
@@ -196,13 +196,17 @@ int main(int argc, char** argv) {
                                 "tags: [\"vec\", \"macro\", \"generic\"]\n"
                                 "draft: false\n"
                                 "---\n"
-                                "```c\n",
-                                output_path.data,
-                                output_path.data,
-                                output_path.data
+                                "```c\n";
+                                
+                            StrWriteFmt(
+                                &md_code,
+                                mdHeader,
+                                FMT(output_path.data),
+                                FMT(output_path.data),
+                                FMT(output_path.data)
                             );
                             StrMerge(&md_code, &file_contents);
-                            StrAppendf(&md_code, "\n```");
+                            StrWriteFmt(&md_code, "\n```");
 
                             // complete relative file path
                             StrPushFront(&output_path, '/');

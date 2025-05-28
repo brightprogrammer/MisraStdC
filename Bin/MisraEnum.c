@@ -103,88 +103,120 @@ int main(int argc, char** argv) {
 
     StrClear(&code);
 
-
-    StrAppendf(&code, "typedef enum %s {\n", enum_name.data);
+    // Use a temporary variable for enum name
+    StrWriteFmt(&code, "typedef enum {} {{\n", FMT(enum_name.data));
 
     // last value starts with invalid enum's value
     if (invalid_enum.name.length) {
         last_value = invalid_enum.name.length ? invalid_enum.value : VecFirst(&entries).value;
-        StrAppendf(&code, "    %s = %lld,\n", invalid_enum.name.data, invalid_enum.value);
+        StrWriteFmt(&code, "    {} = {},\n", FMT(invalid_enum.name.data), FMT(invalid_enum.value));
     }
+    
+    // Use VecForeach for iterating over entries
     VecForeach(&entries, e, {
         if (last_value == e.value - 1) {
-            StrAppendf(&code, "    %s,\n", e.name.data);
+            StrWriteFmt(&code, "    {},\n", FMT(e.name.data));
         } else {
-            StrAppendf(&code, "    %s = %lld,\n", e.name.data, e.value);
+            StrWriteFmt(&code, "    {} = {},\n", FMT(e.name.data), FMT(e.value));
         }
         last_value = e.value;
     });
 
-    StrAppendf(&code, "} %s;\n", enum_name.data);
+    StrWriteFmt(&code, "}} {};\n", FMT(enum_name.data));
 
     if (to_from_str) {
-        StrAppendf(
-            &code,
-            "///\n"
-            "/// Converts given zero-terminated string to %s enum value.\n"
+        // Store string literals in temporary variables
+        const char* funcHeader = "///\n"
+            "/// Converts given zero-terminated string to {} enum value.\n"
             "///\n"
             "/// zstr[in] : String to be converted back to corresponding enum.\n"
             "///\n"
             "/// SUCCESS : Value of enum\n"
             "/// FAILURE : 0\n"
             "///\n"
-            "%s %sFromZstr(const char* zstr) {\n"
-            "    if(!zstr) {\n"
+            "{} {}FromZstr(const char* zstr) {{\n"
+            "    if(!zstr) {{\n"
             "        LOG_ERROR(\"Invalid string provided. Cannot convert to enum.\");\n"
-            "        return %s;\n"
-            "    }\n",
-            enum_name.data,
-            enum_name.data,
-            enum_name.data,
-            invalid_enum.name.length ? invalid_enum.name.data : "0"
+            "        return {};\n"
+            "    }}\n";
+            
+        // Prepare the return value for invalid enum
+        const char* invalidEnumName = "0";
+        if (invalid_enum.name.length) {
+            invalidEnumName = invalid_enum.name.data;
+        }
+        
+        StrWriteFmt(
+            &code,
+            funcHeader,
+            FMT(enum_name.data),
+            FMT(enum_name.data),
+            FMT(enum_name.data),
+            FMT(invalidEnumName)
         );
+        
+        // Use VecForeach for iterating over entries
         VecForeach(&entries, e, {
-            StrAppendf(
+            const char* compareTemplate = "    if(ZstrCompareN(\"{}\", zstr, {}) == 0) {{return {};}}\n";
+            // Store the length in a variable to avoid taking address of rvalue
+            unsigned long long strLength = (unsigned long long)e.str.length;
+            StrWriteFmt(
                 &code,
-                "    if(ZstrCompareN(\"%s\", zstr, %llu) == 0) {return %s;}\n",
-                e.str.data,
-                (unsigned long long)e.str.length,
-                e.name.data
+                compareTemplate,
+                FMT(e.str.data),
+                FMT(strLength),
+                FMT(e.name.data)
             );
         });
-        StrAppendf(
+        
+        const char* returnTemplate = "    return {};\n}}\n";
+        StrWriteFmt(
             &code,
-            "    return %s;\n"
-            "}\n",
-            invalid_enum.name.length ? invalid_enum.name.data : "0"
+            returnTemplate,
+            FMT(invalidEnumName)
         );
 
-        StrAppendf(
-            &code,
-            "///\n"
-            "/// Converts given enum to %s zero-terminated string.\n"
+        const char* toZstrHeader = "///\n"
+            "/// Converts given enum to {} zero-terminated string.\n"
             "///\n"
             "/// e[in] : String to be converted back to corresponding enum.\n"
             "///\n"
             "/// SUCCESS : A zero-terminated char pointer representing corresponding string value of enum\n"
             "/// FAILURE : NULL\n"
             "///\n"
-            "const char* %sToZstr(%s e) {\n"
-            "    switch(e) {\n",
-            enum_name.data,
-            enum_name.data,
-            enum_name.data
-        );
-        VecForeach(&entries, e, {
-            StrAppendf(&code, "        case %s : {return \"%s\";}\n", e.name.data, e.str.data);
-        });
-        StrAppendf(
+            "const char* {}ToZstr({} e) {{\n"
+            "    switch(e) {{\n";
+            
+        StrWriteFmt(
             &code,
-            "        default: break;\n"
-            "    }\n"
-            "    return \"%s\";\n"
-            "}\n",
-            invalid_enum.str.data ? invalid_enum.str.data : "NULL"
+            toZstrHeader,
+            FMT(enum_name.data),
+            FMT(enum_name.data),
+            FMT(enum_name.data)
+        );
+        
+        // Use VecForeach for iterating over entries
+        VecForeach(&entries, e, {
+            const char* caseTemplate = "        case {} : {{return \"{}\";}}\n";
+            StrWriteFmt(&code, caseTemplate, FMT(e.name.data), FMT(e.str.data));
+        });
+        
+        const char* defaultTemplate = "        default: break;\n"
+            "    }}\n"
+            "    return \"{}\";\n"
+            "}}\n";
+            
+        // Use a static string for NULL to avoid taking address of string literal
+        const char* nullStrValue = "NULL";
+        const char* nullStr = nullStrValue;
+        if (invalid_enum.str.data) {
+            nullStr = invalid_enum.str.data;
+        }
+        
+        StrWriteFmt(
+            &code,
+            defaultTemplate,
+            FMT(nullStr)
         );
     }
 

@@ -43,10 +43,12 @@ typedef struct TypeSpecificIO {
     void              *data;
 } TypeSpecificIO;
 
+static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, TypeSpecificReader r, void *d) {
+    return (TypeSpecificIO) {.writer = w, .reader = r, .data = d};
+}
+
 #define TO_TYPE_SPECIFIC_IO(T, d)                                                                                      \
-    (TypeSpecificIO) {                                                                                                 \
-        .writer = (TypeSpecificWriter)_write_##T, .reader = (TypeSpecificReader)_read_##T, .data = (d)                 \
-    }
+    TO_TYPE_SPECIFIC_IO_IMPL((TypeSpecificWriter)_write_##T, (TypeSpecificReader)_read_##T, (d))
 
 ///
 /// Type-aware format specifier generator
@@ -144,7 +146,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 
 ///
 /// Print out a formatted string with rust-style placeholders
-/// to given string `o`. This is a macro wrapper around StrWriteFmtInternal.
+/// to given string `o`. This is a macro wrapper around StrWriteFmtImpl.
 ///
 /// WARN: Directly passing literals like `StrWriteFmt(o, "{}", "literal")` for string literals
 ///       or `StrWriteFmt(o, "{}", 1337)` for integer literals might not work as expected
@@ -163,12 +165,14 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// TAGS: Macro, Wrapper, Format, I/O
 ///
-#define StrWriteFmt(out, ...) StrWriteFmt_IMPL(out, __VA_ARGS__, FMT(LVAL(0)))
-#define StrWriteFmt_IMPL(out, fmtstr, ...)                                                                             \
+// #define StrWriteFmt(out, ...) StrWriteFmtImpl(out, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
+#define StrWriteFmt(out, ...)                 StrWriteFmt_IMPL1(out, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
+#define StrWriteFmt_IMPL1(input, fmtstr, ...) StrWriteFmt_IMPL2(input, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define StrWriteFmt_IMPL2(input, fmtstr, varr)                                                                         \
     do {                                                                                                               \
-        TypeSpecificIO argv[] = {__VA_ARGS__};                                                                         \
-        size           argc   = sizeof(argv) / sizeof(argv[0]) - 1;                                                    \
-        StrWriteFmtInternal((out), (fmtstr), &argv[0], argc);                                                          \
+        TypeSpecificIO *argv = &(varr)[0];                                                                             \
+        size            argc = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                              \
+        StrWriteFmtInternal((input), (fmtstr), argv, argc);                                                            \
     } while (0)
 
 ///
@@ -187,12 +191,13 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// TAGS: Macro, Wrapper, Format, Parsing, I/O
 ///
-#define StrReadFmt(input, ...) StrReadFmt_IMPL(input, __VA_ARGS__, FMT(LVAL(0)))
-#define StrReadFmt_IMPL(input, fmtstr, ...)                                                                            \
+#define StrReadFmt(input, ...)                 StrReadFmt_IMPL1(input, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
+#define StrReadFmt_IMPL1(input, fmtstr, ...)   StrReadFmt_IMPL2(input, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define StrReadFmt_IMPL2(input, fmtstr, varr)                                                                          \
     do {                                                                                                               \
-        TypeSpecificIO argv[] = {__VA_ARGS__};                                                                         \
-        size           argc   = sizeof(argv) / sizeof(argv[0]) - 1;                                                    \
-        StrReadFmtInternal((input), (fmtstr), &argv[0], argc);                                                         \
+        TypeSpecificIO *argv = &(varr)[0];                                                                             \
+        size            argc = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                              \
+        StrReadFmtInternal((input), (fmtstr), argv, argc);                                                             \
     } while (0)
 
 ///
@@ -212,12 +217,13 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
-#define FReadFmt(file, ...) FReadFmt_IMPL(file, __VA_ARGS__, FMT(LVAL(0)))
-#define FReadFmt_IMPL(file, fmtstr, ...)                                                                               \
+#define FReadFmt(file, ...)                    FReadFmt_IMPL1(file, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
+#define FReadFmt_IMPL1(file, fmtstr, ...)      FReadFmt_IMPL2(file, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define FReadFmt_IMPL2(file, fmtstr, varr)                                                                             \
     do {                                                                                                               \
-        TypeSpecificIO argv[] = {__VA_ARGS__};                                                                         \
-        size           argc   = sizeof(argv) / sizeof(argv[0]) - 1;                                                    \
-        FReadFmtInternal((file), (fmtstr), &argv[0], argc);                                                            \
+        TypeSpecificIO *argv = &(varr)[0];                                                                             \
+        size            argc = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                              \
+        FReadFmtInternal((file), (fmtstr), argv, argc);                                                                \
     } while (0)
 
 ///
@@ -237,13 +243,14 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
-#define FWriteFmt(stream, ...) FWriteFmt_IMPL(stream, __VA_ARGS__, FMT(LVAL(0)))
-#define FWriteFmt_IMPL(stream, fmtstr, ...)                                                                            \
+#define FWriteFmt(stream, ...)                 FWriteFmt_IMPL1(stream, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
+#define FWriteFmt_IMPL1(stream, fmtstr, ...)   FWriteFmt_IMPL2(stream, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define FWriteFmt_IMPL2(stream, fmtstr, varr)                                                                          \
     do {                                                                                                               \
-        TypeSpecificIO argv[] = {__VA_ARGS__};                                                                         \
-        size           argc   = sizeof(argv) / sizeof(argv[0]) - 1;                                                    \
+        TypeSpecificIO *argv = &(varr)[0];                                                                             \
+        size            argc = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                              \
         Str            out    = StrInit();                                                                             \
-        StrWriteFmtInternal(&out, (fmtstr), &argv[0], argc);                                                           \
+        StrWriteFmtInternal(&out, (fmtstr), argv, argc);                                                               \
         fputs(out.data, (stream));                                                                                     \
         StrDeinit(&out);                                                                                               \
     } while (0)
@@ -266,13 +273,14 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
-#define FWriteFmtLn(stream, ...) FWriteFmtLn_IMPL(stream, __VA_ARGS__, FMT(LVAL(0)))
-#define FWriteFmtLn_IMPL(stream, fmtstr, ...)                                                                          \
+#define FWriteFmtLn(stream, ...)               FWriteFmtLn_IMPL1(stream, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
+#define FWriteFmtLn_IMPL1(stream, fmtstr, ...) FWriteFmtLn_IMPL2(stream, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define FWriteFmtLn_IMPL2(stream, fmtstr, varr)                                                                        \
     do {                                                                                                               \
-        TypeSpecificIO argv[] = {__VA_ARGS__};                                                                         \
-        size           argc   = sizeof(argv) / sizeof(argv[0]) - 1;                                                    \
+        TypeSpecificIO *argv = &(varr)[0];                                                                             \
+        size            argc = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                              \
         Str            out    = StrInit();                                                                             \
-        StrWriteFmtInternal(&out, (fmtstr), &argv[0], argc);                                                           \
+        StrWriteFmtInternal(&out, (fmtstr), argv, argc);                                                               \
         fputs(out.data, (stream));                                                                                     \
         fputc('\n', (stream));                                                                                         \
         StrDeinit(&out);                                                                                               \
