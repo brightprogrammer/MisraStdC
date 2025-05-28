@@ -52,7 +52,7 @@ extern "C" {
 /// SUCCESS : char* providing position of found string. Pointer is inside `str`
 /// FAILURE : NULL
 ///
-#define StrFindStr(str, key) strstr((str)->data, (key)->data)
+#define StrFindStr(str, key) ZstrFindSubstring((str)->data, (key)->data)
 
 ///
 /// Find a key in a Str object.
@@ -63,7 +63,7 @@ extern "C" {
 /// SUCCESS : char* providing position of found string. Pointer is inside `str`.
 /// FAILURE : NULL
 ///
-#define StrFindZstr(str, key) strstr((str)->data, (key))
+#define StrFindZstr(str, key) ZstrFindSubstring((str)->data, (key))
 
 //
 // Prefix/Suffix Operations
