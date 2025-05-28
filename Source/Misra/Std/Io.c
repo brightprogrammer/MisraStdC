@@ -28,16 +28,17 @@ static bool ParseFormatSpec(const char* spec, size len, FmtInfo* fi) {
     // Empty format specifier is allowed, but spec pointer must not be NULL
 
     // Initialize format info with defaults
-    *fi = (FmtInfo) {.align         = ALIGN_RIGHT,
-                     .width         = 0,
-                     .precision     = 6,
-                     .has_precision = false,
-                     .is_hex        = false,
-                     .is_binary     = false,
-                     .is_octal      = false,
-                     .is_debug      = false,
-                     .is_scientific = false,
-                     .is_caps       = false};
+    *fi = (FmtInfo
+    ) {.align         = ALIGN_RIGHT,
+       .width         = 0,
+       .precision     = 6,
+       .has_precision = false,
+       .is_hex        = false,
+       .is_binary     = false,
+       .is_octal      = false,
+       .is_debug      = false,
+       .is_scientific = false,
+       .is_caps       = false};
 
     size pos = 0;
 
@@ -84,7 +85,7 @@ static bool ParseFormatSpec(const char* spec, size len, FmtInfo* fi) {
     }
 
     // Parse format type first (before precision)
-    bool   found_type = false;
+    bool found_type = false;
     size type_pos   = pos;
     while (type_pos < len) {
         if (spec[type_pos] == '.')
@@ -255,16 +256,17 @@ bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, size arg
             FmtInfo fmt_info;
             if (spec_len == 0) {
                 // Empty format specifier {} is allowed, initialize with defaults
-                fmt_info = (FmtInfo) {.align         = ALIGN_RIGHT,
-                                      .width         = 0,
-                                      .precision     = 6,
-                                      .has_precision = false,
-                                      .is_hex        = false,
-                                      .is_binary     = false,
-                                      .is_octal      = false,
-                                      .is_debug      = false,
-                                      .is_scientific = false,
-                                      .is_caps       = false};
+                fmt_info = (FmtInfo
+                ) {.align         = ALIGN_RIGHT,
+                   .width         = 0,
+                   .precision     = 6,
+                   .has_precision = false,
+                   .is_hex        = false,
+                   .is_binary     = false,
+                   .is_octal      = false,
+                   .is_debug      = false,
+                   .is_scientific = false,
+                   .is_caps       = false};
             } else if (!ParseFormatSpec(fmt + brace_start + 1, spec_len, &fmt_info)) {
                 LOG_ERROR("Invalid format specifier");
                 return false;
@@ -581,7 +583,7 @@ void _write_Zstr(Str* o, FmtInfo* fmt_info, const char** s) {
         if (fmt_info->is_hex) {
             // Format each character as hex
             const char* str = *s;
-            size      i   = 0;
+            size        i   = 0;
             while (str[i]) {
                 if (i > 0) {
                     StrPushBack(o, ' ');
@@ -600,7 +602,7 @@ void _write_Zstr(Str* o, FmtInfo* fmt_info, const char** s) {
             }
         } else {
             // Get string length
-            size      len = 0;
+            size        len = 0;
             const char* str = *s;
             while (str[len])
                 len++;
@@ -637,12 +639,12 @@ void _write_u64(Str* o, FmtInfo* fmt_info, u64* v) {
 
     // Store original length to calculate content size later
     size start_len = o->length;
-    
+
     // Create temporary buffer for number formatting
     Str temp = StrInit();
-    
+
     // Determine base based on format flags
-    u8 base = 10;  // default is decimal
+    u8 base = 10; // default is decimal
     if (fmt_info->is_hex) {
         base = 16;
     } else if (fmt_info->is_binary) {
@@ -650,14 +652,14 @@ void _write_u64(Str* o, FmtInfo* fmt_info, u64* v) {
     } else if (fmt_info->is_octal) {
         base = 8;
     }
-    
+
     // Use StrFromU64 directly with the appropriate base
     StrFromU64(&temp, *v, base, fmt_info->is_caps);
-    
+
     // Merge the formatted number into output
     StrMerge(o, &temp);
     StrDeinit(&temp);
-    
+
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
@@ -683,12 +685,12 @@ void _write_u8(Str* o, FmtInfo* fmt_info, u8* v) {
 
     // Store original length to calculate content size later
     size start_len = o->length;
-    
+
     // Create temporary buffer for number formatting
     Str temp = StrInit();
-    
+
     // Determine base based on format flags
-    u8 base = 10;  // default is decimal
+    u8 base = 10; // default is decimal
     if (fmt_info->is_hex) {
         base = 16;
     } else if (fmt_info->is_binary) {
@@ -696,14 +698,14 @@ void _write_u8(Str* o, FmtInfo* fmt_info, u8* v) {
     } else if (fmt_info->is_octal) {
         base = 8;
     }
-    
+
     // Use StrFromU64 directly with the appropriate base
     StrFromU64(&temp, *v, base, fmt_info->is_caps);
-    
+
     // Merge the formatted number into output
     StrMerge(o, &temp);
     StrDeinit(&temp);
-    
+
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
@@ -719,12 +721,12 @@ void _write_i64(Str* o, FmtInfo* fmt_info, i64* v) {
 
     // Store original length to calculate content size later
     size start_len = o->length;
-    
+
     // Create temporary buffer for number formatting
     Str temp = StrInit();
-    
+
     // Determine base based on format flags
-    u8 base = 10;  // default is decimal
+    u8 base = 10; // default is decimal
     if (fmt_info->is_hex) {
         base = 16;
     } else if (fmt_info->is_binary) {
@@ -732,14 +734,14 @@ void _write_i64(Str* o, FmtInfo* fmt_info, i64* v) {
     } else if (fmt_info->is_octal) {
         base = 8;
     }
-    
+
     // Use StrFromI64 directly with the appropriate base
     StrFromI64(&temp, *v, base, fmt_info->is_caps);
-    
+
     // Merge the formatted number into output
     StrMerge(o, &temp);
     StrDeinit(&temp);
-    
+
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
@@ -812,7 +814,7 @@ void _write_f64(Str* o, FmtInfo* fmt_info, f64* v) {
 
     // Store original length to calculate content size later
     size start_len = o->length;
-    
+
     // Handle special cases directly here to avoid StrFromF64 issues
     if (isnan(*v)) {
         // Direct string append for NaN
@@ -826,7 +828,7 @@ void _write_f64(Str* o, FmtInfo* fmt_info, f64* v) {
         if (*v < 0) {
             StrPushBack(o, '-');
         }
-        
+
         if (fmt_info->is_caps) {
             StrPushBackZstr(o, "INF");
         } else {
@@ -836,16 +838,16 @@ void _write_f64(Str* o, FmtInfo* fmt_info, f64* v) {
         // Normal case - use StrFromF64
         // Create temporary buffer for number formatting
         Str temp = StrInit();
-        
+
         // Use StrFromF64 directly with the appropriate parameters
         u8 precision = fmt_info->has_precision ? fmt_info->precision : 6;
         StrFromF64(&temp, *v, precision, fmt_info->is_scientific, fmt_info->is_caps);
-        
+
         // Merge the formatted number into output
         StrMerge(o, &temp);
         StrDeinit(&temp);
     }
-    
+
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
@@ -927,72 +929,74 @@ static char ProcessEscape(const char** str) {
 }
 
 const char* _read_Str(const char* i, Str* s) {
-    if (!i || !s) LOG_FATAL("Invalid arguments");
-    
+    if (!i || !s)
+        LOG_FATAL("Invalid arguments");
+
     // Skip leading whitespace
-    while (IS_SPACE(*i)) i++;
-    
+    while (IS_SPACE(*i))
+        i++;
+
     // Check for empty input
     if (!*i) {
         LOG_ERROR("Empty input string");
         return i;
     }
-    
+
     // Initialize output string
     *s = StrInit();
-    
+
     // Check for quoted string
     char quote = 0;
     if (*i == '"' || *i == '\'') {
         quote = *i++;
     }
-    
+
     while (*i) {
         if (quote) {
             // Quoted string mode
             if (*i == '\\') {
                 const char* curr = i;
-                char c = ProcessEscape(&curr);
-                if (c == 0) {  // Error in escape sequence
+                char        c    = ProcessEscape(&curr);
+                if (c == 0) { // Error in escape sequence
                     StrDeinit(s);
                     return NULL;
                 }
-                i = curr + 1;  // Move past the escape sequence
+                i = curr + 1; // Move past the escape sequence
                 StrPushBack(s, c);
             } else if (*i == quote) {
-                i++;  // Skip closing quote
-                return i;  // Successfully read quoted string
+                i++;          // Skip closing quote
+                return i;     // Successfully read quoted string
             } else {
                 StrPushBack(s, *i++);
             }
         } else {
             // Unquoted string mode - read until whitespace
             if (IS_SPACE(*i)) {
-                return i;  // Successfully read unquoted string
+                return i; // Successfully read unquoted string
             }
-            
+
             if (*i == '\\') {
                 const char* curr = i;
-                char c = ProcessEscape(&curr);
-                if (c == 0) {  // Error in escape sequence
+                char        c    = ProcessEscape(&curr);
+                if (c == 0) { // Error in escape sequence
                     StrDeinit(s);
                     return NULL;
                 }
-                i = curr + 1;  // Move past the escape sequence
+                i = curr + 1; // Move past the escape sequence
                 StrPushBack(s, c);
             } else {
                 StrPushBack(s, *i++);
             }
         }
     }
-    
+
     // If we get here with a quote, the string was unterminated
     if (quote) {
         LOG_ERROR("Unterminated quoted string");
         StrDeinit(s);
         return NULL;
     }
-    
+
     // Successfully read unquoted string that ended at EOF
     return i;
 }
@@ -1000,17 +1004,21 @@ const char* _read_Str(const char* i, Str* s) {
 // Helper function to check if a character is valid for number parsing
 static bool IsValidNumberChar(char c, bool is_first_char, bool allow_decimal) {
     // Allow digits
-    if (IS_DIGIT(c)) return true;
-    
+    if (IS_DIGIT(c))
+        return true;
+
     // Allow signs only at the beginning
-    if ((c == '+' || c == '-') && is_first_char) return true;
-    
+    if ((c == '+' || c == '-') && is_first_char)
+        return true;
+
     // Allow decimal point if allowed
-    if (c == '.' && allow_decimal) return true;
-    
+    if (c == '.' && allow_decimal)
+        return true;
+
     // Allow base prefixes (only at the beginning or after a sign)
-    if (c == '0' && (is_first_char || (is_first_char + 1))) return true;
-    
+    if (c == '0' && (is_first_char || (is_first_char + 1)))
+        return true;
+
     // Allow 'x', 'b', 'o' for hex/binary/octal after '0'
     // Note: We only get here for the second character in "0x", "0b", "0o"
     if (!is_first_char && (c == 'x' || c == 'X' || c == 'b' || c == 'B' || c == 'o' || c == 'O')) {
@@ -1018,56 +1026,56 @@ static bool IsValidNumberChar(char c, bool is_first_char, bool allow_decimal) {
         // This will be validated by the base 0 parsing logic later
         return true;
     }
-    
+
     // Allow hex letters only for hexadecimal base (after 0x)
     // This is handled by the base detection in the parsing functions
     // We will just collect characters here and let the parser reject invalid ones
     if ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
         return true;
     }
-    
+
     // Allow 'e' or 'E' for scientific notation if decimal is allowed
-    if (allow_decimal && (c == 'e' || c == 'E')) return true;
-    
+    if (allow_decimal && (c == 'e' || c == 'E'))
+        return true;
+
     return false;
 }
 
 // Create a helper function to check if the parsed string contains only valid numeric characters
 static bool IsValidNumericString(const Str* str, bool allow_float) {
-    if (!str || !str->data) return false;
-    
+    if (!str || !str->data)
+        return false;
+
     // Empty string is invalid
-    if (str->length == 0) return false;
-    
+    if (str->length == 0)
+        return false;
+
     // Special floating point values: inf, nan
     if (allow_float) {
         if (str->length == 3) {
-            if ((str->data[0] == 'i' || str->data[0] == 'I') && 
-                (str->data[1] == 'n' || str->data[1] == 'N') && 
+            if ((str->data[0] == 'i' || str->data[0] == 'I') && (str->data[1] == 'n' || str->data[1] == 'N') &&
                 (str->data[2] == 'f' || str->data[2] == 'F')) {
                 return true; // "inf"
             }
-            if ((str->data[0] == 'n' || str->data[0] == 'N') && 
-                (str->data[1] == 'a' || str->data[1] == 'A') && 
+            if ((str->data[0] == 'n' || str->data[0] == 'N') && (str->data[1] == 'a' || str->data[1] == 'A') &&
                 (str->data[2] == 'n' || str->data[2] == 'N')) {
                 return true; // "nan"
             }
         }
-        
+
         if (str->length == 4 && str->data[0] == '-') {
-            if ((str->data[1] == 'i' || str->data[1] == 'I') && 
-                (str->data[2] == 'n' || str->data[2] == 'N') && 
+            if ((str->data[1] == 'i' || str->data[1] == 'I') && (str->data[2] == 'n' || str->data[2] == 'N') &&
                 (str->data[3] == 'f' || str->data[3] == 'F')) {
                 return true; // "-inf"
             }
         }
     }
-    
+
     // Check for decimal, octal, hex, or binary prefix
     bool is_hex = false;
     bool is_bin = false;
     bool is_oct = false;
-    
+
     if (str->length > 2 && str->data[0] == '0') {
         if (str->data[1] == 'x' || str->data[1] == 'X') {
             is_hex = true;
@@ -1077,25 +1085,26 @@ static bool IsValidNumericString(const Str* str, bool allow_float) {
             is_oct = true;
         }
     }
-    
+
     // For floating point, we need to track decimal point and scientific notation
     bool has_decimal = false;
-    bool has_exp = false;
-    
+    bool has_exp     = false;
+
     // Check each character
     for (size i = 0; i < str->length; i++) {
         char c = str->data[i];
-        
+
         // Skip prefix
         if ((is_hex || is_bin || is_oct) && (i == 0 || i == 1)) {
             continue;
         }
-        
+
         // Check sign (only valid at start or after 'e'/'E')
-        if ((c == '+' || c == '-') && (i == 0 || (allow_float && has_exp && (i > 0 && (str->data[i-1] == 'e' || str->data[i-1] == 'E'))))) {
+        if ((c == '+' || c == '-') &&
+            (i == 0 || (allow_float && has_exp && (i > 0 && (str->data[i - 1] == 'e' || str->data[i - 1] == 'E'))))) {
             continue;
         }
-        
+
         // Check decimal point (only for float and only once)
         if (allow_float && c == '.') {
             if (has_decimal) {
@@ -1104,7 +1113,7 @@ static bool IsValidNumericString(const Str* str, bool allow_float) {
             has_decimal = true;
             continue;
         }
-        
+
         // Check scientific notation (only for float and only once)
         if (allow_float && (c == 'e' || c == 'E')) {
             if (has_exp) {
@@ -1113,187 +1122,192 @@ static bool IsValidNumericString(const Str* str, bool allow_float) {
             has_exp = true;
             continue;
         }
-        
+
         // Check digits
         if (c >= '0' && c <= '9') {
             continue;
         }
-        
+
         // Check hex digits
         if (is_hex && ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) {
             continue;
         }
-        
+
         // Check binary digits
         if (is_bin && (c == '0' || c == '1')) {
             continue;
         }
-        
+
         // Check octal digits
         if (is_oct && (c >= '0' && c <= '7')) {
             continue;
         }
-        
+
         // Any other character is invalid
         return false;
     }
-    
+
     // Validate special requirements for float
     if (allow_float) {
         // If we have an exponent, make sure it's not at the end
         if (has_exp) {
             char last_char = str->data[str->length - 1];
-            if (last_char == 'e' || last_char == 'E' || 
-                last_char == '+' || last_char == '-') {
+            if (last_char == 'e' || last_char == 'E' || last_char == '+' || last_char == '-') {
                 return false; // Incomplete exponent
             }
         }
     }
-    
+
     return true;
 }
 
 const char* _read_f64(const char* i, f64* v) {
-    if (!i || !v) LOG_FATAL("Invalid arguments");
-    
+    if (!i || !v)
+        LOG_FATAL("Invalid arguments");
+
     // Skip whitespace
-    while (IS_SPACE(*i)) i++;
-    
+    while (IS_SPACE(*i))
+        i++;
+
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse f64: empty input");
         return i;
     }
-    
+
     // Check for special values (inf, nan)
-    if ((*i == 'i' || *i == 'I' || *i == 'n' || *i == 'N') ||
-        (*i == '-' && (*(i+1) == 'i' || *(i+1) == 'I'))) {
+    if ((*i == 'i' || *i == 'I' || *i == 'n' || *i == 'N') || (*i == '-' && (*(i + 1) == 'i' || *(i + 1) == 'I'))) {
         // For special values, use the original approach
         const char* start = i;
-        while (*i && !IS_SPACE(*i)) i++;
-        
+        while (*i && !IS_SPACE(*i))
+            i++;
+
         // Create a temporary Str for parsing
         Str temp = StrInitFromCstr(start, i - start);
-        
+
         // Try to parse as special value
         if (StrToF64(&temp, v)) {
             StrDeinit(&temp);
             return i;
         }
         StrDeinit(&temp);
-        
+
         // If parsing failed, fall back to the new approach
         i = start;
     }
-    
+
     // Find the end of the number using more precise rules
-    const char* start = i;
-    size pos = 0;
-    bool has_decimal = false;  // Track if we've seen a decimal point
-    
+    const char* start       = i;
+    size        pos         = 0;
+    bool        has_decimal = false; // Track if we've seen a decimal point
+
     // Parse character by character
     while (i[pos]) {
         // Only allow one decimal point
         if (i[pos] == '.') {
-            if (has_decimal) break; // Second decimal point - stop
+            if (has_decimal)
+                break; // Second decimal point - stop
             has_decimal = true;
         }
-        
+
         // If we see an 'e' or 'E', check if it's followed by a valid exponent
         if ((i[pos] == 'e' || i[pos] == 'E') && pos > 0) {
             // Move to the next character after 'e'
             pos++;
-            
+
             // Allow sign in exponent
-            if (i[pos] == '+' || i[pos] == '-') pos++;
-            
+            if (i[pos] == '+' || i[pos] == '-')
+                pos++;
+
             // Must have at least one digit in exponent
             if (!IS_DIGIT(i[pos])) {
                 // Invalid exponent - back up to before the 'e'
                 pos--;
                 break;
             }
-            
+
             // Continue with exponent digits
-            while (IS_DIGIT(i[pos])) pos++;
+            while (IS_DIGIT(i[pos]))
+                pos++;
             break; // Stop after exponent
         }
-        
+
         // Check if character is valid for a number
         if (!IsValidNumberChar(i[pos], pos == 0, true)) {
             break;
         }
-        
+
         pos++;
     }
-    
+
     // Create a temporary Str for parsing
     Str temp = StrInitFromCstr(start, pos);
-    
+
     // Validate the string is a proper floating point number
     if (!IsValidNumericString(&temp, true)) {
         LOG_ERROR("Invalid floating point format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Use StrToF64 directly
     if (!StrToF64(&temp, v)) {
         LOG_ERROR("Failed to parse f64");
         StrDeinit(&temp);
         return start;
     }
-    
+
     StrDeinit(&temp);
     return start + pos;
 }
 
 const char* _read_u8(const char* i, u8* v) {
-    if (!i || !v) LOG_FATAL("Invalid arguments");
-    
+    if (!i || !v)
+        LOG_FATAL("Invalid arguments");
+
     // Skip whitespace
-    while (IS_SPACE(*i)) i++;
-    
+    while (IS_SPACE(*i))
+        i++;
+
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse u8: empty input");
         return i;
     }
-    
+
     // Find the end of the number using more precise rules
     const char* start = i;
-    size pos = 0;
-    
+    size        pos   = 0;
+
     // Parse character by character
     while (i[pos]) {
         // Check if character is valid for a number
         if (!IsValidNumberChar(i[pos], pos == 0, false)) {
             break;
         }
-        
+
         pos++;
     }
-    
+
     // Create a temporary Str for parsing
     Str temp = StrInitFromCstr(start, pos);
-    
+
     // Check for special prefixes with no digits
-    if (temp.length == 2 && temp.data[0] == '0' && 
-        (temp.data[1] == 'x' || temp.data[1] == 'X' || 
-         temp.data[1] == 'b' || temp.data[1] == 'B' || 
+    if (temp.length == 2 && temp.data[0] == '0' &&
+        (temp.data[1] == 'x' || temp.data[1] == 'X' || temp.data[1] == 'b' || temp.data[1] == 'B' ||
          temp.data[1] == 'o' || temp.data[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Validate the string is a proper number
     if (!IsValidNumericString(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Use base 0 to let strtoul detect the base from prefix
     u64 val;
     if (!StrToU64(&temp, &val, 0)) {
@@ -1301,65 +1315,66 @@ const char* _read_u8(const char* i, u8* v) {
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Check for overflow
     if (val > UINT8_MAX) {
         LOG_ERROR("Value %llu exceeds u8 maximum (%u)", val, UINT8_MAX);
         StrDeinit(&temp);
         return start;
     }
-    
+
     *v = (u8)val;
     StrDeinit(&temp);
     return start + pos;
 }
 
 const char* _read_u16(const char* i, u16* v) {
-    if (!i || !v) LOG_FATAL("Invalid arguments");
-    
+    if (!i || !v)
+        LOG_FATAL("Invalid arguments");
+
     // Skip whitespace
-    while (IS_SPACE(*i)) i++;
-    
+    while (IS_SPACE(*i))
+        i++;
+
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse u16: empty input");
         return i;
     }
-    
+
     // Find the end of the number using more precise rules
     const char* start = i;
-    size pos = 0;
-    
+    size        pos   = 0;
+
     // Parse character by character
     while (i[pos]) {
         // Check if character is valid for a number
         if (!IsValidNumberChar(i[pos], pos == 0, false)) {
             break;
         }
-        
+
         pos++;
     }
-    
+
     // Create a temporary Str for parsing
     Str temp = StrInitFromCstr(start, pos);
-    
+
     // Check for special prefixes with no digits
-    if (temp.length == 2 && temp.data[0] == '0' && 
-        (temp.data[1] == 'x' || temp.data[1] == 'X' || 
-         temp.data[1] == 'b' || temp.data[1] == 'B' || 
+    if (temp.length == 2 && temp.data[0] == '0' &&
+        (temp.data[1] == 'x' || temp.data[1] == 'X' || temp.data[1] == 'b' || temp.data[1] == 'B' ||
          temp.data[1] == 'o' || temp.data[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Validate the string is a proper number
     if (!IsValidNumericString(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Use base 0 to let strtoul detect the base from prefix
     u64 val;
     if (!StrToU64(&temp, &val, 0)) {
@@ -1367,65 +1382,66 @@ const char* _read_u16(const char* i, u16* v) {
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Check for overflow
     if (val > UINT16_MAX) {
         LOG_ERROR("Value %llu exceeds u16 maximum (%u)", val, UINT16_MAX);
         StrDeinit(&temp);
         return start;
     }
-    
+
     *v = (u16)val;
     StrDeinit(&temp);
     return start + pos;
 }
 
 const char* _read_u32(const char* i, u32* v) {
-    if (!i || !v) LOG_FATAL("Invalid arguments");
-    
+    if (!i || !v)
+        LOG_FATAL("Invalid arguments");
+
     // Skip whitespace
-    while (IS_SPACE(*i)) i++;
-    
+    while (IS_SPACE(*i))
+        i++;
+
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse u32: empty input");
         return i;
     }
-    
+
     // Find the end of the number using more precise rules
     const char* start = i;
-    size pos = 0;
-    
+    size        pos   = 0;
+
     // Parse character by character
     while (i[pos]) {
         // Check if character is valid for a number
         if (!IsValidNumberChar(i[pos], pos == 0, false)) {
             break;
         }
-        
+
         pos++;
     }
-    
+
     // Create a temporary Str for parsing
     Str temp = StrInitFromCstr(start, pos);
-    
+
     // Check for special prefixes with no digits
-    if (temp.length == 2 && temp.data[0] == '0' && 
-        (temp.data[1] == 'x' || temp.data[1] == 'X' || 
-         temp.data[1] == 'b' || temp.data[1] == 'B' || 
+    if (temp.length == 2 && temp.data[0] == '0' &&
+        (temp.data[1] == 'x' || temp.data[1] == 'X' || temp.data[1] == 'b' || temp.data[1] == 'B' ||
          temp.data[1] == 'o' || temp.data[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Validate the string is a proper number
     if (!IsValidNumericString(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Use base 0 to let strtoul detect the base from prefix
     u64 val;
     if (!StrToU64(&temp, &val, 0)) {
@@ -1433,122 +1449,124 @@ const char* _read_u32(const char* i, u32* v) {
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Check for overflow
     if (val > UINT32_MAX) {
         LOG_ERROR("Value %llu exceeds u32 maximum (%u)", val, UINT32_MAX);
         StrDeinit(&temp);
         return start;
     }
-    
+
     *v = (u32)val;
     StrDeinit(&temp);
     return start + pos;
 }
 
 const char* _read_u64(const char* i, u64* v) {
-    if (!i || !v) LOG_FATAL("Invalid arguments");
-    
+    if (!i || !v)
+        LOG_FATAL("Invalid arguments");
+
     // Skip whitespace
-    while (IS_SPACE(*i)) i++;
-    
+    while (IS_SPACE(*i))
+        i++;
+
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse u64: empty input");
         return i;
     }
-    
+
     // Find the end of the number using more precise rules
     const char* start = i;
-    size pos = 0;
-    
+    size        pos   = 0;
+
     // Parse character by character
     while (i[pos]) {
         // Check if character is valid for a number
         if (!IsValidNumberChar(i[pos], pos == 0, false)) {
             break;
         }
-        
+
         pos++;
     }
-    
+
     // Create a temporary Str for parsing
     Str temp = StrInitFromCstr(start, pos);
-    
+
     // Check for special prefixes with no digits
-    if (temp.length == 2 && temp.data[0] == '0' && 
-        (temp.data[1] == 'x' || temp.data[1] == 'X' || 
-         temp.data[1] == 'b' || temp.data[1] == 'B' || 
+    if (temp.length == 2 && temp.data[0] == '0' &&
+        (temp.data[1] == 'x' || temp.data[1] == 'X' || temp.data[1] == 'b' || temp.data[1] == 'B' ||
          temp.data[1] == 'o' || temp.data[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Validate the string is a proper number
     if (!IsValidNumericString(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Use base 0 to let strtoul detect the base from prefix
     if (!StrToU64(&temp, v, 0)) {
         LOG_ERROR("Failed to parse u64");
         StrDeinit(&temp);
         return start;
     }
-    
+
     StrDeinit(&temp);
     return start + pos;
 }
 
 const char* _read_i8(const char* i, i8* v) {
-    if (!i || !v) LOG_FATAL("Invalid arguments");
-    
+    if (!i || !v)
+        LOG_FATAL("Invalid arguments");
+
     // Skip whitespace
-    while (IS_SPACE(*i)) i++;
-    
+    while (IS_SPACE(*i))
+        i++;
+
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse i8: empty input");
         return i;
     }
-    
+
     // Find the end of the number using more precise rules
     const char* start = i;
-    size pos = 0;
-    
+    size        pos   = 0;
+
     // Parse character by character
     while (i[pos]) {
         // Check if character is valid for a number
         if (!IsValidNumberChar(i[pos], pos == 0, false)) {
             break;
         }
-        
+
         pos++;
     }
-    
+
     // Create a temporary Str for parsing
     Str temp = StrInitFromCstr(start, pos);
-    
+
     // Check for special prefixes with no digits
-    if (temp.length == 2 && temp.data[0] == '0' && 
-        (temp.data[1] == 'x' || temp.data[1] == 'X' || 
-         temp.data[1] == 'b' || temp.data[1] == 'B' || 
+    if (temp.length == 2 && temp.data[0] == '0' &&
+        (temp.data[1] == 'x' || temp.data[1] == 'X' || temp.data[1] == 'b' || temp.data[1] == 'B' ||
          temp.data[1] == 'o' || temp.data[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Validate the string is a proper number
     if (!IsValidNumericString(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Use base 0 to let strtoul detect the base from prefix
     i64 val;
     if (!StrToI64(&temp, &val, 0)) {
@@ -1556,65 +1574,66 @@ const char* _read_i8(const char* i, i8* v) {
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Check for overflow/underflow
     if (val > INT8_MAX || val < INT8_MIN) {
         LOG_ERROR("Value %lld outside i8 range (%d to %d)", val, INT8_MIN, INT8_MAX);
         StrDeinit(&temp);
         return start;
     }
-    
+
     *v = (i8)val;
     StrDeinit(&temp);
     return start + pos;
 }
 
 const char* _read_i16(const char* i, i16* v) {
-    if (!i || !v) LOG_FATAL("Invalid arguments");
-    
+    if (!i || !v)
+        LOG_FATAL("Invalid arguments");
+
     // Skip whitespace
-    while (IS_SPACE(*i)) i++;
-    
+    while (IS_SPACE(*i))
+        i++;
+
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse i16: empty input");
         return i;
     }
-    
+
     // Find the end of the number using more precise rules
     const char* start = i;
-    size pos = 0;
-    
+    size        pos   = 0;
+
     // Parse character by character
     while (i[pos]) {
         // Check if character is valid for a number
         if (!IsValidNumberChar(i[pos], pos == 0, false)) {
             break;
         }
-        
+
         pos++;
     }
-    
+
     // Create a temporary Str for parsing
     Str temp = StrInitFromCstr(start, pos);
-    
+
     // Check for special prefixes with no digits
-    if (temp.length == 2 && temp.data[0] == '0' && 
-        (temp.data[1] == 'x' || temp.data[1] == 'X' || 
-         temp.data[1] == 'b' || temp.data[1] == 'B' || 
+    if (temp.length == 2 && temp.data[0] == '0' &&
+        (temp.data[1] == 'x' || temp.data[1] == 'X' || temp.data[1] == 'b' || temp.data[1] == 'B' ||
          temp.data[1] == 'o' || temp.data[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Validate the string is a proper number
     if (!IsValidNumericString(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Use base 0 to let strtoul detect the base from prefix
     i64 val;
     if (!StrToI64(&temp, &val, 0)) {
@@ -1622,65 +1641,66 @@ const char* _read_i16(const char* i, i16* v) {
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Check for overflow/underflow
     if (val > INT16_MAX || val < INT16_MIN) {
         LOG_ERROR("Value %lld outside i16 range (%d to %d)", val, INT16_MIN, INT16_MAX);
         StrDeinit(&temp);
         return start;
     }
-    
+
     *v = (i16)val;
     StrDeinit(&temp);
     return start + pos;
 }
 
 const char* _read_i32(const char* i, i32* v) {
-    if (!i || !v) LOG_FATAL("Invalid arguments");
-    
+    if (!i || !v)
+        LOG_FATAL("Invalid arguments");
+
     // Skip whitespace
-    while (IS_SPACE(*i)) i++;
-    
+    while (IS_SPACE(*i))
+        i++;
+
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse i32: empty input");
         return i;
     }
-    
+
     // Find the end of the number using more precise rules
     const char* start = i;
-    size pos = 0;
-    
+    size        pos   = 0;
+
     // Parse character by character
     while (i[pos]) {
         // Check if character is valid for a number
         if (!IsValidNumberChar(i[pos], pos == 0, false)) {
             break;
         }
-        
+
         pos++;
     }
-    
+
     // Create a temporary Str for parsing
     Str temp = StrInitFromCstr(start, pos);
-    
+
     // Check for special prefixes with no digits
-    if (temp.length == 2 && temp.data[0] == '0' && 
-        (temp.data[1] == 'x' || temp.data[1] == 'X' || 
-         temp.data[1] == 'b' || temp.data[1] == 'B' || 
+    if (temp.length == 2 && temp.data[0] == '0' &&
+        (temp.data[1] == 'x' || temp.data[1] == 'X' || temp.data[1] == 'b' || temp.data[1] == 'B' ||
          temp.data[1] == 'o' || temp.data[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Validate the string is a proper number
     if (!IsValidNumericString(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Use base 0 to let strtoul detect the base from prefix
     i64 val;
     if (!StrToI64(&temp, &val, 0)) {
@@ -1688,72 +1708,73 @@ const char* _read_i32(const char* i, i32* v) {
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Check for overflow/underflow
     if (val > INT32_MAX || val < INT32_MIN) {
         LOG_ERROR("Value %lld outside i32 range (%d to %d)", val, INT32_MIN, INT32_MAX);
         StrDeinit(&temp);
         return start;
     }
-    
+
     *v = (i32)val;
     StrDeinit(&temp);
     return start + pos;
 }
 
 const char* _read_i64(const char* i, i64* v) {
-    if (!i || !v) LOG_FATAL("Invalid arguments");
-    
+    if (!i || !v)
+        LOG_FATAL("Invalid arguments");
+
     // Skip whitespace
-    while (IS_SPACE(*i)) i++;
-    
+    while (IS_SPACE(*i))
+        i++;
+
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse i64: empty input");
         return i;
     }
-    
+
     // Find the end of the number using more precise rules
     const char* start = i;
-    size pos = 0;
-    
+    size        pos   = 0;
+
     // Parse character by character
     while (i[pos]) {
         // Check if character is valid for a number
         if (!IsValidNumberChar(i[pos], pos == 0, false)) {
             break;
         }
-        
+
         pos++;
     }
-    
+
     // Create a temporary Str for parsing
     Str temp = StrInitFromCstr(start, pos);
-    
+
     // Check for special prefixes with no digits
-    if (temp.length == 2 && temp.data[0] == '0' && 
-        (temp.data[1] == 'x' || temp.data[1] == 'X' || 
-         temp.data[1] == 'b' || temp.data[1] == 'B' || 
+    if (temp.length == 2 && temp.data[0] == '0' &&
+        (temp.data[1] == 'x' || temp.data[1] == 'X' || temp.data[1] == 'b' || temp.data[1] == 'B' ||
          temp.data[1] == 'o' || temp.data[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Validate the string is a proper number
     if (!IsValidNumericString(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Use base 0 to let strtoul detect the base from prefix
     if (!StrToI64(&temp, v, 0)) {
         LOG_ERROR("Failed to parse i64");
         StrDeinit(&temp);
         return start;
     }
-    
+
     StrDeinit(&temp);
     return start + pos;
 }
@@ -1792,37 +1813,39 @@ void _write_UnsupportedType(Str* o, FmtInfo* fmt_info, const char** s) {
     (void)o;
     (void)fmt_info;
     (void)s;
-    LOG_ERROR("Attempt to write unsupported type");
+    LOG_FATAL("Attempt to write unsupported type");
 }
 
 const char* _read_UnsupportedType(const char* i, const char** s) {
     (void)s;
-    LOG_ERROR("Attempt to read unsupported type.");
+    LOG_FATAL("Attempt to read unsupported type.");
     return i;
 }
 
 const char* _read_f32(const char* i, f32* v) {
-    if (!i || !v) LOG_FATAL("Invalid arguments");
-    
+    if (!i || !v)
+        LOG_FATAL("Invalid arguments");
+
     // Skip whitespace
-    while (IS_SPACE(*i)) i++;
-    
+    while (IS_SPACE(*i))
+        i++;
+
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse f32: empty input");
         return i;
     }
-    
+
     // Check for special values (inf, nan)
-    if ((*i == 'i' || *i == 'I' || *i == 'n' || *i == 'N') ||
-        (*i == '-' && (*(i+1) == 'i' || *(i+1) == 'I'))) {
+    if ((*i == 'i' || *i == 'I' || *i == 'n' || *i == 'N') || (*i == '-' && (*(i + 1) == 'i' || *(i + 1) == 'I'))) {
         // For special values, use the original approach
         const char* start = i;
-        while (*i && !IS_SPACE(*i)) i++;
-        
+        while (*i && !IS_SPACE(*i))
+            i++;
+
         // Create a temporary Str for parsing
         Str temp = StrInitFromCstr(start, i - start);
-        
+
         // Try to parse as special value
         f64 val;
         if (StrToF64(&temp, &val)) {
@@ -1831,62 +1854,65 @@ const char* _read_f32(const char* i, f32* v) {
             return i;
         }
         StrDeinit(&temp);
-        
+
         // If parsing failed, fall back to the new approach
         i = start;
     }
-    
+
     // Find the end of the number using more precise rules
-    const char* start = i;
-    size pos = 0;
-    bool has_decimal = false;  // Track if we've seen a decimal point
-    
+    const char* start       = i;
+    size        pos         = 0;
+    bool        has_decimal = false; // Track if we've seen a decimal point
+
     // Parse character by character
     while (i[pos]) {
         // Only allow one decimal point
         if (i[pos] == '.') {
-            if (has_decimal) break; // Second decimal point - stop
+            if (has_decimal)
+                break; // Second decimal point - stop
             has_decimal = true;
         }
-        
+
         // If we see an 'e' or 'E', check if it's followed by a valid exponent
         if ((i[pos] == 'e' || i[pos] == 'E') && pos > 0) {
             // Move to the next character after 'e'
             pos++;
-            
+
             // Allow sign in exponent
-            if (i[pos] == '+' || i[pos] == '-') pos++;
-            
+            if (i[pos] == '+' || i[pos] == '-')
+                pos++;
+
             // Must have at least one digit in exponent
             if (!IS_DIGIT(i[pos])) {
                 // Invalid exponent - back up to before the 'e'
                 pos--;
                 break;
             }
-            
+
             // Continue with exponent digits
-            while (IS_DIGIT(i[pos])) pos++;
+            while (IS_DIGIT(i[pos]))
+                pos++;
             break; // Stop after exponent
         }
-        
+
         // Check if character is valid for a number
         if (!IsValidNumberChar(i[pos], pos == 0, true)) {
             break;
         }
-        
+
         pos++;
     }
-    
+
     // Create a temporary Str for parsing
     Str temp = StrInitFromCstr(start, pos);
-    
+
     // Validate the string is a proper floating point number
     if (!IsValidNumericString(&temp, true)) {
         LOG_ERROR("Invalid floating point format");
         StrDeinit(&temp);
         return start;
     }
-    
+
     // Use StrToF64 directly
     f64 val;
     if (!StrToF64(&temp, &val)) {
@@ -1894,8 +1920,39 @@ const char* _read_f32(const char* i, f32* v) {
         StrDeinit(&temp);
         return start;
     }
-    
+
     *v = (f32)val;
     StrDeinit(&temp);
     return start + pos;
+}
+
+void _write_char(Str* o, FmtInfo* fmt_info, char* v) {
+    if (!o || !fmt_info || !v) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    u8 vx = (u8)*v;
+    if (vx > 0x7f) {
+        StrPushBackZstr(o, "\\x");
+        fmt_info->is_hex = true;
+        _write_u8(o, fmt_info, &vx);
+    } else {
+        StrPushBack(o, *v);
+    }
+}
+
+const char* _read_char(const char* in, char* v){
+    if(!in || !v) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    if(in[0] == '\\' && in[1] == 'x') {
+        u8 vx = 0;
+        const char* out =_read_u8(in + 2,&vx );
+        *v = vx;
+        return out;
+    } else {
+        *v = *in;
+        return in + 1;
+    }
 }

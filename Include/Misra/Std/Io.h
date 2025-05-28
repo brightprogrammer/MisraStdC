@@ -44,15 +44,15 @@ typedef enum {
 /// TAGS: Formatting, Text, Configuration
 typedef struct {
     Alignment align;
-    size width;
-    size precision;
-    bool has_precision;
-    bool is_hex;
-    bool is_binary;
-    bool is_octal;
-    bool is_debug;
-    bool is_scientific;
-    bool is_caps;
+    size      width;
+    size      precision;
+    bool      has_precision;
+    bool      is_hex;
+    bool      is_binary;
+    bool      is_octal;
+    bool      is_debug;
+    bool      is_scientific;
+    bool      is_caps;
 } FmtInfo;
 
 
@@ -118,6 +118,8 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
         i64: TO_TYPE_SPECIFIC_IO(i64, &(x)),                                                                           \
         f32: TO_TYPE_SPECIFIC_IO(f32, &(x)),                                                                           \
         f64: TO_TYPE_SPECIFIC_IO(f64, &(x)),                                                                           \
+        char: TO_TYPE_SPECIFIC_IO(char, &(x)),                                                                           \
+        size: TO_TYPE_SPECIFIC_IO(u64, &(x)),                                                                           \
         default: TO_TYPE_SPECIFIC_IO(UnsupportedType, NULL)                                                            \
     )
 
@@ -214,8 +216,8 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 #define StrWriteFmt_IMPL2(input, fmtstr, varr)                                                                         \
     do {                                                                                                               \
         TypeSpecificIO *argv = &(varr)[0];                                                                             \
-        size            argc = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                              \
-        StrWriteFmtInternal((input), (fmtstr), argv, argc);                                                            \
+        size            argc = sizeof(varr) / sizeof(TypeSpecificIO);                                                  \
+        StrWriteFmtInternal((input), (fmtstr), argv, argc - 1);                                                        \
     } while (0)
 
 ///
@@ -234,13 +236,13 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// TAGS: Macro, Wrapper, Format, Parsing, I/O
 ///
-#define StrReadFmt(input, ...)                 StrReadFmt_IMPL1(input, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
-#define StrReadFmt_IMPL1(input, fmtstr, ...)   StrReadFmt_IMPL2(input, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define StrReadFmt(input, ...)               StrReadFmt_IMPL1(input, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
+#define StrReadFmt_IMPL1(input, fmtstr, ...) StrReadFmt_IMPL2(input, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
 #define StrReadFmt_IMPL2(input, fmtstr, varr)                                                                          \
     do {                                                                                                               \
         TypeSpecificIO *argv = &(varr)[0];                                                                             \
-        size            argc = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                              \
-        StrReadFmtInternal((input), (fmtstr), argv, argc);                                                             \
+        size            argc = sizeof(varr) / sizeof(TypeSpecificIO);                                                  \
+        StrReadFmtInternal((input), (fmtstr), argv, argc - 1);                                                         \
     } while (0)
 
 ///
@@ -260,8 +262,8 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
-#define FReadFmt(file, ...)                    FReadFmt_IMPL1(file, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
-#define FReadFmt_IMPL1(file, fmtstr, ...)      FReadFmt_IMPL2(file, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define FReadFmt(file, ...)               FReadFmt_IMPL1(file, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
+#define FReadFmt_IMPL1(file, fmtstr, ...) FReadFmt_IMPL2(file, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
 #define FReadFmt_IMPL2(file, fmtstr, varr)                                                                             \
     do {                                                                                                               \
         TypeSpecificIO *argv = &(varr)[0];                                                                             \
@@ -286,13 +288,13 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
-#define FWriteFmt(stream, ...)                 FWriteFmt_IMPL1(stream, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
-#define FWriteFmt_IMPL1(stream, fmtstr, ...)   FWriteFmt_IMPL2(stream, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define FWriteFmt(stream, ...)               FWriteFmt_IMPL1(stream, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
+#define FWriteFmt_IMPL1(stream, fmtstr, ...) FWriteFmt_IMPL2(stream, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
 #define FWriteFmt_IMPL2(stream, fmtstr, varr)                                                                          \
     do {                                                                                                               \
         TypeSpecificIO *argv = &(varr)[0];                                                                             \
         size            argc = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                              \
-        Str            out    = StrInit();                                                                             \
+        Str             out  = StrInit();                                                                              \
         StrWriteFmtInternal(&out, (fmtstr), argv, argc);                                                               \
         fputs(out.data, (stream));                                                                                     \
         StrDeinit(&out);                                                                                               \
@@ -322,7 +324,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
     do {                                                                                                               \
         TypeSpecificIO *argv = &(varr)[0];                                                                             \
         size            argc = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                              \
-        Str            out    = StrInit();                                                                             \
+        Str             out  = StrInit();                                                                              \
         StrWriteFmtInternal(&out, (fmtstr), argv, argc);                                                               \
         fputs(out.data, (stream));                                                                                     \
         fputc('\n', (stream));                                                                                         \
@@ -398,6 +400,7 @@ void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s);
 void _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s);
 void _write_f32(Str *o, FmtInfo *fmt_info, f32 *v);
 void _write_f64(Str *o, FmtInfo *fmt_info, f64 *v);
+void _write_char(Str* o, FmtInfo* fmt_info, char* v);
 
 const char *_read_Str(const char *i, Str *s);
 const char *_read_u8(const char *i, u8 *v);
@@ -412,5 +415,6 @@ const char *_read_Zstr(const char *i, const char **v);
 const char *_read_UnsupportedType(const char *i, const char **s);
 const char *_read_f32(const char *i, f32 *v);
 const char *_read_f64(const char *i, f64 *v);
+const char* _read_char(const char* i, char* v);
 
 #endif // MISRA_STD_IO
