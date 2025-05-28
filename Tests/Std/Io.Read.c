@@ -1,7 +1,5 @@
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
-#include <sys/wait.h>
-#include <unistd.h>
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
