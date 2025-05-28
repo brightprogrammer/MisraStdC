@@ -75,7 +75,7 @@ bool StrInitCopy(Str* dst, const Str* src) {
     dst->copy_deinit = src->copy_deinit;
     dst->alignment   = src->alignment;
 
-    VecMerge(dst, src);
+    VecMergeR(dst, src);
     ValidateStr(dst);
 
     return true;
