@@ -70,7 +70,7 @@ bool test_str_from_i64(void) {
     // Test hexadecimal conversion of negative number (check only for prefix, not exact value)
     StrClear(&s);
     StrFromI64(&s, -0xABCD, 16, false);
-    result = result && (strncmp(s.data, "0x", 2) == 0);
+    result = result && (ZstrCompareN(s.data, "0x", 2) == 0);
     
     // Test zero
     StrClear(&s);

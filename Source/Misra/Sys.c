@@ -96,7 +96,7 @@ SysDirContents SysGetDirContents(const char* path) {
 
     do {
         // Skip "." and ".." entries
-        if (strcmp(findFileData.cFileName, ".") == 0 || strcmp(findFileData.cFileName, "..") == 0) {
+        if (ZstrCompare(findFileData.cFileName, ".") == 0 || ZstrCompare(findFileData.cFileName, "..") == 0) {
             continue;
         }
 

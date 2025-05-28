@@ -47,19 +47,7 @@ misra_std = static_library(
     install: true
 )
 
-# Add the misra executable
-misra_sources = files(
-    'Main.c'
-)
-
-executable(
-    'misra',
-    misra_sources,
-    link_with: [misra_std],
-    c_args: common_c_args,
-    include_directories: inc_misra,
-    install: true
-)
+# Main.c and misra executable have been removed
 
 executable(
     'MisraEnum',

@@ -45,7 +45,7 @@ bool test_str_init_from_cstr(void) {
     
     // Check that it's initialized correctly
     bool result = (s.length == len && 
-                  strncmp(s.data, test_str, len) == 0 &&
+                  ZstrCompareN(s.data, test_str, len) == 0 &&
                   s.data[len] == '\0');
     
     StrDeinit(&s);

@@ -189,7 +189,7 @@
 #define VecInsertRangeL(v, varr, idx, count)                                                                           \
     do {                                                                                                               \
         {                                                                                                              \
-            if (!varr) {                                                                                               \
+            if (varr == NULL) {                                                                                        \
                 LOG_FATAL("Expected a valid pointer");                                                                 \
             }                                                                                                          \
             const VEC_DATATYPE(v) __x = *(varr);                                                                       \
@@ -225,7 +225,7 @@
 #define VecInsertRangeR(v, varr, idx, count)                                                                           \
     do {                                                                                                               \
         {                                                                                                              \
-            if (!varr) {                                                                                               \
+            if (varr == NULL) {                                                                                        \
                 LOG_FATAL("Expected a valid pointer");                                                                 \
             }                                                                                                          \
             const VEC_DATATYPE(v) __x = *(varr);                                                                       \
@@ -283,7 +283,7 @@
 #define VecInsertRangeFastL(v, varr, idx, count)                                                                       \
     do {                                                                                                               \
         {                                                                                                              \
-            if (!varr) {                                                                                               \
+            if (varr == NULL) {                                                                                        \
                 LOG_FATAL("Expected a valid pointer");                                                                 \
             }                                                                                                          \
             const VEC_DATATYPE(v) __x = *(varr);                                                                       \
@@ -321,7 +321,7 @@
 #define VecInsertRangeFastR(v, varr, idx, count)                                                                       \
     do {                                                                                                               \
         {                                                                                                              \
-            if (!varr) {                                                                                               \
+            if (varr == NULL) {                                                                                        \
                 LOG_FATAL("Expected a valid pointer");                                                                 \
             }                                                                                                          \
             const VEC_DATATYPE(v) __x = *(varr);                                                                       \

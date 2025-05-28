@@ -72,14 +72,14 @@ bool test_str_resize(void) {
     StrResize(&s, 3);
     
     // Length should now be 3 and content should be "Hel"
-    result = result && (s.length == 3) && (strncmp(s.data, "Hel", 3) == 0);
+    result = result && (s.length == 3) && (ZstrCompareN(s.data, "Hel", 3) == 0);
     
     // Resize to a larger length
     StrResize(&s, 8);
     
     // Length should now be 8, and the first 3 characters should still be "Hel"
     // The rest will be filled with zeros
-    result = result && (s.length == 8) && (strncmp(s.data, "Hel", 3) == 0);
+    result = result && (s.length == 8) && (ZstrCompareN(s.data, "Hel", 3) == 0);
     
     StrDeinit(&s);
     return result;

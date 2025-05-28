@@ -563,7 +563,22 @@ static inline i32 ZstrCompareN(const char* s1, const char* s2, size n) {
     if (!s1 || !s2)
         return s1 == s2 ? 0 : (s1 ? 1 : -1);
 
-    return strncmp(s1, s2, n);
+    // Compare characters up to n
+    size i = 0;
+    while (i < n && s1[i] && s2[i]) {
+        if (s1[i] != s2[i]) {
+            return (i32)(unsigned char)s1[i] - (i32)(unsigned char)s2[i];
+        }
+        i++;
+    }
+    
+    // If we reached the limit or both strings ended at the same time
+    if (i == n || (!s1[i] && !s2[i])) {
+        return 0;
+    }
+    
+    // One string ended before the other
+    return s1[i] ? 1 : -1;
 }
 
 ///

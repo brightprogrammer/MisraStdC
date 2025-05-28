@@ -23,7 +23,7 @@
     do {                                                                                                               \
         size idx            = 0;                                                                                       \
         VEC_DATATYPE(v) var = {0};                                                                                     \
-        if ((v) && (v)->length) {                                                                                      \
+        if ((v) != NULL && (v)->length > 0) {                                                                          \
             for ((idx) = 0; (idx) < (v)->length; ++(idx)) {                                                            \
                 var = VecAt(v, idx);                                                                                   \
                 { body }                                                                                               \
@@ -46,7 +46,7 @@
     do {                                                                                                               \
         size idx            = 0;                                                                                       \
         VEC_DATATYPE(v) var = {0};                                                                                     \
-        if ((v) && (v)->length) {                                                                                      \
+        if ((v) != NULL && (v)->length > 0) {                                                                          \
             for ((idx) = (v)->length - 1; (idx) < (v)->length; --(idx)) {                                              \
                 if ((idx) >= (v)->length) {                                                                            \
                     LOG_FATAL("Vector range overflow : Invalid index reached during Foreach reverse iteration.");      \
@@ -73,7 +73,7 @@
     do {                                                                                                               \
         size idx             = 0;                                                                                      \
         VEC_DATATYPE(v) *var = NULL;                                                                                   \
-        if ((v) && (v)->length) {                                                                                      \
+        if ((v) != NULL && (v)->length > 0) {                                                                          \
             for ((idx) = 0; (idx) < (v)->length; ++(idx)) {                                                            \
                 if ((idx) >= (v)->length) {                                                                            \
                     LOG_FATAL("Vector range overflow : Invalid index reached during Foreach iteration.");              \
@@ -99,7 +99,7 @@
     do {                                                                                                               \
         size idx             = 0;                                                                                      \
         VEC_DATATYPE(v) *var = {0};                                                                                    \
-        if ((v) && (v)->length) {                                                                                      \
+        if ((v) != NULL && (v)->length > 0) {                                                                          \
             for ((idx) = (v)->length - 1; (idx) < (v)->length; --(idx)) {                                              \
                 if ((idx) >= (v)->length) {                                                                            \
                     LOG_FATAL("Vector range overflow : Invalid index reached during Foreach reverse iteration.");      \
@@ -172,7 +172,7 @@
     do {                                                                                                               \
         size ____iter___             = 0;                                                                              \
         VEC_DATATYPE(v) *var = NULL;                                                                                   \
-        if ((v) && (v)->length) {                                                                                      \
+        if ((v) != NULL && (v)->length > 0) {                                                                          \
             for (____iter___ = 0; ____iter___ < (v)->length; ++____iter___) {                                          \
                 if (____iter___ >= (v)->length) {                                                                      \
                     LOG_FATAL("Vector range overflow : Invalid index reached during Foreach iteration.");              \

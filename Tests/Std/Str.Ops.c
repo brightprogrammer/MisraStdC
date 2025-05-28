@@ -74,7 +74,7 @@ bool test_str_find(void) {
     
     // Test StrFindCstr
     const char* found5 = StrFindCstr(&haystack, "Wor", 3);
-    result = result && (found5 != NULL && strncmp(found5, "World", 3) == 0);
+    result = result && (found5 != NULL && ZstrCompareN(found5, "World", 3) == 0);
     
     StrDeinit(&haystack);
     StrDeinit(&needle1);

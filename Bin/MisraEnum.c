@@ -146,9 +146,9 @@ int main(int argc, char** argv) {
         VecForeach(&entries, e, {
             StrAppendf(
                 &code,
-                "    if(!strncmp(\"%s\", zstr, %zu)) {return %s;}\n",
+                "    if(ZstrCompareN(\"%s\", zstr, %llu) == 0) {return %s;}\n",
                 e.str.data,
-                e.str.length,
+                (unsigned long long)e.str.length,
                 e.name.data
             );
         });
