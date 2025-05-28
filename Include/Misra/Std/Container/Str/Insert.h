@@ -157,7 +157,35 @@ extern "C" {
 #define StrPushFront(str, chr) VecPushFrontR((str), (chr))
 
 ///
-/// Merge two strings and store the result in first string.
+/// Merge two strings and store the result in first string, with L-value semantics.
+///
+/// Data is copied from `str2` into `str`. If a `copy_init` method is provided in `str`,
+/// each element from `str2` will be copied using that method. Otherwise, a raw memory
+/// copy is performed.
+///
+/// NOTE: This function completely transfers ownership from `str2` to `str` by:
+///       1. Adding all elements from `str2` to `str`
+///       2. Freeing the memory allocated for `str2->data`
+///       3. Resetting all fields of `str2` to zero using MemSet
+///
+/// After this operation, `str2` will be in a reset state (as if just initialized with StrInit).
+///
+/// str[in,out] : Str to insert array chars into.
+/// str2[in,out]: Str to be inserted and reset.
+///
+/// SUCCESS : `str`
+/// FAILURE : NULL
+///
+#define StrMergeL(str, str2) VecMergeL((str), (str2))
+
+///
+/// Merge two strings and store the result in first string, with R-value semantics.
+///
+/// Data is copied from `str2` into `str`. If a `copy_init` method is provided in `str`,
+/// each element from `str2` will be copied using that method. Otherwise, a raw memory
+/// copy is performed.
+///
+/// NOTE: Unlike StrMergeL, this does NOT zero out the source string's data after merging.
 ///
 /// str[in,out] : Str to insert array chars into.
 /// str2[in]    : Str to be inserted.
@@ -165,7 +193,26 @@ extern "C" {
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrMerge(str, str2) VecMergeR((str), (str2))
+#define StrMergeR(str, str2) VecMergeR((str), (str2))
+
+///
+/// Merge two strings and store the result in first string.
+/// By default, this uses R-value semantics (preserves source string).
+///
+/// Data is copied from `str2` into `str`. If a `copy_init` method is provided in `str`,
+/// each element from `str2` will be copied using that method. Otherwise, a raw memory
+/// copy is performed.
+///
+/// NOTE: This preserves the source string. If you want to transfer ownership and reset
+///       the source string, use StrMergeL instead.
+///
+/// str[in,out] : Str to insert array chars into.
+/// str2[in]    : Str to be inserted.
+///
+/// SUCCESS : `str`
+/// FAILURE : NULL
+///
+#define StrMerge(str, str2) StrMergeR((str), (str2))
 
     ///
     /// Print and append into given string object with given format.
