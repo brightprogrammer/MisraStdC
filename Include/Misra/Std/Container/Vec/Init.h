@@ -19,25 +19,8 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
-#define VecInit()                                                                                                      \
-    {.length      = 0,                                                                                                 \
-     .capacity    = 0,                                                                                                 \
-     .copy_init   = (GenericCopyInit)NULL,                                                                             \
-     .copy_deinit = (GenericCopyDeinit)NULL,                                                                           \
-     .data        = NULL,                                                                                              \
-     .alignment   = 1}
+#define VecInit() VecInitAlignedWithDeepCopy(NULL, NULL, 1)
 
-#ifdef __cplusplus
-#    define VecInitT(v)                                                                                                \
-        (TYPE_OF(v) {                                                                                                  \
-            .length      = 0,                                                                                          \
-            .capacity    = 0,                                                                                          \
-            .copy_init   = (GenericCopyInit)NULL,                                                                      \
-            .copy_deinit = (GenericCopyDeinit)NULL,                                                                    \
-            .data        = NULL,                                                                                       \
-            .alignment   = 1                                                                                           \
-        })
-#else
 ///
 /// Initialize given vector. Default alignment is 1
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
@@ -53,14 +36,7 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
-#    define VecInitT(v)                                                                                                \
-        ((TYPE_OF(v)) {.length      = 0,                                                                               \
-                       .capacity    = 0,                                                                               \
-                       .copy_init   = (GenericCopyInit)NULL,                                                           \
-                       .copy_deinit = (GenericCopyDeinit)NULL,                                                         \
-                       .data        = NULL,                                                                            \
-                       .alignment   = 1})
-#endif
+#define VecInitT(v) VecInitAlignedWithDeepCopyT(v, NULL, NULL, 1)
 
 ///
 /// Initialize vector. Default alignment is 1
@@ -74,25 +50,8 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
-#define VecInitWithDeepCopy(ci, cd)                                                                                    \
-    {.length      = 0,                                                                                                 \
-     .capacity    = 0,                                                                                                 \
-     .copy_init   = (GenericCopyInit)(ci),                                                                             \
-     .copy_deinit = (GenericCopyDeinit)(cd),                                                                           \
-     .data        = NULL,                                                                                              \
-     .alignment   = 1}
+#define VecInitWithDeepCopy(ci, cd) VecInitAlignedWithDeepCopy(ci, cd, 1)
 
-#ifdef __cplusplus
-#    define VecInitWithDeepCopyT(v, ci, cd)                                                                            \
-        (TYPE_OF(v) {                                                                                                  \
-            .length      = 0,                                                                                          \
-            .capacity    = 0,                                                                                          \
-            .copy_init   = (GenericCopyInit)(ci),                                                                      \
-            .copy_deinit = (GenericCopyDeinit)(cd),                                                                    \
-            .data        = NULL,                                                                                       \
-            .alignment   = 1                                                                                           \
-        })
-#else
 ///
 /// Initialize given vector. Default alignment is 1
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
@@ -113,14 +72,7 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
-#    define VecInitWithDeepCopyT(v, ci, cd)                                                                            \
-        ((TYPE_OF(v)) {.length      = 0,                                                                               \
-                       .capacity    = 0,                                                                               \
-                       .copy_init   = (GenericCopyInit)(ci),                                                           \
-                       .copy_deinit = (GenericCopyDeinit)(cd),                                                         \
-                       .data        = NULL,                                                                            \
-                       .alignment   = 1})
-#endif
+#define VecInitWithDeepCopyT(v, ci, cd) VecInitAlignedWithDeepCopyT(v, ci, cd, 1)
 
 ///
 /// Initialize vector with given alignment.
@@ -138,25 +90,8 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
-#define VecInitAligned(aln)                                                                                            \
-    {.length      = 0,                                                                                                 \
-     .capacity    = 0,                                                                                                 \
-     .copy_init   = (GenericCopyInit)NULL,                                                                             \
-     .copy_deinit = (GenericCopyDeinit)NULL,                                                                           \
-     .data        = NULL,                                                                                              \
-     .alignment   = (aln)}
+#define VecInitAligned(aln) VecInitAlignedWithDeepCopy(NULL, NULL, aln)
 
-#ifdef __cplusplus
-#    define VecInitAlignedT(v, aln)                                                                                    \
-        (TYPE_OF(v) {                                                                                                  \
-            .length      = 0,                                                                                          \
-            .capacity    = 0,                                                                                          \
-            .copy_init   = (GenericCopyInit)NULL,                                                                      \
-            .copy_deinit = (GenericCopyDeinit)NULL,                                                                    \
-            .data        = NULL,                                                                                       \
-            .alignment   = (aln)                                                                                       \
-        })
-#else
 ///
 /// Initialize given vector with given alignment.
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
@@ -181,14 +116,7 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
-#    define VecInitAlignedT(v, aln)                                                                                    \
-        ((TYPE_OF(v)) {.length      = 0,                                                                               \
-                       .capacity    = 0,                                                                               \
-                       .copy_init   = (GenericCopyInit)NULL,                                                           \
-                       .copy_deinit = (GenericCopyDeinit)NULL,                                                         \
-                       .data        = NULL,                                                                            \
-                       .alignment   = (aln)})
-#endif
+#define VecInitAlignedT(v, aln) VecInitAlignedWithDeepCopyT(v, NULL, NULL, aln)
 
 ///
 /// Initialize vector with given alignment.
@@ -205,7 +133,7 @@
 ///
 /// USAGE:
 ///   typedef Vec(Node) NodeVec;
-///   NodeVec nodes = VecInitAligned(NodeInitCopy, NodeDeinit, 48);
+///   NodeVec nodes = VecInitAlignedWithDeepCopy(NodeInitCopy, NodeDeinit, 48);
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
@@ -228,6 +156,7 @@
             .alignment   = (aln)                                                                                       \
         })
 #else
+
 ///
 /// Initialize given vector with given alignment.
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
@@ -268,6 +197,57 @@
 #endif
 
 ///
+/// Initialize given vector with given alignment.
+/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
+///
+/// Provided alignment is used to keep all objects at an aligned memory location,
+/// avoiding UB in some cases. It's recommended to use aligned vector when dealing with
+/// structs containing unions.
+///
+/// These vectors are best used where user doesn't get a chance to or does not want
+/// to deinit vector, given that no data in vector needs to be deinitialized.
+/// Example includes, but does not limit to a Vec(i8), Vec(f32), etc...
+///
+/// v[in,out] : Vector that needs to be initialized.
+/// ne[in]    : Number of elements to allocate aligned stack memory for.
+/// ci[in]    : Copy init method for copying over elements in vector.
+/// cd[in]    : Copy deinit method for deiniting elements in vector.
+/// aln[in]   : Alignment value to align all emenets to.
+///
+/// USAGE:
+///   Vec(Node*) nodes;
+///
+///   // initialize vector with stack memory, aligned with 124 byte boundary
+///   VecInitAlignedWithDeepCopyStack(&nodes, 24, NodeInitCopy, NodeDeinit, 124, {
+///         // scope where vector memory is available
+///         FindAndFillAllNodes(&nodes, ... /* some other relevant data */);
+///
+///         UseNodes(&nodes);
+///
+///         VecForeach(&nodes, node, {
+///         });
+///
+///         // vector deinit will be called for you after this automatically
+///         // so any data held by the vector in this scope is invalid outside
+///   });
+///
+/// TAGS: Init, Vec, Stack, Aligned, Length, Size, Array
+///
+#define VecInitAlignedWithDeepCopyStack(v, ne, ci, cd, aln, scoped_body)                                               \
+    do {                                                                                                               \
+        char ___data___[ALIGN_UP(sizeof(VEC_DATATYPE(&(v))), (aln)) * ((ne) + 1)] = {0};                               \
+                                                                                                                       \
+        (v)          = VecInitAlignedWithDeepCopyT((v), (ci), (cd), (aln));                                            \
+        (v).capacity = (ne);                                                                                           \
+        (v).data     = (VEC_DATATYPE(&(v)) *)&___data___[0];                                                           \
+                                                                                                                       \
+        {scoped_body}                                                                                                  \
+                                                                                                                       \
+        memset(___data___, 0, sizeof(___data___));                                                                     \
+        memset(&(v), 0, sizeof(v));                                                                                    \
+    } while (0)
+
+///
 /// Initialize given vector using memory from stack.
 /// Such vectors cannot be dynamically resized. Doing so is UB.
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
@@ -295,19 +275,7 @@
 ///
 /// TAGS: Init, Vec, Stack, Length, Size, Array
 ///
-#define VecInitStack(v, ne, scoped_body)                                                                               \
-    do {                                                                                                               \
-        VEC_DATATYPE(&(v)) ___data___[(ne) + 1] = {0};                                                                 \
-                                                                                                                       \
-        (v)          = VecInitT(v);                                                                                    \
-        (v).capacity = (ne);                                                                                           \
-        (v).data     = &___data___[0];                                                                                 \
-                                                                                                                       \
-        {scoped_body}                                                                                                  \
-                                                                                                                       \
-        memset(___data___, 0, sizeof(___data___));                                                                     \
-        memset(&(v), 0, sizeof(v));                                                                                    \
-    } while (0)
+#define VecInitStack(v, ne, scoped_body) VecInitAlignedWithDeepCopyStack(v, ne, NULL, NULL, 1, scoped_body)
 
 ///
 /// Initialize given vector with given alignment.
@@ -345,19 +313,7 @@
 ///
 /// TAGS: Init, Vec, Stack, Aligned, Length, Size, Array
 ///
-#define VecInitAlignedStack(v, ne, aln, scoped_body)                                                                   \
-    do {                                                                                                               \
-        char ___data___[ALIGN_UP(sizeof(VEC_DATATYPE(&(v))), (aln)) * ((ne) + 1)] = {0};                               \
-                                                                                                                       \
-        (v)          = VecInitAlignedT((v), (aln));                                                                    \
-        (v).capacity = (ne);                                                                                           \
-        (v).data     = (VEC_DATATYPE(&(v)) *)&___data___[0];                                                           \
-                                                                                                                       \
-        {scoped_body}                                                                                                  \
-                                                                                                                       \
-        memset(___data___, 0, sizeof(___data___));                                                                     \
-        memset(&(v), 0, sizeof(v));                                                                                    \
-    } while (0)
+#define VecInitAlignedStack(v, ne, aln, scoped_body) VecInitAlignedWithDeepCopyStack(v, ne, NULL, NULL, aln, scoped_body)
 
 ///
 /// Initialize given vector using memory from stack.
@@ -386,68 +342,7 @@
 ///         // Do not call deinit after use!!
 ///   });
 ///
-#define VecInitWithDeepCopyStack(v, ne, ci, cd, scoped_body)                                                           \
-    do {                                                                                                               \
-        VEC_DATATYPE(&(v)) ___data___[(ne) + 1] = {0};                                                                 \
-                                                                                                                       \
-        (v)          = VecInitWithDeepCopyT((v), (ci), (cd));                                                          \
-        (v).capacity = (ne);                                                                                           \
-        (v).data     = &___data___[0];                                                                                 \
-                                                                                                                       \
-        {scoped_body}                                                                                                  \
-                                                                                                                       \
-        memset(___data___, 0, sizeof(___data___));                                                                     \
-        memset(&(v), 0, sizeof(v));                                                                                    \
-    } while (0)
-
-///
-/// Initialize given vector with given alignment.
-/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
-///
-/// Provided alignment is used to keep all objects at an aligned memory location,
-/// avoiding UB in some cases. It's recommended to use aligned vector when dealing with
-/// structs containing unions.
-///
-/// These vectors are best used where user doesn't get a chance to or does not want
-/// to deinit vector, given that no data in vector needs to be deinitialized.
-/// Example includes, but does not limit to a Vec(i8), Vec(f32), etc...
-///
-/// v[in,out] : Vector that needs to be initialized.
-/// ne[in]    : Number of elements to allocate aligned stack memory for.
-/// ci[in]    : Copy init method for copying over elements in vector.
-/// cd[in]    : Copy deinit method for deiniting elements in vector.
-/// aln[in]   : Alignment value to align all emenets to.
-///
-/// USAGE:
-///   Vec(Node*) nodes;
-///
-///   // initialize vector with stack memory, aligned with 124 byte boundary
-///   VecInitAlignedStack(&nodes, 24, NodeInitCopy, NodeDeinit, 124, NULL, NULL, {
-///         // scope where vector memory is available
-///         FindAndFillAllNodes(&nodes, ... /* some other relevant data */);
-///
-///         UseNodes(&nodes);
-///
-///         VecForeach(&nodes, node, {
-///         });
-///
-///         // vector deinit will be called for you after this automatically
-///         // so any data held by the vector in this scope is invalid outside
-///   });
-///
-#define VecInitAlignedWithDeepCopyStack(v, ne, ci, cd, aln, scoped_body)                                               \
-    do {                                                                                                               \
-        char ___data___[ALIGN_UP(sizeof(VEC_DATATYPE(&(v))), (aln)) * ((ne) + 1)] = {0};                               \
-                                                                                                                       \
-        (v)          = VecInitAlignedWithDeepCopyT((v), (ci), (cd), (aln));                                            \
-        (v).capacity = (ne);                                                                                           \
-        (v).data     = (VEC_DATATYPE(&(v)) *)&___data___[0];                                                           \
-                                                                                                                       \
-        {scoped_body}                                                                                                  \
-                                                                                                                       \
-        memset(___data___, 0, sizeof(___data___));                                                                     \
-        memset(&(v), 0, sizeof(v));                                                                                    \
-    } while (0)
+#define VecInitWithDeepCopyStack(v, ne, ci, cd, scoped_body) VecInitAlignedWithDeepCopyStack(v, ne, ci, cd, 1, scoped_body)
 
 ///
 /// Deinit vec by freeing all allocations.
