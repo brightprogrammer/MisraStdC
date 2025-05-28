@@ -494,17 +494,30 @@
 /// each element from `v2` will be copied using that method. Otherwise, a raw memory
 /// copy is performed, which may be unsafe for complex or pointer-containing data.
 ///
-/// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of items.
+/// NOTE: This function completely transfers ownership from `v2` to `v` by:
+///       1. Adding all elements from `v2` to `v`
+///       2. Freeing the memory allocated for `v2->data`
+///       3. Resetting all fields of `v2` to zero using MemSet
+///
+/// After this operation, `v2` will be in a reset state (as if just initialized with VecInit).
 ///
 /// The `copy_init` function must be set in `v` if ownership-safe copies are needed.
 ///
 /// [in,out] v   : Destination vector that will receive data.
-/// [in]     v2  : Source vector to merge from.
+/// [in,out] v2  : Source vector to merge from and reset.
 ///
 /// SUCCESS : `v`
 /// FAILURE : Does not return on failure
 ///
-#define VecMergeL(v, v2) VecPushBackArrL((v), (v2)->data, (v2)->length)
+#define VecMergeL(v, v2)                                                                                              \
+    do {                                                                                                              \
+        VecPushBackArrL((v), (v2)->data, (v2)->length);                                                               \
+        /* Free the source vector's data and reset its state */                                                       \
+        if ((v2)->data) {                                                                                             \
+            free((v2)->data);                                                                                         \
+            MemSet((v2), 0, sizeof(*(v2)));                                                                           \
+        }                                                                                                             \
+    } while (0)
 
 ///
 /// Merge two vectors and store the result in the first vector, with R-value semantics.
@@ -527,18 +540,23 @@
 
 ///
 /// Merge two vectors and store the result in the first vector.
-/// By default, this uses L-value semantics (ownership transfer).
 ///
 /// Data is copied from `v2` into `v`. If a `copy_init` method is provided in `v`,
 /// each element from `v2` will be copied using that method. Otherwise, a raw memory
 /// copy is performed, which may be unsafe for complex or pointer-containing data.
 ///
-/// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of items.
+/// NOTE: This function (via VecMergeL) completely transfers ownership from `v2` to `v` by:
+///       1. Adding all elements from `v2` to `v`
+///       2. Freeing the memory allocated for `v2->data`
+///       3. Resetting all fields of `v2` to zero using MemSet
+///
+/// After this operation, `v2` will be in a reset state (as if just initialized with VecInit).
+/// If you want to preserve the source vector, use VecMergeR instead.
 ///
 /// The `copy_init` function must be set in `v` if ownership-safe copies are needed.
 ///
 /// [in,out] v   : Destination vector that will receive data.
-/// [in]     v2  : Source vector to merge from.
+/// [in,out] v2  : Source vector to merge from and reset.
 ///
 /// SUCCESS : `v`
 /// FAILURE : Does not return on failure

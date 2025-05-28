@@ -24,7 +24,7 @@ extern "C" {
 /// SUCCESS : Returns `str` the string itself on success.
 /// FAILURE : Returns `NULL` otherwise.
 ///
-#define StrInsertCharAt(str, chr, idx) VecInsert((str), (chr), (str))
+#define StrInsertCharAt(str, chr, idx) VecInsertR((str), (chr), (idx))
 
 ///
 /// Insert a string of given length into given Str at given index.
@@ -37,7 +37,7 @@ extern "C" {
 /// SUCCESS : return
 /// FAILURE : Does not return
 ///
-#define StrInsertCstr(str, cstr, idx, len) VecInsertRange((str), (cstr), (idx), (len))
+#define StrInsertCstr(str, cstr, idx, len) VecInsertRangeR((str), (cstr), (idx), (len))
 
 ///
 /// Insert a zero-terminated string into given Str at given index.
@@ -74,7 +74,7 @@ extern "C" {
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrPushCstr(str, cstr, len, pos) VecPushArr((str), (cstr), (len), (pos))
+#define StrPushCstr(str, cstr, len, pos) VecInsertRangeR((str), (cstr), (pos), (len))
 
 ///
 /// Push a null-terminated string to this string
@@ -165,7 +165,7 @@ extern "C" {
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrMerge(str, str2) VecMerge((str), (str2))
+#define StrMerge(str, str2) VecMergeR((str), (str2))
 
     ///
     /// Print and append into given string object with given format.
