@@ -1,0 +1,46 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    name: Build and Test on Windows
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+        
+    - name: Install dependencies
+      run: |
+        pip install meson ninja
+      shell: pwsh
+      
+    - name: Configure
+      run: |
+        meson setup builddir
+      
+    - name: Build
+      run: |
+        ninja -C builddir
+        
+    - name: Test
+      run: |
+        ninja -C builddir test
+        
+    - name: Upload test logs if failure
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: test-logs-windows
+        path: builddir/meson-logs/testlog.txt 

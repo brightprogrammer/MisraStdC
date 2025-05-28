@@ -1,0 +1,45 @@
+name: macOS Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    name: Build and Test on macOS
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+        
+    - name: Install dependencies
+      run: |
+        brew install ninja meson
+        
+    - name: Configure
+      run: |
+        meson setup builddir -Db_sanitize=address,undefined -Db_lundef=false
+      
+    - name: Build
+      run: |
+        ninja -C builddir
+        
+    - name: Test
+      run: |
+        ninja -C builddir test
+        
+    - name: Upload test logs if failure
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: test-logs-macos
+        path: builddir/meson-logs/testlog.txt 

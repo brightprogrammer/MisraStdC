@@ -1,8 +1,8 @@
 # MisraStdC
 
-[![Linux Build](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test.yml/badge.svg?branch=main&job=build-and-test&matrix=os:ubuntu-latest)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test.yml?query=branch%3Amain+job%3Abuild-and-test+os%3Aubuntu-latest)
-[![macOS Build](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test.yml/badge.svg?branch=main&job=build-and-test&matrix=os:macos-latest)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test.yml?query=branch%3Amain+job%3Abuild-and-test+os%3Amacos-latest)
-[![Windows Build](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test.yml/badge.svg?branch=main&job=build-and-test&matrix=os:windows-latest)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test.yml?query=branch%3Amain+job%3Abuild-and-test+os%3Awindows-latest)
+[![Linux Build](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-linux.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-linux.yml)
+[![macOS Build](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-macos.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-macos.yml)
+[![Windows Build](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows.yml)
 
 A modern, type-safe C library designed to make programming in C less painful and more productive. MisraStdC provides generic containers, string handling, and formatted I/O inspired by higher-level languages while maintaining C's performance and control.
 
