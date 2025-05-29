@@ -27,7 +27,7 @@ typedef unsigned long long u64;
 typedef float  f32;
 typedef double f64;
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(__MSC_VER)
 #    if defined(_WIN64)
 typedef unsigned long long size;
 #    else
@@ -364,7 +364,7 @@ typedef i8 bool;
     (INVERT_ENDIANNESS4((x) & 0xffffffff) << 32) | INVERT_ENDIANNESS4(((x) >> 32) & 0xffffffff)
 
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(__MSC_VER)
 #    define FORMAT_STRING(fmt_pos, va_arg_pos)
 #else
 ///

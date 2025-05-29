@@ -531,21 +531,21 @@ void write_char_internal(Str* o, bool is_caps, char* vs, size len) {
     }
 }
 
-const char* read_char_internal(const char* in, char* v) {
-    if (!in || !v) {
-        LOG_FATAL("Invalid arguments");
-    }
+// const char* read_char_internal(const char* in, char* v) {
+//     if (!in || !v) {
+//         LOG_FATAL("Invalid arguments");
+//     }
 
-    if (in[0] == '\\' && in[1] == 'x') {
-        u8          vx  = 0;
-        const char* out = _read_u8(in + 2, &vx);
-        *v              = vx;
-        return out;
-    } else {
-        *v = *in;
-        return in + 1;
-    }
-}
+//     if (in[0] == '\\' && in[1] == 'x') {
+//         u8          vx  = 0;
+//         const char* out = _read_u8(in + 2, &vx);
+//         *v              = vx;
+//         return out;
+//     } else {
+//         *v = *in;
+//         return in + 1;
+//     }
+// }
 
 void _write_Str(Str* o, FmtInfo* fmt_info, Str* s) {
     if (!o || !fmt_info) {

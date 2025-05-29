@@ -94,6 +94,26 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 #define TO_TYPE_SPECIFIC_IO(T, d)                                                                                      \
     TO_TYPE_SPECIFIC_IO_IMPL((TypeSpecificWriter)_write_##T, (TypeSpecificReader)_read_##T, (d))
 
+#if defined(_MSC_VER) || defined(__MSC_VER)
+#define FMT(x)                                                                                                         \
+    _Generic(                                                                                                          \
+        (x),                                                                                                           \
+        Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                           \
+        const char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                 \
+        char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                       \
+        u8: TO_TYPE_SPECIFIC_IO(u8, &(x)),                                                                             \
+        u16: TO_TYPE_SPECIFIC_IO(u16, &(x)),                                                                           \
+        u32: TO_TYPE_SPECIFIC_IO(u32, &(x)),                                                                           \
+        u64: TO_TYPE_SPECIFIC_IO(u64, &(x)),                                                                           \
+        i8: TO_TYPE_SPECIFIC_IO(i8, &(x)),                                                                             \
+        i16: TO_TYPE_SPECIFIC_IO(i16, &(x)),                                                                           \
+        i32: TO_TYPE_SPECIFIC_IO(i32, &(x)),                                                                           \
+        i64: TO_TYPE_SPECIFIC_IO(i64, &(x)),                                                                           \
+        f32: TO_TYPE_SPECIFIC_IO(f32, &(x)),                                                                           \
+        f64: TO_TYPE_SPECIFIC_IO(f64, &(x)),                                                                           \
+        default: TO_TYPE_SPECIFIC_IO(UnsupportedType, NULL)                                                            \
+    )
+#else
 ///
 /// Type-aware format specifier generator
 ///
@@ -119,8 +139,11 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
         i64: TO_TYPE_SPECIFIC_IO(i64, &(x)),                                                                           \
         f32: TO_TYPE_SPECIFIC_IO(f32, &(x)),                                                                           \
         f64: TO_TYPE_SPECIFIC_IO(f64, &(x)),                                                                           \
+        char: TO_TYPE_SPECIFIC_IO(i8, &(x)),
+        size: TO_TYPE_SPECIFIC_IO(u64, &(x)),
         default: TO_TYPE_SPECIFIC_IO(UnsupportedType, NULL)                                                            \
     )
+#endif
 
 ///
 /// Print out a formatted string with rust-style placeholders
@@ -399,7 +422,6 @@ void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s);
 void _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s);
 void _write_f32(Str *o, FmtInfo *fmt_info, f32 *v);
 void _write_f64(Str *o, FmtInfo *fmt_info, f64 *v);
-void _write_char(Str* o, FmtInfo* fmt_info, char* v);
 
 const char *_read_Str(const char *i, Str *s);
 const char *_read_u8(const char *i, u8 *v);
@@ -414,6 +436,5 @@ const char *_read_Zstr(const char *i, const char **v);
 const char *_read_UnsupportedType(const char *i, const char **s);
 const char *_read_f32(const char *i, f32 *v);
 const char *_read_f64(const char *i, f64 *v);
-const char* _read_char(const char* i, char* v);
 
 #endif // MISRA_STD_IO
