@@ -137,4 +137,4 @@ extern "C" {
 }
 #endif
 
-#endif // MISRA_STD_CONTAINER_STR_INIT_H 
+#endif // MISRA_STD_CONTAINER_STR_INIT_H

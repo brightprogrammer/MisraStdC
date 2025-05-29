@@ -20,9 +20,9 @@ bool test_str_foreach_ptr_in_range(void);
 // Test StrForeachIdx macro
 bool test_str_foreach_idx(void) {
     printf("Testing StrForeachIdx\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Build a new string by iterating through each character with its index
     Str result = StrInit();
     StrForeachIdx(&s, chr, idx, {
@@ -31,10 +31,10 @@ bool test_str_foreach_idx(void) {
         StrWriteFmt(&buffer, "{:c}{}", FMT(chr), FMT(idx));
         StrMergeL(&result, &buffer);
     });
-    
+
     // The result should be "H0e1l2l3o4"
     bool success = (ZstrCompare(result.data, "H0e1l2l3o4") == 0);
-    
+
     StrDeinit(&s);
     StrDeinit(&result);
     return success;
@@ -43,25 +43,25 @@ bool test_str_foreach_idx(void) {
 // Test StrForeachReverseIdx macro
 bool test_str_foreach_reverse_idx(void) {
     printf("Testing StrForeachReverseIdx\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Build a new string by iterating through each character in reverse with its index
-    Str result = StrInit();
+    Str  result         = StrInit();
     bool saw_index_zero = false;
-    
+
     StrForeachReverseIdx(&s, chr, idx, {
         // Check if we see index 0
         if (idx == 0) {
             saw_index_zero = true;
         }
-        
+
         // Append the character and its index to the result string
         Str buffer = StrInit();
         StrWriteFmt(&buffer, "{:c}{}", FMT(chr), FMT(idx));
         StrMergeL(&result, &buffer);
     });
-    
+
     // The expected result depends on whether index 0 is processed
     bool success = false;
     if (saw_index_zero) {
@@ -72,7 +72,7 @@ bool test_str_foreach_reverse_idx(void) {
         success = (ZstrCompare(result.data, "o4l3l2e1") == 0);
         printf("  (Index 0 was NOT processed - bug in macro)\n");
     }
-    
+
     StrDeinit(&s);
     StrDeinit(&result);
     return success;
@@ -81,9 +81,9 @@ bool test_str_foreach_reverse_idx(void) {
 // Test StrForeachPtrIdx macro
 bool test_str_foreach_ptr_idx(void) {
     printf("Testing StrForeachPtrIdx\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Build a new string by iterating through each character pointer with its index
     Str result = StrInit();
     StrForeachPtrIdx(&s, chrptr, idx, {
@@ -91,19 +91,19 @@ bool test_str_foreach_ptr_idx(void) {
         Str buffer = StrInit();
         StrWriteFmt(&buffer, "{:c}{}", FMT(*chrptr), FMT(idx));
         StrMergeL(&result, &buffer);
-        
+
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {
             *chrptr = *chrptr - 'a' + 'A';
         }
     });
-    
+
     // The result should be "H0e1l2l3o4"
     bool success = (ZstrCompare(result.data, "H0e1l2l3o4") == 0);
-    
+
     // The original string should now be "HELLO" (all uppercase)
     success = success && (ZstrCompare(s.data, "HELLO") == 0);
-    
+
     StrDeinit(&s);
     StrDeinit(&result);
     return success;
@@ -112,30 +112,30 @@ bool test_str_foreach_ptr_idx(void) {
 // Test StrForeachReversePtrIdx macro
 bool test_str_foreach_reverse_ptr_idx(void) {
     printf("Testing StrForeachReversePtrIdx\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Build a new string by iterating through each character pointer in reverse with its index
-    Str result = StrInit();
+    Str  result         = StrInit();
     bool saw_index_zero = false;
-    
+
     StrForeachReversePtrIdx(&s, chrptr, idx, {
         // Check if we see index 0
         if (idx == 0) {
             saw_index_zero = true;
         }
-        
+
         // Append the character (via pointer) and its index to the result string
         Str buffer = StrInit();
         StrWriteFmt(&buffer, "{:c}{}", FMT(*chrptr), FMT(idx));
         StrMergeL(&result, &buffer);
-        
+
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {
             *chrptr = *chrptr - 'a' + 'A';
         }
     });
-    
+
     // The expected result depends on whether index 0 is processed
     bool success = false;
     if (saw_index_zero) {
@@ -148,7 +148,7 @@ bool test_str_foreach_reverse_ptr_idx(void) {
         success = success && (ZstrCompare(s.data, "HELLo") == 0); // All uppercase except first char
         printf("  (Index 0 was NOT processed - bug in macro)\n");
     }
-    
+
     StrDeinit(&s);
     StrDeinit(&result);
     return success;
@@ -157,19 +157,19 @@ bool test_str_foreach_reverse_ptr_idx(void) {
 // Test StrForeach macro
 bool test_str_foreach(void) {
     printf("Testing StrForeach\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Build a new string by iterating through each character
     Str result = StrInit();
     StrForeach(&s, chr, {
         // Append the character to the result string
         StrPushBack(&result, chr);
     });
-    
+
     // The result should be "Hello"
     bool success = (ZstrCompare(result.data, "Hello") == 0);
-    
+
     StrDeinit(&s);
     StrDeinit(&result);
     return success;
@@ -178,19 +178,19 @@ bool test_str_foreach(void) {
 // Test StrForeachReverse macro
 bool test_str_foreach_reverse(void) {
     printf("Testing StrForeachReverse\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Build a new string by iterating through each character in reverse
-    Str result = StrInit();
+    Str  result     = StrInit();
     size char_count = 0;
-    
+
     StrForeachReverse(&s, chr, {
         // Append the character to the result string
         StrPushBack(&result, chr);
         char_count++;
     });
-    
+
     // The expected result depends on whether all characters are processed
     bool success = false;
     if (char_count == s.length) {
@@ -200,7 +200,7 @@ bool test_str_foreach_reverse(void) {
         success = (ZstrCompare(result.data, "olle") == 0);
         printf("  (First character was NOT processed - bug in macro)\n");
     }
-    
+
     StrDeinit(&s);
     StrDeinit(&result);
     return success;
@@ -209,27 +209,27 @@ bool test_str_foreach_reverse(void) {
 // Test StrForeachPtr macro
 bool test_str_foreach_ptr(void) {
     printf("Testing StrForeachPtr\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Build a new string by iterating through each character pointer
     Str result = StrInit();
     StrForeachPtr(&s, chrptr, {
         // Append the character (via pointer) to the result string
         StrPushBack(&result, *chrptr);
-        
+
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {
             *chrptr = *chrptr - 'a' + 'A';
         }
     });
-    
+
     // The result should be "Hello"
     bool success = (ZstrCompare(result.data, "Hello") == 0);
-    
+
     // The original string should now be "HELLO" (all uppercase)
     success = success && (ZstrCompare(s.data, "HELLO") == 0);
-    
+
     StrDeinit(&s);
     StrDeinit(&result);
     return success;
@@ -238,25 +238,25 @@ bool test_str_foreach_ptr(void) {
 // Test StrForeachPtrReverse macro
 bool test_str_foreach_ptr_reverse(void) {
     printf("Testing StrForeachPtrReverse\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Build a new string by iterating through each character pointer in reverse
-    Str result = StrInit();
+    Str  result     = StrInit();
     size char_count = 0;
-    
+
     StrForeachPtrReverse(&s, chrptr, {
         // Append the character (via pointer) to the result string
         StrPushBack(&result, *chrptr);
-        
+
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {
             *chrptr = *chrptr - 'a' + 'A';
         }
-        
+
         char_count++;
     });
-    
+
     // The expected result depends on whether all characters are processed
     bool success = false;
     if (char_count == s.length) {
@@ -268,7 +268,7 @@ bool test_str_foreach_ptr_reverse(void) {
         success = success && (ZstrCompare(s.data, "HELLo") == 0); // All uppercase except first char
         printf("  (First character was NOT processed - bug in macro)\n");
     }
-    
+
     StrDeinit(&s);
     StrDeinit(&result);
     return success;
@@ -277,9 +277,9 @@ bool test_str_foreach_ptr_reverse(void) {
 // Test StrForeachInRangeIdx macro
 bool test_str_foreach_in_range_idx(void) {
     printf("Testing StrForeachInRangeIdx\n");
-    
+
     Str s = StrInitFromZstr("Hello World");
-    
+
     // Build a new string by iterating through a range of characters with indices
     Str result = StrInit();
     StrForeachInRangeIdx(&s, chr, idx, 6, 11, {
@@ -288,20 +288,20 @@ bool test_str_foreach_in_range_idx(void) {
         StrWriteFmt(&buffer, "{:c}{}", FMT(chr), FMT(idx));
         StrMergeL(&result, &buffer);
     });
-    
+
     // The result should be "W6o7r8l9d10" (characters from index 6-10 with their indices)
     bool success = (ZstrCompare(result.data, "W6o7r8l9d10") == 0);
-    
+
     // Test with empty range
     Str empty_result = StrInit();
     StrForeachInRangeIdx(&s, chr, idx, 3, 3, {
         // This block should not execute
         StrPushBack(&empty_result, chr);
     });
-    
+
     // The empty_result should remain empty
     success = success && (empty_result.length == 0);
-    
+
     StrDeinit(&s);
     StrDeinit(&result);
     StrDeinit(&empty_result);
@@ -311,29 +311,29 @@ bool test_str_foreach_in_range_idx(void) {
 // Test StrForeachInRange macro
 bool test_str_foreach_in_range(void) {
     printf("Testing StrForeachInRange\n");
-    
+
     Str s = StrInitFromZstr("Hello World");
-    
+
     // Build a new string by iterating through a range of characters
     Str result = StrInit();
     StrForeachInRange(&s, chr, 0, 5, {
         // Append the character to the result string
         StrPushBack(&result, chr);
     });
-    
+
     // The result should be "Hello" (first 5 characters)
     bool success = (ZstrCompare(result.data, "Hello") == 0);
-    
+
     // Test with range at the end of the string
     Str end_result = StrInit();
     StrForeachInRange(&s, chr, 6, 11, {
         // Append the character to the result string
         StrPushBack(&end_result, chr);
     });
-    
+
     // The end_result should be "World" (last 5 characters)
     success = success && (ZstrCompare(end_result.data, "World") == 0);
-    
+
     StrDeinit(&s);
     StrDeinit(&result);
     StrDeinit(&end_result);
@@ -343,9 +343,9 @@ bool test_str_foreach_in_range(void) {
 // Test StrForeachPtrInRangeIdx macro
 bool test_str_foreach_ptr_in_range_idx(void) {
     printf("Testing StrForeachPtrInRangeIdx\n");
-    
+
     Str s = StrInitFromZstr("Hello World");
-    
+
     // Build a new string by iterating through a range of character pointers with indices
     Str result = StrInit();
     StrForeachPtrInRangeIdx(&s, chrptr, idx, 6, 11, {
@@ -353,19 +353,19 @@ bool test_str_foreach_ptr_in_range_idx(void) {
         Str buffer = StrInit();
         StrWriteFmt(&buffer, "{:c}{}", FMT(*chrptr), FMT(idx));
         StrMergeL(&result, &buffer);
-        
+
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {
             *chrptr = *chrptr - 'a' + 'A';
         }
     });
-    
+
     // The result should be "W6o7r8l9d10" (characters from index 6-10 with their indices)
     bool success = (ZstrCompare(result.data, "W6o7r8l9d10") == 0);
-    
+
     // The original string should now have "WORLD" in uppercase
     success = success && (ZstrCompare(s.data, "Hello WORLD") == 0);
-    
+
     StrDeinit(&s);
     StrDeinit(&result);
     return success;
@@ -374,27 +374,27 @@ bool test_str_foreach_ptr_in_range_idx(void) {
 // Test StrForeachPtrInRange macro
 bool test_str_foreach_ptr_in_range(void) {
     printf("Testing StrForeachPtrInRange\n");
-    
+
     Str s = StrInitFromZstr("Hello World");
-    
+
     // Build a new string by iterating through a range of character pointers
     Str result = StrInit();
     StrForeachPtrInRange(&s, chrptr, 0, 5, {
         // Append the character to the result string
         StrPushBack(&result, *chrptr);
-        
+
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {
             *chrptr = *chrptr - 'a' + 'A';
         }
     });
-    
+
     // The result should be "Hello" (first 5 characters)
     bool success = (ZstrCompare(result.data, "Hello") == 0);
-    
+
     // The original string should now have "HELLO" in uppercase
     success = success && (ZstrCompare(s.data, "HELLO World") == 0);
-    
+
     StrDeinit(&s);
     StrDeinit(&result);
     return success;
@@ -403,7 +403,7 @@ bool test_str_foreach_ptr_in_range(void) {
 // Main function that runs all tests
 int main(void) {
     printf("Starting Str foreach tests\n\n");
-    
+
     // Array of test functions
     bool (*tests[])(void) = {
         test_str_foreach_idx,
@@ -419,10 +419,10 @@ int main(void) {
         test_str_foreach_ptr_in_range_idx,
         test_str_foreach_ptr_in_range
     };
-    
+
     int total_tests = sizeof(tests) / sizeof(tests[0]);
-    int passed = 0;
-    
+    int passed      = 0;
+
     // Run all tests
     for (int i = 0; i < total_tests; i++) {
         printf("[TEST %d/%d] ", i + 1, total_tests);
@@ -434,10 +434,10 @@ int main(void) {
             printf("[FAIL]\n\n");
         }
     }
-    
+
     // Print summary
     printf("Summary: %d/%d tests passed\n", passed, total_tests);
-    
+
     // Return non-zero exit code if any test failed
     return (passed == total_tests) ? 0 : 1;
-} 
+}

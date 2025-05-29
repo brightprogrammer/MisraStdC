@@ -25,27 +25,27 @@ bool test_str_appendf(void);
 // Test StrInsertCharAt function
 bool test_str_insert_char_at(void) {
     printf("Testing StrInsertCharAt\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Insert a character in the middle
     StrInsertCharAt(&s, '!', 2);
-    
+
     // Check that the character was inserted correctly
     bool result = (ZstrCompare(s.data, "He!llo") == 0);
-    
+
     // Insert a character at the beginning
     StrInsertCharAt(&s, '?', 0);
-    
+
     // Check that the character was inserted correctly
     result = result && (ZstrCompare(s.data, "?He!llo") == 0);
-    
+
     // Insert a character at the end
     StrInsertCharAt(&s, '.', s.length);
-    
+
     // Check that the character was inserted correctly
     result = result && (ZstrCompare(s.data, "?He!llo.") == 0);
-    
+
     StrDeinit(&s);
     return result;
 }
@@ -53,15 +53,15 @@ bool test_str_insert_char_at(void) {
 // Test StrInsertCstr function
 bool test_str_insert_cstr(void) {
     printf("Testing StrInsertCstr\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Insert a string in the middle
     StrInsertCstr(&s, " World", 2, 6);
-    
+
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(s.data, "He Worldllo") == 0);
-    
+
     StrDeinit(&s);
     return result;
 }
@@ -69,15 +69,15 @@ bool test_str_insert_cstr(void) {
 // Test StrInsertZstr function
 bool test_str_insert_zstr(void) {
     printf("Testing StrInsertZstr\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Insert a string in the middle
     StrInsertZstr(&s, " World", 2);
-    
+
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(s.data, "He Worldllo") == 0);
-    
+
     StrDeinit(&s);
     return result;
 }
@@ -85,16 +85,16 @@ bool test_str_insert_zstr(void) {
 // Test StrInsert function
 bool test_str_insert(void) {
     printf("Testing StrInsert\n");
-    
+
     Str s1 = StrInitFromZstr("Hello");
     Str s2 = StrInitFromZstr(" World");
-    
+
     // Insert s2 into s1 in the middle
     StrInsert(&s1, &s2, 2);
-    
+
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(s1.data, "He Worldllo") == 0);
-    
+
     StrDeinit(&s1);
     StrDeinit(&s2);
     return result;
@@ -103,15 +103,15 @@ bool test_str_insert(void) {
 // Test StrPushCstr function
 bool test_str_push_cstr(void) {
     printf("Testing StrPushCstr\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Push a string at position 2
     StrPushCstr(&s, " World", 6, 2);
-    
+
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(s.data, "He Worldllo") == 0);
-    
+
     StrDeinit(&s);
     return result;
 }
@@ -119,15 +119,15 @@ bool test_str_push_cstr(void) {
 // Test StrPushZstr function
 bool test_str_push_zstr(void) {
     printf("Testing StrPushZstr\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Push a string at position 2
     StrPushZstr(&s, " World", 2);
-    
+
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(s.data, "He Worldllo") == 0);
-    
+
     StrDeinit(&s);
     return result;
 }
@@ -135,15 +135,15 @@ bool test_str_push_zstr(void) {
 // Test StrPushBackCstr function
 bool test_str_push_back_cstr(void) {
     printf("Testing StrPushBackCstr\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Push a string at the back
     StrPushBackCstr(&s, " World", 6);
-    
+
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(s.data, "Hello World") == 0);
-    
+
     StrDeinit(&s);
     return result;
 }
@@ -151,15 +151,15 @@ bool test_str_push_back_cstr(void) {
 // Test StrPushBackZstr function
 bool test_str_push_back_zstr(void) {
     printf("Testing StrPushBackZstr\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Push a string at the back
     StrPushBackZstr(&s, " World");
-    
+
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(s.data, "Hello World") == 0);
-    
+
     StrDeinit(&s);
     return result;
 }
@@ -167,15 +167,15 @@ bool test_str_push_back_zstr(void) {
 // Test StrPushFrontCstr function
 bool test_str_push_front_cstr(void) {
     printf("Testing StrPushFrontCstr\n");
-    
+
     Str s = StrInitFromZstr("World");
-    
+
     // Push a string at the front
     StrPushFrontCstr(&s, "Hello ", 6);
-    
+
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(s.data, "Hello World") == 0);
-    
+
     StrDeinit(&s);
     return result;
 }
@@ -183,15 +183,15 @@ bool test_str_push_front_cstr(void) {
 // Test StrPushFrontZstr function
 bool test_str_push_front_zstr(void) {
     printf("Testing StrPushFrontZstr\n");
-    
+
     Str s = StrInitFromZstr("World");
-    
+
     // Push a string at the front
     StrPushFrontZstr(&s, "Hello ");
-    
+
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(s.data, "Hello World") == 0);
-    
+
     StrDeinit(&s);
     return result;
 }
@@ -199,9 +199,9 @@ bool test_str_push_front_zstr(void) {
 // Test StrPushBack function
 bool test_str_push_back(void) {
     printf("Testing StrPushBack\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Push characters at the back
     StrPushBack(&s, ' ');
     StrPushBack(&s, 'W');
@@ -209,10 +209,10 @@ bool test_str_push_back(void) {
     StrPushBack(&s, 'r');
     StrPushBack(&s, 'l');
     StrPushBack(&s, 'd');
-    
+
     // Check that the characters were inserted correctly
     bool result = (ZstrCompare(s.data, "Hello World") == 0);
-    
+
     StrDeinit(&s);
     return result;
 }
@@ -220,9 +220,9 @@ bool test_str_push_back(void) {
 // Test StrPushFront function
 bool test_str_push_front(void) {
     printf("Testing StrPushFront\n");
-    
+
     Str s = StrInitFromZstr("World");
-    
+
     // Push characters at the front
     StrPushFront(&s, ' ');
     StrPushFront(&s, 'o');
@@ -230,10 +230,10 @@ bool test_str_push_front(void) {
     StrPushFront(&s, 'l');
     StrPushFront(&s, 'e');
     StrPushFront(&s, 'H');
-    
+
     // Check that the characters were inserted correctly
     bool result = (ZstrCompare(s.data, "Hello World") == 0);
-    
+
     StrDeinit(&s);
     return result;
 }
@@ -241,23 +241,23 @@ bool test_str_push_front(void) {
 // Test StrMergeL function
 bool test_str_merge_l(void) {
     printf("Testing StrMergeL\n");
-    
+
     Str s1 = StrInitFromZstr("Hello");
     Str s2 = StrInitFromZstr(" World");
-    
+
     // Merge s2 into s1 (L-value semantics)
     StrMergeL(&s1, &s2);
 
     // Validate both vectors
     ValidateVec(&s1);
     ValidateVec(&s2);
-    
+
     // Check that the strings were merged correctly
     bool result = (ZstrCompare(s1.data, "Hello World") == 0);
-    
+
     // Check that s2 was reset - data should be NULL, length should be 0
     result = result && (s2.length == 0 && s2.data == NULL);
-    
+
     StrDeinit(&s1);
     StrDeinit(&s2);
     return result;
@@ -266,19 +266,19 @@ bool test_str_merge_l(void) {
 // Test StrMergeR function
 bool test_str_merge_r(void) {
     printf("Testing StrMergeR\n");
-    
+
     Str s1 = StrInitFromZstr("Hello");
     Str s2 = StrInitFromZstr(" World");
-    
+
     // Merge s2 into s1 (R-value semantics)
     StrMergeR(&s1, &s2);
-    
+
     // Check that the strings were merged correctly
     bool result = (ZstrCompare(s1.data, "Hello World") == 0);
-    
+
     // Check that s2 was not reset
     result = result && (s2.length == 6 && ZstrCompare(s2.data, " World") == 0);
-    
+
     StrDeinit(&s1);
     StrDeinit(&s2);
     return result;
@@ -287,19 +287,19 @@ bool test_str_merge_r(void) {
 // Test StrMerge function (alias for StrMergeR)
 bool test_str_merge(void) {
     printf("Testing StrMerge\n");
-    
+
     Str s1 = StrInitFromZstr("Hello");
     Str s2 = StrInitFromZstr(" World");
-    
+
     // Merge s2 into s1
     StrMerge(&s1, &s2);
-    
+
     // Check that the strings were merged correctly
     bool result = (ZstrCompare(s1.data, "Hello World") == 0);
-    
+
     // Check that s2 was not reset (since StrMerge is an alias for StrMergeR)
     result = result && (s2.length == 6 && ZstrCompare(s2.data, " World") == 0);
-    
+
     StrDeinit(&s1);
     StrDeinit(&s2);
     return result;
@@ -308,15 +308,15 @@ bool test_str_merge(void) {
 // Test StrAppendf function
 bool test_str_appendf(void) {
     printf("Testing StrAppendf\n");
-    
+
     Str s = StrInitFromZstr("Hello");
-    
+
     // Append formatted string
     StrAppendf(&s, " %s %d", "World", 2023);
-    
+
     // Check that the string was appended correctly
     bool result = (ZstrCompare(s.data, "Hello World 2023") == 0);
-    
+
     StrDeinit(&s);
     return result;
 }
@@ -324,7 +324,7 @@ bool test_str_appendf(void) {
 // Main function that runs all tests
 int main(void) {
     printf("[INFO] Starting Str.Insert tests\n\n");
-    
+
     // Array of test functions
     bool (*tests[])(void) = {
         test_str_insert_char_at,
@@ -344,11 +344,11 @@ int main(void) {
         test_str_merge,
         test_str_appendf
     };
-    
+
     int total_tests = sizeof(tests) / sizeof(tests[0]);
-    int passed = 0;
-    int failed = 0;
-    
+    int passed      = 0;
+    int failed      = 0;
+
     // Run all tests and accumulate results
     for (int i = 0; i < total_tests; i++) {
         printf("[TEST %d/%d] ", i + 1, total_tests);
@@ -361,10 +361,10 @@ int main(void) {
             failed++;
         }
     }
-    
+
     // Print summary
     printf("[SUMMARY] Total: %d, Passed: %d, Failed: %d\n", total_tests, passed, failed);
-    
+
     // Return non-zero exit code if any test failed
     return failed > 0 ? 1 : 0;
-} 
+}

@@ -313,7 +313,8 @@
 ///
 /// TAGS: Init, Vec, Stack, Aligned, Length, Size, Array
 ///
-#define VecInitAlignedStack(v, ne, aln, scoped_body) VecInitAlignedWithDeepCopyStack(v, ne, NULL, NULL, aln, scoped_body)
+#define VecInitAlignedStack(v, ne, aln, scoped_body)                                                                   \
+    VecInitAlignedWithDeepCopyStack(v, ne, NULL, NULL, aln, scoped_body)
 
 ///
 /// Initialize given vector using memory from stack.
@@ -342,7 +343,8 @@
 ///         // Do not call deinit after use!!
 ///   });
 ///
-#define VecInitWithDeepCopyStack(v, ne, ci, cd, scoped_body) VecInitAlignedWithDeepCopyStack(v, ne, ci, cd, 1, scoped_body)
+#define VecInitWithDeepCopyStack(v, ne, ci, cd, scoped_body)                                                           \
+    VecInitAlignedWithDeepCopyStack(v, ne, ci, cd, 1, scoped_body)
 
 ///
 /// Deinit vec by freeing all allocations.

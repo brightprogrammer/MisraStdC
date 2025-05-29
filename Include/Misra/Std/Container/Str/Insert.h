@@ -231,4 +231,4 @@ extern "C" {
 }
 #endif
 
-#endif // MISRA_STD_CONTAINER_STR_INSERT_H 
+#endif // MISRA_STD_CONTAINER_STR_INSERT_H

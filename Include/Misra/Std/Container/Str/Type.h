@@ -12,7 +12,7 @@
 #include <Misra/Std/Utility/StrIter.h>
 #include <Misra/Types.h>
 
-/// 
+///
 /// The Str type is a specialization of Vec for characters
 ///
 typedef Vec(char) Str;
@@ -25,11 +25,11 @@ typedef Vec(Str) Strs;
 ///
 /// Validate a Str object (simply uses Vec validation)
 ///
-#define ValidateStr(s)   ValidateVec(s)
+#define ValidateStr(s) ValidateVec(s)
 
 ///
 /// Validate a Strs object (vector of strings)
 ///
 #define ValidateStrs(sv) ValidateVec(sv)
 
-#endif // MISRA_STD_CONTAINER_STR_TYPE_H 
+#endif // MISRA_STD_CONTAINER_STR_TYPE_H

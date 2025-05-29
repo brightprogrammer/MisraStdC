@@ -184,7 +184,7 @@ int main(int argc, char** argv) {
                         Str md_code = StrInit();
                         Scope(&md_code, StrDeinit, {
                             // Create template strings for StrWriteFmt with escaped braces
-                            const char* mdHeader = 
+                            const char* mdHeader =
                                 "---\n"
                                 "title: \"{}\"\n"
                                 "meta_title: \"{}\"\n"
@@ -197,7 +197,7 @@ int main(int argc, char** argv) {
                                 "draft: false\n"
                                 "---\n"
                                 "```c\n";
-                                
+
                             StrWriteFmt(
                                 &md_code,
                                 mdHeader,

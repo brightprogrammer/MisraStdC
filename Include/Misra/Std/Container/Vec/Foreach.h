@@ -53,7 +53,8 @@
                 }                                                                                                      \
                 var = VecAt(v, idx);                                                                                   \
                 { body }                                                                                               \
-                if (idx == 0) break; /* Stop after processing index 0 */                                               \
+                if (idx == 0)                                                                                          \
+                    break; /* Stop after processing index 0 */                                                         \
             }                                                                                                          \
         }                                                                                                              \
     } while (0)
@@ -106,7 +107,8 @@
                 }                                                                                                      \
                 var = VecPtrAt(v, idx);                                                                                \
                 { body }                                                                                               \
-                if (idx == 0) break; /* Stop after processing index 0 */                                               \
+                if (idx == 0)                                                                                          \
+                    break; /* Stop after processing index 0 */                                                         \
             }                                                                                                          \
         }                                                                                                              \
     } while (0)
@@ -170,7 +172,7 @@
 ///
 #define VecForeachPtr(v, var, body)                                                                                    \
     do {                                                                                                               \
-        size ____iter___             = 0;                                                                              \
+        size ____iter___     = 0;                                                                                      \
         VEC_DATATYPE(v) *var = NULL;                                                                                   \
         if ((v) != NULL && (v)->length > 0) {                                                                          \
             for (____iter___ = 0; ____iter___ < (v)->length; ++____iter___) {                                          \
@@ -229,21 +231,34 @@
         VEC_DATATYPE(v) var = {0};                                                                                     \
         if ((v) != NULL && (v)->length > 0) {                                                                          \
             if ((end) > (v)->length) {                                                                                 \
-                LOG_FATAL("Vector range overflow: End index %zu exceeds vector length %zu. "                           \
-                         "If you intended to iterate over all items, use VecForeach instead.", (end), (v)->length);    \
+                LOG_FATAL(                                                                                             \
+                    "Vector range overflow: End index %zu exceeds vector length %zu. "                                 \
+                    "If you intended to iterate over all items, use VecForeach instead.",                              \
+                    (end),                                                                                             \
+                    (v)->length                                                                                        \
+                );                                                                                                     \
             }                                                                                                          \
             if ((start) >= (v)->length) {                                                                              \
-                LOG_FATAL("Vector range overflow: Start index %zu exceeds or equals vector length %zu.",               \
-                         (start), (v)->length);                                                                        \
+                LOG_FATAL(                                                                                             \
+                    "Vector range overflow: Start index %zu exceeds or equals vector length %zu.",                     \
+                    (start),                                                                                           \
+                    (v)->length                                                                                        \
+                );                                                                                                     \
             }                                                                                                          \
-            if ((start) > (end)) {                                                                                    \
-                LOG_FATAL("Invalid range: Start index %zu must be less than or equal to end index %zu.",                           \
-                         (start), (end));                                                                              \
+            if ((start) > (end)) {                                                                                     \
+                LOG_FATAL(                                                                                             \
+                    "Invalid range: Start index %zu must be less than or equal to end index %zu.",                     \
+                    (start),                                                                                           \
+                    (end)                                                                                              \
+                );                                                                                                     \
             }                                                                                                          \
             for ((idx) = (start); (idx) < (end); ++(idx)) {                                                            \
                 if ((idx) >= (v)->length) {                                                                            \
-                    LOG_FATAL("Vector range overflow: Index %zu exceeds vector length %zu during iteration.",           \
-                             (idx), (v)->length);                                                                      \
+                    LOG_FATAL(                                                                                         \
+                        "Vector range overflow: Index %zu exceeds vector length %zu during iteration.",                \
+                        (idx),                                                                                         \
+                        (v)->length                                                                                    \
+                    );                                                                                                 \
                 }                                                                                                      \
                 var = VecAt(v, idx);                                                                                   \
                 { body }                                                                                               \
@@ -268,7 +283,8 @@
 ///           the loop body will not be executed. Any failures within the `VecForeachInRangeIdx`
 ///           macro will result in a fatal log message and program termination.
 ///
-#define VecForeachInRange(v, var, start, end, body) VecForeachInRangeIdx((v), (var), (____iter___), (start), (end), {body})
+#define VecForeachInRange(v, var, start, end, body)                                                                    \
+    VecForeachInRangeIdx((v), (var), (____iter___), (start), (end), {body})
 
 ///
 /// Iterate over elements in a specific range of the given vector `v` at each index `idx` (as pointers).
@@ -295,21 +311,34 @@
         VEC_DATATYPE(v) *var = NULL;                                                                                   \
         if ((v) != NULL && (v)->length > 0) {                                                                          \
             if ((end) > (v)->length) {                                                                                 \
-                LOG_FATAL("Vector range overflow: End index %zu exceeds vector length %zu. "                           \
-                         "If you intended to iterate over all items, use VecForeach instead.", (end), (v)->length);    \
+                LOG_FATAL(                                                                                             \
+                    "Vector range overflow: End index %zu exceeds vector length %zu. "                                 \
+                    "If you intended to iterate over all items, use VecForeach instead.",                              \
+                    (end),                                                                                             \
+                    (v)->length                                                                                        \
+                );                                                                                                     \
             }                                                                                                          \
             if ((start) >= (v)->length) {                                                                              \
-                LOG_FATAL("Vector range overflow: Start index %zu exceeds or equals vector length %zu.",               \
-                         (start), (v)->length);                                                                        \
+                LOG_FATAL(                                                                                             \
+                    "Vector range overflow: Start index %zu exceeds or equals vector length %zu.",                     \
+                    (start),                                                                                           \
+                    (v)->length                                                                                        \
+                );                                                                                                     \
             }                                                                                                          \
-            if ((start) > (end)) {                                                                                    \
-                LOG_FATAL("Invalid range: Start index %zu must be less than or equal to end index %zu.",                           \
-                         (start), (end));                                                                              \
+            if ((start) > (end)) {                                                                                     \
+                LOG_FATAL(                                                                                             \
+                    "Invalid range: Start index %zu must be less than or equal to end index %zu.",                     \
+                    (start),                                                                                           \
+                    (end)                                                                                              \
+                );                                                                                                     \
             }                                                                                                          \
             for ((idx) = (start); (idx) < (end); ++(idx)) {                                                            \
                 if ((idx) >= (v)->length) {                                                                            \
-                    LOG_FATAL("Vector range overflow: Index %zu exceeds vector length %zu during iteration.",           \
-                             (idx), (v)->length);                                                                      \
+                    LOG_FATAL(                                                                                         \
+                        "Vector range overflow: Index %zu exceeds vector length %zu during iteration.",                \
+                        (idx),                                                                                         \
+                        (v)->length                                                                                    \
+                    );                                                                                                 \
                 }                                                                                                      \
                 var = VecPtrAt(v, idx);                                                                                \
                 { body }                                                                                               \
@@ -335,6 +364,7 @@
 ///           the loop body will not be executed. Any failures within the `VecForeachPtrInRangeIdx`
 ///           macro will result in a fatal log message and program termination.
 ///
-#define VecForeachPtrInRange(v, var, start, end, body) VecForeachPtrInRangeIdx((v), (var), (____iter___), (start), (end), {body})
+#define VecForeachPtrInRange(v, var, start, end, body)                                                                 \
+    VecForeachPtrInRangeIdx((v), (var), (____iter___), (start), (end), {body})
 
 #endif // MISRA_STD_CONTAINER_VEC_FOREACH_H

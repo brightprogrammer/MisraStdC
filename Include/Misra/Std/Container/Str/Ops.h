@@ -78,9 +78,9 @@ extern "C" {
 ///
 #define StrFindCstr(str, key, key_len) ZstrFindSubstringN((str)->data, (key), (key_len))
 
-//
-// Prefix/Suffix Operations
-//
+    //
+    // Prefix/Suffix Operations
+    //
 
     ///
     /// Check if string starts with a null-terminated string (Zstr).
@@ -150,9 +150,9 @@ extern "C" {
     ///
     bool StrEndsWith(const Str* s, const Str* suffix);
 
-//
-// Replace Operations
-//
+    //
+    // Replace Operations
+    //
 
     ///
     /// Replace occurrences of a null-terminated string (Zstr) in string.
@@ -202,9 +202,9 @@ extern "C" {
     ///
     void StrReplace(Str* s, const Str* match, const Str* replacement, size count);
 
-//
-// Split Operations
-//
+    //
+    // Split Operations
+    //
 
     ///
     /// Split given string into multiple StrIter into the same string.
@@ -240,9 +240,9 @@ extern "C" {
     ///
     Strs StrSplit(Str* s, const char* key);
 
-//
-// Strip Operations
-//
+    //
+    // Strip Operations
+    //
 
     ///
     /// Internal implementation for strip functions.
@@ -294,4 +294,4 @@ extern "C" {
 }
 #endif
 
-#endif // MISRA_STD_CONTAINER_STR_OPS_H 
+#endif // MISRA_STD_CONTAINER_STR_OPS_H

@@ -126,7 +126,7 @@
     do {                                                                                                               \
         VEC_DATATYPE(v) __tmp__val = (val);                                                                            \
         insert_range_fast_into_vec(GENERIC_VEC(v), (char *)&__tmp__val, sizeof(VEC_DATATYPE(v)), (idx), 1);            \
-        if (!(v).copy_init) {                                                                                          \
+        if (!(v)->copy_init) {                                                                                         \
             memset(&(val), 0, sizeof(val));                                                                            \
         }                                                                                                              \
     } while (0)
@@ -152,7 +152,7 @@
     do {                                                                                                               \
         VEC_DATATYPE(v) __tmp__val = (val);                                                                            \
         insert_range_fast_into_vec(GENERIC_VEC(v), (char *)&__tmp__val, sizeof(VEC_DATATYPE(v)), (idx), 1);            \
-        if (!(v).copy_init) {                                                                                          \
+        if (!(v)->copy_init) {                                                                                         \
             memset(&(val), 0, sizeof(val));                                                                            \
         }                                                                                                              \
     } while (0)

@@ -43,15 +43,15 @@ typedef enum {
 ///
 /// TAGS: Formatting, Text, Flags
 typedef enum {
-    FMT_FLAG_NONE         = 0,
-    FMT_FLAG_CHAR         = 1 << 0,
-    FMT_FLAG_HEX          = 1 << 1,
-    FMT_FLAG_BINARY       = 1 << 2,
-    FMT_FLAG_OCTAL        = 1 << 3,
-    FMT_FLAG_DEBUG        = 1 << 4,
-    FMT_FLAG_SCIENTIFIC   = 1 << 5,
-    FMT_FLAG_CAPS         = 1 << 6,
-    FMT_FLAG_FORCE_CASE   = 1 << 7,
+    FMT_FLAG_NONE          = 0,
+    FMT_FLAG_CHAR          = 1 << 0,
+    FMT_FLAG_HEX           = 1 << 1,
+    FMT_FLAG_BINARY        = 1 << 2,
+    FMT_FLAG_OCTAL         = 1 << 3,
+    FMT_FLAG_DEBUG         = 1 << 4,
+    FMT_FLAG_SCIENTIFIC    = 1 << 5,
+    FMT_FLAG_CAPS          = 1 << 6,
+    FMT_FLAG_FORCE_CASE    = 1 << 7,
     FMT_FLAG_HAS_PRECISION = 1 << 8
 } FormatFlagsBits;
 typedef u32 FormatFlags;

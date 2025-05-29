@@ -16,27 +16,27 @@ extern "C" {
 ///
 /// Access first character in string
 ///
-#define StrFirst(str)     VecFirst(str)
+#define StrFirst(str) VecFirst(str)
 
 ///
 /// Access last character in string
 ///
-#define StrLast(str)      VecLast(str)
+#define StrLast(str) VecLast(str)
 
 ///
 /// Get pointer to first character in string
 ///
-#define StrBegin(str)     VecBegin(str)
+#define StrBegin(str) VecBegin(str)
 
 ///
 /// Get pointer to one past the last character in string
 ///
-#define StrEnd(str)       VecEnd(str)
+#define StrEnd(str) VecEnd(str)
 
 ///
 /// Access character at given index
 ///
-#define StrCharAt(str, idx)    VecAt(str, idx)
+#define StrCharAt(str, idx) VecAt(str, idx)
 
 ///
 /// Get pointer to character at given index
@@ -47,4 +47,4 @@ extern "C" {
 }
 #endif
 
-#endif // MISRA_STD_CONTAINER_STR_ACCESS_H 
+#endif // MISRA_STD_CONTAINER_STR_ACCESS_H

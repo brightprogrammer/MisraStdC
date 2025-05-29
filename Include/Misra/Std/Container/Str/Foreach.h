@@ -145,7 +145,8 @@ extern "C" {
 ///           the loop body will not be executed. Any access to an invalid index will
 ///           result in a fatal log message and program termination.
 ///
-#define StrForeachInRangeIdx(str, chr, idx, start, end, body) VecForeachInRangeIdx((str), (chr), idx, (start), (end), {body})
+#define StrForeachInRangeIdx(str, chr, idx, start, end, body)                                                          \
+    VecForeachInRangeIdx((str), (chr), idx, (start), (end), {body})
 
 ///
 /// Iterate over characters in a specific range of the given Str `str`.
@@ -184,7 +185,8 @@ extern "C" {
 ///           the loop body will not be executed. Any access to an invalid index will
 ///           result in a fatal log message and program termination.
 ///
-#define StrForeachPtrInRangeIdx(str, chrptr, idx, start, end, body) VecForeachPtrInRangeIdx((str), (chrptr), idx, (start), (end), {body})
+#define StrForeachPtrInRangeIdx(str, chrptr, idx, start, end, body)                                                    \
+    VecForeachPtrInRangeIdx((str), (chrptr), idx, (start), (end), {body})
 
 ///
 /// Iterate over characters in a specific range of the given Str `str` (as pointers).
@@ -204,10 +206,11 @@ extern "C" {
 ///           the loop body will not be executed. Any failures within the `VecForeachPtrInRangeIdx`
 ///           macro will result in a fatal log message and program termination.
 ///
-#define StrForeachPtrInRange(str, chrptr, start, end, body) VecForeachPtrInRange((str), (chrptr), (start), (end), {body})
+#define StrForeachPtrInRange(str, chrptr, start, end, body)                                                            \
+    VecForeachPtrInRange((str), (chrptr), (start), (end), {body})
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // MISRA_STD_CONTAINER_STR_FOREACH_H 
+#endif // MISRA_STD_CONTAINER_STR_FOREACH_H

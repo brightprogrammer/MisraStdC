@@ -29,10 +29,7 @@ static bool ParseFormatSpec(const char* spec, size len, FmtInfo* fi) {
     // Empty format specifier is allowed, but spec pointer must not be NULL
 
     // Initialize format info with defaults
-    *fi = (FmtInfo) {.align         = ALIGN_RIGHT,
-                     .width         = 0,
-                     .precision     = 6,
-                     .flags         = FMT_FLAG_NONE};
+    *fi = (FmtInfo) {.align = ALIGN_RIGHT, .width = 0, .precision = 6, .flags = FMT_FLAG_NONE};
 
     size pos = 0;
 
@@ -86,49 +83,49 @@ static bool ParseFormatSpec(const char* spec, size len, FmtInfo* fi) {
             break; // Stop at precision
         switch (spec[type_pos]) {
             case 'c' :
-                fi->flags |= FMT_FLAG_CHAR;
+                fi->flags  |= FMT_FLAG_CHAR;
                 found_type  = true;
                 break;
-                
+
             case 'A' :
-                fi->flags |= FMT_FLAG_CAPS | FMT_FLAG_FORCE_CASE | FMT_FLAG_CHAR;
+                fi->flags  |= FMT_FLAG_CAPS | FMT_FLAG_FORCE_CASE | FMT_FLAG_CHAR;
                 found_type  = true;
                 break;
             case 'a' :
-                fi->flags |= FMT_FLAG_FORCE_CASE | FMT_FLAG_CHAR;
+                fi->flags  |= FMT_FLAG_FORCE_CASE | FMT_FLAG_CHAR;
                 found_type  = true;
                 break;
 
             case 'X' :
-                fi->flags |= FMT_FLAG_HEX | FMT_FLAG_CAPS;
-                found_type = true;
+                fi->flags  |= FMT_FLAG_HEX | FMT_FLAG_CAPS;
+                found_type  = true;
                 break;
             case 'x' :
-                fi->flags |= FMT_FLAG_HEX;
-                found_type = true;
+                fi->flags  |= FMT_FLAG_HEX;
+                found_type  = true;
                 break;
 
             case 'b' :
-                fi->flags |= FMT_FLAG_BINARY;
-                found_type = true;
+                fi->flags  |= FMT_FLAG_BINARY;
+                found_type  = true;
                 break;
             case 'o' :
-                fi->flags |= FMT_FLAG_OCTAL;
-                found_type = true;
+                fi->flags  |= FMT_FLAG_OCTAL;
+                found_type  = true;
                 break;
 
             case 'E' :
-                fi->flags |= FMT_FLAG_SCIENTIFIC | FMT_FLAG_CAPS;
-                found_type = true;
+                fi->flags  |= FMT_FLAG_SCIENTIFIC | FMT_FLAG_CAPS;
+                found_type  = true;
                 break;
             case 'e' :
-                fi->flags |= FMT_FLAG_SCIENTIFIC;
-                found_type = true;
+                fi->flags  |= FMT_FLAG_SCIENTIFIC;
+                found_type  = true;
                 break;
 
             case '?' :
-                fi->flags |= FMT_FLAG_DEBUG;
-                found_type = true;
+                fi->flags  |= FMT_FLAG_DEBUG;
+                found_type  = true;
                 break;
             default :
                 break;
@@ -151,8 +148,8 @@ static bool ParseFormatSpec(const char* spec, size len, FmtInfo* fi) {
             precision = precision * 10 + (spec[pos] - '0');
             pos++;
         }
-        fi->flags |= FMT_FLAG_HAS_PRECISION;
-        fi->precision = precision;
+        fi->flags     |= FMT_FLAG_HAS_PRECISION;
+        fi->precision  = precision;
     }
 
     // Parse any remaining format type after precision
@@ -162,7 +159,7 @@ static bool ParseFormatSpec(const char* spec, size len, FmtInfo* fi) {
                 case 'c' :
                     fi->flags |= FMT_FLAG_CHAR;
                     break;
-                    
+
                 case 'A' :
                     fi->flags |= FMT_FLAG_CAPS | FMT_FLAG_FORCE_CASE | FMT_FLAG_CHAR;
                     break;
@@ -277,10 +274,7 @@ bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, size arg
             FmtInfo fmt_info;
             if (spec_len == 0) {
                 // Empty format specifier {} is allowed, initialize with defaults
-                fmt_info = (FmtInfo) {.align         = ALIGN_RIGHT,
-                                      .width         = 0,
-                                      .precision     = 6,
-                                      .flags         = FMT_FLAG_NONE};
+                fmt_info = (FmtInfo) {.align = ALIGN_RIGHT, .width = 0, .precision = 6, .flags = FMT_FLAG_NONE};
             } else if (!ParseFormatSpec(fmt + brace_start + 1, spec_len, &fmt_info)) {
                 LOG_ERROR("Invalid format specifier");
                 return false;
@@ -522,14 +516,14 @@ static inline void write_int_as_chars(Str* o, FormatFlags flags, u64 value, size
         LOG_FATAL("Invalid arguments to write_int_as_chars");
     }
 
-    bool is_caps = (flags & FMT_FLAG_CAPS) != 0;
+    bool is_caps    = (flags & FMT_FLAG_CAPS) != 0;
     bool force_case = (flags & FMT_FLAG_FORCE_CASE) != 0;
-    
+
     // Process bytes in big-endian order (most significant byte first)
     for (size i = 0; i < num_bytes; i++) {
         // Extract byte at position (num_bytes - 1 - i) from the right
         u8 byte = (value >> ((num_bytes - 1 - i) * 8)) & 0xFF;
-        
+
         if (IS_PRINTABLE(byte)) {
             // For 'a'/'A' format specifier (force_case), apply case conversion
             // For 'c' format specifier, preserve the original case
@@ -540,11 +534,11 @@ static inline void write_int_as_chars(Str* o, FormatFlags flags, u64 value, size
             }
         } else {
             // Handle non-printable characters
-            u8 low = byte & 0xf;
-            u8 hiw = (byte >> 4) & 0xf;
-            char c1 = hiw < 10 ? '0' + hiw : is_caps ? 'A' + (hiw - 10) : 'a' + (hiw - 10);
-            char c2 = low < 10 ? '0' + low : is_caps ? 'A' + (low - 10) : 'a' + (low - 10);
-            
+            u8   low = byte & 0xf;
+            u8   hiw = (byte >> 4) & 0xf;
+            char c1  = hiw < 10 ? '0' + hiw : is_caps ? 'A' + (hiw - 10) : 'a' + (hiw - 10);
+            char c2  = low < 10 ? '0' + low : is_caps ? 'A' + (low - 10) : 'a' + (low - 10);
+
             StrPushBackZstr(o, "\\x");
             StrPushBack(o, c1);
             StrPushBack(o, c2);
@@ -557,7 +551,7 @@ static inline void write_char_internal(Str* o, FormatFlags flags, const char* vs
         LOG_FATAL("Invalid arguments");
     }
 
-    bool is_caps = (flags & FMT_FLAG_CAPS) != 0;
+    bool is_caps    = (flags & FMT_FLAG_CAPS) != 0;
     bool force_case = (flags & FMT_FLAG_FORCE_CASE) != 0;
 
     while (len--) {
@@ -956,7 +950,13 @@ void _write_f64(Str* o, FmtInfo* fmt_info, f64* v) {
 
         // Use StrFromF64 directly with the appropriate parameters
         u8 precision = fmt_info->flags & FMT_FLAG_HAS_PRECISION ? fmt_info->precision : 6;
-        StrFromF64(&temp, *v, precision, (fmt_info->flags & FMT_FLAG_SCIENTIFIC) != 0, (fmt_info->flags & FMT_FLAG_CAPS) != 0);
+        StrFromF64(
+            &temp,
+            *v,
+            precision,
+            (fmt_info->flags & FMT_FLAG_SCIENTIFIC) != 0,
+            (fmt_info->flags & FMT_FLAG_CAPS) != 0
+        );
 
         // Merge the formatted number into output
         StrMerge(o, &temp);

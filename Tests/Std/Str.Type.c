@@ -13,20 +13,19 @@ bool test_validate_strs(void);
 // Test Str type definition
 bool test_str_type(void) {
     printf("Testing Str type definition\n");
-    
+
     // Create a Str object
     Str s = StrInit();
-    
+
     // Check that it behaves like a Vec of chars
     StrPushBack(&s, 'H');
     StrPushBack(&s, 'e');
     StrPushBack(&s, 'l');
     StrPushBack(&s, 'l');
     StrPushBack(&s, 'o');
-    
-    bool result = (s.length == 5 && 
-                  ZstrCompare(s.data, "Hello") == 0);
-    
+
+    bool result = (s.length == 5 && ZstrCompare(s.data, "Hello") == 0);
+
     StrDeinit(&s);
     return result;
 }
@@ -34,29 +33,29 @@ bool test_str_type(void) {
 // Test Strs type definition
 bool test_strs_type(void) {
     printf("Testing Strs type definition\n");
-    
+
     // Create a Strs object (vector of strings)
     Strs sv = VecInitWithDeepCopy(NULL, StrDeinit);
-    
+
     // Add some strings
     Str s1 = StrInitFromZstr("Hello");
     Str s2 = StrInitFromZstr("World");
-    
+
     VecPushBack(&sv, s1);
     VecPushBack(&sv, s2);
-    
+
     // Check that it behaves like a Vec of Str objects
     bool result = (sv.length == 2);
-    
+
     // Check the content of the strings
     if (result) {
         Str* str1 = &VecAt(&sv, 0);
         Str* str2 = &VecAt(&sv, 1);
-        
+
         result = result && (ZstrCompare(str1->data, "Hello") == 0);
         result = result && (ZstrCompare(str2->data, "World") == 0);
     }
-    
+
     VecDeinit(&sv); // This should call StrDeinit on each element
     return result;
 }
@@ -64,19 +63,19 @@ bool test_strs_type(void) {
 // Test ValidateStr macro
 bool test_validate_str(void) {
     printf("Testing ValidateStr macro\n");
-    
+
     // Create a valid Str
     Str s = StrInit();
-    
+
     // This should not crash
     ValidateStr(&s);
-    
+
     // Note: We can't really test invalid strings here as ValidateStr
     // will abort the program if the string is invalid. In a real test
     // framework, we would use something like a death test for this.
-    
+
     bool result = true; // If we got here, the validation didn't crash
-    
+
     StrDeinit(&s);
     return result;
 }
@@ -84,18 +83,18 @@ bool test_validate_str(void) {
 // Test ValidateStrs macro
 bool test_validate_strs(void) {
     printf("Testing ValidateStrs macro\n");
-    
+
     // Create a valid Strs
     Strs sv = VecInit();
-    
+
     // This should not crash
     ValidateStrs(&sv);
-    
+
     // Note: We can't really test invalid Strs objects here as ValidateStrs
     // will abort the program if the object is invalid.
-    
+
     bool result = true; // If we got here, the validation didn't crash
-    
+
     VecDeinit(&sv);
     return result;
 }
@@ -103,19 +102,14 @@ bool test_validate_strs(void) {
 // Main function that runs all tests
 int main(void) {
     printf("[INFO] Starting Str.Type tests\n\n");
-    
+
     // Array of test functions
-    bool (*tests[])(void) = {
-        test_str_type,
-        test_strs_type,
-        test_validate_str,
-        test_validate_strs
-    };
-    
+    bool (*tests[])(void) = {test_str_type, test_strs_type, test_validate_str, test_validate_strs};
+
     int total_tests = sizeof(tests) / sizeof(tests[0]);
-    int passed = 0;
-    int failed = 0;
-    
+    int passed      = 0;
+    int failed      = 0;
+
     // Run all tests and accumulate results
     for (int i = 0; i < total_tests; i++) {
         printf("[TEST %d/%d] ", i + 1, total_tests);
@@ -128,11 +122,10 @@ int main(void) {
             failed++;
         }
     }
-    
+
     // Print summary
     printf("[SUMMARY] Total: %d, Passed: %d, Failed: %d\n", total_tests, passed, failed);
-    
+
     // Return non-zero exit code if any test failed
     return failed > 0 ? 1 : 0;
-} 
-
+}

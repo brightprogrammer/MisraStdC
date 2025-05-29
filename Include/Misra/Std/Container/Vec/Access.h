@@ -64,7 +64,7 @@
 ///
 /// v[in] : Vector to get end of.
 ///
-#define VecEnd(v) ((char*)(v)->data + VecAlignedOffsetAt((v), (v)->length))
+#define VecEnd(v) ((char *)(v)->data + VecAlignedOffsetAt((v), (v)->length))
 
 ///
 /// Size of vector in bytes. Use this instead of multiplying

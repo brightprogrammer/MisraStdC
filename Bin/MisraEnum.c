@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
         last_value = invalid_enum.name.length ? invalid_enum.value : VecFirst(&entries).value;
         StrWriteFmt(&code, "    {} = {},\n", FMT(invalid_enum.name.data), FMT(invalid_enum.value));
     }
-    
+
     // Use VecForeach for iterating over entries
     VecForeach(&entries, e, {
         if (last_value == e.value - 1) {
@@ -126,7 +126,8 @@ int main(int argc, char** argv) {
 
     if (to_from_str) {
         // Store string literals in temporary variables
-        const char* funcHeader = "///\n"
+        const char* funcHeader =
+            "///\n"
             "/// Converts given zero-terminated string to {} enum value.\n"
             "///\n"
             "/// zstr[in] : String to be converted back to corresponding enum.\n"
@@ -139,13 +140,13 @@ int main(int argc, char** argv) {
             "        LOG_ERROR(\"Invalid string provided. Cannot convert to enum.\");\n"
             "        return {};\n"
             "    }}\n";
-            
+
         // Prepare the return value for invalid enum
         const char* invalidEnumName = "0";
         if (invalid_enum.name.length) {
             invalidEnumName = invalid_enum.name.data;
         }
-        
+
         StrWriteFmt(
             &code,
             funcHeader,
@@ -154,29 +155,20 @@ int main(int argc, char** argv) {
             FMT(enum_name.data),
             FMT(invalidEnumName)
         );
-        
+
         // Use VecForeach for iterating over entries
         VecForeach(&entries, e, {
             const char* compareTemplate = "    if(ZstrCompareN(\"{}\", zstr, {}) == 0) {{return {};}}\n";
             // Store the length in a variable to avoid taking address of rvalue
             unsigned long long strLength = (unsigned long long)e.str.length;
-            StrWriteFmt(
-                &code,
-                compareTemplate,
-                FMT(e.str.data),
-                FMT(strLength),
-                FMT(e.name.data)
-            );
+            StrWriteFmt(&code, compareTemplate, FMT(e.str.data), FMT(strLength), FMT(e.name.data));
         });
-        
-        const char* returnTemplate = "    return {};\n}}\n";
-        StrWriteFmt(
-            &code,
-            returnTemplate,
-            FMT(invalidEnumName)
-        );
 
-        const char* toZstrHeader = "///\n"
+        const char* returnTemplate = "    return {};\n}}\n";
+        StrWriteFmt(&code, returnTemplate, FMT(invalidEnumName));
+
+        const char* toZstrHeader =
+            "///\n"
             "/// Converts given enum to {} zero-terminated string.\n"
             "///\n"
             "/// e[in] : String to be converted back to corresponding enum.\n"
@@ -186,38 +178,29 @@ int main(int argc, char** argv) {
             "///\n"
             "const char* {}ToZstr({} e) {{\n"
             "    switch(e) {{\n";
-            
-        StrWriteFmt(
-            &code,
-            toZstrHeader,
-            FMT(enum_name.data),
-            FMT(enum_name.data),
-            FMT(enum_name.data)
-        );
-        
+
+        StrWriteFmt(&code, toZstrHeader, FMT(enum_name.data), FMT(enum_name.data), FMT(enum_name.data));
+
         // Use VecForeach for iterating over entries
         VecForeach(&entries, e, {
             const char* caseTemplate = "        case {} : {{return \"{}\";}}\n";
             StrWriteFmt(&code, caseTemplate, FMT(e.name.data), FMT(e.str.data));
         });
-        
-        const char* defaultTemplate = "        default: break;\n"
+
+        const char* defaultTemplate =
+            "        default: break;\n"
             "    }}\n"
             "    return \"{}\";\n"
             "}}\n";
-            
+
         // Use a static string for NULL to avoid taking address of string literal
         const char* nullStrValue = "NULL";
-        const char* nullStr = nullStrValue;
+        const char* nullStr      = nullStrValue;
         if (invalid_enum.str.data) {
             nullStr = invalid_enum.str.data;
         }
-        
-        StrWriteFmt(
-            &code,
-            defaultTemplate,
-            FMT(nullStr)
-        );
+
+        StrWriteFmt(&code, defaultTemplate, FMT(nullStr));
     }
 
     if (output_filename) {

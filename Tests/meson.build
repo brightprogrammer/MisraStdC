@@ -37,6 +37,7 @@ vec_tests = [
     ['Vec.Remove', 'Std/Vec.Remove.c'],
     ['Vec.Foreach', 'Std/Vec.Foreach.c'],
     ['Vec.Ops', 'Std/Vec.Ops.c'],
+    ['Vec.Complex', 'Std/Vec.Complex.c'],
 ]
 
 # Build and register all tests
