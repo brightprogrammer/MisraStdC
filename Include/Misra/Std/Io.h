@@ -95,24 +95,24 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
     TO_TYPE_SPECIFIC_IO_IMPL((TypeSpecificWriter)_write_##T, (TypeSpecificReader)_read_##T, (d))
 
 #if defined(_MSC_VER) || defined(__MSC_VER)
-#define FMT(x)                                                                                                         \
-    _Generic(                                                                                                          \
-        (x),                                                                                                           \
-        Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                           \
-        const char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                 \
-        char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                       \
-        u8: TO_TYPE_SPECIFIC_IO(u8, &(x)),                                                                             \
-        u16: TO_TYPE_SPECIFIC_IO(u16, &(x)),                                                                           \
-        u32: TO_TYPE_SPECIFIC_IO(u32, &(x)),                                                                           \
-        u64: TO_TYPE_SPECIFIC_IO(u64, &(x)),                                                                           \
-        i8: TO_TYPE_SPECIFIC_IO(i8, &(x)),                                                                             \
-        i16: TO_TYPE_SPECIFIC_IO(i16, &(x)),                                                                           \
-        i32: TO_TYPE_SPECIFIC_IO(i32, &(x)),                                                                           \
-        i64: TO_TYPE_SPECIFIC_IO(i64, &(x)),                                                                           \
-        f32: TO_TYPE_SPECIFIC_IO(f32, &(x)),                                                                           \
-        f64: TO_TYPE_SPECIFIC_IO(f64, &(x)),                                                                           \
-        default: TO_TYPE_SPECIFIC_IO(UnsupportedType, NULL)                                                            \
-    )
+#    define FMT(x)                                                                                                     \
+        _Generic(                                                                                                      \
+            (x),                                                                                                       \
+            Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                       \
+            const char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                             \
+            char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                   \
+            u8: TO_TYPE_SPECIFIC_IO(u8, &(x)),                                                                         \
+            u16: TO_TYPE_SPECIFIC_IO(u16, &(x)),                                                                       \
+            u32: TO_TYPE_SPECIFIC_IO(u32, &(x)),                                                                       \
+            u64: TO_TYPE_SPECIFIC_IO(u64, &(x)),                                                                       \
+            i8: TO_TYPE_SPECIFIC_IO(i8, &(x)),                                                                         \
+            i16: TO_TYPE_SPECIFIC_IO(i16, &(x)),                                                                       \
+            i32: TO_TYPE_SPECIFIC_IO(i32, &(x)),                                                                       \
+            i64: TO_TYPE_SPECIFIC_IO(i64, &(x)),                                                                       \
+            f32: TO_TYPE_SPECIFIC_IO(f32, &(x)),                                                                       \
+            f64: TO_TYPE_SPECIFIC_IO(f64, &(x)),                                                                       \
+            default: TO_TYPE_SPECIFIC_IO(UnsupportedType, NULL)                                                        \
+        )
 #else
 ///
 /// Type-aware format specifier generator
@@ -123,26 +123,26 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 /// FAILURE: Returns unsupported type handler for unknown types
 ///
 /// TAGS: Macro, TypeDispatch, Generic, I/O, Format
-#define FMT(x)                                                                                                         \
-    _Generic(                                                                                                          \
-        (x),                                                                                                           \
-        Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                           \
-        const char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                 \
-        char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                       \
-        u8: TO_TYPE_SPECIFIC_IO(u8, &(x)),                                                                             \
-        u16: TO_TYPE_SPECIFIC_IO(u16, &(x)),                                                                           \
-        u32: TO_TYPE_SPECIFIC_IO(u32, &(x)),                                                                           \
-        u64: TO_TYPE_SPECIFIC_IO(u64, &(x)),                                                                           \
-        i8: TO_TYPE_SPECIFIC_IO(i8, &(x)),                                                                             \
-        i16: TO_TYPE_SPECIFIC_IO(i16, &(x)),                                                                           \
-        i32: TO_TYPE_SPECIFIC_IO(i32, &(x)),                                                                           \
-        i64: TO_TYPE_SPECIFIC_IO(i64, &(x)),                                                                           \
-        f32: TO_TYPE_SPECIFIC_IO(f32, &(x)),                                                                           \
-        f64: TO_TYPE_SPECIFIC_IO(f64, &(x)),                                                                           \
-        char: TO_TYPE_SPECIFIC_IO(i8, &(x)),
-        size: TO_TYPE_SPECIFIC_IO(u64, &(x)),
-        default: TO_TYPE_SPECIFIC_IO(UnsupportedType, NULL)                                                            \
-    )
+#    define FMT(x)                                                                                                     \
+        _Generic(                                                                                                      \
+            (x),                                                                                                       \
+            Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                       \
+            const char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                             \
+            char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                   \
+            u8: TO_TYPE_SPECIFIC_IO(u8, &(x)),                                                                         \
+            u16: TO_TYPE_SPECIFIC_IO(u16, &(x)),                                                                       \
+            u32: TO_TYPE_SPECIFIC_IO(u32, &(x)),                                                                       \
+            u64: TO_TYPE_SPECIFIC_IO(u64, &(x)),                                                                       \
+            i8: TO_TYPE_SPECIFIC_IO(i8, &(x)),                                                                         \
+            i16: TO_TYPE_SPECIFIC_IO(i16, &(x)),                                                                       \
+            i32: TO_TYPE_SPECIFIC_IO(i32, &(x)),                                                                       \
+            i64: TO_TYPE_SPECIFIC_IO(i64, &(x)),                                                                       \
+            f32: TO_TYPE_SPECIFIC_IO(f32, &(x)),                                                                       \
+            f64: TO_TYPE_SPECIFIC_IO(f64, &(x)),                                                                       \
+            char: TO_TYPE_SPECIFIC_IO(i8, &(x)),                                                                       \
+            size: TO_TYPE_SPECIFIC_IO(u64, &(x)),                                                                      \
+            default: TO_TYPE_SPECIFIC_IO(UnsupportedType, NULL)                                                        \
+        )
 #endif
 
 ///
