@@ -27,7 +27,7 @@ jobs:
         
     - name: Configure
       run: |
-        meson setup build -Dwarning_level=everything -Db_sanitize=address,undefined -Db_lundef=false
+        meson setup build -Dwarning_level=2 -Db_sanitize=address,undefined -Db_lundef=false
       
     - name: Build
       run: |
