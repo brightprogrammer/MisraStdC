@@ -28,34 +28,49 @@ typedef enum {
 } Alignment;
 
 ///
+/// Format flags for text output.
+///
+/// FMT_FLAG_NONE         : No special formatting.
+/// FMT_FLAG_CHAR         : Format as character.
+/// FMT_FLAG_HEX          : Format as hexadecimal.
+/// FMT_FLAG_BINARY       : Format as binary.
+/// FMT_FLAG_OCTAL        : Format as octal.
+/// FMT_FLAG_DEBUG        : Debug format mode.
+/// FMT_FLAG_SCIENTIFIC   : Scientific notation for floats.
+/// FMT_FLAG_CAPS         : Use capital letters for hex/scientific.
+/// FMT_FLAG_FORCE_CASE   : Force case conversion (used with FMT_FLAG_CAPS)
+/// FMT_FLAG_HAS_PRECISION: Precision was specified in format string.
+///
+/// TAGS: Formatting, Text, Flags
+typedef enum {
+    FMT_FLAG_NONE         = 0,
+    FMT_FLAG_CHAR         = 1 << 0,
+    FMT_FLAG_HEX          = 1 << 1,
+    FMT_FLAG_BINARY       = 1 << 2,
+    FMT_FLAG_OCTAL        = 1 << 3,
+    FMT_FLAG_DEBUG        = 1 << 4,
+    FMT_FLAG_SCIENTIFIC   = 1 << 5,
+    FMT_FLAG_CAPS         = 1 << 6,
+    FMT_FLAG_FORCE_CASE   = 1 << 7,
+    FMT_FLAG_HAS_PRECISION = 1 << 8
+} FormatFlagsBits;
+typedef u32 FormatFlags;
+
+///
 /// Stores formatting information for text output.
 ///
 /// align          : Text alignment (left, right, center).
 /// width          : Minimum field width.
-/// precision     : Number of decimal places for floating point.
-/// has_precision : Whether precision was specified.
-/// is_hex        : Format as hexadecimal.
-/// is_binary     : Format as binary.
-/// is_octal      : Format as octal.
-/// is_debug      : Debug format mode.
-/// is_scientific : Scientific notation for floats.
-/// is_caps       : Use capital letters for hex/scientific.
+/// precision      : Number of decimal places for floating point.
+/// flags          : Format flags (see FormatFlags enum).
 ///
 /// TAGS: Formatting, Text, Configuration
 typedef struct {
-    Alignment align;
-    size      width;
-    size      precision;
-    bool      has_precision;
-    bool      is_char;
-    bool      is_hex;
-    bool      is_binary;
-    bool      is_octal;
-    bool      is_debug;
-    bool      is_scientific;
-    bool      is_caps;
+    Alignment   align;
+    size        width;
+    size        precision;
+    FormatFlags flags;
 } FmtInfo;
-
 
 ///
 /// Type-specific write callback signature

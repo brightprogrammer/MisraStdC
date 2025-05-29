@@ -18,6 +18,7 @@ bool test_float_special_values(void);
 bool test_width_alignment_formatting(void);
 bool test_multiple_arguments(void);
 bool test_error_handling(void);
+bool test_char_formatting(void);
 
 // Test basic formatting features
 bool test_basic_formatting(void) {
@@ -346,6 +347,216 @@ bool test_multiple_arguments(void) {
     return success;
 }
 
+// Test character formatting specifiers
+bool test_char_formatting(void) {
+    printf("Testing character formatting specifiers\n");
+
+    Str  output  = StrInit();
+    bool success = true;
+
+    // Test mixed case string with :c (preserve case)
+    const char* mixed_case = "MiXeD CaSe";
+    StrWriteFmt(&output, "{:c}", FMT(mixed_case));
+    success = success && (ZstrCompare(output.data, "MiXeD CaSe") == 0);
+    StrClear(&output);
+
+    // Test mixed case string with :a (lowercase)
+    StrWriteFmt(&output, "{:a}", FMT(mixed_case));
+    success = success && (ZstrCompare(output.data, "mixed case") == 0);
+    StrClear(&output);
+
+    // Test mixed case string with :A (uppercase)
+    StrWriteFmt(&output, "{:A}", FMT(mixed_case));
+    success = success && (ZstrCompare(output.data, "MIXED CASE") == 0);
+    StrClear(&output);
+
+    // Test with Str object
+    Str s = StrInitFromZstr("MiXeD CaSe");
+    
+    // Test with :c (preserve case)
+    StrWriteFmt(&output, "{:c}", FMT(s));
+    success = success && (ZstrCompare(output.data, "MiXeD CaSe") == 0);
+    StrClear(&output);
+    
+    // Test with :a (lowercase)
+    StrWriteFmt(&output, "{:a}", FMT(s));
+    success = success && (ZstrCompare(output.data, "mixed case") == 0);
+    StrClear(&output);
+    
+    // Test with :A (uppercase)
+    StrWriteFmt(&output, "{:A}", FMT(s));
+    success = success && (ZstrCompare(output.data, "MIXED CASE") == 0);
+    StrClear(&output);
+    
+    // Test with character values (u8)
+    u8 upper_char = 'M';
+    u8 lower_char = 'm';
+    
+    // Test uppercase char with :c (preserve case)
+    StrWriteFmt(&output, "{:c}", FMT(upper_char));
+    success = success && (ZstrCompare(output.data, "M") == 0);
+    StrClear(&output);
+    
+    // Test uppercase char with :a (lowercase)
+    StrWriteFmt(&output, "{:a}", FMT(upper_char));
+    success = success && (ZstrCompare(output.data, "m") == 0);
+    StrClear(&output);
+    
+    // Test lowercase char with :A (uppercase)
+    StrWriteFmt(&output, "{:A}", FMT(lower_char));
+    success = success && (ZstrCompare(output.data, "M") == 0);
+    StrClear(&output);
+    
+    // Test with u16 (containing ASCII values)
+    u16 u16_value = ('A' << 8) | 'B'; // AB in big-endian
+    
+    // Test u16 with :c (preserve case)
+    StrWriteFmt(&output, "{:c}", FMT(u16_value));
+    success = success && (output.length == 2 && output.data[0] == 'A' && output.data[1] == 'B');
+    StrClear(&output);
+    
+    // Test u16 with :a (lowercase)
+    StrWriteFmt(&output, "{:a}", FMT(u16_value));
+    success = success && (output.length == 2 && output.data[0] == 'a' && output.data[1] == 'b');
+    StrClear(&output);
+    
+    // Test u16 with :A (uppercase)
+    StrWriteFmt(&output, "{:A}", FMT(u16_value));
+    success = success && (output.length == 2 && output.data[0] == 'A' && output.data[1] == 'B');
+    StrClear(&output);
+    
+    // Test with i16 (containing ASCII values)
+    i16 i16_value = ('C' << 8) | 'd'; // Cd in big-endian
+    
+    // Test i16 with :c (preserve case)
+    StrWriteFmt(&output, "{:c}", FMT(i16_value));
+    success = success && (output.length == 2 && output.data[0] == 'C' && output.data[1] == 'd');
+    StrClear(&output);
+    
+    // Test i16 with :a (lowercase)
+    StrWriteFmt(&output, "{:a}", FMT(i16_value));
+    success = success && (output.length == 2 && output.data[0] == 'c' && output.data[1] == 'd');
+    StrClear(&output);
+    
+    // Test i16 with :A (uppercase)
+    StrWriteFmt(&output, "{:A}", FMT(i16_value));
+    success = success && (output.length == 2 && output.data[0] == 'C' && output.data[1] == 'D');
+    StrClear(&output);
+    
+    // Test with u32 (containing ASCII values)
+    u32 u32_value = ('E' << 24) | ('f' << 16) | ('G' << 8) | 'h'; // EfGh in big-endian
+    
+    // Test u32 with :c (preserve case)
+    StrWriteFmt(&output, "{:c}", FMT(u32_value));
+    success = success && (output.length == 4 && 
+                         output.data[0] == 'E' && output.data[1] == 'f' && 
+                         output.data[2] == 'G' && output.data[3] == 'h');
+    StrClear(&output);
+    
+    // Test u32 with :a (lowercase)
+    StrWriteFmt(&output, "{:a}", FMT(u32_value));
+    success = success && (output.length == 4 && 
+                         output.data[0] == 'e' && output.data[1] == 'f' && 
+                         output.data[2] == 'g' && output.data[3] == 'h');
+    StrClear(&output);
+    
+    // Test u32 with :A (uppercase)
+    StrWriteFmt(&output, "{:A}", FMT(u32_value));
+    success = success && (output.length == 4 && 
+                         output.data[0] == 'E' && output.data[1] == 'F' && 
+                         output.data[2] == 'G' && output.data[3] == 'H');
+    StrClear(&output);
+    
+    // Test with i32 (containing ASCII values)
+    i32 i32_value = ('I' << 24) | ('j' << 16) | ('K' << 8) | 'l'; // IjKl in big-endian
+    
+    // Test i32 with :c (preserve case)
+    StrWriteFmt(&output, "{:c}", FMT(i32_value));
+    success = success && (output.length == 4 && 
+                         output.data[0] == 'I' && output.data[1] == 'j' && 
+                         output.data[2] == 'K' && output.data[3] == 'l');
+    StrClear(&output);
+    
+    // Test i32 with :a (lowercase)
+    StrWriteFmt(&output, "{:a}", FMT(i32_value));
+    success = success && (output.length == 4 && 
+                         output.data[0] == 'i' && output.data[1] == 'j' && 
+                         output.data[2] == 'k' && output.data[3] == 'l');
+    StrClear(&output);
+    
+    // Test i32 with :A (uppercase)
+    StrWriteFmt(&output, "{:A}", FMT(i32_value));
+    success = success && (output.length == 4 && 
+                         output.data[0] == 'I' && output.data[1] == 'J' && 
+                         output.data[2] == 'K' && output.data[3] == 'L');
+    StrClear(&output);
+    
+    // Test with u64 (containing ASCII values)
+    u64 u64_value = ((u64)'M' << 56) | ((u64)'n' << 48) | ((u64)'O' << 40) | ((u64)'p' << 32) |
+                    ('Q' << 24) | ('r' << 16) | ('S' << 8) | 't'; // MnOpQrSt in big-endian
+    
+    // Test u64 with :c (preserve case)
+    StrWriteFmt(&output, "{:c}", FMT(u64_value));
+    success = success && (output.length == 8 && 
+                         output.data[0] == 'M' && output.data[1] == 'n' && 
+                         output.data[2] == 'O' && output.data[3] == 'p' &&
+                         output.data[4] == 'Q' && output.data[5] == 'r' && 
+                         output.data[6] == 'S' && output.data[7] == 't');
+    StrClear(&output);
+    
+    // Test u64 with :a (lowercase)
+    StrWriteFmt(&output, "{:a}", FMT(u64_value));
+    success = success && (output.length == 8 && 
+                         output.data[0] == 'm' && output.data[1] == 'n' && 
+                         output.data[2] == 'o' && output.data[3] == 'p' &&
+                         output.data[4] == 'q' && output.data[5] == 'r' && 
+                         output.data[6] == 's' && output.data[7] == 't');
+    StrClear(&output);
+    
+    // Test u64 with :A (uppercase)
+    StrWriteFmt(&output, "{:A}", FMT(u64_value));
+    success = success && (output.length == 8 && 
+                         output.data[0] == 'M' && output.data[1] == 'N' && 
+                         output.data[2] == 'O' && output.data[3] == 'P' &&
+                         output.data[4] == 'Q' && output.data[5] == 'R' && 
+                         output.data[6] == 'S' && output.data[7] == 'T');
+    StrClear(&output);
+    
+    // Test with i64 (containing ASCII values)
+    i64 i64_value = ((i64)'U' << 56) | ((i64)'v' << 48) | ((i64)'W' << 40) | ((i64)'x' << 32) |
+                    ('Y' << 24) | ('z' << 16) | ('1' << 8) | '2'; // UvWxYz12 in big-endian
+    
+    // Test i64 with :c (preserve case)
+    StrWriteFmt(&output, "{:c}", FMT(i64_value));
+    success = success && (output.length == 8 && 
+                         output.data[0] == 'U' && output.data[1] == 'v' && 
+                         output.data[2] == 'W' && output.data[3] == 'x' &&
+                         output.data[4] == 'Y' && output.data[5] == 'z' && 
+                         output.data[6] == '1' && output.data[7] == '2');
+    StrClear(&output);
+    
+    // Test i64 with :a (lowercase)
+    StrWriteFmt(&output, "{:a}", FMT(i64_value));
+    success = success && (output.length == 8 && 
+                         output.data[0] == 'u' && output.data[1] == 'v' && 
+                         output.data[2] == 'w' && output.data[3] == 'x' &&
+                         output.data[4] == 'y' && output.data[5] == 'z' && 
+                         output.data[6] == '1' && output.data[7] == '2');
+    StrClear(&output);
+    
+    // Test i64 with :A (uppercase)
+    StrWriteFmt(&output, "{:A}", FMT(i64_value));
+    success = success && (output.length == 8 && 
+                         output.data[0] == 'U' && output.data[1] == 'V' && 
+                         output.data[2] == 'W' && output.data[3] == 'X' &&
+                         output.data[4] == 'Y' && output.data[5] == 'Z' && 
+                         output.data[6] == '1' && output.data[7] == '2');
+    
+    StrDeinit(&output);
+    StrDeinit(&s);
+    return success;
+}
+
 // Test error handling
 bool test_error_handling(void) {
     printf("Testing error handling\n");
@@ -381,6 +592,7 @@ int main(void) {
         test_float_special_values,
         test_width_alignment_formatting,
         test_multiple_arguments,
+        test_char_formatting,
         test_error_handling
     };
 

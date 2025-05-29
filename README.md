@@ -8,6 +8,22 @@ A modern C11 library designed to make programming in C less painful and more pro
 
 > **Disclaimer:** This library is **not** related to the MISRA C standard or guidelines. The name "MisraStdC" comes from the author's name, Siddharth Mishra, who is commonly known as "Misra" among friends.
 
+## Table of Contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Documentation](#documentation)
+- [Examples](#examples)
+  - [Vector Container (Vec)](#vector-container-vec)
+  - [String Operations (Str)](#string-operations-str)
+  - [Formatted I/O](#formatted-io)
+  - [JSON Parsing and Writing](#json-parsing-and-writing)
+  - [Working with Complex Types](#working-with-complex-types)
+- [Format Specifiers](#format-specifiers)
+- [Contributing](#contributing)
+- [License](#license)
+
 ## Features
 
 - **Cross-platform compatibility**: Supports MSVC, GCC, and Clang
@@ -374,6 +390,191 @@ int main() {
 }
 ```
 
+## Format Specifiers
+
+MisraStdC provides Rust-style formatted I/O functions with a rich set of format specifiers.
+
+### Format String Syntax
+
+Format strings use curly braces `{}` as placeholders for values. Each placeholder can include an optional format specifier after a colon:
+
+```
+{:specifier}
+```
+
+If no specifier is provided (just `{}`), default formatting is used.
+
+### Format Specifier Options
+
+Format specifiers can include the following components, which can be combined:
+
+#### Alignment
+
+Controls text alignment within a field width:
+
+| Specifier | Description |
+|-----------|-------------|
+| `<` | Left-aligned (pad on the right) |
+| `>` | Right-aligned (pad on the left) - default |
+| `^` | Center-aligned (pad on both sides) |
+
+#### Width
+
+Specifies the minimum field width. The value is padded with spaces if it's shorter than this width:
+
+```
+{:5}    // Minimum width of 5 characters, right-aligned
+{:<5}   // Minimum width of 5 characters, left-aligned
+{:^5}   // Minimum width of 5 characters, center-aligned
+```
+
+#### Type
+
+Specifies the output format for the value:
+
+| Specifier | Description |
+|-----------|-------------|
+| `x` | Hexadecimal format (lowercase) |
+| `X` | Hexadecimal format (uppercase) |
+| `b` | Binary format |
+| `o` | Octal format |
+| `c` | Character format (converts to lowercase, displays non-printable as hex escape sequences) |
+| `C` | Character format (converts to uppercase, displays non-printable as hex escape sequences) |
+| `e` | Scientific notation (lowercase) |
+| `E` | Scientific notation (uppercase) |
+| `?` | Debug format |
+
+#### Precision
+
+For floating-point values, specifies the number of decimal places:
+
+```
+{:.2}   // Two decimal places
+{:.0}   // No decimal places
+{:.10}  // Ten decimal places
+```
+
+### Format Examples
+
+#### Basic Formatting
+
+```c
+// Simple placeholder
+StrWriteFmt(&output, "Hello, {}!", FMT("world"));  // "Hello, world!"
+
+// Escaped braces
+StrWriteFmt(&output, "{{Hello}}");  // "{Hello}"
+```
+
+#### String Formatting
+
+```c
+const char* str = "Hello";
+
+// Basic string
+StrWriteFmt(&output, "{}", FMT(str));  // "Hello"
+
+// String with width and alignment
+StrWriteFmt(&output, "{:>10}", FMT(str));  // "     Hello"
+StrWriteFmt(&output, "{:<10}", FMT(str));  // "Hello     "
+StrWriteFmt(&output, "{:^10}", FMT(str));  // "  Hello   "
+```
+
+#### Integer Formatting
+
+```c
+i32 val = 42;
+
+// Default decimal
+StrWriteFmt(&output, "{}", FMT(val));  // "42"
+
+// Hexadecimal
+u32 hex_val = 0xDEADBEEF;
+StrWriteFmt(&output, "{:x}", FMT(hex_val));  // "0xdeadbeef"
+StrWriteFmt(&output, "{:X}", FMT(hex_val));  // "0xDEADBEEF"
+
+// Binary
+u8 bin_val = 0xA5;  // 10100101 in binary
+StrWriteFmt(&output, "{:b}", FMT(bin_val));  // "0b10100101"
+
+// Octal
+u16 oct_val = 0777;
+StrWriteFmt(&output, "{:o}", FMT(oct_val));  // "0o777"
+
+// Character format
+u8 ch_val = 65;  // ASCII 'A'
+StrWriteFmt(&output, "{:c}", FMT(ch_val));  // "a" (lowercase)
+StrWriteFmt(&output, "{:C}", FMT(ch_val));  // "A" (uppercase)
+
+// Non-printable character
+u8 np_val = 7;  // ASCII BEL (non-printable)
+StrWriteFmt(&output, "{:c}", FMT(np_val));  // "\x07" (with lowercase hex)
+StrWriteFmt(&output, "{:C}", FMT(np_val));  // "\x07" (with uppercase hex)
+```
+
+#### Floating-Point Formatting
+
+```c
+f64 pi = 3.14159265359;
+
+// Default precision (6 decimal places)
+StrWriteFmt(&output, "{}", FMT(pi));  // "3.141593"
+
+// Custom precision
+StrWriteFmt(&output, "{:.2}", FMT(pi));   // "3.14"
+StrWriteFmt(&output, "{:.0}", FMT(pi));   // "3"
+StrWriteFmt(&output, "{:.10}", FMT(pi));  // "3.1415926536"
+
+// Special values
+f64 pos_inf = INFINITY;
+f64 neg_inf = -INFINITY;
+f64 nan_val = NAN;
+StrWriteFmt(&output, "{}", FMT(pos_inf));  // "inf"
+StrWriteFmt(&output, "{}", FMT(neg_inf));  // "-inf"
+StrWriteFmt(&output, "{}", FMT(nan_val));  // "nan"
+```
+
+### Reading Values
+
+The library also supports parsing values from strings using the same format specifier syntax:
+
+```c
+// Reading integers
+i32 num = 0;
+StrReadFmt("42", "{}", FMT(num));  // num = 42
+
+// Reading hexadecimal
+u32 hex_val = 0;
+StrReadFmt("0xdeadbeef", "{}", FMT(hex_val));  // hex_val = 0xdeadbeef
+
+// Reading binary
+i8 bin_val = 0;
+StrReadFmt("0b101010", "{}", FMT(bin_val));  // bin_val = 42
+
+// Reading strings
+Str name = StrInit();
+StrReadFmt("Alice", "{}", FMT(name));  // name = "Alice"
+
+// Reading multiple values
+i32 count = 0;
+Str user = StrInit();
+StrReadFmt("Count: 42, Name: Alice", "Count: {}, Name: {}", FMT(count), FMT(user));
+// count = 42, user = "Alice"
+```
+
+### Available I/O Functions
+
+The library provides several I/O functions for formatted reading and writing:
+
+- `StrWriteFmt(&str, format, ...)`: Append formatted output to a string
+- `StrReadFmt(input, format, ...)`: Parse values from a string
+- `FWriteFmt(file, format, ...)`: Write formatted output to a file
+- `FWriteFmtLn(file, format, ...)`: Write formatted output to a file with a newline
+- `FReadFmt(file, format, ...)`: Read formatted input from a file
+- `WriteFmt(format, ...)`: Write formatted output to stdout
+- `WriteFmtLn(format, ...)`: Write formatted output to stdout with a newline
+- `ReadFmt(format, ...)`: Read formatted input from stdin
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -396,3 +597,5 @@ This means you are free to:
 - Sell the code or derivative works
 
 No attribution is required. See the [LICENSE.md](LICENSE.md) file for details.
+
+

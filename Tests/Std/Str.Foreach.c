@@ -12,6 +12,10 @@ bool test_str_foreach(void);
 bool test_str_foreach_reverse(void);
 bool test_str_foreach_ptr(void);
 bool test_str_foreach_ptr_reverse(void);
+bool test_str_foreach_in_range_idx(void);
+bool test_str_foreach_in_range(void);
+bool test_str_foreach_ptr_in_range_idx(void);
+bool test_str_foreach_ptr_in_range(void);
 
 // Test StrForeachIdx macro
 bool test_str_foreach_idx(void) {
@@ -270,9 +274,135 @@ bool test_str_foreach_ptr_reverse(void) {
     return success;
 }
 
+// Test StrForeachInRangeIdx macro
+bool test_str_foreach_in_range_idx(void) {
+    printf("Testing StrForeachInRangeIdx\n");
+    
+    Str s = StrInitFromZstr("Hello World");
+    
+    // Build a new string by iterating through a range of characters with indices
+    Str result = StrInit();
+    StrForeachInRangeIdx(&s, chr, idx, 6, 11, {
+        // Append the character and its index to the result string
+        Str buffer = StrInit();
+        StrWriteFmt(&buffer, "{:c}{}", FMT(chr), FMT(idx));
+        StrMergeL(&result, &buffer);
+    });
+    
+    // The result should be "W6o7r8l9d10" (characters from index 6-10 with their indices)
+    bool success = (ZstrCompare(result.data, "W6o7r8l9d10") == 0);
+    
+    // Test with empty range
+    Str empty_result = StrInit();
+    StrForeachInRangeIdx(&s, chr, idx, 3, 3, {
+        // This block should not execute
+        StrPushBack(&empty_result, chr);
+    });
+    
+    // The empty_result should remain empty
+    success = success && (empty_result.length == 0);
+    
+    StrDeinit(&s);
+    StrDeinit(&result);
+    StrDeinit(&empty_result);
+    return success;
+}
+
+// Test StrForeachInRange macro
+bool test_str_foreach_in_range(void) {
+    printf("Testing StrForeachInRange\n");
+    
+    Str s = StrInitFromZstr("Hello World");
+    
+    // Build a new string by iterating through a range of characters
+    Str result = StrInit();
+    StrForeachInRange(&s, chr, 0, 5, {
+        // Append the character to the result string
+        StrPushBack(&result, chr);
+    });
+    
+    // The result should be "Hello" (first 5 characters)
+    bool success = (ZstrCompare(result.data, "Hello") == 0);
+    
+    // Test with range at the end of the string
+    Str end_result = StrInit();
+    StrForeachInRange(&s, chr, 6, 11, {
+        // Append the character to the result string
+        StrPushBack(&end_result, chr);
+    });
+    
+    // The end_result should be "World" (last 5 characters)
+    success = success && (ZstrCompare(end_result.data, "World") == 0);
+    
+    StrDeinit(&s);
+    StrDeinit(&result);
+    StrDeinit(&end_result);
+    return success;
+}
+
+// Test StrForeachPtrInRangeIdx macro
+bool test_str_foreach_ptr_in_range_idx(void) {
+    printf("Testing StrForeachPtrInRangeIdx\n");
+    
+    Str s = StrInitFromZstr("Hello World");
+    
+    // Build a new string by iterating through a range of character pointers with indices
+    Str result = StrInit();
+    StrForeachPtrInRangeIdx(&s, chrptr, idx, 6, 11, {
+        // Append the character and its index to the result string
+        Str buffer = StrInit();
+        StrWriteFmt(&buffer, "{:c}{}", FMT(*chrptr), FMT(idx));
+        StrMergeL(&result, &buffer);
+        
+        // Modify the original string by converting to uppercase
+        if (*chrptr >= 'a' && *chrptr <= 'z') {
+            *chrptr = *chrptr - 'a' + 'A';
+        }
+    });
+    
+    // The result should be "W6o7r8l9d10" (characters from index 6-10 with their indices)
+    bool success = (ZstrCompare(result.data, "W6o7r8l9d10") == 0);
+    
+    // The original string should now have "WORLD" in uppercase
+    success = success && (ZstrCompare(s.data, "Hello WORLD") == 0);
+    
+    StrDeinit(&s);
+    StrDeinit(&result);
+    return success;
+}
+
+// Test StrForeachPtrInRange macro
+bool test_str_foreach_ptr_in_range(void) {
+    printf("Testing StrForeachPtrInRange\n");
+    
+    Str s = StrInitFromZstr("Hello World");
+    
+    // Build a new string by iterating through a range of character pointers
+    Str result = StrInit();
+    StrForeachPtrInRange(&s, chrptr, 0, 5, {
+        // Append the character to the result string
+        StrPushBack(&result, *chrptr);
+        
+        // Modify the original string by converting to uppercase
+        if (*chrptr >= 'a' && *chrptr <= 'z') {
+            *chrptr = *chrptr - 'a' + 'A';
+        }
+    });
+    
+    // The result should be "Hello" (first 5 characters)
+    bool success = (ZstrCompare(result.data, "Hello") == 0);
+    
+    // The original string should now have "HELLO" in uppercase
+    success = success && (ZstrCompare(s.data, "HELLO World") == 0);
+    
+    StrDeinit(&s);
+    StrDeinit(&result);
+    return success;
+}
+
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Str.Foreach tests\n\n");
+    printf("Starting Str foreach tests\n\n");
     
     // Array of test functions
     bool (*tests[])(void) = {
@@ -283,14 +413,17 @@ int main(void) {
         test_str_foreach,
         test_str_foreach_reverse,
         test_str_foreach_ptr,
-        test_str_foreach_ptr_reverse
+        test_str_foreach_ptr_reverse,
+        test_str_foreach_in_range_idx,
+        test_str_foreach_in_range,
+        test_str_foreach_ptr_in_range_idx,
+        test_str_foreach_ptr_in_range
     };
     
     int total_tests = sizeof(tests) / sizeof(tests[0]);
     int passed = 0;
-    int failed = 0;
     
-    // Run all tests and accumulate results
+    // Run all tests
     for (int i = 0; i < total_tests; i++) {
         printf("[TEST %d/%d] ", i + 1, total_tests);
         bool result = tests[i]();
@@ -299,13 +432,12 @@ int main(void) {
             passed++;
         } else {
             printf("[FAIL]\n\n");
-            failed++;
         }
     }
     
     // Print summary
-    printf("[SUMMARY] Total: %d, Passed: %d, Failed: %d\n", total_tests, passed, failed);
+    printf("Summary: %d/%d tests passed\n", passed, total_tests);
     
     // Return non-zero exit code if any test failed
-    return failed > 0 ? 1 : 0;
+    return (passed == total_tests) ? 0 : 1;
 } 
