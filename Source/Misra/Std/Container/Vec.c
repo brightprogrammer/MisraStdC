@@ -264,9 +264,11 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
         LOG_FATAL("vector range out of bounds.");
     }
 
+    // Save the data to be removed if requested
     if (removed_data) {
         memcpy(removed_data, vec_ptr_at(vec, start, item_size), count * vec_aligned_size(vec, item_size));
     } else {
+        // Otherwise, properly clean up the memory
         if (vec->copy_deinit) {
             char *vec_data = vec_ptr_at(vec, start, item_size);
             for (size s = 0; s < count; s++) {
@@ -278,21 +280,37 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
         }
     }
 
-    // move just last "count" elements to new created space
-    memmove(
-        // move to freed up space
-        vec_ptr_at(vec, start, item_size),
-        // last "count" elements
-        vec_ptr_at(vec, (vec->length - count), item_size),
-        // "count" items
+    // Calculate how many elements we can move from the end
+    size available_elements = vec->length - (start + count);
+    size elements_to_move = count;
+    
+    // If we don't have enough elements at the end, adjust the count
+    if (elements_to_move > available_elements) {
+        elements_to_move = available_elements;
+    }
+    
+    if (elements_to_move > 0) {
+        // Move the last 'elements_to_move' elements to the gap
+        memmove(
+            // Move to freed up space
+            vec_ptr_at(vec, start, item_size),
+            // Start from the position that leaves exactly 'elements_to_move' elements
+            vec_ptr_at(vec, vec->length - elements_to_move, item_size),
+            // Move 'elements_to_move' elements
+            elements_to_move * vec_aligned_size(vec, item_size)
+        );
+    }
+    
+    // Clear the remaining elements at the end
+    memset(
+        vec_ptr_at(vec, vec->length - count, item_size),
+        0,
         count * vec_aligned_size(vec, item_size)
     );
-    // memset last count items to 0
-    memset(vec_ptr_at(vec, (vec->length - count), item_size), 0, count * vec_aligned_size(vec, item_size));
 
     vec->length -= count;
 
-    // make sure space just after vector length is memeset to 0
+    // Make sure space just after vector length is memset to 0
     memset(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
 }
 

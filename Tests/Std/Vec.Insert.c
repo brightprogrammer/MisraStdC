@@ -14,6 +14,7 @@ bool test_vec_push_front_arr(void);
 bool test_vec_push_arr(void);
 bool test_vec_insert_range(void);
 bool test_vec_merge(void);
+bool test_lvalue_rvalue_operations(void);
 
 // Test VecPushBack function
 bool test_vec_push_back(void) {
@@ -300,6 +301,89 @@ bool test_vec_merge(void) {
     return result;
 }
 
+// Test L-value and R-value operations
+bool test_lvalue_rvalue_operations(void) {
+    printf("Testing L-value and R-value operations\n");
+    
+    // Create a vector of integers
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit();
+    
+    // Test R-value insert operations
+    VecPushBackR(&vec, LVAL(42));
+    
+    // Check that the element was added
+    bool result = (vec.length == 1 && VecAt(&vec, 0) == 42);
+    
+    // Test L-value insert operations
+    int l_value = 100;
+    VecPushBackL(&vec, l_value);
+    
+    // Check that the element was added
+    result = result && (vec.length == 2 && VecAt(&vec, 1) == 100);
+    
+    // Test R-value insert at index
+    VecInsertR(&vec, LVAL(50), 1);
+    
+    // Check that the element was inserted
+    result = result && (vec.length == 3);
+    result = result && (VecAt(&vec, 0) == 42);
+    result = result && (VecAt(&vec, 1) == 50);
+    result = result && (VecAt(&vec, 2) == 100);
+    
+    // Test L-value insert at index
+    int insert_value = 75;
+    VecInsertL(&vec, insert_value, 2);
+    
+    // Check that the element was inserted
+    result = result && (vec.length == 4);
+    result = result && (VecAt(&vec, 0) == 42);
+    result = result && (VecAt(&vec, 1) == 50);
+    result = result && (VecAt(&vec, 2) == 75);
+    result = result && (VecAt(&vec, 3) == 100);
+    
+    // Test R-value fast insert
+    VecInsertFastR(&vec, LVAL(60), 1);
+    
+    // Check that the element was inserted
+    result = result && (vec.length == 5);
+    result = result && (VecAt(&vec, 1) == 60);
+    
+    // Test L-value fast insert
+    int fast_value = 80;
+    VecInsertFastL(&vec, fast_value, 3);
+    
+    // Check that the element was inserted
+    result = result && (vec.length == 6);
+    result = result && (VecAt(&vec, 3) == 80);
+    
+    // Test array operations with L-values and R-values
+    int arr[] = {200, 300, 400};
+    
+    // R-value array operations
+    VecPushBackArrR(&vec, arr, 3);
+    
+    // Check that the elements were added
+    result = result && (vec.length == 9);
+    result = result && (VecAt(&vec, 6) == 200);
+    result = result && (VecAt(&vec, 7) == 300);
+    result = result && (VecAt(&vec, 8) == 400);
+    
+    // L-value array operations
+    VecPushFrontArrL(&vec, arr, 3);
+    
+    // Check that the elements were added
+    result = result && (vec.length == 12);
+    result = result && (VecAt(&vec, 0) == 200);
+    result = result && (VecAt(&vec, 1) == 300);
+    result = result && (VecAt(&vec, 2) == 400);
+    
+    // Clean up
+    VecDeinit(&vec);
+    
+    return result;
+}
+
 // Main function that runs all tests
 int main(void) {
     printf("[INFO] Starting Vec.Insert tests\n\n");
@@ -313,12 +397,13 @@ int main(void) {
         test_vec_push_front_arr,
         test_vec_push_arr,
         test_vec_insert_range,
-        test_vec_merge
+        test_vec_merge,
+        test_lvalue_rvalue_operations
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
-    int passed      = 0;
-    int failed      = 0;
+    int passed = 0;
+    int failed = 0;
 
     // Run all tests and accumulate results
     for (int i = 0; i < total_tests; i++) {
