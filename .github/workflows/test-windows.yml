@@ -25,12 +25,12 @@ jobs:
       run: |
         pip install meson ninja
       shell: pwsh
-   
-    - name: Compile Visual Studio project with MSBuild
-      run: |
-        ${{ '"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"'  }}
-      shell: pwsh
-  
+      
+    - name: Prepare MSVC
+      uses: bus1/cabuild/action/msdevshell@v1
+      with:
+        architecture: x64  
+        
     - name: Configure with MSVC
       run: |
         meson setup build
