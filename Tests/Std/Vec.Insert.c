@@ -15,6 +15,7 @@ bool test_vec_push_arr(void);
 bool test_vec_insert_range(void);
 bool test_vec_merge(void);
 bool test_lvalue_rvalue_operations(void);
+bool test_lvalue_memset_after_insertion(void);
 
 // Test VecPushBack function
 bool test_vec_push_back(void) {
@@ -384,6 +385,82 @@ bool test_lvalue_rvalue_operations(void) {
     return result;
 }
 
+// Test that L-value insertions properly memset values to 0 after insertion
+bool test_lvalue_memset_after_insertion(void) {
+    printf("Testing L-value memset after insertion\n");
+    
+    // Create a vector of integers without copy_init
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit();
+    
+    // Test VecPushBackL
+    int val1 = 10;
+    VecPushBackL(&vec, val1);
+    bool result = (val1 == 0); // Should be memset to 0
+    
+    // Test VecPushFrontL
+    int val2 = 20;
+    VecPushFrontL(&vec, val2);
+    result = result && (val2 == 0); // Should be memset to 0
+    
+    // Test VecInsertL
+    int val3 = 30;
+    VecInsertL(&vec, val3, 1);
+    result = result && (val3 == 0); // Should be memset to 0
+    
+    // Test array operations
+    int arr[] = {40, 50, 60};
+    VecPushBackArrL(&vec, arr, 3);
+    
+    // Check that array elements are memset to 0
+    result = result && (arr[0] == 0);
+    result = result && (arr[1] == 0);
+    result = result && (arr[2] == 0);
+    
+    // Test VecInsertFastL
+    int val4 = 70;
+    VecInsertFastL(&vec, val4, 2);
+    result = result && (val4 == 0); // Should be memset to 0
+    
+    // Test VecInsertRangeL
+    int range[] = {80, 90, 100};
+    VecInsertRangeL(&vec, range, 1, 3);
+    
+    // Check that array elements are memset to 0
+    result = result && (range[0] == 0);
+    result = result && (range[1] == 0);
+    result = result && (range[2] == 0);
+    
+    // Test VecInsertRangeFastL
+    int fast_range[] = {110, 120, 130};
+    VecInsertRangeFastL(&vec, fast_range, 3, 3);
+    
+    // Check that array elements are memset to 0
+    result = result && (fast_range[0] == 0);
+    result = result && (fast_range[1] == 0);
+    result = result && (fast_range[2] == 0);
+    
+    // Test VecMergeL
+    IntVec vec2 = VecInit();
+    int merge_vals[] = {140, 150, 160};
+    for (int i = 0; i < 3; i++) {
+        VecPushBackR(&vec2, merge_vals[i]);
+    }
+    
+    // Merge with L-value semantics
+    VecMergeL(&vec, &vec2);
+    
+    // Check that the source vector is cleared
+    result = result && (vec2.length == 0);
+    result = result && (vec2.data == NULL);
+    
+    // Clean up
+    VecDeinit(&vec);
+    VecDeinit(&vec2);
+    
+    return result;
+}
+
 // Main function that runs all tests
 int main(void) {
     printf("[INFO] Starting Vec.Insert tests\n\n");
@@ -398,7 +475,8 @@ int main(void) {
         test_vec_push_arr,
         test_vec_insert_range,
         test_vec_merge,
-        test_lvalue_rvalue_operations
+        test_lvalue_rvalue_operations,
+        test_lvalue_memset_after_insertion
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
