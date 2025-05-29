@@ -679,10 +679,7 @@ bool test_lvalue_memset_insert(void) {
 // Test VecInsertFastL memset behavior with complex structures
 bool test_lvalue_memset_fast_insert(void) {
     printf("Testing VecInsertFastL memset with complex structures\n");
-    
-    // Create a test item
-    int values[] = {70, 80, 90};
-    ComplexItem item = CreateComplexItem("Fast Item", values, 3);
+    bool result = true;
     
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
@@ -691,21 +688,53 @@ bool test_lvalue_memset_fast_insert(void) {
     // Make sure we have enough capacity to avoid reallocation issues
     VecReserve(&vec, 10);
     
-    // First, create dummy items and add them to the vector
+    // Create several dummy items to populate the vector
     ComplexItem dummy1 = {0};
     dummy1.name = strdup("Dummy1");
     
-    // Add the dummy item using L-value semantics
-    VecPushBackL(&vec, dummy1);
+    ComplexItem dummy2 = {0};
+    dummy2.name = strdup("Dummy2");
     
-    // Now insert our test item using fast L-value semantics
-    // We're using index 0 to avoid any potential out-of-bounds issues
-    VecInsertFastL(&vec, item, 0);
+    ComplexItem dummy3 = {0};
+    dummy3.name = strdup("Dummy3");
+    
+    // Add the dummy items using L-value semantics
+    VecPushBackL(&vec, dummy1);
+    VecPushBackL(&vec, dummy2);
+    VecPushBackL(&vec, dummy3);
+    
+    // Test 1: Insert at the beginning
+    int values1[] = {10, 20, 30};
+    ComplexItem item1 = CreateComplexItem("Fast Item 1", values1, 3);
+    VecInsertFastL(&vec, item1, 0);
     
     // Check that the item was memset to 0
-    bool result = (item.name == NULL);
-    result = result && (item.values == NULL);
-    result = result && (item.num_values == 0);
+    result = result && (item1.name == NULL);
+    result = result && (item1.values == NULL);
+    result = result && (item1.num_values == 0);
+    
+    // Test 2: Insert in the middle
+    int values2[] = {40, 50, 60};
+    ComplexItem item2 = CreateComplexItem("Fast Item 2", values2, 3);
+    VecInsertFastL(&vec, item2, 2);
+    
+    // Check that the item was memset to 0
+    result = result && (item2.name == NULL);
+    result = result && (item2.values == NULL);
+    result = result && (item2.num_values == 0);
+    
+    // Test 3: Insert at the end (this is actually an append operation)
+    int values3[] = {70, 80, 90};
+    ComplexItem item3 = CreateComplexItem("Fast Item 3", values3, 3);
+    VecInsertFastL(&vec, item3, vec.length);
+    
+    // Check that the item was memset to 0
+    result = result && (item3.name == NULL);
+    result = result && (item3.values == NULL);
+    result = result && (item3.num_values == 0);
+    
+    // Verify vector integrity - should have 6 items now
+    result = result && (vec.length == 6);
     
     // Clean up the vector
     VecDeinit(&vec);
