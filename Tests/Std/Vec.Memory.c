@@ -1,0 +1,210 @@
+#include <Misra/Std/Container/Vec.h>
+#include <Misra/Std/Log.h>
+#include <stdbool.h>
+#include <stdio.h>
+
+// Function prototypes
+bool test_vec_try_reduce_space(void);
+bool test_vec_resize(void);
+bool test_vec_reserve(void);
+bool test_vec_clear(void);
+
+// Test VecTryReduceSpace function
+bool test_vec_try_reduce_space(void) {
+    printf("Testing VecTryReduceSpace\n");
+    
+    // Create a vector of integers
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit();
+    
+    // Reserve more space than needed
+    VecReserve(&vec, 100);
+    
+    // Add some data
+    int values[] = {10, 20, 30, 40, 50};
+    for (int i = 0; i < 5; i++) {
+        VecPushBackR(&vec, values[i]);
+    }
+    
+    // Original capacity should be at least 100
+    bool result = (vec.capacity >= 100);
+    
+    // Try to reduce space
+    VecTryReduceSpace(&vec);
+    
+    // Capacity should now be closer to the actual length
+    result = result && (vec.capacity < 100) && (vec.capacity >= vec.length);
+    
+    // Check that the data is still intact
+    for (size i = 0; i < vec.length; i++) {
+        result = result && (VecAt(&vec, i) == values[i]);
+    }
+    
+    // Clean up
+    VecDeinit(&vec);
+    
+    return result;
+}
+
+// Test VecResize function
+bool test_vec_resize(void) {
+    printf("Testing VecResize\n");
+    
+    // Create a vector of integers
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit();
+    
+    // Add some data
+    int values[] = {10, 20, 30, 40, 50};
+    for (int i = 0; i < 5; i++) {
+        VecPushBackR(&vec, values[i]);
+    }
+    
+    // Initial length should be 5
+    bool result = (vec.length == 5);
+    
+    // Resize to a smaller length
+    VecResize(&vec, 3);
+    
+    // Length should now be 3
+    result = result && (vec.length == 3);
+    
+    // First 3 elements should be unchanged
+    for (size i = 0; i < 3; i++) {
+        result = result && (VecAt(&vec, i) == values[i]);
+    }
+    
+    // Resize to a larger length
+    VecResize(&vec, 8);
+    
+    // Length should now be 8
+    result = result && (vec.length == 8);
+    
+    // First 3 elements should still be the same
+    for (size i = 0; i < 3; i++) {
+        result = result && (VecAt(&vec, i) == values[i]);
+    }
+    
+    // Clean up
+    VecDeinit(&vec);
+    
+    return result;
+}
+
+// Test VecReserve function
+bool test_vec_reserve(void) {
+    printf("Testing VecReserve\n");
+    
+    // Create a vector of integers
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit();
+    
+    // Initial capacity should be 0
+    bool result = (vec.capacity == 0);
+    
+    // Reserve space for 50 elements
+    VecReserve(&vec, 50);
+    
+    // Capacity should now be at least 50
+    result = result && (vec.capacity >= 50);
+    
+    // Length should still be 0
+    result = result && (vec.length == 0);
+    
+    // Add some data
+    int values[] = {10, 20, 30, 40, 50};
+    for (int i = 0; i < 5; i++) {
+        VecPushBackR(&vec, values[i]);
+    }
+    
+    // Capacity should still be at least 50
+    result = result && (vec.capacity >= 50);
+    
+    // Length should now be 5
+    result = result && (vec.length == 5);
+    
+    // Reserve less space (should be a no-op)
+    VecReserve(&vec, 20);
+    
+    // Capacity should still be at least 50
+    result = result && (vec.capacity >= 50);
+    
+    // Clean up
+    VecDeinit(&vec);
+    
+    return result;
+}
+
+// Test VecClear function
+bool test_vec_clear(void) {
+    printf("Testing VecClear\n");
+    
+    // Create a vector of integers
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit();
+    
+    // Add some data
+    int values[] = {10, 20, 30, 40, 50};
+    for (int i = 0; i < 5; i++) {
+        VecPushBackR(&vec, values[i]);
+    }
+    
+    // Initial length should be 5
+    bool result = (vec.length == 5);
+    
+    // Remember the capacity
+    size original_capacity = vec.capacity;
+    
+    // Clear the vector
+    VecClear(&vec);
+    
+    // Length should now be 0
+    result = result && (vec.length == 0);
+    
+    // Capacity should remain the same
+    result = result && (vec.capacity == original_capacity);
+    
+    // Data pointer should still be valid
+    result = result && (vec.data != NULL);
+    
+    // Clean up
+    VecDeinit(&vec);
+    
+    return result;
+}
+
+// Main function that runs all tests
+int main(void) {
+    printf("[INFO] Starting Vec.Memory tests\n\n");
+    
+    // Array of test functions
+    bool (*tests[])(void) = {
+        test_vec_try_reduce_space,
+        test_vec_resize,
+        test_vec_reserve,
+        test_vec_clear
+    };
+    
+    int total_tests = sizeof(tests) / sizeof(tests[0]);
+    int passed = 0;
+    int failed = 0;
+    
+    // Run all tests and accumulate results
+    for (int i = 0; i < total_tests; i++) {
+        printf("[TEST %d/%d] ", i + 1, total_tests);
+        bool result = tests[i]();
+        if (result) {
+            printf("[PASS]\n\n");
+            passed++;
+        } else {
+            printf("[FAIL]\n\n");
+            failed++;
+        }
+    }
+    
+    // Print summary
+    printf("[SUMMARY] Total: %d, Passed: %d, Failed: %d\n", total_tests, passed, failed);
+    
+    // Return non-zero exit code if any test failed
+    return failed > 0 ? 1 : 0;
+} 

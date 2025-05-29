@@ -72,13 +72,13 @@
 ///
 /// v[in] : Vector to get length of
 ///
-#define VecSize(v) VecAlignedOffsetAt(v, v->length)
+#define VecSize(v) VecAlignedOffsetAt(v, (v)->length)
 
 ///
 /// Length of vector.
 ///
 /// v[in] : Vector to get length of
 ///
-#define VecLen(v) VecAlignedOffsetAt(v, v->length)
+#define VecLen(v) ((v)->length)
 
 #endif // MISRA_STD_CONTAINER_VEC_ACCESS_H

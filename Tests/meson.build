@@ -28,6 +28,17 @@ str_tests = [
     ['Str.Ops', 'Std/Str.Ops.c'],
 ]
 
+vec_tests = [
+    ['Vec.Type', 'Std/Vec.Type.c'],
+    ['Vec.Init', 'Std/Vec.Init.c'],
+    ['Vec.Access', 'Std/Vec.Access.c'],
+    ['Vec.Memory', 'Std/Vec.Memory.c'],
+    ['Vec.Insert', 'Std/Vec.Insert.c'],
+    ['Vec.Remove', 'Std/Vec.Remove.c'],
+    ['Vec.Foreach', 'Std/Vec.Foreach.c'],
+    ['Vec.Ops', 'Std/Vec.Ops.c'],
+]
+
 # Build and register all tests
 foreach test_info : io_tests
     test_name = test_info[0]
@@ -46,6 +57,22 @@ foreach test_info : io_tests
 endforeach
 
 foreach test_info : str_tests
+    test_name = test_info[0]
+    test_src = test_info[1]
+    
+    test_exe = executable(
+        test_name,
+        files(test_src),
+        link_with: [misra_std],
+        c_args: test_args,
+        include_directories: inc_misra,
+        install: false
+    )
+    
+    test(test_name, test_exe)
+endforeach 
+
+foreach test_info : vec_tests
     test_name = test_info[0]
     test_src = test_info[1]
     
