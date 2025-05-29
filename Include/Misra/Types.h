@@ -231,6 +231,17 @@ typedef i8 bool;
 #define IS_CAPS_ALPHA(c) IN_RANGE(c, 'A', 'Z')
 
 ///
+/// Checks whether a given character 'c' is printable ascii or not.
+///
+/// c[in] : Character to check.
+///
+/// SUCCESS: Returns true or false based on whether given character is printable or not
+/// FAILURE: Cannot fail, always return boolean result
+///
+/// TAGS: Character, ASCII, Printable
+#define IS_PRINTABLE(c) IN_RANGE(c, 0x20, 0x7e)
+
+///
 /// Checks if the given character `c` is an ASCII alphabet.
 ///
 /// c[in] : The character to check.

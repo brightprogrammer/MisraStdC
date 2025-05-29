@@ -2,9 +2,9 @@ name: Windows Build
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ master ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ master ]
 
 jobs:
   build-and-test:
@@ -25,23 +25,28 @@ jobs:
       run: |
         pip install meson ninja
       shell: pwsh
-        
+   
+    - name: Compile Visual Studio project with MSBuild
+      run: |
+        ${{ '"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"'  }}
+      shell: pwsh
+  
     - name: Configure with MSVC
       run: |
-        meson setup builddir
+        meson setup build
       shell: pwsh
       
     - name: Build
       run: |
-        ninja -C builddir
-        
+        meson compile -C build
+                
     - name: Test
       run: |
-        ninja -C builddir test
+        ninja -C build test
         
     - name: Upload test logs if failure
       uses: actions/upload-artifact@v4
       if: failure()
       with:
         name: test-logs-windows
-        path: builddir/meson-logs/testlog.txt 
+        path: build/meson-logs/testlog.txt 

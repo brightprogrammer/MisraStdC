@@ -28,17 +28,17 @@ static bool ParseFormatSpec(const char* spec, size len, FmtInfo* fi) {
     // Empty format specifier is allowed, but spec pointer must not be NULL
 
     // Initialize format info with defaults
-    *fi = (FmtInfo
-    ) {.align         = ALIGN_RIGHT,
-       .width         = 0,
-       .precision     = 6,
-       .has_precision = false,
-       .is_hex        = false,
-       .is_binary     = false,
-       .is_octal      = false,
-       .is_debug      = false,
-       .is_scientific = false,
-       .is_caps       = false};
+    *fi = (FmtInfo) {.align         = ALIGN_RIGHT,
+                     .width         = 0,
+                     .precision     = 6,
+                     .has_precision = false,
+                     .is_char       = false,
+                     .is_hex        = false,
+                     .is_binary     = false,
+                     .is_octal      = false,
+                     .is_debug      = false,
+                     .is_scientific = false,
+                     .is_caps       = false};
 
     size pos = 0;
 
@@ -91,15 +91,20 @@ static bool ParseFormatSpec(const char* spec, size len, FmtInfo* fi) {
         if (spec[type_pos] == '.')
             break; // Stop at precision
         switch (spec[type_pos]) {
+            case 'C' :
+                fi->is_caps = true;
+            case 'c' :
+                fi->is_char = true;
+                found_type  = true;
+                break;
+
+            case 'X' :
+                fi->is_caps = true;
             case 'x' :
                 fi->is_hex = true;
                 found_type = true;
                 break;
-            case 'X' :
-                fi->is_hex  = true;
-                fi->is_caps = true;
-                found_type  = true;
-                break;
+
             case 'b' :
                 fi->is_binary = true;
                 found_type    = true;
@@ -108,15 +113,14 @@ static bool ParseFormatSpec(const char* spec, size len, FmtInfo* fi) {
                 fi->is_octal = true;
                 found_type   = true;
                 break;
+
+            case 'E' :
+                fi->is_caps = true;
             case 'e' :
                 fi->is_scientific = true;
                 found_type        = true;
                 break;
-            case 'E' :
-                fi->is_scientific = true;
-                fi->is_caps       = true;
-                found_type        = true;
-                break;
+
             case '?' :
                 fi->is_debug = true;
                 found_type   = true;
@@ -150,31 +154,36 @@ static bool ParseFormatSpec(const char* spec, size len, FmtInfo* fi) {
     if (!found_type) {
         while (pos < len) {
             switch (spec[pos]) {
+                case 'C' :
+                    fi->is_caps = true;
+                case 'c' :
+                    fi->is_char = true;
+                    break;
+
+                case 'X' :
+                    fi->is_caps = true;
                 case 'x' :
                     fi->is_hex = true;
                     break;
-                case 'X' :
-                    fi->is_hex  = true;
-                    fi->is_caps = true;
-                    break;
+
                 case 'b' :
                     fi->is_binary = true;
                     break;
                 case 'o' :
                     fi->is_octal = true;
                     break;
+
+                case 'E' :
+                    fi->is_caps = true;
                 case 'e' :
                     fi->is_scientific = true;
                     break;
-                case 'E' :
-                    fi->is_scientific = true;
-                    fi->is_caps       = true;
-                    break;
+
                 case '?' :
                     fi->is_debug = true;
                     break;
                 default :
-                    return false; // Invalid format type
+                    return false;
             }
             pos++;
         }
@@ -256,17 +265,16 @@ bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, size arg
             FmtInfo fmt_info;
             if (spec_len == 0) {
                 // Empty format specifier {} is allowed, initialize with defaults
-                fmt_info = (FmtInfo
-                ) {.align         = ALIGN_RIGHT,
-                   .width         = 0,
-                   .precision     = 6,
-                   .has_precision = false,
-                   .is_hex        = false,
-                   .is_binary     = false,
-                   .is_octal      = false,
-                   .is_debug      = false,
-                   .is_scientific = false,
-                   .is_caps       = false};
+                fmt_info = (FmtInfo) {.align         = ALIGN_RIGHT,
+                                      .width         = 0,
+                                      .precision     = 6,
+                                      .has_precision = false,
+                                      .is_hex        = false,
+                                      .is_binary     = false,
+                                      .is_octal      = false,
+                                      .is_debug      = false,
+                                      .is_scientific = false,
+                                      .is_caps       = false};
             } else if (!ParseFormatSpec(fmt + brace_start + 1, spec_len, &fmt_info)) {
                 LOG_ERROR("Invalid format specifier");
                 return false;
@@ -501,6 +509,44 @@ void FReadFmtInternal(FILE* file, const char* fmtstr, TypeSpecificIO* argv, size
     StrDeinit(&buffer);
 }
 
+void write_char_internal(Str* o, bool is_caps, char* vs, size len) {
+    if (!o || !vs || !len) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    while (len--) {
+        if (IS_PRINTABLE(*vs)) {
+            StrPushBack(o, *vs);
+        } else {
+            StrPushBackZstr(o, "\\x");
+            u8   c           = *vs;
+            u8   low         = c & 0xf;
+            u8   hiw         = (c >> 4) & 0xf;
+            char c1          = hiw < 10 ? '0' + hiw : is_caps ? 'A' + (hiw - 10) : 'a' + (hiw - 10);
+            char c2          = low < 10 ? '0' + low : is_caps ? 'A' + (low - 10) : 'a' + (low - 10);
+            char cs[3]       = {'\\', c1, c2};
+            StrPushBackCstr(o, cs, 3);
+        }
+        vs++;
+    }
+}
+
+const char* read_char_internal(const char* in, char* v) {
+    if (!in || !v) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    if (in[0] == '\\' && in[1] == 'x') {
+        u8          vx  = 0;
+        const char* out = _read_u8(in + 2, &vx);
+        *v              = vx;
+        return out;
+    } else {
+        *v = *in;
+        return in + 1;
+    }
+}
+
 void _write_Str(Str* o, FmtInfo* fmt_info, Str* s) {
     if (!o || !fmt_info) {
         LOG_FATAL("Invalid arguments");
@@ -637,49 +683,9 @@ void _write_u64(Str* o, FmtInfo* fmt_info, u64* v) {
         return;
     }
 
-    // Store original length to calculate content size later
-    size start_len = o->length;
-
-    // Create temporary buffer for number formatting
-    Str temp = StrInit();
-
-    // Determine base based on format flags
-    u8 base = 10; // default is decimal
-    if (fmt_info->is_hex) {
-        base = 16;
-    } else if (fmt_info->is_binary) {
-        base = 2;
-    } else if (fmt_info->is_octal) {
-        base = 8;
-    }
-
-    // Use StrFromU64 directly with the appropriate base
-    StrFromU64(&temp, *v, base, fmt_info->is_caps);
-
-    // Merge the formatted number into output
-    StrMerge(o, &temp);
-    StrDeinit(&temp);
-
-    // Apply padding if width is specified
-    if (fmt_info->width > 0) {
-        size content_len = o->length - start_len;
-        PadString(o, fmt_info->width, fmt_info->align, content_len);
-    }
-}
-
-void _write_u32(Str* o, FmtInfo* fmt_info, u32* v) {
-    u64 val = *v;
-    _write_u64(o, fmt_info, &val);
-}
-
-void _write_u16(Str* o, FmtInfo* fmt_info, u16* v) {
-    u64 val = *v;
-    _write_u64(o, fmt_info, &val);
-}
-
-void _write_u8(Str* o, FmtInfo* fmt_info, u8* v) {
-    if (!o || !fmt_info || !v) {
-        LOG_FATAL("Invalid arguments");
+    // If this is to be printed as a character sequence
+    if(fmt_info->is_char) {
+        write_char_internal(o, fmt_info->is_caps, (char*)v, 8);
         return;
     }
 
@@ -713,9 +719,63 @@ void _write_u8(Str* o, FmtInfo* fmt_info, u8* v) {
     }
 }
 
+void _write_u32(Str* o, FmtInfo* fmt_info, u32* v) {
+    if (!o || !fmt_info || !v) {
+        LOG_FATAL("Invalid arguments");
+        return;
+    }
+
+    // If this is to be printed as a character sequence
+    if(fmt_info->is_char) {
+        write_char_internal(o, fmt_info->is_caps, (char*)v, 4);
+        return;
+    }
+
+    u64 val = *v;
+    _write_u64(o, fmt_info, &val);
+}
+
+void _write_u16(Str* o, FmtInfo* fmt_info, u16* v) {
+    if (!o || !fmt_info || !v) {
+        LOG_FATAL("Invalid arguments");
+        return;
+    }
+
+    // If this is to be printed as a character sequence
+    if(fmt_info->is_char) {
+        write_char_internal(o, fmt_info->is_caps, (char*)v, 2);
+        return;
+    }
+    
+    u64 val = *v;
+    _write_u64(o, fmt_info, &val);
+}
+
+void _write_u8(Str* o, FmtInfo* fmt_info, u8* v) {
+    if (!o || !fmt_info || !v) {
+        LOG_FATAL("Invalid arguments");
+        return;
+    }
+
+    // If this is to be printed as a character sequence
+    if(fmt_info->is_char) {
+        write_char_internal(o, fmt_info->is_caps, (char*)v, 1);
+        return;
+    }
+
+    u64 vx= *v;
+    _write_u64(o, fmt_info, &vx);
+}
+
 void _write_i64(Str* o, FmtInfo* fmt_info, i64* v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
+        return;
+    }
+
+    // If this is to be printed as a character sequence
+    if(fmt_info->is_char) {
+        write_char_internal(o, fmt_info->is_caps, (char*)v, 8);
         return;
     }
 
@@ -750,6 +810,17 @@ void _write_i64(Str* o, FmtInfo* fmt_info, i64* v) {
 }
 
 void _write_i32(Str* o, FmtInfo* fmt_info, i32* v) {
+    if (!o || !fmt_info || !v) {
+        LOG_FATAL("Invalid arguments");
+        return;
+    }
+
+    // If this is to be printed as a character sequence
+    if(fmt_info->is_char) {
+        write_char_internal(o, fmt_info->is_caps, (char*)v, 4);
+        return;
+    }
+
     i64 val = *v;
     _write_i64(o, fmt_info, &val);
 }
@@ -760,24 +831,14 @@ void _write_i16(Str* o, FmtInfo* fmt_info, i16* v) {
         return;
     }
 
-    // Store original length to calculate content size later
-    size start_len = o->length;
-
-    // Create temporary buffer for number formatting
-    Str temp = StrInit();
-
-    // Use StrFromI64 directly with the appropriate base
-    StrFromI64(&temp, *v, 10, fmt_info->is_caps);
-
-    // Merge the formatted number into output
-    StrMerge(o, &temp);
-    StrDeinit(&temp);
-
-    // Apply padding if width is specified
-    if (fmt_info->width > 0) {
-        size content_len = o->length - start_len;
-        PadString(o, fmt_info->width, fmt_info->align, content_len);
+    // If this is to be printed as a character sequence
+    if(fmt_info->is_char) {
+        write_char_internal(o, fmt_info->is_caps, (char*)v, 2);
+        return;
     }
+
+    i64 vx = *v;
+    _write_i64(o, fmt_info, &vx);
 }
 
 void _write_i8(Str* o, FmtInfo* fmt_info, i8* v) {
@@ -786,29 +847,25 @@ void _write_i8(Str* o, FmtInfo* fmt_info, i8* v) {
         return;
     }
 
-    // Store original length to calculate content size later
-    size start_len = o->length;
-
-    // Create temporary buffer for number formatting
-    Str temp = StrInit();
-
-    // Use StrFromI64 directly with the appropriate base
-    StrFromI64(&temp, *v, 10, fmt_info->is_caps);
-
-    // Merge the formatted number into output
-    StrMerge(o, &temp);
-    StrDeinit(&temp);
-
-    // Apply padding if width is specified
-    if (fmt_info->width > 0) {
-        size content_len = o->length - start_len;
-        PadString(o, fmt_info->width, fmt_info->align, content_len);
+    // If this is to be printed as a character sequence
+    if(fmt_info->is_char) {
+        write_char_internal(o, fmt_info->is_caps, (char*)v, 1);
+        return;
     }
+
+    i64 vx = *v;
+    _write_i64(o, fmt_info, &vx);
 }
 
 void _write_f64(Str* o, FmtInfo* fmt_info, f64* v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
+        return;
+    }
+
+    // If this is to be printed as a character sequence
+    if(fmt_info->is_char) {
+        write_char_internal(o, fmt_info->is_caps, (char*)v, 1);
         return;
     }
 
@@ -856,6 +913,17 @@ void _write_f64(Str* o, FmtInfo* fmt_info, f64* v) {
 }
 
 void _write_f32(Str* o, FmtInfo* fmt_info, f32* v) {
+    if (!o || !fmt_info || !v) {
+        LOG_FATAL("Invalid arguments");
+        return;
+    }
+
+    // If this is to be printed as a character sequence
+    if(fmt_info->is_char) {
+        write_char_internal(o, fmt_info->is_caps, (char*)v, 1);
+        return;
+    }
+
     f64 val = *v;
     _write_f64(o, fmt_info, &val);
 }
@@ -1923,35 +1991,4 @@ const char* _read_f32(const char* i, f32* v) {
     *v = (f32)val;
     StrDeinit(&temp);
     return start + pos;
-}
-
-void _write_char(Str* o, FmtInfo* fmt_info, char* v) {
-    if (!o || !fmt_info || !v) {
-        LOG_FATAL("Invalid arguments");
-    }
-
-    u8 vx = (u8)*v;
-    if (vx > 0x7f) {
-        StrPushBackZstr(o, "\\x");
-        fmt_info->is_hex = true;
-        _write_u8(o, fmt_info, &vx);
-    } else {
-        StrPushBack(o, *v);
-    }
-}
-
-const char* _read_char(const char* in, char* v){
-    if(!in || !v) {
-        LOG_FATAL("Invalid arguments");
-    }
-
-    if(in[0] == '\\' && in[1] == 'x') {
-        u8 vx = 0;
-        const char* out =_read_u8(in + 2,&vx );
-        *v = vx;
-        return out;
-    } else {
-        *v = *in;
-        return in + 1;
-    }
 }

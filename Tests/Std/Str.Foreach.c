@@ -24,7 +24,7 @@ bool test_str_foreach_idx(void) {
     StrForeachIdx(&s, chr, idx, {
         // Append the character and its index to the result string
         Str buffer = StrInit();
-        StrWriteFmt(&buffer, "{}{}", FMT(chr), FMT(idx));
+        StrWriteFmt(&buffer, "{:c}{}", FMT(chr), FMT(idx));
         StrMergeL(&result, &buffer);
     });
     
@@ -54,7 +54,7 @@ bool test_str_foreach_reverse_idx(void) {
         
         // Append the character and its index to the result string
         Str buffer = StrInit();
-        StrWriteFmt(&buffer, "{}{}", FMT(chr), FMT(idx));
+        StrWriteFmt(&buffer, "{:c}{}", FMT(chr), FMT(idx));
         StrMergeL(&result, &buffer);
     });
     
@@ -85,7 +85,7 @@ bool test_str_foreach_ptr_idx(void) {
     StrForeachPtrIdx(&s, chrptr, idx, {
         // Append the character (via pointer) and its index to the result string
         Str buffer = StrInit();
-        StrWriteFmt(&buffer, "{}{}", FMT(*chrptr), FMT(idx));
+        StrWriteFmt(&buffer, "{:c}{}", FMT(*chrptr), FMT(idx));
         StrMergeL(&result, &buffer);
         
         // Modify the original string by converting to uppercase
@@ -123,7 +123,7 @@ bool test_str_foreach_reverse_ptr_idx(void) {
         
         // Append the character (via pointer) and its index to the result string
         Str buffer = StrInit();
-        StrWriteFmt(&buffer, "{}{}", FMT(*chrptr), FMT(idx));
+        StrWriteFmt(&buffer, "{:c}{}", FMT(*chrptr), FMT(idx));
         StrMergeL(&result, &buffer);
         
         // Modify the original string by converting to uppercase

@@ -12,7 +12,7 @@ typedef struct GenericIter {
     i64   length;
     i64   pos;
     size  alignment;
-    i8    dir;
+    i64   dir;
 } GenericIter;
 
 #define GENERIC_ITER(x) ((GenericIter *)(void *)(x))

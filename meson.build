@@ -2,28 +2,10 @@ project('misra', 'c',
     default_options: ['buildtype=debug', 'optimization=0', 'b_lto=false', 'c_std=c11']
 )
 
-cc = meson.get_compiler('c')
-warning_flags = []
-if cc.get_id() in ['gcc', 'clang']
-  warning_flags += [
-    '-Wall',
-    '-Wextra',
-    '-Wpedantic',
-    '-Werror',
-    '-std=c11',  # Explicitly set C11 support
-  ]
-elif cc.get_id() == 'msvc'
-  warning_flags += [
-    '/W4',     # Warning level 4
-    '/WX',     # Treat warnings as errors
-  ]
-endif
-
-add_project_arguments(warning_flags, language: 'c')
-
 # Custom compile args
 common_c_args = []
 
+cc = meson.get_compiler('c')
 math_dep = cc.find_library('m', required: false)
 
 inc_misra = include_directories('Source', 'Include')

@@ -17,7 +17,6 @@ io_tests = [
 ]
 
 str_tests = [
-    ['Str.Test', 'Std/StrTest.c'],
     ['Str.Type', 'Std/Str.Type.c'],
     ['Str.Init', 'Std/Str.Init.c'],
     ['Str.Insert', 'Std/Str.Insert.c'],

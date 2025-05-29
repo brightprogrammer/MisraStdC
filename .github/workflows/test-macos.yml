@@ -27,19 +27,19 @@ jobs:
         
     - name: Configure
       run: |
-        meson setup builddir -Db_sanitize=address,undefined -Db_lundef=false
+        meson setup build -Dwarning_level=everything -Db_sanitize=address,undefined -Db_lundef=false
       
     - name: Build
       run: |
-        ninja -C builddir
+        ninja -C build
         
     - name: Test
       run: |
-        ninja -C builddir test
+        ninja -C build test
         
     - name: Upload test logs if failure
       uses: actions/upload-artifact@v4
       if: failure()
       with:
         name: test-logs-macos
-        path: builddir/meson-logs/testlog.txt 
+        path: build/meson-logs/testlog.txt 
