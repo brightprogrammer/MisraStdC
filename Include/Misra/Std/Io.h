@@ -35,7 +35,6 @@ typedef enum {
 /// FMT_FLAG_HEX          : Format as hexadecimal.
 /// FMT_FLAG_BINARY       : Format as binary.
 /// FMT_FLAG_OCTAL        : Format as octal.
-/// FMT_FLAG_DEBUG        : Debug format mode.
 /// FMT_FLAG_SCIENTIFIC   : Scientific notation for floats.
 /// FMT_FLAG_CAPS         : Use capital letters for hex/scientific.
 /// FMT_FLAG_FORCE_CASE   : Force case conversion (used with FMT_FLAG_CAPS)
@@ -48,11 +47,10 @@ typedef enum {
     FMT_FLAG_HEX           = 1 << 1,
     FMT_FLAG_BINARY        = 1 << 2,
     FMT_FLAG_OCTAL         = 1 << 3,
-    FMT_FLAG_DEBUG         = 1 << 4,
-    FMT_FLAG_SCIENTIFIC    = 1 << 5,
-    FMT_FLAG_CAPS          = 1 << 6,
-    FMT_FLAG_FORCE_CASE    = 1 << 7,
-    FMT_FLAG_HAS_PRECISION = 1 << 8
+    FMT_FLAG_SCIENTIFIC    = 1 << 4,
+    FMT_FLAG_CAPS          = 1 << 5,
+    FMT_FLAG_FORCE_CASE    = 1 << 6,
+    FMT_FLAG_HAS_PRECISION = 1 << 7
 } FormatFlagsBits;
 typedef u32 FormatFlags;
 

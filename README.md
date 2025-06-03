@@ -392,14 +392,20 @@ int main() {
 
 ## Format Specifiers
 
-MisraStdC provides Rust-style formatted I/O functions with a rich set of format specifiers.
+The library supports Rust-style format strings with placeholders in the form `{}` or `{:specifier}`. Arguments are passed using the `FMT()` macro, which automatically determines the correct type handling.
 
-### Format String Syntax
+### Basic Usage
 
-Format strings use curly braces `{}` as placeholders for values. Each placeholder can include an optional format specifier after a colon:
+```c
+Str output = StrInit();
 
-```
-{:specifier}
+// Basic placeholder
+StrWriteFmt(&output, "Hello, {}!", FMT("world"));  // "Hello, world!"
+
+// Multiple placeholders
+int count = 42;
+const char* name = "Alice";
+StrWriteFmt(&output, "Count: {}, Name: {}", FMT(count), FMT(name));
 ```
 
 If no specifier is provided (just `{}`), default formatting is used.
@@ -422,33 +428,33 @@ Controls text alignment within a field width:
 
 Specifies the minimum field width. The value is padded with spaces if it's shorter than this width:
 
-```
+```c
 {:5}    // Minimum width of 5 characters, right-aligned
 {:<5}   // Minimum width of 5 characters, left-aligned
 {:^5}   // Minimum width of 5 characters, center-aligned
 ```
 
-#### Type
+#### Type Specifiers
 
 Specifies the output format for the value:
 
-| Specifier | Description |
-|-----------|-------------|
-| `x` | Hexadecimal format (lowercase) |
-| `X` | Hexadecimal format (uppercase) |
-| `b` | Binary format |
-| `o` | Octal format |
-| `c` | Character format (converts to lowercase, displays non-printable as hex escape sequences) |
-| `C` | Character format (converts to uppercase, displays non-printable as hex escape sequences) |
-| `e` | Scientific notation (lowercase) |
-| `E` | Scientific notation (uppercase) |
-| `?` | Debug format |
+| Specifier | Description | Example Output |
+|-----------|-------------|----------------|
+| `x` | Hexadecimal format (lowercase) | `0xdeadbeef` |
+| `X` | Hexadecimal format (uppercase) | `0xDEADBEEF` |
+| `b` | Binary format | `0b10100101` |
+| `o` | Octal format | `0o777` |
+| `c` | Character format (preserve case) | Raw character bytes |
+| `a` | Character format (force lowercase) | Converts characters to lowercase |
+| `A` | Character format (force uppercase) | Converts characters to uppercase |
+| `e` | Scientific notation (lowercase) | `1.235e+02` |
+| `E` | Scientific notation (uppercase) | `1.235E+02` |
 
 #### Precision
 
 For floating-point values, specifies the number of decimal places:
 
-```
+```c
 {:.2}   // Two decimal places
 {:.0}   // No decimal places
 {:.10}  // Ten decimal places
@@ -501,15 +507,53 @@ StrWriteFmt(&output, "{:b}", FMT(bin_val));  // "0b10100101"
 u16 oct_val = 0777;
 StrWriteFmt(&output, "{:o}", FMT(oct_val));  // "0o777"
 
-// Character format
-u8 ch_val = 65;  // ASCII 'A'
-StrWriteFmt(&output, "{:c}", FMT(ch_val));  // "a" (lowercase)
-StrWriteFmt(&output, "{:C}", FMT(ch_val));  // "A" (uppercase)
+// Width and alignment with numbers
+StrWriteFmt(&output, "{:5}", FMT(val));   // "   42" (right-aligned)
+StrWriteFmt(&output, "{:<5}", FMT(val));  // "42   " (left-aligned)
+StrWriteFmt(&output, "{:^5}", FMT(val));  // " 42  " (center-aligned)
+```
 
-// Non-printable character
-u8 np_val = 7;  // ASCII BEL (non-printable)
-StrWriteFmt(&output, "{:c}", FMT(np_val));  // "\x07" (with lowercase hex)
-StrWriteFmt(&output, "{:C}", FMT(np_val));  // "\x07" (with uppercase hex)
+#### Character Formatting
+
+The character format specifiers (`c`, `a`, `A`) work with integer types, treating them as character data:
+
+```c
+// Single character (u8)
+u8 upper_char = 'M';
+u8 lower_char = 'm';
+
+StrWriteFmt(&output, "{:c}", FMT(upper_char));  // "M" (preserve case)
+StrWriteFmt(&output, "{:a}", FMT(upper_char));  // "m" (force lowercase)
+StrWriteFmt(&output, "{:A}", FMT(lower_char));  // "M" (force uppercase)
+
+// Multi-byte integers (interpreted as character sequences)
+u16 u16_value = ('A' << 8) | 'B'; // "AB" in big-endian
+StrWriteFmt(&output, "{:c}", FMT(u16_value));  // "AB" (preserve case)
+StrWriteFmt(&output, "{:a}", FMT(u16_value));  // "ab" (force lowercase)
+StrWriteFmt(&output, "{:A}", FMT(u16_value));  // "AB" (force uppercase)
+
+// Works with u32 and u64 as well, treating them as byte sequences
+u32 u32_value = ('H' << 24) | ('i' << 16) | ('!' << 8) | '!';
+StrWriteFmt(&output, "{:c}", FMT(u32_value));  // "Hi!!" (preserve case)
+StrWriteFmt(&output, "{:a}", FMT(u32_value));  // "hi!!" (force lowercase)
+StrWriteFmt(&output, "{:A}", FMT(u32_value));  // "HI!!" (force uppercase)
+```
+
+#### String Case Formatting
+
+Character format specifiers also work with strings:
+
+```c
+const char* mixed_case = "MiXeD CaSe";
+
+StrWriteFmt(&output, "{:c}", FMT(mixed_case));  // "MiXeD CaSe" (preserve case)
+StrWriteFmt(&output, "{:a}", FMT(mixed_case));  // "mixed case" (force lowercase)
+StrWriteFmt(&output, "{:A}", FMT(mixed_case));  // "MIXED CASE" (force uppercase)
+
+// Also works with Str objects
+Str s = StrInitFromZstr("Hello World");
+StrWriteFmt(&output, "{:a}", FMT(s));  // "hello world"
+StrWriteFmt(&output, "{:A}", FMT(s));  // "HELLO WORLD"
 ```
 
 #### Floating-Point Formatting
@@ -524,6 +568,13 @@ StrWriteFmt(&output, "{}", FMT(pi));  // "3.141593"
 StrWriteFmt(&output, "{:.2}", FMT(pi));   // "3.14"
 StrWriteFmt(&output, "{:.0}", FMT(pi));   // "3"
 StrWriteFmt(&output, "{:.10}", FMT(pi));  // "3.1415926536"
+
+// Scientific notation
+StrWriteFmt(&output, "{:e}", FMT(123.456));  // "1.235e+02"
+StrWriteFmt(&output, "{:E}", FMT(123.456));  // "1.235E+02"
+
+// Custom precision with scientific notation
+StrWriteFmt(&output, "{:.3e}", FMT(123.456));  // "1.235e+02"
 
 // Special values
 f64 pos_inf = INFINITY;
@@ -543,17 +594,31 @@ The library also supports parsing values from strings using the same format spec
 i32 num = 0;
 StrReadFmt("42", "{}", FMT(num));  // num = 42
 
-// Reading hexadecimal
+// Reading hexadecimal (auto-detected with 0x prefix)
 u32 hex_val = 0;
 StrReadFmt("0xdeadbeef", "{}", FMT(hex_val));  // hex_val = 0xdeadbeef
 
-// Reading binary
+// Reading binary (auto-detected with 0b prefix)
 i8 bin_val = 0;
 StrReadFmt("0b101010", "{}", FMT(bin_val));  // bin_val = 42
+
+// Reading octal (auto-detected with 0o prefix)
+i32 oct_val = 0;
+StrReadFmt("0o755", "{}", FMT(oct_val));  // oct_val = 493
+
+// Reading floating point
+f64 value = 0.0;
+StrReadFmt("3.14159", "{}", FMT(value));  // value = 3.14159
+
+// Reading scientific notation
+StrReadFmt("1.23e4", "{}", FMT(value));  // value = 12300.0
 
 // Reading strings
 Str name = StrInit();
 StrReadFmt("Alice", "{}", FMT(name));  // name = "Alice"
+
+// Reading quoted strings
+StrReadFmt("\"Hello, World!\"", "{}", FMT(name));  // name = "Hello, World!"
 
 // Reading multiple values
 i32 count = 0;

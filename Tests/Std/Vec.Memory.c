@@ -3,6 +3,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+// Include test utilities
+#include "../Util/TestRunner.h"
+
 // Function prototypes
 bool test_vec_try_reduce_space(void);
 bool test_vec_resize(void);
@@ -178,27 +181,17 @@ int main(void) {
     printf("[INFO] Starting Vec.Memory tests\n\n");
 
     // Array of test functions
-    bool (*tests[])(void) = {test_vec_try_reduce_space, test_vec_resize, test_vec_reserve, test_vec_clear};
+    TestFunction tests[] = {
+        test_vec_try_reduce_space, 
+        test_vec_resize, 
+        test_vec_reserve, 
+        test_vec_clear
+    };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
-    int passed      = 0;
-    int failed      = 0;
 
-    // Run all tests and accumulate results
-    for (int i = 0; i < total_tests; i++) {
-        printf("[TEST %d/%d] ", i + 1, total_tests);
-        bool result = tests[i]();
-        if (result) {
-            printf("[PASS]\n\n");
-            passed++;
-        } else {
-            printf("[FAIL]\n\n");
-            failed++;
-        }
-    }
-
-    // Print summary
-    printf("[SUMMARY] Total: %d, Passed: %d, Failed: %d\n", total_tests, passed, failed);
+    // Run all tests using the test driver
+    int failed = simple_test_driver(tests, total_tests);
 
     // Return non-zero exit code if any test failed
     return failed > 0 ? 1 : 0;

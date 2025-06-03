@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <Misra/Types.h> // For LVAL macro
 
+// Include test utilities for deadend testing
+#include "../Util/TestRunner.h"
+
 // Function prototypes
 bool test_vec_pop_back(void);
 bool test_vec_pop_front(void);
@@ -20,6 +23,10 @@ bool test_lvalue_delete_range_operations(void);
 bool test_rvalue_delete_range_operations(void);
 bool test_lvalue_fast_delete_range_operations(void);
 bool test_rvalue_fast_delete_range_operations(void);
+
+// Example test functions that might fail (for demonstration)
+bool test_invalid_index_access(void);
+bool test_null_pointer_dereference(void);
 
 // Test VecPopBack function
 bool test_vec_pop_back(void) {
@@ -814,12 +821,47 @@ bool test_rvalue_fast_delete_range_operations(void) {
     return result;
 }
 
+// Test that tries to access an invalid index (should fail)
+bool test_invalid_index_access(void) {
+    printf("Testing invalid index access (should fail)\n");
+    
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit();
+    
+    // Add some data
+    int val1 = 42;
+    int val2 = 43;
+    VecPushBack(&vec, val1);
+    VecPushBack(&vec, val2);
+    
+    // Try to access an invalid index (this should cause an assertion failure or crash)
+    // In a real scenario, this might be caught by bounds checking
+    int invalid_value = VecAt(&vec, 100);  // Index 100 is way out of bounds
+    
+    VecDeinit(&vec);
+    
+    // If we get here, the test "passed" but we expected it to fail
+    return invalid_value == 42; // This will likely never be reached
+}
+
+// Test that dereferences a null pointer (should crash)
+bool test_null_pointer_dereference(void) {
+    printf("Testing null pointer dereference (should crash)\n");
+    
+    // This will definitely crash
+    int* null_ptr = NULL;
+    *null_ptr = 42;
+    
+    // Never reached
+    return true;
+}
+
 // Main function that runs all tests
 int main(void) {
     printf("[INFO] Starting Vec.Remove tests\n\n");
 
-    // Array of test functions
-    bool (*tests[])(void) = {
+    // Array of normal test functions
+    TestFunction tests[] = {
         test_vec_pop_back,
         test_vec_pop_front,
         test_vec_delete,
@@ -837,26 +879,26 @@ int main(void) {
         test_rvalue_fast_delete_range_operations
     };
 
+    // Array of deadend test functions (tests that should fail/crash)
+    TestFunction deadend_tests[] = {
+        test_invalid_index_access,
+        test_null_pointer_dereference
+    };
+
     int total_tests = sizeof(tests) / sizeof(tests[0]);
-    int passed = 0;
-    int failed = 0;
+    int deadend_count = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
-    // Run all tests and accumulate results
-    for (int i = 0; i < total_tests; i++) {
-        printf("[TEST %d/%d] ", i + 1, total_tests);
-        bool result = tests[i]();
-        if (result) {
-            printf("[PASS]\n\n");
-            passed++;
-        } else {
-            printf("[FAIL]\n\n");
-            failed++;
-        }
-    }
+    // Run normal tests
+    int failed = simple_test_driver(tests, total_tests);
 
-    // Print summary
-    printf("[SUMMARY] Total: %d, Passed: %d, Failed: %d\n", total_tests, passed, failed);
+    // Run deadend tests
+    int deadend_failed = deadend_test_driver(deadend_tests, deadend_count);
+
+    // Print final summary
+    printf("\n[FINAL SUMMARY] Normal: %d tests, Deadend: %d tests, Total Failed: %d\n", 
+           total_tests, deadend_count, failed + deadend_failed);
 
     // Return non-zero exit code if any test failed
-    return failed > 0 ? 1 : 0;
+    return (failed + deadend_failed) > 0 ? 1 : 0;
 }
+ 

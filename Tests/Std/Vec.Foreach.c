@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <Misra/Types.h> // For LVAL macro
 
+// Include test utilities
+#include "../Util/TestRunner.h"
+
 // Function prototypes
 bool test_vec_foreach(void);
 bool test_vec_foreach_idx(void);
@@ -13,6 +16,15 @@ bool test_vec_foreach_reverse(void);
 bool test_vec_foreach_reverse_idx(void);
 bool test_vec_foreach_ptr_reverse(void);
 bool test_vec_foreach_ptr_reverse_idx(void);
+
+// Deadend test prototypes (tests that should crash due to out-of-bounds access)
+bool test_vec_foreach_out_of_bounds_access(void);
+bool test_vec_foreach_idx_out_of_bounds_access(void);
+bool test_vec_foreach_idx_basic_out_of_bounds_access(void);
+bool test_vec_foreach_reverse_idx_out_of_bounds_access(void);
+bool test_vec_foreach_ptr_idx_out_of_bounds_access(void);
+bool test_vec_foreach_ptr_reverse_idx_out_of_bounds_access(void);
+bool test_vec_foreach_ptr_in_range_idx_out_of_bounds_access(void);
 
 // Test VecForeach macro
 bool test_vec_foreach(void) {
@@ -260,12 +272,241 @@ bool test_vec_foreach_ptr_reverse_idx(void) {
     return result;
 }
 
+// Deadend test: Make idx go out of bounds in VecForeachInRangeIdx by shrinking vector during iteration
+bool test_vec_foreach_out_of_bounds_access(void) {
+    printf("Testing VecForeachInRangeIdx where idx goes out of bounds (should crash)\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit();
+
+    // Add several elements
+    for (int i = 0; i < 10; i++) {
+        VecPushBackR(&vec, i * 10);
+    }
+
+    // Use VecForeachInRangeIdx which captures the 'end' parameter (10) at the start
+    // Even if we shrink the vector, the loop will continue until idx reaches 10
+    size original_length = vec.length;  // Capture this as 10
+    VecForeachInRangeIdx(&vec, val, idx, 0, original_length, {
+        printf("Accessing idx %zu (vec.length=%zu): %d\n", idx, vec.length, val);
+        
+        // When we reach idx=3, drastically shrink the vector to length 2
+        // But VecForeachInRangeIdx will continue until idx reaches original_length (10)
+        if (idx == 3) {
+            VecResize(&vec, 2);  // Shrink to only 2 elements
+            printf("Vector resized to length %zu, but range iteration will continue to idx %zu...\n", vec.length, original_length);
+        }
+        
+        // When idx >= 2 (after resize), VecForeachInRangeIdx will detect:
+        // if ((idx) >= (v)->length) LOG_FATAL(...)
+        // This should cause a fatal error when idx >= vec.length
+    });
+
+    // Should never reach here if idx goes out of bounds
+    VecDeinit(&vec);
+    return false;
+}
+
+// Deadend test: Make idx go out of bounds in VecForeachInRangeIdx by deleting elements
+bool test_vec_foreach_idx_out_of_bounds_access(void) {
+    printf("Testing VecForeachInRangeIdx with element deletion where idx goes out of bounds (should crash)\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit();
+
+    // Add several elements
+    for (int i = 0; i < 8; i++) {
+        VecPushBackR(&vec, i * 20);
+    }
+
+    // Use VecForeachInRangeIdx with a fixed range that will become invalid
+    // when we delete elements during iteration
+    size original_length = vec.length;  // Capture this as 8
+    VecForeachInRangeIdx(&vec, val, idx, 0, original_length, {
+        printf("Accessing idx %zu (vec.length=%zu): %d\n", idx, vec.length, val);
+        
+        // When we reach idx=2, delete several elements from the beginning
+        // This will make the higher indices invalid
+        if (idx == 2) {
+            VecDeleteRange(&vec, 0, 5);  // Remove first 5 elements
+            printf("Deleted first 5 elements, new length=%zu, but range iteration will continue to idx %zu...\n", vec.length, original_length);
+        }
+        
+        // When idx >= 3 (after deletion), VecForeachInRangeIdx will detect:
+        // if ((idx) >= (v)->length) LOG_FATAL(...)
+        // This should cause a fatal error when idx >= vec.length
+    });
+
+    // Should never reach here if bounds checking triggers
+    VecDeinit(&vec);
+    return false;
+}
+
+// Deadend test: Make idx go out of bounds in VecForeachReverseIdx by modifying vector during iteration
+bool test_vec_foreach_reverse_idx_out_of_bounds_access(void) {
+    printf("Testing VecForeachReverseIdx where idx goes out of bounds (should crash)\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit();
+
+    // Add several elements
+    for (int i = 0; i < 6; i++) {
+        VecPushBackR(&vec, i * 15);
+    }
+
+    // VecForeachReverseIdx has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
+    VecForeachReverseIdx(&vec, val, idx, {
+        printf("Accessing idx %zu (vec.length=%zu): %d\n", idx, vec.length, val);
+        
+        // When we reach idx=3, drastically shrink the vector
+        // This will make subsequent iterations invalid since idx will still decrement
+        // but the vector length is now smaller
+        if (idx == 3) {
+            VecResize(&vec, 2);  // Shrink to only 2 elements
+            printf("Vector resized to length %zu during reverse iteration...\n", vec.length);
+        }
+        
+        // When idx >= vec.length, the bounds check will trigger:
+        // if ((idx) >= (v)->length) LOG_FATAL(...)
+    });
+
+    // Should never reach here if bounds checking triggers
+    VecDeinit(&vec);
+    return false;
+}
+
+// Deadend test: Make idx go out of bounds in VecForeachPtrIdx by modifying vector during iteration
+bool test_vec_foreach_ptr_idx_out_of_bounds_access(void) {
+    printf("Testing VecForeachPtrIdx where idx goes out of bounds (should crash)\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit();
+
+    // Add several elements
+    for (int i = 0; i < 7; i++) {
+        VecPushBackR(&vec, i * 25);
+    }
+
+    // VecForeachPtrIdx has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
+    VecForeachPtrIdx(&vec, val_ptr, idx, {
+        printf("Accessing idx %zu (vec.length=%zu): %d\n", idx, vec.length, *val_ptr);
+        
+        // When we reach idx=2, delete several elements from the vector
+        if (idx == 2) {
+            VecDeleteRange(&vec, 0, 4);  // Remove first 4 elements
+            printf("Deleted first 4 elements, new length=%zu, but ptr iteration continues...\n", vec.length);
+        }
+        
+        // When idx >= vec.length, the bounds check will trigger:
+        // if ((idx) >= (v)->length) LOG_FATAL(...)
+    });
+
+    // Should never reach here if bounds checking triggers
+    VecDeinit(&vec);
+    return false;
+}
+
+// Deadend test: Make idx go out of bounds in VecForeachPtrReverseIdx by modifying vector during iteration
+bool test_vec_foreach_ptr_reverse_idx_out_of_bounds_access(void) {
+    printf("Testing VecForeachPtrReverseIdx where idx goes out of bounds (should crash)\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit();
+
+    // Add several elements
+    for (int i = 0; i < 8; i++) {
+        VecPushBackR(&vec, i * 35);
+    }
+
+    // VecForeachPtrReverseIdx has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
+    VecForeachPtrReverseIdx(&vec, val_ptr, idx, {
+        printf("Accessing idx %zu (vec.length=%zu): %d\n", idx, vec.length, *val_ptr);
+        
+        // When we reach idx=5, shrink the vector significantly
+        if (idx == 5) {
+            VecResize(&vec, 3);  // Shrink to only 3 elements
+            printf("Vector resized to length %zu during reverse ptr iteration...\n", vec.length);
+        }
+        
+        // When idx >= vec.length, the bounds check will trigger:
+        // if ((idx) >= (v)->length) LOG_FATAL(...)
+    });
+
+    // Should never reach here if bounds checking triggers
+    VecDeinit(&vec);
+    return false;
+}
+
+// Deadend test: Make idx go out of bounds in VecForeachPtrInRangeIdx by modifying vector during iteration
+bool test_vec_foreach_ptr_in_range_idx_out_of_bounds_access(void) {
+    printf("Testing VecForeachPtrInRangeIdx where idx goes out of bounds (should crash)\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit();
+
+    // Add several elements
+    for (int i = 0; i < 9; i++) {
+        VecPushBackR(&vec, i * 45);
+    }
+
+    // Use VecForeachPtrInRangeIdx with a fixed range that becomes invalid when we modify the vector
+    size original_length = vec.length;  // Capture this as 9
+    VecForeachPtrInRangeIdx(&vec, val_ptr, idx, 0, original_length, {
+        printf("Accessing idx %zu (vec.length=%zu): %d\n", idx, vec.length, *val_ptr);
+        
+        // When we reach idx=3, delete several elements
+        if (idx == 3) {
+            VecDeleteRange(&vec, 0, 6);  // Remove first 6 elements  
+            printf("Deleted first 6 elements, new length=%zu, but range ptr iteration continues to idx %zu...\n", vec.length, original_length);
+        }
+        
+        // When idx >= vec.length, the bounds check will trigger:
+        // if ((idx) >= (v)->length) LOG_FATAL(...)
+    });
+
+    // Should never reach here if bounds checking triggers
+    VecDeinit(&vec);
+    return false;
+}
+
+// Deadend test: Make idx go out of bounds in basic VecForeachIdx by modifying vector during iteration
+bool test_vec_foreach_idx_basic_out_of_bounds_access(void) {
+    printf("Testing basic VecForeachIdx where idx goes out of bounds (should crash)\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit();
+
+    // Add several elements
+    for (int i = 0; i < 5; i++) {
+        VecPushBackR(&vec, i * 30);
+    }
+
+    // Basic VecForeachIdx now has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
+    VecForeachIdx(&vec, val, idx, {
+        printf("Accessing idx %zu (vec.length=%zu): %d\n", idx, vec.length, val);
+        
+        // When we reach idx=2, drastically shrink the vector
+        // This will make subsequent iterations invalid 
+        if (idx == 2) {
+            VecResize(&vec, 1);  // Shrink to only 1 element
+            printf("Vector resized to length %zu, but basic foreach iteration continues...\n", vec.length);
+        }
+        
+        // When idx >= vec.length, the bounds check will trigger:
+        // if ((idx) >= (v)->length) LOG_FATAL(...)
+    });
+
+    // Should never reach here if bounds checking triggers
+    VecDeinit(&vec);
+    return false;
+}
+
 // Main function that runs all tests
 int main(void) {
     printf("[INFO] Starting Vec.Foreach tests\n\n");
 
-    // Array of test functions
-    bool (*tests[])(void) = {
+    // Array of normal test functions
+    TestFunction tests[] = {
         test_vec_foreach,
         test_vec_foreach_idx,
         test_vec_foreach_ptr,
@@ -276,26 +517,30 @@ int main(void) {
         test_vec_foreach_ptr_reverse_idx
     };
 
+    // Array of deadend test functions (tests that should crash)
+    TestFunction deadend_tests[] = {
+        test_vec_foreach_out_of_bounds_access,
+        test_vec_foreach_idx_out_of_bounds_access,
+        test_vec_foreach_idx_basic_out_of_bounds_access,
+        test_vec_foreach_reverse_idx_out_of_bounds_access,
+        test_vec_foreach_ptr_idx_out_of_bounds_access,
+        test_vec_foreach_ptr_reverse_idx_out_of_bounds_access,
+        test_vec_foreach_ptr_in_range_idx_out_of_bounds_access
+    };
+
     int total_tests = sizeof(tests) / sizeof(tests[0]);
-    int passed      = 0;
-    int failed      = 0;
+    int deadend_count = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
-    // Run all tests and accumulate results
-    for (int i = 0; i < total_tests; i++) {
-        printf("[TEST %d/%d] ", i + 1, total_tests);
-        bool result = tests[i]();
-        if (result) {
-            printf("[PASS]\n\n");
-            passed++;
-        } else {
-            printf("[FAIL]\n\n");
-            failed++;
-        }
-    }
+    // Run normal tests
+    int failed = simple_test_driver(tests, total_tests);
 
-    // Print summary
-    printf("[SUMMARY] Total: %d, Passed: %d, Failed: %d\n", total_tests, passed, failed);
+    // Run deadend tests
+    int deadend_failed = deadend_test_driver(deadend_tests, deadend_count);
+
+    // Print final summary
+    printf("\n[FINAL SUMMARY] Normal: %d tests, Deadend: %d tests, Total Failed: %d\n", 
+           total_tests, deadend_count, failed + deadend_failed);
 
     // Return non-zero exit code if any test failed
-    return failed > 0 ? 1 : 0;
+    return (failed + deadend_failed) > 0 ? 1 : 0;
 }

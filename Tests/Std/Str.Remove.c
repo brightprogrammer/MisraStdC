@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 
+// Include test utilities
+#include "../Util/TestRunner.h"
+
 // Function prototypes
 bool test_str_pop_back(void);
 bool test_str_pop_front(void);
@@ -183,7 +186,7 @@ int main(void) {
     printf("[INFO] Starting Str.Remove tests\n\n");
 
     // Array of test functions
-    bool (*tests[])(void) = {
+    TestFunction tests[] = {
         test_str_pop_back,
         test_str_pop_front,
         test_str_remove,
@@ -194,24 +197,9 @@ int main(void) {
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
-    int passed      = 0;
-    int failed      = 0;
 
-    // Run all tests and accumulate results
-    for (int i = 0; i < total_tests; i++) {
-        printf("[TEST %d/%d] ", i + 1, total_tests);
-        bool result = tests[i]();
-        if (result) {
-            printf("[PASS]\n\n");
-            passed++;
-        } else {
-            printf("[FAIL]\n\n");
-            failed++;
-        }
-    }
-
-    // Print summary
-    printf("[SUMMARY] Total: %d, Passed: %d, Failed: %d\n", total_tests, passed, failed);
+    // Run all tests using the test driver
+    int failed = simple_test_driver(tests, total_tests);
 
     // Return non-zero exit code if any test failed
     return failed > 0 ? 1 : 0;

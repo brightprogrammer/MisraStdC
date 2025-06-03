@@ -3,6 +3,9 @@
 #include <Misra/Std/Io.h>
 #include <stdio.h>
 
+// Include test utilities
+#include "../Util/TestRunner.h"
+
 // Function prototypes
 bool test_str_foreach_idx(void);
 bool test_str_foreach_reverse_idx(void);
@@ -16,6 +19,15 @@ bool test_str_foreach_in_range_idx(void);
 bool test_str_foreach_in_range(void);
 bool test_str_foreach_ptr_in_range_idx(void);
 bool test_str_foreach_ptr_in_range(void);
+
+// Deadend test prototypes (tests that should crash due to out-of-bounds access)
+bool test_str_foreach_out_of_bounds_access(void);
+bool test_str_foreach_idx_out_of_bounds_access(void);
+bool test_str_foreach_idx_basic_out_of_bounds_access(void);
+bool test_str_foreach_reverse_idx_out_of_bounds_access(void);
+bool test_str_foreach_ptr_idx_out_of_bounds_access(void);
+bool test_str_foreach_reverse_ptr_idx_out_of_bounds_access(void);
+bool test_str_foreach_ptr_in_range_idx_out_of_bounds_access(void);
 
 // Test StrForeachIdx macro
 bool test_str_foreach_idx(void) {
@@ -400,12 +412,199 @@ bool test_str_foreach_ptr_in_range(void) {
     return success;
 }
 
+// Deadend test: Make idx go out of bounds in StrForeachInRangeIdx by shrinking string during iteration
+bool test_str_foreach_out_of_bounds_access(void) {
+    printf("Testing StrForeachInRangeIdx where idx goes out of bounds (should crash)\n");
+
+    Str s = StrInitFromZstr("Hello World!");  // 12 characters
+
+    // Use StrForeachInRangeIdx which captures the 'end' parameter at the start
+    // Even if we shrink the string, the loop will continue until idx reaches the fixed end
+    size original_length = s.length;  // Capture this as 12
+    StrForeachInRangeIdx(&s, chr, idx, 0, original_length, {
+        printf("Accessing idx %zu (s.length=%zu): '%c'\n", idx, s.length, chr);
+        
+        // When we reach idx=4, drastically shrink the string to length 3
+        // But StrForeachInRangeIdx will continue until idx reaches original_length (12)
+        if (idx == 4) {
+            StrResize(&s, 3);  // Shrink to only 3 characters
+            printf("String resized to length %zu, but range iteration will continue to idx %zu...\n", s.length, original_length);
+        }
+        
+        // When idx >= 3 (after resize), StrForeachInRangeIdx will detect:
+        // if ((idx) >= (v)->length) LOG_FATAL(...)
+        // This should cause a fatal error when idx >= s.length
+    });
+
+    // Should never reach here if idx goes out of bounds
+    StrDeinit(&s);
+    return false;
+}
+
+// Deadend test: Make idx go out of bounds in StrForeachInRangeIdx by deleting characters
+bool test_str_foreach_idx_out_of_bounds_access(void) {
+    printf("Testing StrForeachInRangeIdx with character deletion where idx goes out of bounds (should crash)\n");
+
+    Str s = StrInitFromZstr("Programming");  // 11 characters
+
+    // Use StrForeachInRangeIdx with a fixed range that will become invalid
+    // when we delete characters during iteration
+    size original_length = s.length;  // Capture this as 11
+    StrForeachInRangeIdx(&s, chr, idx, 0, original_length, {
+        printf("Accessing idx %zu (s.length=%zu): '%c'\n", idx, s.length, chr);
+        
+        // When we reach idx=3, delete several characters from the beginning
+        // This will make the higher indices invalid
+        if (idx == 3) {
+            StrDeleteRange(&s, 0, 6);  // Remove first 6 characters
+            printf("Deleted first 6 characters, new length=%zu, but range iteration will continue to idx %zu...\n", s.length, original_length);
+        }
+        
+        // When idx >= 5 (after deletion), StrForeachInRangeIdx will detect:
+        // if ((idx) >= (v)->length) LOG_FATAL(...)
+        // This should cause a fatal error when idx >= s.length
+    });
+
+    // Should never reach here if bounds checking triggers
+    StrDeinit(&s);
+    return false;
+}
+
+// Deadend test: Make idx go out of bounds in StrForeachReverseIdx by modifying string during iteration
+bool test_str_foreach_reverse_idx_out_of_bounds_access(void) {
+    printf("Testing StrForeachReverseIdx where idx goes out of bounds (should crash)\n");
+
+    Str s = StrInitFromZstr("Beautiful Weather");  // 17 characters
+
+    // StrForeachReverseIdx (VecForeachReverseIdx) has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
+    StrForeachReverseIdx(&s, chr, idx, {
+        printf("Accessing idx %zu (s.length=%zu): '%c'\n", idx, s.length, chr);
+        
+        // When we reach idx=10, drastically shrink the string
+        // This will make subsequent iterations invalid since idx will still decrement
+        // but the string length is now smaller
+        if (idx == 10) {
+            StrResize(&s, 4);  // Shrink to only 4 characters
+            printf("String resized to length %zu during reverse iteration...\n", s.length);
+        }
+        
+        // When idx >= s.length, the bounds check will trigger:
+        // if ((idx) >= (v)->length) LOG_FATAL(...)
+    });
+
+    // Should never reach here if bounds checking triggers
+    StrDeinit(&s);
+    return false;
+}
+
+// Deadend test: Make idx go out of bounds in StrForeachPtrIdx by modifying string during iteration
+bool test_str_foreach_ptr_idx_out_of_bounds_access(void) {
+    printf("Testing StrForeachPtrIdx where idx goes out of bounds (should crash)\n");
+
+    Str s = StrInitFromZstr("Programming Test");  // 16 characters
+
+    // StrForeachPtrIdx (VecForeachPtrIdx) has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
+    StrForeachPtrIdx(&s, chr_ptr, idx, {
+        printf("Accessing idx %zu (s.length=%zu): '%c'\n", idx, s.length, *chr_ptr);
+        
+        // When we reach idx=4, delete several characters from the string
+        if (idx == 4) {
+            StrDeleteRange(&s, 0, 8);  // Remove first 8 characters
+            printf("Deleted first 8 characters, new length=%zu, but ptr iteration continues...\n", s.length);
+        }
+        
+        // When idx >= s.length, the bounds check will trigger:
+        // if ((idx) >= (v)->length) LOG_FATAL(...)
+    });
+
+    // Should never reach here if bounds checking triggers
+    StrDeinit(&s);
+    return false;
+}
+
+// Deadend test: Make idx go out of bounds in StrForeachReversePtrIdx by modifying string during iteration
+bool test_str_foreach_reverse_ptr_idx_out_of_bounds_access(void) {
+    printf("Testing StrForeachReversePtrIdx where idx goes out of bounds (should crash)\n");
+
+    Str s = StrInitFromZstr("Excellent Example");  // 17 characters
+
+    // StrForeachReversePtrIdx (VecForeachPtrReverseIdx) has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
+    StrForeachReversePtrIdx(&s, chr_ptr, idx, {
+        printf("Accessing idx %zu (s.length=%zu): '%c'\n", idx, s.length, *chr_ptr);
+        
+        // When we reach idx=12, shrink the string significantly
+        if (idx == 12) {
+            StrResize(&s, 5);  // Shrink to only 5 characters
+            printf("String resized to length %zu during reverse ptr iteration...\n", s.length);
+        }
+        
+        // When idx >= s.length, the bounds check will trigger:
+        // if ((idx) >= (v)->length) LOG_FATAL(...)
+    });
+
+    // Should never reach here if bounds checking triggers
+    StrDeinit(&s);
+    return false;
+}
+
+// Deadend test: Make idx go out of bounds in StrForeachPtrInRangeIdx by modifying string during iteration
+bool test_str_foreach_ptr_in_range_idx_out_of_bounds_access(void) {
+    printf("Testing StrForeachPtrInRangeIdx where idx goes out of bounds (should crash)\n");
+
+    Str s = StrInitFromZstr("Comprehensive Testing Framework");  // 32 characters
+
+    // Use StrForeachPtrInRangeIdx with a fixed range that becomes invalid when we modify the string
+    size original_length = s.length;  // Capture this as 32
+    StrForeachPtrInRangeIdx(&s, chr_ptr, idx, 0, original_length, {
+        printf("Accessing idx %zu (s.length=%zu): '%c'\n", idx, s.length, *chr_ptr);
+        
+        // When we reach idx=8, delete several characters
+        if (idx == 8) {
+            StrDeleteRange(&s, 0, 20);  // Remove first 20 characters  
+            printf("Deleted first 20 characters, new length=%zu, but range ptr iteration continues to idx %zu...\n", s.length, original_length);
+        }
+        
+        // When idx >= s.length, the bounds check will trigger:
+        // if ((idx) >= (v)->length) LOG_FATAL(...)
+    });
+
+    // Should never reach here if bounds checking triggers
+    StrDeinit(&s);
+    return false;
+}
+
+// Deadend test: Make idx go out of bounds in basic StrForeachIdx by modifying string during iteration
+bool test_str_foreach_idx_basic_out_of_bounds_access(void) {
+    printf("Testing basic StrForeachIdx where idx goes out of bounds (should crash)\n");
+
+    Str s = StrInitFromZstr("Testing Basic");  // 13 characters
+
+    // Basic StrForeachIdx (VecForeachIdx) now has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
+    StrForeachIdx(&s, chr, idx, {
+        printf("Accessing idx %zu (s.length=%zu): '%c'\n", idx, s.length, chr);
+        
+        // When we reach idx=3, drastically shrink the string
+        // This will make subsequent iterations invalid 
+        if (idx == 3) {
+            StrResize(&s, 2);  // Shrink to only 2 characters
+            printf("String resized to length %zu, but basic foreach iteration continues...\n", s.length);
+        }
+        
+        // When idx >= s.length, the bounds check will trigger:
+        // if ((idx) >= (v)->length) LOG_FATAL(...)
+    });
+
+    // Should never reach here if bounds checking triggers
+    StrDeinit(&s);
+    return false;
+}
+
 // Main function that runs all tests
 int main(void) {
-    printf("Starting Str foreach tests\n\n");
+    printf("[INFO] Starting Str.Foreach tests\n\n");
 
-    // Array of test functions
-    bool (*tests[])(void) = {
+    // Array of normal test functions
+    TestFunction tests[] = {
         test_str_foreach_idx,
         test_str_foreach_reverse_idx,
         test_str_foreach_ptr_idx,
@@ -420,24 +619,30 @@ int main(void) {
         test_str_foreach_ptr_in_range
     };
 
+    // Array of deadend test functions (tests that should crash)
+    TestFunction deadend_tests[] = {
+        test_str_foreach_out_of_bounds_access,
+        test_str_foreach_idx_out_of_bounds_access,
+        test_str_foreach_idx_basic_out_of_bounds_access,
+        test_str_foreach_reverse_idx_out_of_bounds_access,
+        test_str_foreach_ptr_idx_out_of_bounds_access,
+        test_str_foreach_reverse_ptr_idx_out_of_bounds_access,
+        test_str_foreach_ptr_in_range_idx_out_of_bounds_access
+    };
+
     int total_tests = sizeof(tests) / sizeof(tests[0]);
-    int passed      = 0;
+    int deadend_count = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
-    // Run all tests
-    for (int i = 0; i < total_tests; i++) {
-        printf("[TEST %d/%d] ", i + 1, total_tests);
-        bool result = tests[i]();
-        if (result) {
-            printf("[PASS]\n\n");
-            passed++;
-        } else {
-            printf("[FAIL]\n\n");
-        }
-    }
+    // Run normal tests
+    int failed = simple_test_driver(tests, total_tests);
 
-    // Print summary
-    printf("Summary: %d/%d tests passed\n", passed, total_tests);
+    // Run deadend tests
+    int deadend_failed = deadend_test_driver(deadend_tests, deadend_count);
+
+    // Print final summary
+    printf("\n[FINAL SUMMARY] Normal: %d tests, Deadend: %d tests, Total Failed: %d\n", 
+           total_tests, deadend_count, failed + deadend_failed);
 
     // Return non-zero exit code if any test failed
-    return (passed == total_tests) ? 0 : 1;
+    return (failed + deadend_failed) > 0 ? 1 : 0;
 }

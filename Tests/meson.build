@@ -7,6 +7,9 @@
 # Or add this to your meson_options.txt file:
 #   option('b_lundef', type: 'boolean', value: false)
 
+# Include test utilities
+subdir('Util')
+
 # Test configuration
 test_args = common_c_args
 
@@ -49,6 +52,7 @@ foreach test_info : io_tests
         test_name,
         files(test_src),
         link_with: [misra_std],
+        dependencies: [test_util_dep],
         c_args: test_args,
         include_directories: inc_misra,
         install: false
@@ -65,6 +69,7 @@ foreach test_info : str_tests
         test_name,
         files(test_src),
         link_with: [misra_std],
+        dependencies: [test_util_dep],
         c_args: test_args,
         include_directories: inc_misra,
         install: false
@@ -81,6 +86,7 @@ foreach test_info : vec_tests
         test_name,
         files(test_src),
         link_with: [misra_std],
+        dependencies: [test_util_dep],
         c_args: test_args,
         include_directories: inc_misra,
         install: false

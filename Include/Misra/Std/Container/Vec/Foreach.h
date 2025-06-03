@@ -19,12 +19,21 @@
 /// idx[in]   : Name of variable to be used for iterating over indices.
 /// body      : Body of this foreach loop
 ///
+/// SUCCESS : The `body` is executed for each element of the vector `v` from the
+///           beginning to the end.
+/// FAILURE : If the vector `v` is NULL or its length is zero, the loop body will not
+///           be executed. Any failures within the `VecForeachIdx` macro (like invalid
+///           index access) will result in a fatal log message and program termination.
+///
 #define VecForeachIdx(v, var, idx, body)                                                                               \
     do {                                                                                                               \
         size idx            = 0;                                                                                       \
         VEC_DATATYPE(v) var = {0};                                                                                     \
         if ((v) != NULL && (v)->length > 0) {                                                                          \
             for ((idx) = 0; (idx) < (v)->length; ++(idx)) {                                                            \
+                if ((idx) >= (v)->length) {                                                                            \
+                    LOG_FATAL("Vector range overflow : Invalid index reached during Foreach iteration.");              \
+                }                                                                                                      \
                 var = VecAt(v, idx);                                                                                   \
                 { body }                                                                                               \
             }                                                                                                          \
@@ -170,20 +179,7 @@
 ///           be executed. Any failures within the `VecForeachPtrIdx` macro (like invalid
 ///           index access) will result in a fatal log message and program termination.
 ///
-#define VecForeachPtr(v, var, body)                                                                                    \
-    do {                                                                                                               \
-        size ____iter___     = 0;                                                                                      \
-        VEC_DATATYPE(v) *var = NULL;                                                                                   \
-        if ((v) != NULL && (v)->length > 0) {                                                                          \
-            for (____iter___ = 0; ____iter___ < (v)->length; ++____iter___) {                                          \
-                if (____iter___ >= (v)->length) {                                                                      \
-                    LOG_FATAL("Vector range overflow : Invalid index reached during Foreach iteration.");              \
-                }                                                                                                      \
-                var = VecPtrAt(v, ____iter___);                                                                        \
-                body                                                                                                   \
-            }                                                                                                          \
-        }                                                                                                              \
-    } while (0)
+#define VecForeachPtr(v, var, body) VecForeachPtrIdx((v), (var), (____iter___), {body})
 
 ///
 /// Iterate over each element `var` (as a pointer) of the given vector `v` in reverse order.

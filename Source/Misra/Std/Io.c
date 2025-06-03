@@ -123,10 +123,6 @@ static bool ParseFormatSpec(const char* spec, size len, FmtInfo* fi) {
                 found_type  = true;
                 break;
 
-            case '?' :
-                fi->flags  |= FMT_FLAG_DEBUG;
-                found_type  = true;
-                break;
             default :
                 break;
         }
@@ -188,9 +184,6 @@ static bool ParseFormatSpec(const char* spec, size len, FmtInfo* fi) {
                     fi->flags |= FMT_FLAG_SCIENTIFIC;
                     break;
 
-                case '?' :
-                    fi->flags |= FMT_FLAG_DEBUG;
-                    break;
                 default :
                     return false;
             }

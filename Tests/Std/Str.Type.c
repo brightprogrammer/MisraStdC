@@ -4,11 +4,18 @@
 #include <stdio.h>
 #include <string.h>
 
+// Include test utilities for deadend testing
+#include "../Util/TestRunner.h"
+
 // Function prototypes
 bool test_str_type(void);
 bool test_strs_type(void);
 bool test_validate_str(void);
 bool test_validate_strs(void);
+
+// Deadend test prototypes (tests that should crash/abort)
+bool test_validate_invalid_str(void);
+bool test_validate_invalid_strs(void);
 
 // Test Str type definition
 bool test_str_type(void) {
@@ -99,33 +106,75 @@ bool test_validate_strs(void) {
     return result;
 }
 
+// Deadend test: Test ValidateStr with invalid string (should crash/abort)
+bool test_validate_invalid_str(void) {
+    printf("Testing ValidateStr with invalid string (should abort)\n");
+
+    // Create an invalid Str by corrupting its fields
+    Str s = StrInit();
+    
+    // Corrupt the string to make it invalid
+    s.length = 100;  // Set length much larger than actual capacity
+    s.capacity = 5;  // Small capacity
+    // s.data remains valid but length/capacity are inconsistent
+    
+    // This should abort the program
+    ValidateStr(&s);
+    
+    // Should never reach here
+    return false;
+}
+
+// Deadend test: Test ValidateStrs with invalid Strs (should crash/abort)
+bool test_validate_invalid_strs(void) {
+    printf("Testing ValidateStrs with invalid Strs (should abort)\n");
+
+    // Create an invalid Strs by corrupting its fields
+    Strs sv = VecInit();
+    
+    // Corrupt the vector to make it invalid
+    sv.length = 50;   // Set length much larger than actual capacity
+    sv.capacity = 2;  // Small capacity
+    // sv.data remains valid but length/capacity are inconsistent
+    
+    // This should abort the program
+    ValidateStrs(&sv);
+    
+    // Should never reach here
+    return false;
+}
+
 // Main function that runs all tests
 int main(void) {
     printf("[INFO] Starting Str.Type tests\n\n");
 
-    // Array of test functions
-    bool (*tests[])(void) = {test_str_type, test_strs_type, test_validate_str, test_validate_strs};
+    // Array of normal test functions
+    TestFunction tests[] = {
+        test_str_type, 
+        test_strs_type, 
+        test_validate_str, 
+        test_validate_strs
+    };
+
+    // Array of deadend test functions (tests that should crash/abort)
+    TestFunction deadend_tests[] = {
+        test_validate_invalid_str,
+        test_validate_invalid_strs
+    };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
-    int passed      = 0;
-    int failed      = 0;
+    int deadend_count = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
-    // Run all tests and accumulate results
-    for (int i = 0; i < total_tests; i++) {
-        printf("[TEST %d/%d] ", i + 1, total_tests);
-        bool result = tests[i]();
-        if (result) {
-            printf("[PASS]\n\n");
-            passed++;
-        } else {
-            printf("[FAIL]\n\n");
-            failed++;
-        }
-    }
+    // Run normal tests
+    int failed = simple_test_driver(tests, total_tests);
 
-    // Print summary
-    printf("[SUMMARY] Total: %d, Passed: %d, Failed: %d\n", total_tests, passed, failed);
+    // Run deadend tests
+    int deadend_failed = deadend_test_driver(deadend_tests, deadend_count);
+
+    // Print final summary
+    printf("\n[FINAL SUMMARY] Normal: %d tests, Deadend: %d tests, Total Failed: %d\n", 
+           total_tests, deadend_count, failed + deadend_failed);
 
     // Return non-zero exit code if any test failed
-    return failed > 0 ? 1 : 0;
+    return (failed + deadend_failed) > 0 ? 1 : 0;
 }
