@@ -134,6 +134,10 @@ char* ZstrDupN(const char* src, size n) {
     return new_str;
 }
 
+char* ZstrDup(const char* src) {
+    return ZstrDupN(src, ZstrLen(src));
+}
+
 char* ZstrFindSubstring(const char* haystack, const char* needle) {
     if (!haystack || !needle) {
         LOG_FATAL("Invalid arguments");

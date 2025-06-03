@@ -112,6 +112,20 @@ i32 ZstrCompareN(const char* s1, const char* s2, size n);
 char* ZstrDupN(const char* src, size n);
 
 ///
+/// Duplicates a string.
+/// Creates a new null-terminated string by allocating memory and copying
+/// at most n characters from the source string.
+///
+/// src[in] : Source string to duplicate.
+///
+/// SUCCESS : Returns a pointer to the newly allocated duplicate string.
+/// FAILURE : Returns NULL if memory allocation fails or if src is NULL.
+///
+/// TAGS: String, Memory, Allocation
+///
+char* ZstrDup(const char* src);
+
+///
 /// Find first occurrence of needle in haystack.
 ///
 /// haystack[in] : String to search in.

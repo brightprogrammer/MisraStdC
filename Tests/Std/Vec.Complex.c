@@ -1,8 +1,7 @@
 #include <Misra/Std/Container/Vec.h>
+#include <Misra/Std/Memory.h>
 #include <Misra/Std/Log.h>
-#include <stdbool.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
 #include <Misra/Types.h> // For LVAL macro
 
@@ -23,7 +22,7 @@ bool ComplexItemCopyInit(ComplexItem* dst, ComplexItem* src) {
 
     // Copy name
     if (src->name) {
-        size name_len = strlen(src->name);
+        size name_len = ZstrLen(src->name);
         dst->name     = malloc(name_len + 1);
         if (!dst->name)
             return false;
@@ -75,7 +74,7 @@ ComplexItem CreateComplexItem(const char* name, int* values, size num_values) {
 
     // Copy name
     if (name) {
-        item.name = strdup(name);
+        item.name = ZstrDup(name);
     }
 
     // Copy values
@@ -163,7 +162,7 @@ bool test_complex_vec_init(void) {
 
     // Modify the original item and verify the vector's copy is independent
     free(item.name);
-    item.name      = strdup("Modified");
+    item.name      = ZstrDup("Modified");
     item.values[0] = 99;
 
     // The vector's copy should still have the original values
@@ -300,8 +299,8 @@ bool test_complex_vec_merge(void) {
     result = result && (strcmp(VecAt(&vec1, 2).name, "Item 3") == 0);
 
     // Now test VecMergeL which transfers ownership
-    ComplexVec vec3 = VecInitWithDeepCopy(ComplexItemCopyInit, ComplexItemDeinit);
-    ComplexVec vec4 = VecInitWithDeepCopy(ComplexItemCopyInit, ComplexItemDeinit);
+    ComplexVec vec3 = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
+    ComplexVec vec4 = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
 
     // Create more test items
     int values4[] = {100, 110, 120};
@@ -311,8 +310,12 @@ bool test_complex_vec_merge(void) {
     ComplexItem item5 = CreateComplexItem("Item 5", values5, 3);
 
     // Add items to vectors
-    VecPushBackR(&vec3, item4);
-    VecPushBackR(&vec4, item5);
+    VecPushBackL(&vec3, item4);
+    VecPushBackL(&vec4, item5);
+
+    // Check that item 4 and 5 are no longer valid
+    result = result && (item4.name == NULL && item4.num_values == 0 && item4.values == NULL);
+    result = result && (item5.name == NULL && item5.num_values == 0 && item5.values == NULL);
 
     // Merge vec4 into vec3 with ownership transfer
     VecMergeL(&vec3, &vec4);
@@ -330,8 +333,6 @@ bool test_complex_vec_merge(void) {
     ComplexItemDeinit(&item1);
     ComplexItemDeinit(&item2);
     ComplexItemDeinit(&item3);
-    ComplexItemDeinit(&item4);
-    ComplexItemDeinit(&item5);
     VecDeinit(&vec1);
     VecDeinit(&vec2);
     VecDeinit(&vec3);
@@ -658,7 +659,7 @@ bool test_lvalue_memset_insert(void) {
     
     // First, create a dummy item and add it to the vector
     ComplexItem dummy = {0};
-    dummy.name = strdup("Dummy");
+    dummy.name = ZstrDup("Dummy");
     dummy.values = NULL;
     dummy.num_values = 0;
     
@@ -693,13 +694,13 @@ bool test_lvalue_memset_fast_insert(void) {
     
     // Create several dummy items to populate the vector
     ComplexItem dummy1 = {0};
-    dummy1.name = strdup("Dummy1");
+    dummy1.name = ZstrDup("Dummy1");
     
     ComplexItem dummy2 = {0};
-    dummy2.name = strdup("Dummy2");
+    dummy2.name = ZstrDup("Dummy2");
     
     ComplexItem dummy3 = {0};
-    dummy3.name = strdup("Dummy3");
+    dummy3.name = ZstrDup("Dummy3");
     
     // Add the dummy items using L-value semantics
     VecPushBackL(&vec, dummy1);
@@ -759,7 +760,7 @@ bool test_lvalue_memset_pushfront(void) {
     
     // Add a dummy item first
     ComplexItem dummy = {0};
-    dummy.name = strdup("Dummy");
+    dummy.name = ZstrDup("Dummy");
     VecPushBackL(&vec, dummy);
     
     // Insert with L-value semantics at the front (vector takes ownership)
