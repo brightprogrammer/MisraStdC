@@ -507,10 +507,11 @@ bool test_str_foreach_ptr_idx_out_of_bounds_access(void) {
     StrForeachPtrIdx(&s, chr_ptr, idx, {
         printf("Accessing idx %zu (s.length=%zu): '%c'\n", idx, s.length, *chr_ptr);
         
-        // When we reach idx=4, delete several characters from the string
+        // When we reach idx=4, delete most characters from the string
+        // This will make the current idx invalid after the body executes
         if (idx == 4) {
-            StrDeleteRange(&s, 0, 8);  // Remove first 8 characters
-            printf("Deleted first 8 characters, new length=%zu, but ptr iteration continues...\n", s.length);
+            StrResize(&s, 4);  // Shrink to only 4 characters (valid indices: 0,1,2,3)
+            printf("String resized to length %zu, current idx=%zu is now out of bounds...\n", s.length, idx);
         }
         
         // When idx >= s.length, the bounds check will trigger:
@@ -633,16 +634,6 @@ int main(void) {
     int total_tests = sizeof(tests) / sizeof(tests[0]);
     int deadend_count = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
-    // Run normal tests
-    int failed = simple_test_driver(tests, total_tests);
-
-    // Run deadend tests
-    int deadend_failed = deadend_test_driver(deadend_tests, deadend_count);
-
-    // Print final summary
-    printf("\n[FINAL SUMMARY] Normal: %d tests, Deadend: %d tests, Total Failed: %d\n", 
-           total_tests, deadend_count, failed + deadend_failed);
-
-    // Return non-zero exit code if any test failed
-    return (failed + deadend_failed) > 0 ? 1 : 0;
+    // Run all tests using the centralized test driver
+    return run_test_suite(tests, total_tests, deadend_tests, deadend_count, "Str.Foreach");
 }

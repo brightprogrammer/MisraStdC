@@ -24,10 +24,6 @@ bool test_rvalue_delete_range_operations(void);
 bool test_lvalue_fast_delete_range_operations(void);
 bool test_rvalue_fast_delete_range_operations(void);
 
-// Example test functions that might fail (for demonstration)
-bool test_invalid_index_access(void);
-bool test_null_pointer_dereference(void);
-
 // Test VecPopBack function
 bool test_vec_pop_back(void) {
     printf("Testing VecPopBack\n");
@@ -821,47 +817,10 @@ bool test_rvalue_fast_delete_range_operations(void) {
     return result;
 }
 
-// Test that tries to access an invalid index (should fail)
-bool test_invalid_index_access(void) {
-    printf("Testing invalid index access (should fail)\n");
-    
-    typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
-    
-    // Add some data
-    int val1 = 42;
-    int val2 = 43;
-    VecPushBack(&vec, val1);
-    VecPushBack(&vec, val2);
-    
-    // Try to access an invalid index (this should cause an assertion failure or crash)
-    // In a real scenario, this might be caught by bounds checking
-    int invalid_value = VecAt(&vec, 100);  // Index 100 is way out of bounds
-    
-    VecDeinit(&vec);
-    
-    // If we get here, the test "passed" but we expected it to fail
-    return invalid_value == 42; // This will likely never be reached
-}
-
-// Test that dereferences a null pointer (should crash)
-bool test_null_pointer_dereference(void) {
-    printf("Testing null pointer dereference (should crash)\n");
-    
-    // This will definitely crash
-    int* null_ptr = NULL;
-    *null_ptr = 42;
-    
-    // Never reached
-    return true;
-}
-
 // Main function that runs all tests
-int main(void) {
-    printf("[INFO] Starting Vec.Remove tests\n\n");
-
+int main(int argc, char* argv[]) {
     // Array of normal test functions
-    TestFunction tests[] = {
+    TestFunction normal_tests[] = {
         test_vec_pop_back,
         test_vec_pop_front,
         test_vec_delete,
@@ -879,26 +838,11 @@ int main(void) {
         test_rvalue_fast_delete_range_operations
     };
 
-    // Array of deadend test functions (tests that should fail/crash)
-    TestFunction deadend_tests[] = {
-        test_invalid_index_access,
-        test_null_pointer_dereference
-    };
+    int normal_count = sizeof(normal_tests) / sizeof(normal_tests[0]);
 
-    int total_tests = sizeof(tests) / sizeof(tests[0]);
-    int deadend_count = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
-
-    // Run normal tests
-    int failed = simple_test_driver(tests, total_tests);
-
-    // Run deadend tests
-    int deadend_failed = deadend_test_driver(deadend_tests, deadend_count);
-
-    // Print final summary
-    printf("\n[FINAL SUMMARY] Normal: %d tests, Deadend: %d tests, Total Failed: %d\n", 
-           total_tests, deadend_count, failed + deadend_failed);
-
-    // Return non-zero exit code if any test failed
-    return (failed + deadend_failed) > 0 ? 1 : 0;
+    // Use centralized test driver (no more argc/argv needed)
+    return run_test_suite(normal_tests, normal_count,
+                         NULL, 0,
+                         "Vec.Remove");
 }
  

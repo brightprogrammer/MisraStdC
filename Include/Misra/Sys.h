@@ -17,6 +17,7 @@
 
 typedef unsigned long   SysProcessId;
 typedef struct SysMutex SysMutex;
+typedef struct SysProcInfo SysProcInfo;
 
 typedef enum SysDirEntryType {
     SYS_DIR_ENTRY_TYPE_UNKNOWN,
@@ -27,6 +28,14 @@ typedef enum SysDirEntryType {
     SYS_DIR_ENTRY_TYPE_BLOCK_DEVICE,
     SYS_DIR_ENTRY_TYPE_SYMBOLIC_LINK
 } SysDirEntryType;
+
+// Process result status enumeration
+typedef enum SysProcStatus {
+    SYS_PROC_STATUS_RUNNING,    // Process is still running
+    SYS_PROC_STATUS_COMPLETED,  // Process completed normally
+    SYS_PROC_STATUS_TERMINATED, // Process was terminated/killed
+    SYS_PROC_STATUS_ERROR       // Error occurred while checking status
+} SysProcStatus;
 
 ///
 /// Convert given entry type to a NULL terminated string.
@@ -133,6 +142,18 @@ Str *SysGetEnv(const char *name, Str *value);
 SysProcessId SysGetCurrentProcessId(void);
 
 ///
+/// Get the path to the current executable.
+///
+/// exe_path[out] : Str object to store the executable path.
+///
+/// SUCCESS : Returns initialized Str object with executable path.
+/// FAILURE : Returns NULL if path cannot be determined.
+///
+/// TAGS: System, Process, Path
+///
+Str *SysGetCurrentExecutablePath(Str *exe_path);
+
+///
 /// Create a platform-independent mutex object.
 ///
 /// SUCCESS : Returns valid SysMutex object.
@@ -192,5 +213,101 @@ SysMutex *SysMutexUnlock(SysMutex *m);
 /// TAGS: System, Error, String
 ///
 Str *SysStrError(i32 eno, Str *err_str);
+
+///
+/// Create a new process with specified arguments and environment.
+///
+/// executable[in] : Path to the executable to run.
+/// argv[in]       : Vector of argument strings (first should be program name).
+/// env[in]        : Vector of environment strings in "VAR=value" format, or NULL to inherit.
+///
+/// SUCCESS : Returns SysProcInfo object for managing the process.
+/// FAILURE : Returns NULL if process creation fails.
+///
+/// TAGS: System, Process, Creation
+///
+SysProcInfo *SysCreateProcess(const char *executable, Strs *argv, Strs *env);
+
+///
+/// Wait for a process to complete with optional timeout.
+///
+/// proc_info[in] : Process information object.
+/// timeout_ms[in]: Timeout in milliseconds, 0 for infinite wait.
+///
+/// SUCCESS : Returns process status.
+/// FAILURE : Returns SYS_PROC_STATUS_ERROR on error.
+///
+/// TAGS: System, Process, Synchronization
+///
+SysProcStatus SysWaitForProcess(SysProcInfo *proc_info, u32 timeout_ms);
+
+///
+/// Get the exit code of a completed process.
+///
+/// proc_info[in]  : Process information object.
+/// exit_code[out] : Exit code will be stored here.
+///
+/// SUCCESS : Returns true and stores exit code.
+/// FAILURE : Returns false if process hasn't completed or error occurred.
+///
+/// TAGS: System, Process, Status
+///
+bool SysGetProcessExitCode(SysProcInfo *proc_info, i32 *exit_code);
+
+///
+/// Terminate a running process forcefully.
+///
+/// proc_info[in] : Process information object.
+///
+/// SUCCESS : Returns true if process was terminated.
+/// FAILURE : Returns false if termination failed.
+///
+/// TAGS: System, Process, Control
+///
+bool SysTerminateProcess(SysProcInfo *proc_info);
+
+///
+/// Clean up process information and free resources.
+/// Process must be completed or terminated before calling this.
+///
+/// proc_info[in] : Process information object to clean up.
+///
+/// SUCCESS : Resources freed.
+/// FAILURE : Function cannot fail - safe to call with NULL.
+///
+/// TAGS: System, Process, Memory
+///
+void SysDestroyProcess(SysProcInfo *proc_info);
+
+///
+/// Function pointer type for SysAbort callback.
+/// This allows custom handling of abort situations (e.g., for testing).
+///
+typedef void (*SysAbortCallback)(void);
+
+///
+/// Set a custom callback function for SysAbort.
+/// If no callback is set, SysAbort will call the standard abort() function.
+///
+/// callback[in] : Function to call when SysAbort is invoked, or NULL to reset to default.
+///
+/// SUCCESS : Callback is set.
+/// FAILURE : Function cannot fail.
+///
+/// TAGS: System, Testing, Callback
+///
+void SysSetAbortCallback(SysAbortCallback callback);
+
+///
+/// Custom abort function that can be redirected for testing purposes.
+/// By default, this calls the standard abort() function.
+/// If a callback is set via SysSetAbortCallback, it calls the callback instead.
+///
+/// SUCCESS : Function does not return (either aborts or calls callback).
+/// FAILURE : Function cannot fail.
+///
+/// TAGS: System, Testing, Control
+///
+void SysAbort(void);
 
 #endif // MISRA_SYS_H

@@ -394,19 +394,88 @@ int main() {
 
 The library supports Rust-style format strings with placeholders in the form `{}` or `{:specifier}`. Arguments are passed using the `FMT()` macro, which automatically determines the correct type handling.
 
-### Basic Usage
+### Important: Understanding the FMT Macro
+
+The `FMT()` macro uses `_Generic` for compile-time type dispatching. Here's what works and what doesn't:
+
+#### ❌ What Doesn't Work
 
 ```c
-Str output = StrInit();
+// String literals (array types like char[6] not handled by _Generic)
+StrWriteFmt(&output, "Hello, {}!", FMT("world"));  // ERROR: char[6] not in _Generic cases
 
-// Basic placeholder
-StrWriteFmt(&output, "Hello, {}!", FMT("world"));  // "Hello, world!"
+// Any char array types are not handled
+char buffer[20] = "Hello";                         // Type: char[20] 
+StrWriteFmt(&output, "Message: {}", FMT(buffer));  // ERROR: char[20] not in _Generic cases
 
-// Multiple placeholders
-int count = 42;
-const char* name = "Alice";
-StrWriteFmt(&output, "Count: {}, Name: {}", FMT(count), FMT(name));
+const char name[] = "Alice";                       // Type: const char[6]
+StrWriteFmt(&output, "Name: {}", FMT(name));       // ERROR: const char[6] not in _Generic cases
 ```
+
+#### ✅ What Works Perfectly
+
+```c
+// const char* variables (pointer type matches _Generic case)
+const char* title = "Mr.";
+const char* surname = "Smith";
+StrWriteFmt(&output, "{} {}", FMT(title), FMT(surname));  // ✅ Works great!
+
+// char* variables (pointer type matches _Generic case)
+char* dynamic_str = malloc(50);
+strcpy(dynamic_str, "Dynamic");
+StrWriteFmt(&output, "Value: {}", FMT(dynamic_str));      // ✅ Works perfectly!
+
+// Str objects (library's string type)
+Str greeting = StrInitFromZstr("Welcome");
+StrWriteFmt(&output, "Message: {}", FMT(greeting));
+
+// Primitive types (all handled by _Generic)
+int number = 42;
+float pi = 3.14f;
+StrWriteFmt(&output, "Number: {}, Pi: {:.2}", FMT(number), FMT(pi));
+```
+
+#### 💡 Best Practices
+
+```c
+// For constant strings, use const char* pointers:
+const char* program_name = "MyApp";      // ✅ const char* works perfectly!
+const char* version = "1.0.0";           // ✅ char* pointer types work!
+
+// For dynamic strings, use Str objects or char* pointers:
+Str user_input = StrInit();
+StrReadFmt(input_line, "Name: {}", FMT(user_input));
+
+char* allocated = malloc(100);
+strcpy(allocated, "Dynamic content");
+StrWriteFmt(&message, "Content: {}", FMT(allocated));     // ✅ char* works!
+
+// For function parameters accepting strings:
+void log_message(const char* msg) {                      // ✅ const char* parameter
+    StrWriteFmt(&log_output, "[LOG] {}", FMT(msg));       // ✅ Works perfectly!
+}
+
+void process_buffer(char* buffer) {                      // ✅ char* parameter  
+    StrWriteFmt(&output, "Processing: {}", FMT(buffer));  // ✅ Works great!
+}
+```
+
+#### 🔧 Technical Explanation
+
+The `FMT()` macro uses `_Generic` which only handles these specific types:
+- `const char*` ✅
+- `char*` ✅  
+- `Str` ✅
+- Primitive types (`int`, `float`, `u32`, etc.) ✅
+
+But **NOT** array types like:
+- `char[6]` (from `"hello"`) ❌
+- `char[20]` (from `char buffer[20]`) ❌
+- `const char[10]` (from `const char arr[] = "test"`) ❌
+
+The compiler knows these array types perfectly, but `_Generic` doesn't have cases for every possible array size.
+
+### Basic Usage
 
 If no specifier is provided (just `{}`), default formatting is used.
 
@@ -465,8 +534,10 @@ For floating-point values, specifies the number of decimal places:
 #### Basic Formatting
 
 ```c
-// Simple placeholder
-StrWriteFmt(&output, "Hello, {}!", FMT("world"));  // "Hello, world!"
+// Correct usage with const char*
+const char* greeting = "Hello";
+const char* subject = "world";
+StrWriteFmt(&output, "{}, {}!", FMT(greeting), FMT(subject));  // "Hello, world!"
 
 // Escaped braces
 StrWriteFmt(&output, "{{Hello}}");  // "{Hello}"
@@ -475,7 +546,7 @@ StrWriteFmt(&output, "{{Hello}}");  // "{Hello}"
 #### String Formatting
 
 ```c
-const char* str = "Hello";
+const char* str = "Hello";  // const char* variable
 
 // Basic string
 StrWriteFmt(&output, "{}", FMT(str));  // "Hello"

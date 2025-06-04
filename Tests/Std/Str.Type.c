@@ -165,16 +165,6 @@ int main(void) {
     int total_tests = sizeof(tests) / sizeof(tests[0]);
     int deadend_count = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
-    // Run normal tests
-    int failed = simple_test_driver(tests, total_tests);
-
-    // Run deadend tests
-    int deadend_failed = deadend_test_driver(deadend_tests, deadend_count);
-
-    // Print final summary
-    printf("\n[FINAL SUMMARY] Normal: %d tests, Deadend: %d tests, Total Failed: %d\n", 
-           total_tests, deadend_count, failed + deadend_failed);
-
-    // Return non-zero exit code if any test failed
-    return (failed + deadend_failed) > 0 ? 1 : 0;
+    // Run all tests using the centralized test driver
+    return run_test_suite(tests, total_tests, deadend_tests, deadend_count, "Str.Type");
 }

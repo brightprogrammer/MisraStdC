@@ -3,6 +3,8 @@ test_util_lib = static_library(
   'test_util',
   'TestRunner.c',
   c_args: ['-std=c11'],
+  include_directories: inc_misra,
+  link_with: [misra_std],
   dependencies: [],
 )
 

@@ -15,6 +15,9 @@
 // Misra
 #include <Misra/Types.h>
 
+// Forward declaration to avoid circular includes
+void SysAbort(void);
+
 // #ifdef _WIN32
 // #    define LOG_FATAL(...) (LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, __VA_ARGS__), abort())
 //
@@ -32,7 +35,7 @@
 ///
 /// TAGS: Logging, Macro, Fatal, System
 ///
-#define LOG_FATAL(...) (LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, __VA_ARGS__), abort())
+#define LOG_FATAL(...) (LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, __VA_ARGS__), SysAbort())
 
 ///
 /// Writes an error-level log message.

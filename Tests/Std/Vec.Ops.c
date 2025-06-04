@@ -165,9 +165,6 @@ int main(void) {
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 
-    // Run all tests using the test driver
-    int failed = simple_test_driver(tests, total_tests);
-
-    // Return non-zero exit code if any test failed
-    return failed > 0 ? 1 : 0;
+    // Run all tests using the centralized test driver
+    return run_test_suite(tests, total_tests, NULL, 0, "Vec.Ops");
 }

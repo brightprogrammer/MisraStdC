@@ -2,48 +2,79 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Test utilities for running potentially failing tests in separate processes
+/// Test utilities for running potentially failing tests using setjmp/longjmp
 
-#ifndef TESTS_UTIL_TEST_RUNNER_H
-#define TESTS_UTIL_TEST_RUNNER_H
+#ifndef TEST_RUNNER_H
+#define TEST_RUNNER_H
 
-#include <stdbool.h>
+#include <Misra/Types.h>
 
 ///
-/// Function pointer type for test functions that return bool
+/// Function pointer type for test functions.
+///
+/// SUCCESS : Function returns true if test passed, false if failed.
+/// FAILURE : Function cannot fail - always returns boolean result.
+///
+/// TAGS: Testing, Function, Pointer
 ///
 typedef bool (*TestFunction)(void);
 
 ///
-/// Run a test function in a separate process (child process) to safely
-/// handle potentially crashing or failing tests.
+/// Run a specific test function using setjmp/longjmp to capture aborts.
+/// This is used for deadend tests that are expected to call LOG_FATAL.
 ///
-/// test_func[in]    : The test function to execute in child process
-/// expect_failure[in]: If true, expects the test to fail (non-zero exit code)
-///                     If false, expects the test to succeed (zero exit code)
+/// test_func[in]     : Test function to execute.
+/// expect_failure[in]: If true, expects the test to call SysAbort().
 ///
-/// SUCCESS: Returns true if the test behaved as expected:
-///          - If expect_failure=false and child returned 0 (success)
-///          - If expect_failure=true and child returned non-zero (failure)
-/// FAILURE: Returns false if the test didn't behave as expected:
-///          - If expect_failure=false and child returned non-zero (unexpected failure)
-///          - If expect_failure=true and child returned 0 (unexpected success)
-///          - If there was an error creating/managing the child process
+/// SUCCESS : Returns true if test behaved as expected.
+/// FAILURE : Returns false if test did not behave as expected.
 ///
-/// TAGS: Testing, Process, Safety, Isolation
+/// TAGS: Testing, Deadend, Control
 ///
 bool test_deadend(TestFunction test_func, bool expect_failure);
 
-/// Run an array of simple tests
-/// @param tests Array of test function pointers
-/// @param count Number of tests in the array
-/// @return Number of failed tests (0 = all passed)
+///
+/// Run an array of simple test functions.
+///
+/// tests[in] : Array of test function pointers.
+/// count[in] : Number of tests in the array.
+///
+/// SUCCESS : Returns number of failed tests (0 = all passed).
+/// FAILURE : Function cannot fail - always returns valid count.
+///
+/// TAGS: Testing, Driver, Simple
+///
 int simple_test_driver(TestFunction* tests, int count);
 
-/// Run an array of deadend tests (all expecting failure)
-/// @param tests Array of test function pointers
-/// @param count Number of tests in the array
-/// @return Number of failed tests (0 = all passed)
+///
+/// Run an array of deadend test functions (all expecting failure).
+///
+/// tests[in] : Array of test function pointers.
+/// count[in] : Number of tests in the array.
+///
+/// SUCCESS : Returns number of failed tests (0 = all passed).
+/// FAILURE : Function cannot fail - always returns valid count.
+///
+/// TAGS: Testing, Driver, Deadend
+///
 int deadend_test_driver(TestFunction* tests, int count);
 
-#endif // TESTS_UTIL_TEST_RUNNER_H 
+///
+/// Main test driver that handles both normal and deadend tests.
+///
+/// normal_tests[in]   : Array of normal test function pointers (can be NULL).
+/// normal_count[in]   : Number of normal tests.
+/// deadend_tests[in]  : Array of deadend test function pointers (can be NULL).
+/// deadend_count[in]  : Number of deadend tests.
+/// test_name[in]      : Name of the test suite for logging.
+///
+/// SUCCESS : Returns 0 if all tests passed.
+/// FAILURE : Returns non-zero if some tests failed.
+///
+/// TAGS: Testing, Driver, Suite
+///
+int run_test_suite(TestFunction* normal_tests, int normal_count,
+                   TestFunction* deadend_tests, int deadend_count,
+                   const char* test_name);
+
+#endif // TEST_RUNNER_H 

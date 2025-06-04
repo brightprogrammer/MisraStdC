@@ -391,10 +391,11 @@ bool test_vec_foreach_ptr_idx_out_of_bounds_access(void) {
     VecForeachPtrIdx(&vec, val_ptr, idx, {
         printf("Accessing idx %zu (vec.length=%zu): %d\n", idx, vec.length, *val_ptr);
         
-        // When we reach idx=2, delete several elements from the vector
-        if (idx == 2) {
-            VecDeleteRange(&vec, 0, 4);  // Remove first 4 elements
-            printf("Deleted first 4 elements, new length=%zu, but ptr iteration continues...\n", vec.length);
+        // When we reach idx=3, shrink the vector to make the CURRENT idx invalid
+        // The bounds check happens after the body, so it will check if idx=3 >= new_length
+        if (idx == 3) {
+            VecResize(&vec, 3);  // Shrink so that idx=3 becomes out of bounds (valid indices: 0,1,2)
+            printf("Vector resized to length %zu, current idx=%zu is now out of bounds...\n", vec.length, idx);
         }
         
         // When idx >= vec.length, the bounds check will trigger:
@@ -531,16 +532,6 @@ int main(void) {
     int total_tests = sizeof(tests) / sizeof(tests[0]);
     int deadend_count = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
-    // Run normal tests
-    int failed = simple_test_driver(tests, total_tests);
-
-    // Run deadend tests
-    int deadend_failed = deadend_test_driver(deadend_tests, deadend_count);
-
-    // Print final summary
-    printf("\n[FINAL SUMMARY] Normal: %d tests, Deadend: %d tests, Total Failed: %d\n", 
-           total_tests, deadend_count, failed + deadend_failed);
-
-    // Return non-zero exit code if any test failed
-    return (failed + deadend_failed) > 0 ? 1 : 0;
+    // Run all tests using the centralized test driver
+    return run_test_suite(tests, total_tests, deadend_tests, deadend_count, "Vec.Foreach");
 }
