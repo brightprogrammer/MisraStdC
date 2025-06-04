@@ -13,14 +13,6 @@ subdir('Util')
 # Test configuration
 test_args = common_c_args
 
-# Test configuration without sanitizers for deadend tests
-deadend_test_args = []
-foreach arg : common_c_args
-    if not arg.contains('sanitize')
-        deadend_test_args += arg
-    endif
-endforeach
-
 # Group tests by module
 io_tests = [
     ['Io.Write', 'Std/Io.Write.c'],
@@ -119,11 +111,12 @@ foreach test_info : str_deadend_tests
     test_exe = executable(
         test_name,
         files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
-        c_args: deadend_test_args,  # No sanitizer args
+        link_with: [misra_std_no_sanitizers],  # Use the non-sanitized library
+        dependencies: [test_util_dep_no_sanitizers],  # Use non-sanitized test utils
+        c_args: test_args,
         include_directories: inc_misra,
-        install: false
+        install: false,
+        override_options: ['b_sanitize=none']  # Disable all sanitizers for deadend tests
     )
     
     test(test_name, test_exe)
@@ -136,11 +129,12 @@ foreach test_info : vec_deadend_tests
     test_exe = executable(
         test_name,
         files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
-        c_args: deadend_test_args,  # No sanitizer args
+        link_with: [misra_std_no_sanitizers],  # Use the non-sanitized library
+        dependencies: [test_util_dep_no_sanitizers],  # Use non-sanitized test utils
+        c_args: test_args,
         include_directories: inc_misra,
-        install: false
+        install: false,
+        override_options: ['b_sanitize=none']  # Disable all sanitizers for deadend tests
     )
     
     test(test_name, test_exe)

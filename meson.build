@@ -23,6 +23,7 @@ misra_std_sources = files(
     'Source/Misra/Parsers/JSON.c'
 )
 
+# Regular library with sanitizers for normal tests and executables
 misra_std = static_library(
     'misra_std',
     misra_std_sources,
@@ -30,6 +31,17 @@ misra_std = static_library(
     dependencies: math_dep,
     include_directories: inc_misra,
     install: true
+)
+
+# Non-sanitized library specifically for deadend tests to avoid memory leak reports
+misra_std_no_sanitizers = static_library(
+    'misra_std_no_sanitizers',
+    misra_std_sources,
+    c_args: common_c_args,
+    dependencies: math_dep,
+    include_directories: inc_misra,
+    install: false,
+    override_options: ['b_sanitize=none']
 )
 
 # Main.c and misra executable have been removed
