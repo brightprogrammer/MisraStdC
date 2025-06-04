@@ -40,6 +40,17 @@ extern "C" {
 ///
 #define StrCmpCstr(str, cstr, cstr_len) ZstrCompareN((str)->data, cstr, cstr_len)
 
+///
+/// Compare string with a null-terminated const char* string
+///
+/// str[in]  : Pointer to Str object to compare with.
+/// zstr[in] : Null-terminated string to compare with.
+///
+/// RETURN : +ve or -ve depending on above or below in lexical ordering
+/// RETURN : 0 if both are equal
+///
+#define StrCmpZstr(str, zstr) ZstrCompare((str)->data, (zstr))
+
 //
 // Find Operations
 //

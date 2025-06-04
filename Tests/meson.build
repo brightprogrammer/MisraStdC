@@ -51,6 +51,17 @@ vec_deadend_tests = [
     ['Vec.Foreach.Deadend', 'Std/Vec.Foreach.Deadend.c'],
 ]
 
+json_tests = [
+    ['Json.Read.Simple', 'Json/Read.Simple.c'],
+    ['Json.Read.Nested', 'Json/Read.Nested.c'],
+    ['Json.Read.EdgeCases', 'Json/Read.EdgeCases.c'],
+    ['Json.Write.Simple', 'Json/Write.Simple.c'],
+    ['Json.Write.Nested', 'Json/Write.Nested.c'],
+    ['Json.Write.EdgeCases', 'Json/Write.EdgeCases.c'],
+    ['Json.RoundTrip', 'Json/RoundTrip.c'],
+    # ['Json.RW', 'Json/RW.c'],
+]
+
 # Build and register all normal tests with full sanitizer support
 foreach test_info : io_tests
     test_name = test_info[0]
@@ -102,6 +113,23 @@ foreach test_info : vec_tests
     
     test(test_name, test_exe)
 endforeach 
+
+foreach test_info : json_tests
+    test_name = test_info[0]
+    test_src = test_info[1]
+    
+    test_exe = executable(
+        test_name,
+        files(test_src),
+        link_with: [misra_std],
+        dependencies: [test_util_dep],
+        c_args: test_args,
+        include_directories: inc_misra,
+        install: false
+    )
+    
+    test(test_name, test_exe)
+endforeach
 
 # Build and register deadend tests WITHOUT sanitizers to avoid memory leak reports
 foreach test_info : str_deadend_tests

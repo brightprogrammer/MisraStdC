@@ -9,10 +9,10 @@
 
 typedef struct GenericIter {
     void *data;
-    i64   length;
-    i64   pos;
+    size  length;
+    size  pos;
     size  alignment;
-    i64   dir;
+    i8    dir;
 } GenericIter;
 
 #define GENERIC_ITER(x) ((GenericIter *)(void *)(x))
