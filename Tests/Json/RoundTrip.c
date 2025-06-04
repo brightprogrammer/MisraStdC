@@ -364,10 +364,16 @@ bool test_array_roundtrip(void) {
         VecPushBack(&original_numbers, nums[i]);
     }
     
-    VecPushBack(&original_strings, StrInitFromZstr("first"));
-    VecPushBack(&original_strings, StrInitFromZstr("second"));
-    VecPushBack(&original_strings, StrInitFromZstr(""));
-    VecPushBack(&original_strings, StrInitFromZstr("last"));
+    // Create strings and push them properly
+    Str str1 = StrInitFromZstr("first");
+    Str str2 = StrInitFromZstr("second");
+    Str str3 = StrInitFromZstr("");
+    Str str4 = StrInitFromZstr("last");
+    
+    VecPushBack(&original_strings, str1);
+    VecPushBack(&original_strings, str2);
+    VecPushBack(&original_strings, str3);
+    VecPushBack(&original_strings, str4);
     
     // Write to JSON
     Str json = StrInit();
@@ -514,8 +520,13 @@ bool test_complex_data_roundtrip(void) {
     original.config.timeout = 30;
     original.config.log_level = StrInitFromZstr("INFO");
     original.config.features = VecInitWithDeepCopyT(original.config.features, NULL, StrDeinit);
-    VecPushBack(&original.config.features, StrInitFromZstr("auth"));
-    VecPushBack(&original.config.features, StrInitFromZstr("logging"));
+    
+    // Create strings and push them properly
+    Str feature1 = StrInitFromZstr("auth");
+    Str feature2 = StrInitFromZstr("logging");
+    
+    VecPushBack(&original.config.features, feature1);
+    VecPushBack(&original.config.features, feature2);
     
     original.numbers = VecInitT(original.numbers);
     i32 vals[3] = {10, 20, -5};

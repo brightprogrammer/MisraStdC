@@ -323,8 +323,14 @@ bool test_search_results_with_tags_writing(void) {
     result.analysis_id = 999;
     result.sha256 = StrInitFromZstr("abc123");
     result.tags = VecInitWithDeepCopyT(result.tags, NULL, StrDeinit);
-    VecPushBack(&result.tags, StrInitFromZstr("malware"));
-    VecPushBack(&result.tags, StrInitFromZstr("x86"));
+    
+    // Create strings and push them properly
+    Str tag1 = StrInitFromZstr("malware");
+    Str tag2 = StrInitFromZstr("x86");
+    
+    VecPushBack(&result.tags, tag1);
+    VecPushBack(&result.tags, tag2);
+    
     result.created_at = StrInitFromZstr("2024-04-01");
     result.model_id = 12345;
     result.model_name = StrInitFromZstr("test_model");
@@ -423,16 +429,20 @@ bool test_deeply_nested_structure_writing(void) {
     bool success = true;
     Str json = StrInit();
     
+    // Create strings for the nested structure
+    Str deep_message = StrInitFromZstr("deep");
+    Str test_name = StrInitFromZstr("test");
+    
     JW_OBJ(json, {
         JW_OBJ_KV(json, "level1", {
             JW_OBJ_KV(json, "level2", {
                 JW_OBJ_KV(json, "level3", {
-                    JW_STR_KV(json, "message", StrInitFromZstr("deep"));
+                    JW_STR_KV(json, "message", deep_message);
                     JW_INT_KV(json, "value", 42);
                 });
                 JW_BOOL_KV(json, "flag", true);
             });
-            JW_STR_KV(json, "name", StrInitFromZstr("test"));
+            JW_STR_KV(json, "name", test_name);
         });
     });
     
@@ -442,6 +452,8 @@ bool test_deeply_nested_structure_writing(void) {
     }
     
     StrDeinit(&json);
+    StrDeinit(&deep_message);
+    StrDeinit(&test_name);
     return success;
 }
 
@@ -459,9 +471,15 @@ bool test_mixed_array_types_writing(void) {
     VecPushBack(&numbers, num3);
     
     Vec(Str) strings = VecInitWithDeepCopy(NULL, StrDeinit);
-    VecPushBack(&strings, StrInitFromZstr("a"));
-    VecPushBack(&strings, StrInitFromZstr("b"));
-    VecPushBack(&strings, StrInitFromZstr("c"));
+    
+    // Create strings and push them properly
+    Str str1 = StrInitFromZstr("a");
+    Str str2 = StrInitFromZstr("b");
+    Str str3 = StrInitFromZstr("c");
+    
+    VecPushBack(&strings, str1);
+    VecPushBack(&strings, str2);
+    VecPushBack(&strings, str3);
     
     Vec(bool) booleans = VecInit();
     bool bool1 = true, bool2 = false, bool3 = true;

@@ -234,9 +234,15 @@ bool test_simple_array_of_strings_writing(void) {
     Str json = StrInit();
     
     Vec(Str) languages = VecInitWithDeepCopy(NULL, StrDeinit);
-    VecPushBack(&languages, StrInitFromZstr("C"));
-    VecPushBack(&languages, StrInitFromZstr("Python"));
-    VecPushBack(&languages, StrInitFromZstr("Rust"));
+    
+    // Create strings and push them properly
+    Str lang1 = StrInitFromZstr("C");
+    Str lang2 = StrInitFromZstr("Python");
+    Str lang3 = StrInitFromZstr("Rust");
+    
+    VecPushBack(&languages, lang1);
+    VecPushBack(&languages, lang2);
+    VecPushBack(&languages, lang3);
     
     JW_OBJ(json, {
         JW_ARR_KV(json, "languages", languages, lang, {
@@ -300,9 +306,15 @@ bool test_simple_product_with_tags_writing(void) {
     product.name = StrInitFromZstr("Laptop");
     product.price = 999.99;
     product.tags = VecInitWithDeepCopyT(product.tags,NULL, StrDeinit);
-    VecPushBack(&product.tags, StrInitFromZstr("electronics"));
-    VecPushBack(&product.tags, StrInitFromZstr("computers"));
-    VecPushBack(&product.tags, StrInitFromZstr("portable"));
+    
+    // Create strings and push them properly
+    Str tag1 = StrInitFromZstr("electronics");
+    Str tag2 = StrInitFromZstr("computers");
+    Str tag3 = StrInitFromZstr("portable");
+    
+    VecPushBack(&product.tags, tag1);
+    VecPushBack(&product.tags, tag2);
+    VecPushBack(&product.tags, tag3);
     
     JW_OBJ(json, {
         JW_INT_KV(json, "id", product.id);
