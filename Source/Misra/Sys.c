@@ -14,7 +14,6 @@
 #    include <tlhelp32.h>
 #    include <psapi.h>
 #    include <signal.h>
-#    include <sys/wait.h>
 #else
 #    include <dirent.h>
 #    include <pthread.h>
