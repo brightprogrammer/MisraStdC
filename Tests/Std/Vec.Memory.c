@@ -182,12 +182,7 @@ int main(void) {
     printf("[INFO] Starting Vec.Memory tests\n\n");
 
     // Array of test functions
-    TestFunction tests[] = {
-        test_vec_try_reduce_space, 
-        test_vec_resize, 
-        test_vec_reserve, 
-        test_vec_clear
-    };
+    TestFunction tests[] = {test_vec_try_reduce_space, test_vec_resize, test_vec_reserve, test_vec_clear};
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 

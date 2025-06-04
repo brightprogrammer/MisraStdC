@@ -249,14 +249,8 @@ int main(void) {
     printf("[INFO] Starting Str.Ops tests\n\n");
 
     // Array of test functions
-    TestFunction tests[] = {
-        test_str_cmp, 
-        test_str_find, 
-        test_str_starts_ends_with, 
-        test_str_replace, 
-        test_str_split, 
-        test_str_strip
-    };
+    TestFunction tests[] =
+        {test_str_cmp, test_str_find, test_str_starts_ends_with, test_str_replace, test_str_split, test_str_strip};
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 

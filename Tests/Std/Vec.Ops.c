@@ -157,11 +157,7 @@ int main(void) {
     printf("[INFO] Starting Vec.Ops tests\n\n");
 
     // Array of test functions
-    TestFunction tests[] = {
-        test_vec_swap_items, 
-        test_vec_reverse, 
-        test_vec_sort
-    };
+    TestFunction tests[] = {test_vec_swap_items, test_vec_reverse, test_vec_sort};
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 

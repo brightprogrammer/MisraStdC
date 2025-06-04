@@ -187,10 +187,10 @@ int main(void) {
 
     // Array of test functions
     TestFunction tests[] = {
-        test_str_try_reduce_space, 
+        test_str_try_reduce_space,
         test_str_swap_char_at,
-        test_str_resize, 
-        test_str_reserve, 
+        test_str_resize,
+        test_str_reserve,
         test_str_clear,
         test_str_reverse
     };

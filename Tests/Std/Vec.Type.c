@@ -72,10 +72,7 @@ int main(void) {
     printf("[INFO] Starting Vec.Type tests\n\n");
 
     // Array of test functions
-    TestFunction tests[] = {
-        test_vec_type_basic, 
-        test_vec_validate
-    };
+    TestFunction tests[] = {test_vec_type_basic, test_vec_validate};
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 

@@ -86,8 +86,7 @@
         if ((v) != NULL && (v)->length > 0) {                                                                          \
             for ((idx) = 0; (idx) < (v)->length; ++(idx)) {                                                            \
                 var = VecPtrAt(v, idx);                                                                                \
-                body                                                                                                   \
-                if ((idx) >= (v)->length) {                                                                            \
+                body if ((idx) >= (v)->length) {                                                                       \
                     LOG_FATAL("Vector range overflow : Invalid index reached during Foreach iteration.");              \
                 }                                                                                                      \
             }                                                                                                          \

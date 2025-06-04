@@ -15,8 +15,8 @@
 #    define SYS_ERROR_STR_MAX_LENGTH 128
 #endif
 
-typedef unsigned long   SysProcessId;
-typedef struct SysMutex SysMutex;
+typedef unsigned long      SysProcessId;
+typedef struct SysMutex    SysMutex;
 typedef struct SysProcInfo SysProcInfo;
 
 typedef enum SysDirEntryType {

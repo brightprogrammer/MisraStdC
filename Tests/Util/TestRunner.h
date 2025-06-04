@@ -73,8 +73,12 @@ int deadend_test_driver(TestFunction* tests, int count);
 ///
 /// TAGS: Testing, Driver, Suite
 ///
-int run_test_suite(TestFunction* normal_tests, int normal_count,
-                   TestFunction* deadend_tests, int deadend_count,
-                   const char* test_name);
+int run_test_suite(
+    TestFunction* normal_tests,
+    int           normal_count,
+    TestFunction* deadend_tests,
+    int           deadend_count,
+    const char*   test_name
+);
 
-#endif // TEST_RUNNER_H 
+#endif // TEST_RUNNER_H

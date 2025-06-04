@@ -622,61 +622,61 @@ bool test_edge_cases(void) {
 // Test VecPushBackL memset behavior with complex structures
 bool test_lvalue_memset_pushback(void) {
     printf("Testing VecPushBackL memset with complex structures\n");
-    
+
     // Create a test item
-    int values[] = {10, 20, 30};
-    ComplexItem item = CreateComplexItem("Test Item", values, 3);
-    
+    int         values[] = {10, 20, 30};
+    ComplexItem item     = CreateComplexItem("Test Item", values, 3);
+
     // Create a temporary vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
     ComplexVec temp_vec = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
-    
+
     // Insert with L-value semantics (vector takes ownership)
     VecPushBackL(&temp_vec, item);
-    
+
     // Check that the item was memset to 0
     bool result = (item.name == NULL);
-    result = result && (item.values == NULL);
-    result = result && (item.num_values == 0);
-    
+    result      = result && (item.values == NULL);
+    result      = result && (item.num_values == 0);
+
     // Clean up the temporary vector
     VecDeinit(&temp_vec);
-    
+
     return result;
 }
 
 // Test VecInsertL memset behavior with complex structures
 bool test_lvalue_memset_insert(void) {
     printf("Testing VecInsertL memset with complex structures\n");
-    
+
     // Create a test item
-    int values[] = {40, 50, 60};
-    ComplexItem item = CreateComplexItem("Another Item", values, 3);
-    
+    int         values[] = {40, 50, 60};
+    ComplexItem item     = CreateComplexItem("Another Item", values, 3);
+
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
     ComplexVec vec = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
-    
+
     // First, create a dummy item and add it to the vector
     ComplexItem dummy = {0};
-    dummy.name = ZstrDup("Dummy");
-    dummy.values = NULL;
-    dummy.num_values = 0;
-    
+    dummy.name        = ZstrDup("Dummy");
+    dummy.values      = NULL;
+    dummy.num_values  = 0;
+
     // Add the dummy item using L-value semantics
     VecPushBackL(&vec, dummy);
-    
+
     // Now insert our test item at position 0 using L-value semantics
     VecInsertL(&vec, item, 0);
-    
+
     // Check that the item was memset to 0
     bool result = (item.name == NULL);
-    result = result && (item.values == NULL);
-    result = result && (item.num_values == 0);
-    
+    result      = result && (item.values == NULL);
+    result      = result && (item.num_values == 0);
+
     // Clean up the vector
     VecDeinit(&vec);
-    
+
     return result;
 }
 
@@ -684,160 +684,160 @@ bool test_lvalue_memset_insert(void) {
 bool test_lvalue_memset_fast_insert(void) {
     printf("Testing VecInsertFastL memset with complex structures\n");
     bool result = true;
-    
+
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
     ComplexVec vec = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
-    
+
     // Make sure we have enough capacity to avoid reallocation issues
     VecReserve(&vec, 10);
-    
+
     // Create several dummy items to populate the vector
     ComplexItem dummy1 = {0};
-    dummy1.name = ZstrDup("Dummy1");
-    
+    dummy1.name        = ZstrDup("Dummy1");
+
     ComplexItem dummy2 = {0};
-    dummy2.name = ZstrDup("Dummy2");
-    
+    dummy2.name        = ZstrDup("Dummy2");
+
     ComplexItem dummy3 = {0};
-    dummy3.name = ZstrDup("Dummy3");
-    
+    dummy3.name        = ZstrDup("Dummy3");
+
     // Add the dummy items using L-value semantics
     VecPushBackL(&vec, dummy1);
     VecPushBackL(&vec, dummy2);
     VecPushBackL(&vec, dummy3);
-    
+
     // Test 1: Insert at the beginning
-    int values1[] = {10, 20, 30};
-    ComplexItem item1 = CreateComplexItem("Fast Item 1", values1, 3);
+    int         values1[] = {10, 20, 30};
+    ComplexItem item1     = CreateComplexItem("Fast Item 1", values1, 3);
     VecInsertFastL(&vec, item1, 0);
-    
+
     // Check that the item was memset to 0
     result = result && (item1.name == NULL);
     result = result && (item1.values == NULL);
     result = result && (item1.num_values == 0);
-    
+
     // Test 2: Insert in the middle
-    int values2[] = {40, 50, 60};
-    ComplexItem item2 = CreateComplexItem("Fast Item 2", values2, 3);
+    int         values2[] = {40, 50, 60};
+    ComplexItem item2     = CreateComplexItem("Fast Item 2", values2, 3);
     VecInsertFastL(&vec, item2, 2);
-    
+
     // Check that the item was memset to 0
     result = result && (item2.name == NULL);
     result = result && (item2.values == NULL);
     result = result && (item2.num_values == 0);
-    
+
     // Test 3: Insert at the end (this is actually an append operation)
-    int values3[] = {70, 80, 90};
-    ComplexItem item3 = CreateComplexItem("Fast Item 3", values3, 3);
+    int         values3[] = {70, 80, 90};
+    ComplexItem item3     = CreateComplexItem("Fast Item 3", values3, 3);
     VecInsertFastL(&vec, item3, vec.length);
-    
+
     // Check that the item was memset to 0
     result = result && (item3.name == NULL);
     result = result && (item3.values == NULL);
     result = result && (item3.num_values == 0);
-    
+
     // Verify vector integrity - should have 6 items now
     result = result && (vec.length == 6);
-    
+
     // Clean up the vector
     VecDeinit(&vec);
-    
+
     return result;
 }
 
 // Test VecPushFrontL memset behavior with complex structures
 bool test_lvalue_memset_pushfront(void) {
     printf("Testing VecPushFrontL memset with complex structures\n");
-    
+
     // Create a test item
-    int values[] = {100, 110, 120};
-    ComplexItem item = CreateComplexItem("Front Item", values, 3);
-    
+    int         values[] = {100, 110, 120};
+    ComplexItem item     = CreateComplexItem("Front Item", values, 3);
+
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
     ComplexVec vec = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
-    
+
     // Add a dummy item first
     ComplexItem dummy = {0};
-    dummy.name = ZstrDup("Dummy");
+    dummy.name        = ZstrDup("Dummy");
     VecPushBackL(&vec, dummy);
-    
+
     // Insert with L-value semantics at the front (vector takes ownership)
     VecPushFrontL(&vec, item);
-    
+
     // Check that the item was memset to 0
     bool result = (item.name == NULL);
-    result = result && (item.values == NULL);
-    result = result && (item.num_values == 0);
-    
+    result      = result && (item.values == NULL);
+    result      = result && (item.num_values == 0);
+
     // Clean up the vector
     VecDeinit(&vec);
-    
+
     return result;
 }
 
 // Test VecMergeL memset behavior with complex structures
 bool test_lvalue_memset_merge(void) {
     printf("Testing VecMergeL memset with complex structures\n");
-    
+
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
     ComplexVec vec1 = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
     ComplexVec vec2 = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
-    
+
     // Create test items for vec2
     int values1[] = {130, 140, 150};
     int values2[] = {160, 170, 180};
-    
+
     ComplexItem item1 = CreateComplexItem("Merge Item 1", values1, 3);
     ComplexItem item2 = CreateComplexItem("Merge Item 2", values2, 3);
-    
+
     // Add items to vec2
     VecPushBackL(&vec2, item1);
     VecPushBackL(&vec2, item2);
-    
+
     // Verify items were cleared after being added to vec2
     bool result = (item1.name == NULL && item1.values == NULL && item1.num_values == 0);
-    result = result && (item2.name == NULL && item2.values == NULL && item2.num_values == 0);
-    
+    result      = result && (item2.name == NULL && item2.values == NULL && item2.num_values == 0);
+
     // Now merge vec2 into vec1 with L-value semantics
     VecMergeL(&vec1, &vec2);
-    
+
     // Check that vec2 is now empty (data has been transferred)
     result = result && (vec2.length == 0);
     result = result && (vec2.data == NULL);
-    
+
     // Clean up
     VecDeinit(&vec1);
     VecDeinit(&vec2);
-    
+
     return result;
 }
 
 // Test array operations with L-value semantics
 bool test_lvalue_memset_array_ops(void) {
     printf("Testing array operations with L-value semantics\n");
-    
+
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
     ComplexVec vec = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
-    
+
     // Create an array of complex items
     ComplexItem items[3];
-    
+
     // Initialize the array items
     int values1[] = {10, 20, 30};
     int values2[] = {40, 50, 60};
     int values3[] = {70, 80, 90};
-    
+
     items[0] = CreateComplexItem("Array Item 1", values1, 3);
     items[1] = CreateComplexItem("Array Item 2", values2, 3);
     items[2] = CreateComplexItem("Array Item 3", values3, 3);
-    
+
     // Test VecPushBackArrL
     VecPushBackArrL(&vec, items, 3);
-    
+
     // Check that all items were memset to 0
     bool result = true;
     for (int i = 0; i < 3; i++) {
@@ -845,10 +845,10 @@ bool test_lvalue_memset_array_ops(void) {
         result = result && (items[i].values == NULL);
         result = result && (items[i].num_values == 0);
     }
-    
+
     // Clean up the vector
     VecDeinit(&vec);
-    
+
     return result;
 }
 
@@ -879,4 +879,3 @@ int main(void) {
     // Run all tests using the centralized test driver
     return run_test_suite(tests, total_tests, NULL, 0, "Vec.Complex");
 }
- 

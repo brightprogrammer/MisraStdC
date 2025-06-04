@@ -14,7 +14,7 @@
 
 // Global jump buffer for capturing aborts
 static jmp_buf g_test_abort_jmp;
-static bool g_abort_captured = false;
+static bool    g_abort_captured = false;
 
 // Callback function that gets called instead of abort()
 static void test_abort_handler(void) {
@@ -28,7 +28,7 @@ bool test_deadend(TestFunction test_func, bool expect_failure) {
         printf("[ERROR] test_deadend: NULL test function provided\n");
         return false;
     }
-    
+
     // Set our custom abort handler
     SysSetAbortCallback(test_abort_handler);
 
@@ -39,34 +39,34 @@ bool test_deadend(TestFunction test_func, bool expect_failure) {
 
     // Set up abort capturing for deadend tests
     bool test_result = false;
-    
+
     // Set up jump point for abort capture
     if (setjmp(g_test_abort_jmp) == 0) {
         // First time - run the test
         test_result = test_func();
-        
+
         // If we get here, the test completed without aborting
         if (expect_failure) {
             printf("    [Unexpected success: Test completed without abort]\n");
             test_result = false; // Expected failure but got success
         } else {
             printf("    [Success: Test completed normally]\n");
-            test_result = true;   // Expected success and got success
+            test_result = true;  // Expected success and got success
         }
     } else {
         // We jumped here from abort - test was aborted
         if (expect_failure) {
             printf("    [Expected failure: Test aborted as expected]\n");
-            test_result = true;   // Expected failure and got abort
+            test_result = true;  // Expected failure and got abort
         } else {
             printf("    [Unexpected failure: Test aborted unexpectedly]\n");
-            test_result = false;  // Expected success but got abort
+            test_result = false; // Expected success but got abort
         }
     }
-    
+
     // Reset abort handler to default
     SysSetAbortCallback(NULL);
-    
+
     return test_result;
 }
 
@@ -131,30 +131,38 @@ int deadend_test_driver(TestFunction* tests, int count) {
 }
 
 /// Main test driver - handles everything: normal tests and deadend tests
-int run_test_suite(TestFunction* normal_tests, int normal_count,
-                   TestFunction* deadend_tests, int deadend_count,
-                   const char* test_name) {
-    
+int run_test_suite(
+    TestFunction* normal_tests,
+    int           normal_count,
+    TestFunction* deadend_tests,
+    int           deadend_count,
+    const char*   test_name
+) {
     printf("[INFO] Starting %s tests\n\n", test_name ? test_name : "Test Suite");
 
     int total_failed = 0;
 
     // Run normal tests if any
     if (normal_tests && normal_count > 0) {
-        int failed = simple_test_driver(normal_tests, normal_count);
+        int failed    = simple_test_driver(normal_tests, normal_count);
         total_failed += failed;
     }
 
     // Run deadend tests if any
     if (deadend_tests && deadend_count > 0) {
-        int deadend_failed = deadend_test_driver(deadend_tests, deadend_count);
-        total_failed += deadend_failed;
+        int deadend_failed  = deadend_test_driver(deadend_tests, deadend_count);
+        total_failed       += deadend_failed;
     }
 
     // Print final summary
-    printf("\n[FINAL SUMMARY] %s - Normal: %d tests, Deadend: %d tests, Total Failed: %d\n", 
-           test_name ? test_name : "Test Suite", normal_count, deadend_count, total_failed);
+    printf(
+        "\n[FINAL SUMMARY] %s - Normal: %d tests, Deadend: %d tests, Total Failed: %d\n",
+        test_name ? test_name : "Test Suite",
+        normal_count,
+        deadend_count,
+        total_failed
+    );
 
     // Return non-zero exit code if any test failed
     return total_failed > 0 ? 1 : 0;
-} 
+}

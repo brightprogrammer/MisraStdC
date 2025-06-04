@@ -877,7 +877,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JW_STR(j, s)                                                                                                   \
     do {                                                                                                               \
-        StrAppendf(&(j), "\"%s\"", (s).length ? (s).data : "");                                                                          \
+        StrAppendf(&(j), "\"%s\"", (s).length ? (s).data : "");                                                        \
     } while (0)
 
 ///
@@ -922,7 +922,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JW_BOOL(j, b)                                                                                                  \
     do {                                                                                                               \
-        StrAppendf(&(j), "%s", (b) ? "true" : "false");                                                                                     \
+        StrAppendf(&(j), "%s", (b) ? "true" : "false");                                                                \
     } while (0)
 
 ///

@@ -282,31 +282,27 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
 
     // Calculate how many elements we can move from the end
     size available_elements = vec->length - (start + count);
-    size elements_to_move = count;
-    
+    size elements_to_move   = count;
+
     // If we don't have enough elements at the end, adjust the count
     if (elements_to_move > available_elements) {
         elements_to_move = available_elements;
     }
-    
+
     if (elements_to_move > 0) {
         // Move the last 'elements_to_move' elements to the gap
-    memmove(
+        memmove(
             // Move to freed up space
-        vec_ptr_at(vec, start, item_size),
+            vec_ptr_at(vec, start, item_size),
             // Start from the position that leaves exactly 'elements_to_move' elements
             vec_ptr_at(vec, vec->length - elements_to_move, item_size),
             // Move 'elements_to_move' elements
             elements_to_move * vec_aligned_size(vec, item_size)
         );
     }
-    
+
     // Clear the remaining elements at the end
-    memset(
-        vec_ptr_at(vec, vec->length - count, item_size),
-        0,
-        count * vec_aligned_size(vec, item_size)
-    );
+    memset(vec_ptr_at(vec, vec->length - count, item_size), 0, count * vec_aligned_size(vec, item_size));
 
     vec->length -= count;
 

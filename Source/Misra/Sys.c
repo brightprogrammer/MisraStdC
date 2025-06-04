@@ -44,12 +44,12 @@ struct SysMutex {
 struct SysProcInfo {
 #ifdef _WIN32
     PROCESS_INFORMATION pi;
-    DWORD exit_code;
-    bool completed;
+    DWORD               exit_code;
+    bool                completed;
 #else
     pid_t pid;
-    int exit_code;
-    bool completed;
+    int   exit_code;
+    bool  completed;
 #endif
 };
 
@@ -302,14 +302,14 @@ unsigned long SysGetCurrentProcessId(void) {
 #endif
 }
 
-Str *SysGetCurrentExecutablePath(Str *exe_path) {
+Str* SysGetCurrentExecutablePath(Str* exe_path) {
     if (!exe_path) {
         LOG_ERROR("Invalid arguments: exe_path is NULL");
         return NULL;
     }
 
 #ifdef _WIN32
-    char buffer[MAX_PATH];
+    char  buffer[MAX_PATH];
     DWORD len = GetModuleFileNameA(NULL, buffer, MAX_PATH);
     if (len == 0 || len >= MAX_PATH) {
         LOG_ERROR("Failed to get executable path or buffer too small");
@@ -318,26 +318,26 @@ Str *SysGetCurrentExecutablePath(Str *exe_path) {
     *exe_path = StrInitFromZstr(buffer);
     return exe_path;
 #else
-    char buffer[4096];  // Large buffer for Unix paths
-    
+    char buffer[4096]; // Large buffer for Unix paths
+
     // Try /proc/self/exe first (Linux)
     ssize_t len = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
     if (len != -1) {
         buffer[len] = '\0';
+        *exe_path   = StrInitFromZstr(buffer);
+        return exe_path;
+    }
+
+// Fallback for macOS and other Unix systems
+#    ifdef __APPLE__
+    // macOS specific method
+    u32 size = sizeof(buffer);
+    if (_NSGetExecutablePath(buffer, &size) == 0) {
         *exe_path = StrInitFromZstr(buffer);
         return exe_path;
     }
-    
-    // Fallback for macOS and other Unix systems
-    #ifdef __APPLE__
-        // macOS specific method
-        u32 size = sizeof(buffer);
-        if (_NSGetExecutablePath(buffer, &size) == 0) {
-            *exe_path = StrInitFromZstr(buffer);
-            return exe_path;
-        }
-    #endif
-    
+#    endif
+
     // Last resort fallback
     LOG_ERROR("Could not determine executable path, using fallback");
     *exe_path = StrInitFromZstr("unknown_executable");
@@ -405,14 +405,15 @@ static char* build_command_line(Strs* argv) {
     if (!argv || argv->length == 0) {
         return NULL;
     }
-    
+
     // Calculate total length needed
     size total_len = 0;
     for (size i = 0; i < argv->length; i++) {
-        Str* arg = &VecAt(argv, i);
+        Str* arg   = &VecAt(argv, i);
         total_len += arg->length;
-        if (i > 0) total_len += 1; // Space separator
-        
+        if (i > 0)
+            total_len += 1; // Space separator
+
         // Add quotes if argument contains spaces
         for (size j = 0; j < arg->length; j++) {
             if (arg->data[j] == ' ') {
@@ -422,19 +423,20 @@ static char* build_command_line(Strs* argv) {
         }
     }
     total_len += 1; // Null terminator
-    
+
     char* cmd_line = (char*)malloc(total_len);
-    if (!cmd_line) return NULL;
-    
+    if (!cmd_line)
+        return NULL;
+
     cmd_line[0] = '\0';
-    
+
     for (size i = 0; i < argv->length; i++) {
         Str* arg = &VecAt(argv, i);
-        
+
         if (i > 0) {
             strcat(cmd_line, " ");
         }
-        
+
         // Check if argument needs quotes
         bool needs_quotes = false;
         for (size j = 0; j < arg->length; j++) {
@@ -443,7 +445,7 @@ static char* build_command_line(Strs* argv) {
                 break;
             }
         }
-        
+
         if (needs_quotes) {
             strcat(cmd_line, "\"");
             strncat(cmd_line, arg->data, arg->length);
@@ -452,7 +454,7 @@ static char* build_command_line(Strs* argv) {
             strncat(cmd_line, arg->data, arg->length);
         }
     }
-    
+
     return cmd_line;
 }
 
@@ -461,27 +463,28 @@ static char* build_environment_block(Strs* env) {
     if (!env || env->length == 0) {
         return NULL; // Inherit parent environment
     }
-    
+
     // Calculate total length needed
     size total_len = 0;
     for (size i = 0; i < env->length; i++) {
-        Str* env_var = &VecAt(env, i);
-        total_len += env_var->length + 1; // +1 for null terminator
+        Str* env_var  = &VecAt(env, i);
+        total_len    += env_var->length + 1; // +1 for null terminator
     }
-    total_len += 1; // Final null terminator
-    
+    total_len += 1;                          // Final null terminator
+
     char* env_block = (char*)malloc(total_len);
-    if (!env_block) return NULL;
-    
+    if (!env_block)
+        return NULL;
+
     char* ptr = env_block;
     for (size i = 0; i < env->length; i++) {
         Str* env_var = &VecAt(env, i);
         memcpy(ptr, env_var->data, env_var->length);
-        ptr += env_var->length;
-        *ptr++ = '\0';
+        ptr    += env_var->length;
+        *ptr++  = '\0';
     }
     *ptr = '\0'; // Final null terminator
-    
+
     return env_block;
 }
 #endif
@@ -492,12 +495,13 @@ static char** build_argv_array(Strs* argv) {
     if (!argv || argv->length == 0) {
         return NULL;
     }
-    
+
     char** arg_array = (char**)malloc((argv->length + 1) * sizeof(char*));
-    if (!arg_array) return NULL;
-    
+    if (!arg_array)
+        return NULL;
+
     for (size i = 0; i < argv->length; i++) {
-        Str* arg = &VecAt(argv, i);
+        Str* arg     = &VecAt(argv, i);
         arg_array[i] = (char*)malloc(arg->length + 1);
         if (!arg_array[i]) {
             // Clean up on failure
@@ -511,7 +515,7 @@ static char** build_argv_array(Strs* argv) {
         arg_array[i][arg->length] = '\0';
     }
     arg_array[argv->length] = NULL; // Null terminator
-    
+
     return arg_array;
 }
 
@@ -520,10 +524,11 @@ static char** build_envp_array(Strs* env) {
     if (!env || env->length == 0) {
         return NULL; // Use inherited environment
     }
-    
+
     char** env_array = (char**)malloc((env->length + 1) * sizeof(char*));
-    if (!env_array) return NULL;
-    
+    if (!env_array)
+        return NULL;
+
     for (size i = 0; i < env->length; i++) {
         Str* env_var = &VecAt(env, i);
         env_array[i] = (char*)malloc(env_var->length + 1);
@@ -539,7 +544,7 @@ static char** build_envp_array(Strs* env) {
         env_array[i][env_var->length] = '\0';
     }
     env_array[env->length] = NULL; // Null terminator
-    
+
     return env_array;
 }
 #endif
@@ -549,70 +554,74 @@ SysProcInfo* SysCreateProcess(const char* executable, Strs* argv, Strs* env) {
         LOG_ERROR("Invalid executable path");
         return NULL;
     }
-    
+
     SysProcInfo* proc_info = NEW(SysProcInfo);
     if (!proc_info) {
         LOG_ERROR("Failed to allocate process info");
         return NULL;
     }
-    
+
     proc_info->completed = false;
     proc_info->exit_code = 0;
-    
+
 #ifdef _WIN32
     // Windows implementation using CreateProcess
-    char* cmd_line = build_command_line(argv);
+    char* cmd_line  = build_command_line(argv);
     char* env_block = build_environment_block(env);
-    
+
     STARTUPINFOA si = {0};
-    si.cb = sizeof(si);
-    
+    si.cb           = sizeof(si);
+
     BOOL success = CreateProcessA(
-        executable,     // Application name
-        cmd_line,       // Command line
-        NULL,           // Process security attributes
-        NULL,           // Thread security attributes
-        FALSE,          // Don't inherit handles
-        0,              // Creation flags
-        env_block,      // Environment block
-        NULL,           // Use parent's current directory
-        &si,            // Startup info
-        &proc_info->pi  // Process information
+        executable,    // Application name
+        cmd_line,      // Command line
+        NULL,          // Process security attributes
+        NULL,          // Thread security attributes
+        FALSE,         // Don't inherit handles
+        0,             // Creation flags
+        env_block,     // Environment block
+        NULL,          // Use parent's current directory
+        &si,           // Startup info
+        &proc_info->pi // Process information
     );
-    
+
     // Clean up temporary strings
-    if (cmd_line) free(cmd_line);
-    if (env_block) free(env_block);
-    
+    if (cmd_line)
+        free(cmd_line);
+    if (env_block)
+        free(env_block);
+
     if (!success) {
         DWORD error = GetLastError();
         LOG_ERROR("CreateProcess failed with error %lu", error);
         FREE(proc_info);
         return NULL;
     }
-    
+
 #else
     // Unix implementation using fork/exec
     char** argv_array = build_argv_array(argv);
     char** envp_array = build_envp_array(env);
-    
+
     proc_info->pid = fork();
-    
+
     if (proc_info->pid == -1) {
         // Fork failed
         perror("fork failed");
         if (argv_array) {
-            for (int i = 0; argv_array[i]; i++) free(argv_array[i]);
+            for (int i = 0; argv_array[i]; i++)
+                free(argv_array[i]);
             free(argv_array);
         }
         if (envp_array) {
-            for (int i = 0; envp_array[i]; i++) free(envp_array[i]);
+            for (int i = 0; envp_array[i]; i++)
+                free(envp_array[i]);
             free(envp_array);
         }
         FREE(proc_info);
         return NULL;
     }
-    
+
     if (proc_info->pid == 0) {
         // Child process
         if (envp_array) {
@@ -620,23 +629,25 @@ SysProcInfo* SysCreateProcess(const char* executable, Strs* argv, Strs* env) {
         } else {
             execv(executable, argv_array);
         }
-        
+
         // If we get here, exec failed
         perror("exec failed");
         _exit(1);
     }
-    
+
     // Parent process - clean up argv and envp arrays
     if (argv_array) {
-        for (int i = 0; argv_array[i]; i++) free(argv_array[i]);
+        for (int i = 0; argv_array[i]; i++)
+            free(argv_array[i]);
         free(argv_array);
     }
     if (envp_array) {
-        for (int i = 0; envp_array[i]; i++) free(envp_array[i]);
+        for (int i = 0; envp_array[i]; i++)
+            free(envp_array[i]);
         free(envp_array);
     }
 #endif
-    
+
     return proc_info;
 }
 
@@ -644,29 +655,29 @@ SysProcStatus SysWaitForProcess(SysProcInfo* proc_info, u32 timeout_ms) {
     if (!proc_info) {
         return SYS_PROC_STATUS_ERROR;
     }
-    
+
 #ifdef _WIN32
     DWORD wait_time = (timeout_ms == 0) ? INFINITE : timeout_ms;
-    DWORD result = WaitForSingleObject(proc_info->pi.hProcess, wait_time);
-    
+    DWORD result    = WaitForSingleObject(proc_info->pi.hProcess, wait_time);
+
     switch (result) {
-        case WAIT_OBJECT_0:
+        case WAIT_OBJECT_0 :
             proc_info->completed = true;
             if (GetExitCodeProcess(proc_info->pi.hProcess, &proc_info->exit_code)) {
                 return SYS_PROC_STATUS_COMPLETED;
             } else {
                 return SYS_PROC_STATUS_ERROR;
             }
-        case WAIT_TIMEOUT:
+        case WAIT_TIMEOUT :
             return SYS_PROC_STATUS_RUNNING;
-        default:
+        default :
             return SYS_PROC_STATUS_ERROR;
     }
-    
+
 #else
-    int status;
+    int   status;
     pid_t result;
-    
+
     if (timeout_ms == 0) {
         // Infinite wait
         result = waitpid(proc_info->pid, &status, 0);
@@ -678,11 +689,11 @@ SysProcStatus SysWaitForProcess(SysProcInfo* proc_info, u32 timeout_ms) {
             return SYS_PROC_STATUS_RUNNING;
         }
     }
-    
+
     if (result == -1) {
         return SYS_PROC_STATUS_ERROR;
     }
-    
+
     if (result == proc_info->pid) {
         proc_info->completed = true;
         if (WIFEXITED(status)) {
@@ -693,7 +704,7 @@ SysProcStatus SysWaitForProcess(SysProcInfo* proc_info, u32 timeout_ms) {
             return SYS_PROC_STATUS_TERMINATED;
         }
     }
-    
+
     return SYS_PROC_STATUS_ERROR;
 #endif
 }
@@ -702,11 +713,11 @@ bool SysGetProcessExitCode(SysProcInfo* proc_info, i32* exit_code) {
     if (!proc_info || !exit_code) {
         return false;
     }
-    
+
     if (!proc_info->completed) {
         return false;
     }
-    
+
     *exit_code = (i32)proc_info->exit_code;
     return true;
 }
@@ -715,7 +726,7 @@ bool SysTerminateProcess(SysProcInfo* proc_info) {
     if (!proc_info) {
         return false;
     }
-    
+
 #ifdef _WIN32
     if (TerminateProcess(proc_info->pi.hProcess, 1)) {
         proc_info->completed = true;
@@ -723,7 +734,7 @@ bool SysTerminateProcess(SysProcInfo* proc_info) {
         return true;
     }
     return false;
-    
+
 #else
     if (kill(proc_info->pid, SIGTERM) == 0) {
         proc_info->completed = true;
@@ -740,12 +751,12 @@ void SysDestroyProcess(SysProcInfo* proc_info) {
     }
 
     // TODO: Terminate the process if it's still running
-    
+
 #ifdef _WIN32
     CloseHandle(proc_info->pi.hProcess);
     CloseHandle(proc_info->pi.hThread);
 #endif
-    
+
     FREE(proc_info);
 }
 

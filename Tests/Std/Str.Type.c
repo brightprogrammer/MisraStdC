@@ -112,15 +112,15 @@ bool test_validate_invalid_str(void) {
 
     // Create an invalid Str by corrupting its fields
     Str s = StrInit();
-    
+
     // Corrupt the string to make it invalid
-    s.length = 100;  // Set length much larger than actual capacity
-    s.capacity = 5;  // Small capacity
+    s.length   = 100; // Set length much larger than actual capacity
+    s.capacity = 5;   // Small capacity
     // s.data remains valid but length/capacity are inconsistent
-    
+
     // This should abort the program
     ValidateStr(&s);
-    
+
     // Should never reach here
     return false;
 }
@@ -131,15 +131,15 @@ bool test_validate_invalid_strs(void) {
 
     // Create an invalid Strs by corrupting its fields
     Strs sv = VecInit();
-    
+
     // Corrupt the vector to make it invalid
-    sv.length = 50;   // Set length much larger than actual capacity
+    sv.length   = 50; // Set length much larger than actual capacity
     sv.capacity = 2;  // Small capacity
     // sv.data remains valid but length/capacity are inconsistent
-    
+
     // This should abort the program
     ValidateStrs(&sv);
-    
+
     // Should never reach here
     return false;
 }
@@ -149,20 +149,12 @@ int main(void) {
     printf("[INFO] Starting Str.Type tests\n\n");
 
     // Array of normal test functions
-    TestFunction tests[] = {
-        test_str_type, 
-        test_strs_type, 
-        test_validate_str, 
-        test_validate_strs
-    };
+    TestFunction tests[] = {test_str_type, test_strs_type, test_validate_str, test_validate_strs};
 
     // Array of deadend test functions (tests that should crash/abort)
-    TestFunction deadend_tests[] = {
-        test_validate_invalid_str,
-        test_validate_invalid_strs
-    };
+    TestFunction deadend_tests[] = {test_validate_invalid_str, test_validate_invalid_strs};
 
-    int total_tests = sizeof(tests) / sizeof(tests[0]);
+    int total_tests   = sizeof(tests) / sizeof(tests[0]);
     int deadend_count = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
     // Run all tests using the centralized test driver

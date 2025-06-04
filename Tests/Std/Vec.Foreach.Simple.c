@@ -228,8 +228,8 @@ bool test_vec_foreach_ptr_reverse(void) {
 
     // Values should now be: [15, 24, 33, 42, 51]
     // (50+1, 40+2, 30+3, 20+4, 10+5)
-    int expected[] = {15, 24, 33, 42, 51};
-    bool result = true;
+    int  expected[] = {15, 24, 33, 42, 51};
+    bool result     = true;
     for (size i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
@@ -261,8 +261,8 @@ bool test_vec_foreach_ptr_reverse_idx(void) {
     // Even though we iterate in reverse, idx represents the actual vector index
     // So: vec[4] = 104, vec[3] = 103, vec[2] = 102, vec[1] = 101, vec[0] = 100
     // Final vector: [100, 101, 102, 103, 104]
-    int expected[] = {100, 101, 102, 103, 104};
-    bool result = true;
+    int  expected[] = {100, 101, 102, 103, 104};
+    bool result     = true;
     for (size i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
@@ -293,4 +293,4 @@ int main(void) {
 
     // Run all tests using the centralized test driver
     return run_test_suite(tests, total_tests, NULL, 0, "Vec.Foreach.Simple");
-} 
+}

@@ -321,14 +321,8 @@ int main(void) {
     printf("[INFO] Starting Str.Convert tests\n\n");
 
     // Array of test functions
-    TestFunction tests[] = {
-        test_str_from_u64, 
-        test_str_from_i64, 
-        test_str_from_f64, 
-        test_str_to_u64, 
-        test_str_to_i64, 
-        test_str_to_f64
-    };
+    TestFunction tests[] =
+        {test_str_from_u64, test_str_from_i64, test_str_from_f64, test_str_to_u64, test_str_to_i64, test_str_to_f64};
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 
