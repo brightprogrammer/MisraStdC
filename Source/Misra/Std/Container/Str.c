@@ -537,10 +537,24 @@ Str* StrFromF64(Str* str, f64 value, const StrFloatFormat* config) {
         // Format fractional part
         if (config->precision > 0) {
             StrPushBack(str, '.');
-            f64 frac_part = value - (i64)value;
+            
+            // Apply rounding to the entire fractional part first
+            f64 scale = 1.0;
+            for (u8 i = 0; i < config->precision; i++) {
+                scale *= 10.0;
+            }
+            f64 rounded_value = round(value * scale) / scale;
+            f64 frac_part = rounded_value - (i64)rounded_value;
+            
             for (u8 i = 0; i < config->precision; i++) {
                 frac_part *= 10.0;
-                int digit  = (int)frac_part;
+                int digit = (int)frac_part;
+                
+                // Handle floating-point precision errors: if we're very close to the next integer, round up
+                if (frac_part - digit > 0.999999) {
+                    digit++;
+                }
+                
                 StrPushBack(str, '0' + digit);
                 frac_part -= digit;
             }
