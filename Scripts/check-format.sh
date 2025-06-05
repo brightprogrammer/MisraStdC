@@ -71,7 +71,7 @@ for file in $FILES; do
             # Show the diff
             echo "  Expected changes:"
             echo "$DIFF_OUTPUT" | head -20 | sed 's/^/    /'
-            if [ $(echo "$DIFF_OUTPUT" | wc -l) -gt 20 ]; then
+            if [ "$(echo "$DIFF_OUTPUT" | wc -l)" -gt 20 ]; then
                 echo "    ... (output truncated, use 'clang-format $file' to see full diff)"
             fi
             echo ""
