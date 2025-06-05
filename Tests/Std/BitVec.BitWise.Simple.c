@@ -888,8 +888,6 @@ bool test_bitvec_bitwise_large_patterns(void) {
 
 
 
-
-
 // Main function that runs all tests
 int main(void) {
     printf("[INFO] Starting BitVec.BitWise tests\n\n");
