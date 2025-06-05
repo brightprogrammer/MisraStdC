@@ -15,5 +15,6 @@
 
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/Vec.h>
+#include <Misra/Std/Container/BitVec.h>
 
 #endif // MISRA_STD_CONTAINER_H

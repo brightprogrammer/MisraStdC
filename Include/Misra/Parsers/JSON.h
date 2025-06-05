@@ -670,6 +670,7 @@ StrIter JSkipValue(StrIter si);
 #define JW_OBJ(j, writer)                                                                                              \
     do {                                                                                                               \
         bool ___is_first___ = true;                                                                                    \
+        (void)___is_first___;                                                                                          \
         StrPushBack(&(j), '{');                                                                                        \
         {writer};                                                                                                      \
         StrPushBack(&(j), '}');                                                                                        \
@@ -726,6 +727,7 @@ StrIter JSkipValue(StrIter si);
 #define JW_ARR(j, arr, item, writer)                                                                                   \
     do {                                                                                                               \
         bool ___is_first___ = true;                                                                                    \
+        (void)___is_first___;                                                                                          \
         StrPushBack(&(j), '[');                                                                                        \
         VecForeach(&(arr), item, {                                                                                     \
             if (___is_first___) {                                                                                      \

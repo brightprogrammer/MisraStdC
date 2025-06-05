@@ -664,9 +664,13 @@ bool test_bitvec_reading(void) {
     BitVec bv1 = BitVecInit();
     StrReadFmt("10110", "{}", FMT(bv1));
     Str result1 = BitVecToStr(&bv1);
-    success = success && (ZstrCompare(result1.data, "10110") == 0);
-    printf("Test 1 - Binary: %.*s, Success: %s\n", (int)result1.length, result1.data, 
-           (ZstrCompare(result1.data, "10110") == 0) ? "true" : "false");
+    success     = success && (ZstrCompare(result1.data, "10110") == 0);
+    printf(
+        "Test 1 - Binary: %.*s, Success: %s\n",
+        (int)result1.length,
+        result1.data,
+        (ZstrCompare(result1.data, "10110") == 0) ? "true" : "false"
+    );
     StrDeinit(&result1);
     BitVecDeinit(&bv1);
 
@@ -674,7 +678,7 @@ bool test_bitvec_reading(void) {
     BitVec bv2 = BitVecInit();
     StrReadFmt("0xDEAD", "{}", FMT(bv2));
     u64 value2 = BitVecToInteger(&bv2);
-    success = success && (value2 == 0xDEAD);
+    success    = success && (value2 == 0xDEAD);
     printf("Test 2 - Hex: 0x%llx, Success: %s\n", value2, (value2 == 0xDEAD) ? "true" : "false");
     BitVecDeinit(&bv2);
 
@@ -682,7 +686,7 @@ bool test_bitvec_reading(void) {
     BitVec bv3 = BitVecInit();
     StrReadFmt("0o755", "{}", FMT(bv3));
     u64 value3 = BitVecToInteger(&bv3);
-    success = success && (value3 == 0755);
+    success    = success && (value3 == 0755);
     printf("Test 3 - Octal: %llo, Success: %s\n", value3, (value3 == 0755) ? "true" : "false");
     BitVecDeinit(&bv3);
 
@@ -690,9 +694,13 @@ bool test_bitvec_reading(void) {
     BitVec bv4 = BitVecInit();
     StrReadFmt("   1101", "{}", FMT(bv4));
     Str result4 = BitVecToStr(&bv4);
-    success = success && (ZstrCompare(result4.data, "1101") == 0);
-    printf("Test 4 - Whitespace: %.*s, Success: %s\n", (int)result4.length, result4.data,
-           (ZstrCompare(result4.data, "1101") == 0) ? "true" : "false");
+    success     = success && (ZstrCompare(result4.data, "1101") == 0);
+    printf(
+        "Test 4 - Whitespace: %.*s, Success: %s\n",
+        (int)result4.length,
+        result4.data,
+        (ZstrCompare(result4.data, "1101") == 0) ? "true" : "false"
+    );
     StrDeinit(&result4);
     BitVecDeinit(&bv4);
 
@@ -700,9 +708,13 @@ bool test_bitvec_reading(void) {
     BitVec bv5 = BitVecInit();
     StrReadFmt("0", "{}", FMT(bv5));
     Str result5 = BitVecToStr(&bv5);
-    success = success && (ZstrCompare(result5.data, "0") == 0);
-    printf("Test 5 - Zero: %.*s, Success: %s\n", (int)result5.length, result5.data,
-           (ZstrCompare(result5.data, "0") == 0) ? "true" : "false");
+    success     = success && (ZstrCompare(result5.data, "0") == 0);
+    printf(
+        "Test 5 - Zero: %.*s, Success: %s\n",
+        (int)result5.length,
+        result5.data,
+        (ZstrCompare(result5.data, "0") == 0) ? "true" : "false"
+    );
     StrDeinit(&result5);
     BitVecDeinit(&bv5);
 

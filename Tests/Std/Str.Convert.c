@@ -621,75 +621,77 @@ bool test_str_precision_limits(void) {
 // Large-scale conversion tests
 bool test_str_all_base_support(void) {
     printf("Testing Str all bases 2-36 support\n");
-    
+
     bool result = true;
-    
+
     // Test value to convert across all bases
     u64 test_value = 12345;
-    
+
     // Test each base from 2 to 36
     for (u8 base = 2; base <= 36; base++) {
         Str s = StrInit();
-        
+
         // Test StrFromU64
         StrIntFormat config = {.base = base, .uppercase = false, .use_prefix = false};
         StrFromU64(&s, test_value, &config);
-        
+
         // Test StrToU64 round-trip
-        u64 recovered = 0;
+        u64            recovered    = 0;
         StrParseConfig parse_config = {.base = base};
-        bool success = StrToU64(&s, &recovered, &parse_config);
-        
+        bool           success      = StrToU64(&s, &recovered, &parse_config);
+
         result = result && success && (recovered == test_value);
-        
+
         StrDeinit(&s);
     }
-    
+
     // Test uppercase digits for bases that use letters (11-36)
     for (u8 base = 11; base <= 36; base++) {
         Str s = StrInit();
-        
+
         StrIntFormat config = {.base = base, .uppercase = true, .use_prefix = false};
         StrFromU64(&s, test_value, &config);
-        
-        u64 recovered = 0;
+
+        u64            recovered    = 0;
         StrParseConfig parse_config = {.base = base};
-        bool success = StrToU64(&s, &recovered, &parse_config);
-        
+        bool           success      = StrToU64(&s, &recovered, &parse_config);
+
         result = result && success && (recovered == test_value);
-        
+
         StrDeinit(&s);
     }
-    
+
     // Test multiple values across all bases
     u64 test_values[] = {0, 1, 10, 100, 255, 1000, 65535};
-    
+
     for (size_t i = 0; i < sizeof(test_values) / sizeof(test_values[0]); i++) {
         for (u8 base = 2; base <= 36; base++) {
             Str s = StrInit();
-            
+
             StrIntFormat config = {.base = base, .uppercase = false, .use_prefix = false};
             StrFromU64(&s, test_values[i], &config);
-            
-            u64 recovered = 0;
+
+            u64            recovered    = 0;
             StrParseConfig parse_config = {.base = base};
-            bool success = StrToU64(&s, &recovered, &parse_config);
-            
+            bool           success      = StrToU64(&s, &recovered, &parse_config);
+
             result = result && success && (recovered == test_values[i]);
-            
+
             StrDeinit(&s);
-            
-            if (!result) break;
+
+            if (!result)
+                break;
         }
-        if (!result) break;
+        if (!result)
+            break;
     }
-    
+
     return result;
 }
 
 bool test_str_large_scale_conversions(void) {
     printf("Testing Str large-scale conversions\n");
-    
+
     bool result = true;
 
     // Test many values for consistency

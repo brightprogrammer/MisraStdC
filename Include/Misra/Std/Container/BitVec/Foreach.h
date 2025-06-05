@@ -192,44 +192,7 @@
 extern "C" {
 #endif
 
-    /// Function pointer type for bitvector iteration callback
-    /// idx: current bit index, value: current bit value, user_data: user context
-    typedef void (*BitVecIterFunc)(u64 idx, bool value, void *user_data);
 
-    /// Function pointer type for bitvector sliding window comparison
-    /// offset: current offset, user_data: user context
-    typedef void (*BitVecSlideFunc)(u64 offset, void *user_data);
-
-    ///
-    /// Apply a function to each bit in the bitvector.
-    /// The function receives the index, bit value, and user data.
-    ///
-    /// bv[in]        : Bitvector to iterate over
-    /// func[in]      : Function to call for each bit
-    /// user_data[in] : User data passed to the function
-    ///
-    /// USAGE:
-    ///   BitVecForeachFunc(&flags, my_bit_func, &context);
-    ///
-    /// TAGS: BitVec, Foreach, Iterate, Apply
-    ///
-    void BitVecForeachFunc(BitVec *bv, BitVecIterFunc func, void *user_data);
-
-    ///
-    /// Apply a comparison function at each sliding position between two bitvectors.
-    /// Useful for pattern matching or alignment scoring.
-    ///
-    /// bv1[in]       : First bitvector (reference)
-    /// bv2[in]       : Second bitvector (sliding window)
-    /// func[in]      : Function to call at each position
-    /// user_data[in] : User data passed to the function
-    ///
-    /// USAGE:
-    ///   BitVecSlide(&reference, &pattern, slide_func, &context);
-    ///
-    /// TAGS: BitVec, Slide, Compare, Pattern
-    ///
-    void BitVecSlide(BitVec *bv1, BitVec *bv2, BitVecSlideFunc func, void *user_data);
 
     ///
     /// Analyze run lengths in a bitvector.

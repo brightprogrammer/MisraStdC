@@ -21,6 +21,15 @@ bool test_bitvec_access_large_patterns(void);
 bool test_bitvec_macro_functions(void);
 bool test_bitvec_access_stress_test(void);
 bool test_bitvec_bit_patterns_comprehensive(void);
+bool test_bitvec_find_functions(void);
+bool test_bitvec_predicate_functions(void);
+bool test_bitvec_longest_run(void);
+bool test_bitvec_find_edge_cases(void);
+bool test_bitvec_predicate_edge_cases(void);
+bool test_bitvec_longest_run_edge_cases(void);
+bool test_bitvec_find_deadend_tests(void);
+bool test_bitvec_predicate_deadend_tests(void);
+bool test_bitvec_longest_run_deadend_tests(void);
 
 // Test BitVecGet function
 bool test_bitvec_get(void) {
@@ -605,11 +614,286 @@ bool test_bitvec_get_max_index_failures(void) {
     return false;
 }
 
+// Test BitVecFind and BitVecFindLast functions
+bool test_bitvec_find_functions(void) {
+    printf("Testing BitVecFind and BitVecFindLast functions\n");
+
+    BitVec bv     = BitVecInit();
+    bool   result = true;
+
+    // Create pattern: 10110100
+    BitVecPush(&bv, true);  // 0
+    BitVecPush(&bv, false); // 1
+    BitVecPush(&bv, true);  // 2
+    BitVecPush(&bv, true);  // 3
+    BitVecPush(&bv, false); // 4
+    BitVecPush(&bv, true);  // 5
+    BitVecPush(&bv, false); // 6
+    BitVecPush(&bv, false); // 7
+
+    // Test finding first true (should be at index 0)
+    result = result && (BitVecFind(&bv, true) == 0);
+
+    // Test finding first false (should be at index 1)
+    result = result && (BitVecFind(&bv, false) == 1);
+
+    // Test finding last true (should be at index 5)
+    result = result && (BitVecFindLast(&bv, true) == 5);
+
+    // Test finding last false (should be at index 7)
+    result = result && (BitVecFindLast(&bv, false) == 7);
+
+    // Test with all same values
+    BitVecClear(&bv);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+
+    result = result && (BitVecFind(&bv, true) == 0);
+    result = result && (BitVecFindLast(&bv, true) == 2);
+    result = result && (BitVecFind(&bv, false) == SIZE_MAX);
+    result = result && (BitVecFindLast(&bv, false) == SIZE_MAX);
+
+    BitVecDeinit(&bv);
+    return result;
+}
+
+// Test BitVecAll, BitVecAny, BitVecNone functions
+bool test_bitvec_predicate_functions(void) {
+    printf("Testing BitVecAll, BitVecAny, BitVecNone functions\n");
+
+    BitVec bv     = BitVecInit();
+    bool   result = true;
+
+    // Test with all true bits
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+
+    result = result && BitVecAll(&bv, true);
+    result = result && !BitVecAll(&bv, false);
+    result = result && BitVecAny(&bv, true);
+    result = result && !BitVecAny(&bv, false);
+    result = result && !BitVecNone(&bv, true);
+    result = result && BitVecNone(&bv, false);
+
+    // Test with all false bits
+    BitVecClear(&bv);
+    BitVecPush(&bv, false);
+    BitVecPush(&bv, false);
+    BitVecPush(&bv, false);
+
+    result = result && !BitVecAll(&bv, true);
+    result = result && BitVecAll(&bv, false);
+    result = result && !BitVecAny(&bv, true);
+    result = result && BitVecAny(&bv, false);
+    result = result && BitVecNone(&bv, true);
+    result = result && !BitVecNone(&bv, false);
+
+    // Test with mixed bits
+    BitVecClear(&bv);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false);
+    BitVecPush(&bv, true);
+
+    result = result && !BitVecAll(&bv, true);
+    result = result && !BitVecAll(&bv, false);
+    result = result && BitVecAny(&bv, true);
+    result = result && BitVecAny(&bv, false);
+    result = result && !BitVecNone(&bv, true);
+    result = result && !BitVecNone(&bv, false);
+
+    BitVecDeinit(&bv);
+    return result;
+}
+
+// Test BitVecLongestRun function
+bool test_bitvec_longest_run(void) {
+    printf("Testing BitVecLongestRun function\n");
+
+    BitVec bv     = BitVecInit();
+    bool   result = true;
+
+    // Test pattern: 11100110011111
+    BitVecPush(&bv, true);  // Run of 3 trues
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false); // 1 false
+    BitVecPush(&bv, false); // Run of 2 falses
+    BitVecPush(&bv, true);  // 1 true
+    BitVecPush(&bv, true);  // Run of 2 trues
+    BitVecPush(&bv, false); // 1 false
+    BitVecPush(&bv, false); // Run of 2 falses
+    BitVecPush(&bv, true);  // Run of 5 trues
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+
+    // Longest run of trues should be 5
+    result = result && (BitVecLongestRun(&bv, true) == 5);
+
+    // Longest run of falses should be 2
+    result = result && (BitVecLongestRun(&bv, false) == 2);
+
+    // Test with all same values
+    BitVecClear(&bv);
+    for (int i = 0; i < 10; i++) {
+        BitVecPush(&bv, true);
+    }
+    result = result && (BitVecLongestRun(&bv, true) == 10);
+    result = result && (BitVecLongestRun(&bv, false) == 0);
+
+    // Test alternating pattern
+    BitVecClear(&bv);
+    for (int i = 0; i < 10; i++) {
+        BitVecPush(&bv, i % 2 == 0);
+    }
+    result = result && (BitVecLongestRun(&bv, true) == 1);
+    result = result && (BitVecLongestRun(&bv, false) == 1);
+
+    BitVecDeinit(&bv);
+    return result;
+}
+
+// Edge case tests for Find functions
+bool test_bitvec_find_edge_cases(void) {
+    printf("Testing BitVecFind edge cases\n");
+
+    BitVec bv     = BitVecInit();
+    bool   result = true;
+
+    // Test empty bitvector
+    result = result && (BitVecFind(&bv, true) == SIZE_MAX);
+    result = result && (BitVecFind(&bv, false) == SIZE_MAX);
+    result = result && (BitVecFindLast(&bv, true) == SIZE_MAX);
+    result = result && (BitVecFindLast(&bv, false) == SIZE_MAX);
+
+    // Test single element
+    BitVecPush(&bv, true);
+    result = result && (BitVecFind(&bv, true) == 0);
+    result = result && (BitVecFindLast(&bv, true) == 0);
+    result = result && (BitVecFind(&bv, false) == SIZE_MAX);
+    result = result && (BitVecFindLast(&bv, false) == SIZE_MAX);
+
+    // Test with large bitvector
+    BitVecClear(&bv);
+    for (int i = 0; i < 1000; i++) {
+        BitVecPush(&bv, i == 500 || i == 999); // Only indices 500 and 999 are true
+    }
+    result = result && (BitVecFind(&bv, true) == 500);
+    result = result && (BitVecFindLast(&bv, true) == 999);
+
+    BitVecDeinit(&bv);
+    return result;
+}
+
+// Edge case tests for predicate functions
+bool test_bitvec_predicate_edge_cases(void) {
+    printf("Testing BitVec predicate edge cases\n");
+
+    BitVec bv     = BitVecInit();
+    bool   result = true;
+
+    // Test empty bitvector - all predicates should return true for empty set
+    result = result && BitVecAll(&bv, true);
+    result = result && BitVecAll(&bv, false);
+    result = result && !BitVecAny(&bv, true);
+    result = result && !BitVecAny(&bv, false);
+    result = result && BitVecNone(&bv, true);
+    result = result && BitVecNone(&bv, false);
+
+    // Test single element bitvector
+    BitVecPush(&bv, true);
+    result = result && BitVecAll(&bv, true);
+    result = result && !BitVecAll(&bv, false);
+    result = result && BitVecAny(&bv, true);
+    result = result && !BitVecAny(&bv, false);
+
+    // Test large bitvector with specific patterns
+    BitVecClear(&bv);
+    for (int i = 0; i < 1000; i++) {
+        BitVecPush(&bv, true); // All true
+    }
+    result = result && BitVecAll(&bv, true);
+    result = result && !BitVecAll(&bv, false);
+
+    // Change one bit to false
+    BitVecSet(&bv, 500, false);
+    result = result && !BitVecAll(&bv, true);
+    result = result && BitVecAny(&bv, true);
+    result = result && BitVecAny(&bv, false);
+
+    BitVecDeinit(&bv);
+    return result;
+}
+
+// Edge case tests for LongestRun function
+bool test_bitvec_longest_run_edge_cases(void) {
+    printf("Testing BitVecLongestRun edge cases\n");
+
+    BitVec bv     = BitVecInit();
+    bool   result = true;
+
+    // Test empty bitvector
+    result = result && (BitVecLongestRun(&bv, true) == 0);
+    result = result && (BitVecLongestRun(&bv, false) == 0);
+
+    // Test single element
+    BitVecPush(&bv, true);
+    result = result && (BitVecLongestRun(&bv, true) == 1);
+    result = result && (BitVecLongestRun(&bv, false) == 0);
+
+    // Test large runs
+    BitVecClear(&bv);
+    for (int i = 0; i < 10000; i++) {
+        BitVecPush(&bv, true);
+    }
+    result = result && (BitVecLongestRun(&bv, true) == 10000);
+    result = result && (BitVecLongestRun(&bv, false) == 0);
+
+    // Test with one interruption in the middle
+    BitVecSet(&bv, 5000, false);
+    result = result && (BitVecLongestRun(&bv, true) == 5000);
+    result = result && (BitVecLongestRun(&bv, false) == 1);
+
+    BitVecDeinit(&bv);
+    return result;
+}
+
+// Deadend tests - testing NULL pointers and invalid conditions that should cause fatal errors
+bool test_bitvec_find_deadend_tests(void) {
+    printf("Testing BitVecFind deadend scenarios\n");
+
+    // This should cause LOG_FATAL and terminate the program
+    BitVecFind(NULL, true);
+
+    return true; // Should never reach here
+}
+
+bool test_bitvec_predicate_deadend_tests(void) {
+    printf("Testing BitVec predicate deadend scenarios\n");
+
+    // This should cause LOG_FATAL and terminate the program
+    BitVecAll(NULL, true);
+
+    return true; // Should never reach here
+}
+
+bool test_bitvec_longest_run_deadend_tests(void) {
+    printf("Testing BitVecLongestRun deadend scenarios\n");
+
+    // This should cause LOG_FATAL and terminate the program
+    BitVecLongestRun(NULL, true);
+
+    return true; // Should never reach here
+}
+
 // Main function that runs all tests
 int main(void) {
     printf("[INFO] Starting BitVec.Access tests\n\n");
 
-    // Array of normal test functions
+    // Array of test functions (adding new tests to existing ones)
     TestFunction tests[] = {
         test_bitvec_get,
         test_bitvec_set,
@@ -624,11 +908,21 @@ int main(void) {
         test_bitvec_access_large_patterns,
         test_bitvec_macro_functions,
         test_bitvec_access_stress_test,
-        test_bitvec_bit_patterns_comprehensive
+        test_bitvec_bit_patterns_comprehensive,
+        // New comprehensive tests for missing functions
+        test_bitvec_find_functions,
+        test_bitvec_predicate_functions,
+        test_bitvec_longest_run,
+        test_bitvec_find_edge_cases,
+        test_bitvec_predicate_edge_cases,
+        test_bitvec_longest_run_edge_cases
     };
 
-    // Array of deadend test functions
+    // Deadend tests that would cause program termination
     TestFunction deadend_tests[] = {
+        test_bitvec_find_deadend_tests,
+        test_bitvec_predicate_deadend_tests,
+        test_bitvec_longest_run_deadend_tests,
         test_bitvec_access_null_failures,
         test_bitvec_set_null_failures,
         test_bitvec_flip_null_failures,
