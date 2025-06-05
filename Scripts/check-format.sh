@@ -28,23 +28,27 @@ echo "📋 clang-format version: $(clang-format --version)"
 echo ""
 
 # Find all C and header files, excluding build directories and submodules
-FILES=$(find . -type f \( -name "*.c" -o -name "*.h" -o -name "*.cpp" -o -name "*.hpp" \) \
+echo "📁 Found files to check:"
+find . -type f \( -name "*.c" -o -name "*.h" -o -name "*.cpp" -o -name "*.hpp" \) \
         ! -path "./build*" \
         ! -path "./builddir*" \
         ! -path "./.git/*" \
         ! -path "./demangler/*" \
         ! -path "./.cache/*" \
-        -print)
+        -print0 | while IFS= read -r -d '' file; do
+    echo "  $file"
+done
 
-if [ -z "$FILES" ]; then
+if ! find . -type f \( -name "*.c" -o -name "*.h" -o -name "*.cpp" -o -name "*.hpp" \) \
+        ! -path "./build*" \
+        ! -path "./builddir*" \
+        ! -path "./.git/*" \
+        ! -path "./demangler/*" \
+        ! -path "./.cache/*" \
+        -print0 | grep -q .; then
     echo -e "${YELLOW}⚠️  No C/C++ files found to check${NC}"
     exit 0
 fi
-
-echo "📁 Found files to check:"
-echo "$FILES" | sed 's/^/  /'
-echo ""
-
 # Create a temporary directory for formatted files
 TEMP_DIR=$(mktemp -d)
 trap "rm -rf $TEMP_DIR" EXIT
