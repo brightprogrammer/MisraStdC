@@ -244,7 +244,7 @@ bool test_bitvec_pop_edge_cases(void) {
     // Test pop single element
     BitVecPush(&bv, true);
     bool popped = BitVecPop(&bv);
-    result = result && (popped == true) && (bv.length == 0);
+    result      = result && (popped == true) && (bv.length == 0);
 
     // Test multiple pops in sequence
     for (int i = 0; i < 100; i++) {
@@ -269,7 +269,7 @@ bool test_bitvec_remove_single_edge_cases(void) {
     // Test remove last element
     BitVecPush(&bv, true);
     bool removed = BitVecRemove(&bv, 0);
-    result = result && (removed == true) && (bv.length == 0);
+    result       = result && (removed == true) && (bv.length == 0);
 
     // Test remove from large bitvec
     for (int i = 0; i < 1000; i++) {
@@ -278,8 +278,8 @@ bool test_bitvec_remove_single_edge_cases(void) {
 
     // Remove middle element
     removed = BitVecRemove(&bv, 500);
-    result = result && (removed == (500 % 3 == 0));  // Should return the value of the removed bit
-    result = result && (bv.length == 999);
+    result  = result && (removed == (500 % 3 == 0)); // Should return the value of the removed bit
+    result  = result && (bv.length == 999);
 
     BitVecDeinit(&bv);
     return result;
@@ -308,7 +308,7 @@ bool test_bitvec_remove_range_edge_cases(void) {
     for (int i = 0; i < 10; i++) {
         BitVecPush(&bv, i % 2 == 0);
     }
-    BitVecRemoveRange(&bv, 1, 5);       // Remove 5 elements starting at index 1
+    BitVecRemoveRange(&bv, 1, 5);        // Remove 5 elements starting at index 1
     result = result && (bv.length == 5); // Should have 5 elements left
 
     BitVecDeinit(&bv);
@@ -359,7 +359,7 @@ bool test_bitvec_remove_all_edge_cases(void) {
 
     // Test remove all from empty bitvec
     u64 count = BitVecRemoveAll(&bv, true);
-    result     = result && (count == 0) && (bv.length == 0);
+    result    = result && (count == 0) && (bv.length == 0);
 
     // Test remove all when value doesn't exist
     BitVecPush(&bv, true);
@@ -421,7 +421,7 @@ bool test_bitvec_pop_bounds_failures(void) {
     printf("Testing BitVec pop bounds checking\n");
 
     BitVec bv = BitVecInit();
-    
+
     // Test pop from empty bitvec - should abort
     BitVecPop(&bv);
 
@@ -433,7 +433,7 @@ bool test_bitvec_remove_bounds_failures(void) {
     printf("Testing BitVec remove bounds checking\n");
 
     BitVec bv = BitVecInit();
-    
+
     // Test remove from empty bitvec - should abort
     BitVecRemove(&bv, 0);
 
@@ -445,7 +445,7 @@ bool test_bitvec_remove_range_bounds_failures(void) {
     printf("Testing BitVec remove range bounds checking\n");
 
     BitVec bv = BitVecInit();
-    
+
     // Test remove range from empty bitvec - should abort
     BitVecRemoveRange(&bv, 0, 1);
 

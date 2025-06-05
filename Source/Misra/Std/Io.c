@@ -649,13 +649,14 @@ void _write_Str(Str* o, FmtInfo* fmt_info, Str* s) {
     if (s->length) {
         if (fmt_info->flags & FMT_FLAG_HEX) {
             // Format each character as hex
+            StrIntFormat config = {.base = 16, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0};
             StrForeachIdx(s, c, i, {
                 if (i > 0) {
                     StrPushBack(o, ' ');
                 }
                 // Create hex string for each character
                 Str hex = StrInit();
-                StrFromU64(&hex, c, 16, (fmt_info->flags & FMT_FLAG_CAPS) != 0);
+                StrFromU64(&hex, c, &config);
                 // Ensure 2 digits with leading zero
                 if (hex.length == 1) {
                     StrPushFront(&hex, '0');
@@ -720,8 +721,9 @@ void _write_Zstr(Str* o, FmtInfo* fmt_info, const char** s) {
                     StrPushBack(o, ' ');
                 }
                 // Create hex string for each character
-                Str hex = StrInit();
-                StrFromU64(&hex, (u8)xs[i], 16, (fmt_info->flags & FMT_FLAG_CAPS) != 0);
+                Str          hex    = StrInit();
+                StrIntFormat config = {.base = 16, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0};
+                StrFromU64(&hex, (u8)xs[i], &config);
                 // Ensure 2 digits with leading zero
                 if (hex.length == 1) {
                     StrPushFront(&hex, '0');
@@ -796,7 +798,8 @@ void _write_u64(Str* o, FmtInfo* fmt_info, u64* v) {
     }
 
     // Use StrFromU64 directly with the appropriate base
-    StrFromU64(&temp, *v, base, (fmt_info->flags & FMT_FLAG_CAPS) != 0);
+    StrIntFormat config = {.base = base, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0};
+    StrFromU64(&temp, *v, &config);
 
     // Merge the formatted number into output
     StrMerge(o, &temp);
@@ -886,7 +889,8 @@ void _write_i64(Str* o, FmtInfo* fmt_info, i64* v) {
     }
 
     // Use StrFromI64 directly with the appropriate base
-    StrFromI64(&temp, *v, base, (fmt_info->flags & FMT_FLAG_CAPS) != 0);
+    StrIntFormat config = {.base = base, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0};
+    StrFromI64(&temp, *v, &config);
 
     // Merge the formatted number into output
     StrMerge(o, &temp);
@@ -990,14 +994,13 @@ void _write_f64(Str* o, FmtInfo* fmt_info, f64* v) {
         Str temp = StrInit();
 
         // Use StrFromF64 directly with the appropriate parameters
-        u8 precision = fmt_info->flags & FMT_FLAG_HAS_PRECISION ? fmt_info->precision : 6;
-        StrFromF64(
-            &temp,
-            *v,
-            precision,
-            (fmt_info->flags & FMT_FLAG_SCIENTIFIC) != 0,
-            (fmt_info->flags & FMT_FLAG_CAPS) != 0
-        );
+        u8             precision = fmt_info->flags & FMT_FLAG_HAS_PRECISION ? fmt_info->precision : 6;
+        StrFloatFormat config    = {
+               .precision = precision,
+               .force_sci = (fmt_info->flags & FMT_FLAG_SCIENTIFIC) != 0,
+               .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0
+        };
+        StrFromF64(&temp, *v, &config);
 
         // Merge the formatted number into output
         StrMerge(o, &temp);
@@ -1393,7 +1396,7 @@ const char* _read_f64(const char* i, FmtInfo* fmt_info, f64* v) {
         Str temp = StrInitFromCstr(start, i - start);
 
         // Try to parse as special value
-        if (StrToF64(&temp, v)) {
+        if (StrToF64(&temp, v, NULL)) {
             StrDeinit(&temp);
             return i;
         }
@@ -1458,7 +1461,7 @@ const char* _read_f64(const char* i, FmtInfo* fmt_info, f64* v) {
     }
 
     // Use StrToF64 directly
-    if (!StrToF64(&temp, v)) {
+    if (!StrToF64(&temp, v, NULL)) {
         LOG_ERROR("Failed to parse f64");
         StrDeinit(&temp);
         return start;
@@ -1523,7 +1526,7 @@ const char* _read_u8(const char* i, FmtInfo* fmt_info, u8* v) {
 
     // Use base 0 to let strtoul detect the base from prefix
     u64 val;
-    if (!StrToU64(&temp, &val, 0)) {
+    if (!StrToU64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse u8");
         StrDeinit(&temp);
         return start;
@@ -1598,7 +1601,7 @@ const char* _read_u16(const char* i, FmtInfo* fmt_info, u16* v) {
 
     // Use base 0 to let strtoul detect the base from prefix
     u64 val;
-    if (!StrToU64(&temp, &val, 0)) {
+    if (!StrToU64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse u16");
         StrDeinit(&temp);
         return start;
@@ -1672,7 +1675,7 @@ const char* _read_u32(const char* i, FmtInfo* fmt_info, u32* v) {
 
     // Use base 0 to let strtoul detect the base from prefix
     u64 val;
-    if (!StrToU64(&temp, &val, 0)) {
+    if (!StrToU64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse u32");
         StrDeinit(&temp);
         return start;
@@ -1746,7 +1749,7 @@ const char* _read_u64(const char* i, FmtInfo* fmt_info, u64* v) {
     }
 
     // Use base 0 to let strtoul detect the base from prefix
-    if (!StrToU64(&temp, v, 0)) {
+    if (!StrToU64(&temp, v, NULL)) {
         LOG_ERROR("Failed to parse u64");
         StrDeinit(&temp);
         return start;
@@ -1812,7 +1815,7 @@ const char* _read_i8(const char* i, FmtInfo* fmt_info, i8* v) {
 
     // Use base 0 to let strtoul detect the base from prefix
     i64 val;
-    if (!StrToI64(&temp, &val, 0)) {
+    if (!StrToI64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse i8");
         StrDeinit(&temp);
         return start;
@@ -1887,7 +1890,7 @@ const char* _read_i16(const char* i, FmtInfo* fmt_info, i16* v) {
 
     // Use base 0 to let strtoul detect the base from prefix
     i64 val;
-    if (!StrToI64(&temp, &val, 0)) {
+    if (!StrToI64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse i16");
         StrDeinit(&temp);
         return start;
@@ -1962,7 +1965,7 @@ const char* _read_i32(const char* i, FmtInfo* fmt_info, i32* v) {
 
     // Use base 0 to let strtoul detect the base from prefix
     i64 val;
-    if (!StrToI64(&temp, &val, 0)) {
+    if (!StrToI64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse i32");
         StrDeinit(&temp);
         return start;
@@ -2036,7 +2039,7 @@ const char* _read_i64(const char* i, FmtInfo* fmt_info, i64* v) {
     }
 
     // Use base 0 to let strtoul detect the base from prefix
-    if (!StrToI64(&temp, v, 0)) {
+    if (!StrToI64(&temp, v, NULL)) {
         LOG_ERROR("Failed to parse i64");
         StrDeinit(&temp);
         return start;
@@ -2124,7 +2127,7 @@ const char* _read_f32(const char* i, FmtInfo* fmt_info, f32* v) {
 
         // Try to parse as special value
         f64 val;
-        if (StrToF64(&temp, &val)) {
+        if (StrToF64(&temp, &val, NULL)) {
             *v = (f32)val;
             StrDeinit(&temp);
             return i;
@@ -2191,7 +2194,7 @@ const char* _read_f32(const char* i, FmtInfo* fmt_info, f32* v) {
 
     // Use StrToF64 directly
     f64 val;
-    if (!StrToF64(&temp, &val)) {
+    if (!StrToF64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse f32");
         StrDeinit(&temp);
         return start;

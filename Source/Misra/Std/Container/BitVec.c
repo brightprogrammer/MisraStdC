@@ -76,8 +76,8 @@ void BitVecResize(BitVec *bitvec, u64 new_size) {
         if (bitvec->length > 0) {
             u64 last_bit_offset = BIT_OFFSET(bitvec->length);
             if (last_bit_offset != 0) {
-                u64 last_byte_idx           = BIT_INDEX(bitvec->length);
-                u8   mask                    = (1u << last_bit_offset) - 1u;
+                u64 last_byte_idx            = BIT_INDEX(bitvec->length);
+                u8  mask                     = (1u << last_bit_offset) - 1u;
                 bitvec->data[last_byte_idx] &= mask;
             }
         }
@@ -91,7 +91,7 @@ void BitVecReserve(BitVec *bitvec, u64 n) {
     if (n <= bitvec->capacity)
         return;
     u64 new_byte_size = BYTES_FOR_BITS(n);
-    u8  *new_data      = (u8 *)realloc(bitvec->data, new_byte_size);
+    u8 *new_data      = (u8 *)realloc(bitvec->data, new_byte_size);
 
     if (!new_data) {
         LOG_FATAL("Failed to allocate memory for bitvec");
@@ -158,7 +158,7 @@ void BitVecSetCapacity(BitVec *bv, u64 cap) {
     }
 
     u64 new_byte_size = BYTES_FOR_BITS(cap);
-    u8  *new_data      = (u8 *)realloc(bv->data, new_byte_size);
+    u8 *new_data      = (u8 *)realloc(bv->data, new_byte_size);
 
     if (!new_data) {
         LOG_FATAL("Failed to allocate memory for bitvec");
@@ -185,16 +185,16 @@ void BitVecSwap(BitVec *bv1, BitVec *bv2) {
     bv2->data     = temp_data;
 
     u64 temp_length = bv1->length;
-    bv1->length      = bv2->length;
-    bv2->length      = temp_length;
+    bv1->length     = bv2->length;
+    bv2->length     = temp_length;
 
     u64 temp_capacity = bv1->capacity;
-    bv1->capacity      = bv2->capacity;
-    bv2->capacity      = temp_capacity;
+    bv1->capacity     = bv2->capacity;
+    bv2->capacity     = temp_capacity;
 
     u64 temp_byte_size = bv1->byte_size;
-    bv1->byte_size      = bv2->byte_size;
-    bv2->byte_size      = temp_byte_size;
+    bv1->byte_size     = bv2->byte_size;
+    bv2->byte_size     = temp_byte_size;
 }
 
 BitVec BitVecClone(BitVec *bv) {
@@ -379,10 +379,10 @@ bool BitVecRemove(BitVec *bv, u64 idx) {
     if (idx >= bv->length) {
         LOG_FATAL("BitVecRemove: Index %llu exceeds bitvector length %llu", idx, bv->length);
     }
-    
+
     // Get the bit value before removing it
     bool removed_bit = BitVecGet(bv, idx);
-    
+
     // Shift bits left from idx+1 to end
     for (u64 i = idx; i < bv->length - 1; i++) {
         bool bit = BitVecGet(bv, i + 1);
@@ -390,7 +390,7 @@ bool BitVecRemove(BitVec *bv, u64 idx) {
     }
 
     BitVecResize(bv, bv->length - 1);
-    return removed_bit;  // Return the actual bit value that was removed
+    return removed_bit; // Return the actual bit value that was removed
 }
 
 void BitVecRemoveRange(BitVec *bv, u64 idx, u64 count) {
@@ -571,10 +571,20 @@ bool BitVecEqualsRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len
     ValidateBitVec(bv2);
 
     if (start1 + len > bv1->length) {
-        LOG_FATAL("BitVecEqualsRange: Range [%llu:%llu] exceeds bitvector1 length %llu", start1, start1 + len - 1, bv1->length);
+        LOG_FATAL(
+            "BitVecEqualsRange: Range [%llu:%llu] exceeds bitvector1 length %llu",
+            start1,
+            start1 + len - 1,
+            bv1->length
+        );
     }
     if (start2 + len > bv2->length) {
-        LOG_FATAL("BitVecEqualsRange: Range [%llu:%llu] exceeds bitvector2 length %llu", start2, start2 + len - 1, bv2->length);
+        LOG_FATAL(
+            "BitVecEqualsRange: Range [%llu:%llu] exceeds bitvector2 length %llu",
+            start2,
+            start2 + len - 1,
+            bv2->length
+        );
     }
 
     for (u64 i = 0; i < len; i++) {
@@ -617,10 +627,20 @@ int BitVecCompareRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len
     ValidateBitVec(bv2);
 
     if (start1 + len > bv1->length) {
-        LOG_FATAL("BitVecCompareRange: Range [%llu:%llu] exceeds bitvector1 length %llu", start1, start1 + len - 1, bv1->length);
+        LOG_FATAL(
+            "BitVecCompareRange: Range [%llu:%llu] exceeds bitvector1 length %llu",
+            start1,
+            start1 + len - 1,
+            bv1->length
+        );
     }
     if (start2 + len > bv2->length) {
-        LOG_FATAL("BitVecCompareRange: Range [%llu:%llu] exceeds bitvector2 length %llu", start2, start2 + len - 1, bv2->length);
+        LOG_FATAL(
+            "BitVecCompareRange: Range [%llu:%llu] exceeds bitvector2 length %llu",
+            start2,
+            start2 + len - 1,
+            bv2->length
+        );
     }
 
     // Compare bit by bit in the specified range
@@ -867,8 +887,8 @@ u64 BitVecToBytes(BitVec *bv, u8 *bytes, u64 max_len) {
     // Copy bits to bytes
     for (u64 i = 0; i < bv->length && i / 8 < bytes_to_copy; i++) {
         if (BitVecGet(bv, i)) {
-            u64 byte_idx    = i / 8;
-            u64 bit_offset  = i % 8;
+            u64 byte_idx     = i / 8;
+            u64 bit_offset   = i % 8;
             bytes[byte_idx] |= (1u << bit_offset);
         }
     }
@@ -882,7 +902,7 @@ BitVec BitVecFromBytes(const u8 *bytes, u64 bit_len) {
     }
 
     BitVec result = BitVecInit();
-    
+
     // Handle empty bitvector case
     if (bit_len == 0) {
         return result;
@@ -893,8 +913,8 @@ BitVec BitVecFromBytes(const u8 *bytes, u64 bit_len) {
 
     // Copy bits from bytes
     for (u64 i = 0; i < bit_len; i++) {
-        u64 byte_idx   = i / 8;
-        u64 bit_offset = i % 8;
+        u64  byte_idx   = i / 8;
+        u64  bit_offset = i % 8;
         bool bit        = (bytes[byte_idx] & (1u << bit_offset)) != 0;
         BitVecSet(&result, i, bit);
     }
@@ -908,7 +928,7 @@ u64 BitVecToInteger(BitVec *bv) {
         return 0;
     }
 
-    u64  result   = 0;
+    u64 result   = 0;
     u64 max_bits = bv->length < 64 ? bv->length : 64; // Limit to 64 bits
 
     // Convert bits to integer (LSB first)
@@ -981,15 +1001,14 @@ void BitVecShiftRight(BitVec *bv, u64 positions) {
         return;
     }
 
-    // Shift bits right (start from the end)
-    for (u64 i = bv->length; i > positions;) {
-        i--;
-        bool bit = BitVecGet(bv, i - positions);
+    // Shift bits right (move bits to lower indices)
+    for (u64 i = 0; i < bv->length - positions; i++) {
+        bool bit = BitVecGet(bv, i + positions);
         BitVecSet(bv, i, bit);
     }
 
-    // Clear the leftmost bits
-    for (u64 i = 0; i < positions; i++) {
+    // Clear the high-index bits (rightmost bits that are now empty)
+    for (u64 i = bv->length - positions; i < bv->length; i++) {
         BitVecSet(bv, i, false);
     }
 }
@@ -1010,7 +1029,7 @@ void BitVecRotateLeft(BitVec *bv, u64 positions) {
 
     // Rotate left
     for (u64 i = 0; i < bv->length; i++) {
-        u64 src_idx = (i + positions) % bv->length;
+        u64  src_idx = (i + positions) % bv->length;
         bool bit     = BitVecGet(&temp, src_idx);
         BitVecSet(bv, i, bit);
     }
@@ -1034,7 +1053,7 @@ void BitVecRotateRight(BitVec *bv, u64 positions) {
 
     // Rotate right
     for (u64 i = 0; i < bv->length; i++) {
-        u64 src_idx = (i + bv->length - positions) % bv->length;
+        u64  src_idx = (i + bv->length - positions) % bv->length;
         bool bit     = BitVecGet(&temp, src_idx);
         BitVecSet(bv, i, bit);
     }
@@ -1050,7 +1069,7 @@ void BitVecReverse(BitVec *bv) {
 
     // Swap bits from both ends
     for (u64 i = 0; i < bv->length / 2; i++) {
-        u64 j     = bv->length - 1 - i;
+        u64  j     = bv->length - 1 - i;
         bool bit_i = BitVecGet(bv, i);
         bool bit_j = BitVecGet(bv, j);
         BitVecSet(bv, i, bit_j);

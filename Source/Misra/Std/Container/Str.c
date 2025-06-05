@@ -282,288 +282,275 @@ static inline bool char_to_digit(char c, u8* digit, u8 base) {
     return *digit < base;
 }
 
-Str* StrFromU64(Str* str, u64 value, u8 base, bool uppercase) {
+// Helper function to validate base values
+static inline bool is_valid_base(u8 base) {
+    return base != 1 && base <= 36;
+}
+
+// Helper function to skip prefixes for explicit bases
+static inline size_t skip_prefix(const Str* str, size_t pos, u8 base) {
+    if (pos + 2 > str->length || str->data[pos] != '0') {
+        return pos;
+    }
+
+    char prefix_char = str->data[pos + 1];
+
+    switch (base) {
+        case 2 : // Binary: "0b" or "0B"
+            if (prefix_char == 'b' || prefix_char == 'B') {
+                return pos + 2;
+            }
+            break;
+
+        case 8 : // Octal: "0o" or "0O"
+            if (prefix_char == 'o' || prefix_char == 'O') {
+                return pos + 2;
+            }
+            break;
+
+        case 16 : // Hexadecimal: "0x" or "0X"
+            if (prefix_char == 'x' || prefix_char == 'X') {
+                return pos + 2;
+            }
+            break;
+
+        default :
+            break;
+    }
+
+    return pos;
+}
+
+// ======================================
+// Conversion Functions - New Clean Implementation
+// ======================================
+
+Str* StrFromU64(Str* str, u64 value, const StrIntFormat* config) {
     ValidateStr(str);
 
-    if (base < 2 || base > 36) {
-        LOG_ERROR("Invalid base: %u", base);
+    if (!config) {
+        config = &STR_INT_DEFAULT;
+    }
+
+    if (!is_valid_base(config->base)) {
+        LOG_ERROR("Invalid base: %u", config->base);
         return NULL;
     }
 
-    // Clear the string
     StrClear(str);
 
-    // Handle zero specially
-    if (value == 0) {
-        // Add prefix for special bases
-        if (base == 2) {
-            StrPushBack(str, '0');
+    // Add prefix if requested
+    if (config->use_prefix) {
+        StrPushBack(str, '0');
+        if (config->base == 2) {
             StrPushBack(str, 'b');
-            StrPushBack(str, '0');
-        } else if (base == 8) {
-            StrPushBack(str, '0');
+        } else if (config->base == 8) {
             StrPushBack(str, 'o');
-            StrPushBack(str, '0');
-        } else if (base == 16) {
-            StrPushBack(str, '0');
+        } else if (config->base == 16) {
             StrPushBack(str, 'x');
-            StrPushBack(str, '0');
-        } else {
-            StrPushBack(str, '0');
         }
-        return str;
     }
 
-    // Convert digits in reverse order
-    char   buffer[65]; // Max 64 bits in binary + null terminator
-    size_t pos = 0;
-
-    while (value > 0) {
-        buffer[pos++]  = digit_to_char(value % base, uppercase);
-        value         /= base;
-    }
-
-    // Add prefix for special bases
-    if (base == 2) {
+    // Convert number to string
+    if (value == 0) {
         StrPushBack(str, '0');
-        StrPushBack(str, 'b');
-    } else if (base == 8) {
-        StrPushBack(str, '0');
-        StrPushBack(str, 'o');
-    } else if (base == 16) {
-        StrPushBack(str, '0');
-        StrPushBack(str, 'x');
-    }
+    } else {
+        char   buffer[65];
+        size_t pos = 0;
 
-    // Copy digits in correct order
-    while (pos > 0) {
-        StrPushBack(str, buffer[--pos]);
+        while (value > 0) {
+            buffer[pos++]  = digit_to_char(value % config->base, config->uppercase);
+            value         /= config->base;
+        }
+
+        // Add digits in correct order
+        while (pos > 0) {
+            StrPushBack(str, buffer[--pos]);
+        }
     }
 
     return str;
 }
 
-Str* StrFromI64(Str* str, i64 value, u8 base, bool uppercase) {
+Str* StrFromI64(Str* str, i64 value, const StrIntFormat* config) {
     ValidateStr(str);
 
-    if (base < 2 || base > 36) {
-        LOG_ERROR("Invalid base: %u", base);
+    if (!config) {
+        config = &STR_INT_DEFAULT;
+    }
+
+    if (!is_valid_base(config->base)) {
+        LOG_ERROR("Invalid base: %u", config->base);
         return NULL;
     }
 
     // Handle negative numbers
     bool is_negative = value < 0;
-    u64  abs_value   = is_negative ? (u64)(-value) : (u64)value;
+    u64  abs_value;
 
-    // Clear the string
-    StrClear(str);
-
-    // Add sign for negative numbers only for decimal (base 10)
-    if (is_negative && base == 10) {
-        StrPushBack(str, '-');
+    if (value == INT64_MIN) {
+        abs_value = (u64)INT64_MIN;
+    } else {
+        abs_value = is_negative ? (u64)(-value) : (u64)value;
     }
 
-    // Add prefix for special bases
-    if (base == 2) {
-        StrPushBack(str, '0');
-        StrPushBack(str, 'b');
-    } else if (base == 8) {
-        StrPushBack(str, '0');
-        StrPushBack(str, 'o');
-    } else if (base == 16) {
-        StrPushBack(str, '0');
-        StrPushBack(str, 'x');
-    }
+    // Use StrFromU64 for the conversion
+    StrFromU64(str, abs_value, config);
 
-    // Handle zero specially
-    if (abs_value == 0) {
-        StrPushBack(str, '0');
-        return str;
-    }
-
-    // Convert digits in reverse order
-    char   buffer[65]; // Max 64 bits in binary + null terminator
-    size_t pos = 0;
-
-    while (abs_value > 0) {
-        buffer[pos++]  = digit_to_char(abs_value % base, uppercase);
-        abs_value     /= base;
-    }
-
-    // Copy digits in correct order
-    while (pos > 0) {
-        StrPushBack(str, buffer[--pos]);
+    // Add sign for negative decimal numbers AFTER conversion
+    if (is_negative && config->base == 10) {
+        // Insert the negative sign at the beginning
+        StrInsertCharAt(str, '-', 0);
     }
 
     return str;
 }
 
-static void append_fraction(Str* str, f64 frac, u8 precision) {
-    if (precision == 0)
-        return;
-
-    StrPushBack(str, '.');
-
-    f64 scaled  = frac * pow(10.0, precision);
-    i64 rounded = (i64)(scaled + 0.5);
-
-    char   buf[18]; // Max 17 digits + null terminator safety
-    size_t pos = 0;
-
-    if (rounded == 0) {
-        for (u8 i = 0; i < precision; i++) {
-            buf[pos++] = '0';
-        }
-    } else {
-        while (rounded > 0) {
-            buf[pos++]  = '0' + (rounded % 10);
-            rounded    /= 10;
-        }
-        while (pos < precision) {
-            buf[pos++] = '0';
-        }
-
-        // Reverse digits
-        for (size_t i = 0; i < pos / 2; i++) {
-            char tmp         = buf[i];
-            buf[i]           = buf[pos - 1 - i];
-            buf[pos - 1 - i] = tmp;
-        }
-    }
-
-    for (size_t i = 0; i < pos; i++) {
-        StrPushBack(str, buf[i]);
-    }
-}
-
-Str* StrFromF64(Str* str, f64 value, u8 precision, bool force_sci, bool uppercase) {
+Str* StrFromF64(Str* str, f64 value, const StrFloatFormat* config) {
     ValidateStr(str);
+
+    if (!config) {
+        config = &STR_FLOAT_DEFAULT;
+    }
+
+    if (config->precision > 17) {
+        LOG_ERROR("Precision %u exceeds maximum (17)", config->precision);
+        return NULL;
+    }
+
     StrClear(str);
 
-    // Handle special cases first to avoid calculations that could cause crashes
+    // Handle special cases
     if (isnan(value)) {
-        // Manually push characters instead of using StrPushBackZstr
-        const char* nan_str = uppercase ? "NAN" : "nan";
-        size_t      len     = 3; // "nan" or "NAN" is 3 characters
-
-        // Ensure we have enough capacity
-        if (str->capacity < len) {
-            VecReserve(str, len);
-        }
-
-        // Manually copy characters
-        for (size_t i = 0; i < len; i++) {
+        const char* nan_str = config->uppercase ? "NAN" : "nan";
+        for (size_t i = 0; i < 3; i++) {
             StrPushBack(str, nan_str[i]);
         }
-
         return str;
     }
 
     if (isinf(value)) {
-        // Manually push characters instead of using StrPushBackZstr
         if (value < 0) {
             StrPushBack(str, '-');
+        } else if (config->always_sign) {
+            StrPushBack(str, '+');
         }
-
-        const char* inf_str = uppercase ? "INF" : "inf";
-        size_t      len     = 3; // "inf" or "INF" is 3 characters
-
-        // Ensure we have enough capacity
-        size_t total_needed = str->length + len;
-        if (str->capacity < total_needed) {
-            VecReserve(str, total_needed);
-        }
-
-        // Manually copy characters
-        for (size_t i = 0; i < len; i++) {
+        const char* inf_str = config->uppercase ? "INF" : "inf";
+        for (size_t i = 0; i < 3; i++) {
             StrPushBack(str, inf_str[i]);
         }
-
         return str;
     }
 
-    // Handle signed zero
-    if (value == 0.0) {
-        if (signbit(value))
-            StrPushBack(str, '-');
-        StrPushBack(str, '0');
-        if (precision > 0) {
-            StrPushBack(str, '.');
-            for (u8 i = 0; i < precision; i++) {
-                StrPushBack(str, '0');
-            }
-        }
-        return str;
-    }
-
-    // Handle negative numbers
-    bool is_negative = value < 0.0 || signbit(value);
-    if (is_negative) {
+    // Handle sign
+    if (value < 0) {
+        StrPushBack(str, '-');
         value = -value;
+    } else if (config->always_sign) {
+        StrPushBack(str, '+');
     }
 
-    // Determine if we need scientific notation
-    // Only compute log10 for regular finite numbers
-    bool use_sci = force_sci || (value < 0.0001) || (value >= 1e7);
-    if (!use_sci && value > 0.0) {
-        // Only compute log10 for positive, non-zero, finite values
-        use_sci = (floor(log10(value)) >= 7);
-    }
-
-    // Create a temporary string for the numeric part
-    Str temp = StrInit();
+    // Simple implementation for now
+    bool use_sci = config->force_sci || (value != 0.0 && (value < 0.0001 || value >= 1e7));
 
     if (use_sci) {
-        // Normalize to [1.0, 10.0)
+        // Scientific notation
         int exp      = 0;
         f64 mantissa = value;
 
-        while (mantissa >= 10.0) {
-            mantissa /= 10.0;
-            exp++;
+        if (mantissa != 0.0) {
+            while (mantissa >= 10.0) {
+                mantissa /= 10.0;
+                exp++;
+            }
+            while (mantissa < 1.0) {
+                mantissa *= 10.0;
+                exp--;
+            }
         }
-        while (mantissa < 1.0 && mantissa > 0.0) { // Ensure mantissa is positive
-            mantissa *= 10.0;
-            exp--;
+
+        // Format mantissa with proper rounding
+        i64 int_part = (i64)mantissa;
+        StrPushBack(str, '0' + int_part);
+
+        if (config->precision > 0) {
+            StrPushBack(str, '.');
+            f64 frac_part = mantissa - int_part;
+
+            for (u8 i = 0; i < config->precision; i++) {
+                frac_part *= 10.0;
+                int digit  = (int)(frac_part + 0.5); // Round each digit individually
+                if (digit >= 10)
+                    digit = 9;                       // Clamp to prevent overflow
+                StrPushBack(str, '0' + digit);
+                frac_part -= (int)frac_part;         // Remove the integer part
+            }
         }
 
-        i64 int_part  = (i64)mantissa;
-        f64 frac_part = mantissa - int_part;
+        // Add exponent
+        StrPushBack(str, config->uppercase ? 'E' : 'e');
+        if (exp >= 0) {
+            StrPushBack(str, '+');
+        } else {
+            StrPushBack(str, '-');
+            exp = -exp;
+        }
 
-        StrFromI64(&temp, int_part, 10, false);
-        append_fraction(&temp, frac_part, precision);
-
-        // Append exponent
-        StrPushBack(&temp, uppercase ? 'E' : 'e');
-        StrPushBack(&temp, exp < 0 ? '-' : '+');
-
-        int abs_exp = exp < 0 ? -exp : exp;
-        if (abs_exp < 10)
-            StrPushBack(&temp, '0');
-
-        // Use snprintf to format the exponent safely
-        char exp_buf[12];
-        snprintf(exp_buf, sizeof(exp_buf), "%d", abs_exp);
-        StrPushBackZstr(&temp, exp_buf);
+        // Format exponent digits (always at least 2 digits)
+        if (exp == 0) {
+            StrPushBack(str, '0');
+            StrPushBack(str, '0');
+        } else {
+            char   exp_buf[8];
+            size_t exp_pos = 0;
+            while (exp > 0) {
+                exp_buf[exp_pos++]  = '0' + (exp % 10);
+                exp                /= 10;
+            }
+            // Pad to at least 2 digits
+            while (exp_pos < 2) {
+                exp_buf[exp_pos++] = '0';
+            }
+            while (exp_pos > 0) {
+                StrPushBack(str, exp_buf[--exp_pos]);
+            }
+        }
     } else {
-        i64 int_part  = (i64)value;
-        f64 frac_part = value - int_part;
+        // Standard notation
+        i64 int_part = (i64)value;
 
-        StrFromI64(&temp, int_part, 10, false);
-        append_fraction(&temp, frac_part, precision);
-    }
+        // Format integer part
+        if (int_part == 0) {
+            StrPushBack(str, '0');
+        } else {
+            char   int_buf[32];
+            size_t int_pos = 0;
+            while (int_part > 0) {
+                int_buf[int_pos++]  = '0' + (int_part % 10);
+                int_part           /= 10;
+            }
+            while (int_pos > 0) {
+                StrPushBack(str, int_buf[--int_pos]);
+            }
+        }
 
-    // Add the negative sign if needed, then the numeric part
-    if (is_negative) {
-        StrPushBack(str, '-');
+        // Format fractional part
+        if (config->precision > 0) {
+            StrPushBack(str, '.');
+            f64 frac_part = value - (i64)value;
+            for (u8 i = 0; i < config->precision; i++) {
+                frac_part *= 10.0;
+                int digit  = (int)frac_part;
+                StrPushBack(str, '0' + digit);
+                frac_part -= digit;
+            }
+        }
     }
-    StrMerge(str, &temp);
-    StrDeinit(&temp);
 
     return str;
 }
 
-bool StrToU64(const Str* str, u64* value, u8 base) {
+bool StrToU64(const Str* str, u64* value, const StrParseConfig* config) {
     ValidateStr(str);
 
     if (!value) {
@@ -571,7 +558,12 @@ bool StrToU64(const Str* str, u64* value, u8 base) {
         return false;
     }
 
-    if (base > 36) {
+    if (!config) {
+        config = &STR_PARSE_DEFAULT;
+    }
+
+    u8 base = config->base;
+    if (base != 0 && !is_valid_base(base)) {
         LOG_ERROR("Invalid base: %u", base);
         return false;
     }
@@ -581,47 +573,29 @@ bool StrToU64(const Str* str, u64* value, u8 base) {
     while (pos < str->length && IS_SPACE(str->data[pos]))
         pos++;
 
-    // Check for empty string
     if (pos >= str->length) {
         LOG_ERROR("Empty string");
         return false;
     }
 
-    // Handle base prefixes
+    // Auto-detect base
     if (base == 0) {
-        if (pos + 2 <= str->length) {
-            if (str->data[pos] == '0') {
-                if (str->data[pos + 1] == 'x' || str->data[pos + 1] == 'X') {
-                    base  = 16;
-                    pos  += 2;
-                } else if (str->data[pos + 1] == 'b' || str->data[pos + 1] == 'B') {
-                    base  = 2;
-                    pos  += 2;
-                } else if (str->data[pos + 1] == 'o' || str->data[pos + 1] == 'O') {
-                    base  = 8;
-                    pos  += 2;
-                }
+        base = 10;
+        if (pos + 2 <= str->length && str->data[pos] == '0') {
+            char prefix = str->data[pos + 1];
+            if (prefix == 'x' || prefix == 'X') {
+                base  = 16;
+                pos  += 2;
+            } else if (prefix == 'b' || prefix == 'B') {
+                base  = 2;
+                pos  += 2;
+            } else if (prefix == 'o' || prefix == 'O') {
+                base  = 8;
+                pos  += 2;
             }
         }
-
-        // If still auto-detect, check if it looks like a hex number without prefix
-        if (base == 0) {
-            // Check for hex characters (a-f) in the string
-            bool looks_like_hex = false;
-            for (size_t i = pos; i < str->length && !IS_SPACE(str->data[i]); i++) {
-                char c = str->data[i];
-                if ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
-                    looks_like_hex = true;
-                    break;
-                }
-            }
-
-            if (looks_like_hex) {
-                base = 16;
-            } else {
-                base = 10; // Default to decimal
-            }
-        }
+    } else {
+        pos = skip_prefix(str, pos, base);
     }
 
     // Convert digits
@@ -632,13 +606,13 @@ bool StrToU64(const Str* str, u64* value, u8 base) {
         u8 digit;
         if (!char_to_digit(str->data[pos], &digit, base)) {
             if (IS_SPACE(str->data[pos]))
-                break; // Stop at whitespace
+                break;
             LOG_ERROR("Invalid digit for base %u: %c", base, str->data[pos]);
             return false;
         }
 
-        // Check for overflow
-        if (result > ((u64)-1 - digit) / base) { // Replace UINT64_MAX with (u64)-1
+        // Check overflow
+        if (result > (UINT64_MAX - digit) / base) {
             LOG_ERROR("Overflow");
             return false;
         }
@@ -652,8 +626,7 @@ bool StrToU64(const Str* str, u64* value, u8 base) {
     while (pos < str->length && IS_SPACE(str->data[pos]))
         pos++;
 
-    // Check that we consumed all characters
-    if (pos < str->length) {
+    if (config->strict && pos < str->length) {
         LOG_ERROR("Extra characters after number");
         return false;
     }
@@ -667,7 +640,7 @@ bool StrToU64(const Str* str, u64* value, u8 base) {
     return true;
 }
 
-bool StrToI64(const Str* str, i64* value, u8 base) {
+bool StrToI64(const Str* str, i64* value, const StrParseConfig* config) {
     ValidateStr(str);
 
     if (!value) {
@@ -675,9 +648,8 @@ bool StrToI64(const Str* str, i64* value, u8 base) {
         return false;
     }
 
-    if (base > 36) {
-        LOG_ERROR("Invalid base: %u", base);
-        return false;
+    if (!config) {
+        config = &STR_PARSE_DEFAULT;
     }
 
     // Skip whitespace
@@ -685,7 +657,6 @@ bool StrToI64(const Str* str, i64* value, u8 base) {
     while (pos < str->length && IS_SPACE(str->data[pos]))
         pos++;
 
-    // Check for empty string
     if (pos >= str->length) {
         LOG_ERROR("Empty string");
         return false;
@@ -700,28 +671,7 @@ bool StrToI64(const Str* str, i64* value, u8 base) {
         pos++;
     }
 
-    // Handle base prefixes
-    if (base == 0) {
-        if (pos + 2 <= str->length) {
-            if (str->data[pos] == '0') {
-                if (str->data[pos + 1] == 'x' || str->data[pos + 1] == 'X') {
-                    base  = 16;
-                    pos  += 2;
-                } else if (str->data[pos + 1] == 'b' || str->data[pos + 1] == 'B') {
-                    base  = 2;
-                    pos  += 2;
-                } else if (str->data[pos + 1] == 'o' || str->data[pos + 1] == 'O') {
-                    base  = 8;
-                    pos  += 2;
-                }
-            }
-        }
-        if (base == 0)
-            base = 10; // Default to decimal
-    }
-
-    // Convert using unsigned function
-    // Create a proper temporary string with all required fields
+    // Create substring without sign
     Str temp_str = {
         .data        = str->data + pos,
         .length      = str->length - pos,
@@ -732,21 +682,19 @@ bool StrToI64(const Str* str, i64* value, u8 base) {
     };
 
     u64 unsigned_value;
-    if (!StrToU64(&temp_str, &unsigned_value, base)) {
+    if (!StrToU64(&temp_str, &unsigned_value, config)) {
         return false;
     }
 
-    // Check for overflow
+    // Check overflow
     if (negative) {
-        // Use 9223372036854775808ULL (2^63) for the minimum value magnitude
-        if (unsigned_value > 9223372036854775808ULL) { // INT64_MIN absolute value
+        if (unsigned_value > 9223372036854775808ULL) {
             LOG_ERROR("Overflow");
             return false;
         }
         *value = -(i64)unsigned_value;
     } else {
-        // Use 9223372036854775807ULL (2^63 - 1) for the maximum value
-        if (unsigned_value > 9223372036854775807ULL) { // INT64_MAX
+        if (unsigned_value > 9223372036854775807ULL) {
             LOG_ERROR("Overflow");
             return false;
         }
@@ -756,7 +704,7 @@ bool StrToI64(const Str* str, i64* value, u8 base) {
     return true;
 }
 
-bool StrToF64(const Str* str, f64* value) {
+bool StrToF64(const Str* str, f64* value, const StrParseConfig* config) {
     ValidateStr(str);
 
     if (!value) {
@@ -764,97 +712,36 @@ bool StrToF64(const Str* str, f64* value) {
         return false;
     }
 
+    if (!config) {
+        config = &STR_PARSE_DEFAULT;
+    }
+
     // Skip whitespace
     size_t pos = 0;
     while (pos < str->length && IS_SPACE(str->data[pos]))
         pos++;
 
-    // Check for empty string
     if (pos >= str->length) {
         LOG_ERROR("Empty string");
         return false;
     }
 
-    // Check for special values - ensuring they're exactly 'inf' or 'nan'
-    // followed by end of string or whitespace
+    // Check for special values
     if (str->length - pos >= 3) {
         char c1 = TO_LOWER(str->data[pos]);
         char c2 = TO_LOWER(str->data[pos + 1]);
         char c3 = TO_LOWER(str->data[pos + 2]);
 
         if (c1 == 'n' && c2 == 'a' && c3 == 'n') {
-            // Make sure it's exactly "nan" (followed by whitespace or end of string)
             if (str->length - pos == 3 || IS_SPACE(str->data[pos + 3])) {
                 *value = NAN;
                 return true;
             }
         }
         if (c1 == 'i' && c2 == 'n' && c3 == 'f') {
-            // Make sure it's exactly "inf" (followed by whitespace or end of string)
             if (str->length - pos == 3 || IS_SPACE(str->data[pos + 3])) {
                 *value = INFINITY;
                 return true;
-            }
-        }
-    }
-
-    // Check for exponent overflow/underflow by examining the exponent in scientific notation
-    size_t check_pos = pos;
-
-    // Skip past sign for exponent checking
-    if (check_pos < str->length && (str->data[check_pos] == '-' || str->data[check_pos] == '+')) {
-        check_pos++;
-    }
-
-    // Skip past integer part for exponent checking
-    while (check_pos < str->length && IS_DIGIT(str->data[check_pos])) {
-        check_pos++;
-    }
-
-    // Skip past decimal point and fractional part for exponent checking
-    if (check_pos < str->length && str->data[check_pos] == '.') {
-        check_pos++;
-        while (check_pos < str->length && IS_DIGIT(str->data[check_pos])) {
-            check_pos++;
-        }
-    }
-
-    // If we have scientific notation, examine the exponent for overflow/underflow
-    if (check_pos < str->length && (str->data[check_pos] == 'e' || str->data[check_pos] == 'E')) {
-        check_pos++;
-
-        // Get exponent sign
-        int exp_sign = 1;
-        if (check_pos < str->length) {
-            if (str->data[check_pos] == '-') {
-                exp_sign = -1;
-                check_pos++;
-            } else if (str->data[check_pos] == '+') {
-                check_pos++;
-            }
-        }
-
-        // Parse exponent value
-        int  exp_val         = 0;
-        bool have_exp_digits = false;
-
-        while (check_pos < str->length && IS_DIGIT(str->data[check_pos])) {
-            exp_val         = exp_val * 10 + (str->data[check_pos] - '0');
-            have_exp_digits = true;
-            check_pos++;
-        }
-
-        if (have_exp_digits) {
-            exp_val *= exp_sign;
-
-            // Double has approx 15-17 decimal digits of precision
-            // The exponent range for double is approximately -308 to +308
-            if (exp_val > 308) {
-                LOG_ERROR("Exponent %d exceeds maximum representable f64 exponent (308)", exp_val);
-                return false;
-            } else if (exp_val <= -324) {
-                LOG_ERROR("Exponent %d is below minimum representable f64 exponent (-324)", exp_val);
-                return false;
             }
         }
     }
@@ -865,14 +752,13 @@ bool StrToF64(const Str* str, f64* value) {
         negative = true;
         pos++;
 
-        // Check for "-inf" after consuming the negative sign
+        // Check for "-inf"
         if (str->length - pos >= 3) {
             char c1 = TO_LOWER(str->data[pos]);
             char c2 = TO_LOWER(str->data[pos + 1]);
             char c3 = TO_LOWER(str->data[pos + 2]);
 
             if (c1 == 'i' && c2 == 'n' && c3 == 'f') {
-                // Make sure it's exactly "-inf" (followed by whitespace or end of string)
                 if (str->length - pos == 3 || IS_SPACE(str->data[pos + 3])) {
                     *value = -INFINITY;
                     return true;
@@ -883,10 +769,11 @@ bool StrToF64(const Str* str, f64* value) {
         pos++;
     }
 
-    // Parse integer part
+    // Parse number
     f64  result      = 0.0;
     bool have_digits = false;
 
+    // Parse integer part
     while (pos < str->length && IS_DIGIT(str->data[pos])) {
         result      = result * 10.0 + (str->data[pos] - '0');
         have_digits = true;
@@ -896,17 +783,14 @@ bool StrToF64(const Str* str, f64* value) {
     // Parse fractional part
     if (pos < str->length && str->data[pos] == '.') {
         pos++;
-        f64 fraction = 0.0;
-        f64 scale    = 0.1;
+        f64 scale = 0.1;
 
         while (pos < str->length && IS_DIGIT(str->data[pos])) {
-            fraction    += (str->data[pos] - '0') * scale;
+            result      += (str->data[pos] - '0') * scale;
             scale       *= 0.1;
             have_digits  = true;
             pos++;
         }
-
-        result += fraction;
     }
 
     // Parse exponent
@@ -946,8 +830,7 @@ bool StrToF64(const Str* str, f64* value) {
     while (pos < str->length && IS_SPACE(str->data[pos]))
         pos++;
 
-    // Check that we consumed all characters
-    if (pos < str->length) {
+    if (config->strict && pos < str->length) {
         LOG_ERROR("Extra characters after number");
         return false;
     }
@@ -960,3 +843,16 @@ bool StrToF64(const Str* str, f64* value) {
     *value = negative ? -result : result;
     return true;
 }
+
+// ======================================
+// Configuration Structures
+// ======================================
+
+// Default configurations
+const StrIntFormat STR_INT_DEFAULT =
+    {.base = 10, .uppercase = false, .use_prefix = false, .pad_zeros = false, .min_width = 0};
+
+const StrFloatFormat STR_FLOAT_DEFAULT =
+    {.precision = 6, .force_sci = false, .uppercase = false, .trim_zeros = false, .always_sign = false};
+
+const StrParseConfig STR_PARSE_DEFAULT = {.strict = false, .trim_space = true, .base = 0};

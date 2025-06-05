@@ -32,7 +32,7 @@
 #define BitVecForeachIdx(bv, var, idx, body)                                                                           \
     do {                                                                                                               \
         ValidateBitVec(bv);                                                                                            \
-        u64 idx = 0;                                                                                                  \
+        u64 idx = 0;                                                                                                   \
         if ((bv)->length > 0) {                                                                                        \
             for ((idx) = 0; (idx) < (bv)->length; ++(idx)) {                                                           \
                 bool var = BitVecGet(bv, idx);                                                                         \
@@ -58,7 +58,7 @@
 #define BitVecForeachReverseIdx(bv, var, idx, body)                                                                    \
     do {                                                                                                               \
         ValidateBitVec(bv);                                                                                            \
-        u64 idx = 0;                                                                                                  \
+        u64 idx = 0;                                                                                                   \
         if ((bv)->length > 0) {                                                                                        \
             for (idx = (bv)->length - 1; (idx) < (bv)->length; --(idx)) {                                              \
                 bool var = BitVecGet(bv, idx);                                                                         \
@@ -130,7 +130,7 @@
 #define BitVecForeachInRangeIdx(bv, var, idx, start, end, body)                                                        \
     do {                                                                                                               \
         ValidateBitVec(bv);                                                                                            \
-        u64 idx = 0;                                                                                                  \
+        u64 idx = 0;                                                                                                   \
         if ((bv)->length > 0) {                                                                                        \
             if ((end) > (bv)->length) {                                                                                \
                 LOG_FATAL(                                                                                             \

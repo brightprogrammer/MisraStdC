@@ -12,6 +12,15 @@ bool test_bitvec_set(void);
 bool test_bitvec_flip(void);
 bool test_bitvec_length_capacity(void);
 bool test_bitvec_count_operations(void);
+bool test_bitvec_get_edge_cases(void);
+bool test_bitvec_set_edge_cases(void);
+bool test_bitvec_flip_edge_cases(void);
+bool test_bitvec_count_edge_cases(void);
+bool test_bitvec_access_multiple_operations(void);
+bool test_bitvec_access_large_patterns(void);
+bool test_bitvec_macro_functions(void);
+bool test_bitvec_access_stress_test(void);
+bool test_bitvec_bit_patterns_comprehensive(void);
 
 // Test BitVecGet function
 bool test_bitvec_get(void) {
@@ -178,7 +187,7 @@ bool test_bitvec_get_edge_cases(void) {
 
     // Test boundary conditions (no longer test empty bitvec - strict bounds checking now)
     BitVecPush(&bv, true);
-    result = result && (BitVecGet(&bv, 0) == true);  // Valid index
+    result = result && (BitVecGet(&bv, 0) == true); // Valid index
 
     // Test with large data set
     BitVecClear(&bv);
@@ -288,6 +297,183 @@ bool test_bitvec_access_multiple_operations(void) {
     return result;
 }
 
+// NEW: Test large bit patterns and complex access patterns
+bool test_bitvec_access_large_patterns(void) {
+    printf("Testing BitVec large pattern access\n");
+
+    BitVec bv     = BitVecInit();
+    bool   result = true;
+
+    // Create a large repeating pattern: 10110100 (8-bit pattern)
+    u8 pattern = 0b10110100; // 10110100
+    for (int repeat = 0; repeat < 500; repeat++) {
+        for (int bit = 0; bit < 8; bit++) {
+            bool bit_value = (pattern & (1u << bit)) != 0;
+            BitVecPush(&bv, bit_value);
+        }
+    }
+
+    // Verify pattern integrity at various points
+    for (int check = 0; check < 50; check++) {
+        u64 base_idx = check * 80; // Check every 80 bits
+        if (base_idx + 7 < bv.length) {
+            for (int bit = 0; bit < 8; bit++) {
+                bool expected = (pattern & (1u << bit)) != 0;
+                bool actual   = BitVecGet(&bv, base_idx + bit);
+                result        = result && (actual == expected);
+            }
+        }
+    }
+
+    // Test random access across the large dataset
+    result = result && (BitVecGet(&bv, 0) == false);            // First bit of pattern
+    result = result && (BitVecGet(&bv, 2) == true);             // Third bit of pattern
+    result = result && (BitVecGet(&bv, bv.length - 1) == true); // Last bit
+
+    BitVecDeinit(&bv);
+    return result;
+}
+
+// NEW: Test macro functions comprehensively
+bool test_bitvec_macro_functions(void) {
+    printf("Testing BitVec macro functions\n");
+
+    BitVec bv     = BitVecInit();
+    bool   result = true;
+
+    // Test all macros on empty bitvector
+    result = result && (BitVecLen(&bv) == 0);
+    result = result && (BitVecCapacity(&bv) == 0);
+    result = result && BitVecEmpty(&bv);
+    result = result && (BitVecByteSize(&bv) == 0);
+
+    // Add bits and test macros again
+    for (int i = 0; i < 65; i++) { // Test across byte boundaries
+        BitVecPush(&bv, i % 2 == 0);
+    }
+
+    result = result && (BitVecLen(&bv) == 65);
+    result = result && (BitVecCapacity(&bv) >= 65);
+    result = result && !BitVecEmpty(&bv);
+    result = result && (BitVecByteSize(&bv) >= 9); // At least 9 bytes for 65 bits
+
+    // Test with exactly power-of-2 sizes
+    BitVecClear(&bv);
+    for (int i = 0; i < 64; i++) { // Exactly 64 bits
+        BitVecPush(&bv, true);
+    }
+
+    result = result && (BitVecLen(&bv) == 64);
+    result = result && (BitVecByteSize(&bv) >= 8); // At least 8 bytes for 64 bits
+
+    BitVecDeinit(&bv);
+    return result;
+}
+
+// NEW: Stress test for access operations
+bool test_bitvec_access_stress_test(void) {
+    printf("Testing BitVec access stress test\n");
+
+    BitVec bv     = BitVecInit();
+    bool   result = true;
+
+    // Create a large bitvector with known pattern
+    const u64 size = 10000;
+    for (u64 i = 0; i < size; i++) {
+        // Pattern: alternating every 7 bits
+        BitVecPush(&bv, (i / 7) % 2 == 0);
+    }
+
+    // Stress test random access patterns
+    for (int test = 0; test < 1000; test++) {
+        u64  idx      = (test * 7 + test * 3) % size; // Pseudo-random indices
+        bool expected = (idx / 7) % 2 == 0;
+        bool actual   = BitVecGet(&bv, idx);
+        result        = result && (actual == expected);
+    }
+
+    // Stress test setting and getting at boundaries
+    u64 boundaries[]   = {0, 1, 7, 8, 63, 64, 127, 128, 255, 256, 511, 512, 1023, 1024, size - 1};
+    int boundary_count = sizeof(boundaries) / sizeof(boundaries[0]);
+
+    for (int i = 0; i < boundary_count; i++) {
+        if (boundaries[i] < size) {
+            bool original = BitVecGet(&bv, boundaries[i]);
+            BitVecFlip(&bv, boundaries[i]);
+            result = result && (BitVecGet(&bv, boundaries[i]) == !original);
+            BitVecFlip(&bv, boundaries[i]); // Flip back
+            result = result && (BitVecGet(&bv, boundaries[i]) == original);
+        }
+    }
+
+    BitVecDeinit(&bv);
+    return result;
+}
+
+// NEW: Comprehensive bit pattern testing
+bool test_bitvec_bit_patterns_comprehensive(void) {
+    printf("Testing BitVec comprehensive bit patterns\n");
+
+    BitVec bv     = BitVecInit();
+    bool   result = true;
+
+    // Test all-zeros pattern
+    for (int i = 0; i < 100; i++) {
+        BitVecPush(&bv, false);
+    }
+
+    result = result && (BitVecCountOnes(&bv) == 0);
+    result = result && (BitVecCountZeros(&bv) == 100);
+
+    // Verify all bits are false
+    for (int i = 0; i < 100; i++) {
+        result = result && (BitVecGet(&bv, i) == false);
+    }
+
+    // Change to all-ones pattern
+    for (int i = 0; i < 100; i++) {
+        BitVecSet(&bv, i, true);
+    }
+
+    result = result && (BitVecCountOnes(&bv) == 100);
+    result = result && (BitVecCountZeros(&bv) == 0);
+
+    // Test checkerboard pattern
+    BitVecClear(&bv);
+    for (int i = 0; i < 100; i++) {
+        BitVecPush(&bv, i % 2 == 0);
+    }
+
+    result = result && (BitVecCountOnes(&bv) == 50);
+    result = result && (BitVecCountZeros(&bv) == 50);
+
+    // Verify checkerboard pattern
+    for (int i = 0; i < 100; i++) {
+        bool expected = (i % 2 == 0);
+        result        = result && (BitVecGet(&bv, i) == expected);
+    }
+
+    // Test Fibonacci-like pattern (each bit is XOR of previous two)
+    BitVecClear(&bv);
+    BitVecPush(&bv, true); // F(0) = 1
+    BitVecPush(&bv, true); // F(1) = 1
+    for (int i = 2; i < 50; i++) {
+        bool prev1 = BitVecGet(&bv, i - 1);
+        bool prev2 = BitVecGet(&bv, i - 2);
+        BitVecPush(&bv, prev1 != prev2); // XOR
+    }
+
+    // Verify first few Fibonacci bits
+    result = result && (BitVecGet(&bv, 0) == true);  // F(0) = 1
+    result = result && (BitVecGet(&bv, 1) == true);  // F(1) = 1
+    result = result && (BitVecGet(&bv, 2) == false); // F(2) = 1 XOR 1 = 0
+    result = result && (BitVecGet(&bv, 3) == true);  // F(3) = 1 XOR 0 = 1
+    result = result && (BitVecGet(&bv, 4) == true);  // F(4) = 0 XOR 1 = 1
+
+    BitVecDeinit(&bv);
+    return result;
+}
+
 // Deadend tests
 bool test_bitvec_access_null_failures(void) {
     printf("Testing BitVec access NULL pointer handling\n");
@@ -320,7 +506,7 @@ bool test_bitvec_get_bounds_failures(void) {
     printf("Testing BitVec get bounds checking\n");
 
     BitVec bv = BitVecInit();
-    
+
     // Test get from empty bitvec - should abort
     BitVecGet(&bv, 0);
 
@@ -332,7 +518,7 @@ bool test_bitvec_set_bounds_failures(void) {
     printf("Testing BitVec set bounds checking\n");
 
     BitVec bv = BitVecInit();
-    
+
     // Test set on empty bitvec - should abort
     BitVecSet(&bv, 0, true);
 
@@ -344,9 +530,76 @@ bool test_bitvec_flip_bounds_failures(void) {
     printf("Testing BitVec flip bounds checking\n");
 
     BitVec bv = BitVecInit();
-    
+
     // Test flip on empty bitvec - should abort
     BitVecFlip(&bv, 0);
+
+    BitVecDeinit(&bv);
+    return false;
+}
+
+// NEW: More specific bounds checking deadend tests
+bool test_bitvec_get_large_index_failures(void) {
+    printf("Testing BitVec get with large out-of-bounds index\n");
+
+    BitVec bv = BitVecInit();
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false);
+    BitVecPush(&bv, true);
+
+    // Test with index way beyond length (3) - should abort
+    BitVecGet(&bv, 1000);
+
+    BitVecDeinit(&bv);
+    return false;
+}
+
+bool test_bitvec_set_large_index_failures(void) {
+    printf("Testing BitVec set with large out-of-bounds index\n");
+
+    BitVec bv = BitVecInit();
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false);
+
+    // Test with index way beyond length (2) - should abort
+    BitVecSet(&bv, 500, true);
+
+    BitVecDeinit(&bv);
+    return false;
+}
+
+bool test_bitvec_flip_edge_index_failures(void) {
+    printf("Testing BitVec flip with edge case out-of-bounds index\n");
+
+    BitVec bv = BitVecInit();
+    for (int i = 0; i < 10; i++) {
+        BitVecPush(&bv, i % 2 == 0);
+    }
+
+    // Test with index exactly at length (invalid) - should abort
+    BitVecFlip(&bv, 10);
+
+    BitVecDeinit(&bv);
+    return false;
+}
+
+bool test_bitvec_count_null_failures(void) {
+    printf("Testing BitVec count operations with NULL pointer\n");
+
+    // Test NULL bitvec pointer - should abort
+    BitVecCountOnes(NULL);
+
+    return false;
+}
+
+bool test_bitvec_get_max_index_failures(void) {
+    printf("Testing BitVec get with maximum index value\n");
+
+    BitVec bv = BitVecInit();
+    BitVecPush(&bv, true);
+
+    // Test with maximum possible index value - should abort
+    BitVecGet(&bv, SIZE_MAX);
 
     BitVecDeinit(&bv);
     return false;
@@ -367,7 +620,11 @@ int main(void) {
         test_bitvec_set_edge_cases,
         test_bitvec_flip_edge_cases,
         test_bitvec_count_edge_cases,
-        test_bitvec_access_multiple_operations
+        test_bitvec_access_multiple_operations,
+        test_bitvec_access_large_patterns,
+        test_bitvec_macro_functions,
+        test_bitvec_access_stress_test,
+        test_bitvec_bit_patterns_comprehensive
     };
 
     // Array of deadend test functions
@@ -377,7 +634,12 @@ int main(void) {
         test_bitvec_flip_null_failures,
         test_bitvec_get_bounds_failures,
         test_bitvec_set_bounds_failures,
-        test_bitvec_flip_bounds_failures
+        test_bitvec_flip_bounds_failures,
+        test_bitvec_get_large_index_failures,
+        test_bitvec_set_large_index_failures,
+        test_bitvec_flip_edge_index_failures,
+        test_bitvec_count_null_failures,
+        test_bitvec_get_max_index_failures
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);

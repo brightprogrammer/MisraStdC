@@ -32,7 +32,7 @@
 typedef struct {
     u64 length;    // Number of bits currently in bitvector
     u64 capacity;  // Max number of bits this bitvector can hold (in bits)
-    u8  *data;      // Bit data stored as bytes
+    u8 *data;      // Bit data stored as bytes
     u64 byte_size; // Size of data array in bytes
 } BitVec;
 
@@ -58,7 +58,7 @@ typedef struct {
             LOG_FATAL("Invalid bitvec object: length > 0 but data is NULL.");                                          \
         }                                                                                                              \
         if ((bv)->capacity > 0 && (bv)->byte_size * 8 < (bv)->capacity) {                                              \
-            LOG_FATAL("Invalid bitvec object: byte_u64 too small for capacity.");                                     \
+            LOG_FATAL("Invalid bitvec object: byte_u64 too small for capacity.");                                      \
         }                                                                                                              \
         if ((bv)->data) {                                                                                              \
             (void)((bv)->data[0]);                                                                                     \

@@ -34,7 +34,7 @@ bool test_bitvec_foreach_idx(void) {
     BitVecPush(&bv, false);
 
     // Test forward iteration with index
-    u64 count           = 0;
+    u64  count           = 0;
     bool pattern_correct = true;
 
     BitVecForeachIdx(&bv, bit, idx, {
@@ -98,7 +98,7 @@ bool test_bitvec_foreach_reverse_idx(void) {
     BitVecPush(&bv, false);
 
     // Test reverse iteration with index
-    u64 count              = 0;
+    u64  count              = 0;
     bool first_bit_is_false = false; // Should be last bit when iterating in reverse
 
     BitVecForeachReverseIdx(&bv, bit, idx, {
@@ -128,7 +128,7 @@ bool test_bitvec_foreach_reverse(void) {
     BitVecPush(&bv, true);
 
     // Test reverse iteration
-    u64 count         = 0;
+    u64  count         = 0;
     bool first_is_true = false; // Should be the last bit (true)
 
     BitVecForeachReverse(&bv, bit, {
@@ -160,7 +160,7 @@ bool test_bitvec_foreach_in_range_idx(void) {
     BitVecPush(&bv, true);
 
     // Test range iteration from index 1 to 4 (exclusive)
-    u64 count         = 0;
+    u64  count         = 0;
     bool range_correct = true;
 
     BitVecForeachInRangeIdx(&bv, bit, idx, 1, 4, {
@@ -259,7 +259,7 @@ bool test_bitvec_foreach_idx_edge_cases(void) {
 
     BitVec bv       = BitVecInit();
     bool   result   = true;
-    u64   last_idx = SIZE_MAX;
+    u64    last_idx = SIZE_MAX;
 
     // Test foreach idx on empty bitvec
     BitVecForeachIdx(&bv, bit, idx, {

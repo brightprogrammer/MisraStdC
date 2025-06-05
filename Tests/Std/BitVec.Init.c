@@ -113,7 +113,7 @@ bool test_bitvec_clear(void) {
 
     // Check initial state
     bool result            = (bv.length == 4) && (bv.data != NULL);
-    u64 original_capacity = bv.capacity;
+    u64  original_capacity = bv.capacity;
 
     // Clear the bitvector
     BitVecClear(&bv);

@@ -21,9 +21,12 @@ bool test_bitvec_shift_edge_cases(void);
 bool test_bitvec_rotate_edge_cases(void);
 bool test_bitvec_bitwise_ops_edge_cases(void);
 bool test_bitvec_reverse_edge_cases(void);
-bool test_bitvec_bitwise_null_failures(void);
-bool test_bitvec_bitwise_ops_null_failures(void);
-bool test_bitvec_reverse_null_failures(void);
+bool test_bitvec_bitwise_comprehensive(void);
+bool test_bitvec_shift_comprehensive(void);
+bool test_bitvec_rotate_comprehensive(void);
+bool test_bitvec_bitwise_identity_operations(void);
+bool test_bitvec_bitwise_commutative_properties(void);
+bool test_bitvec_bitwise_large_patterns(void);
 
 // Test BitVecAnd function
 bool test_bitvec_and(void) {
@@ -169,27 +172,40 @@ bool test_bitvec_not(void) {
     return test_result;
 }
 
-// Test BitVecShiftLeft function
+// Test BitVecShiftLeft function - CORRECTED EXPECTATIONS
 bool test_bitvec_shift_left(void) {
     printf("Testing BitVecShiftLeft\n");
 
     BitVec bv = BitVecInit();
 
-    // Set up bitvector: 1011
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, true);
+    // Set up bitvector: 1011 (indices 0,1,2,3)
+    BitVecPush(&bv, true);  // index 0
+    BitVecPush(&bv, false); // index 1
+    BitVecPush(&bv, true);  // index 2
+    BitVecPush(&bv, true);  // index 3
 
     // Shift left by 2 positions
+    // Original: 1011 (bit 0=1, bit 1=0, bit 2=1, bit 3=1)
+    // After shift left by 2: bits move to higher indices, lower indices filled with 0
+    // New: 0011 (bit 0=0, bit 1=0, bit 2=1, bit 3=0) - but we shift out the high bits
     BitVecShiftLeft(&bv, 2);
 
-    // Expected result: 1100 (1011 << 2, new bits filled with 0)
+    // After shift left by 2, implementation should clear bits that shift out
+    // and fill lower positions with 0
     bool test_result = (bv.length == 4);
-    test_result      = test_result && (BitVecGet(&bv, 0) == false);
-    test_result      = test_result && (BitVecGet(&bv, 1) == false);
-    test_result      = test_result && (BitVecGet(&bv, 2) == true);
-    test_result      = test_result && (BitVecGet(&bv, 3) == false);
+
+    // Let me trace through the implementation:
+    // Original: bit[0]=1, bit[1]=0, bit[2]=1, bit[3]=1
+    // Shift left by 2 means bits move to higher indices:
+    // New bit[2] = old bit[0] = 1
+    // New bit[3] = old bit[1] = 0
+    // New bit[0] = 0 (filled)
+    // New bit[1] = 0 (filled)
+    // Expected result: 0010
+    test_result = test_result && (BitVecGet(&bv, 0) == false);
+    test_result = test_result && (BitVecGet(&bv, 1) == false);
+    test_result = test_result && (BitVecGet(&bv, 2) == true);
+    test_result = test_result && (BitVecGet(&bv, 3) == false);
 
     // Clean up
     BitVecDeinit(&bv);
@@ -197,26 +213,32 @@ bool test_bitvec_shift_left(void) {
     return test_result;
 }
 
-// Test BitVecShiftRight function
+// Test BitVecShiftRight function - CORRECTED EXPECTATIONS
 bool test_bitvec_shift_right(void) {
     printf("Testing BitVecShiftRight\n");
 
     BitVec bv = BitVecInit();
 
     // Set up bitvector: 1011
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);  // index 0
+    BitVecPush(&bv, false); // index 1
+    BitVecPush(&bv, true);  // index 2
+    BitVecPush(&bv, true);  // index 3
 
     // Shift right by 2 positions
+    // Original: 1011 (bit 0=1, bit 1=0, bit 2=1, bit 3=1)
+    // After shift right by 2: bits move to lower indices
+    // New bit[0] = old bit[2] = 1
+    // New bit[1] = old bit[3] = 1
+    // New bit[2] = 0 (filled)
+    // New bit[3] = 0 (filled)
+    // Expected result: 1100
     BitVecShiftRight(&bv, 2);
 
-    // Expected result: 0010 (1011 >> 2, new bits filled with 0)
     bool test_result = (bv.length == 4);
-    test_result      = test_result && (BitVecGet(&bv, 0) == false);
-    test_result      = test_result && (BitVecGet(&bv, 1) == false);
-    test_result      = test_result && (BitVecGet(&bv, 2) == true);
+    test_result      = test_result && (BitVecGet(&bv, 0) == true);
+    test_result      = test_result && (BitVecGet(&bv, 1) == true);
+    test_result      = test_result && (BitVecGet(&bv, 2) == false);
     test_result      = test_result && (BitVecGet(&bv, 3) == false);
 
     // Clean up
@@ -446,6 +468,417 @@ bool test_bitvec_reverse_edge_cases(void) {
     return result;
 }
 
+// NEW: Comprehensive bitwise operations testing
+bool test_bitvec_bitwise_comprehensive(void) {
+    printf("Testing BitVec comprehensive bitwise operations\n");
+
+    BitVec bv1         = BitVecInit();
+    BitVec bv2         = BitVecInit();
+    BitVec result      = BitVecInit();
+    bool   test_result = true;
+
+    // Test with different length operands
+    // bv1: 11010110 (8 bits)
+    // bv2: 1011     (4 bits)
+    for (int i = 0; i < 8; i++) {
+        BitVecPush(&bv1, (0b11010110 >> i) & 1);
+    }
+    for (int i = 0; i < 4; i++) {
+        BitVecPush(&bv2, (0b1011 >> i) & 1);
+    }
+
+    // Test AND with different lengths (result should be min length)
+    BitVecAnd(&result, &bv1, &bv2);
+    test_result = test_result && (result.length == 4);
+
+    // Test OR with different lengths (result should be max length)
+    BitVecOr(&result, &bv1, &bv2);
+    test_result = test_result && (result.length == 8);
+
+    // Test XOR with different lengths
+    BitVecXor(&result, &bv1, &bv2);
+    test_result = test_result && (result.length == 8);
+
+    // Test with single bit operands
+    BitVecClear(&bv1);
+    BitVecClear(&bv2);
+    BitVecPush(&bv1, true);
+    BitVecPush(&bv2, false);
+
+    BitVecAnd(&result, &bv1, &bv2);
+    test_result = test_result && (result.length == 1);
+    test_result = test_result && (BitVecGet(&result, 0) == false);
+
+    BitVecOr(&result, &bv1, &bv2);
+    test_result = test_result && (BitVecGet(&result, 0) == true);
+
+    // Test NOT on large bitvector
+    BitVecClear(&bv1);
+    for (int i = 0; i < 100; i++) {
+        BitVecPush(&bv1, i % 3 == 0);
+    }
+
+    BitVecNot(&result, &bv1);
+    test_result = test_result && (result.length == 100);
+
+    // Verify NOT correctness
+    for (int i = 0; i < 100; i++) {
+        bool original = BitVecGet(&bv1, i);
+        bool inverted = BitVecGet(&result, i);
+        test_result   = test_result && (original != inverted);
+    }
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    BitVecDeinit(&result);
+    return test_result;
+}
+
+// NEW: Comprehensive shift testing
+bool test_bitvec_shift_comprehensive(void) {
+    printf("Testing BitVec comprehensive shift operations\n");
+
+    BitVec bv     = BitVecInit();
+    bool   result = true;
+
+    // Test shift with known pattern that will show data loss
+    // Pattern: 10101010 10101011 (16 bits) - asymmetric to detect shifts
+    for (int i = 0; i < 15; i++) {
+        BitVecPush(&bv, i % 2 == 0);
+    }
+    BitVecPush(&bv, true); // Make the last bit different to break symmetry
+
+    // Test various shift amounts
+    BitVec original = BitVecClone(&bv);
+
+    // Shift left by 1, then right by 1 - should NOT restore original (data loss)
+    BitVecShiftLeft(&bv, 1);
+    BitVecShiftRight(&bv, 1);
+
+    // Should be different from original (lost MSB, gained LSB zero)
+    bool changed = false;
+    for (int i = 0; i < (int)original.length; i++) {
+        if (BitVecGet(&bv, i) != BitVecGet(&original, i)) {
+            changed = true;
+            break;
+        }
+    }
+    result = result && changed;
+
+    // Test shifting by exactly length (should clear everything)
+    BitVecClear(&bv);
+    for (int i = 0; i < 8; i++) {
+        BitVecPush(&bv, true);
+    }
+
+    BitVecShiftLeft(&bv, 8);
+    result = result && (bv.length == 0);
+
+    // Test shifting by more than length
+    BitVecClear(&bv);
+    for (int i = 0; i < 5; i++) {
+        BitVecPush(&bv, true);
+    }
+
+    BitVecShiftRight(&bv, 10);
+    result = result && (bv.length == 0);
+
+    // Test boundary conditions - shift by length-1
+    BitVecClear(&bv);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false);
+
+    BitVecShiftLeft(&bv, 2);
+    result = result && (bv.length == 3);
+    result = result && (BitVecGet(&bv, 0) == false); // filled with 0
+    result = result && (BitVecGet(&bv, 1) == false); // filled with 0
+    result = result && (BitVecGet(&bv, 2) == true);  // original bit 0
+
+    BitVecDeinit(&bv);
+    BitVecDeinit(&original);
+    return result;
+}
+
+// NEW: Comprehensive rotate testing
+bool test_bitvec_rotate_comprehensive(void) {
+    printf("Testing BitVec comprehensive rotate operations\n");
+
+    BitVec bv     = BitVecInit();
+    bool   result = true;
+
+    // Test that rotate left by n, then rotate right by n restores original
+    // Pattern: 10110100
+    for (int i = 0; i < 8; i++) {
+        BitVecPush(&bv, (0b10110100 >> i) & 1);
+    }
+
+    BitVec original = BitVecClone(&bv);
+
+    // Rotate left by 3, then right by 3
+    BitVecRotateLeft(&bv, 3);
+    BitVecRotateRight(&bv, 3);
+
+    // Should restore original
+    bool restored = true;
+    for (int i = 0; i < 8; i++) {
+        if (BitVecGet(&bv, i) != BitVecGet(&original, i)) {
+            restored = false;
+            break;
+        }
+    }
+    result = result && restored;
+
+    // Test rotate by multiple of length (should be no-op)
+    BitVecRotateLeft(&bv, 16); // 8 * 2
+
+    bool unchanged = true;
+    for (int i = 0; i < 8; i++) {
+        if (BitVecGet(&bv, i) != BitVecGet(&original, i)) {
+            unchanged = false;
+            break;
+        }
+    }
+    result = result && unchanged;
+
+    // Test rotate with odd length
+    BitVecClear(&bv);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false);
+    BitVecPush(&bv, true); // 5 bits: 10101
+
+    BitVecRotateLeft(&bv, 2);
+    // 10101 -> 10110 (rotated left by 2)
+    result = result && (BitVecGet(&bv, 0) == true);
+    result = result && (BitVecGet(&bv, 1) == false);
+    result = result && (BitVecGet(&bv, 2) == true);
+    result = result && (BitVecGet(&bv, 3) == true);
+    result = result && (BitVecGet(&bv, 4) == false);
+
+    BitVecDeinit(&bv);
+    BitVecDeinit(&original);
+    return result;
+}
+
+// NEW: Identity operations testing
+bool test_bitvec_bitwise_identity_operations(void) {
+    printf("Testing BitVec bitwise identity operations\n");
+
+    BitVec bv1         = BitVecInit();
+    BitVec bv2         = BitVecInit();
+    BitVec result      = BitVecInit();
+    bool   test_result = true;
+
+    // Create test pattern
+    for (int i = 0; i < 16; i++) {
+        BitVecPush(&bv1, i % 3 == 0);
+    }
+
+    // Test A AND A = A
+    BitVecAnd(&result, &bv1, &bv1);
+    bool and_identity = true;
+    for (int i = 0; i < 16; i++) {
+        if (BitVecGet(&result, i) != BitVecGet(&bv1, i)) {
+            and_identity = false;
+            break;
+        }
+    }
+    test_result = test_result && and_identity;
+
+    // Test A OR A = A
+    BitVecOr(&result, &bv1, &bv1);
+    bool or_identity = true;
+    for (int i = 0; i < 16; i++) {
+        if (BitVecGet(&result, i) != BitVecGet(&bv1, i)) {
+            or_identity = false;
+            break;
+        }
+    }
+    test_result = test_result && or_identity;
+
+    // Test A XOR A = 0
+    BitVecXor(&result, &bv1, &bv1);
+    test_result = test_result && (result.length == 16);
+    for (int i = 0; i < 16; i++) {
+        test_result = test_result && (BitVecGet(&result, i) == false);
+    }
+
+    // Test NOT(NOT(A)) = A
+    BitVecNot(&result, &bv1);    // result = NOT(A)
+    BitVecNot(&result, &result); // result = NOT(NOT(A))
+
+    bool double_not = true;
+    for (int i = 0; i < 16; i++) {
+        if (BitVecGet(&result, i) != BitVecGet(&bv1, i)) {
+            double_not = false;
+            break;
+        }
+    }
+    test_result = test_result && double_not;
+
+    // Test A AND 0 = 0
+    BitVecClear(&bv2);
+    for (int i = 0; i < 16; i++) {
+        BitVecPush(&bv2, false);
+    }
+
+    BitVecAnd(&result, &bv1, &bv2);
+    bool and_zero = true;
+    for (int i = 0; i < 16; i++) {
+        if (BitVecGet(&result, i) != false) {
+            and_zero = false;
+            break;
+        }
+    }
+    test_result = test_result && and_zero;
+
+    // Test A OR 1 = 1
+    BitVecClear(&bv2);
+    for (int i = 0; i < 16; i++) {
+        BitVecPush(&bv2, true);
+    }
+
+    BitVecOr(&result, &bv1, &bv2);
+    bool or_ones = true;
+    for (int i = 0; i < 16; i++) {
+        if (BitVecGet(&result, i) != true) {
+            or_ones = false;
+            break;
+        }
+    }
+    test_result = test_result && or_ones;
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    BitVecDeinit(&result);
+    return test_result;
+}
+
+// NEW: Commutative properties testing
+bool test_bitvec_bitwise_commutative_properties(void) {
+    printf("Testing BitVec bitwise commutative properties\n");
+
+    BitVec bv1         = BitVecInit();
+    BitVec bv2         = BitVecInit();
+    BitVec result1     = BitVecInit();
+    BitVec result2     = BitVecInit();
+    bool   test_result = true;
+
+    // Create different patterns
+    for (int i = 0; i < 12; i++) {
+        BitVecPush(&bv1, i % 2 == 0);
+        BitVecPush(&bv2, i % 3 == 0);
+    }
+
+    // Test A AND B = B AND A
+    BitVecAnd(&result1, &bv1, &bv2);
+    BitVecAnd(&result2, &bv2, &bv1);
+
+    bool and_commutative = true;
+    for (int i = 0; i < 12; i++) {
+        if (BitVecGet(&result1, i) != BitVecGet(&result2, i)) {
+            and_commutative = false;
+            break;
+        }
+    }
+    test_result = test_result && and_commutative;
+
+    // Test A OR B = B OR A
+    BitVecOr(&result1, &bv1, &bv2);
+    BitVecOr(&result2, &bv2, &bv1);
+
+    bool or_commutative = true;
+    for (int i = 0; i < 12; i++) {
+        if (BitVecGet(&result1, i) != BitVecGet(&result2, i)) {
+            or_commutative = false;
+            break;
+        }
+    }
+    test_result = test_result && or_commutative;
+
+    // Test A XOR B = B XOR A
+    BitVecXor(&result1, &bv1, &bv2);
+    BitVecXor(&result2, &bv2, &bv1);
+
+    bool xor_commutative = true;
+    for (int i = 0; i < 12; i++) {
+        if (BitVecGet(&result1, i) != BitVecGet(&result2, i)) {
+            xor_commutative = false;
+            break;
+        }
+    }
+    test_result = test_result && xor_commutative;
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    BitVecDeinit(&result1);
+    BitVecDeinit(&result2);
+    return test_result;
+}
+
+// NEW: Large pattern testing
+bool test_bitvec_bitwise_large_patterns(void) {
+    printf("Testing BitVec bitwise operations with large patterns\n");
+
+    BitVec bv1         = BitVecInit();
+    BitVec bv2         = BitVecInit();
+    BitVec result      = BitVecInit();
+    bool   test_result = true;
+
+    // Create large bitvectors (1000 bits each)
+    for (int i = 0; i < 1000; i++) {
+        BitVecPush(&bv1, i % 7 == 0);  // Pattern every 7 bits
+        BitVecPush(&bv2, i % 11 == 0); // Pattern every 11 bits
+    }
+
+    // Test AND on large data
+    BitVecAnd(&result, &bv1, &bv2);
+    test_result = test_result && (result.length == 1000);
+
+    // Verify result integrity - spot check a few positions
+    for (int i = 0; i < 1000; i += 77) { // Check every 77th bit
+        bool expected = (i % 7 == 0) && (i % 11 == 0);
+        bool actual   = BitVecGet(&result, i);
+        test_result   = test_result && (expected == actual);
+    }
+
+    // Test XOR on large data
+    BitVecXor(&result, &bv1, &bv2);
+    test_result = test_result && (result.length == 1000);
+
+    // Test NOT on large data
+    BitVecNot(&result, &bv1);
+    test_result = test_result && (result.length == 1000);
+
+    // Verify NOT correctness on sample
+    for (int i = 0; i < 1000; i += 123) {
+        bool original = BitVecGet(&bv1, i);
+        bool inverted = BitVecGet(&result, i);
+        test_result   = test_result && (original != inverted);
+    }
+
+    // Test shift on large data
+    BitVecClear(&result);
+    for (int i = 0; i < 1000; i++) {
+        BitVecPush(&result, i % 2 == 0);
+    }
+
+    BitVecShiftLeft(&result, 100);
+    test_result = test_result && (result.length == 1000);
+
+    // First 100 bits should be 0
+    for (int i = 0; i < 100; i++) {
+        test_result = test_result && (BitVecGet(&result, i) == false);
+    }
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    BitVecDeinit(&result);
+    return test_result;
+}
+
 // Deadend tests
 bool test_bitvec_bitwise_null_failures(void) {
     printf("Testing BitVec bitwise NULL pointer handling\n");
@@ -479,6 +912,81 @@ bool test_bitvec_reverse_null_failures(void) {
     return false;
 }
 
+// NEW: Additional deadend tests
+bool test_bitvec_shift_ops_null_failures(void) {
+    printf("Testing BitVec shift operations NULL handling\n");
+
+    // Test NULL pointer for shift right - should abort
+    BitVecShiftRight(NULL, 5);
+
+    return false;
+}
+
+bool test_bitvec_rotate_ops_null_failures(void) {
+    printf("Testing BitVec rotate operations NULL handling\n");
+
+    // Test NULL pointer for rotate - should abort
+    BitVecRotateLeft(NULL, 3);
+
+    return false;
+}
+
+bool test_bitvec_and_result_null_failures(void) {
+    printf("Testing BitVec AND with NULL result handling\n");
+
+    BitVec bv1 = BitVecInit();
+    BitVec bv2 = BitVecInit();
+    BitVecPush(&bv1, true);
+    BitVecPush(&bv2, false);
+
+    // Test NULL result pointer - should abort
+    BitVecAnd(NULL, &bv1, &bv2);
+
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv2);
+    return false;
+}
+
+bool test_bitvec_or_operand_null_failures(void) {
+    printf("Testing BitVec OR with NULL operand handling\n");
+
+    BitVec result = BitVecInit();
+    BitVec bv1    = BitVecInit();
+
+    // Test NULL operand - should abort
+    BitVecOr(&result, &bv1, NULL);
+
+    BitVecDeinit(&result);
+    BitVecDeinit(&bv1);
+    return false;
+}
+
+bool test_bitvec_xor_second_operand_null_failures(void) {
+    printf("Testing BitVec XOR with NULL second operand handling\n");
+
+    BitVec result = BitVecInit();
+    BitVec bv1    = BitVecInit();
+
+    // Test NULL second operand - should abort
+    BitVecXor(&result, NULL, &bv1);
+
+    BitVecDeinit(&result);
+    BitVecDeinit(&bv1);
+    return false;
+}
+
+bool test_bitvec_not_null_failures(void) {
+    printf("Testing BitVec NOT with NULL handling\n");
+
+    BitVec result = BitVecInit();
+
+    // Test NULL operand - should abort
+    BitVecNot(&result, NULL);
+
+    BitVecDeinit(&result);
+    return false;
+}
+
 // Main function that runs all tests
 int main(void) {
     printf("[INFO] Starting BitVec.BitWise tests\n\n");
@@ -497,14 +1005,26 @@ int main(void) {
         test_bitvec_shift_edge_cases,
         test_bitvec_rotate_edge_cases,
         test_bitvec_bitwise_ops_edge_cases,
-        test_bitvec_reverse_edge_cases
+        test_bitvec_reverse_edge_cases,
+        test_bitvec_bitwise_comprehensive,
+        test_bitvec_shift_comprehensive,
+        test_bitvec_rotate_comprehensive,
+        test_bitvec_bitwise_identity_operations,
+        test_bitvec_bitwise_commutative_properties,
+        test_bitvec_bitwise_large_patterns
     };
 
     // Array of deadend test functions
     TestFunction deadend_tests[] = {
         test_bitvec_bitwise_null_failures,
         test_bitvec_bitwise_ops_null_failures,
-        test_bitvec_reverse_null_failures
+        test_bitvec_reverse_null_failures,
+        test_bitvec_shift_ops_null_failures,
+        test_bitvec_rotate_ops_null_failures,
+        test_bitvec_and_result_null_failures,
+        test_bitvec_or_operand_null_failures,
+        test_bitvec_xor_second_operand_null_failures,
+        test_bitvec_not_null_failures
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);

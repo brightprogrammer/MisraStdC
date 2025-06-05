@@ -35,7 +35,7 @@ bool test_bitvec_shrink_to_fit(void) {
     BitVecReserve(&bv, 100);
 
     // Check that capacity is larger than length
-    u64 initial_capacity = bv.capacity;
+    u64  initial_capacity = bv.capacity;
     bool result           = (initial_capacity >= 100) && (bv.length == 3);
 
     // Shrink to fit
