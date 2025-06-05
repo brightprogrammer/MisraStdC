@@ -65,7 +65,8 @@ jobs:
             echo "Checking $file..."
             
             # Format the file and save to temp directory
-            formatted_file="/tmp/formatted/$(echo "$file" | sed 's|/|_|g')"
+            formatted_file="/tmp/formatted/$file"
+            mkdir -p "$(dirname "$formatted_file")"
             clang-format "$file" > "$formatted_file"
             
             # Compare original with formatted version
