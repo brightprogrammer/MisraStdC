@@ -92,12 +92,3 @@ jobs:
         fi
         
         exit $EXIT_CODE
-        
-    - name: Upload formatting diff (if any)
-      uses: actions/upload-artifact@v4
-      if: failure()
-      with:
-        name: formatting-diff
-        path: |
-          /tmp/formatted/
-        retention-days: 7 
