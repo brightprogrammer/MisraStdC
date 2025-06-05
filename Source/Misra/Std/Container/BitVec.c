@@ -18,26 +18,7 @@
 #define BIT_OFFSET(idx)      ((idx) % BITS_PER_BYTE)
 #define BYTES_FOR_BITS(bits) (((bits) + BITS_PER_BYTE - 1) / BITS_PER_BYTE)
 
-void BitVecInitWithData(BitVec *bitvec, const u8 *data, u64 byte_len, u64 bit_len) {
-    *bitvec = BitVecInit();
-    ValidateBitVec(bitvec);
 
-    if (!data) {
-        LOG_FATAL("BitVecInitWithData: data is NULL");
-    }
-    if (byte_len == 0) {
-        LOG_FATAL("BitVecInitWithData: byte_len is 0");
-    }
-    if (bit_len == 0) {
-        return; // Empty bitvector is valid
-    }
-
-    BitVecReserve(bitvec, bit_len);
-    bitvec->length = bit_len;
-
-    u64 copy_bytes = byte_len < bitvec->byte_size ? byte_len : bitvec->byte_size;
-    memcpy(bitvec->data, data, copy_bytes);
-}
 
 void BitVecDeinit(BitVec *bitvec) {
     ValidateBitVec(bitvec);
@@ -1254,15 +1235,20 @@ u64 BitVecRunLengths(BitVec *bv, u64 *runs, bool *values, u64 max_runs) {
     u64  current_run_length = 1;
     bool current_value      = BitVecGet(bv, 0);
 
-    for (u64 i = 1; i < bv->length && run_count < max_runs; i++) {
+    for (u64 i = 1; i < bv->length; i++) {
         bool bit = BitVecGet(bv, i);
         if (bit == current_value) {
             current_run_length++;
         } else {
-            // End of current run
-            runs[run_count]   = current_run_length;
-            values[run_count] = current_value;
-            run_count++;
+            // End of current run - check if we have space before writing
+            if (run_count < max_runs) {
+                runs[run_count]   = current_run_length;
+                values[run_count] = current_value;
+                run_count++;
+            } else {
+                // No more space, stop processing
+                break;
+            }
 
             // Start new run
             current_value      = bit;

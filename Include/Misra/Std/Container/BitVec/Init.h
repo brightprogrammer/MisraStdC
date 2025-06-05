@@ -60,23 +60,7 @@ extern "C" {
                    .byte_size = BITVEC_BYTES_FOR_BITS(cap)})
 #endif
 
-    ///
-    /// Initialize bitvector from existing data.
-    /// Creates a bitvector with bits set according to the provided data array.
-    ///
-    /// bv[in]       : Pointer to bitvector to initialize
-    /// data[in]     : Byte array containing the bit data
-    /// byte_len[in] : Length of the data array in bytes
-    /// bit_len[in]  : Number of valid bits (should be <= byte_len * 8)
-    ///
-    /// USAGE:
-    ///   u8 data[] = {0xFF, 0x00, 0xAA};
-    ///   BitVec flags;
-    ///   BitVecInitWithData(&flags, data, 3, 20);
-    ///
-    /// TAGS: Init, BitVec, Boolean, Bits, Data
-    ///
-    void BitVecInitWithData(BitVec *bv, const u8 *data, u64 byte_len, u64 bit_len);
+
 
     ///
     /// Deinitialize bitvector and free all allocated memory.
