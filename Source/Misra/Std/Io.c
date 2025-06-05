@@ -587,25 +587,25 @@ static inline const char* read_chars_internal(const char* i, u8* buffer, size bu
         LOG_FATAL("Invalid arguments to read_chars_internal");
     }
 
-    size bytes_read = 0;
-    const char* current = i;
-    bool force_case = fmt_info && (fmt_info->flags & FMT_FLAG_FORCE_CASE) != 0;
-    bool is_caps = fmt_info && (fmt_info->flags & FMT_FLAG_CAPS) != 0;
+    size        bytes_read = 0;
+    const char* current    = i;
+    bool        force_case = fmt_info && (fmt_info->flags & FMT_FLAG_FORCE_CASE) != 0;
+    bool        is_caps    = fmt_info && (fmt_info->flags & FMT_FLAG_CAPS) != 0;
 
     while (bytes_read < buffer_size && *current && !IS_SPACE(*current)) {
         u8 char_to_store;
-        
+
         if (current[0] == '\\' && current[1] == 'x') {
             // Handle hex escape sequence \xNN
             if (isxdigit(current[2]) && isxdigit(current[3])) {
                 // Parse two hex digits
-                char hex_str[3] = {current[2], current[3], '\0'};
+                char  hex_str[3] = {current[2], current[3], '\0'};
                 char* endptr;
-                long hex_val = strtol(hex_str, &endptr, 16);
-                
+                long  hex_val = strtol(hex_str, &endptr, 16);
+
                 if (endptr == hex_str + 2) { // Successfully parsed 2 hex digits
-                    char_to_store = (u8)hex_val;
-                    current += 4; // Skip \xNN
+                    char_to_store  = (u8)hex_val;
+                    current       += 4;      // Skip \xNN
                 } else {
                     // Invalid hex sequence, treat as regular character
                     char_to_store = (u8)*current;
@@ -1106,7 +1106,7 @@ const char* _read_Str(const char* i, FmtInfo* fmt_info, Str* s) {
 
     // Check for case conversion flags
     bool force_case = fmt_info && (fmt_info->flags & FMT_FLAG_FORCE_CASE) != 0;
-    bool is_caps = fmt_info && (fmt_info->flags & FMT_FLAG_CAPS) != 0;
+    bool is_caps    = fmt_info && (fmt_info->flags & FMT_FLAG_CAPS) != 0;
 
     // Skip leading whitespace
     while (IS_SPACE(*i))
@@ -1135,24 +1135,24 @@ const char* _read_Str(const char* i, FmtInfo* fmt_info, Str* s) {
                     return NULL;
                 }
                 i = curr + 1; // Move past the escape sequence
-                
+
                 // Apply case conversion if needed
                 if (force_case) {
                     c = is_caps ? TO_UPPER(c) : TO_LOWER(c);
                 }
-                
+
                 StrPushBack(s, c);
             } else if (*i == quote) {
-                i++;          // Skip closing quote
-                return i;     // Successfully read quoted string
+                i++;      // Skip closing quote
+                return i; // Successfully read quoted string
             } else {
                 char c = *i++;
-                
+
                 // Apply case conversion if needed
                 if (force_case) {
                     c = is_caps ? TO_UPPER(c) : TO_LOWER(c);
                 }
-                
+
                 StrPushBack(s, c);
             }
         } else {
@@ -1169,21 +1169,21 @@ const char* _read_Str(const char* i, FmtInfo* fmt_info, Str* s) {
                     return NULL;
                 }
                 i = curr + 1; // Move past the escape sequence
-                
+
                 // Apply case conversion if needed
                 if (force_case) {
                     c = is_caps ? TO_UPPER(c) : TO_LOWER(c);
                 }
-                
+
                 StrPushBack(s, c);
             } else {
                 char c = *i++;
-                
+
                 // Apply case conversion if needed
                 if (force_case) {
                     c = is_caps ? TO_UPPER(c) : TO_LOWER(c);
                 }
-                
+
                 StrPushBack(s, c);
             }
         }
@@ -1366,10 +1366,10 @@ const char* _read_f64(const char* i, FmtInfo* fmt_info, f64* v) {
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-                  u64 temp = 0;
-          const char* next = read_chars_internal(i, (u8*)&temp, sizeof(temp), fmt_info);
-          *v = (f64)temp;
-          return next;
+        u64         temp = 0;
+        const char* next = read_chars_internal(i, (u8*)&temp, sizeof(temp), fmt_info);
+        *v               = (f64)temp;
+        return next;
     }
 
     // Skip whitespace
@@ -1547,9 +1547,9 @@ const char* _read_u16(const char* i, FmtInfo* fmt_info, u16* v) {
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        *v = 0;
+        *v               = 0;
         const char* next = read_chars_internal(i, (u8*)v, sizeof(*v), fmt_info);
- 
+
         return next;
     }
 
@@ -1620,11 +1620,11 @@ const char* _read_u32(const char* i, FmtInfo* fmt_info, u32* v) {
     if (!i || !v)
         LOG_FATAL("Invalid arguments");
 
-    // Handle character format specifier  
+    // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        *v = 0;
+        *v               = 0;
         const char* next = read_chars_internal(i, (u8*)v, sizeof(*v), fmt_info);
- 
+
         return next;
     }
 
@@ -1696,9 +1696,9 @@ const char* _read_u64(const char* i, FmtInfo* fmt_info, u64* v) {
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        *v = 0;
+        *v               = 0;
         const char* next = read_chars_internal(i, (u8*)v, sizeof(*v), fmt_info);
- 
+
         return next;
     }
 
@@ -1762,7 +1762,7 @@ const char* _read_i8(const char* i, FmtInfo* fmt_info, i8* v) {
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        *v = 0;
+        *v               = 0;
         const char* next = read_chars_internal(i, (u8*)v, sizeof(*v), fmt_info);
         return next;
     }
@@ -1836,9 +1836,9 @@ const char* _read_i16(const char* i, FmtInfo* fmt_info, i16* v) {
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        *v = 0;
+        *v               = 0;
         const char* next = read_chars_internal(i, (u8*)v, sizeof(*v), fmt_info);
- 
+
         return next;
     }
 
@@ -1911,9 +1911,9 @@ const char* _read_i32(const char* i, FmtInfo* fmt_info, i32* v) {
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        *v = 0;
+        *v               = 0;
         const char* next = read_chars_internal(i, (u8*)v, sizeof(*v), fmt_info);
- 
+
         return next;
     }
 
@@ -1986,9 +1986,9 @@ const char* _read_i64(const char* i, FmtInfo* fmt_info, i64* v) {
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        *v = 0;
+        *v               = 0;
         const char* next = read_chars_internal(i, (u8*)v, sizeof(*v), fmt_info);
- 
+
         return next;
     }
 
@@ -2051,9 +2051,9 @@ const char* _read_Zstr(const char* i, FmtInfo* fmt_info, const char** out) {
         LOG_FATAL("Invalid arguments");
 
     // For string types, :c has no effect - work like regular string reading
-    Str temp = StrInit();
-    FmtInfo default_fmt = {.align = ALIGN_RIGHT, .width = 0, .precision = 6, .flags = FMT_FLAG_NONE};
-    const char* next = _read_Str(i, &default_fmt, &temp);
+    Str         temp        = StrInit();
+    FmtInfo     default_fmt = {.align = ALIGN_RIGHT, .width = 0, .precision = 6, .flags = FMT_FLAG_NONE};
+    const char* next        = _read_Str(i, &default_fmt, &temp);
 
     // Check if reading failed
     if (next == i) {
@@ -2096,9 +2096,9 @@ const char* _read_f32(const char* i, FmtInfo* fmt_info, f32* v) {
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        u32 temp = 0;
+        u32         temp = 0;
         const char* next = read_chars_internal(i, (u8*)&temp, sizeof(temp), fmt_info);
-        *v = (f32)temp;
+        *v               = (f32)temp;
         return next;
     }
 
@@ -2201,4 +2201,3 @@ const char* _read_f32(const char* i, FmtInfo* fmt_info, f32* v) {
     StrDeinit(&temp);
     return start + pos;
 }
-

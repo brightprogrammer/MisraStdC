@@ -419,8 +419,13 @@ bool test_character_ordinal_reading(void) {
     StrReadFmt("AB", "{:c}", FMT(u16_val));
     bool u16_multi_pass = (ZstrCompareN((const char*)&u16_val, "AB", 2) == 0);
     printf("u16_val multi-char test: comparing memory with 'AB', pass = %s\n", u16_multi_pass ? "true" : "false");
-    printf("DEBUG: u16_val bytes: [%d, %d], expected 'AB' bytes: [%d, %d]\n", 
-           (int)((u8*)&u16_val)[0], (int)((u8*)&u16_val)[1], (int)'A', (int)'B');
+    printf(
+        "DEBUG: u16_val bytes: [%d, %d], expected 'AB' bytes: [%d, %d]\n",
+        (int)((u8*)&u16_val)[0],
+        (int)((u8*)&u16_val)[1],
+        (int)'A',
+        (int)'B'
+    );
     success = success && u16_multi_pass;
 
     // For i16, read 2 characters
@@ -471,7 +476,7 @@ bool test_character_ordinal_reading(void) {
     printf("f64_val = %f, expected = %f, pass = %s\n", f64_val, (f64)'B', f64_pass ? "true" : "false");
     success = success && f64_pass;
 
-    // Test with high ASCII characters 
+    // Test with high ASCII characters
     u8_val = 0;
     StrReadFmt("~", "{:c}", FMT(u8_val));
     bool tilde_pass = (u8_val == '~');
@@ -486,7 +491,7 @@ bool test_character_ordinal_reading(void) {
     success = success && xy_pass;
 
     u64_val = 0;
-    StrReadFmt("abc", "{:c}", FMT(u64_val)); 
+    StrReadFmt("abc", "{:c}", FMT(u64_val));
     bool abc_pass = (ZstrCompareN((const char*)&u64_val, "abc", 3) == 0);
     printf("u64_val partial test: comparing memory with 'abc', pass = %s\n", abc_pass ? "true" : "false");
     success = success && abc_pass;
@@ -494,8 +499,8 @@ bool test_character_ordinal_reading(void) {
     // Test that :c has no effect on string types (should work like regular string reading)
     Str str_val = StrInit();
     StrReadFmt("Hello", "{:c}", FMT(str_val));
-    
-    Str expected = StrInitFromZstr("Hello");
+
+    Str  expected = StrInitFromZstr("Hello");
     bool str_pass = (StrCmp(&str_val, &expected) == 0);
     printf("str_val test: comparing with 'Hello', pass = %s\n", str_pass ? "true" : "false");
     success = success && str_pass;
@@ -505,8 +510,8 @@ bool test_character_ordinal_reading(void) {
     // Test :c with quoted strings (should work like regular string reading)
     str_val = StrInit();
     StrReadFmt("\"World\"", "{:c}", FMT(str_val));
-    
-    expected = StrInitFromZstr("World");
+
+    expected             = StrInitFromZstr("World");
     bool quoted_str_pass = (StrCmp(&str_val, &expected) == 0);
     printf("quoted str_val test: comparing with 'World', pass = %s\n", quoted_str_pass ? "true" : "false");
     success = success && quoted_str_pass;
@@ -525,120 +530,120 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 1: :a (lowercase) conversion
     {
-        Str result = StrInit();
-        const char* input = "Hello World";
-        
+        Str         result = StrInit();
+        const char* input  = "Hello World";
+
         StrReadFmt(input, "{:a}", FMT(result));
-        
+
         printf("Test 1 - :a (lowercase)\n");
         printf("Input: '%s', Output: '", input);
         for (size_t i = 0; i < result.length; i++) {
             printf("%c", result.data[i]);
         }
         printf("'\n");
-        
+
         // Should read "hello" (stops at first space)
-        Str expected = StrInitFromZstr("hello");
+        Str  expected   = StrInitFromZstr("hello");
         bool test1_pass = (StrCmp(&result, &expected) == 0);
         printf("Expected: 'hello', Pass: %s\n\n", test1_pass ? "true" : "false");
         success = success && test1_pass;
-        
+
         StrDeinit(&expected);
         StrDeinit(&result);
     }
 
     // Test 2: :A (uppercase) conversion
     {
-        Str result = StrInit();
-        const char* input = "hello world";
-        
+        Str         result = StrInit();
+        const char* input  = "hello world";
+
         StrReadFmt(input, "{:A}", FMT(result));
-        
+
         printf("Test 2 - :A (uppercase)\n");
         printf("Input: '%s', Output: '", input);
         for (size_t i = 0; i < result.length; i++) {
             printf("%c", result.data[i]);
         }
         printf("'\n");
-        
+
         // Should read "HELLO" (stops at first space)
-        Str expected = StrInitFromZstr("HELLO");
+        Str  expected   = StrInitFromZstr("HELLO");
         bool test2_pass = (StrCmp(&result, &expected) == 0);
         printf("Expected: 'HELLO', Pass: %s\n\n", test2_pass ? "true" : "false");
         success = success && test2_pass;
-        
+
         StrDeinit(&expected);
         StrDeinit(&result);
     }
 
     // Test 3: :a with quoted string
     {
-        Str result = StrInit();
-        const char* input = "\"MiXeD CaSe\"";
-        
+        Str         result = StrInit();
+        const char* input  = "\"MiXeD CaSe\"";
+
         StrReadFmt(input, "{:a}", FMT(result));
-        
+
         printf("Test 3 - :a with quoted string\n");
         printf("Input: '%s', Output: '", input);
         for (size_t i = 0; i < result.length; i++) {
             printf("%c", result.data[i]);
         }
         printf("'\n");
-        
+
         // Should read "mixed case" (converts the entire quoted string)
-        Str expected = StrInitFromZstr("mixed case");
+        Str  expected   = StrInitFromZstr("mixed case");
         bool test3_pass = (StrCmp(&result, &expected) == 0);
         printf("Expected: 'mixed case', Pass: %s\n\n", test3_pass ? "true" : "false");
         success = success && test3_pass;
-        
+
         StrDeinit(&expected);
         StrDeinit(&result);
     }
 
     // Test 4: :A with quoted string containing special characters
     {
-        Str result = StrInit();
-        const char* input = "\"abc123XYZ\"";
-        
+        Str         result = StrInit();
+        const char* input  = "\"abc123XYZ\"";
+
         StrReadFmt(input, "{:A}", FMT(result));
-        
+
         printf("Test 4 - :A with mixed alphanumeric\n");
         printf("Input: '%s', Output: '", input);
         for (size_t i = 0; i < result.length; i++) {
             printf("%c", result.data[i]);
         }
         printf("'\n");
-        
+
         // Should read "ABC123XYZ" (only letters are converted, numbers unchanged)
-        Str expected = StrInitFromZstr("ABC123XYZ");
+        Str  expected   = StrInitFromZstr("ABC123XYZ");
         bool test4_pass = (StrCmp(&result, &expected) == 0);
         printf("Expected: 'ABC123XYZ', Pass: %s\n\n", test4_pass ? "true" : "false");
         success = success && test4_pass;
-        
+
         StrDeinit(&expected);
         StrDeinit(&result);
     }
 
     // Test 5: Regular :c format (no case conversion) for comparison
     {
-        Str result = StrInit();
-        const char* input = "Hello World";
-        
+        Str         result = StrInit();
+        const char* input  = "Hello World";
+
         StrReadFmt(input, "{:c}", FMT(result));
-        
+
         printf("Test 5 - :c (no case conversion)\n");
         printf("Input: '%s', Output: '", input);
         for (size_t i = 0; i < result.length; i++) {
             printf("%c", result.data[i]);
         }
         printf("'\n");
-        
+
         // Should read "Hello" (stops at first space, no case conversion)
-        Str expected = StrInitFromZstr("Hello");
+        Str  expected   = StrInitFromZstr("Hello");
         bool test5_pass = (StrCmp(&result, &expected) == 0);
         printf("Expected: 'Hello', Pass: %s\n\n", test5_pass ? "true" : "false");
         success = success && test5_pass;
-        
+
         StrDeinit(&expected);
         StrDeinit(&result);
     }

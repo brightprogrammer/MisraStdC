@@ -352,7 +352,8 @@ typedef i8 bool;
 /// FAILURE: Function cannot fail - pure bitwise operation.
 ///
 /// TAGS: Endianness, Bitwise, Conversion
-#define INVERT_ENDIANNESS4(x) (INVERT_ENDIANNESS2(((u32)x) & 0xffff) << 16) | INVERT_ENDIANNESS2((((u32)x) >> 16) & 0xffff)
+#define INVERT_ENDIANNESS4(x)                                                                                          \
+    (INVERT_ENDIANNESS2(((u32)x) & 0xffff) << 16) | INVERT_ENDIANNESS2((((u32)x) >> 16) & 0xffff)
 
 ///
 /// Inverts endianness of 64-bit (8-byte) value.
@@ -373,7 +374,7 @@ typedef i8 bool;
 /// FAILURE: Function cannot fail - evaluated at compile time.
 ///
 /// TAGS: Endianness, Platform, Detection
-#define IS_LITTLE_ENDIAN() (*(const u8*)&(const u16){1})
+#define IS_LITTLE_ENDIAN() (*(const u8 *)&(const u16) {1})
 
 ///
 /// Conditionally converts value from big-endian to native byte order.
