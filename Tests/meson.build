@@ -54,16 +54,23 @@ vec_deadend_tests = [
 bitvec_tests = [
     ['BitVec.Type', 'Std/BitVec.Type.c'],
     ['BitVec.Init', 'Std/BitVec.Init.c'],
-    ['BitVec.Access', 'Std/BitVec.Access.c'],
+    ['BitVec.Access.Simple', 'Std/BitVec.Access.Simple.c'],
     ['BitVec.Insert', 'Std/BitVec.Insert.c'],
     ['BitVec.Remove', 'Std/BitVec.Remove.c'],
     ['BitVec.Memory', 'Std/BitVec.Memory.c'],
-    ['BitVec.BitWise', 'Std/BitVec.BitWise.c'],
+    ['BitVec.BitWise.Simple', 'Std/BitVec.BitWise.Simple.c'],
     ['BitVec.Compare', 'Std/BitVec.Compare.c'],
     ['BitVec.Convert', 'Std/BitVec.Convert.c'],
-    ['BitVec.Pattern', 'Std/BitVec.Pattern.c'],
+    ['BitVec.Pattern.Simple', 'Std/BitVec.Pattern.Simple.c'],
     ['BitVec.Math', 'Std/BitVec.Math.c'],
-    ['BitVec.Foreach', 'Std/BitVec.Foreach.c'],
+    ['BitVec.Foreach.Simple', 'Std/BitVec.Foreach.Simple.c'],
+]
+
+bitvec_deadend_tests = [
+    ['BitVec.Access.Deadend', 'Std/BitVec.Access.Deadend.c'],
+    ['BitVec.BitWise.Deadend', 'Std/BitVec.BitWise.Deadend.c'],
+    ['BitVec.Pattern.Deadend', 'Std/BitVec.Pattern.Deadend.c'],
+    ['BitVec.Foreach.Deadend', 'Std/BitVec.Foreach.Deadend.c'],
 ]
 
 json_tests = [
@@ -158,6 +165,24 @@ foreach test_info : bitvec_tests
         c_args: test_args,
         include_directories: inc_misra,
         install: false
+    )
+    
+    test(test_name, test_exe)
+endforeach
+
+foreach test_info : bitvec_deadend_tests
+    test_name = test_info[0]
+    test_src = test_info[1]
+    
+    test_exe = executable(
+        test_name,
+        files(test_src),
+        link_with: [misra_std_no_sanitizers],  # Use the non-sanitized library
+        dependencies: [test_util_dep_no_sanitizers],  # Use non-sanitized test utils
+        c_args: test_args,
+        include_directories: inc_misra,
+        install: false,
+        override_options: ['b_sanitize=none']  # Disable all sanitizers for deadend tests
     )
     
     test(test_name, test_exe)
