@@ -75,6 +75,9 @@ typedef struct {
 ///
 #define ValidateVec(v)                                                                                                 \
     do {                                                                                                               \
+        if (!(v)) {                                                                                                    \
+            LOG_FATAL("NULL vec object pointer.");                                                                     \
+        }                                                                                                              \
         if (!(v)->alignment || (v)->length > (v)->capacity) {                                                          \
             LOG_FATAL("Invalid vec object.");                                                                          \
         }                                                                                                              \

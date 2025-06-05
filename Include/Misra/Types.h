@@ -78,6 +78,23 @@ typedef unsigned long size;
 #    define UINT64_MAX 18446744073709551615ULL
 #endif
 
+// Size type limits
+#ifndef SIZE_MAX
+#    if defined(_MSC_VER) || defined(__MSC_VER)
+#        if defined(_WIN64)
+#            define SIZE_MAX UINT64_MAX
+#        else
+#            define SIZE_MAX UINT32_MAX
+#        endif
+#    else
+#        if ULONG_MAX == UINT64_MAX
+#            define SIZE_MAX UINT64_MAX
+#        else
+#            define SIZE_MAX UINT32_MAX
+#        endif
+#    endif
+#endif
+
 // bool is already defined in C++ and C23
 #ifndef __cplusplus
 #    if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201710L

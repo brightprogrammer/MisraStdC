@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Container/BitVec.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
@@ -36,6 +37,7 @@ bool test_multiple_arguments_reading(void);
 bool test_error_handling_reading(void);
 bool test_character_ordinal_reading(void);
 bool test_string_case_conversion_reading(void);
+bool test_bitvec_reading(void);
 
 // Test decimal integer reading
 bool test_integer_decimal_reading(void) {
@@ -652,6 +654,74 @@ bool test_string_case_conversion_reading(void) {
     return success;
 }
 
+// Test BitVec reading
+bool test_bitvec_reading(void) {
+    printf("Testing BitVec reading\n");
+
+    bool success = true;
+
+    // Test 1: Reading binary string
+    BitVec bv1 = BitVecInit();
+    StrReadFmt("10110", "{}", FMT(bv1));
+    Str result1 = BitVecToStr(&bv1);
+    success     = success && (ZstrCompare(result1.data, "10110") == 0);
+    printf(
+        "Test 1 - Binary: %.*s, Success: %s\n",
+        (int)result1.length,
+        result1.data,
+        (ZstrCompare(result1.data, "10110") == 0) ? "true" : "false"
+    );
+    StrDeinit(&result1);
+    BitVecDeinit(&bv1);
+
+    // Test 2: Reading hex format
+    BitVec bv2 = BitVecInit();
+    StrReadFmt("0xDEAD", "{}", FMT(bv2));
+    u64 value2 = BitVecToInteger(&bv2);
+    success    = success && (value2 == 0xDEAD);
+    printf("Test 2 - Hex: 0x%llx, Success: %s\n", value2, (value2 == 0xDEAD) ? "true" : "false");
+    BitVecDeinit(&bv2);
+
+    // Test 3: Reading octal format
+    BitVec bv3 = BitVecInit();
+    StrReadFmt("0o755", "{}", FMT(bv3));
+    u64 value3 = BitVecToInteger(&bv3);
+    success    = success && (value3 == 0755);
+    printf("Test 3 - Octal: %llo, Success: %s\n", value3, (value3 == 0755) ? "true" : "false");
+    BitVecDeinit(&bv3);
+
+    // Test 4: Reading with whitespace
+    BitVec bv4 = BitVecInit();
+    StrReadFmt("   1101", "{}", FMT(bv4));
+    Str result4 = BitVecToStr(&bv4);
+    success     = success && (ZstrCompare(result4.data, "1101") == 0);
+    printf(
+        "Test 4 - Whitespace: %.*s, Success: %s\n",
+        (int)result4.length,
+        result4.data,
+        (ZstrCompare(result4.data, "1101") == 0) ? "true" : "false"
+    );
+    StrDeinit(&result4);
+    BitVecDeinit(&bv4);
+
+    // Test 5: Reading zero values
+    BitVec bv5 = BitVecInit();
+    StrReadFmt("0", "{}", FMT(bv5));
+    Str result5 = BitVecToStr(&bv5);
+    success     = success && (ZstrCompare(result5.data, "0") == 0);
+    printf(
+        "Test 5 - Zero: %.*s, Success: %s\n",
+        (int)result5.length,
+        result5.data,
+        (ZstrCompare(result5.data, "0") == 0) ? "true" : "false"
+    );
+    StrDeinit(&result5);
+    BitVecDeinit(&bv5);
+
+    printf("Overall BitVec reading success: %s\n", success ? "true" : "false");
+    return success;
+}
+
 // Main function that runs all tests
 int main(void) {
     printf("[INFO] Starting format reader tests\n\n");
@@ -668,7 +738,8 @@ int main(void) {
         test_multiple_arguments_reading,
         test_error_handling_reading,
         test_character_ordinal_reading,
-        test_string_case_conversion_reading
+        test_string_case_conversion_reading,
+        test_bitvec_reading
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

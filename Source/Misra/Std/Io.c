@@ -21,6 +21,41 @@
 #include <ctype.h>
 #include <math.h>
 
+// Portable helper for counting leading zeros in a 64-bit integer
+static inline u64 count_leading_zeros_u64(u64 value) {
+    if (value == 0)
+        return 64;
+
+    // Pure portable implementation - works on all compilers
+    u64 count = 0;
+
+    if ((value >> 32) == 0) {
+        count  += 32;
+        value <<= 32;
+    }
+    if ((value >> 48) == 0) {
+        count  += 16;
+        value <<= 16;
+    }
+    if ((value >> 56) == 0) {
+        count  += 8;
+        value <<= 8;
+    }
+    if ((value >> 60) == 0) {
+        count  += 4;
+        value <<= 4;
+    }
+    if ((value >> 62) == 0) {
+        count  += 2;
+        value <<= 2;
+    }
+    if ((value >> 63) == 0) {
+        count += 1;
+    }
+
+    return count;
+}
+
 // Helper function to parse format specifiers
 static bool ParseFormatSpec(const char* spec, size len, FmtInfo* fi) {
     if (!spec || !fi) {
@@ -649,13 +684,14 @@ void _write_Str(Str* o, FmtInfo* fmt_info, Str* s) {
     if (s->length) {
         if (fmt_info->flags & FMT_FLAG_HEX) {
             // Format each character as hex
+            StrIntFormat config = {.base = 16, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0};
             StrForeachIdx(s, c, i, {
                 if (i > 0) {
                     StrPushBack(o, ' ');
                 }
                 // Create hex string for each character
                 Str hex = StrInit();
-                StrFromU64(&hex, c, 16, (fmt_info->flags & FMT_FLAG_CAPS) != 0);
+                StrFromU64(&hex, c, &config);
                 // Ensure 2 digits with leading zero
                 if (hex.length == 1) {
                     StrPushFront(&hex, '0');
@@ -720,8 +756,9 @@ void _write_Zstr(Str* o, FmtInfo* fmt_info, const char** s) {
                     StrPushBack(o, ' ');
                 }
                 // Create hex string for each character
-                Str hex = StrInit();
-                StrFromU64(&hex, (u8)xs[i], 16, (fmt_info->flags & FMT_FLAG_CAPS) != 0);
+                Str          hex    = StrInit();
+                StrIntFormat config = {.base = 16, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0};
+                StrFromU64(&hex, (u8)xs[i], &config);
                 // Ensure 2 digits with leading zero
                 if (hex.length == 1) {
                     StrPushFront(&hex, '0');
@@ -796,7 +833,9 @@ void _write_u64(Str* o, FmtInfo* fmt_info, u64* v) {
     }
 
     // Use StrFromU64 directly with the appropriate base
-    StrFromU64(&temp, *v, base, (fmt_info->flags & FMT_FLAG_CAPS) != 0);
+    bool         use_prefix = (base != 10); // Add prefix for non-decimal bases
+    StrIntFormat config = {.base = base, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0, .use_prefix = use_prefix};
+    StrFromU64(&temp, *v, &config);
 
     // Merge the formatted number into output
     StrMerge(o, &temp);
@@ -886,7 +925,9 @@ void _write_i64(Str* o, FmtInfo* fmt_info, i64* v) {
     }
 
     // Use StrFromI64 directly with the appropriate base
-    StrFromI64(&temp, *v, base, (fmt_info->flags & FMT_FLAG_CAPS) != 0);
+    bool         use_prefix = (base != 10); // Add prefix for non-decimal bases
+    StrIntFormat config = {.base = base, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0, .use_prefix = use_prefix};
+    StrFromI64(&temp, *v, &config);
 
     // Merge the formatted number into output
     StrMerge(o, &temp);
@@ -990,14 +1031,13 @@ void _write_f64(Str* o, FmtInfo* fmt_info, f64* v) {
         Str temp = StrInit();
 
         // Use StrFromF64 directly with the appropriate parameters
-        u8 precision = fmt_info->flags & FMT_FLAG_HAS_PRECISION ? fmt_info->precision : 6;
-        StrFromF64(
-            &temp,
-            *v,
-            precision,
-            (fmt_info->flags & FMT_FLAG_SCIENTIFIC) != 0,
-            (fmt_info->flags & FMT_FLAG_CAPS) != 0
-        );
+        u8             precision = fmt_info->flags & FMT_FLAG_HAS_PRECISION ? fmt_info->precision : 6;
+        StrFloatFormat config    = {
+               .precision = precision,
+               .force_sci = (fmt_info->flags & FMT_FLAG_SCIENTIFIC) != 0,
+               .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0
+        };
+        StrFromF64(&temp, *v, &config);
 
         // Merge the formatted number into output
         StrMerge(o, &temp);
@@ -1393,7 +1433,7 @@ const char* _read_f64(const char* i, FmtInfo* fmt_info, f64* v) {
         Str temp = StrInitFromCstr(start, i - start);
 
         // Try to parse as special value
-        if (StrToF64(&temp, v)) {
+        if (StrToF64(&temp, v, NULL)) {
             StrDeinit(&temp);
             return i;
         }
@@ -1458,7 +1498,7 @@ const char* _read_f64(const char* i, FmtInfo* fmt_info, f64* v) {
     }
 
     // Use StrToF64 directly
-    if (!StrToF64(&temp, v)) {
+    if (!StrToF64(&temp, v, NULL)) {
         LOG_ERROR("Failed to parse f64");
         StrDeinit(&temp);
         return start;
@@ -1523,7 +1563,7 @@ const char* _read_u8(const char* i, FmtInfo* fmt_info, u8* v) {
 
     // Use base 0 to let strtoul detect the base from prefix
     u64 val;
-    if (!StrToU64(&temp, &val, 0)) {
+    if (!StrToU64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse u8");
         StrDeinit(&temp);
         return start;
@@ -1598,7 +1638,7 @@ const char* _read_u16(const char* i, FmtInfo* fmt_info, u16* v) {
 
     // Use base 0 to let strtoul detect the base from prefix
     u64 val;
-    if (!StrToU64(&temp, &val, 0)) {
+    if (!StrToU64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse u16");
         StrDeinit(&temp);
         return start;
@@ -1672,7 +1712,7 @@ const char* _read_u32(const char* i, FmtInfo* fmt_info, u32* v) {
 
     // Use base 0 to let strtoul detect the base from prefix
     u64 val;
-    if (!StrToU64(&temp, &val, 0)) {
+    if (!StrToU64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse u32");
         StrDeinit(&temp);
         return start;
@@ -1746,7 +1786,7 @@ const char* _read_u64(const char* i, FmtInfo* fmt_info, u64* v) {
     }
 
     // Use base 0 to let strtoul detect the base from prefix
-    if (!StrToU64(&temp, v, 0)) {
+    if (!StrToU64(&temp, v, NULL)) {
         LOG_ERROR("Failed to parse u64");
         StrDeinit(&temp);
         return start;
@@ -1812,7 +1852,7 @@ const char* _read_i8(const char* i, FmtInfo* fmt_info, i8* v) {
 
     // Use base 0 to let strtoul detect the base from prefix
     i64 val;
-    if (!StrToI64(&temp, &val, 0)) {
+    if (!StrToI64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse i8");
         StrDeinit(&temp);
         return start;
@@ -1887,7 +1927,7 @@ const char* _read_i16(const char* i, FmtInfo* fmt_info, i16* v) {
 
     // Use base 0 to let strtoul detect the base from prefix
     i64 val;
-    if (!StrToI64(&temp, &val, 0)) {
+    if (!StrToI64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse i16");
         StrDeinit(&temp);
         return start;
@@ -1962,7 +2002,7 @@ const char* _read_i32(const char* i, FmtInfo* fmt_info, i32* v) {
 
     // Use base 0 to let strtoul detect the base from prefix
     i64 val;
-    if (!StrToI64(&temp, &val, 0)) {
+    if (!StrToI64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse i32");
         StrDeinit(&temp);
         return start;
@@ -2036,7 +2076,7 @@ const char* _read_i64(const char* i, FmtInfo* fmt_info, i64* v) {
     }
 
     // Use base 0 to let strtoul detect the base from prefix
-    if (!StrToI64(&temp, v, 0)) {
+    if (!StrToI64(&temp, v, NULL)) {
         LOG_ERROR("Failed to parse i64");
         StrDeinit(&temp);
         return start;
@@ -2047,6 +2087,7 @@ const char* _read_i64(const char* i, FmtInfo* fmt_info, i64* v) {
 }
 
 const char* _read_Zstr(const char* i, FmtInfo* fmt_info, const char** out) {
+    (void)fmt_info; // Unused parameter
     if (!i || !out)
         LOG_FATAL("Invalid arguments");
 
@@ -2077,6 +2118,55 @@ const char* _read_Zstr(const char* i, FmtInfo* fmt_info, const char** out) {
     return next;
 }
 
+void _write_BitVec(Str* o, FmtInfo* fmt_info, BitVec* bv) {
+    if (!o || !fmt_info || !bv) {
+        LOG_FATAL("Invalid arguments");
+        return;
+    }
+
+    ValidateStr(o);
+    ValidateBitVec(bv);
+
+    // Store original length to calculate content size later
+    size start_len = o->length;
+
+    if (fmt_info->flags & FMT_FLAG_HEX) {
+        // Format as hexadecimal
+        if (bv->length == 0) {
+            StrPushBackZstr(o, "0x0");
+        } else {
+            // Convert to integer (up to 64 bits) and format as hex
+            u64          value  = BitVecToInteger(bv);
+            StrIntFormat config = {.base = 16, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0, .use_prefix = true};
+            StrFromU64(o, value, &config);
+        }
+    } else if (fmt_info->flags & FMT_FLAG_OCTAL) {
+        // Format as octal
+        if (bv->length == 0) {
+            StrPushBackZstr(o, "0o0");
+        } else {
+            u64          value  = BitVecToInteger(bv);
+            StrIntFormat config = {.base = 8, .uppercase = false, .use_prefix = true};
+            StrFromU64(o, value, &config);
+        }
+    } else {
+        // Default: Format as binary string (e.g., "10110")
+        if (bv->length == 0) {
+            // Empty BitVec - don't output anything
+        } else {
+            Str bit_str = BitVecToStr(bv);
+            StrMerge(o, &bit_str);
+            StrDeinit(&bit_str);
+        }
+    }
+
+    // Apply padding if width is specified
+    if (fmt_info->width > 0) {
+        size content_len = o->length - start_len;
+        PadString(o, fmt_info->width, fmt_info->align, content_len);
+    }
+}
+
 void _write_UnsupportedType(Str* o, FmtInfo* fmt_info, const char** s) {
     (void)o;
     (void)fmt_info;
@@ -2084,7 +2174,124 @@ void _write_UnsupportedType(Str* o, FmtInfo* fmt_info, const char** s) {
     LOG_FATAL("Attempt to write unsupported type");
 }
 
+const char* _read_BitVec(const char* i, FmtInfo* fmt_info, BitVec* bv) {
+    (void)fmt_info; // Unused parameter
+    if (!i || !bv) {
+        LOG_FATAL("Invalid arguments");
+        return i;
+    }
+
+    ValidateBitVec(bv);
+
+    // Skip leading whitespace
+    while (IS_SPACE(*i))
+        i++;
+
+    // Check for empty input
+    if (!*i) {
+        LOG_ERROR("Empty input string");
+        return i;
+    }
+
+    const char* start = i;
+
+    // Check for hex format (0x...)
+    if (i[0] == '0' && (i[1] == 'x' || i[1] == 'X')) {
+        // Read hex value
+        i                     += 2; // Skip "0x"
+        const char* hex_start  = i;
+
+        // Read hex digits
+        while (IS_XDIGIT(*i)) {
+            i++;
+        }
+
+        if (i == hex_start) {
+            LOG_ERROR("Invalid hex format - no digits after 0x");
+            return start;
+        }
+
+        // Parse hex string
+        Str            hex_str = StrInitFromCstr(hex_start, i - hex_start);
+        u64            value;
+        StrParseConfig config = {.base = 16};
+        if (!StrToU64(&hex_str, &value, &config)) {
+            LOG_ERROR("Failed to parse hex value");
+            StrDeinit(&hex_str);
+            return start;
+        }
+
+        // Determine bit length (minimum to represent the value)
+        u64 bit_len = value == 0 ? 1 : 64 - count_leading_zeros_u64(value);
+        if (bit_len < 4)
+            bit_len = 4; // Minimum 4 bits for hex display
+
+        *bv = BitVecFromInteger(value, bit_len);
+        StrDeinit(&hex_str);
+        return i;
+    }
+
+    // Check for octal format (0o...)
+    if (i[0] == '0' && (i[1] == 'o' || i[1] == 'O')) {
+        // Read octal value
+        i                     += 2; // Skip "0o"
+        const char* oct_start  = i;
+
+        // Read octal digits
+        while (*i >= '0' && *i <= '7') {
+            i++;
+        }
+
+        if (i == oct_start) {
+            LOG_ERROR("Invalid octal format - no digits after 0o");
+            return start;
+        }
+
+        // Parse octal string
+        Str            oct_str = StrInitFromCstr(oct_start, i - oct_start);
+        u64            value;
+        StrParseConfig config = {.base = 8};
+        if (!StrToU64(&oct_str, &value, &config)) {
+            LOG_ERROR("Failed to parse octal value");
+            StrDeinit(&oct_str);
+            return start;
+        }
+
+        // Determine bit length
+        u64 bit_len = value == 0 ? 1 : 64 - count_leading_zeros_u64(value);
+        if (bit_len < 3)
+            bit_len = 3; // Minimum 3 bits for octal display
+
+        *bv = BitVecFromInteger(value, bit_len);
+        StrDeinit(&oct_str);
+        return i;
+    }
+
+    // Default: Read as binary string (e.g., "10110")
+    const char* bin_start = i;
+
+    // Read binary digits
+    while (*i == '0' || *i == '1') {
+        i++;
+    }
+
+    if (i == bin_start) {
+        LOG_ERROR("Invalid binary format - expected 0s and 1s");
+        return start;
+    }
+
+    // Create string from binary digits (already null-terminated by StrInitFromCstr)
+    Str bin_str = StrInitFromCstr(bin_start, i - bin_start);
+
+    // Convert to BitVec using the null-terminated string
+    *bv = BitVecFromStr(bin_str.data);
+
+    StrDeinit(&bin_str);
+    return i;
+}
+
 const char* _read_UnsupportedType(const char* i, FmtInfo* fmt_info, const char** s) {
+    (void)fmt_info; // Unused parameter
     (void)s;
     LOG_FATAL("Attempt to read unsupported type.");
     return i;
@@ -2124,7 +2331,7 @@ const char* _read_f32(const char* i, FmtInfo* fmt_info, f32* v) {
 
         // Try to parse as special value
         f64 val;
-        if (StrToF64(&temp, &val)) {
+        if (StrToF64(&temp, &val, NULL)) {
             *v = (f32)val;
             StrDeinit(&temp);
             return i;
@@ -2191,7 +2398,7 @@ const char* _read_f32(const char* i, FmtInfo* fmt_info, f32* v) {
 
     // Use StrToF64 directly
     f64 val;
-    if (!StrToF64(&temp, &val)) {
+    if (!StrToF64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse f32");
         StrDeinit(&temp);
         return start;

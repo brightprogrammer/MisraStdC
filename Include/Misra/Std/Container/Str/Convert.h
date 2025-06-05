@@ -13,80 +13,109 @@
 extern "C" {
 #endif
 
+    /// Configuration for integer formatting
+    typedef struct {
+        u8   base;       ///< Base (2-36)
+        bool uppercase;  ///< Use uppercase letters for bases > 10
+        bool use_prefix; ///< Add prefix (0x, 0b, 0o)
+        bool pad_zeros;  ///< Pad with leading zeros
+        u8   min_width;  ///< Minimum field width
+    } StrIntFormat;
+
+    /// Configuration for float formatting
+    typedef struct {
+        u8   precision;   ///< Decimal places (0-17)
+        bool force_sci;   ///< Force scientific notation
+        bool uppercase;   ///< Use uppercase E in scientific notation
+        bool trim_zeros;  ///< Remove trailing zeros
+        bool always_sign; ///< Always show + for positive numbers
+    } StrFloatFormat;
+
+    /// Configuration for parsing
+    typedef struct {
+        bool strict;     ///< Strict parsing (no trailing chars)
+        bool trim_space; ///< Trim leading/trailing whitespace
+        u8   base;       ///< Base for integers (0 = auto-detect)
+    } StrParseConfig;
+
+    /// Default configurations
+    extern const StrIntFormat   STR_INT_DEFAULT;
+    extern const StrFloatFormat STR_FLOAT_DEFAULT;
+    extern const StrParseConfig STR_PARSE_DEFAULT;
+
     ///
-    /// Convert an unsigned 64-bit integer to string with given base
+    /// Convert an unsigned 64-bit integer to string
     ///
     /// str[out]    : String to store the result in
     /// value[in]   : Value to convert
-    /// base[in]    : Base to use (2-36)
-    /// uppercase[in] : Whether to use uppercase letters for bases > 10
+    /// config[in]  : Formatting configuration (NULL for base 10, no prefix)
     ///
     /// SUCCESS : Returns str
-    /// FAILURE : Returns NULL if base is invalid or memory allocation fails
+    /// FAILURE : Returns NULL if config is invalid
     ///
-    Str* StrFromU64(Str* str, u64 value, u8 base, bool uppercase);
+    Str* StrFromU64(Str* str, u64 value, const StrIntFormat* config);
 
     ///
-    /// Convert a signed 64-bit integer to string with given base
+    /// Convert a signed 64-bit integer to string
     ///
     /// str[out]    : String to store the result in
     /// value[in]   : Value to convert
-    /// base[in]    : Base to use (2-36)
-    /// uppercase[in] : Whether to use uppercase letters for bases > 10
+    /// config[in]  : Formatting configuration (NULL for base 10, no prefix)
     ///
     /// SUCCESS : Returns str
-    /// FAILURE : Returns NULL if base is invalid or memory allocation fails
+    /// FAILURE : Returns NULL if config is invalid
     ///
-    Str* StrFromI64(Str* str, i64 value, u8 base, bool uppercase);
+    Str* StrFromI64(Str* str, i64 value, const StrIntFormat* config);
 
     ///
-    /// Convert a double to string with scientific notation if needed
+    /// Convert a double to string
     ///
     /// str[out]     : String to store the result in
     /// value[in]    : Value to convert
-    /// precision[in] : Number of decimal places (1-17)
-    /// force_sci[in] : Force scientific notation even for normal numbers
-    /// uppercase[in] : Whether to use uppercase E for scientific notation
+    /// config[in]   : Formatting configuration (NULL for 6 decimal places)
     ///
     /// SUCCESS : Returns str
-    /// FAILURE : Returns NULL if precision is invalid or memory allocation fails
+    /// FAILURE : Returns NULL if config is invalid
     ///
-    Str* StrFromF64(Str* str, f64 value, u8 precision, bool force_sci, bool uppercase);
+    Str* StrFromF64(Str* str, f64 value, const StrFloatFormat* config);
 
     ///
     /// Convert string to unsigned 64-bit integer
     ///
     /// str[in]     : String to convert
     /// value[out]  : Where to store the result
-    /// base[in]    : Base to use (0 for auto-detect, 2-36 otherwise)
+    /// config[in]  : Parse configuration (NULL for auto-detect base)
     ///
     /// SUCCESS : Returns true and stores result in value
     /// FAILURE : Returns false if conversion fails
     ///
-    bool StrToU64(const Str* str, u64* value, u8 base);
+    bool StrToU64(const Str* str, u64* value, const StrParseConfig* config);
 
     ///
     /// Convert string to signed 64-bit integer
     ///
     /// str[in]     : String to convert
     /// value[out]  : Where to store the result
-    /// base[in]    : Base to use (0 for auto-detect, 2-36 otherwise)
+    /// config[in]  : Parse configuration (NULL for auto-detect base)
     ///
     /// SUCCESS : Returns true and stores result in value
     /// FAILURE : Returns false if conversion fails
     ///
-    bool StrToI64(const Str* str, i64* value, u8 base);
+    bool StrToI64(const Str* str, i64* value, const StrParseConfig* config);
 
     ///
     /// Convert string to double
     ///
     /// str[in]     : String to convert
     /// value[out]  : Where to store the result
+    /// config[in]  : Parse configuration (NULL for default parsing)
     ///
     /// SUCCESS : Returns true and stores result in value
     /// FAILURE : Returns false if conversion fails
     ///
-    bool StrToF64(const Str* str, f64* value);
+    bool StrToF64(const Str* str, f64* value, const StrParseConfig* config);
+
+
 
 #ifdef __cplusplus
 }

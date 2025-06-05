@@ -1,9 +1,9 @@
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Container/BitVec.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <math.h>   // For INFINITY and NAN
 #include <string.h> // For strlen
-#include <stdbool.h>
 #include <stdio.h>
 #include <Misra/Types.h>
 
@@ -24,6 +24,7 @@ bool test_width_alignment_formatting(void);
 bool test_multiple_arguments(void);
 bool test_error_handling(void);
 bool test_char_formatting(void);
+bool test_bitvec_formatting(void);
 
 // Test basic formatting features
 bool test_basic_formatting(void) {
@@ -544,6 +545,75 @@ bool test_char_formatting(void) {
     return success;
 }
 
+// Test BitVec formatting
+bool test_bitvec_formatting(void) {
+    printf("Testing BitVec formatting\n");
+
+    Str  output  = StrInit();
+    bool success = true;
+
+    // Test 1: Basic binary formatting
+    BitVec bv1 = BitVecFromStr("10110");
+    StrWriteFmt(&output, "{}", FMT(bv1));
+    success = success && (ZstrCompare(output.data, "10110") == 0);
+    StrClear(&output);
+
+    // Test 2: Empty BitVec
+    BitVec bv_empty = BitVecInit();
+    StrWriteFmt(&output, "{}", FMT(bv_empty));
+    success = success && (output.length == 0);
+    StrClear(&output);
+
+    // Test 3: Hex formatting
+    BitVec bv2 = BitVecFromInteger(0xABCD, 16);
+    StrWriteFmt(&output, "{:x}", FMT(bv2));
+    success = success && (ZstrCompare(output.data, "0xabcd") == 0);
+    StrClear(&output);
+
+    // Test 4: Uppercase hex formatting
+    StrWriteFmt(&output, "{:X}", FMT(bv2));
+    success = success && (ZstrCompare(output.data, "0xABCD") == 0);
+    StrClear(&output);
+
+    // Test 5: Octal formatting
+    BitVec bv3 = BitVecFromInteger(0755, 10);
+    StrWriteFmt(&output, "{:o}", FMT(bv3));
+    success = success && (ZstrCompare(output.data, "0o755") == 0);
+    StrClear(&output);
+
+    // Test 6: Width and alignment
+    StrWriteFmt(&output, "{:>10}", FMT(bv1));
+    success = success && (ZstrCompare(output.data, "     10110") == 0);
+    StrClear(&output);
+
+    StrWriteFmt(&output, "{:<10}", FMT(bv1));
+    success = success && (ZstrCompare(output.data, "10110     ") == 0);
+    StrClear(&output);
+
+    StrWriteFmt(&output, "{:^10}", FMT(bv1));
+    success = success && (ZstrCompare(output.data, "  10110   ") == 0);
+    StrClear(&output);
+
+    // Test 7: Zero value
+    BitVec bv_zero = BitVecFromInteger(0, 1);
+    StrWriteFmt(&output, "{:x}", FMT(bv_zero));
+    success = success && (ZstrCompare(output.data, "0x0") == 0);
+    StrClear(&output);
+
+    StrWriteFmt(&output, "{:o}", FMT(bv_zero));
+    success = success && (ZstrCompare(output.data, "0o0") == 0);
+    StrClear(&output);
+
+    // Cleanup
+    BitVecDeinit(&bv1);
+    BitVecDeinit(&bv_empty);
+    BitVecDeinit(&bv2);
+    BitVecDeinit(&bv3);
+    BitVecDeinit(&bv_zero);
+    StrDeinit(&output);
+    return success;
+}
+
 // Test error handling
 bool test_error_handling(void) {
     printf("Testing error handling\n");
@@ -580,6 +650,7 @@ int main(void) {
         test_width_alignment_formatting,
         test_multiple_arguments,
         test_char_formatting,
+        test_bitvec_formatting,
         test_error_handling
     };
 
