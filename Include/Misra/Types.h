@@ -341,7 +341,7 @@ typedef i8 bool;
 /// FAILURE: Function cannot fail - pure bitwise operation.
 ///
 /// TAGS: Endianness, Bitwise, Conversion
-#define INVERT_ENDIANNESS2(x) (((x) >> 8) & 0xff) | (((x) & 0xff) << 8)
+#define INVERT_ENDIANNESS2(x) ((((u16)x) >> 8) & 0xff) | ((((u16)x) & 0xff) << 8)
 
 ///
 /// Inverts endianness of 32-bit (4-byte) value.
@@ -352,7 +352,7 @@ typedef i8 bool;
 /// FAILURE: Function cannot fail - pure bitwise operation.
 ///
 /// TAGS: Endianness, Bitwise, Conversion
-#define INVERT_ENDIANNESS4(x) (INVERT_ENDIANNESS2((x) & 0xffff) << 16) | INVERT_ENDIANNESS2(((x) >> 16) & 0xffff)
+#define INVERT_ENDIANNESS4(x) (INVERT_ENDIANNESS2(((u32)x) & 0xffff) << 16) | INVERT_ENDIANNESS2((((u32)x) >> 16) & 0xffff)
 
 ///
 /// Inverts endianness of 64-bit (8-byte) value.
@@ -364,8 +364,208 @@ typedef i8 bool;
 ///
 /// TAGS: Endianness, Bitwise, Conversion
 #define INVERT_ENDIANNESS8(x)                                                                                          \
-    (INVERT_ENDIANNESS4((x) & 0xffffffff) << 32) | INVERT_ENDIANNESS4(((x) >> 32) & 0xffffffff)
+    (INVERT_ENDIANNESS4(((u64)x) & 0xffffffff) << 32) | INVERT_ENDIANNESS4((((u64)x) >> 32) & 0xffffffff)
 
+///
+/// Compile-time endianness detection.
+///
+/// SUCCESS: Evaluates to 1 for little-endian systems, 0 for big-endian.
+/// FAILURE: Function cannot fail - evaluated at compile time.
+///
+/// TAGS: Endianness, Platform, Detection
+#define IS_LITTLE_ENDIAN() (*(const u8*)&(const u16){1})
+
+///
+/// Conditionally converts value from big-endian to native byte order.
+/// On little-endian systems, this inverts the byte order.
+/// On big-endian systems, this is a no-op.
+///
+/// x[in] : 16-bit value in big-endian format
+///
+/// SUCCESS: Returns value in native byte order.
+/// FAILURE: Function cannot fail - pure bitwise operation.
+///
+/// TAGS: Endianness, Conversion, 16-bit
+#define FROM_BIG_ENDIAN2(x) (IS_LITTLE_ENDIAN() ? INVERT_ENDIANNESS2(x) : (x))
+
+///
+/// Conditionally converts value from big-endian to native byte order.
+/// On little-endian systems, this inverts the byte order.
+/// On big-endian systems, this is a no-op.
+///
+/// x[in] : 32-bit value in big-endian format
+///
+/// SUCCESS: Returns value in native byte order.
+/// FAILURE: Function cannot fail - pure bitwise operation.
+///
+/// TAGS: Endianness, Conversion, 32-bit
+#define FROM_BIG_ENDIAN4(x) (IS_LITTLE_ENDIAN() ? INVERT_ENDIANNESS4(x) : (x))
+
+///
+/// Conditionally converts value from big-endian to native byte order.
+/// On little-endian systems, this inverts the byte order.
+/// On big-endian systems, this is a no-op.
+///
+/// x[in] : 64-bit value in big-endian format
+///
+/// SUCCESS: Returns value in native byte order.
+/// FAILURE: Function cannot fail - pure bitwise operation.
+///
+/// TAGS: Endianness, Conversion, 64-bit
+#define FROM_BIG_ENDIAN8(x) (IS_LITTLE_ENDIAN() ? INVERT_ENDIANNESS8(x) : (x))
+
+///
+/// Conditionally converts value from little-endian to native byte order.
+/// On big-endian systems, this inverts the byte order.
+/// On little-endian systems, this is a no-op.
+///
+/// x[in] : 16-bit value in little-endian format
+///
+/// SUCCESS: Returns value in native byte order.
+/// FAILURE: Function cannot fail - pure bitwise operation.
+///
+/// TAGS: Endianness, Conversion, 16-bit
+#define FROM_LITTLE_ENDIAN2(x) (IS_LITTLE_ENDIAN() ? (x) : INVERT_ENDIANNESS2(x))
+
+///
+/// Conditionally converts value from little-endian to native byte order.
+/// On big-endian systems, this inverts the byte order.
+/// On little-endian systems, this is a no-op.
+///
+/// x[in] : 32-bit value in little-endian format
+///
+/// SUCCESS: Returns value in native byte order.
+/// FAILURE: Function cannot fail - pure bitwise operation.
+///
+/// TAGS: Endianness, Conversion, 32-bit
+#define FROM_LITTLE_ENDIAN4(x) (IS_LITTLE_ENDIAN() ? (x) : INVERT_ENDIANNESS4(x))
+
+///
+/// Conditionally converts value from little-endian to native byte order.
+/// On big-endian systems, this inverts the byte order.
+/// On little-endian systems, this is a no-op.
+///
+/// x[in] : 64-bit value in little-endian format
+///
+/// SUCCESS: Returns value in native byte order.
+/// FAILURE: Function cannot fail - pure bitwise operation.
+///
+/// TAGS: Endianness, Conversion, 64-bit
+#define FROM_LITTLE_ENDIAN8(x) (IS_LITTLE_ENDIAN() ? (x) : INVERT_ENDIANNESS8(x))
+
+///
+/// Conditionally converts value from native byte order to little-endian.
+/// On big-endian systems, this inverts the byte order.
+/// On little-endian systems, this is a no-op.
+///
+/// x[in] : 16-bit value in native byte order
+///
+/// SUCCESS: Returns value in little-endian format.
+/// FAILURE: Function cannot fail - pure bitwise operation.
+///
+/// TAGS: Endianness, Conversion, 16-bit
+#define TO_LITTLE_ENDIAN2(x) (IS_LITTLE_ENDIAN() ? (x) : INVERT_ENDIANNESS2(x))
+
+///
+/// Conditionally converts value from native byte order to little-endian.
+/// On big-endian systems, this inverts the byte order.
+/// On little-endian systems, this is a no-op.
+///
+/// x[in] : 32-bit value in native byte order
+///
+/// SUCCESS: Returns value in little-endian format.
+/// FAILURE: Function cannot fail - pure bitwise operation.
+///
+/// TAGS: Endianness, Conversion, 32-bit
+#define TO_LITTLE_ENDIAN4(x) (IS_LITTLE_ENDIAN() ? (x) : INVERT_ENDIANNESS4(x))
+
+///
+/// Conditionally converts value from native byte order to little-endian.
+/// On big-endian systems, this inverts the byte order.
+/// On little-endian systems, this is a no-op.
+///
+/// x[in] : 64-bit value in native byte order
+///
+/// SUCCESS: Returns value in little-endian format.
+/// FAILURE: Function cannot fail - pure bitwise operation.
+///
+/// TAGS: Endianness, Conversion, 64-bit
+#define TO_LITTLE_ENDIAN8(x) (IS_LITTLE_ENDIAN() ? (x) : INVERT_ENDIANNESS8(x))
+
+///
+/// Conditionally converts value from native byte order to big-endian.
+/// On little-endian systems, this inverts the byte order.
+/// On big-endian systems, this is a no-op.
+///
+/// x[in] : 16-bit value in native byte order
+///
+/// SUCCESS: Returns value in big-endian format.
+/// FAILURE: Function cannot fail - pure bitwise operation.
+///
+/// TAGS: Endianness, Conversion, 16-bit
+#define TO_BIG_ENDIAN2(x) (IS_LITTLE_ENDIAN() ? INVERT_ENDIANNESS2(x) : (x))
+
+///
+/// Conditionally converts value from native byte order to big-endian.
+/// On little-endian systems, this inverts the byte order.
+/// On big-endian systems, this is a no-op.
+///
+/// x[in] : 32-bit value in native byte order
+///
+/// SUCCESS: Returns value in big-endian format.
+/// FAILURE: Function cannot fail - pure bitwise operation.
+///
+/// TAGS: Endianness, Conversion, 32-bit
+#define TO_BIG_ENDIAN4(x) (IS_LITTLE_ENDIAN() ? INVERT_ENDIANNESS4(x) : (x))
+
+///
+/// Conditionally converts value from native byte order to big-endian.
+/// On little-endian systems, this inverts the byte order.
+/// On big-endian systems, this is a no-op.
+///
+/// x[in] : 64-bit value in native byte order
+///
+/// SUCCESS: Returns value in big-endian format.
+/// FAILURE: Function cannot fail - pure bitwise operation.
+///
+/// TAGS: Endianness, Conversion, 64-bit
+#define TO_BIG_ENDIAN8(x) (IS_LITTLE_ENDIAN() ? INVERT_ENDIANNESS8(x) : (x))
+
+///
+/// Maintains native endianness for 16-bit values.
+/// This is a no-op that returns the value unchanged.
+///
+/// x[in] : 16-bit value in native byte order
+///
+/// SUCCESS: Returns value in native byte order (unchanged).
+/// FAILURE: Function cannot fail - pure passthrough operation.
+///
+/// TAGS: Endianness, Native, 16-bit
+#define TO_NATIVE_ENDIAN2(x) (x)
+
+///
+/// Maintains native endianness for 32-bit values.
+/// This is a no-op that returns the value unchanged.
+///
+/// x[in] : 32-bit value in native byte order
+///
+/// SUCCESS: Returns value in native byte order (unchanged).
+/// FAILURE: Function cannot fail - pure passthrough operation.
+///
+/// TAGS: Endianness, Native, 32-bit
+#define TO_NATIVE_ENDIAN4(x) (x)
+
+///
+/// Maintains native endianness for 64-bit values.
+/// This is a no-op that returns the value unchanged.
+///
+/// x[in] : 64-bit value in native byte order
+///
+/// SUCCESS: Returns value in native byte order (unchanged).
+/// FAILURE: Function cannot fail - pure passthrough operation.
+///
+/// TAGS: Endianness, Native, 64-bit
+#define TO_NATIVE_ENDIAN8(x) (x)
 
 #if defined(_MSC_VER) || defined(__MSC_VER)
 #    define FORMAT_STRING(fmt_pos, va_arg_pos)

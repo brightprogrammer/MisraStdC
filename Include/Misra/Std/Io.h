@@ -82,7 +82,7 @@ typedef void (*TypeSpecificWriter)(Str *o, FmtInfo *fmt_info, void *data);
 ///
 /// TAGS: I/O, Generic, Container
 ///
-typedef const char *(*TypeSpecificReader)(const char *i, void *data);
+typedef const char *(*TypeSpecificReader)(const char *i, FmtInfo *fmt_info, void *data);
 
 ///
 /// Create `TypeSpecificIO` for type T
@@ -436,18 +436,18 @@ void _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s);
 void _write_f32(Str *o, FmtInfo *fmt_info, f32 *v);
 void _write_f64(Str *o, FmtInfo *fmt_info, f64 *v);
 
-const char *_read_Str(const char *i, Str *s);
-const char *_read_u8(const char *i, u8 *v);
-const char *_read_u16(const char *i, u16 *v);
-const char *_read_u32(const char *i, u32 *v);
-const char *_read_u64(const char *i, u64 *v);
-const char *_read_i8(const char *i, i8 *v);
-const char *_read_i16(const char *i, i16 *v);
-const char *_read_i32(const char *i, i32 *v);
-const char *_read_i64(const char *i, i64 *v);
-const char *_read_Zstr(const char *i, const char **v);
-const char *_read_UnsupportedType(const char *i, const char **s);
-const char *_read_f32(const char *i, f32 *v);
-const char *_read_f64(const char *i, f64 *v);
+const char *_read_Str(const char *i, FmtInfo *fmt_info, Str *s);
+const char *_read_u8(const char *i, FmtInfo *fmt_info, u8 *v);
+const char *_read_u16(const char *i, FmtInfo *fmt_info, u16 *v);
+const char *_read_u32(const char *i, FmtInfo *fmt_info, u32 *v);
+const char *_read_u64(const char *i, FmtInfo *fmt_info, u64 *v);
+const char *_read_i8(const char *i, FmtInfo *fmt_info, i8 *v);
+const char *_read_i16(const char *i, FmtInfo *fmt_info, i16 *v);
+const char *_read_i32(const char *i, FmtInfo *fmt_info, i32 *v);
+const char *_read_i64(const char *i, FmtInfo *fmt_info, i64 *v);
+const char *_read_Zstr(const char *i, FmtInfo *fmt_info, const char **v);
+const char *_read_UnsupportedType(const char *i, FmtInfo *fmt_info, const char **s);
+const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v);
+const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v);
 
 #endif // MISRA_STD_IO
