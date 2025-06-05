@@ -258,9 +258,9 @@ bool test_bitvec_foreach_edge_cases(void) {
     }
 
     count = 0;
-    BitVecForeach(&bv, bit, { 
+    BitVecForeach(&bv, bit, {
         (void)bit;
-        count++; 
+        count++;
     });
     result = result && (count == 1000);
 
@@ -374,17 +374,17 @@ bool test_bitvec_foreach_range_edge_cases(void) {
 
     // Test range at boundaries
     count = 0;
-    BitVecForeachInRange(&bv, bit, 0, 2, { 
+    BitVecForeachInRange(&bv, bit, 0, 2, {
         (void)bit;
-        count++; 
+        count++;
     });
     result = result && (count == 2);
 
     // Test range at the end of bitvector
     count = 0;
-    BitVecForeachInRange(&bv, bit, 8, 10, { 
+    BitVecForeachInRange(&bv, bit, 8, 10, {
         (void)bit;
-        count++; 
+        count++;
     });
     result = result && (count == 2); // Should iterate over indices 8,9
 
@@ -408,21 +408,21 @@ bool test_bitvec_foreach_stress_test(void) {
         // Test all foreach variants
         int count1 = 0, count2 = 0, count3 = 0, count4 = 0;
 
-        BitVecForeach(&bv, bitval, { 
+        BitVecForeach(&bv, bitval, {
             (void)bitval;
-            count1++; 
+            count1++;
         });
-        BitVecForeachIdx(&bv, bitval, i, { 
+        BitVecForeachIdx(&bv, bitval, i, {
             (void)bitval;
-            count2++; 
+            count2++;
         });
-        BitVecForeachReverse(&bv, bitval, { 
+        BitVecForeachReverse(&bv, bitval, {
             (void)bitval;
-            count3++; 
+            count3++;
         });
-        BitVecForeachReverseIdx(&bv, bitval, i, { 
+        BitVecForeachReverseIdx(&bv, bitval, i, {
             (void)bitval;
-            count4++; 
+            count4++;
         });
 
         result = result && (count1 == sz);
@@ -441,33 +441,33 @@ bool test_bitvec_foreach_stress_test(void) {
 bool test_bitvec_run_lengths_basic(void) {
     printf("Testing BitVecRunLengths basic functionality\n");
 
-    BitVec bv = BitVecInit();
-    bool result = true;
+    BitVec bv     = BitVecInit();
+    bool   result = true;
 
     // Test pattern: 11100101 (3 true, 2 false, 1 true, 1 false, 1 true)
-    BitVecPush(&bv, true);   // 0
-    BitVecPush(&bv, true);   // 1
-    BitVecPush(&bv, true);   // 2
-    BitVecPush(&bv, false);  // 3
-    BitVecPush(&bv, false);  // 4
-    BitVecPush(&bv, true);   // 5
-    BitVecPush(&bv, false);  // 6
-    BitVecPush(&bv, true);   // 7
+    BitVecPush(&bv, true);  // 0
+    BitVecPush(&bv, true);  // 1
+    BitVecPush(&bv, true);  // 2
+    BitVecPush(&bv, false); // 3
+    BitVecPush(&bv, false); // 4
+    BitVecPush(&bv, true);  // 5
+    BitVecPush(&bv, false); // 6
+    BitVecPush(&bv, true);  // 7
 
-    u64 runs[10];
+    u64  runs[10];
     bool values[10];
-    u64 count = BitVecRunLengths(&bv, runs, values, 10);
+    u64  count = BitVecRunLengths(&bv, runs, values, 10);
 
     // Should find 5 runs
     result = result && (count == 5);
 
     // Verify each run
     if (count >= 5) {
-        result = result && (runs[0] == 3 && values[0] == true);   // 3 trues
-        result = result && (runs[1] == 2 && values[1] == false);  // 2 falses
-        result = result && (runs[2] == 1 && values[2] == true);   // 1 true
-        result = result && (runs[3] == 1 && values[3] == false);  // 1 false
-        result = result && (runs[4] == 1 && values[4] == true);   // 1 true
+        result = result && (runs[0] == 3 && values[0] == true);  // 3 trues
+        result = result && (runs[1] == 2 && values[1] == false); // 2 falses
+        result = result && (runs[2] == 1 && values[2] == true);  // 1 true
+        result = result && (runs[3] == 1 && values[3] == false); // 1 false
+        result = result && (runs[4] == 1 && values[4] == true);  // 1 true
     }
 
     BitVecDeinit(&bv);
@@ -481,16 +481,16 @@ bool test_bitvec_run_lengths_edge_cases(void) {
 
     // Test 1: Empty bitvector
     BitVec empty_bv = BitVecInit();
-    u64 runs[5];
-    bool values[5];
-    u64 count = BitVecRunLengths(&empty_bv, runs, values, 5);
-    result = result && (count == 0);
+    u64    runs[5];
+    bool   values[5];
+    u64    count = BitVecRunLengths(&empty_bv, runs, values, 5);
+    result       = result && (count == 0);
     BitVecDeinit(&empty_bv);
 
     // Test 2: Single bit (true)
     BitVec single_bv = BitVecInit();
     BitVecPush(&single_bv, true);
-    count = BitVecRunLengths(&single_bv, runs, values, 5);
+    count  = BitVecRunLengths(&single_bv, runs, values, 5);
     result = result && (count == 1);
     result = result && (runs[0] == 1 && values[0] == true);
     BitVecDeinit(&single_bv);
@@ -498,7 +498,7 @@ bool test_bitvec_run_lengths_edge_cases(void) {
     // Test 3: Single bit (false)
     BitVec single_false_bv = BitVecInit();
     BitVecPush(&single_false_bv, false);
-    count = BitVecRunLengths(&single_false_bv, runs, values, 5);
+    count  = BitVecRunLengths(&single_false_bv, runs, values, 5);
     result = result && (count == 1);
     result = result && (runs[0] == 1 && values[0] == false);
     BitVecDeinit(&single_false_bv);
@@ -508,7 +508,7 @@ bool test_bitvec_run_lengths_edge_cases(void) {
     for (int i = 0; i < 10; i++) {
         BitVecPush(&all_true_bv, true);
     }
-    count = BitVecRunLengths(&all_true_bv, runs, values, 5);
+    count  = BitVecRunLengths(&all_true_bv, runs, values, 5);
     result = result && (count == 1);
     result = result && (runs[0] == 10 && values[0] == true);
     BitVecDeinit(&all_true_bv);
@@ -518,9 +518,9 @@ bool test_bitvec_run_lengths_edge_cases(void) {
     for (int i = 0; i < 7; i++) {
         BitVecPush(&alternating_bv, i % 2 == 0);
     }
-    u64 alt_runs[10];
+    u64  alt_runs[10];
     bool alt_values[10];
-    count = BitVecRunLengths(&alternating_bv, alt_runs, alt_values, 10);
+    count  = BitVecRunLengths(&alternating_bv, alt_runs, alt_values, 10);
     result = result && (count == 7); // Each bit is its own run
     // Verify alternating pattern
     for (u64 i = 0; i < count && i < 7; i++) {
@@ -535,8 +535,8 @@ bool test_bitvec_run_lengths_edge_cases(void) {
 bool test_bitvec_run_lengths_boundary_conditions(void) {
     printf("Testing BitVecRunLengths boundary conditions\n");
 
-    BitVec bv = BitVecInit();
-    bool result = true;
+    BitVec bv     = BitVecInit();
+    bool   result = true;
 
     // Create pattern with many runs: 10101010 (8 runs)
     for (int i = 0; i < 8; i++) {
@@ -544,25 +544,25 @@ bool test_bitvec_run_lengths_boundary_conditions(void) {
     }
 
     // Test with limited max_runs
-    u64 runs[3];
+    u64  runs[3];
     bool values[3];
-    u64 count = BitVecRunLengths(&bv, runs, values, 3);
+    u64  count = BitVecRunLengths(&bv, runs, values, 3);
 
     // Should only capture first 3 runs due to limit
     result = result && (count == 3);
-    result = result && (runs[0] == 1 && values[0] == true);   // First run
-    result = result && (runs[1] == 1 && values[1] == false);  // Second run  
-    result = result && (runs[2] == 1 && values[2] == true);   // Third run
+    result = result && (runs[0] == 1 && values[0] == true);  // First run
+    result = result && (runs[1] == 1 && values[1] == false); // Second run
+    result = result && (runs[2] == 1 && values[2] == true);  // Third run
 
     // Test with max_runs = 1
-    count = BitVecRunLengths(&bv, runs, values, 1);
+    count  = BitVecRunLengths(&bv, runs, values, 1);
     result = result && (count == 1);
     result = result && (runs[0] == 1 && values[0] == true);
 
     // Test with exact number of runs needed
-    u64 large_runs[8];
+    u64  large_runs[8];
     bool large_values[8];
-    count = BitVecRunLengths(&bv, large_runs, large_values, 8);
+    count  = BitVecRunLengths(&bv, large_runs, large_values, 8);
     result = result && (count == 8);
 
     BitVecDeinit(&bv);
@@ -586,9 +586,9 @@ bool test_bitvec_run_lengths_stress_test(void) {
         }
     }
 
-    u64 runs[200];
+    u64  runs[200];
     bool values[200];
-    u64 count = BitVecRunLengths(&large_bv, runs, values, 200);
+    u64  count = BitVecRunLengths(&large_bv, runs, values, 200);
 
     // Should have 100 runs (100 blocks)
     result = result && (count == 100);
@@ -601,17 +601,17 @@ bool test_bitvec_run_lengths_stress_test(void) {
 
     // Test with complex random-like pattern
     BitVecClear(&large_bv);
-    
+
     // Pattern: 1111000011100010000111 (variable length runs)
     // Run 1: 4 trues, Run 2: 4 falses, Run 3: 3 trues, Run 4: 3 falses, Run 5: 1 true, Run 6: 4 falses, Run 7: 3 trues
-    bool pattern[] = {1,1,1,1,0,0,0,0,1,1,1,0,0,0,1,0,0,0,0,1,1,1};
-    int pattern_len = sizeof(pattern) / sizeof(pattern[0]);
-    
+    bool pattern[]   = {1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1};
+    int  pattern_len = sizeof(pattern) / sizeof(pattern[0]);
+
     for (int i = 0; i < pattern_len; i++) {
         BitVecPush(&large_bv, pattern[i]);
     }
 
-    u64 small_runs[10];
+    u64  small_runs[10];
     bool small_values[10];
     count = BitVecRunLengths(&large_bv, small_runs, small_values, 10);
 
@@ -635,57 +635,57 @@ bool test_bitvec_run_lengths_stress_test(void) {
 
 bool test_bitvec_run_lengths_null_bv(void) {
     printf("Testing BitVecRunLengths with NULL bitvector\n");
-    
-    u64 runs[5];
+
+    u64  runs[5];
     bool values[5];
-    
+
     // This should cause LOG_FATAL and terminate the program
     BitVecRunLengths(NULL, runs, values, 5);
-    
-    return true;  // Should never reach here
+
+    return true; // Should never reach here
 }
 
 bool test_bitvec_run_lengths_null_runs(void) {
     printf("Testing BitVecRunLengths with NULL runs array\n");
-    
+
     BitVec bv = BitVecInit();
     BitVecPush(&bv, true);
     bool values[5];
-    
+
     // This should cause LOG_FATAL and terminate the program
     BitVecRunLengths(&bv, NULL, values, 5);
-    
+
     BitVecDeinit(&bv);
-    return true;  // Should never reach here
+    return true; // Should never reach here
 }
 
 bool test_bitvec_run_lengths_null_values(void) {
     printf("Testing BitVecRunLengths with NULL values array\n");
-    
+
     BitVec bv = BitVecInit();
     BitVecPush(&bv, true);
     u64 runs[5];
-    
+
     // This should cause LOG_FATAL and terminate the program
     BitVecRunLengths(&bv, runs, NULL, 5);
-    
+
     BitVecDeinit(&bv);
-    return true;  // Should never reach here
+    return true; // Should never reach here
 }
 
 bool test_bitvec_run_lengths_zero_max_runs(void) {
     printf("Testing BitVecRunLengths with zero max_runs\n");
-    
+
     BitVec bv = BitVecInit();
     BitVecPush(&bv, true);
-    u64 runs[5];
+    u64  runs[5];
     bool values[5];
-    
+
     // This should cause LOG_FATAL and terminate the program
     BitVecRunLengths(&bv, runs, values, 0);
-    
+
     BitVecDeinit(&bv);
-    return true;  // Should never reach here
+    return true; // Should never reach here
 }
 
 // Deadend tests - Note: foreach macros don't have traditional NULL checks
@@ -700,9 +700,9 @@ bool test_bitvec_foreach_invalid_usage(void) {
 
     // This should abort due to ValidateBitVec check
     int count = 0;
-    BitVecForeach(&bv, bit, { 
+    BitVecForeach(&bv, bit, {
         (void)bit;
-        count++; 
+        count++;
     });
 
     // Should not reach here

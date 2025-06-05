@@ -23,18 +23,36 @@
 
 // Portable helper for counting leading zeros in a 64-bit integer
 static inline u64 count_leading_zeros_u64(u64 value) {
-    if (value == 0) return 64;
-    
+    if (value == 0)
+        return 64;
+
     // Pure portable implementation - works on all compilers
     u64 count = 0;
-    
-    if ((value >> 32) == 0) { count += 32; value <<= 32; }
-    if ((value >> 48) == 0) { count += 16; value <<= 16; }
-    if ((value >> 56) == 0) { count += 8;  value <<= 8;  }
-    if ((value >> 60) == 0) { count += 4;  value <<= 4;  }
-    if ((value >> 62) == 0) { count += 2;  value <<= 2;  }
-    if ((value >> 63) == 0) { count += 1; }
-    
+
+    if ((value >> 32) == 0) {
+        count  += 32;
+        value <<= 32;
+    }
+    if ((value >> 48) == 0) {
+        count  += 16;
+        value <<= 16;
+    }
+    if ((value >> 56) == 0) {
+        count  += 8;
+        value <<= 8;
+    }
+    if ((value >> 60) == 0) {
+        count  += 4;
+        value <<= 4;
+    }
+    if ((value >> 62) == 0) {
+        count  += 2;
+        value <<= 2;
+    }
+    if ((value >> 63) == 0) {
+        count += 1;
+    }
+
     return count;
 }
 
