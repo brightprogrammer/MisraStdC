@@ -51,6 +51,12 @@ vec_deadend_tests = [
     ['Vec.Foreach.Deadend', 'Std/Vec.Foreach.Deadend.c'],
 ]
 
+bitvec_tests = [
+    ['BitVec.Type', 'Std/BitVec.Type.c'],
+    ['BitVec.Access', 'Std/BitVec.Access.c'],
+    ['BitVec.Ops', 'Std/BitVec.Ops.c'],
+]
+
 json_tests = [
     ['Json.Read.Simple', 'Json/Read.Simple.c'],
     ['Json.Read.Nested', 'Json/Read.Nested.c'],
@@ -115,6 +121,23 @@ foreach test_info : vec_tests
 endforeach 
 
 foreach test_info : json_tests
+    test_name = test_info[0]
+    test_src = test_info[1]
+    
+    test_exe = executable(
+        test_name,
+        files(test_src),
+        link_with: [misra_std],
+        dependencies: [test_util_dep],
+        c_args: test_args,
+        include_directories: inc_misra,
+        install: false
+    )
+    
+    test(test_name, test_exe)
+endforeach
+
+foreach test_info : bitvec_tests
     test_name = test_info[0]
     test_src = test_info[1]
     
