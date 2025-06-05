@@ -9,7 +9,7 @@ on:
 jobs:
   format-check:
     name: Check code formatting with clang-format
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     
     steps:
     - uses: actions/checkout@v4
@@ -18,8 +18,8 @@ jobs:
         
     - name: Install clang-format
       run: |
-        sudo apt-get update
-        sudo apt-get install -y clang-format
+        # Install clang-format via Homebrew (matches local development environment)
+        brew install clang-format
         
     - name: Check clang-format version
       run: |
