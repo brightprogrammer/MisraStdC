@@ -60,10 +60,12 @@ for file in $FILES; do
         echo -n "Checking $(basename "$file")... "
         
         # Format the file and save to temp directory
-        clang-format "$file" > "$TEMP_DIR/$(basename "$file")"
+        TEMP_FILE="$TEMP_DIR/${file#./}"
+        mkdir -p "$(dirname "$TEMP_FILE")"
+        clang-format "$file" > "$TEMP_FILE"
         
         # Compare original with formatted version
-        DIFF_OUTPUT=$(diff -u "$file" "$TEMP_DIR/$(basename "$file")")
+        DIFF_OUTPUT=$(diff -u "$file" "$TEMP_FILE")
         if [ -n "$DIFF_OUTPUT" ]; then
             echo -e "${RED}❌ NOT FORMATTED${NC}"
             echo "  Differences found in: $file"
