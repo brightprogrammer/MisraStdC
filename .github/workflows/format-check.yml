@@ -65,10 +65,11 @@ jobs:
             echo "Checking $file..."
             
             # Format the file and save to temp directory
-            clang-format "$file" > "/tmp/formatted/$(basename "$file")"
+            formatted_file="/tmp/formatted/$(echo "$file" | sed 's|/|_|g')"
+            clang-format "$file" > "$formatted_file"
             
             # Compare original with formatted version
-            if ! diff -u "$file" "/tmp/formatted/$(basename "$file")"; then
+            if ! diff -u "$file" "$formatted_file"; then
               echo "❌ $file is not properly formatted"
               echo "Expected changes shown above (- original, + formatted)"
               echo ""
