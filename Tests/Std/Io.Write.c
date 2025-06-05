@@ -3,7 +3,6 @@
 #include <Misra/Std/Log.h>
 #include <math.h>   // For INFINITY and NAN
 #include <string.h> // For strlen
-#include <stdbool.h>
 #include <stdio.h>
 #include <Misra/Types.h>
 

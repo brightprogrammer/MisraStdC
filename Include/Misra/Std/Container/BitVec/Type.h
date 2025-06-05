@@ -30,10 +30,10 @@
 /// TAGS: BitVec, Bits, Boolean, Packed, Memory
 ///
 typedef struct {
-    size length;    // Number of bits currently in bitvector
-    size capacity;  // Max number of bits this bitvector can hold (in bits)
+    u64 length;    // Number of bits currently in bitvector
+    u64 capacity;  // Max number of bits this bitvector can hold (in bits)
     u8  *data;      // Bit data stored as bytes
-    size byte_size; // Size of data array in bytes
+    u64 byte_size; // Size of data array in bytes
 } BitVec;
 
 ///
@@ -47,15 +47,18 @@ typedef struct {
 /// FAILURE : `abort`
 ///
 #define ValidateBitVec(bv)                                                                                             \
-    do { if(!bv) {LOG_FATAL("Invalid bitvec object: NULL.");}                                                                                                              \
-        if ((bv)->length > (bv)->capacity) {                                                                          \
+    do {                                                                                                               \
+        if (!(bv)) {                                                                                                   \
+            LOG_FATAL("Invalid bitvec object: NULL.");                                                                 \
+        }                                                                                                              \
+        if ((bv)->length > (bv)->capacity) {                                                                           \
             LOG_FATAL("Invalid bitvec object: length > capacity.");                                                    \
         }                                                                                                              \
         if ((bv)->length > 0 && !(bv)->data) {                                                                         \
             LOG_FATAL("Invalid bitvec object: length > 0 but data is NULL.");                                          \
         }                                                                                                              \
         if ((bv)->capacity > 0 && (bv)->byte_size * 8 < (bv)->capacity) {                                              \
-            LOG_FATAL("Invalid bitvec object: byte_size too small for capacity.");                                     \
+            LOG_FATAL("Invalid bitvec object: byte_u64 too small for capacity.");                                     \
         }                                                                                                              \
         if ((bv)->data) {                                                                                              \
             (void)((bv)->data[0]);                                                                                     \

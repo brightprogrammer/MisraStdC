@@ -53,8 +53,17 @@ vec_deadend_tests = [
 
 bitvec_tests = [
     ['BitVec.Type', 'Std/BitVec.Type.c'],
+    ['BitVec.Init', 'Std/BitVec.Init.c'],
     ['BitVec.Access', 'Std/BitVec.Access.c'],
-    ['BitVec.Ops', 'Std/BitVec.Ops.c'],
+    ['BitVec.Insert', 'Std/BitVec.Insert.c'],
+    ['BitVec.Remove', 'Std/BitVec.Remove.c'],
+    ['BitVec.Memory', 'Std/BitVec.Memory.c'],
+    ['BitVec.BitWise', 'Std/BitVec.BitWise.c'],
+    ['BitVec.Compare', 'Std/BitVec.Compare.c'],
+    ['BitVec.Convert', 'Std/BitVec.Convert.c'],
+    ['BitVec.Pattern', 'Std/BitVec.Pattern.c'],
+    ['BitVec.Math', 'Std/BitVec.Math.c'],
+    ['BitVec.Foreach', 'Std/BitVec.Foreach.c'],
 ]
 
 json_tests = [

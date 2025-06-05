@@ -76,7 +76,7 @@ extern "C" {
     ///
     /// TAGS: Init, BitVec, Boolean, Bits, Data
     ///
-    void BitVecInitWithData(BitVec *bv, const u8 *data, size byte_len, size bit_len);
+    void BitVecInitWithData(BitVec *bv, const u8 *data, u64 byte_len, u64 bit_len);
 
     ///
     /// Deinitialize bitvector and free all allocated memory.
@@ -116,21 +116,21 @@ extern "C" {
     ///
     /// TAGS: BitVec, Reserve, Capacity, Memory
     ///
-    void BitVecReserve(BitVec *bv, size n);
+    void BitVecReserve(BitVec *bv, u64 n);
 
     ///
-    /// Resize bitvector to hold exactly n bits.
+    /// Reu64 bitvector to hold exactly n bits.
     /// May grow or shrink the bitvector.
     ///
     /// bv[in] : Bitvector to resize
-    /// n[in]  : New size in bits
+    /// n[in]  : New u64 in bits
     ///
     /// USAGE:
     ///   BitVecResize(&flags, 64);
     ///
     /// TAGS: BitVec, Resize, Length
     ///
-    void BitVecResize(BitVec *bv, size n);
+    void BitVecResize(BitVec *bv, u64 n);
 
 #ifdef __cplusplus
 }

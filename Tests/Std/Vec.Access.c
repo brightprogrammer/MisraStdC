@@ -1,6 +1,5 @@
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Log.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <Misra/Types.h>
 

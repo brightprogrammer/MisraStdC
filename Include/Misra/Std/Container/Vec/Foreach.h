@@ -27,9 +27,10 @@
 ///
 #define VecForeachIdx(v, var, idx, body)                                                                               \
     do {                                                                                                               \
+        ValidateVec(v);                                                                                                \
         size idx            = 0;                                                                                       \
         VEC_DATATYPE(v) var = {0};                                                                                     \
-        if ((v) != NULL && (v)->length > 0) {                                                                          \
+        if ((v)->length > 0) {                                                                                         \
             for ((idx) = 0; (idx) < (v)->length; ++(idx)) {                                                            \
                 var = VecAt(v, idx);                                                                                   \
                 { body }                                                                                               \
@@ -53,9 +54,10 @@
 ///
 #define VecForeachReverseIdx(v, var, idx, body)                                                                        \
     do {                                                                                                               \
+        ValidateVec(v);                                                                                                \
         size idx            = 0;                                                                                       \
         VEC_DATATYPE(v) var = {0};                                                                                     \
-        if ((v) != NULL && (v)->length > 0) {                                                                          \
+        if ((v)->length > 0) {                                                                                         \
             for ((idx) = (v)->length - 1; (idx) < (v)->length; --(idx)) {                                              \
                 var = VecAt(v, idx);                                                                                   \
                 { body }                                                                                               \
@@ -81,9 +83,10 @@
 ///
 #define VecForeachPtrIdx(v, var, idx, body)                                                                            \
     do {                                                                                                               \
+        ValidateVec(v);                                                                                                \
         size idx             = 0;                                                                                      \
         VEC_DATATYPE(v) *var = NULL;                                                                                   \
-        if ((v) != NULL && (v)->length > 0) {                                                                          \
+        if ((v)->length > 0) {                                                                                         \
             for ((idx) = 0; (idx) < (v)->length; ++(idx)) {                                                            \
                 var = VecPtrAt(v, idx);                                                                                \
                 body if ((idx) >= (v)->length) {                                                                       \
@@ -106,9 +109,10 @@
 ///
 #define VecForeachPtrReverseIdx(v, var, idx, body)                                                                     \
     do {                                                                                                               \
+        ValidateVec(v);                                                                                                \
         size idx             = 0;                                                                                      \
         VEC_DATATYPE(v) *var = {0};                                                                                    \
-        if ((v) != NULL && (v)->length > 0) {                                                                          \
+        if ((v)->length > 0) {                                                                                         \
             for ((idx) = (v)->length - 1; (idx) < (v)->length; --(idx)) {                                              \
                 var = VecPtrAt(v, idx);                                                                                \
                 { body }                                                                                               \
@@ -222,9 +226,10 @@
 ///
 #define VecForeachInRangeIdx(v, var, idx, start, end, body)                                                            \
     do {                                                                                                               \
+        ValidateVec(v);                                                                                                \
         size idx            = 0;                                                                                       \
         VEC_DATATYPE(v) var = {0};                                                                                     \
-        if ((v) != NULL && (v)->length > 0) {                                                                          \
+        if ((v)->length > 0) {                                                                                         \
             if ((end) > (v)->length) {                                                                                 \
                 LOG_FATAL(                                                                                             \
                     "Vector range overflow: End index %zu exceeds vector length %zu. "                                 \
@@ -302,9 +307,10 @@
 ///
 #define VecForeachPtrInRangeIdx(v, var, idx, start, end, body)                                                         \
     do {                                                                                                               \
+        ValidateVec(v);                                                                                                \
         size idx             = 0;                                                                                      \
         VEC_DATATYPE(v) *var = NULL;                                                                                   \
-        if ((v) != NULL && (v)->length > 0) {                                                                          \
+        if ((v)->length > 0) {                                                                                         \
             if ((end) > (v)->length) {                                                                                 \
                 LOG_FATAL(                                                                                             \
                     "Vector range overflow: End index %zu exceeds vector length %zu. "                                 \

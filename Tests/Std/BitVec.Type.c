@@ -1,6 +1,6 @@
 #include <Misra/Std/Container/BitVec.h>
 #include <Misra/Std/Log.h>
-#include <stdbool.h>
+
 #include <stdio.h>
 #include <Misra/Types.h>
 

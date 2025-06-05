@@ -26,7 +26,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Access, Get, Boolean
     ///
-    bool BitVecGet(BitVec *bv, size idx);
+    bool BitVecGet(BitVec *bv, u64 idx);
 
     ///
     /// Set the value of bit at given index in bitvector.
@@ -41,7 +41,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Access, Set, Boolean
     ///
-    void BitVecSet(BitVec *bv, size idx, bool value);
+    void BitVecSet(BitVec *bv, u64 idx, bool value);
 
     ///
     /// Flip the value of bit at given index in bitvector.
@@ -55,7 +55,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Access, Flip, Toggle
     ///
-    void BitVecFlip(BitVec *bv, size idx);
+    void BitVecFlip(BitVec *bv, u64 idx);
 
 ///
 /// Get number of bits currently in bitvector.
@@ -65,7 +65,7 @@ extern "C" {
 /// RETURNS : Number of bits in bitvector
 ///
 /// USAGE:
-///   size num_bits = BitVecLen(&flags);
+///   u64 num_bits = BitVecLen(&flags);
 ///
 /// TAGS: BitVec, Length, Size
 ///
@@ -79,7 +79,7 @@ extern "C" {
 /// RETURNS : Maximum number of bits bitvector can hold without reallocation
 ///
 /// USAGE:
-///   size max_bits = BitVecCapacity(&flags);
+///   u64 max_bits = BitVecCapacity(&flags);
 ///
 /// TAGS: BitVec, Capacity, Size
 ///
@@ -100,15 +100,15 @@ extern "C" {
 #define BitVecEmpty(bv) (BitVecLen(bv) == 0)
 
 ///
-/// Get size of bitvector in bytes.
+/// Get u64 of bitvector in bytes.
 /// This returns the actual memory used by the bit data.
 ///
-/// bv[in] : Bitvector to get byte size of
+/// bv[in] : Bitvector to get byte u64 of
 ///
 /// RETURNS : Number of bytes used to store bits
 ///
 /// USAGE:
-///   size bytes_used = BitVecByteSize(&flags);
+///   u64 bytes_used = BitVecByteSize(&flags);
 ///
 /// TAGS: BitVec, Size, Bytes, Memory
 ///
@@ -122,11 +122,11 @@ extern "C" {
     /// RETURNS : Number of bits set to 1
     ///
     /// USAGE:
-    ///   size ones = BitVecCountOnes(&flags);
+    ///   u64 ones = BitVecCountOnes(&flags);
     ///
     /// TAGS: BitVec, Count, Ones, Population
     ///
-    size BitVecCountOnes(BitVec *bv);
+    u64 BitVecCountOnes(BitVec *bv);
 
     ///
     /// Count number of bits set to 0 in bitvector.
@@ -136,11 +136,102 @@ extern "C" {
     /// RETURNS : Number of bits set to 0
     ///
     /// USAGE:
-    ///   size zeros = BitVecCountZeros(&flags);
+    ///   u64 zeros = BitVecCountZeros(&flags);
     ///
     /// TAGS: BitVec, Count, Zeros
     ///
-    size BitVecCountZeros(BitVec *bv);
+    u64 BitVecCountZeros(BitVec *bv);
+
+    ///
+    /// Find index of first occurrence of a specific bit value.
+    ///
+    /// bv[in]    : Bitvector to search in
+    /// value[in] : Bit value to find (true or false)
+    ///
+    /// RETURNS: Index of first occurrence, or SIZE_MAX if not found
+    ///
+    /// USAGE:
+    ///   u64 index = BitVecFind(&flags, true);
+    ///   if (index != SIZE_MAX) { /* found at index */ }
+    ///
+    /// TAGS: BitVec, Find, Search, Access
+    ///
+    u64 BitVecFind(BitVec *bv, bool value);
+
+    ///
+    /// Find index of last occurrence of a specific bit value.
+    ///
+    /// bv[in]    : Bitvector to search in
+    /// value[in] : Bit value to find (true or false)
+    ///
+    /// RETURNS: Index of last occurrence, or SIZE_MAX if not found
+    ///
+    /// USAGE:
+    ///   u64 index = BitVecFindLast(&flags, false);
+    ///
+    /// TAGS: BitVec, FindLast, Search, Access
+    ///
+    u64 BitVecFindLast(BitVec *bv, bool value);
+
+    ///
+    /// Check if all bits in bitvector match the given value.
+    ///
+    /// bv[in]    : Bitvector to check
+    /// value[in] : Value to check against (true or false)
+    ///
+    /// RETURNS: true if all bits match the value
+    ///
+    /// USAGE:
+    ///   bool all_set = BitVecAll(&flags, true);
+    ///
+    /// TAGS: BitVec, All, Check, Predicate
+    ///
+    bool BitVecAll(BitVec *bv, bool value);
+
+    ///
+    /// Check if any bit in bitvector matches the given value.
+    ///
+    /// bv[in]    : Bitvector to check
+    /// value[in] : Value to check for (true or false)
+    ///
+    /// RETURNS: true if any bit matches the value
+    ///
+    /// USAGE:
+    ///   bool any_set = BitVecAny(&flags, true);
+    ///
+    /// TAGS: BitVec, Any, Check, Predicate
+    ///
+    bool BitVecAny(BitVec *bv, bool value);
+
+    ///
+    /// Check if no bits in bitvector match the given value.
+    ///
+    /// bv[in]    : Bitvector to check
+    /// value[in] : Value to check against (true or false)
+    ///
+    /// RETURNS: true if no bits match the value
+    ///
+    /// USAGE:
+    ///   bool none_set = BitVecNone(&flags, true);
+    ///
+    /// TAGS: BitVec, None, Check, Predicate
+    ///
+    bool BitVecNone(BitVec *bv, bool value);
+
+    ///
+    /// Find the longest consecutive sequence of a specific bit value.
+    ///
+    /// bv[in]    : Bitvector to analyze
+    /// value[in] : Bit value to find runs of (true or false)
+    ///
+    /// RETURNS: Length of longest consecutive sequence
+    ///
+    /// USAGE:
+    ///   u64 longest = BitVecLongestRun(&flags, true);
+    ///
+    /// TAGS: BitVec, LongestRun, Analysis, Sequence
+    ///
+    u64 BitVecLongestRun(BitVec *bv, bool value);
 
 #ifdef __cplusplus
 }
