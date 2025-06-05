@@ -12,6 +12,23 @@
 #include <stdio.h>
 #include <math.h>
 
+// Ensure SIZE_MAX is defined
+#ifndef SIZE_MAX
+#    if defined(_MSC_VER) || defined(__MSC_VER)
+#        if defined(_WIN64)
+#            define SIZE_MAX 18446744073709551615ULL
+#        else
+#            define SIZE_MAX 4294967295U
+#        endif
+#    else
+#        if ULONG_MAX == 18446744073709551615ULL
+#            define SIZE_MAX 18446744073709551615ULL
+#        else
+#            define SIZE_MAX 4294967295U
+#        endif
+#    endif
+#endif
+
 // Helper macros for bit operations
 #define BITS_PER_BYTE        8
 #define BIT_INDEX(idx)       ((idx) / BITS_PER_BYTE)

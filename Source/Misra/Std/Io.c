@@ -21,6 +21,23 @@
 #include <ctype.h>
 #include <math.h>
 
+// Portable helper for counting leading zeros in a 64-bit integer
+static inline u64 count_leading_zeros_u64(u64 value) {
+    if (value == 0) return 64;
+    
+    // Pure portable implementation - works on all compilers
+    u64 count = 0;
+    
+    if ((value >> 32) == 0) { count += 32; value <<= 32; }
+    if ((value >> 48) == 0) { count += 16; value <<= 16; }
+    if ((value >> 56) == 0) { count += 8;  value <<= 8;  }
+    if ((value >> 60) == 0) { count += 4;  value <<= 4;  }
+    if ((value >> 62) == 0) { count += 2;  value <<= 2;  }
+    if ((value >> 63) == 0) { count += 1; }
+    
+    return count;
+}
+
 // Helper function to parse format specifiers
 static bool ParseFormatSpec(const char* spec, size len, FmtInfo* fi) {
     if (!spec || !fi) {
@@ -2052,6 +2069,7 @@ const char* _read_i64(const char* i, FmtInfo* fmt_info, i64* v) {
 }
 
 const char* _read_Zstr(const char* i, FmtInfo* fmt_info, const char** out) {
+    (void)fmt_info; // Unused parameter
     if (!i || !out)
         LOG_FATAL("Invalid arguments");
 
@@ -2139,6 +2157,7 @@ void _write_UnsupportedType(Str* o, FmtInfo* fmt_info, const char** s) {
 }
 
 const char* _read_BitVec(const char* i, FmtInfo* fmt_info, BitVec* bv) {
+    (void)fmt_info; // Unused parameter
     if (!i || !bv) {
         LOG_FATAL("Invalid arguments");
         return i;
@@ -2185,7 +2204,7 @@ const char* _read_BitVec(const char* i, FmtInfo* fmt_info, BitVec* bv) {
         }
 
         // Determine bit length (minimum to represent the value)
-        u64 bit_len = value == 0 ? 1 : 64 - __builtin_clzll(value);
+        u64 bit_len = value == 0 ? 1 : 64 - count_leading_zeros_u64(value);
         if (bit_len < 4)
             bit_len = 4; // Minimum 4 bits for hex display
 
@@ -2221,7 +2240,7 @@ const char* _read_BitVec(const char* i, FmtInfo* fmt_info, BitVec* bv) {
         }
 
         // Determine bit length
-        u64 bit_len = value == 0 ? 1 : 64 - __builtin_clzll(value);
+        u64 bit_len = value == 0 ? 1 : 64 - count_leading_zeros_u64(value);
         if (bit_len < 3)
             bit_len = 3; // Minimum 3 bits for octal display
 
@@ -2254,6 +2273,7 @@ const char* _read_BitVec(const char* i, FmtInfo* fmt_info, BitVec* bv) {
 }
 
 const char* _read_UnsupportedType(const char* i, FmtInfo* fmt_info, const char** s) {
+    (void)fmt_info; // Unused parameter
     (void)s;
     LOG_FATAL("Attempt to read unsupported type.");
     return i;
