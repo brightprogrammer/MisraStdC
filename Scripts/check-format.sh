@@ -64,14 +64,15 @@ for file in $FILES; do
         clang-format "$file" > "$TEMP_DIR/$(basename "$file")"
         
         # Compare original with formatted version
-        if ! diff -q "$file" "$TEMP_DIR/$(basename "$file")" > /dev/null 2>&1; then
+        DIFF_OUTPUT=$(diff -u "$file" "$TEMP_DIR/$(basename "$file")")
+        if [ -n "$DIFF_OUTPUT" ]; then
             echo -e "${RED}❌ NOT FORMATTED${NC}"
             echo "  Differences found in: $file"
             
             # Show the diff
             echo "  Expected changes:"
-            diff -u "$file" "$TEMP_DIR/$(basename "$file")" | head -20 | sed 's/^/    /'
-            if [ $(diff -u "$file" "$TEMP_DIR/$(basename "$file")" | wc -l) -gt 20 ]; then
+            echo "$DIFF_OUTPUT" | head -20 | sed 's/^/    /'
+            if [ $(echo "$DIFF_OUTPUT" | wc -l) -gt 20 ]; then
                 echo "    ... (output truncated, use 'clang-format $file' to see full diff)"
             fi
             echo ""
