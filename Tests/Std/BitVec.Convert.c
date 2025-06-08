@@ -1,4 +1,4 @@
-#include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Container/Bits.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
@@ -10,40 +10,40 @@
 #include "../Util/TestRunner.h"
 
 // Function prototypes
-bool test_bitvec_to_string(void);
-bool test_bitvec_from_string(void);
-bool test_bitvec_to_bytes(void);
-bool test_bitvec_from_bytes(void);
-bool test_bitvec_to_integer(void);
-bool test_bitvec_from_integer(void);
-bool test_bitvec_convert_edge_cases(void);
-bool test_bitvec_from_string_edge_cases(void);
-bool test_bitvec_bytes_conversion_edge_cases(void);
-bool test_bitvec_integer_conversion_edge_cases(void);
-bool test_bitvec_round_trip_conversions(void);
-bool test_bitvec_conversion_bounds_checking(void);
-bool test_bitvec_conversion_comprehensive(void);
-bool test_bitvec_large_scale_conversions(void);
-bool test_bitvec_convert_null_failures(void);
-bool test_bitvec_from_string_null_failures(void);
-bool test_bitvec_bytes_null_failures(void);
-bool test_bitvec_bytes_bounds_failures(void);
-bool test_bitvec_integer_bounds_failures(void);
+bool test_Bits_to_string(void);
+bool test_Bits_from_string(void);
+bool test_Bits_to_bytes(void);
+bool test_Bits_from_bytes(void);
+bool test_Bits_to_integer(void);
+bool test_Bits_from_integer(void);
+bool test_Bits_convert_edge_cases(void);
+bool test_Bits_from_string_edge_cases(void);
+bool test_Bits_bytes_conversion_edge_cases(void);
+bool test_Bits_integer_conversion_edge_cases(void);
+bool test_Bits_round_trip_conversions(void);
+bool test_Bits_conversion_bounds_checking(void);
+bool test_Bits_conversion_comprehensive(void);
+bool test_Bits_large_scale_conversions(void);
+bool test_Bits_convert_null_failures(void);
+bool test_Bits_from_string_null_failures(void);
+bool test_Bits_bytes_null_failures(void);
+bool test_Bits_bytes_bounds_failures(void);
+bool test_Bits_integer_bounds_failures(void);
 
-// Test BitVecToStr function
-bool test_bitvec_to_string(void) {
-    printf("Testing BitVecToStr\n");
+// Test BitsToStr function
+bool test_Bits_to_string(void) {
+    printf("Testing BitsToStr\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Create pattern: 1011
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, true);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
+    BitsPush(&bv, true);
+    BitsPush(&bv, true);
 
     // Convert to string
-    Str str = BitVecToStr(&bv);
+    Str str = BitsToStr(&bv);
 
     // Check result
     bool result = (str.length == 4);
@@ -54,55 +54,55 @@ bool test_bitvec_to_string(void) {
 
     // Clean up
     StrDeinit(&str);
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
 
     return result;
 }
 
-// Test BitVecFromStr function
-bool test_bitvec_from_string(void) {
-    printf("Testing BitVecFromStr\n");
+// Test BitsFromStr function
+bool test_Bits_from_string(void) {
+    printf("Testing BitsFromStr\n");
 
     // Convert from string
     const char* str = "1011";
-    BitVec      bv  = BitVecFromStr(str);
+    Bits      bv  = BitsFromStr(str);
 
     // Check result
     bool result = (bv.length == 4);
-    result      = result && (BitVecGet(&bv, 0) == true);
-    result      = result && (BitVecGet(&bv, 1) == false);
-    result      = result && (BitVecGet(&bv, 2) == true);
-    result      = result && (BitVecGet(&bv, 3) == true);
+    result      = result && (BitsGet(&bv, 0) == true);
+    result      = result && (BitsGet(&bv, 1) == false);
+    result      = result && (BitsGet(&bv, 2) == true);
+    result      = result && (BitsGet(&bv, 3) == true);
 
     // Test with empty string
-    BitVec empty_bv = BitVecFromStr("");
+    Bits empty_bv = BitsFromStr("");
     result          = result && (empty_bv.length == 0);
 
     // Clean up
-    BitVecDeinit(&bv);
-    BitVecDeinit(&empty_bv);
+    BitsDeinit(&bv);
+    BitsDeinit(&empty_bv);
 
     return result;
 }
 
-// Test BitVecToBytes function
-bool test_bitvec_to_bytes(void) {
-    printf("Testing BitVecToBytes\n");
+// Test BitsToBytes function
+bool test_Bits_to_bytes(void) {
+    printf("Testing BitsToBytes\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Create pattern: 10110011 (0xB3)
-    BitVecPush(&bv, true);  // bit 0
-    BitVecPush(&bv, false); // bit 1
-    BitVecPush(&bv, true);  // bit 2
-    BitVecPush(&bv, true);  // bit 3
-    BitVecPush(&bv, false); // bit 4
-    BitVecPush(&bv, false); // bit 5
-    BitVecPush(&bv, true);  // bit 6
-    BitVecPush(&bv, true);  // bit 7
+    BitsPush(&bv, true);  // bit 0
+    BitsPush(&bv, false); // bit 1
+    BitsPush(&bv, true);  // bit 2
+    BitsPush(&bv, true);  // bit 3
+    BitsPush(&bv, false); // bit 4
+    BitsPush(&bv, false); // bit 5
+    BitsPush(&bv, true);  // bit 6
+    BitsPush(&bv, true);  // bit 7
 
     u8  bytes[2];           // Buffer for byte output
-    u64 byte_count = BitVecToBytes(&bv, bytes, sizeof(bytes));
+    u64 byte_count = BitsToBytes(&bv, bytes, sizeof(bytes));
 
     // Check result
     bool result = (byte_count == 1);
@@ -112,18 +112,18 @@ bool test_bitvec_to_bytes(void) {
         // If bits are stored MSB first: 10110011 = 0xB3
         result = result && (bytes[0] == 0xCD || bytes[0] == 0xB3);
     }
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
 
     return result;
 }
 
-// Test BitVecFromBytes function
-bool test_bitvec_from_bytes(void) {
-    printf("Testing BitVecFromBytes\n");
+// Test BitsFromBytes function
+bool test_Bits_from_bytes(void) {
+    printf("Testing BitsFromBytes\n");
 
     // Create byte array
     u8     bytes[] = {0xB3};                    // 10110011 in binary
-    BitVec bv      = BitVecFromBytes(bytes, 8); // 8 bits from the byte
+    Bits bv      = BitsFromBytes(bytes, 8); // 8 bits from the byte
 
     // Check result (8 bits from 1 byte)
     bool result = (bv.length == 8);
@@ -134,7 +134,7 @@ bool test_bitvec_from_bytes(void) {
     u64 false_count = 0;
 
     for (u64 i = 0; i < bv.length; i++) {
-        if (BitVecGet(&bv, i)) {
+        if (BitsGet(&bv, i)) {
             true_count++;
         } else {
             false_count++;
@@ -145,54 +145,54 @@ bool test_bitvec_from_bytes(void) {
     result = result && (true_count == 5) && (false_count == 3);
 
     // Clean up
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
 
     return result;
 }
 
-// Test BitVecToInteger function
-bool test_bitvec_to_integer(void) {
-    printf("Testing BitVecToInteger\n");
+// Test BitsToInteger function
+bool test_Bits_to_integer(void) {
+    printf("Testing BitsToInteger\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Create pattern: 1011 (decimal 11 if MSB first, 13 if LSB first)
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, true);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
+    BitsPush(&bv, true);
+    BitsPush(&bv, true);
 
     // Convert to integer
-    u64 value = BitVecToInteger(&bv);
+    u64 value = BitsToInteger(&bv);
 
     // Check result - pattern 1011 (bits stored as: index 0=true, 1=false, 2=true, 3=true)
-    // BitVecToInteger uses LSB-first: bit[i] contributes (1ULL << i)
+    // BitsToInteger uses LSB-first: bit[i] contributes (1ULL << i)
     // So: bit[0]*1 + bit[1]*2 + bit[2]*4 + bit[3]*8 = 1*1 + 0*2 + 1*4 + 1*8 = 13
     bool result = (value == 13);
 
     // Test with larger pattern
-    BitVec bv2 = BitVecInit();
+    Bits bv2 = BitsInit();
     for (int i = 0; i < 8; i++) {
-        BitVecPush(&bv2, (i % 2 == 0)); // Alternating pattern
+        BitsPush(&bv2, (i % 2 == 0)); // Alternating pattern
     }
 
-    u64 value2 = BitVecToInteger(&bv2);
+    u64 value2 = BitsToInteger(&bv2);
     result     = result && (value2 > 0); // Should be some positive value
 
     // Clean up
-    BitVecDeinit(&bv);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv);
+    BitsDeinit(&bv2);
 
     return result;
 }
 
-// Test BitVecFromInteger function
-bool test_bitvec_from_integer(void) {
-    printf("Testing BitVecFromInteger\n");
+// Test BitsFromInteger function
+bool test_Bits_from_integer(void) {
+    printf("Testing BitsFromInteger\n");
 
     // Convert from integer
     u64    value = 11; // 1011 in binary
-    BitVec bv    = BitVecFromInteger(value, 4);
+    Bits bv    = BitsFromInteger(value, 4);
 
     // Check result
     bool result = (bv.length == 4);
@@ -202,7 +202,7 @@ bool test_bitvec_from_integer(void) {
     u64 false_count = 0;
 
     for (u64 i = 0; i < bv.length; i++) {
-        if (BitVecGet(&bv, i)) {
+        if (BitsGet(&bv, i)) {
             true_count++;
         } else {
             false_count++;
@@ -213,13 +213,13 @@ bool test_bitvec_from_integer(void) {
     result = result && (true_count == 3) && (false_count == 1);
 
     // Test with zero
-    BitVec zero_bv = BitVecFromInteger(0, 8);
+    Bits zero_bv = BitsFromInteger(0, 8);
     result         = result && (zero_bv.length == 8);
 
     // All bits should be false
     bool all_false = true;
     for (u64 i = 0; i < zero_bv.length; i++) {
-        if (BitVecGet(&zero_bv, i)) {
+        if (BitsGet(&zero_bv, i)) {
             all_false = false;
             break;
         }
@@ -227,59 +227,59 @@ bool test_bitvec_from_integer(void) {
     result = result && all_false;
 
     // Clean up
-    BitVecDeinit(&bv);
-    BitVecDeinit(&zero_bv);
+    BitsDeinit(&bv);
+    BitsDeinit(&zero_bv);
 
     return result;
 }
 
 // Edge case tests
-bool test_bitvec_convert_edge_cases(void) {
-    printf("Testing BitVec convert edge cases\n");
+bool test_Bits_convert_edge_cases(void) {
+    printf("Testing Bits convert edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
-    // Test converting empty bitvec
-    Str str_obj = BitVecToStr(&bv);
+    // Test converting empty Bits
+    Str str_obj = BitsToStr(&bv);
     result      = result && (str_obj.length == 0);
     StrDeinit(&str_obj);
 
     // Test converting single bit
-    BitVecPush(&bv, true);
-    str_obj = BitVecToStr(&bv);
+    BitsPush(&bv, true);
+    str_obj = BitsToStr(&bv);
     result  = result && (str_obj.length == 1);
     result  = result && (StrCmpCstr(&str_obj, "1", 1) == 0);
     StrDeinit(&str_obj);
 
     // Test large conversions
-    BitVecClear(&bv);
+    BitsClear(&bv);
     for (int i = 0; i < 1000; i++) {
-        BitVecPush(&bv, i % 2 == 0);
+        BitsPush(&bv, i % 2 == 0);
     }
-    str_obj = BitVecToStr(&bv);
+    str_obj = BitsToStr(&bv);
     result  = result && (str_obj.length == 1000);
     StrDeinit(&str_obj);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-bool test_bitvec_from_string_edge_cases(void) {
-    printf("Testing BitVecFromStr edge cases\n");
+bool test_Bits_from_string_edge_cases(void) {
+    printf("Testing BitsFromStr edge cases\n");
 
     bool result = true;
 
     // Test empty string
-    BitVec bv1 = BitVecFromStr("");
+    Bits bv1 = BitsFromStr("");
     result     = result && (bv1.length == 0);
-    BitVecDeinit(&bv1);
+    BitsDeinit(&bv1);
 
     // Test single character
-    BitVec bv2 = BitVecFromStr("1");
+    Bits bv2 = BitsFromStr("1");
     result     = result && (bv2.length == 1);
-    result     = result && (BitVecGet(&bv2, 0) == true);
-    BitVecDeinit(&bv2);
+    result     = result && (BitsGet(&bv2, 0) == true);
+    BitsDeinit(&bv2);
 
     // Test long string
     char long_str[1001];
@@ -288,69 +288,69 @@ bool test_bitvec_from_string_edge_cases(void) {
     }
     long_str[1000] = '\0';
 
-    BitVec bv3 = BitVecFromStr(long_str);
+    Bits bv3 = BitsFromStr(long_str);
     result     = result && (bv3.length == 1000);
-    result     = result && (BitVecGet(&bv3, 0) == true);
-    result     = result && (BitVecGet(&bv3, 1) == false);
-    BitVecDeinit(&bv3);
+    result     = result && (BitsGet(&bv3, 0) == true);
+    result     = result && (BitsGet(&bv3, 1) == false);
+    BitsDeinit(&bv3);
 
     return result;
 }
 
-bool test_bitvec_bytes_conversion_edge_cases(void) {
-    printf("Testing BitVec bytes conversion edge cases\n");
+bool test_Bits_bytes_conversion_edge_cases(void) {
+    printf("Testing Bits bytes conversion edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
-    // Test empty bitvec to bytes
+    // Test empty Bits to bytes
     u8  bytes[1] = {0};
-    u64 written  = BitVecToBytes(&bv, bytes, 1);
-    result       = result && (written == 0); // Empty bitvec should write 0 bytes
+    u64 written  = BitsToBytes(&bv, bytes, 1);
+    result       = result && (written == 0); // Empty Bits should write 0 bytes
 
-    // Test bytes to bitvec with 0 bits (should return empty bitvector)
+    // Test bytes to Bits with 0 bits (should return empty Bitstor)
     u8     empty_bytes[1] = {0x05};
-    BitVec bv2            = BitVecFromBytes(empty_bytes, 0); // 0 bits
+    Bits bv2            = BitsFromBytes(empty_bytes, 0); // 0 bits
     result                = result && (bv2.length == 0);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv2);
 
     // Test single byte
     u8     single_byte[1] = {0xFF};
-    BitVec bv3            = BitVecFromBytes(single_byte, 8); // 8 bits from 1 byte
+    Bits bv3            = BitsFromBytes(single_byte, 8); // 8 bits from 1 byte
     result                = result && (bv3.length == 8);
-    BitVecDeinit(&bv3);
+    BitsDeinit(&bv3);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-bool test_bitvec_integer_conversion_edge_cases(void) {
-    printf("Testing BitVec integer conversion edge cases\n");
+bool test_Bits_integer_conversion_edge_cases(void) {
+    printf("Testing Bits integer conversion edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
-    // Test empty bitvec to integer
-    u64 value = BitVecToInteger(&bv);
+    // Test empty Bits to integer
+    u64 value = BitsToInteger(&bv);
     result    = result && (value == 0);
 
-    // Test integer to bitvec with 0
-    BitVec bv2 = BitVecFromInteger(0, 8);     // 8 bits for zero
+    // Test integer to Bits with 0
+    Bits bv2 = BitsFromInteger(0, 8);     // 8 bits for zero
     result     = result && (bv2.length == 8); // Should be 8 bits
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv2);
 
     // Test large integer
-    BitVec bv3 = BitVecFromInteger(UINT64_MAX, 64); // 64 bits for max value
+    Bits bv3 = BitsFromInteger(UINT64_MAX, 64); // 64 bits for max value
     result     = result && (bv3.length == 64);
-    BitVecDeinit(&bv3);
+    BitsDeinit(&bv3);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
 // Round-trip conversion tests
-bool test_bitvec_round_trip_conversions(void) {
-    printf("Testing BitVec round-trip conversions\n");
+bool test_Bits_round_trip_conversions(void) {
+    printf("Testing Bits round-trip conversions\n");
 
     bool result = true;
 
@@ -358,14 +358,14 @@ bool test_bitvec_round_trip_conversions(void) {
     const char* patterns[] = {"101", "1111000011110000", "1", "0", "10101010", "01010101"};
 
     for (size_t i = 0; i < sizeof(patterns) / sizeof(patterns[0]); i++) {
-        BitVec bv  = BitVecFromStr(patterns[i]);
-        Str    str = BitVecToStr(&bv);
+        Bits bv  = BitsFromStr(patterns[i]);
+        Str    str = BitsToStr(&bv);
 
         // Should get exact same string back
         result = result && (ZstrCompare(str.data, patterns[i]) == 0);
 
         StrDeinit(&str);
-        BitVecDeinit(&bv);
+        BitsDeinit(&bv);
     }
 
     // Test integer round-trip for various sizes
@@ -381,12 +381,12 @@ bool test_bitvec_round_trip_conversions(void) {
             u64 mask  = (bits == 64) ? 0xFFFFFFFFFFFFFFFF : (1ULL << bits) - 1;
             value    &= mask;
 
-            BitVec bv        = BitVecFromInteger(value, bits);
-            u64    recovered = BitVecToInteger(&bv);
+            Bits bv        = BitsFromInteger(value, bits);
+            u64    recovered = BitsToInteger(&bv);
 
             result = result && (recovered == value);
 
-            BitVecDeinit(&bv);
+            BitsDeinit(&bv);
         }
     }
 
@@ -394,67 +394,67 @@ bool test_bitvec_round_trip_conversions(void) {
     u8 test_bytes[] = {0x00, 0xFF, 0xAA, 0x55, 0x01, 0x80, 0x7F, 0xFE};
 
     for (size_t i = 0; i < sizeof(test_bytes); i++) {
-        BitVec bv             = BitVecFromBytes(&test_bytes[i], 8);
+        Bits bv             = BitsFromBytes(&test_bytes[i], 8);
         u8     recovered_byte = 0;
-        u64    written        = BitVecToBytes(&bv, &recovered_byte, 1);
+        u64    written        = BitsToBytes(&bv, &recovered_byte, 1);
 
         result = result && (written == 1);
         result = result && (recovered_byte == test_bytes[i]);
 
-        BitVecDeinit(&bv);
+        BitsDeinit(&bv);
     }
 
     return result;
 }
 
 // Bounds checking tests
-bool test_bitvec_conversion_bounds_checking(void) {
-    printf("Testing BitVec conversion bounds checking\n");
+bool test_Bits_conversion_bounds_checking(void) {
+    printf("Testing Bits conversion bounds checking\n");
 
     bool result = true;
 
     // Test large integer conversion (should cap at 64 bits)
-    BitVec large_bv = BitVecFromInteger(0xFFFFFFFFFFFFFFFF, 64);
+    Bits large_bv = BitsFromInteger(0xFFFFFFFFFFFFFFFF, 64);
     result          = result && (large_bv.length == 64);
 
-    u64 large_value = BitVecToInteger(&large_bv);
+    u64 large_value = BitsToInteger(&large_bv);
     result          = result && (large_value == 0xFFFFFFFFFFFFFFFF);
-    BitVecDeinit(&large_bv);
+    BitsDeinit(&large_bv);
 
-    // Test oversized bitvec to integer (should handle gracefully)
-    BitVec oversized = BitVecInit();
+    // Test oversized Bits to integer (should handle gracefully)
+    Bits oversized = BitsInit();
     for (int i = 0; i < 100; i++) { // 100 bits > 64 bit limit
-        BitVecPush(&oversized, i % 2 == 0);
+        BitsPush(&oversized, i % 2 == 0);
     }
 
-    u64 oversized_value = BitVecToInteger(&oversized);
+    u64 oversized_value = BitsToInteger(&oversized);
     // Should return some value or 0, but not crash
     result = result && (oversized_value >= 0); // Always true for u64, but documents intent
-    BitVecDeinit(&oversized);
+    BitsDeinit(&oversized);
 
     // Test zero-length conversions
-    BitVec empty = BitVecInit();
+    Bits empty = BitsInit();
 
-    Str empty_str = BitVecToStr(&empty);
+    Str empty_str = BitsToStr(&empty);
     result        = result && (empty_str.length == 0);
     StrDeinit(&empty_str);
 
-    u64 empty_value = BitVecToInteger(&empty);
+    u64 empty_value = BitsToInteger(&empty);
     result          = result && (empty_value == 0);
 
     u8  empty_bytes[1] = {0xFF};
-    u64 empty_written  = BitVecToBytes(&empty, empty_bytes, 1);
+    u64 empty_written  = BitsToBytes(&empty, empty_bytes, 1);
     result             = result && (empty_written == 0);
     result             = result && (empty_bytes[0] == 0xFF); // Should be unchanged
 
-    BitVecDeinit(&empty);
+    BitsDeinit(&empty);
 
     return result;
 }
 
 // Comprehensive conversion validation
-bool test_bitvec_conversion_comprehensive(void) {
-    printf("Testing BitVec comprehensive conversion validation\n");
+bool test_Bits_conversion_comprehensive(void) {
+    printf("Testing Bits comprehensive conversion validation\n");
 
     bool result = true;
 
@@ -474,35 +474,35 @@ bool test_bitvec_conversion_comprehensive(void) {
     };
 
     for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[0]); i++) {
-        BitVec bv = BitVecFromStr(test_cases[i].pattern);
+        Bits bv = BitsFromStr(test_cases[i].pattern);
 
         // Test string conversion consistency
-        Str str = BitVecToStr(&bv);
+        Str str = BitsToStr(&bv);
         result  = result && (ZstrCompare(str.data, test_cases[i].pattern) == 0);
         StrDeinit(&str);
 
         // Test integer conversion (may depend on bit order)
-        u64 value = BitVecToInteger(&bv);
+        u64 value = BitsToInteger(&bv);
         // We test that we get a consistent value (not necessarily the exact expected one)
         result = result && (value > 0 || ZstrCompare(test_cases[i].pattern, "00000000") == 0);
 
         // Test byte conversion
         u8  bytes[8] = {0};
-        u64 written  = BitVecToBytes(&bv, bytes, 8);
+        u64 written  = BitsToBytes(&bv, bytes, 8);
         result       = result && (written == test_cases[i].byte_count);
 
-        BitVecDeinit(&bv);
+        BitsDeinit(&bv);
     }
 
     // Test cross-format validation
-    BitVec bv1 = BitVecFromStr("11010110");
-    BitVec bv2 = BitVecFromInteger(0xD6, 8); // Assuming MSB-first: 11010110 = 0xD6
-    BitVec bv3 = BitVecFromBytes((u8[]) {0xD6}, 8);
+    Bits bv1 = BitsFromStr("11010110");
+    Bits bv2 = BitsFromInteger(0xD6, 8); // Assuming MSB-first: 11010110 = 0xD6
+    Bits bv3 = BitsFromBytes((u8[]) {0xD6}, 8);
 
     // All three should produce the same result when converted back
-    Str str1 = BitVecToStr(&bv1);
-    Str str2 = BitVecToStr(&bv2);
-    Str str3 = BitVecToStr(&bv3);
+    Str str1 = BitsToStr(&bv1);
+    Str str2 = BitsToStr(&bv2);
+    Str str3 = BitsToStr(&bv3);
 
     // At least two of them should match (bit order might affect one)
     bool cross_match = (ZstrCompare(str1.data, str2.data) == 0) || (ZstrCompare(str1.data, str3.data) == 0) ||
@@ -512,29 +512,29 @@ bool test_bitvec_conversion_comprehensive(void) {
     StrDeinit(&str1);
     StrDeinit(&str2);
     StrDeinit(&str3);
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
-    BitVecDeinit(&bv3);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
+    BitsDeinit(&bv3);
 
     return result;
 }
 
 // Large-scale conversion tests
-bool test_bitvec_large_scale_conversions(void) {
-    printf("Testing BitVec large-scale conversions\n");
+bool test_Bits_large_scale_conversions(void) {
+    printf("Testing Bits large-scale conversions\n");
 
     bool result = true;
 
-    // Test with very large bitvectors
-    BitVec large_bv = BitVecInit();
+    // Test with very large Bitstors
+    Bits large_bv = BitsInit();
 
     // Create a 1000-bit pattern
     for (int i = 0; i < 1000; i++) {
-        BitVecPush(&large_bv, (i % 3) == 0); // Every third bit set
+        BitsPush(&large_bv, (i % 3) == 0); // Every third bit set
     }
 
     // Test string conversion
-    Str large_str = BitVecToStr(&large_bv);
+    Str large_str = BitsToStr(&large_bv);
     result        = result && (large_str.length == 1000);
 
     // Verify pattern consistency
@@ -553,18 +553,18 @@ bool test_bitvec_large_scale_conversions(void) {
 
     // Test byte conversion
     u8  large_bytes[125]; // 1000 bits = 125 bytes
-    u64 written = BitVecToBytes(&large_bv, large_bytes, 125);
+    u64 written = BitsToBytes(&large_bv, large_bytes, 125);
     result      = result && (written == 125);
 
     // Test round-trip from bytes
-    BitVec recovered_bv = BitVecFromBytes(large_bytes, 1000);
+    Bits recovered_bv = BitsFromBytes(large_bytes, 1000);
     result              = result && (recovered_bv.length == 1000);
 
     // Verify recovered pattern
     bool recovered_pattern_correct = true;
     for (u64 i = 0; i < recovered_bv.length; i++) {
         bool expected = (i % 3) == 0;
-        bool actual   = BitVecGet(&recovered_bv, i);
+        bool actual   = BitsGet(&recovered_bv, i);
         if (expected != actual) {
             recovered_pattern_correct = false;
             break;
@@ -572,24 +572,24 @@ bool test_bitvec_large_scale_conversions(void) {
     }
     result = result && recovered_pattern_correct;
 
-    BitVecDeinit(&large_bv);
-    BitVecDeinit(&recovered_bv);
+    BitsDeinit(&large_bv);
+    BitsDeinit(&recovered_bv);
 
-    // Test string to bitvec with large patterns
+    // Test string to Bits with large patterns
     char large_pattern[2001];                          // 2000 bits + null terminator
     for (int i = 0; i < 2000; i++) {
         large_pattern[i] = ((i % 7) == 0) ? '1' : '0'; // Every 7th bit set
     }
     large_pattern[2000] = '\0';
 
-    BitVec large_from_str = BitVecFromStr(large_pattern);
+    Bits large_from_str = BitsFromStr(large_pattern);
     result                = result && (large_from_str.length == 2000);
 
     // Verify pattern
     bool large_pattern_correct = true;
     for (u64 i = 0; i < large_from_str.length; i++) {
         bool expected = (i % 7) == 0;
-        bool actual   = BitVecGet(&large_from_str, i);
+        bool actual   = BitsGet(&large_from_str, i);
         if (expected != actual) {
             large_pattern_correct = false;
             break;
@@ -597,107 +597,108 @@ bool test_bitvec_large_scale_conversions(void) {
     }
     result = result && large_pattern_correct;
 
-    BitVecDeinit(&large_from_str);
+    BitsDeinit(&large_from_str);
 
     return result;
 }
 
 // Enhanced deadend tests
-bool test_bitvec_bytes_bounds_failures(void) {
-    printf("Testing BitVec bytes bounds failures\n");
+bool test_Bits_bytes_bounds_failures(void) {
+    printf("Testing Bits bytes bounds failures\n");
 
-    BitVec bv = BitVecInit();
-    BitVecPush(&bv, true);
+    Bits bv = BitsInit();
+    BitsPush(&bv, true);
 
     // Test with insufficient buffer size
     u8  small_buffer[1];
-    u64 written = BitVecToBytes(&bv, small_buffer, 0); // 0 buffer size
+    u64 written = BitsToBytes(&bv, small_buffer, 0); // 0 buffer size
     (void)written;                                     // Suppress unused variable warning
 
     // Should handle gracefully
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
 
-    // Test fromBytes with 0 bit length - should return empty bitvec
+    // Test fromBytes with 0 bit length - should return empty Bits
     u8     dummy_bytes[1] = {0xFF};
-    BitVec empty_bv       = BitVecFromBytes(dummy_bytes, 0);
+    Bits empty_bv       = BitsFromBytes(dummy_bytes, 0);
     bool   result         = (empty_bv.length == 0);
-    BitVecDeinit(&empty_bv);
+    BitsDeinit(&empty_bv);
 
     return result;
 }
 
-bool test_bitvec_integer_bounds_failures(void) {
-    printf("Testing BitVec integer bounds failures\n");
+bool test_Bits_integer_bounds_failures(void) {
+    printf("Testing Bits integer bounds failures\n");
 
-    // Test BitVecToInteger with NULL pointer - should abort
-    u64 value = BitVecToInteger(NULL);
+    // Test BitsToInteger with NULL pointer - should abort
+    u64 value = BitsToInteger(NULL);
     (void)value; // Suppress unused variable warning
 
     return false;
 }
 
 // Deadend tests
-bool test_bitvec_convert_null_failures(void) {
-    printf("Testing BitVec convert NULL pointer handling\n");
+bool test_Bits_convert_null_failures(void) {
+    printf("Testing Bits convert NULL pointer handling\n");
 
-    // Test NULL bitvec pointer - should abort
-    BitVecToStr(NULL);
+    // Test NULL Bits pointer - should abort
+    BitsToStr(NULL);
 
     return false;
 }
 
-bool test_bitvec_from_string_null_failures(void) {
-    printf("Testing BitVec from string NULL handling\n");
+bool test_Bits_from_string_null_failures(void) {
+    printf("Testing Bits from string NULL handling\n");
 
     // Test NULL string - should abort
-    BitVecFromStr(NULL);
+    BitsFromStr(NULL);
 
     return false;
 }
 
-bool test_bitvec_bytes_null_failures(void) {
-    printf("Testing BitVec bytes NULL handling\n");
+bool test_Bits_bytes_null_failures(void) {
+    printf("Testing Bits bytes NULL handling\n");
 
     // Test NULL bytes - should abort
-    BitVecFromBytes(NULL, 8); // NULL bytes, 8 bits
+    BitsFromBytes(NULL, 8); // NULL bytes, 8 bits
 
     return false;
 }
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Convert tests\n\n");
+    printf("[INFO] Starting Bits.Convert tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {
-        test_bitvec_to_string,
-        test_bitvec_from_string,
-        test_bitvec_to_bytes,
-        test_bitvec_from_bytes,
-        test_bitvec_to_integer,
-        test_bitvec_from_integer,
-        test_bitvec_convert_edge_cases,
-        test_bitvec_from_string_edge_cases,
-        test_bitvec_bytes_conversion_edge_cases,
-        test_bitvec_integer_conversion_edge_cases,
-        test_bitvec_round_trip_conversions,
-        test_bitvec_conversion_bounds_checking,
-        test_bitvec_conversion_comprehensive,
-        test_bitvec_large_scale_conversions
+        test_Bits_to_string,
+        test_Bits_from_string,
+        test_Bits_to_bytes,
+        test_Bits_from_bytes,
+        test_Bits_to_integer,
+        test_Bits_from_integer,
+        test_Bits_convert_edge_cases,
+        test_Bits_from_string_edge_cases,
+        test_Bits_bytes_conversion_edge_cases,
+        test_Bits_integer_conversion_edge_cases,
+        test_Bits_round_trip_conversions,
+        test_Bits_conversion_bounds_checking,
+        test_Bits_conversion_comprehensive,
+        test_Bits_large_scale_conversions
     };
 
     // Array of deadend test functions
     TestFunction deadend_tests[] = {
-        test_bitvec_convert_null_failures,
-        test_bitvec_from_string_null_failures,
-        test_bitvec_bytes_null_failures,
-        test_bitvec_bytes_bounds_failures,
-        test_bitvec_integer_bounds_failures
+        test_Bits_convert_null_failures,
+        test_Bits_from_string_null_failures,
+        test_Bits_bytes_null_failures,
+        test_Bits_bytes_bounds_failures,
+        test_Bits_integer_bounds_failures
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);
     int total_deadend_tests = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
     // Run all tests using the centralized test driver
-    return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "BitVec.Convert");
+    return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Bits.Convert");
 }
+

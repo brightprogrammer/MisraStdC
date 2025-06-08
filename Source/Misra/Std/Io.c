@@ -2118,14 +2118,14 @@ const char* _read_Zstr(const char* i, FmtInfo* fmt_info, const char** out) {
     return next;
 }
 
-void _write_BitVec(Str* o, FmtInfo* fmt_info, BitVec* bv) {
+void _write_Bits(Str* o, FmtInfo* fmt_info, Bits* bv) {
     if (!o || !fmt_info || !bv) {
         LOG_FATAL("Invalid arguments");
         return;
     }
 
     ValidateStr(o);
-    ValidateBitVec(bv);
+    ValidateBits(bv);
 
     // Store original length to calculate content size later
     size start_len = o->length;
@@ -2136,7 +2136,7 @@ void _write_BitVec(Str* o, FmtInfo* fmt_info, BitVec* bv) {
             StrPushBackZstr(o, "0x0");
         } else {
             // Convert to integer (up to 64 bits) and format as hex
-            u64          value  = BitVecToInteger(bv);
+            u64          value  = BitsToInteger(bv);
             StrIntFormat config = {.base = 16, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0, .use_prefix = true};
             StrFromU64(o, value, &config);
         }
@@ -2145,16 +2145,16 @@ void _write_BitVec(Str* o, FmtInfo* fmt_info, BitVec* bv) {
         if (bv->length == 0) {
             StrPushBackZstr(o, "0o0");
         } else {
-            u64          value  = BitVecToInteger(bv);
+            u64          value  = BitsToInteger(bv);
             StrIntFormat config = {.base = 8, .uppercase = false, .use_prefix = true};
             StrFromU64(o, value, &config);
         }
     } else {
         // Default: Format as binary string (e.g., "10110")
         if (bv->length == 0) {
-            // Empty BitVec - don't output anything
+            // Empty Bits - don't output anything
         } else {
-            Str bit_str = BitVecToStr(bv);
+            Str bit_str = BitsToStr(bv);
             StrMerge(o, &bit_str);
             StrDeinit(&bit_str);
         }
@@ -2174,14 +2174,14 @@ void _write_UnsupportedType(Str* o, FmtInfo* fmt_info, const char** s) {
     LOG_FATAL("Attempt to write unsupported type");
 }
 
-const char* _read_BitVec(const char* i, FmtInfo* fmt_info, BitVec* bv) {
+const char* _read_Bits(const char* i, FmtInfo* fmt_info, Bits* bv) {
     (void)fmt_info; // Unused parameter
     if (!i || !bv) {
         LOG_FATAL("Invalid arguments");
         return i;
     }
 
-    ValidateBitVec(bv);
+    ValidateBits(bv);
 
     // Skip leading whitespace
     while (IS_SPACE(*i))
@@ -2226,7 +2226,7 @@ const char* _read_BitVec(const char* i, FmtInfo* fmt_info, BitVec* bv) {
         if (bit_len < 4)
             bit_len = 4; // Minimum 4 bits for hex display
 
-        *bv = BitVecFromInteger(value, bit_len);
+        *bv = BitsFromInteger(value, bit_len);
         StrDeinit(&hex_str);
         return i;
     }
@@ -2262,7 +2262,7 @@ const char* _read_BitVec(const char* i, FmtInfo* fmt_info, BitVec* bv) {
         if (bit_len < 3)
             bit_len = 3; // Minimum 3 bits for octal display
 
-        *bv = BitVecFromInteger(value, bit_len);
+        *bv = BitsFromInteger(value, bit_len);
         StrDeinit(&oct_str);
         return i;
     }
@@ -2283,8 +2283,8 @@ const char* _read_BitVec(const char* i, FmtInfo* fmt_info, BitVec* bv) {
     // Create string from binary digits (already null-terminated by StrInitFromCstr)
     Str bin_str = StrInitFromCstr(bin_start, i - bin_start);
 
-    // Convert to BitVec using the null-terminated string
-    *bv = BitVecFromStr(bin_str.data);
+    // Convert to Bits using the null-terminated string
+    *bv = BitsFromStr(bin_str.data);
 
     StrDeinit(&bin_str);
     return i;
@@ -2408,3 +2408,4 @@ const char* _read_f32(const char* i, FmtInfo* fmt_info, f32* v) {
     StrDeinit(&temp);
     return start + pos;
 }
+

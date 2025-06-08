@@ -1,4 +1,4 @@
-#include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Container/Bits.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
 #include <Misra/Types.h>
@@ -7,39 +7,39 @@
 #include "../Util/TestRunner.h"
 
 // Function prototypes
-bool test_bitvec_shrink_to_fit(void);
-bool test_bitvec_set_capacity(void);
-bool test_bitvec_swap(void);
-bool test_bitvec_clone(void);
-bool test_bitvec_shrink_to_fit_edge_cases(void);
-bool test_bitvec_set_capacity_edge_cases(void);
-bool test_bitvec_swap_edge_cases(void);
-bool test_bitvec_clone_edge_cases(void);
-bool test_bitvec_memory_stress_test(void);
-bool test_bitvec_memory_null_failures(void);
-bool test_bitvec_swap_null_failures(void);
-bool test_bitvec_clone_null_failures(void);
+bool test_Bits_shrink_to_fit(void);
+bool test_Bits_set_capacity(void);
+bool test_Bits_swap(void);
+bool test_Bits_clone(void);
+bool test_Bits_shrink_to_fit_edge_cases(void);
+bool test_Bits_set_capacity_edge_cases(void);
+bool test_Bits_swap_edge_cases(void);
+bool test_Bits_clone_edge_cases(void);
+bool test_Bits_memory_stress_test(void);
+bool test_Bits_memory_null_failures(void);
+bool test_Bits_swap_null_failures(void);
+bool test_Bits_clone_null_failures(void);
 
-// Test BitVecShrinkToFit function
-bool test_bitvec_shrink_to_fit(void) {
-    printf("Testing BitVecShrinkToFit\n");
+// Test BitsShrinkToFit function
+bool test_Bits_shrink_to_fit(void) {
+    printf("Testing BitsShrinkToFit\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Add some bits
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, true);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
+    BitsPush(&bv, true);
 
     // Force capacity to be larger than needed by reserving space
-    BitVecReserve(&bv, 100);
+    BitsReserve(&bv, 100);
 
     // Check that capacity is larger than length
     u64  initial_capacity = bv.capacity;
     bool result           = (initial_capacity >= 100) && (bv.length == 3);
 
     // Shrink to fit
-    BitVecShrinkToFit(&bv);
+    BitsTryReduceSpace(&bv);
 
     // Check that capacity is now closer to length
     result = result && (bv.capacity < initial_capacity);
@@ -47,388 +47,213 @@ bool test_bitvec_shrink_to_fit(void) {
 
     // Check that data is still intact
     result = result && (bv.length == 3);
-    result = result && (BitVecGet(&bv, 0) == true);
-    result = result && (BitVecGet(&bv, 1) == false);
-    result = result && (BitVecGet(&bv, 2) == true);
+    result = result && (BitsGet(&bv, 0) == true);
+    result = result && (BitsGet(&bv, 1) == false);
+    result = result && (BitsGet(&bv, 2) == true);
 
     // Clean up
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
 
     return result;
 }
 
-// Test BitVecSetCapacity function
-bool test_bitvec_set_capacity(void) {
-    printf("Testing BitVecSetCapacity\n");
+// Test BitsClone function
+bool test_Bits_clone(void) {
+    printf("Testing BitsClone\n");
 
-    BitVec bv = BitVecInit();
+    Bits original = BitsInit();
 
-    // Add some bits
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
+    // Set up original Bitstor
+    BitsPush(&original, true);
+    BitsPush(&original, false);
+    BitsPush(&original, true);
+    BitsPush(&original, false);
 
-    // Set capacity to a specific value
-    BitVecSetCapacity(&bv, 50);
-
-    // Check that capacity was set correctly
-    bool result = (bv.capacity >= 50) && (bv.length == 2);
-
-    // Check that data is still intact
-    result = result && (BitVecGet(&bv, 0) == true);
-    result = result && (BitVecGet(&bv, 1) == false);
-
-    // Try to set capacity smaller than current length (should not shrink below length)
-    BitVecSetCapacity(&bv, 1);
-
-    // Capacity should still accommodate at least the current length
-    result = result && (bv.capacity >= bv.length);
-    result = result && (bv.length == 2);
-
-    // Data should still be intact
-    result = result && (BitVecGet(&bv, 0) == true);
-    result = result && (BitVecGet(&bv, 1) == false);
-
-    // Clean up
-    BitVecDeinit(&bv);
-
-    return result;
-}
-
-// Test BitVecSwap function
-bool test_bitvec_swap(void) {
-    printf("Testing BitVecSwap\n");
-
-    BitVec bv1 = BitVecInit();
-    BitVec bv2 = BitVecInit();
-
-    // Set up first bitvector
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv1, true);
-
-    // Set up second bitvector
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, false);
-
-    // Store original states
-    u64 bv1_orig_length = bv1.length;
-    u64 bv2_orig_length = bv2.length;
-
-    // Swap the bitvectors
-    BitVecSwap(&bv1, &bv2);
-
-    // Check that they swapped
-    bool result = (bv1.length == bv2_orig_length) && (bv2.length == bv1_orig_length);
-
-    // Check bv1 (should now have bv2's original content)
-    result = result && (bv1.length == 2);
-    result = result && (BitVecGet(&bv1, 0) == false);
-    result = result && (BitVecGet(&bv1, 1) == false);
-
-    // Check bv2 (should now have bv1's original content)
-    result = result && (bv2.length == 3);
-    result = result && (BitVecGet(&bv2, 0) == true);
-    result = result && (BitVecGet(&bv2, 1) == false);
-    result = result && (BitVecGet(&bv2, 2) == true);
-
-    // Clean up
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
-
-    return result;
-}
-
-// Test BitVecClone function
-bool test_bitvec_clone(void) {
-    printf("Testing BitVecClone\n");
-
-    BitVec original = BitVecInit();
-
-    // Set up original bitvector
-    BitVecPush(&original, true);
-    BitVecPush(&original, false);
-    BitVecPush(&original, true);
-    BitVecPush(&original, false);
-
-    // Clone the bitvector
-    BitVec clone = BitVecClone(&original);
+    // Clone the Bitstor
+    Bits clone = BitsClone(&original);
 
     // Check that clone has same content as original
     bool result = (clone.length == original.length);
 
     for (u64 i = 0; i < original.length; i++) {
-        result = result && (BitVecGet(&clone, i) == BitVecGet(&original, i));
+        result = result && (BitsGet(&clone, i) == BitsGet(&original, i));
     }
 
     // Verify they are independent by modifying original
-    BitVecPush(&original, true);
+    BitsPush(&original, true);
 
     // Clone should remain unchanged
     result = result && (clone.length == 4) && (original.length == 5);
-    result = result && (BitVecGet(&clone, 0) == true);
-    result = result && (BitVecGet(&clone, 1) == false);
-    result = result && (BitVecGet(&clone, 2) == true);
-    result = result && (BitVecGet(&clone, 3) == false);
+    result = result && (BitsGet(&clone, 0) == true);
+    result = result && (BitsGet(&clone, 1) == false);
+    result = result && (BitsGet(&clone, 2) == true);
+    result = result && (BitsGet(&clone, 3) == false);
 
     // Modify clone to verify independence
-    BitVecSet(&clone, 0, false);
+    BitsSet(&clone, 0, false);
 
     // Original should remain unchanged at index 0
-    result = result && (BitVecGet(&original, 0) == true);
-    result = result && (BitVecGet(&clone, 0) == false);
+    result = result && (BitsGet(&original, 0) == true);
+    result = result && (BitsGet(&clone, 0) == false);
 
     // Clean up
-    BitVecDeinit(&original);
-    BitVecDeinit(&clone);
+    BitsDeinit(&original);
+    BitsDeinit(&clone);
 
     return result;
 }
 
 // Edge case tests
-bool test_bitvec_shrink_to_fit_edge_cases(void) {
-    printf("Testing BitVecShrinkToFit edge cases\n");
+bool test_Bits_shrink_to_fit_edge_cases(void) {
+    printf("Testing BitsShrinkToFit edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
-    // Test shrink on empty bitvec
-    BitVecShrinkToFit(&bv);
+    // Test shrink on empty Bits
+    BitsTryReduceSpace(&bv);
     result = result && (bv.length == 0) && (bv.capacity >= 0);
 
     // Test shrink on single element
-    BitVecPush(&bv, true);
-    BitVecShrinkToFit(&bv);
+    BitsPush(&bv, true);
+    BitsTryReduceSpace(&bv);
     result = result && (bv.length == 1) && (bv.capacity >= 1);
-    result = result && (BitVecGet(&bv, 0) == true);
+    result = result && (BitsGet(&bv, 0) == true);
 
     // Test multiple shrinks (should be safe)
-    BitVecShrinkToFit(&bv);
-    BitVecShrinkToFit(&bv);
+    BitsTryReduceSpace(&bv);
+    BitsTryReduceSpace(&bv);
     result = result && (bv.length == 1);
 
     // Test shrink after reserve and clear
-    BitVecReserve(&bv, 1000);
-    BitVecClear(&bv);
-    BitVecShrinkToFit(&bv);
+    BitsReserve(&bv, 1000);
+    BitsClear(&bv);
+    BitsTryReduceSpace(&bv);
     result = result && (bv.length == 0);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-bool test_bitvec_set_capacity_edge_cases(void) {
-    printf("Testing BitVecSetCapacity edge cases\n");
+bool test_Bits_clone_edge_cases(void) {
+    printf("Testing BitsClone edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
-    // Test set capacity on empty bitvec
-    BitVecSetCapacity(&bv, 100);
-    result = result && (bv.capacity >= 100) && (bv.length == 0);
-
-    // Test set capacity to 0
-    BitVecSetCapacity(&bv, 0);
-    result = result && (bv.length == 0);
-
-    // Test set capacity smaller than current length
-    for (int i = 0; i < 10; i++) {
-        BitVecPush(&bv, i % 2 == 0);
-    }
-    u64 original_length = bv.length;
-    BitVecSetCapacity(&bv, 5); // Smaller than length
-
-    // Should not truncate data
-    result = result && (bv.length == original_length);
-    for (u64 i = 0; i < bv.length; i++) {
-        result = result && (BitVecGet(&bv, i) == (i % 2 == 0));
-    }
-
-    // Test setting very large capacity
-    BitVecSetCapacity(&bv, 10000);
-    result = result && (bv.capacity >= 10000);
-
-    BitVecDeinit(&bv);
-    return result;
-}
-
-bool test_bitvec_swap_edge_cases(void) {
-    printf("Testing BitVecSwap edge cases\n");
-
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
-    bool   result = true;
-
-    // Test swap with both empty
-    BitVecSwap(&bv1, &bv2);
-    result = result && (bv1.length == 0) && (bv2.length == 0);
-
-    // Test swap with one empty, one non-empty
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecSwap(&bv1, &bv2);
-
-    result = result && (bv1.length == 0);
-    result = result && (bv2.length == 2);
-    result = result && (BitVecGet(&bv2, 0) == true);
-    result = result && (BitVecGet(&bv2, 1) == false);
-
-    // Test swap with large data
-    BitVecClear(&bv1);
-    for (int i = 0; i < 1000; i++) {
-        BitVecPush(&bv1, i % 3 == 0);
-    }
-
-    BitVecSwap(&bv1, &bv2);
-    result = result && (bv1.length == 2) && (bv2.length == 1000);
-    result = result && (BitVecGet(&bv2, 0) == true); // 0 % 3 == 0
-    result = result && (BitVecGet(&bv2, 999) == (999 % 3 == 0));
-
-    // Test swapping with itself (should be safe)
-    BitVecSwap(&bv1, &bv1);
-    result = result && (bv1.length == 2);
-
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
-    return result;
-}
-
-bool test_bitvec_clone_edge_cases(void) {
-    printf("Testing BitVecClone edge cases\n");
-
-    BitVec bv     = BitVecInit();
-    bool   result = true;
-
-    // Test clone empty bitvec
-    BitVec clone1 = BitVecClone(&bv);
+    // Test clone empty Bits
+    Bits clone1 = BitsClone(&bv);
     result        = result && (clone1.length == 0);
-    BitVecDeinit(&clone1);
+    BitsDeinit(&clone1);
 
     // Test clone single element
-    BitVecPush(&bv, true);
-    BitVec clone2 = BitVecClone(&bv);
+    BitsPush(&bv, true);
+    Bits clone2 = BitsClone(&bv);
     result        = result && (clone2.length == 1);
-    result        = result && (BitVecGet(&clone2, 0) == true);
-    BitVecDeinit(&clone2);
+    result        = result && (BitsGet(&clone2, 0) == true);
+    BitsDeinit(&clone2);
 
     // Test clone large data
-    BitVecClear(&bv);
+    BitsClear(&bv);
     for (int i = 0; i < 1000; i++) {
-        BitVecPush(&bv, i % 2 == 0);
+        BitsPush(&bv, i % 2 == 0);
     }
 
-    BitVec clone3 = BitVecClone(&bv);
+    Bits clone3 = BitsClone(&bv);
     result        = result && (clone3.length == 1000);
 
     // Verify all bits match
     for (u64 i = 0; i < 1000; i++) {
-        result = result && (BitVecGet(&clone3, i) == BitVecGet(&bv, i));
+        result = result && (BitsGet(&clone3, i) == BitsGet(&bv, i));
     }
 
     // Test independence - modify original
-    BitVecSet(&bv, 0, !BitVecGet(&bv, 0));
-    result = result && (BitVecGet(&clone3, 0) != BitVecGet(&bv, 0));
+    BitsSet(&bv, 0, !BitsGet(&bv, 0));
+    result = result && (BitsGet(&clone3, 0) != BitsGet(&bv, 0));
 
-    BitVecDeinit(&clone3);
-    BitVecDeinit(&bv);
+    BitsDeinit(&clone3);
+    BitsDeinit(&bv);
     return result;
 }
 
-bool test_bitvec_memory_stress_test(void) {
-    printf("Testing BitVec memory stress test\n");
+bool test_Bits_memory_stress_test(void) {
+    printf("Testing Bits memory stress test\n");
 
     bool result = true;
 
     // Test multiple clone/swap/reu64 cycles
     for (int cycle = 0; cycle < 10; cycle++) {
-        BitVec bv1 = BitVecInit();
-        BitVec bv2 = BitVecInit();
+        Bits bv1 = BitsInit();
+        Bits bv2 = BitsInit();
 
         // Add random-sized data
         for (int i = 0; i < cycle * 10; i++) {
-            BitVecPush(&bv1, i % 2 == 0);
-            BitVecPush(&bv2, i % 3 == 0);
+            BitsPush(&bv1, i % 2 == 0);
+            BitsPush(&bv2, i % 3 == 0);
         }
 
-        // Clone and swap
-        BitVec clone = BitVecClone(&bv1);
-        BitVecSwap(&bv1, &bv2);
+        Bits clone = BitsClone(&bv1);
 
         // Reu64 operations
-        BitVecSetCapacity(&bv1, cycle * 20);
-        BitVecShrinkToFit(&bv2);
+        BitsResize(&bv1, cycle * 20);
+        BitsTryReduceSpace(&bv2);
 
         // Verify data integrity
         result = result && (clone.length == cycle * 10);
         if (cycle > 0) {
-            result = result && (BitVecGet(&clone, 0) == true); // 0 % 2 == 0
+            result = result && (BitsGet(&clone, 0) == true); // 0 % 2 == 0
         }
 
-        BitVecDeinit(&bv1);
-        BitVecDeinit(&bv2);
-        BitVecDeinit(&clone);
+        BitsDeinit(&bv1);
+        BitsDeinit(&bv2);
+        BitsDeinit(&clone);
     }
 
     return result;
 }
 
 // Deadend tests
-bool test_bitvec_memory_null_failures(void) {
-    printf("Testing BitVec memory NULL pointer handling\n");
+bool test_Bits_memory_null_failures(void) {
+    printf("Testing Bits memory NULL pointer handling\n");
 
-    // Test NULL bitvec pointer - should abort
-    BitVecShrinkToFit(NULL);
+    // Test NULL Bits pointer - should abort
+    BitsTryReduceSpace(NULL);
 
     return false;
 }
 
-bool test_bitvec_swap_null_failures(void) {
-    printf("Testing BitVec swap NULL handling\n");
-
-    BitVec bv = BitVecInit();
+bool test_Bits_clone_null_failures(void) {
+    printf("Testing Bits clone NULL handling\n");
 
     // Test NULL pointer - should abort
-    BitVecSwap(NULL, &bv);
-
-    BitVecDeinit(&bv);
-    return false;
-}
-
-bool test_bitvec_clone_null_failures(void) {
-    printf("Testing BitVec clone NULL handling\n");
-
-    // Test NULL pointer - should abort
-    BitVecClone(NULL);
+    BitsClone(NULL);
 
     return false;
 }
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Memory tests\n\n");
+    printf("[INFO] Starting Bits.Memory tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {
-        test_bitvec_shrink_to_fit,
-        test_bitvec_set_capacity,
-        test_bitvec_swap,
-        test_bitvec_clone,
-        test_bitvec_shrink_to_fit_edge_cases,
-        test_bitvec_set_capacity_edge_cases,
-        test_bitvec_swap_edge_cases,
-        test_bitvec_clone_edge_cases,
-        test_bitvec_memory_stress_test
+        test_Bits_shrink_to_fit,
+        test_Bits_clone,
+        test_Bits_shrink_to_fit_edge_cases,
+        test_Bits_clone_edge_cases,
+        test_Bits_memory_stress_test
     };
 
     // Array of deadend test functions
     TestFunction deadend_tests[] = {
-        test_bitvec_memory_null_failures,
-        test_bitvec_swap_null_failures,
-        test_bitvec_clone_null_failures
+        test_Bits_memory_null_failures,
+        test_Bits_clone_null_failures
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);
     int total_deadend_tests = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
     // Run all tests using the centralized test driver
-    return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "BitVec.Memory");
+    return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Bits.Memory");
 }
+

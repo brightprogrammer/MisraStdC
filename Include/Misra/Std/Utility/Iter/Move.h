@@ -32,3 +32,4 @@
 #define IterPrev(mi) IterMove(mi, -1)
 
 #endif // MISRA_STD_UTILITY_ITER_MOVE_H
+

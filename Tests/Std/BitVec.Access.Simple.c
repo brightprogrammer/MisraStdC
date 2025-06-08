@@ -1,4 +1,4 @@
-#include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Container/Bits.h>
 #include <Misra/Std/Log.h>
 
 #include <stdio.h>
@@ -8,350 +8,350 @@
 #include "../Util/TestRunner.h"
 
 // Function prototypes
-bool test_bitvec_get(void);
-bool test_bitvec_set(void);
-bool test_bitvec_flip(void);
-bool test_bitvec_length_capacity(void);
-bool test_bitvec_count_operations(void);
-bool test_bitvec_get_edge_cases(void);
-bool test_bitvec_set_edge_cases(void);
-bool test_bitvec_flip_edge_cases(void);
-bool test_bitvec_count_edge_cases(void);
-bool test_bitvec_access_multiple_operations(void);
-bool test_bitvec_access_large_patterns(void);
-bool test_bitvec_macro_functions(void);
-bool test_bitvec_access_stress_test(void);
-bool test_bitvec_bit_patterns_comprehensive(void);
-bool test_bitvec_find_functions(void);
-bool test_bitvec_predicate_functions(void);
-bool test_bitvec_longest_run(void);
-bool test_bitvec_find_edge_cases(void);
-bool test_bitvec_predicate_edge_cases(void);
-bool test_bitvec_longest_run_edge_cases(void);
+bool test_Bits_get(void);
+bool test_Bits_set(void);
+bool test_Bits_flip(void);
+bool test_Bits_length_capacity(void);
+bool test_Bits_count_operations(void);
+bool test_Bits_get_edge_cases(void);
+bool test_Bits_set_edge_cases(void);
+bool test_Bits_flip_edge_cases(void);
+bool test_Bits_count_edge_cases(void);
+bool test_Bits_access_multiple_operations(void);
+bool test_Bits_access_large_patterns(void);
+bool test_Bits_macro_functions(void);
+bool test_Bits_access_stress_test(void);
+bool test_Bits_bit_patterns_comprehensive(void);
+bool test_Bits_find_functions(void);
+bool test_Bits_predicate_functions(void);
+bool test_Bits_longest_run(void);
+bool test_Bits_find_edge_cases(void);
+bool test_Bits_predicate_edge_cases(void);
+bool test_Bits_longest_run_edge_cases(void);
 
-// Test BitVecGet function
-bool test_bitvec_get(void) {
-    printf("Testing BitVecGet\n");
+// Test BitsGet function
+bool test_Bits_get(void) {
+    printf("Testing BitsGet\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Push some bits
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
 
     // Test getting bits
-    bool result = (BitVecGet(&bv, 0) == true) && (BitVecGet(&bv, 1) == false) && (BitVecGet(&bv, 2) == true) &&
-                  (BitVecGet(&bv, 3) == false);
+    bool result = (BitsGet(&bv, 0) == true) && (BitsGet(&bv, 1) == false) && (BitsGet(&bv, 2) == true) &&
+                  (BitsGet(&bv, 3) == false);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-// Test BitVecSet function
-bool test_bitvec_set(void) {
-    printf("Testing BitVecSet\n");
+// Test BitsSet function
+bool test_Bits_set(void) {
+    printf("Testing BitsSet\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Reserve space and set bits
-    BitVecResize(&bv, 4);
-    BitVecSet(&bv, 0, true);
-    BitVecSet(&bv, 1, false);
-    BitVecSet(&bv, 2, true);
-    BitVecSet(&bv, 3, false);
+    BitsResize(&bv, 4);
+    BitsSet(&bv, 0, true);
+    BitsSet(&bv, 1, false);
+    BitsSet(&bv, 2, true);
+    BitsSet(&bv, 3, false);
 
     // Test getting the set bits
-    bool result = (BitVecGet(&bv, 0) == true) && (BitVecGet(&bv, 1) == false) && (BitVecGet(&bv, 2) == true) &&
-                  (BitVecGet(&bv, 3) == false);
+    bool result = (BitsGet(&bv, 0) == true) && (BitsGet(&bv, 1) == false) && (BitsGet(&bv, 2) == true) &&
+                  (BitsGet(&bv, 3) == false);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-// Test BitVecFlip function
-bool test_bitvec_flip(void) {
-    printf("Testing BitVecFlip\n");
+// Test BitsFlip function
+bool test_Bits_flip(void) {
+    printf("Testing BitsFlip\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Push some bits
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
 
     // Flip some bits
-    BitVecFlip(&bv, 0);
-    BitVecFlip(&bv, 1);
+    BitsFlip(&bv, 0);
+    BitsFlip(&bv, 1);
 
     // Test the flipped bits
-    bool result = (BitVecGet(&bv, 0) == false) && // was true, now false
-                  (BitVecGet(&bv, 1) == true) &&  // was false, now true
-                  (BitVecGet(&bv, 2) == true) &&  // unchanged
-                  (BitVecGet(&bv, 3) == false);   // unchanged
+    bool result = (BitsGet(&bv, 0) == false) && // was true, now false
+                  (BitsGet(&bv, 1) == true) &&  // was false, now true
+                  (BitsGet(&bv, 2) == true) &&  // unchanged
+                  (BitsGet(&bv, 3) == false);   // unchanged
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-// Test BitVecLength and BitVecCapacity functions
-bool test_bitvec_length_capacity(void) {
-    printf("Testing BitVecLength and BitVecCapacity\n");
+// Test BitsLength and BitsCapacity functions
+bool test_Bits_length_capacity(void) {
+    printf("Testing BitsLength and BitsCapacity\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Initially empty
-    bool result = (BitVecLen(&bv) == 0);
+    bool result = (BitsLen(&bv) == 0);
 
     // Push some bits
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, true);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
+    BitsPush(&bv, true);
 
-    result = result && (BitVecLen(&bv) == 3);
-    result = result && (BitVecCapacity(&bv) >= 3);
+    result = result && (BitsLen(&bv) == 3);
+    result = result && (BitsCapacity(&bv) >= 3);
 
     // Reserve more space
-    BitVecReserve(&bv, 100);
-    result = result && (BitVecLen(&bv) == 3);
-    result = result && (BitVecCapacity(&bv) >= 100);
+    BitsReserve(&bv, 100);
+    result = result && (BitsLen(&bv) == 3);
+    result = result && (BitsCapacity(&bv) >= 100);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-// Test BitVecCount functions
-bool test_bitvec_count_operations(void) {
-    printf("Testing BitVecCount operations\n");
+// Test BitsCount functions
+bool test_Bits_count_operations(void) {
+    printf("Testing BitsCount operations\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Push a pattern: true, false, true, false, true
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, true);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
+    BitsPush(&bv, true);
 
     // Count true and false bits
-    bool result = (BitVecCountOnes(&bv) == 3) && (BitVecCountZeros(&bv) == 2);
+    bool result = (BitsCountOnes(&bv) == 3) && (BitsCountZeros(&bv) == 2);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-// Edge case tests for BitVecGet
-bool test_bitvec_get_edge_cases(void) {
-    printf("Testing BitVecGet edge cases\n");
+// Edge case tests for BitsGet
+bool test_Bits_get_edge_cases(void) {
+    printf("Testing BitsGet edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
     // Test with single bit
-    BitVecPush(&bv, true);
-    result = result && (BitVecGet(&bv, 0) == true);
+    BitsPush(&bv, true);
+    result = result && (BitsGet(&bv, 0) == true);
 
     // Test with larger index
     for (int i = 1; i < 64; i++) {
-        BitVecPush(&bv, i % 2 == 0);
+        BitsPush(&bv, i % 2 == 0);
     }
 
-    result = result && (BitVecGet(&bv, 63) == false); // 63 % 2 == 1, so i%2==0 is false for i=63
+    result = result && (BitsGet(&bv, 63) == false); // 63 % 2 == 1, so i%2==0 is false for i=63
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-// Edge case tests for BitVecSet
-bool test_bitvec_set_edge_cases(void) {
-    printf("Testing BitVecSet edge cases\n");
+// Edge case tests for BitsSet
+bool test_Bits_set_edge_cases(void) {
+    printf("Testing BitsSet edge cases\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Set first bit
-    BitVecResize(&bv, 1);
-    BitVecSet(&bv, 0, true);
-    bool result = (BitVecGet(&bv, 0) == true);
+    BitsResize(&bv, 1);
+    BitsSet(&bv, 0, true);
+    bool result = (BitsGet(&bv, 0) == true);
 
     // Set same bit to false
-    BitVecSet(&bv, 0, false);
-    result = result && (BitVecGet(&bv, 0) == false);
+    BitsSet(&bv, 0, false);
+    result = result && (BitsGet(&bv, 0) == false);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-// Edge case tests for BitVecFlip
-bool test_bitvec_flip_edge_cases(void) {
-    printf("Testing BitVecFlip edge cases\n");
+// Edge case tests for BitsFlip
+bool test_Bits_flip_edge_cases(void) {
+    printf("Testing BitsFlip edge cases\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Test flipping single bit
-    BitVecPush(&bv, false);
-    BitVecFlip(&bv, 0);
-    bool result = (BitVecGet(&bv, 0) == true);
+    BitsPush(&bv, false);
+    BitsFlip(&bv, 0);
+    bool result = (BitsGet(&bv, 0) == true);
 
     // Flip it again
-    BitVecFlip(&bv, 0);
-    result = result && (BitVecGet(&bv, 0) == false);
+    BitsFlip(&bv, 0);
+    result = result && (BitsGet(&bv, 0) == false);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-// Edge case tests for BitVecCount
-bool test_bitvec_count_edge_cases(void) {
-    printf("Testing BitVecCount edge cases\n");
+// Edge case tests for BitsCount
+bool test_Bits_count_edge_cases(void) {
+    printf("Testing BitsCount edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
-    // Test empty bitvector
-    result = result && (BitVecCountOnes(&bv) == 0);
-    result = result && (BitVecCountZeros(&bv) == 0);
+    // Test empty Bitstor
+    result = result && (BitsCountOnes(&bv) == 0);
+    result = result && (BitsCountZeros(&bv) == 0);
 
     // Test single bit
-    BitVecPush(&bv, true);
-    result = result && (BitVecCountOnes(&bv) == 1);
-    result = result && (BitVecCountZeros(&bv) == 0);
+    BitsPush(&bv, true);
+    result = result && (BitsCountOnes(&bv) == 1);
+    result = result && (BitsCountZeros(&bv) == 0);
 
     // Test all same bits
-    BitVecClear(&bv);
+    BitsClear(&bv);
     for (int i = 0; i < 100; i++) {
-        BitVecPush(&bv, true);
+        BitsPush(&bv, true);
     }
-    result = result && (BitVecCountOnes(&bv) == 100);
-    result = result && (BitVecCountZeros(&bv) == 0);
+    result = result && (BitsCountOnes(&bv) == 100);
+    result = result && (BitsCountZeros(&bv) == 0);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
 // Test multiple operations together
-bool test_bitvec_access_multiple_operations(void) {
-    printf("Testing BitVec multiple access operations\n");
+bool test_Bits_access_multiple_operations(void) {
+    printf("Testing Bits multiple access operations\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
     // Create pattern using different methods
-    BitVecPush(&bv, true);
-    BitVecResize(&bv, 5);
-    BitVecSet(&bv, 1, false);
-    BitVecSet(&bv, 2, true);
-    BitVecSet(&bv, 3, false);
-    BitVecSet(&bv, 4, true);
+    BitsPush(&bv, true);
+    BitsResize(&bv, 5);
+    BitsSet(&bv, 1, false);
+    BitsSet(&bv, 2, true);
+    BitsSet(&bv, 3, false);
+    BitsSet(&bv, 4, true);
 
     // Verify pattern: T F T F T
-    result = result && (BitVecGet(&bv, 0) == true);
-    result = result && (BitVecGet(&bv, 1) == false);
-    result = result && (BitVecGet(&bv, 2) == true);
-    result = result && (BitVecGet(&bv, 3) == false);
-    result = result && (BitVecGet(&bv, 4) == true);
+    result = result && (BitsGet(&bv, 0) == true);
+    result = result && (BitsGet(&bv, 1) == false);
+    result = result && (BitsGet(&bv, 2) == true);
+    result = result && (BitsGet(&bv, 3) == false);
+    result = result && (BitsGet(&bv, 4) == true);
 
     // Count and verify
-    result = result && (BitVecCountOnes(&bv) == 3);
-    result = result && (BitVecCountZeros(&bv) == 2);
+    result = result && (BitsCountOnes(&bv) == 3);
+    result = result && (BitsCountZeros(&bv) == 2);
 
     // Flip some bits and verify
-    BitVecFlip(&bv, 1); // F -> T
-    BitVecFlip(&bv, 3); // F -> T
+    BitsFlip(&bv, 1); // F -> T
+    BitsFlip(&bv, 3); // F -> T
 
-    result = result && (BitVecCountOnes(&bv) == 5);
-    result = result && (BitVecCountZeros(&bv) == 0);
+    result = result && (BitsCountOnes(&bv) == 5);
+    result = result && (BitsCountZeros(&bv) == 0);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
 // Test with large patterns
-bool test_bitvec_access_large_patterns(void) {
-    printf("Testing BitVec access with large patterns\n");
+bool test_Bits_access_large_patterns(void) {
+    printf("Testing Bits access with large patterns\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
     // Create large alternating pattern
     for (int i = 0; i < 1000; i++) {
-        BitVecPush(&bv, i % 2 == 0);
+        BitsPush(&bv, i % 2 == 0);
     }
 
     // Verify some positions
-    result = result && (BitVecGet(&bv, 0) == true);    // 0 % 2 == 0
-    result = result && (BitVecGet(&bv, 1) == false);   // 1 % 2 != 0
-    result = result && (BitVecGet(&bv, 500) == true);  // 500 % 2 == 0
-    result = result && (BitVecGet(&bv, 999) == false); // 999 % 2 != 0
+    result = result && (BitsGet(&bv, 0) == true);    // 0 % 2 == 0
+    result = result && (BitsGet(&bv, 1) == false);   // 1 % 2 != 0
+    result = result && (BitsGet(&bv, 500) == true);  // 500 % 2 == 0
+    result = result && (BitsGet(&bv, 999) == false); // 999 % 2 != 0
 
     // Verify counts
-    result = result && (BitVecCountOnes(&bv) == 500);
-    result = result && (BitVecCountZeros(&bv) == 500);
+    result = result && (BitsCountOnes(&bv) == 500);
+    result = result && (BitsCountZeros(&bv) == 500);
 
     // Flip some bits and verify
-    BitVecFlip(&bv, 0);   // T -> F
-    BitVecFlip(&bv, 1);   // F -> T
-    BitVecFlip(&bv, 500); // T -> F
-    BitVecFlip(&bv, 999); // F -> T
+    BitsFlip(&bv, 0);   // T -> F
+    BitsFlip(&bv, 1);   // F -> T
+    BitsFlip(&bv, 500); // T -> F
+    BitsFlip(&bv, 999); // F -> T
 
-    result = result && (BitVecCountOnes(&bv) == 500);
-    result = result && (BitVecCountZeros(&bv) == 500);
+    result = result && (BitsCountOnes(&bv) == 500);
+    result = result && (BitsCountZeros(&bv) == 500);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
 // Test macro functions
-bool test_bitvec_macro_functions(void) {
-    printf("Testing BitVec macro functions\n");
+bool test_Bits_macro_functions(void) {
+    printf("Testing Bits macro functions\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
-    // Test BITVEC_GET, BITVEC_SET, BITVEC_FLIP if they exist
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
+    // Test Bits_GET, Bits_SET, Bits_FLIP if they exist
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
 
     // Test length and capacity macros if they exist
-    result = result && (BitVecLen(&bv) == 2);
-    result = result && (BitVecCapacity(&bv) >= 2);
+    result = result && (BitsLen(&bv) == 2);
+    result = result && (BitsCapacity(&bv) >= 2);
 
     // Test some bit operations
-    BitVecSet(&bv, 0, false);
-    BitVecSet(&bv, 1, true);
+    BitsSet(&bv, 0, false);
+    BitsSet(&bv, 1, true);
 
-    result = result && (BitVecGet(&bv, 0) == false);
-    result = result && (BitVecGet(&bv, 1) == true);
+    result = result && (BitsGet(&bv, 0) == false);
+    result = result && (BitsGet(&bv, 1) == true);
 
     // Test count operations
-    result = result && (BitVecCountOnes(&bv) == 1);
-    result = result && (BitVecCountZeros(&bv) == 1);
+    result = result && (BitsCountOnes(&bv) == 1);
+    result = result && (BitsCountZeros(&bv) == 1);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
 // Stress test for access operations
-bool test_bitvec_access_stress_test(void) {
-    printf("Testing BitVec access stress test\n");
+bool test_Bits_access_stress_test(void) {
+    printf("Testing Bits access stress test\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
-    // Create large bitvector
+    // Create large Bitstor
     const int size = 10000;
-    BitVecReserve(&bv, size);
+    BitsReserve(&bv, size);
 
     // Set alternating pattern
     for (int i = 0; i < size; i++) {
-        BitVecResize(&bv, i + 1);
-        BitVecSet(&bv, i, i % 3 == 0); // Every third bit is true
+        BitsResize(&bv, i + 1);
+        BitsSet(&bv, i, i % 3 == 0); // Every third bit is true
     }
 
     // Verify pattern
     for (int i = 0; i < size && result; i++) {
-        result = result && (BitVecGet(&bv, i) == (i % 3 == 0));
+        result = result && (BitsGet(&bv, i) == (i % 3 == 0));
     }
 
     // Count and verify
@@ -361,12 +361,12 @@ bool test_bitvec_access_stress_test(void) {
             expected_true_count++;
     }
 
-    result = result && (BitVecCountOnes(&bv) == expected_true_count);
-    result = result && (BitVecCountZeros(&bv) == (size - expected_true_count));
+    result = result && (BitsCountOnes(&bv) == expected_true_count);
+    result = result && (BitsCountZeros(&bv) == (size - expected_true_count));
 
     // Flip every 7th bit
     for (int i = 0; i < size; i += 7) {
-        BitVecFlip(&bv, i);
+        BitsFlip(&bv, i);
     }
 
     // Verify flipped bits
@@ -375,320 +375,321 @@ bool test_bitvec_access_stress_test(void) {
         if (i % 7 == 0) {
             expected = !expected; // Flipped
         }
-        result = result && (BitVecGet(&bv, i) == expected);
+        result = result && (BitsGet(&bv, i) == expected);
     }
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
 // Comprehensive bit pattern testing
-bool test_bitvec_bit_patterns_comprehensive(void) {
-    printf("Testing BitVec comprehensive bit patterns\n");
+bool test_Bits_bit_patterns_comprehensive(void) {
+    printf("Testing Bits comprehensive bit patterns\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
     // Test all zeros
     for (int i = 0; i < 64; i++) {
-        BitVecPush(&bv, false);
+        BitsPush(&bv, false);
     }
-    result = result && (BitVecCountZeros(&bv) == 64);
-    result = result && (BitVecCountOnes(&bv) == 0);
+    result = result && (BitsCountZeros(&bv) == 64);
+    result = result && (BitsCountOnes(&bv) == 0);
 
     // Test all ones
-    BitVecClear(&bv);
+    BitsClear(&bv);
     for (int i = 0; i < 64; i++) {
-        BitVecPush(&bv, true);
+        BitsPush(&bv, true);
     }
-    result = result && (BitVecCountOnes(&bv) == 64);
-    result = result && (BitVecCountZeros(&bv) == 0);
+    result = result && (BitsCountOnes(&bv) == 64);
+    result = result && (BitsCountZeros(&bv) == 0);
 
     // Test checkerboard pattern
-    BitVecClear(&bv);
+    BitsClear(&bv);
     for (int i = 0; i < 64; i++) {
-        BitVecPush(&bv, i % 2 == 0);
+        BitsPush(&bv, i % 2 == 0);
     }
-    result = result && (BitVecCountOnes(&bv) == 32);
-    result = result && (BitVecCountZeros(&bv) == 32);
+    result = result && (BitsCountOnes(&bv) == 32);
+    result = result && (BitsCountZeros(&bv) == 32);
 
     // Test sparse pattern (every 8th bit)
-    BitVecClear(&bv);
+    BitsClear(&bv);
     for (int i = 0; i < 64; i++) {
-        BitVecPush(&bv, i % 8 == 0);
+        BitsPush(&bv, i % 8 == 0);
     }
-    result = result && (BitVecCountOnes(&bv) == 8);
-    result = result && (BitVecCountZeros(&bv) == 56);
+    result = result && (BitsCountOnes(&bv) == 8);
+    result = result && (BitsCountZeros(&bv) == 56);
 
     // Test random-like pattern (using simple algorithm)
-    BitVecClear(&bv);
+    BitsClear(&bv);
     for (int i = 0; i < 100; i++) {
-        BitVecPush(&bv, (i * 17 + 3) % 7 < 3); // Pseudo-random pattern
+        BitsPush(&bv, (i * 17 + 3) % 7 < 3); // Pseudo-random pattern
     }
 
     // Verify we can access all bits
     for (int i = 0; i < 100 && result; i++) {
         bool expected = (i * 17 + 3) % 7 < 3;
-        result        = result && (BitVecGet(&bv, i) == expected);
+        result        = result && (BitsGet(&bv, i) == expected);
     }
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-// Test BitVecFind functions (Find, FindLast)
-bool test_bitvec_find_functions(void) {
-    printf("Testing BitVecFind functions\n");
+// Test BitsFind functions (Find, FindLast)
+bool test_Bits_find_functions(void) {
+    printf("Testing BitsFind functions\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
     // Create pattern: F T F T F T F T
     for (int i = 0; i < 8; i++) {
-        BitVecPush(&bv, i % 2 == 1);
+        BitsPush(&bv, i % 2 == 1);
     }
 
-    // Test BitVecFind
-    result = result && (BitVecFind(&bv, true) == 1);  // First true at index 1
-    result = result && (BitVecFind(&bv, false) == 0); // First false at index 0
+    // Test BitsFind
+    result = result && (BitsFind(&bv, true) == 1);  // First true at index 1
+    result = result && (BitsFind(&bv, false) == 0); // First false at index 0
 
-    // Test BitVecFindLast
-    result = result && (BitVecFindLast(&bv, true) == 7);  // Last true at index 7
-    result = result && (BitVecFindLast(&bv, false) == 6); // Last false at index 6
+    // Test BitsFindLast
+    result = result && (BitsFindLast(&bv, true) == 7);  // Last true at index 7
+    result = result && (BitsFindLast(&bv, false) == 6); // Last false at index 6
 
     // Test with all same values
-    BitVecClear(&bv);
+    BitsClear(&bv);
     for (int i = 0; i < 5; i++) {
-        BitVecPush(&bv, true);
+        BitsPush(&bv, true);
     }
-    result = result && (BitVecFind(&bv, true) == 0);
-    result = result && (BitVecFindLast(&bv, true) == 4);
-    result = result && (BitVecFind(&bv, false) == SIZE_MAX);
-    result = result && (BitVecFindLast(&bv, false) == SIZE_MAX);
+    result = result && (BitsFind(&bv, true) == 0);
+    result = result && (BitsFindLast(&bv, true) == 4);
+    result = result && (BitsFind(&bv, false) == SIZE_MAX);
+    result = result && (BitsFindLast(&bv, false) == SIZE_MAX);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-// Test BitVec predicate functions (All, Any, None)
-bool test_bitvec_predicate_functions(void) {
-    printf("Testing BitVec predicate functions\n");
+// Test Bits predicate functions (All, Any, None)
+bool test_Bits_predicate_functions(void) {
+    printf("Testing Bits predicate functions\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
     // Test with all true
     for (int i = 0; i < 5; i++) {
-        BitVecPush(&bv, true);
+        BitsPush(&bv, true);
     }
-    result = result && BitVecAll(&bv, true);
-    result = result && !BitVecAll(&bv, false);
-    result = result && BitVecAny(&bv, true);
-    result = result && !BitVecAny(&bv, false);
-    result = result && !BitVecNone(&bv, true);
-    result = result && BitVecNone(&bv, false);
+    result = result && BitsAll(&bv, true);
+    result = result && !BitsAll(&bv, false);
+    result = result && BitsAny(&bv, true);
+    result = result && !BitsAny(&bv, false);
+    result = result && !BitsNone(&bv, true);
+    result = result && BitsNone(&bv, false);
 
     // Test with all false
-    BitVecClear(&bv);
+    BitsClear(&bv);
     for (int i = 0; i < 5; i++) {
-        BitVecPush(&bv, false);
+        BitsPush(&bv, false);
     }
-    result = result && !BitVecAll(&bv, true);
-    result = result && BitVecAll(&bv, false);
-    result = result && !BitVecAny(&bv, true);
-    result = result && BitVecAny(&bv, false);
-    result = result && BitVecNone(&bv, true);
-    result = result && !BitVecNone(&bv, false);
+    result = result && !BitsAll(&bv, true);
+    result = result && BitsAll(&bv, false);
+    result = result && !BitsAny(&bv, true);
+    result = result && BitsAny(&bv, false);
+    result = result && BitsNone(&bv, true);
+    result = result && !BitsNone(&bv, false);
 
     // Test with mixed values
-    BitVecClear(&bv);
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, true);
+    BitsClear(&bv);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
+    BitsPush(&bv, true);
 
-    result = result && !BitVecAll(&bv, true);
-    result = result && !BitVecAll(&bv, false);
-    result = result && BitVecAny(&bv, true);
-    result = result && BitVecAny(&bv, false);
-    result = result && !BitVecNone(&bv, true);
-    result = result && !BitVecNone(&bv, false);
+    result = result && !BitsAll(&bv, true);
+    result = result && !BitsAll(&bv, false);
+    result = result && BitsAny(&bv, true);
+    result = result && BitsAny(&bv, false);
+    result = result && !BitsNone(&bv, true);
+    result = result && !BitsNone(&bv, false);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-// Test BitVecLongestRun function
-bool test_bitvec_longest_run(void) {
-    printf("Testing BitVecLongestRun\n");
+// Test BitsLongestRun function
+bool test_Bits_longest_run(void) {
+    printf("Testing BitsLongestRun\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
     // Test pattern: T T T F F T T F F F F
     bool pattern[] = {true, true, true, false, false, true, true, false, false, false, false};
     for (int i = 0; i < 11; i++) {
-        BitVecPush(&bv, pattern[i]);
+        BitsPush(&bv, pattern[i]);
     }
 
     // Longest run of true should be 3, longest run of false should be 4
-    result = result && (BitVecLongestRun(&bv, true) == 3);
-    result = result && (BitVecLongestRun(&bv, false) == 4);
+    result = result && (BitsLongestRun(&bv, true) == 3);
+    result = result && (BitsLongestRun(&bv, false) == 4);
 
     // Test with all same values
-    BitVecClear(&bv);
+    BitsClear(&bv);
     for (int i = 0; i < 10; i++) {
-        BitVecPush(&bv, true);
+        BitsPush(&bv, true);
     }
-    result = result && (BitVecLongestRun(&bv, true) == 10);
-    result = result && (BitVecLongestRun(&bv, false) == 0);
+    result = result && (BitsLongestRun(&bv, true) == 10);
+    result = result && (BitsLongestRun(&bv, false) == 0);
 
     // Test alternating pattern
-    BitVecClear(&bv);
+    BitsClear(&bv);
     for (int i = 0; i < 10; i++) {
-        BitVecPush(&bv, i % 2 == 0);
+        BitsPush(&bv, i % 2 == 0);
     }
-    result = result && (BitVecLongestRun(&bv, true) == 1);
-    result = result && (BitVecLongestRun(&bv, false) == 1);
+    result = result && (BitsLongestRun(&bv, true) == 1);
+    result = result && (BitsLongestRun(&bv, false) == 1);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
 // Edge case tests for Find functions
-bool test_bitvec_find_edge_cases(void) {
-    printf("Testing BitVecFind edge cases\n");
+bool test_Bits_find_edge_cases(void) {
+    printf("Testing BitsFind edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
-    // Test empty bitvector
-    result = result && (BitVecFind(&bv, true) == SIZE_MAX);
-    result = result && (BitVecFind(&bv, false) == SIZE_MAX);
-    result = result && (BitVecFindLast(&bv, true) == SIZE_MAX);
-    result = result && (BitVecFindLast(&bv, false) == SIZE_MAX);
+    // Test empty Bitstor
+    result = result && (BitsFind(&bv, true) == SIZE_MAX);
+    result = result && (BitsFind(&bv, false) == SIZE_MAX);
+    result = result && (BitsFindLast(&bv, true) == SIZE_MAX);
+    result = result && (BitsFindLast(&bv, false) == SIZE_MAX);
 
     // Test single element
-    BitVecPush(&bv, true);
-    result = result && (BitVecFind(&bv, true) == 0);
-    result = result && (BitVecFindLast(&bv, true) == 0);
-    result = result && (BitVecFind(&bv, false) == SIZE_MAX);
-    result = result && (BitVecFindLast(&bv, false) == SIZE_MAX);
+    BitsPush(&bv, true);
+    result = result && (BitsFind(&bv, true) == 0);
+    result = result && (BitsFindLast(&bv, true) == 0);
+    result = result && (BitsFind(&bv, false) == SIZE_MAX);
+    result = result && (BitsFindLast(&bv, false) == SIZE_MAX);
 
-    // Test with large bitvector
-    BitVecClear(&bv);
+    // Test with large Bitstor
+    BitsClear(&bv);
     for (int i = 0; i < 1000; i++) {
-        BitVecPush(&bv, i == 500 || i == 999); // Only indices 500 and 999 are true
+        BitsPush(&bv, i == 500 || i == 999); // Only indices 500 and 999 are true
     }
-    result = result && (BitVecFind(&bv, true) == 500);
-    result = result && (BitVecFindLast(&bv, true) == 999);
+    result = result && (BitsFind(&bv, true) == 500);
+    result = result && (BitsFindLast(&bv, true) == 999);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
 // Edge case tests for predicate functions
-bool test_bitvec_predicate_edge_cases(void) {
-    printf("Testing BitVec predicate edge cases\n");
+bool test_Bits_predicate_edge_cases(void) {
+    printf("Testing Bits predicate edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
-    // Test empty bitvector - all predicates should return true for empty set
-    result = result && BitVecAll(&bv, true);
-    result = result && BitVecAll(&bv, false);
-    result = result && !BitVecAny(&bv, true);
-    result = result && !BitVecAny(&bv, false);
-    result = result && BitVecNone(&bv, true);
-    result = result && BitVecNone(&bv, false);
+    // Test empty Bitstor - all predicates should return true for empty set
+    result = result && BitsAll(&bv, true);
+    result = result && BitsAll(&bv, false);
+    result = result && !BitsAny(&bv, true);
+    result = result && !BitsAny(&bv, false);
+    result = result && BitsNone(&bv, true);
+    result = result && BitsNone(&bv, false);
 
-    // Test single element bitvector
-    BitVecPush(&bv, true);
-    result = result && BitVecAll(&bv, true);
-    result = result && !BitVecAll(&bv, false);
-    result = result && BitVecAny(&bv, true);
-    result = result && !BitVecAny(&bv, false);
+    // Test single element Bitstor
+    BitsPush(&bv, true);
+    result = result && BitsAll(&bv, true);
+    result = result && !BitsAll(&bv, false);
+    result = result && BitsAny(&bv, true);
+    result = result && !BitsAny(&bv, false);
 
-    // Test large bitvector with specific patterns
-    BitVecClear(&bv);
+    // Test large Bitstor with specific patterns
+    BitsClear(&bv);
     for (int i = 0; i < 1000; i++) {
-        BitVecPush(&bv, true); // All true
+        BitsPush(&bv, true); // All true
     }
-    result = result && BitVecAll(&bv, true);
-    result = result && !BitVecAll(&bv, false);
+    result = result && BitsAll(&bv, true);
+    result = result && !BitsAll(&bv, false);
 
     // Change one bit to false
-    BitVecSet(&bv, 500, false);
-    result = result && !BitVecAll(&bv, true);
-    result = result && BitVecAny(&bv, true);
-    result = result && BitVecAny(&bv, false);
+    BitsSet(&bv, 500, false);
+    result = result && !BitsAll(&bv, true);
+    result = result && BitsAny(&bv, true);
+    result = result && BitsAny(&bv, false);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
 // Edge case tests for LongestRun function
-bool test_bitvec_longest_run_edge_cases(void) {
-    printf("Testing BitVecLongestRun edge cases\n");
+bool test_Bits_longest_run_edge_cases(void) {
+    printf("Testing BitsLongestRun edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
-    // Test empty bitvector
-    result = result && (BitVecLongestRun(&bv, true) == 0);
-    result = result && (BitVecLongestRun(&bv, false) == 0);
+    // Test empty Bitstor
+    result = result && (BitsLongestRun(&bv, true) == 0);
+    result = result && (BitsLongestRun(&bv, false) == 0);
 
     // Test single element
-    BitVecPush(&bv, true);
-    result = result && (BitVecLongestRun(&bv, true) == 1);
-    result = result && (BitVecLongestRun(&bv, false) == 0);
+    BitsPush(&bv, true);
+    result = result && (BitsLongestRun(&bv, true) == 1);
+    result = result && (BitsLongestRun(&bv, false) == 0);
 
     // Test large runs
-    BitVecClear(&bv);
+    BitsClear(&bv);
     for (int i = 0; i < 10000; i++) {
-        BitVecPush(&bv, true);
+        BitsPush(&bv, true);
     }
-    result = result && (BitVecLongestRun(&bv, true) == 10000);
-    result = result && (BitVecLongestRun(&bv, false) == 0);
+    result = result && (BitsLongestRun(&bv, true) == 10000);
+    result = result && (BitsLongestRun(&bv, false) == 0);
 
     // Test with one interruption in the middle
-    BitVecSet(&bv, 5000, false);
-    result = result && (BitVecLongestRun(&bv, true) == 5000);
-    result = result && (BitVecLongestRun(&bv, false) == 1);
+    BitsSet(&bv, 5000, false);
+    result = result && (BitsLongestRun(&bv, true) == 5000);
+    result = result && (BitsLongestRun(&bv, false) == 1);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Access.Simple tests\n\n");
+    printf("[INFO] Starting Bits.Access.Simple tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {
-        test_bitvec_get,
-        test_bitvec_set,
-        test_bitvec_flip,
-        test_bitvec_length_capacity,
-        test_bitvec_count_operations,
-        test_bitvec_get_edge_cases,
-        test_bitvec_set_edge_cases,
-        test_bitvec_flip_edge_cases,
-        test_bitvec_count_edge_cases,
-        test_bitvec_access_multiple_operations,
-        test_bitvec_access_large_patterns,
-        test_bitvec_macro_functions,
-        test_bitvec_access_stress_test,
-        test_bitvec_bit_patterns_comprehensive,
-        test_bitvec_find_functions,
-        test_bitvec_predicate_functions,
-        test_bitvec_longest_run,
-        test_bitvec_find_edge_cases,
-        test_bitvec_predicate_edge_cases,
-        test_bitvec_longest_run_edge_cases
+        test_Bits_get,
+        test_Bits_set,
+        test_Bits_flip,
+        test_Bits_length_capacity,
+        test_Bits_count_operations,
+        test_Bits_get_edge_cases,
+        test_Bits_set_edge_cases,
+        test_Bits_flip_edge_cases,
+        test_Bits_count_edge_cases,
+        test_Bits_access_multiple_operations,
+        test_Bits_access_large_patterns,
+        test_Bits_macro_functions,
+        test_Bits_access_stress_test,
+        test_Bits_bit_patterns_comprehensive,
+        test_Bits_find_functions,
+        test_Bits_predicate_functions,
+        test_Bits_longest_run,
+        test_Bits_find_edge_cases,
+        test_Bits_predicate_edge_cases,
+        test_Bits_longest_run_edge_cases
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 
     // Run all tests using the centralized test driver
-    return run_test_suite(tests, total_tests, NULL, 0, "BitVec.Access.Simple");
+    return run_test_suite(tests, total_tests, NULL, 0, "Bits.Access.Simple");
 }
+

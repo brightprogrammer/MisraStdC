@@ -149,3 +149,4 @@ char* ZstrFindSubstring(const char* haystack, const char* needle);
 ///
 /// TAGS: String, Search, Safety
 char* ZstrFindSubstringN(const char* haystack, const char* needle, size needle_len);
+

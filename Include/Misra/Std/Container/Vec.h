@@ -20,3 +20,4 @@
 // clang-format on
 
 #endif // MISRA_STD_CONTAINER_VEC_H
+

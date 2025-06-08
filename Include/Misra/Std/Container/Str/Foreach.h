@@ -214,3 +214,4 @@ extern "C" {
 #endif
 
 #endif // MISRA_STD_CONTAINER_STR_FOREACH_H
+

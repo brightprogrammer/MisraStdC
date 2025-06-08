@@ -117,3 +117,4 @@
     ((TYPE_OF(i)) {.data = (v).data, .length = (v).length, .pos = 0, .alignment = (v).alignment, .dir = -1})
 
 #endif // MISRA_STD_UTILITY_ITER_INIT_H
+

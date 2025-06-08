@@ -51,26 +51,26 @@ vec_deadend_tests = [
     ['Vec.Foreach.Deadend', 'Std/Vec.Foreach.Deadend.c'],
 ]
 
-bitvec_tests = [
-    ['BitVec.Type', 'Std/BitVec.Type.c'],
-    ['BitVec.Init', 'Std/BitVec.Init.c'],
-    ['BitVec.Access.Simple', 'Std/BitVec.Access.Simple.c'],
-    ['BitVec.Insert', 'Std/BitVec.Insert.c'],
-    ['BitVec.Remove', 'Std/BitVec.Remove.c'],
-    ['BitVec.Memory', 'Std/BitVec.Memory.c'],
-    ['BitVec.BitWise.Simple', 'Std/BitVec.BitWise.Simple.c'],
-    ['BitVec.Compare', 'Std/BitVec.Compare.c'],
-    ['BitVec.Convert', 'Std/BitVec.Convert.c'],
-    ['BitVec.Pattern.Simple', 'Std/BitVec.Pattern.Simple.c'],
-    ['BitVec.Math', 'Std/BitVec.Math.c'],
-    ['BitVec.Foreach.Simple', 'Std/BitVec.Foreach.Simple.c'],
+Bits_tests = [
+    ['Bits.Type', 'Std/Bits.Type.c'],
+    ['Bits.Init', 'Std/Bits.Init.c'],
+    ['Bits.Access.Simple', 'Std/Bits.Access.Simple.c'],
+    ['Bits.Insert', 'Std/Bits.Insert.c'],
+    ['Bits.Remove', 'Std/Bits.Remove.c'],
+    ['Bits.Memory', 'Std/Bits.Memory.c'],
+    ['Bits.BitWise.Simple', 'Std/Bits.BitWise.Simple.c'],
+    ['Bits.Compare', 'Std/Bits.Compare.c'],
+    ['Bits.Convert', 'Std/Bits.Convert.c'],
+    ['Bits.Pattern.Simple', 'Std/Bits.Pattern.Simple.c'],
+    ['Bits.Math', 'Std/Bits.Math.c'],
+    ['Bits.Foreach.Simple', 'Std/Bits.Foreach.Simple.c'],
 ]
 
-bitvec_deadend_tests = [
-    ['BitVec.Access.Deadend', 'Std/BitVec.Access.Deadend.c'],
-    ['BitVec.BitWise.Deadend', 'Std/BitVec.BitWise.Deadend.c'],
-    ['BitVec.Pattern.Deadend', 'Std/BitVec.Pattern.Deadend.c'],
-    ['BitVec.Foreach.Deadend', 'Std/BitVec.Foreach.Deadend.c'],
+Bits_deadend_tests = [
+    ['Bits.Access.Deadend', 'Std/Bits.Access.Deadend.c'],
+    ['Bits.BitWise.Deadend', 'Std/Bits.BitWise.Deadend.c'],
+    ['Bits.Pattern.Deadend', 'Std/Bits.Pattern.Deadend.c'],
+    ['Bits.Foreach.Deadend', 'Std/Bits.Foreach.Deadend.c'],
 ]
 
 json_tests = [
@@ -153,7 +153,7 @@ foreach test_info : json_tests
     test(test_name, test_exe)
 endforeach
 
-foreach test_info : bitvec_tests
+foreach test_info : Bits_tests
     test_name = test_info[0]
     test_src = test_info[1]
     
@@ -170,7 +170,7 @@ foreach test_info : bitvec_tests
     test(test_name, test_exe)
 endforeach
 
-foreach test_info : bitvec_deadend_tests
+foreach test_info : Bits_deadend_tests
     test_name = test_info[0]
     test_src = test_info[1]
     
@@ -224,3 +224,4 @@ foreach test_info : vec_deadend_tests
     
     test(test_name, test_exe)
 endforeach 
+

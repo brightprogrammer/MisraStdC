@@ -163,3 +163,4 @@ typedef Vec(StrIter) StrIters;
 #define StrIterPeek(mi) IterPeek(mi)
 
 #endif // MISRA_STD_UTILITY_STR_ITER_H
+

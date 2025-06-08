@@ -841,3 +841,4 @@ int main(int argc, char* argv[]) {
     // Use centralized test driver (no more argc/argv needed)
     return run_test_suite(normal_tests, normal_count, NULL, 0, "Vec.Remove");
 }
+

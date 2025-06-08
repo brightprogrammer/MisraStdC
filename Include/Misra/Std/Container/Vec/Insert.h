@@ -653,3 +653,4 @@
 #define VecInitClone(vd, vs) (VecDeinit(vd), VecMerge(vd, vs))
 
 #endif // MISRA_STD_CONTAINER_VEC_INSERT_H
+

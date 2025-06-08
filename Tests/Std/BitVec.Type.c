@@ -1,4 +1,4 @@
-#include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Container/Bits.h>
 #include <Misra/Std/Log.h>
 
 #include <stdio.h>
@@ -8,39 +8,39 @@
 #include "../Util/TestRunner.h"
 
 // Function prototypes
-bool test_bitvec_type_basic(void);
-bool test_bitvec_validate(void);
+bool test_Bits_type_basic(void);
+bool test_Bits_validate(void);
 
-// Test basic BitVec type functionality
-bool test_bitvec_type_basic(void) {
-    printf("Testing basic BitVec type functionality\n");
+// Test basic Bits type functionality
+bool test_Bits_type_basic(void) {
+    printf("Testing basic Bits type functionality\n");
 
-    // Create a bitvector
-    BitVec bitvec = BitVecInit();
+    // Create a Bitstor
+    Bits Bits = BitsInit();
 
     // Check initial state
-    bool result = (bitvec.length == 0 && bitvec.capacity == 0 && bitvec.data == NULL && bitvec.byte_size == 0);
+    bool result = (Bits.length == 0 && Bits.capacity == 0 && Bits.data == NULL && Bits.byte_size == 0);
 
     // Clean up
-    BitVecDeinit(&bitvec);
+    BitsDeinit(&Bits);
 
     return result;
 }
 
-// Test ValidateBitVec macro
-bool test_bitvec_validate(void) {
-    printf("Testing ValidateBitVec macro\n");
+// Test ValidateBits macro
+bool test_Bits_validate(void) {
+    printf("Testing ValidateBits macro\n");
 
-    // Create a valid bitvector
-    BitVec bitvec = BitVecInit();
+    // Create a valid Bitstor
+    Bits Bits = BitsInit();
 
     // This should not abort
-    ValidateBitVec(&bitvec);
+    ValidateBits(&Bits);
 
     // Clean up
-    BitVecDeinit(&bitvec);
+    BitsDeinit(&Bits);
 
-    // Note: We can't easily test the negative case (invalid bitvector)
+    // Note: We can't easily test the negative case (invalid Bitstor)
     // as it would abort the program
 
     return true;
@@ -48,13 +48,14 @@ bool test_bitvec_validate(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Type tests\n\n");
+    printf("[INFO] Starting Bits.Type tests\n\n");
 
     // Array of test functions
-    TestFunction tests[] = {test_bitvec_type_basic, test_bitvec_validate};
+    TestFunction tests[] = {test_Bits_type_basic, test_Bits_validate};
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 
     // Run all tests using the centralized test driver
-    return run_test_suite(tests, total_tests, NULL, 0, "BitVec.Type");
+    return run_test_suite(tests, total_tests, NULL, 0, "Bits.Type");
 }
+

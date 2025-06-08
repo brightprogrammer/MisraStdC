@@ -100,3 +100,4 @@
 #define IterPeek(mi) (IterRemainingLength(mi) ? ((mi)->data[(mi)->pos]) : (ITER_DATA_TYPE(mi)) {0})
 
 #endif // MISRA_STD_UTILITY_ITER_ACCESS_H
+

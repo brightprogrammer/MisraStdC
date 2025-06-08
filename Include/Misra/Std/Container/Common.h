@@ -34,3 +34,4 @@ typedef i32 (*GenericCompare)(const void *first, const void *second);
 typedef u64 (*GenericHash)(const void *data, u32 size);
 
 #endif // MISRA_STD_CONTAINER_COMMON_H
+

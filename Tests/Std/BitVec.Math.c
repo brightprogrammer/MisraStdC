@@ -1,4 +1,4 @@
-#include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Container/Bits.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
 #include <Misra/Types.h>
@@ -9,652 +9,652 @@
 #include "../Util/TestRunner.h"
 
 // Function prototypes for all Math tests
-bool test_bitvec_hamming_distance_basic(void);
-bool test_bitvec_hamming_distance_edge_cases(void);
-bool test_bitvec_jaccard_similarity_basic(void);
-bool test_bitvec_jaccard_similarity_edge_cases(void);
-bool test_bitvec_cosine_similarity_basic(void);
-bool test_bitvec_cosine_similarity_edge_cases(void);
-bool test_bitvec_dot_product_basic(void);
-bool test_bitvec_dot_product_edge_cases(void);
-bool test_bitvec_edit_distance_basic(void);
-bool test_bitvec_edit_distance_edge_cases(void);
-bool test_bitvec_correlation_basic(void);
-bool test_bitvec_correlation_edge_cases(void);
-bool test_bitvec_entropy_basic(void);
-bool test_bitvec_entropy_edge_cases(void);
-bool test_bitvec_alignment_score_basic(void);
-bool test_bitvec_alignment_score_edge_cases(void);
-bool test_bitvec_best_alignment_basic(void);
-bool test_bitvec_best_alignment_edge_cases(void);
-bool test_bitvec_math_stress_tests(void);
+bool test_Bits_hamming_distance_basic(void);
+bool test_Bits_hamming_distance_edge_cases(void);
+bool test_Bits_jaccard_similarity_basic(void);
+bool test_Bits_jaccard_similarity_edge_cases(void);
+bool test_Bits_cosine_similarity_basic(void);
+bool test_Bits_cosine_similarity_edge_cases(void);
+bool test_Bits_dot_product_basic(void);
+bool test_Bits_dot_product_edge_cases(void);
+bool test_Bits_edit_distance_basic(void);
+bool test_Bits_edit_distance_edge_cases(void);
+bool test_Bits_correlation_basic(void);
+bool test_Bits_correlation_edge_cases(void);
+bool test_Bits_entropy_basic(void);
+bool test_Bits_entropy_edge_cases(void);
+bool test_Bits_alignment_score_basic(void);
+bool test_Bits_alignment_score_edge_cases(void);
+bool test_Bits_best_alignment_basic(void);
+bool test_Bits_best_alignment_edge_cases(void);
+bool test_Bits_math_stress_tests(void);
 
 // Deadend tests
-bool test_bitvec_hamming_distance_null_bv1(void);
-bool test_bitvec_hamming_distance_null_bv2(void);
-bool test_bitvec_jaccard_similarity_null_bv1(void);
-bool test_bitvec_jaccard_similarity_null_bv2(void);
-bool test_bitvec_cosine_similarity_null_bv1(void);
-bool test_bitvec_cosine_similarity_null_bv2(void);
-bool test_bitvec_dot_product_null_bv1(void);
-bool test_bitvec_dot_product_null_bv2(void);
-bool test_bitvec_edit_distance_null_bv1(void);
-bool test_bitvec_edit_distance_null_bv2(void);
-bool test_bitvec_correlation_null_bv1(void);
-bool test_bitvec_correlation_null_bv2(void);
-bool test_bitvec_entropy_null(void);
-bool test_bitvec_alignment_score_null_bv1(void);
-bool test_bitvec_alignment_score_null_bv2(void);
-bool test_bitvec_best_alignment_null_bv1(void);
-bool test_bitvec_best_alignment_null_bv2(void);
+bool test_Bits_hamming_distance_null_bv1(void);
+bool test_Bits_hamming_distance_null_bv2(void);
+bool test_Bits_jaccard_similarity_null_bv1(void);
+bool test_Bits_jaccard_similarity_null_bv2(void);
+bool test_Bits_cosine_similarity_null_bv1(void);
+bool test_Bits_cosine_similarity_null_bv2(void);
+bool test_Bits_dot_product_null_bv1(void);
+bool test_Bits_dot_product_null_bv2(void);
+bool test_Bits_edit_distance_null_bv1(void);
+bool test_Bits_edit_distance_null_bv2(void);
+bool test_Bits_correlation_null_bv1(void);
+bool test_Bits_correlation_null_bv2(void);
+bool test_Bits_entropy_null(void);
+bool test_Bits_alignment_score_null_bv1(void);
+bool test_Bits_alignment_score_null_bv2(void);
+bool test_Bits_best_alignment_null_bv1(void);
+bool test_Bits_best_alignment_null_bv2(void);
 
-// Test BitVecHammingDistance basic functionality
-bool test_bitvec_hamming_distance_basic(void) {
-    printf("Testing BitVecHammingDistance basic functionality\n");
+// Test BitsHammingDistance basic functionality
+bool test_Bits_hamming_distance_basic(void) {
+    printf("Testing BitsHammingDistance basic functionality\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
-    // Test identical bitvectors
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, true);
+    // Test identical Bitstors
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, false);
+    BitsPush(&bv1, true);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, true);
 
-    u64 distance = BitVecHammingDistance(&bv1, &bv2);
+    u64 distance = BitsHammingDistance(&bv1, &bv2);
     result       = result && (distance == 0);
 
-    // Test completely different bitvectors
-    BitVecClear(&bv2);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
+    // Test completely different Bitstors
+    BitsClear(&bv2);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
 
-    distance = BitVecHammingDistance(&bv1, &bv2);
+    distance = BitsHammingDistance(&bv1, &bv2);
     result   = result && (distance == 3);
 
-    // Test partially different bitvectors
-    BitVecClear(&bv2);
-    BitVecPush(&bv2, true); // Same
-    BitVecPush(&bv2, true); // Different
-    BitVecPush(&bv2, true); // Same
+    // Test partially different Bitstors
+    BitsClear(&bv2);
+    BitsPush(&bv2, true); // Same
+    BitsPush(&bv2, true); // Different
+    BitsPush(&bv2, true); // Same
 
-    distance = BitVecHammingDistance(&bv1, &bv2);
+    distance = BitsHammingDistance(&bv1, &bv2);
     result   = result && (distance == 1);
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
     return result;
 }
 
-// Test BitVecHammingDistance edge cases
-bool test_bitvec_hamming_distance_edge_cases(void) {
-    printf("Testing BitVecHammingDistance edge cases\n");
+// Test BitsHammingDistance edge cases
+bool test_Bits_hamming_distance_edge_cases(void) {
+    printf("Testing BitsHammingDistance edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
-    // Test empty bitvectors
-    u64 distance = BitVecHammingDistance(&bv1, &bv2);
+    // Test empty Bitstors
+    u64 distance = BitsHammingDistance(&bv1, &bv2);
     result       = result && (distance == 0);
 
     // Test different lengths
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv2, true);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, false);
+    BitsPush(&bv2, true);
 
-    distance = BitVecHammingDistance(&bv1, &bv2);
+    distance = BitsHammingDistance(&bv1, &bv2);
     result   = result && (distance == 1); // 1 length difference
 
     // Test one empty, one non-empty
-    BitVecClear(&bv2);
-    distance = BitVecHammingDistance(&bv1, &bv2);
+    BitsClear(&bv2);
+    distance = BitsHammingDistance(&bv1, &bv2);
     result   = result && (distance == 2); // Length of bv1
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
     return result;
 }
 
-// Test BitVecJaccardSimilarity basic functionality
-bool test_bitvec_jaccard_similarity_basic(void) {
-    printf("Testing BitVecJaccardSimilarity basic functionality\n");
+// Test BitsJaccardSimilarity basic functionality
+bool test_Bits_jaccard_similarity_basic(void) {
+    printf("Testing BitsJaccardSimilarity basic functionality\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
-    // Test identical bitvectors
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, true);
+    // Test identical Bitstors
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, false);
+    BitsPush(&bv1, true);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, true);
 
-    double similarity = BitVecJaccardSimilarity(&bv1, &bv2);
+    double similarity = BitsJaccardSimilarity(&bv1, &bv2);
     result            = result && (fabs(similarity - 1.0) < 0.001);
 
     // Test no overlap
-    BitVecClear(&bv1);
-    BitVecClear(&bv2);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, true);
+    BitsClear(&bv1);
+    BitsClear(&bv2);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, false);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, true);
 
-    similarity = BitVecJaccardSimilarity(&bv1, &bv2);
+    similarity = BitsJaccardSimilarity(&bv1, &bv2);
     result     = result && (fabs(similarity - 0.0) < 0.001);
 
     // Test partial overlap
-    BitVecClear(&bv1);
-    BitVecClear(&bv2);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, false);
+    BitsClear(&bv1);
+    BitsClear(&bv2);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, false);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, false);
     // Intersection: 1, Union: 2, Jaccard = 1/2 = 0.5
 
-    similarity = BitVecJaccardSimilarity(&bv1, &bv2);
+    similarity = BitsJaccardSimilarity(&bv1, &bv2);
     result     = result && (fabs(similarity - 0.5) < 0.001);
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
     return result;
 }
 
-// Test BitVecJaccardSimilarity edge cases
-bool test_bitvec_jaccard_similarity_edge_cases(void) {
-    printf("Testing BitVecJaccardSimilarity edge cases\n");
+// Test BitsJaccardSimilarity edge cases
+bool test_Bits_jaccard_similarity_edge_cases(void) {
+    printf("Testing BitsJaccardSimilarity edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
-    // Test empty bitvectors
-    double similarity = BitVecJaccardSimilarity(&bv1, &bv2);
+    // Test empty Bitstors
+    double similarity = BitsJaccardSimilarity(&bv1, &bv2);
     result            = result && (fabs(similarity - 1.0) < 0.001);
 
     // Test all zeros
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, false);
+    BitsPush(&bv1, false);
+    BitsPush(&bv1, false);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, false);
 
-    similarity = BitVecJaccardSimilarity(&bv1, &bv2);
+    similarity = BitsJaccardSimilarity(&bv1, &bv2);
     result     = result && (fabs(similarity - 1.0) < 0.001);
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
     return result;
 }
 
-// Test BitVecCosineSimilarity basic functionality
-bool test_bitvec_cosine_similarity_basic(void) {
-    printf("Testing BitVecCosineSimilarity basic functionality\n");
+// Test BitsCosineSimilarity basic functionality
+bool test_Bits_cosine_similarity_basic(void) {
+    printf("Testing BitsCosineSimilarity basic functionality\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
-    // Test identical bitvectors
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, true);
+    // Test identical Bitstors
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, false);
+    BitsPush(&bv1, true);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, true);
 
-    double similarity = BitVecCosineSimilarity(&bv1, &bv2);
+    double similarity = BitsCosineSimilarity(&bv1, &bv2);
     result            = result && (fabs(similarity - 1.0) < 0.001);
 
     // Test orthogonal vectors
-    BitVecClear(&bv1);
-    BitVecClear(&bv2);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, true);
+    BitsClear(&bv1);
+    BitsClear(&bv2);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, false);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, true);
 
-    similarity = BitVecCosineSimilarity(&bv1, &bv2);
+    similarity = BitsCosineSimilarity(&bv1, &bv2);
     result     = result && (fabs(similarity - 0.0) < 0.001);
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
     return result;
 }
 
-// Test BitVecCosineSimilarity edge cases
-bool test_bitvec_cosine_similarity_edge_cases(void) {
-    printf("Testing BitVecCosineSimilarity edge cases\n");
+// Test BitsCosineSimilarity edge cases
+bool test_Bits_cosine_similarity_edge_cases(void) {
+    printf("Testing BitsCosineSimilarity edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
     // Test zero vectors
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, false);
+    BitsPush(&bv1, false);
+    BitsPush(&bv1, false);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, false);
 
-    double similarity = BitVecCosineSimilarity(&bv1, &bv2);
+    double similarity = BitsCosineSimilarity(&bv1, &bv2);
     result            = result && (similarity == 0.0);
 
     // Test one zero vector
-    BitVecClear(&bv2);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
+    BitsClear(&bv2);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
 
-    similarity = BitVecCosineSimilarity(&bv1, &bv2);
+    similarity = BitsCosineSimilarity(&bv1, &bv2);
     result     = result && (similarity == 0.0);
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
     return result;
 }
 
-// Test BitVecDotProduct basic functionality
-bool test_bitvec_dot_product_basic(void) {
-    printf("Testing BitVecDotProduct basic functionality\n");
+// Test BitsDotProduct basic functionality
+bool test_Bits_dot_product_basic(void) {
+    printf("Testing BitsDotProduct basic functionality\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
     // Test basic dot product
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, true);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, false);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, true);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, true);
 
-    u64 product = BitVecDotProduct(&bv1, &bv2);
+    u64 product = BitsDotProduct(&bv1, &bv2);
     result      = result && (product == 2); // Positions 0 and 3
 
     // Test no overlap
-    BitVecClear(&bv1);
-    BitVecClear(&bv2);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, true);
+    BitsClear(&bv1);
+    BitsClear(&bv2);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, false);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, true);
 
-    product = BitVecDotProduct(&bv1, &bv2);
+    product = BitsDotProduct(&bv1, &bv2);
     result  = result && (product == 0);
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
     return result;
 }
 
-// Test BitVecDotProduct edge cases
-bool test_bitvec_dot_product_edge_cases(void) {
-    printf("Testing BitVecDotProduct edge cases\n");
+// Test BitsDotProduct edge cases
+bool test_Bits_dot_product_edge_cases(void) {
+    printf("Testing BitsDotProduct edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
-    // Test empty bitvectors
-    u64 product = BitVecDotProduct(&bv1, &bv2);
+    // Test empty Bitstors
+    u64 product = BitsDotProduct(&bv1, &bv2);
     result      = result && (product == 0);
 
     // Test different lengths
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, true);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
 
-    product = BitVecDotProduct(&bv1, &bv2);
+    product = BitsDotProduct(&bv1, &bv2);
     result  = result && (product == 1); // Only first position counts
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
     return result;
 }
 
-// Test BitVecEditDistance basic functionality
-bool test_bitvec_edit_distance_basic(void) {
-    printf("Testing BitVecEditDistance basic functionality\n");
+// Test BitsEditDistance basic functionality
+bool test_Bits_edit_distance_basic(void) {
+    printf("Testing BitsEditDistance basic functionality\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
     // Test identical strings
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, true);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, false);
+    BitsPush(&bv1, true);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, true);
 
-    u64 distance = BitVecEditDistance(&bv1, &bv2);
+    u64 distance = BitsEditDistance(&bv1, &bv2);
     result       = result && (distance == 0);
 
     // Test single substitution
-    BitVecClear(&bv2);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, true); // Changed from false
-    BitVecPush(&bv2, true);
+    BitsClear(&bv2);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, true); // Changed from false
+    BitsPush(&bv2, true);
 
-    distance = BitVecEditDistance(&bv1, &bv2);
+    distance = BitsEditDistance(&bv1, &bv2);
     result   = result && (distance == 1);
 
     // Test insertion
-    BitVecClear(&bv2);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false); // Extra bit
+    BitsClear(&bv2);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false); // Extra bit
 
-    distance = BitVecEditDistance(&bv1, &bv2);
+    distance = BitsEditDistance(&bv1, &bv2);
     result   = result && (distance == 1);
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
     return result;
 }
 
-// Test BitVecEditDistance edge cases
-bool test_bitvec_edit_distance_edge_cases(void) {
-    printf("Testing BitVecEditDistance edge cases\n");
+// Test BitsEditDistance edge cases
+bool test_Bits_edit_distance_edge_cases(void) {
+    printf("Testing BitsEditDistance edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
     // Test empty to empty
-    u64 distance = BitVecEditDistance(&bv1, &bv2);
+    u64 distance = BitsEditDistance(&bv1, &bv2);
     result       = result && (distance == 0);
 
     // Test empty to non-empty
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
 
-    distance = BitVecEditDistance(&bv1, &bv2);
+    distance = BitsEditDistance(&bv1, &bv2);
     result   = result && (distance == 2);
 
     // Test non-empty to empty
-    distance = BitVecEditDistance(&bv2, &bv1);
+    distance = BitsEditDistance(&bv2, &bv1);
     result   = result && (distance == 2);
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
     return result;
 }
 
-// Test BitVecCorrelation basic functionality
-bool test_bitvec_correlation_basic(void) {
-    printf("Testing BitVecCorrelation basic functionality\n");
+// Test BitsCorrelation basic functionality
+bool test_Bits_correlation_basic(void) {
+    printf("Testing BitsCorrelation basic functionality\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
     // Test perfect correlation
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, false);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, false);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
 
-    double correlation = BitVecCorrelation(&bv1, &bv2);
+    double correlation = BitsCorrelation(&bv1, &bv2);
     result             = result && (fabs(correlation - 1.0) < 0.001);
 
     // Test perfect anti-correlation
-    BitVecClear(&bv2);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, true);
+    BitsClear(&bv2);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, true);
 
-    correlation = BitVecCorrelation(&bv1, &bv2);
+    correlation = BitsCorrelation(&bv1, &bv2);
     result      = result && (fabs(correlation + 1.0) < 0.001);
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
     return result;
 }
 
-// Test BitVecCorrelation edge cases
-bool test_bitvec_correlation_edge_cases(void) {
-    printf("Testing BitVecCorrelation edge cases\n");
+// Test BitsCorrelation edge cases
+bool test_Bits_correlation_edge_cases(void) {
+    printf("Testing BitsCorrelation edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
-    // Test empty bitvectors
-    double correlation = BitVecCorrelation(&bv1, &bv2);
+    // Test empty Bitstors
+    double correlation = BitsCorrelation(&bv1, &bv2);
     result             = result && (correlation == 1.0);
 
     // Test uniform vectors
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, true);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, true);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, true);
 
-    correlation = BitVecCorrelation(&bv1, &bv2);
+    correlation = BitsCorrelation(&bv1, &bv2);
     result      = result && (correlation == 0.0); // No variance
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
     return result;
 }
 
-// Test BitVecEntropy basic functionality
-bool test_bitvec_entropy_basic(void) {
-    printf("Testing BitVecEntropy basic functionality\n");
+// Test BitsEntropy basic functionality
+bool test_Bits_entropy_basic(void) {
+    printf("Testing BitsEntropy basic functionality\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
     // Test maximum entropy (equal 0s and 1s)
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
 
-    double entropy = BitVecEntropy(&bv);
+    double entropy = BitsEntropy(&bv);
     result         = result && (fabs(entropy - 1.0) < 0.001);
 
     // Test minimum entropy (all same)
-    BitVecClear(&bv);
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, true);
+    BitsClear(&bv);
+    BitsPush(&bv, true);
+    BitsPush(&bv, true);
+    BitsPush(&bv, true);
 
-    entropy = BitVecEntropy(&bv);
+    entropy = BitsEntropy(&bv);
     result  = result && (entropy == 0.0);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-// Test BitVecEntropy edge cases
-bool test_bitvec_entropy_edge_cases(void) {
-    printf("Testing BitVecEntropy edge cases\n");
+// Test BitsEntropy edge cases
+bool test_Bits_entropy_edge_cases(void) {
+    printf("Testing BitsEntropy edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
-    // Test empty bitvector
-    double entropy = BitVecEntropy(&bv);
+    // Test empty Bitstor
+    double entropy = BitsEntropy(&bv);
     result         = result && (entropy == 0.0);
 
     // Test single bit
-    BitVecPush(&bv, true);
-    entropy = BitVecEntropy(&bv);
+    BitsPush(&bv, true);
+    entropy = BitsEntropy(&bv);
     result  = result && (entropy == 0.0);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-// Test BitVecAlignmentScore basic functionality
-bool test_bitvec_alignment_score_basic(void) {
-    printf("Testing BitVecAlignmentScore basic functionality\n");
+// Test BitsAlignmentScore basic functionality
+bool test_Bits_alignment_score_basic(void) {
+    printf("Testing BitsAlignmentScore basic functionality\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
     // Test perfect match
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, true);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, false);
+    BitsPush(&bv1, true);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, true);
 
-    int score = BitVecAlignmentScore(&bv1, &bv2, 2, -1);
+    int score = BitsAlignmentScore(&bv1, &bv2, 2, -1);
     result    = result && (score == 6); // 3 matches * 2
 
     // Test perfect mismatch
-    BitVecClear(&bv2);
-    BitVecPush(&bv2, false);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
+    BitsClear(&bv2);
+    BitsPush(&bv2, false);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
 
-    score  = BitVecAlignmentScore(&bv1, &bv2, 2, -1);
+    score  = BitsAlignmentScore(&bv1, &bv2, 2, -1);
     result = result && (score == -3); // 3 mismatches * -1
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
     return result;
 }
 
-// Test BitVecAlignmentScore edge cases
-bool test_bitvec_alignment_score_edge_cases(void) {
-    printf("Testing BitVecAlignmentScore edge cases\n");
+// Test BitsAlignmentScore edge cases
+bool test_Bits_alignment_score_edge_cases(void) {
+    printf("Testing BitsAlignmentScore edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
-    // Test empty bitvectors
-    int score = BitVecAlignmentScore(&bv1, &bv2, 1, -1);
+    // Test empty Bitstors
+    int score = BitsAlignmentScore(&bv1, &bv2, 1, -1);
     result    = result && (score == 0);
 
     // Test different lengths (only overlapping region scored)
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, false);
+    BitsPush(&bv1, true);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
 
-    score  = BitVecAlignmentScore(&bv1, &bv2, 1, -1);
+    score  = BitsAlignmentScore(&bv1, &bv2, 1, -1);
     result = result && (score == 2); // 2 matches
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
     return result;
 }
 
-// Test BitVecBestAlignment basic functionality
-bool test_bitvec_best_alignment_basic(void) {
-    printf("Testing BitVecBestAlignment basic functionality\n");
+// Test BitsBestAlignment basic functionality
+bool test_Bits_best_alignment_basic(void) {
+    printf("Testing BitsBestAlignment basic functionality\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
     // Create bv1: 1100110
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv1, false);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv1, false);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, false);
+    BitsPush(&bv1, false);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, true);
+    BitsPush(&bv1, false);
 
     // Create bv2: 110 (should match at position 0 and 4)
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
 
-    u64 best_pos = BitVecBestAlignment(&bv1, &bv2);
+    u64 best_pos = BitsBestAlignment(&bv1, &bv2);
     result       = result && (best_pos == 0 || best_pos == 4);
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
     return result;
 }
 
-// Test BitVecBestAlignment edge cases
-bool test_bitvec_best_alignment_edge_cases(void) {
-    printf("Testing BitVecBestAlignment edge cases\n");
+// Test BitsBestAlignment edge cases
+bool test_Bits_best_alignment_edge_cases(void) {
+    printf("Testing BitsBestAlignment edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
-    // Test empty bitvectors
-    u64 best_pos = BitVecBestAlignment(&bv1, &bv2);
+    // Test empty Bitstors
+    u64 best_pos = BitsBestAlignment(&bv1, &bv2);
     result       = result && (best_pos == 0);
 
     // Test bv2 longer than bv1
-    BitVecPush(&bv1, true);
-    BitVecPush(&bv2, true);
-    BitVecPush(&bv2, false);
+    BitsPush(&bv1, true);
+    BitsPush(&bv2, true);
+    BitsPush(&bv2, false);
 
-    best_pos = BitVecBestAlignment(&bv1, &bv2);
+    best_pos = BitsBestAlignment(&bv1, &bv2);
     result   = result && (best_pos == 0);
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
     return result;
 }
 
 // Stress test for Math functions
-bool test_bitvec_math_stress_tests(void) {
-    printf("Testing BitVec Math stress tests\n");
+bool test_Bits_math_stress_tests(void) {
+    printf("Testing Bits Math stress tests\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    Bits bv1    = BitsInit();
+    Bits bv2    = BitsInit();
     bool   result = true;
 
-    // Create large bitvectors
+    // Create large Bitstors
     for (int i = 0; i < 1000; i++) {
-        BitVecPush(&bv1, i % 2 == 0);
-        BitVecPush(&bv2, i % 3 == 0);
+        BitsPush(&bv1, i % 2 == 0);
+        BitsPush(&bv2, i % 3 == 0);
     }
 
     // Test that all functions complete without crashing
-    u64    hamming     = BitVecHammingDistance(&bv1, &bv2);
-    double jaccard     = BitVecJaccardSimilarity(&bv1, &bv2);
-    double cosine      = BitVecCosineSimilarity(&bv1, &bv2);
-    u64    dot_prod    = BitVecDotProduct(&bv1, &bv2);
-    double correlation = BitVecCorrelation(&bv1, &bv2);
-    double entropy1    = BitVecEntropy(&bv1);
-    int    align_score = BitVecAlignmentScore(&bv1, &bv2, 1, -1);
-    u64    best_align  = BitVecBestAlignment(&bv1, &bv2);
+    u64    hamming     = BitsHammingDistance(&bv1, &bv2);
+    double jaccard     = BitsJaccardSimilarity(&bv1, &bv2);
+    double cosine      = BitsCosineSimilarity(&bv1, &bv2);
+    u64    dot_prod    = BitsDotProduct(&bv1, &bv2);
+    double correlation = BitsCorrelation(&bv1, &bv2);
+    double entropy1    = BitsEntropy(&bv1);
+    int    align_score = BitsAlignmentScore(&bv1, &bv2, 1, -1);
+    u64    best_align  = BitsBestAlignment(&bv1, &bv2);
 
     // Test edit distance with smaller vectors (expensive operation)
-    BitVec small1 = BitVecInit();
-    BitVec small2 = BitVecInit();
+    Bits small1 = BitsInit();
+    Bits small2 = BitsInit();
     for (int i = 0; i < 50; i++) {
-        BitVecPush(&small1, i % 2 == 0);
-        BitVecPush(&small2, i % 3 == 0);
+        BitsPush(&small1, i % 2 == 0);
+        BitsPush(&small2, i % 3 == 0);
     }
-    u64 edit_dist = BitVecEditDistance(&small1, &small2);
+    u64 edit_dist = BitsEditDistance(&small1, &small2);
 
     result = result && (hamming < 1000);
     result = result && (jaccard >= 0.0 && jaccard <= 1.0);
@@ -667,216 +667,217 @@ bool test_bitvec_math_stress_tests(void) {
     result = result && (best_align <= 1000); // SIZE_MAX is valid
     result = result && (edit_dist < 100);
 
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
-    BitVecDeinit(&small1);
-    BitVecDeinit(&small2);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
+    BitsDeinit(&small1);
+    BitsDeinit(&small2);
     return result;
 }
 
 // Deadend tests - each function with NULL parameters
 
-bool test_bitvec_hamming_distance_null_bv1(void) {
-    printf("Testing BitVecHammingDistance(NULL, bv2) - should fatal\n");
-    BitVec bv2 = BitVecInit();
-    BitVecPush(&bv2, true);
-    BitVecHammingDistance(NULL, &bv2);
-    BitVecDeinit(&bv2);
+bool test_Bits_hamming_distance_null_bv1(void) {
+    printf("Testing BitsHammingDistance(NULL, bv2) - should fatal\n");
+    Bits bv2 = BitsInit();
+    BitsPush(&bv2, true);
+    BitsHammingDistance(NULL, &bv2);
+    BitsDeinit(&bv2);
     return true;
 }
 
-bool test_bitvec_hamming_distance_null_bv2(void) {
-    printf("Testing BitVecHammingDistance(bv1, NULL) - should fatal\n");
-    BitVec bv1 = BitVecInit();
-    BitVecPush(&bv1, true);
-    BitVecHammingDistance(&bv1, NULL);
-    BitVecDeinit(&bv1);
+bool test_Bits_hamming_distance_null_bv2(void) {
+    printf("Testing BitsHammingDistance(bv1, NULL) - should fatal\n");
+    Bits bv1 = BitsInit();
+    BitsPush(&bv1, true);
+    BitsHammingDistance(&bv1, NULL);
+    BitsDeinit(&bv1);
     return true;
 }
 
-bool test_bitvec_jaccard_similarity_null_bv1(void) {
-    printf("Testing BitVecJaccardSimilarity(NULL, bv2) - should fatal\n");
-    BitVec bv2 = BitVecInit();
-    BitVecPush(&bv2, true);
-    BitVecJaccardSimilarity(NULL, &bv2);
-    BitVecDeinit(&bv2);
+bool test_Bits_jaccard_similarity_null_bv1(void) {
+    printf("Testing BitsJaccardSimilarity(NULL, bv2) - should fatal\n");
+    Bits bv2 = BitsInit();
+    BitsPush(&bv2, true);
+    BitsJaccardSimilarity(NULL, &bv2);
+    BitsDeinit(&bv2);
     return true;
 }
 
-bool test_bitvec_jaccard_similarity_null_bv2(void) {
-    printf("Testing BitVecJaccardSimilarity(bv1, NULL) - should fatal\n");
-    BitVec bv1 = BitVecInit();
-    BitVecPush(&bv1, true);
-    BitVecJaccardSimilarity(&bv1, NULL);
-    BitVecDeinit(&bv1);
+bool test_Bits_jaccard_similarity_null_bv2(void) {
+    printf("Testing BitsJaccardSimilarity(bv1, NULL) - should fatal\n");
+    Bits bv1 = BitsInit();
+    BitsPush(&bv1, true);
+    BitsJaccardSimilarity(&bv1, NULL);
+    BitsDeinit(&bv1);
     return true;
 }
 
-bool test_bitvec_cosine_similarity_null_bv1(void) {
-    printf("Testing BitVecCosineSimilarity(NULL, bv2) - should fatal\n");
-    BitVec bv2 = BitVecInit();
-    BitVecPush(&bv2, true);
-    BitVecCosineSimilarity(NULL, &bv2);
-    BitVecDeinit(&bv2);
+bool test_Bits_cosine_similarity_null_bv1(void) {
+    printf("Testing BitsCosineSimilarity(NULL, bv2) - should fatal\n");
+    Bits bv2 = BitsInit();
+    BitsPush(&bv2, true);
+    BitsCosineSimilarity(NULL, &bv2);
+    BitsDeinit(&bv2);
     return true;
 }
 
-bool test_bitvec_cosine_similarity_null_bv2(void) {
-    printf("Testing BitVecCosineSimilarity(bv1, NULL) - should fatal\n");
-    BitVec bv1 = BitVecInit();
-    BitVecPush(&bv1, true);
-    BitVecCosineSimilarity(&bv1, NULL);
-    BitVecDeinit(&bv1);
+bool test_Bits_cosine_similarity_null_bv2(void) {
+    printf("Testing BitsCosineSimilarity(bv1, NULL) - should fatal\n");
+    Bits bv1 = BitsInit();
+    BitsPush(&bv1, true);
+    BitsCosineSimilarity(&bv1, NULL);
+    BitsDeinit(&bv1);
     return true;
 }
 
-bool test_bitvec_dot_product_null_bv1(void) {
-    printf("Testing BitVecDotProduct(NULL, bv2) - should fatal\n");
-    BitVec bv2 = BitVecInit();
-    BitVecPush(&bv2, true);
-    BitVecDotProduct(NULL, &bv2);
-    BitVecDeinit(&bv2);
+bool test_Bits_dot_product_null_bv1(void) {
+    printf("Testing BitsDotProduct(NULL, bv2) - should fatal\n");
+    Bits bv2 = BitsInit();
+    BitsPush(&bv2, true);
+    BitsDotProduct(NULL, &bv2);
+    BitsDeinit(&bv2);
     return true;
 }
 
-bool test_bitvec_dot_product_null_bv2(void) {
-    printf("Testing BitVecDotProduct(bv1, NULL) - should fatal\n");
-    BitVec bv1 = BitVecInit();
-    BitVecPush(&bv1, true);
-    BitVecDotProduct(&bv1, NULL);
-    BitVecDeinit(&bv1);
+bool test_Bits_dot_product_null_bv2(void) {
+    printf("Testing BitsDotProduct(bv1, NULL) - should fatal\n");
+    Bits bv1 = BitsInit();
+    BitsPush(&bv1, true);
+    BitsDotProduct(&bv1, NULL);
+    BitsDeinit(&bv1);
     return true;
 }
 
-bool test_bitvec_edit_distance_null_bv1(void) {
-    printf("Testing BitVecEditDistance(NULL, bv2) - should fatal\n");
-    BitVec bv2 = BitVecInit();
-    BitVecPush(&bv2, true);
-    BitVecEditDistance(NULL, &bv2);
-    BitVecDeinit(&bv2);
+bool test_Bits_edit_distance_null_bv1(void) {
+    printf("Testing BitsEditDistance(NULL, bv2) - should fatal\n");
+    Bits bv2 = BitsInit();
+    BitsPush(&bv2, true);
+    BitsEditDistance(NULL, &bv2);
+    BitsDeinit(&bv2);
     return true;
 }
 
-bool test_bitvec_edit_distance_null_bv2(void) {
-    printf("Testing BitVecEditDistance(bv1, NULL) - should fatal\n");
-    BitVec bv1 = BitVecInit();
-    BitVecPush(&bv1, true);
-    BitVecEditDistance(&bv1, NULL);
-    BitVecDeinit(&bv1);
+bool test_Bits_edit_distance_null_bv2(void) {
+    printf("Testing BitsEditDistance(bv1, NULL) - should fatal\n");
+    Bits bv1 = BitsInit();
+    BitsPush(&bv1, true);
+    BitsEditDistance(&bv1, NULL);
+    BitsDeinit(&bv1);
     return true;
 }
 
-bool test_bitvec_correlation_null_bv1(void) {
-    printf("Testing BitVecCorrelation(NULL, bv2) - should fatal\n");
-    BitVec bv2 = BitVecInit();
-    BitVecPush(&bv2, true);
-    BitVecCorrelation(NULL, &bv2);
-    BitVecDeinit(&bv2);
+bool test_Bits_correlation_null_bv1(void) {
+    printf("Testing BitsCorrelation(NULL, bv2) - should fatal\n");
+    Bits bv2 = BitsInit();
+    BitsPush(&bv2, true);
+    BitsCorrelation(NULL, &bv2);
+    BitsDeinit(&bv2);
     return true;
 }
 
-bool test_bitvec_correlation_null_bv2(void) {
-    printf("Testing BitVecCorrelation(bv1, NULL) - should fatal\n");
-    BitVec bv1 = BitVecInit();
-    BitVecPush(&bv1, true);
-    BitVecCorrelation(&bv1, NULL);
-    BitVecDeinit(&bv1);
+bool test_Bits_correlation_null_bv2(void) {
+    printf("Testing BitsCorrelation(bv1, NULL) - should fatal\n");
+    Bits bv1 = BitsInit();
+    BitsPush(&bv1, true);
+    BitsCorrelation(&bv1, NULL);
+    BitsDeinit(&bv1);
     return true;
 }
 
-bool test_bitvec_entropy_null(void) {
-    printf("Testing BitVecEntropy(NULL) - should fatal\n");
-    BitVecEntropy(NULL);
+bool test_Bits_entropy_null(void) {
+    printf("Testing BitsEntropy(NULL) - should fatal\n");
+    BitsEntropy(NULL);
     return true;
 }
 
-bool test_bitvec_alignment_score_null_bv1(void) {
-    printf("Testing BitVecAlignmentScore(NULL, bv2, 1, -1) - should fatal\n");
-    BitVec bv2 = BitVecInit();
-    BitVecPush(&bv2, true);
-    BitVecAlignmentScore(NULL, &bv2, 1, -1);
-    BitVecDeinit(&bv2);
+bool test_Bits_alignment_score_null_bv1(void) {
+    printf("Testing BitsAlignmentScore(NULL, bv2, 1, -1) - should fatal\n");
+    Bits bv2 = BitsInit();
+    BitsPush(&bv2, true);
+    BitsAlignmentScore(NULL, &bv2, 1, -1);
+    BitsDeinit(&bv2);
     return true;
 }
 
-bool test_bitvec_alignment_score_null_bv2(void) {
-    printf("Testing BitVecAlignmentScore(bv1, NULL, 1, -1) - should fatal\n");
-    BitVec bv1 = BitVecInit();
-    BitVecPush(&bv1, true);
-    BitVecAlignmentScore(&bv1, NULL, 1, -1);
-    BitVecDeinit(&bv1);
+bool test_Bits_alignment_score_null_bv2(void) {
+    printf("Testing BitsAlignmentScore(bv1, NULL, 1, -1) - should fatal\n");
+    Bits bv1 = BitsInit();
+    BitsPush(&bv1, true);
+    BitsAlignmentScore(&bv1, NULL, 1, -1);
+    BitsDeinit(&bv1);
     return true;
 }
 
-bool test_bitvec_best_alignment_null_bv1(void) {
-    printf("Testing BitVecBestAlignment(NULL, bv2) - should fatal\n");
-    BitVec bv2 = BitVecInit();
-    BitVecPush(&bv2, true);
-    BitVecBestAlignment(NULL, &bv2);
-    BitVecDeinit(&bv2);
+bool test_Bits_best_alignment_null_bv1(void) {
+    printf("Testing BitsBestAlignment(NULL, bv2) - should fatal\n");
+    Bits bv2 = BitsInit();
+    BitsPush(&bv2, true);
+    BitsBestAlignment(NULL, &bv2);
+    BitsDeinit(&bv2);
     return true;
 }
 
-bool test_bitvec_best_alignment_null_bv2(void) {
-    printf("Testing BitVecBestAlignment(bv1, NULL) - should fatal\n");
-    BitVec bv1 = BitVecInit();
-    BitVecPush(&bv1, true);
-    BitVecBestAlignment(&bv1, NULL);
-    BitVecDeinit(&bv1);
+bool test_Bits_best_alignment_null_bv2(void) {
+    printf("Testing BitsBestAlignment(bv1, NULL) - should fatal\n");
+    Bits bv1 = BitsInit();
+    BitsPush(&bv1, true);
+    BitsBestAlignment(&bv1, NULL);
+    BitsDeinit(&bv1);
     return true;
 }
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Math tests\n\n");
+    printf("[INFO] Starting Bits.Math tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {
-        test_bitvec_hamming_distance_basic,
-        test_bitvec_hamming_distance_edge_cases,
-        test_bitvec_jaccard_similarity_basic,
-        test_bitvec_jaccard_similarity_edge_cases,
-        test_bitvec_cosine_similarity_basic,
-        test_bitvec_cosine_similarity_edge_cases,
-        test_bitvec_dot_product_basic,
-        test_bitvec_dot_product_edge_cases,
-        test_bitvec_edit_distance_basic,
-        test_bitvec_edit_distance_edge_cases,
-        test_bitvec_correlation_basic,
-        test_bitvec_correlation_edge_cases,
-        test_bitvec_entropy_basic,
-        test_bitvec_entropy_edge_cases,
-        test_bitvec_alignment_score_basic,
-        test_bitvec_alignment_score_edge_cases,
-        test_bitvec_best_alignment_basic,
-        test_bitvec_best_alignment_edge_cases,
-        test_bitvec_math_stress_tests
+        test_Bits_hamming_distance_basic,
+        test_Bits_hamming_distance_edge_cases,
+        test_Bits_jaccard_similarity_basic,
+        test_Bits_jaccard_similarity_edge_cases,
+        test_Bits_cosine_similarity_basic,
+        test_Bits_cosine_similarity_edge_cases,
+        test_Bits_dot_product_basic,
+        test_Bits_dot_product_edge_cases,
+        test_Bits_edit_distance_basic,
+        test_Bits_edit_distance_edge_cases,
+        test_Bits_correlation_basic,
+        test_Bits_correlation_edge_cases,
+        test_Bits_entropy_basic,
+        test_Bits_entropy_edge_cases,
+        test_Bits_alignment_score_basic,
+        test_Bits_alignment_score_edge_cases,
+        test_Bits_best_alignment_basic,
+        test_Bits_best_alignment_edge_cases,
+        test_Bits_math_stress_tests
     };
 
     // Array of deadend test functions
     TestFunction deadend_tests[] = {
-        test_bitvec_hamming_distance_null_bv1,
-        test_bitvec_hamming_distance_null_bv2,
-        test_bitvec_jaccard_similarity_null_bv1,
-        test_bitvec_jaccard_similarity_null_bv2,
-        test_bitvec_cosine_similarity_null_bv1,
-        test_bitvec_cosine_similarity_null_bv2,
-        test_bitvec_dot_product_null_bv1,
-        test_bitvec_dot_product_null_bv2,
-        test_bitvec_edit_distance_null_bv1,
-        test_bitvec_edit_distance_null_bv2,
-        test_bitvec_correlation_null_bv1,
-        test_bitvec_correlation_null_bv2,
-        test_bitvec_entropy_null,
-        test_bitvec_alignment_score_null_bv1,
-        test_bitvec_alignment_score_null_bv2,
-        test_bitvec_best_alignment_null_bv1,
-        test_bitvec_best_alignment_null_bv2
+        test_Bits_hamming_distance_null_bv1,
+        test_Bits_hamming_distance_null_bv2,
+        test_Bits_jaccard_similarity_null_bv1,
+        test_Bits_jaccard_similarity_null_bv2,
+        test_Bits_cosine_similarity_null_bv1,
+        test_Bits_cosine_similarity_null_bv2,
+        test_Bits_dot_product_null_bv1,
+        test_Bits_dot_product_null_bv2,
+        test_Bits_edit_distance_null_bv1,
+        test_Bits_edit_distance_null_bv2,
+        test_Bits_correlation_null_bv1,
+        test_Bits_correlation_null_bv2,
+        test_Bits_entropy_null,
+        test_Bits_alignment_score_null_bv1,
+        test_Bits_alignment_score_null_bv2,
+        test_Bits_best_alignment_null_bv1,
+        test_Bits_best_alignment_null_bv2
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);
     int total_deadend_tests = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
     // Run all tests using the centralized test driver
-    return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "BitVec.Math");
+    return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Bits.Math");
 }
+

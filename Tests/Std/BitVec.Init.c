@@ -1,4 +1,4 @@
-#include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Container/Bits.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
 #include <Misra/Types.h>
@@ -7,24 +7,24 @@
 #include "../Util/TestRunner.h"
 
 // Function prototypes
-bool test_bitvec_init(void);
-bool test_bitvec_deinit(void);
-bool test_bitvec_reserve(void);
-bool test_bitvec_clear(void);
-bool test_bitvec_resize(void);
-bool test_bitvec_init_edge_cases(void);
-bool test_bitvec_deinit_edge_cases(void);
-bool test_bitvec_reserve_edge_cases(void);
-bool test_bitvec_clear_edge_cases(void);
-bool test_bitvec_resize_edge_cases(void);
-bool test_bitvec_multiple_cycles(void);
+bool test_Bits_init(void);
+bool test_Bits_deinit(void);
+bool test_Bits_reserve(void);
+bool test_Bits_clear(void);
+bool test_Bits_resize(void);
+bool test_Bits_init_edge_cases(void);
+bool test_Bits_deinit_edge_cases(void);
+bool test_Bits_reserve_edge_cases(void);
+bool test_Bits_clear_edge_cases(void);
+bool test_Bits_resize_edge_cases(void);
+bool test_Bits_multiple_cycles(void);
 
-// Test BitVecInit function
-bool test_bitvec_init(void) {
-    printf("Testing BitVecInit\n");
+// Test BitsInit function
+bool test_Bits_init(void) {
+    printf("Testing BitsInit\n");
 
     // Test basic initialization
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Check initial state
     bool result = (bv.length == 0);
@@ -33,29 +33,29 @@ bool test_bitvec_init(void) {
     result      = result && (bv.byte_size == 0);
 
     // Clean up
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
 
     return result;
 }
 
-// Test BitVecDeinit function
-bool test_bitvec_deinit(void) {
-    printf("Testing BitVecDeinit\n");
+// Test BitsDeinit function
+bool test_Bits_deinit(void) {
+    printf("Testing BitsDeinit\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Add some data to make sure deinitialization works with allocated memory
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, true);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
+    BitsPush(&bv, true);
 
     // Check that data was allocated
     bool result = (bv.length == 3) && (bv.data != NULL);
 
     // Deinitialize
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
 
-    // After deinitialization, the bitvector should be in a safe state
+    // After deinitialization, the Bitstor should be in a safe state
     // Note: We can't easily test that memory was freed without causing issues,
     // but we can check that the structure is reset to safe values
     result = result && (bv.length == 0);
@@ -66,14 +66,14 @@ bool test_bitvec_deinit(void) {
     return result;
 }
 
-// Test BitVecReserve function
-bool test_bitvec_reserve(void) {
-    printf("Testing BitVecReserve\n");
+// Test BitsReserve function
+bool test_Bits_reserve(void) {
+    printf("Testing BitsReserve\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Reserve space for 50 bits
-    BitVecReserve(&bv, 50);
+    BitsReserve(&bv, 50);
 
     // Check that capacity was increased
     bool result = (bv.capacity >= 50);
@@ -82,7 +82,7 @@ bool test_bitvec_reserve(void) {
 
     // Add some bits to make sure the reserved space works
     for (int i = 0; i < 10; i++) {
-        BitVecPush(&bv, (i % 2 == 0));
+        BitsPush(&bv, (i % 2 == 0));
     }
 
     result = result && (bv.length == 10);
@@ -90,33 +90,33 @@ bool test_bitvec_reserve(void) {
 
     // Test reserving less than current capacity (should be no-op)
     u64 original_capacity = bv.capacity;
-    BitVecReserve(&bv, 25);
+    BitsReserve(&bv, 25);
     result = result && (bv.capacity == original_capacity);
 
     // Clean up
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
 
     return result;
 }
 
-// Test BitVecClear function
-bool test_bitvec_clear(void) {
-    printf("Testing BitVecClear\n");
+// Test BitsClear function
+bool test_Bits_clear(void) {
+    printf("Testing BitsClear\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Add some data
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
 
     // Check initial state
     bool result            = (bv.length == 4) && (bv.data != NULL);
     u64  original_capacity = bv.capacity;
 
-    // Clear the bitvector
-    BitVecClear(&bv);
+    // Clear the Bitstor
+    BitsClear(&bv);
 
     // Check that length is 0 but capacity and memory allocation remain
     result = result && (bv.length == 0);
@@ -124,265 +124,266 @@ bool test_bitvec_clear(void) {
     result = result && (bv.data != NULL); // Memory should still be allocated
 
     // Test that we can still add data after clearing
-    BitVecPush(&bv, true);
+    BitsPush(&bv, true);
     result = result && (bv.length == 1);
-    result = result && (BitVecGet(&bv, 0) == true);
+    result = result && (BitsGet(&bv, 0) == true);
 
     // Clean up
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
 
     return result;
 }
 
-// Test BitVecReu64 function
-bool test_bitvec_resize(void) {
-    printf("Testing BitVecResize\n");
+// Test BitsResize function
+bool test_Bits_resize(void) {
+    printf("Testing BitsResize\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Add some initial data
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, true);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
+    BitsPush(&bv, true);
 
     // Test resizing to larger size
-    BitVecResize(&bv, 6);
+    BitsResize(&bv, 6);
 
     // Check that length was increased and new bits have the default value
     bool result = (bv.length == 6);
-    result      = result && (BitVecGet(&bv, 0) == true);  // Original data
-    result      = result && (BitVecGet(&bv, 1) == false); // Original data
-    result      = result && (BitVecGet(&bv, 2) == true);  // Original data
-    result      = result && (BitVecGet(&bv, 3) == false); // New data (likely default to false)
-    result      = result && (BitVecGet(&bv, 4) == false); // New data (likely default to false)
-    result      = result && (BitVecGet(&bv, 5) == false); // New data (likely default to false)
+    result      = result && (BitsGet(&bv, 0) == true);  // Original data
+    result      = result && (BitsGet(&bv, 1) == false); // Original data
+    result      = result && (BitsGet(&bv, 2) == true);  // Original data
+    result      = result && (BitsGet(&bv, 3) == false); // New data (likely default to false)
+    result      = result && (BitsGet(&bv, 4) == false); // New data (likely default to false)
+    result      = result && (BitsGet(&bv, 5) == false); // New data (likely default to false)
 
     // Test resizing to smaller size
-    BitVecResize(&bv, 2);
+    BitsResize(&bv, 2);
 
     // Check that length was decreased and data was truncated
     result = result && (bv.length == 2);
-    result = result && (BitVecGet(&bv, 0) == true);  // Original data preserved
-    result = result && (BitVecGet(&bv, 1) == false); // Original data preserved
+    result = result && (BitsGet(&bv, 0) == true);  // Original data preserved
+    result = result && (BitsGet(&bv, 1) == false); // Original data preserved
 
     // Test resizing to same size (should be no-op)
-    BitVecResize(&bv, 2);
+    BitsResize(&bv, 2);
     result = result && (bv.length == 2);
 
     // Clean up
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
 
     return result;
 }
 
 // Edge case tests - boundary conditions and unusual but valid inputs
-bool test_bitvec_init_edge_cases(void) {
-    printf("Testing BitVecInit edge cases\n");
+bool test_Bits_init_edge_cases(void) {
+    printf("Testing BitsInit edge cases\n");
 
     // Test multiple initializations
-    BitVec bv1 = BitVecInit();
-    BitVec bv2 = BitVecInit();
-    BitVec bv3 = BitVecInit();
+    Bits bv1 = BitsInit();
+    Bits bv2 = BitsInit();
+    Bits bv3 = BitsInit();
 
     bool result = (bv1.length == 0) && (bv2.length == 0) && (bv3.length == 0);
     result      = result && (bv1.data == NULL) && (bv2.data == NULL) && (bv3.data == NULL);
 
     // Clean up all
-    BitVecDeinit(&bv1);
-    BitVecDeinit(&bv2);
-    BitVecDeinit(&bv3);
+    BitsDeinit(&bv1);
+    BitsDeinit(&bv2);
+    BitsDeinit(&bv3);
 
     return result;
 }
 
-bool test_bitvec_reserve_edge_cases(void) {
-    printf("Testing BitVecReserve edge cases\n");
+bool test_Bits_reserve_edge_cases(void) {
+    printf("Testing BitsReserve edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
     // Test reserving 0 (should be safe no-op)
-    BitVecReserve(&bv, 0);
+    BitsReserve(&bv, 0);
     result = result && (bv.capacity == 0) && (bv.data == NULL);
 
     // Test reserving 1 bit (minimum meaningful size)
-    BitVecReserve(&bv, 1);
+    BitsReserve(&bv, 1);
     result = result && (bv.capacity >= 1) && (bv.data != NULL);
 
     // Test very large but reasonable reservation
-    BitVecReserve(&bv, 10000);
+    BitsReserve(&bv, 10000);
     result = result && (bv.capacity >= 10000);
 
     // Test reserving same u64 repeatedly (should be no-op)
     u64 cap_before = bv.capacity;
-    BitVecReserve(&bv, bv.capacity);
-    BitVecReserve(&bv, bv.capacity);
+    BitsReserve(&bv, bv.capacity);
+    BitsReserve(&bv, bv.capacity);
     result = result && (bv.capacity == cap_before);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-bool test_bitvec_resize_edge_cases(void) {
-    printf("Testing BitVecReu64 edge cases\n");
+bool test_Bits_resize_edge_cases(void) {
+    printf("Testing BitsResize edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
-    // Test reu64 to 0 (should clear but keep memory)
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecResize(&bv, 0);
+    // Test resize to 0 (should clear but keep memory)
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
+    BitsResize(&bv, 0);
     result = result && (bv.length == 0);
 
-    // Test reu64 from 0 to non-zero
-    BitVecResize(&bv, 5);
+    // Test Resize from 0 to non-zero
+    BitsResize(&bv, 5);
     result = result && (bv.length == 5);
     // New bits should be false
     for (u64 i = 0; i < 5; i++) {
-        result = result && (BitVecGet(&bv, i) == false);
+        result = result && (BitsGet(&bv, i) == false);
     }
 
-    // Test reu64 to same size
-    BitVecResize(&bv, 5);
+    // Test Resize to same size
+    BitsResize(&bv, 5);
     result = result && (bv.length == 5);
 
     // Test large resize
-    BitVecResize(&bv, 1000);
+    BitsResize(&bv, 1000);
     result = result && (bv.length == 1000);
 
     // Test shrinking from large size
-    BitVecResize(&bv, 10);
+    BitsResize(&bv, 10);
     result = result && (bv.length == 10);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-bool test_bitvec_clear_edge_cases(void) {
-    printf("Testing BitVecClear edge cases\n");
+bool test_Bits_clear_edge_cases(void) {
+    printf("Testing BitsClear edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
-    // Test clear on empty bitvec
-    BitVecClear(&bv);
+    // Test clear on empty Bits
+    BitsClear(&bv);
     result = result && (bv.length == 0);
 
     // Test clear after single bit
-    BitVecPush(&bv, true);
-    BitVecClear(&bv);
+    BitsPush(&bv, true);
+    BitsClear(&bv);
     result = result && (bv.length == 0);
 
     // Test multiple clears
-    BitVecClear(&bv);
-    BitVecClear(&bv);
+    BitsClear(&bv);
+    BitsClear(&bv);
     result = result && (bv.length == 0);
 
     // Test clear after large data
     for (int i = 0; i < 1000; i++) {
-        BitVecPush(&bv, i % 2);
+        BitsPush(&bv, i % 2);
     }
-    BitVecClear(&bv);
+    BitsClear(&bv);
     result = result && (bv.length == 0);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-bool test_bitvec_multiple_cycles(void) {
-    printf("Testing BitVec multiple init/deinit cycles\n");
+bool test_Bits_multiple_cycles(void) {
+    printf("Testing Bits multiple init/deinit cycles\n");
 
     bool result = true;
 
     // Test multiple init/deinit cycles
     for (int cycle = 0; cycle < 100; cycle++) {
-        BitVec bv = BitVecInit();
+        Bits bv = BitsInit();
 
         // Add some data
         for (int i = 0; i < cycle % 10; i++) {
-            BitVecPush(&bv, i % 2);
+            BitsPush(&bv, i % 2);
         }
 
         result = result && (bv.length == (size)(cycle % 10));
-        BitVecDeinit(&bv);
+        BitsDeinit(&bv);
     }
 
     return result;
 }
 
 // Deadend tests - verify expected failures occur gracefully
-bool test_bitvec_null_pointer_failures(void) {
-    printf("Testing BitVec NULL pointer handling\n");
+bool test_Bits_null_pointer_failures(void) {
+    printf("Testing Bits NULL pointer handling\n");
 
     // Test NULL pointer passed to functions that should validate
     // These should trigger aborts if validation is working
 
-    // Test NULL bitvec pointer - should abort
-    BitVecDeinit(NULL);
+    // Test NULL Bits pointer - should abort
+    BitsDeinit(NULL);
 
     // If we reach here, validation didn't work as expected
     return false;
 }
 
-bool test_bitvec_invalid_operations(void) {
-    printf("Testing BitVec invalid operations\n");
+bool test_Bits_invalid_operations(void) {
+    printf("Testing Bits invalid operations\n");
 
     // Test operation that should trigger validation failure
     // Try to reserve an impossibly large amount that should fail
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // This should trigger an abort if validation is working
-    BitVecReserve(&bv, SIZE_MAX);
+    BitsReserve(&bv, SIZE_MAX);
 
     // If we reach here, validation didn't work as expected
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return false;
 }
 
-bool test_bitvec_set_operations_failures(void) {
-    printf("Testing BitVec set operations on invalid indices\n");
+bool test_Bits_set_operations_failures(void) {
+    printf("Testing Bits set operations on invalid indices\n");
 
     // Test operation that should trigger validation failure
-    // Try to reu64 to impossibly large size
-    BitVec bv = BitVecInit();
+    // Try to Resize to impossibly large size
+    Bits bv = BitsInit();
 
     // This should trigger an abort if validation is working
-    BitVecResize(&bv, SIZE_MAX);
+    BitsResize(&bv, SIZE_MAX);
 
     // If we reach here, validation didn't work as expected
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return false;
 }
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Init tests\n\n");
+    printf("[INFO] Starting Bits.Init tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {
-        test_bitvec_init,
-        test_bitvec_deinit,
-        test_bitvec_reserve,
-        test_bitvec_clear,
-        test_bitvec_resize,
-        test_bitvec_init_edge_cases,
-        test_bitvec_reserve_edge_cases,
-        test_bitvec_resize_edge_cases,
-        test_bitvec_clear_edge_cases,
-        test_bitvec_multiple_cycles
+        test_Bits_init,
+        test_Bits_deinit,
+        test_Bits_reserve,
+        test_Bits_clear,
+        test_Bits_resize,
+        test_Bits_init_edge_cases,
+        test_Bits_reserve_edge_cases,
+        test_Bits_resize_edge_cases,
+        test_Bits_clear_edge_cases,
+        test_Bits_multiple_cycles
     };
 
     // Array of deadend test functions (expected failure scenarios)
     TestFunction deadend_tests[] = {
-        test_bitvec_null_pointer_failures,
-        test_bitvec_invalid_operations,
-        test_bitvec_set_operations_failures
+        test_Bits_null_pointer_failures,
+        test_Bits_invalid_operations,
+        test_Bits_set_operations_failures
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);
     int total_deadend_tests = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
     // Run all tests using the centralized test driver
-    return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "BitVec.Init");
+    return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Bits.Init");
 }
+

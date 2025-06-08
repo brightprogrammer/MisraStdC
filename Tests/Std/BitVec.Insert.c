@@ -1,4 +1,4 @@
-#include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Container/Bits.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
 #include <Misra/Types.h>
@@ -7,330 +7,331 @@
 #include "../Util/TestRunner.h"
 
 // Function prototypes
-bool test_bitvec_push(void);
-bool test_bitvec_insert_single(void);
-bool test_bitvec_insert_range(void);
-bool test_bitvec_insert_multiple(void);
-bool test_bitvec_insert_pattern(void);
-bool test_bitvec_insert_range_edge_cases(void);
-bool test_bitvec_insert_multiple_edge_cases(void);
-bool test_bitvec_insert_pattern_edge_cases(void);
-bool test_bitvec_insert_null_failures(void);
-bool test_bitvec_insert_invalid_range_failures(void);
-bool test_bitvec_insert_pattern_null_failures(void);
+bool test_Bits_push(void);
+bool test_Bits_insert_single(void);
+bool test_Bits_insert_range(void);
+bool test_Bits_insert_multiple(void);
+bool test_Bits_insert_pattern(void);
+bool test_Bits_insert_range_edge_cases(void);
+bool test_Bits_insert_multiple_edge_cases(void);
+bool test_Bits_insert_pattern_edge_cases(void);
+bool test_Bits_insert_null_failures(void);
+bool test_Bits_insert_invalid_range_failures(void);
+bool test_Bits_insert_pattern_null_failures(void);
 
-// Test BitVecPush function
-bool test_bitvec_push(void) {
-    printf("Testing BitVecPush\n");
+// Test BitsPush function
+bool test_Bits_push(void) {
+    printf("Testing BitsPush\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Push some bits
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
+    BitsPush(&bv, true);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
 
     // Check length
     bool result = (bv.length == 5);
 
     // Check each bit
-    result = result && (BitVecGet(&bv, 0) == true);
-    result = result && (BitVecGet(&bv, 1) == false);
-    result = result && (BitVecGet(&bv, 2) == true);
-    result = result && (BitVecGet(&bv, 3) == true);
-    result = result && (BitVecGet(&bv, 4) == false);
+    result = result && (BitsGet(&bv, 0) == true);
+    result = result && (BitsGet(&bv, 1) == false);
+    result = result && (BitsGet(&bv, 2) == true);
+    result = result && (BitsGet(&bv, 3) == true);
+    result = result && (BitsGet(&bv, 4) == false);
 
     // Clean up
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
 
     return result;
 }
 
-// Test BitVecInsert single bit function
-bool test_bitvec_insert_single(void) {
-    printf("Testing BitVecInsert (single bit)\n");
+// Test BitsInsert single bit function
+bool test_Bits_insert_single(void) {
+    printf("Testing BitsInsert (single bit)\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
-    // Insert at index 0 (empty bitvector)
-    BitVecInsert(&bv, 0, true);
+    // Insert at index 0 (empty Bitstor)
+    BitsInsert(&bv, 0, true);
 
     // Check first bit
-    bool result = (bv.length == 1 && BitVecGet(&bv, 0) == true);
+    bool result = (bv.length == 1 && BitsGet(&bv, 0) == true);
 
     // Insert at the end
-    BitVecInsert(&bv, 1, false);
+    BitsInsert(&bv, 1, false);
 
     // Check bits
     result = result && (bv.length == 2);
-    result = result && (BitVecGet(&bv, 0) == true);
-    result = result && (BitVecGet(&bv, 1) == false);
+    result = result && (BitsGet(&bv, 0) == true);
+    result = result && (BitsGet(&bv, 1) == false);
 
     // Insert in the middle
-    BitVecInsert(&bv, 1, true);
+    BitsInsert(&bv, 1, true);
 
     // Check all bits
     result = result && (bv.length == 3);
-    result = result && (BitVecGet(&bv, 0) == true);
-    result = result && (BitVecGet(&bv, 1) == true);
-    result = result && (BitVecGet(&bv, 2) == false);
+    result = result && (BitsGet(&bv, 0) == true);
+    result = result && (BitsGet(&bv, 1) == true);
+    result = result && (BitsGet(&bv, 2) == false);
 
     // Clean up
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
 
     return result;
 }
 
-// Test BitVecInsertRange function
-bool test_bitvec_insert_range(void) {
-    printf("Testing BitVecInsertRange\n");
+// Test BitsInsertRange function
+bool test_Bits_insert_range(void) {
+    printf("Testing BitsInsertRange\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
-    // Create target bitvector
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, false);
+    // Create target Bitstor
+    BitsPush(&bv, false);
+    BitsPush(&bv, false);
 
     // Insert range of true bits
-    BitVecInsertRange(&bv, 1, 3, true);
+    BitsInsertRange(&bv, 1, 3, true);
 
     // Check result: false, true, true, true, false
     bool result = (bv.length == 5);
-    result      = result && (BitVecGet(&bv, 0) == false);
-    result      = result && (BitVecGet(&bv, 1) == true);
-    result      = result && (BitVecGet(&bv, 2) == true);
-    result      = result && (BitVecGet(&bv, 3) == true);
-    result      = result && (BitVecGet(&bv, 4) == false);
+    result      = result && (BitsGet(&bv, 0) == false);
+    result      = result && (BitsGet(&bv, 1) == true);
+    result      = result && (BitsGet(&bv, 2) == true);
+    result      = result && (BitsGet(&bv, 3) == true);
+    result      = result && (BitsGet(&bv, 4) == false);
 
     // Clean up
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
 
     return result;
 }
 
-// Test BitVecInsertMultiple function
-bool test_bitvec_insert_multiple(void) {
-    printf("Testing BitVecInsertMultiple\n");
+// Test BitsInsertMultiple function
+bool test_Bits_insert_multiple(void) {
+    printf("Testing BitsInsertMultiple\n");
 
-    BitVec bv     = BitVecInit();
-    BitVec source = BitVecInit();
+    Bits bv     = BitsInit();
+    Bits source = BitsInit();
 
     // Start with some bits
-    BitVecPush(&bv, true);
-    BitVecPush(&bv, false);
+    BitsPush(&bv, true);
+    BitsPush(&bv, false);
 
-    // Create source bitvector to insert
-    BitVecPush(&source, true);
-    BitVecPush(&source, true);
-    BitVecPush(&source, true);
+    // Create source Bitstor to insert
+    BitsPush(&source, true);
+    BitsPush(&source, true);
+    BitsPush(&source, true);
 
     // Insert multiple bits from source
-    BitVecInsertMultiple(&bv, 1, &source);
+    BitsInsertMultiple(&bv, 1, &source);
 
     // Check result: true, true, true, true, false
     bool result = (bv.length == 5);
-    result      = result && (BitVecGet(&bv, 0) == true);
-    result      = result && (BitVecGet(&bv, 1) == true);
-    result      = result && (BitVecGet(&bv, 2) == true);
-    result      = result && (BitVecGet(&bv, 3) == true);
-    result      = result && (BitVecGet(&bv, 4) == false);
+    result      = result && (BitsGet(&bv, 0) == true);
+    result      = result && (BitsGet(&bv, 1) == true);
+    result      = result && (BitsGet(&bv, 2) == true);
+    result      = result && (BitsGet(&bv, 3) == true);
+    result      = result && (BitsGet(&bv, 4) == false);
 
     // Clean up
-    BitVecDeinit(&bv);
-    BitVecDeinit(&source);
+    BitsDeinit(&bv);
+    BitsDeinit(&source);
 
     return result;
 }
 
-// Test BitVecInsertPattern function
-bool test_bitvec_insert_pattern(void) {
-    printf("Testing BitVecInsertPattern\n");
+// Test BitsInsertPattern function
+bool test_Bits_insert_pattern(void) {
+    printf("Testing BitsInsertPattern\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Start with some bits
-    BitVecPush(&bv, false);
-    BitVecPush(&bv, false);
+    BitsPush(&bv, false);
+    BitsPush(&bv, false);
 
     // Insert pattern 0x0B (1011 in binary) using 4 bits
     u8 pattern = 0x0B;
-    BitVecInsertPattern(&bv, 1, pattern, 4);
+    BitsInsertPattern(&bv, 1, pattern, 4);
 
     // Check result: false, true, false, true, true, false
     // Pattern 1011 gets inserted as individual bits
     bool result = (bv.length == 6);
-    result      = result && (BitVecGet(&bv, 0) == false); // original
-    result      = result && (BitVecGet(&bv, 1) == true);  // bit 0 of pattern (LSB)
-    result      = result && (BitVecGet(&bv, 2) == true);  // bit 1 of pattern
-    result      = result && (BitVecGet(&bv, 3) == false); // bit 2 of pattern
-    result      = result && (BitVecGet(&bv, 4) == true);  // bit 3 of pattern (MSB)
-    result      = result && (BitVecGet(&bv, 5) == false); // original
+    result      = result && (BitsGet(&bv, 0) == false); // original
+    result      = result && (BitsGet(&bv, 1) == true);  // bit 0 of pattern (LSB)
+    result      = result && (BitsGet(&bv, 2) == true);  // bit 1 of pattern
+    result      = result && (BitsGet(&bv, 3) == false); // bit 2 of pattern
+    result      = result && (BitsGet(&bv, 4) == true);  // bit 3 of pattern (MSB)
+    result      = result && (BitsGet(&bv, 5) == false); // original
 
     // Test with different pattern - 0x05 (0101 in binary) using only 3 bits
-    BitVec bv2 = BitVecInit();
-    BitVecPush(&bv2, true);
+    Bits bv2 = BitsInit();
+    BitsPush(&bv2, true);
 
     u8 pattern2 = 0x05;
-    BitVecInsertPattern(&bv2, 0, pattern2, 3);
+    BitsInsertPattern(&bv2, 0, pattern2, 3);
 
     // Check result: true, false, true, true (3 bits: 101)
     result = result && (bv2.length == 4);
-    result = result && (BitVecGet(&bv2, 0) == true);  // bit 0 of pattern (LSB)
-    result = result && (BitVecGet(&bv2, 1) == false); // bit 1 of pattern
-    result = result && (BitVecGet(&bv2, 2) == true);  // bit 2 of pattern
-    result = result && (BitVecGet(&bv2, 3) == true);  // original
+    result = result && (BitsGet(&bv2, 0) == true);  // bit 0 of pattern (LSB)
+    result = result && (BitsGet(&bv2, 1) == false); // bit 1 of pattern
+    result = result && (BitsGet(&bv2, 2) == true);  // bit 2 of pattern
+    result = result && (BitsGet(&bv2, 3) == true);  // original
 
     // Clean up
-    BitVecDeinit(&bv);
-    BitVecDeinit(&bv2);
+    BitsDeinit(&bv);
+    BitsDeinit(&bv2);
 
     return result;
 }
 
 // Edge case tests
-bool test_bitvec_insert_range_edge_cases(void) {
-    printf("Testing BitVecInsertRange edge cases\n");
+bool test_Bits_insert_range_edge_cases(void) {
+    printf("Testing BitsInsertRange edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
     // Test inserting 0 bits (should be no-op)
-    BitVecInsertRange(&bv, 0, 0, true);
+    BitsInsertRange(&bv, 0, 0, true);
     result = result && (bv.length == 0);
 
     // Test inserting at end
-    BitVecPush(&bv, true);
-    BitVecInsertRange(&bv, 1, 2, false);
+    BitsPush(&bv, true);
+    BitsInsertRange(&bv, 1, 2, false);
     result = result && (bv.length == 3);
-    result = result && (BitVecGet(&bv, 1) == false);
-    result = result && (BitVecGet(&bv, 2) == false);
+    result = result && (BitsGet(&bv, 1) == false);
+    result = result && (BitsGet(&bv, 2) == false);
 
     // Test large range insertion
-    BitVecClear(&bv);
-    BitVecInsertRange(&bv, 0, 1000, true);
+    BitsClear(&bv);
+    BitsInsertRange(&bv, 0, 1000, true);
     result = result && (bv.length == 1000);
-    result = result && (BitVecGet(&bv, 0) == true);
-    result = result && (BitVecGet(&bv, 999) == true);
+    result = result && (BitsGet(&bv, 0) == true);
+    result = result && (BitsGet(&bv, 999) == true);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
-bool test_bitvec_insert_multiple_edge_cases(void) {
-    printf("Testing BitVecInsertMultiple edge cases\n");
+bool test_Bits_insert_multiple_edge_cases(void) {
+    printf("Testing BitsInsertMultiple edge cases\n");
 
-    BitVec bv     = BitVecInit();
-    BitVec empty  = BitVecInit();
-    BitVec source = BitVecInit();
+    Bits bv     = BitsInit();
+    Bits empty  = BitsInit();
+    Bits source = BitsInit();
     bool   result = true;
 
-    // Test inserting empty bitvec
-    BitVecInsertMultiple(&bv, 0, &empty);
+    // Test inserting empty Bits
+    BitsInsertMultiple(&bv, 0, &empty);
     result = result && (bv.length == 0);
 
-    // Test inserting single bit bitvec
-    BitVecPush(&source, true);
-    BitVecInsertMultiple(&bv, 0, &source);
-    result = result && (bv.length == 1) && (BitVecGet(&bv, 0) == true);
+    // Test inserting single bit Bits
+    BitsPush(&source, true);
+    BitsInsertMultiple(&bv, 0, &source);
+    result = result && (bv.length == 1) && (BitsGet(&bv, 0) == true);
 
-    // Test inserting large bitvec
-    BitVecClear(&source);
+    // Test inserting large Bits
+    BitsClear(&source);
     for (int i = 0; i < 500; i++) {
-        BitVecPush(&source, false);
+        BitsPush(&source, false);
     }
-    BitVecInsertMultiple(&bv, 1, &source);
+    BitsInsertMultiple(&bv, 1, &source);
     result = result && (bv.length == 501);
-    result = result && (BitVecGet(&bv, 1) == false);
-    result = result && (BitVecGet(&bv, 500) == false);
+    result = result && (BitsGet(&bv, 1) == false);
+    result = result && (BitsGet(&bv, 500) == false);
 
-    BitVecDeinit(&bv);
-    BitVecDeinit(&empty);
-    BitVecDeinit(&source);
+    BitsDeinit(&bv);
+    BitsDeinit(&empty);
+    BitsDeinit(&source);
     return result;
 }
 
-bool test_bitvec_insert_pattern_edge_cases(void) {
-    printf("Testing BitVecInsertPattern edge cases\n");
+bool test_Bits_insert_pattern_edge_cases(void) {
+    printf("Testing BitsInsertPattern edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    Bits bv     = BitsInit();
     bool   result = true;
 
     // Test inserting empty pattern (should be no-op)
-    BitVecInsertPattern(&bv, 0, 0x00, 0);
+    BitsInsertPattern(&bv, 0, 0x00, 0);
     result = result && (bv.length == 0);
 
     // Test inserting single bit pattern
-    BitVecInsertPattern(&bv, 0, 0x01, 1); // 1 bit pattern
+    BitsInsertPattern(&bv, 0, 0x01, 1); // 1 bit pattern
     result = result && (bv.length == 1);
 
     // Test inserting 8-bit pattern
-    BitVecClear(&bv);
-    BitVecInsertPattern(&bv, 0, 0xAA, 8);            // 10101010 pattern
+    BitsClear(&bv);
+    BitsInsertPattern(&bv, 0, 0xAA, 8);            // 10101010 pattern
     result = result && (bv.length == 8);
-    result = result && (BitVecGet(&bv, 0) == false); // First bit of 0xAA
-    result = result && (BitVecGet(&bv, 1) == true);  // Second bit
+    result = result && (BitsGet(&bv, 0) == false); // First bit of 0xAA
+    result = result && (BitsGet(&bv, 1) == true);  // Second bit
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return result;
 }
 
 // Deadend tests
-bool test_bitvec_insert_null_failures(void) {
-    printf("Testing BitVec insert NULL pointer handling\n");
+bool test_Bits_insert_null_failures(void) {
+    printf("Testing Bits insert NULL pointer handling\n");
 
-    // Test NULL bitvec pointer - should abort
-    BitVecInsertRange(NULL, 0, 1, true);
+    // Test NULL Bits pointer - should abort
+    BitsInsertRange(NULL, 0, 1, true);
 
     return false;
 }
 
-bool test_bitvec_insert_invalid_range_failures(void) {
-    printf("Testing BitVec insert invalid range handling\n");
+bool test_Bits_insert_invalid_range_failures(void) {
+    printf("Testing Bits insert invalid range handling\n");
 
-    BitVec bv = BitVecInit();
+    Bits bv = BitsInit();
 
     // Test inserting beyond capacity limit - should abort
-    BitVecInsertRange(&bv, SIZE_MAX, 1, true);
+    BitsInsertRange(&bv, SIZE_MAX, 1, true);
 
-    BitVecDeinit(&bv);
+    BitsDeinit(&bv);
     return false;
 }
 
-bool test_bitvec_insert_pattern_null_failures(void) {
-    printf("Testing BitVec insert pattern NULL handling\n");
+bool test_Bits_insert_pattern_null_failures(void) {
+    printf("Testing Bits insert pattern NULL handling\n");
 
-    // Test NULL bitvec - should abort
-    BitVecInsertPattern(NULL, 0, 0xFF, 8);
+    // Test NULL Bits - should abort
+    BitsInsertPattern(NULL, 0, 0xFF, 8);
 
     return false;
 }
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Insert tests\n\n");
+    printf("[INFO] Starting Bits.Insert tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {
-        test_bitvec_insert_range,
-        test_bitvec_insert_multiple,
-        test_bitvec_insert_pattern,
-        test_bitvec_insert_range_edge_cases,
-        test_bitvec_insert_multiple_edge_cases,
-        test_bitvec_insert_pattern_edge_cases
+        test_Bits_insert_range,
+        test_Bits_insert_multiple,
+        test_Bits_insert_pattern,
+        test_Bits_insert_range_edge_cases,
+        test_Bits_insert_multiple_edge_cases,
+        test_Bits_insert_pattern_edge_cases
     };
 
     // Array of deadend test functions
     TestFunction deadend_tests[] = {
-        test_bitvec_insert_null_failures,
-        test_bitvec_insert_invalid_range_failures,
-        test_bitvec_insert_pattern_null_failures
+        test_Bits_insert_null_failures,
+        test_Bits_insert_invalid_range_failures,
+        test_Bits_insert_pattern_null_failures
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);
     int total_deadend_tests = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
     // Run all tests using the centralized test driver
-    return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "BitVec.Insert");
+    return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Bits.Insert");
 }
+

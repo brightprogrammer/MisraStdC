@@ -870,3 +870,4 @@ const StrFloatFormat STR_FLOAT_DEFAULT =
     {.precision = 6, .force_sci = false, .uppercase = false, .trim_zeros = false, .always_sign = false};
 
 const StrParseConfig STR_PARSE_DEFAULT = {.strict = false, .trim_space = true, .base = 0};
+
