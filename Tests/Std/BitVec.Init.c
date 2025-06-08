@@ -199,7 +199,7 @@ bool test_Bits_reserve_edge_cases(void) {
     printf("Testing BitsReserve edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test reserving 0 (should be safe no-op)
     BitsReserve(&bv, 0);
@@ -227,7 +227,7 @@ bool test_Bits_resize_edge_cases(void) {
     printf("Testing BitsResize edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test resize to 0 (should clear but keep memory)
     BitsPush(&bv, true);
@@ -263,7 +263,7 @@ bool test_Bits_clear_edge_cases(void) {
     printf("Testing BitsClear edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test clear on empty Bits
     BitsClear(&bv);
@@ -386,4 +386,3 @@ int main(void) {
     // Run all tests using the centralized test driver
     return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Bits.Init");
 }
-

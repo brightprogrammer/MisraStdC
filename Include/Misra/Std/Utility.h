@@ -18,4 +18,3 @@
 #include <Misra/Std/Utility/StrIter.h>
 
 #endif // MISRA_STD_UILITY_H
-

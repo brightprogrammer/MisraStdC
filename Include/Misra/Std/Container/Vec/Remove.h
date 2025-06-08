@@ -170,4 +170,3 @@
 
 
 #endif // MISRA_STD_CONTAINER_VEC_REMOVE_H
-

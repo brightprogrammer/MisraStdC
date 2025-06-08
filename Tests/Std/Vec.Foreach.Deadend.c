@@ -264,4 +264,3 @@ int main(void) {
     // Run all deadend tests using the centralized test driver
     return run_test_suite(NULL, 0, deadend_tests, deadend_count, "Vec.Foreach.Deadend");
 }
-

@@ -292,7 +292,7 @@ bool test_Bits_signed_compare(void) {
 
     // Test equal signed values
     Bits bv3 = BitsClone(&bv1);
-    result     = result && (BitsSignedCompare(&bv1, &bv3) == 0);
+    result   = result && (BitsSignedCompare(&bv1, &bv3) == 0);
 
     // Clean up
     BitsDeinit(&bv1);
@@ -502,7 +502,7 @@ bool test_Bits_compare_range(void) {
 
     // Test range comparisons
     int  cmp_result = BitsCompareRange(&bv1, 2, &bv2, 2, 3); // Compare 3-bit ranges
-    bool result     = (cmp_result != 0);                       // Should not be equal
+    bool result     = (cmp_result != 0);                     // Should not be equal
 
     // Test equal ranges
     cmp_result = BitsCompareRange(&bv1, 0, &bv1, 0, 8); // Self-comparison
@@ -544,8 +544,8 @@ bool test_Bits_less_than_functions(void) {
 
     // Test equal cases
     Bits bv3 = BitsClone(&bv1);
-    result     = result && !BitsIsLexicographicallyLess(&bv1, &bv3);
-    result     = result && !BitsIsNumericallyLess(&bv1, &bv3);
+    result   = result && !BitsIsLexicographicallyLess(&bv1, &bv3);
+    result   = result && !BitsIsNumericallyLess(&bv1, &bv3);
 
     // Test reverse comparison
     result = result && !BitsIsLexicographicallyLess(&bv2, &bv1);
@@ -609,7 +609,7 @@ bool test_Bits_compare_edge_cases(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test compare empty Bitss
     result = result && BitsEquals(&bv1, &bv2);
@@ -645,7 +645,7 @@ bool test_Bits_set_operations_edge_cases(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test with empty sets
     result = result && !BitsOverlaps(&bv1, &bv2);
@@ -677,7 +677,7 @@ bool test_Bits_comprehensive_comparison(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test comparison consistency across all comparison types
     // bv1: 1010110 (decimal 86 when read as LSB-first)
@@ -748,7 +748,7 @@ bool test_Bits_large_scale_comparison(void) {
 
     Bits large1 = BitsInit();
     Bits large2 = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Create large Bitstors (2000 bits each)
     for (int i = 0; i < 2000; i++) {
@@ -909,4 +909,3 @@ int main(void) {
     // Run all tests using the centralized test driver
     return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Bits.Compare");
 }
-

@@ -192,7 +192,7 @@ bool test_Bits_get_edge_cases(void) {
     printf("Testing BitsGet edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test boundary conditions (no longer test empty Bits - strict bounds checking now)
     BitsPush(&bv, true);
@@ -215,7 +215,7 @@ bool test_Bits_set_edge_cases(void) {
     printf("Testing BitsSet edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test normal setting
     BitsPush(&bv, false);
@@ -235,7 +235,7 @@ bool test_Bits_flip_edge_cases(void) {
     printf("Testing BitsFlip edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test normal flipping
     BitsPush(&bv, true);
@@ -253,7 +253,7 @@ bool test_Bits_count_edge_cases(void) {
     printf("Testing Bits count edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test count on empty Bits
     result = result && (BitsCountOnes(&bv) == 0);
@@ -285,7 +285,7 @@ bool test_Bits_access_multiple_operations(void) {
     printf("Testing Bits multiple access operations\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Stress test with many operations
     for (int cycle = 0; cycle < 100; cycle++) {
@@ -311,7 +311,7 @@ bool test_Bits_access_large_patterns(void) {
     printf("Testing Bits large pattern access\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Create a large repeating pattern: 10110100 (8-bit pattern)
     u8 pattern = 0b10110100; // 10110100
@@ -348,7 +348,7 @@ bool test_Bits_macro_functions(void) {
     printf("Testing Bits macro functions\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test all macros on empty Bitstor
     result = result && (BitsLen(&bv) == 0);
@@ -384,7 +384,7 @@ bool test_Bits_access_stress_test(void) {
     printf("Testing Bits access stress test\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Create a large Bitstor with known pattern
     const u64 size = 10000;
@@ -424,7 +424,7 @@ bool test_Bits_bit_patterns_comprehensive(void) {
     printf("Testing Bits comprehensive bit patterns\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test all-zeros pattern
     for (int i = 0; i < 100; i++) {
@@ -619,7 +619,7 @@ bool test_Bits_find_functions(void) {
     printf("Testing BitsFind and BitsFindLast functions\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Create pattern: 10110100
     BitsPush(&bv, true);  // 0
@@ -663,7 +663,7 @@ bool test_Bits_predicate_functions(void) {
     printf("Testing BitsAll, BitsAny, BitsNone functions\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test with all true bits
     BitsPush(&bv, true);
@@ -712,7 +712,7 @@ bool test_Bits_longest_run(void) {
     printf("Testing BitsLongestRun function\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test pattern: 11100110011111
     BitsPush(&bv, true);  // Run of 3 trues
@@ -761,7 +761,7 @@ bool test_Bits_find_edge_cases(void) {
     printf("Testing BitsFind edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test empty Bitstor
     result = result && (BitsFind(&bv, true) == SIZE_MAX);
@@ -793,7 +793,7 @@ bool test_Bits_predicate_edge_cases(void) {
     printf("Testing Bits predicate edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test empty Bitstor - all predicates should return true for empty set
     result = result && BitsAll(&bv, true);
@@ -833,7 +833,7 @@ bool test_Bits_longest_run_edge_cases(void) {
     printf("Testing BitsLongestRun edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test empty Bitstor
     result = result && (BitsLongestRun(&bv, true) == 0);
@@ -942,4 +942,3 @@ int main(void) {
     // Run all tests using the centralized test driver
     return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Bits.Access");
 }
-

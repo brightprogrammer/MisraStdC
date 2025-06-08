@@ -39,4 +39,3 @@ extern "C" {
 #endif
 
 #endif // MISRA_STD_CONTAINER_VEC_PRIVATE_H
-

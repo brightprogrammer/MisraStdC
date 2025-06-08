@@ -21,4 +21,3 @@
 #include "Bits/Foreach.h"
 
 #endif // MISRA_STD_CONTAINER_Bits_H
-

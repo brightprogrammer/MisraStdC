@@ -197,4 +197,3 @@ char* ZstrFindSubstringN(const char* haystack, const char* needle, size needle_l
 
     return NULL;
 }
-

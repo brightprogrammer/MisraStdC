@@ -59,7 +59,7 @@ bool test_Bits_basic_pattern_functions(void) {
 
     Bits source  = BitsInit();
     Bits pattern = BitsInit();
-    bool   result  = true;
+    bool result  = true;
 
     // Create source: 11010011101
     BitsPush(&source, true);  // 0
@@ -94,7 +94,7 @@ bool test_Bits_find_pattern(void) {
 
     Bits source  = BitsInit();
     Bits pattern = BitsInit();
-    bool   result  = true;
+    bool result  = true;
 
     // Create source: 110101011010
     for (int i = 0; i < 12; i++) {
@@ -141,7 +141,7 @@ bool test_Bits_find_last_pattern(void) {
 
     Bits source  = BitsInit();
     Bits pattern = BitsInit();
-    bool   result  = true;
+    bool result  = true;
 
     // Create source with multiple pattern occurrences: 101010101
     for (int i = 0; i < 9; i++) {
@@ -186,7 +186,7 @@ bool test_Bits_find_all_pattern(void) {
 
     Bits source  = BitsInit();
     Bits pattern = BitsInit();
-    bool   result  = true;
+    bool result  = true;
 
     // Create source: 10101010101
     for (int i = 0; i < 11; i++) {
@@ -244,7 +244,7 @@ bool test_Bits_pattern_edge_cases(void) {
 
     Bits source  = BitsInit();
     Bits pattern = BitsInit();
-    bool   result  = true;
+    bool result  = true;
 
     // Test empty pattern
     BitsPush(&source, true);
@@ -313,7 +313,7 @@ bool test_Bits_pattern_stress_tests(void) {
 
     Bits source  = BitsInit();
     Bits pattern = BitsInit();
-    bool   result  = true;
+    bool result  = true;
 
     // Create large source with known pattern
     for (int i = 0; i < 10000; i++) {
@@ -356,7 +356,7 @@ bool test_Bits_starts_with_basic(void) {
 
     Bits source = BitsInit();
     Bits prefix = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Create source: 110101
     BitsPush(&source, true);
@@ -391,7 +391,7 @@ bool test_Bits_starts_with_edge_cases(void) {
 
     Bits source = BitsInit();
     Bits prefix = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test empty prefix (should always match)
     BitsPush(&source, true);
@@ -423,7 +423,7 @@ bool test_Bits_ends_with_basic(void) {
 
     Bits source = BitsInit();
     Bits suffix = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Create source: 110101
     BitsPush(&source, true);
@@ -458,7 +458,7 @@ bool test_Bits_ends_with_edge_cases(void) {
 
     Bits source = BitsInit();
     Bits suffix = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test empty suffix (should always match)
     BitsPush(&source, true);
@@ -481,7 +481,7 @@ bool test_Bits_contains_basic(void) {
 
     Bits source  = BitsInit();
     Bits pattern = BitsInit();
-    bool   result  = true;
+    bool result  = true;
 
     // Create source: 1101011
     BitsPush(&source, true);
@@ -518,7 +518,7 @@ bool test_Bits_contains_at_basic(void) {
 
     Bits source  = BitsInit();
     Bits pattern = BitsInit();
-    bool   result  = true;
+    bool result  = true;
 
     // Create source: 1101011
     BitsPush(&source, true);
@@ -548,7 +548,7 @@ bool test_Bits_contains_at_edge_cases(void) {
 
     Bits source  = BitsInit();
     Bits pattern = BitsInit();
-    bool   result  = true;
+    bool result  = true;
 
     // Create small source
     BitsPush(&source, true);
@@ -572,7 +572,7 @@ bool test_Bits_count_pattern_basic(void) {
 
     Bits source  = BitsInit();
     Bits pattern = BitsInit();
-    bool   result  = true;
+    bool result  = true;
 
     // Create source: 101010101
     for (int i = 0; i < 9; i++) {
@@ -607,7 +607,7 @@ bool test_Bits_rfind_pattern_basic(void) {
 
     Bits source  = BitsInit();
     Bits pattern = BitsInit();
-    bool   result  = true;
+    bool result  = true;
 
     // Create source: 101101101
     BitsPush(&source, true);
@@ -645,7 +645,7 @@ bool test_Bits_replace_basic(void) {
     Bits source      = BitsInit();
     Bits old_pattern = BitsInit();
     Bits new_pattern = BitsInit();
-    bool   result      = true;
+    bool result      = true;
 
     // Create source: 110110
     BitsPush(&source, true);
@@ -687,7 +687,7 @@ bool test_Bits_replace_all_basic(void) {
     Bits source      = BitsInit();
     Bits old_pattern = BitsInit();
     Bits new_pattern = BitsInit();
-    bool   result      = true;
+    bool result      = true;
 
     // Create source: 110110110
     for (int i = 0; i < 3; i++) {
@@ -724,7 +724,7 @@ bool test_Bits_matches_basic(void) {
     Bits source   = BitsInit();
     Bits pattern  = BitsInit();
     Bits wildcard = BitsInit();
-    bool   result   = true;
+    bool result   = true;
 
     // Create source: 1101
     BitsPush(&source, true);
@@ -758,7 +758,7 @@ bool test_Bits_fuzzy_match_basic(void) {
 
     Bits source  = BitsInit();
     Bits pattern = BitsInit();
-    bool   result  = true;
+    bool result  = true;
 
     // Create source: 110100111
     BitsPush(&source, true);
@@ -794,7 +794,7 @@ bool test_Bits_prefix_match_basic(void) {
 
     Bits source = BitsInit();
     Bits patterns[3];
-    bool   result = true;
+    bool result = true;
 
     // Initialize patterns
     for (int i = 0; i < 3; i++) {
@@ -840,7 +840,7 @@ bool test_Bits_suffix_match_basic(void) {
 
     Bits source = BitsInit();
     Bits patterns[3];
-    bool   result = true;
+    bool result = true;
 
     // Initialize patterns
     for (int i = 0; i < 3; i++) {
@@ -901,4 +901,3 @@ int main(void) {
     // Run all tests using the centralized test driver
     return run_test_suite(tests, total_tests, NULL, 0, "Bits.Pattern.Simple");
 }
-

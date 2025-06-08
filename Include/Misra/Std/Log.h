@@ -111,4 +111,3 @@ void LogDeinit(void);
 void LogWrite(LogMessageType type, const char *tag, int line, const char *format, ...);
 
 #endif // MISRA_STD_LOG_H
-

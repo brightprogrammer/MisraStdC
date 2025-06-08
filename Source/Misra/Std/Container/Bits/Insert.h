@@ -97,4 +97,3 @@ extern "C" {
 #endif
 
 #endif // MISRA_STD_CONTAINER_Bits_INSERT_H
-

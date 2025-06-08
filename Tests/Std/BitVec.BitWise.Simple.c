@@ -336,7 +336,7 @@ bool test_Bits_shift_edge_cases(void) {
     printf("Testing Bits shift edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test shift empty Bits
     BitsShiftLeft(&bv, 5);
@@ -372,7 +372,7 @@ bool test_Bits_rotate_edge_cases(void) {
     printf("Testing Bits rotate edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test rotate empty Bits
     BitsRotateLeft(&bv, 5);
@@ -401,7 +401,7 @@ bool test_Bits_bitwise_ops_edge_cases(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test operations on empty Bitss
     Bits result_bv = BitsInit();
@@ -439,7 +439,7 @@ bool test_Bits_reverse_edge_cases(void) {
     printf("Testing BitsReverse edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test reverse empty Bits
     BitsReverse(&bv);
@@ -475,7 +475,7 @@ bool test_Bits_bitwise_comprehensive(void) {
     Bits bv1         = BitsInit();
     Bits bv2         = BitsInit();
     Bits result      = BitsInit();
-    bool   test_result = true;
+    bool test_result = true;
 
     // Test with different length operands
     // bv1: 11010110 (8 bits)
@@ -539,7 +539,7 @@ bool test_Bits_shift_comprehensive(void) {
     printf("Testing Bits comprehensive shift operations\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test shift with known pattern that will show data loss
     // Pattern: 10101010 10101011 (16 bits) - asymmetric to detect shifts
@@ -605,7 +605,7 @@ bool test_Bits_rotate_comprehensive(void) {
     printf("Testing Bits comprehensive rotate operations\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test that rotate left by n, then rotate right by n restores original
     // Pattern: 10110100
@@ -669,7 +669,7 @@ bool test_Bits_bitwise_identity_operations(void) {
     Bits bv1         = BitsInit();
     Bits bv2         = BitsInit();
     Bits result      = BitsInit();
-    bool   test_result = true;
+    bool test_result = true;
 
     // Create test pattern
     for (int i = 0; i < 16; i++) {
@@ -764,7 +764,7 @@ bool test_Bits_bitwise_commutative_properties(void) {
     Bits bv2         = BitsInit();
     Bits result1     = BitsInit();
     Bits result2     = BitsInit();
-    bool   test_result = true;
+    bool test_result = true;
 
     // Create different patterns
     for (int i = 0; i < 12; i++) {
@@ -825,7 +825,7 @@ bool test_Bits_bitwise_large_patterns(void) {
     Bits bv1         = BitsInit();
     Bits bv2         = BitsInit();
     Bits result      = BitsInit();
-    bool   test_result = true;
+    bool test_result = true;
 
     // Create large Bitstors (1000 bits each)
     for (int i = 0; i < 1000; i++) {
@@ -920,4 +920,3 @@ int main(void) {
     // Run simple tests using the centralized test driver
     return run_test_suite(tests, total_tests, NULL, 0, "Bits.BitWise.Simple");
 }
-

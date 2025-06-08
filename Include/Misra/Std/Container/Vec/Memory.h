@@ -58,4 +58,3 @@
 #define VecClear(v) (clear_vec(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v))))
 
 #endif // MISRA_STD_CONTAINER_VEC_MEMORY_H
-

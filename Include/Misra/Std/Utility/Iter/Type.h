@@ -95,4 +95,3 @@ typedef struct GenericIter {
 #define NULL_ITER_DATA(mi) (ITER_DATA_TYPE(mi) *)0
 
 #endif // MISRA_STD_UTILITY_ITER_TYPE_H
-

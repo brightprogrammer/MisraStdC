@@ -231,4 +231,3 @@ int main(int argc, char** argv) {
     LogDeinit();
     return 0;
 }
-

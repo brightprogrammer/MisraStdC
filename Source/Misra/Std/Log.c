@@ -180,4 +180,3 @@ void LogWrite(LogMessageType type, const char *tag, int line, const char *format
 
     SysMutexUnlock(log_mutex);
 }
-

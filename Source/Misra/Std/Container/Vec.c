@@ -374,4 +374,3 @@ void resize_vec(GenericVec *vec, size item_size, size new_size) {
         vec->length = new_size;
     }
 }
-

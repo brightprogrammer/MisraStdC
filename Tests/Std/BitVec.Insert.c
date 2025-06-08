@@ -194,7 +194,7 @@ bool test_Bits_insert_range_edge_cases(void) {
     printf("Testing BitsInsertRange edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test inserting 0 bits (should be no-op)
     BitsInsertRange(&bv, 0, 0, true);
@@ -224,7 +224,7 @@ bool test_Bits_insert_multiple_edge_cases(void) {
     Bits bv     = BitsInit();
     Bits empty  = BitsInit();
     Bits source = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test inserting empty Bits
     BitsInsertMultiple(&bv, 0, &empty);
@@ -255,7 +255,7 @@ bool test_Bits_insert_pattern_edge_cases(void) {
     printf("Testing BitsInsertPattern edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test inserting empty pattern (should be no-op)
     BitsInsertPattern(&bv, 0, 0x00, 0);
@@ -334,4 +334,3 @@ int main(void) {
     // Run all tests using the centralized test driver
     return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Bits.Insert");
 }
-

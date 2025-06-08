@@ -189,8 +189,8 @@ extern "C" {
     ///
     /// TAGS: Bits, Compare, Numerical, Integer
     ///
-    int BitsUnsignedCompareBE(Bits* bv1, Bits* bv2);
-    
+    int BitsUnsignedCompareBE(Bits *bv1, Bits *bv2);
+
     ///
     /// Compare two Bits bitvectors as unsigned integers.
     /// Bit vectors are treated as two numbers of little endianness.
@@ -205,7 +205,7 @@ extern "C" {
     ///
     /// TAGS: Bits, Compare, Numerical, Integer
     ///
-    int BitsUnsignedCompareLE(Bits* bv1, Bits *bv2);
+    int BitsUnsignedCompareLE(Bits *bv1, Bits *bv2);
 
     ///
     /// Compare two Bits bitvectors as signed integers (MSB is sign bit).
@@ -236,7 +236,7 @@ extern "C" {
     /// TAGS: Bits, Compare, Signed, Integer
     ///
     int BitsSignedCompareBE(Bits *bv1, Bits *bv2);
-    
+
     ///
     /// Compare two Bits bitvectors as signed integers as little-endian.
     ///
@@ -287,4 +287,3 @@ extern "C" {
 #endif
 
 #endif // MISRA_STD_CONTAINER_Bits_COMPARE_H
-

@@ -33,4 +33,3 @@ typedef Vec(Str) Strs;
 #define ValidateStrs(sv) ValidateVec(sv)
 
 #endif // MISRA_STD_CONTAINER_STR_TYPE_H
-

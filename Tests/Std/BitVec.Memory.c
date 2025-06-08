@@ -108,7 +108,7 @@ bool test_Bits_shrink_to_fit_edge_cases(void) {
     printf("Testing BitsShrinkToFit edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test shrink on empty Bits
     BitsTryReduceSpace(&bv);
@@ -139,18 +139,18 @@ bool test_Bits_clone_edge_cases(void) {
     printf("Testing BitsClone edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test clone empty Bits
     Bits clone1 = BitsClone(&bv);
-    result        = result && (clone1.length == 0);
+    result      = result && (clone1.length == 0);
     BitsDeinit(&clone1);
 
     // Test clone single element
     BitsPush(&bv, true);
     Bits clone2 = BitsClone(&bv);
-    result        = result && (clone2.length == 1);
-    result        = result && (BitsGet(&clone2, 0) == true);
+    result      = result && (clone2.length == 1);
+    result      = result && (BitsGet(&clone2, 0) == true);
     BitsDeinit(&clone2);
 
     // Test clone large data
@@ -160,7 +160,7 @@ bool test_Bits_clone_edge_cases(void) {
     }
 
     Bits clone3 = BitsClone(&bv);
-    result        = result && (clone3.length == 1000);
+    result      = result && (clone3.length == 1000);
 
     // Verify all bits match
     for (u64 i = 0; i < 1000; i++) {
@@ -245,10 +245,7 @@ int main(void) {
     };
 
     // Array of deadend test functions
-    TestFunction deadend_tests[] = {
-        test_Bits_memory_null_failures,
-        test_Bits_clone_null_failures
-    };
+    TestFunction deadend_tests[] = {test_Bits_memory_null_failures, test_Bits_clone_null_failures};
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);
     int total_deadend_tests = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
@@ -256,4 +253,3 @@ int main(void) {
     // Run all tests using the centralized test driver
     return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Bits.Memory");
 }
-

@@ -54,7 +54,7 @@ bool test_Bits_hamming_distance_basic(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test identical Bitstors
     BitsPush(&bv1, true);
@@ -96,7 +96,7 @@ bool test_Bits_hamming_distance_edge_cases(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test empty Bitstors
     u64 distance = BitsHammingDistance(&bv1, &bv2);
@@ -126,7 +126,7 @@ bool test_Bits_jaccard_similarity_basic(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test identical Bitstors
     BitsPush(&bv1, true);
@@ -175,7 +175,7 @@ bool test_Bits_jaccard_similarity_edge_cases(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test empty Bitstors
     double similarity = BitsJaccardSimilarity(&bv1, &bv2);
@@ -201,7 +201,7 @@ bool test_Bits_cosine_similarity_basic(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test identical Bitstors
     BitsPush(&bv1, true);
@@ -236,7 +236,7 @@ bool test_Bits_cosine_similarity_edge_cases(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test zero vectors
     BitsPush(&bv1, false);
@@ -266,7 +266,7 @@ bool test_Bits_dot_product_basic(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test basic dot product
     BitsPush(&bv1, true);
@@ -303,7 +303,7 @@ bool test_Bits_dot_product_edge_cases(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test empty Bitstors
     u64 product = BitsDotProduct(&bv1, &bv2);
@@ -330,7 +330,7 @@ bool test_Bits_edit_distance_basic(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test identical strings
     BitsPush(&bv1, true);
@@ -373,7 +373,7 @@ bool test_Bits_edit_distance_edge_cases(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test empty to empty
     u64 distance = BitsEditDistance(&bv1, &bv2);
@@ -401,7 +401,7 @@ bool test_Bits_correlation_basic(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test perfect correlation
     BitsPush(&bv1, true);
@@ -437,7 +437,7 @@ bool test_Bits_correlation_edge_cases(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test empty Bitstors
     double correlation = BitsCorrelation(&bv1, &bv2);
@@ -464,7 +464,7 @@ bool test_Bits_entropy_basic(void) {
     printf("Testing BitsEntropy basic functionality\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test maximum entropy (equal 0s and 1s)
     BitsPush(&bv, true);
@@ -493,7 +493,7 @@ bool test_Bits_entropy_edge_cases(void) {
     printf("Testing BitsEntropy edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test empty Bitstor
     double entropy = BitsEntropy(&bv);
@@ -514,7 +514,7 @@ bool test_Bits_alignment_score_basic(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test perfect match
     BitsPush(&bv1, true);
@@ -547,7 +547,7 @@ bool test_Bits_alignment_score_edge_cases(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test empty Bitstors
     int score = BitsAlignmentScore(&bv1, &bv2, 1, -1);
@@ -574,7 +574,7 @@ bool test_Bits_best_alignment_basic(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Create bv1: 1100110
     BitsPush(&bv1, true);
@@ -604,7 +604,7 @@ bool test_Bits_best_alignment_edge_cases(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test empty Bitstors
     u64 best_pos = BitsBestAlignment(&bv1, &bv2);
@@ -629,7 +629,7 @@ bool test_Bits_math_stress_tests(void) {
 
     Bits bv1    = BitsInit();
     Bits bv2    = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Create large Bitstors
     for (int i = 0; i < 1000; i++) {
@@ -880,4 +880,3 @@ int main(void) {
     // Run all tests using the centralized test driver
     return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Bits.Math");
 }
-

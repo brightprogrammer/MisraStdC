@@ -166,4 +166,3 @@ int run_test_suite(
     // Return non-zero exit code if any test failed
     return total_failed > 0 ? 1 : 0;
 }
-

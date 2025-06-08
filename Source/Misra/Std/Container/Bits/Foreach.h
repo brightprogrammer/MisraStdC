@@ -29,16 +29,16 @@
 ///           be executed. Any failures within the `BitsForeachIdx` macro (like invalid
 ///           index access) will result in a fatal log message and program termination.
 ///
-#define BitsForeachIdx(bv, var, idx, body)                                                                           \
+#define BitsForeachIdx(bv, var, idx, body)                                                                             \
     do {                                                                                                               \
-        ValidateBits(bv);                                                                                            \
+        ValidateBits(bv);                                                                                              \
         u64 idx = 0;                                                                                                   \
         if ((bv)->length > 0) {                                                                                        \
             for ((idx) = 0; (idx) < (bv)->length; ++(idx)) {                                                           \
-                bool var = BitsGet(bv, idx);                                                                         \
+                bool var = BitsGet(bv, idx);                                                                           \
                 { body }                                                                                               \
                 if ((idx) >= (bv)->length) {                                                                           \
-                    LOG_FATAL("Bits range overflow : Invalid index reached during Foreach iteration.");              \
+                    LOG_FATAL("Bits range overflow : Invalid index reached during Foreach iteration.");                \
                 }                                                                                                      \
             }                                                                                                          \
         }                                                                                                              \
@@ -55,16 +55,16 @@
 /// idx[in]    : Name of variable to be used for iterating over indices.
 /// body       : Body of this foreach loop
 ///
-#define BitsForeachReverseIdx(bv, var, idx, body)                                                                    \
+#define BitsForeachReverseIdx(bv, var, idx, body)                                                                      \
     do {                                                                                                               \
-        ValidateBits(bv);                                                                                            \
+        ValidateBits(bv);                                                                                              \
         u64 idx = 0;                                                                                                   \
         if ((bv)->length > 0) {                                                                                        \
             for (idx = (bv)->length - 1; (idx) < (bv)->length; --(idx)) {                                              \
-                bool var = BitsGet(bv, idx);                                                                         \
+                bool var = BitsGet(bv, idx);                                                                           \
                 { body }                                                                                               \
                 if ((idx) >= (bv)->length) {                                                                           \
-                    LOG_FATAL("Bits range overflow : Invalid index reached during Foreach reverse iteration.");      \
+                    LOG_FATAL("Bits range overflow : Invalid index reached during Foreach reverse iteration.");        \
                 }                                                                                                      \
                 if (idx == 0)                                                                                          \
                     break; /* Stop after processing index 0 */                                                         \
@@ -127,22 +127,22 @@
 ///           the loop body will not be executed. Any access to an invalid index will
 ///           result in a fatal log message and program termination.
 ///
-#define BitsForeachInRangeIdx(bv, var, idx, start, end, body)                                                        \
+#define BitsForeachInRangeIdx(bv, var, idx, start, end, body)                                                          \
     do {                                                                                                               \
-        ValidateBits(bv);                                                                                            \
+        ValidateBits(bv);                                                                                              \
         u64 idx = 0;                                                                                                   \
         if ((bv)->length > 0) {                                                                                        \
             if ((end) > (bv)->length) {                                                                                \
                 LOG_FATAL(                                                                                             \
-                    "Bits range overflow: End index %zu exceeds Bitstor length %zu. "                              \
-                    "If you intended to iterate over all bits, use BitsForeach instead.",                            \
+                    "Bits range overflow: End index %zu exceeds Bitstor length %zu. "                                  \
+                    "If you intended to iterate over all bits, use BitsForeach instead.",                              \
                     (end),                                                                                             \
                     (bv)->length                                                                                       \
                 );                                                                                                     \
             }                                                                                                          \
             if ((start) >= (bv)->length) {                                                                             \
                 LOG_FATAL(                                                                                             \
-                    "Bits range overflow: Start index %zu exceeds or equals Bitstor length %zu.",                  \
+                    "Bits range overflow: Start index %zu exceeds or equals Bitstor length %zu.",                      \
                     (start),                                                                                           \
                     (bv)->length                                                                                       \
                 );                                                                                                     \
@@ -157,12 +157,12 @@
             for ((idx) = (start); (idx) < (end); ++(idx)) {                                                            \
                 if ((idx) >= (bv)->length) {                                                                           \
                     LOG_FATAL(                                                                                         \
-                        "Bits range overflow: Index %zu exceeds Bitstor length %zu during iteration.",             \
+                        "Bits range overflow: Index %zu exceeds Bitstor length %zu during iteration.",                 \
                         (idx),                                                                                         \
                         (bv)->length                                                                                   \
                     );                                                                                                 \
                 }                                                                                                      \
-                bool var = BitsGet(bv, idx);                                                                         \
+                bool var = BitsGet(bv, idx);                                                                           \
                 { body }                                                                                               \
             }                                                                                                          \
         }                                                                                                              \
@@ -185,7 +185,7 @@
 ///           the loop body will not be executed. Any failures within the `BitsForeachInRangeIdx`
 ///           macro will result in a fatal log message and program termination.
 ///
-#define BitsForeachInRange(bv, var, start, end, body)                                                                \
+#define BitsForeachInRange(bv, var, start, end, body)                                                                  \
     BitsForeachInRangeIdx((bv), (var), (____iter___), (start), (end), {body})
 
 #ifdef __cplusplus
@@ -220,4 +220,3 @@ extern "C" {
 #endif
 
 #endif // MISRA_STD_CONTAINER_Bits_FOREACH_H
-

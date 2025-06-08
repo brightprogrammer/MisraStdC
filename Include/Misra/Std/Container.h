@@ -18,4 +18,3 @@
 #include <Misra/Std/Container/Bits.h>
 
 #endif // MISRA_STD_CONTAINER_H
-

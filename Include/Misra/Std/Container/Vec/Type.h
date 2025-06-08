@@ -88,4 +88,3 @@ typedef struct {
 
 
 #endif // MISRA_STD_CONTAINER_VEC_TYPE_H
-

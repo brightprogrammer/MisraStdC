@@ -65,7 +65,7 @@ bool test_Bits_from_string(void) {
 
     // Convert from string
     const char* str = "1011";
-    Bits      bv  = BitsFromStr(str);
+    Bits        bv  = BitsFromStr(str);
 
     // Check result
     bool result = (bv.length == 4);
@@ -76,7 +76,7 @@ bool test_Bits_from_string(void) {
 
     // Test with empty string
     Bits empty_bv = BitsFromStr("");
-    result          = result && (empty_bv.length == 0);
+    result        = result && (empty_bv.length == 0);
 
     // Clean up
     BitsDeinit(&bv);
@@ -101,7 +101,7 @@ bool test_Bits_to_bytes(void) {
     BitsPush(&bv, true);  // bit 6
     BitsPush(&bv, true);  // bit 7
 
-    u8  bytes[2];           // Buffer for byte output
+    u8  bytes[2];         // Buffer for byte output
     u64 byte_count = BitsToBytes(&bv, bytes, sizeof(bytes));
 
     // Check result
@@ -122,7 +122,7 @@ bool test_Bits_from_bytes(void) {
     printf("Testing BitsFromBytes\n");
 
     // Create byte array
-    u8     bytes[] = {0xB3};                    // 10110011 in binary
+    u8   bytes[] = {0xB3};                  // 10110011 in binary
     Bits bv      = BitsFromBytes(bytes, 8); // 8 bits from the byte
 
     // Check result (8 bits from 1 byte)
@@ -191,7 +191,7 @@ bool test_Bits_from_integer(void) {
     printf("Testing BitsFromInteger\n");
 
     // Convert from integer
-    u64    value = 11; // 1011 in binary
+    u64  value = 11; // 1011 in binary
     Bits bv    = BitsFromInteger(value, 4);
 
     // Check result
@@ -214,7 +214,7 @@ bool test_Bits_from_integer(void) {
 
     // Test with zero
     Bits zero_bv = BitsFromInteger(0, 8);
-    result         = result && (zero_bv.length == 8);
+    result       = result && (zero_bv.length == 8);
 
     // All bits should be false
     bool all_false = true;
@@ -238,7 +238,7 @@ bool test_Bits_convert_edge_cases(void) {
     printf("Testing Bits convert edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test converting empty Bits
     Str str_obj = BitsToStr(&bv);
@@ -272,13 +272,13 @@ bool test_Bits_from_string_edge_cases(void) {
 
     // Test empty string
     Bits bv1 = BitsFromStr("");
-    result     = result && (bv1.length == 0);
+    result   = result && (bv1.length == 0);
     BitsDeinit(&bv1);
 
     // Test single character
     Bits bv2 = BitsFromStr("1");
-    result     = result && (bv2.length == 1);
-    result     = result && (BitsGet(&bv2, 0) == true);
+    result   = result && (bv2.length == 1);
+    result   = result && (BitsGet(&bv2, 0) == true);
     BitsDeinit(&bv2);
 
     // Test long string
@@ -289,9 +289,9 @@ bool test_Bits_from_string_edge_cases(void) {
     long_str[1000] = '\0';
 
     Bits bv3 = BitsFromStr(long_str);
-    result     = result && (bv3.length == 1000);
-    result     = result && (BitsGet(&bv3, 0) == true);
-    result     = result && (BitsGet(&bv3, 1) == false);
+    result   = result && (bv3.length == 1000);
+    result   = result && (BitsGet(&bv3, 0) == true);
+    result   = result && (BitsGet(&bv3, 1) == false);
     BitsDeinit(&bv3);
 
     return result;
@@ -301,7 +301,7 @@ bool test_Bits_bytes_conversion_edge_cases(void) {
     printf("Testing Bits bytes conversion edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test empty Bits to bytes
     u8  bytes[1] = {0};
@@ -309,15 +309,15 @@ bool test_Bits_bytes_conversion_edge_cases(void) {
     result       = result && (written == 0); // Empty Bits should write 0 bytes
 
     // Test bytes to Bits with 0 bits (should return empty Bitstor)
-    u8     empty_bytes[1] = {0x05};
+    u8   empty_bytes[1] = {0x05};
     Bits bv2            = BitsFromBytes(empty_bytes, 0); // 0 bits
-    result                = result && (bv2.length == 0);
+    result              = result && (bv2.length == 0);
     BitsDeinit(&bv2);
 
     // Test single byte
-    u8     single_byte[1] = {0xFF};
+    u8   single_byte[1] = {0xFF};
     Bits bv3            = BitsFromBytes(single_byte, 8); // 8 bits from 1 byte
-    result                = result && (bv3.length == 8);
+    result              = result && (bv3.length == 8);
     BitsDeinit(&bv3);
 
     BitsDeinit(&bv);
@@ -328,20 +328,20 @@ bool test_Bits_integer_conversion_edge_cases(void) {
     printf("Testing Bits integer conversion edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test empty Bits to integer
     u64 value = BitsToInteger(&bv);
     result    = result && (value == 0);
 
     // Test integer to Bits with 0
-    Bits bv2 = BitsFromInteger(0, 8);     // 8 bits for zero
-    result     = result && (bv2.length == 8); // Should be 8 bits
+    Bits bv2 = BitsFromInteger(0, 8);       // 8 bits for zero
+    result   = result && (bv2.length == 8); // Should be 8 bits
     BitsDeinit(&bv2);
 
     // Test large integer
     Bits bv3 = BitsFromInteger(UINT64_MAX, 64); // 64 bits for max value
-    result     = result && (bv3.length == 64);
+    result   = result && (bv3.length == 64);
     BitsDeinit(&bv3);
 
     BitsDeinit(&bv);
@@ -359,7 +359,7 @@ bool test_Bits_round_trip_conversions(void) {
 
     for (size_t i = 0; i < sizeof(patterns) / sizeof(patterns[0]); i++) {
         Bits bv  = BitsFromStr(patterns[i]);
-        Str    str = BitsToStr(&bv);
+        Str  str = BitsToStr(&bv);
 
         // Should get exact same string back
         result = result && (ZstrCompare(str.data, patterns[i]) == 0);
@@ -382,7 +382,7 @@ bool test_Bits_round_trip_conversions(void) {
             value    &= mask;
 
             Bits bv        = BitsFromInteger(value, bits);
-            u64    recovered = BitsToInteger(&bv);
+            u64  recovered = BitsToInteger(&bv);
 
             result = result && (recovered == value);
 
@@ -395,8 +395,8 @@ bool test_Bits_round_trip_conversions(void) {
 
     for (size_t i = 0; i < sizeof(test_bytes); i++) {
         Bits bv             = BitsFromBytes(&test_bytes[i], 8);
-        u8     recovered_byte = 0;
-        u64    written        = BitsToBytes(&bv, &recovered_byte, 1);
+        u8   recovered_byte = 0;
+        u64  written        = BitsToBytes(&bv, &recovered_byte, 1);
 
         result = result && (written == 1);
         result = result && (recovered_byte == test_bytes[i]);
@@ -415,7 +415,7 @@ bool test_Bits_conversion_bounds_checking(void) {
 
     // Test large integer conversion (should cap at 64 bits)
     Bits large_bv = BitsFromInteger(0xFFFFFFFFFFFFFFFF, 64);
-    result          = result && (large_bv.length == 64);
+    result        = result && (large_bv.length == 64);
 
     u64 large_value = BitsToInteger(&large_bv);
     result          = result && (large_value == 0xFFFFFFFFFFFFFFFF);
@@ -558,7 +558,7 @@ bool test_Bits_large_scale_conversions(void) {
 
     // Test round-trip from bytes
     Bits recovered_bv = BitsFromBytes(large_bytes, 1000);
-    result              = result && (recovered_bv.length == 1000);
+    result            = result && (recovered_bv.length == 1000);
 
     // Verify recovered pattern
     bool recovered_pattern_correct = true;
@@ -583,7 +583,7 @@ bool test_Bits_large_scale_conversions(void) {
     large_pattern[2000] = '\0';
 
     Bits large_from_str = BitsFromStr(large_pattern);
-    result                = result && (large_from_str.length == 2000);
+    result              = result && (large_from_str.length == 2000);
 
     // Verify pattern
     bool large_pattern_correct = true;
@@ -612,15 +612,15 @@ bool test_Bits_bytes_bounds_failures(void) {
     // Test with insufficient buffer size
     u8  small_buffer[1];
     u64 written = BitsToBytes(&bv, small_buffer, 0); // 0 buffer size
-    (void)written;                                     // Suppress unused variable warning
+    (void)written;                                   // Suppress unused variable warning
 
     // Should handle gracefully
     BitsDeinit(&bv);
 
     // Test fromBytes with 0 bit length - should return empty Bits
-    u8     dummy_bytes[1] = {0xFF};
+    u8   dummy_bytes[1] = {0xFF};
     Bits empty_bv       = BitsFromBytes(dummy_bytes, 0);
-    bool   result         = (empty_bv.length == 0);
+    bool result         = (empty_bv.length == 0);
     BitsDeinit(&empty_bv);
 
     return result;
@@ -701,4 +701,3 @@ int main(void) {
     // Run all tests using the centralized test driver
     return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Bits.Convert");
 }
-

@@ -102,7 +102,7 @@ bool test_Bits_find_all_pattern_null_pattern(void) {
     printf("Testing BitsFindAllPattern(source, NULL, results, 10) - should fatal\n");
 
     Bits source = BitsInit();
-    size   results[10];
+    size results[10];
     BitsPush(&source, true);
     BitsPush(&source, false);
 
@@ -135,7 +135,7 @@ bool test_Bits_find_all_pattern_zero_max_results(void) {
 
     Bits source  = BitsInit();
     Bits pattern = BitsInit();
-    size   results[10];
+    size results[10];
     BitsPush(&source, true);
     BitsPush(&source, false);
     BitsPush(&pattern, true);
@@ -283,4 +283,3 @@ int main(void) {
     // Run all deadend tests using the centralized test driver
     return run_test_suite(NULL, 0, deadend_tests, total_deadend_tests, "Bits.Pattern.Deadend");
 }
-

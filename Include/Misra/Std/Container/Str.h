@@ -20,4 +20,3 @@
 // clang-format on
 
 #endif // MISRA_STD_CONTAINER_STR_H
-

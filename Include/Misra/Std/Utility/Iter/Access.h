@@ -62,8 +62,8 @@
 ///
 #define IterPos(mi)                                                                                                    \
     (IterRemainingLength(mi) ?                                                                                         \
-         (ITER_DATA_TYPE(mi) *)(((u64)(mi)->data) +                                                                    \
-                                (mi)->pos * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment)) :                   \
+         (ITER_DATA_TYPE(mi) *)(((u64)(mi)->data) + (mi)->pos * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment)  \
+         ) :                                                                                                           \
          NULL_ITER_DATA(mi))
 
 ///
@@ -100,4 +100,3 @@
 #define IterPeek(mi) (IterRemainingLength(mi) ? ((mi)->data[(mi)->pos]) : (ITER_DATA_TYPE(mi)) {0})
 
 #endif // MISRA_STD_UTILITY_ITER_ACCESS_H
-

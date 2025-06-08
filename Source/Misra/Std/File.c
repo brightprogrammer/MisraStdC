@@ -76,4 +76,3 @@ bool ReadCompleteFile(const char *filename, char **data, size *file_size, size *
     *file_size             = size;
     return true;
 }
-

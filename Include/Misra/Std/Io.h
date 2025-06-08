@@ -113,7 +113,7 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
         _Generic(                                                                                                      \
             (x),                                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                       \
-            Bits: TO_TYPE_SPECIFIC_IO(Bits, &(x)),                                                                 \
+            Bits: TO_TYPE_SPECIFIC_IO(Bits, &(x)),                                                                     \
             const char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                             \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                   \
             u8: TO_TYPE_SPECIFIC_IO(u8, &(x)),                                                                         \
@@ -142,7 +142,7 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
         _Generic(                                                                                                      \
             (x),                                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                       \
-            Bits: TO_TYPE_SPECIFIC_IO(Bits, &(x)),                                                                 \
+            Bits: TO_TYPE_SPECIFIC_IO(Bits, &(x)),                                                                     \
             const char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                             \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                   \
             u8: TO_TYPE_SPECIFIC_IO(u8, &(x)),                                                                         \
@@ -456,4 +456,3 @@ const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v);
 const char *_read_Bits(const char *i, FmtInfo *fmt_info, Bits *bv);
 
 #endif // MISRA_STD_IO
-

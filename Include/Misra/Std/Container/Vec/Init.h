@@ -359,4 +359,3 @@
 #define VecDeinit(v) deinit_vec(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v)))
 
 #endif // MISRA_STD_CONTAINER_VEC_INIT_H
-

@@ -232,8 +232,8 @@ bool test_Bits_foreach_edge_cases(void) {
     printf("Testing Bits foreach edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
-    int    count  = 0;
+    bool result = true;
+    int  count  = 0;
 
     // Test foreach on empty Bits
     BitsForeach(&bv, bit, {
@@ -272,8 +272,8 @@ bool test_Bits_foreach_idx_edge_cases(void) {
     printf("Testing Bits foreach idx edge cases\n");
 
     Bits bv       = BitsInit();
-    bool   result   = true;
-    u64    last_idx = SIZE_MAX;
+    bool result   = true;
+    u64  last_idx = SIZE_MAX;
 
     // Test foreach idx on empty Bits
     BitsForeachIdx(&bv, bit, idx, {
@@ -311,7 +311,7 @@ bool test_Bits_foreach_reverse_edge_cases(void) {
     printf("Testing Bits foreach reverse edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test reverse foreach on empty Bits
     BitsForeachReverse(&bv, bit, {
@@ -330,9 +330,9 @@ bool test_Bits_foreach_reverse_edge_cases(void) {
 
     // Test reverse ordering
     BitsClear(&bv);
-    BitsPush(&bv, true);                          // idx 0
-    BitsPush(&bv, false);                         // idx 1
-    BitsPush(&bv, true);                          // idx 2
+    BitsPush(&bv, true);                            // idx 0
+    BitsPush(&bv, false);                           // idx 1
+    BitsPush(&bv, true);                            // idx 2
 
     bool expected_sequence[] = {true, false, true}; // Reverse order
     int  seq_idx             = 0;
@@ -349,7 +349,7 @@ bool test_Bits_foreach_range_edge_cases(void) {
     printf("Testing Bits foreach range edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Setup test data
     for (int i = 0; i < 10; i++) {
@@ -442,7 +442,7 @@ bool test_Bits_run_lengths_basic(void) {
     printf("Testing BitsRunLengths basic functionality\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test pattern: 11100101 (3 true, 2 false, 1 true, 1 false, 1 true)
     BitsPush(&bv, true);  // 0
@@ -481,10 +481,10 @@ bool test_Bits_run_lengths_edge_cases(void) {
 
     // Test 1: Empty Bitstor
     Bits empty_bv = BitsInit();
-    u64    runs[5];
-    bool   values[5];
-    u64    count = BitsRunLengths(&empty_bv, runs, values, 5);
-    result       = result && (count == 0);
+    u64  runs[5];
+    bool values[5];
+    u64  count = BitsRunLengths(&empty_bv, runs, values, 5);
+    result     = result && (count == 0);
     BitsDeinit(&empty_bv);
 
     // Test 2: Single bit (true)
@@ -536,7 +536,7 @@ bool test_Bits_run_lengths_boundary_conditions(void) {
     printf("Testing BitsRunLengths boundary conditions\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Create pattern with many runs: 10101010 (8 runs)
     for (int i = 0; i < 8; i++) {
@@ -748,4 +748,3 @@ int main(void) {
     // Run all tests using the centralized test driver
     return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Bits.Foreach");
 }
-

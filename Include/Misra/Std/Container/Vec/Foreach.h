@@ -369,4 +369,3 @@
     VecForeachPtrInRangeIdx((v), (var), (____iter___), (start), (end), {body})
 
 #endif // MISRA_STD_CONTAINER_VEC_FOREACH_H
-

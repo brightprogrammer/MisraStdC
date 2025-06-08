@@ -239,7 +239,7 @@ bool test_Bits_pop_edge_cases(void) {
     printf("Testing BitsPop edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test pop single element
     BitsPush(&bv, true);
@@ -264,7 +264,7 @@ bool test_Bits_remove_single_edge_cases(void) {
     printf("Testing BitsRemove edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test remove last element
     BitsPush(&bv, true);
@@ -289,7 +289,7 @@ bool test_Bits_remove_range_edge_cases(void) {
     printf("Testing BitsRemoveRange edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test remove 0 elements (should be no-op)
     BitsPush(&bv, true);
@@ -308,7 +308,7 @@ bool test_Bits_remove_range_edge_cases(void) {
     for (int i = 0; i < 10; i++) {
         BitsPush(&bv, i % 2 == 0);
     }
-    BitsRemoveRange(&bv, 1, 5);        // Remove 5 elements starting at index 1
+    BitsRemoveRange(&bv, 1, 5);          // Remove 5 elements starting at index 1
     result = result && (bv.length == 5); // Should have 5 elements left
 
     BitsDeinit(&bv);
@@ -319,7 +319,7 @@ bool test_Bits_remove_first_last_edge_cases(void) {
     printf("Testing BitsRemoveFirst/Last edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test remove from empty Bits
     bool found = BitsRemoveFirst(&bv, true);
@@ -355,7 +355,7 @@ bool test_Bits_remove_all_edge_cases(void) {
     printf("Testing BitsRemoveAll edge cases\n");
 
     Bits bv     = BitsInit();
-    bool   result = true;
+    bool result = true;
 
     // Test remove all from empty Bits
     u64 count = BitsRemoveAll(&bv, true);
@@ -488,4 +488,3 @@ int main(void) {
     // Run all tests using the centralized test driver
     return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Bits.Remove");
 }
-

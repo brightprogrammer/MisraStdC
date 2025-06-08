@@ -665,4 +665,3 @@ int main(int argc, char* argv[]) {
     // Use centralized test driver
     return run_test_suite(tests, test_count, NULL, 0, "Json.Read.EdgeCases");
 }
-

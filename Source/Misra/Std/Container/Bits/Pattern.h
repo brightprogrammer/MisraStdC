@@ -266,4 +266,3 @@ extern "C" {
 #endif
 
 #endif // MISRA_STD_CONTAINER_Bits_PATTERN_H
-

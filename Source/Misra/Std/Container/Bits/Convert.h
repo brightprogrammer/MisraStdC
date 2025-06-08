@@ -98,7 +98,7 @@ extern "C" {
     /// TAGS: Bits, Convert, Integer, Export
     ///
     u64 BitsToInteger(Bits *bv);
-    
+
     ///
     /// Convert Bits vector to integer (up to 64 bits).
     /// Bits bitvector is treated in big-endian format.
@@ -113,7 +113,7 @@ extern "C" {
     /// TAGS: Bits, Convert, Integer, Export
     ///
     u64 BitsToIntegerBE(Bits *bv);
-    
+
     ///
     /// Convert Bits vector to integer (up to 64 bits).
     /// Bits bitvector is treated in little-endian format.
@@ -150,4 +150,3 @@ extern "C" {
 #endif
 
 #endif // MISRA_STD_CONTAINER_Bits_CONVERT_H
-
