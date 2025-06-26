@@ -265,6 +265,13 @@ static void PadString(Str* o, size width, Alignment align, size content_len) {
 
 bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, size argc) {
     if (!o || !fmt) {
+        if (!o) {
+            LOG_ERROR("Output string is NULL");
+        }
+        if (!fmt) {
+            LOG_ERROR("Format string is NULL");
+        }
+
         LOG_FATAL("Invalid arguments");
         return false;
     }
