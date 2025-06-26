@@ -57,9 +57,15 @@ bool test_bitvec_shrink_to_fit(void) {
     return result;
 }
 
+<<<<<<< HEAD
 // Test BitVecReserve function (replacing BitVecSetCapacity)
 bool test_bitvec_set_capacity(void) {
     printf("Testing BitVecReserve\n");
+=======
+// Test BitVecSetCapacity function
+bool test_bitvec_set_capacity(void) {
+    printf("Testing BitVecSetCapacity\n");
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
 
     BitVec bv = BitVecInit();
 
@@ -68,7 +74,11 @@ bool test_bitvec_set_capacity(void) {
     BitVecPush(&bv, false);
 
     // Set capacity to a specific value
+<<<<<<< HEAD
     BitVecReserve(&bv, 50);
+=======
+    BitVecSetCapacity(&bv, 50);
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
 
     // Check that capacity was set correctly
     bool result = (bv.capacity >= 50) && (bv.length == 2);
@@ -78,7 +88,11 @@ bool test_bitvec_set_capacity(void) {
     result = result && (BitVecGet(&bv, 1) == false);
 
     // Try to set capacity smaller than current length (should not shrink below length)
+<<<<<<< HEAD
     BitVecReserve(&bv, 1);
+=======
+    BitVecSetCapacity(&bv, 1);
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
 
     // Capacity should still accommodate at least the current length
     result = result && (bv.capacity >= bv.length);
@@ -217,18 +231,30 @@ bool test_bitvec_shrink_to_fit_edge_cases(void) {
 }
 
 bool test_bitvec_set_capacity_edge_cases(void) {
+<<<<<<< HEAD
     printf("Testing BitVecReserve edge cases\n");
+=======
+    printf("Testing BitVecSetCapacity edge cases\n");
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
 
     BitVec bv     = BitVecInit();
     bool   result = true;
 
     // Test set capacity on empty bitvec
+<<<<<<< HEAD
     BitVecReserve(&bv, 100);
     result = result && (bv.capacity >= 100) && (bv.length == 0);
 
     // Test set capacity to 0
     // BitVecReserve doesn't support shrinking to 0, use BitVecClear instead
     BitVecClear(&bv);
+=======
+    BitVecSetCapacity(&bv, 100);
+    result = result && (bv.capacity >= 100) && (bv.length == 0);
+
+    // Test set capacity to 0
+    BitVecSetCapacity(&bv, 0);
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
     result = result && (bv.length == 0);
 
     // Test set capacity smaller than current length
@@ -236,8 +262,12 @@ bool test_bitvec_set_capacity_edge_cases(void) {
         BitVecPush(&bv, i % 2 == 0);
     }
     u64 original_length = bv.length;
+<<<<<<< HEAD
     // BitVecReserve doesn't shrink, so this test is not applicable
     // BitVecReserve(&bv, 5); // Would be ignored since length > 5
+=======
+    BitVecSetCapacity(&bv, 5); // Smaller than length
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
 
     // Should not truncate data
     result = result && (bv.length == original_length);
@@ -246,7 +276,11 @@ bool test_bitvec_set_capacity_edge_cases(void) {
     }
 
     // Test setting very large capacity
+<<<<<<< HEAD
     BitVecReserve(&bv, 10000);
+=======
+    BitVecSetCapacity(&bv, 10000);
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
     result = result && (bv.capacity >= 10000);
 
     BitVecDeinit(&bv);
@@ -356,7 +390,11 @@ bool test_bitvec_memory_stress_test(void) {
         BitVecSwap(&bv1, &bv2);
 
         // Reu64 operations
+<<<<<<< HEAD
         BitVecReserve(&bv1, cycle * 20);
+=======
+        BitVecSetCapacity(&bv1, cycle * 20);
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
         BitVecShrinkToFit(&bv2);
 
         // Verify data integrity

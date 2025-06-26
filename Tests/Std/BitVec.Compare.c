@@ -126,7 +126,11 @@ bool test_bitvec_lex_compare(void) {
     BitVecPush(&bv2, true); // 11 (shorter)
 
     // Lexicographic comparison considers position-by-position
+<<<<<<< HEAD
     int  cmp_result = BitVecCompare(&bv1, &bv2);
+=======
+    int  cmp_result = BitVecLexCompare(&bv1, &bv2);
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
     bool result     = (cmp_result != 0); // Should not be equal
 
     // Test equal bitvectors
@@ -135,7 +139,11 @@ bool test_bitvec_lex_compare(void) {
     BitVecPush(&bv2, false);
     BitVecPush(&bv2, true); // 101
 
+<<<<<<< HEAD
     result = result && (BitVecCompare(&bv1, &bv2) == 0);
+=======
+    result = result && (BitVecLexCompare(&bv1, &bv2) == 0);
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
 
     // Clean up
     BitVecDeinit(&bv1);
@@ -408,20 +416,32 @@ bool test_bitvec_disjoint_intersects(void) {
 
     // Should be disjoint and not intersect
     bool result = BitVecDisjoint(&bv1, &bv2);
+<<<<<<< HEAD
     result      = result && !BitVecOverlaps(&bv1, &bv2);
+=======
+    result      = result && !BitVecIntersects(&bv1, &bv2);
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
 
     // Create intersecting bitvectors
     BitVecSet(&bv2, 0, true); // Change bv2 to 1101
 
     // Should not be disjoint and should intersect
     result = result && !BitVecDisjoint(&bv1, &bv2);
+<<<<<<< HEAD
     result = result && BitVecOverlaps(&bv1, &bv2);
+=======
+    result = result && BitVecIntersects(&bv1, &bv2);
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
 
     // Test with empty bitvectors
     BitVecClear(&bv1);
     BitVecClear(&bv2);
     result = result && BitVecDisjoint(&bv1, &bv2);
+<<<<<<< HEAD
     result = result && !BitVecOverlaps(&bv1, &bv2);
+=======
+    result = result && !BitVecIntersects(&bv1, &bv2);
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
 
     // Clean up
     BitVecDeinit(&bv1);
@@ -537,6 +557,7 @@ bool test_bitvec_less_than_functions(void) {
     BitVecPush(&bv2, true);
 
     // Lexicographically, shorter comes first
+<<<<<<< HEAD
     bool result = (BitVecCompare(&bv1, &bv2) < 0);
 
     // Numerically, 10 (2) < 101 (5)
@@ -550,6 +571,21 @@ bool test_bitvec_less_than_functions(void) {
     // Test reverse comparison
     result = result && !(BitVecCompare(&bv2, &bv1) < 0);
     result = result && !(BitVecNumericalCompare(&bv2, &bv1) < 0);
+=======
+    bool result = BitVecIsLexicographicallyLess(&bv1, &bv2);
+
+    // Numerically, 10 (2) < 101 (5)
+    result = result && BitVecIsNumericallyLess(&bv1, &bv2);
+
+    // Test equal cases
+    BitVec bv3 = BitVecClone(&bv1);
+    result     = result && !BitVecIsLexicographicallyLess(&bv1, &bv3);
+    result     = result && !BitVecIsNumericallyLess(&bv1, &bv3);
+
+    // Test reverse comparison
+    result = result && !BitVecIsLexicographicallyLess(&bv2, &bv1);
+    result = result && !BitVecIsNumericallyLess(&bv2, &bv1);
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
 
     // Clean up
     BitVecDeinit(&bv1);
@@ -654,7 +690,11 @@ bool test_bitvec_set_operations_edge_cases(void) {
     // Test single bit sets
     BitVecPush(&bv1, true);
     BitVecPush(&bv2, false);
+<<<<<<< HEAD
     result = result && !BitVecOverlaps(&bv1, &bv2);
+=======
+    result = result && !BitVecIntersects(&bv1, &bv2);
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
 
     // Test large sets
     BitVecClear(&bv1);
@@ -664,7 +704,11 @@ bool test_bitvec_set_operations_edge_cases(void) {
         BitVecPush(&bv2, i % 3 == 0);
     }
     // Should have some overlap since both contain position 0 (true)
+<<<<<<< HEAD
     result = result && BitVecOverlaps(&bv1, &bv2);
+=======
+    result = result && BitVecIntersects(&bv1, &bv2);
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
@@ -695,14 +739,23 @@ bool test_bitvec_comprehensive_comparison(void) {
     // Cross-validate different comparison methods
     // Numerical: 86 < 89, so bv1 < bv2
     result = result && (BitVecNumericalCompare(&bv1, &bv2) < 0);
+<<<<<<< HEAD
     result = result && (BitVecCompare(&bv1, &bv2) < 0);
+=======
+    result = result && BitVecIsNumericallyLess(&bv1, &bv2);
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
 
     // Weight: bv1 has 4 ones, bv2 has 4 ones, so equal weight
     result = result && (BitVecWeightCompare(&bv1, &bv2) == 0);
 
     // Lexicographic comparison
+<<<<<<< HEAD
     int  lex_cmp  = BitVecCompare(&bv1, &bv2);
     bool lex_less = (BitVecCompare(&bv1, &bv2) < 0);
+=======
+    int  lex_cmp  = BitVecLexCompare(&bv1, &bv2);
+    bool lex_less = BitVecIsLexicographicallyLess(&bv1, &bv2);
+>>>>>>> 6b0ba0ae675e6ef73ce083d149c2c1afbd4bdf9e
     result        = result && ((lex_cmp < 0) == lex_less);
 
     // Test transitivity: if A < B and B < C, then A < C
