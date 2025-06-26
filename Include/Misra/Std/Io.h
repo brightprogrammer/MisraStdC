@@ -253,10 +253,9 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 #define StrWriteFmt_IMPL1(input, fmtstr, ...) StrWriteFmt_IMPL2(input, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
 #define StrWriteFmt_IMPL2(input, fmtstr, varr)                                                                         \
     do {                                                                                                               \
-        TypeSpecificIO *argv       = &(varr)[0];                                                                       \
-        size            argc       = sizeof(varr) / sizeof(TypeSpecificIO);                                            \
-        const char     *fmt_##line = (fmtstr);                                                                         \
-        StrWriteFmtInternal((input), fmt_##line, argv, argc - 1);                                                      \
+        TypeSpecificIO *argv = &(varr)[0];                                                                             \
+        size            argc = sizeof(varr) / sizeof(TypeSpecificIO);                                                  \
+        StrWriteFmtInternal((input), (fmtstr), argv, argc - 1);                                                        \
     } while (0)
 
 ///
