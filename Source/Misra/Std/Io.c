@@ -320,15 +320,16 @@ bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, size arg
             if (!arg->writer || !arg->data) {
                 if (fmt_info.flags & FMT_FLAG_CHAR) {
                     arg->writer = (TypeSpecificWriter)_write_i8;
+                } else {
+                    if (!arg->writer) {
+                        LOG_ERROR("Writer function is NULL");
+                    }
+                    if (!arg->data) {
+                        LOG_ERROR("Data pointer is NULL");
+                    }
+                    LOG_ERROR("Invalid argument");
+                    return false;
                 }
-                if (!arg->writer) {
-                    LOG_ERROR("Writer function is NULL");
-                }
-                if (!arg->data) {
-                    LOG_ERROR("Data pointer is NULL");
-                }
-                LOG_ERROR("Invalid argument");
-                return false;
             }
 
             // Write the formatted value
