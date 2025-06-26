@@ -126,6 +126,8 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
             i64: TO_TYPE_SPECIFIC_IO(i64, &(x)),                                                                       \
             f32: TO_TYPE_SPECIFIC_IO(f32, &(x)),                                                                       \
             f64: TO_TYPE_SPECIFIC_IO(f64, &(x)),                                                                       \
+            char: TO_TYPE_SPECIFIC_IO(i8, &(x)),                                                                       \
+            size: TO_TYPE_SPECIFIC_IO(u64, &(x)),                                                                      \
             default: TO_TYPE_SPECIFIC_IO(UnsupportedType, NULL)                                                        \
         )
 #else
