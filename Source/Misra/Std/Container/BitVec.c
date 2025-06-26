@@ -712,7 +712,6 @@ bool BitVecOverlaps(BitVec *bv1, BitVec *bv2) {
 
 
 
-
 bool BitVecIsSorted(BitVec *bv) {
     ValidateBitVec(bv);
 
@@ -1202,15 +1201,15 @@ double BitVecJaccardSimilarity(BitVec *bv1, BitVec *bv2) {
 
     // Use BitVecDotProduct for intersection calculation
     u64 intersection = BitVecDotProduct(bv1, bv2);
-    
+
     // Calculate union count
-    u64 max_length = MAX2(bv1->length, bv2->length);
+    u64 max_length  = MAX2(bv1->length, bv2->length);
     u64 union_count = 0;
 
     for (u64 i = 0; i < max_length; i++) {
         bool bit1 = (i < bv1->length) ? BitVecGet(bv1, i) : false;
         bool bit2 = (i < bv2->length) ? BitVecGet(bv2, i) : false;
-        
+
         if (bit1 || bit2) {
             union_count++;
         }
