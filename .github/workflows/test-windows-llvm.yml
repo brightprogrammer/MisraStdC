@@ -1,0 +1,72 @@
+
+name: Windows LLVM Build
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+jobs:
+  build-and-test:
+    name: Build and Test on Windows with LLVM
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+        
+    - name: Install dependencies
+      run: |
+        pip install meson ninja
+      shell: pwsh
+      
+    - name: Download and install LLVM/Clang
+      run: |
+        # Download Clang
+        Invoke-WebRequest -Uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/clang+llvm-18.1.8-x86_64-pc-windows-msvc.tar.xz" -OutFile "clang.tar.xz"
+        
+        # Extract the archive (using 7zip which is available on Windows runners)
+        7z x clang.tar.xz
+        7z x clang.tar
+        
+        # Move to a simpler path
+        Move-Item "clang+llvm-18.1.8-x86_64-pc-windows-msvc" "C:\clang"
+        
+        # Add to PATH
+        echo "C:\clang\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      shell: pwsh
+      
+    - name: Verify Clang installation
+      run: |
+        clang --version
+        clang++ --version
+      shell: pwsh
+      
+    - name: Configure with Clang
+      run: |
+        # Set environment variables for Meson to use Clang
+        $env:CC = "clang"
+        $env:CXX = "clang++"
+        
+        meson setup build --backend ninja
+      shell: pwsh
+      
+    - name: Build
+      run: |
+        meson compile -C build
+                
+    - name: Test
+      run: |
+        ninja -C build test
+        
+    - name: Upload test logs if failure
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: test-logs-windows-llvm
+        path: build/meson-logs/testlog.txt
