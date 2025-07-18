@@ -31,9 +31,9 @@ bool test_str_foreach_idx(void) {
     Str result = StrInit();
     StrForeachIdx(&s, chr, idx, {
         // Append the character and its index to the result string
-        Str buffer = StrInit();
-        StrWriteFmt(&buffer, "{:c}{}", FMT(chr), FMT(idx));
-        StrMergeL(&result, &buffer);
+        // Str buffer = StrInit();
+        StrWriteFmt(&result, "{:c}{}", FMT(chr), FMT(idx));
+        // StrMergeL(&result, &buffer);
     });
 
     // The result should be "H0e1l2l3o4"
