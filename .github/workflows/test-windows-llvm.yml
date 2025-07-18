@@ -1,4 +1,3 @@
-
 name: Windows LLVM Build
 on:
   push:
@@ -45,15 +44,20 @@ jobs:
       run: |
         clang --version
         clang++ --version
+        lld --version
+        llvm-ar --version
       shell: pwsh
       
     - name: Configure with Clang
       run: |
-        # Set environment variables for Meson to use Clang
+        # Set environment variables for Meson to use Clang with lld linker
         $env:CC = "clang"
         $env:CXX = "clang++"
+        $env:AR = "llvm-ar"
+        $env:RANLIB = "llvm-ranlib"
         
-        meson setup build --backend ninja
+        # Configure with Clang and force use of lld linker
+        meson setup build --backend ninja -Dc_args="-fuse-ld=lld" -Dcpp_args="-fuse-ld=lld" -Dc_link_args="-fuse-ld=lld" -Dcpp_link_args="-fuse-ld=lld"
       shell: pwsh
       
     - name: Build
