@@ -29,9 +29,7 @@ bool test_str_foreach_idx(void) {
 
     // Build a new string by iterating through each character with its index
     Str result = StrInit();
-    StrForeachIdx(&s, chr, idx, {
-        StrWriteFmt(&result, "{:c}{}", FMT(chr), FMT(idx));
-    });
+    StrForeachIdx(&s, chr, idx, { StrWriteFmt(&result, "{:c}{}", FMT(chr), FMT(idx)); });
 
     // The result should be "H0e1l2l3o4"
     bool success = (ZstrCompare(result.data, "H0e1l2l3o4") == 0);
