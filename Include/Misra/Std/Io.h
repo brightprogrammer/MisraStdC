@@ -142,22 +142,22 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 #    define FMT(x)                                                                                                     \
         _Generic(                                                                                                      \
             (x),                                                                                                       \
-            Str: TO_TYPE_SPECIFIC_IO(Str, (void*)&(x)),                                                                       \
-            BitVec: TO_TYPE_SPECIFIC_IO(BitVec, (void*)&(x)),                                                                 \
-            const char *: TO_TYPE_SPECIFIC_IO(Zstr, (void*)&(x)),                                                             \
-            char *: TO_TYPE_SPECIFIC_IO(Zstr, (void*)&(x)),                                                                   \
-            u8: TO_TYPE_SPECIFIC_IO(u8, (void*)&(x)),                                                                         \
-            u16: TO_TYPE_SPECIFIC_IO(u16, (void*)&(x)),                                                                       \
-            u32: TO_TYPE_SPECIFIC_IO(u32, (void*)&(x)),                                                                       \
-            u64: TO_TYPE_SPECIFIC_IO(u64, (void*)&(x)),                                                                       \
-            i8: TO_TYPE_SPECIFIC_IO(i8, (void*)&(x)),                                                                         \
-            i16: TO_TYPE_SPECIFIC_IO(i16, (void*)&(x)),                                                                       \
-            i32: TO_TYPE_SPECIFIC_IO(i32, (void*)&(x)),                                                                       \
-            i64: TO_TYPE_SPECIFIC_IO(i64, (void*)&(x)),                                                                       \
-            f32: TO_TYPE_SPECIFIC_IO(f32, (void*)&(x)),                                                                       \
-            f64: TO_TYPE_SPECIFIC_IO(f64, (void*)&(x)),                                                                       \
-            char: TO_TYPE_SPECIFIC_IO(i8, (void*)&(x)),                                                                       \
-            size: TO_TYPE_SPECIFIC_IO(u64, (void*)&(x)),                                                                      \
+            Str: TO_TYPE_SPECIFIC_IO(Str, (void *)&(x)),                                                               \
+            BitVec: TO_TYPE_SPECIFIC_IO(BitVec, (void *)&(x)),                                                         \
+            const char *: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                     \
+            char *: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                           \
+            u8: TO_TYPE_SPECIFIC_IO(u8, (void *)&(x)),                                                                 \
+            u16: TO_TYPE_SPECIFIC_IO(u16, (void *)&(x)),                                                               \
+            u32: TO_TYPE_SPECIFIC_IO(u32, (void *)&(x)),                                                               \
+            u64: TO_TYPE_SPECIFIC_IO(u64, (void *)&(x)),                                                               \
+            i8: TO_TYPE_SPECIFIC_IO(i8, (void *)&(x)),                                                                 \
+            i16: TO_TYPE_SPECIFIC_IO(i16, (void *)&(x)),                                                               \
+            i32: TO_TYPE_SPECIFIC_IO(i32, (void *)&(x)),                                                               \
+            i64: TO_TYPE_SPECIFIC_IO(i64, (void *)&(x)),                                                               \
+            f32: TO_TYPE_SPECIFIC_IO(f32, (void *)&(x)),                                                               \
+            f64: TO_TYPE_SPECIFIC_IO(f64, (void *)&(x)),                                                               \
+            char: TO_TYPE_SPECIFIC_IO(i8, (void *)&(x)),                                                               \
+            size: TO_TYPE_SPECIFIC_IO(u64, (void *)&(x)),                                                              \
             default: TO_TYPE_SPECIFIC_IO(UnsupportedType, NULL)                                                        \
         )
 #endif

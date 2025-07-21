@@ -35,7 +35,7 @@ void SysAbort(void);
         StrWriteFmt(&m, __VA_ARGS__);                                                                                  \
         LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, m.data);                                                  \
         StrDeinit(&m);                                                                                                 \
-        SysAbort();                                                                                                       \
+        SysAbort();                                                                                                    \
     } while (0)
 
 ///
@@ -66,11 +66,11 @@ void SysAbort(void);
 ///
 /// TAGS: Logging, Macro, Info, System
 ///
-#define LOG_INFO(...)                                                                                                 \
+#define LOG_INFO(...)                                                                                                  \
     do {                                                                                                               \
         Str m = StrInit();                                                                                             \
         StrWriteFmt(&m, __VA_ARGS__);                                                                                  \
-        LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, m.data);                                                  \
+        LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, m.data);                                                   \
         StrDeinit(&m);                                                                                                 \
     } while (0)
 

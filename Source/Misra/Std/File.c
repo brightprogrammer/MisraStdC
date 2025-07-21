@@ -29,6 +29,7 @@ bool ReadCompleteFile(const char *filename, char **data, size *file_size, size *
     char *buffer = *data;
     if (*capacity < (u64)fsize) {
         buffer = realloc(buffer, fsize + 1);
+
         if (!buffer) {
             Str syserr;
             StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
@@ -54,28 +55,32 @@ bool ReadCompleteFile(const char *filename, char **data, size *file_size, size *
     if (e || !file) {
         free(buffer);
 
-        Str syserr;
+        Str syserr = StrInit();
         StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
             SysStrError(e, &syserr);
             LOG_ERROR("fopen() failed : {}", FMT(syserr));
         });
+
+        return false;
     }
 
     // Read the entire file into the buffer
     if (fsize != (i64)fread(buffer, 1, fsize, file)) {
         fclose(file);
-        Str syserr;
+        Str syserr = StrInit();
         StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
             SysStrError(errno, &syserr);
             LOG_ERROR("failed to read complete file. : {}", FMT(syserr));
         });
+
+        return false;
     }
 
     // Close the file and return the buffer
     fclose(file);
 
     ((char *)buffer)[fsize] = 0; // null-termination for just in case.
-    *data                  = buffer;
-    *file_size             = fsize;
+    *data                   = buffer;
+    *file_size              = fsize;
     return true;
 }

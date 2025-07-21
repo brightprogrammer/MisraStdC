@@ -184,8 +184,8 @@ SysDirContents SysGetDirContents(const char* path) {
         } else if ('.' == DNAME_AT(0) && '.' == DNAME_AT(1) && 0 == DNAME_AT(2)) {
             continue;
         } else {
-            Str entry_path = StrInit();
-            const char* dir_name = &entry->d_name[0];
+            Str         entry_path = StrInit();
+            const char* dir_name   = &entry->d_name[0];
             StrWriteFmt(&entry_path, "{}/{}", FMT(path), FMT(dir_name));
 
             struct stat path_stat;

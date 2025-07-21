@@ -35,28 +35,6 @@
 #define BIT_OFFSET(idx)      ((idx) % BITS_PER_BYTE)
 #define BYTES_FOR_BITS(bits) (((bits) + BITS_PER_BYTE - 1) / BITS_PER_BYTE)
 
-// Helper function for range validation - consolidates duplicate validation logic
-static void ValidateBitVecRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len, const char *func_name) {
-    if (start1 + len > bv1->length) {
-        LOG_FATAL(
-            "%s: Range [%llu:%llu] exceeds bitvector1 length %llu",
-            func_name,
-            start1,
-            start1 + len - 1,
-            bv1->length
-        );
-    }
-    if (start2 + len > bv2->length) {
-        LOG_FATAL(
-            "%s: Range [%llu:%llu] exceeds bitvector2 length %llu",
-            func_name,
-            start2,
-            start2 + len - 1,
-            bv2->length
-        );
-    }
-}
-
 void BitVecDeinit(BitVec *bitvec) {
     ValidateBitVec(bitvec);
     if (bitvec->data) {

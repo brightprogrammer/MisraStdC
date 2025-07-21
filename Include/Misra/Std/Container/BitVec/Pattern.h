@@ -238,7 +238,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Pattern, Prefix, Multiple
     ///
-    u64 BitVecPrefixMatch(BitVec *bv, BitVecs* patterns);
+    u64 BitVecPrefixMatch(BitVec *bv, BitVecs *patterns);
 
     ///
     /// Match bitvector against an array of suffix patterns.
@@ -255,7 +255,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Pattern, Suffix, Multiple
     ///
-    u64 BitVecSuffixMatch(BitVec *bv, BitVecs*patterns);
+    u64 BitVecSuffixMatch(BitVec *bv, BitVecs *patterns);
 
 #ifdef __cplusplus
 }
