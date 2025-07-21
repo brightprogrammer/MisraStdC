@@ -475,9 +475,9 @@ bool test_bitvec_ends_with_edge_cases(void) {
     return result;
 }
 
-// BitVecContains tests
+// BitVecFindPattern tests (replacing BitVecContains)
 bool test_bitvec_contains_basic(void) {
-    printf("Testing BitVecContains basic functionality\n");
+    printf("Testing BitVecFindPattern basic functionality\n");
 
     BitVec source  = BitVecInit();
     BitVec pattern = BitVecInit();
@@ -497,7 +497,7 @@ bool test_bitvec_contains_basic(void) {
     BitVecPush(&pattern, false);
     BitVecPush(&pattern, true);
 
-    result = result && BitVecContains(&source, &pattern);
+    result = result && (BitVecFindPattern(&source, &pattern) != SIZE_MAX);
 
     // Test non-existing pattern: 000
     BitVecClear(&pattern);
@@ -505,7 +505,7 @@ bool test_bitvec_contains_basic(void) {
     BitVecPush(&pattern, false);
     BitVecPush(&pattern, false);
 
-    result = result && !BitVecContains(&source, &pattern);
+    result = result && (BitVecFindPattern(&source, &pattern) == SIZE_MAX);
 
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);

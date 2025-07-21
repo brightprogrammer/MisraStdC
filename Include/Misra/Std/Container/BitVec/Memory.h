@@ -27,19 +27,7 @@ extern "C" {
     ///
     void BitVecShrinkToFit(BitVec *bv);
 
-    ///
-    /// Set the exact capacity of the bitvector.
-    /// If new capacity is smaller than current length, the bitvector is truncated.
-    ///
-    /// bv[in]  : Bitvector to modify
-    /// cap[in] : New capacity in bits
-    ///
-    /// USAGE:
-    ///   BitVecSetCapacity(&flags, 128);  // Set capacity to exactly 128 bits
-    ///
-    /// TAGS: BitVec, Memory, Capacity, Exact
-    ///
-    void BitVecSetCapacity(BitVec *bv, u64 cap);
+
 
     ///
     /// Efficiently swap the contents of two bitvectors.
