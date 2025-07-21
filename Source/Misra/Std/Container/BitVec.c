@@ -35,7 +35,27 @@
 #define BIT_OFFSET(idx)      ((idx) % BITS_PER_BYTE)
 #define BYTES_FOR_BITS(bits) (((bits) + BITS_PER_BYTE - 1) / BITS_PER_BYTE)
 
-
+// Helper function for range validation - consolidates duplicate validation logic
+static void ValidateBitVecRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len, const char *func_name) {
+    if (start1 + len > bv1->length) {
+        LOG_FATAL(
+            "%s: Range [%llu:%llu] exceeds bitvector1 length %llu",
+            func_name,
+            start1,
+            start1 + len - 1,
+            bv1->length
+        );
+    }
+    if (start2 + len > bv2->length) {
+        LOG_FATAL(
+            "%s: Range [%llu:%llu] exceeds bitvector2 length %llu",
+            func_name,
+            start2,
+            start2 + len - 1,
+            bv2->length
+        );
+    }
+}
 
 void BitVecDeinit(BitVec *bitvec) {
     ValidateBitVec(bitvec);
@@ -140,39 +160,7 @@ void BitVecShrinkToFit(BitVec *bv) {
     bv->byte_size = new_byte_size;
 }
 
-void BitVecSetCapacity(BitVec *bv, u64 cap) {
-    ValidateBitVec(bv);
 
-    // Don't allow capacity smaller than current length
-    if (cap < bv->length) {
-        cap = bv->length;
-    }
-
-    if (cap == 0) {
-        free(bv->data);
-        bv->data      = NULL;
-        bv->capacity  = 0;
-        bv->byte_size = 0;
-        return;
-    }
-
-    u64 new_byte_size = BYTES_FOR_BITS(cap);
-    u8 *new_data      = (u8 *)realloc(bv->data, new_byte_size);
-
-    if (!new_data) {
-        LOG_FATAL("Failed to allocate memory for bitvec");
-        return;
-    }
-
-    // Clear new bytes if growing
-    if (new_byte_size > bv->byte_size) {
-        memset(new_data + bv->byte_size, 0, new_byte_size - bv->byte_size);
-    }
-
-    bv->data      = new_data;
-    bv->capacity  = cap;
-    bv->byte_size = new_byte_size;
-}
 
 void BitVecSwap(BitVec *bv1, BitVec *bv2) {
     ValidateBitVec(bv1);
@@ -419,12 +407,10 @@ void BitVecRemoveRange(BitVec *bv, u64 idx, u64 count) {
 bool BitVecRemoveFirst(BitVec *bv, bool value) {
     ValidateBitVec(bv);
 
-    // Find first occurrence of the value
-    for (u64 i = 0; i < bv->length; i++) {
-        if (BitVecGet(bv, i) == value) {
-            BitVecRemove(bv, i);
-            return true;
-        }
+    u64 pos = BitVecFind(bv, value);
+    if (pos != SIZE_MAX) {
+        BitVecRemove(bv, pos);
+        return true;
     }
 
     return false; // Value not found
@@ -433,13 +419,10 @@ bool BitVecRemoveFirst(BitVec *bv, bool value) {
 bool BitVecRemoveLast(BitVec *bv, bool value) {
     ValidateBitVec(bv);
 
-    // Find last occurrence of the value (search backwards)
-    for (u64 i = bv->length; i > 0;) {
-        i--;
-        if (BitVecGet(bv, i) == value) {
-            BitVecRemove(bv, i);
-            return true;
-        }
+    u64 pos = BitVecFindLast(bv, value);
+    if (pos != SIZE_MAX) {
+        BitVecRemove(bv, pos);
+        return true;
     }
 
     return false; // Value not found
@@ -495,7 +478,7 @@ void BitVecAnd(BitVec *result, BitVec *a, BitVec *b) {
     ValidateBitVec(a);
     ValidateBitVec(b);
 
-    u64 min_len = a->length < b->length ? a->length : b->length;
+    u64 min_len = MIN2(a->length, b->length);
     BitVecResize(result, min_len);
 
     for (u64 i = 0; i < min_len; i++) {
@@ -510,7 +493,7 @@ void BitVecOr(BitVec *result, BitVec *a, BitVec *b) {
     ValidateBitVec(a);
     ValidateBitVec(b);
 
-    u64 max_len = a->length > b->length ? a->length : b->length;
+    u64 max_len = MAX2(a->length, b->length);
     BitVecResize(result, max_len);
 
     for (u64 i = 0; i < max_len; i++) {
@@ -525,7 +508,7 @@ void BitVecXor(BitVec *result, BitVec *a, BitVec *b) {
     ValidateBitVec(a);
     ValidateBitVec(b);
 
-    u64 max_len = a->length > b->length ? a->length : b->length;
+    u64 max_len = MAX2(a->length, b->length);
     BitVecResize(result, max_len);
 
     for (u64 i = 0; i < max_len; i++) {
@@ -556,35 +539,14 @@ bool BitVecEquals(BitVec *bv1, BitVec *bv2) {
         return false;
     }
 
-    for (u64 i = 0; i < bv1->length; i++) {
-        if (BitVecGet(bv1, i) != BitVecGet(bv2, i)) {
-            return false;
-        }
-    }
-
-    return true;
+    return BitVecEqualsRange(bv1, 0, bv2, 0, bv1->length);
 }
 
 bool BitVecEqualsRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len) {
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
 
-    if (start1 + len > bv1->length) {
-        LOG_FATAL(
-            "BitVecEqualsRange: Range [%llu:%llu] exceeds bitvector1 length %llu",
-            start1,
-            start1 + len - 1,
-            bv1->length
-        );
-    }
-    if (start2 + len > bv2->length) {
-        LOG_FATAL(
-            "BitVecEqualsRange: Range [%llu:%llu] exceeds bitvector2 length %llu",
-            start2,
-            start2 + len - 1,
-            bv2->length
-        );
-    }
+    ValidateBitVecRange(bv1, start1, bv2, start2, len, "BitVecEqualsRange");
 
     for (u64 i = 0; i < len; i++) {
         if (BitVecGet(bv1, start1 + i) != BitVecGet(bv2, start2 + i)) {
@@ -599,16 +561,12 @@ int BitVecCompare(BitVec *bv1, BitVec *bv2) {
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
 
-    u64 min_len = bv1->length < bv2->length ? bv1->length : bv2->length;
+    u64 min_len = MIN2(bv1->length, bv2->length);
 
-    // Compare bit by bit
-    for (u64 i = 0; i < min_len; i++) {
-        bool bit1 = BitVecGet(bv1, i);
-        bool bit2 = BitVecGet(bv2, i);
-
-        if (bit1 != bit2) {
-            return bit1 ? 1 : -1; // true > false
-        }
+    // Compare common bits using range comparison
+    int range_result = BitVecCompareRange(bv1, 0, bv2, 0, min_len);
+    if (range_result != 0) {
+        return range_result;
     }
 
     // If all compared bits are equal, compare lengths
@@ -625,22 +583,7 @@ int BitVecCompareRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
 
-    if (start1 + len > bv1->length) {
-        LOG_FATAL(
-            "BitVecCompareRange: Range [%llu:%llu] exceeds bitvector1 length %llu",
-            start1,
-            start1 + len - 1,
-            bv1->length
-        );
-    }
-    if (start2 + len > bv2->length) {
-        LOG_FATAL(
-            "BitVecCompareRange: Range [%llu:%llu] exceeds bitvector2 length %llu",
-            start2,
-            start2 + len - 1,
-            bv2->length
-        );
-    }
+    ValidateBitVecRange(bv1, start1, bv2, start2, len, "BitVecCompareRange");
 
     // Compare bit by bit in the specified range
     for (u64 i = 0; i < len; i++) {
@@ -655,31 +598,7 @@ int BitVecCompareRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len
     return 0; // All bits in range are equal
 }
 
-int BitVecLexCompare(BitVec *bv1, BitVec *bv2) {
-    ValidateBitVec(bv1);
-    ValidateBitVec(bv2);
 
-    u64 min_len = bv1->length < bv2->length ? bv1->length : bv2->length;
-
-    // Compare bit by bit from left to right (lexicographically)
-    for (u64 i = 0; i < min_len; i++) {
-        bool bit1 = BitVecGet(bv1, i);
-        bool bit2 = BitVecGet(bv2, i);
-
-        if (bit1 != bit2) {
-            return bit1 ? 1 : -1; // '1' > '0' in lexicographic order
-        }
-    }
-
-    // If all compared bits are equal, shorter string comes first
-    if (bv1->length < bv2->length) {
-        return -1;
-    } else if (bv1->length > bv2->length) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
 
 int BitVecNumericalCompare(BitVec *bv1, BitVec *bv2) {
     ValidateBitVec(bv1);
@@ -687,7 +606,7 @@ int BitVecNumericalCompare(BitVec *bv1, BitVec *bv2) {
 
     // Compare as unsigned integers (LSB first)
     // Start from the most significant bit (highest index)
-    u64 max_len = bv1->length > bv2->length ? bv1->length : bv2->length;
+    u64 max_len = MAX2(bv1->length, bv2->length);
 
     for (u64 i = max_len; i > 0;) {
         i--;
@@ -751,7 +670,7 @@ bool BitVecIsSubset(BitVec *bv1, BitVec *bv2) {
     ValidateBitVec(bv2);
 
     // bv1 is subset of bv2 if all 1-bits in bv1 are also 1-bits in bv2
-    u64 max_len = bv1->length > bv2->length ? bv1->length : bv2->length;
+    u64 max_len = MAX2(bv1->length, bv2->length);
 
     for (u64 i = 0; i < max_len; i++) {
         bool bit1 = i < bv1->length ? BitVecGet(bv1, i) : false;
@@ -775,7 +694,7 @@ bool BitVecDisjoint(BitVec *bv1, BitVec *bv2) {
     ValidateBitVec(bv2);
 
     // Disjoint if no common 1-bits
-    u64 min_len = bv1->length < bv2->length ? bv1->length : bv2->length;
+    u64 min_len = MIN2(bv1->length, bv2->length);
 
     for (u64 i = 0; i < min_len; i++) {
         if (BitVecGet(bv1, i) && BitVecGet(bv2, i)) {
@@ -790,17 +709,8 @@ bool BitVecOverlaps(BitVec *bv1, BitVec *bv2) {
     return !BitVecDisjoint(bv1, bv2);
 }
 
-bool BitVecIntersects(BitVec *bv1, BitVec *bv2) {
-    return BitVecOverlaps(bv1, bv2);
-}
 
-bool BitVecIsLexicographicallyLess(BitVec *bv1, BitVec *bv2) {
-    return BitVecLexCompare(bv1, bv2) < 0;
-}
 
-bool BitVecIsNumericallyLess(BitVec *bv1, BitVec *bv2) {
-    return BitVecNumericalCompare(bv1, bv2) < 0;
-}
 
 bool BitVecIsSorted(BitVec *bv) {
     ValidateBitVec(bv);
@@ -1119,13 +1029,7 @@ bool BitVecAll(BitVec *bv, bool value) {
 
 bool BitVecAny(BitVec *bv, bool value) {
     ValidateBitVec(bv);
-
-    for (u64 i = 0; i < bv->length; i++) {
-        if (BitVecGet(bv, i) == value) {
-            return true;
-        }
-    }
-    return false; // None match
+    return BitVecFind(bv, value) != SIZE_MAX;
 }
 
 bool BitVecNone(BitVec *bv, bool value) {
@@ -1156,6 +1060,8 @@ u64 BitVecLongestRun(BitVec *bv, bool value) {
     return max_run;
 }
 
+
+
 // Pattern search functions
 u64 BitVecFindPattern(BitVec *bv, BitVec *pattern) {
     ValidateBitVec(bv);
@@ -1166,14 +1072,7 @@ u64 BitVecFindPattern(BitVec *bv, BitVec *pattern) {
     }
 
     for (u64 i = 0; i <= bv->length - pattern->length; i++) {
-        bool match = true;
-        for (u64 j = 0; j < pattern->length; j++) {
-            if (BitVecGet(bv, i + j) != BitVecGet(pattern, j)) {
-                match = false;
-                break;
-            }
-        }
-        if (match) {
+        if (BitVecContainsAt(bv, pattern, i)) {
             return i;
         }
     }
@@ -1189,14 +1088,7 @@ u64 BitVecFindLastPattern(BitVec *bv, BitVec *pattern) {
     }
 
     for (u64 i = bv->length - pattern->length; i < bv->length; i--) { // i < bv->length handles underflow
-        bool match = true;
-        for (u64 j = 0; j < pattern->length; j++) {
-            if (BitVecGet(bv, i + j) != BitVecGet(pattern, j)) {
-                match = false;
-                break;
-            }
-        }
-        if (match) {
+        if (BitVecContainsAt(bv, pattern, i)) {
             return i;
         }
         if (i == 0)
@@ -1220,14 +1112,7 @@ u64 BitVecFindAllPattern(BitVec *bv, BitVec *pattern, size *results, u64 max_res
     u64 found_count = 0;
 
     for (u64 i = 0; i <= bv->length - pattern->length && found_count < max_results; i++) {
-        bool match = true;
-        for (u64 j = 0; j < pattern->length; j++) {
-            if (BitVecGet(bv, i + j) != BitVecGet(pattern, j)) {
-                match = false;
-                break;
-            }
-        }
-        if (match) {
+        if (BitVecContainsAt(bv, pattern, i)) {
             results[found_count] = i;
             found_count++;
         }
@@ -1289,8 +1174,8 @@ u64 BitVecHammingDistance(BitVec *bv1, BitVec *bv2) {
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
 
-    u64 min_length = bv1->length < bv2->length ? bv1->length : bv2->length;
-    u64 max_length = bv1->length > bv2->length ? bv1->length : bv2->length;
+    u64 min_length = MIN2(bv1->length, bv2->length);
+    u64 max_length = MAX2(bv1->length, bv2->length);
     u64 distance   = 0;
 
     // Count differences in overlapping region
@@ -1314,17 +1199,17 @@ double BitVecJaccardSimilarity(BitVec *bv1, BitVec *bv2) {
         return 1.0; // Both empty, consider identical
     }
 
-    u64 max_length   = bv1->length > bv2->length ? bv1->length : bv2->length;
-    u64 intersection = 0;
-    u64 union_count  = 0;
+    // Use BitVecDotProduct for intersection calculation
+    u64 intersection = BitVecDotProduct(bv1, bv2);
+
+    // Calculate union count
+    u64 max_length  = MAX2(bv1->length, bv2->length);
+    u64 union_count = 0;
 
     for (u64 i = 0; i < max_length; i++) {
         bool bit1 = (i < bv1->length) ? BitVecGet(bv1, i) : false;
         bool bit2 = (i < bv2->length) ? BitVecGet(bv2, i) : false;
 
-        if (bit1 && bit2) {
-            intersection++;
-        }
         if (bit1 || bit2) {
             union_count++;
         }
@@ -1355,7 +1240,7 @@ u64 BitVecDotProduct(BitVec *bv1, BitVec *bv2) {
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
 
-    u64 min_length = bv1->length < bv2->length ? bv1->length : bv2->length;
+    u64 min_length = MIN2(bv1->length, bv2->length);
     u64 product    = 0;
 
     for (u64 i = 0; i < min_length; i++) {
@@ -1427,7 +1312,7 @@ double BitVecCorrelation(BitVec *bv1, BitVec *bv2) {
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
 
-    u64 max_length = bv1->length > bv2->length ? bv1->length : bv2->length;
+    u64 max_length = MAX2(bv1->length, bv2->length);
     if (max_length == 0)
         return 1.0;
 
@@ -1473,7 +1358,7 @@ int BitVecAlignmentScore(BitVec *bv1, BitVec *bv2, int match, int mismatch) {
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
 
-    u64 min_length = bv1->length < bv2->length ? bv1->length : bv2->length;
+    u64 min_length = MIN2(bv1->length, bv2->length);
     int score      = 0;
 
     for (u64 i = 0; i < min_length; i++) {
@@ -1531,13 +1416,7 @@ bool BitVecStartsWith(BitVec *bv, BitVec *prefix) {
         return false;
     }
 
-    for (u64 i = 0; i < prefix->length; i++) {
-        if (BitVecGet(bv, i) != BitVecGet(prefix, i)) {
-            return false;
-        }
-    }
-
-    return true;
+    return BitVecContainsAt(bv, prefix, 0);
 }
 
 bool BitVecEndsWith(BitVec *bv, BitVec *suffix) {
@@ -1549,18 +1428,10 @@ bool BitVecEndsWith(BitVec *bv, BitVec *suffix) {
     }
 
     u64 start_pos = bv->length - suffix->length;
-    for (u64 i = 0; i < suffix->length; i++) {
-        if (BitVecGet(bv, start_pos + i) != BitVecGet(suffix, i)) {
-            return false;
-        }
-    }
-
-    return true;
+    return BitVecContainsAt(bv, suffix, start_pos);
 }
 
-bool BitVecContains(BitVec *bv, BitVec *pattern) {
-    return BitVecFindPattern(bv, pattern) != SIZE_MAX;
-}
+
 
 bool BitVecContainsAt(BitVec *bv, BitVec *pattern, u64 idx) {
     ValidateBitVec(bv);
@@ -1589,14 +1460,7 @@ u64 BitVecCountPattern(BitVec *bv, BitVec *pattern) {
 
     u64 count = 0;
     for (u64 i = 0; i <= bv->length - pattern->length; i++) {
-        bool match = true;
-        for (u64 j = 0; j < pattern->length; j++) {
-            if (BitVecGet(bv, i + j) != BitVecGet(pattern, j)) {
-                match = false;
-                break;
-            }
-        }
-        if (match) {
+        if (BitVecContainsAt(bv, pattern, i)) {
             count++;
         }
     }
@@ -1616,17 +1480,7 @@ u64 BitVecRFindPattern(BitVec *bv, BitVec *pattern, u64 start) {
 
     for (u64 i = start + 1; i > search_end; i--) {
         u64 pos = i - 1;
-        if (pos + pattern->length > bv->length)
-            continue;
-
-        bool match = true;
-        for (u64 j = 0; j < pattern->length; j++) {
-            if (BitVecGet(bv, pos + j) != BitVecGet(pattern, j)) {
-                match = false;
-                break;
-            }
-        }
-        if (match) {
+        if (BitVecContainsAt(bv, pattern, pos)) {
             return pos;
         }
     }
@@ -1670,14 +1524,7 @@ u64 BitVecReplaceAll(BitVec *bv, BitVec *old_pattern, BitVec *new_pattern) {
 
         if (search_pos + old_pattern->length <= bv->length) {
             for (u64 i = search_pos; i <= bv->length - old_pattern->length; i++) {
-                bool match = true;
-                for (u64 j = 0; j < old_pattern->length; j++) {
-                    if (BitVecGet(bv, i + j) != BitVecGet(old_pattern, j)) {
-                        match = false;
-                        break;
-                    }
-                }
-                if (match) {
+                if (BitVecContainsAt(bv, old_pattern, i)) {
                     match_pos = i;
                     found     = true;
                     break;

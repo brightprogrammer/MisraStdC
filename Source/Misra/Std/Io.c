@@ -318,8 +318,16 @@ bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, size arg
             // Get current argument
             TypeSpecificIO* arg = &args[arg_idx++];
             if (!arg->writer || !arg->data) {
-                LOG_ERROR("Invalid argument");
-                return false;
+#if defined(_MSC_VER) || defined(__MSC_VER)
+                LOG_INFO("Using default writer for char, because MSVC is STUPID AF");
+                if (fmt_info.flags & FMT_FLAG_CHAR) {
+                    arg->writer = (TypeSpecificWriter)_write_i8;
+                } else {
+                    arg->writer = (TypeSpecificWriter)_write_u64;
+                }
+#else
+                LOG_FATAL("Invalid writer or data pointer");
+#endif
             }
 
             // Write the formatted value

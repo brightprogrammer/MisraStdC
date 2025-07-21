@@ -45,21 +45,6 @@ extern "C" {
     bool BitVecEndsWith(BitVec *bv, BitVec *suffix);
 
     ///
-    /// Check if bitvector contains the given bit pattern anywhere.
-    ///
-    /// bv[in]      : Bitvector to search in
-    /// pattern[in] : Pattern to search for
-    ///
-    /// RETURNS: true if pattern is found anywhere in the bitvector
-    ///
-    /// USAGE:
-    ///   bool contains = BitVecContains(&flags, &pattern);
-    ///
-    /// TAGS: BitVec, Pattern, Contains, Search
-    ///
-    bool BitVecContains(BitVec *bv, BitVec *pattern);
-
-    ///
     /// Check if bitvector contains the given pattern at a specific position.
     ///
     /// bv[in]      : Bitvector to check
