@@ -89,7 +89,8 @@ void reserve_vec(GenericVec *vec, size item_size, size n) {
         if (!ptr) {
             Str syserr;
             StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
-                LOG_FATAL("realloc() failed : %s.", SysStrError(errno, &syserr)->data);
+                SysStrError(errno, &syserr);
+                LOG_FATAL("realloc() failed : {}", FMT(syserr));
             });
         }
         // it's mandatory to set the pointer here, because next call to any vec_ will do a validation check
@@ -137,7 +138,8 @@ void reduce_space_vec(GenericVec *vec, size item_size) {
         if (!ptr) {
             Str syserr;
             StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
-                LOG_FATAL("realloc() failed : %s.", SysStrError(errno, &syserr)->data);
+                SysStrError(errno, &syserr);
+                LOG_FATAL("realloc() failed : {}", FMT(syserr));
             });
         }
         vec->capacity = vec->length;
@@ -317,8 +319,7 @@ void qsort_vec(GenericVec *vec, size item_size, GenericCompare comp) {
     if (vec_aligned_size(vec, item_size) != item_size) {
         LOG_FATAL(
             "QSort not implemented for vectors wherein the size of items don't "
-            "match their aligned "
-            "size."
+            "match their aligned size."
         );
     }
 
@@ -372,5 +373,18 @@ void resize_vec(GenericVec *vec, size item_size, size new_size) {
     } else {
         reserve_pow2_vec(vec, item_size, new_size);
         vec->length = new_size;
+    }
+}
+
+void validate_vec(const GenericVec *v) {
+    if (!(v)) {
+        LOG_FATAL("NULL vec object pointer.");
+    }
+    if (!(v)->alignment || (v)->length > (v)->capacity) {
+        LOG_FATAL("Invalid vec object.");
+    }
+    // if memory is invalid, system will segfault here
+    if ((v)->data) {
+        (void)(*(char *)(void *)((v)->data));
     }
 }

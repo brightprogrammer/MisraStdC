@@ -333,7 +333,7 @@ Str* StrFromU64(Str* str, u64 value, const StrIntFormat* config) {
     }
 
     if (!is_valid_base(config->base)) {
-        LOG_ERROR("Invalid base: %u", config->base);
+        LOG_ERROR("Invalid base: {}", FMT(config->base));
         return NULL;
     }
 
@@ -380,7 +380,7 @@ Str* StrFromI64(Str* str, i64 value, const StrIntFormat* config) {
     }
 
     if (!is_valid_base(config->base)) {
-        LOG_ERROR("Invalid base: %u", config->base);
+        LOG_ERROR("Invalid base: {}", FMT(config->base));
         return NULL;
     }
 
@@ -414,7 +414,7 @@ Str* StrFromF64(Str* str, f64 value, const StrFloatFormat* config) {
     }
 
     if (config->precision > 17) {
-        LOG_ERROR("Precision %u exceeds maximum (17)", config->precision);
+        LOG_ERROR("Precision {} exceeds maximum (17)", FMT(config->precision));
         return NULL;
     }
 
@@ -578,7 +578,7 @@ bool StrToU64(const Str* str, u64* value, const StrParseConfig* config) {
 
     u8 base = config->base;
     if (base != 0 && !is_valid_base(base)) {
-        LOG_ERROR("Invalid base: %u", base);
+        LOG_ERROR("Invalid base: {}", FMT(base));
         return false;
     }
 
@@ -621,7 +621,7 @@ bool StrToU64(const Str* str, u64* value, const StrParseConfig* config) {
         if (!char_to_digit(str->data[pos], &digit, base)) {
             if (IS_SPACE(str->data[pos]))
                 break;
-            LOG_ERROR("Invalid digit for base %u: %c", base, str->data[pos]);
+            LOG_ERROR("Invalid digit for base {}: {:c}", FMT(base), FMT(str->data[pos]));
             return false;
         }
 
@@ -856,6 +856,14 @@ bool StrToF64(const Str* str, f64* value, const StrParseConfig* config) {
 
     *value = negative ? -result : result;
     return true;
+}
+
+void ValidateStr(const Str* s) {
+    return ValidateVec(s);
+}
+
+void ValidateStrs(const Strs* vs) {
+    VecForeachPtr(vs, sp, { ValidateStr(sp); });
 }
 
 // ======================================

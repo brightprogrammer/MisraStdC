@@ -19,24 +19,25 @@ bool ReadCompleteFile(const char *filename, char **data, size *file_size, size *
     }
 
     // get actual size of file
-    i64 size = SysGetFileSize(filename);
-    if (-1 == size) {
+    i64 fsize = SysGetFileSize(filename);
+    if (-1 == fsize) {
         LOG_ERROR("failed to get file size");
         return false;
     }
 
     // allocate memory to hold the file contents if required
     char *buffer = *data;
-    if (*capacity < (u64)size) {
-        buffer = realloc(buffer, size + 1);
+    if (*capacity < (u64)fsize) {
+        buffer = realloc(buffer, fsize + 1);
         if (!buffer) {
             Str syserr;
             StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
-                LOG_FATAL("malloc() failed : %s.", SysStrError(errno, &syserr)->data);
+                SysStrError(errno, &syserr);
+                LOG_FATAL("malloc() failed : {}", FMT(syserr));
             });
         }
 
-        *capacity = size + 1;
+        *capacity = fsize + 1;
     }
 
     // Open the file in binary mode
@@ -55,24 +56,26 @@ bool ReadCompleteFile(const char *filename, char **data, size *file_size, size *
 
         Str syserr;
         StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
-            LOG_ERROR("fopen() failed : %s.", SysStrError(e, &syserr)->data);
+            SysStrError(e, &syserr);
+            LOG_ERROR("fopen() failed : {}", FMT(syserr));
         });
     }
 
     // Read the entire file into the buffer
-    if (size != (i64)fread(buffer, 1, size, file)) {
+    if (fsize != (i64)fread(buffer, 1, fsize, file)) {
         fclose(file);
         Str syserr;
         StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
-            LOG_ERROR("failed to read complete file. : %s", SysStrError(errno, &syserr)->data);
+            SysStrError(errno, &syserr);
+            LOG_ERROR("failed to read complete file. : {}", FMT(syserr));
         });
     }
 
     // Close the file and return the buffer
     fclose(file);
 
-    ((char *)buffer)[size] = 0; // null-termination for just in case.
+    ((char *)buffer)[fsize] = 0; // null-termination for just in case.
     *data                  = buffer;
-    *file_size             = size;
+    *file_size             = fsize;
     return true;
 }

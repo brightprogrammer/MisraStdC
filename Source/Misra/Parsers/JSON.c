@@ -66,7 +66,7 @@ static StrIter JSkipObject(StrIter si) {
             return saved_si;
         }
 
-        LOG_INFO("User skipped reading of '%s' field in JSON object.", key.data);
+        LOG_INFO("User skipped reading of '{}' field in JSON object.", FMT(key));
 
         StrDeinit(&key);
         si = read_si;
@@ -76,8 +76,9 @@ static StrIter JSkipObject(StrIter si) {
         expect_comma = true;
     }
 
-    if (StrIterPeek(&si) != '}') {
-        LOG_ERROR("Expected end of object '}' but found '%c'", StrIterPeek(&si));
+    char c = StrIterPeek(&si);
+    if (c != '}') {
+        LOG_ERROR("Expected end of object '}' but found '{:c}'", FMT(c));
         return saved_si;
     }
 
@@ -245,9 +246,8 @@ StrIter JReadString(StrIter si, Str* str) {
                         // espaced unicode sequence
                         case 'u' :
                             LOG_ERROR(
-                                "No unicode support '%.*s'. Unicode sequence will be skipped.",
-                                MIN2(StrIterRemainingLength(&si), 6),
-                                si.data + si.pos - 1
+                                "No unicode support '{:.6}'. Unicode sequence will be skipped.",
+                                FMT(LVAL(si.data + si.pos - 1))
                             );
                             StrIterMove(&si, 5);
                             break;
@@ -367,11 +367,7 @@ StrIter JReadNumber(StrIter si, Number* num) {
     }
 
     if (!ns.length) {
-        LOG_ERROR(
-            "Failed to parse number. '%.*s'",
-            MIN2(StrIterRemainingLength(&saved_si), 8),
-            saved_si.data + saved_si.pos
-        );
+        LOG_ERROR("Failed to parse number. '{:.8}'", FMT(LVAL(saved_si.data + saved_si.pos)));
         StrDeinit(&ns);
         return saved_si;
     }

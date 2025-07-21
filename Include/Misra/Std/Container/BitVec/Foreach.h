@@ -10,7 +10,6 @@
 #include "Type.h"
 #include <Misra/Types.h>
 #include "Access.h"
-#include <Misra/Std/Log.h>
 
 ///
 /// Iterate over each bit `var` of given bitvector `bv` at each index `idx` into the bitvector.
@@ -131,35 +130,37 @@
     do {                                                                                                               \
         ValidateBitVec(bv);                                                                                            \
         u64 idx = 0;                                                                                                   \
+        u64 _s  = start;                                                                                               \
+        u64 _e  = end;                                                                                                 \
         if ((bv)->length > 0) {                                                                                        \
-            if ((end) > (bv)->length) {                                                                                \
+            if ((_e) > (bv)->length) {                                                                                 \
                 LOG_FATAL(                                                                                             \
-                    "BitVec range overflow: End index %zu exceeds bitvector length %zu. "                              \
+                    "BitVec range overflow: End index {} exceeds bitvector length {}. "                                \
                     "If you intended to iterate over all bits, use BitVecForeach instead.",                            \
-                    (end),                                                                                             \
-                    (bv)->length                                                                                       \
+                    FMT(_e),                                                                                           \
+                    FMT((bv)->length)                                                                                  \
                 );                                                                                                     \
             }                                                                                                          \
-            if ((start) >= (bv)->length) {                                                                             \
+            if ((_s) >= (bv)->length) {                                                                                \
                 LOG_FATAL(                                                                                             \
-                    "BitVec range overflow: Start index %zu exceeds or equals bitvector length %zu.",                  \
-                    (start),                                                                                           \
-                    (bv)->length                                                                                       \
+                    "BitVec range overflow: Start index {} exceeds or equals bitvector length {}.",                    \
+                    FMT(_s),                                                                                           \
+                    FMT((bv)->length)                                                                                  \
                 );                                                                                                     \
             }                                                                                                          \
-            if ((start) > (end)) {                                                                                     \
+            if ((_s) > (_e)) {                                                                                         \
                 LOG_FATAL(                                                                                             \
-                    "Invalid range: Start index %zu must be less than or equal to end index %zu.",                     \
-                    (start),                                                                                           \
-                    (end)                                                                                              \
+                    "Invalid range: Start index {} must be less than or equal to end index {}.",                       \
+                    FMT(_s),                                                                                           \
+                    FMT(_e)                                                                                            \
                 );                                                                                                     \
             }                                                                                                          \
-            for ((idx) = (start); (idx) < (end); ++(idx)) {                                                            \
+            for ((idx) = (_s); (idx) < (_e); ++(idx)) {                                                                \
                 if ((idx) >= (bv)->length) {                                                                           \
                     LOG_FATAL(                                                                                         \
-                        "BitVec range overflow: Index %zu exceeds bitvector length %zu during iteration.",             \
-                        (idx),                                                                                         \
-                        (bv)->length                                                                                   \
+                        "BitVec range overflow: Index {} exceeds bitvector length {} during iteration.",               \
+                        FMT(idx),                                                                                      \
+                        FMT((bv)->length)                                                                              \
                     );                                                                                                 \
                 }                                                                                                      \
                 bool var = BitVecGet(bv, idx);                                                                         \
@@ -191,8 +192,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-
 
     ///
     /// Analyze run lengths in a bitvector.
