@@ -231,7 +231,8 @@ i64 SysGetFileSize(const char* filename) {
     if (file == INVALID_HANDLE_VALUE) {
         Str err;
         StrInitStack(err, SYS_ERROR_STR_MAX_LENGTH, {
-            LOG_ERROR("failed to open file: %s\n", SysStrError(errno, &err)->data);
+            SysStrError(errno, &err);
+            LOG_ERROR("failed to open file: {}\n", FMT(err));
         });
         return -1;
     }
@@ -240,7 +241,8 @@ i64 SysGetFileSize(const char* filename) {
     if (!GetFileSizeEx(file, &file_size)) {
         Str err;
         StrInitStack(err, SYS_ERROR_STR_MAX_LENGTH, {
-            LOG_ERROR("failed to get file size: %s\n", SysStrError(errno, &err)->data);
+            SysStrError(errno, &err);
+            LOG_ERROR("failed to get file size: {}\n", FMT(err));
         });
         CloseHandle(file);
         return -1;
