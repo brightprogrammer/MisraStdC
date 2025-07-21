@@ -598,7 +598,7 @@ SysProcInfo* SysCreateProcess(const char* executable, Strs* argv, Strs* env) {
 
     if (!success) {
         DWORD error = GetLastError();
-        LOG_ERROR("CreateProcess failed with error %lu", error);
+        LOG_ERROR("CreateProcess failed with error {}", FMT(error));
         FREE(proc_info);
         return NULL;
     }
