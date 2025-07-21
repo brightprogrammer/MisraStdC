@@ -577,7 +577,7 @@ StrIter JSkipValue(StrIter si);
                     break;                                                                                             \
                 }                                                                                                      \
                                                                                                                        \
-                LOG_INFO("User skipped reading of '%s' field in JSON object.", key.data);                              \
+                LOG_INFO("User skipped reading of '{}' field in JSON object.", FMT(key));                              \
                 si = read_si;                                                                                          \
             }                                                                                                          \
             StrDeinit(&key);                                                                                           \
@@ -589,8 +589,9 @@ StrIter JSkipValue(StrIter si);
         }                                                                                                              \
                                                                                                                        \
         if (!failed) {                                                                                                 \
-            if (StrIterPeek(&si) != '}') {                                                                             \
-                LOG_ERROR("Expected end of object '}' but found '%c'", StrIterPeek(&si));                              \
+            char c = StrIterPeek(&si);                                                                                 \
+            if (c != '}') {                                                                                            \
+                LOG_ERROR("Expected end of object '}' but found '{:c}'", FMT(c));                                      \
                 failed = true;                                                                                         \
                 si     = saved_si;                                                                                     \
                 break;                                                                                                 \

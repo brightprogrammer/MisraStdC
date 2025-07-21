@@ -8,6 +8,7 @@
 #define MISRA_STD_CONTAINER_STR_OPS_H
 
 #include "Type.h"
+#include <Misra/Std/Utility/StrIter.h>
 
 #ifdef __cplusplus
 extern "C" {

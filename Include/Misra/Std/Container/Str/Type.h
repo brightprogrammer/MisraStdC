@@ -8,8 +8,8 @@
 #define MISRA_STD_CONTAINER_STR_TYPE_H
 
 #include <string.h>
-#include <Misra/Std/Container/Vec.h>
-#include <Misra/Std/Utility/StrIter.h>
+#include <Misra/Std/Container/Vec/Type.h>
+#include <Misra/Std/Utility/Iter/Type.h>
 #include <Misra/Types.h>
 
 ///
@@ -23,13 +23,28 @@ typedef Vec(char) Str;
 typedef Vec(Str) Strs;
 
 ///
-/// Validate a Str object (simply uses Vec validation)
+/// Validate whether a given `Str` object is valid.
+/// Not foolproof but will work most of the time.
+/// Aborts if provided `Str` is not valid.
 ///
-#define ValidateStr(s) ValidateVec(s)
+/// s[in] : Pointer to `Str` object to validate.
+///
+/// SUCCESS: Continue execution, meaning given `Str` object is ___most probably___ valid.
+/// FAILURE: `abort`
+///
+void ValidateStr(const Str* s);
 
 ///
-/// Validate a Strs object (vector of strings)
+/// Validate whether a given `Strs` object is valid.
+/// Not foolproof but will work most of the time.
+/// Aborts if provided `Strs` is not valid.
 ///
-#define ValidateStrs(sv) ValidateVec(sv)
+/// vs[in] : Pointer to `Strs` object to validate.
+///
+/// SUCCESS: Continue execution, meaning given `Strs` object is ___most probably___ valid.
+/// FAILURE: `abort`
+///
+void ValidateStrs(const Strs* vs);
+
 
 #endif // MISRA_STD_CONTAINER_STR_TYPE_H

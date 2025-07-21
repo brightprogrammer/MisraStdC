@@ -14,17 +14,11 @@
 
 // Misra
 #include <Misra/Types.h>
+#include <Misra/Std/Io.h>
 
 // Forward declaration to avoid circular includes
 void SysAbort(void);
 
-// #ifdef _WIN32
-// #    define LOG_FATAL(...) (LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, __VA_ARGS__), abort())
-//
-// #    define LOG_ERROR(...) LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, __VA_ARGS__)
-//
-// #    define LOG_INFO(...) LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, __VA_ARGS__)
-// #else
 ///
 /// Writes a fatal log message and aborts the program.
 ///
@@ -35,7 +29,14 @@ void SysAbort(void);
 ///
 /// TAGS: Logging, Macro, Fatal, System
 ///
-#define LOG_FATAL(...) (LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, __VA_ARGS__), SysAbort())
+#define LOG_FATAL(...)                                                                                                 \
+    do {                                                                                                               \
+        Str m = StrInit();                                                                                             \
+        StrWriteFmt(&m, __VA_ARGS__);                                                                                  \
+        LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, m.data);                                                  \
+        StrDeinit(&m);                                                                                                 \
+        SysAbort();                                                                                                    \
+    } while (0)
 
 ///
 /// Writes an error-level log message.
@@ -47,7 +48,13 @@ void SysAbort(void);
 ///
 /// TAGS: Logging, Macro, Error, System
 ///
-#define LOG_ERROR(...) LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, __VA_ARGS__)
+#define LOG_ERROR(...)                                                                                                 \
+    do {                                                                                                               \
+        Str m = StrInit();                                                                                             \
+        StrWriteFmt(&m, __VA_ARGS__);                                                                                  \
+        LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, m.data);                                                  \
+        StrDeinit(&m);                                                                                                 \
+    } while (0)
 
 ///
 /// Writes an informational log message.
@@ -59,8 +66,13 @@ void SysAbort(void);
 ///
 /// TAGS: Logging, Macro, Info, System
 ///
-#define LOG_INFO(...) LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, __VA_ARGS__)
-// #endif
+#define LOG_INFO(...)                                                                                                  \
+    do {                                                                                                               \
+        Str m = StrInit();                                                                                             \
+        StrWriteFmt(&m, __VA_ARGS__);                                                                                  \
+        LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, m.data);                                                   \
+        StrDeinit(&m);                                                                                                 \
+    } while (0)
 
 ///
 /// Enumeration of log message severity levels
@@ -101,13 +113,12 @@ void LogDeinit(void);
 /// type[in]   : Severity level of message
 /// tag[in]    : Source identifier (typically function name)
 /// line[in]   : Source line number
-/// format[in] : printf-style format string
-/// ...[in]    : Variadic arguments for format string
+/// msg[in]    : Constant string to be printed
 ///
 /// SUCCESS: Message formatted and written to log output
 /// FAILURE: Message silently dropped (output not guaranteed)
 ///
 /// TAGS: Logging, LowLevel, System
-void LogWrite(LogMessageType type, const char *tag, int line, const char *format, ...);
+void LogWrite(LogMessageType type, const char *tag, int line, const char *msg);
 
 #endif // MISRA_STD_LOG_H

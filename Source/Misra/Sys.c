@@ -160,7 +160,8 @@ SysDirContents SysGetDirContents(const char* path) {
     if (NULL == dir) {
         Str err;
         StrInitStack(err, SYS_ERROR_STR_MAX_LENGTH, {
-            LOG_ERROR("opendir(\"%s\") failed : %s.", path, SysStrError(errno, &err)->data);
+            SysStrError(errno, &err);
+            LOG_ERROR("opendir(\"{}\") failed : {}", FMT(path), FMT(err));
         });
         return (SysDirContents) {0};
     }
@@ -183,8 +184,9 @@ SysDirContents SysGetDirContents(const char* path) {
         } else if ('.' == DNAME_AT(0) && '.' == DNAME_AT(1) && 0 == DNAME_AT(2)) {
             continue;
         } else {
-            Str entry_path = StrInit();
-            StrWriteFmt(&entry_path, "{}/{}", FMT(path), FMT(entry->d_name));
+            Str         entry_path = StrInit();
+            const char* dir_name   = &entry->d_name[0];
+            StrWriteFmt(&entry_path, "{}/{}", FMT(path), FMT(dir_name));
 
             struct stat path_stat;
             stat(entry_path.data, &path_stat);
@@ -229,7 +231,8 @@ i64 SysGetFileSize(const char* filename) {
     if (file == INVALID_HANDLE_VALUE) {
         Str err;
         StrInitStack(err, SYS_ERROR_STR_MAX_LENGTH, {
-            LOG_ERROR("failed to open file: %s\n", SysStrError(errno, &err)->data);
+            SysStrError(errno, &err);
+            LOG_ERROR("failed to open file: {}\n", FMT(err));
         });
         return -1;
     }
@@ -238,7 +241,8 @@ i64 SysGetFileSize(const char* filename) {
     if (!GetFileSizeEx(file, &file_size)) {
         Str err;
         StrInitStack(err, SYS_ERROR_STR_MAX_LENGTH, {
-            LOG_ERROR("failed to get file size: %s\n", SysStrError(errno, &err)->data);
+            SysStrError(errno, &err);
+            LOG_ERROR("failed to get file size: {}\n", FMT(err));
         });
         CloseHandle(file);
         return -1;
@@ -254,7 +258,8 @@ i64 SysGetFileSize(const char* filename) {
     } else {
         Str err;
         StrInitStack(err, SYS_ERROR_STR_MAX_LENGTH, {
-            LOG_ERROR("failed to get file size: %s\n", SysStrError(errno, &err)->data);
+            SysStrError(errno, &err);
+            LOG_ERROR("failed to get file size: {}\n", FMT(err));
         });
         return -1;
     }
@@ -331,8 +336,8 @@ Str* SysGetCurrentExecutablePath(Str* exe_path) {
 // Fallback for macOS and other Unix systems
 #    ifdef __APPLE__
     // macOS specific method
-    u32 size = sizeof(buffer);
-    if (_NSGetExecutablePath(buffer, &size) == 0) {
+    u32 bsize = sizeof(buffer);
+    if (_NSGetExecutablePath(buffer, &bsize) == 0) {
         *exe_path = StrInitFromZstr(buffer);
         return exe_path;
     }
@@ -593,7 +598,7 @@ SysProcInfo* SysCreateProcess(const char* executable, Strs* argv, Strs* env) {
 
     if (!success) {
         DWORD error = GetLastError();
-        LOG_ERROR("CreateProcess failed with error %lu", error);
+        LOG_ERROR("CreateProcess failed with error {}", FMT(error));
         FREE(proc_info);
         return NULL;
     }

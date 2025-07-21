@@ -5,7 +5,6 @@
 #define MISRA_STD_UTILITY_ITER_TYPE_H
 
 #include <Misra/Types.h>
-#include <Misra/Std/Log.h>
 
 typedef struct GenericIter {
     void *data;
@@ -54,13 +53,8 @@ typedef struct GenericIter {
 /// SUCCESS : Continue execution, meaning given `Iter` object is most probably a valid `Iter`.
 /// FAILURE : `abort`
 ///
-#define ValidateIter(i)                                                                                                \
-    do {                                                                                                               \
-        if (((i)->dir != -1 && (i)->dir != 1) || !(i)->alignment || !(i)->length || (i)->pos >= (i)->length) {         \
-            LOG_FATAL("Invalid iter object.");                                                                         \
-        }                                                                                                              \
-        (void)(*(char *)(void *)((i)->data));                                                                          \
-    } while (0)
+#define ValidateIter(mi) validate_iter((GenericIter *)mi)
+void validate_iter(GenericIter *mi);
 
 ///
 /// Get data type of `Iter` elements

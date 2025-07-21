@@ -31,7 +31,8 @@ void LogInit(bool redirect) {
 #endif
             Str syserr;
             StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
-                LOG_ERROR("Failed to get localtime : %s", SysStrError(errno, &syserr)->data);
+                SysStrError(errno, &syserr);
+                LOG_ERROR("Failed to get localtime : {}", FMT(syserr));
             });
             goto LOG_STREAM_FALLBACK;
         }
@@ -77,7 +78,8 @@ void LogInit(bool redirect) {
         if (e || !stderror) {
             Str syserr;
             StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
-                LOG_ERROR("Failed to open log file : %s", SysStrError(e, &syserr)->data);
+                SysStrError(e, &syserr);
+                LOG_ERROR("Failed to open log file : {}", FMT(syserr));
             });
             goto LOG_STREAM_FALLBACK;
         }
@@ -110,13 +112,13 @@ void LogDeinit(void) {
 }
 
 
-void LogWrite(LogMessageType type, const char *tag, int line, const char *format, ...) {
-    if (!format) {
+void LogWrite(LogMessageType type, const char *tag, int line, const char *msg) {
+    if (!msg) {
         return;
     }
 
-    // By default we have a "decompiler" tag in all logs
-    tag = tag ? tag : "decompiler";
+    // By default we have a "stdc" tag in all logs
+    tag = tag ? tag : "stdc";
 
     // Initialize log if not already
     if (!stderror) {
@@ -127,26 +129,6 @@ void LogWrite(LogMessageType type, const char *tag, int line, const char *format
     if (!log_mutex) {
         log_mutex = SysMutexCreate();
     }
-
-    // Get the current time
-    time_t    raw_time;
-    struct tm time_info;
-    char      time_buffer[20];
-
-    time(&raw_time);
-#ifdef _WIN32
-    // Order is inverted in Windows
-    if (localtime_s(&time_info, &raw_time)) {
-#else
-    if (!localtime_r(&raw_time, &time_info)) {
-#endif
-        Str syserr;
-        StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
-            LOG_ERROR("Failed to get localtime : %s", SysStrError(errno, &syserr)->data);
-        });
-        return;
-    }
-    strftime(time_buffer, sizeof(time_buffer), "%Y-%m-%d-%H-%M-%S", &time_info);
 
     const char *msg_type = NULL;
     switch (type) {
@@ -167,16 +149,9 @@ void LogWrite(LogMessageType type, const char *tag, int line, const char *format
     SysMutexLock(log_mutex);
 
     // Print the log prefix to stderr
-    fprintf(stderror, "[%s] [%s] [%s:%d] ", msg_type, time_buffer, tag, line);
+    fprintf(stderror, "[%s] [%s:%d] ", msg_type, tag, line);
 
-    // Process the variadic arguments and print the log message
-    va_list args;
-    va_start(args, format);
-    vfprintf(stderror, format, args);
-    va_end(args);
-
-    // Print a newline for better readability
-    fprintf(stderror, "\n");
+    fputs(msg, stderror);
 
     SysMutexUnlock(log_mutex);
 }

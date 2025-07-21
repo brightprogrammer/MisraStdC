@@ -1,7 +1,7 @@
 #ifndef MISRA_STD_UTILITY_STR_ITER_H
 #define MISRA_STD_UTILITY_STR_ITER_H
 
-#include <Misra/Std/Container/Vec.h>
+#include <Misra/Std/Container/Vec/Type.h>
 #include <Misra/Std/Utility/Iter.h>
 #include <Misra/Types.h>
 

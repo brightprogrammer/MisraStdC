@@ -240,10 +240,10 @@ bool test_bitvec_regex_match_null_pattern(void) {
 
 bool test_bitvec_prefix_match_null_source(void) {
     printf("Testing BitVecPrefixMatch(NULL, patterns, 1) - should fatal\n");
-    BitVec patterns[1] = {BitVecInit()};
-    BitVecPush(&patterns[0], true);
-    BitVecPrefixMatch(NULL, patterns, 1);
-    BitVecDeinit(&patterns[0]);
+    BitVecs vp = VecInitWithDeepCopy(NULL, BitVecDeinit);
+    BitVecPush(VecPtrAt(&vp, 0), true);
+    BitVecPrefixMatch(NULL, &vp);
+    VecDeinit(&vp);
     return true;
 }
 
@@ -251,17 +251,17 @@ bool test_bitvec_prefix_match_null_patterns(void) {
     printf("Testing BitVecPrefixMatch(source, NULL, 1) - should fatal\n");
     BitVec source = BitVecInit();
     BitVecPush(&source, true);
-    BitVecPrefixMatch(&source, NULL, 1);
+    BitVecPrefixMatch(&source, NULL);
     BitVecDeinit(&source);
     return true;
 }
 
 bool test_bitvec_suffix_match_null_source(void) {
     printf("Testing BitVecSuffixMatch(NULL, patterns, 1) - should fatal\n");
-    BitVec patterns[1] = {BitVecInit()};
-    BitVecPush(&patterns[0], true);
-    BitVecSuffixMatch(NULL, patterns, 1);
-    BitVecDeinit(&patterns[0]);
+    BitVecs vp = VecInitWithDeepCopy(NULL, BitVecDeinit);
+    BitVecPush(VecPtrAt(&vp, 0), true);
+    BitVecSuffixMatch(NULL, &vp);
+    VecDeinit(&vp);
     return true;
 }
 
@@ -269,7 +269,7 @@ bool test_bitvec_suffix_match_null_patterns(void) {
     printf("Testing BitVecSuffixMatch(source, NULL, 1) - should fatal\n");
     BitVec source = BitVecInit();
     BitVecPush(&source, true);
-    BitVecSuffixMatch(&source, NULL, 1);
+    BitVecSuffixMatch(&source, NULL);
     BitVecDeinit(&source);
     return true;
 }

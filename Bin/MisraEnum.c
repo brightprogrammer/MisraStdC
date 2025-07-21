@@ -93,7 +93,7 @@ int main(int argc, char** argv) {
             }
 
             if (to_from_str && !e.str.length) {
-                LOG_ERROR("to_from_str is set to true but str value not provided for enum %s", e.name.data);
+                LOG_ERROR("to_from_str is set to true but str value not provided for enum {}", FMT(e.name));
                 abort();
             }
 

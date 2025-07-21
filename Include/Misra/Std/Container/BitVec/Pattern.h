@@ -227,9 +227,8 @@ extern "C" {
     /// Match bitvector against an array of prefix patterns.
     /// Returns the index of the first matching prefix.
     ///
-    /// bv[in]         : Bitvector to check
-    /// patterns[in]   : Array of prefix patterns to match against
-    /// num_patterns[in]: Number of patterns in the array
+    /// bv[in]         : BitVec to check
+    /// patterns[in]   : Vec(BitVec) to check prefices against
     ///
     /// RETURNS: Index of matching pattern, or SIZE_MAX if no match
     ///
@@ -239,15 +238,14 @@ extern "C" {
     ///
     /// TAGS: BitVec, Pattern, Prefix, Multiple
     ///
-    u64 BitVecPrefixMatch(BitVec *bv, BitVec *patterns, u64 num_patterns);
+    u64 BitVecPrefixMatch(BitVec *bv, BitVecs *patterns);
 
     ///
     /// Match bitvector against an array of suffix patterns.
     /// Returns the index of the first matching suffix.
     ///
     /// bv[in]         : Bitvector to check
-    /// patterns[in]   : Array of suffix patterns to match against
-    /// num_patterns[in]: Number of patterns in the array
+    /// patterns[in]   : Vec(BitVec) to check suffices against
     ///
     /// RETURNS: Index of matching pattern, or SIZE_MAX if no match
     ///
@@ -257,7 +255,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Pattern, Suffix, Multiple
     ///
-    u64 BitVecSuffixMatch(BitVec *bv, BitVec *patterns, u64 num_patterns);
+    u64 BitVecSuffixMatch(BitVec *bv, BitVecs *patterns);
 
 #ifdef __cplusplus
 }

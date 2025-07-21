@@ -815,14 +815,11 @@ bool test_bitvec_regex_match_basic(void) {
 bool test_bitvec_prefix_match_basic(void) {
     printf("Testing BitVecPrefixMatch basic functionality\n");
 
-    BitVec source = BitVecInit();
-    BitVec patterns[3];
-    bool   result = true;
+    BitVec  source   = BitVecInit();
+    BitVecs patterns = VecInitWithDeepCopy(NULL, BitVecDeinit);
+    bool    result   = true;
 
-    // Initialize patterns
-    for (int i = 0; i < 3; i++) {
-        patterns[i] = BitVecInit();
-    }
+    VecResize(&patterns, 3);
 
     // Create source: 110101
     BitVecPush(&source, true);
@@ -832,27 +829,29 @@ bool test_bitvec_prefix_match_basic(void) {
     BitVecPush(&source, false);
     BitVecPush(&source, true);
 
+    BitVec* p0 = VecPtrAt(&patterns, 0);
+    BitVec* p1 = VecPtrAt(&patterns, 1);
+    BitVec* p2 = VecPtrAt(&patterns, 2);
+
     // Pattern 0: 111 (should not match)
-    BitVecPush(&patterns[0], true);
-    BitVecPush(&patterns[0], true);
-    BitVecPush(&patterns[0], true);
+    BitVecPush(p0, true);
+    BitVecPush(p0, true);
+    BitVecPush(p0, true);
 
     // Pattern 1: 110 (should match)
-    BitVecPush(&patterns[1], true);
-    BitVecPush(&patterns[1], true);
-    BitVecPush(&patterns[1], false);
+    BitVecPush(p1, true);
+    BitVecPush(p1, true);
+    BitVecPush(p1, false);
 
     // Pattern 2: 101 (should not match as prefix)
-    BitVecPush(&patterns[2], true);
-    BitVecPush(&patterns[2], false);
-    BitVecPush(&patterns[2], true);
+    BitVecPush(p2, true);
+    BitVecPush(p2, false);
+    BitVecPush(p2, true);
 
-    u64 match_idx = BitVecPrefixMatch(&source, patterns, 3);
+    u64 match_idx = BitVecPrefixMatch(&source, &patterns);
     result        = result && (match_idx == 1);
 
-    for (int i = 0; i < 3; i++) {
-        BitVecDeinit(&patterns[i]);
-    }
+    VecDeinit(&patterns);
     BitVecDeinit(&source);
     return result;
 }
@@ -861,14 +860,11 @@ bool test_bitvec_prefix_match_basic(void) {
 bool test_bitvec_suffix_match_basic(void) {
     printf("Testing BitVecSuffixMatch basic functionality\n");
 
-    BitVec source = BitVecInit();
-    BitVec patterns[3];
-    bool   result = true;
+    BitVec  source   = BitVecInit();
+    BitVecs patterns = VecInitWithDeepCopy(NULL, BitVecDeinit);
+    bool    result   = true;
 
-    // Initialize patterns
-    for (int i = 0; i < 3; i++) {
-        patterns[i] = BitVecInit();
-    }
+    VecResize(&patterns, 3);
 
     // Create source: 110101
     BitVecPush(&source, true);
@@ -878,27 +874,29 @@ bool test_bitvec_suffix_match_basic(void) {
     BitVecPush(&source, false);
     BitVecPush(&source, true);
 
+    BitVec* p0 = VecPtrAt(&patterns, 0);
+    BitVec* p1 = VecPtrAt(&patterns, 1);
+    BitVec* p2 = VecPtrAt(&patterns, 2);
+
     // Pattern 0: 111 (should not match)
-    BitVecPush(&patterns[0], true);
-    BitVecPush(&patterns[0], true);
-    BitVecPush(&patterns[0], true);
+    BitVecPush(p0, true);
+    BitVecPush(p0, true);
+    BitVecPush(p0, true);
 
     // Pattern 1: 101 (should match as suffix)
-    BitVecPush(&patterns[1], true);
-    BitVecPush(&patterns[1], false);
-    BitVecPush(&patterns[1], true);
+    BitVecPush(p1, true);
+    BitVecPush(p1, false);
+    BitVecPush(p1, true);
 
     // Pattern 2: 110 (should not match as suffix)
-    BitVecPush(&patterns[2], true);
-    BitVecPush(&patterns[2], true);
-    BitVecPush(&patterns[2], false);
+    BitVecPush(p2, true);
+    BitVecPush(p2, true);
+    BitVecPush(p2, false);
 
-    u64 match_idx = BitVecSuffixMatch(&source, patterns, 3);
+    u64 match_idx = BitVecSuffixMatch(&source, &patterns);
     result        = result && (match_idx == 1);
 
-    for (int i = 0; i < 3; i++) {
-        BitVecDeinit(&patterns[i]);
-    }
+    VecDeinit(&patterns);
     BitVecDeinit(&source);
     return result;
 }
