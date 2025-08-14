@@ -203,7 +203,7 @@ int main() {
     
     // Format with alignment and hex
     u32 hex_val = 0xDEADBEEF;
-    StrWriteFmt(&output, "Hex: {:#X}\n", FMT(hex_val));
+    StrWriteFmt(&output, "Hex: {X}\n", FMT(hex_val));
     
     // Read formatted input
     const char* input = "Count: 42, Name: Test";
@@ -218,7 +218,7 @@ int main() {
     float pi = 3.14159f;
     u64 big_num = 123456789ULL;
     StrWriteFmt(&output, 
-                "Float: {:.2f}, Integer: {}, Hex: {:#x}\n",
+                "Float: {.2f}, Integer: {}, Hex: {x}\n",
                 FMT(pi), FMT(big_num), FMT(big_num));
     
     // String formatting
@@ -392,7 +392,7 @@ int main() {
 
 ## Format Specifiers
 
-The library supports Rust-style format strings with placeholders in the form `{}` or `{:specifier}`. Arguments are passed using the `FMT()` macro, which automatically determines the correct type handling.
+The library supports Rust-style format strings with placeholders in the form `{}` or `{pecifier}`. Arguments are passed using the `FMT()` macro, which automatically determines the correct type handling.
 
 ### Important: Understanding the FMT Macro
 
@@ -432,7 +432,7 @@ StrWriteFmt(&output, "Message: {}", FMT(greeting));
 // Primitive types (all handled by _Generic)
 int number = 42;
 float pi = 3.14f;
-StrWriteFmt(&output, "Number: {}, Pi: {:.2}", FMT(number), FMT(pi));
+StrWriteFmt(&output, "Number: {}, Pi: {.2}", FMT(number), FMT(pi));
 ```
 
 #### 💡 Best Practices
@@ -493,14 +493,36 @@ Controls text alignment within a field width:
 | `>` | Right-aligned (pad on the left) - default |
 | `^` | Center-aligned (pad on both sides) |
 
+This is also used to control the endianness of raw data read or written.
+
 #### Width
 
 Specifies the minimum field width. The value is padded with spaces if it's shorter than this width:
 
 ```c
-{:5}    // Minimum width of 5 characters, right-aligned
-{:<5}   // Minimum width of 5 characters, left-aligned
-{:^5}   // Minimum width of 5 characters, center-aligned
+{}    // Minimum width of 5 characters, right-aligned
+{<5}   // Minimum width of 5 characters, left-aligned
+{^5}   // Minimum width of 5 characters, center-aligned
+```
+
+### Endianness
+
+The endianness specified is used to convert the read data to native endian after reading
+in specified endianness format.
+
+| Specifier | Description |
+|-----------|-------------|
+| `<` | Little Endian (Least significant byte first) |
+| `>` | Big Endian (Most significant byte first, default) |
+| `^` | Native Endian (Same as host endianness) |
+
+Much like how alignment is specified, width of data read can also be specified in bytes.
+
+```c
+{4}    // Read/Write 4 bytes in big endian order.
+{>4}   // Read/Write 4 bytes in big endian order.
+{<2}   // Read/Write 2 bytes in little endian order.
+{^8}   // Read/Write 8 bytes in native endian
 ```
 
 #### Type Specifiers
@@ -516,6 +538,7 @@ Specifies the output format for the value:
 | `c` | Character format (preserve case) | Raw character bytes |
 | `a` | Character format (force lowercase) | Converts characters to lowercase |
 | `A` | Character format (force uppercase) | Converts characters to uppercase |
+| `r` | Raw data reading or writing | `\x7fELF` (magic bytes of an elf file) |
 | `e` | Scientific notation (lowercase) | `1.235e+02` |
 | `E` | Scientific notation (uppercase) | `1.235E+02` |
 
@@ -524,10 +547,12 @@ Specifies the output format for the value:
 For floating-point values, specifies the number of decimal places:
 
 ```c
-{:.2}   // Two decimal places
-{:.0}   // No decimal places
-{:.10}  // Ten decimal places
+{.2}   // Two decimal places
+{.0}   // No decimal places
+{.10}  // Ten decimal places
 ```
+
+Precision is ignored if specified when reading/writing raw data.
 
 ### Format Examples
 
@@ -552,9 +577,9 @@ const char* str = "Hello";  // const char* variable
 StrWriteFmt(&output, "{}", FMT(str));  // "Hello"
 
 // String with width and alignment
-StrWriteFmt(&output, "{:>10}", FMT(str));  // "     Hello"
-StrWriteFmt(&output, "{:<10}", FMT(str));  // "Hello     "
-StrWriteFmt(&output, "{:^10}", FMT(str));  // "  Hello   "
+StrWriteFmt(&output, "{>10}", FMT(str));  // "     Hello"
+StrWriteFmt(&output, "{<10}", FMT(str));  // "Hello     "
+StrWriteFmt(&output, "{^10}", FMT(str));  // "  Hello   "
 ```
 
 #### Integer Formatting
@@ -567,21 +592,21 @@ StrWriteFmt(&output, "{}", FMT(val));  // "42"
 
 // Hexadecimal
 u32 hex_val = 0xDEADBEEF;
-StrWriteFmt(&output, "{:x}", FMT(hex_val));  // "0xdeadbeef"
-StrWriteFmt(&output, "{:X}", FMT(hex_val));  // "0xDEADBEEF"
+StrWriteFmt(&output, "{}", FMT(hex_val));  // "0xdeadbeef"
+StrWriteFmt(&output, "{}", FMT(hex_val));  // "0xDEADBEEF"
 
 // Binary
 u8 bin_val = 0xA5;  // 10100101 in binary
-StrWriteFmt(&output, "{:b}", FMT(bin_val));  // "0b10100101"
+StrWriteFmt(&output, "{}", FMT(bin_val));  // "0b10100101"
 
 // Octal
 u16 oct_val = 0777;
-StrWriteFmt(&output, "{:o}", FMT(oct_val));  // "0o777"
+StrWriteFmt(&output, "{}", FMT(oct_val));  // "0o777"
 
 // Width and alignment with numbers
-StrWriteFmt(&output, "{:5}", FMT(val));   // "   42" (right-aligned)
-StrWriteFmt(&output, "{:<5}", FMT(val));  // "42   " (left-aligned)
-StrWriteFmt(&output, "{:^5}", FMT(val));  // " 42  " (center-aligned)
+StrWriteFmt(&output, "{}", FMT(val));   // "   42" (right-aligned)
+StrWriteFmt(&output, "{<5}", FMT(val));  // "42   " (left-aligned)
+StrWriteFmt(&output, "{^5}", FMT(val));  // " 42  " (center-aligned)
 ```
 
 #### Character Formatting
@@ -593,21 +618,21 @@ The character format specifiers (`c`, `a`, `A`) work with integer types, treatin
 u8 upper_char = 'M';
 u8 lower_char = 'm';
 
-StrWriteFmt(&output, "{:c}", FMT(upper_char));  // "M" (preserve case)
-StrWriteFmt(&output, "{:a}", FMT(upper_char));  // "m" (force lowercase)
-StrWriteFmt(&output, "{:A}", FMT(lower_char));  // "M" (force uppercase)
+StrWriteFmt(&output, "{}", FMT(upper_char));  // "M" (preserve case)
+StrWriteFmt(&output, "{}", FMT(upper_char));  // "m" (force lowercase)
+StrWriteFmt(&output, "{}", FMT(lower_char));  // "M" (force uppercase)
 
 // Multi-byte integers (interpreted as character sequences)
 u16 u16_value = ('A' << 8) | 'B'; // "AB" in big-endian
-StrWriteFmt(&output, "{:c}", FMT(u16_value));  // "AB" (preserve case)
-StrWriteFmt(&output, "{:a}", FMT(u16_value));  // "ab" (force lowercase)
-StrWriteFmt(&output, "{:A}", FMT(u16_value));  // "AB" (force uppercase)
+StrWriteFmt(&output, "{}", FMT(u16_value));  // "AB" (preserve case)
+StrWriteFmt(&output, "{}", FMT(u16_value));  // "ab" (force lowercase)
+StrWriteFmt(&output, "{}", FMT(u16_value));  // "AB" (force uppercase)
 
 // Works with u32 and u64 as well, treating them as byte sequences
 u32 u32_value = ('H' << 24) | ('i' << 16) | ('!' << 8) | '!';
-StrWriteFmt(&output, "{:c}", FMT(u32_value));  // "Hi!!" (preserve case)
-StrWriteFmt(&output, "{:a}", FMT(u32_value));  // "hi!!" (force lowercase)
-StrWriteFmt(&output, "{:A}", FMT(u32_value));  // "HI!!" (force uppercase)
+StrWriteFmt(&output, "{}", FMT(u32_value));  // "Hi!!" (preserve case)
+StrWriteFmt(&output, "{}", FMT(u32_value));  // "hi!!" (force lowercase)
+StrWriteFmt(&output, "{}", FMT(u32_value));  // "HI!!" (force uppercase)
 ```
 
 #### String Case Formatting
@@ -617,14 +642,14 @@ Character format specifiers also work with strings:
 ```c
 const char* mixed_case = "MiXeD CaSe";
 
-StrWriteFmt(&output, "{:c}", FMT(mixed_case));  // "MiXeD CaSe" (preserve case)
-StrWriteFmt(&output, "{:a}", FMT(mixed_case));  // "mixed case" (force lowercase)
-StrWriteFmt(&output, "{:A}", FMT(mixed_case));  // "MIXED CASE" (force uppercase)
+StrWriteFmt(&output, "{}", FMT(mixed_case));  // "MiXeD CaSe" (preserve case)
+StrWriteFmt(&output, "{}", FMT(mixed_case));  // "mixed case" (force lowercase)
+StrWriteFmt(&output, "{}", FMT(mixed_case));  // "MIXED CASE" (force uppercase)
 
 // Also works with Str objects
 Str s = StrInitFromZstr("Hello World");
-StrWriteFmt(&output, "{:a}", FMT(s));  // "hello world"
-StrWriteFmt(&output, "{:A}", FMT(s));  // "HELLO WORLD"
+StrWriteFmt(&output, "{}", FMT(s));  // "hello world"
+StrWriteFmt(&output, "{}", FMT(s));  // "HELLO WORLD"
 ```
 
 #### Floating-Point Formatting
@@ -636,16 +661,16 @@ f64 pi = 3.14159265359;
 StrWriteFmt(&output, "{}", FMT(pi));  // "3.141593"
 
 // Custom precision
-StrWriteFmt(&output, "{:.2}", FMT(pi));   // "3.14"
-StrWriteFmt(&output, "{:.0}", FMT(pi));   // "3"
-StrWriteFmt(&output, "{:.10}", FMT(pi));  // "3.1415926536"
+StrWriteFmt(&output, "{.2}", FMT(pi));   // "3.14"
+StrWriteFmt(&output, "{.0}", FMT(pi));   // "3"
+StrWriteFmt(&output, "{.10}", FMT(pi));  // "3.1415926536"
 
 // Scientific notation
-StrWriteFmt(&output, "{:e}", FMT(123.456));  // "1.235e+02"
-StrWriteFmt(&output, "{:E}", FMT(123.456));  // "1.235E+02"
+StrWriteFmt(&output, "{}", FMT(123.456));  // "1.235e+02"
+StrWriteFmt(&output, "{}", FMT(123.456));  // "1.235E+02"
 
 // Custom precision with scientific notation
-StrWriteFmt(&output, "{:.3e}", FMT(123.456));  // "1.235e+02"
+StrWriteFmt(&output, "{.3e}", FMT(123.456));  // "1.235e+02"
 
 // Special values
 f64 pos_inf = INFINITY;

@@ -24,21 +24,26 @@
 typedef enum {
     ALIGN_LEFT,
     ALIGN_RIGHT,
-    ALIGN_CENTER
-} Alignment;
+    ALIGN_CENTER,
+
+    ENDIAN_NATIVE = ALIGN_CENTER,
+    ENDIAN_LITTLE = ALIGN_LEFT,
+    ENDIAN_BIG    = ALIGN_RIGHT
+} Alignment, Endinanness;
 
 ///
 /// Format flags for text output.
 ///
-/// FMT_FLAG_NONE         : No special formatting.
-/// FMT_FLAG_CHAR         : Format as character.
-/// FMT_FLAG_HEX          : Format as hexadecimal.
-/// FMT_FLAG_BINARY       : Format as binary.
-/// FMT_FLAG_OCTAL        : Format as octal.
-/// FMT_FLAG_SCIENTIFIC   : Scientific notation for floats.
-/// FMT_FLAG_CAPS         : Use capital letters for hex/scientific.
-/// FMT_FLAG_FORCE_CASE   : Force case conversion (used with FMT_FLAG_CAPS)
-/// FMT_FLAG_HAS_PRECISION: Precision was specified in format string.
+/// FMT_FLAG_NONE          : No special formatting.
+/// FMT_FLAG_CHAR          : Format as character.
+/// FMT_FLAG_HEX           : Format as hexadecimal.
+/// FMT_FLAG_BINARY        : Format as binary.
+/// FMT_FLAG_OCTAL         : Format as octal.
+/// FMT_FLAG_SCIENTIFIC    : Scientific notation for floats.
+/// FMT_FLAG_CAPS          : Use capital letters for hex/scientific.
+/// FMT_FLAG_FORCE_CASE    : Force case conversion (used with FMT_FLAG_CAPS)
+/// FMT_FLAG_HAS_PRECISION : Precision was specified in format string.
+/// FMT_FLAG_RAW           : Read/write data in raw binary format
 ///
 /// TAGS: Formatting, Text, Flags
 typedef enum {
@@ -50,7 +55,8 @@ typedef enum {
     FMT_FLAG_SCIENTIFIC    = 1 << 4,
     FMT_FLAG_CAPS          = 1 << 5,
     FMT_FLAG_FORCE_CASE    = 1 << 6,
-    FMT_FLAG_HAS_PRECISION = 1 << 7
+    FMT_FLAG_HAS_PRECISION = 1 << 7,
+    FMT_FLAG_RAW           = 1 << 8
 } FormatFlagsBits;
 typedef u32 FormatFlags;
 
@@ -64,9 +70,12 @@ typedef u32 FormatFlags;
 ///
 /// TAGS: Formatting, Text, Configuration
 typedef struct {
-    Alignment   align;
-    size        width;
-    size        precision;
+    union {
+        Alignment   align;
+        Endinanness endian;
+    };
+    u32         width; /// Alignment width or raw read/write size
+    u32         precision;
     FormatFlags flags;
 } FmtInfo;
 

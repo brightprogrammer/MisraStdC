@@ -92,11 +92,12 @@
 /// This is different from reading because it does not change current read position.
 /// This is good for making some decisions over data without changing the read position.
 ///
-/// SUCCESS : Data copied over to `dst` from current read position and `mi` is returned.
-/// FAILURE : NULL_ITER(mi) returned.
+/// SUCCESS: Data copied over to `dst` from current read position and `mi` is returned.
+/// FAILURE: NULL_ITER_DATA(mi) returned.
 ///
 /// TAGS: Memory, Peek, Iter
 ///
-#define IterPeek(mi) (IterRemainingLength(mi) ? ((mi)->data[(mi)->pos]) : (ITER_DATA_TYPE(mi)) {0})
+#define IterPeekAt(mi, n)                                                                                              \
+    (IterRemainingLength(mi) > (n) || (mi)->pos + (n) >= 0 ? (mi)->data[(mi)->pos + (n)] : (ITER_DATA_TYPE(mi)) {0})
 
 #endif // MISRA_STD_UTILITY_ITER_ACCESS_H

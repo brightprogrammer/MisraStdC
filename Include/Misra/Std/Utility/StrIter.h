@@ -160,6 +160,21 @@ typedef Vec(StrIter) StrIters;
 /// FAILURE: Returns null character if exhausted
 ///
 /// TAGS: StrIter, Peek, Character, Iter
-#define StrIterPeek(mi) IterPeek(mi)
+#define StrIterPeek(mi) IterPeekAt((mi), 0)
+
+///
+/// Peek character at offset without advancing
+///
+/// mi[in] : `StrIter` object
+/// n[in]  : Peek position
+///
+/// SUCCESS: Returns current character
+/// FAILURE: Returns null character if exhausted
+///
+/// TAGS: StrIter, Peek, Character, Iter
+#define StrIterPeekAt(mi, n) IterPeekAt((mi), (n))
+
+#define StrIterPeekNext(mi) IterPeekAt((mi), 1)
+#define StrIterPeekPrev(mi) IterPeekAt((mi), -1)
 
 #endif // MISRA_STD_UTILITY_STR_ITER_H

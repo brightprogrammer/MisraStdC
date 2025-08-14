@@ -108,7 +108,7 @@ bool test_basic_iterator_functionality(void) {
 
     bool success = true;
 
-    if (StrIterRemainingLength(&si) <= 0) {
+    if (!StrIterRemainingLength(&si)) {
         printf("[DEBUG] Remaining length check failed: expected > 0, got %zu\n", StrIterRemainingLength(&si));
         success = false;
     }
