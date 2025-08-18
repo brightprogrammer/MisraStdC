@@ -85,3 +85,17 @@ executable(
 
 # Include tests
 subdir('Tests')
+
+# Install library headers
+install_subdir('Include/Misra', install_dir: 'include')
+install_headers('Include/Misra.h')
+
+# Generate pkg-config for user linkage
+pkg = import('pkgconfig')
+pkg.generate(
+    misra_std,
+    name: 'MisraStdC',
+    description: 'Generic and almost type-safe programming in C',
+    filebase: 'libmisra_std',
+    url: 'https://docs.brightprogrammer.in'
+)
