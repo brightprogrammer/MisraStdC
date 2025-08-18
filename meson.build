@@ -53,7 +53,7 @@ executable(
     link_with: [misra_std],
     c_args: common_c_args,
     include_directories: inc_misra,
-    install: true
+    install: false
 )
 
 executable(
@@ -62,7 +62,7 @@ executable(
     link_with: [misra_std],
     c_args: common_c_args,
     include_directories: inc_misra,
-    install: true
+    install: false
 )
 
 executable(
@@ -71,7 +71,7 @@ executable(
     link_with: [misra_std],
     c_args: common_c_args,
     include_directories: inc_misra,
-    install: true
+    install: false
 )
 
 executable(
@@ -80,7 +80,7 @@ executable(
     link_with: [misra_std],
     c_args: common_c_args,
     include_directories: inc_misra,
-    install: true
+    install: false
 )
 
 # Include tests
