@@ -489,6 +489,7 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
                     }
                     default : {
                         LOG_ERROR("Invalid raw data read width specified. Must be one of 1, 2, 4 or 8.");
+                        return NULL;
                     }
                 }
 
@@ -512,12 +513,11 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
                         "Raw data reading can only be used for u8-64, i8-64, f32, f64. Either unsupported format or "
                         "attempt to read a complex type."
                     );
-                    return false;
+                    return NULL;
                 }
 
                 if (fmt_info.width > var_width) {
-                    LOG_ERROR("Number of bytes read as raw data exceeds variable width. Excess data will discarded.");
-                    // let it flow here
+                    LOG_INFO("Number of bytes read as raw data exceeds variable width. Excess data will discarded.");
                 }
 
                 // make sure we write only as much space is provided
@@ -540,6 +540,7 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
                     }
                     default : {
                         LOG_ERROR("Invalid raw data read width specified. Must be one of 1, 2, 4 or 8.");
+                        return NULL;
                     }
                 }
             } else {
@@ -563,7 +564,7 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
             // Match exact character from format string
             if (!in || *in != *p) {
                 LOG_ERROR(
-                    "Input '{:.8}' does not match format string '{:.8}'",
+                    "Input '{.8}' does not match format string '{.8}'",
                     FMT(LVAL(in ? in : "(null)")),
                     FMT(LVAL(p ? p : "(null)"))
                 );
@@ -823,7 +824,10 @@ void _write_Str(Str* o, FmtInfo* fmt_info, Str* s) {
                     if (IS_PRINTABLE(c)) {
                         StrPushBack(o, c);
                     } else {
-                        StrPushBackZstr(o, "<?>");
+                        const char* digits = "0123456789abcdef";
+                        StrPushBackZstr(o, "\\x");
+                        StrPushBack(o, digits[c >> 4]);
+                        StrPushBack(o, digits[c & 0xf]);
                     }
                 });
             }
@@ -893,7 +897,10 @@ void _write_Zstr(Str* o, FmtInfo* fmt_info, const char** s) {
                     if (IS_PRINTABLE(xs[i])) {
                         StrPushBack(o, xs[i]);
                     } else {
-                        StrPushBackZstr(o, "<?>");
+                        const char* digits = "0123456789abcdef";
+                        StrPushBackZstr(o, "\\x");
+                        StrPushBack(o, digits[xs[i] >> 4]);
+                        StrPushBack(o, digits[xs[i] & 0xf]);
                     }
                 }
             }
@@ -1233,7 +1240,7 @@ static char ProcessEscape(const char** str) {
             break;
         }
         default :
-            LOG_ERROR("Invalid escape sequence '\\{:c}'", FMT(s[0]));
+            LOG_ERROR("Invalid escape sequence '\\{c}'", FMT(s[0]));
             return 0;
     }
 

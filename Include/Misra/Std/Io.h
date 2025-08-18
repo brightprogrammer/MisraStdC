@@ -344,7 +344,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
         size            argc = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                              \
         Str             out  = StrInit();                                                                              \
         StrWriteFmtInternal(&out, (fmtstr), argv, argc);                                                               \
-        fputs(out.data, (stream));                                                                                     \
+        fwrite(out.data, 1, out.length, (stream));                                                                     \
         StrDeinit(&out);                                                                                               \
     } while (0)
 
@@ -374,7 +374,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
         size            argc = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                              \
         Str             out  = StrInit();                                                                              \
         StrWriteFmtInternal(&out, (fmtstr), argv, argc);                                                               \
-        fputs(out.data, (stream));                                                                                     \
+        fwrite(out.data, 1, out.length, (stream));                                                                     \
         fputc('\n', (stream));                                                                                         \
         StrDeinit(&out);                                                                                               \
     } while (0)

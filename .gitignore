@@ -8,3 +8,4 @@ Make
 .vscode
 Docs/
 Docs/public
+.DS_Store
