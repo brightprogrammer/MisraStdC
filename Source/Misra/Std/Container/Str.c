@@ -621,7 +621,7 @@ bool StrToU64(const Str* str, u64* value, const StrParseConfig* config) {
         if (!char_to_digit(str->data[pos], &digit, base)) {
             if (IS_SPACE(str->data[pos]))
                 break;
-            LOG_ERROR("Invalid digit for base {}: {:c}", FMT(base), FMT(str->data[pos]));
+            LOG_ERROR("Invalid digit for base {}: {c}", FMT(base), FMT(str->data[pos]));
             return false;
         }
 

@@ -76,15 +76,15 @@ bool test_string_formatting(void) {
     StrClear(&output);
 
     // Test string with width and alignment
-    StrWriteFmt(&output, "{:>10}", FMT(str));
+    StrWriteFmt(&output, "{>10}", FMT(str));
     success = success && (ZstrCompare(output.data, "     Hello") == 0);
     StrClear(&output);
 
-    StrWriteFmt(&output, "{:<10}", FMT(str));
+    StrWriteFmt(&output, "{<10}", FMT(str));
     success = success && (ZstrCompare(output.data, "Hello     ") == 0);
     StrClear(&output);
 
-    StrWriteFmt(&output, "{:^10}", FMT(str));
+    StrWriteFmt(&output, "{^10}", FMT(str));
     success = success && (ZstrCompare(output.data, "  Hello   ") == 0);
     StrClear(&output);
 
@@ -179,11 +179,11 @@ bool test_integer_hex_formatting(void) {
     bool success = true;
 
     u32 val = 0xDEADBEEF;
-    StrWriteFmt(&output, "{:x}", FMT(val));
+    StrWriteFmt(&output, "{x}", FMT(val));
     success = success && (ZstrCompare(output.data, "0xdeadbeef") == 0);
     StrClear(&output);
 
-    StrWriteFmt(&output, "{:X}", FMT(val));
+    StrWriteFmt(&output, "{X}", FMT(val));
     success = success && (ZstrCompare(output.data, "0xDEADBEEF") == 0);
 
     StrDeinit(&output);
@@ -198,7 +198,7 @@ bool test_integer_binary_formatting(void) {
     bool success = true;
 
     u8 val = 0xA5; // 10100101 in binary
-    StrWriteFmt(&output, "{:b}", FMT(val));
+    StrWriteFmt(&output, "{b}", FMT(val));
     success = success && (ZstrCompare(output.data, "0b10100101") == 0);
 
     StrDeinit(&output);
@@ -213,7 +213,7 @@ bool test_integer_octal_formatting(void) {
     bool success = true;
 
     u16 val = 0777;
-    StrWriteFmt(&output, "{:o}", FMT(val));
+    StrWriteFmt(&output, "{o}", FMT(val));
     success = success && (ZstrCompare(output.data, "0o777") == 0);
 
     StrDeinit(&output);
@@ -250,15 +250,15 @@ bool test_float_precision_formatting(void) {
     f64 val = 3.14159265359;
 
     // Test different precisions
-    StrWriteFmt(&output, "{:.2}", FMT(val));
+    StrWriteFmt(&output, "{.2}", FMT(val));
     success = success && (ZstrCompare(output.data, "3.14") == 0);
     StrClear(&output);
 
-    StrWriteFmt(&output, "{:.0}", FMT(val));
+    StrWriteFmt(&output, "{.0}", FMT(val));
     success = success && (ZstrCompare(output.data, "3") == 0);
     StrClear(&output);
 
-    StrWriteFmt(&output, "{:.10}", FMT(val));
+    StrWriteFmt(&output, "{.10}", FMT(val));
     success = success && (ZstrCompare(output.data, "3.1415926536") == 0);
 
     StrDeinit(&output);
@@ -301,29 +301,29 @@ bool test_width_alignment_formatting(void) {
 
     // Test with integers
     i32 val = 42;
-    StrWriteFmt(&output, "{:5}", FMT(val));
+    StrWriteFmt(&output, "{5}", FMT(val));
     success = success && (ZstrCompare(output.data, "   42") == 0);
     StrClear(&output);
 
-    StrWriteFmt(&output, "{:<5}", FMT(val));
+    StrWriteFmt(&output, "{<5}", FMT(val));
     success = success && (ZstrCompare(output.data, "42   ") == 0);
     StrClear(&output);
 
-    StrWriteFmt(&output, "{:^5}", FMT(val));
+    StrWriteFmt(&output, "{^5}", FMT(val));
     success = success && (ZstrCompare(output.data, " 42  ") == 0);
     StrClear(&output);
 
     // Test with strings
     const char* str = "abc";
-    StrWriteFmt(&output, "{:5}", FMT(str));
+    StrWriteFmt(&output, "{5}", FMT(str));
     success = success && (ZstrCompare(output.data, "  abc") == 0);
     StrClear(&output);
 
-    StrWriteFmt(&output, "{:<5}", FMT(str));
+    StrWriteFmt(&output, "{<5}", FMT(str));
     success = success && (ZstrCompare(output.data, "abc  ") == 0);
     StrClear(&output);
 
-    StrWriteFmt(&output, "{:^5}", FMT(str));
+    StrWriteFmt(&output, "{^5}", FMT(str));
     success = success && (ZstrCompare(output.data, " abc ") == 0);
 
     StrDeinit(&output);
@@ -362,17 +362,17 @@ bool test_char_formatting(void) {
 
     // Test mixed case string with :c (preserve case)
     const char* mixed_case = "MiXeD CaSe";
-    StrWriteFmt(&output, "{:c}", FMT(mixed_case));
+    StrWriteFmt(&output, "{c}", FMT(mixed_case));
     success = success && (ZstrCompare(output.data, "MiXeD CaSe") == 0);
     StrClear(&output);
 
     // Test mixed case string with :a (lowercase)
-    StrWriteFmt(&output, "{:a}", FMT(mixed_case));
+    StrWriteFmt(&output, "{a}", FMT(mixed_case));
     success = success && (ZstrCompare(output.data, "mixed case") == 0);
     StrClear(&output);
 
     // Test mixed case string with :A (uppercase)
-    StrWriteFmt(&output, "{:A}", FMT(mixed_case));
+    StrWriteFmt(&output, "{A}", FMT(mixed_case));
     success = success && (ZstrCompare(output.data, "MIXED CASE") == 0);
     StrClear(&output);
 
@@ -380,17 +380,17 @@ bool test_char_formatting(void) {
     Str s = StrInitFromZstr("MiXeD CaSe");
 
     // Test with :c (preserve case)
-    StrWriteFmt(&output, "{:c}", FMT(s));
+    StrWriteFmt(&output, "{c}", FMT(s));
     success = success && (ZstrCompare(output.data, "MiXeD CaSe") == 0);
     StrClear(&output);
 
     // Test with :a (lowercase)
-    StrWriteFmt(&output, "{:a}", FMT(s));
+    StrWriteFmt(&output, "{a}", FMT(s));
     success = success && (ZstrCompare(output.data, "mixed case") == 0);
     StrClear(&output);
 
     // Test with :A (uppercase)
-    StrWriteFmt(&output, "{:A}", FMT(s));
+    StrWriteFmt(&output, "{A}", FMT(s));
     success = success && (ZstrCompare(output.data, "MIXED CASE") == 0);
     StrClear(&output);
 
@@ -399,17 +399,17 @@ bool test_char_formatting(void) {
     u8 lower_char = 'm';
 
     // Test uppercase char with :c (preserve case)
-    StrWriteFmt(&output, "{:c}", FMT(upper_char));
+    StrWriteFmt(&output, "{c}", FMT(upper_char));
     success = success && (ZstrCompare(output.data, "M") == 0);
     StrClear(&output);
 
     // Test uppercase char with :a (lowercase)
-    StrWriteFmt(&output, "{:a}", FMT(upper_char));
+    StrWriteFmt(&output, "{a}", FMT(upper_char));
     success = success && (ZstrCompare(output.data, "m") == 0);
     StrClear(&output);
 
     // Test lowercase char with :A (uppercase)
-    StrWriteFmt(&output, "{:A}", FMT(lower_char));
+    StrWriteFmt(&output, "{A}", FMT(lower_char));
     success = success && (ZstrCompare(output.data, "M") == 0);
     StrClear(&output);
 
@@ -417,17 +417,17 @@ bool test_char_formatting(void) {
     u16 u16_value = ('A' << 8) | 'B'; // AB in big-endian
 
     // Test u16 with :c (preserve case)
-    StrWriteFmt(&output, "{:c}", FMT(u16_value));
+    StrWriteFmt(&output, "{c}", FMT(u16_value));
     success = success && (output.length == 2 && output.data[0] == 'A' && output.data[1] == 'B');
     StrClear(&output);
 
     // Test u16 with :a (lowercase)
-    StrWriteFmt(&output, "{:a}", FMT(u16_value));
+    StrWriteFmt(&output, "{a}", FMT(u16_value));
     success = success && (output.length == 2 && output.data[0] == 'a' && output.data[1] == 'b');
     StrClear(&output);
 
     // Test u16 with :A (uppercase)
-    StrWriteFmt(&output, "{:A}", FMT(u16_value));
+    StrWriteFmt(&output, "{A}", FMT(u16_value));
     success = success && (output.length == 2 && output.data[0] == 'A' && output.data[1] == 'B');
     StrClear(&output);
 
@@ -435,17 +435,17 @@ bool test_char_formatting(void) {
     i16 i16_value = ('C' << 8) | 'd'; // Cd in big-endian
 
     // Test i16 with :c (preserve case)
-    StrWriteFmt(&output, "{:c}", FMT(i16_value));
+    StrWriteFmt(&output, "{c}", FMT(i16_value));
     success = success && (output.length == 2 && output.data[0] == 'C' && output.data[1] == 'd');
     StrClear(&output);
 
     // Test i16 with :a (lowercase)
-    StrWriteFmt(&output, "{:a}", FMT(i16_value));
+    StrWriteFmt(&output, "{a}", FMT(i16_value));
     success = success && (output.length == 2 && output.data[0] == 'c' && output.data[1] == 'd');
     StrClear(&output);
 
     // Test i16 with :A (uppercase)
-    StrWriteFmt(&output, "{:A}", FMT(i16_value));
+    StrWriteFmt(&output, "{A}", FMT(i16_value));
     success = success && (output.length == 2 && output.data[0] == 'C' && output.data[1] == 'D');
     StrClear(&output);
 
@@ -453,19 +453,19 @@ bool test_char_formatting(void) {
     u32 u32_value = ('E' << 24) | ('f' << 16) | ('G' << 8) | 'h'; // EfGh in big-endian
 
     // Test u32 with :c (preserve case)
-    StrWriteFmt(&output, "{:c}", FMT(u32_value));
+    StrWriteFmt(&output, "{c}", FMT(u32_value));
     success = success && (output.length == 4 && output.data[0] == 'E' && output.data[1] == 'f' &&
                           output.data[2] == 'G' && output.data[3] == 'h');
     StrClear(&output);
 
     // Test u32 with :a (lowercase)
-    StrWriteFmt(&output, "{:a}", FMT(u32_value));
+    StrWriteFmt(&output, "{a}", FMT(u32_value));
     success = success && (output.length == 4 && output.data[0] == 'e' && output.data[1] == 'f' &&
                           output.data[2] == 'g' && output.data[3] == 'h');
     StrClear(&output);
 
     // Test u32 with :A (uppercase)
-    StrWriteFmt(&output, "{:A}", FMT(u32_value));
+    StrWriteFmt(&output, "{A}", FMT(u32_value));
     success = success && (output.length == 4 && output.data[0] == 'E' && output.data[1] == 'F' &&
                           output.data[2] == 'G' && output.data[3] == 'H');
     StrClear(&output);
@@ -474,19 +474,19 @@ bool test_char_formatting(void) {
     i32 i32_value = ('I' << 24) | ('j' << 16) | ('K' << 8) | 'l'; // IjKl in big-endian
 
     // Test i32 with :c (preserve case)
-    StrWriteFmt(&output, "{:c}", FMT(i32_value));
+    StrWriteFmt(&output, "{c}", FMT(i32_value));
     success = success && (output.length == 4 && output.data[0] == 'I' && output.data[1] == 'j' &&
                           output.data[2] == 'K' && output.data[3] == 'l');
     StrClear(&output);
 
     // Test i32 with :a (lowercase)
-    StrWriteFmt(&output, "{:a}", FMT(i32_value));
+    StrWriteFmt(&output, "{a}", FMT(i32_value));
     success = success && (output.length == 4 && output.data[0] == 'i' && output.data[1] == 'j' &&
                           output.data[2] == 'k' && output.data[3] == 'l');
     StrClear(&output);
 
     // Test i32 with :A (uppercase)
-    StrWriteFmt(&output, "{:A}", FMT(i32_value));
+    StrWriteFmt(&output, "{A}", FMT(i32_value));
     success = success && (output.length == 4 && output.data[0] == 'I' && output.data[1] == 'J' &&
                           output.data[2] == 'K' && output.data[3] == 'L');
     StrClear(&output);
@@ -496,21 +496,21 @@ bool test_char_formatting(void) {
                     ('r' << 16) | ('S' << 8) | 't'; // MnOpQrSt in big-endian
 
     // Test u64 with :c (preserve case)
-    StrWriteFmt(&output, "{:c}", FMT(u64_value));
+    StrWriteFmt(&output, "{c}", FMT(u64_value));
     success = success && (output.length == 8 && output.data[0] == 'M' && output.data[1] == 'n' &&
                           output.data[2] == 'O' && output.data[3] == 'p' && output.data[4] == 'Q' &&
                           output.data[5] == 'r' && output.data[6] == 'S' && output.data[7] == 't');
     StrClear(&output);
 
     // Test u64 with :a (lowercase)
-    StrWriteFmt(&output, "{:a}", FMT(u64_value));
+    StrWriteFmt(&output, "{a}", FMT(u64_value));
     success = success && (output.length == 8 && output.data[0] == 'm' && output.data[1] == 'n' &&
                           output.data[2] == 'o' && output.data[3] == 'p' && output.data[4] == 'q' &&
                           output.data[5] == 'r' && output.data[6] == 's' && output.data[7] == 't');
     StrClear(&output);
 
     // Test u64 with :A (uppercase)
-    StrWriteFmt(&output, "{:A}", FMT(u64_value));
+    StrWriteFmt(&output, "{A}", FMT(u64_value));
     success = success && (output.length == 8 && output.data[0] == 'M' && output.data[1] == 'N' &&
                           output.data[2] == 'O' && output.data[3] == 'P' && output.data[4] == 'Q' &&
                           output.data[5] == 'R' && output.data[6] == 'S' && output.data[7] == 'T');
@@ -521,21 +521,21 @@ bool test_char_formatting(void) {
                     ('z' << 16) | ('1' << 8) | '2'; // UvWxYz12 in big-endian
 
     // Test i64 with :c (preserve case)
-    StrWriteFmt(&output, "{:c}", FMT(i64_value));
+    StrWriteFmt(&output, "{c}", FMT(i64_value));
     success = success && (output.length == 8 && output.data[0] == 'U' && output.data[1] == 'v' &&
                           output.data[2] == 'W' && output.data[3] == 'x' && output.data[4] == 'Y' &&
                           output.data[5] == 'z' && output.data[6] == '1' && output.data[7] == '2');
     StrClear(&output);
 
     // Test i64 with :a (lowercase)
-    StrWriteFmt(&output, "{:a}", FMT(i64_value));
+    StrWriteFmt(&output, "{a}", FMT(i64_value));
     success = success && (output.length == 8 && output.data[0] == 'u' && output.data[1] == 'v' &&
                           output.data[2] == 'w' && output.data[3] == 'x' && output.data[4] == 'y' &&
                           output.data[5] == 'z' && output.data[6] == '1' && output.data[7] == '2');
     StrClear(&output);
 
     // Test i64 with :A (uppercase)
-    StrWriteFmt(&output, "{:A}", FMT(i64_value));
+    StrWriteFmt(&output, "{A}", FMT(i64_value));
     success = success && (output.length == 8 && output.data[0] == 'U' && output.data[1] == 'V' &&
                           output.data[2] == 'W' && output.data[3] == 'X' && output.data[4] == 'Y' &&
                           output.data[5] == 'Z' && output.data[6] == '1' && output.data[7] == '2');
@@ -566,41 +566,41 @@ bool test_bitvec_formatting(void) {
 
     // Test 3: Hex formatting
     BitVec bv2 = BitVecFromInteger(0xABCD, 16);
-    StrWriteFmt(&output, "{:x}", FMT(bv2));
+    StrWriteFmt(&output, "{x}", FMT(bv2));
     success = success && (ZstrCompare(output.data, "0xabcd") == 0);
     StrClear(&output);
 
     // Test 4: Uppercase hex formatting
-    StrWriteFmt(&output, "{:X}", FMT(bv2));
+    StrWriteFmt(&output, "{X}", FMT(bv2));
     success = success && (ZstrCompare(output.data, "0xABCD") == 0);
     StrClear(&output);
 
     // Test 5: Octal formatting
     BitVec bv3 = BitVecFromInteger(0755, 10);
-    StrWriteFmt(&output, "{:o}", FMT(bv3));
+    StrWriteFmt(&output, "{o}", FMT(bv3));
     success = success && (ZstrCompare(output.data, "0o755") == 0);
     StrClear(&output);
 
     // Test 6: Width and alignment
-    StrWriteFmt(&output, "{:>10}", FMT(bv1));
+    StrWriteFmt(&output, "{>10}", FMT(bv1));
     success = success && (ZstrCompare(output.data, "     10110") == 0);
     StrClear(&output);
 
-    StrWriteFmt(&output, "{:<10}", FMT(bv1));
+    StrWriteFmt(&output, "{<10}", FMT(bv1));
     success = success && (ZstrCompare(output.data, "10110     ") == 0);
     StrClear(&output);
 
-    StrWriteFmt(&output, "{:^10}", FMT(bv1));
+    StrWriteFmt(&output, "{^10}", FMT(bv1));
     success = success && (ZstrCompare(output.data, "  10110   ") == 0);
     StrClear(&output);
 
     // Test 7: Zero value
     BitVec bv_zero = BitVecFromInteger(0, 1);
-    StrWriteFmt(&output, "{:x}", FMT(bv_zero));
+    StrWriteFmt(&output, "{x}", FMT(bv_zero));
     success = success && (ZstrCompare(output.data, "0x0") == 0);
     StrClear(&output);
 
-    StrWriteFmt(&output, "{:o}", FMT(bv_zero));
+    StrWriteFmt(&output, "{o}", FMT(bv_zero));
     success = success && (ZstrCompare(output.data, "0o0") == 0);
     StrClear(&output);
 
@@ -614,23 +614,23 @@ bool test_bitvec_formatting(void) {
     return success;
 }
 
-// Test error handling
-bool test_error_handling(void) {
-    printf("Testing error handling\n");
+// // Test error handling
+// bool test_error_handling(void) {
+//     printf("Testing error handling\n");
 
-    // Since we can't directly test error cases without causing program termination,
-    // we'll just report success here. In a real-world scenario, we would need
-    // a more sophisticated approach to test error handling, such as:
-    // 1. Using a separate process that can fail
-    // 2. Capturing logs to verify error messages
-    // 3. Mocking the error handling functions
+//     // Since we can't directly test error cases without causing program termination,
+//     // we'll just report success here. In a real-world scenario, we would need
+//     // a more sophisticated approach to test error handling, such as:
+//     // 1. Using a separate process that can fail
+//     // 2. Capturing logs to verify error messages
+//     // 3. Mocking the error handling functions
 
-    printf("Note: Error handling tests are skipped as they would cause program termination\n");
-    printf("In a real-world scenario, these would be tested with a more robust framework\n");
+//     printf("Note: Error handling tests are skipped as they would cause program termination\n");
+//     printf("In a real-world scenario, these would be tested with a more robust framework\n");
 
-    // All tests are considered passing since we can't properly test them
-    return true;
-}
+//     // All tests are considered passing since we can't properly test them
+//     return true;
+// }
 
 // Main function that runs all tests
 int main(void) {
@@ -650,8 +650,8 @@ int main(void) {
         test_width_alignment_formatting,
         test_multiple_arguments,
         test_char_formatting,
-        test_bitvec_formatting,
-        test_error_handling
+        test_bitvec_formatting
+        // test_error_handling
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

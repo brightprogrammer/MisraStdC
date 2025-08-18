@@ -152,6 +152,7 @@ void LogWrite(LogMessageType type, const char *tag, int line, const char *msg) {
     fprintf(stderror, "[%s] [%s:%d] ", msg_type, tag, line);
 
     fputs(msg, stderror);
+    fputc('\n', stderror);
 
     SysMutexUnlock(log_mutex);
 }

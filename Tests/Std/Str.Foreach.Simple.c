@@ -29,7 +29,7 @@ bool test_str_foreach_idx(void) {
 
     // Build a new string by iterating through each character with its index
     Str result = StrInit();
-    StrForeachIdx(&s, chr, idx, { StrWriteFmt(&result, "{:c}{}", FMT(chr), FMT(idx)); });
+    StrForeachIdx(&s, chr, idx, { StrWriteFmt(&result, "{c}{}", FMT(chr), FMT(idx)); });
 
     // The result should be "H0e1l2l3o4"
     bool success = (ZstrCompare(result.data, "H0e1l2l3o4") == 0);
@@ -56,7 +56,7 @@ bool test_str_foreach_reverse_idx(void) {
         }
 
         // Append the character and its index to the result string
-        StrWriteFmt(&result, "{:c}{}", FMT(chr), FMT(idx));
+        StrWriteFmt(&result, "{c}{}", FMT(chr), FMT(idx));
     });
 
     // The expected result depends on whether index 0 is processed
@@ -85,7 +85,7 @@ bool test_str_foreach_ptr_idx(void) {
     Str result = StrInit();
     StrForeachPtrIdx(&s, chrptr, idx, {
         // Append the character (via pointer) and its index to the result string
-        StrWriteFmt(&result, "{:c}{}", FMT(*chrptr), FMT(idx));
+        StrWriteFmt(&result, "{c}{}", FMT(*chrptr), FMT(idx));
 
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {
@@ -121,7 +121,7 @@ bool test_str_foreach_reverse_ptr_idx(void) {
         }
 
         // Append the character (via pointer) and its index to the result string
-        StrWriteFmt(&result, "{:c}{}", FMT(*chrptr), FMT(idx));
+        StrWriteFmt(&result, "{c}{}", FMT(*chrptr), FMT(idx));
 
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {
@@ -277,7 +277,7 @@ bool test_str_foreach_in_range_idx(void) {
     Str result = StrInit();
     StrForeachInRangeIdx(&s, chr, idx, 6, 11, {
         // Append the character and its index to the result string
-        StrWriteFmt(&result, "{:c}{}", FMT(chr), FMT(idx));
+        StrWriteFmt(&result, "{c}{}", FMT(chr), FMT(idx));
     });
 
     // The result should be "W6o7r8l9d10" (characters from index 6-10 with their indices)
@@ -341,7 +341,7 @@ bool test_str_foreach_ptr_in_range_idx(void) {
     Str result = StrInit();
     StrForeachPtrInRangeIdx(&s, chrptr, idx, 6, 11, {
         // Append the character and its index to the result string
-        StrWriteFmt(&result, "{:c}{}", FMT(*chrptr), FMT(idx));
+        StrWriteFmt(&result, "{c}{}", FMT(*chrptr), FMT(idx));
 
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {

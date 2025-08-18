@@ -369,56 +369,56 @@ bool test_character_ordinal_reading(void) {
 
     // Test reading single character into u8
     u8 u8_val = 0;
-    StrReadFmt("A", "{:c}", FMT(u8_val));
+    StrReadFmt("A", "{c}", FMT(u8_val));
     printf("u8_val = %d, expected = %d, pass = %s\n", u8_val, 'A', (u8_val == 'A') ? "true" : "false");
     success = success && (u8_val == 'A');
 
     u8_val = 0;
-    StrReadFmt("z", "{:c}", FMT(u8_val));
+    StrReadFmt("z", "{c}", FMT(u8_val));
     printf("u8_val = %d, expected = %d, pass = %s\n", u8_val, 'z', (u8_val == 'z') ? "true" : "false");
     success = success && (u8_val == 'z');
 
     // Test reading single character into signed integers
     i8 i8_val = 0;
-    StrReadFmt("B", "{:c}", FMT(i8_val));
+    StrReadFmt("B", "{c}", FMT(i8_val));
     printf("i8_val = %d, expected = %d, pass = %s\n", i8_val, 'B', (i8_val == 'B') ? "true" : "false");
     success = success && (i8_val == 'B');
 
     i16 i16_val = 0;
-    StrReadFmt("C", "{:c}", FMT(i16_val));
+    StrReadFmt("C", "{c}", FMT(i16_val));
     printf("i16_val = %d, expected = %d, pass = %s\n", i16_val, 'C', (i16_val == 'C') ? "true" : "false");
     success = success && (i16_val == 'C');
 
     i32 i32_val = 0;
-    StrReadFmt("D", "{:c}", FMT(i32_val));
+    StrReadFmt("D", "{c}", FMT(i32_val));
     printf("i32_val = %d, expected = %d, pass = %s\n", i32_val, 'D', (i32_val == 'D') ? "true" : "false");
     success = success && (i32_val == 'D');
 
     i64 i64_val = 0;
-    StrReadFmt("E", "{:c}", FMT(i64_val));
+    StrReadFmt("E", "{c}", FMT(i64_val));
     printf("i64_val = %lld, expected = %d, pass = %s\n", i64_val, 'E', (i64_val == 'E') ? "true" : "false");
     success = success && (i64_val == 'E');
 
     // Test reading single character into unsigned integers
     u16 u16_val = 0;
-    StrReadFmt("F", "{:c}", FMT(u16_val));
+    StrReadFmt("F", "{c}", FMT(u16_val));
     printf("u16_val = %d, expected = %d, pass = %s\n", u16_val, 'F', (u16_val == 'F') ? "true" : "false");
     success = success && (u16_val == 'F');
 
     u32 u32_val = 0;
-    StrReadFmt("G", "{:c}", FMT(u32_val));
+    StrReadFmt("G", "{c}", FMT(u32_val));
     printf("u32_val = %d, expected = %d, pass = %s\n", u32_val, 'G', (u32_val == 'G') ? "true" : "false");
     success = success && (u32_val == 'G');
 
     u64 u64_val = 0;
-    StrReadFmt("H", "{:c}", FMT(u64_val));
+    StrReadFmt("H", "{c}", FMT(u64_val));
     printf("u64_val = %llu, expected = %d, pass = %s\n", u64_val, 'H', (u64_val == 'H') ? "true" : "false");
     success = success && (u64_val == 'H');
 
     // Test reading multiple characters into larger integer types
     // For u16, read 2 characters
     u16_val = 0;
-    StrReadFmt("AB", "{:c}", FMT(u16_val));
+    StrReadFmt("AB", "{c}", FMT(u16_val));
     bool u16_multi_pass = (ZstrCompareN((const char*)&u16_val, "AB", 2) == 0);
     printf("u16_val multi-char test: comparing memory with 'AB', pass = %s\n", u16_multi_pass ? "true" : "false");
     printf(
@@ -432,75 +432,75 @@ bool test_character_ordinal_reading(void) {
 
     // For i16, read 2 characters
     i16_val = 0;
-    StrReadFmt("CD", "{:c}", FMT(i16_val));
+    StrReadFmt("CD", "{c}", FMT(i16_val));
     bool i16_multi_pass = (ZstrCompareN((const char*)&i16_val, "CD", 2) == 0);
     printf("i16_val multi-char test: comparing memory with 'CD', pass = %s\n", i16_multi_pass ? "true" : "false");
     success = success && i16_multi_pass;
 
     // For u32, read up to 4 characters
     u32_val = 0;
-    StrReadFmt("EFGH", "{:c}", FMT(u32_val));
+    StrReadFmt("EFGH", "{c}", FMT(u32_val));
     bool u32_multi_pass = (ZstrCompareN((const char*)&u32_val, "EFGH", 4) == 0);
     printf("u32_val multi-char test: comparing memory with 'EFGH', pass = %s\n", u32_multi_pass ? "true" : "false");
     success = success && u32_multi_pass;
 
     // For i32, read up to 4 characters
     i32_val = 0;
-    StrReadFmt("IJKL", "{:c}", FMT(i32_val));
+    StrReadFmt("IJKL", "{c}", FMT(i32_val));
     bool i32_multi_pass = (ZstrCompareN((const char*)&i32_val, "IJKL", 4) == 0);
     printf("i32_val multi-char test: comparing memory with 'IJKL', pass = %s\n", i32_multi_pass ? "true" : "false");
     success = success && i32_multi_pass;
 
     // For u64, read up to 8 characters
     u64_val = 0;
-    StrReadFmt("MNOPQRST", "{:c}", FMT(u64_val));
+    StrReadFmt("MNOPQRST", "{c}", FMT(u64_val));
     bool u64_multi_pass = (ZstrCompareN((const char*)&u64_val, "MNOPQRST", 8) == 0);
     printf("u64_val multi-char test: comparing memory with 'MNOPQRST', pass = %s\n", u64_multi_pass ? "true" : "false");
     success = success && u64_multi_pass;
 
     // For i64, read up to 8 characters
     i64_val = 0;
-    StrReadFmt("UVWXYZab", "{:c}", FMT(i64_val));
+    StrReadFmt("UVWXYZab", "{c}", FMT(i64_val));
     bool i64_multi_pass = (ZstrCompareN((const char*)&i64_val, "UVWXYZab", 8) == 0);
     printf("i64_val multi-char test: comparing memory with 'UVWXYZab', pass = %s\n", i64_multi_pass ? "true" : "false");
     success = success && i64_multi_pass;
 
     // Test reading characters into float types (should interpret as character ordinals)
     f32 f32_val = 0.0f;
-    StrReadFmt("A", "{:c}", FMT(f32_val));
+    StrReadFmt("A", "{c}", FMT(f32_val));
     bool f32_pass = (f32_val == (f32)'A');
     printf("f32_val = %f, expected = %f, pass = %s\n", f32_val, (f32)'A', f32_pass ? "true" : "false");
     success = success && f32_pass;
 
     f64 f64_val = 0.0;
-    StrReadFmt("B", "{:c}", FMT(f64_val));
+    StrReadFmt("B", "{c}", FMT(f64_val));
     bool f64_pass = (f64_val == (f64)'B');
     printf("f64_val = %f, expected = %f, pass = %s\n", f64_val, (f64)'B', f64_pass ? "true" : "false");
     success = success && f64_pass;
 
     // Test with high ASCII characters
     u8_val = 0;
-    StrReadFmt("~", "{:c}", FMT(u8_val));
+    StrReadFmt("~", "{c}", FMT(u8_val));
     bool tilde_pass = (u8_val == '~');
     printf("u8_val = %d, expected = %d (~), pass = %s\n", u8_val, '~', tilde_pass ? "true" : "false");
     success = success && tilde_pass;
 
     // Test partial reads for larger types with fewer characters
     u32_val = 0;
-    StrReadFmt("XY", "{:c}", FMT(u32_val));
+    StrReadFmt("XY", "{c}", FMT(u32_val));
     bool xy_pass = (ZstrCompareN((const char*)&u32_val, "XY", 2) == 0);
     printf("u32_val partial test: comparing memory with 'XY', pass = %s\n", xy_pass ? "true" : "false");
     success = success && xy_pass;
 
     u64_val = 0;
-    StrReadFmt("abc", "{:c}", FMT(u64_val));
+    StrReadFmt("abc", "{c}", FMT(u64_val));
     bool abc_pass = (ZstrCompareN((const char*)&u64_val, "abc", 3) == 0);
     printf("u64_val partial test: comparing memory with 'abc', pass = %s\n", abc_pass ? "true" : "false");
     success = success && abc_pass;
 
     // Test that :c has no effect on string types (should work like regular string reading)
     Str str_val = StrInit();
-    StrReadFmt("Hello", "{:c}", FMT(str_val));
+    StrReadFmt("Hello", "{c}", FMT(str_val));
 
     Str  expected = StrInitFromZstr("Hello");
     bool str_pass = (StrCmp(&str_val, &expected) == 0);
@@ -511,7 +511,7 @@ bool test_character_ordinal_reading(void) {
 
     // Test :c with quoted strings (should work like regular string reading)
     str_val = StrInit();
-    StrReadFmt("\"World\"", "{:c}", FMT(str_val));
+    StrReadFmt("\"World\"", "{c}", FMT(str_val));
 
     expected             = StrInitFromZstr("World");
     bool quoted_str_pass = (StrCmp(&str_val, &expected) == 0);
@@ -535,7 +535,7 @@ bool test_string_case_conversion_reading(void) {
         Str         result = StrInit();
         const char* input  = "Hello World";
 
-        StrReadFmt(input, "{:a}", FMT(result));
+        StrReadFmt(input, "{a}", FMT(result));
 
         printf("Test 1 - :a (lowercase)\n");
         printf("Input: '%s', Output: '", input);
@@ -559,7 +559,7 @@ bool test_string_case_conversion_reading(void) {
         Str         result = StrInit();
         const char* input  = "hello world";
 
-        StrReadFmt(input, "{:A}", FMT(result));
+        StrReadFmt(input, "{A}", FMT(result));
 
         printf("Test 2 - :A (uppercase)\n");
         printf("Input: '%s', Output: '", input);
@@ -583,7 +583,7 @@ bool test_string_case_conversion_reading(void) {
         Str         result = StrInit();
         const char* input  = "\"MiXeD CaSe\"";
 
-        StrReadFmt(input, "{:a}", FMT(result));
+        StrReadFmt(input, "{a}", FMT(result));
 
         printf("Test 3 - :a with quoted string\n");
         printf("Input: '%s', Output: '", input);
@@ -607,7 +607,7 @@ bool test_string_case_conversion_reading(void) {
         Str         result = StrInit();
         const char* input  = "\"abc123XYZ\"";
 
-        StrReadFmt(input, "{:A}", FMT(result));
+        StrReadFmt(input, "{A}", FMT(result));
 
         printf("Test 4 - :A with mixed alphanumeric\n");
         printf("Input: '%s', Output: '", input);
@@ -631,7 +631,7 @@ bool test_string_case_conversion_reading(void) {
         Str         result = StrInit();
         const char* input  = "Hello World";
 
-        StrReadFmt(input, "{:c}", FMT(result));
+        StrReadFmt(input, "{c}", FMT(result));
 
         printf("Test 5 - :c (no case conversion)\n");
         printf("Input: '%s', Output: '", input);

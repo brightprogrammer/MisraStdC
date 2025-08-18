@@ -78,7 +78,7 @@ static StrIter JSkipObject(StrIter si) {
 
     char c = StrIterPeek(&si);
     if (c != '}') {
-        LOG_ERROR("Expected end of object '}' but found '{:c}'", FMT(c));
+        LOG_ERROR("Expected end of object '}' but found '{c}'", FMT(c));
         return saved_si;
     }
 
@@ -246,7 +246,7 @@ StrIter JReadString(StrIter si, Str* str) {
                         // espaced unicode sequence
                         case 'u' :
                             LOG_ERROR(
-                                "No unicode support '{:.6}'. Unicode sequence will be skipped.",
+                                "No unicode support '{.6}'. Unicode sequence will be skipped.",
                                 FMT(LVAL(si.data + si.pos - 1))
                             );
                             StrIterMove(&si, 5);
@@ -367,7 +367,7 @@ StrIter JReadNumber(StrIter si, Number* num) {
     }
 
     if (!ns.length) {
-        LOG_ERROR("Failed to parse number. '{:.8}'", FMT(LVAL(saved_si.data + saved_si.pos)));
+        LOG_ERROR("Failed to parse number. '{.8}'", FMT(LVAL(saved_si.data + saved_si.pos)));
         StrDeinit(&ns);
         return saved_si;
     }

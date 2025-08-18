@@ -591,7 +591,7 @@ StrIter JSkipValue(StrIter si);
         if (!failed) {                                                                                                 \
             char c = StrIterPeek(&si);                                                                                 \
             if (c != '}') {                                                                                            \
-                LOG_ERROR("Expected end of object '}' but found '{:c}'", FMT(c));                                      \
+                LOG_ERROR("Expected end of object '}' but found '{c}'", FMT(c));                                       \
                 failed = true;                                                                                         \
                 si     = saved_si;                                                                                     \
                 break;                                                                                                 \
