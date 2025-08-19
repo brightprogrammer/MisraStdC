@@ -263,9 +263,9 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 #define StrWriteFmt_IMPL1(input, fmtstr, ...) StrWriteFmt_IMPL2(input, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
 #define StrWriteFmt_IMPL2(input, fmtstr, varr)                                                                         \
     do {                                                                                                               \
-        TypeSpecificIO *argv = &(varr)[0];                                                                             \
-        size            argc = sizeof(varr) / sizeof(TypeSpecificIO);                                                  \
-        StrWriteFmtInternal((input), (fmtstr), argv, argc - 1);                                                        \
+        TypeSpecificIO *argv_##__LINE__ = &(varr)[0];                                                                  \
+        size            argc_##__LINE__ = sizeof(varr) / sizeof(TypeSpecificIO);                                       \
+        StrWriteFmtInternal((input), (fmtstr), argv_##__LINE__, argc_##__LINE__ - 1);                                  \
     } while (0)
 
 ///
@@ -288,9 +288,9 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 #define StrReadFmt_IMPL1(input, fmtstr, ...) StrReadFmt_IMPL2(input, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
 #define StrReadFmt_IMPL2(input, fmtstr, varr)                                                                          \
     do {                                                                                                               \
-        TypeSpecificIO *argv = &(varr)[0];                                                                             \
-        size            argc = sizeof(varr) / sizeof(TypeSpecificIO);                                                  \
-        StrReadFmtInternal((input), (fmtstr), argv, argc - 1);                                                         \
+        TypeSpecificIO *argv_##__LINE__ = &(varr)[0];                                                                  \
+        size            argc_##__LINE__ = sizeof(varr) / sizeof(TypeSpecificIO);                                       \
+        StrReadFmtInternal((input), (fmtstr), argv_##__LINE__, argc_##__LINE__ - 1);                                   \
     } while (0)
 
 ///
@@ -314,9 +314,9 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 #define FReadFmt_IMPL1(file, fmtstr, ...) FReadFmt_IMPL2(file, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
 #define FReadFmt_IMPL2(file, fmtstr, varr)                                                                             \
     do {                                                                                                               \
-        TypeSpecificIO *argv = &(varr)[0];                                                                             \
-        size            argc = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                              \
-        FReadFmtInternal((file), (fmtstr), argv, argc);                                                                \
+        TypeSpecificIO *argv_##__LINE__ = &(varr)[0];                                                                  \
+        size            argc_##__LINE__ = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                   \
+        FReadFmtInternal((file), (fmtstr), argv_##__LINE__, argc_##__LINE__);                                          \
     } while (0)
 
 ///
@@ -340,12 +340,12 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 #define FWriteFmt_IMPL1(stream, fmtstr, ...) FWriteFmt_IMPL2(stream, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
 #define FWriteFmt_IMPL2(stream, fmtstr, varr)                                                                          \
     do {                                                                                                               \
-        TypeSpecificIO *argv = &(varr)[0];                                                                             \
-        size            argc = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                              \
-        Str             out  = StrInit();                                                                              \
-        StrWriteFmtInternal(&out, (fmtstr), argv, argc);                                                               \
-        fwrite(out.data, 1, out.length, (stream));                                                                     \
-        StrDeinit(&out);                                                                                               \
+        TypeSpecificIO *argv_##__LINE__ = &(varr)[0];                                                                  \
+        size            argc_##__LINE__ = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                   \
+        Str             out_##__LINE__  = StrInit();                                                                   \
+        StrWriteFmtInternal(&out_##__LINE__, (fmtstr), argv_##__LINE__, argc_##__LINE__);                              \
+        fwrite(out_##__LINE__.data, 1, out_##__LINE__.length, (stream));                                               \
+        StrDeinit(&out_##__LINE__);                                                                                    \
     } while (0)
 
 ///
@@ -370,13 +370,13 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 #define FWriteFmtLn_IMPL1(stream, fmtstr, ...) FWriteFmtLn_IMPL2(stream, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
 #define FWriteFmtLn_IMPL2(stream, fmtstr, varr)                                                                        \
     do {                                                                                                               \
-        TypeSpecificIO *argv = &(varr)[0];                                                                             \
-        size            argc = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                              \
-        Str             out  = StrInit();                                                                              \
-        StrWriteFmtInternal(&out, (fmtstr), argv, argc);                                                               \
-        fwrite(out.data, 1, out.length, (stream));                                                                     \
+        TypeSpecificIO *argv_##__LINE__ = &(varr)[0];                                                                  \
+        size            argc_##__LINE__ = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                   \
+        Str             out_##__LINE__  = StrInit();                                                                   \
+        StrWriteFmtInternal(&out_##__LINE__, (fmtstr), argv_##__LINE__, argc_##__LINE__);                              \
+        fwrite(out_##__LINE__.data, 1, out_##__LINE__.length, (stream));                                               \
         fputc('\n', (stream));                                                                                         \
-        StrDeinit(&out);                                                                                               \
+        StrDeinit(&out_##__LINE__);                                                                                    \
     } while (0)
 
 ///
