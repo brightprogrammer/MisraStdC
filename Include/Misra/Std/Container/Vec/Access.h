@@ -27,7 +27,7 @@
 /// v[in]   : Vector to get data from
 /// idx[in] : Index to get data at
 ///
-#define VecAt(v, idx) ((VEC_DATATYPE(v) *)(VecAlignedOffsetAt(v, idx) + (char *)(v)->data))[0]
+#define VecAt(v, idx) ((VEC_DATATYPE(v) *)(VecAlignedOffsetAt((v), (idx)) + (char *)(v)->data))[0]
 
 ///
 /// Value at given index in a vector.
@@ -36,7 +36,7 @@
 /// v[in]   : Vector to get data from
 /// idx[in] : Index to get data at
 ///
-#define VecPtrAt(v, idx) (VEC_DATATYPE(v) *)(VecAlignedOffsetAt(v, idx) + (char *)(v)->data)
+#define VecPtrAt(v, idx) ((VEC_DATATYPE(v) *)(VecAlignedOffsetAt((v), (idx)) + (char *)(v)->data))
 
 ///
 /// Value of first element in vector.
