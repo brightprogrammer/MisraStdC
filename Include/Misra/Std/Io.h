@@ -13,6 +13,11 @@
 // c
 #include <stdio.h>
 
+// REF : https://devblogs.microsoft.com/cppblog/announcing-full-support-for-a-c-c-conformant-preprocessor-in-msvc/
+#if defined(_MSVC_TRADITIONAL) && _MSVC_TRADITIONAL
+#    error "I need /Zc:prerocessor flag enabled in MSVC to compile IO code correctly"
+#endif
+
 ///
 /// Defines text alignment options for formatted output.
 ///
@@ -109,6 +114,12 @@ typedef struct TypeSpecificIO {
     void              *data;
 } TypeSpecificIO;
 
+#ifdef __cplusplus
+#    define EMPTY_TYPE_SPECIFIC_IO() (TypeSpecificIO {NULL, NULL, NULL})
+#else
+#    define EMPTY_TYPE_SPECIFIC_IO() ((TypeSpecificIO) {NULL, NULL, NULL})
+#endif
+
 static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, TypeSpecificReader r, void *d) {
     return (TypeSpecificIO) {.writer = w, .reader = r, .data = d};
 }
@@ -117,7 +128,7 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
     TO_TYPE_SPECIFIC_IO_IMPL((TypeSpecificWriter)_write_##T, (TypeSpecificReader)_read_##T, (d))
 
 #if defined(_MSC_VER) || defined(__MSC_VER)
-#    define FMT(x)                                                                                                     \
+#    define IOFMT(x)                                                                                                   \
         _Generic(                                                                                                      \
             (x),                                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                       \
@@ -148,7 +159,7 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 /// FAILURE: Returns unsupported type handler for unknown types
 ///
 /// TAGS: Macro, TypeDispatch, Generic, I/O, Format
-#    define FMT(x)                                                                                                     \
+#    define IOFMT(x)                                                                                                   \
         _Generic(                                                                                                      \
             (x),                                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, (void *)&(x)),                                                               \
@@ -175,11 +186,11 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 /// Print out a formatted string with rust-style placeholders
 /// to given string `o`.
 ///
-/// WARN: Directly passing literals like `FMT(1337)` is not supported, especially const char*
+/// WARN: Directly passing literals like `1337` is not supported, especially const char*
 ///       literals. For constants like integers, booleans, you can use `LVAL(r-value)`
-///       to convert an l-value to an r-value an then use in `FMT` like `FMT(LVAL(false))`
+///       to convert an l-value to an r-value an then use in `FMT` like `LVAL(false)`
 ///
-/// Takes in `TypeSpecificIO` structures as arguments. Use `FMT(.)`
+/// Takes in `TypeSpecificIO` structures as arguments. Use `.`
 /// to wrap any supported-type variable to it's `TypeSpecificIO` object.
 ///
 /// o[out]     : Contents appended to this string.
@@ -198,7 +209,7 @@ bool StrWriteFmtInternal(Str *o, const char *fmt, TypeSpecificIO *args, size arg
 /// Parse input string according to format string with rust-style placeholders,
 /// extracting values into provided `TypeSpecificIO` arguments.
 ///
-/// Takes in `TypeSpecificIO` structures as arguments. Use `FMT(.)` to wrap any
+/// Takes in `TypeSpecificIO` structures as arguments. Use `.` to wrap any
 /// supported-type variable to its `TypeSpecificIO` object.
 ///
 /// input[in]  : Input string to parse (null-terminated)
@@ -210,7 +221,7 @@ bool StrWriteFmtInternal(Str *o, const char *fmt, TypeSpecificIO *args, size arg
 ///   const char *input = "Count: 42, Name: Alice";
 ///   int count;
 ///   Str name;
-///   const char *remaining = StrReadFmt(input, "Count: {}, Name: {}", FMT(count), FMT(name));
+///   const char *remaining = StrReadFmt(input, "Count: {}, Name: {}", count, name);
 ///
 /// SUCCESS : After reading through `input`, returns back const char* to start reading from (from inside `input`)
 /// FAILURE : Returns NULL if `fmtstr` does not match with input. In any other case of error, does not return.
@@ -228,7 +239,7 @@ const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecif
 /// argc[in]   : Number of `TypeSpecificIO` values in array.
 ///
 /// SUCCESS : Compares fmtstr with stream of characters in `stream` and reads values at placeholders.
-///           A valid value will be stored in `FMT(.)` arg provided.
+///           A valid value will be stored in `.` arg provided.
 /// FAILURE : Logs out error message and returns. If rollback is possible, then un-reads all the read data.
 ///           Restoring original state. Method can also abort if something really unexpected is encountered.
 ///           Returns `NULL` if format string does not match with input `stream`.
@@ -238,18 +249,25 @@ const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecif
 void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, size argc);
 
 ///
+/// Helper macro to append a comma after wrapping given argument in IOFMT
+/// Used in following macros
+///
+#define IOFMT_LVAL_APPEND_COMMA(x) IOFMT(LVAL(x)),
+#define IOFMT_APPEND_COMMA(x)      IOFMT(x),
+
+///
 /// Print out a formatted string with rust-style placeholders
 /// to given string `o`. This is a macro wrapper around StrWriteFmtImpl.
 ///
 /// WARN: Directly passing literals like `StrWriteFmt(o, "{}", "literal")` for string literals
 ///       or `StrWriteFmt(o, "{}", 1337)` for integer literals might not work as expected
-///       without proper wrapping using `FMT()`. For constants like integers, booleans,
-///       you typically use `FMT(constant_variable)`.
+///       without proper wrapping using ``. For constants like integers, booleans,
+///       you typically use `constant_variable`.
 ///
 /// out[out]    : The Str object to which the formatted string will be appended.
 /// fmtstr[in]  : Format string with `{}` placeholders.
 /// ...[in]     : Variable number of arguments to replace the placeholders. Each argument
-///               should be wrapped with `FMT(variable)`.
+///               should be wrapped with `variable`.
 ///
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
 ///           result is appended to the `out` Str object.
@@ -259,8 +277,15 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 /// TAGS: Macro, Wrapper, Format, I/O
 ///
 // #define StrWriteFmt(out, ...) StrWriteFmtImpl(out, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
-#define StrWriteFmt(out, ...)                 StrWriteFmt_IMPL1(out, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
-#define StrWriteFmt_IMPL1(input, fmtstr, ...) StrWriteFmt_IMPL2(input, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define StrWriteFmt(out, ...) StrWriteFmt_IMPL1(out, __VA_ARGS__)
+#define StrWriteFmt_IMPL1(input, fmtstr, ...)                                                                          \
+    StrWriteFmt_IMPL2(                                                                                                 \
+        input,                                                                                                         \
+        fmtstr,                                                                                                        \
+        ((TypeSpecificIO[]) {                                                                                          \
+            APPLY_MACRO_FOREACH(IOFMT_LVAL_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                               \
+    })                                                                                                             \
+    )
 #define StrWriteFmt_IMPL2(input, fmtstr, varr)                                                                         \
     do {                                                                                                               \
         TypeSpecificIO *argv_##__LINE__ = &(varr)[0];                                                                  \
@@ -275,7 +300,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 /// input[in]   : Input string to parse (must be null-terminated).
 /// fmtstr[in]  : Format string with `{}` placeholders (must be null-terminated).
 /// ...[in]     : Variable number of arguments that will receive the parsed values. Each
-///               argument should be a modifiable l-value wrapped with `FMT(&variable)`.
+///               argument should be a modifiable l-value wrapped with `&variable`.
 ///
 /// SUCCESS : Returns a `const char*` pointing to the beginning of the unparsed portion
 ///           of the `input` string after successful parsing.
@@ -284,8 +309,15 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// TAGS: Macro, Wrapper, Format, Parsing, I/O
 ///
-#define StrReadFmt(input, ...)               StrReadFmt_IMPL1(input, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
-#define StrReadFmt_IMPL1(input, fmtstr, ...) StrReadFmt_IMPL2(input, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define StrReadFmt(input, ...) StrReadFmt_IMPL1(input, __VA_ARGS__)
+#define StrReadFmt_IMPL1(input, fmtstr, ...)                                                                           \
+    StrReadFmt_IMPL2(                                                                                                  \
+        input,                                                                                                         \
+        fmtstr,                                                                                                        \
+        ((TypeSpecificIO[]) {                                                                                          \
+            APPLY_MACRO_FOREACH(IOFMT_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                                    \
+    })                                                                                                             \
+    )
 #define StrReadFmt_IMPL2(input, fmtstr, varr)                                                                          \
     do {                                                                                                               \
         TypeSpecificIO *argv_##__LINE__ = &(varr)[0];                                                                  \
@@ -300,18 +332,25 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 /// fmtstr[in]  : Format string to be used for reading. This must exactly describe the
 ///               expected input format in the stream.
 /// ...[in]     : Variable number of arguments that will receive the read values. Each
-///               argument should be a modifiable l-value wrapped with `FMT(&variable)`.
+///               argument should be a modifiable l-value wrapped with `&variable`.
 ///
 /// SUCCESS : Attempts to match `fmtstr` with the stream of characters in `stream` and
-///           reads values into the provided arguments wrapped with `FMT()`.
+///           reads values into the provided arguments wrapped with ``.
 /// FAILURE : Failure occurs within `FReadFmtInternal`. Refer to its documentation for
 ///           details on failure behavior (logs error message and returns, may rollback
 ///           read data, or abort in unexpected situations).
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
-#define FReadFmt(file, ...)               FReadFmt_IMPL1(file, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
-#define FReadFmt_IMPL1(file, fmtstr, ...) FReadFmt_IMPL2(file, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define FReadFmt(file, ...) FReadFmt_IMPL1(file, __VA_ARGS__)
+#define FReadFmt_IMPL1(file, fmtstr, ...)                                                                              \
+    FReadFmt_IMPL2(                                                                                                    \
+        file,                                                                                                          \
+        fmtstr,                                                                                                        \
+        ((TypeSpecificIO[]) {                                                                                          \
+            APPLY_MACRO_FOREACH(IOFMT_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                                    \
+    })                                                                                                             \
+    )
 #define FReadFmt_IMPL2(file, fmtstr, varr)                                                                             \
     do {                                                                                                               \
         TypeSpecificIO *argv_##__LINE__ = &(varr)[0];                                                                  \
@@ -326,7 +365,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 /// stream[in]  : Pointer to the `FILE` stream to write to.
 /// fmtstr[in]  : Format string with `{}` placeholders.
 /// ...[in]     : Variable number of arguments to replace the placeholders. Each argument
-///               should be wrapped with `FMT(variable)`.
+///               should be wrapped with `variable`.
 ///
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
 ///           resulting formatted string is written to the specified `stream`.
@@ -336,8 +375,15 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
-#define FWriteFmt(stream, ...)               FWriteFmt_IMPL1(stream, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
-#define FWriteFmt_IMPL1(stream, fmtstr, ...) FWriteFmt_IMPL2(stream, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define FWriteFmt(stream, ...) FWriteFmt_IMPL1(stream, __VA_ARGS__)
+#define FWriteFmt_IMPL1(stream, fmtstr, ...)                                                                           \
+    FWriteFmt_IMPL2(                                                                                                   \
+        stream,                                                                                                        \
+        fmtstr,                                                                                                        \
+        ((TypeSpecificIO[]) {                                                                                          \
+            APPLY_MACRO_FOREACH(IOFMT_LVAL_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                               \
+    })                                                                                                             \
+    )
 #define FWriteFmt_IMPL2(stream, fmtstr, varr)                                                                          \
     do {                                                                                                               \
         TypeSpecificIO *argv_##__LINE__ = &(varr)[0];                                                                  \
@@ -356,7 +402,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 /// stream[in]  : Pointer to the `FILE` stream to write to.
 /// fmtstr[in]  : Format string with `{}` placeholders.
 /// ...[in]     : Variable number of arguments to replace the placeholders. Each argument
-///               should be wrapped with `FMT(variable)`.
+///               should be wrapped with `variable`.
 ///
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
 ///           resulting formatted string followed by a newline is written to the `stream`.
@@ -366,8 +412,15 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
-#define FWriteFmtLn(stream, ...)               FWriteFmtLn_IMPL1(stream, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
-#define FWriteFmtLn_IMPL1(stream, fmtstr, ...) FWriteFmtLn_IMPL2(stream, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define FWriteFmtLn(stream, ...) FWriteFmtLn_IMPL1(stream, __VA_ARGS__)
+#define FWriteFmtLn_IMPL1(stream, fmtstr, ...)                                                                         \
+    FWriteFmtLn_IMPL2(                                                                                                 \
+        stream,                                                                                                        \
+        fmtstr,                                                                                                        \
+        ((TypeSpecificIO[]) {                                                                                          \
+            APPLY_MACRO_FOREACH(IOFMT_LVAL_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                               \
+    })                                                                                                             \
+    )
 #define FWriteFmtLn_IMPL2(stream, fmtstr, varr)                                                                        \
     do {                                                                                                               \
         TypeSpecificIO *argv_##__LINE__ = &(varr)[0];                                                                  \
@@ -385,7 +438,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// fmtstr[in]  : Format string with `{}` placeholders.
 /// ...[in]     : Variable number of arguments to replace the placeholders. Each argument
-///               should be wrapped with `FMT(variable)`.
+///               should be wrapped with `variable`.
 ///
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
 ///           resulting formatted string is written to `stdout`.
@@ -403,7 +456,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// fmtstr[in]  : Format string with `{}` placeholders.
 /// ...[in]     : Variable number of arguments to replace the placeholders. Each argument
-///               should be wrapped with `FMT(variable)`.
+///               should be wrapped with `variable`.
 ///
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
 ///           resulting formatted string followed by a newline is written to `stdout`.
@@ -422,10 +475,10 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 /// fmtstr[in]  : Format string to be used for reading. This must exactly describe the
 ///               expected input format from `stdin`.
 /// ...[in]     : Variable number of arguments that will receive the read values. Each
-///               argument should be a modifiable l-value wrapped with `FMT(&variable)`.
+///               argument should be a modifiable l-value wrapped with `&variable`.
 ///
 /// SUCCESS : Attempts to match `fmtstr` with the input from `stdin` and reads values
-///           into the provided arguments wrapped with `FMT()`.
+///           into the provided arguments wrapped with ``.
 /// FAILURE : Failure occurs within `FReadFmtInternal`. Refer to its documentation for
 ///           details on failure behavior (logs error message and returns, may rollback
 ///           read data, or abort in unexpected situations).

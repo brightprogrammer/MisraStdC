@@ -32,7 +32,7 @@ void LogInit(bool redirect) {
             Str syserr;
             StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
                 SysStrError(errno, &syserr);
-                LOG_ERROR("Failed to get localtime : {}", FMT(syserr));
+                LOG_ERROR("Failed to get localtime : {}", syserr);
             });
             goto LOG_STREAM_FALLBACK;
         }
@@ -79,7 +79,7 @@ void LogInit(bool redirect) {
             Str syserr;
             StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
                 SysStrError(e, &syserr);
-                LOG_ERROR("Failed to open log file : {}", FMT(syserr));
+                LOG_ERROR("Failed to open log file : {}", syserr);
             });
             goto LOG_STREAM_FALLBACK;
         }

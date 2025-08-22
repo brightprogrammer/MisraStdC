@@ -186,7 +186,7 @@ BitVec BitVecClone(BitVec *bv) {
 bool BitVecGet(BitVec *bitvec, u64 idx) {
     ValidateBitVec(bitvec);
     if (idx >= bitvec->length) {
-        LOG_FATAL("Index {} exceeds bitvector length {}", FMT(idx), FMT(bitvec->length));
+        LOG_FATAL("Index {} exceeds bitvector length {}", idx, bitvec->length);
     }
     u64 byte_idx   = BIT_INDEX(idx);
     u64 bit_offset = BIT_OFFSET(idx);
@@ -197,7 +197,7 @@ bool BitVecGet(BitVec *bitvec, u64 idx) {
 void BitVecSet(BitVec *bitvec, u64 idx, bool value) {
     ValidateBitVec(bitvec);
     if (idx >= bitvec->length) {
-        LOG_FATAL("Index {} exceeds bitvector length {}", FMT(idx), FMT(bitvec->length));
+        LOG_FATAL("Index {} exceeds bitvector length {}", idx, bitvec->length);
     }
     u64 byte_idx   = BIT_INDEX(idx);
     u64 bit_offset = BIT_OFFSET(idx);
@@ -212,7 +212,7 @@ void BitVecSet(BitVec *bitvec, u64 idx, bool value) {
 void BitVecFlip(BitVec *bitvec, u64 idx) {
     ValidateBitVec(bitvec);
     if (idx >= bitvec->length) {
-        LOG_FATAL("Index {} exceeds bitvector length {}", FMT(idx), FMT(bitvec->length));
+        LOG_FATAL("Index {} exceeds bitvector length {}", idx, bitvec->length);
     }
     u64 byte_idx   = BIT_INDEX(idx);
     u64 bit_offset = BIT_OFFSET(idx);
@@ -244,7 +244,7 @@ bool BitVecPop(BitVec *bitvec) {
 void BitVecInsert(BitVec *bitvec, u64 idx, bool value) {
     ValidateBitVec(bitvec);
     if (idx > bitvec->length) {
-        LOG_FATAL("Index {} exceeds bitvector length {}", FMT(idx), FMT(bitvec->length));
+        LOG_FATAL("Index {} exceeds bitvector length {}", idx, bitvec->length);
     }
     // For now, implement as push + manual bit shifting (simple but not efficient)
     BitVecPush(bitvec, false);
@@ -261,7 +261,7 @@ void BitVecInsert(BitVec *bitvec, u64 idx, bool value) {
 void BitVecInsertRange(BitVec *bv, u64 idx, u64 count, bool value) {
     ValidateBitVec(bv);
     if (idx > bv->length) {
-        LOG_FATAL("Index {} exceeds bitvector length {}", FMT(idx), FMT(bv->length));
+        LOG_FATAL("Index {} exceeds bitvector length {}", idx, bv->length);
     }
     if (count == 0) {
         return;
@@ -288,7 +288,7 @@ void BitVecInsertMultiple(BitVec *bv, u64 idx, BitVec *other) {
     ValidateBitVec(bv);
     ValidateBitVec(other);
     if (idx > bv->length) {
-        LOG_FATAL("Index {} exceeds bitvector length {}", FMT(idx), FMT(bv->length));
+        LOG_FATAL("Index {} exceeds bitvector length {}", idx, bv->length);
     }
     if (other->length == 0) {
         return;
@@ -315,7 +315,7 @@ void BitVecInsertMultiple(BitVec *bv, u64 idx, BitVec *other) {
 void BitVecInsertPattern(BitVec *bv, u64 idx, u8 pattern, u64 pattern_bits) {
     ValidateBitVec(bv);
     if (idx > bv->length) {
-        LOG_FATAL("Index {} exceeds bitvector length {}", FMT(idx), FMT(bv->length));
+        LOG_FATAL("Index {} exceeds bitvector length {}", idx, bv->length);
     }
     if (pattern_bits == 0 || pattern_bits > 8) {
         return;
@@ -342,7 +342,7 @@ void BitVecInsertPattern(BitVec *bv, u64 idx, u8 pattern, u64 pattern_bits) {
 bool BitVecRemove(BitVec *bv, u64 idx) {
     ValidateBitVec(bv);
     if (idx >= bv->length) {
-        LOG_FATAL("Index {} exceeds bitvector length {}", FMT(idx), FMT(bv->length));
+        LOG_FATAL("Index {} exceeds bitvector length {}", idx, bv->length);
     }
 
     // Get the bit value before removing it
@@ -361,7 +361,7 @@ bool BitVecRemove(BitVec *bv, u64 idx) {
 void BitVecRemoveRange(BitVec *bv, u64 idx, u64 count) {
     ValidateBitVec(bv);
     if (idx >= bv->length) {
-        LOG_FATAL("Index {} exceeds bitvector length {}", FMT(idx), FMT(bv->length));
+        LOG_FATAL("Index {} exceeds bitvector length {}", idx, bv->length);
     }
     if (count == 0) {
         return;
@@ -525,20 +525,10 @@ bool BitVecEqualsRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len
     ValidateBitVec(bv2);
 
     if (start1 + len > bv1->length) {
-        LOG_FATAL(
-            "Range [{}:{}] exceeds bitvector1 length {}",
-            FMT(start1),
-            FMT(LVAL(start1 + len - 1)),
-            FMT(bv1->length)
-        );
+        LOG_FATAL("Range [{}:{}] exceeds bitvector1 length {}", start1, LVAL(start1 + len - 1), bv1->length);
     }
     if (start2 + len > bv2->length) {
-        LOG_FATAL(
-            "Range [{}:{}] exceeds bitvector2 length {}",
-            FMT(start2),
-            FMT(LVAL(start2 + len - 1)),
-            FMT(bv2->length)
-        );
+        LOG_FATAL("Range [{}:{}] exceeds bitvector2 length {}", start2, LVAL(start2 + len - 1), bv2->length);
     }
 
     for (u64 i = 0; i < len; i++) {
@@ -577,20 +567,10 @@ int BitVecCompareRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len
     ValidateBitVec(bv2);
 
     if (start1 + len > bv1->length) {
-        LOG_FATAL(
-            "Range [{}:{}] exceeds bitvector1 length {}",
-            FMT(start1),
-            FMT(LVAL(start1 + len - 1)),
-            FMT(bv1->length)
-        );
+        LOG_FATAL("Range [{}:{}] exceeds bitvector1 length {}", start1, LVAL(start1 + len - 1), bv1->length);
     }
     if (start2 + len > bv2->length) {
-        LOG_FATAL(
-            "Range [{}:{}] exceeds bitvector2 length {}",
-            FMT(start2),
-            FMT(LVAL(start2 + len - 1)),
-            FMT(bv2->length)
-        );
+        LOG_FATAL("Range [{}:{}] exceeds bitvector2 length {}", start2, LVAL(start2 + len - 1), bv2->length);
     }
 
     // Compare bit by bit in the specified range

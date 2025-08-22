@@ -161,7 +161,7 @@ SysDirContents SysGetDirContents(const char* path) {
         Str err;
         StrInitStack(err, SYS_ERROR_STR_MAX_LENGTH, {
             SysStrError(errno, &err);
-            LOG_ERROR("opendir(\"{}\") failed : {}", FMT(path), FMT(err));
+            LOG_ERROR("opendir(\"{}\") failed : {}", path, err);
         });
         return (SysDirContents) {0};
     }
@@ -186,7 +186,7 @@ SysDirContents SysGetDirContents(const char* path) {
         } else {
             Str         entry_path = StrInit();
             const char* dir_name   = &entry->d_name[0];
-            StrWriteFmt(&entry_path, "{}/{}", FMT(path), FMT(dir_name));
+            StrWriteFmt(&entry_path, "{}/{}", path, dir_name);
 
             struct stat path_stat;
             stat(entry_path.data, &path_stat);
@@ -232,7 +232,7 @@ i64 SysGetFileSize(const char* filename) {
         Str err;
         StrInitStack(err, SYS_ERROR_STR_MAX_LENGTH, {
             SysStrError(errno, &err);
-            LOG_ERROR("failed to open file: {}\n", FMT(err));
+            LOG_ERROR("failed to open file: {}\n", err);
         });
         return -1;
     }
@@ -242,7 +242,7 @@ i64 SysGetFileSize(const char* filename) {
         Str err;
         StrInitStack(err, SYS_ERROR_STR_MAX_LENGTH, {
             SysStrError(errno, &err);
-            LOG_ERROR("failed to get file size: {}\n", FMT(err));
+            LOG_ERROR("failed to get file size: {}\n", err);
         });
         CloseHandle(file);
         return -1;
@@ -259,7 +259,7 @@ i64 SysGetFileSize(const char* filename) {
         Str err;
         StrInitStack(err, SYS_ERROR_STR_MAX_LENGTH, {
             SysStrError(errno, &err);
-            LOG_ERROR("failed to get file size: {}\n", FMT(err));
+            LOG_ERROR("failed to get file size: {}\n", err);
         });
         return -1;
     }
@@ -598,7 +598,7 @@ SysProcInfo* SysCreateProcess(const char* executable, Strs* argv, Strs* env) {
 
     if (!success) {
         DWORD error = GetLastError();
-        LOG_ERROR("CreateProcess failed with error {}", FMT(error));
+        LOG_ERROR("CreateProcess failed with error {}", error);
         FREE(proc_info);
         return NULL;
     }

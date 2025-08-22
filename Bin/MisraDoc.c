@@ -170,16 +170,16 @@ int main(int argc, char** argv) {
                             &file_contents.length,
                             &file_contents.capacity
                         )) {
-                        LOG_ERROR("Failed to read \"{}\" source file.", FMT(file_path.data));
+                        LOG_ERROR("Failed to read \"{}\" source file.", file_path.data);
                         continue;
                     }
 
                     Str output_path = StrInit();
                     Scope(&output_path, StrDeinit, {
                         StrMerge(&output_path, &file_path);
-                        LOG_INFO("{}", FMT(output_path));
+                        LOG_INFO("{}", output_path);
                         StrReplaceZstr(&output_path, "/", "-", -1);
-                        LOG_INFO("{}", FMT(output_path));
+                        LOG_INFO("{}", output_path);
 
                         Str md_code = StrInit();
                         Scope(&md_code, StrDeinit, {
@@ -198,24 +198,18 @@ int main(int argc, char** argv) {
                                 "---\n"
                                 "```c\n";
 
-                            StrWriteFmt(
-                                &md_code,
-                                mdHeader,
-                                FMT(output_path.data),
-                                FMT(output_path.data),
-                                FMT(output_path.data)
-                            );
+                            StrWriteFmt(&md_code, mdHeader, output_path.data, output_path.data, output_path.data);
                             StrMerge(&md_code, &file_contents);
                             StrWriteFmt(&md_code, "\n```");
 
                             // complete relative file path
                             StrPushFront(&output_path, '/');
-                            LOG_INFO("{}", FMT(output_path));
+                            LOG_INFO("{}", output_path);
                             StrPushFrontCstr(&output_path, project.build_dir.data, project.build_dir.length);
-                            LOG_INFO("{}", FMT(output_path));
+                            LOG_INFO("{}", output_path);
                             StrReplaceZstr(&output_path, ".c", ".md", 1);
                             StrReplaceZstr(&output_path, ".h", ".md", 1);
-                            LOG_INFO("{}\n\n", FMT(output_path));
+                            LOG_INFO("{}\n\n", output_path);
 
 
                             // dump code to output path

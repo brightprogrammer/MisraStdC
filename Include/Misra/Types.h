@@ -601,4 +601,42 @@ typedef i8 bool;
 #    define FORMAT_STRING(fmt_pos, va_arg_pos) __attribute((format(printf, fmt_pos, va_arg_pos)))
 #endif
 
+///
+/// Part of the parenthesis trick to delay text generation
+///
+#define TRICK_PARENS ()
+
+#define TRICK_EXPAND(...)  TRICK_EXPAND4(TRICK_EXPAND4(TRICK_EXPAND4(TRICK_EXPAND4(__VA_ARGS__))))
+#define TRICK_EXPAND4(...) TRICK_EXPAND3(TRICK_EXPAND3(TRICK_EXPAND3(TRICK_EXPAND3(__VA_ARGS__))))
+#define TRICK_EXPAND3(...) TRICK_EXPAND2(TRICK_EXPAND2(TRICK_EXPAND2(TRICK_EXPAND2(__VA_ARGS__))))
+#define TRICK_EXPAND2(...) TRICK_EXPAND1(TRICK_EXPAND1(TRICK_EXPAND1(TRICK_EXPAND1(__VA_ARGS__))))
+#define TRICK_EXPAND1(...) __VA_ARGS__
+
+///
+/// Expand variadic argument list for given macro for each element one by one.
+///
+/// This is a macro trick to apply a given macro on a variadic argument list
+/// one by one. The only limitiation here is that we cannot expand more than
+/// 256 times for the moment. To make it do more than that, we just need to add
+/// one more line to the EXPAND macros
+///
+/// Also, if you have more than 20-30 arguments in your format strings, you should
+/// seriously consider whether you're doing something wrong
+///
+/// Reference : https://www.scs.stanford.edu/~dm/blog/va-opt.html
+///
+#define APPLY_MACRO_FOREACH(macro, ...) __VA_OPT__(TRICK_EXPAND(APPLY_MACRO_FOREACH_HELPER(macro, __VA_ARGS__)))
+
+///
+/// Helper macro to apply given macro to the very first argument in list of variadic macro arguments
+/// Then expands to applying the same macro to more arguments only if there are more
+///
+#define APPLY_MACRO_FOREACH_HELPER(macro, a1, ...)                                                                     \
+    macro(a1) __VA_OPT__(APPLY_MACRO_FOREACH_AGAIN TRICK_PARENS(macro, __VA_ARGS__))
+
+///
+/// Helper macro to delay evaluation in text generation (pre-processing) phase of macro
+///
+#define APPLY_MACRO_FOREACH_AGAIN() APPLY_MACRO_FOREACH_HELPER
+
 #endif // MISRA_TYPES_H

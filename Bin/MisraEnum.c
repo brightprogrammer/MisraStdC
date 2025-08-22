@@ -93,7 +93,7 @@ int main(int argc, char** argv) {
             }
 
             if (to_from_str && !e.str.length) {
-                LOG_ERROR("to_from_str is set to true but str value not provided for enum {}", FMT(e.name));
+                LOG_ERROR("to_from_str is set to true but str value not provided for enum {}", e.name);
                 abort();
             }
 
@@ -104,25 +104,25 @@ int main(int argc, char** argv) {
     StrClear(&code);
 
     // Use a temporary variable for enum name
-    StrWriteFmt(&code, "typedef enum {} {{\n", FMT(enum_name.data));
+    StrWriteFmt(&code, "typedef enum {} {{\n", enum_name.data);
 
     // last value starts with invalid enum's value
     if (invalid_enum.name.length) {
         last_value = invalid_enum.name.length ? invalid_enum.value : VecFirst(&entries).value;
-        StrWriteFmt(&code, "    {} = {},\n", FMT(invalid_enum.name.data), FMT(invalid_enum.value));
+        StrWriteFmt(&code, "    {} = {},\n", invalid_enum.name.data, invalid_enum.value);
     }
 
     // Use VecForeach for iterating over entries
     VecForeach(&entries, e, {
         if (last_value == e.value - 1) {
-            StrWriteFmt(&code, "    {},\n", FMT(e.name.data));
+            StrWriteFmt(&code, "    {},\n", e.name.data);
         } else {
-            StrWriteFmt(&code, "    {} = {},\n", FMT(e.name.data), FMT(e.value));
+            StrWriteFmt(&code, "    {} = {},\n", e.name.data, e.value);
         }
         last_value = e.value;
     });
 
-    StrWriteFmt(&code, "}} {};\n", FMT(enum_name.data));
+    StrWriteFmt(&code, "}} {};\n", enum_name.data);
 
     if (to_from_str) {
         // Store string literals in temporary variables
@@ -147,25 +147,18 @@ int main(int argc, char** argv) {
             invalidEnumName = invalid_enum.name.data;
         }
 
-        StrWriteFmt(
-            &code,
-            funcHeader,
-            FMT(enum_name.data),
-            FMT(enum_name.data),
-            FMT(enum_name.data),
-            FMT(invalidEnumName)
-        );
+        StrWriteFmt(&code, funcHeader, enum_name.data, enum_name.data, enum_name.data, invalidEnumName);
 
         // Use VecForeach for iterating over entries
         VecForeach(&entries, e, {
             const char* compareTemplate = "    if(ZstrCompareN(\"{}\", zstr, {}) == 0) {{return {};}}\n";
             // Store the length in a variable to avoid taking address of rvalue
             unsigned long long strLength = (unsigned long long)e.str.length;
-            StrWriteFmt(&code, compareTemplate, FMT(e.str.data), FMT(strLength), FMT(e.name.data));
+            StrWriteFmt(&code, compareTemplate, e.str.data, strLength, e.name.data);
         });
 
         const char* returnTemplate = "    return {};\n}}\n";
-        StrWriteFmt(&code, returnTemplate, FMT(invalidEnumName));
+        StrWriteFmt(&code, returnTemplate, invalidEnumName);
 
         const char* toZstrHeader =
             "///\n"
@@ -179,12 +172,12 @@ int main(int argc, char** argv) {
             "const char* {}ToZstr({} e) {{\n"
             "    switch(e) {{\n";
 
-        StrWriteFmt(&code, toZstrHeader, FMT(enum_name.data), FMT(enum_name.data), FMT(enum_name.data));
+        StrWriteFmt(&code, toZstrHeader, enum_name.data, enum_name.data, enum_name.data);
 
         // Use VecForeach for iterating over entries
         VecForeach(&entries, e, {
             const char* caseTemplate = "        case {} : {{return \"{}\";}}\n";
-            StrWriteFmt(&code, caseTemplate, FMT(e.name.data), FMT(e.str.data));
+            StrWriteFmt(&code, caseTemplate, e.name.data, e.str.data);
         });
 
         const char* defaultTemplate =
@@ -200,7 +193,7 @@ int main(int argc, char** argv) {
             nullStr = invalid_enum.str.data;
         }
 
-        StrWriteFmt(&code, defaultTemplate, FMT(nullStr));
+        StrWriteFmt(&code, defaultTemplate, nullStr);
     }
 
     if (output_filename) {

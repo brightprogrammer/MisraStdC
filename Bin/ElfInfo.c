@@ -333,7 +333,7 @@ typedef struct {
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        LOG_FATAL("USAGE: {} {}", FMT(argv[0]), FMT(argv[1]));
+        LOG_FATAL("USAGE: {} {}", argv[0], argv[1]);
     }
 
     FILE* elf = fopen(argv[1], "rb");
@@ -343,15 +343,7 @@ int main(int argc, char** argv) {
     }
 
     ElfHeader64 eh = {0};
-    FReadFmt(
-        elf,
-        FMT_ELF_META,
-        FMT(eh.meta.class),
-        FMT(eh.meta.encoding),
-        FMT(eh.meta.version),
-        FMT(eh.meta.os_abi),
-        FMT(eh.meta.abi_version)
-    );
+    FReadFmt(elf, FMT_ELF_META, eh.meta.class, eh.meta.encoding, eh.meta.version, eh.meta.os_abi, eh.meta.abi_version);
 
     // technically padding here but we can skip it
     fseek(elf, 7, SEEK_CUR);
@@ -360,25 +352,25 @@ int main(int argc, char** argv) {
     // this will also indirectly decide if elf magic is valid
     // for an invalid elf magic, any subsequent fields will be zero, and hence will be invalid
     if (eh.meta.class != ELF_CLASS_64) {
-        LOG_FATAL("Only 64-bit binaries supported for now. Class for provided binary is = {}", FMT(eh.meta.class));
+        LOG_FATAL("Only 64-bit binaries supported for now. Class for provided binary is = {}", eh.meta.class);
     }
 
     FReadFmt(
         elf,
         eh.meta.encoding == ELF_ENCODING_LSB ? FMT_ELF_HEADER_64_LE : FMT_ELF_HEADER_64_BE,
-        FMT(eh.type),
-        FMT(eh.machine),
-        FMT(eh.version),
-        FMT(eh.entry),
-        FMT(eh.program_header_table_offset),
-        FMT(eh.section_header_table_offset),
-        FMT(eh.flags),
-        FMT(eh.elf_header_size),
-        FMT(eh.program_header_entry_size),
-        FMT(eh.program_header_count),
-        FMT(eh.section_header_entry_size),
-        FMT(eh.section_header_count),
-        FMT(eh.string_table_index)
+        eh.type,
+        eh.machine,
+        eh.version,
+        eh.entry,
+        eh.program_header_table_offset,
+        eh.section_header_table_offset,
+        eh.flags,
+        eh.elf_header_size,
+        eh.program_header_entry_size,
+        eh.program_header_count,
+        eh.section_header_entry_size,
+        eh.section_header_count,
+        eh.string_table_index
     );
 
     WriteFmtLn(
@@ -399,24 +391,24 @@ int main(int argc, char** argv) {
         "  string_table_index: {}\n"
         "}}",
 
-        FMT(eh.meta.class),
-        FMT(eh.meta.encoding),
-        FMT(eh.meta.version),
-        FMT(eh.meta.os_abi),
+        eh.meta.class,
+        eh.meta.encoding,
+        eh.meta.version,
+        eh.meta.os_abi,
 
-        FMT(eh.type),
-        FMT(eh.machine),
-        FMT(eh.version),
-        FMT(eh.entry),
-        FMT(eh.program_header_table_offset),
-        FMT(eh.section_header_table_offset),
-        FMT(eh.flags),
-        FMT(eh.elf_header_size),
-        FMT(eh.program_header_entry_size),
-        FMT(eh.program_header_count),
-        FMT(eh.section_header_entry_size),
-        FMT(eh.section_header_count),
-        FMT(eh.string_table_index)
+        eh.type,
+        eh.machine,
+        eh.version,
+        eh.entry,
+        eh.program_header_table_offset,
+        eh.section_header_table_offset,
+        eh.flags,
+        eh.elf_header_size,
+        eh.program_header_entry_size,
+        eh.program_header_count,
+        eh.section_header_entry_size,
+        eh.section_header_count,
+        eh.string_table_index
     );
 
     return 0;
