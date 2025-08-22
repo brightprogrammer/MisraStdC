@@ -13,6 +13,11 @@
 // c
 #include <stdio.h>
 
+// REF : https://devblogs.microsoft.com/cppblog/announcing-full-support-for-a-c-c-conformant-preprocessor-in-msvc/
+#if defined(_MSVC_TRADITIONAL) && _MSVC_TRADITIONAL
+#    error "I need /Zc:prerocessor flag enabled in MSVC to compile IO code correctly"
+#endif
+
 ///
 /// Defines text alignment options for formatted output.
 ///
