@@ -9,10 +9,10 @@ int main(void) {
         VecForeachPtr(&lines, line, {
             if (StrStartsWithZstr(line, "[.") && StrEndsWithZstr(line, "]")) {
                 Str rule_name = StrInit();
-                StrReadFmt(line->data, "[.{}]", FMT(rule_name));
+                StrReadFmt(line->data, "[.{}]", rule_name);
 
                 if (rule_name.length) {
-                    WriteFmtLn("Got Rule : {}", FMT(rule_name));
+                    WriteFmtLn("Got Rule : {}", rule_name);
                     StrDeinit(&rule_name);
                 }
             }

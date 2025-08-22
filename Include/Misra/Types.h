@@ -606,9 +606,7 @@ typedef i8 bool;
 ///
 #define TRICK_PARENS ()
 
-#define TRICK_EXPAND(...)  TRICK_EXPAND6(TRICK_EXPAND6(TRICK_EXPAND6(TRICK_EXPAND6(__VA_ARGS__))))
-#define TRICK_EXPAND6(...) TRICK_EXPAND5(TRICK_EXPAND5(TRICK_EXPAND5(TRICK_EXPAND5(__VA_ARGS__))))
-#define TRICK_EXPAND5(...) TRICK_EXPAND4(TRICK_EXPAND4(TRICK_EXPAND4(TRICK_EXPAND4(__VA_ARGS__))))
+#define TRICK_EXPAND(...)  TRICK_EXPAND4(TRICK_EXPAND4(TRICK_EXPAND4(TRICK_EXPAND4(__VA_ARGS__))))
 #define TRICK_EXPAND4(...) TRICK_EXPAND3(TRICK_EXPAND3(TRICK_EXPAND3(TRICK_EXPAND3(__VA_ARGS__))))
 #define TRICK_EXPAND3(...) TRICK_EXPAND2(TRICK_EXPAND2(TRICK_EXPAND2(TRICK_EXPAND2(__VA_ARGS__))))
 #define TRICK_EXPAND2(...) TRICK_EXPAND1(TRICK_EXPAND1(TRICK_EXPAND1(TRICK_EXPAND1(__VA_ARGS__))))
@@ -619,7 +617,7 @@ typedef i8 bool;
 ///
 /// This is a macro trick to apply a given macro on a variadic argument list
 /// one by one. The only limitiation here is that we cannot expand more than
-/// 4096 times for the moment. To make it do more than that, we just need to add
+/// 256 times for the moment. To make it do more than that, we just need to add
 /// one more line to the EXPAND macros
 ///
 /// Also, if you have more than 20-30 arguments in your format strings, you should

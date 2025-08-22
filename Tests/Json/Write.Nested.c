@@ -407,11 +407,11 @@ bool test_dynamic_object_keys_writing(void) {
         JW_OBJ_KV(json, "functions", {
             VecForeach(&symbols, symbol, {
                 Str source_key = StrInit();
-                StrWriteFmt(&source_key, "{}", FMT(symbol.source_function_id));
+                StrWriteFmt(&source_key, "{}", symbol.source_function_id);
 
                 JW_OBJ_KV(json, source_key.data, {
                     Str target_key = StrInit();
-                    StrWriteFmt(&target_key, "{}", FMT(symbol.target_function_id));
+                    StrWriteFmt(&target_key, "{}", symbol.target_function_id);
 
                     JW_OBJ_KV(json, target_key.data, {
                         JW_FLT_KV(json, "distance", symbol.distance);

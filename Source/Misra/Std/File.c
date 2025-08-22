@@ -34,7 +34,7 @@ bool ReadCompleteFile(const char *filename, char **data, size *file_size, size *
             Str syserr;
             StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
                 SysStrError(errno, &syserr);
-                LOG_FATAL("malloc() failed : {}", FMT(syserr));
+                LOG_FATAL("malloc() failed : {}", syserr);
             });
         }
 
@@ -58,7 +58,7 @@ bool ReadCompleteFile(const char *filename, char **data, size *file_size, size *
         Str syserr = StrInit();
         StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
             SysStrError(e, &syserr);
-            LOG_ERROR("fopen() failed : {}", FMT(syserr));
+            LOG_ERROR("fopen() failed : {}", syserr);
         });
 
         return false;
@@ -70,7 +70,7 @@ bool ReadCompleteFile(const char *filename, char **data, size *file_size, size *
         Str syserr = StrInit();
         StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
             SysStrError(errno, &syserr);
-            LOG_ERROR("failed to read complete file. : {}", FMT(syserr));
+            LOG_ERROR("failed to read complete file. : {}", syserr);
         });
 
         return false;

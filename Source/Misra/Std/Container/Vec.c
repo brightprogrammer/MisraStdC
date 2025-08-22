@@ -90,7 +90,7 @@ void reserve_vec(GenericVec *vec, size item_size, size n) {
             Str syserr;
             StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
                 SysStrError(errno, &syserr);
-                LOG_FATAL("realloc() failed : {}", FMT(syserr));
+                LOG_FATAL("realloc() failed : {}", syserr);
             });
         }
         // it's mandatory to set the pointer here, because next call to any vec_ will do a validation check
@@ -139,7 +139,7 @@ void reduce_space_vec(GenericVec *vec, size item_size) {
             Str syserr;
             StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
                 SysStrError(errno, &syserr);
-                LOG_FATAL("realloc() failed : {}", FMT(syserr));
+                LOG_FATAL("realloc() failed : {}", syserr);
             });
         }
         vec->capacity = vec->length;
