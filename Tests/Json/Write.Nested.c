@@ -244,13 +244,13 @@ bool test_complex_api_response_writing(void) {
             // Write dynamic key for source function ID
             Str source_key = StrInit();
             u64 source_id  = response.data.length > 0 ? VecAt(&response.data, 0).source_function_id : 0;
-            StrWriteFmt(&source_key, "{}", FMT(source_id));
+            StrWriteFmt(&source_key, "{}", source_id);
 
             JW_OBJ_KV(json, source_key.data, {
                 if (response.data.length > 0) {
                     AnnSymbol* s          = &VecAt(&response.data, 0);
                     Str        target_key = StrInit();
-                    StrWriteFmt(&target_key, "{}", FMT(s->target_function_id));
+                    StrWriteFmt(&target_key, "{}", s->target_function_id);
 
                     JW_OBJ_KV(json, target_key.data, {
                         JW_FLT_KV(json, "distance", s->distance);

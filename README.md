@@ -198,12 +198,11 @@ int main() {
     // Basic formatting with direct values
     int count = 42;
     const char* name = "Test";
-    StrWriteFmt(&output, "Count: {}, Name: {}\n", 
-                FMT(count), FMT(name));  // Pass values directly, not pointers
+    StrWriteFmt(&output, "Count: {}, Name: {}\n", count, name);  // Pass values directly, not pointers
     
     // Format with alignment and hex
     u32 hex_val = 0xDEADBEEF;
-    StrWriteFmt(&output, "Hex: {X}\n", FMT(hex_val));
+    StrWriteFmt(&output, "Hex: {X}\n", hex_val);
     
     // Read formatted input
     const char* input = "Count: 42, Name: Test";
@@ -211,19 +210,16 @@ int main() {
     Str read_name = StrInit();
     
     // For reading, we pass the variables directly
-    StrReadFmt(input, "Count: {}, Name: {}", 
-               FMT(read_count), FMT(read_name));  // No & operator needed
+    StrReadFmt(input, "Count: {}, Name: {}", read_count, read_name);  // No & operator needed
     
     // Multiple value types
     float pi = 3.14159f;
     u64 big_num = 123456789ULL;
-    StrWriteFmt(&output, 
-                "Float: {.2f}, Integer: {}, Hex: {x}\n",
-                FMT(pi), FMT(big_num), FMT(big_num));
+    StrWriteFmt(&output, "Float: {.2f}, Integer: {}, Hex: {x}\n", pi, big_num, big_num);
     
     // String formatting
     Str hello = StrInitFromZstr("Hello");
-    StrWriteFmt(&output, "String: {}\n", FMT(hello));  // Pass Str directly
+    StrWriteFmt(&output, "String: {}\n", hello);  // Pass Str directly
     
     // Cleanup
     StrDeinit(&output);
@@ -392,24 +388,24 @@ int main() {
 
 ## Format Specifiers
 
-The library supports Rust-style format strings with placeholders in the form `{}` or `{pecifier}`. Arguments are passed using the `FMT()` macro, which automatically determines the correct type handling.
+The library supports Rust-style format strings with placeholders in the form `{}` or `{pecifier}`.
 
-### Important: Understanding the FMT Macro
+### Important: Understanding Supported Argument Format
 
-The `FMT()` macro uses `_Generic` for compile-time type dispatching. Here's what works and what doesn't:
+The macro-tricks use `_Generic` for compile-time type specific io dispatching. Here's what works and what doesn't:
 
 #### ❌ What Doesn't Work
 
 ```c
 // String literals (array types like char[6] not handled by _Generic)
-StrWriteFmt(&output, "Hello, {}!", FMT("world"));  // ERROR: char[6] not in _Generic cases
+StrWriteFmt(&output, "Hello, {}!", "world");  // ERROR: char[6] not in _Generic cases
 
 // Any char array types are not handled
-char buffer[20] = "Hello";                         // Type: char[20] 
-StrWriteFmt(&output, "Message: {}", FMT(buffer));  // ERROR: char[20] not in _Generic cases
+char buffer[20] = "Hello";                    // Type: char[20] 
+StrWriteFmt(&output, "Message: {}", buffer);  // ERROR: char[20] not in _Generic cases
 
-const char name[] = "Alice";                       // Type: const char[6]
-StrWriteFmt(&output, "Name: {}", FMT(name));       // ERROR: const char[6] not in _Generic cases
+const char name[] = "Alice";                  // Type: const char[6]
+StrWriteFmt(&output, "Name: {}", name);       // ERROR: const char[6] not in _Generic cases
 ```
 
 #### ✅ What Works Perfectly
@@ -418,21 +414,21 @@ StrWriteFmt(&output, "Name: {}", FMT(name));       // ERROR: const char[6] not i
 // const char* variables (pointer type matches _Generic case)
 const char* title = "Mr.";
 const char* surname = "Smith";
-StrWriteFmt(&output, "{} {}", FMT(title), FMT(surname));  // ✅ Works great!
+StrWriteFmt(&output, "{} {}", title, surname);  // ✅ Works great!
 
 // char* variables (pointer type matches _Generic case)
 char* dynamic_str = malloc(50);
 strcpy(dynamic_str, "Dynamic");
-StrWriteFmt(&output, "Value: {}", FMT(dynamic_str));      // ✅ Works perfectly!
+StrWriteFmt(&output, "Value: {}", dynamic_str);      // ✅ Works perfectly!
 
 // Str objects (library's string type)
 Str greeting = StrInitFromZstr("Welcome");
-StrWriteFmt(&output, "Message: {}", FMT(greeting));
+StrWriteFmt(&output, "Message: {}", greeting);
 
 // Primitive types (all handled by _Generic)
 int number = 42;
 float pi = 3.14f;
-StrWriteFmt(&output, "Number: {}, Pi: {.2}", FMT(number), FMT(pi));
+StrWriteFmt(&output, "Number: {}, Pi: {.2}", number, pi);
 ```
 
 #### 💡 Best Practices
@@ -444,25 +440,25 @@ const char* version = "1.0.0";           // ✅ char* pointer types work!
 
 // For dynamic strings, use Str objects or char* pointers:
 Str user_input = StrInit();
-StrReadFmt(input_line, "Name: {}", FMT(user_input));
+StrReadFmt(input_line, "Name: {}", user_input);
 
 char* allocated = malloc(100);
 strcpy(allocated, "Dynamic content");
-StrWriteFmt(&message, "Content: {}", FMT(allocated));     // ✅ char* works!
+StrWriteFmt(&message, "Content: {}", allocated);     // ✅ char* works!
 
 // For function parameters accepting strings:
 void log_message(const char* msg) {                      // ✅ const char* parameter
-    StrWriteFmt(&log_output, "[LOG] {}", FMT(msg));       // ✅ Works perfectly!
+    StrWriteFmt(&log_output, "[LOG] {}", msg);       // ✅ Works perfectly!
 }
 
 void process_buffer(char* buffer) {                      // ✅ char* parameter  
-    StrWriteFmt(&output, "Processing: {}", FMT(buffer));  // ✅ Works great!
+    StrWriteFmt(&output, "Processing: {}", buffer);  // ✅ Works great!
 }
 ```
 
 #### 🔧 Technical Explanation
 
-The `FMT()` macro uses `_Generic` which only handles these specific types:
+The macro-tricks use `_Generic` which only handles these specific types:
 - `const char*` ✅
 - `char*` ✅  
 - `Str` ✅
@@ -562,7 +558,7 @@ Precision is ignored if specified when reading/writing raw data.
 // Correct usage with const char*
 const char* greeting = "Hello";
 const char* subject = "world";
-StrWriteFmt(&output, "{}, {}!", FMT(greeting), FMT(subject));  // "Hello, world!"
+StrWriteFmt(&output, "{}, {}!", greeting, subject);  // "Hello, world!"
 
 // Escaped braces
 StrWriteFmt(&output, "{{Hello}}");  // "{Hello}"
@@ -574,12 +570,12 @@ StrWriteFmt(&output, "{{Hello}}");  // "{Hello}"
 const char* str = "Hello";  // const char* variable
 
 // Basic string
-StrWriteFmt(&output, "{}", FMT(str));  // "Hello"
+StrWriteFmt(&output, "{}", str);  // "Hello"
 
 // String with width and alignment
-StrWriteFmt(&output, "{>10}", FMT(str));  // "     Hello"
-StrWriteFmt(&output, "{<10}", FMT(str));  // "Hello     "
-StrWriteFmt(&output, "{^10}", FMT(str));  // "  Hello   "
+StrWriteFmt(&output, "{>10}", str);  // "     Hello"
+StrWriteFmt(&output, "{<10}", str);  // "Hello     "
+StrWriteFmt(&output, "{^10}", str);  // "  Hello   "
 ```
 
 #### Integer Formatting
@@ -588,25 +584,25 @@ StrWriteFmt(&output, "{^10}", FMT(str));  // "  Hello   "
 i32 val = 42;
 
 // Default decimal
-StrWriteFmt(&output, "{}", FMT(val));  // "42"
+StrWriteFmt(&output, "{}", val);  // "42"
 
 // Hexadecimal
 u32 hex_val = 0xDEADBEEF;
-StrWriteFmt(&output, "{}", FMT(hex_val));  // "0xdeadbeef"
-StrWriteFmt(&output, "{}", FMT(hex_val));  // "0xDEADBEEF"
+StrWriteFmt(&output, "{}", hex_val);  // "0xdeadbeef"
+StrWriteFmt(&output, "{}", hex_val);  // "0xDEADBEEF"
 
 // Binary
 u8 bin_val = 0xA5;  // 10100101 in binary
-StrWriteFmt(&output, "{}", FMT(bin_val));  // "0b10100101"
+StrWriteFmt(&output, "{}", bin_val);  // "0b10100101"
 
 // Octal
 u16 oct_val = 0777;
-StrWriteFmt(&output, "{}", FMT(oct_val));  // "0o777"
+StrWriteFmt(&output, "{}", oct_val);  // "0o777"
 
 // Width and alignment with numbers
-StrWriteFmt(&output, "{}", FMT(val));   // "   42" (right-aligned)
-StrWriteFmt(&output, "{<5}", FMT(val));  // "42   " (left-aligned)
-StrWriteFmt(&output, "{^5}", FMT(val));  // " 42  " (center-aligned)
+StrWriteFmt(&output, "{}", val);   // "   42" (right-aligned)
+StrWriteFmt(&output, "{<5}", val);  // "42   " (left-aligned)
+StrWriteFmt(&output, "{^5}", val);  // " 42  " (center-aligned)
 ```
 
 #### Character Formatting
@@ -618,21 +614,21 @@ The character format specifiers (`c`, `a`, `A`) work with integer types, treatin
 u8 upper_char = 'M';
 u8 lower_char = 'm';
 
-StrWriteFmt(&output, "{}", FMT(upper_char));  // "M" (preserve case)
-StrWriteFmt(&output, "{}", FMT(upper_char));  // "m" (force lowercase)
-StrWriteFmt(&output, "{}", FMT(lower_char));  // "M" (force uppercase)
+StrWriteFmt(&output, "{}", upper_char);  // "M" (preserve case)
+StrWriteFmt(&output, "{}", upper_char);  // "m" (force lowercase)
+StrWriteFmt(&output, "{}", lower_char);  // "M" (force uppercase)
 
 // Multi-byte integers (interpreted as character sequences)
 u16 u16_value = ('A' << 8) | 'B'; // "AB" in big-endian
-StrWriteFmt(&output, "{}", FMT(u16_value));  // "AB" (preserve case)
-StrWriteFmt(&output, "{}", FMT(u16_value));  // "ab" (force lowercase)
-StrWriteFmt(&output, "{}", FMT(u16_value));  // "AB" (force uppercase)
+StrWriteFmt(&output, "{}", u16_value);  // "AB" (preserve case)
+StrWriteFmt(&output, "{}", u16_value);  // "ab" (force lowercase)
+StrWriteFmt(&output, "{}", u16_value);  // "AB" (force uppercase)
 
 // Works with u32 and u64 as well, treating them as byte sequences
 u32 u32_value = ('H' << 24) | ('i' << 16) | ('!' << 8) | '!';
-StrWriteFmt(&output, "{}", FMT(u32_value));  // "Hi!!" (preserve case)
-StrWriteFmt(&output, "{}", FMT(u32_value));  // "hi!!" (force lowercase)
-StrWriteFmt(&output, "{}", FMT(u32_value));  // "HI!!" (force uppercase)
+StrWriteFmt(&output, "{}", u32_value);  // "Hi!!" (preserve case)
+StrWriteFmt(&output, "{}", u32_value);  // "hi!!" (force lowercase)
+StrWriteFmt(&output, "{}", u32_value);  // "HI!!" (force uppercase)
 ```
 
 #### String Case Formatting
@@ -642,14 +638,14 @@ Character format specifiers also work with strings:
 ```c
 const char* mixed_case = "MiXeD CaSe";
 
-StrWriteFmt(&output, "{}", FMT(mixed_case));  // "MiXeD CaSe" (preserve case)
-StrWriteFmt(&output, "{}", FMT(mixed_case));  // "mixed case" (force lowercase)
-StrWriteFmt(&output, "{}", FMT(mixed_case));  // "MIXED CASE" (force uppercase)
+StrWriteFmt(&output, "{}", mixed_case);  // "MiXeD CaSe" (preserve case)
+StrWriteFmt(&output, "{}", mixed_case);  // "mixed case" (force lowercase)
+StrWriteFmt(&output, "{}", mixed_case);  // "MIXED CASE" (force uppercase)
 
 // Also works with Str objects
 Str s = StrInitFromZstr("Hello World");
-StrWriteFmt(&output, "{}", FMT(s));  // "hello world"
-StrWriteFmt(&output, "{}", FMT(s));  // "HELLO WORLD"
+StrWriteFmt(&output, "{}", s);  // "hello world"
+StrWriteFmt(&output, "{}", s);  // "HELLO WORLD"
 ```
 
 #### Floating-Point Formatting
@@ -658,27 +654,27 @@ StrWriteFmt(&output, "{}", FMT(s));  // "HELLO WORLD"
 f64 pi = 3.14159265359;
 
 // Default precision (6 decimal places)
-StrWriteFmt(&output, "{}", FMT(pi));  // "3.141593"
+StrWriteFmt(&output, "{}", pi);  // "3.141593"
 
 // Custom precision
-StrWriteFmt(&output, "{.2}", FMT(pi));   // "3.14"
-StrWriteFmt(&output, "{.0}", FMT(pi));   // "3"
-StrWriteFmt(&output, "{.10}", FMT(pi));  // "3.1415926536"
+StrWriteFmt(&output, "{.2}", pi);   // "3.14"
+StrWriteFmt(&output, "{.0}", pi);   // "3"
+StrWriteFmt(&output, "{.10}", pi);  // "3.1415926536"
 
 // Scientific notation
-StrWriteFmt(&output, "{}", FMT(123.456));  // "1.235e+02"
-StrWriteFmt(&output, "{}", FMT(123.456));  // "1.235E+02"
+StrWriteFmt(&output, "{}", 123.456);  // "1.235e+02"
+StrWriteFmt(&output, "{}", 123.456);  // "1.235E+02"
 
 // Custom precision with scientific notation
-StrWriteFmt(&output, "{.3e}", FMT(123.456));  // "1.235e+02"
+StrWriteFmt(&output, "{.3e}", 123.456);  // "1.235e+02"
 
 // Special values
 f64 pos_inf = INFINITY;
 f64 neg_inf = -INFINITY;
 f64 nan_val = NAN;
-StrWriteFmt(&output, "{}", FMT(pos_inf));  // "inf"
-StrWriteFmt(&output, "{}", FMT(neg_inf));  // "-inf"
-StrWriteFmt(&output, "{}", FMT(nan_val));  // "nan"
+StrWriteFmt(&output, "{}", pos_inf);  // "inf"
+StrWriteFmt(&output, "{}", neg_inf);  // "-inf"
+StrWriteFmt(&output, "{}", nan_val);  // "nan"
 ```
 
 ### Reading Values
@@ -688,38 +684,38 @@ The library also supports parsing values from strings using the same format spec
 ```c
 // Reading integers
 i32 num = 0;
-StrReadFmt("42", "{}", FMT(num));  // num = 42
+StrReadFmt("42", "{}", num);  // num = 42
 
 // Reading hexadecimal (auto-detected with 0x prefix)
 u32 hex_val = 0;
-StrReadFmt("0xdeadbeef", "{}", FMT(hex_val));  // hex_val = 0xdeadbeef
+StrReadFmt("0xdeadbeef", "{}", hex_val);  // hex_val = 0xdeadbeef
 
 // Reading binary (auto-detected with 0b prefix)
 i8 bin_val = 0;
-StrReadFmt("0b101010", "{}", FMT(bin_val));  // bin_val = 42
+StrReadFmt("0b101010", "{}", bin_val);  // bin_val = 42
 
 // Reading octal (auto-detected with 0o prefix)
 i32 oct_val = 0;
-StrReadFmt("0o755", "{}", FMT(oct_val));  // oct_val = 493
+StrReadFmt("0o755", "{}", oct_val);  // oct_val = 493
 
 // Reading floating point
 f64 value = 0.0;
-StrReadFmt("3.14159", "{}", FMT(value));  // value = 3.14159
+StrReadFmt("3.14159", "{}", value);  // value = 3.14159
 
 // Reading scientific notation
-StrReadFmt("1.23e4", "{}", FMT(value));  // value = 12300.0
+StrReadFmt("1.23e4", "{}", value);  // value = 12300.0
 
 // Reading strings
 Str name = StrInit();
-StrReadFmt("Alice", "{}", FMT(name));  // name = "Alice"
+StrReadFmt("Alice", "{}", name);  // name = "Alice"
 
 // Reading quoted strings
-StrReadFmt("\"Hello, World!\"", "{}", FMT(name));  // name = "Hello, World!"
+StrReadFmt("\"Hello, World!\"", "{}", name);  // name = "Hello, World!"
 
 // Reading multiple values
 i32 count = 0;
 Str user = StrInit();
-StrReadFmt("Count: 42, Name: Alice", "Count: {}, Name: {}", FMT(count), FMT(user));
+StrReadFmt("Count: 42, Name: Alice", "Count: {}, Name: {}", count, user);
 // count = 42, user = "Alice"
 ```
 

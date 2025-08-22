@@ -109,6 +109,12 @@ typedef struct TypeSpecificIO {
     void              *data;
 } TypeSpecificIO;
 
+#ifdef __cplusplus
+#    define EMPTY_TYPE_SPECIFIC_IO() (TypeSpecificIO {NULL, NULL, NULL})
+#else
+#    define EMPTY_TYPE_SPECIFIC_IO() ((TypeSpecificIO) {NULL, NULL, NULL})
+#endif
+
 static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, TypeSpecificReader r, void *d) {
     return (TypeSpecificIO) {.writer = w, .reader = r, .data = d};
 }
@@ -117,7 +123,7 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
     TO_TYPE_SPECIFIC_IO_IMPL((TypeSpecificWriter)_write_##T, (TypeSpecificReader)_read_##T, (d))
 
 #if defined(_MSC_VER) || defined(__MSC_VER)
-#    define FMT(x)                                                                                                     \
+#    define IOFMT(x)                                                                                                   \
         _Generic(                                                                                                      \
             (x),                                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                       \
@@ -148,7 +154,7 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 /// FAILURE: Returns unsupported type handler for unknown types
 ///
 /// TAGS: Macro, TypeDispatch, Generic, I/O, Format
-#    define FMT(x)                                                                                                     \
+#    define IOFMT(x)                                                                                                   \
         _Generic(                                                                                                      \
             (x),                                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, (void *)&(x)),                                                               \
@@ -170,6 +176,8 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
             default: TO_TYPE_SPECIFIC_IO(UnsupportedType, NULL)                                                        \
         )
 #endif
+
+#define FMT(x) x
 
 ///
 /// Print out a formatted string with rust-style placeholders
@@ -238,6 +246,12 @@ const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecif
 void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, size argc);
 
 ///
+/// Helper macro to append a comma after wrapping given argument in IOFMT
+/// Used in following macros
+///
+#define IOFMT_APPEND_COMMA(x) IOFMT(LVAL(x)),
+
+///
 /// Print out a formatted string with rust-style placeholders
 /// to given string `o`. This is a macro wrapper around StrWriteFmtImpl.
 ///
@@ -259,8 +273,15 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 /// TAGS: Macro, Wrapper, Format, I/O
 ///
 // #define StrWriteFmt(out, ...) StrWriteFmtImpl(out, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
-#define StrWriteFmt(out, ...)                 StrWriteFmt_IMPL1(out, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
-#define StrWriteFmt_IMPL1(input, fmtstr, ...) StrWriteFmt_IMPL2(input, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define StrWriteFmt(out, ...) StrWriteFmt_IMPL1(out, __VA_ARGS__)
+#define StrWriteFmt_IMPL1(input, fmtstr, ...)                                                                          \
+    StrWriteFmt_IMPL2(                                                                                                 \
+        input,                                                                                                         \
+        fmtstr,                                                                                                        \
+        ((TypeSpecificIO[]) {                                                                                          \
+            APPLY_MACRO_FOREACH(IOFMT_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                                    \
+    })                                                                                                             \
+    )
 #define StrWriteFmt_IMPL2(input, fmtstr, varr)                                                                         \
     do {                                                                                                               \
         TypeSpecificIO *argv_##__LINE__ = &(varr)[0];                                                                  \
@@ -284,8 +305,15 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// TAGS: Macro, Wrapper, Format, Parsing, I/O
 ///
-#define StrReadFmt(input, ...)               StrReadFmt_IMPL1(input, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
-#define StrReadFmt_IMPL1(input, fmtstr, ...) StrReadFmt_IMPL2(input, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define StrReadFmt(input, ...) StrReadFmt_IMPL1(input, __VA_ARGS__)
+#define StrReadFmt_IMPL1(input, fmtstr, ...)                                                                           \
+    StrReadFmt_IMPL2(                                                                                                  \
+        input,                                                                                                         \
+        fmtstr,                                                                                                        \
+        ((TypeSpecificIO[]) {                                                                                          \
+            APPLY_MACRO_FOREACH(IOFMT_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                                    \
+    })                                                                                                             \
+    )
 #define StrReadFmt_IMPL2(input, fmtstr, varr)                                                                          \
     do {                                                                                                               \
         TypeSpecificIO *argv_##__LINE__ = &(varr)[0];                                                                  \
@@ -310,8 +338,15 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
-#define FReadFmt(file, ...)               FReadFmt_IMPL1(file, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
-#define FReadFmt_IMPL1(file, fmtstr, ...) FReadFmt_IMPL2(file, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define FReadFmt(file, ...) FReadFmt_IMPL1(file, __VA_ARGS__)
+#define FReadFmt_IMPL1(file, fmtstr, ...)                                                                              \
+    FReadFmt_IMPL2(                                                                                                    \
+        file,                                                                                                          \
+        fmtstr,                                                                                                        \
+        ((TypeSpecificIO[]) {                                                                                          \
+            APPLY_MACRO_FOREACH(IOFMT_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                                    \
+    })                                                                                                             \
+    )
 #define FReadFmt_IMPL2(file, fmtstr, varr)                                                                             \
     do {                                                                                                               \
         TypeSpecificIO *argv_##__LINE__ = &(varr)[0];                                                                  \
@@ -336,8 +371,15 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
-#define FWriteFmt(stream, ...)               FWriteFmt_IMPL1(stream, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
-#define FWriteFmt_IMPL1(stream, fmtstr, ...) FWriteFmt_IMPL2(stream, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define FWriteFmt(stream, ...) FWriteFmt_IMPL1(stream, __VA_ARGS__)
+#define FWriteFmt_IMPL1(stream, fmtstr, ...)                                                                           \
+    FWriteFmt_IMPL2(                                                                                                   \
+        stream,                                                                                                        \
+        fmtstr,                                                                                                        \
+        ((TypeSpecificIO[]) {                                                                                          \
+            APPLY_MACRO_FOREACH(IOFMT_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                                    \
+    })                                                                                                             \
+    )
 #define FWriteFmt_IMPL2(stream, fmtstr, varr)                                                                          \
     do {                                                                                                               \
         TypeSpecificIO *argv_##__LINE__ = &(varr)[0];                                                                  \
@@ -366,8 +408,15 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
-#define FWriteFmtLn(stream, ...)               FWriteFmtLn_IMPL1(stream, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
-#define FWriteFmtLn_IMPL1(stream, fmtstr, ...) FWriteFmtLn_IMPL2(stream, fmtstr, ((TypeSpecificIO[]) {__VA_ARGS__}))
+#define FWriteFmtLn(stream, ...) FWriteFmtLn_IMPL1(stream, __VA_ARGS__)
+#define FWriteFmtLn_IMPL1(stream, fmtstr, ...)                                                                         \
+    FWriteFmtLn_IMPL2(                                                                                                 \
+        stream,                                                                                                        \
+        fmtstr,                                                                                                        \
+        ((TypeSpecificIO[]) {                                                                                          \
+            APPLY_MACRO_FOREACH(IOFMT_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                                    \
+    })                                                                                                             \
+    )
 #define FWriteFmtLn_IMPL2(stream, fmtstr, varr)                                                                        \
     do {                                                                                                               \
         TypeSpecificIO *argv_##__LINE__ = &(varr)[0];                                                                  \

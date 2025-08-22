@@ -550,7 +550,7 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
 
             // Check if reading failed
             if (!next || next == in) {
-                LOG_ERROR("Failed to read value for placeholder {}", FMT(LVAL(arg_index - 1)));
+                LOG_ERROR("Failed to read value for placeholder {}", LVAL(arg_index - 1));
                 return NULL;
             }
 
@@ -565,8 +565,8 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
             if (!in || *in != *p) {
                 LOG_ERROR(
                     "Input '{.8}' does not match format string '{.8}'",
-                    FMT(LVAL(in ? in : "(null)")),
-                    FMT(LVAL(p ? p : "(null)"))
+                    LVAL(in ? in : "(null)"),
+                    LVAL(p ? p : "(null)")
                 );
                 return NULL;
             }
@@ -617,7 +617,7 @@ void FReadFmtInternal(FILE* file, const char* fmtstr, TypeSpecificIO* argv, size
         } else {
             Str err = StrInit();
             SysStrError(errno, &err);
-            LOG_ERROR("Could not save file position for rollback: {}", FMT(err));
+            LOG_ERROR("Could not save file position for rollback: {}", err);
             StrDeinit(&err);
         }
     }
@@ -1240,7 +1240,7 @@ static char ProcessEscape(const char** str) {
             break;
         }
         default :
-            LOG_ERROR("Invalid escape sequence '\\{c}'", FMT(s[0]));
+            LOG_ERROR("Invalid escape sequence '\\{c}'", s[0]);
             return 0;
     }
 
@@ -1681,7 +1681,7 @@ const char* _read_u8(const char* i, FmtInfo* fmt_info, u8* v) {
 
     // Check for overflow
     if (val > UINT8_MAX) {
-        LOG_ERROR("Value {} exceeds u8 maximum ({})", FMT(val), FMT(LVAL(UINT8_MAX)));
+        LOG_ERROR("Value {} exceeds u8 maximum ({})", val, UINT8_MAX);
         StrDeinit(&temp);
         return start;
     }
@@ -1756,7 +1756,7 @@ const char* _read_u16(const char* i, FmtInfo* fmt_info, u16* v) {
 
     // Check for overflow
     if (val > UINT16_MAX) {
-        LOG_ERROR("Value {} exceeds u16 maximum ({})", FMT(val), FMT(LVAL(UINT16_MAX)));
+        LOG_ERROR("Value {} exceeds u16 maximum ({})", val, UINT16_MAX);
         StrDeinit(&temp);
         return start;
     }
@@ -1830,7 +1830,7 @@ const char* _read_u32(const char* i, FmtInfo* fmt_info, u32* v) {
 
     // Check for overflow
     if (val > UINT32_MAX) {
-        LOG_ERROR("Valuei {} exceeds u32 maximum ({})", FMT(val), FMT(LVAL(UINT32_MAX)));
+        LOG_ERROR("Value {} exceeds u32 maximum ({})", val, UINT32_MAX);
         StrDeinit(&temp);
         return start;
     }
@@ -1970,7 +1970,7 @@ const char* _read_i8(const char* i, FmtInfo* fmt_info, i8* v) {
 
     // Check for overflow/underflow
     if (val > INT8_MAX || val < INT8_MIN) {
-        LOG_ERROR("Value {} outside i8 range ({} to {})", FMT(val), FMT(LVAL(INT8_MIN)), FMT(LVAL(INT8_MAX)));
+        LOG_ERROR("Value {} outside i8 range ({} to {})", val, INT8_MIN, INT8_MAX);
         StrDeinit(&temp);
         return start;
     }
@@ -2045,7 +2045,7 @@ const char* _read_i16(const char* i, FmtInfo* fmt_info, i16* v) {
 
     // Check for overflow/underflow
     if (val > INT16_MAX || val < INT16_MIN) {
-        LOG_ERROR("Value {} outside i16 range ({} to {})", FMT(val), FMT(LVAL(INT16_MIN)), FMT(LVAL(INT16_MAX)));
+        LOG_ERROR("Value {} outside i16 range ({} to {})", val, INT16_MIN, INT16_MAX);
         StrDeinit(&temp);
         return start;
     }
@@ -2120,7 +2120,7 @@ const char* _read_i32(const char* i, FmtInfo* fmt_info, i32* v) {
 
     // Check for overflow/underflow
     if (val > INT32_MAX || val < INT32_MIN) {
-        LOG_ERROR("Value {} outside i32 range ({} to {})", FMT(val), FMT(LVAL(INT32_MIN)), FMT(LVAL(INT32_MAX)));
+        LOG_ERROR("Value {} outside i32 range ({} to {})", val, INT32_MIN, INT32_MAX);
         StrDeinit(&temp);
         return start;
     }
