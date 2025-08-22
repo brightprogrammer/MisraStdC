@@ -198,13 +198,7 @@ int main(int argc, char** argv) {
                                 "---\n"
                                 "```c\n";
 
-                            StrWriteFmt(
-                                &md_code,
-                                mdHeader,
-                                output_path.data,
-                                output_path.data,
-                                output_path.data
-                            );
+                            StrWriteFmt(&md_code, mdHeader, output_path.data, output_path.data, output_path.data);
                             StrMerge(&md_code, &file_contents);
                             StrWriteFmt(&md_code, "\n```");
 

@@ -343,15 +343,7 @@ int main(int argc, char** argv) {
     }
 
     ElfHeader64 eh = {0};
-    FReadFmt(
-        elf,
-        FMT_ELF_META,
-        eh.meta.class,
-        eh.meta.encoding,
-        eh.meta.version,
-        eh.meta.os_abi,
-        eh.meta.abi_version
-    );
+    FReadFmt(elf, FMT_ELF_META, eh.meta.class, eh.meta.encoding, eh.meta.version, eh.meta.os_abi, eh.meta.abi_version);
 
     // technically padding here but we can skip it
     fseek(elf, 7, SEEK_CUR);

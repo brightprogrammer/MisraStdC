@@ -525,20 +525,10 @@ bool BitVecEqualsRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len
     ValidateBitVec(bv2);
 
     if (start1 + len > bv1->length) {
-        LOG_FATAL(
-            "Range [{}:{}] exceeds bitvector1 length {}",
-            start1,
-            LVAL(start1 + len - 1),
-            bv1->length
-        );
+        LOG_FATAL("Range [{}:{}] exceeds bitvector1 length {}", start1, LVAL(start1 + len - 1), bv1->length);
     }
     if (start2 + len > bv2->length) {
-        LOG_FATAL(
-            "Range [{}:{}] exceeds bitvector2 length {}",
-            start2,
-            LVAL(start2 + len - 1),
-            bv2->length
-        );
+        LOG_FATAL("Range [{}:{}] exceeds bitvector2 length {}", start2, LVAL(start2 + len - 1), bv2->length);
     }
 
     for (u64 i = 0; i < len; i++) {
@@ -577,20 +567,10 @@ int BitVecCompareRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len
     ValidateBitVec(bv2);
 
     if (start1 + len > bv1->length) {
-        LOG_FATAL(
-            "Range [{}:{}] exceeds bitvector1 length {}",
-            start1,
-            LVAL(start1 + len - 1),
-            bv1->length
-        );
+        LOG_FATAL("Range [{}:{}] exceeds bitvector1 length {}", start1, LVAL(start1 + len - 1), bv1->length);
     }
     if (start2 + len > bv2->length) {
-        LOG_FATAL(
-            "Range [{}:{}] exceeds bitvector2 length {}",
-            start2,
-            LVAL(start2 + len - 1),
-            bv2->length
-        );
+        LOG_FATAL("Range [{}:{}] exceeds bitvector2 length {}", start2, LVAL(start2 + len - 1), bv2->length);
     }
 
     // Compare bit by bit in the specified range

@@ -147,14 +147,7 @@ int main(int argc, char** argv) {
             invalidEnumName = invalid_enum.name.data;
         }
 
-        StrWriteFmt(
-            &code,
-            funcHeader,
-            enum_name.data,
-            enum_name.data,
-            enum_name.data,
-            invalidEnumName
-        );
+        StrWriteFmt(&code, funcHeader, enum_name.data, enum_name.data, enum_name.data, invalidEnumName);
 
         // Use VecForeach for iterating over entries
         VecForeach(&entries, e, {

@@ -137,30 +137,26 @@
                 LOG_FATAL(                                                                                             \
                     "BitVec range overflow: End index {} exceeds bitvector length {}. "                                \
                     "If you intended to iterate over all bits, use BitVecForeach instead.",                            \
-                    _e,                                                                                           \
-                    (bv)->length                                                                                  \
+                    _e,                                                                                                \
+                    (bv)->length                                                                                       \
                 );                                                                                                     \
             }                                                                                                          \
             if ((_s) >= (bv)->length) {                                                                                \
                 LOG_FATAL(                                                                                             \
                     "BitVec range overflow: Start index {} exceeds or equals bitvector length {}.",                    \
-                    _s,                                                                                           \
-                    (bv)->length                                                                                  \
+                    _s,                                                                                                \
+                    (bv)->length                                                                                       \
                 );                                                                                                     \
             }                                                                                                          \
             if ((_s) > (_e)) {                                                                                         \
-                LOG_FATAL(                                                                                             \
-                    "Invalid range: Start index {} must be less than or equal to end index {}.",                       \
-                    _s,                                                                                           \
-                    _e                                                                                            \
-                );                                                                                                     \
+                LOG_FATAL("Invalid range: Start index {} must be less than or equal to end index {}.", _s, _e);        \
             }                                                                                                          \
             for ((idx) = (_s); (idx) < (_e); ++(idx)) {                                                                \
                 if ((idx) >= (bv)->length) {                                                                           \
                     LOG_FATAL(                                                                                         \
                         "BitVec range overflow: Index {} exceeds bitvector length {} during iteration.",               \
-                        idx,                                                                                      \
-                        (bv)->length                                                                              \
+                        idx,                                                                                           \
+                        (bv)->length                                                                                   \
                     );                                                                                                 \
                 }                                                                                                      \
                 bool var = BitVecGet(bv, idx);                                                                         \
