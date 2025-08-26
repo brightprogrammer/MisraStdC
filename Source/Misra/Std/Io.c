@@ -6,7 +6,6 @@
 
 // Required for fileno
 // Reference : https://forums.freebsd.org/threads/strerror_r-best-practices-posix-vs-gnu.92296/
-#include <stdio.h>
 #define _POSIX_C_SOURCE 200112L
 
 #include <Misra/Std/Io.h>
@@ -18,6 +17,7 @@
 // stdc
 #include <ctype.h>
 #include <math.h>
+#include <stdio.h>
 
 static void _write_r8(Str* o, FmtInfo* fmt_info, u8* v);
 static void _write_r16(Str* o, FmtInfo* fmt_info, u16* v);

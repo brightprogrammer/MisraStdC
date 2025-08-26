@@ -34,6 +34,13 @@ misra_std = static_library(
     install: true
 )
 
+# Dependency for working with other projects
+misra_std_dep = declare_dependency(
+    include_directories : inc_misra,
+    link_with: misra_std,
+    dependencies: [math_dep],
+)
+
 # Non-sanitized library specifically for deadend tests to avoid memory leak reports
 misra_std_no_sanitizers = static_library(
     'misra_std_no_sanitizers',
