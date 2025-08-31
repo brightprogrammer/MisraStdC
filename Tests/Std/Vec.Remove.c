@@ -263,7 +263,7 @@ bool test_vec_delete_range_fast(void) {
     for (u64 i = 0; i < vec.length; i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
-    WriteFmtLn("");
+    WriteFmt("\n");
 
     // Test VecDeleteRangeFast - delete 3 elements starting at index 2
     int start_index = 2;
@@ -282,7 +282,7 @@ bool test_vec_delete_range_fast(void) {
     for (u64 i = 0; i < vec.length; i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
-    WriteFmtLn("");
+    WriteFmt("\n");
 
     // Check length after deletion
     result = result && (vec.length == 7);
@@ -456,7 +456,7 @@ bool test_lvalue_fast_delete_operations(void) {
     for (u64 i = 0; i < vec.length; i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
-    WriteFmtLn("");
+    WriteFmt("\n");
 
     // Test L-value fast delete operation
     int fast_index       = 2;                           // Delete 30
@@ -469,7 +469,7 @@ bool test_lvalue_fast_delete_operations(void) {
     for (u64 i = 0; i < vec.length; i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
-    WriteFmtLn("");
+    WriteFmt("\n");
 
     // Check vector after L-value fast deletion
     result = result && (vec.length == 4);
@@ -537,7 +537,7 @@ bool test_rvalue_fast_delete_operations(void) {
     for (u64 i = 0; i < vec.length; i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
-    WriteFmtLn("");
+    WriteFmt("\n");
 
     // Remember the value to be deleted and the last value
     int valueToBeDeleted = VecAt(&vec, 2);              // 30
@@ -551,7 +551,7 @@ bool test_rvalue_fast_delete_operations(void) {
     for (u64 i = 0; i < vec.length; i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
-    WriteFmtLn("");
+    WriteFmt("\n");
 
     // Check length
     result = result && (vec.length == 4);
@@ -686,7 +686,7 @@ bool test_lvalue_fast_delete_range_operations(void) {
     for (u64 i = 0; i < vec.length; i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
-    WriteFmtLn("");
+    WriteFmt("\n");
 
     // Values that should be deleted (30, 40, 50)
     int valuesToDelete[] = {values[2], values[3], values[4]};
@@ -701,7 +701,7 @@ bool test_lvalue_fast_delete_range_operations(void) {
     for (u64 i = 0; i < vec.length; i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
-    WriteFmtLn("");
+    WriteFmt("\n");
 
     // Check vector after L-value fast range deletion
     result = result && (vec.length == 4);
@@ -765,7 +765,7 @@ bool test_rvalue_fast_delete_range_operations(void) {
     for (u64 i = 0; i < vec.length; i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
-    WriteFmtLn("");
+    WriteFmt("\n");
 
     // Values that should be deleted (30, 40, 50)
     int valuesToDelete[] = {values[2], values[3], values[4]};
@@ -778,7 +778,7 @@ bool test_rvalue_fast_delete_range_operations(void) {
     for (u64 i = 0; i < vec.length; i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
-    WriteFmtLn("");
+    WriteFmt("\n");
 
     // Check vector after R-value fast range deletion
     result = result && (vec.length == 4);
