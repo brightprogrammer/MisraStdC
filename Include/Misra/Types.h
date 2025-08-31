@@ -12,6 +12,11 @@
 #include <stdlib.h> // For malloc
 #include <limits.h> // For INT_MIN, INT_MAX, etc.
 
+// take an 8 character string and
+#define MISRA_MAKE_NEW_MAGIC_VALUE(s)                                                                                  \
+    ((((u64)(s[0]) << 56) ^ ((u64)(s[1]) << 48) ^ ((u64)(s[2]) << 40) ^ ((u64)(s[3]) << 32) ^ ((u64)(s[4]) << 24) ^    \
+      ((u64)(s[5]) << 16) ^ ((u64)(s[6]) << 8) ^ ((u64)(s[7]))))
+
 // signed types
 typedef signed char      i8;
 typedef signed short     i16;

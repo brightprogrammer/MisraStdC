@@ -19,7 +19,7 @@ bool test_vec_foreach_ptr_reverse_idx(void);
 
 // Test VecForeach macro
 bool test_vec_foreach(void) {
-    printf("Testing VecForeach\n");
+    WriteFmt("Testing VecForeach\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -54,7 +54,7 @@ bool test_vec_foreach(void) {
 
 // Test VecForeachIdx macro
 bool test_vec_foreach_idx(void) {
-    printf("Testing VecForeachIdx\n");
+    WriteFmt("Testing VecForeachIdx\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -86,7 +86,7 @@ bool test_vec_foreach_idx(void) {
 
 // Test VecForeachPtr macro
 bool test_vec_foreach_ptr(void) {
-    printf("Testing VecForeachPtr\n");
+    WriteFmt("Testing VecForeachPtr\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -123,7 +123,7 @@ bool test_vec_foreach_ptr(void) {
 
 // Test VecForeachPtrIdx macro
 bool test_vec_foreach_ptr_idx(void) {
-    printf("Testing VecForeachPtrIdx\n");
+    WriteFmt("Testing VecForeachPtrIdx\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -152,7 +152,7 @@ bool test_vec_foreach_ptr_idx(void) {
 
 // Test VecForeachReverse macro
 bool test_vec_foreach_reverse(void) {
-    printf("Testing VecForeachReverse\n");
+    WriteFmt("Testing VecForeachReverse\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -183,7 +183,7 @@ bool test_vec_foreach_reverse(void) {
 
 // Test VecForeachReverseIdx macro
 bool test_vec_foreach_reverse_idx(void) {
-    printf("Testing VecForeachReverseIdx\n");
+    WriteFmt("Testing VecForeachReverseIdx\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -210,7 +210,7 @@ bool test_vec_foreach_reverse_idx(void) {
 
 // Test VecForeachPtrReverse macro
 bool test_vec_foreach_ptr_reverse(void) {
-    printf("Testing VecForeachPtrReverse\n");
+    WriteFmt("Testing VecForeachPtrReverse\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -242,7 +242,7 @@ bool test_vec_foreach_ptr_reverse(void) {
 
 // Test VecForeachPtrReverseIdx macro
 bool test_vec_foreach_ptr_reverse_idx(void) {
-    printf("Testing VecForeachPtrReverseIdx\n");
+    WriteFmt("Testing VecForeachPtrReverseIdx\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -275,7 +275,7 @@ bool test_vec_foreach_ptr_reverse_idx(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Vec.Foreach.Simple tests\n\n");
+    WriteFmt("[INFO] Starting Vec.Foreach.Simple tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {

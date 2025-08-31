@@ -21,7 +21,7 @@ bool test_bitvec_multiple_cycles(void);
 
 // Test BitVecInit function
 bool test_bitvec_init(void) {
-    printf("Testing BitVecInit\n");
+    WriteFmt("Testing BitVecInit\n");
 
     // Test basic initialization
     BitVec bv = BitVecInit();
@@ -40,7 +40,7 @@ bool test_bitvec_init(void) {
 
 // Test BitVecDeinit function
 bool test_bitvec_deinit(void) {
-    printf("Testing BitVecDeinit\n");
+    WriteFmt("Testing BitVecDeinit\n");
 
     BitVec bv = BitVecInit();
 
@@ -68,7 +68,7 @@ bool test_bitvec_deinit(void) {
 
 // Test BitVecReserve function
 bool test_bitvec_reserve(void) {
-    printf("Testing BitVecReserve\n");
+    WriteFmt("Testing BitVecReserve\n");
 
     BitVec bv = BitVecInit();
 
@@ -101,7 +101,7 @@ bool test_bitvec_reserve(void) {
 
 // Test BitVecClear function
 bool test_bitvec_clear(void) {
-    printf("Testing BitVecClear\n");
+    WriteFmt("Testing BitVecClear\n");
 
     BitVec bv = BitVecInit();
 
@@ -136,7 +136,7 @@ bool test_bitvec_clear(void) {
 
 // Test BitVecReu64 function
 bool test_bitvec_resize(void) {
-    printf("Testing BitVecResize\n");
+    WriteFmt("Testing BitVecResize\n");
 
     BitVec bv = BitVecInit();
 
@@ -177,7 +177,7 @@ bool test_bitvec_resize(void) {
 
 // Edge case tests - boundary conditions and unusual but valid inputs
 bool test_bitvec_init_edge_cases(void) {
-    printf("Testing BitVecInit edge cases\n");
+    WriteFmt("Testing BitVecInit edge cases\n");
 
     // Test multiple initializations
     BitVec bv1 = BitVecInit();
@@ -196,7 +196,7 @@ bool test_bitvec_init_edge_cases(void) {
 }
 
 bool test_bitvec_reserve_edge_cases(void) {
-    printf("Testing BitVecReserve edge cases\n");
+    WriteFmt("Testing BitVecReserve edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -224,7 +224,7 @@ bool test_bitvec_reserve_edge_cases(void) {
 }
 
 bool test_bitvec_resize_edge_cases(void) {
-    printf("Testing BitVecReu64 edge cases\n");
+    WriteFmt("Testing BitVecReu64 edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -260,7 +260,7 @@ bool test_bitvec_resize_edge_cases(void) {
 }
 
 bool test_bitvec_clear_edge_cases(void) {
-    printf("Testing BitVecClear edge cases\n");
+    WriteFmt("Testing BitVecClear edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -291,7 +291,7 @@ bool test_bitvec_clear_edge_cases(void) {
 }
 
 bool test_bitvec_multiple_cycles(void) {
-    printf("Testing BitVec multiple init/deinit cycles\n");
+    WriteFmt("Testing BitVec multiple init/deinit cycles\n");
 
     bool result = true;
 
@@ -313,7 +313,7 @@ bool test_bitvec_multiple_cycles(void) {
 
 // Deadend tests - verify expected failures occur gracefully
 bool test_bitvec_null_pointer_failures(void) {
-    printf("Testing BitVec NULL pointer handling\n");
+    WriteFmt("Testing BitVec NULL pointer handling\n");
 
     // Test NULL pointer passed to functions that should validate
     // These should trigger aborts if validation is working
@@ -326,7 +326,7 @@ bool test_bitvec_null_pointer_failures(void) {
 }
 
 bool test_bitvec_invalid_operations(void) {
-    printf("Testing BitVec invalid operations\n");
+    WriteFmt("Testing BitVec invalid operations\n");
 
     // Test operation that should trigger validation failure
     // Try to reserve an impossibly large amount that should fail
@@ -341,7 +341,7 @@ bool test_bitvec_invalid_operations(void) {
 }
 
 bool test_bitvec_set_operations_failures(void) {
-    printf("Testing BitVec set operations on invalid indices\n");
+    WriteFmt("Testing BitVec set operations on invalid indices\n");
 
     // Test operation that should trigger validation failure
     // Try to reu64 to impossibly large size
@@ -357,7 +357,7 @@ bool test_bitvec_set_operations_failures(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Init tests\n\n");
+    WriteFmt("[INFO] Starting BitVec.Init tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {

@@ -26,7 +26,7 @@ bool test_rvalue_fast_delete_range_operations(void);
 
 // Test VecPopBack function
 bool test_vec_pop_back(void) {
-    printf("Testing VecPopBack\n");
+    WriteFmtLn("Testing VecPopBack");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -53,7 +53,7 @@ bool test_vec_pop_back(void) {
     result = result && (vec.length == 4);
 
     // Check remaining elements
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == values[i]);
     }
 
@@ -74,7 +74,7 @@ bool test_vec_pop_back(void) {
 
 // Test VecPopFront function
 bool test_vec_pop_front(void) {
-    printf("Testing VecPopFront\n");
+    WriteFmtLn("Testing VecPopFront");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -101,7 +101,7 @@ bool test_vec_pop_front(void) {
     result = result && (vec.length == 4);
 
     // Check remaining elements
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == values[i + 1]);
     }
 
@@ -122,7 +122,7 @@ bool test_vec_pop_front(void) {
 
 // Test VecDelete function
 bool test_vec_delete(void) {
-    printf("Testing VecDelete\n");
+    WriteFmtLn("Testing VecDelete");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -146,7 +146,7 @@ bool test_vec_delete(void) {
 
     // Check remaining elements (should be [10, 20, 40, 50])
     int expected1[] = {10, 20, 40, 50};
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == expected1[i]);
     }
 
@@ -158,7 +158,7 @@ bool test_vec_delete(void) {
 
     // Check remaining elements (should be [20, 40, 50])
     int expected2[] = {20, 40, 50};
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == expected2[i]);
     }
 
@@ -170,7 +170,7 @@ bool test_vec_delete(void) {
 
 // Test VecDeleteFast function
 bool test_vec_delete_fast(void) {
-    printf("Testing VecDeleteFast\n");
+    WriteFmtLn("Testing VecDeleteFast");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -195,7 +195,7 @@ bool test_vec_delete_fast(void) {
     // With fast delete, the last element is moved to the deleted position
     // So the vector should now be [10, 50, 30, 40]
     int expected[] = {10, 50, 30, 40};
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
 
@@ -207,7 +207,7 @@ bool test_vec_delete_fast(void) {
 
 // Test VecDeleteRange function
 bool test_vec_delete_range(void) {
-    printf("Testing VecDeleteRange\n");
+    WriteFmtLn("Testing VecDeleteRange");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -231,7 +231,7 @@ bool test_vec_delete_range(void) {
 
     // Check remaining elements (should be [10, 20, 60, 70])
     int expected[] = {10, 20, 60, 70};
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
 
@@ -243,7 +243,7 @@ bool test_vec_delete_range(void) {
 
 // Test VecDeleteRangeFast
 bool test_vec_delete_range_fast(void) {
-    printf("Testing VecDeleteRangeFast\n");
+    WriteFmtLn("Testing VecDeleteRangeFast");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -259,11 +259,11 @@ bool test_vec_delete_range_fast(void) {
     bool result = (vec.length == 10);
 
     // Print before state
-    printf("Before fast range delete: ");
-    for (size i = 0; i < vec.length; i++) {
-        printf("%d ", VecAt(&vec, i));
+    WriteFmt("Before fast range delete: ");
+    for (u64 i = 0; i < vec.length; i++) {
+        WriteFmt("{} ", VecAt(&vec, i));
     }
-    printf("\n");
+    WriteFmt("\n");
 
     // Test VecDeleteRangeFast - delete 3 elements starting at index 2
     int start_index = 2;
@@ -278,11 +278,11 @@ bool test_vec_delete_range_fast(void) {
     VecDeleteRangeFast(&vec, start_index, count);
 
     // Print after state
-    printf("After fast range delete: ");
-    for (size i = 0; i < vec.length; i++) {
-        printf("%d ", VecAt(&vec, i));
+    WriteFmt("After fast range delete: ");
+    for (u64 i = 0; i < vec.length; i++) {
+        WriteFmt("{} ", VecAt(&vec, i));
     }
-    printf("\n");
+    WriteFmt("\n");
 
     // Check length after deletion
     result = result && (vec.length == 7);
@@ -294,7 +294,7 @@ bool test_vec_delete_range_fast(void) {
 
     // Verify all values that should still be present
     bool values_found[10] = {false};
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         int val   = VecAt(&vec, i);
         int index = val / 10;
         if (index >= 0 && index < 10) {
@@ -319,7 +319,7 @@ bool test_vec_delete_range_fast(void) {
 
 // Test VecDeleteLast function
 bool test_vec_delete_last(void) {
-    printf("Testing VecDeleteLast\n");
+    WriteFmtLn("Testing VecDeleteLast");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -342,7 +342,7 @@ bool test_vec_delete_last(void) {
     result = result && (vec.length == 4);
 
     // Check remaining elements
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == values[i]);
     }
 
@@ -353,7 +353,7 @@ bool test_vec_delete_last(void) {
     result = result && (vec.length == 3);
 
     // Check remaining elements
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == values[i]);
     }
 
@@ -365,7 +365,7 @@ bool test_vec_delete_last(void) {
 
 // Test L-value standard delete operations
 bool test_lvalue_delete_operations(void) {
-    printf("Testing L-value standard delete operations\n");
+    WriteFmtLn("Testing L-value standard delete operations");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -389,7 +389,7 @@ bool test_lvalue_delete_operations(void) {
 
     // Check remaining elements (should be [10, 20, 40, 50])
     int expected[] = {10, 20, 40, 50};
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
 
@@ -401,7 +401,7 @@ bool test_lvalue_delete_operations(void) {
 
 // Test R-value standard delete operations
 bool test_rvalue_delete_operations(void) {
-    printf("Testing R-value standard delete operations\n");
+    WriteFmtLn("Testing R-value standard delete operations");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -424,7 +424,7 @@ bool test_rvalue_delete_operations(void) {
 
     // Check remaining elements (should be [10, 20, 40, 50])
     int expected[] = {10, 20, 40, 50};
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
 
@@ -436,7 +436,7 @@ bool test_rvalue_delete_operations(void) {
 
 // Test L-value fast delete operations
 bool test_lvalue_fast_delete_operations(void) {
-    printf("Testing L-value fast delete operations\n");
+    WriteFmtLn("Testing L-value fast delete operations");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -452,11 +452,11 @@ bool test_lvalue_fast_delete_operations(void) {
     bool result = (vec.length == 5);
 
     // Print before state
-    printf("Before L-value fast delete: ");
-    for (size i = 0; i < vec.length; i++) {
-        printf("%d ", VecAt(&vec, i));
+    WriteFmt("Before L-value fast delete: ");
+    for (u64 i = 0; i < vec.length; i++) {
+        WriteFmt("{} ", VecAt(&vec, i));
     }
-    printf("\n");
+    WriteFmt("\n");
 
     // Test L-value fast delete operation
     int fast_index       = 2;                           // Delete 30
@@ -465,18 +465,18 @@ bool test_lvalue_fast_delete_operations(void) {
     VecDeleteFast(&vec, fast_index);
 
     // Print after state
-    printf("After L-value fast delete: ");
-    for (size i = 0; i < vec.length; i++) {
-        printf("%d ", VecAt(&vec, i));
+    WriteFmt("After L-value fast delete: ");
+    for (u64 i = 0; i < vec.length; i++) {
+        WriteFmt("{} ", VecAt(&vec, i));
     }
-    printf("\n");
+    WriteFmt("\n");
 
     // Check vector after L-value fast deletion
     result = result && (vec.length == 4);
 
     // Verify the deleted value is no longer present
     bool containsValue = false;
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         if (VecAt(&vec, i) == valueToBeDeleted) {
             containsValue = true;
             break;
@@ -486,13 +486,18 @@ bool test_lvalue_fast_delete_operations(void) {
 
     // Check that the value at the deleted position is now the last value
     result = result && (VecAt(&vec, fast_index) == lastValue);
-    printf("Value at deleted position (%d) is now %d (expected %d)\n", fast_index, VecAt(&vec, fast_index), lastValue);
+    WriteFmtLn(
+        "Value at deleted position ({}) is now {} (expected {})\n",
+        fast_index,
+        VecAt(&vec, fast_index),
+        lastValue
+    );
 
     // Verify all expected values (except the deleted one and the moved one) are still present
     int expected_values[] = {10, 20, 40}; // 30 was deleted, 50 was moved
     for (int i = 0; i < 3; i++) {
         bool found = false;
-        for (size j = 0; j < vec.length; j++) {
+        for (u64 j = 0; j < vec.length; j++) {
             if (VecAt(&vec, j) == expected_values[i]) {
                 found = true;
                 break;
@@ -500,7 +505,7 @@ bool test_lvalue_fast_delete_operations(void) {
         }
         result = result && found;
         if (!found) {
-            printf("Value %d should be present but was not found\n", expected_values[i]);
+            WriteFmtLn("Value {} should be present but was not found", expected_values[i]);
         }
     }
 
@@ -512,7 +517,7 @@ bool test_lvalue_fast_delete_operations(void) {
 
 // Test R-value fast delete operations
 bool test_rvalue_fast_delete_operations(void) {
-    printf("Testing R-value fast delete operations\n");
+    WriteFmtLn("Testing R-value fast delete operations");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -528,11 +533,11 @@ bool test_rvalue_fast_delete_operations(void) {
     bool result = (vec.length == 5);
 
     // Print before state
-    printf("Before R-value fast delete: ");
-    for (size i = 0; i < vec.length; i++) {
-        printf("%d ", VecAt(&vec, i));
+    WriteFmt("Before R-value fast delete: ");
+    for (u64 i = 0; i < vec.length; i++) {
+        WriteFmt("{} ", VecAt(&vec, i));
     }
-    printf("\n");
+    WriteFmt("\n");
 
     // Remember the value to be deleted and the last value
     int valueToBeDeleted = VecAt(&vec, 2);              // 30
@@ -542,18 +547,18 @@ bool test_rvalue_fast_delete_operations(void) {
     VecDeleteFast(&vec, 2);
 
     // Print after state
-    printf("After R-value fast delete: ");
-    for (size i = 0; i < vec.length; i++) {
-        printf("%d ", VecAt(&vec, i));
+    WriteFmt("After R-value fast delete: ");
+    for (u64 i = 0; i < vec.length; i++) {
+        WriteFmt("{} ", VecAt(&vec, i));
     }
-    printf("\n");
+    WriteFmt("\n");
 
     // Check length
     result = result && (vec.length == 4);
 
     // Verify the deleted value is no longer present
     bool containsValue = false;
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         if (VecAt(&vec, i) == valueToBeDeleted) {
             containsValue = true;
             break;
@@ -563,13 +568,13 @@ bool test_rvalue_fast_delete_operations(void) {
 
     // Check that the value at the deleted position is now the last value
     result = result && (VecAt(&vec, 2) == lastValue);
-    printf("Value at deleted position (2) is now %d (expected %d)\n", VecAt(&vec, 2), lastValue);
+    WriteFmtLn("Value at deleted position (2) is now {} (expected {})\n", VecAt(&vec, 2), lastValue);
 
     // Verify all expected values (except the deleted one and the moved one) are still present
     int expected_values[] = {10, 20, 40}; // 30 was deleted, 50 was moved
     for (int i = 0; i < 3; i++) {
         bool found = false;
-        for (size j = 0; j < vec.length; j++) {
+        for (u64 j = 0; j < vec.length; j++) {
             if (VecAt(&vec, j) == expected_values[i]) {
                 found = true;
                 break;
@@ -577,7 +582,7 @@ bool test_rvalue_fast_delete_operations(void) {
         }
         result = result && found;
         if (!found) {
-            printf("Value %d should be present but was not found\n", expected_values[i]);
+            WriteFmtLn("Value {} should be present but was not found", expected_values[i]);
         }
     }
 
@@ -589,7 +594,7 @@ bool test_rvalue_fast_delete_operations(void) {
 
 // Test L-value delete range operations
 bool test_lvalue_delete_range_operations(void) {
-    printf("Testing L-value delete range operations\n");
+    WriteFmtLn("Testing L-value delete range operations");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -614,7 +619,7 @@ bool test_lvalue_delete_range_operations(void) {
 
     // Expected result: [10, 20, 60, 70]
     int expected[] = {10, 20, 60, 70};
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
 
@@ -626,7 +631,7 @@ bool test_lvalue_delete_range_operations(void) {
 
 // Test R-value delete range operations
 bool test_rvalue_delete_range_operations(void) {
-    printf("Testing R-value delete range operations\n");
+    WriteFmtLn("Testing R-value delete range operations");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -649,7 +654,7 @@ bool test_rvalue_delete_range_operations(void) {
 
     // Expected result: [10, 20, 60, 70]
     int expected[] = {10, 20, 60, 70};
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
 
@@ -661,7 +666,7 @@ bool test_rvalue_delete_range_operations(void) {
 
 // Test L-value fast delete range operations
 bool test_lvalue_fast_delete_range_operations(void) {
-    printf("Testing L-value fast delete range operations\n");
+    WriteFmtLn("Testing L-value fast delete range operations");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -677,11 +682,11 @@ bool test_lvalue_fast_delete_range_operations(void) {
     bool result = (vec.length == 7);
 
     // Print before state
-    printf("Before L-value fast range delete: ");
-    for (size i = 0; i < vec.length; i++) {
-        printf("%d ", VecAt(&vec, i));
+    WriteFmt("Before L-value fast range delete: ");
+    for (u64 i = 0; i < vec.length; i++) {
+        WriteFmt("{} ", VecAt(&vec, i));
     }
-    printf("\n");
+    WriteFmt("\n");
 
     // Values that should be deleted (30, 40, 50)
     int valuesToDelete[] = {values[2], values[3], values[4]};
@@ -692,11 +697,11 @@ bool test_lvalue_fast_delete_range_operations(void) {
     VecDeleteRangeFast(&vec, fast_start, fast_count);
 
     // Print after state
-    printf("After L-value fast range delete: ");
-    for (size i = 0; i < vec.length; i++) {
-        printf("%d ", VecAt(&vec, i));
+    WriteFmt("After L-value fast range delete: ");
+    for (u64 i = 0; i < vec.length; i++) {
+        WriteFmt("{} ", VecAt(&vec, i));
     }
-    printf("\n");
+    WriteFmt("\n");
 
     // Check vector after L-value fast range deletion
     result = result && (vec.length == 4);
@@ -704,7 +709,7 @@ bool test_lvalue_fast_delete_range_operations(void) {
     // Verify the deleted values are no longer present
     for (int i = 0; i < 3; i++) {
         bool found = false;
-        for (size j = 0; j < vec.length; j++) {
+        for (u64 j = 0; j < vec.length; j++) {
             if (VecAt(&vec, j) == valuesToDelete[i]) {
                 found = true;
                 break;
@@ -712,7 +717,7 @@ bool test_lvalue_fast_delete_range_operations(void) {
         }
         result = result && !found;
         if (found) {
-            printf("Value %d should be deleted but was found\n", valuesToDelete[i]);
+            WriteFmtLn("Value {} should be deleted but was found", valuesToDelete[i]);
         }
     }
 
@@ -720,7 +725,7 @@ bool test_lvalue_fast_delete_range_operations(void) {
     int remainingValues[] = {10, 20, 60, 70};
     for (int i = 0; i < 4; i++) {
         bool found = false;
-        for (size j = 0; j < vec.length; j++) {
+        for (u64 j = 0; j < vec.length; j++) {
             if (VecAt(&vec, j) == remainingValues[i]) {
                 found = true;
                 break;
@@ -728,7 +733,7 @@ bool test_lvalue_fast_delete_range_operations(void) {
         }
         result = result && found;
         if (!found) {
-            printf("Value %d should be present but was not found\n", remainingValues[i]);
+            WriteFmtLn("Value {} should be present but was not found", remainingValues[i]);
         }
     }
 
@@ -740,7 +745,7 @@ bool test_lvalue_fast_delete_range_operations(void) {
 
 // Test R-value fast delete range operations
 bool test_rvalue_fast_delete_range_operations(void) {
-    printf("Testing R-value fast delete range operations\n");
+    WriteFmtLn("Testing R-value fast delete range operations");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -756,11 +761,11 @@ bool test_rvalue_fast_delete_range_operations(void) {
     bool result = (vec.length == 7);
 
     // Print before state
-    printf("Before R-value fast range delete: ");
-    for (size i = 0; i < vec.length; i++) {
-        printf("%d ", VecAt(&vec, i));
+    WriteFmt("Before R-value fast range delete: ");
+    for (u64 i = 0; i < vec.length; i++) {
+        WriteFmt("{} ", VecAt(&vec, i));
     }
-    printf("\n");
+    WriteFmt("\n");
 
     // Values that should be deleted (30, 40, 50)
     int valuesToDelete[] = {values[2], values[3], values[4]};
@@ -769,11 +774,11 @@ bool test_rvalue_fast_delete_range_operations(void) {
     VecDeleteRangeFast(&vec, 2, 3);
 
     // Print after state
-    printf("After R-value fast range delete: ");
-    for (size i = 0; i < vec.length; i++) {
-        printf("%d ", VecAt(&vec, i));
+    WriteFmt("After R-value fast range delete: ");
+    for (u64 i = 0; i < vec.length; i++) {
+        WriteFmt("{} ", VecAt(&vec, i));
     }
-    printf("\n");
+    WriteFmt("\n");
 
     // Check vector after R-value fast range deletion
     result = result && (vec.length == 4);
@@ -781,7 +786,7 @@ bool test_rvalue_fast_delete_range_operations(void) {
     // Verify the deleted values are no longer present
     for (int i = 0; i < 3; i++) {
         bool found = false;
-        for (size j = 0; j < vec.length; j++) {
+        for (u64 j = 0; j < vec.length; j++) {
             if (VecAt(&vec, j) == valuesToDelete[i]) {
                 found = true;
                 break;
@@ -789,7 +794,7 @@ bool test_rvalue_fast_delete_range_operations(void) {
         }
         result = result && !found;
         if (found) {
-            printf("Value %d should be deleted but was found\n", valuesToDelete[i]);
+            WriteFmtLn("Value {} should be deleted but was found", valuesToDelete[i]);
         }
     }
 
@@ -797,7 +802,7 @@ bool test_rvalue_fast_delete_range_operations(void) {
     int remainingValues[] = {10, 20, 60, 70};
     for (int i = 0; i < 4; i++) {
         bool found = false;
-        for (size j = 0; j < vec.length; j++) {
+        for (u64 j = 0; j < vec.length; j++) {
             if (VecAt(&vec, j) == remainingValues[i]) {
                 found = true;
                 break;
@@ -805,7 +810,7 @@ bool test_rvalue_fast_delete_range_operations(void) {
         }
         result = result && found;
         if (!found) {
-            printf("Value %d should be present but was not found\n", remainingValues[i]);
+            WriteFmtLn("Value {} should be present but was not found", remainingValues[i]);
         }
     }
 

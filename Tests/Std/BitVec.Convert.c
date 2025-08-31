@@ -32,7 +32,7 @@ bool test_bitvec_integer_bounds_failures(void);
 
 // Test BitVecToStr function
 bool test_bitvec_to_string(void) {
-    printf("Testing BitVecToStr\n");
+    WriteFmt("Testing BitVecToStr\n");
 
     BitVec bv = BitVecInit();
 
@@ -61,7 +61,7 @@ bool test_bitvec_to_string(void) {
 
 // Test BitVecFromStr function
 bool test_bitvec_from_string(void) {
-    printf("Testing BitVecFromStr\n");
+    WriteFmt("Testing BitVecFromStr\n");
 
     // Convert from string
     const char* str = "1011";
@@ -87,7 +87,7 @@ bool test_bitvec_from_string(void) {
 
 // Test BitVecToBytes function
 bool test_bitvec_to_bytes(void) {
-    printf("Testing BitVecToBytes\n");
+    WriteFmt("Testing BitVecToBytes\n");
 
     BitVec bv = BitVecInit();
 
@@ -119,7 +119,7 @@ bool test_bitvec_to_bytes(void) {
 
 // Test BitVecFromBytes function
 bool test_bitvec_from_bytes(void) {
-    printf("Testing BitVecFromBytes\n");
+    WriteFmt("Testing BitVecFromBytes\n");
 
     // Create byte array
     u8     bytes[] = {0xB3};                    // 10110011 in binary
@@ -152,7 +152,7 @@ bool test_bitvec_from_bytes(void) {
 
 // Test BitVecToInteger function
 bool test_bitvec_to_integer(void) {
-    printf("Testing BitVecToInteger\n");
+    WriteFmt("Testing BitVecToInteger\n");
 
     BitVec bv = BitVecInit();
 
@@ -188,7 +188,7 @@ bool test_bitvec_to_integer(void) {
 
 // Test BitVecFromInteger function
 bool test_bitvec_from_integer(void) {
-    printf("Testing BitVecFromInteger\n");
+    WriteFmt("Testing BitVecFromInteger\n");
 
     // Convert from integer
     u64    value = 11; // 1011 in binary
@@ -235,7 +235,7 @@ bool test_bitvec_from_integer(void) {
 
 // Edge case tests
 bool test_bitvec_convert_edge_cases(void) {
-    printf("Testing BitVec convert edge cases\n");
+    WriteFmt("Testing BitVec convert edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -266,7 +266,7 @@ bool test_bitvec_convert_edge_cases(void) {
 }
 
 bool test_bitvec_from_string_edge_cases(void) {
-    printf("Testing BitVecFromStr edge cases\n");
+    WriteFmt("Testing BitVecFromStr edge cases\n");
 
     bool result = true;
 
@@ -298,7 +298,7 @@ bool test_bitvec_from_string_edge_cases(void) {
 }
 
 bool test_bitvec_bytes_conversion_edge_cases(void) {
-    printf("Testing BitVec bytes conversion edge cases\n");
+    WriteFmt("Testing BitVec bytes conversion edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -325,7 +325,7 @@ bool test_bitvec_bytes_conversion_edge_cases(void) {
 }
 
 bool test_bitvec_integer_conversion_edge_cases(void) {
-    printf("Testing BitVec integer conversion edge cases\n");
+    WriteFmt("Testing BitVec integer conversion edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -350,7 +350,7 @@ bool test_bitvec_integer_conversion_edge_cases(void) {
 
 // Round-trip conversion tests
 bool test_bitvec_round_trip_conversions(void) {
-    printf("Testing BitVec round-trip conversions\n");
+    WriteFmt("Testing BitVec round-trip conversions\n");
 
     bool result = true;
 
@@ -409,7 +409,7 @@ bool test_bitvec_round_trip_conversions(void) {
 
 // Bounds checking tests
 bool test_bitvec_conversion_bounds_checking(void) {
-    printf("Testing BitVec conversion bounds checking\n");
+    WriteFmt("Testing BitVec conversion bounds checking\n");
 
     bool result = true;
 
@@ -454,7 +454,7 @@ bool test_bitvec_conversion_bounds_checking(void) {
 
 // Comprehensive conversion validation
 bool test_bitvec_conversion_comprehensive(void) {
-    printf("Testing BitVec comprehensive conversion validation\n");
+    WriteFmt("Testing BitVec comprehensive conversion validation\n");
 
     bool result = true;
 
@@ -521,7 +521,7 @@ bool test_bitvec_conversion_comprehensive(void) {
 
 // Large-scale conversion tests
 bool test_bitvec_large_scale_conversions(void) {
-    printf("Testing BitVec large-scale conversions\n");
+    WriteFmt("Testing BitVec large-scale conversions\n");
 
     bool result = true;
 
@@ -604,7 +604,7 @@ bool test_bitvec_large_scale_conversions(void) {
 
 // Enhanced deadend tests
 bool test_bitvec_bytes_bounds_failures(void) {
-    printf("Testing BitVec bytes bounds failures\n");
+    WriteFmt("Testing BitVec bytes bounds failures\n");
 
     BitVec bv = BitVecInit();
     BitVecPush(&bv, true);
@@ -627,7 +627,7 @@ bool test_bitvec_bytes_bounds_failures(void) {
 }
 
 bool test_bitvec_integer_bounds_failures(void) {
-    printf("Testing BitVec integer bounds failures\n");
+    WriteFmt("Testing BitVec integer bounds failures\n");
 
     // Test BitVecToInteger with NULL pointer - should abort
     u64 value = BitVecToInteger(NULL);
@@ -638,7 +638,7 @@ bool test_bitvec_integer_bounds_failures(void) {
 
 // Deadend tests
 bool test_bitvec_convert_null_failures(void) {
-    printf("Testing BitVec convert NULL pointer handling\n");
+    WriteFmt("Testing BitVec convert NULL pointer handling\n");
 
     // Test NULL bitvec pointer - should abort
     BitVecToStr(NULL);
@@ -647,7 +647,7 @@ bool test_bitvec_convert_null_failures(void) {
 }
 
 bool test_bitvec_from_string_null_failures(void) {
-    printf("Testing BitVec from string NULL handling\n");
+    WriteFmt("Testing BitVec from string NULL handling\n");
 
     // Test NULL string - should abort
     BitVecFromStr(NULL);
@@ -656,7 +656,7 @@ bool test_bitvec_from_string_null_failures(void) {
 }
 
 bool test_bitvec_bytes_null_failures(void) {
-    printf("Testing BitVec bytes NULL handling\n");
+    WriteFmt("Testing BitVec bytes NULL handling\n");
 
     // Test NULL bytes - should abort
     BitVecFromBytes(NULL, 8); // NULL bytes, 8 bits
@@ -666,7 +666,7 @@ bool test_bitvec_bytes_null_failures(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Convert tests\n\n");
+    WriteFmt("[INFO] Starting BitVec.Convert tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {

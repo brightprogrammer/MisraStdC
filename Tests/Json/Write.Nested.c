@@ -77,14 +77,14 @@ bool compare_json_output(const Str* output, const char* expected) {
     Str expected_clean = StrInit();
 
     // Remove whitespace from both strings for comparison
-    for (size i = 0; i < output->length; i++) {
+    for (u64 i = 0; i < output->length; i++) {
         char c = output->data[i];
         if (c != ' ' && c != '\n' && c != '\r' && c != '\t') {
             StrPushBack(&output_clean, c);
         }
     }
 
-    for (size i = 0; i < expected_str.length; i++) {
+    for (u64 i = 0; i < expected_str.length; i++) {
         char c = expected_str.data[i];
         if (c != ' ' && c != '\n' && c != '\r' && c != '\t') {
             StrPushBack(&expected_clean, c);
@@ -94,17 +94,17 @@ bool compare_json_output(const Str* output, const char* expected) {
     bool result = StrCmp(&output_clean, &expected_clean) == 0;
 
     if (!result) {
-        printf("[DEBUG] JSON comparison failed\n");
-        printf("[DEBUG] Expected: '");
-        for (size i = 0; i < expected_clean.length; i++) {
-            printf("%c", expected_clean.data[i]);
+        WriteFmt("[DEBUG] JSON comparison failed\n");
+        WriteFmt("[DEBUG] Expected: '");
+        for (u64 i = 0; i < expected_clean.length; i++) {
+            WriteFmt("{c}", expected_clean.data[i]);
         }
-        printf("'\n");
-        printf("[DEBUG] Got: '");
-        for (size i = 0; i < output_clean.length; i++) {
-            printf("%c", output_clean.data[i]);
+        WriteFmt("'\n");
+        WriteFmt("[DEBUG] Got: '");
+        for (u64 i = 0; i < output_clean.length; i++) {
+            WriteFmt("%c", output_clean.data[i]);
         }
-        printf("'\n");
+        WriteFmt("'\n");
     }
 
     StrDeinit(&expected_str);
@@ -125,7 +125,7 @@ bool test_mixed_array_types_writing(void);
 
 // Test 1: Two-level nesting writing
 bool test_two_level_nesting_writing(void) {
-    printf("Testing two-level nesting writing\n");
+    WriteFmt("Testing two-level nesting writing\n");
 
     bool success = true;
     Str  json    = StrInit();
@@ -168,7 +168,7 @@ bool test_two_level_nesting_writing(void) {
 
 // Test 2: Three-level nesting writing
 bool test_three_level_nesting_writing(void) {
-    printf("Testing three-level nesting writing\n");
+    WriteFmt("Testing three-level nesting writing\n");
 
     bool success = true;
     Str  json    = StrInit();
@@ -216,7 +216,7 @@ bool test_three_level_nesting_writing(void) {
 
 // Test 3: Complex API response writing
 bool test_complex_api_response_writing(void) {
-    printf("Testing complex API response writing\n");
+    WriteFmt("Testing complex API response writing\n");
 
     bool success = true;
     Str  json    = StrInit();
@@ -288,7 +288,7 @@ bool test_complex_api_response_writing(void) {
 
 // Test 4: Function info array writing
 bool test_function_info_array_writing(void) {
-    printf("Testing function info array writing\n");
+    WriteFmt("Testing function info array writing\n");
 
     bool success = true;
     Str  json    = StrInit();
@@ -325,7 +325,7 @@ bool test_function_info_array_writing(void) {
 
 // Test 5: Search results with tags writing
 bool test_search_results_with_tags_writing(void) {
-    printf("Testing search results with tags writing\n");
+    WriteFmt("Testing search results with tags writing\n");
 
     bool success = true;
     Str  json    = StrInit();
@@ -376,7 +376,7 @@ bool test_search_results_with_tags_writing(void) {
 
 // Test 6: Dynamic object keys writing
 bool test_dynamic_object_keys_writing(void) {
-    printf("Testing dynamic object keys writing\n");
+    WriteFmt("Testing dynamic object keys writing\n");
 
     bool success = true;
     Str  json    = StrInit();
@@ -440,7 +440,7 @@ bool test_dynamic_object_keys_writing(void) {
 
 // Test 7: Deeply nested structure writing
 bool test_deeply_nested_structure_writing(void) {
-    printf("Testing deeply nested structure writing\n");
+    WriteFmt("Testing deeply nested structure writing\n");
 
     bool success = true;
     Str  json    = StrInit();
@@ -476,7 +476,7 @@ bool test_deeply_nested_structure_writing(void) {
 
 // Test 8: Mixed array types writing
 bool test_mixed_array_types_writing(void) {
-    printf("Testing mixed array types writing\n");
+    WriteFmt("Testing mixed array types writing\n");
 
     bool success = true;
     Str  json    = StrInit();

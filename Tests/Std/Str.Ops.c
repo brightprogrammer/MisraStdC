@@ -18,7 +18,7 @@ bool test_str_strip(void);
 
 // Test string comparison functions
 bool test_str_cmp(void) {
-    printf("Testing StrCmp and StrCmpCstr\n");
+    WriteFmt("Testing StrCmp and StrCmpCstr\n");
 
     Str s1 = StrInitFromZstr("Hello");
     Str s2 = StrInitFromZstr("Hello");
@@ -53,7 +53,7 @@ bool test_str_cmp(void) {
 
 // Test string find functions
 bool test_str_find(void) {
-    printf("Testing StrFindStr, StrFindZstr, and StrFindCstr\n");
+    WriteFmt("Testing StrFindStr, StrFindZstr, and StrFindCstr\n");
 
     Str haystack = StrInitFromZstr("Hello World");
     Str needle1  = StrInitFromZstr("World");
@@ -89,7 +89,7 @@ bool test_str_find(void) {
 
 // Test string starts/ends with functions
 bool test_str_starts_ends_with(void) {
-    printf("Testing StrStartsWith and StrEndsWith variants\n");
+    WriteFmt("Testing StrStartsWith and StrEndsWith variants\n");
 
     Str s      = StrInitFromZstr("Hello World");
     Str prefix = StrInitFromZstr("Hello");
@@ -125,7 +125,7 @@ bool test_str_starts_ends_with(void) {
 
 // Test string replace functions
 bool test_str_replace(void) {
-    printf("Testing StrReplace variants\n");
+    WriteFmt("Testing StrReplace variants\n");
 
     // Test StrReplaceZstr
     Str s1 = StrInitFromZstr("Hello World");
@@ -160,7 +160,7 @@ bool test_str_replace(void) {
 
 // Test string split functions
 bool test_str_split(void) {
-    printf("Testing StrSplit and StrSplitToIters\n");
+    WriteFmt("Testing StrSplit and StrSplitToIters\n");
 
     // Test StrSplit
     Str  s     = StrInitFromZstr("Hello,World,Test");
@@ -206,7 +206,7 @@ bool test_str_split(void) {
 
 // Test string strip functions
 bool test_str_strip(void) {
-    printf("Testing StrStrip variants\n");
+    WriteFmt("Testing StrStrip variants\n");
 
     // Test StrLStrip
     Str  s1       = StrInitFromZstr("  Hello  ");
@@ -246,7 +246,7 @@ bool test_str_strip(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Str.Ops tests\n\n");
+    WriteFmt("[INFO] Starting Str.Ops tests\n\n");
 
     // Array of test functions
     TestFunction tests[] =

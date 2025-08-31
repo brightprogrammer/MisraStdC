@@ -44,6 +44,6 @@
 ///
 /// TAGS: Read, File, I/O, Utility, Helper
 ///
-bool ReadCompleteFile(const char *filename, char **data, size *file_size, size *capacity);
+bool ReadCompleteFile(const char *filename, char **data, u64 *file_size, u64 *capacity);
 
 #endif // MISRA_FILE_H

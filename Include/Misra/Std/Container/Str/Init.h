@@ -7,6 +7,7 @@
 #ifndef MISRA_STD_CONTAINER_STR_INIT_H
 #define MISRA_STD_CONTAINER_STR_INIT_H
 
+#include "Misra/Std/Container/Vec/Type.h"
 #include "Type.h"
 #include <Misra/Std/Memory.h>
 
@@ -22,7 +23,8 @@ extern "C" {
             .capacity    = (len),                                                                                      \
             .copy_init   = NULL,                                                                                       \
             .copy_deinit = NULL,                                                                                       \
-            .alignment   = 1                                                                                           \
+            .alignment   = 1,                                                                                          \
+            .__magic     = MISRA_VEC_MAGIC                                                                             \
         })
 #else
 ///
@@ -48,7 +50,8 @@ extern "C" {
                 .capacity    = (len),                                                                                  \
                 .copy_init   = NULL,                                                                                   \
                 .copy_deinit = NULL,                                                                                   \
-                .alignment   = 1})
+                .alignment   = 1,                                                                                      \
+                .__magic     = MISRA_VEC_MAGIC})
 #endif
 
 ///
@@ -90,7 +93,7 @@ extern "C" {
     Str* StrPrintf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 
 #ifdef __cplusplus
-#    define StrInit() (StrVecInit())
+#    define StrInit() (Str VecInit())
 #else
 ///
 /// Initialize given string.

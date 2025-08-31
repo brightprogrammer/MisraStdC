@@ -13,7 +13,7 @@ bool test_bitvec_validate(void);
 
 // Test basic BitVec type functionality
 bool test_bitvec_type_basic(void) {
-    printf("Testing basic BitVec type functionality\n");
+    WriteFmt("Testing basic BitVec type functionality\n");
 
     // Create a bitvector
     BitVec bitvec = BitVecInit();
@@ -29,7 +29,7 @@ bool test_bitvec_type_basic(void) {
 
 // Test ValidateBitVec macro
 bool test_bitvec_validate(void) {
-    printf("Testing ValidateBitVec macro\n");
+    WriteFmt("Testing ValidateBitVec macro\n");
 
     // Create a valid bitvector
     BitVec bitvec = BitVecInit();
@@ -48,7 +48,7 @@ bool test_bitvec_validate(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Type tests\n\n");
+    WriteFmt("[INFO] Starting BitVec.Type tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {test_bitvec_type_basic, test_bitvec_validate};

@@ -55,7 +55,7 @@ bool test_bitvec_suffix_match_null_patterns(void);
 
 // Test basic pattern matching functions
 bool test_bitvec_basic_pattern_functions(void) {
-    printf("Testing basic BitVec pattern functions\n");
+    WriteFmt("Testing basic BitVec pattern functions\n");
 
     BitVec source  = BitVecInit();
     BitVec pattern = BitVecInit();
@@ -90,7 +90,7 @@ bool test_bitvec_basic_pattern_functions(void) {
 
 // Test BitVecFindPattern function comprehensively
 bool test_bitvec_find_pattern(void) {
-    printf("Testing BitVecFindPattern function\n");
+    WriteFmt("Testing BitVecFindPattern function\n");
 
     BitVec source  = BitVecInit();
     BitVec pattern = BitVecInit();
@@ -137,7 +137,7 @@ bool test_bitvec_find_pattern(void) {
 
 // Test BitVecFindLastPattern function
 bool test_bitvec_find_last_pattern(void) {
-    printf("Testing BitVecFindLastPattern function\n");
+    WriteFmt("Testing BitVecFindLastPattern function\n");
 
     BitVec source  = BitVecInit();
     BitVec pattern = BitVecInit();
@@ -182,7 +182,7 @@ bool test_bitvec_find_last_pattern(void) {
 
 // Test BitVecFindAllPattern function
 bool test_bitvec_find_all_pattern(void) {
-    printf("Testing BitVecFindAllPattern function\n");
+    WriteFmt("Testing BitVecFindAllPattern function\n");
 
     BitVec source  = BitVecInit();
     BitVec pattern = BitVecInit();
@@ -240,7 +240,7 @@ bool test_bitvec_find_all_pattern(void) {
 
 // Test edge cases for pattern functions
 bool test_bitvec_pattern_edge_cases(void) {
-    printf("Testing BitVec pattern edge cases\n");
+    WriteFmt("Testing BitVec pattern edge cases\n");
 
     BitVec source  = BitVecInit();
     BitVec pattern = BitVecInit();
@@ -309,7 +309,7 @@ bool test_bitvec_pattern_edge_cases(void) {
 
 // Stress tests with large data
 bool test_bitvec_pattern_stress_tests(void) {
-    printf("Testing BitVec pattern stress tests\n");
+    WriteFmt("Testing BitVec pattern stress tests\n");
 
     BitVec source  = BitVecInit();
     BitVec pattern = BitVecInit();
@@ -352,7 +352,7 @@ bool test_bitvec_pattern_stress_tests(void) {
 
 // BitVecStartsWith tests
 bool test_bitvec_starts_with_basic(void) {
-    printf("Testing BitVecStartsWith basic functionality\n");
+    WriteFmt("Testing BitVecStartsWith basic functionality\n");
 
     BitVec source = BitVecInit();
     BitVec prefix = BitVecInit();
@@ -387,7 +387,7 @@ bool test_bitvec_starts_with_basic(void) {
 }
 
 bool test_bitvec_starts_with_edge_cases(void) {
-    printf("Testing BitVecStartsWith edge cases\n");
+    WriteFmt("Testing BitVecStartsWith edge cases\n");
 
     BitVec source = BitVecInit();
     BitVec prefix = BitVecInit();
@@ -419,7 +419,7 @@ bool test_bitvec_starts_with_edge_cases(void) {
 
 // BitVecEndsWith tests
 bool test_bitvec_ends_with_basic(void) {
-    printf("Testing BitVecEndsWith basic functionality\n");
+    WriteFmt("Testing BitVecEndsWith basic functionality\n");
 
     BitVec source = BitVecInit();
     BitVec suffix = BitVecInit();
@@ -454,7 +454,7 @@ bool test_bitvec_ends_with_basic(void) {
 }
 
 bool test_bitvec_ends_with_edge_cases(void) {
-    printf("Testing BitVecEndsWith edge cases\n");
+    WriteFmt("Testing BitVecEndsWith edge cases\n");
 
     BitVec source = BitVecInit();
     BitVec suffix = BitVecInit();
@@ -477,7 +477,7 @@ bool test_bitvec_ends_with_edge_cases(void) {
 
 // BitVecFindPattern tests (replacing BitVecContains)
 bool test_bitvec_contains_basic(void) {
-    printf("Testing BitVecFindPattern basic functionality\n");
+    WriteFmt("Testing BitVecFindPattern basic functionality\n");
 
     BitVec source  = BitVecInit();
     BitVec pattern = BitVecInit();
@@ -514,7 +514,7 @@ bool test_bitvec_contains_basic(void) {
 
 // BitVecContainsAt tests
 bool test_bitvec_contains_at_basic(void) {
-    printf("Testing BitVecContainsAt basic functionality\n");
+    WriteFmt("Testing BitVecContainsAt basic functionality\n");
 
     BitVec source  = BitVecInit();
     BitVec pattern = BitVecInit();
@@ -544,7 +544,7 @@ bool test_bitvec_contains_at_basic(void) {
 }
 
 bool test_bitvec_contains_at_edge_cases(void) {
-    printf("Testing BitVecContainsAt edge cases\n");
+    WriteFmt("Testing BitVecContainsAt edge cases\n");
 
     BitVec source  = BitVecInit();
     BitVec pattern = BitVecInit();
@@ -568,7 +568,7 @@ bool test_bitvec_contains_at_edge_cases(void) {
 
 // BitVecCountPattern tests
 bool test_bitvec_count_pattern_basic(void) {
-    printf("Testing BitVecCountPattern basic functionality\n");
+    WriteFmt("Testing BitVecCountPattern basic functionality\n");
 
     BitVec source  = BitVecInit();
     BitVec pattern = BitVecInit();
@@ -603,7 +603,7 @@ bool test_bitvec_count_pattern_basic(void) {
 
 // BitVecRFindPattern tests
 bool test_bitvec_rfind_pattern_basic(void) {
-    printf("Testing BitVecRFindPattern basic functionality\n");
+    WriteFmt("Testing BitVecRFindPattern basic functionality\n");
 
     BitVec source  = BitVecInit();
     BitVec pattern = BitVecInit();
@@ -640,7 +640,7 @@ bool test_bitvec_rfind_pattern_basic(void) {
 
 // BitVecReplace tests
 bool test_bitvec_replace_basic(void) {
-    printf("Testing BitVecReplace basic functionality\n");
+    WriteFmt("Testing BitVecReplace basic functionality\n");
 
     BitVec source      = BitVecInit();
     BitVec old_pattern = BitVecInit();
@@ -682,7 +682,7 @@ bool test_bitvec_replace_basic(void) {
 
 // BitVecReplaceAll tests
 bool test_bitvec_replace_all_basic(void) {
-    printf("Testing BitVecReplaceAll basic functionality\n");
+    WriteFmt("Testing BitVecReplaceAll basic functionality\n");
 
     BitVec source      = BitVecInit();
     BitVec old_pattern = BitVecInit();
@@ -719,7 +719,7 @@ bool test_bitvec_replace_all_basic(void) {
 
 // BitVecMatches tests
 bool test_bitvec_matches_basic(void) {
-    printf("Testing BitVecMatches basic functionality\n");
+    WriteFmt("Testing BitVecMatches basic functionality\n");
 
     BitVec source   = BitVecInit();
     BitVec pattern  = BitVecInit();
@@ -754,7 +754,7 @@ bool test_bitvec_matches_basic(void) {
 
 // BitVecFuzzyMatch tests
 bool test_bitvec_fuzzy_match_basic(void) {
-    printf("Testing BitVecFuzzyMatch basic functionality\n");
+    WriteFmt("Testing BitVecFuzzyMatch basic functionality\n");
 
     BitVec source  = BitVecInit();
     BitVec pattern = BitVecInit();
@@ -790,7 +790,7 @@ bool test_bitvec_fuzzy_match_basic(void) {
 
 // BitVecRegexMatch tests
 bool test_bitvec_regex_match_basic(void) {
-    printf("Testing BitVecRegexMatch basic functionality\n");
+    WriteFmt("Testing BitVecRegexMatch basic functionality\n");
 
     BitVec source = BitVecInit();
     bool   result = true;
@@ -813,7 +813,7 @@ bool test_bitvec_regex_match_basic(void) {
 
 // BitVecPrefixMatch tests
 bool test_bitvec_prefix_match_basic(void) {
-    printf("Testing BitVecPrefixMatch basic functionality\n");
+    WriteFmt("Testing BitVecPrefixMatch basic functionality\n");
 
     BitVec  source   = BitVecInit();
     BitVecs patterns = VecInitWithDeepCopy(NULL, BitVecDeinit);
@@ -832,6 +832,10 @@ bool test_bitvec_prefix_match_basic(void) {
     BitVec* p0 = VecPtrAt(&patterns, 0);
     BitVec* p1 = VecPtrAt(&patterns, 1);
     BitVec* p2 = VecPtrAt(&patterns, 2);
+
+    *p0 = BitVecInit();
+    *p1 = BitVecInit();
+    *p2 = BitVecInit();
 
     // Pattern 0: 111 (should not match)
     BitVecPush(p0, true);
@@ -858,7 +862,7 @@ bool test_bitvec_prefix_match_basic(void) {
 
 // BitVecSuffixMatch tests
 bool test_bitvec_suffix_match_basic(void) {
-    printf("Testing BitVecSuffixMatch basic functionality\n");
+    WriteFmt("Testing BitVecSuffixMatch basic functionality\n");
 
     BitVec  source   = BitVecInit();
     BitVecs patterns = VecInitWithDeepCopy(NULL, BitVecDeinit);
@@ -877,6 +881,10 @@ bool test_bitvec_suffix_match_basic(void) {
     BitVec* p0 = VecPtrAt(&patterns, 0);
     BitVec* p1 = VecPtrAt(&patterns, 1);
     BitVec* p2 = VecPtrAt(&patterns, 2);
+
+    *p0 = BitVecInit();
+    *p1 = BitVecInit();
+    *p2 = BitVecInit();
 
     // Pattern 0: 111 (should not match)
     BitVecPush(p0, true);
@@ -903,7 +911,7 @@ bool test_bitvec_suffix_match_basic(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Pattern.Simple tests\n\n");
+    WriteFmt("[INFO] Starting BitVec.Pattern.Simple tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {

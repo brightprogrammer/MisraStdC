@@ -26,7 +26,7 @@ bool test_str_conversion_invalid_input_failures(void);
 
 // Test StrFromU64 function
 bool test_str_from_u64(void) {
-    printf("Testing StrFromU64\n");
+    WriteFmt("Testing StrFromU64\n");
 
     Str s = StrInit();
 
@@ -35,7 +35,7 @@ bool test_str_from_u64(void) {
     StrFromU64(&s, 12345, &config);
     bool result = (ZstrCompare(s.data, "12345") == 0);
     if (!result) {
-        printf("    FAIL: Expected '12345', got '%s'\n", s.data);
+        WriteFmt("    FAIL: Expected '12345', got '{}'\n", s);
     }
 
     // Test hexadecimal conversion (lowercase)
@@ -44,7 +44,7 @@ bool test_str_from_u64(void) {
     StrFromU64(&s, 0xABCD, &config);
     result = result && (ZstrCompare(s.data, "0xabcd") == 0);
     if (!result) {
-        printf("    FAIL: Expected '0xabcd', got '%s'\n", s.data);
+        WriteFmt("    FAIL: Expected '0xabcd', got '{}'\n", s);
     }
 
     // Test hexadecimal conversion (uppercase)
@@ -53,7 +53,7 @@ bool test_str_from_u64(void) {
     StrFromU64(&s, 0xABCD, &config);
     result = result && (ZstrCompare(s.data, "0xABCD") == 0);
     if (!result) {
-        printf("    FAIL: Expected '0xABCD', got '%s'\n", s.data);
+        WriteFmt("    FAIL: Expected '0xABCD', got '{}'\n", s);
     }
 
     // Test binary conversion
@@ -62,7 +62,7 @@ bool test_str_from_u64(void) {
     StrFromU64(&s, 42, &config);
     result = result && (ZstrCompare(s.data, "0b101010") == 0);
     if (!result) {
-        printf("    FAIL: Expected '0b101010', got '%s'\n", s.data);
+        WriteFmt("    FAIL: Expected '0b101010', got '{}'\n", s);
     }
 
     // Test octal conversion
@@ -71,7 +71,7 @@ bool test_str_from_u64(void) {
     StrFromU64(&s, 42, &config);
     result = result && (ZstrCompare(s.data, "0o52") == 0);
     if (!result) {
-        printf("    FAIL: Expected '0o52', got '%s'\n", s.data);
+        WriteFmt("    FAIL: Expected '0o52', got '{}'\n", s);
     }
 
     // Test zero
@@ -80,7 +80,7 @@ bool test_str_from_u64(void) {
     StrFromU64(&s, 0, &config);
     result = result && (ZstrCompare(s.data, "0") == 0);
     if (!result) {
-        printf("    FAIL: Expected '0', got '%s'\n", s.data);
+        WriteFmt("    FAIL: Expected '0', got '{}'\n", s);
     }
 
     StrDeinit(&s);
@@ -89,7 +89,7 @@ bool test_str_from_u64(void) {
 
 // Test StrFromI64 function
 bool test_str_from_i64(void) {
-    printf("Testing StrFromI64\n");
+    WriteFmt("Testing StrFromI64\n");
 
     Str s = StrInit();
 
@@ -98,7 +98,7 @@ bool test_str_from_i64(void) {
     StrFromI64(&s, 12345, &config);
     bool result = (ZstrCompare(s.data, "12345") == 0);
     if (!result) {
-        printf("    FAIL: Expected '12345', got '%s'\n", s.data);
+        WriteFmt("    FAIL: Expected '12345', got '{}'\n", s.data);
     }
 
     // Test negative decimal conversion (only decimal supports negative sign)
@@ -107,7 +107,7 @@ bool test_str_from_i64(void) {
     StrFromI64(&s, -12345, &config);
     result = result && (ZstrCompare(s.data, "-12345") == 0);
     if (!result) {
-        printf("    FAIL: Expected '-12345', got '%s'\n", s.data);
+        WriteFmt("    FAIL: Expected '-12345', got '{}'\n", s.data);
     }
 
     // Test hexadecimal conversion of negative number (negative non-decimal treated as unsigned)
@@ -118,7 +118,7 @@ bool test_str_from_i64(void) {
     // -0xABCD = -(43981) = large positive number when treated as unsigned
     result = result && (ZstrCompareN(s.data, "0x", 2) == 0);
     if (!result) {
-        printf("    FAIL: Expected hex prefix '0x', got '%s'\n", s.data);
+        WriteFmt("    FAIL: Expected hex prefix '0x', got '{}'\n", s.data);
     }
 
     // Test zero
@@ -127,7 +127,7 @@ bool test_str_from_i64(void) {
     StrFromI64(&s, 0, &config);
     result = result && (ZstrCompare(s.data, "0") == 0);
     if (!result) {
-        printf("    FAIL: Expected '0', got '%s'\n", s.data);
+        WriteFmt("    FAIL: Expected '0', got '{}'\n", s.data);
     }
 
     // Test binary conversion
@@ -136,7 +136,7 @@ bool test_str_from_i64(void) {
     StrFromI64(&s, 42, &config);
     result = result && (ZstrCompare(s.data, "0b101010") == 0);
     if (!result) {
-        printf("    FAIL: Expected '0b101010', got '%s'\n", s.data);
+        WriteFmt("    FAIL: Expected '0b101010', got '{}'\n", s.data);
     }
 
     StrDeinit(&s);
@@ -145,7 +145,7 @@ bool test_str_from_i64(void) {
 
 // Test StrFromF64 function
 bool test_str_from_f64(void) {
-    printf("Testing StrFromF64\n");
+    WriteFmt("Testing StrFromF64\n");
 
     Str s = StrInit();
 
@@ -154,7 +154,7 @@ bool test_str_from_f64(void) {
     StrFromF64(&s, 123.0, &config);
     bool result = (ZstrCompare(s.data, "123.00") == 0);
     if (!result) {
-        printf("    FAIL: Expected '123.00', got '%s'\n", s.data);
+        WriteFmt("    FAIL: Expected '123.00', got '{}'\n", s.data);
     }
 
     // Test fractional conversion
@@ -163,7 +163,7 @@ bool test_str_from_f64(void) {
     StrFromF64(&s, 123.456, &config);
     result = result && (ZstrCompare(s.data, "123.456") == 0);
     if (!result) {
-        printf("    FAIL: Expected '123.456', got '%s'\n", s.data);
+        WriteFmt("    FAIL: Expected '123.456', got '{}'\n", s.data);
     }
 
     // Test negative number
@@ -226,7 +226,7 @@ bool test_str_from_f64(void) {
 
 // Test StrToU64 function
 bool test_str_to_u64(void) {
-    printf("Testing StrToU64\n");
+    WriteFmt("Testing StrToU64\n");
 
     // Test decimal conversion
     Str  s       = StrInitFromZstr("12345");
@@ -283,7 +283,7 @@ bool test_str_to_u64(void) {
 
 // Test StrToI64 function
 bool test_str_to_i64(void) {
-    printf("Testing StrToI64\n");
+    WriteFmt("Testing StrToI64\n");
 
     // Test positive decimal conversion
     Str  s       = StrInitFromZstr("12345");
@@ -327,7 +327,7 @@ bool test_str_to_i64(void) {
 
 // Test StrToF64 function
 bool test_str_to_f64(void) {
-    printf("Testing StrToF64\n");
+    WriteFmt("Testing StrToF64\n");
 
     // Test integer conversion
     Str  s       = StrInitFromZstr("123");
@@ -389,7 +389,7 @@ bool test_str_to_f64(void) {
 
 // Round-trip conversion tests
 bool test_str_round_trip_conversions(void) {
-    printf("Testing Str round-trip conversions\n");
+    WriteFmt("Testing Str round-trip conversions\n");
 
     bool result = true;
 
@@ -468,7 +468,7 @@ bool test_str_round_trip_conversions(void) {
 
 // Edge case conversion tests
 bool test_str_edge_case_conversions(void) {
-    printf("Testing Str edge case conversions\n");
+    WriteFmt("Testing Str edge case conversions\n");
 
     bool result = true;
 
@@ -553,7 +553,7 @@ bool test_str_edge_case_conversions(void) {
 
 // Precision limits testing
 bool test_str_precision_limits(void) {
-    printf("Testing Str precision limits\n");
+    WriteFmt("Testing Str precision limits\n");
 
     bool result = true;
 
@@ -620,7 +620,7 @@ bool test_str_precision_limits(void) {
 
 // Large-scale conversion tests
 bool test_str_all_base_support(void) {
-    printf("Testing Str all bases 2-36 support\n");
+    WriteFmt("Testing Str all bases 2-36 support\n");
 
     bool result = true;
 
@@ -690,7 +690,7 @@ bool test_str_all_base_support(void) {
 }
 
 bool test_str_large_scale_conversions(void) {
-    printf("Testing Str large-scale conversions\n");
+    WriteFmt("Testing Str large-scale conversions\n");
 
     bool result = true;
 
@@ -757,7 +757,7 @@ bool test_str_large_scale_conversions(void) {
 
 // Deadend tests for NULL pointer handling
 bool test_str_conversion_null_failures(void) {
-    printf("Testing Str conversion NULL pointer handling\n");
+    WriteFmt("Testing Str conversion NULL pointer handling\n");
 
     // Test NULL string pointer - should abort
     StrIntFormat config = {.base = 10, .uppercase = false};
@@ -767,7 +767,7 @@ bool test_str_conversion_null_failures(void) {
 }
 
 bool test_str_conversion_bounds_failures(void) {
-    printf("Testing Str conversion bounds failures\n");
+    WriteFmt("Testing Str conversion bounds failures\n");
 
     // Test StrFromI64 with NULL pointer - should abort
     StrIntFormat config = {.base = 10, .uppercase = false};
@@ -777,7 +777,7 @@ bool test_str_conversion_bounds_failures(void) {
 }
 
 bool test_str_conversion_invalid_input_failures(void) {
-    printf("Testing Str conversion invalid input failures\n");
+    WriteFmt("Testing Str conversion invalid input failures\n");
 
     // Test StrFromF64 with NULL pointer - should abort
     StrFloatFormat config = {.precision = 2, .force_sci = false, .uppercase = false};
@@ -788,7 +788,7 @@ bool test_str_conversion_invalid_input_failures(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Str.Convert tests\n\n");
+    WriteFmt("[INFO] Starting Str.Convert tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {

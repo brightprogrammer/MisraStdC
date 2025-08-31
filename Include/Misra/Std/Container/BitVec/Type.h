@@ -34,9 +34,12 @@ typedef struct {
     u64 capacity;  // Max number of bits this bitvector can hold (in bits)
     u8 *data;      // Bit data stored as bytes
     u64 byte_size; // Size of data array in bytes
+    u64 __magic;   // private, must not be modified
 } BitVec;
 
 typedef Vec(BitVec) BitVecs;
+
+#define MISRA_BITVEC_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("bitvectr")
 
 ///
 /// Validate whether a given `BitVec` object is valid.

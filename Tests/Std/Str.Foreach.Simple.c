@@ -23,7 +23,7 @@ bool test_str_foreach_ptr_in_range(void);
 
 // Test StrForeachIdx macro
 bool test_str_foreach_idx(void) {
-    printf("Testing StrForeachIdx\n");
+    WriteFmt("Testing StrForeachIdx\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -41,7 +41,7 @@ bool test_str_foreach_idx(void) {
 
 // Test StrForeachReverseIdx macro
 bool test_str_foreach_reverse_idx(void) {
-    printf("Testing StrForeachReverseIdx\n");
+    WriteFmt("Testing StrForeachReverseIdx\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -64,10 +64,10 @@ bool test_str_foreach_reverse_idx(void) {
     if (saw_index_zero) {
         // The test output shows index 0 is processed, but the order is different than expected
         success = (ZstrCompare(result.data, "o4l3l2e1H0") == 0);
-        printf("  (Index 0 was processed)\n");
+        WriteFmt("  (Index 0 was processed)\n");
     } else {
         success = (ZstrCompare(result.data, "o4l3l2e1") == 0);
-        printf("  (Index 0 was NOT processed - bug in macro)\n");
+        WriteFmt("  (Index 0 was NOT processed - bug in macro)\n");
     }
 
     StrDeinit(&s);
@@ -77,7 +77,7 @@ bool test_str_foreach_reverse_idx(void) {
 
 // Test StrForeachPtrIdx macro
 bool test_str_foreach_ptr_idx(void) {
-    printf("Testing StrForeachPtrIdx\n");
+    WriteFmt("Testing StrForeachPtrIdx\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -106,7 +106,7 @@ bool test_str_foreach_ptr_idx(void) {
 
 // Test StrForeachReversePtrIdx macro
 bool test_str_foreach_reverse_ptr_idx(void) {
-    printf("Testing StrForeachReversePtrIdx\n");
+    WriteFmt("Testing StrForeachReversePtrIdx\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -135,11 +135,11 @@ bool test_str_foreach_reverse_ptr_idx(void) {
         // The test output shows index 0 is processed, but the order is different than expected
         success = (ZstrCompare(result.data, "o4l3l2e1H0") == 0);
         success = success && (ZstrCompare(s.data, "HELLO") == 0); // All uppercase
-        printf("  (Index 0 was processed)\n");
+        WriteFmt("  (Index 0 was processed)\n");
     } else {
         success = (ZstrCompare(result.data, "o4l3l2e1") == 0);
         success = success && (ZstrCompare(s.data, "HELLo") == 0); // All uppercase except first char
-        printf("  (Index 0 was NOT processed - bug in macro)\n");
+        WriteFmt("  (Index 0 was NOT processed - bug in macro)\n");
     }
 
     StrDeinit(&s);
@@ -149,7 +149,7 @@ bool test_str_foreach_reverse_ptr_idx(void) {
 
 // Test StrForeach macro
 bool test_str_foreach(void) {
-    printf("Testing StrForeach\n");
+    WriteFmt("Testing StrForeach\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -170,7 +170,7 @@ bool test_str_foreach(void) {
 
 // Test StrForeachReverse macro
 bool test_str_foreach_reverse(void) {
-    printf("Testing StrForeachReverse\n");
+    WriteFmt("Testing StrForeachReverse\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -188,10 +188,10 @@ bool test_str_foreach_reverse(void) {
     bool success = false;
     if (char_count == s.length) {
         success = (ZstrCompare(result.data, "olleH") == 0);
-        printf("  (All characters were processed)\n");
+        WriteFmt("  (All characters were processed)\n");
     } else {
         success = (ZstrCompare(result.data, "olle") == 0);
-        printf("  (First character was NOT processed - bug in macro)\n");
+        WriteFmt("  (First character was NOT processed - bug in macro)\n");
     }
 
     StrDeinit(&s);
@@ -201,7 +201,7 @@ bool test_str_foreach_reverse(void) {
 
 // Test StrForeachPtr macro
 bool test_str_foreach_ptr(void) {
-    printf("Testing StrForeachPtr\n");
+    WriteFmt("Testing StrForeachPtr\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -230,7 +230,7 @@ bool test_str_foreach_ptr(void) {
 
 // Test StrForeachPtrReverse macro
 bool test_str_foreach_ptr_reverse(void) {
-    printf("Testing StrForeachPtrReverse\n");
+    WriteFmt("Testing StrForeachPtrReverse\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -255,11 +255,11 @@ bool test_str_foreach_ptr_reverse(void) {
     if (char_count == s.length) {
         success = (ZstrCompare(result.data, "olleH") == 0);
         success = success && (ZstrCompare(s.data, "HELLO") == 0); // All uppercase
-        printf("  (All characters were processed)\n");
+        WriteFmt("  (All characters were processed)\n");
     } else {
         success = (ZstrCompare(result.data, "olle") == 0);
         success = success && (ZstrCompare(s.data, "HELLo") == 0); // All uppercase except first char
-        printf("  (First character was NOT processed - bug in macro)\n");
+        WriteFmt("  (First character was NOT processed - bug in macro)\n");
     }
 
     StrDeinit(&s);
@@ -269,7 +269,7 @@ bool test_str_foreach_ptr_reverse(void) {
 
 // Test StrForeachInRangeIdx macro
 bool test_str_foreach_in_range_idx(void) {
-    printf("Testing StrForeachInRangeIdx\n");
+    WriteFmt("Testing StrForeachInRangeIdx\n");
 
     Str s = StrInitFromZstr("Hello World");
 
@@ -301,7 +301,7 @@ bool test_str_foreach_in_range_idx(void) {
 
 // Test StrForeachInRange macro
 bool test_str_foreach_in_range(void) {
-    printf("Testing StrForeachInRange\n");
+    WriteFmt("Testing StrForeachInRange\n");
 
     Str s = StrInitFromZstr("Hello World");
 
@@ -333,7 +333,7 @@ bool test_str_foreach_in_range(void) {
 
 // Test StrForeachPtrInRangeIdx macro
 bool test_str_foreach_ptr_in_range_idx(void) {
-    printf("Testing StrForeachPtrInRangeIdx\n");
+    WriteFmt("Testing StrForeachPtrInRangeIdx\n");
 
     Str s = StrInitFromZstr("Hello World");
 
@@ -362,7 +362,7 @@ bool test_str_foreach_ptr_in_range_idx(void) {
 
 // Test StrForeachPtrInRange macro
 bool test_str_foreach_ptr_in_range(void) {
-    printf("Testing StrForeachPtrInRange\n");
+    WriteFmt("Testing StrForeachPtrInRange\n");
 
     Str s = StrInitFromZstr("Hello World");
 
@@ -391,7 +391,7 @@ bool test_str_foreach_ptr_in_range(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Str.Foreach.Simple tests\n\n");
+    WriteFmt("[INFO] Starting Str.Foreach.Simple tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {

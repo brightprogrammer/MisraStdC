@@ -18,7 +18,7 @@ bool test_str_delete_range(void);
 
 // Test StrPopBack function
 bool test_str_pop_back(void) {
-    printf("Testing StrPopBack\n");
+    WriteFmt("Testing StrPopBack\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -42,7 +42,7 @@ bool test_str_pop_back(void) {
 
 // Test StrPopFront function
 bool test_str_pop_front(void) {
-    printf("Testing StrPopFront\n");
+    WriteFmt("Testing StrPopFront\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -66,7 +66,7 @@ bool test_str_pop_front(void) {
 
 // Test StrRemove function
 bool test_str_remove(void) {
-    printf("Testing StrRemove\n");
+    WriteFmt("Testing StrRemove\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -90,7 +90,7 @@ bool test_str_remove(void) {
 
 // Test StrRemoveRange function
 bool test_str_remove_range(void) {
-    printf("Testing StrRemoveRange\n");
+    WriteFmt("Testing StrRemoveRange\n");
 
     Str s = StrInitFromZstr("Hello World");
 
@@ -117,7 +117,7 @@ bool test_str_remove_range(void) {
 
 // Test StrDeleteLastChar function
 bool test_str_delete_last_char(void) {
-    printf("Testing StrDeleteLastChar\n");
+    WriteFmt("Testing StrDeleteLastChar\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -139,7 +139,7 @@ bool test_str_delete_last_char(void) {
 
 // Test StrDelete function
 bool test_str_delete(void) {
-    printf("Testing StrDelete\n");
+    WriteFmt("Testing StrDelete\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -161,7 +161,7 @@ bool test_str_delete(void) {
 
 // Test StrDeleteRange function
 bool test_str_delete_range(void) {
-    printf("Testing StrDeleteRange\n");
+    WriteFmt("Testing StrDeleteRange\n");
 
     Str s = StrInitFromZstr("Hello World");
 
@@ -183,7 +183,7 @@ bool test_str_delete_range(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Str.Remove tests\n\n");
+    WriteFmt("[INFO] Starting Str.Remove tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {

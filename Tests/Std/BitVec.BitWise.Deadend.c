@@ -20,7 +20,7 @@ bool test_bitvec_not_null_failures(void);
 
 // Deadend tests
 bool test_bitvec_bitwise_null_failures(void) {
-    printf("Testing BitVec bitwise NULL pointer handling\n");
+    WriteFmt("Testing BitVec bitwise NULL pointer handling\n");
 
     // Test NULL bitvec pointer - should abort
     BitVecShiftLeft(NULL, 1);
@@ -29,7 +29,7 @@ bool test_bitvec_bitwise_null_failures(void) {
 }
 
 bool test_bitvec_bitwise_ops_null_failures(void) {
-    printf("Testing BitVec bitwise operations NULL handling\n");
+    WriteFmt("Testing BitVec bitwise operations NULL handling\n");
 
     BitVec bv  = BitVecInit();
     BitVec bv2 = BitVecInit();
@@ -43,7 +43,7 @@ bool test_bitvec_bitwise_ops_null_failures(void) {
 }
 
 bool test_bitvec_reverse_null_failures(void) {
-    printf("Testing BitVec reverse NULL handling\n");
+    WriteFmt("Testing BitVec reverse NULL handling\n");
 
     // Test NULL pointer - should abort
     BitVecReverse(NULL);
@@ -53,7 +53,7 @@ bool test_bitvec_reverse_null_failures(void) {
 
 // NEW: Additional deadend tests
 bool test_bitvec_shift_ops_null_failures(void) {
-    printf("Testing BitVec shift operations NULL handling\n");
+    WriteFmt("Testing BitVec shift operations NULL handling\n");
 
     // Test NULL pointer for shift right - should abort
     BitVecShiftRight(NULL, 5);
@@ -62,7 +62,7 @@ bool test_bitvec_shift_ops_null_failures(void) {
 }
 
 bool test_bitvec_rotate_ops_null_failures(void) {
-    printf("Testing BitVec rotate operations NULL handling\n");
+    WriteFmt("Testing BitVec rotate operations NULL handling\n");
 
     // Test NULL pointer for rotate - should abort
     BitVecRotateLeft(NULL, 3);
@@ -71,7 +71,7 @@ bool test_bitvec_rotate_ops_null_failures(void) {
 }
 
 bool test_bitvec_and_result_null_failures(void) {
-    printf("Testing BitVec AND with NULL result handling\n");
+    WriteFmt("Testing BitVec AND with NULL result handling\n");
 
     BitVec bv1 = BitVecInit();
     BitVec bv2 = BitVecInit();
@@ -87,7 +87,7 @@ bool test_bitvec_and_result_null_failures(void) {
 }
 
 bool test_bitvec_or_operand_null_failures(void) {
-    printf("Testing BitVec OR with NULL operand handling\n");
+    WriteFmt("Testing BitVec OR with NULL operand handling\n");
 
     BitVec result = BitVecInit();
     BitVec bv1    = BitVecInit();
@@ -101,7 +101,7 @@ bool test_bitvec_or_operand_null_failures(void) {
 }
 
 bool test_bitvec_xor_second_operand_null_failures(void) {
-    printf("Testing BitVec XOR with NULL second operand handling\n");
+    WriteFmt("Testing BitVec XOR with NULL second operand handling\n");
 
     BitVec result = BitVecInit();
     BitVec bv1    = BitVecInit();
@@ -115,7 +115,7 @@ bool test_bitvec_xor_second_operand_null_failures(void) {
 }
 
 bool test_bitvec_not_null_failures(void) {
-    printf("Testing BitVec NOT with NULL handling\n");
+    WriteFmt("Testing BitVec NOT with NULL handling\n");
 
     BitVec result = BitVecInit();
 
@@ -128,7 +128,7 @@ bool test_bitvec_not_null_failures(void) {
 
 // Main function that runs all deadend tests
 int main(void) {
-    printf("[INFO] Starting BitVec.BitWise.Deadend tests\n\n");
+    WriteFmt("[INFO] Starting BitVec.BitWise.Deadend tests\n\n");
 
     // Array of deadend test functions
     TestFunction deadend_tests[] = {

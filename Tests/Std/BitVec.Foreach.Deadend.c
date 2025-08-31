@@ -17,7 +17,7 @@ bool test_bitvec_run_lengths_zero_max_runs(void);
 // Deadend tests for BitVecRunLengths
 
 bool test_bitvec_run_lengths_null_bv(void) {
-    printf("Testing BitVecRunLengths with NULL bitvector\n");
+    WriteFmt("Testing BitVecRunLengths with NULL bitvector\n");
 
     u64  runs[5];
     bool values[5];
@@ -29,7 +29,7 @@ bool test_bitvec_run_lengths_null_bv(void) {
 }
 
 bool test_bitvec_run_lengths_null_runs(void) {
-    printf("Testing BitVecRunLengths with NULL runs array\n");
+    WriteFmt("Testing BitVecRunLengths with NULL runs array\n");
 
     BitVec bv = BitVecInit();
     BitVecPush(&bv, true);
@@ -43,7 +43,7 @@ bool test_bitvec_run_lengths_null_runs(void) {
 }
 
 bool test_bitvec_run_lengths_null_values(void) {
-    printf("Testing BitVecRunLengths with NULL values array\n");
+    WriteFmt("Testing BitVecRunLengths with NULL values array\n");
 
     BitVec bv = BitVecInit();
     BitVecPush(&bv, true);
@@ -57,7 +57,7 @@ bool test_bitvec_run_lengths_null_values(void) {
 }
 
 bool test_bitvec_run_lengths_zero_max_runs(void) {
-    printf("Testing BitVecRunLengths with zero max_runs\n");
+    WriteFmt("Testing BitVecRunLengths with zero max_runs\n");
 
     BitVec bv = BitVecInit();
     BitVecPush(&bv, true);
@@ -76,7 +76,7 @@ bool test_bitvec_run_lengths_zero_max_runs(void) {
 // with invalid macro usage scenarios
 
 bool test_bitvec_foreach_invalid_usage(void) {
-    printf("Testing BitVec foreach with invalid bitvec\n");
+    WriteFmt("Testing BitVec foreach with invalid bitvec\n");
 
     // Test foreach with invalid bitvec (length > 0 but data is NULL)
     BitVec bv = {.length = 5, .capacity = 10, .data = NULL, .byte_size = 0};
@@ -95,7 +95,7 @@ bool test_bitvec_foreach_invalid_usage(void) {
 
 // Main function that runs all deadend tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Foreach.Deadend tests\n\n");
+    WriteFmt("[INFO] Starting BitVec.Foreach.Deadend tests\n\n");
 
     // Array of deadend test functions
     TestFunction deadend_tests[] = {

@@ -11,12 +11,13 @@
 #include <Misra/Types.h>
 
 typedef struct {
-    size              length;
-    size              capacity;
+    u64               length;
+    u64               capacity;
     GenericCopyInit   copy_init;
     GenericCopyDeinit copy_deinit;
     char             *data;
-    size              alignment;
+    u64               alignment;
+    u64               __magic;
 } GenericVec;
 
 #define GENERIC_VEC(x) ((GenericVec *)(void *)(x))
@@ -52,15 +53,18 @@ typedef struct {
 ///
 #define Vec(T)                                                                                                         \
     struct {                                                                                                           \
-        size              length;                                                                                      \
-        size              capacity;                                                                                    \
+        u64               length;                                                                                      \
+        u64               capacity;                                                                                    \
         GenericCopyInit   copy_init;                                                                                   \
         GenericCopyDeinit copy_deinit;                                                                                 \
         T                *data;                                                                                        \
-        size              alignment;                                                                                   \
+        u64               alignment;                                                                                   \
+        u64               __magic;                                                                                     \
     }
 
 #define VEC_DATATYPE(v) TYPE_OF((v)->data[0])
+
+#define MISRA_VEC_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("vectorty")
 
 ///
 /// Validate whether a given `Vec` object is valid.
@@ -69,10 +73,9 @@ typedef struct {
 ///
 /// i[in] : Pointer to `Vec` object to validate.
 ///
-/// SUCCESS : Continue execution, meaning given `Vec` object is most probably a valid `Vec`.
-/// FAILURE : `abort`
+/// SUCCESS: Continue execution, meaning given `Vec` object is most probably a valid `Vec`.
+/// FAILURE: `abort`
 ///
 #define ValidateVec(v) validate_vec((const GenericVec *)GENERIC_VEC(v))
-void validate_vec(const GenericVec *v);
 
 #endif // MISRA_STD_CONTAINER_VEC_TYPE_H

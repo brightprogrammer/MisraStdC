@@ -20,7 +20,7 @@ bool test_str_deinit(void);
 
 // Test StrInit function
 bool test_str_init(void) {
-    printf("Testing StrInit\n");
+    WriteFmt("Testing StrInit\n");
 
     Str s = StrInit();
 
@@ -37,7 +37,7 @@ bool test_str_init(void) {
 
 // Test StrInitFromCstr function
 bool test_str_init_from_cstr(void) {
-    printf("Testing StrInitFromCstr\n");
+    WriteFmt("Testing StrInitFromCstr\n");
 
     const char* test_str = "Hello, World!";
     size_t      len      = 5; // Just "Hello"
@@ -55,7 +55,7 @@ bool test_str_init_from_cstr(void) {
 
 // Test StrInitFromZstr function
 bool test_str_init_from_zstr(void) {
-    printf("Testing StrInitFromZstr\n");
+    WriteFmt("Testing StrInitFromZstr\n");
 
     const char* test_str = "Hello, World!";
     Str         s        = StrInitFromZstr(test_str);
@@ -72,7 +72,7 @@ bool test_str_init_from_zstr(void) {
 
 // Test StrInitFromStr function
 bool test_str_init_from_str(void) {
-    printf("Testing StrInitFromStr\n");
+    WriteFmt("Testing StrInitFromStr\n");
 
     Str src = StrInitFromZstr("Hello, World!");
     Str dst = StrInitFromStr(&src);
@@ -91,7 +91,7 @@ bool test_str_init_from_str(void) {
 
 // Test StrDup function (alias for StrInitFromStr)
 bool test_str_dup(void) {
-    printf("Testing StrDup\n");
+    WriteFmt("Testing StrDup\n");
 
     Str src = StrInitFromZstr("Hello, World!");
     Str dst = StrDup(&src);
@@ -108,12 +108,12 @@ bool test_str_dup(void) {
     return result;
 }
 
-// Test StrPrintf function
-bool test_str_printf(void) {
-    printf("Testing StrPrintf\n");
+// Test StrWriteFmt function
+bool test_str_WriteFmt(void) {
+    WriteFmt("Testing StrWriteFmt\n");
 
     Str s = StrInit();
-    StrPrintf(&s, "Hello, %s!", "World");
+    StrWriteFmt(&s, "Hello, {}!", &"World"[0]);
 
     // Validate the string
     ValidateStr(&s);
@@ -127,7 +127,7 @@ bool test_str_printf(void) {
 
 // Test StrInitStack macro
 bool test_str_init_stack(void) {
-    printf("Testing StrInitStack\n");
+    WriteFmt("Testing StrInitStack\n");
 
     bool result = true;
 
@@ -161,7 +161,7 @@ bool test_str_init_stack(void) {
 
 // Test StrInitCopy function
 bool test_str_init_copy(void) {
-    printf("Testing StrInitCopy\n");
+    WriteFmt("Testing StrInitCopy\n");
 
     Str src = StrInitFromZstr("Hello, World!");
     Str dst = StrInit();
@@ -183,7 +183,7 @@ bool test_str_init_copy(void) {
 
 // Test StrDeinit function
 bool test_str_deinit(void) {
-    printf("Testing StrDeinit\n");
+    WriteFmt("Testing StrDeinit\n");
 
     Str s = StrInitFromZstr("Hello, World!");
 
@@ -202,7 +202,7 @@ bool test_str_deinit(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Str.Init tests\n\n");
+    WriteFmt("[INFO] Starting Str.Init tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {
@@ -211,7 +211,7 @@ int main(void) {
         test_str_init_from_zstr,
         test_str_init_from_str,
         test_str_dup,
-        test_str_printf,
+        test_str_WriteFmt,
         test_str_init_stack,
         test_str_init_copy,
         test_str_deinit

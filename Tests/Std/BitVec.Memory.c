@@ -22,7 +22,7 @@ bool test_bitvec_clone_null_failures(void);
 
 // Test BitVecShrinkToFit function
 bool test_bitvec_shrink_to_fit(void) {
-    printf("Testing BitVecShrinkToFit\n");
+    WriteFmt("Testing BitVecShrinkToFit\n");
 
     BitVec bv = BitVecInit();
 
@@ -59,7 +59,7 @@ bool test_bitvec_shrink_to_fit(void) {
 
 // Test BitVecReserve function (replacing BitVecSetCapacity)
 bool test_bitvec_set_capacity(void) {
-    printf("Testing BitVecReserve\n");
+    WriteFmt("Testing BitVecReserve\n");
 
     BitVec bv = BitVecInit();
 
@@ -96,7 +96,7 @@ bool test_bitvec_set_capacity(void) {
 
 // Test BitVecSwap function
 bool test_bitvec_swap(void) {
-    printf("Testing BitVecSwap\n");
+    WriteFmt("Testing BitVecSwap\n");
 
     BitVec bv1 = BitVecInit();
     BitVec bv2 = BitVecInit();
@@ -140,7 +140,7 @@ bool test_bitvec_swap(void) {
 
 // Test BitVecClone function
 bool test_bitvec_clone(void) {
-    printf("Testing BitVecClone\n");
+    WriteFmt("Testing BitVecClone\n");
 
     BitVec original = BitVecInit();
 
@@ -186,7 +186,7 @@ bool test_bitvec_clone(void) {
 
 // Edge case tests
 bool test_bitvec_shrink_to_fit_edge_cases(void) {
-    printf("Testing BitVecShrinkToFit edge cases\n");
+    WriteFmt("Testing BitVecShrinkToFit edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -217,7 +217,7 @@ bool test_bitvec_shrink_to_fit_edge_cases(void) {
 }
 
 bool test_bitvec_set_capacity_edge_cases(void) {
-    printf("Testing BitVecReserve edge cases\n");
+    WriteFmt("Testing BitVecReserve edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -254,7 +254,7 @@ bool test_bitvec_set_capacity_edge_cases(void) {
 }
 
 bool test_bitvec_swap_edge_cases(void) {
-    printf("Testing BitVecSwap edge cases\n");
+    WriteFmt("Testing BitVecSwap edge cases\n");
 
     BitVec bv1    = BitVecInit();
     BitVec bv2    = BitVecInit();
@@ -295,7 +295,7 @@ bool test_bitvec_swap_edge_cases(void) {
 }
 
 bool test_bitvec_clone_edge_cases(void) {
-    printf("Testing BitVecClone edge cases\n");
+    WriteFmt("Testing BitVecClone edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -336,7 +336,7 @@ bool test_bitvec_clone_edge_cases(void) {
 }
 
 bool test_bitvec_memory_stress_test(void) {
-    printf("Testing BitVec memory stress test\n");
+    WriteFmt("Testing BitVec memory stress test\n");
 
     bool result = true;
 
@@ -375,7 +375,7 @@ bool test_bitvec_memory_stress_test(void) {
 
 // Deadend tests
 bool test_bitvec_memory_null_failures(void) {
-    printf("Testing BitVec memory NULL pointer handling\n");
+    WriteFmt("Testing BitVec memory NULL pointer handling\n");
 
     // Test NULL bitvec pointer - should abort
     BitVecShrinkToFit(NULL);
@@ -384,7 +384,7 @@ bool test_bitvec_memory_null_failures(void) {
 }
 
 bool test_bitvec_swap_null_failures(void) {
-    printf("Testing BitVec swap NULL handling\n");
+    WriteFmt("Testing BitVec swap NULL handling\n");
 
     BitVec bv = BitVecInit();
 
@@ -396,7 +396,7 @@ bool test_bitvec_swap_null_failures(void) {
 }
 
 bool test_bitvec_clone_null_failures(void) {
-    printf("Testing BitVec clone NULL handling\n");
+    WriteFmt("Testing BitVec clone NULL handling\n");
 
     // Test NULL pointer - should abort
     BitVecClone(NULL);
@@ -406,7 +406,7 @@ bool test_bitvec_clone_null_failures(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Memory tests\n\n");
+    WriteFmt("[INFO] Starting BitVec.Memory tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {

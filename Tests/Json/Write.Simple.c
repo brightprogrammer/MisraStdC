@@ -79,17 +79,17 @@ bool compare_json_output(const Str* output, const char* expected) {
     bool result = StrCmp(&output_clean, &expected_clean) == 0;
 
     if (!result) {
-        printf("[DEBUG] JSON comparison failed\n");
-        printf("[DEBUG] Expected: '");
+        WriteFmt("[DEBUG] JSON comparison failed\n");
+        WriteFmt("[DEBUG] Expected: '");
         for (size i = 0; i < expected_clean.length; i++) {
-            printf("%c", expected_clean.data[i]);
+            WriteFmt("{c}", expected_clean.data[i]);
         }
-        printf("'\n");
-        printf("[DEBUG] Got: '");
+        WriteFmt("'\n");
+        WriteFmt("[DEBUG] Got: '");
         for (size i = 0; i < output_clean.length; i++) {
-            printf("%c", output_clean.data[i]);
+            WriteFmt("{c}", output_clean.data[i]);
         }
-        printf("'\n");
+        WriteFmt("'\n");
     }
 
     StrDeinit(&expected_str);
@@ -100,7 +100,7 @@ bool compare_json_output(const Str* output, const char* expected) {
 
 // Test 1: Simple string writing
 bool test_simple_string_writing(void) {
-    printf("Testing simple string writing\n");
+    WriteFmt("Testing simple string writing\n");
 
     bool success = true;
     Str  json    = StrInit();
@@ -126,7 +126,7 @@ bool test_simple_string_writing(void) {
 
 // Test 2: Simple number writing
 bool test_simple_numbers_writing(void) {
-    printf("Testing simple number writing\n");
+    WriteFmt("Testing simple number writing\n");
 
     bool success = true;
     Str  json    = StrInit();
@@ -152,7 +152,7 @@ bool test_simple_numbers_writing(void) {
 
 // Test 3: Simple boolean writing
 bool test_simple_boolean_writing(void) {
-    printf("Testing simple boolean writing\n");
+    WriteFmt("Testing simple boolean writing\n");
 
     bool success = true;
     Str  json    = StrInit();
@@ -176,7 +176,7 @@ bool test_simple_boolean_writing(void) {
 
 // Test 4: Simple person object writing
 bool test_simple_person_object_writing(void) {
-    printf("Testing simple person object writing\n");
+    WriteFmt("Testing simple person object writing\n");
 
     bool success = true;
     Str  json    = StrInit();
@@ -203,7 +203,7 @@ bool test_simple_person_object_writing(void) {
 
 // Test 5: Simple config object writing
 bool test_simple_config_object_writing(void) {
-    printf("Testing simple config object writing\n");
+    WriteFmt("Testing simple config object writing\n");
 
     bool success = true;
     Str  json    = StrInit();
@@ -228,7 +228,7 @@ bool test_simple_config_object_writing(void) {
 
 // Test 6: Simple array of strings writing
 bool test_simple_array_of_strings_writing(void) {
-    printf("Testing simple array of strings writing\n");
+    WriteFmt("Testing simple array of strings writing\n");
 
     bool success = true;
     Str  json    = StrInit();
@@ -258,7 +258,7 @@ bool test_simple_array_of_strings_writing(void) {
 
 // Test 7: Simple nested object writing
 bool test_simple_nested_object_writing(void) {
-    printf("Testing simple nested object writing\n");
+    WriteFmt("Testing simple nested object writing\n");
 
     bool success = true;
     Str  json    = StrInit();
@@ -295,7 +295,7 @@ bool test_simple_nested_object_writing(void) {
 
 // Test 8: Simple product with tags array writing
 bool test_simple_product_with_tags_writing(void) {
-    printf("Testing simple product with tags array writing\n");
+    WriteFmt("Testing simple product with tags array writing\n");
 
     bool success = true;
     Str  json    = StrInit();

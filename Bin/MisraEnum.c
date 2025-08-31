@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
     LogInit(false);
 
     if (argc < 2 || argc > 3) {
-        fprintf(stderr, "USAGE : %s <enum-json-spec> [output-file-name] \n", argc == 0 ? "MisraEnum" : argv[0]);
+        FWriteFmtLn(stderr, "USAGE : {} <enum-json-spec> [output-file-name]", argc == 0 ? "MisraEnum" : argv[0]);
         return 1;
     }
 

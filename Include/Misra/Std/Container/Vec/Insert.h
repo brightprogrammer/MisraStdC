@@ -17,7 +17,7 @@
 ///
 /// NOTE: Ownership of item is transferred to vector if no `copy_init` method is set.
 ///       This is to prevent multiple ownership of same object, once inserted into vector.
-///       Object won't be usable after this call if `copy_init` is not set.
+///       Object may not be usable after this call if `copy_init` is not set.
 ///
 /// INFO: If `copy_init` is set, then vector will create it's own copy of items.
 ///
@@ -36,8 +36,8 @@
 ///   Vec(int) integers = VecInit();
 ///
 ///   // insert items
-///   VecInsertL(&integers, &x, 0); // x inserted at position 0
-///   VecInsertL(&integers, &y, 0); // x shifted one position and y is inserted
+///   VecInsertL(&integers, x, 0); // x inserted at position 0
+///   VecInsertL(&integers, y, 0); // x shifted one position and y is inserted
 ///   VecInsertL(&integers, LVAL(101), 1); // x shifted one position and 101 is inserted at index 1
 ///
 /// SUCCESS : return
@@ -45,10 +45,12 @@
 ///
 #define VecInsertL(v, lval, idx)                                                                                       \
     do {                                                                                                               \
-        VEC_DATATYPE(v) __tmp__val = (lval);                                                                           \
-        insert_range_into_vec(GENERIC_VEC(v), (char *)&__tmp__val, sizeof(VEC_DATATYPE(v)), (idx), 1);                 \
+        ValidateVec(v);                                                                                                \
+        VEC_DATATYPE(v) *__ptr__val_##__LINE__ = &(lval);                                                              \
+        VEC_DATATYPE(v) __tmp__val_##__LINE__  = (lval);                                                               \
+        insert_range_into_vec(GENERIC_VEC(v), (char *)&__tmp__val_##__LINE__, sizeof(VEC_DATATYPE(v)), (idx), 1);      \
         if (!(v)->copy_init) {                                                                                         \
-            memset(&(lval), 0, sizeof(lval));                                                                          \
+            memset(__ptr__val_##__LINE__, 0, sizeof(VEC_DATATYPE(v)));                                                 \
         }                                                                                                              \
     } while (0)
 
@@ -73,17 +75,18 @@
 ///   Vec(int) integers = VecInit();
 ///
 ///   // insert items
-///   VecInsert(&integers, &x, 0); // x inserted at position 0
-///   VecInsert(&integers, &y, 0); // x shifted one position and y is inserted
-///   VecInsert(&integers, ((int[]){5}), 1); // x shifted one position and 5 is inserted at index 1
+///   VecInsertR(&integers, x, 0); // x inserted at position 0
+///   VecInsertR(&integers, y, 0); // x shifted one position and y is inserted
+///   VecInsertR(&integers, 5, 1); // x shifted one position and 5 is inserted at index 1
 ///
 /// SUCCESS : return
 /// FAILURE : Does not return
 ///
 #define VecInsertR(v, rval, idx)                                                                                       \
     do {                                                                                                               \
-        VEC_DATATYPE(v) __tmp__val = (rval);                                                                           \
-        insert_range_into_vec(GENERIC_VEC(v), (char *)&__tmp__val, sizeof(VEC_DATATYPE(v)), (idx), 1);                 \
+        ValidateVec(v);                                                                                                \
+        VEC_DATATYPE(v) __tmp__val_##__LINE__ = (rval);                                                                \
+        insert_range_into_vec(GENERIC_VEC(v), (char *)&__tmp__val_##__LINE__, sizeof(VEC_DATATYPE(v)), (idx), 1);      \
     } while (0)
 
 ///
@@ -124,10 +127,15 @@
 ///
 #define VecInsertFastL(v, val, idx)                                                                                    \
     do {                                                                                                               \
-        VEC_DATATYPE(v) __tmp__val = (val);                                                                            \
-        insert_range_fast_into_vec(GENERIC_VEC(v), (char *)&__tmp__val, sizeof(VEC_DATATYPE(v)), (idx), 1);            \
+        ValidateVec(v);                                                                                                \
+        VEC_DATATYPE(v) *__ptr_val_##__LINE__ = &(val);                                                                \
+        {                                                                                                              \
+            VEC_DATATYPE(v) __tmp_val_##__LINE__ = (val);                                                              \
+            (void)__tmp_val_##__LINE__;                                                                                \
+        }                                                                                                              \
+        insert_range_fast_into_vec(GENERIC_VEC(v), (char *)__ptr_val_##__LINE__, sizeof(VEC_DATATYPE(v)), (idx), 1);   \
         if (!(v)->copy_init) {                                                                                         \
-            memset(&(val), 0, sizeof(val));                                                                            \
+            memset(__ptr_val_##__LINE__, 0, sizeof(VEC_DATATYPE(v)));                                                  \
         }                                                                                                              \
     } while (0)
 
@@ -150,10 +158,15 @@
 ///
 #define VecInsertFastR(v, val, idx)                                                                                    \
     do {                                                                                                               \
-        VEC_DATATYPE(v) __tmp__val = (val);                                                                            \
-        insert_range_fast_into_vec(GENERIC_VEC(v), (char *)&__tmp__val, sizeof(VEC_DATATYPE(v)), (idx), 1);            \
+        ValidateVec(v);                                                                                                \
+        VEC_DATATYPE(v) *__ptr_val_##__LINE__ = &(val);                                                                \
+        {                                                                                                              \
+            VEC_DATATYPE(v) __tmp_val_##__LINE__ = (val);                                                              \
+            (void)__tmp_val_##__LINE__;                                                                                \
+        }                                                                                                              \
+        insert_range_fast_into_vec(GENERIC_VEC(v), (char *)__ptr_val_##__LINE__, sizeof(VEC_DATATYPE(v)), (idx), 1);   \
         if (!(v)->copy_init) {                                                                                         \
-            memset(&(val), 0, sizeof(val));                                                                            \
+            memset(__ptr_val_##__LINE__, 0, sizeof(VEC_DATATYPE(v)));                                                  \
         }                                                                                                              \
     } while (0)
 
@@ -188,17 +201,18 @@
 ///
 #define VecInsertRangeL(v, varr, idx, count)                                                                           \
     do {                                                                                                               \
+        ValidateVec(v);                                                                                                \
         {                                                                                                              \
             if (varr == NULL) {                                                                                        \
                 LOG_FATAL("Expected a valid pointer");                                                                 \
             }                                                                                                          \
-            const VEC_DATATYPE(v) __x = *(varr);                                                                       \
-            (void)__x;                                                                                                 \
+            VEC_DATATYPE(v) __tmp_val_##__LINE__ = *(varr);                                                            \
+            (void)__tmp_val_##__LINE__;                                                                                \
         }                                                                                                              \
-        const VEC_DATATYPE(v) *__tmp__ptr = (varr);                                                                    \
-        insert_range_into_vec(GENERIC_VEC(v), (char *)__tmp__ptr, sizeof(VEC_DATATYPE(v)), (idx), (count));            \
+        VEC_DATATYPE(v) *__tmp_ptr_##__LINE__ = (varr);                                                                \
+        insert_range_into_vec(GENERIC_VEC(v), (char *)__tmp_ptr_##__LINE__, sizeof(VEC_DATATYPE(v)), (idx), (count));  \
         if (!(v)->copy_init) {                                                                                         \
-            memset((void *)(varr), 0, (count) * sizeof(*varr));                                                        \
+            memset((void *)(__tmp_ptr_##__LINE__), 0, (count) * sizeof(VEC_DATATYPE(v)));                              \
         }                                                                                                              \
     } while (0)
 
@@ -224,15 +238,16 @@
 ///
 #define VecInsertRangeR(v, varr, idx, count)                                                                           \
     do {                                                                                                               \
+        ValidateVec(v);                                                                                                \
         {                                                                                                              \
             if (varr == NULL) {                                                                                        \
                 LOG_FATAL("Expected a valid pointer");                                                                 \
             }                                                                                                          \
-            const VEC_DATATYPE(v) __x = *(varr);                                                                       \
-            (void)__x;                                                                                                 \
+            VEC_DATATYPE(v) __tmp_val_##__LINE__ = *(varr);                                                            \
+            (void)__tmp_val_##__LINE__;                                                                                \
         }                                                                                                              \
-        const VEC_DATATYPE(v) *__tmp__ptr = (varr);                                                                    \
-        insert_range_into_vec(GENERIC_VEC(v), (char *)__tmp__ptr, sizeof(VEC_DATATYPE(v)), (idx), (count));            \
+        const VEC_DATATYPE(v) *__tmp_ptr_##__LINE__ = (varr);                                                          \
+        insert_range_into_vec(GENERIC_VEC(v), (char *)__tmp_ptr_##__LINE__, sizeof(VEC_DATATYPE(v)), (idx), (count));  \
     } while (0)
 
 ///
@@ -282,17 +297,24 @@
 ///
 #define VecInsertRangeFastL(v, varr, idx, count)                                                                       \
     do {                                                                                                               \
+        ValidateVec(v);                                                                                                \
         {                                                                                                              \
             if (varr == NULL) {                                                                                        \
                 LOG_FATAL("Expected a valid pointer");                                                                 \
             }                                                                                                          \
-            const VEC_DATATYPE(v) __x = *(varr);                                                                       \
-            (void)__x;                                                                                                 \
+            VEC_DATATYPE(v) __tmp_val_##__LINE__ = *(varr);                                                            \
+            (void)__tmp_val_##__LINE__;                                                                                \
         }                                                                                                              \
-        const VEC_DATATYPE(v) *__tmp__ptr = (varr);                                                                    \
-        insert_range_fast_into_vec(GENERIC_VEC(v), (char *)__tmp__ptr, sizeof(VEC_DATATYPE(v)), (idx), (count));       \
+        const VEC_DATATYPE(v) *__tmp_ptr_##__LINE__ = (varr);                                                          \
+        insert_range_fast_into_vec(                                                                                    \
+            GENERIC_VEC(v),                                                                                            \
+            (char *)__tmp_ptr_##__LINE__,                                                                              \
+            sizeof(VEC_DATATYPE(v)),                                                                                   \
+            (idx),                                                                                                     \
+            (count)                                                                                                    \
+        );                                                                                                             \
         if (!(v)->copy_init) {                                                                                         \
-            memset((void *)(varr), 0, (count) * sizeof(*varr));                                                        \
+            memset((void *)__tmp_ptr_##__LINE__, 0, (count) * sizeof(VEC_DATATYPE(v)));                                \
         }                                                                                                              \
     } while (0)
 
@@ -320,15 +342,22 @@
 ///
 #define VecInsertRangeFastR(v, varr, idx, count)                                                                       \
     do {                                                                                                               \
+        ValidateVec(v);                                                                                                \
         {                                                                                                              \
             if (varr == NULL) {                                                                                        \
                 LOG_FATAL("Expected a valid pointer");                                                                 \
             }                                                                                                          \
-            const VEC_DATATYPE(v) __x = *(varr);                                                                       \
-            (void)__x;                                                                                                 \
+            VEC_DATATYPE(v) __tmp_val_##__LINE__ = *(varr);                                                            \
+            (void)__tmp_val_##__LINE__;                                                                                \
         }                                                                                                              \
-        const VEC_DATATYPE(v) *__tmp__ptr = (varr);                                                                    \
-        insert_range_fast_into_vec(GENERIC_VEC(v), (char *)__tmp__ptr, sizeof(VEC_DATATYPE(v)), (idx), (count));       \
+        const VEC_DATATYPE(v) *__tmp_ptr_##__LINE__ = (varr);                                                          \
+        insert_range_fast_into_vec(                                                                                    \
+            GENERIC_VEC(v),                                                                                            \
+            (char *)__tmp_ptr_##__LINE__,                                                                              \
+            sizeof(VEC_DATATYPE(v)),                                                                                   \
+            (idx),                                                                                                     \
+            (count)                                                                                                    \
+        );                                                                                                             \
     } while (0)
 
 ///
@@ -489,19 +518,13 @@
 
 ///
 /// Merge two vectors and store the result in the first vector, with L-value semantics.
+/// Call to this makes sure, either both vectors have their own ownerships, or only one
+/// owns the objects. Meaning none of the two lists share ownership.
 ///
-/// Data is copied from `v2` into `v`. If a `copy_init` method is provided in `v`,
-/// each element from `v2` will be copied using that method. Otherwise, a raw memory
-/// copy is performed, which may be unsafe for complex or pointer-containing data.
-///
-/// NOTE: This function completely transfers ownership from `v2` to `v` by:
-///       1. Adding all elements from `v2` to `v`
-///       2. Freeing the memory allocated for `v2->data`
-///       3. Resetting all fields of `v2` to zero using MemSet
-///
-/// After this operation, `v2` will be in a reset state (as if just initialized with VecInit).
-///
-/// The `copy_init` function must be set in `v` if ownership-safe copies are needed.
+/// NOTE: Ownership transfer takes place only if (v) does not create it's own copies of objects.
+///       Vectors create their own copy only if `copy_init` method is provided, otherwise simple
+///       `memcpy` is performed, which is the case where objects tend to share ownership, that this
+///       method automatically resolves for you.
 ///
 /// [in,out] v   : Destination vector that will receive data.
 /// [in,out] v2  : Source vector to merge from and reset.
@@ -512,8 +535,7 @@
 #define VecMergeL(v, v2)                                                                                               \
     do {                                                                                                               \
         VecPushBackArrL((v), (v2)->data, (v2)->length);                                                                \
-        /* Free the source vector's data and reset its state */                                                        \
-        if ((v2)->data) {                                                                                              \
+        if (!(v)->copy_init && (v2)->data) {                                                                           \
             free((v2)->data);                                                                                          \
             (v2)->data     = NULL;                                                                                     \
             (v2)->length   = 0;                                                                                        \

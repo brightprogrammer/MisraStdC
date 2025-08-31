@@ -21,7 +21,7 @@ bool test_lvalue_memset_after_insertion(void);
 
 // Test VecPushBack function
 bool test_vec_push_back(void) {
-    printf("Testing VecPushBack\n");
+    WriteFmt("Testing VecPushBack\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -49,7 +49,7 @@ bool test_vec_push_back(void) {
 
 // Test VecPushFront function
 bool test_vec_push_front(void) {
-    printf("Testing VecPushFront\n");
+    WriteFmt("Testing VecPushFront\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -77,7 +77,7 @@ bool test_vec_push_front(void) {
 
 // Test VecInsert function
 bool test_vec_insert(void) {
-    printf("Testing VecInsert\n");
+    WriteFmt("Testing VecInsert\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -112,7 +112,7 @@ bool test_vec_insert(void) {
 
 // Test VecPushBackArr function
 bool test_vec_push_back_arr(void) {
-    printf("Testing VecPushBackArr\n");
+    WriteFmt("Testing VecPushBackArr\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -153,7 +153,7 @@ bool test_vec_push_back_arr(void) {
 
 // Test VecPushFrontArr function
 bool test_vec_push_front_arr(void) {
-    printf("Testing VecPushFrontArr\n");
+    WriteFmt("Testing VecPushFrontArr\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -194,7 +194,7 @@ bool test_vec_push_front_arr(void) {
 
 // Test VecInsertRange function for inserting at a specific index
 bool test_vec_push_arr(void) {
-    printf("Testing VecInsertRange at specific index\n");
+    WriteFmt("Testing VecInsertRange at specific index\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -227,7 +227,7 @@ bool test_vec_push_arr(void) {
 
 // Test VecInsertRange function for inserting from another vector
 bool test_vec_insert_range(void) {
-    printf("Testing VecInsertRange from another vector\n");
+    WriteFmt("Testing VecInsertRange from another vector\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -265,7 +265,7 @@ bool test_vec_insert_range(void) {
 
 // Test VecMerge function
 bool test_vec_merge(void) {
-    printf("Testing VecMerge\n");
+    WriteFmt("Testing VecMerge\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -306,7 +306,7 @@ bool test_vec_merge(void) {
 
 // Test L-value and R-value operations
 bool test_lvalue_rvalue_operations(void) {
-    printf("Testing L-value and R-value operations\n");
+    WriteFmt("Testing L-value and R-value operations\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -389,7 +389,7 @@ bool test_lvalue_rvalue_operations(void) {
 
 // Test that L-value insertions properly memset values to 0 after insertion
 bool test_lvalue_memset_after_insertion(void) {
-    printf("Testing L-value memset after insertion\n");
+    WriteFmt("Testing L-value memset after insertion\n");
 
     // Create a vector of integers without copy_init
     typedef Vec(int) IntVec;
@@ -465,7 +465,7 @@ bool test_lvalue_memset_after_insertion(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Vec.Insert tests\n\n");
+    WriteFmt("[INFO] Starting Vec.Insert tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {

@@ -96,7 +96,7 @@ void ProjectDeinit(Project* p) {
 
 int main(int argc, char** argv) {
     if (argc != 2) {
-        fprintf(stderr, "USAGE : %s config.json\n", argc == 0 ? "MisraDoc" : argv[0]);
+        FWriteFmtLn(stderr, "USAGE : {} config.json", argc == 0 ? "MisraDoc" : argv[0]);
         return 1;
     }
 

@@ -33,7 +33,7 @@ bool test_bitvec_run_lengths_zero_max_runs(void);
 
 // Test BitVecForeachIdx macro
 bool test_bitvec_foreach_idx(void) {
-    printf("Testing BitVecForeachIdx macro\n");
+    WriteFmt("Testing BitVecForeachIdx macro\n");
 
     BitVec bv = BitVecInit();
 
@@ -66,7 +66,7 @@ bool test_bitvec_foreach_idx(void) {
 
 // Test BitVecForeach macro
 bool test_bitvec_foreach(void) {
-    printf("Testing BitVecForeach macro\n");
+    WriteFmt("Testing BitVecForeach macro\n");
 
     BitVec bv = BitVecInit();
 
@@ -97,7 +97,7 @@ bool test_bitvec_foreach(void) {
 
 // Test BitVecForeachReverseIdx macro
 bool test_bitvec_foreach_reverse_idx(void) {
-    printf("Testing BitVecForeachReverseIdx macro\n");
+    WriteFmt("Testing BitVecForeachReverseIdx macro\n");
 
     BitVec bv = BitVecInit();
 
@@ -128,7 +128,7 @@ bool test_bitvec_foreach_reverse_idx(void) {
 
 // Test BitVecForeachReverse macro
 bool test_bitvec_foreach_reverse(void) {
-    printf("Testing BitVecForeachReverse macro\n");
+    WriteFmt("Testing BitVecForeachReverse macro\n");
 
     BitVec bv = BitVecInit();
 
@@ -158,7 +158,7 @@ bool test_bitvec_foreach_reverse(void) {
 
 // Test BitVecForeachInRangeIdx macro
 bool test_bitvec_foreach_in_range_idx(void) {
-    printf("Testing BitVecForeachInRangeIdx macro\n");
+    WriteFmt("Testing BitVecForeachInRangeIdx macro\n");
 
     BitVec bv = BitVecInit();
 
@@ -194,7 +194,7 @@ bool test_bitvec_foreach_in_range_idx(void) {
 
 // Test BitVecForeachInRange macro
 bool test_bitvec_foreach_in_range(void) {
-    printf("Testing BitVecForeachInRange macro\n");
+    WriteFmt("Testing BitVecForeachInRange macro\n");
 
     BitVec bv = BitVecInit();
 
@@ -229,7 +229,7 @@ bool test_bitvec_foreach_in_range(void) {
 
 // Edge case tests
 bool test_bitvec_foreach_edge_cases(void) {
-    printf("Testing BitVec foreach edge cases\n");
+    WriteFmt("Testing BitVec foreach edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -269,7 +269,7 @@ bool test_bitvec_foreach_edge_cases(void) {
 }
 
 bool test_bitvec_foreach_idx_edge_cases(void) {
-    printf("Testing BitVec foreach idx edge cases\n");
+    WriteFmt("Testing BitVec foreach idx edge cases\n");
 
     BitVec bv       = BitVecInit();
     bool   result   = true;
@@ -308,7 +308,7 @@ bool test_bitvec_foreach_idx_edge_cases(void) {
 }
 
 bool test_bitvec_foreach_reverse_edge_cases(void) {
-    printf("Testing BitVec foreach reverse edge cases\n");
+    WriteFmt("Testing BitVec foreach reverse edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -346,7 +346,7 @@ bool test_bitvec_foreach_reverse_edge_cases(void) {
 }
 
 bool test_bitvec_foreach_range_edge_cases(void) {
-    printf("Testing BitVec foreach range edge cases\n");
+    WriteFmt("Testing BitVec foreach range edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -393,7 +393,7 @@ bool test_bitvec_foreach_range_edge_cases(void) {
 }
 
 bool test_bitvec_foreach_stress_test(void) {
-    printf("Testing BitVec foreach stress test\n");
+    WriteFmt("Testing BitVec foreach stress test\n");
 
     bool result = true;
 
@@ -439,7 +439,7 @@ bool test_bitvec_foreach_stress_test(void) {
 // BitVecRunLengths test implementations
 
 bool test_bitvec_run_lengths_basic(void) {
-    printf("Testing BitVecRunLengths basic functionality\n");
+    WriteFmt("Testing BitVecRunLengths basic functionality\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -475,7 +475,7 @@ bool test_bitvec_run_lengths_basic(void) {
 }
 
 bool test_bitvec_run_lengths_edge_cases(void) {
-    printf("Testing BitVecRunLengths edge cases\n");
+    WriteFmt("Testing BitVecRunLengths edge cases\n");
 
     bool result = true;
 
@@ -533,7 +533,7 @@ bool test_bitvec_run_lengths_edge_cases(void) {
 }
 
 bool test_bitvec_run_lengths_boundary_conditions(void) {
-    printf("Testing BitVecRunLengths boundary conditions\n");
+    WriteFmt("Testing BitVecRunLengths boundary conditions\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -570,7 +570,7 @@ bool test_bitvec_run_lengths_boundary_conditions(void) {
 }
 
 bool test_bitvec_run_lengths_stress_test(void) {
-    printf("Testing BitVecRunLengths stress test\n");
+    WriteFmt("Testing BitVecRunLengths stress test\n");
 
     bool result = true;
 
@@ -633,7 +633,7 @@ bool test_bitvec_run_lengths_stress_test(void) {
 
 // Main function that runs all simple tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Foreach.Simple tests\n\n");
+    WriteFmt("[INFO] Starting BitVec.Foreach.Simple tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {

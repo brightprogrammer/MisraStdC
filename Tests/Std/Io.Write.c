@@ -28,7 +28,7 @@ bool test_bitvec_formatting(void);
 
 // Test basic formatting features
 bool test_basic_formatting(void) {
-    printf("Testing basic formatting\n");
+    WriteFmt("Testing basic formatting\n");
 
     Str  output  = StrInit();
     bool success = true;
@@ -58,7 +58,7 @@ bool test_basic_formatting(void) {
 
 // Test string formatting
 bool test_string_formatting(void) {
-    printf("Testing string formatting\n");
+    WriteFmt("Testing string formatting\n");
 
     Str  output  = StrInit();
     bool success = true;
@@ -100,7 +100,7 @@ bool test_string_formatting(void) {
 
 // Test decimal integer formatting
 bool test_integer_decimal_formatting(void) {
-    printf("Testing integer decimal formatting\n");
+    WriteFmt("Testing integer decimal formatting\n");
 
     Str  output  = StrInit();
     bool success = true;
@@ -173,7 +173,7 @@ bool test_integer_decimal_formatting(void) {
 
 // Test hexadecimal formatting
 bool test_integer_hex_formatting(void) {
-    printf("Testing integer hexadecimal formatting\n");
+    WriteFmt("Testing integer hexadecimal formatting\n");
 
     Str  output  = StrInit();
     bool success = true;
@@ -192,7 +192,7 @@ bool test_integer_hex_formatting(void) {
 
 // Test binary formatting
 bool test_integer_binary_formatting(void) {
-    printf("Testing integer binary formatting\n");
+    WriteFmt("Testing integer binary formatting\n");
 
     Str  output  = StrInit();
     bool success = true;
@@ -207,7 +207,7 @@ bool test_integer_binary_formatting(void) {
 
 // Test octal formatting
 bool test_integer_octal_formatting(void) {
-    printf("Testing integer octal formatting\n");
+    WriteFmt("Testing integer octal formatting\n");
 
     Str  output  = StrInit();
     bool success = true;
@@ -222,7 +222,7 @@ bool test_integer_octal_formatting(void) {
 
 // Test basic floating point formatting
 bool test_float_basic_formatting(void) {
-    printf("Testing basic floating point formatting\n");
+    WriteFmt("Testing basic floating point formatting\n");
 
     Str  output  = StrInit();
     bool success = true;
@@ -242,7 +242,7 @@ bool test_float_basic_formatting(void) {
 
 // Test floating point precision
 bool test_float_precision_formatting(void) {
-    printf("Testing floating point precision formatting\n");
+    WriteFmt("Testing floating point precision formatting\n");
 
     Str  output  = StrInit();
     bool success = true;
@@ -267,7 +267,7 @@ bool test_float_precision_formatting(void) {
 
 // Test special floating point values
 bool test_float_special_values(void) {
-    printf("Testing special floating point values\n");
+    WriteFmt("Testing special floating point values\n");
 
     Str  output  = StrInit();
     bool success = true;
@@ -294,7 +294,7 @@ bool test_float_special_values(void) {
 
 // Test width and alignment formatting
 bool test_width_alignment_formatting(void) {
-    printf("Testing width and alignment formatting\n");
+    WriteFmt("Testing width and alignment formatting\n");
 
     Str  output  = StrInit();
     bool success = true;
@@ -332,7 +332,7 @@ bool test_width_alignment_formatting(void) {
 
 // Test multiple arguments
 bool test_multiple_arguments(void) {
-    printf("Testing multiple arguments\n");
+    WriteFmt("Testing multiple arguments\n");
 
     Str  output  = StrInit();
     bool success = true;
@@ -355,7 +355,7 @@ bool test_multiple_arguments(void) {
 
 // Test character formatting specifiers
 bool test_char_formatting(void) {
-    printf("Testing character formatting specifiers\n");
+    WriteFmt("Testing character formatting specifiers\n");
 
     Str  output  = StrInit();
     bool success = true;
@@ -547,7 +547,7 @@ bool test_char_formatting(void) {
 
 // Test BitVec formatting
 bool test_bitvec_formatting(void) {
-    printf("Testing BitVec formatting\n");
+    WriteFmt("Testing BitVec formatting\n");
 
     Str  output  = StrInit();
     bool success = true;
@@ -616,7 +616,7 @@ bool test_bitvec_formatting(void) {
 
 // // Test error handling
 // bool test_error_handling(void) {
-//     printf("Testing error handling\n");
+//     WriteFmt("Testing error handling\n");
 
 //     // Since we can't directly test error cases without causing program termination,
 //     // we'll just report success here. In a real-world scenario, we would need
@@ -625,8 +625,8 @@ bool test_bitvec_formatting(void) {
 //     // 2. Capturing logs to verify error messages
 //     // 3. Mocking the error handling functions
 
-//     printf("Note: Error handling tests are skipped as they would cause program termination\n");
-//     printf("In a real-world scenario, these would be tested with a more robust framework\n");
+//     WriteFmt("Note: Error handling tests are skipped as they would cause program termination\n");
+//     WriteFmt("In a real-world scenario, these would be tested with a more robust framework\n");
 
 //     // All tests are considered passing since we can't properly test them
 //     return true;
@@ -634,7 +634,7 @@ bool test_bitvec_formatting(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting format writer tests\n\n");
+    WriteFmt("[INFO] Starting format writer tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {
