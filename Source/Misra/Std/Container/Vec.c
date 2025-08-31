@@ -380,6 +380,9 @@ void validate_vec(const GenericVec *v) {
     if (!(v)) {
         LOG_FATAL("NULL vec object pointer.");
     }
+    if((v)->__magic != MISRA_VEC_MAGIC) {
+        LOG_FATAL("Invalid vec object. Either uninitialized or corrupted!");
+    }
     if (!(v)->alignment || (v)->length > (v)->capacity) {
         LOG_FATAL("Invalid vec object.");
     }

@@ -1641,6 +1641,9 @@ void ValidateBitVec(const BitVec *bv) {
     if (!(bv)) {
         LOG_FATAL("Invalid bitvec object: NULL.");
     }
+    if((bv)->__magic != MISRA_BITVEC_MAGIC) {
+        LOG_FATAL("Invalid bitvec. Either uninitialized or curropted!");
+    }
     if ((bv)->length > (bv)->capacity) {
         LOG_FATAL("Invalid bitvec object: length > capacity.");
     }

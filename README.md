@@ -14,6 +14,7 @@ A modern C11 library designed to make programming in C less painful and more pro
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Documentation](#documentation)
+- [Concenpts](#concepts)
 - [Examples](#examples)
   - [Vector Container (Vec)](#vector-container-vec)
   - [String Operations (Str)](#string-operations-str)
@@ -79,6 +80,54 @@ meson setup builddir -Db_sanitize=address,undefined -Db_lundef=false
 ## Documentation
 
 Comprehensive API documentation is available at [docs.brightprogrammer.in](https://docs.brightprogrammer.in).
+
+## Concepts
+
+### Initialization
+
+If an object type provides an `Init()` method or macro, then that must necessarily be used. Some objects
+employ tricks to detect whether object is initialized properly or is corrupted at runtime. These checks
+are performed everytime during a function call. While this adds a bit of overhead to the function calls,
+it does make sure that everything's working as expected. There's no computation involved, and just a few
+comparision checks.
+
+Similar to initialization, all objects must be deinitialized at the end of their life cycle.
+
+### Copy/Move Semantics
+
+There are two types of insertion methods into a container.
+
+- Insertion of l-value
+- Insertion of r-value
+
+While the naming is a bit ambiguous, this is what I came up at the time of need. By default
+all unmarked functions/macros follow l-value semantics.
+
+#### L-Value Insertion
+
+Functions/macros marked with ___L___ suffix follow this behavior. Functions/macros marked with ___L___
+will make sure that there will always exist only one copy of data being inserted. If the container you're
+inserting an item to, makes it's own copy of items, the inserted l-value remains as it is, because
+unique ownership is maintained. If however the container does not create it's own copies, because `copy_init`
+method is not set, then it'll take ownership by calling `memset(lval, 0, sizeof(lval))` on given l-value `lval`.
+
+This is to explicitly state that the object must always have single ownership.
+
+#### R-Value Insertion
+
+Unlike l-value insertion, here the functions/macros don't care about who owns what. You just insert
+and forget about ownership. There can be multiple owners, there can be a single one, we believe the user
+knows what they're doing.
+
+#### Example use case(s)
+
+This strict set of functions/macros to declare ownership transfers in code is to
+better annotate the transfer locations. Usually these are not very clear when reading code.
+One example use case of l-value semantics is when you're creating objects in a for-loop in
+a temporary variable (for eg: receivng from a stream) and then inserting those directly into a
+container for storage.
+
+NOTE: The container will take ownership only if no `copy_init` is set!!
 
 ## Examples
 

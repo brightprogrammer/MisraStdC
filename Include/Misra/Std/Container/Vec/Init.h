@@ -143,20 +143,12 @@
      .copy_init   = (GenericCopyInit)(ci),                                                                             \
      .copy_deinit = (GenericCopyDeinit)(cd),                                                                           \
      .data        = NULL,                                                                                              \
-     .alignment   = (aln)}
+     .alignment   = (aln),                                                                                             \
+     .__magic     = MISRA_VEC_MAGIC}
 
 #ifdef __cplusplus
-#    define VecInitAlignedWithDeepCopyT(v, ci, cd, aln)                                                                \
-        (TYPE_OF(v) {                                                                                                  \
-            .length      = 0,                                                                                          \
-            .capacity    = 0,                                                                                          \
-            .copy_init   = (GenericCopyInit)(ci),                                                                      \
-            .copy_deinit = (GenericCopyDeinit)(cd),                                                                    \
-            .data        = NULL,                                                                                       \
-            .alignment   = (aln)                                                                                       \
-        })
+#    define VecInitAlignedWithDeepCopyT(v, ci, cd, aln) (TYPE_OF(v) VecInitAlignedWithDeepCopy((ci), (cd), (aln)))
 #else
-
 ///
 /// Initialize given vector with given alignment.
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
@@ -187,13 +179,7 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
-#    define VecInitAlignedWithDeepCopyT(v, ci, cd, aln)                                                                \
-        ((TYPE_OF(v)) {.length      = 0,                                                                               \
-                       .capacity    = 0,                                                                               \
-                       .copy_init   = (GenericCopyInit)(ci),                                                           \
-                       .copy_deinit = (GenericCopyDeinit)(cd),                                                         \
-                       .data        = NULL,                                                                            \
-                       .alignment   = (aln)})
+#    define VecInitAlignedWithDeepCopyT(v, ci, cd, aln) ((TYPE_OF(v))VecInitAlignedWithDeepCopy((ci), (cd), (aln)))
 #endif
 
 ///

@@ -28,9 +28,11 @@ extern "C" {
 /// TAGS: Init, BitVec, Boolean, Bits
 ///
 #ifdef __cplusplus
-#    define BitVecInit() (BitVec {.length = 0, .capacity = 0, .data = NULL, .byte_size = 0})
+#    define BitVecInit()                                                                                               \
+        (BitVec {.length = 0, .capacity = 0, .data = NULL, .byte_size = 0, .__magic = MISRA_BITVEC_MAGIC})
 #else
-#    define BitVecInit() ((BitVec) {.length = 0, .capacity = 0, .data = NULL, .byte_size = 0})
+#    define BitVecInit()                                                                                               \
+        ((BitVec) {.length = 0, .capacity = 0, .data = NULL, .byte_size = 0, .__magic = MISRA_BITVEC_MAGIC})
 #endif
 
 ///
@@ -50,14 +52,16 @@ extern "C" {
             .length    = 0,                                                                                            \
             .capacity  = (cap),                                                                                        \
             .data      = (u8 *)calloc(BITVEC_BYTES_FOR_BITS(cap), 1),                                                  \
-            .byte_size = BITVEC_BYTES_FOR_BITS(cap)                                                                    \
+            .byte_size = BITVEC_BYTES_FOR_BITS(cap),                                                                   \
+            .__magic   = MISRA_BITVEC_MAGIC                                                                            \
         })
 #else
 #    define BitVecInitWithCapacity(cap)                                                                                \
         ((BitVec) {.length    = 0,                                                                                     \
                    .capacity  = (cap),                                                                                 \
                    .data      = (u8 *)calloc(BITVEC_BYTES_FOR_BITS(cap), 1),                                           \
-                   .byte_size = BITVEC_BYTES_FOR_BITS(cap)})
+                   .byte_size = BITVEC_BYTES_FOR_BITS(cap),                                                            \
+                   .__magic   = MISRA_BITVEC_MAGIC})
 #endif
 
 
