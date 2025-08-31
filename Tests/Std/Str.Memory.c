@@ -16,7 +16,7 @@ bool test_str_reverse(void);
 
 // Test StrTryReduceSpace function
 bool test_str_try_reduce_space(void) {
-    printf("Testing StrTryReduceSpace\n");
+    WriteFmt("Testing StrTryReduceSpace\n");
 
     Str s = StrInit();
 
@@ -41,7 +41,7 @@ bool test_str_try_reduce_space(void) {
 
 // Test StrSwapCharAt function
 bool test_str_swap_char_at(void) {
-    printf("Testing StrSwapCharAt\n");
+    WriteFmt("Testing StrSwapCharAt\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -63,7 +63,7 @@ bool test_str_swap_char_at(void) {
 
 // Test StrResize function
 bool test_str_resize(void) {
-    printf("Testing StrResize\n");
+    WriteFmt("Testing StrResize\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -89,7 +89,7 @@ bool test_str_resize(void) {
 
 // Test StrReserve function
 bool test_str_reserve(void) {
-    printf("Testing StrReserve\n");
+    WriteFmt("Testing StrReserve\n");
 
     Str s = StrInit();
 
@@ -114,7 +114,7 @@ bool test_str_reserve(void) {
 
 // Test StrClear function
 bool test_str_clear(void) {
-    printf("Testing StrClear\n");
+    WriteFmt("Testing StrClear\n");
 
     Str s = StrInitFromZstr("Hello, World!");
 
@@ -136,7 +136,7 @@ bool test_str_clear(void) {
 
 // Test StrReverse function
 bool test_str_reverse(void) {
-    printf("Testing StrReverse\n");
+    WriteFmt("Testing StrReverse\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -182,7 +182,7 @@ bool test_str_reverse(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Str.Memory tests\n\n");
+    WriteFmt("[INFO] Starting Str.Memory tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {

@@ -128,7 +128,7 @@
 #define VecInsertFastL(v, val, idx)                                                                                    \
     do {                                                                                                               \
         ValidateVec(v);                                                                                                \
-        VEC_DATATYPE(v) *__ptr_val_##__LINE__ = &(lval);                                                               \
+        VEC_DATATYPE(v) *__ptr_val_##__LINE__ = &(val);                                                                \
         {                                                                                                              \
             VEC_DATATYPE(v) __tmp_val_##__LINE__ = (val);                                                              \
             (void)__tmp_val_##__LINE__;                                                                                \
@@ -159,7 +159,7 @@
 #define VecInsertFastR(v, val, idx)                                                                                    \
     do {                                                                                                               \
         ValidateVec(v);                                                                                                \
-        VEC_DATATYPE(v) *__ptr_val_##__LINE__ = &(lval);                                                               \
+        VEC_DATATYPE(v) *__ptr_val_##__LINE__ = &(val);                                                                \
         {                                                                                                              \
             VEC_DATATYPE(v) __tmp_val_##__LINE__ = (val);                                                              \
             (void)__tmp_val_##__LINE__;                                                                                \

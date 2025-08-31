@@ -44,9 +44,9 @@ void LogInit(bool redirect) {
             !SysGetEnv("TEMPDIR", &log_dir) && !SysGetEnv("PWD", &log_dir)) {
             Str syserr;
             StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
-                fprintf(
+                FWriteFmt(
                     stderr,
-                    "error opening logfile : %s\n"
+                    "error opening logfile : {}\n"
                     "All logs will now be redirected to stderr.\n",
                     SysStrError(errno, &syserr)->data
                 );
@@ -57,8 +57,8 @@ void LogInit(bool redirect) {
 
         // generate log file name
         Str file_name = StrInit();
-        StrPrintf(&file_name, "%s/misra-%lu-%s", log_dir.data, SysGetCurrentProcessId(), time_buffer);
-        fprintf(stderr, "storing logs in %s\n", file_name.data);
+        StrWriteFmt(&file_name, "{}/misra-{}-{}", log_dir, SysGetCurrentProcessId(), &time_buffer[0]);
+        FWriteFmtLn(stderr, "storing logs in {}", file_name.data);
 
         // Open the file for writing (create if it doesn't exist, overwrite if it does)
         i32 e = 0;
@@ -91,7 +91,7 @@ void LogInit(bool redirect) {
 LOG_STREAM_FALLBACK: {
     Str syserr;
     StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
-        fprintf(stderr, "Error opening log file, will write logs to stderr\n");
+        FWriteFmtLn(stderr, "Error opening log file, will write logs to stderr");
     });
     stderror = stderr;
 }
@@ -149,7 +149,7 @@ void LogWrite(LogMessageType type, const char *tag, int line, const char *msg) {
     SysMutexLock(log_mutex);
 
     // Print the log prefix to stderr
-    fprintf(stderror, "[%s] [%s:%d] ", msg_type, tag, line);
+    FWriteFmt(stderror, "[{}] [{}:{}] ", msg_type, tag, line);
 
     fputs(msg, stderror);
     fputc('\n', stderror);

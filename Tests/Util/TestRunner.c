@@ -25,7 +25,7 @@ static void test_abort_handler(void) {
 // Run a specific deadend test using setjmp/longjmp to capture aborts
 bool test_deadend(TestFunction test_func, bool expect_failure) {
     if (!test_func) {
-        printf("[ERROR] test_deadend: NULL test function provided\n");
+        WriteFmt("[ERROR] test_deadend: NULL test function provided\n");
         return false;
     }
 
@@ -47,19 +47,19 @@ bool test_deadend(TestFunction test_func, bool expect_failure) {
 
         // If we get here, the test completed without aborting
         if (expect_failure) {
-            printf("    [Unexpected success: Test completed without abort]\n");
+            WriteFmt("    [Unexpected success: Test completed without abort]\n");
             test_result = false; // Expected failure but got success
         } else {
-            printf("    [Success: Test completed normally]\n");
+            WriteFmt("    [Success: Test completed normally]\n");
             test_result = true;  // Expected success and got success
         }
     } else {
         // We jumped here from abort - test was aborted
         if (expect_failure) {
-            printf("    [Expected failure: Test aborted as expected]\n");
+            WriteFmt("    [Expected failure: Test aborted as expected]\n");
             test_result = true;  // Expected failure and got abort
         } else {
-            printf("    [Unexpected failure: Test aborted unexpectedly]\n");
+            WriteFmt("    [Unexpected failure: Test aborted unexpectedly]\n");
             test_result = false; // Expected success but got abort
         }
     }
@@ -73,7 +73,7 @@ bool test_deadend(TestFunction test_func, bool expect_failure) {
 /// Run an array of simple tests
 int simple_test_driver(TestFunction* tests, int count) {
     if (!tests) {
-        printf("[ERROR] simple_test_driver: NULL tests array provided\n");
+        WriteFmt("[ERROR] simple_test_driver: NULL tests array provided\n");
         return count; // All tests failed
     }
 
@@ -82,19 +82,19 @@ int simple_test_driver(TestFunction* tests, int count) {
 
     // Run all tests and accumulate results
     for (int i = 0; i < count; i++) {
-        printf("[TEST %d/%d] ", i + 1, count);
+        WriteFmt("[TEST {}/{}] ", i + 1, count);
         bool result = tests[i]();
         if (result) {
-            printf("[PASS]\n\n");
+            WriteFmt("[PASS]\n\n");
             passed++;
         } else {
-            printf("[FAIL]\n\n");
+            WriteFmt("[FAIL]\n\n");
             failed++;
         }
     }
 
     // Print summary
-    printf("[SUMMARY] Total: %d, Passed: %d, Failed: %d\n", count, passed, failed);
+    WriteFmt("[SUMMARY] Total: {}, Passed: {}, Failed: {}\n", count, passed, failed);
 
     return failed;
 }
@@ -102,30 +102,30 @@ int simple_test_driver(TestFunction* tests, int count) {
 /// Run an array of deadend tests (all expecting failure)
 int deadend_test_driver(TestFunction* tests, int count) {
     if (!tests) {
-        printf("[ERROR] deadend_test_driver: NULL tests array provided\n");
+        WriteFmt("[ERROR] deadend_test_driver: NULL tests array provided\n");
         return count; // All tests failed
     }
 
-    printf("\n[INFO] Testing deadend scenarios\n\n");
+    WriteFmt("\n[INFO] Testing deadend scenarios\n\n");
 
     int passed = 0;
     int failed = 0;
 
     // Run all deadend tests (expecting failure)
     for (int i = 0; i < count; i++) {
-        printf("[TEST %d/%d] ", i + 1, count);
+        WriteFmt("[TEST {}/{}] ", i + 1, count);
         bool result = test_deadend(tests[i], true); // All deadend tests expect failure
         if (result) {
-            printf("[PASS]\n\n");
+            WriteFmt("[PASS]\n\n");
             passed++;
         } else {
-            printf("[FAIL]\n\n");
+            WriteFmt("[FAIL]\n\n");
             failed++;
         }
     }
 
     // Print summary
-    printf("[SUMMARY] Deadend tests - Total: %d, Passed: %d, Failed: %d\n", count, passed, failed);
+    WriteFmt("[SUMMARY] Deadend tests - Total: {}, Passed: {}, Failed: {}\n", count, passed, failed);
 
     return failed;
 }
@@ -138,7 +138,7 @@ int run_test_suite(
     int           deadend_count,
     const char*   test_name
 ) {
-    printf("[INFO] Starting %s tests\n\n", test_name ? test_name : "Test Suite");
+    WriteFmt("[INFO] Starting {} tests\n\n", test_name ? test_name : "Test Suite");
 
     int total_failed = 0;
 
@@ -155,8 +155,8 @@ int run_test_suite(
     }
 
     // Print final summary
-    printf(
-        "\n[FINAL SUMMARY] %s - Normal: %d tests, Deadend: %d tests, Total Failed: %d\n",
+    WriteFmt(
+        "\n[FINAL SUMMARY] {} - Normal: {} tests, Deadend: {} tests, Total Failed: {}\n",
         test_name ? test_name : "Test Suite",
         normal_count,
         deadend_count,

@@ -25,7 +25,7 @@ bool test_bitvec_remove_invalid_range_failures(void);
 
 // Test BitVecPop function
 bool test_bitvec_pop(void) {
-    printf("Testing BitVecPop\n");
+    WriteFmt("Testing BitVecPop\n");
 
     BitVec bv = BitVecInit();
 
@@ -59,7 +59,7 @@ bool test_bitvec_pop(void) {
 
 // Test BitVecRemove single bit function
 bool test_bitvec_remove_single(void) {
-    printf("Testing BitVecRemove (single bit)\n");
+    WriteFmt("Testing BitVecRemove (single bit)\n");
 
     BitVec bv = BitVecInit();
 
@@ -95,7 +95,7 @@ bool test_bitvec_remove_single(void) {
 
 // Test BitVecRemoveRange function
 bool test_bitvec_remove_range(void) {
-    printf("Testing BitVecRemoveRange\n");
+    WriteFmt("Testing BitVecRemoveRange\n");
 
     BitVec bv = BitVecInit();
 
@@ -124,7 +124,7 @@ bool test_bitvec_remove_range(void) {
 
 // Test BitVecRemoveFirst function
 bool test_bitvec_remove_first(void) {
-    printf("Testing BitVecRemoveFirst\n");
+    WriteFmt("Testing BitVecRemoveFirst\n");
 
     BitVec bv = BitVecInit();
 
@@ -161,7 +161,7 @@ bool test_bitvec_remove_first(void) {
 
 // Test BitVecRemoveLast function
 bool test_bitvec_remove_last(void) {
-    printf("Testing BitVecRemoveLast\n");
+    WriteFmt("Testing BitVecRemoveLast\n");
 
     BitVec bv = BitVecInit();
 
@@ -199,7 +199,7 @@ bool test_bitvec_remove_last(void) {
 
 // Test BitVecRemoveAll function
 bool test_bitvec_remove_all(void) {
-    printf("Testing BitVecRemoveAll\n");
+    WriteFmt("Testing BitVecRemoveAll\n");
 
     BitVec bv = BitVecInit();
 
@@ -236,7 +236,7 @@ bool test_bitvec_remove_all(void) {
 
 // Edge case tests
 bool test_bitvec_pop_edge_cases(void) {
-    printf("Testing BitVecPop edge cases\n");
+    WriteFmt("Testing BitVecPop edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -261,7 +261,7 @@ bool test_bitvec_pop_edge_cases(void) {
 }
 
 bool test_bitvec_remove_single_edge_cases(void) {
-    printf("Testing BitVecRemove edge cases\n");
+    WriteFmt("Testing BitVecRemove edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -286,7 +286,7 @@ bool test_bitvec_remove_single_edge_cases(void) {
 }
 
 bool test_bitvec_remove_range_edge_cases(void) {
-    printf("Testing BitVecRemoveRange edge cases\n");
+    WriteFmt("Testing BitVecRemoveRange edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -316,7 +316,7 @@ bool test_bitvec_remove_range_edge_cases(void) {
 }
 
 bool test_bitvec_remove_first_last_edge_cases(void) {
-    printf("Testing BitVecRemoveFirst/Last edge cases\n");
+    WriteFmt("Testing BitVecRemoveFirst/Last edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -352,7 +352,7 @@ bool test_bitvec_remove_first_last_edge_cases(void) {
 }
 
 bool test_bitvec_remove_all_edge_cases(void) {
-    printf("Testing BitVecRemoveAll edge cases\n");
+    WriteFmt("Testing BitVecRemoveAll edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -388,7 +388,7 @@ bool test_bitvec_remove_all_edge_cases(void) {
 
 // Deadend tests
 bool test_bitvec_remove_null_failures(void) {
-    printf("Testing BitVec remove NULL pointer handling\n");
+    WriteFmt("Testing BitVec remove NULL pointer handling\n");
 
     // Test NULL bitvec pointer - should abort
     BitVecPop(NULL);
@@ -397,7 +397,7 @@ bool test_bitvec_remove_null_failures(void) {
 }
 
 bool test_bitvec_remove_range_null_failures(void) {
-    printf("Testing BitVec remove range NULL handling\n");
+    WriteFmt("Testing BitVec remove range NULL handling\n");
 
     // Test NULL bitvec pointer - should abort
     BitVecRemoveRange(NULL, 0, 1);
@@ -406,7 +406,7 @@ bool test_bitvec_remove_range_null_failures(void) {
 }
 
 bool test_bitvec_remove_invalid_range_failures(void) {
-    printf("Testing BitVec remove invalid range handling\n");
+    WriteFmt("Testing BitVec remove invalid range handling\n");
 
     BitVec bv = BitVecInit();
 
@@ -418,7 +418,7 @@ bool test_bitvec_remove_invalid_range_failures(void) {
 }
 
 bool test_bitvec_pop_bounds_failures(void) {
-    printf("Testing BitVec pop bounds checking\n");
+    WriteFmt("Testing BitVec pop bounds checking\n");
 
     BitVec bv = BitVecInit();
 
@@ -430,7 +430,7 @@ bool test_bitvec_pop_bounds_failures(void) {
 }
 
 bool test_bitvec_remove_bounds_failures(void) {
-    printf("Testing BitVec remove bounds checking\n");
+    WriteFmt("Testing BitVec remove bounds checking\n");
 
     BitVec bv = BitVecInit();
 
@@ -442,7 +442,7 @@ bool test_bitvec_remove_bounds_failures(void) {
 }
 
 bool test_bitvec_remove_range_bounds_failures(void) {
-    printf("Testing BitVec remove range bounds checking\n");
+    WriteFmt("Testing BitVec remove range bounds checking\n");
 
     BitVec bv = BitVecInit();
 
@@ -455,7 +455,7 @@ bool test_bitvec_remove_range_bounds_failures(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Remove tests\n\n");
+    WriteFmt("[INFO] Starting BitVec.Remove tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {

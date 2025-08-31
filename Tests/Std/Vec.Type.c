@@ -18,7 +18,7 @@ bool test_vec_validate(void);
 
 // Test basic Vec type functionality
 bool test_vec_type_basic(void) {
-    printf("Testing basic Vec type functionality\n");
+    WriteFmt("Testing basic Vec type functionality\n");
 
     // Define a vector of integers
     typedef Vec(int) IntVec;
@@ -48,7 +48,7 @@ bool test_vec_type_basic(void) {
 
 // Test ValidateVec macro
 bool test_vec_validate(void) {
-    printf("Testing ValidateVec macro\n");
+    WriteFmt("Testing ValidateVec macro\n");
 
     // Create a valid vector
     typedef Vec(int) IntVec;
@@ -68,7 +68,7 @@ bool test_vec_validate(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Vec.Type tests\n\n");
+    WriteFmt("[INFO] Starting Vec.Type tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {test_vec_type_basic, test_vec_validate};

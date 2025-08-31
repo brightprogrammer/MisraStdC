@@ -33,7 +33,7 @@ bool test_bitvec_suffix_match_null_patterns(void);
 
 // Deadend test 1: BitVecFindPattern with NULL source
 bool test_bitvec_find_pattern_null_source(void) {
-    printf("Testing BitVecFindPattern(NULL, pattern) - should fatal\n");
+    WriteFmt("Testing BitVecFindPattern(NULL, pattern) - should fatal\n");
 
     BitVec pattern = BitVecInit();
     BitVecPush(&pattern, true);
@@ -46,7 +46,7 @@ bool test_bitvec_find_pattern_null_source(void) {
 
 // Deadend test 2: BitVecFindPattern with NULL pattern
 bool test_bitvec_find_pattern_null_pattern(void) {
-    printf("Testing BitVecFindPattern(source, NULL) - should fatal\n");
+    WriteFmt("Testing BitVecFindPattern(source, NULL) - should fatal\n");
 
     BitVec source = BitVecInit();
     BitVecPush(&source, true);
@@ -60,7 +60,7 @@ bool test_bitvec_find_pattern_null_pattern(void) {
 
 // Deadend test 3: BitVecFindLastPattern with NULL source
 bool test_bitvec_find_last_pattern_null_source(void) {
-    printf("Testing BitVecFindLastPattern(NULL, pattern) - should fatal\n");
+    WriteFmt("Testing BitVecFindLastPattern(NULL, pattern) - should fatal\n");
 
     BitVec pattern = BitVecInit();
     BitVecPush(&pattern, true);
@@ -73,7 +73,7 @@ bool test_bitvec_find_last_pattern_null_source(void) {
 
 // Deadend test 4: BitVecFindLastPattern with NULL pattern
 bool test_bitvec_find_last_pattern_null_pattern(void) {
-    printf("Testing BitVecFindLastPattern(source, NULL) - should fatal\n");
+    WriteFmt("Testing BitVecFindLastPattern(source, NULL) - should fatal\n");
 
     BitVec source = BitVecInit();
     BitVecPush(&source, true);
@@ -87,7 +87,7 @@ bool test_bitvec_find_last_pattern_null_pattern(void) {
 
 // Deadend test 5: BitVecFindAllPattern with NULL source
 bool test_bitvec_find_all_pattern_null_source(void) {
-    printf("Testing BitVecFindAllPattern(NULL, pattern, results, 10) - should fatal\n");
+    WriteFmt("Testing BitVecFindAllPattern(NULL, pattern, results, 10) - should fatal\n");
 
     size results[10];
 
@@ -99,7 +99,7 @@ bool test_bitvec_find_all_pattern_null_source(void) {
 
 // Deadend test 6: BitVecFindAllPattern with NULL pattern
 bool test_bitvec_find_all_pattern_null_pattern(void) {
-    printf("Testing BitVecFindAllPattern(source, NULL, results, 10) - should fatal\n");
+    WriteFmt("Testing BitVecFindAllPattern(source, NULL, results, 10) - should fatal\n");
 
     BitVec source = BitVecInit();
     size   results[10];
@@ -114,7 +114,7 @@ bool test_bitvec_find_all_pattern_null_pattern(void) {
 
 // Deadend test 7: BitVecFindAllPattern with NULL results
 bool test_bitvec_find_all_pattern_null_results(void) {
-    printf("Testing BitVecFindAllPattern(source, pattern, NULL, 10) - should fatal\n");
+    WriteFmt("Testing BitVecFindAllPattern(source, pattern, NULL, 10) - should fatal\n");
 
     BitVec source  = BitVecInit();
     BitVec pattern = BitVecInit();
@@ -131,7 +131,7 @@ bool test_bitvec_find_all_pattern_null_results(void) {
 
 // Deadend test 8: BitVecFindAllPattern with zero max_results
 bool test_bitvec_find_all_pattern_zero_max_results(void) {
-    printf("Testing BitVecFindAllPattern(source, pattern, results, 0) - should fatal\n");
+    WriteFmt("Testing BitVecFindAllPattern(source, pattern, results, 0) - should fatal\n");
 
     BitVec source  = BitVecInit();
     BitVec pattern = BitVecInit();
@@ -150,7 +150,7 @@ bool test_bitvec_find_all_pattern_zero_max_results(void) {
 // Additional deadend tests for missing Pattern functions
 
 bool test_bitvec_starts_with_null_source(void) {
-    printf("Testing BitVecStartsWith(NULL, prefix) - should fatal\n");
+    WriteFmt("Testing BitVecStartsWith(NULL, prefix) - should fatal\n");
     BitVec prefix = BitVecInit();
     BitVecPush(&prefix, true);
     BitVecStartsWith(NULL, &prefix);
@@ -159,7 +159,7 @@ bool test_bitvec_starts_with_null_source(void) {
 }
 
 bool test_bitvec_starts_with_null_prefix(void) {
-    printf("Testing BitVecStartsWith(source, NULL) - should fatal\n");
+    WriteFmt("Testing BitVecStartsWith(source, NULL) - should fatal\n");
     BitVec source = BitVecInit();
     BitVecPush(&source, true);
     BitVecStartsWith(&source, NULL);
@@ -168,7 +168,7 @@ bool test_bitvec_starts_with_null_prefix(void) {
 }
 
 bool test_bitvec_ends_with_null_source(void) {
-    printf("Testing BitVecEndsWith(NULL, suffix) - should fatal\n");
+    WriteFmt("Testing BitVecEndsWith(NULL, suffix) - should fatal\n");
     BitVec suffix = BitVecInit();
     BitVecPush(&suffix, true);
     BitVecEndsWith(NULL, &suffix);
@@ -177,7 +177,7 @@ bool test_bitvec_ends_with_null_source(void) {
 }
 
 bool test_bitvec_ends_with_null_suffix(void) {
-    printf("Testing BitVecEndsWith(source, NULL) - should fatal\n");
+    WriteFmt("Testing BitVecEndsWith(source, NULL) - should fatal\n");
     BitVec source = BitVecInit();
     BitVecPush(&source, true);
     BitVecEndsWith(&source, NULL);
@@ -186,7 +186,7 @@ bool test_bitvec_ends_with_null_suffix(void) {
 }
 
 bool test_bitvec_contains_at_null_source(void) {
-    printf("Testing BitVecContainsAt(NULL, pattern, 0) - should fatal\n");
+    WriteFmt("Testing BitVecContainsAt(NULL, pattern, 0) - should fatal\n");
     BitVec pattern = BitVecInit();
     BitVecPush(&pattern, true);
     BitVecContainsAt(NULL, &pattern, 0);
@@ -195,7 +195,7 @@ bool test_bitvec_contains_at_null_source(void) {
 }
 
 bool test_bitvec_contains_at_null_pattern(void) {
-    printf("Testing BitVecContainsAt(source, NULL, 0) - should fatal\n");
+    WriteFmt("Testing BitVecContainsAt(source, NULL, 0) - should fatal\n");
     BitVec source = BitVecInit();
     BitVecPush(&source, true);
     BitVecContainsAt(&source, NULL, 0);
@@ -204,7 +204,7 @@ bool test_bitvec_contains_at_null_pattern(void) {
 }
 
 bool test_bitvec_replace_null_source(void) {
-    printf("Testing BitVecReplace(NULL, old, new) - should fatal\n");
+    WriteFmt("Testing BitVecReplace(NULL, old, new) - should fatal\n");
 
     // Don't create BitVecs since we're testing NULL source validation
     BitVecReplace(NULL, (BitVec *)0x1, (BitVec *)0x1);
@@ -212,7 +212,7 @@ bool test_bitvec_replace_null_source(void) {
 }
 
 bool test_bitvec_matches_null_source(void) {
-    printf("Testing BitVecMatches(NULL, pattern, wildcard) - should fatal\n");
+    WriteFmt("Testing BitVecMatches(NULL, pattern, wildcard) - should fatal\n");
     BitVec pattern  = BitVecInit();
     BitVec wildcard = BitVecInit();
     BitVecPush(&pattern, true);
@@ -224,13 +224,13 @@ bool test_bitvec_matches_null_source(void) {
 }
 
 bool test_bitvec_regex_match_null_source(void) {
-    printf("Testing BitVecRegexMatch(NULL, pattern) - should fatal\n");
+    WriteFmt("Testing BitVecRegexMatch(NULL, pattern) - should fatal\n");
     BitVecRegexMatch(NULL, "101");
     return true;
 }
 
 bool test_bitvec_regex_match_null_pattern(void) {
-    printf("Testing BitVecRegexMatch(source, NULL) - should fatal\n");
+    WriteFmt("Testing BitVecRegexMatch(source, NULL) - should fatal\n");
     BitVec source = BitVecInit();
     BitVecPush(&source, true);
     BitVecRegexMatch(&source, NULL);
@@ -239,7 +239,7 @@ bool test_bitvec_regex_match_null_pattern(void) {
 }
 
 bool test_bitvec_prefix_match_null_source(void) {
-    printf("Testing BitVecPrefixMatch(NULL, patterns, 1) - should fatal\n");
+    WriteFmt("Testing BitVecPrefixMatch(NULL, patterns, 1) - should fatal\n");
     BitVecs vp = VecInitWithDeepCopy(NULL, BitVecDeinit);
     BitVecPush(VecPtrAt(&vp, 0), true);
     BitVecPrefixMatch(NULL, &vp);
@@ -248,7 +248,7 @@ bool test_bitvec_prefix_match_null_source(void) {
 }
 
 bool test_bitvec_prefix_match_null_patterns(void) {
-    printf("Testing BitVecPrefixMatch(source, NULL, 1) - should fatal\n");
+    WriteFmt("Testing BitVecPrefixMatch(source, NULL, 1) - should fatal\n");
     BitVec source = BitVecInit();
     BitVecPush(&source, true);
     BitVecPrefixMatch(&source, NULL);
@@ -257,7 +257,7 @@ bool test_bitvec_prefix_match_null_patterns(void) {
 }
 
 bool test_bitvec_suffix_match_null_source(void) {
-    printf("Testing BitVecSuffixMatch(NULL, patterns, 1) - should fatal\n");
+    WriteFmt("Testing BitVecSuffixMatch(NULL, patterns, 1) - should fatal\n");
     BitVecs vp = VecInitWithDeepCopy(NULL, BitVecDeinit);
     BitVecPush(VecPtrAt(&vp, 0), true);
     BitVecSuffixMatch(NULL, &vp);
@@ -266,7 +266,7 @@ bool test_bitvec_suffix_match_null_source(void) {
 }
 
 bool test_bitvec_suffix_match_null_patterns(void) {
-    printf("Testing BitVecSuffixMatch(source, NULL, 1) - should fatal\n");
+    WriteFmt("Testing BitVecSuffixMatch(source, NULL, 1) - should fatal\n");
     BitVec source = BitVecInit();
     BitVecPush(&source, true);
     BitVecSuffixMatch(&source, NULL);
@@ -276,7 +276,7 @@ bool test_bitvec_suffix_match_null_patterns(void) {
 
 // Main function that runs all deadend tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Pattern.Deadend tests\n\n");
+    WriteFmt("[INFO] Starting BitVec.Pattern.Deadend tests\n\n");
 
     // Deadend tests that would cause program termination
     TestFunction deadend_tests[] = {

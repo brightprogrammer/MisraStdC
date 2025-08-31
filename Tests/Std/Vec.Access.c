@@ -16,7 +16,7 @@ bool test_vec_aligned_offset_at(void);
 
 // Test VecAt function
 bool test_vec_at(void) {
-    printf("Testing VecAt\n");
+    WriteFmt("Testing VecAt\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -48,7 +48,7 @@ bool test_vec_at(void) {
 
 // Test VecPtrAt function
 bool test_vec_ptr_at(void) {
-    printf("Testing VecPtrAt\n");
+    WriteFmt("Testing VecPtrAt\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -85,7 +85,7 @@ bool test_vec_ptr_at(void) {
 
 // Test VecFirst and VecLast functions
 bool test_vec_first_last(void) {
-    printf("Testing VecFirst and VecLast\n");
+    WriteFmt("Testing VecFirst and VecLast\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -116,7 +116,7 @@ bool test_vec_first_last(void) {
 
 // Test VecBegin and VecEnd functions
 bool test_vec_begin_end(void) {
-    printf("Testing VecBegin and VecEnd\n");
+    WriteFmt("Testing VecBegin and VecEnd\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -146,7 +146,7 @@ bool test_vec_begin_end(void) {
 
 // Test VecSize and VecLen functions
 bool test_vec_size_len(void) {
-    printf("Testing VecSize and VecLen\n");
+    WriteFmt("Testing VecSize and VecLen\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -196,7 +196,7 @@ bool test_vec_size_len(void) {
 
 // Test VecAlignedOffsetAt function
 bool test_vec_aligned_offset_at(void) {
-    printf("Testing VecAlignedOffsetAt\n");
+    WriteFmt("Testing VecAlignedOffsetAt\n");
 
     // Create a vector of integers with default alignment (1)
     typedef Vec(int) IntVec;
@@ -230,7 +230,7 @@ bool test_vec_aligned_offset_at(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Vec.Access tests\n\n");
+    WriteFmt("[INFO] Starting Vec.Access tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {

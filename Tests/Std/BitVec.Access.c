@@ -33,7 +33,7 @@ bool test_bitvec_longest_run_deadend_tests(void);
 
 // Test BitVecGet function
 bool test_bitvec_get(void) {
-    printf("Testing BitVecGet\n");
+    WriteFmt("Testing BitVecGet\n");
 
     BitVec bv = BitVecInit();
 
@@ -57,7 +57,7 @@ bool test_bitvec_get(void) {
 
 // Test BitVecSet function
 bool test_bitvec_set(void) {
-    printf("Testing BitVecSet\n");
+    WriteFmt("Testing BitVecSet\n");
 
     BitVec bv = BitVecInit();
 
@@ -87,7 +87,7 @@ bool test_bitvec_set(void) {
 
 // Test BitVecFlip function
 bool test_bitvec_flip(void) {
-    printf("Testing BitVecFlip\n");
+    WriteFmt("Testing BitVecFlip\n");
 
     BitVec bv = BitVecInit();
 
@@ -124,7 +124,7 @@ bool test_bitvec_flip(void) {
 
 // Test length and capacity operations
 bool test_bitvec_length_capacity(void) {
-    printf("Testing BitVec length and capacity operations\n");
+    WriteFmt("Testing BitVec length and capacity operations\n");
 
     BitVec bv = BitVecInit();
 
@@ -155,7 +155,7 @@ bool test_bitvec_length_capacity(void) {
 
 // Test count operations
 bool test_bitvec_count_operations(void) {
-    printf("Testing BitVec count operations\n");
+    WriteFmt("Testing BitVec count operations\n");
 
     BitVec bv = BitVecInit();
 
@@ -189,7 +189,7 @@ bool test_bitvec_count_operations(void) {
 
 // Edge case tests
 bool test_bitvec_get_edge_cases(void) {
-    printf("Testing BitVecGet edge cases\n");
+    WriteFmt("Testing BitVecGet edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -212,7 +212,7 @@ bool test_bitvec_get_edge_cases(void) {
 }
 
 bool test_bitvec_set_edge_cases(void) {
-    printf("Testing BitVecSet edge cases\n");
+    WriteFmt("Testing BitVecSet edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -232,7 +232,7 @@ bool test_bitvec_set_edge_cases(void) {
 }
 
 bool test_bitvec_flip_edge_cases(void) {
-    printf("Testing BitVecFlip edge cases\n");
+    WriteFmt("Testing BitVecFlip edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -250,7 +250,7 @@ bool test_bitvec_flip_edge_cases(void) {
 }
 
 bool test_bitvec_count_edge_cases(void) {
-    printf("Testing BitVec count edge cases\n");
+    WriteFmt("Testing BitVec count edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -282,7 +282,7 @@ bool test_bitvec_count_edge_cases(void) {
 }
 
 bool test_bitvec_access_multiple_operations(void) {
-    printf("Testing BitVec multiple access operations\n");
+    WriteFmt("Testing BitVec multiple access operations\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -308,7 +308,7 @@ bool test_bitvec_access_multiple_operations(void) {
 
 // NEW: Test large bit patterns and complex access patterns
 bool test_bitvec_access_large_patterns(void) {
-    printf("Testing BitVec large pattern access\n");
+    WriteFmt("Testing BitVec large pattern access\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -345,7 +345,7 @@ bool test_bitvec_access_large_patterns(void) {
 
 // NEW: Test macro functions comprehensively
 bool test_bitvec_macro_functions(void) {
-    printf("Testing BitVec macro functions\n");
+    WriteFmt("Testing BitVec macro functions\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -381,7 +381,7 @@ bool test_bitvec_macro_functions(void) {
 
 // NEW: Stress test for access operations
 bool test_bitvec_access_stress_test(void) {
-    printf("Testing BitVec access stress test\n");
+    WriteFmt("Testing BitVec access stress test\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -421,7 +421,7 @@ bool test_bitvec_access_stress_test(void) {
 
 // NEW: Comprehensive bit pattern testing
 bool test_bitvec_bit_patterns_comprehensive(void) {
-    printf("Testing BitVec comprehensive bit patterns\n");
+    WriteFmt("Testing BitVec comprehensive bit patterns\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -485,7 +485,7 @@ bool test_bitvec_bit_patterns_comprehensive(void) {
 
 // Deadend tests
 bool test_bitvec_access_null_failures(void) {
-    printf("Testing BitVec access NULL pointer handling\n");
+    WriteFmt("Testing BitVec access NULL pointer handling\n");
 
     // Test NULL bitvec pointer - should abort
     BitVecGet(NULL, 0);
@@ -494,7 +494,7 @@ bool test_bitvec_access_null_failures(void) {
 }
 
 bool test_bitvec_set_null_failures(void) {
-    printf("Testing BitVec set NULL pointer handling\n");
+    WriteFmt("Testing BitVec set NULL pointer handling\n");
 
     // Test NULL bitvec pointer - should abort
     BitVecSet(NULL, 0, true);
@@ -503,7 +503,7 @@ bool test_bitvec_set_null_failures(void) {
 }
 
 bool test_bitvec_flip_null_failures(void) {
-    printf("Testing BitVec flip NULL pointer handling\n");
+    WriteFmt("Testing BitVec flip NULL pointer handling\n");
 
     // Test NULL bitvec pointer - should abort
     BitVecFlip(NULL, 0);
@@ -512,7 +512,7 @@ bool test_bitvec_flip_null_failures(void) {
 }
 
 bool test_bitvec_get_bounds_failures(void) {
-    printf("Testing BitVec get bounds checking\n");
+    WriteFmt("Testing BitVec get bounds checking\n");
 
     BitVec bv = BitVecInit();
 
@@ -524,7 +524,7 @@ bool test_bitvec_get_bounds_failures(void) {
 }
 
 bool test_bitvec_set_bounds_failures(void) {
-    printf("Testing BitVec set bounds checking\n");
+    WriteFmt("Testing BitVec set bounds checking\n");
 
     BitVec bv = BitVecInit();
 
@@ -536,7 +536,7 @@ bool test_bitvec_set_bounds_failures(void) {
 }
 
 bool test_bitvec_flip_bounds_failures(void) {
-    printf("Testing BitVec flip bounds checking\n");
+    WriteFmt("Testing BitVec flip bounds checking\n");
 
     BitVec bv = BitVecInit();
 
@@ -549,7 +549,7 @@ bool test_bitvec_flip_bounds_failures(void) {
 
 // NEW: More specific bounds checking deadend tests
 bool test_bitvec_get_large_index_failures(void) {
-    printf("Testing BitVec get with large out-of-bounds index\n");
+    WriteFmt("Testing BitVec get with large out-of-bounds index\n");
 
     BitVec bv = BitVecInit();
     BitVecPush(&bv, true);
@@ -564,7 +564,7 @@ bool test_bitvec_get_large_index_failures(void) {
 }
 
 bool test_bitvec_set_large_index_failures(void) {
-    printf("Testing BitVec set with large out-of-bounds index\n");
+    WriteFmt("Testing BitVec set with large out-of-bounds index\n");
 
     BitVec bv = BitVecInit();
     BitVecPush(&bv, true);
@@ -578,7 +578,7 @@ bool test_bitvec_set_large_index_failures(void) {
 }
 
 bool test_bitvec_flip_edge_index_failures(void) {
-    printf("Testing BitVec flip with edge case out-of-bounds index\n");
+    WriteFmt("Testing BitVec flip with edge case out-of-bounds index\n");
 
     BitVec bv = BitVecInit();
     for (int i = 0; i < 10; i++) {
@@ -593,7 +593,7 @@ bool test_bitvec_flip_edge_index_failures(void) {
 }
 
 bool test_bitvec_count_null_failures(void) {
-    printf("Testing BitVec count operations with NULL pointer\n");
+    WriteFmt("Testing BitVec count operations with NULL pointer\n");
 
     // Test NULL bitvec pointer - should abort
     BitVecCountOnes(NULL);
@@ -602,7 +602,7 @@ bool test_bitvec_count_null_failures(void) {
 }
 
 bool test_bitvec_get_max_index_failures(void) {
-    printf("Testing BitVec get with maximum index value\n");
+    WriteFmt("Testing BitVec get with maximum index value\n");
 
     BitVec bv = BitVecInit();
     BitVecPush(&bv, true);
@@ -616,7 +616,7 @@ bool test_bitvec_get_max_index_failures(void) {
 
 // Test BitVecFind and BitVecFindLast functions
 bool test_bitvec_find_functions(void) {
-    printf("Testing BitVecFind and BitVecFindLast functions\n");
+    WriteFmt("Testing BitVecFind and BitVecFindLast functions\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -660,7 +660,7 @@ bool test_bitvec_find_functions(void) {
 
 // Test BitVecAll, BitVecAny, BitVecNone functions
 bool test_bitvec_predicate_functions(void) {
-    printf("Testing BitVecAll, BitVecAny, BitVecNone functions\n");
+    WriteFmt("Testing BitVecAll, BitVecAny, BitVecNone functions\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -709,7 +709,7 @@ bool test_bitvec_predicate_functions(void) {
 
 // Test BitVecLongestRun function
 bool test_bitvec_longest_run(void) {
-    printf("Testing BitVecLongestRun function\n");
+    WriteFmt("Testing BitVecLongestRun function\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -758,7 +758,7 @@ bool test_bitvec_longest_run(void) {
 
 // Edge case tests for Find functions
 bool test_bitvec_find_edge_cases(void) {
-    printf("Testing BitVecFind edge cases\n");
+    WriteFmt("Testing BitVecFind edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -790,7 +790,7 @@ bool test_bitvec_find_edge_cases(void) {
 
 // Edge case tests for predicate functions
 bool test_bitvec_predicate_edge_cases(void) {
-    printf("Testing BitVec predicate edge cases\n");
+    WriteFmt("Testing BitVec predicate edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -830,7 +830,7 @@ bool test_bitvec_predicate_edge_cases(void) {
 
 // Edge case tests for LongestRun function
 bool test_bitvec_longest_run_edge_cases(void) {
-    printf("Testing BitVecLongestRun edge cases\n");
+    WriteFmt("Testing BitVecLongestRun edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -863,7 +863,7 @@ bool test_bitvec_longest_run_edge_cases(void) {
 
 // Deadend tests - testing NULL pointers and invalid conditions that should cause fatal errors
 bool test_bitvec_find_deadend_tests(void) {
-    printf("Testing BitVecFind deadend scenarios\n");
+    WriteFmt("Testing BitVecFind deadend scenarios\n");
 
     // This should cause LOG_FATAL and terminate the program
     BitVecFind(NULL, true);
@@ -872,7 +872,7 @@ bool test_bitvec_find_deadend_tests(void) {
 }
 
 bool test_bitvec_predicate_deadend_tests(void) {
-    printf("Testing BitVec predicate deadend scenarios\n");
+    WriteFmt("Testing BitVec predicate deadend scenarios\n");
 
     // This should cause LOG_FATAL and terminate the program
     BitVecAll(NULL, true);
@@ -881,7 +881,7 @@ bool test_bitvec_predicate_deadend_tests(void) {
 }
 
 bool test_bitvec_longest_run_deadend_tests(void) {
-    printf("Testing BitVecLongestRun deadend scenarios\n");
+    WriteFmt("Testing BitVecLongestRun deadend scenarios\n");
 
     // This should cause LOG_FATAL and terminate the program
     BitVecLongestRun(NULL, true);
@@ -891,7 +891,7 @@ bool test_bitvec_longest_run_deadend_tests(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Access tests\n\n");
+    WriteFmt("[INFO] Starting BitVec.Access tests\n\n");
 
     // Array of test functions (adding new tests to existing ones)
     TestFunction tests[] = {

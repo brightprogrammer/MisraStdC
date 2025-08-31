@@ -30,7 +30,7 @@ bool test_bitvec_bitwise_large_patterns(void);
 
 // Test BitVecAnd function
 bool test_bitvec_and(void) {
-    printf("Testing BitVecAnd\n");
+    WriteFmt("Testing BitVecAnd\n");
 
     BitVec bv1    = BitVecInit();
     BitVec bv2    = BitVecInit();
@@ -68,7 +68,7 @@ bool test_bitvec_and(void) {
 
 // Test BitVecOr function
 bool test_bitvec_or(void) {
-    printf("Testing BitVecOr\n");
+    WriteFmt("Testing BitVecOr\n");
 
     BitVec bv1    = BitVecInit();
     BitVec bv2    = BitVecInit();
@@ -106,7 +106,7 @@ bool test_bitvec_or(void) {
 
 // Test BitVecXor function
 bool test_bitvec_xor(void) {
-    printf("Testing BitVecXor\n");
+    WriteFmt("Testing BitVecXor\n");
 
     BitVec bv1    = BitVecInit();
     BitVec bv2    = BitVecInit();
@@ -144,7 +144,7 @@ bool test_bitvec_xor(void) {
 
 // Test BitVecNot function
 bool test_bitvec_not(void) {
-    printf("Testing BitVecNot\n");
+    WriteFmt("Testing BitVecNot\n");
 
     BitVec bv     = BitVecInit();
     BitVec result = BitVecInit();
@@ -174,7 +174,7 @@ bool test_bitvec_not(void) {
 
 // Test BitVecShiftLeft function - CORRECTED EXPECTATIONS
 bool test_bitvec_shift_left(void) {
-    printf("Testing BitVecShiftLeft\n");
+    WriteFmt("Testing BitVecShiftLeft\n");
 
     BitVec bv = BitVecInit();
 
@@ -215,7 +215,7 @@ bool test_bitvec_shift_left(void) {
 
 // Test BitVecShiftRight function - CORRECTED EXPECTATIONS
 bool test_bitvec_shift_right(void) {
-    printf("Testing BitVecShiftRight\n");
+    WriteFmt("Testing BitVecShiftRight\n");
 
     BitVec bv = BitVecInit();
 
@@ -249,7 +249,7 @@ bool test_bitvec_shift_right(void) {
 
 // Test BitVecRotateLeft function
 bool test_bitvec_rotate_left(void) {
-    printf("Testing BitVecRotateLeft\n");
+    WriteFmt("Testing BitVecRotateLeft\n");
 
     BitVec bv = BitVecInit();
 
@@ -277,7 +277,7 @@ bool test_bitvec_rotate_left(void) {
 
 // Test BitVecRotateRight function
 bool test_bitvec_rotate_right(void) {
-    printf("Testing BitVecRotateRight\n");
+    WriteFmt("Testing BitVecRotateRight\n");
 
     BitVec bv = BitVecInit();
 
@@ -305,7 +305,7 @@ bool test_bitvec_rotate_right(void) {
 
 // Test BitVecReverse function
 bool test_bitvec_reverse(void) {
-    printf("Testing BitVecReverse\n");
+    WriteFmt("Testing BitVecReverse\n");
 
     BitVec bv = BitVecInit();
 
@@ -333,7 +333,7 @@ bool test_bitvec_reverse(void) {
 
 // Edge case tests
 bool test_bitvec_shift_edge_cases(void) {
-    printf("Testing BitVec shift edge cases\n");
+    WriteFmt("Testing BitVec shift edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -369,7 +369,7 @@ bool test_bitvec_shift_edge_cases(void) {
 }
 
 bool test_bitvec_rotate_edge_cases(void) {
-    printf("Testing BitVec rotate edge cases\n");
+    WriteFmt("Testing BitVec rotate edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -397,7 +397,7 @@ bool test_bitvec_rotate_edge_cases(void) {
 }
 
 bool test_bitvec_bitwise_ops_edge_cases(void) {
-    printf("Testing BitVec bitwise operations edge cases\n");
+    WriteFmt("Testing BitVec bitwise operations edge cases\n");
 
     BitVec bv1    = BitVecInit();
     BitVec bv2    = BitVecInit();
@@ -436,7 +436,7 @@ bool test_bitvec_bitwise_ops_edge_cases(void) {
 }
 
 bool test_bitvec_reverse_edge_cases(void) {
-    printf("Testing BitVecReverse edge cases\n");
+    WriteFmt("Testing BitVecReverse edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -470,7 +470,7 @@ bool test_bitvec_reverse_edge_cases(void) {
 
 // NEW: Comprehensive bitwise operations testing
 bool test_bitvec_bitwise_comprehensive(void) {
-    printf("Testing BitVec comprehensive bitwise operations\n");
+    WriteFmt("Testing BitVec comprehensive bitwise operations\n");
 
     BitVec bv1         = BitVecInit();
     BitVec bv2         = BitVecInit();
@@ -536,7 +536,7 @@ bool test_bitvec_bitwise_comprehensive(void) {
 
 // NEW: Comprehensive shift testing
 bool test_bitvec_shift_comprehensive(void) {
-    printf("Testing BitVec comprehensive shift operations\n");
+    WriteFmt("Testing BitVec comprehensive shift operations\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -602,7 +602,7 @@ bool test_bitvec_shift_comprehensive(void) {
 
 // NEW: Comprehensive rotate testing
 bool test_bitvec_rotate_comprehensive(void) {
-    printf("Testing BitVec comprehensive rotate operations\n");
+    WriteFmt("Testing BitVec comprehensive rotate operations\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -664,7 +664,7 @@ bool test_bitvec_rotate_comprehensive(void) {
 
 // NEW: Identity operations testing
 bool test_bitvec_bitwise_identity_operations(void) {
-    printf("Testing BitVec bitwise identity operations\n");
+    WriteFmt("Testing BitVec bitwise identity operations\n");
 
     BitVec bv1         = BitVecInit();
     BitVec bv2         = BitVecInit();
@@ -758,7 +758,7 @@ bool test_bitvec_bitwise_identity_operations(void) {
 
 // NEW: Commutative properties testing
 bool test_bitvec_bitwise_commutative_properties(void) {
-    printf("Testing BitVec bitwise commutative properties\n");
+    WriteFmt("Testing BitVec bitwise commutative properties\n");
 
     BitVec bv1         = BitVecInit();
     BitVec bv2         = BitVecInit();
@@ -820,7 +820,7 @@ bool test_bitvec_bitwise_commutative_properties(void) {
 
 // NEW: Large pattern testing
 bool test_bitvec_bitwise_large_patterns(void) {
-    printf("Testing BitVec bitwise operations with large patterns\n");
+    WriteFmt("Testing BitVec bitwise operations with large patterns\n");
 
     BitVec bv1         = BitVecInit();
     BitVec bv2         = BitVecInit();
@@ -890,7 +890,7 @@ bool test_bitvec_bitwise_large_patterns(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.BitWise tests\n\n");
+    WriteFmt("[INFO] Starting BitVec.BitWise tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {

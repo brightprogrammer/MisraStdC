@@ -56,7 +56,7 @@ bool test_simple_product_with_tags(void);
 
 // Test 1: Simple string parsing
 bool test_simple_string_parsing(void) {
-    printf("Testing simple string parsing\n");
+    WriteFmt("Testing simple string parsing\n");
 
     bool    success = true;
     Str     json    = StrInitFromZstr("{\"name\": \"Alice\", \"city\": \"New York\"}");
@@ -71,20 +71,20 @@ bool test_simple_string_parsing(void) {
     });
 
     if (StrCmpCstr(&name, "Alice", 5) != 0) {
-        printf("[DEBUG] Name check failed: expected 'Alice', got '");
+        WriteFmt("[DEBUG] Name check failed: expected 'Alice', got '");
         for (size i = 0; i < name.length; i++) {
-            printf("%c", name.data[i]);
+            WriteFmt("{c}", name.data[i]);
         }
-        printf("'\n");
+        WriteFmt("'\n");
         success = false;
     }
 
     if (StrCmpCstr(&city, "New York", 8) != 0) {
-        printf("[DEBUG] City check failed: expected 'New York', got '");
+        WriteFmt("[DEBUG] City check failed: expected 'New York', got '");
         for (size i = 0; i < city.length; i++) {
-            printf("%c", city.data[i]);
+            WriteFmt("{c}", city.data[i]);
         }
-        printf("'\n");
+        WriteFmt("'\n");
         success = false;
     }
 
@@ -96,7 +96,7 @@ bool test_simple_string_parsing(void) {
 
 // Test 2: Simple number parsing
 bool test_simple_numbers(void) {
-    printf("Testing simple number parsing\n");
+    WriteFmt("Testing simple number parsing\n");
 
     bool    success = true;
     Str     json    = StrInitFromZstr("{\"count\": 42, \"score\": 95.5, \"year\": 2024}");
@@ -113,17 +113,17 @@ bool test_simple_numbers(void) {
     });
 
     if (count != 42) {
-        printf("[DEBUG] Count check failed: expected 42, got %u\n", count);
+        WriteFmt("[DEBUG] Count check failed: expected 42, got {}\n", count);
         success = false;
     }
 
     if (!(score > 95.4 && score < 95.6)) {
-        printf("[DEBUG] Score check failed: expected ~95.5, got %f\n", score);
+        WriteFmt("[DEBUG] Score check failed: expected ~95.5, got {}\n", score);
         success = false;
     }
 
     if (year != 2024) {
-        printf("[DEBUG] Year check failed: expected 2024, got %u\n", year);
+        WriteFmt("[DEBUG] Year check failed: expected 2024, got {}\n", year);
         success = false;
     }
 
@@ -133,7 +133,7 @@ bool test_simple_numbers(void) {
 
 // Test 3: Simple boolean parsing
 bool test_simple_boolean(void) {
-    printf("Testing simple boolean parsing\n");
+    WriteFmt("Testing simple boolean parsing\n");
 
     bool    success = true;
     Str     json    = StrInitFromZstr("{\"enabled\": true, \"visible\": false}");
@@ -148,12 +148,12 @@ bool test_simple_boolean(void) {
     });
 
     if (enabled != true) {
-        printf("[DEBUG] Enabled check failed: expected true, got %s\n", enabled ? "true" : "false");
+        WriteFmt("[DEBUG] Enabled check failed: expected true, got {}\n", enabled ? "true" : "false");
         success = false;
     }
 
     if (visible != false) {
-        printf("[DEBUG] Visible check failed: expected false, got %s\n", visible ? "true" : "false");
+        WriteFmt("[DEBUG] Visible check failed: expected false, got {}\n", visible ? "true" : "false");
         success = false;
     }
 
@@ -163,7 +163,7 @@ bool test_simple_boolean(void) {
 
 // Test 4: Simple person object
 bool test_simple_person_object(void) {
-    printf("Testing simple person object\n");
+    WriteFmt("Testing simple person object\n");
 
     bool success = true;
     Str  json =
@@ -182,31 +182,31 @@ bool test_simple_person_object(void) {
     });
 
     if (person.id != 1001) {
-        printf("[DEBUG] Person ID check failed: expected 1001, got %llu\n", person.id);
+        WriteFmt("[DEBUG] Person ID check failed: expected 1001, got {}\n", person.id);
         success = false;
     }
 
     if (StrCmpCstr(&person.name, "Bob", 3) != 0) {
-        printf("[DEBUG] Person name check failed: expected 'Bob', got '");
+        WriteFmt("[DEBUG] Person name check failed: expected 'Bob', got '");
         for (size i = 0; i < person.name.length; i++) {
-            printf("%c", person.name.data[i]);
+            WriteFmt("{c}", person.name.data[i]);
         }
-        printf("'\n");
+        WriteFmt("'\n");
         success = false;
     }
 
     if (person.age != 25) {
-        printf("[DEBUG] Person age check failed: expected 25, got %u\n", person.age);
+        WriteFmt("[DEBUG] Person age check failed: expected 25, got {}\n", person.age);
         success = false;
     }
 
     if (person.is_active != true) {
-        printf("[DEBUG] Person is_active check failed: expected true, got %s\n", person.is_active ? "true" : "false");
+        WriteFmt("[DEBUG] Person is_active check failed: expected true, got {}\n", person.is_active ? "true" : "false");
         success = false;
     }
 
     if (!(person.salary > 49999.0 && person.salary < 50001.0)) {
-        printf("[DEBUG] Person salary check failed: expected ~50000.0, got %f\n", person.salary);
+        WriteFmt("[DEBUG] Person salary check failed: expected ~50000.0, got {}\n", person.salary);
         success = false;
     }
 
@@ -217,7 +217,7 @@ bool test_simple_person_object(void) {
 
 // Test 5: Simple config object
 bool test_simple_config_object(void) {
-    printf("Testing simple config object\n");
+    WriteFmt("Testing simple config object\n");
 
     bool    success = true;
     Str     json    = StrInitFromZstr("{\"debug_mode\": false, \"timeout\": 30, \"log_level\": \"INFO\"}");
@@ -233,21 +233,21 @@ bool test_simple_config_object(void) {
     });
 
     if (config.debug_mode != false) {
-        printf("[DEBUG] Debug mode check failed: expected false, got %s\n", config.debug_mode ? "true" : "false");
+        WriteFmt("[DEBUG] Debug mode check failed: expected false, got {}\n", config.debug_mode ? "true" : "false");
         success = false;
     }
 
     if (config.timeout != 30) {
-        printf("[DEBUG] Timeout check failed: expected 30, got %u\n", config.timeout);
+        WriteFmt("[DEBUG] Timeout check failed: expected 30, got {}\n", config.timeout);
         success = false;
     }
 
     if (StrCmpCstr(&config.log_level, "INFO", 4) != 0) {
-        printf("[DEBUG] Log level check failed: expected 'INFO', got '");
+        WriteFmt("[DEBUG] Log level check failed: expected 'INFO', got '");
         for (size i = 0; i < config.log_level.length; i++) {
-            printf("%c", config.log_level.data[i]);
+            WriteFmt("{c}", config.log_level.data[i]);
         }
-        printf("'\n");
+        WriteFmt("'\n");
         success = false;
     }
 
@@ -258,7 +258,7 @@ bool test_simple_config_object(void) {
 
 // Test 6: Simple array of strings
 bool test_simple_array_of_strings(void) {
-    printf("Testing simple array of strings\n");
+    WriteFmt("Testing simple array of strings\n");
 
     bool    success = true;
     Str     json    = StrInitFromZstr("{\"languages\": [\"C\", \"Python\", \"Rust\"]}");
@@ -275,7 +275,7 @@ bool test_simple_array_of_strings(void) {
     });
 
     if (languages.length != 3) {
-        printf("[DEBUG] Languages length check failed: expected 3, got %zu\n", languages.length);
+        WriteFmt("[DEBUG] Languages length check failed: expected 3, got {}\n", languages.length);
         success = false;
     }
 
@@ -285,29 +285,29 @@ bool test_simple_array_of_strings(void) {
         Str* lang3 = &VecAt(&languages, 2);
 
         if (StrCmpCstr(lang1, "C", 1) != 0) {
-            printf("[DEBUG] Language 1 check failed: expected 'C', got '");
+            WriteFmt("[DEBUG] Language 1 check failed: expected 'C', got '");
             for (size i = 0; i < lang1->length; i++) {
-                printf("%c", lang1->data[i]);
+                WriteFmt("{c}", lang1->data[i]);
             }
-            printf("'\n");
+            WriteFmt("'\n");
             success = false;
         }
 
         if (StrCmpCstr(lang2, "Python", 6) != 0) {
-            printf("[DEBUG] Language 2 check failed: expected 'Python', got '");
+            WriteFmt("[DEBUG] Language 2 check failed: expected 'Python', got '");
             for (size i = 0; i < lang2->length; i++) {
-                printf("%c", lang2->data[i]);
+                WriteFmt("{c}", lang2->data[i]);
             }
-            printf("'\n");
+            WriteFmt("'\n");
             success = false;
         }
 
         if (StrCmpCstr(lang3, "Rust", 4) != 0) {
-            printf("[DEBUG] Language 3 check failed: expected 'Rust', got '");
+            WriteFmt("[DEBUG] Language 3 check failed: expected 'Rust', got '");
             for (size i = 0; i < lang3->length; i++) {
-                printf("%c", lang3->data[i]);
+                WriteFmt("{c}", lang3->data[i]);
             }
-            printf("'\n");
+            WriteFmt("'\n");
             success = false;
         }
     }
@@ -319,7 +319,7 @@ bool test_simple_array_of_strings(void) {
 
 // Test 7: Simple nested object (1 level)
 bool test_simple_nested_object(void) {
-    printf("Testing simple nested object\n");
+    WriteFmt("Testing simple nested object\n");
 
     bool success = true;
     Str  json =
@@ -346,25 +346,25 @@ bool test_simple_nested_object(void) {
     });
 
     if (StrCmpCstr(&data.user.name, "Charlie", 7) != 0) {
-        printf("[DEBUG] User name check failed: expected 'Charlie', got '");
+        WriteFmt("[DEBUG] User name check failed: expected 'Charlie', got '");
         for (size i = 0; i < data.user.name.length; i++) {
-            printf("%c", data.user.name.data[i]);
+            WriteFmt("{c}", data.user.name.data[i]);
         }
-        printf("'\n");
+        WriteFmt("'\n");
         success = false;
     }
 
     if (StrCmpCstr(&data.user.email, "charlie@example.com", 19) != 0) {
-        printf("[DEBUG] User email check failed: expected 'charlie@example.com', got '");
+        WriteFmt("[DEBUG] User email check failed: expected 'charlie@example.com', got '");
         for (size i = 0; i < data.user.email.length; i++) {
-            printf("%c", data.user.email.data[i]);
+            WriteFmt("{c}", data.user.email.data[i]);
         }
-        printf("'\n");
+        WriteFmt("'\n");
         success = false;
     }
 
     if (data.active != true) {
-        printf("[DEBUG] Active check failed: expected true, got %s\n", data.active ? "true" : "false");
+        WriteFmt("[DEBUG] Active check failed: expected true, got {}\n", data.active ? "true" : "false");
         success = false;
     }
 
@@ -376,7 +376,7 @@ bool test_simple_nested_object(void) {
 
 // Test 8: Simple product with tags array
 bool test_simple_product_with_tags(void) {
-    printf("Testing simple product with tags array\n");
+    WriteFmt("Testing simple product with tags array\n");
 
     bool success = true;
     Str  json    = StrInitFromZstr(
@@ -401,26 +401,26 @@ bool test_simple_product_with_tags(void) {
     });
 
     if (product.id != 12345) {
-        printf("[DEBUG] Product ID check failed: expected 12345, got %llu\n", product.id);
+        WriteFmt("[DEBUG] Product ID check failed: expected 12345, got {}\n", product.id);
         success = false;
     }
 
     if (StrCmpCstr(&product.name, "Laptop", 6) != 0) {
-        printf("[DEBUG] Product name check failed: expected 'Laptop', got '");
+        WriteFmt("[DEBUG] Product name check failed: expected 'Laptop', got '");
         for (size i = 0; i < product.name.length; i++) {
-            printf("%c", product.name.data[i]);
+            WriteFmt("{c}", product.name.data[i]);
         }
-        printf("'\n");
+        WriteFmt("'\n");
         success = false;
     }
 
     if (!(product.price > 999.98 && product.price < 1000.0)) {
-        printf("[DEBUG] Product price check failed: expected ~999.99, got %f\n", product.price);
+        WriteFmt("[DEBUG] Product price check failed: expected ~999.99, got {}\n", product.price);
         success = false;
     }
 
     if (product.tags.length != 3) {
-        printf("[DEBUG] Product tags length check failed: expected 3, got %zu\n", product.tags.length);
+        WriteFmt("[DEBUG] Product tags length check failed: expected 3, got {}\n", product.tags.length);
         success = false;
     }
 
@@ -430,29 +430,29 @@ bool test_simple_product_with_tags(void) {
         Str* tag3 = &VecAt(&product.tags, 2);
 
         if (StrCmpCstr(tag1, "electronics", 11) != 0) {
-            printf("[DEBUG] Tag 1 check failed: expected 'electronics', got '");
+            WriteFmt("[DEBUG] Tag 1 check failed: expected 'electronics', got '");
             for (size i = 0; i < tag1->length; i++) {
-                printf("%c", tag1->data[i]);
+                WriteFmt("{c}", tag1->data[i]);
             }
-            printf("'\n");
+            WriteFmt("'\n");
             success = false;
         }
 
         if (StrCmpCstr(tag2, "computers", 9) != 0) {
-            printf("[DEBUG] Tag 2 check failed: expected 'computers', got '");
+            WriteFmt("[DEBUG] Tag 2 check failed: expected 'computers', got '");
             for (size i = 0; i < tag2->length; i++) {
-                printf("%c", tag2->data[i]);
+                WriteFmt("{c}", tag2->data[i]);
             }
-            printf("'\n");
+            WriteFmt("'\n");
             success = false;
         }
 
         if (StrCmpCstr(tag3, "portable", 8) != 0) {
-            printf("[DEBUG] Tag 3 check failed: expected 'portable', got '");
+            WriteFmt("[DEBUG] Tag 3 check failed: expected 'portable', got '");
             for (size i = 0; i < tag3->length; i++) {
-                printf("%c", tag3->data[i]);
+                WriteFmt("{c}", tag3->data[i]);
             }
-            printf("'\n");
+            WriteFmt("'\n");
             success = false;
         }
     }

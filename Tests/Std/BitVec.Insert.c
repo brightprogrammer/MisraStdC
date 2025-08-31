@@ -21,7 +21,7 @@ bool test_bitvec_insert_pattern_null_failures(void);
 
 // Test BitVecPush function
 bool test_bitvec_push(void) {
-    printf("Testing BitVecPush\n");
+    WriteFmt("Testing BitVecPush\n");
 
     BitVec bv = BitVecInit();
 
@@ -50,7 +50,7 @@ bool test_bitvec_push(void) {
 
 // Test BitVecInsert single bit function
 bool test_bitvec_insert_single(void) {
-    printf("Testing BitVecInsert (single bit)\n");
+    WriteFmt("Testing BitVecInsert (single bit)\n");
 
     BitVec bv = BitVecInit();
 
@@ -85,7 +85,7 @@ bool test_bitvec_insert_single(void) {
 
 // Test BitVecInsertRange function
 bool test_bitvec_insert_range(void) {
-    printf("Testing BitVecInsertRange\n");
+    WriteFmt("Testing BitVecInsertRange\n");
 
     BitVec bv = BitVecInit();
 
@@ -112,7 +112,7 @@ bool test_bitvec_insert_range(void) {
 
 // Test BitVecInsertMultiple function
 bool test_bitvec_insert_multiple(void) {
-    printf("Testing BitVecInsertMultiple\n");
+    WriteFmt("Testing BitVecInsertMultiple\n");
 
     BitVec bv     = BitVecInit();
     BitVec source = BitVecInit();
@@ -146,7 +146,7 @@ bool test_bitvec_insert_multiple(void) {
 
 // Test BitVecInsertPattern function
 bool test_bitvec_insert_pattern(void) {
-    printf("Testing BitVecInsertPattern\n");
+    WriteFmt("Testing BitVecInsertPattern\n");
 
     BitVec bv = BitVecInit();
 
@@ -191,7 +191,7 @@ bool test_bitvec_insert_pattern(void) {
 
 // Edge case tests
 bool test_bitvec_insert_range_edge_cases(void) {
-    printf("Testing BitVecInsertRange edge cases\n");
+    WriteFmt("Testing BitVecInsertRange edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -219,7 +219,7 @@ bool test_bitvec_insert_range_edge_cases(void) {
 }
 
 bool test_bitvec_insert_multiple_edge_cases(void) {
-    printf("Testing BitVecInsertMultiple edge cases\n");
+    WriteFmt("Testing BitVecInsertMultiple edge cases\n");
 
     BitVec bv     = BitVecInit();
     BitVec empty  = BitVecInit();
@@ -252,7 +252,7 @@ bool test_bitvec_insert_multiple_edge_cases(void) {
 }
 
 bool test_bitvec_insert_pattern_edge_cases(void) {
-    printf("Testing BitVecInsertPattern edge cases\n");
+    WriteFmt("Testing BitVecInsertPattern edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -278,7 +278,7 @@ bool test_bitvec_insert_pattern_edge_cases(void) {
 
 // Deadend tests
 bool test_bitvec_insert_null_failures(void) {
-    printf("Testing BitVec insert NULL pointer handling\n");
+    WriteFmt("Testing BitVec insert NULL pointer handling\n");
 
     // Test NULL bitvec pointer - should abort
     BitVecInsertRange(NULL, 0, 1, true);
@@ -287,7 +287,7 @@ bool test_bitvec_insert_null_failures(void) {
 }
 
 bool test_bitvec_insert_invalid_range_failures(void) {
-    printf("Testing BitVec insert invalid range handling\n");
+    WriteFmt("Testing BitVec insert invalid range handling\n");
 
     BitVec bv = BitVecInit();
 
@@ -299,7 +299,7 @@ bool test_bitvec_insert_invalid_range_failures(void) {
 }
 
 bool test_bitvec_insert_pattern_null_failures(void) {
-    printf("Testing BitVec insert pattern NULL handling\n");
+    WriteFmt("Testing BitVec insert pattern NULL handling\n");
 
     // Test NULL bitvec - should abort
     BitVecInsertPattern(NULL, 0, 0xFF, 8);
@@ -309,7 +309,7 @@ bool test_bitvec_insert_pattern_null_failures(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Insert tests\n\n");
+    WriteFmt("[INFO] Starting BitVec.Insert tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {

@@ -93,7 +93,7 @@ extern "C" {
     Str* StrPrintf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
 
 #ifdef __cplusplus
-#    define StrInit() (StrVecInit())
+#    define StrInit() (Str VecInit())
 #else
 ///
 /// Initialize given string.

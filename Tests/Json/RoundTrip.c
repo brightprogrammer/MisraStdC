@@ -83,7 +83,7 @@ bool compare_configs(const TestConfig* a, const TestConfig* b) {
 
 // Test 1: Simple value round-trip
 bool test_simple_roundtrip(void) {
-    printf("Testing simple value round-trip\n");
+    WriteFmtLn("Testing simple value round-trip");
 
     bool success = true;
 
@@ -104,7 +104,7 @@ bool test_simple_roundtrip(void) {
         JW_STR_KV(json, "message", original.message);
     });
 
-    printf("[DEBUG] Generated JSON: %s\n", json.data);
+    WriteFmtLn("[DEBUG] Generated JSON: {}", json);
 
     // Read back from JSON
     struct {
@@ -125,18 +125,18 @@ bool test_simple_roundtrip(void) {
     // Compare values
     if (original.count == parsed.count && original.temperature == parsed.temperature &&
         original.enabled == parsed.enabled && StrCmp(&original.message, &parsed.message) == 0) {
-        printf("[DEBUG] Simple round-trip test passed\n");
+        WriteFmtLn("[DEBUG] Simple round-trip test passed");
     } else {
-        printf("[DEBUG] Simple round-trip test FAILED\n");
-        printf(
-            "[DEBUG] Original: count=%d, temp=%f, enabled=%s, msg='%s'\n",
+        WriteFmtLn("[DEBUG] Simple round-trip test FAILED");
+        WriteFmtLn(
+            "[DEBUG] Original: count={}, temp={}, enabled={}, msg='{}'",
             original.count,
             original.temperature,
             original.enabled ? "true" : "false",
             original.message.data
         );
-        printf(
-            "[DEBUG] Parsed: count=%d, temp=%f, enabled=%s, msg='%s'\n",
+        WriteFmtLn(
+            "[DEBUG] Parsed: count={}, temp={}, enabled={}, msg='{}'",
             parsed.count,
             parsed.temperature,
             parsed.enabled ? "true" : "false",
@@ -153,7 +153,7 @@ bool test_simple_roundtrip(void) {
 
 // Test 2: Numeric precision round-trip
 bool test_numeric_roundtrip(void) {
-    printf("Testing numeric precision round-trip\n");
+    WriteFmtLn("Testing numeric precision round-trip");
 
     bool success = true;
 
@@ -178,7 +178,7 @@ bool test_numeric_roundtrip(void) {
         JW_FLT_KV(json, "negative_float", original.negative_float);
     });
 
-    printf("[DEBUG] Numeric JSON: %s\n", json.data);
+    WriteFmtLn("[DEBUG] Numeric JSON: {}", json);
 
     // Read back from JSON
     struct {
@@ -211,11 +211,11 @@ bool test_numeric_roundtrip(void) {
          fabs(original.negative_float - parsed.negative_float) < 0.001);
 
     if (ints_match && floats_match) {
-        printf("[DEBUG] Numeric round-trip test passed\n");
+        WriteFmtLn("[DEBUG] Numeric round-trip test passed");
     } else {
-        printf("[DEBUG] Numeric round-trip test FAILED\n");
-        printf("[DEBUG] Integers match: %s\n", ints_match ? "true" : "false");
-        printf("[DEBUG] Floats match: %s\n", floats_match ? "true" : "false");
+        WriteFmtLn("[DEBUG] Numeric round-trip test FAILED");
+        WriteFmtLn("[DEBUG] Integers match: {}", ints_match ? "true" : "false");
+        WriteFmtLn("[DEBUG] Floats match: {}", floats_match ? "true" : "false");
         success = false;
     }
 
@@ -225,7 +225,7 @@ bool test_numeric_roundtrip(void) {
 
 // Test 3: Boolean round-trip
 bool test_boolean_roundtrip(void) {
-    printf("Testing boolean round-trip\n");
+    WriteFmtLn("Testing boolean round-trip");
 
     bool success = true;
 
@@ -265,9 +265,9 @@ bool test_boolean_roundtrip(void) {
     // Compare values
     if (original.flag1 == parsed.flag1 && original.flag2 == parsed.flag2 && original.flag3 == parsed.flag3 &&
         original.flag4 == parsed.flag4) {
-        printf("[DEBUG] Boolean round-trip test passed\n");
+        WriteFmtLn("[DEBUG] Boolean round-trip test passed");
     } else {
-        printf("[DEBUG] Boolean round-trip test FAILED\n");
+        WriteFmtLn("[DEBUG] Boolean round-trip test FAILED");
         success = false;
     }
 
@@ -277,7 +277,7 @@ bool test_boolean_roundtrip(void) {
 
 // Test 4: String round-trip
 bool test_string_roundtrip(void) {
-    printf("Testing string round-trip\n");
+    WriteFmtLn("Testing string round-trip");
 
     bool success = true;
 
@@ -323,9 +323,9 @@ bool test_string_roundtrip(void) {
     if (parsed.empty.length == original.empty.length && StrCmp(&original.simple, &parsed.simple) == 0 &&
         StrCmp(&original.with_spaces, &parsed.with_spaces) == 0 &&
         StrCmp(&original.with_special, &parsed.with_special) == 0) {
-        printf("[DEBUG] String round-trip test passed\n");
+        WriteFmtLn("[DEBUG] String round-trip test passed");
     } else {
-        printf("[DEBUG] String round-trip test FAILED\n");
+        WriteFmtLn("[DEBUG] String round-trip test FAILED");
         success = false;
     }
 
@@ -344,7 +344,7 @@ bool test_string_roundtrip(void) {
 
 // Test 5: Array round-trip
 bool test_array_roundtrip(void) {
-    printf("Testing array round-trip\n");
+    WriteFmtLn("Testing array round-trip");
 
     bool success = true;
 
@@ -418,17 +418,17 @@ bool test_array_roundtrip(void) {
     }
 
     if (numbers_match && strings_match) {
-        printf("[DEBUG] Array round-trip test passed\n");
+        WriteFmtLn("[DEBUG] Array round-trip test passed");
     } else {
-        printf("[DEBUG] Array round-trip test FAILED\n");
-        printf(
-            "[DEBUG] Numbers match: %s (orig %zu, parsed %zu)\n",
+        WriteFmtLn("[DEBUG] Array round-trip test FAILED");
+        WriteFmtLn(
+            "[DEBUG] Numbers match: {} (orig {}, parsed {})\n",
             numbers_match ? "true" : "false",
             VecLen(&original_numbers),
             VecLen(&parsed_numbers)
         );
-        printf(
-            "[DEBUG] Strings match: %s (orig %zu, parsed %zu)\n",
+        WriteFmtLn(
+            "[DEBUG] Strings match: {} (orig {}, parsed {})\n",
             strings_match ? "true" : "false",
             VecLen(&original_strings),
             VecLen(&parsed_strings)
@@ -447,7 +447,7 @@ bool test_array_roundtrip(void) {
 
 // Test 6: Nested object round-trip
 bool test_nested_object_roundtrip(void) {
-    printf("Testing nested object round-trip\n");
+    WriteFmtLn("Testing nested object round-trip");
 
     bool success = true;
 
@@ -482,9 +482,9 @@ bool test_nested_object_roundtrip(void) {
 
     // Compare
     if (compare_persons(&original_person, &parsed_person)) {
-        printf("[DEBUG] Nested object round-trip test passed\n");
+        WriteFmtLn("[DEBUG] Nested object round-trip test passed");
     } else {
-        printf("[DEBUG] Nested object round-trip test FAILED\n");
+        WriteFmtLn("[DEBUG] Nested object round-trip test FAILED");
         success = false;
     }
 
@@ -497,7 +497,7 @@ bool test_nested_object_roundtrip(void) {
 
 // Test 7: Complex data round-trip
 bool test_complex_data_roundtrip(void) {
-    printf("Testing complex data round-trip\n");
+    WriteFmtLn("Testing complex data round-trip");
 
     bool success = true;
 
@@ -553,7 +553,7 @@ bool test_complex_data_roundtrip(void) {
         JW_ARR_KV(json, "flags", original.flags, flag, { JW_BOOL(json, flag); });
     });
 
-    printf("[DEBUG] Complex JSON length: %zu\n", json.length);
+    WriteFmtLn("[DEBUG] Complex JSON length: {}", json);
 
     // Read back from JSON
     ComplexData parsed       = {0};
@@ -621,13 +621,13 @@ bool test_complex_data_roundtrip(void) {
     }
 
     if (user_match && config_match && numbers_match && flags_match) {
-        printf("[DEBUG] Complex data round-trip test passed\n");
+        WriteFmtLn("[DEBUG] Complex data round-trip test passed");
     } else {
-        printf("[DEBUG] Complex data round-trip test FAILED\n");
-        printf("[DEBUG] User match: %s\n", user_match ? "true" : "false");
-        printf("[DEBUG] Config match: %s\n", config_match ? "true" : "false");
-        printf("[DEBUG] Numbers match: %s\n", numbers_match ? "true" : "false");
-        printf("[DEBUG] Flags match: %s\n", flags_match ? "true" : "false");
+        WriteFmtLn("[DEBUG] Complex data round-trip test FAILED");
+        WriteFmtLn("[DEBUG] User match: {}", user_match ? "true" : "false");
+        WriteFmtLn("[DEBUG] Config match: {}", config_match ? "true" : "false");
+        WriteFmtLn("[DEBUG] Numbers match: {}", numbers_match ? "true" : "false");
+        WriteFmtLn("[DEBUG] Flags match: {}", flags_match ? "true" : "false");
         success = false;
     }
 
@@ -640,7 +640,7 @@ bool test_complex_data_roundtrip(void) {
 
 // Test 8: Empty containers round-trip
 bool test_empty_containers_roundtrip(void) {
-    printf("Testing empty containers round-trip\n");
+    WriteFmtLn("Testing empty containers round-trip");
 
     bool success = true;
 
@@ -689,11 +689,11 @@ bool test_empty_containers_roundtrip(void) {
     // Compare empty containers
     if (parsed_str.length == 0 && VecLen(&parsed_numbers) == 0 && VecLen(&parsed_strings) == 0 &&
         !found_empty_object) { // Empty object should not execute the content
-        printf("[DEBUG] Empty containers round-trip test passed\n");
+        WriteFmtLn("[DEBUG] Empty containers round-trip test passed");
     } else {
-        printf("[DEBUG] Empty containers round-trip test FAILED\n");
-        printf(
-            "[DEBUG] String length: %zu, numbers: %zu, strings: %zu, found_obj: %s\n",
+        WriteFmtLn("[DEBUG] Empty containers round-trip test FAILED");
+        WriteFmtLn(
+            "[DEBUG] String length: {}, numbers: {}, strings: {}, found_obj: {}\n",
             parsed_str.length,
             VecLen(&parsed_numbers),
             VecLen(&parsed_strings),
@@ -715,7 +715,7 @@ bool test_empty_containers_roundtrip(void) {
 
 // Test 9: Edge cases round-trip
 bool test_edge_cases_roundtrip(void) {
-    printf("Testing edge cases round-trip\n");
+    WriteFmtLn("Testing edge cases round-trip");
 
     bool success = true;
 
@@ -764,9 +764,9 @@ bool test_edge_cases_roundtrip(void) {
     if (original.max_int == parsed.max_int && original.min_int == parsed.min_int && original.zero == parsed.zero &&
         original.zero_float == parsed.zero_float && original.true_val == parsed.true_val &&
         original.false_val == parsed.false_val) {
-        printf("[DEBUG] Edge cases round-trip test passed\n");
+        WriteFmtLn("[DEBUG] Edge cases round-trip test passed");
     } else {
-        printf("[DEBUG] Edge cases round-trip test FAILED\n");
+        WriteFmtLn("[DEBUG] Edge cases round-trip test FAILED");
         success = false;
     }
 

@@ -71,6 +71,7 @@ bool StrInitCopy(Str* dst, const Str* src) {
     ValidateStr(src);
 
     MemSet(dst, 0, sizeof(Str));
+    *dst             = StrInit();
     dst->copy_init   = src->copy_init;
     dst->copy_deinit = src->copy_deinit;
     dst->alignment   = src->alignment;
@@ -686,14 +687,10 @@ bool StrToI64(const Str* str, i64* value, const StrParseConfig* config) {
     }
 
     // Create substring without sign
-    Str temp_str = {
-        .data        = str->data + pos,
-        .length      = str->length - pos,
-        .capacity    = str->length - pos,
-        .copy_init   = NULL,
-        .copy_deinit = NULL,
-        .alignment   = 1
-    };
+    Str temp_str      = StrInit();
+    temp_str.data     = str->data + pos;
+    temp_str.length   = str->length - pos;
+    temp_str.capacity = str->length - pos;
 
     u64 unsigned_value;
     if (!StrToU64(&temp_str, &unsigned_value, config)) {

@@ -27,7 +27,7 @@ int compare_ints_desc(const void* a, const void* b) {
 
 // Test VecSwapItems function
 bool test_vec_swap_items(void) {
-    printf("Testing VecSwapItems\n");
+    WriteFmt("Testing VecSwapItems\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -62,7 +62,7 @@ bool test_vec_swap_items(void) {
 
 // Test VecReverse function
 bool test_vec_reverse(void) {
-    printf("Testing VecReverse\n");
+    WriteFmt("Testing VecReverse\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -114,7 +114,7 @@ bool test_vec_reverse(void) {
 
 // Test VecSort function
 bool test_vec_sort(void) {
-    printf("Testing VecSort\n");
+    WriteFmt("Testing VecSort\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -153,7 +153,7 @@ bool test_vec_sort(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Vec.Ops tests\n\n");
+    WriteFmt("[INFO] Starting Vec.Ops tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {test_vec_swap_items, test_vec_reverse, test_vec_sort};

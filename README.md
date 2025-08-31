@@ -167,7 +167,7 @@ int main() {
     
     // Different iteration patterns
     VecForeachIdx(&numbers, val, idx, {
-        printf("[%zu] = %d\n", idx, val);
+        WriteFmtLn("[{}] = {}\n", idx, val);
     });
     
     // Modify elements in-place
@@ -217,8 +217,8 @@ int main() {
     Strs parts = StrSplit(&csv, ",");
     
     // Process split results
-    VecForeachPtr(&parts, str, {
-        printf("Part: %.*s\n", (int)str->length, str->data);
+    VecForeach(&parts, str, {
+        WriteFmtLn("Part: {}\n", str);
     });
     
     // Cleanup
@@ -373,7 +373,7 @@ int main() {
     });
 
     // Print the resulting JSON
-    printf("Modified JSON: %.*s\n", (int)json.length, json.data);
+    WriteFmtLn("Modified JSON: {}", json);
 
     // Cleanup
     StrDeinit(&shape.name);

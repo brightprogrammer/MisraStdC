@@ -118,7 +118,7 @@
 /// SUCCESS: Tail node.
 /// FAILURE: Empty node struct.
 ///
-#define ListNodeLast(l)  ListNodeAt((l), (l)->length - 1)
+#define ListNodeLast(l) ListNodeAt((l), (l)->length - 1)
 
 ///
 /// Get item after (next to) given list item

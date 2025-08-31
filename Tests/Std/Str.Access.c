@@ -17,7 +17,7 @@ bool test_str_char_ptr_at(void);
 
 // Test StrFirst function
 bool test_str_first(void) {
-    printf("Testing StrFirst\n");
+    WriteFmt("Testing StrFirst\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -33,7 +33,7 @@ bool test_str_first(void) {
 
 // Test StrLast function
 bool test_str_last(void) {
-    printf("Testing StrLast\n");
+    WriteFmt("Testing StrLast\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -49,7 +49,7 @@ bool test_str_last(void) {
 
 // Test StrBegin function
 bool test_str_begin(void) {
-    printf("Testing StrBegin\n");
+    WriteFmt("Testing StrBegin\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -65,7 +65,7 @@ bool test_str_begin(void) {
 
 // Test StrEnd function
 bool test_str_end(void) {
-    printf("Testing StrEnd\n");
+    WriteFmt("Testing StrEnd\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -81,7 +81,7 @@ bool test_str_end(void) {
 
 // Test StrCharAt function
 bool test_str_char_at(void) {
-    printf("Testing StrCharAt\n");
+    WriteFmt("Testing StrCharAt\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -102,7 +102,7 @@ bool test_str_char_at(void) {
 
 // Test StrCharPtrAt function
 bool test_str_char_ptr_at(void) {
-    printf("Testing StrCharPtrAt\n");
+    WriteFmt("Testing StrCharPtrAt\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -126,7 +126,7 @@ bool test_str_char_ptr_at(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Str.Access tests\n\n");
+    WriteFmt("[INFO] Starting Str.Access tests\n\n");
 
     // Array of test functions
     TestFunction tests[] =

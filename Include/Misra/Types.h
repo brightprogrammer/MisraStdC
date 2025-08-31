@@ -12,19 +12,10 @@
 #include <stdlib.h> // For malloc
 #include <limits.h> // For INT_MIN, INT_MAX, etc.
 
-// a constant that is generated on each build
-#define MISRA_COMPILE_TIME_CONSTANT                                                                                    \
-    ((u64)__TIME__[0] ^ ((u64)__TIME__[1] << 3) ^ ((u64)__TIME__[2] << 6) ^ ((u64)__TIME__[3] << 9) ^                  \
-     ((u64)__TIME__[4] << 12) ^ ((u64)__TIME__[5] << 15) ^ ((u64)__DATE__[0] << 18) ^ ((u64)__DATE__[1] << 21) ^       \
-     ((u64)__DATE__[2] << 24) ^ ((u64)__DATE__[3] << 27) ^ ((u64)__DATE__[4] << 30) ^ ((u64)__DATE__[5] << 33) ^       \
-     ((u64)__DATE__[6] << 36) ^ ((u64)__DATE__[7] << 39) ^ ((u64)__DATE__[8] << 42) ^ ((u64)__DATE__[9] << 45) ^       \
-     ((u64)__DATE__[10] << 48))
-
 // take an 8 character string and
 #define MISRA_MAKE_NEW_MAGIC_VALUE(s)                                                                                  \
     ((((u64)(s[0]) << 56) ^ ((u64)(s[1]) << 48) ^ ((u64)(s[2]) << 40) ^ ((u64)(s[3]) << 32) ^ ((u64)(s[4]) << 24) ^    \
-      ((u64)(s[5]) << 16) ^ ((u64)(s[6]) << 8) ^ ((u64)(s[7]))) ^                                                      \
-     MISRA_COMPILE_TIME_CONSTANT)
+      ((u64)(s[5]) << 16) ^ ((u64)(s[6]) << 8) ^ ((u64)(s[7]))))
 
 // signed types
 typedef signed char      i8;

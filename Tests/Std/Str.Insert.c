@@ -27,7 +27,7 @@ bool test_str_appendf(void);
 
 // Test StrInsertCharAt function
 bool test_str_insert_char_at(void) {
-    printf("Testing StrInsertCharAt\n");
+    WriteFmt("Testing StrInsertCharAt\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -55,7 +55,7 @@ bool test_str_insert_char_at(void) {
 
 // Test StrInsertCstr function
 bool test_str_insert_cstr(void) {
-    printf("Testing StrInsertCstr\n");
+    WriteFmt("Testing StrInsertCstr\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -71,7 +71,7 @@ bool test_str_insert_cstr(void) {
 
 // Test StrInsertZstr function
 bool test_str_insert_zstr(void) {
-    printf("Testing StrInsertZstr\n");
+    WriteFmt("Testing StrInsertZstr\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -87,7 +87,7 @@ bool test_str_insert_zstr(void) {
 
 // Test StrInsert function
 bool test_str_insert(void) {
-    printf("Testing StrInsert\n");
+    WriteFmt("Testing StrInsert\n");
 
     Str s1 = StrInitFromZstr("Hello");
     Str s2 = StrInitFromZstr(" World");
@@ -105,7 +105,7 @@ bool test_str_insert(void) {
 
 // Test StrPushCstr function
 bool test_str_push_cstr(void) {
-    printf("Testing StrPushCstr\n");
+    WriteFmt("Testing StrPushCstr\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -121,7 +121,7 @@ bool test_str_push_cstr(void) {
 
 // Test StrPushZstr function
 bool test_str_push_zstr(void) {
-    printf("Testing StrPushZstr\n");
+    WriteFmt("Testing StrPushZstr\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -137,7 +137,7 @@ bool test_str_push_zstr(void) {
 
 // Test StrPushBackCstr function
 bool test_str_push_back_cstr(void) {
-    printf("Testing StrPushBackCstr\n");
+    WriteFmt("Testing StrPushBackCstr\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -153,7 +153,7 @@ bool test_str_push_back_cstr(void) {
 
 // Test StrPushBackZstr function
 bool test_str_push_back_zstr(void) {
-    printf("Testing StrPushBackZstr\n");
+    WriteFmt("Testing StrPushBackZstr\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -169,7 +169,7 @@ bool test_str_push_back_zstr(void) {
 
 // Test StrPushFrontCstr function
 bool test_str_push_front_cstr(void) {
-    printf("Testing StrPushFrontCstr\n");
+    WriteFmt("Testing StrPushFrontCstr\n");
 
     Str s = StrInitFromZstr("World");
 
@@ -185,7 +185,7 @@ bool test_str_push_front_cstr(void) {
 
 // Test StrPushFrontZstr function
 bool test_str_push_front_zstr(void) {
-    printf("Testing StrPushFrontZstr\n");
+    WriteFmt("Testing StrPushFrontZstr\n");
 
     Str s = StrInitFromZstr("World");
 
@@ -201,7 +201,7 @@ bool test_str_push_front_zstr(void) {
 
 // Test StrPushBack function
 bool test_str_push_back(void) {
-    printf("Testing StrPushBack\n");
+    WriteFmt("Testing StrPushBack\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -222,7 +222,7 @@ bool test_str_push_back(void) {
 
 // Test StrPushFront function
 bool test_str_push_front(void) {
-    printf("Testing StrPushFront\n");
+    WriteFmt("Testing StrPushFront\n");
 
     Str s = StrInitFromZstr("World");
 
@@ -243,7 +243,7 @@ bool test_str_push_front(void) {
 
 // Test StrMergeL function
 bool test_str_merge_l(void) {
-    printf("Testing StrMergeL\n");
+    WriteFmt("Testing StrMergeL\n");
 
     Str s1 = StrInitFromZstr("Hello");
     Str s2 = StrInitFromZstr(" World");
@@ -268,7 +268,7 @@ bool test_str_merge_l(void) {
 
 // Test StrMergeR function
 bool test_str_merge_r(void) {
-    printf("Testing StrMergeR\n");
+    WriteFmt("Testing StrMergeR\n");
 
     Str s1 = StrInitFromZstr("Hello");
     Str s2 = StrInitFromZstr(" World");
@@ -289,7 +289,7 @@ bool test_str_merge_r(void) {
 
 // Test StrMerge function (alias for StrMergeR)
 bool test_str_merge(void) {
-    printf("Testing StrMerge\n");
+    WriteFmt("Testing StrMerge\n");
 
     Str s1 = StrInitFromZstr("Hello");
     Str s2 = StrInitFromZstr(" World");
@@ -310,7 +310,7 @@ bool test_str_merge(void) {
 
 // Test StrAppendf function
 bool test_str_appendf(void) {
-    printf("Testing StrAppendf\n");
+    WriteFmt("Testing StrAppendf\n");
 
     Str s = StrInitFromZstr("Hello");
 
@@ -326,7 +326,7 @@ bool test_str_appendf(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Str.Insert tests\n\n");
+    WriteFmt("[INFO] Starting Str.Insert tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {

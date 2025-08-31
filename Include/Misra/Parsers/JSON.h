@@ -50,14 +50,14 @@
         });
     });
 
-    printf("Name : %s\n", obj.name.data);
-    printf("Ref : %d\n", obj.ref);
-    printf("X : %f\n", obj.data.x);
-    printf("X : %f\n", obj.data.y);
-    printf("N : %s\n", obj.data.n.data);
-    printf("strs : [");
-    VecForeach(&obj.strs, str, { printf("%s, ", str.data); });
-    printf("]\n");
+    WriteFmtLn("Name : {}", obj.name);
+    WriteFmtLn("Ref : {}", obj.ref);
+    WriteFmtLn("X : {}", obj.data.x);
+    WriteFmtLn("X : {}", obj.data.y);
+    WriteFmtLn("N : {}", obj.data.n);
+    WriteFmt("strs : [");
+    VecForeach(&obj.strs, str, { WriteFmt("{}, ", str); });
+    WriteFmtLn("]");
 
     StrClear(&json);
 
@@ -73,7 +73,7 @@
     });
 
     // {"ref":40,"data":{"y_axis_val":133.455231,"x_axis_val":-22.244850,"gname":"a random graph"},"name":"misra","strs":["x","ah _ ha","lessa do something"]}
-    printf("%s\n", json.data);
+    WriteFmtLn("{}", json);
 */
 
 ///

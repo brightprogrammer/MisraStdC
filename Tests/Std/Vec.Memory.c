@@ -14,7 +14,7 @@ bool test_vec_clear(void);
 
 // Test VecTryReduceSpace function
 bool test_vec_try_reduce_space(void) {
-    printf("Testing VecTryReduceSpace\n");
+    WriteFmt("Testing VecTryReduceSpace\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -51,7 +51,7 @@ bool test_vec_try_reduce_space(void) {
 
 // Test VecResize function
 bool test_vec_resize(void) {
-    printf("Testing VecResize\n");
+    WriteFmt("Testing VecResize\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -96,7 +96,7 @@ bool test_vec_resize(void) {
 
 // Test VecReserve function
 bool test_vec_reserve(void) {
-    printf("Testing VecReserve\n");
+    WriteFmt("Testing VecReserve\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -140,7 +140,7 @@ bool test_vec_reserve(void) {
 
 // Test VecClear function
 bool test_vec_clear(void) {
-    printf("Testing VecClear\n");
+    WriteFmt("Testing VecClear\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -178,7 +178,7 @@ bool test_vec_clear(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Vec.Memory tests\n\n");
+    WriteFmt("[INFO] Starting Vec.Memory tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {test_vec_try_reduce_space, test_vec_resize, test_vec_reserve, test_vec_clear};

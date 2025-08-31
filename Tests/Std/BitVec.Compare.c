@@ -33,7 +33,7 @@ bool test_bitvec_sorted_null_failures(void);
 
 // Test BitVecEquals function
 bool test_bitvec_equals(void) {
-    printf("Testing BitVecEquals\n");
+    WriteFmt("Testing BitVecEquals\n");
 
     BitVec bv1 = BitVecInit();
     BitVec bv2 = BitVecInit();
@@ -76,7 +76,7 @@ bool test_bitvec_equals(void) {
 
 // Test BitVecCompare function
 bool test_bitvec_compare(void) {
-    printf("Testing BitVecCompare\n");
+    WriteFmt("Testing BitVecCompare\n");
 
     BitVec bv1 = BitVecInit();
     BitVec bv2 = BitVecInit();
@@ -112,7 +112,7 @@ bool test_bitvec_compare(void) {
 
 // Test BitVecLexCompare function
 bool test_bitvec_lex_compare(void) {
-    printf("Testing BitVecLexCompare\n");
+    WriteFmt("Testing BitVecLexCompare\n");
 
     BitVec bv1 = BitVecInit();
     BitVec bv2 = BitVecInit();
@@ -146,7 +146,7 @@ bool test_bitvec_lex_compare(void) {
 
 // Test BitVecNumericalCompare function
 bool test_bitvec_numerical_compare(void) {
-    printf("Testing BitVecNumericalCompare\n");
+    WriteFmt("Testing BitVecNumericalCompare\n");
 
     BitVec bv1 = BitVecInit();
     BitVec bv2 = BitVecInit();
@@ -182,7 +182,7 @@ bool test_bitvec_numerical_compare(void) {
 
 // Test BitVecWeightCompare function
 bool test_bitvec_weight_compare(void) {
-    printf("Testing BitVecWeightCompare\n");
+    WriteFmt("Testing BitVecWeightCompare\n");
 
     BitVec bv1 = BitVecInit();
     BitVec bv2 = BitVecInit();
@@ -218,7 +218,7 @@ bool test_bitvec_weight_compare(void) {
 
 // Test BitVecIsSubset function
 bool test_bitvec_is_subset(void) {
-    printf("Testing BitVecIsSubset\n");
+    WriteFmt("Testing BitVecIsSubset\n");
 
     BitVec subset   = BitVecInit();
     BitVec superset = BitVecInit();
@@ -261,7 +261,7 @@ bool test_bitvec_is_subset(void) {
 
 // Test BitVecSignedCompare function
 bool test_bitvec_signed_compare(void) {
-    printf("Testing BitVecSignedCompare\n");
+    WriteFmt("Testing BitVecSignedCompare\n");
 
     BitVec bv1 = BitVecInit();
     BitVec bv2 = BitVecInit();
@@ -304,7 +304,7 @@ bool test_bitvec_signed_compare(void) {
 
 // Test BitVecIsSuperset function
 bool test_bitvec_is_superset(void) {
-    printf("Testing BitVecIsSuperset\n");
+    WriteFmt("Testing BitVecIsSuperset\n");
 
     BitVec superset = BitVecInit();
     BitVec subset   = BitVecInit();
@@ -347,7 +347,7 @@ bool test_bitvec_is_superset(void) {
 
 // Test BitVecOverlaps function
 bool test_bitvec_overlaps(void) {
-    printf("Testing BitVecOverlaps\n");
+    WriteFmt("Testing BitVecOverlaps\n");
 
     BitVec bv1 = BitVecInit();
     BitVec bv2 = BitVecInit();
@@ -388,7 +388,7 @@ bool test_bitvec_overlaps(void) {
 
 // Test BitVecDisjoint and BitVecIntersects functions
 bool test_bitvec_disjoint_intersects(void) {
-    printf("Testing BitVecDisjoint and BitVecIntersects\n");
+    WriteFmt("Testing BitVecDisjoint and BitVecIntersects\n");
 
     BitVec bv1 = BitVecInit();
     BitVec bv2 = BitVecInit();
@@ -432,7 +432,7 @@ bool test_bitvec_disjoint_intersects(void) {
 
 // Test BitVecEqualsRange function
 bool test_bitvec_equals_range(void) {
-    printf("Testing BitVecEqualsRange\n");
+    WriteFmt("Testing BitVecEqualsRange\n");
 
     BitVec bv1 = BitVecInit();
     BitVec bv2 = BitVecInit();
@@ -474,7 +474,7 @@ bool test_bitvec_equals_range(void) {
 
 // Test BitVecCompareRange function
 bool test_bitvec_compare_range(void) {
-    printf("Testing BitVecCompareRange\n");
+    WriteFmt("Testing BitVecCompareRange\n");
 
     BitVec bv1 = BitVecInit();
     BitVec bv2 = BitVecInit();
@@ -521,7 +521,7 @@ bool test_bitvec_compare_range(void) {
 
 // Test BitVecIsLexicographicallyLess and BitVecIsNumericallyLess
 bool test_bitvec_less_than_functions(void) {
-    printf("Testing BitVecIsLexicographicallyLess and BitVecIsNumericallyLess\n");
+    WriteFmt("Testing BitVecIsLexicographicallyLess and BitVecIsNumericallyLess\n");
 
     BitVec bv1 = BitVecInit();
     BitVec bv2 = BitVecInit();
@@ -561,7 +561,7 @@ bool test_bitvec_less_than_functions(void) {
 
 // Test BitVecIsSorted function
 bool test_bitvec_is_sorted(void) {
-    printf("Testing BitVecIsSorted\n");
+    WriteFmt("Testing BitVecIsSorted\n");
 
     BitVec bv = BitVecInit();
 
@@ -605,7 +605,7 @@ bool test_bitvec_is_sorted(void) {
 
 // Edge case tests
 bool test_bitvec_compare_edge_cases(void) {
-    printf("Testing BitVec compare edge cases\n");
+    WriteFmt("Testing BitVec compare edge cases\n");
 
     BitVec bv1    = BitVecInit();
     BitVec bv2    = BitVecInit();
@@ -641,7 +641,7 @@ bool test_bitvec_compare_edge_cases(void) {
 }
 
 bool test_bitvec_set_operations_edge_cases(void) {
-    printf("Testing BitVec set operations edge cases\n");
+    WriteFmt("Testing BitVec set operations edge cases\n");
 
     BitVec bv1    = BitVecInit();
     BitVec bv2    = BitVecInit();
@@ -673,7 +673,7 @@ bool test_bitvec_set_operations_edge_cases(void) {
 
 // Comprehensive comparison testing with cross-validation
 bool test_bitvec_comprehensive_comparison(void) {
-    printf("Testing BitVec comprehensive comparison operations\n");
+    WriteFmt("Testing BitVec comprehensive comparison operations\n");
 
     BitVec bv1    = BitVecInit();
     BitVec bv2    = BitVecInit();
@@ -744,7 +744,7 @@ bool test_bitvec_comprehensive_comparison(void) {
 
 // Large-scale testing with stress patterns
 bool test_bitvec_large_scale_comparison(void) {
-    printf("Testing BitVec large-scale comparison operations\n");
+    WriteFmt("Testing BitVec large-scale comparison operations\n");
 
     BitVec large1 = BitVecInit();
     BitVec large2 = BitVecInit();
@@ -807,7 +807,7 @@ bool test_bitvec_large_scale_comparison(void) {
 
 // Deadend tests
 bool test_bitvec_compare_null_failures(void) {
-    printf("Testing BitVec compare NULL pointer handling\n");
+    WriteFmt("Testing BitVec compare NULL pointer handling\n");
 
     BitVec bv = BitVecInit();
 
@@ -819,7 +819,7 @@ bool test_bitvec_compare_null_failures(void) {
 }
 
 bool test_bitvec_subset_null_failures(void) {
-    printf("Testing BitVec subset NULL handling\n");
+    WriteFmt("Testing BitVec subset NULL handling\n");
 
     // Test NULL pointer - should abort
     BitVecIsSubset(NULL, NULL);
@@ -828,7 +828,7 @@ bool test_bitvec_subset_null_failures(void) {
 }
 
 bool test_bitvec_range_null_failures(void) {
-    printf("Testing BitVec range operations NULL handling\n");
+    WriteFmt("Testing BitVec range operations NULL handling\n");
 
     BitVec bv = BitVecInit();
 
@@ -840,7 +840,7 @@ bool test_bitvec_range_null_failures(void) {
 }
 
 bool test_bitvec_range_bounds_failures(void) {
-    printf("Testing BitVec range operations bounds checking\n");
+    WriteFmt("Testing BitVec range operations bounds checking\n");
 
     BitVec bv1 = BitVecInit();
     BitVec bv2 = BitVecInit();
@@ -860,7 +860,7 @@ bool test_bitvec_range_bounds_failures(void) {
 }
 
 bool test_bitvec_sorted_null_failures(void) {
-    printf("Testing BitVec sorted operations NULL handling\n");
+    WriteFmt("Testing BitVec sorted operations NULL handling\n");
 
     // Test NULL pointer - should abort
     BitVecIsSorted(NULL);
@@ -870,7 +870,7 @@ bool test_bitvec_sorted_null_failures(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Compare tests\n\n");
+    WriteFmt("[INFO] Starting BitVec.Compare tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {

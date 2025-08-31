@@ -40,7 +40,7 @@ bool test_vec_init_clone(void);
 
 // Test basic vector initialization
 bool test_vec_init_basic(void) {
-    printf("Testing VecInit\n");
+    WriteFmt("Testing VecInit\n");
 
     // Test with int type
     typedef Vec(int) IntVec;
@@ -70,7 +70,7 @@ bool test_vec_init_basic(void) {
 
 // Test aligned vector initialization
 bool test_vec_init_aligned(void) {
-    printf("Testing VecInitAligned\n");
+    WriteFmt("Testing VecInitAligned\n");
 
     // Test with int type and 4-byte alignment
     typedef Vec(int) IntVec;
@@ -100,7 +100,7 @@ bool test_vec_init_aligned(void) {
 
 // Test vector initialization with deep copy functions
 bool test_vec_init_with_deep_copy(void) {
-    printf("Testing VecInitWithDeepCopy\n");
+    WriteFmt("Testing VecInitWithDeepCopy\n");
 
     // Test with struct type and custom copy/deinit functions
     typedef Vec(TestItem) TestVec;
@@ -119,7 +119,7 @@ bool test_vec_init_with_deep_copy(void) {
 
 // Test vector initialization with alignment and deep copy functions
 bool test_vec_init_aligned_with_deep_copy(void) {
-    printf("Testing VecInitAlignedWithDeepCopy\n");
+    WriteFmt("Testing VecInitAlignedWithDeepCopy\n");
 
     // Test with struct type, custom copy/deinit functions, and 8-byte alignment
     typedef Vec(TestItem) TestVec;
@@ -138,7 +138,7 @@ bool test_vec_init_aligned_with_deep_copy(void) {
 
 // Test vector stack initialization
 bool test_vec_init_stack(void) {
-    printf("Testing VecInitStack\n");
+    WriteFmt("Testing VecInitStack\n");
 
     bool result = true;
 
@@ -210,7 +210,7 @@ bool test_vec_init_stack(void) {
 
 // Test vector clone initialization
 bool test_vec_init_clone(void) {
-    printf("Testing vector cloning\n");
+    WriteFmt("Testing vector cloning\n");
 
     // Create a source vector
     typedef Vec(int) IntVec;
@@ -251,7 +251,7 @@ bool test_vec_init_clone(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Vec.Init tests\n\n");
+    WriteFmt("[INFO] Starting Vec.Init tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {

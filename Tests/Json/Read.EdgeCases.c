@@ -42,7 +42,7 @@ bool test_boundary_floats(void);
 
 // Test 1: Empty object reading
 bool test_empty_object_reading(void) {
-    printf("Testing empty object reading\n");
+    WriteFmtLn("Testing empty object reading");
 
     bool success = true;
 
@@ -60,9 +60,9 @@ bool test_empty_object_reading(void) {
     });
 
     if (!obj1.found_anything) {     // Should still be true for empty object (reader block didn't execute)
-        printf("[DEBUG] Empty object test 1 passed - no fields processed\n");
+        WriteFmtLn("[DEBUG] Empty object test 1 passed - no fields processed");
     } else {
-        printf("[DEBUG] Empty object test 1 FAILED - unexpected field processing\n");
+        WriteFmtLn("[DEBUG] Empty object test 1 FAILED - unexpected field processing");
         success = false;
     }
 
@@ -78,9 +78,9 @@ bool test_empty_object_reading(void) {
     JR_OBJ(si2, { obj2.found_anything = true; });
 
     if (!obj2.found_anything) { // Should still be true for empty object
-        printf("[DEBUG] Empty object with whitespace test passed\n");
+        WriteFmtLn("[DEBUG] Empty object with whitespace test passed");
     } else {
-        printf("[DEBUG] Empty object with whitespace test FAILED\n");
+        WriteFmtLn("[DEBUG] Empty object with whitespace test FAILED");
         success = false;
     }
 
@@ -91,7 +91,7 @@ bool test_empty_object_reading(void) {
 
 // Test 2: Empty array reading
 bool test_empty_array_reading(void) {
-    printf("Testing empty array reading\n");
+    WriteFmtLn("Testing empty array reading");
 
     bool success = true;
 
@@ -110,9 +110,9 @@ bool test_empty_array_reading(void) {
     });
 
     if (VecLen(&items) == 0) {
-        printf("[DEBUG] Empty array test passed - no items added\n");
+        WriteFmtLn("[DEBUG] Empty array test passed - no items added");
     } else {
-        printf("[DEBUG] Empty array test FAILED - %zu items found\n", VecLen(&items));
+        WriteFmtLn("[DEBUG] Empty array test FAILED - {} items found", VecLen(&items));
         success = false;
     }
 
@@ -131,9 +131,9 @@ bool test_empty_array_reading(void) {
     });
 
     if (VecLen(&data) == 0) {
-        printf("[DEBUG] Empty array with whitespace test passed\n");
+        WriteFmtLn("[DEBUG] Empty array with whitespace test passed");
     } else {
-        printf("[DEBUG] Empty array with whitespace test FAILED\n");
+        WriteFmtLn("[DEBUG] Empty array with whitespace test FAILED");
         success = false;
     }
 
@@ -146,7 +146,7 @@ bool test_empty_array_reading(void) {
 
 // Test 3: Empty string reading
 bool test_empty_string_reading(void) {
-    printf("Testing empty string reading\n");
+    WriteFmt("Testing empty string reading\n");
 
     bool success = true;
 
@@ -164,10 +164,10 @@ bool test_empty_string_reading(void) {
     });
 
     if (obj.name.length == 0 && obj.description.length == 0) {
-        printf("[DEBUG] Empty string test passed - both strings empty\n");
+        WriteFmt("[DEBUG] Empty string test passed - both strings empty\n");
     } else {
-        printf(
-            "[DEBUG] Empty string test FAILED - name len: %zu, desc len: %zu\n",
+        WriteFmt(
+            "[DEBUG] Empty string test FAILED - name len: {}, desc len: {}\n",
             obj.name.length,
             obj.description.length
         );
@@ -182,7 +182,7 @@ bool test_empty_string_reading(void) {
 
 // Test 4: Negative numbers reading
 bool test_negative_numbers_reading(void) {
-    printf("Testing negative numbers reading\n");
+    WriteFmt("Testing negative numbers reading\n");
 
     bool success = true;
 
@@ -202,15 +202,15 @@ bool test_negative_numbers_reading(void) {
     });
 
     if (obj.temp == -25 && obj.balance == -1000.50 && obj.delta == -0.001) {
-        printf(
-            "[DEBUG] Negative numbers test passed - temp: %d, balance: %f, delta: %f\n",
+        WriteFmt(
+            "[DEBUG] Negative numbers test passed - temp: {}, balance: {}, delta: {}\n",
             obj.temp,
             obj.balance,
             obj.delta
         );
     } else {
-        printf(
-            "[DEBUG] Negative numbers test FAILED - temp: %d, balance: %f, delta: %f\n",
+        WriteFmt(
+            "[DEBUG] Negative numbers test FAILED - temp: {}, balance: {}, delta: {}\n",
             obj.temp,
             obj.balance,
             obj.delta
@@ -224,7 +224,7 @@ bool test_negative_numbers_reading(void) {
 
 // Test 5: Large numbers reading
 bool test_large_numbers_reading(void) {
-    printf("Testing large numbers reading\n");
+    WriteFmt("Testing large numbers reading\n");
 
     bool success = true;
 
@@ -247,17 +247,17 @@ bool test_large_numbers_reading(void) {
     });
 
     if (obj.big_int == 9223372036854775807LL) {
-        printf("[DEBUG] Large integer test passed: %lld\n", obj.big_int);
+        WriteFmt("[DEBUG] Large integer test passed: {}\n", obj.big_int);
     } else {
-        printf("[DEBUG] Large integer test FAILED: expected 9223372036854775807, got %lld\n", obj.big_int);
+        WriteFmt("[DEBUG] Large integer test FAILED: expected 9223372036854775807, got {}\n", obj.big_int);
         success = false;
     }
 
     // Check if floats are in reasonable range (may not be exact due to precision)
     if (obj.big_float > 1.0e+300 && obj.small_float > 0 && obj.small_float < 1.0e-300) {
-        printf("[DEBUG] Large float test passed\n");
+        WriteFmt("[DEBUG] Large float test passed\n");
     } else {
-        printf("[DEBUG] Large float test FAILED - big: %e, small: %e\n", obj.big_float, obj.small_float);
+        WriteFmt("[DEBUG] Large float test FAILED - big: {e}, small: {e}\n", obj.big_float, obj.small_float);
         success = false;
     }
 
@@ -267,7 +267,7 @@ bool test_large_numbers_reading(void) {
 
 // Test 6: Zero values reading
 bool test_zero_values_reading(void) {
-    printf("Testing zero values reading\n");
+    WriteFmt("Testing zero values reading\n");
 
     bool success = true;
 
@@ -287,15 +287,15 @@ bool test_zero_values_reading(void) {
     });
 
     if (obj.int_zero == 0 && obj.float_zero == 0.0 && obj.bool_false == false) {
-        printf(
-            "[DEBUG] Zero values test passed - int: %d, float: %f, bool: %s\n",
+        WriteFmt(
+            "[DEBUG] Zero values test passed - int: {}, float: {}, bool: {}\n",
             obj.int_zero,
             obj.float_zero,
             obj.bool_false ? "true" : "false"
         );
     } else {
-        printf(
-            "[DEBUG] Zero values test FAILED - int: %d, float: %f, bool: %s\n",
+        WriteFmt(
+            "[DEBUG] Zero values test FAILED - int: {}, float: {}, bool: {}\n",
             obj.int_zero,
             obj.float_zero,
             obj.bool_false ? "true" : "false"
@@ -309,7 +309,7 @@ bool test_zero_values_reading(void) {
 
 // Test 7: Special characters in strings
 bool test_special_characters_in_strings(void) {
-    printf("Testing special characters in strings\n");
+    WriteFmt("Testing special characters in strings\n");
 
     bool success = true;
 
@@ -332,15 +332,15 @@ bool test_special_characters_in_strings(void) {
         JR_STR_KV(si, "data", obj.data);
     });
 
-    printf("[DEBUG] Special chars - path: '%s'\n", obj.path.data);
-    printf("[DEBUG] Special chars - message: '%s'\n", obj.message.data);
-    printf("[DEBUG] Special chars - data: '%s'\n", obj.data.data);
+    WriteFmt("[DEBUG] Special chars - path: '{}'\n", obj.path);
+    WriteFmt("[DEBUG] Special chars - message: '{}'\n", obj.message);
+    WriteFmt("[DEBUG] Special chars - data: '{}'\n", obj.data);
 
     // Check if strings were parsed (exact content may vary based on escape handling)
     if (obj.path.length > 0 && obj.message.length > 0 && obj.data.length > 0) {
-        printf("[DEBUG] Special characters test passed - all strings parsed\n");
+        WriteFmt("[DEBUG] Special characters test passed - all strings parsed\n");
     } else {
-        printf("[DEBUG] Special characters test FAILED - some strings empty\n");
+        WriteFmt("[DEBUG] Special characters test FAILED - some strings empty\n");
         success = false;
     }
 
@@ -353,7 +353,7 @@ bool test_special_characters_in_strings(void) {
 
 // Test 8: Escape sequences reading
 bool test_escape_sequences_reading(void) {
-    printf("Testing escape sequences reading\n");
+    WriteFmt("Testing escape sequences reading\n");
 
     bool success = true;
 
@@ -375,16 +375,16 @@ bool test_escape_sequences_reading(void) {
         JR_STR_KV(si, "tab", obj.tab);
     });
 
-    printf("[DEBUG] Escape sequences - escaped: '%s'\n", obj.escaped.data);
-    printf("[DEBUG] Escape sequences - backslash: '%s'\n", obj.backslash.data);
-    printf("[DEBUG] Escape sequences - newline length: %zu\n", obj.newline.length);
-    printf("[DEBUG] Escape sequences - tab length: %zu\n", obj.tab.length);
+    WriteFmtLn("[DEBUG] Escape sequences - escaped: '{}'\n", obj.escaped);
+    WriteFmtLn("[DEBUG] Escape sequences - backslash: '{}'\n", obj.backslash);
+    WriteFmtLn("[DEBUG] Escape sequences - newline length: {}\n", obj.newline.length);
+    WriteFmtLn("[DEBUG] Escape sequences - tab length: {}\n", obj.tab.length);
 
     // Basic validation that strings were parsed
     if (obj.escaped.length > 0 && obj.backslash.length > 0 && obj.newline.length > 0 && obj.tab.length > 0) {
-        printf("[DEBUG] Escape sequences test passed\n");
+        WriteFmt("[DEBUG] Escape sequences test passed\n");
     } else {
-        printf("[DEBUG] Escape sequences test FAILED\n");
+        WriteFmt("[DEBUG] Escape sequences test FAILED\n");
         success = false;
     }
 
@@ -398,7 +398,7 @@ bool test_escape_sequences_reading(void) {
 
 // Test 9: Whitespace variations reading
 bool test_whitespace_variations_reading(void) {
-    printf("Testing whitespace variations reading\n");
+    WriteFmt("Testing whitespace variations reading\n");
 
     bool success = true;
 
@@ -419,15 +419,15 @@ bool test_whitespace_variations_reading(void) {
     });
 
     if (StrCmpCstr(&obj.name, "test", 4) == 0 && obj.value == 42 && obj.flag == true) {
-        printf(
-            "[DEBUG] Whitespace variations test passed - name: %s, value: %d, flag: %s\n",
+        WriteFmt(
+            "[DEBUG] Whitespace variations test passed - name: {}, value: {}, flag: {}\n",
             obj.name.data,
             obj.value,
             obj.flag ? "true" : "false"
         );
     } else {
-        printf(
-            "[DEBUG] Whitespace variations test FAILED - name: %s, value: %d, flag: %s\n",
+        WriteFmt(
+            "[DEBUG] Whitespace variations test FAILED - name: {}, value: {}, flag: {}\n",
             obj.name.data,
             obj.value,
             obj.flag ? "true" : "false"
@@ -442,7 +442,7 @@ bool test_whitespace_variations_reading(void) {
 
 // Test 10: Nested empty containers
 bool test_nested_empty_containers(void) {
-    printf("Testing nested empty containers\n");
+    WriteFmtLn("Testing nested empty containers\n");
 
     bool success = true;
 
@@ -471,10 +471,10 @@ bool test_nested_empty_containers(void) {
     // found_list should be false (empty arrays don't trigger content processing)
     // found_inner should be true (empty inner object still triggers JR_OBJ_KV)
     if (!obj.found_outer && !obj.found_list && obj.found_deep && !obj.found_inner) {
-        printf("[DEBUG] Nested empty containers test passed\n");
+        WriteFmt("[DEBUG] Nested empty containers test passed\n");
     } else {
-        printf(
-            "[DEBUG] Nested empty containers test results - outer: %s, list: %s, deep: %s, inner: %s\n",
+        WriteFmt(
+            "[DEBUG] Nested empty containers test results - outer: {}, list: {}, deep: {}, inner: {}\n",
             obj.found_outer ? "true" : "false",
             obj.found_list ? "true" : "false",
             obj.found_deep ? "true" : "false",
@@ -488,7 +488,7 @@ bool test_nested_empty_containers(void) {
 
 // Test 11: Mixed empty and filled containers
 bool test_mixed_empty_and_filled(void) {
-    printf("Testing mixed empty and filled containers\n");
+    WriteFmt("Testing mixed empty and filled containers\n");
 
     bool success = true;
 
@@ -525,19 +525,19 @@ bool test_mixed_empty_and_filled(void) {
 
     if (obj.x_value == 1 && VecLen(&obj.filled_items) == 2 && VecAt(&obj.filled_items, 0) == 1 &&
         VecAt(&obj.filled_items, 1) == 2) {
-        printf(
-            "[DEBUG] Mixed empty and filled test passed - x: %d, items: %zu\n",
+        WriteFmt(
+            "[DEBUG] Mixed empty and filled test passed - x: {}, items: {}\n",
             obj.x_value,
             VecLen(&obj.filled_items)
         );
     } else {
-        printf(
-            "[DEBUG] Mixed empty and filled test FAILED - x: %d, items: %zu\n",
+        WriteFmt(
+            "[DEBUG] Mixed empty and filled test FAILED - x: {}, items: {}\n",
             obj.x_value,
             VecLen(&obj.filled_items)
         );
         if (VecLen(&obj.filled_items) > 0) {
-            printf("[DEBUG] First item: %d\n", VecAt(&obj.filled_items, 0));
+            WriteFmt("[DEBUG] First item: {}\n", VecAt(&obj.filled_items, 0));
         }
         success = false;
     }
@@ -549,7 +549,7 @@ bool test_mixed_empty_and_filled(void) {
 
 // Test 12: Boundary integers
 bool test_boundary_integers(void) {
-    printf("Testing boundary integers\n");
+    WriteFmt("Testing boundary integers\n");
 
     bool success = true;
 
@@ -572,16 +572,16 @@ bool test_boundary_integers(void) {
     });
 
     if (obj.max_int == 2147483647LL && obj.min_int == -2147483648LL && obj.one == 1 && obj.minus_one == -1) {
-        printf(
-            "[DEBUG] Boundary integers test passed - max: %lld, min: %lld, one: %lld, minus_one: %lld\n",
+        WriteFmt(
+            "[DEBUG] Boundary integers test passed - max: {}, min: {}, one: {}, minus_one: {}\n",
             obj.max_int,
             obj.min_int,
             obj.one,
             obj.minus_one
         );
     } else {
-        printf(
-            "[DEBUG] Boundary integers test FAILED - max: %lld, min: %lld, one: %lld, minus_one: %lld\n",
+        WriteFmt(
+            "[DEBUG] Boundary integers test FAILED - max: {}, min: {}, one: {}, minus_one: {}\n",
             obj.max_int,
             obj.min_int,
             obj.one,
@@ -596,7 +596,7 @@ bool test_boundary_integers(void) {
 
 // Test 13: Boundary floats
 bool test_boundary_floats(void) {
-    printf("Testing boundary floats\n");
+    WriteFmt("Testing boundary floats\n");
 
     bool success = true;
 
@@ -619,16 +619,16 @@ bool test_boundary_floats(void) {
 
     if (obj.tiny > 0.0000001 && obj.tiny < 0.00001 && obj.huge > 999999.0 && obj.huge < 1000000.0 && obj.zero == 0.0 &&
         obj.negative_tiny < -0.0000001 && obj.negative_tiny > -0.00001) {
-        printf(
-            "[DEBUG] Boundary floats test passed - tiny: %f, huge: %f, zero: %f, neg_tiny: %f\n",
+        WriteFmt(
+            "[DEBUG] Boundary floats test passed - tiny: {}, huge: {}, zero: {}, neg_tiny: {}\n",
             obj.tiny,
             obj.huge,
             obj.zero,
             obj.negative_tiny
         );
     } else {
-        printf(
-            "[DEBUG] Boundary floats test FAILED - tiny: %f, huge: %f, zero: %f, neg_tiny: %f\n",
+        WriteFmt(
+            "[DEBUG] Boundary floats test FAILED - tiny: {}, huge: {}, zero: {}, neg_tiny: {}\n",
             obj.tiny,
             obj.huge,
             obj.zero,

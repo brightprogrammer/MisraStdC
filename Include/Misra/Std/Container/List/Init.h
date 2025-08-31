@@ -20,7 +20,8 @@
 /// ci[in] : Copy init method.
 /// cd[in] : Copy deinit method.
 ///
-#define ListInitWithDeepCopy(ci, cd) {.head = NULL, .tail = NULL, .copy_init = (ci), .copy_deinit = (cd), .length = 0, .__magic = MISRA_LIST_MAGIC}
+#define ListInitWithDeepCopy(ci, cd)                                                                                   \
+    {.head = NULL, .tail = NULL, .copy_init = (ci), .copy_deinit = (cd), .length = 0, .__magic = MISRA_LIST_MAGIC}
 
 #ifdef __cplusplus
 #    define ListInitWithDeepCopyT(l, ci, cd) (TYPE_OF(l) ListInitWithDeepCopy(ci, cd))

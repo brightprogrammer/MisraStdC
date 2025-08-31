@@ -135,7 +135,7 @@ bool test_lvalue_memset_array_ops(void);
 
 // Test initialization with complex structure
 bool test_complex_vec_init(void) {
-    printf("Testing vector initialization with complex structure\n");
+    WriteFmt("Testing vector initialization with complex structure\n");
 
     // Create a vector of ComplexItem with deep copy functions
     typedef Vec(ComplexItem) ComplexVec;
@@ -178,7 +178,7 @@ bool test_complex_vec_init(void) {
 
 // Test push operations with complex structure
 bool test_complex_vec_push(void) {
-    printf("Testing push operations with complex structure\n");
+    WriteFmt("Testing push operations with complex structure\n");
 
     // Create a vector of ComplexItem with deep copy functions
     typedef Vec(ComplexItem) ComplexVec;
@@ -222,7 +222,7 @@ bool test_complex_vec_push(void) {
 
 // Test insert operations with complex structure
 bool test_complex_vec_insert(void) {
-    printf("Testing insert operations with complex structure\n");
+    WriteFmt("Testing insert operations with complex structure\n");
 
     // Create a vector of ComplexItem with deep copy functions
     typedef Vec(ComplexItem) ComplexVec;
@@ -265,7 +265,7 @@ bool test_complex_vec_insert(void) {
 
 // Test merge operations with complex structure
 bool test_complex_vec_merge(void) {
-    printf("Testing merge operations with complex structure\n");
+    WriteFmt("Testing merge operations with complex structure\n");
 
     // Create two vectors of ComplexItem with deep copy functions
     typedef Vec(ComplexItem) ComplexVec;
@@ -343,7 +343,7 @@ bool test_complex_vec_merge(void) {
 
 // Test L-value operations
 bool test_lvalue_operations(void) {
-    printf("Testing L-value operations\n");
+    WriteFmt("Testing L-value operations\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -391,7 +391,7 @@ bool test_lvalue_operations(void) {
 
 // Test fast operations
 bool test_fast_operations(void) {
-    printf("Testing fast operations\n");
+    WriteFmt("Testing fast operations\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -468,7 +468,7 @@ bool test_fast_operations(void) {
 
 // Test delete operations
 bool test_delete_operations(void) {
-    printf("Testing delete operations\n");
+    WriteFmt("Testing delete operations\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -559,7 +559,7 @@ bool test_delete_operations(void) {
 
 // Test edge cases
 bool test_edge_cases(void) {
-    printf("Testing edge cases\n");
+    WriteFmt("Testing edge cases\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
@@ -621,7 +621,7 @@ bool test_edge_cases(void) {
 
 // Test VecPushBackL memset behavior with complex structures
 bool test_lvalue_memset_pushback(void) {
-    printf("Testing VecPushBackL memset with complex structures\n");
+    WriteFmt("Testing VecPushBackL memset with complex structures\n");
 
     // Create a test item
     int         values[] = {10, 20, 30};
@@ -647,7 +647,7 @@ bool test_lvalue_memset_pushback(void) {
 
 // Test VecInsertL memset behavior with complex structures
 bool test_lvalue_memset_insert(void) {
-    printf("Testing VecInsertL memset with complex structures\n");
+    WriteFmt("Testing VecInsertL memset with complex structures\n");
 
     // Create a test item
     int         values[] = {40, 50, 60};
@@ -682,7 +682,7 @@ bool test_lvalue_memset_insert(void) {
 
 // Test VecInsertFastL memset behavior with complex structures
 bool test_lvalue_memset_fast_insert(void) {
-    printf("Testing VecInsertFastL memset with complex structures\n");
+    WriteFmt("Testing VecInsertFastL memset with complex structures\n");
     bool result = true;
 
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
@@ -748,7 +748,7 @@ bool test_lvalue_memset_fast_insert(void) {
 
 // Test VecPushFrontL memset behavior with complex structures
 bool test_lvalue_memset_pushfront(void) {
-    printf("Testing VecPushFrontL memset with complex structures\n");
+    WriteFmt("Testing VecPushFrontL memset with complex structures\n");
 
     // Create a test item
     int         values[] = {100, 110, 120};
@@ -779,7 +779,7 @@ bool test_lvalue_memset_pushfront(void) {
 
 // Test VecMergeL memset behavior with complex structures
 bool test_lvalue_memset_merge(void) {
-    printf("Testing VecMergeL memset with complex structures\n");
+    WriteFmt("Testing VecMergeL memset with complex structures\n");
 
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
@@ -817,7 +817,7 @@ bool test_lvalue_memset_merge(void) {
 
 // Test array operations with L-value semantics
 bool test_lvalue_memset_array_ops(void) {
-    printf("Testing array operations with L-value semantics\n");
+    WriteFmt("Testing array operations with L-value semantics\n");
 
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
@@ -854,7 +854,7 @@ bool test_lvalue_memset_array_ops(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Vec.Complex tests\n\n");
+    WriteFmt("[INFO] Starting Vec.Complex tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {

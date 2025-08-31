@@ -33,17 +33,18 @@ bool compare_json_output(const Str* output, const char* expected) {
     bool result = StrCmp(&output_clean, &expected_clean) == 0;
 
     if (!result) {
-        printf("[DEBUG] JSON comparison failed\n");
-        printf("[DEBUG] Expected: '");
-        for (size i = 0; i < expected_clean.length; i++) {
-            printf("%c", expected_clean.data[i]);
+        WriteFmtLn("[DEBUG] JSON comparison failed");
+        WriteFmt("[DEBUG] Expected: '");
+        for (u64 i = 0; i < expected_clean.length; i++) {
+            WriteFmt("{c}", expected_clean.data[i]);
         }
-        printf("'\n");
-        printf("[DEBUG] Got: '");
-        for (size i = 0; i < output_clean.length; i++) {
-            printf("%c", output_clean.data[i]);
+        WriteFmtLn("'");
+
+        WriteFmt("[DEBUG] Got: '");
+        for (u64 i = 0; i < output_clean.length; i++) {
+            WriteFmt("{c}", output_clean.data[i]);
         }
-        printf("'\n");
+        WriteFmtLn("'");
     }
 
     StrDeinit(&expected_str);
@@ -69,7 +70,7 @@ bool test_single_values_writing(void);
 
 // Test 1: Empty object writing
 bool test_empty_object_writing(void) {
-    printf("Testing empty object writing\n");
+    WriteFmtLn("Testing empty object writing");
 
     bool success = true;
     Str  json    = StrInit();
@@ -93,7 +94,7 @@ bool test_empty_object_writing(void) {
 
 // Test 2: Empty array writing
 bool test_empty_array_writing(void) {
-    printf("Testing empty array writing\n");
+    WriteFmtLn("Testing empty array writing");
 
     bool success = true;
     Str  json    = StrInit();
@@ -119,7 +120,7 @@ bool test_empty_array_writing(void) {
 
 // Test 3: Empty string writing
 bool test_empty_string_writing(void) {
-    printf("Testing empty string writing\n");
+    WriteFmtLn("Testing empty string writing");
 
     bool success = true;
     Str  json    = StrInit();
@@ -145,7 +146,7 @@ bool test_empty_string_writing(void) {
 
 // Test 4: Negative numbers writing
 bool test_negative_numbers_writing(void) {
-    printf("Testing negative numbers writing\n");
+    WriteFmtLn("Testing negative numbers writing");
 
     bool success = true;
     Str  json    = StrInit();
@@ -171,7 +172,7 @@ bool test_negative_numbers_writing(void) {
 
 // Test 5: Large numbers writing
 bool test_large_numbers_writing(void) {
-    printf("Testing large numbers writing\n");
+    WriteFmtLn("Testing large numbers writing");
 
     bool success = true;
     Str  json    = StrInit();
@@ -188,13 +189,13 @@ bool test_large_numbers_writing(void) {
 
     // For large numbers, just check that valid JSON was produced
     if (json.length > 0 && json.data[0] == '{' && json.data[json.length - 1] == '}') {
-        printf("[DEBUG] Large numbers test passed - produced valid JSON structure\n");
+        WriteFmtLn("[DEBUG] Large numbers test passed - produced valid JSON structure");
     } else {
-        printf("[DEBUG] Large numbers test FAILED - invalid JSON structure\n");
+        WriteFmtLn("[DEBUG] Large numbers test FAILED - invalid JSON structure");
         success = false;
     }
 
-    printf("[DEBUG] Large numbers JSON: %s\n", json.data);
+    WriteFmtLn("[DEBUG] Large numbers JSON: {}", json);
 
     StrDeinit(&json);
     return success;
@@ -202,7 +203,7 @@ bool test_large_numbers_writing(void) {
 
 // Test 6: Zero values writing
 bool test_zero_values_writing(void) {
-    printf("Testing zero values writing\n");
+    WriteFmtLn("Testing zero values writing\n");
 
     bool success = true;
     Str  json    = StrInit();
@@ -228,7 +229,7 @@ bool test_zero_values_writing(void) {
 
 // Test 7: Special characters writing
 bool test_special_characters_writing(void) {
-    printf("Testing special characters writing\n");
+    WriteFmtLn("Testing special characters writing");
 
     bool success = true;
     Str  json    = StrInit();
@@ -244,13 +245,13 @@ bool test_special_characters_writing(void) {
         JW_STR_KV(json, "data", data);
     });
 
-    printf("[DEBUG] Special characters JSON: %s\n", json.data);
+    WriteFmtLn("[DEBUG] Special characters JSON: {}", json);
 
     // Just verify that valid JSON structure was produced
     if (json.length > 0 && json.data[0] == '{' && json.data[json.length - 1] == '}') {
-        printf("[DEBUG] Special characters test passed - produced valid JSON\n");
+        WriteFmtLn("[DEBUG] Special characters test passed - produced valid JSON");
     } else {
-        printf("[DEBUG] Special characters test FAILED - invalid JSON structure\n");
+        WriteFmtLn("[DEBUG] Special characters test FAILED - invalid JSON structure");
         success = false;
     }
 
@@ -263,7 +264,7 @@ bool test_special_characters_writing(void) {
 
 // Test 8: Escape sequences writing
 bool test_escape_sequences_writing(void) {
-    printf("Testing escape sequences writing\n");
+    WriteFmtLn("Testing escape sequences writing");
 
     bool success = true;
     Str  json    = StrInit();
@@ -281,13 +282,13 @@ bool test_escape_sequences_writing(void) {
         JW_STR_KV(json, "tab", tab);
     });
 
-    printf("[DEBUG] Escape sequences JSON: %s\n", json.data);
+    WriteFmtLn("[DEBUG] Escape sequences JSON: {}", json);
 
     // Verify valid JSON structure was produced
     if (json.length > 0 && json.data[0] == '{' && json.data[json.length - 1] == '}') {
-        printf("[DEBUG] Escape sequences test passed - produced valid JSON\n");
+        WriteFmtLn("[DEBUG] Escape sequences test passed - produced valid JSON");
     } else {
-        printf("[DEBUG] Escape sequences test FAILED - invalid JSON structure\n");
+        WriteFmtLn("[DEBUG] Escape sequences test FAILED - invalid JSON structure");
         success = false;
     }
 
@@ -301,7 +302,7 @@ bool test_escape_sequences_writing(void) {
 
 // Test 9: Nested empty containers writing
 bool test_nested_empty_containers_writing(void) {
-    printf("Testing nested empty containers writing\n");
+    WriteFmtLn("Testing nested empty containers writing");
 
     bool success = true;
     Str  json    = StrInit();
@@ -340,7 +341,7 @@ bool test_nested_empty_containers_writing(void) {
 
 // Test 10: Mixed empty and filled containers writing
 bool test_mixed_empty_and_filled_writing(void) {
-    printf("Testing mixed empty and filled containers writing\n");
+    WriteFmtLn("Testing mixed empty and filled containers writing");
 
     bool success = true;
     Str  json    = StrInit();
@@ -379,7 +380,7 @@ bool test_mixed_empty_and_filled_writing(void) {
 
 // Test 11: Boundary integers writing
 bool test_boundary_integers_writing(void) {
-    printf("Testing boundary integers writing\n");
+    WriteFmtLn("Testing boundary integers writing");
 
     bool success = true;
     Str  json    = StrInit();
@@ -407,7 +408,7 @@ bool test_boundary_integers_writing(void) {
 
 // Test 12: Boundary floats writing
 bool test_boundary_floats_writing(void) {
-    printf("Testing boundary floats writing\n");
+    WriteFmtLn("Testing boundary floats writing");
 
     bool success = true;
     Str  json    = StrInit();
@@ -426,9 +427,9 @@ bool test_boundary_floats_writing(void) {
 
     // Check for reasonable float formatting (exact precision may vary)
     if (json.length > 0 && json.data[0] == '{' && json.data[json.length - 1] == '}') {
-        printf("[DEBUG] Boundary floats test passed - JSON: %s\n", json.data);
+        WriteFmtLn("[DEBUG] Boundary floats test passed - JSON: {}", json);
     } else {
-        printf("[DEBUG] Boundary floats test FAILED\n");
+        WriteFmtLn("[DEBUG] Boundary floats test FAILED");
         success = false;
     }
 
@@ -438,7 +439,7 @@ bool test_boundary_floats_writing(void) {
 
 // Test 13: Single values writing (minimal valid JSON objects)
 bool test_single_values_writing(void) {
-    printf("Testing single values writing\n");
+    WriteFmtLn("Testing single values writing");
 
     bool success = true;
     Str  json1   = StrInit();

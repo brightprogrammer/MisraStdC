@@ -31,7 +31,7 @@ bool test_bitvec_longest_run_edge_cases(void);
 
 // Test BitVecGet function
 bool test_bitvec_get(void) {
-    printf("Testing BitVecGet\n");
+    WriteFmt("Testing BitVecGet\n");
 
     BitVec bv = BitVecInit();
 
@@ -51,7 +51,7 @@ bool test_bitvec_get(void) {
 
 // Test BitVecSet function
 bool test_bitvec_set(void) {
-    printf("Testing BitVecSet\n");
+    WriteFmt("Testing BitVecSet\n");
 
     BitVec bv = BitVecInit();
 
@@ -72,7 +72,7 @@ bool test_bitvec_set(void) {
 
 // Test BitVecFlip function
 bool test_bitvec_flip(void) {
-    printf("Testing BitVecFlip\n");
+    WriteFmt("Testing BitVecFlip\n");
 
     BitVec bv = BitVecInit();
 
@@ -98,7 +98,7 @@ bool test_bitvec_flip(void) {
 
 // Test BitVecLength and BitVecCapacity functions
 bool test_bitvec_length_capacity(void) {
-    printf("Testing BitVecLength and BitVecCapacity\n");
+    WriteFmt("Testing BitVecLength and BitVecCapacity\n");
 
     BitVec bv = BitVecInit();
 
@@ -124,7 +124,7 @@ bool test_bitvec_length_capacity(void) {
 
 // Test BitVecCount functions
 bool test_bitvec_count_operations(void) {
-    printf("Testing BitVecCount operations\n");
+    WriteFmt("Testing BitVecCount operations\n");
 
     BitVec bv = BitVecInit();
 
@@ -144,7 +144,7 @@ bool test_bitvec_count_operations(void) {
 
 // Edge case tests for BitVecGet
 bool test_bitvec_get_edge_cases(void) {
-    printf("Testing BitVecGet edge cases\n");
+    WriteFmt("Testing BitVecGet edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -166,7 +166,7 @@ bool test_bitvec_get_edge_cases(void) {
 
 // Edge case tests for BitVecSet
 bool test_bitvec_set_edge_cases(void) {
-    printf("Testing BitVecSet edge cases\n");
+    WriteFmt("Testing BitVecSet edge cases\n");
 
     BitVec bv = BitVecInit();
 
@@ -185,7 +185,7 @@ bool test_bitvec_set_edge_cases(void) {
 
 // Edge case tests for BitVecFlip
 bool test_bitvec_flip_edge_cases(void) {
-    printf("Testing BitVecFlip edge cases\n");
+    WriteFmt("Testing BitVecFlip edge cases\n");
 
     BitVec bv = BitVecInit();
 
@@ -204,7 +204,7 @@ bool test_bitvec_flip_edge_cases(void) {
 
 // Edge case tests for BitVecCount
 bool test_bitvec_count_edge_cases(void) {
-    printf("Testing BitVecCount edge cases\n");
+    WriteFmt("Testing BitVecCount edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -232,7 +232,7 @@ bool test_bitvec_count_edge_cases(void) {
 
 // Test multiple operations together
 bool test_bitvec_access_multiple_operations(void) {
-    printf("Testing BitVec multiple access operations\n");
+    WriteFmt("Testing BitVec multiple access operations\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -269,7 +269,7 @@ bool test_bitvec_access_multiple_operations(void) {
 
 // Test with large patterns
 bool test_bitvec_access_large_patterns(void) {
-    printf("Testing BitVec access with large patterns\n");
+    WriteFmt("Testing BitVec access with large patterns\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -304,7 +304,7 @@ bool test_bitvec_access_large_patterns(void) {
 
 // Test macro functions
 bool test_bitvec_macro_functions(void) {
-    printf("Testing BitVec macro functions\n");
+    WriteFmt("Testing BitVec macro functions\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -334,7 +334,7 @@ bool test_bitvec_macro_functions(void) {
 
 // Stress test for access operations
 bool test_bitvec_access_stress_test(void) {
-    printf("Testing BitVec access stress test\n");
+    WriteFmt("Testing BitVec access stress test\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -384,7 +384,7 @@ bool test_bitvec_access_stress_test(void) {
 
 // Comprehensive bit pattern testing
 bool test_bitvec_bit_patterns_comprehensive(void) {
-    printf("Testing BitVec comprehensive bit patterns\n");
+    WriteFmt("Testing BitVec comprehensive bit patterns\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -438,7 +438,7 @@ bool test_bitvec_bit_patterns_comprehensive(void) {
 
 // Test BitVecFind functions (Find, FindLast)
 bool test_bitvec_find_functions(void) {
-    printf("Testing BitVecFind functions\n");
+    WriteFmt("Testing BitVecFind functions\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -472,7 +472,7 @@ bool test_bitvec_find_functions(void) {
 
 // Test BitVec predicate functions (All, Any, None)
 bool test_bitvec_predicate_functions(void) {
-    printf("Testing BitVec predicate functions\n");
+    WriteFmt("Testing BitVec predicate functions\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -519,7 +519,7 @@ bool test_bitvec_predicate_functions(void) {
 
 // Test BitVecLongestRun function
 bool test_bitvec_longest_run(void) {
-    printf("Testing BitVecLongestRun\n");
+    WriteFmt("Testing BitVecLongestRun\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -556,7 +556,7 @@ bool test_bitvec_longest_run(void) {
 
 // Edge case tests for Find functions
 bool test_bitvec_find_edge_cases(void) {
-    printf("Testing BitVecFind edge cases\n");
+    WriteFmt("Testing BitVecFind edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -588,7 +588,7 @@ bool test_bitvec_find_edge_cases(void) {
 
 // Edge case tests for predicate functions
 bool test_bitvec_predicate_edge_cases(void) {
-    printf("Testing BitVec predicate edge cases\n");
+    WriteFmt("Testing BitVec predicate edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -628,7 +628,7 @@ bool test_bitvec_predicate_edge_cases(void) {
 
 // Edge case tests for LongestRun function
 bool test_bitvec_longest_run_edge_cases(void) {
-    printf("Testing BitVecLongestRun edge cases\n");
+    WriteFmt("Testing BitVecLongestRun edge cases\n");
 
     BitVec bv     = BitVecInit();
     bool   result = true;
@@ -661,7 +661,7 @@ bool test_bitvec_longest_run_edge_cases(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting BitVec.Access.Simple tests\n\n");
+    WriteFmt("[INFO] Starting BitVec.Access.Simple tests\n\n");
 
     // Array of test functions
     TestFunction tests[] = {

@@ -8,7 +8,7 @@ void deinit_list(GenericList *list, size_t item_size) {
     }
 
     ValidateList(list);
-    
+
     clear_list(list, item_size);
 
     list->head        = NULL;
@@ -263,7 +263,7 @@ void clear_list(GenericList *list, size_t item_size) {
     }
 
     ValidateList(list);
-    
+
     remove_range_list(list, NULL, item_size, 0, list->length);
 }
 

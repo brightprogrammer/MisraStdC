@@ -19,7 +19,7 @@ bool test_validate_invalid_strs(void);
 
 // Test Str type definition
 bool test_str_type(void) {
-    printf("Testing Str type definition\n");
+    WriteFmt("Testing Str type definition\n");
 
     // Create a Str object
     Str s = StrInit();
@@ -39,7 +39,7 @@ bool test_str_type(void) {
 
 // Test Strs type definition
 bool test_strs_type(void) {
-    printf("Testing Strs type definition\n");
+    WriteFmt("Testing Strs type definition\n");
 
     // Create a Strs object (vector of strings)
     Strs sv = VecInitWithDeepCopy(NULL, StrDeinit);
@@ -69,7 +69,7 @@ bool test_strs_type(void) {
 
 // Test ValidateStr macro
 bool test_validate_str(void) {
-    printf("Testing ValidateStr macro\n");
+    WriteFmt("Testing ValidateStr macro\n");
 
     // Create a valid Str
     Str s = StrInit();
@@ -89,7 +89,7 @@ bool test_validate_str(void) {
 
 // Test ValidateStrs macro
 bool test_validate_strs(void) {
-    printf("Testing ValidateStrs macro\n");
+    WriteFmt("Testing ValidateStrs macro\n");
 
     // Create a valid Strs
     Strs sv = VecInit();
@@ -108,7 +108,7 @@ bool test_validate_strs(void) {
 
 // Deadend test: Test ValidateStr with invalid string (should crash/abort)
 bool test_validate_invalid_str(void) {
-    printf("Testing ValidateStr with invalid string (should abort)\n");
+    WriteFmt("Testing ValidateStr with invalid string (should abort)\n");
 
     // Create an invalid Str by corrupting its fields
     Str s = StrInit();
@@ -127,7 +127,7 @@ bool test_validate_invalid_str(void) {
 
 // Deadend test: Test ValidateStrs with invalid Strs (should crash/abort)
 bool test_validate_invalid_strs(void) {
-    printf("Testing ValidateStrs with invalid Strs (should abort)\n");
+    WriteFmt("Testing ValidateStrs with invalid Strs (should abort)\n");
 
     // Create an invalid Strs by corrupting its fields
     Strs sv = VecInit();
@@ -146,7 +146,7 @@ bool test_validate_invalid_strs(void) {
 
 // Main function that runs all tests
 int main(void) {
-    printf("[INFO] Starting Str.Type tests\n\n");
+    WriteFmt("[INFO] Starting Str.Type tests\n\n");
 
     // Array of normal test functions
     TestFunction tests[] = {test_str_type, test_strs_type, test_validate_str, test_validate_strs};
