@@ -110,7 +110,7 @@ extern "C" {
 /// Initialize given string but use memory from stack.
 /// Such strings cannot be dynamically resized!!
 ///
-/// str[in] : Pointer to string memory that needs to be initialized.
+/// str[in] : String that needs to be initialized.
 /// ne[in]  : Number of elements to allocate stack memory for.
 ///
 /// SUCCESS : `str`
