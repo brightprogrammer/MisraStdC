@@ -615,10 +615,7 @@ void FReadFmtInternal(FILE* file, const char* fmtstr, TypeSpecificIO* argv, size
         if (fgetpos(file, &start_pos) == 0) {
             can_rollback = true;
         } else {
-            Str err = StrInit();
-            SysStrError(errno, &err);
-            LOG_ERROR("Could not save file position for rollback: {}", err);
-            StrDeinit(&err);
+            LOG_SYS_ERROR("Could not save file position for rollback");
         }
     }
 

@@ -38,7 +38,7 @@
 void BitVecDeinit(BitVec *bitvec) {
     ValidateBitVec(bitvec);
     if (bitvec->data) {
-        free(bitvec->data);
+        FREE(bitvec->data);
         bitvec->data = NULL;
     }
     bitvec->length    = 0;
@@ -109,7 +109,7 @@ void BitVecShrinkToFit(BitVec *bv) {
     ValidateBitVec(bv);
     if (bv->length == 0) {
         // Free all memory if empty
-        free(bv->data);
+        FREE(bv->data);
         bv->data      = NULL;
         bv->capacity  = 0;
         bv->byte_size = 0;
@@ -1257,10 +1257,8 @@ u64 BitVecEditDistance(BitVec *bv1, BitVec *bv2) {
     u64 *curr_row = malloc((len2 + 1) * sizeof(u64));
 
     if (!prev_row || !curr_row) {
-        if (prev_row)
-            free(prev_row);
-        if (curr_row)
-            free(curr_row);
+        FREE(prev_row);
+        FREE(curr_row);
         LOG_FATAL("Memory allocation failed");
     }
 
@@ -1290,8 +1288,8 @@ u64 BitVecEditDistance(BitVec *bv1, BitVec *bv2) {
     }
 
     u64 result = prev_row[len2];
-    free(prev_row);
-    free(curr_row);
+    FREE(prev_row);
+    FREE(curr_row);
 
     return result;
 }
