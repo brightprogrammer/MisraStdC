@@ -34,6 +34,7 @@ void LogInit(bool redirect) {
                 SysStrError(errno, &syserr);
                 LOG_ERROR("Failed to get localtime : {}", syserr);
             });
+            LOG_SYS_ERROR("Failed to get localtime");
             goto LOG_STREAM_FALLBACK;
         }
         strftime(time_buffer, sizeof(time_buffer), "%Y-%m-%d-%H-%M-%S", &time_info);

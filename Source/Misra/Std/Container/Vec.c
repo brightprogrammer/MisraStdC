@@ -87,11 +87,7 @@ void reserve_vec(GenericVec *vec, size item_size, size n) {
         // this way, actual capacity is always at least one greater than length of vector (as required for strings)
         char *ptr = realloc(vec->data, (n + 1) * vec_aligned_size(vec, item_size));
         if (!ptr) {
-            Str syserr;
-            StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
-                SysStrError(errno, &syserr);
-                LOG_FATAL("realloc() failed : {}", syserr);
-            });
+            LOG_SYS_FATAL("realloc() failed");
         }
         // it's mandatory to set the pointer here, because next call to any vec_ will do a validation check
         // this could've resulted in a heap-use-after-free bug, which was caught with help of ValidateVec
@@ -136,11 +132,7 @@ void reduce_space_vec(GenericVec *vec, size item_size) {
         // again make sure that actual capacity is at least one greater than length of vector (required for strings)
         ptr = realloc(vec->data, (vec->length + 1) * vec_aligned_size(vec, item_size));
         if (!ptr) {
-            Str syserr;
-            StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
-                SysStrError(errno, &syserr);
-                LOG_FATAL("realloc() failed : {}", syserr);
-            });
+            LOG_SYS_FATAL("realloc() failed");
         }
         vec->capacity = vec->length;
         vec->data     = ptr;

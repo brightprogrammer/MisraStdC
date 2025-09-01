@@ -75,7 +75,10 @@ void SysAbort(void);
     } while (0)
 
 ///
-/// Writes a fatal log message and aborts the program.
+/// Writes a fatal log message and aborts the program, with `errno` explanation appended
+/// at the end of final string.
+///
+/// INFO: Think of this as `perror()` with `LOG`
 ///
 /// ...[in] : Format string and arguments following printf-style syntax.
 ///
@@ -99,7 +102,10 @@ void SysAbort(void);
     } while (0)
 
 ///
-/// Writes an error-level log message.
+/// Writes an error-level log message with `errno` explanation appended
+/// at the end of final string.
+///
+/// INFO: Think of this as `perror()` with `LOG`
 ///
 /// ...[in] : Format string and arguments following printf-style syntax.
 ///
@@ -122,7 +128,10 @@ void SysAbort(void);
     } while (0)
 
 ///
-/// Writes an informational log message.
+/// Writes an informational log message along with errno explanation appended
+/// at then end of final string.
+///
+/// INFO: Think of this like `perror()` but as `LOG` macros
 ///
 /// ...[in] : Format string and arguments following printf-style syntax.
 ///
