@@ -302,6 +302,28 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 /// Parse input string according to format string with rust-style placeholders,
 /// extracting values into provided arguments. This is a macro wrapper around StrReadFmtInternal.
 ///
+/// NOTE: Provided input string must be an assignable l-value. The macro automatically updates given
+///       input string to new parse position after a successful parse. If parse fails, the input string
+///       pointers does not change.
+///
+/// WARN: Do not free given input after use. Pointer value is changed after successful read. It can be
+///       like `(input) + 1` or `(input + 1233493783847394)` which are invalid pointers to be called `FREE` upon.
+///
+/// WARN: Not providing an assingable input (first parameter) will result in undefined behavior.
+///       If you're lucky you'll get a segfault.
+///
+/// INFO: The new `input` value after a successful read will be in [`input`, `input + len(input)`]
+///
+/// USAGE:
+///    struct {i32 id; Str name} ParseInput(const char* i, const char** o) {
+///        const char* p = i; // create a new variable to pass the pointer
+///
+///        i32 id; Str name = StrInit();
+///        StrReadFmt(p, "Person id = {} and name = {}", id, name);
+///
+///        *o = p; // position after parsed input
+///    }
+///
 /// input[in]   : Input string to parse (must be null-terminated).
 /// fmtstr[in]  : Format string with `{}` placeholders (must be null-terminated).
 /// ...[in]     : Variable number of arguments that will receive the parsed values. Each
@@ -325,9 +347,12 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
     )
 #define StrReadFmt_IMPL2(input, fmtstr, varr)                                                                          \
     do {                                                                                                               \
-        TypeSpecificIO *argv_##__LINE__ = &(varr)[0];                                                                  \
-        size            argc_##__LINE__ = sizeof(varr) / sizeof(TypeSpecificIO);                                       \
-        StrReadFmtInternal((input), (fmtstr), argv_##__LINE__, argc_##__LINE__ - 1);                                   \
+        TypeSpecificIO *argv_##__LINE__     = &(varr)[0];                                                              \
+        char          **_p_input_##__LINE__ = (char **)(&(input));                                                     \
+        size            argc_##__LINE__     = sizeof(varr) / sizeof(TypeSpecificIO);                                   \
+        const char     *_input_##__LINE__ =                                                                            \
+            StrReadFmtInternal((const char *)*(_p_input_##__LINE__), (fmtstr), argv_##__LINE__, argc_##__LINE__ - 1);  \
+        (*_p_input_##__LINE__) = (char *)(_input_##__LINE__) ? (char *)(_input_##__LINE__) : (*_p_input_##__LINE__);   \
     } while (0)
 
 ///
