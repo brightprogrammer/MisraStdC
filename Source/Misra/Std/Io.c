@@ -566,9 +566,6 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
             remaining--;
         } else {
             // Match exact character from format string
-            if (*in == '\r' || *in == '\n') {
-                LOG_INFO("Skipping CRLF");
-            }
             if (!in || *in != *p) {
                 LOG_ERROR(
                     "Input '{.8}' does not match format string '{.8}'",
@@ -576,9 +573,6 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
                     LVAL(p ? p : "(null)")
                 );
                 return NULL;
-            }
-            if (*in == '\r' || *in == '\n') {
-                LOG_INFO("Skipped CRLF");
             }
             in++;
             p++;
