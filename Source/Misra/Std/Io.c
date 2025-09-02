@@ -403,40 +403,41 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
 
     const char* p         = fmtstr;
     const char* in        = input;
-    size        remaining = ZstrLen(fmtstr);
-    size        arg_index = 0; // Current argument index
+    u64         rem_p     = ZstrLen(fmtstr);
+    u64         rem_in    = ZstrLen(in);
+    u64         arg_index = 0; // Current argument index
 
-    while (remaining > 0) {
-        if (remaining >= 2 && p[0] == '{' && p[1] == '{') {
+    while (rem_p > 0) {
+        if (rem_p >= 2 && p[0] == '{' && p[1] == '{') {
             if (!in || *in != '{') {
                 LOG_ERROR("Expected '{' in input");
                 return NULL;
             }
             in++;
-            p         += 2;
-            remaining -= 2;
-        } else if (remaining >= 2 && p[0] == '}' && p[1] == '}') {
+            p     += 2;
+            rem_p -= 2;
+        } else if (rem_p >= 2 && p[0] == '}' && p[1] == '}') {
             if (!in || *in != '}') {
                 LOG_ERROR("Expected '}' in input");
                 return NULL;
             }
             in++;
-            p         += 2;
-            remaining -= 2;
+            p     += 2;
+            rem_p -= 2;
         } else if (p[0] == '{') {
             p++;
-            remaining--;
+            rem_p--;
 
             // Find closing brace
             const char* start    = p;
             size        spec_len = 0;
-            while (remaining > 0 && *p != '}') {
+            while (rem_p > 0 && *p != '}') {
                 p++;
-                remaining--;
+                rem_p--;
                 spec_len++;
             }
 
-            if (remaining == 0 || *p != '}') {
+            if (rem_p == 0 || *p != '}') {
                 LOG_ERROR("Unmatched '{' in format string");
                 return NULL;
             }
@@ -457,11 +458,16 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
             spec_buf[spec_len] = '\0';
 
             // Validate format specifier
-            FmtInfo fmt_info;
+            FmtInfo fmt_info = {0};
             if (!ParseFormatSpec(spec_buf, spec_len, &fmt_info)) {
                 LOG_ERROR("Failed to parse format specifier");
                 return NULL; // Error already logged by ParseFormatSpec
             }
+            fmt_info.max_read_len = rem_in;
+
+            // Skip closing '}'
+            p++;
+            rem_p--;
 
             // Use the type-specific reader
             TypeSpecificIO* io = &argv[arg_index++];
@@ -500,6 +506,10 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
                 // do raw read
                 u64 x = 0;
                 next  = raw_reader(in, &fmt_info, &x);
+
+                if (next) {
+                    rem_in -= (next - in);
+                }
 
                 // deduce the actual field size
                 u32   var_width = 0;
@@ -548,8 +558,37 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
                     }
                 }
             } else {
+                // find length between two format specifiers
+                u64  space_len = 0;
+                char c         = p[space_len];
+                while (c) {
+                    // if this is possible start of a new format specifier and not '{{' (escaped brace)
+                    if (c == '{' && p[space_len + 1] != '{') {
+                        break;
+                    } else {
+                        space_len++;
+                    }
+                    c = p[space_len];
+                }
+
+                // if there's something between two format specifiers then we can read only upto that
+                // otherwise end of input is the limit
+                if (space_len) {
+                    // Find first occurence of content between current and next format specifier or null character
+                    const char* e = NULL;
+                    if ((e = ZstrFindSubstringN(in, p, space_len))) {
+                        fmt_info.max_read_len = e - in;
+                    }
+                } else {
+                    fmt_info.max_read_len = rem_in;
+                }
+
                 // do formatted read
                 next = io->reader(in, &fmt_info, io->data);
+
+                if (next) {
+                    rem_in -= (next - in);
+                }
             }
 
             // Check if reading failed
@@ -560,10 +599,6 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
 
             // Update input pointer
             in = next;
-
-            // Skip closing '}'
-            p++;
-            remaining--;
         } else {
             // Match exact character from format string
             if (!in || *in != *p) {
@@ -576,7 +611,8 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
             }
             in++;
             p++;
-            remaining--;
+            rem_p--;
+            rem_in--;
         }
     }
 
@@ -1259,10 +1295,7 @@ const char* _read_Str(const char* i, FmtInfo* fmt_info, Str* s) {
     bool force_case = fmt_info && (fmt_info->flags & FMT_FLAG_FORCE_CASE) != 0;
     bool is_caps    = fmt_info && (fmt_info->flags & FMT_FLAG_CAPS) != 0;
     bool is_string  = fmt_info && (fmt_info->flags & FMT_FLAG_STRING) != 0;
-
-    // Skip leading whitespace
-    while (IS_SPACE(*i))
-        i++;
+    u32  r          = fmt_info->max_read_len;
 
     // Check for empty input
     if (!*i) {
@@ -1274,9 +1307,10 @@ const char* _read_Str(const char* i, FmtInfo* fmt_info, Str* s) {
     char quote = 0;
     if (is_string && (*i == '"' || *i == '\'')) {
         quote = *i++;
+        r--;
     }
 
-    while (*i) {
+    while (r && *i) {
         if (quote) {
             // Quoted string mode
             if (*i == '\\') {
@@ -1286,7 +1320,8 @@ const char* _read_Str(const char* i, FmtInfo* fmt_info, Str* s) {
                     StrDeinit(s);
                     return NULL;
                 }
-                i = curr + 1; // Move past the escape sequence
+                i  = curr + 1; // Move past the escape sequence
+                r -= 2;
 
                 // Apply case conversion if needed
                 if (force_case) {
@@ -1296,9 +1331,11 @@ const char* _read_Str(const char* i, FmtInfo* fmt_info, Str* s) {
                 StrPushBack(s, c);
             } else if (*i == quote) {
                 i++;      // Skip closing quote
+                r--;
                 return i; // Successfully read quoted string
             } else {
                 char c = *i++;
+                r--;
 
                 // Apply case conversion if needed
                 if (force_case) {
@@ -1309,7 +1346,7 @@ const char* _read_Str(const char* i, FmtInfo* fmt_info, Str* s) {
             }
         } else {
             // Unquoted string mode - read until whitespace
-            if (IS_SPACE(*i)) {
+            if (is_string && IS_SPACE(*i)) {
                 return i; // Successfully read unquoted string
             }
 
@@ -1320,7 +1357,8 @@ const char* _read_Str(const char* i, FmtInfo* fmt_info, Str* s) {
                     StrDeinit(s);
                     return NULL;
                 }
-                i = curr + 1; // Move past the escape sequence
+                i  = curr + 1; // Move past the escape sequence
+                r -= 2;
 
                 // Apply case conversion if needed
                 if (force_case) {
@@ -1330,6 +1368,7 @@ const char* _read_Str(const char* i, FmtInfo* fmt_info, Str* s) {
                 StrPushBack(s, c);
             } else {
                 char c = *i++;
+                r--;
 
                 // Apply case conversion if needed
                 if (force_case) {

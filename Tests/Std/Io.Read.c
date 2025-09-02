@@ -617,13 +617,39 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 1: :a (lowercase) conversion
     {
-        Str result = StrInit();
-        z          = "Hello World";
+        Str         result = StrInit();
+        const char* in     = "Hello World";
 
+        z = in;
         StrReadFmt(z, "{a}", result);
 
         WriteFmt("Test 1 - :a (lowercase)\n");
-        WriteFmt("Input: '{}', Output: '", z);
+        WriteFmt("Input: '{}', Output: '", in);
+        for (size_t i = 0; i < result.length; i++) {
+            WriteFmt("{c}", result.data[i]);
+        }
+        WriteFmt("'\n");
+
+        // Should read "hello" (stops at first space)
+        Str  expected   = StrInitFromZstr("hello world");
+        bool test1_pass = (StrCmp(&result, &expected) == 0);
+        WriteFmt("Expected: 'hello', Pass: {}\n\n", test1_pass ? "true" : "false");
+        success = success && test1_pass;
+
+        StrDeinit(&expected);
+        StrDeinit(&result);
+    }
+
+    // Test 1.1: :a (lowercase) conversion
+    {
+        Str         result = StrInit();
+        const char* in     = "Hello World";
+
+        z = in;
+        StrReadFmt(z, "{as}", result);
+
+        WriteFmt("Test 1.1 - :as (lowercase string single word)\n");
+        WriteFmt("Input: '{}', Output: '", in);
         for (size_t i = 0; i < result.length; i++) {
             WriteFmt("{c}", result.data[i]);
         }
@@ -641,20 +667,21 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 2: :A (uppercase) conversion
     {
-        Str result = StrInit();
-        z          = "hello world";
+        Str         result = StrInit();
+        const char* in     = "hello world";
 
+        z = in;
         StrReadFmt(z, "{A}", result);
 
         WriteFmt("Test 2 - :A (uppercase)\n");
-        WriteFmt("Input: '{}', Output: '", z);
+        WriteFmt("Input: '{}', Output: '", in);
         for (size_t i = 0; i < result.length; i++) {
             WriteFmt("{c}", result.data[i]);
         }
         WriteFmt("'\n");
 
         // Should read "HELLO" (stops at first space)
-        Str  expected   = StrInitFromZstr("HELLO");
+        Str  expected   = StrInitFromZstr("HELLO WORLD");
         bool test2_pass = (StrCmp(&result, &expected) == 0);
         WriteFmt("Expected: 'HELLO', Pass: {}\n\n", test2_pass ? "true" : "false");
         success = success && test2_pass;
@@ -663,15 +690,60 @@ bool test_string_case_conversion_reading(void) {
         StrDeinit(&result);
     }
 
+    // Test 2.1: :A (uppercase) conversion
+    {
+        Str         result1 = StrInit();
+        Str         result2 = StrInit();
+        const char* in      = "hello world";
+
+        z = in;
+        StrReadFmt(z, "{A} {A}", result1, result2);
+
+        WriteFmt("Test 2 - :A (uppercase with split format)\n");
+        WriteFmt("Input: '{}', Output: '{} {}'", in, result1, result2);
+
+        bool test2_pass  = (StrCmpZstr(&result1, "HELLO") == 0);
+        test2_pass      &= (StrCmpZstr(&result2, "WORLD") == 0);
+        WriteFmt("Expected: 'HELLO WORLD', Pass: {}\n\n", test2_pass ? "true" : "false");
+        success = success && test2_pass;
+
+        StrDeinit(&result1);
+        StrDeinit(&result2);
+    }
+
+    // Test 2.2: :A (uppercase) conversion
+    {
+        Str         result1 = StrInit();
+        Str         result2 = StrInit();
+        const char* in      = "hello world mighty misra";
+
+        z = in;
+        StrReadFmt(z, "{As}{A}", result1, result2);
+        // result1 must consume first word only
+        // result2 must consume the space after hello and then everything after it
+
+        WriteFmt("Test 2 - :A (uppercase with split format)\n");
+        WriteFmt("Input: '{}', Output: '{}{}'", in, result1, result2);
+
+        bool test2_pass  = (StrCmpZstr(&result1, "HELLO") == 0);
+        test2_pass      &= (StrCmpZstr(&result2, " WORLD MIGHTY MISRA") == 0); // notice the extra space
+        WriteFmt("Expected: 'HELLO WORLD MIGHTY MISRA', Pass: {}\n\n", test2_pass ? "true" : "false");
+        success = success && test2_pass;
+
+        StrDeinit(&result1);
+        StrDeinit(&result2);
+    }
+
     // Test 3: :a with quoted string
     {
-        Str result = StrInit();
-        z          = "\"MiXeD CaSe\"";
+        Str         result = StrInit();
+        const char* in     = "\"MiXeD CaSe\"";
 
+        z = in;
         StrReadFmt(z, "{as}", result);
 
         WriteFmt("Test 3 - :a with quoted string\n");
-        WriteFmt("Input: '{}', Output: '", z);
+        WriteFmt("Input: '{}', Output: '", in);
         for (size_t i = 0; i < result.length; i++) {
             WriteFmt("{c}", result.data[i]);
         }
@@ -689,13 +761,14 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 4: :A with quoted string containing special characters
     {
-        Str result = StrInit();
-        z          = "\"abc123XYZ\"";
+        Str         result = StrInit();
+        const char* in     = "\"abc123XYZ\"";
 
+        z = in;
         StrReadFmt(z, "{As}", result);
 
         WriteFmt("Test 4 - :A with mixed alphanumeric\n");
-        WriteFmt("Input: '{}', Output: '", z);
+        WriteFmt("Input: '{}', Output: '", in);
         for (size_t i = 0; i < result.length; i++) {
             WriteFmt("{c}", result.data[i]);
         }
@@ -713,22 +786,23 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 5: Regular :c format (no case conversion) for comparison
     {
-        Str result = StrInit();
-        z          = "Hello World";
+        Str         result = StrInit();
+        const char* in     = "Hello World";
 
+        z = in;
         StrReadFmt(z, "{c}", result);
 
         WriteFmt("Test 5 - :c (no case conversion)\n");
-        WriteFmt("Input: '{}', Output: '", z);
+        WriteFmt("Input: '{}', Output: '", in);
         for (size_t i = 0; i < result.length; i++) {
             WriteFmt("{c}", result.data[i]);
         }
         WriteFmt("'\n");
 
         // Should read "Hello" (stops at first space, no case conversion)
-        Str  expected   = StrInitFromZstr("Hello");
+        Str  expected   = StrInitFromZstr("Hello World");
         bool test5_pass = (StrCmp(&result, &expected) == 0);
-        WriteFmt("Expected: 'Hello', Pass: {}\n\n", test5_pass ? "true" : "false");
+        WriteFmt("Expected: 'Hello World', Pass: {}\n\n", test5_pass ? "true" : "false");
         success = success && test5_pass;
 
         StrDeinit(&expected);
