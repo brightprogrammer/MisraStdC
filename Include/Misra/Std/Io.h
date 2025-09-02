@@ -84,6 +84,7 @@ typedef struct {
     u32         width; /// Alignment width or raw read/write size
     u32         precision;
     FormatFlags flags;
+    u32         max_read_len;
 } FmtInfo;
 
 ///
