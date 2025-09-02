@@ -348,7 +348,7 @@ bool test_string_reading(void) {
 
     // Test quoted string reading
     z = "\"Hello, World!\"";
-    StrReadFmt(z, "{}", s);
+    StrReadFmt(z, "{s}", s);
 
     expected = StrInitFromZstr("Hello, World!");
     success  = success && (StrCmp(&s, &expected) == 0);
@@ -595,7 +595,7 @@ bool test_character_ordinal_reading(void) {
 
     str_val = StrInit();
     z       = "\"World\"";
-    StrReadFmt(z, "{c}", str_val);
+    StrReadFmt(z, "{cs}", str_val);
     expected             = StrInitFromZstr("World");
     bool quoted_str_pass = (StrCmp(&str_val, &expected) == 0);
     WriteFmt("quoted str_val test: comparing with 'World', pass = {}\n", quoted_str_pass ? "true" : "false");
@@ -668,7 +668,7 @@ bool test_string_case_conversion_reading(void) {
         Str result = StrInit();
         z          = "\"MiXeD CaSe\"";
 
-        StrReadFmt(z, "{a}", result);
+        StrReadFmt(z, "{as}", result);
 
         WriteFmt("Test 3 - :a with quoted string\n");
         WriteFmt("Input: '{}', Output: '", z);
@@ -692,7 +692,7 @@ bool test_string_case_conversion_reading(void) {
         Str result = StrInit();
         z          = "\"abc123XYZ\"";
 
-        StrReadFmt(z, "{A}", result);
+        StrReadFmt(z, "{As}", result);
 
         WriteFmt("Test 4 - :A with mixed alphanumeric\n");
         WriteFmt("Input: '{}', Output: '", z);

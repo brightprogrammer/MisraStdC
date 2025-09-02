@@ -125,7 +125,7 @@ static bool ParseFormatSpec(const char* spec, u32 len, FmtInfo* fi) {
     }
 
     // Parse format type after precision
-    if (pos < len) {
+    while (pos < len) {
         switch (spec[pos]) {
             case 'c' :
                 fi->flags |= FMT_FLAG_CHAR;
@@ -161,6 +161,10 @@ static bool ParseFormatSpec(const char* spec, u32 len, FmtInfo* fi) {
                 break;
             case 'e' :
                 fi->flags |= FMT_FLAG_SCIENTIFIC;
+                break;
+
+            case 's' :
+                fi->flags |= FMT_FLAG_STRING;
                 break;
 
             default :
@@ -1254,6 +1258,7 @@ const char* _read_Str(const char* i, FmtInfo* fmt_info, Str* s) {
     // Check for case conversion flags
     bool force_case = fmt_info && (fmt_info->flags & FMT_FLAG_FORCE_CASE) != 0;
     bool is_caps    = fmt_info && (fmt_info->flags & FMT_FLAG_CAPS) != 0;
+    bool is_string  = fmt_info && (fmt_info->flags & FMT_FLAG_STRING) != 0;
 
     // Skip leading whitespace
     while (IS_SPACE(*i))
@@ -1267,7 +1272,7 @@ const char* _read_Str(const char* i, FmtInfo* fmt_info, Str* s) {
 
     // Check for quoted string
     char quote = 0;
-    if (*i == '"' || *i == '\'') {
+    if (is_string && (*i == '"' || *i == '\'')) {
         quote = *i++;
     }
 
