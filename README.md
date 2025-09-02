@@ -586,6 +586,7 @@ Specifies the output format for the value:
 | `r` | Raw data reading or writing | `\x7fELF` (magic bytes of an elf file) |
 | `e` | Scientific notation (lowercase) | `1.235e+02` |
 | `E` | Scientific notation (uppercase) | `1.235E+02` |
+| `s` | Read a string in single quotes or double quotes, or a single word | `"this is a string"`, `'this as well'`, `this not a string` |
 
 #### Precision
 

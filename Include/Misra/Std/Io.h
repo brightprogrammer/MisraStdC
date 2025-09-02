@@ -49,6 +49,7 @@ typedef enum {
 /// FMT_FLAG_FORCE_CASE    : Force case conversion (used with FMT_FLAG_CAPS)
 /// FMT_FLAG_HAS_PRECISION : Precision was specified in format string.
 /// FMT_FLAG_RAW           : Read/write data in raw binary format
+/// FMT_FLAG_STRING        : Read a single word, a quoted string (single or double quoted)
 ///
 /// TAGS: Formatting, Text, Flags
 typedef enum {
@@ -61,7 +62,8 @@ typedef enum {
     FMT_FLAG_CAPS          = 1 << 5,
     FMT_FLAG_FORCE_CASE    = 1 << 6,
     FMT_FLAG_HAS_PRECISION = 1 << 7,
-    FMT_FLAG_RAW           = 1 << 8
+    FMT_FLAG_RAW           = 1 << 8,
+    FMT_FLAG_STRING        = 1 << 9,
 } FormatFlagsBits;
 typedef u32 FormatFlags;
 
@@ -268,6 +270,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
 ///       or `StrWriteFmt(o, "{}", 1337)` for integer literals might not work as expected
 ///       without proper wrapping using ``. For constants like integers, booleans,
 ///       you typically use `constant_variable`.
+/// NOTE: New content is appended at the end of given Str object.
 ///
 /// out[out]    : The Str object to which the formatted string will be appended.
 /// fmtstr[in]  : Format string with `{}` placeholders.
