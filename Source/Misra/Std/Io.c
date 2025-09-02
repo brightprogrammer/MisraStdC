@@ -125,7 +125,7 @@ static bool ParseFormatSpec(const char* spec, u32 len, FmtInfo* fi) {
     }
 
     // Parse format type after precision
-    if (pos < len) {
+    while (pos < len) {
         switch (spec[pos]) {
             case 'c' :
                 fi->flags |= FMT_FLAG_CHAR;
