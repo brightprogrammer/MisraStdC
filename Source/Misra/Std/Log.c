@@ -112,6 +112,9 @@ void LogDeinit(void) {
     }
 }
 
+void free_log_mutex() {
+    SysMutexDestroy(log_mutex);
+}
 
 void LogWrite(LogMessageType type, const char *tag, int line, const char *msg) {
     if (!msg) {
@@ -129,6 +132,7 @@ void LogWrite(LogMessageType type, const char *tag, int line, const char *msg) {
     // Initialize the mutex if not already
     if (!log_mutex) {
         log_mutex = SysMutexCreate();
+        atexit(free_log_mutex);
     }
 
     const char *msg_type = NULL;

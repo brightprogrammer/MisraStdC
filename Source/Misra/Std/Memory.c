@@ -169,14 +169,20 @@ char* ZstrFindSubstringN(const char* haystack, const char* needle, size needle_l
     }
 
     // Empty needle matches at the start of haystack
-    if (needle_len == 0)
+    if (needle_len == 0) {
         return (char*)haystack;
-
-    // First character to match
-    char first_char = *needle;
+    }
 
     // Calculate haystack length
     size haystack_len = ZstrLen(haystack);
+
+    // if needle is longer than haystack, is it really a needle?
+    if (needle_len > haystack_len) {
+        return NULL;
+    }
+
+    // First character to match
+    char first_char = *needle;
 
     // Search through haystack
     size pos = 0;
