@@ -15,6 +15,12 @@
 static FILE     *stderror  = NULL;
 static SysMutex *log_mutex = NULL;
 
+void close_log_file() {
+    if (stderror) {
+        fclose(stderror);
+    }
+}
+
 void LogInit(bool redirect) {
     if (redirect) {
         // Get the current time
@@ -43,16 +49,6 @@ void LogInit(bool redirect) {
         Str log_dir = StrInit();
         if (!SysGetEnv("TMP", &log_dir) && !SysGetEnv("TEMP", &log_dir) && !SysGetEnv("TMPDIR", &log_dir) &&
             !SysGetEnv("TEMPDIR", &log_dir) && !SysGetEnv("PWD", &log_dir)) {
-            Str syserr;
-            StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
-                FWriteFmt(
-                    stderr,
-                    "error opening logfile : {}\n"
-                    "All logs will now be redirected to stderr.\n",
-                    SysStrError(errno, &syserr)->data
-                );
-            });
-            stderror = stderr;
             goto LOG_STREAM_FALLBACK;
         }
 
@@ -77,16 +73,12 @@ void LogInit(bool redirect) {
         StrDeinit(&log_dir);
 
         if (e || !stderror) {
-            Str syserr;
-            StrInitStack(syserr, SYS_ERROR_STR_MAX_LENGTH, {
-                SysStrError(e, &syserr);
-                LOG_ERROR("Failed to open log file : {}", syserr);
-            });
             goto LOG_STREAM_FALLBACK;
         }
 
         // Flush buffer instantly!
         setvbuf(stderror, NULL, _IONBF, 0);
+        atexit(close_log_file);
         return;
 
 LOG_STREAM_FALLBACK: {
