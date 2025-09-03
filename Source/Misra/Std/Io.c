@@ -863,7 +863,7 @@ void _write_Str(Str* o, FmtInfo* fmt_info, Str* s) {
                     } else {
                         const char* digits = "0123456789abcdef";
                         StrPushBackZstr(o, "\\x");
-                        StrPushBack(o, digits[c >> 4]);
+                        StrPushBack(o, digits[(c >> 4) & 0xf]);
                         StrPushBack(o, digits[c & 0xf]);
                     }
                 });
@@ -936,7 +936,7 @@ void _write_Zstr(Str* o, FmtInfo* fmt_info, const char** s) {
                     } else {
                         const char* digits = "0123456789abcdef";
                         StrPushBackZstr(o, "\\x");
-                        StrPushBack(o, digits[xs[i] >> 4]);
+                        StrPushBack(o, digits[(xs[i] >> 4) & 0xf]);
                         StrPushBack(o, digits[xs[i] & 0xf]);
                     }
                 }
@@ -1298,7 +1298,7 @@ const char* _read_Str(const char* i, FmtInfo* fmt_info, Str* s) {
     u32  r          = fmt_info->max_read_len;
 
     // Check for empty input
-    if (!*i) {
+    if (!*i || !r) {
         LOG_ERROR("Empty input string");
         return i;
     }
@@ -2581,13 +2581,13 @@ static void _write_r16(Str* o, FmtInfo* fmt_info, u16* v) {
     u16 x = *v;
     switch (fmt_info->endian) {
         case ENDIAN_BIG : {
-            StrPushBack(o, (x >> 8));
+            StrPushBack(o, ((x >> 8) & 0xff));
             StrPushBack(o, (x & 0xff));
             break;
         }
         case ENDIAN_LITTLE : {
             StrPushBack(o, (x & 0xff));
-            StrPushBack(o, (x >> 8));
+            StrPushBack(o, ((x >> 8) & 0xff));
             break;
         }
         case ENDIAN_NATIVE :
@@ -2611,7 +2611,7 @@ static void _write_r32(Str* o, FmtInfo* fmt_info, u32* v) {
     u32 x = *v;
     switch (fmt_info->endian) {
         case ENDIAN_BIG : {
-            StrPushBack(o, (x >> 24));
+            StrPushBack(o, ((x >> 24) & 0xff));
             StrPushBack(o, (x >> 16) & 0xff);
             StrPushBack(o, (x >> 8) & 0xff);
             StrPushBack(o, (x & 0xff));
@@ -2621,7 +2621,7 @@ static void _write_r32(Str* o, FmtInfo* fmt_info, u32* v) {
             StrPushBack(o, (x & 0xff));
             StrPushBack(o, (x >> 8) & 0xff);
             StrPushBack(o, (x >> 16) & 0xff);
-            StrPushBack(o, (x >> 24));
+            StrPushBack(o, ((x >> 24) & 0xff));
             break;
         }
         case ENDIAN_NATIVE :
@@ -2645,7 +2645,7 @@ static void _write_r64(Str* o, FmtInfo* fmt_info, u64* v) {
     u64 x = *v;
     switch (fmt_info->endian) {
         case ENDIAN_BIG : {
-            StrPushBack(o, (x >> 56));
+            StrPushBack(o, ((x >> 56) & 0xff));
             StrPushBack(o, (x >> 48) & 0xff);
             StrPushBack(o, (x >> 40) & 0xff);
             StrPushBack(o, (x >> 32) & 0xff);
@@ -2663,7 +2663,7 @@ static void _write_r64(Str* o, FmtInfo* fmt_info, u64* v) {
             StrPushBack(o, (x >> 32) & 0xff);
             StrPushBack(o, (x >> 40) & 0xff);
             StrPushBack(o, (x >> 48) & 0xff);
-            StrPushBack(o, (x >> 56));
+            StrPushBack(o, ((x >> 56) & 0xff));
             break;
         }
         case ENDIAN_NATIVE :
