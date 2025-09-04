@@ -635,45 +635,55 @@ void FReadFmtInternal(FILE* file, const char* fmtstr, TypeSpecificIO* argv, size
     }
 
     Str buffer = StrInit();
+    int fd     = FILENO(file);
 
-    fpos_t start_pos;
-    bool   can_rollback = false;
-
-    // store the position we start reading with
-    u64 cur_pos = ftell(file);
-
-    // get complete file size and read after current reading position
-    fseek(file, 0, SEEK_END);
-    u64 file_len = ftell(file) - cur_pos;
-    fseek(file, cur_pos, SEEK_SET);
-    StrReserve(&buffer, file_len);
-    fread(buffer.data, 1, file_len, file);
-
-    // Try to check if the file is seekable
-    int fd = FILENO(file);
-    if (fd >= 0 && !ISATTY(fd)) {
-        if (fgetpos(file, &start_pos) == 0) {
-            can_rollback = true;
-        } else {
-            LOG_SYS_ERROR("Could not save file position for rollback");
+    if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
+        LOG_INFO("Reading from non-seekable stream (stdin/stdout/stderr).");
+        char  in = 0;
+        FILE* source_stream  = fd == STDIN_FILENO ? stdin : fd == STDOUT_FILENO ? stdout : stderr;
+        while(!feof(source_stream) && fread(&in, 1, 1, source_stream)) {
+            StrPushBack(&buffer, in);
         }
-    }
+        StrReadFmtInternal(buffer.data, fmtstr, argv, argc);
+    } else {
+        fpos_t start_pos;
+        bool   can_rollback = false;
 
-    buffer.length = buffer.capacity;
-    if (buffer.length) {
-        const char* new_pos = NULL;
-        if (!(new_pos = StrReadFmtInternal(buffer.data, fmtstr, argv, argc))) {
-            if (can_rollback) {
-                LOG_ERROR("Parse failed, rolling back...");
-                fsetpos(file, &start_pos);
+        // store the position we start reading with
+        u64 cur_pos = ftell(file);
+
+        // get complete file size and read after current reading position
+        fseek(file, 0, SEEK_END);
+        u64 file_len = ftell(file) - cur_pos;
+        fseek(file, cur_pos, SEEK_SET);
+        StrReserve(&buffer, file_len);
+        fread(buffer.data, 1, file_len, file);
+
+        // Try to check if the file is seekable
+        if (!ISATTY(fd)) {
+            if (fgetpos(file, &start_pos) == 0) {
+                can_rollback = true;
             } else {
-                LOG_ERROR("Parse failed, and rollback not possible on non-seekable input");
+                LOG_SYS_ERROR("Could not save file position for rollback");
             }
         }
 
-        // seek to position after number of bytes read
-        u64 numb = cur_pos + new_pos - buffer.data;
-        fseek(file, numb, SEEK_SET);
+        buffer.length = buffer.capacity;
+        if (buffer.length) {
+            const char* new_pos = NULL;
+            if (!(new_pos = StrReadFmtInternal(buffer.data, fmtstr, argv, argc))) {
+                if (can_rollback) {
+                    LOG_ERROR("Parse failed, rolling back...");
+                    fsetpos(file, &start_pos);
+                } else {
+                    LOG_ERROR("Parse failed, and rollback not possible on non-seekable input");
+                }
+            }
+
+            // seek to position after number of bytes read
+            u64 numb = cur_pos + new_pos - buffer.data;
+            fseek(file, numb, SEEK_SET);
+        }
     }
 
     StrDeinit(&buffer);

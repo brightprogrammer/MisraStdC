@@ -425,6 +425,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
         Str             out_##__LINE__  = StrInit();                                                                   \
         StrWriteFmtInternal(&out_##__LINE__, (fmtstr), argv_##__LINE__, argc_##__LINE__);                              \
         fwrite(out_##__LINE__.data, 1, out_##__LINE__.length, (stream));                                               \
+        fflush(stream);                                                                                                \
         StrDeinit(&out_##__LINE__);                                                                                    \
     } while (0)
 
@@ -463,6 +464,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, si
         StrWriteFmtInternal(&out_##__LINE__, (fmtstr), argv_##__LINE__, argc_##__LINE__);                              \
         fwrite(out_##__LINE__.data, 1, out_##__LINE__.length, (stream));                                               \
         fputc('\n', (stream));                                                                                         \
+        fflush(stream);                                                                                                \
         StrDeinit(&out_##__LINE__);                                                                                    \
     } while (0)
 

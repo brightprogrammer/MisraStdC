@@ -373,15 +373,15 @@ SysMutex* SysMutexUnlock(SysMutex* m) {
 }
 
 Str* SysStrError(i32 eno, Str* err_str) {
-    err_str->length = err_str->capacity = 128; // I hope it's enough on all platforms
+    err_str->capacity = 128; // I hope it's enough on all platforms
     err_str->data                       = (char*)calloc(err_str->length, 1);
 #if _WIN32
-    strerror_s(err_str->data, err_str->length, eno);
+    strerror_s(err_str->data, err_str->capacity, eno);
 #else
-    strerror_r(eno, err_str->data, err_str->length);
+    strerror_r(eno, err_str->data, err_str->capacity);
 #endif
 
-    if (!strlen(err_str->data)) {
+    if (!(err_str->length = ZstrLen(err_str->data))) {
         return NULL;
     }
 
