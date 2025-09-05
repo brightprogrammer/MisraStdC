@@ -29,7 +29,7 @@ jobs:
         rm llvm.sh
 
     - name: Check clang-format version
-      run: clang-format-20 --version
+      run: clang-format --version
 
     - name: Find C/C++ files to format
       id: find-files
@@ -68,7 +68,7 @@ jobs:
             echo "Checking $file..."
             formatted_file="/tmp/formatted/$file"
             mkdir -p "$(dirname "$formatted_file")"
-            clang-format-20 "$file" > "$formatted_file"
+            clang-format "$file" > "$formatted_file"
 
             if ! diff -u "$file" "$formatted_file"; then
               echo "❌ $file is not properly formatted"
@@ -88,9 +88,9 @@ jobs:
           echo ""
           echo "💥 Some files are not properly formatted."
           echo "To fix formatting issues, run:"
-          echo "  clang-format-20 -i <file>"
+          echo "  clang-format -i <file>"
           echo "Or format all files:"
-          echo "  find . -name '*.c' -o -name '*.h' | xargs clang-format-20 -i"
+          echo "  find . -name '*.c' -o -name '*.h' | xargs clang-format -i"
         fi
 
         exit $EXIT_CODE
