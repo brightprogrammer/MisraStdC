@@ -8,6 +8,26 @@
 // Reference : https://forums.freebsd.org/threads/strerror_r-best-practices-posix-vs-gnu.92296/
 #define _POSIX_C_SOURCE 200112L
 
+#if defined(_WIN32)
+#    include <io.h>
+#    define ISATTY _isatty
+#    define FILENO _fileno
+#else
+#    include <unistd.h>
+#    define ISATTY isatty
+#    define FILENO fileno
+#endif
+
+#ifndef STDIN_FILENO
+#    define STDIN_FILENO FILENO(stdin)
+#endif
+#ifndef STDOUT_FILENO
+#    define STDOUT_FILENO FILENO(stdout)
+#endif
+#ifndef STDERR_FILENO
+#    define STDERR_FILENO FILENO(stderr)
+#endif
+
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Sys.h>
@@ -18,6 +38,7 @@
 #include <ctype.h>
 #include <math.h>
 #include <stdio.h>
+
 
 static void _write_r8(Str* o, FmtInfo* fmt_info, u8* v);
 static void _write_r16(Str* o, FmtInfo* fmt_info, u16* v);
@@ -618,16 +639,6 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
 
     return in;
 }
-
-#if defined(_WIN32)
-#    include <io.h>
-#    define ISATTY _isatty
-#    define FILENO _fileno
-#else
-#    include <unistd.h>
-#    define ISATTY isatty
-#    define FILENO fileno
-#endif
 
 void FReadFmtInternal(FILE* file, const char* fmtstr, TypeSpecificIO* argv, u64 argc) {
     if (!file || !fmtstr) {
