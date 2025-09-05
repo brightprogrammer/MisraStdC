@@ -31,10 +31,10 @@ void SysAbort(void);
 ///
 #define LOG_FATAL(...)                                                                                                 \
     do {                                                                                                               \
-        Str m_##__LINE__ = StrInit();                                                                                  \
-        StrWriteFmt(&m_##__LINE__, __VA_ARGS__);                                                                       \
-        LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, m_##__LINE__.data);                                       \
-        StrDeinit(&m_##__LINE__);                                                                                      \
+        Str m_ = StrInit();                                                                                            \
+        StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
+        LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, m_.data);                                                 \
+        StrDeinit(&m_);                                                                                                \
         SysAbort();                                                                                                    \
     } while (0)
 
@@ -50,10 +50,10 @@ void SysAbort(void);
 ///
 #define LOG_ERROR(...)                                                                                                 \
     do {                                                                                                               \
-        Str m_##__LINE__ = StrInit();                                                                                  \
-        StrWriteFmt(&m_##__LINE__, __VA_ARGS__);                                                                       \
-        LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, m_##__LINE__.data);                                       \
-        StrDeinit(&m_##__LINE__);                                                                                      \
+        Str m_ = StrInit();                                                                                            \
+        StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
+        LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, m_.data);                                                 \
+        StrDeinit(&m_);                                                                                                \
     } while (0)
 
 ///
@@ -68,10 +68,10 @@ void SysAbort(void);
 ///
 #define LOG_INFO(...)                                                                                                  \
     do {                                                                                                               \
-        Str m_##__LINE__ = StrInit();                                                                                  \
-        StrWriteFmt(&m_##__LINE__, __VA_ARGS__);                                                                       \
-        LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, m_##__LINE__.data);                                        \
-        StrDeinit(&m_##__LINE__);                                                                                      \
+        Str m_ = StrInit();                                                                                            \
+        StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
+        LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, m_.data);                                                  \
+        StrDeinit(&m_);                                                                                                \
     } while (0)
 
 ///
@@ -89,15 +89,15 @@ void SysAbort(void);
 ///
 #define LOG_SYS_FATAL(...)                                                                                             \
     do {                                                                                                               \
-        Str m_##__LINE__ = StrInit();                                                                                  \
-        StrWriteFmt(&m_##__LINE__, __VA_ARGS__);                                                                       \
-        Str syserr_##__LINE__;                                                                                         \
-        StrInitStack(syserr_##__LINE__, 256, {                                                                         \
-            SysStrError(errno, &syserr_##__LINE__);                                                                    \
-            StrWriteFmt(&m_##__LINE__, " : {}", syserr_##__LINE__);                                                    \
+        Str m_ = StrInit();                                                                                            \
+        StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
+        Str syserr_;                                                                                                   \
+        StrInitStack(syserr_, 256, {                                                                                   \
+            SysStrError(errno, &syserr_);                                                                              \
+            StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
-        LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, m_##__LINE__.data);                                       \
-        StrDeinit(&m_##__LINE__);                                                                                      \
+        LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, m_.data);                                                 \
+        StrDeinit(&m_);                                                                                                \
         SysAbort();                                                                                                    \
     } while (0)
 
@@ -116,15 +116,15 @@ void SysAbort(void);
 ///
 #define LOG_SYS_ERROR(...)                                                                                             \
     do {                                                                                                               \
-        Str m_##__LINE__ = StrInit();                                                                                  \
-        StrWriteFmt(&m_##__LINE__, __VA_ARGS__);                                                                       \
-        Str syserr_##__LINE__;                                                                                         \
-        StrInitStack(syserr_##__LINE__, 256, {                                                                         \
-            SysStrError(errno, &syserr_##__LINE__);                                                                    \
-            StrWriteFmt(&m_##__LINE__, " : {}", syserr_##__LINE__);                                                    \
+        Str m_ = StrInit();                                                                                            \
+        StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
+        Str syserr_;                                                                                                   \
+        StrInitStack(syserr_, 256, {                                                                                   \
+            SysStrError(errno, &syserr_);                                                                              \
+            StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
-        LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, m_##__LINE__.data);                                       \
-        StrDeinit(&m_##__LINE__);                                                                                      \
+        LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, m_.data);                                                 \
+        StrDeinit(&m_);                                                                                                \
     } while (0)
 
 ///
@@ -142,15 +142,15 @@ void SysAbort(void);
 ///
 #define LOG_SYS_INFO(...)                                                                                              \
     do {                                                                                                               \
-        Str m_##__LINE__ = StrInit();                                                                                  \
-        StrWriteFmt(&m_##__LINE__, __VA_ARGS__);                                                                       \
-        Str syserr_##__LINE__;                                                                                         \
-        StrInitStack(syserr_##__LINE__, 256, {                                                                         \
-            SysStrError(errno, &syserr_##__LINE__);                                                                    \
-            StrWriteFmt(&m_##__LINE__, " : {}", syserr_##__LINE__);                                                    \
+        Str m_ = StrInit();                                                                                            \
+        StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
+        Str syserr_;                                                                                                   \
+        StrInitStack(syserr_, 256, {                                                                                   \
+            SysStrError(errno, &syserr_);                                                                              \
+            StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
-        LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, m_##__LINE__.data);                                        \
-        StrDeinit(&m_##__LINE__);                                                                                      \
+        LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, m_.data);                                                  \
+        StrDeinit(&m_);                                                                                                \
     } while (0)
 
 ///

@@ -218,7 +218,7 @@ static void PadString(Str* o, size width, Alignment align, size content_len) {
     }
 }
 
-bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, size argc) {
+bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, u64 argc) {
     if (!o || !fmt) {
         LOG_FATAL("Invalid arguments");
         return false;
@@ -396,7 +396,7 @@ bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, size arg
     return true;
 }
 
-const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecificIO* argv, size argc) {
+const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecificIO* argv, u64 argc) {
     if (!input || !fmtstr) {
         LOG_FATAL("Invalid arguments");
     }
@@ -629,7 +629,7 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
 #    define FILENO fileno
 #endif
 
-void FReadFmtInternal(FILE* file, const char* fmtstr, TypeSpecificIO* argv, size argc) {
+void FReadFmtInternal(FILE* file, const char* fmtstr, TypeSpecificIO* argv, u64 argc) {
     if (!file || !fmtstr) {
         LOG_FATAL("Invalid arguments");
     }
@@ -639,9 +639,9 @@ void FReadFmtInternal(FILE* file, const char* fmtstr, TypeSpecificIO* argv, size
 
     if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
         LOG_INFO("Reading from non-seekable stream (stdin/stdout/stderr).");
-        char  in = 0;
-        FILE* source_stream  = fd == STDIN_FILENO ? stdin : fd == STDOUT_FILENO ? stdout : stderr;
-        while(!feof(source_stream) && fread(&in, 1, 1, source_stream)) {
+        char  in            = 0;
+        FILE* source_stream = fd == STDIN_FILENO ? stdin : fd == STDOUT_FILENO ? stdout : stderr;
+        while (!feof(source_stream) && fread(&in, 1, 1, source_stream)) {
             StrPushBack(&buffer, in);
         }
         StrReadFmtInternal(buffer.data, fmtstr, argv, argc);
