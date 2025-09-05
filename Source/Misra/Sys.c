@@ -67,7 +67,7 @@ Str* SysGetEnv(const char* name, Str* value) {
 
 Str* SysStrError(i32 eno, Str* err_str) {
     err_str->capacity = 128; // I hope it's enough on all platforms
-    err_str->data                       = (char*)calloc(err_str->length, 1);
+    err_str->data     = (char*)calloc(err_str->length, 1);
 #if _WIN32
     strerror_s(err_str->data, err_str->capacity, eno);
 #else

@@ -484,7 +484,6 @@ i32 sys_proc_read_internal(SysProc* proc, Str* buf, bool is_stdout) {
             break;
         }
 
-        DWORD to_read    = (DWORD)((available < size - total_read) ? available : size - total_read);
         DWORD bytes_read = 0;
 
         if (!ReadFile(rhandle, tmpbuf, 1023, &bytes_read, NULL)) {

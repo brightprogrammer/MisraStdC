@@ -458,7 +458,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
 #define FWriteFmtLn_IMPL2(stream, fmtstr, varr)                                                                        \
     do {                                                                                                               \
         TypeSpecificIO *argv_ = &(varr)[0];                                                                            \
-        u64            argc_ = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                             \
+        u64             argc_ = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                             \
         Str             out_  = StrInit();                                                                             \
         StrWriteFmtInternal(&out_, (fmtstr), argv_, argc_);                                                            \
         fwrite(out_.data, 1, out_.length, (stream));                                                                   \
