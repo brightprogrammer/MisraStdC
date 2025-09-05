@@ -21,6 +21,7 @@ A modern C11 library designed to make programming in C less painful and more pro
   - [Formatted I/O](#formatted-io)
   - [JSON Parsing and Writing](#json-parsing-and-writing)
   - [Working with Complex Types](#working-with-complex-types)
+  - [Parent Child Process](#parent-child-process)
 - [Format Specifiers](#format-specifiers)
 - [Contributing](#contributing)
 - [License](#license)
@@ -432,6 +433,41 @@ int main() {
     
     // Cleanup
     VecDeinit(&objects);     // Calls ComplexTypeDeinit for each remaining element
+}
+```
+
+### Parent Child Process
+
+The library also provides a way to create child processes in a cross-platform manner. I've
+also added a method to write to `stdin` and read from `stdout` and `stderr` for each child process.
+Refer to the following example, also present in `Bin/SubProcComm.c`.
+
+```c
+#include <Misra.h>
+
+// this program was verifed to work when executed with /bin/head
+// the prgram writes something to child process and expect's the same thing echoed back
+// so it can be verified that we got the same content
+// executed like : Build/SubProcComm /bin/head -n 1
+int main(int argc, char** argv, char** envp) {
+    // create a new child process
+    SysProc* proc = SysProcCreate(argv[1], argv + 1, envp);
+
+    // write something to it's stdout
+    SysProcWriteToStdinFmtLn(proc, "value = {}", 42);
+
+    // retrieve back the value
+    i32 val = 0;
+    SysProcReadFromStdoutFmt(proc, "value = {}", val);
+
+    // write the retrieved value to stdout (parent, not child)
+    WriteFmtLn("got value = {}", val);
+
+    // wait for program to exit for 1 second
+    SysProcWaitFor(proc, 1000);
+
+    // finally terminate
+    SysProcDestroy(proc);
 }
 ```
 
