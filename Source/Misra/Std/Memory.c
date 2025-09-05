@@ -5,6 +5,7 @@
 /// Memory manipulation functions
 
 #include <Misra/Std/Memory.h>
+#include <Misra/Sys.h>
 #include <Misra/Std/Log.h>
 
 i32 MemCompare(const void* p1, const void* p2, size n) {
@@ -126,8 +127,9 @@ char* ZstrDupN(const char* src, size n) {
         len++;
 
     char* new_str = (char*)malloc(len + 1);
-    if (!new_str)
-        return NULL;
+    if (!new_str) {
+        LOG_SYS_FATAL("malloc() failed");
+    }
 
     MemCopy(new_str, src, len);
     new_str[len] = '\0'; // Null-terminate
@@ -136,6 +138,24 @@ char* ZstrDupN(const char* src, size n) {
 
 char* ZstrDup(const char* src) {
     return ZstrDupN(src, ZstrLen(src));
+}
+
+bool ZstrInitClone(const char** dst, const char** src) {
+    if (!dst || !src || !*src) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    *dst = ZstrDup(*src);
+    return *dst != NULL;
+}
+
+void ZstrDeinit(const char** zs) {
+    if (!zs) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    if (*zs)
+        FREE(*zs);
 }
 
 char* ZstrFindSubstring(const char* haystack, const char* needle) {

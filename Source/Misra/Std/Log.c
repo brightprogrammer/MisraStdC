@@ -15,7 +15,7 @@
 static FILE     *stderror  = NULL;
 static SysMutex *log_mutex = NULL;
 
-void close_log_file() {
+void close_log_file(void) {
     if (stderror) {
         fclose(stderror);
     }
@@ -104,7 +104,7 @@ void LogDeinit(void) {
     }
 }
 
-void free_log_mutex() {
+void free_log_mutex(void) {
     SysMutexDestroy(log_mutex);
 }
 

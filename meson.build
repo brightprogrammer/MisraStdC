@@ -13,6 +13,9 @@ inc_misra = include_directories('Source', 'Include')
 # Add the misra_std library
 misra_std_sources = files(
     'Source/Misra/Sys.c',
+    'Source/Misra/Sys/Mutex.c',
+    'Source/Misra/Sys/Proc.c',
+    'Source/Misra/Sys/Dir.c',
     'Source/Misra/Std/Io.c',
     'Source/Misra/Std/Log.c',
     'Source/Misra/Std/File.c',
@@ -57,6 +60,15 @@ misra_std_no_sanitizers = static_library(
 executable(
     'MisraEnum',
     files('Bin/MisraEnum.c'),
+    link_with: [misra_std],
+    c_args: common_c_args,
+    include_directories: inc_misra,
+    install: false
+)
+
+executable(
+    'SubProcComm',
+    files('Bin/SubProcComm.c'),
     link_with: [misra_std],
     c_args: common_c_args,
     include_directories: inc_misra,

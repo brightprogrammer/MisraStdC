@@ -5,8 +5,13 @@
 ///
 /// Memory manipulation functions
 
+#ifndef MISRA_STD_MEMORY_H
+#define MISRA_STD_MEMORY_H
 
 #include <Misra/Types.h>
+#include <Misra/Std/Container/Vec/Type.h>
+
+typedef Vec(const char*) Zstrs;
 
 ///
 /// Compare memory regions.
@@ -126,6 +131,33 @@ char* ZstrDupN(const char* src, size n);
 char* ZstrDup(const char* src);
 
 ///
+/// Init clone method for zero-terminated strings.
+///
+/// NOTE: This is meant to be used as init method with `Zstrs` vector which is basically
+///       a typedef of `Vec(const char*)`.
+///
+/// dst[out] : Pointer to zero-terminated string to store cloned string pointer into.
+/// src[in]  : Pointer to zero-terminated string to make clone of.
+///
+/// SUCCESS: Returns true
+/// FAILURE: May abort with a log message or may return false depending on severity of situation.
+///
+bool ZstrInitClone(const char** dst, const char** src);
+
+///
+/// Deinit method for zero-terminated strings.
+///
+/// NOTE: This is meant to be used as deinit method with `Zstrs` vector which is basically
+///       a typedef of `Vec(const char*)`.
+///
+/// src[in]  : Pointer to zero-terminated string to be destroyed.
+///
+/// SUCCESS: Returns.
+/// FAILURE: Does not return.
+///
+void ZstrDeinit(const char** zs);
+
+///
 /// Find first occurrence of needle in haystack.
 ///
 /// haystack[in] : String to search in.
@@ -149,3 +181,5 @@ char* ZstrFindSubstring(const char* haystack, const char* needle);
 ///
 /// TAGS: String, Search, Safety
 char* ZstrFindSubstringN(const char* haystack, const char* needle, size needle_len);
+
+#endif // MISRA_STD_MEMORY_H

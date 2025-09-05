@@ -8,6 +8,26 @@
 // Reference : https://forums.freebsd.org/threads/strerror_r-best-practices-posix-vs-gnu.92296/
 #define _POSIX_C_SOURCE 200112L
 
+#if defined(_WIN32)
+#    include <io.h>
+#    define ISATTY _isatty
+#    define FILENO _fileno
+#else
+#    include <unistd.h>
+#    define ISATTY isatty
+#    define FILENO fileno
+#endif
+
+#ifndef STDIN_FILENO
+#    define STDIN_FILENO FILENO(stdin)
+#endif
+#ifndef STDOUT_FILENO
+#    define STDOUT_FILENO FILENO(stdout)
+#endif
+#ifndef STDERR_FILENO
+#    define STDERR_FILENO FILENO(stderr)
+#endif
+
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Sys.h>
@@ -18,6 +38,7 @@
 #include <ctype.h>
 #include <math.h>
 #include <stdio.h>
+
 
 static void _write_r8(Str* o, FmtInfo* fmt_info, u8* v);
 static void _write_r16(Str* o, FmtInfo* fmt_info, u16* v);
@@ -218,7 +239,7 @@ static void PadString(Str* o, size width, Alignment align, size content_len) {
     }
 }
 
-bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, size argc) {
+bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, u64 argc) {
     if (!o || !fmt) {
         LOG_FATAL("Invalid arguments");
         return false;
@@ -396,7 +417,7 @@ bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, size arg
     return true;
 }
 
-const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecificIO* argv, size argc) {
+const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecificIO* argv, u64 argc) {
     if (!input || !fmtstr) {
         LOG_FATAL("Invalid arguments");
     }
@@ -619,61 +640,61 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
     return in;
 }
 
-#if defined(_WIN32)
-#    include <io.h>
-#    define ISATTY _isatty
-#    define FILENO _fileno
-#else
-#    include <unistd.h>
-#    define ISATTY isatty
-#    define FILENO fileno
-#endif
-
-void FReadFmtInternal(FILE* file, const char* fmtstr, TypeSpecificIO* argv, size argc) {
+void FReadFmtInternal(FILE* file, const char* fmtstr, TypeSpecificIO* argv, u64 argc) {
     if (!file || !fmtstr) {
         LOG_FATAL("Invalid arguments");
     }
 
     Str buffer = StrInit();
+    int fd     = FILENO(file);
 
-    fpos_t start_pos;
-    bool   can_rollback = false;
-
-    // store the position we start reading with
-    u64 cur_pos = ftell(file);
-
-    // get complete file size and read after current reading position
-    fseek(file, 0, SEEK_END);
-    u64 file_len = ftell(file) - cur_pos;
-    fseek(file, cur_pos, SEEK_SET);
-    StrReserve(&buffer, file_len);
-    fread(buffer.data, 1, file_len, file);
-
-    // Try to check if the file is seekable
-    int fd = FILENO(file);
-    if (fd >= 0 && !ISATTY(fd)) {
-        if (fgetpos(file, &start_pos) == 0) {
-            can_rollback = true;
-        } else {
-            LOG_SYS_ERROR("Could not save file position for rollback");
+    if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
+        LOG_INFO("Reading from non-seekable stream (stdin/stdout/stderr).");
+        char  in            = 0;
+        FILE* source_stream = fd == STDIN_FILENO ? stdin : fd == STDOUT_FILENO ? stdout : stderr;
+        while (!feof(source_stream) && fread(&in, 1, 1, source_stream)) {
+            StrPushBack(&buffer, in);
         }
-    }
+        StrReadFmtInternal(buffer.data, fmtstr, argv, argc);
+    } else {
+        fpos_t start_pos;
+        bool   can_rollback = false;
 
-    buffer.length = buffer.capacity;
-    if (buffer.length) {
-        const char* new_pos = NULL;
-        if (!(new_pos = StrReadFmtInternal(buffer.data, fmtstr, argv, argc))) {
-            if (can_rollback) {
-                LOG_ERROR("Parse failed, rolling back...");
-                fsetpos(file, &start_pos);
+        // store the position we start reading with
+        u64 cur_pos = ftell(file);
+
+        // get complete file size and read after current reading position
+        fseek(file, 0, SEEK_END);
+        u64 file_len = ftell(file) - cur_pos;
+        fseek(file, cur_pos, SEEK_SET);
+        StrReserve(&buffer, file_len);
+        fread(buffer.data, 1, file_len, file);
+
+        // Try to check if the file is seekable
+        if (!ISATTY(fd)) {
+            if (fgetpos(file, &start_pos) == 0) {
+                can_rollback = true;
             } else {
-                LOG_ERROR("Parse failed, and rollback not possible on non-seekable input");
+                LOG_SYS_ERROR("Could not save file position for rollback");
             }
         }
 
-        // seek to position after number of bytes read
-        u64 numb = cur_pos + new_pos - buffer.data;
-        fseek(file, numb, SEEK_SET);
+        buffer.length = buffer.capacity;
+        if (buffer.length) {
+            const char* new_pos = NULL;
+            if (!(new_pos = StrReadFmtInternal(buffer.data, fmtstr, argv, argc))) {
+                if (can_rollback) {
+                    LOG_ERROR("Parse failed, rolling back...");
+                    fsetpos(file, &start_pos);
+                } else {
+                    LOG_ERROR("Parse failed, and rollback not possible on non-seekable input");
+                }
+            }
+
+            // seek to position after number of bytes read
+            u64 numb = cur_pos + new_pos - buffer.data;
+            fseek(file, numb, SEEK_SET);
+        }
     }
 
     StrDeinit(&buffer);

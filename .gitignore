@@ -9,3 +9,4 @@ Make
 Docs/
 Docs/public
 .DS_Store
+.venv
