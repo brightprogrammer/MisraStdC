@@ -1,7 +1,7 @@
 #include <Misra/Std/Container/List.h>
 #include <Misra/Std/Log.h>
 
-void deinit_list(GenericList *list, size_t item_size) {
+void deinit_list(GenericList *list, u64 item_size) {
     if (!list || !item_size) {
         LOG_ERROR("invalid arguments");
         return;
@@ -19,7 +19,7 @@ void deinit_list(GenericList *list, size_t item_size) {
 }
 
 
-void insert_into_list(GenericList *list, void *item_data, size_t item_size, size_t idx) {
+void insert_into_list(GenericList *list, void *item_data, u64 item_size, u64 idx) {
     if (!list || !item_size || !item_data) {
         LOG_FATAL("invalid arguments.");
     }
@@ -84,7 +84,7 @@ void insert_into_list(GenericList *list, void *item_data, size_t item_size, size
     list->length += 1;
 }
 
-void remove_range_list(GenericList *list, void *removed_data, size_t item_size, size_t start, size_t count) {
+void remove_range_list(GenericList *list, void *removed_data, u64 item_size, u64 start, u64 count) {
     if (!list || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
@@ -102,7 +102,7 @@ void remove_range_list(GenericList *list, void *removed_data, size_t item_size, 
     // if a buffer is provided, move data there
     if (removed_data) {
         GenericListNode *node = node_at_list(list, item_size, start);
-        for (size_t c = 0; (c < count) && node; c++) {
+        for (u64 c = 0; (c < count) && node; c++) {
             memcpy(removed_data + c * item_size, node->data, item_size);
 
             memset(node->data, 0, item_size);
@@ -114,7 +114,7 @@ void remove_range_list(GenericList *list, void *removed_data, size_t item_size, 
     } else {
         // else destroy all data one by one
         GenericListNode *node = node_at_list(list, item_size, start);
-        for (size_t c = 0; (c < count) && node; c++) {
+        for (u64 c = 0; (c < count) && node; c++) {
             if (list->copy_deinit) {
                 list->copy_deinit(node->data);
             } else {
@@ -151,7 +151,7 @@ void remove_range_list(GenericList *list, void *removed_data, size_t item_size, 
 }
 
 
-void qsort_list(GenericList *list, size_t item_size, GenericCompare comp) {
+void qsort_list(GenericList *list, u64 item_size, GenericCompare comp) {
     if (!list || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
@@ -159,7 +159,7 @@ void qsort_list(GenericList *list, size_t item_size, GenericCompare comp) {
     ValidateList(list);
 
     void  *data       = malloc(item_size * list->length);
-    size_t item_count = list->length;
+    u64 item_count = list->length;
     remove_range_list(list, data, item_size, 0, list->length);
     qsort(data, item_count, item_size, comp);
     push_arr_list(list, item_size, data, item_count);
@@ -167,7 +167,7 @@ void qsort_list(GenericList *list, size_t item_size, GenericCompare comp) {
 }
 
 
-void swap_list(GenericList *list, size_t item_size, size_t idx1, size_t idx2) {
+void swap_list(GenericList *list, u64 item_size, u64 idx1, u64 idx2) {
     if (!list || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
@@ -196,21 +196,21 @@ void swap_list(GenericList *list, size_t item_size, size_t idx1, size_t idx2) {
 }
 
 
-void reverse_list(GenericList *list, size_t item_size) {
+void reverse_list(GenericList *list, u64 item_size) {
     if (!list || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
 
     ValidateList(list);
 
-    size_t i = list->length / 2;
+    u64 i = list->length / 2;
     while (i--) {
         swap_list(list, item_size, i, list->length - (i + 1));
     }
 }
 
 
-void push_arr_list(GenericList *list, size_t item_size, void *arr, size_t count) {
+void push_arr_list(GenericList *list, u64 item_size, void *arr, u64 count) {
     if (!list || !arr || !count || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
@@ -241,7 +241,7 @@ void push_arr_list(GenericList *list, size_t item_size, void *arr, size_t count)
 }
 
 
-void merge_list(GenericList *list1, size_t item_size, GenericList *list2) {
+void merge_list(GenericList *list1, u64 item_size, GenericList *list2) {
     if (!list1 || !item_size || !list2) {
         LOG_FATAL("invalid arguments.");
     }
@@ -257,7 +257,7 @@ void merge_list(GenericList *list1, size_t item_size, GenericList *list2) {
 }
 
 
-void clear_list(GenericList *list, size_t item_size) {
+void clear_list(GenericList *list, u64 item_size) {
     if (!list || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
@@ -268,7 +268,7 @@ void clear_list(GenericList *list, size_t item_size) {
 }
 
 
-GenericListNode *node_at_list(GenericList *list, size_t item_size, size_t idx) {
+GenericListNode *node_at_list(GenericList *list, u64 item_size, u64 idx) {
     if (!list || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
@@ -280,14 +280,14 @@ GenericListNode *node_at_list(GenericList *list, size_t item_size, size_t idx) {
     }
 
     GenericListNode *node = list->head;
-    for (size_t i = 0; i < idx; i++) {
+    for (u64 i = 0; i < idx; i++) {
         node = node->next;
     }
     return node;
 }
 
 
-void *item_ptr_at_list(GenericList *list, size_t item_size, size_t idx) {
+void *item_ptr_at_list(GenericList *list, u64 item_size, u64 idx) {
     if (!list || !item_size) {
         LOG_FATAL("invalid arguments.");
     }
