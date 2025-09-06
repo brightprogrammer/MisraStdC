@@ -66,18 +66,13 @@ Str* SysGetEnv(const char* name, Str* value) {
 }
 
 Str* SysStrError(i32 eno, Str* err_str) {
-    err_str->capacity = 128; // I hope it's enough on all platforms
-    err_str->data     = (char*)calloc(err_str->length, 1);
+    char buf[1024] = {0};
 #if _WIN32
-    strerror_s(err_str->data, err_str->capacity, eno);
+    strerror_s(buf, 1023, eno);
 #else
-    strerror_r(eno, err_str->data, err_str->capacity);
+    strerror_r(eno, buf, 1023);
 #endif
-
-    if (!(err_str->length = ZstrLen(err_str->data))) {
-        return NULL;
-    }
-
+    *err_str = StrInitFromZstr(buf);
     return err_str;
 }
 
