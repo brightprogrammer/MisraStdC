@@ -411,5 +411,10 @@ int main(int argc, char** argv) {
         eh.string_table_index
     );
 
+    Vec(int) vi = VecInit();
+    VecForeachIdx(&vi, val, i) {
+        WriteFmtLn("{}", val);
+    }
+
     return 0;
 }

@@ -113,14 +113,14 @@ int main(int argc, char** argv) {
     }
 
     // Use VecForeach for iterating over entries
-    VecForeach(&entries, e, {
+    VecForeach(&entries, e) {
         if (last_value == e.value - 1) {
             StrWriteFmt(&code, "    {},\n", e.name.data);
         } else {
             StrWriteFmt(&code, "    {} = {},\n", e.name.data, e.value);
         }
         last_value = e.value;
-    });
+    };
 
     StrWriteFmt(&code, "}} {};\n", enum_name.data);
 
@@ -150,12 +150,12 @@ int main(int argc, char** argv) {
         StrWriteFmt(&code, funcHeader, enum_name.data, enum_name.data, enum_name.data, invalidEnumName);
 
         // Use VecForeach for iterating over entries
-        VecForeach(&entries, e, {
+        VecForeach(&entries, e) {
             const char* compareTemplate = "    if(ZstrCompareN(\"{}\", zstr, {}) == 0) {{return {};}}\n";
             // Store the length in a variable to avoid taking address of rvalue
             unsigned long long strLength = (unsigned long long)e.str.length;
             StrWriteFmt(&code, compareTemplate, e.str.data, strLength, e.name.data);
-        });
+        };
 
         const char* returnTemplate = "    return {};\n}}\n";
         StrWriteFmt(&code, returnTemplate, invalidEnumName);
@@ -175,10 +175,10 @@ int main(int argc, char** argv) {
         StrWriteFmt(&code, toZstrHeader, enum_name.data, enum_name.data, enum_name.data);
 
         // Use VecForeach for iterating over entries
-        VecForeach(&entries, e, {
+        VecForeach(&entries, e) {
             const char* caseTemplate = "        case {} : {{return \"{}\";}}\n";
             StrWriteFmt(&code, caseTemplate, e.name.data, e.str.data);
-        });
+        };
 
         const char* defaultTemplate =
             "        default: break;\n"
@@ -209,10 +209,10 @@ int main(int argc, char** argv) {
     StrDeinit(&enum_name);
     StrDeinit(&code);
 
-    VecForeach(&entries, e, {
+    VecForeach(&entries, e) {
         StrDeinit(&e.name);
         StrDeinit(&e.str);
-    });
+    };
     VecDeinit(&entries);
 
     LogDeinit();

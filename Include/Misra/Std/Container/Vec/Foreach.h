@@ -16,29 +16,14 @@
 /// v[in,out] : Vector to iterate over.
 /// var[in]   : Name of variable to be used which'll contain value at iterated index `idx`
 /// idx[in]   : Name of variable to be used for iterating over indices.
-/// body      : Body of this foreach loop
 ///
-/// SUCCESS : The `body` is executed for each element of the vector `v` from the
-///           beginning to the end.
-/// FAILURE : If the vector `v` is NULL or its length is zero, the loop body will not
-///           be executed. Any failures within the `VecForeachIdx` macro (like invalid
-///           index access) will result in a fatal log message and program termination.
+/// TAGS: Foreach, Vec, Iteration, Loop
 ///
-#define VecForeachIdx(v, var, idx, body)                                                                               \
-    do {                                                                                                               \
-        ValidateVec(v);                                                                                                \
-        size idx            = 0;                                                                                       \
-        VEC_DATATYPE(v) var = {0};                                                                                     \
-        if ((v)->length > 0) {                                                                                         \
-            for ((idx) = 0; (idx) < (v)->length; ++(idx)) {                                                            \
-                var = VecAt(v, idx);                                                                                   \
-                { body }                                                                                               \
-                if ((idx) >= (v)->length) {                                                                            \
-                    LOG_FATAL("Vector range overflow : Invalid index reached during Foreach iteration.");              \
-                }                                                                                                      \
-            }                                                                                                          \
-        }                                                                                                              \
-    } while (0)
+#define VecForeachIdx(v, var, idx)                                                                                     \
+    for (TYPE_OF(v) UNPL(pv) = (v); UNPL(pv); UNPL(pv) = NULL)                                                         \
+        if ((ValidateVec(UNPL(pv)), 1) && UNPL(pv)->length > 0)                                                        \
+            for (u64 idx = 0, UNPL(d) = 1; UNPL(d); UNPL(d)--)                                                         \
+                for (VEC_DATATYPE(UNPL(pv)) var = {}; idx < UNPL(pv)->length && (var = VecAt(UNPL(pv), idx), 1); idx++)
 
 ///
 /// Iterate over each element `var` of given vector `v` at each index `idx` into the vector.
@@ -49,25 +34,14 @@
 /// v[in,out] : Vector to iterate over.
 /// var[in]   : Name of variable to be used which'll contain value at iterated index `idx`
 /// idx[in]   : Name of variable to be used for iterating over indices.
-/// body      : Body of this foreach loop
 ///
-#define VecForeachReverseIdx(v, var, idx, body)                                                                        \
-    do {                                                                                                               \
-        ValidateVec(v);                                                                                                \
-        size idx            = 0;                                                                                       \
-        VEC_DATATYPE(v) var = {0};                                                                                     \
-        if ((v)->length > 0) {                                                                                         \
-            for ((idx) = (v)->length - 1; (idx) < (v)->length; --(idx)) {                                              \
-                var = VecAt(v, idx);                                                                                   \
-                { body }                                                                                               \
-                if ((idx) >= (v)->length) {                                                                            \
-                    LOG_FATAL("Vector range overflow : Invalid index reached during Foreach reverse iteration.");      \
-                }                                                                                                      \
-                if (idx == 0)                                                                                          \
-                    break; /* Stop after processing index 0 */                                                         \
-            }                                                                                                          \
-        }                                                                                                              \
-    } while (0)
+/// TAGS: Foreach, Vec, Iteration, Loop, Reverse
+///
+#define VecForeachReverseIdx(v, var, idx)                                                                              \
+    for (TYPE_OF(v) UNPL(pv) = (v); UNPL(pv); UNPL(pv) = NULL)                                                         \
+        if ((ValidateVec(UNPL(pv)), 1) && UNPL(pv)->length > 0)                                                        \
+            for (u64 idx = UNPL(pv)->length; idx-- > 0;)                                                               \
+                for (VEC_DATATYPE(UNPL(pv)) var = VecAt(UNPL(pv), idx); 1; break)
 
 ///
 /// Iterate over each element `var` of given vector `v` at each index `idx` into the vector.
@@ -76,24 +50,17 @@
 /// `idx` will start from 0 and will go till v->length - 1
 ///
 /// v[in,out] : Vector to iterate over.
-/// var[in]   : Name of variable to be used which'll contain value at iterated index `idx`
+/// var[in]   : Name of variable to be used which'll contain pointer to value at iterated index `idx`
 /// idx[in]   : Name of variable to be used for iterating over indices.
-/// body      : Body of this foreach loop
 ///
-#define VecForeachPtrIdx(v, var, idx, body)                                                                            \
-    do {                                                                                                               \
-        ValidateVec(v);                                                                                                \
-        size idx             = 0;                                                                                      \
-        VEC_DATATYPE(v) *var = NULL;                                                                                   \
-        if ((v)->length > 0) {                                                                                         \
-            for ((idx) = 0; (idx) < (v)->length; ++(idx)) {                                                            \
-                var = VecPtrAt(v, idx);                                                                                \
-                body if ((idx) >= (v)->length) {                                                                       \
-                    LOG_FATAL("Vector range overflow : Invalid index reached during Foreach iteration.");              \
-                }                                                                                                      \
-            }                                                                                                          \
-        }                                                                                                              \
-    } while (0)
+/// TAGS: Foreach, Vec, Iteration, Loop, Pointer
+///
+#define VecForeachPtrIdx(v, var, idx)                                                                                  \
+    for (TYPE_OF(v) UNPL(pv) = (v); UNPL(pv); UNPL(pv) = NULL)                                                         \
+        if ((ValidateVec(UNPL(pv)), 1) && UNPL(pv)->length > 0)                                                        \
+            for (size_t idx = 0, UNPL(d) = 1; UNPL(d); UNPL(d)--)                                                      \
+                for (VEC_DATATYPE(UNPL(pv)) *var = NULL; idx < UNPL(pv)->length && (var = VecPtrAt(UNPL(pv), idx), 1); \
+                     idx++)
 
 ///
 /// Iterate over each element `var` of given vector `v` at each index `idx` into the vector.
@@ -102,27 +69,16 @@
 /// `idx` will start from v->length - 1 and will go till 0
 ///
 /// v[in,out] : Vector to iterate over.
-/// var[in]   : Name of variable to be used which'll contain value at iterated index `idx`
+/// var[in]   : Name of variable to be used which'll contain pointer to value at iterated index `idx`
 /// idx[in]   : Name of variable to be used for iterating over indices.
-/// body      : Body of this foreach loop
 ///
-#define VecForeachPtrReverseIdx(v, var, idx, body)                                                                     \
-    do {                                                                                                               \
-        ValidateVec(v);                                                                                                \
-        size idx             = 0;                                                                                      \
-        VEC_DATATYPE(v) *var = {0};                                                                                    \
-        if ((v)->length > 0) {                                                                                         \
-            for ((idx) = (v)->length - 1; (idx) < (v)->length; --(idx)) {                                              \
-                var = VecPtrAt(v, idx);                                                                                \
-                { body }                                                                                               \
-                if ((idx) >= (v)->length) {                                                                            \
-                    LOG_FATAL("Vector range overflow : Invalid index reached during Foreach reverse iteration.");      \
-                }                                                                                                      \
-                if (idx == 0)                                                                                          \
-                    break; /* Stop after processing index 0 */                                                         \
-            }                                                                                                          \
-        }                                                                                                              \
-    } while (0)
+/// TAGS: Foreach, Vec, Iteration, Loop, Reverse, Pointer
+///
+#define VecForeachPtrReverseIdx(v, var, idx)                                                                           \
+    for (TYPE_OF(v) UNPL(pv) = (v); UNPL(pv); UNPL(pv) = NULL)                                                         \
+        if ((ValidateVec(UNPL(pv)), 1) && UNPL(pv)->length > 0)                                                        \
+            for (u64 idx = UNPL(pv)->length; idx-- > 0;)                                                               \
+                for (VEC_DATATYPE(UNPL(pv)) *var = VecPtrAt(UNPL(pv), idx); 1; break)
 
 ///
 /// Iterate over each element `var` of the given vector `v`.
@@ -133,15 +89,10 @@
 /// var[in]   : Name of the variable to be used which will contain the value of the
 ///             current element during iteration. The type of `var` will be the
 ///             data type of the vector elements (obtained via `VEC_DATATYPE(v)`).
-/// body      : The block of code to be executed for each element of the vector.
 ///
-/// SUCCESS : The `body` is executed for each element of the vector `v` from the
-///           beginning to the end.
-/// FAILURE : If the vector `v` is NULL or its length is zero, the loop body will not
-///           be executed. Any failures within the `VecForeachIdx` macro (like invalid
-///           index access) will result in a fatal log message and program termination.
+/// TAGS: Foreach, Vec, Iteration, Loop
 ///
-#define VecForeach(v, var, body) VecForeachIdx((v), (var), (____iter___), {body})
+#define VecForeach(v, var) VecForeachIdx((v), (var), (____iter___))
 
 ///
 /// Iterate over each element `var` of the given vector `v` in reverse order.
@@ -152,15 +103,10 @@
 /// var[in]   : Name of the variable to be used which will contain the value of the
 ///             current element during iteration. The type of `var` will be the
 ///             data type of the vector elements (obtained via `VEC_DATATYPE(v)`).
-/// body      : The block of code to be executed for each element of the vector.
 ///
-/// SUCCESS : The `body` is executed for each element of the vector `v` from the
-///           end to the beginning.
-/// FAILURE : If the vector `v` is NULL or its length is zero, the loop body will not
-///           be executed. Any failures within the `VecForeachReverseIdx` macro (like
-///           invalid index access) will result in a fatal log message and program termination.
+/// TAGS: Foreach, Vec, Iteration, Loop, Reverse
 ///
-#define VecForeachReverse(v, var, body) VecForeachReverseIdx((v), (var), (____iter___), {body})
+#define VecForeachReverse(v, var) VecForeachReverseIdx((v), (var), (____iter___))
 
 ///
 /// Iterate over each element `var` of the given vector `v` (as a pointer).
@@ -173,15 +119,10 @@
 ///             current element during iteration. The type of `var` will be a pointer
 ///             to the data type of the vector elements (obtained via
 ///             `VEC_DATATYPE(v) *`).
-/// body      : The block of code to be executed for each element of the vector.
 ///
-/// SUCCESS : The `body` is executed for each element of the vector `v` (with `var`
-///           pointing to the current element) from the beginning to the end.
-/// FAILURE : If the vector `v` is NULL or its length is zero, the loop body will not
-///           be executed. Any failures within the `VecForeachPtrIdx` macro (like invalid
-///           index access) will result in a fatal log message and program termination.
+/// TAGS: Foreach, Vec, Iteration, Loop, Pointer
 ///
-#define VecForeachPtr(v, var, body) VecForeachPtrIdx((v), (var), (____iter___), {body})
+#define VecForeachPtr(v, var) VecForeachPtrIdx((v), (var), (____iter___))
 
 ///
 /// Iterate over each element `var` (as a pointer) of the given vector `v` in reverse order.
@@ -194,15 +135,10 @@
 ///             current element during iteration. The type of `var` will be a pointer
 ///             to the data type of the vector elements (obtained via
 ///             `VEC_DATATYPE(v) *`).
-/// body      : The block of code to be executed for each element of the vector.
 ///
-/// SUCCESS : The `body` is executed for each element of the vector `v` (with `var`
-///           pointing to the current element) from the end to the beginning.
-/// FAILURE : If the vector `v` is NULL or its length is zero, the loop body will not
-///           be executed. Any failures within the `VecForeachPtrReverseIdx` macro (like
-///           invalid index access) will result in a fatal log message and program termination.
+/// TAGS: Foreach, Vec, Iteration, Loop, Reverse, Pointer
 ///
-#define VecForeachPtrReverse(v, var, body) VecForeachPtrReverseIdx((v), (var), (____iter___), {body})
+#define VecForeachPtrReverse(v, var) VecForeachPtrReverseIdx((v), (var), (____iter___))
 
 ///
 /// Iterate over elements in a specific range of the given vector `v` at each index `idx`.
@@ -215,53 +151,16 @@
 /// idx[in]      : Name of variable to be used for iterating over indices.
 /// start[in]    : Starting index (inclusive).
 /// end[in]      : Ending index (exclusive).
-/// body         : Body of this foreach loop.
 ///
-/// SUCCESS : The `body` is executed for each element of the vector `v` from the
-///           `start` index to the `end-1` index.
-/// FAILURE : If the vector `v` is NULL, its length is zero, or the range is invalid,
-///           the loop body will not be executed. Any access to an invalid index will
-///           result in a fatal log message and program termination.
+/// TAGS: Foreach, Vec, Iteration, Loop, Range
 ///
-#define VecForeachInRangeIdx(v, var, idx, start, end, body)                                                            \
-    do {                                                                                                               \
-        ValidateVec(v);                                                                                                \
-        size idx            = 0;                                                                                       \
-        VEC_DATATYPE(v) var = {0};                                                                                     \
-        u64 _s              = start;                                                                                   \
-        u64 _e              = end;                                                                                     \
-        if ((v)->length > 0) {                                                                                         \
-            if ((_e) > (v)->length) {                                                                                  \
-                LOG_FATAL(                                                                                             \
-                    "Vector range overflow: End index %zu exceeds vector length %zu. "                                 \
-                    "If you intended to iterate over all items, use VecForeach instead.",                              \
-                    _e,                                                                                                \
-                    (v)->length                                                                                        \
-                );                                                                                                     \
-            }                                                                                                          \
-            if ((_s) >= (v)->length) {                                                                                 \
-                LOG_FATAL(                                                                                             \
-                    "Vector range overflow: Start index %zu exceeds or equals vector length %zu.",                     \
-                    _s,                                                                                                \
-                    (v)->length                                                                                        \
-                );                                                                                                     \
-            }                                                                                                          \
-            if ((_s) > (_e)) {                                                                                         \
-                LOG_FATAL("Invalid range: Start index %zu must be less than or equal to end index %zu.", _s, _e);      \
-            }                                                                                                          \
-            for ((idx) = (_s); (idx) < (_e); ++(idx)) {                                                                \
-                if ((idx) >= (v)->length) {                                                                            \
-                    LOG_FATAL(                                                                                         \
-                        "Vector range overflow: Index %zu exceeds vector length %zu during iteration.",                \
-                        idx,                                                                                           \
-                        (v)->length                                                                                    \
-                    );                                                                                                 \
-                }                                                                                                      \
-                var = VecAt(v, idx);                                                                                   \
-                { body }                                                                                               \
-            }                                                                                                          \
-        }                                                                                                              \
-    } while (0)
+#define VecForeachInRangeIdx(v, var, idx, start, end)                                                                  \
+    for (TYPE_OF(v) UNPL(pv) = (v); UNPL(pv); UNPL(pv) = NULL)                                                         \
+        if ((ValidateVec(UNPL(pv)), 1) && UNPL(pv)->length > 0)                                                        \
+            for (u64 UNPL(s) = (start), UNPL(e) = (end), idx = UNPL(s), UNPL(d) = 1;                                   \
+                 UNPL(s) <= idx && idx < UNPL(e) && idx < UNPL(pv)->length && UNPL(s) <= UNPL(e);                      \
+                 ++idx)                                                                                                \
+                for (VEC_DATATYPE(UNPL(pv)) var = VecAt(UNPL(pv), idx); UNPL(d); UNPL(d) = 0)
 
 ///
 /// Iterate over elements in a specific range of the given vector `v`.
@@ -272,16 +171,10 @@
 /// var[in]      : Name of variable to be used which'll contain value of the current element.
 /// start[in]    : Starting index (inclusive).
 /// end[in]      : Ending index (exclusive).
-/// body         : Body of this foreach loop.
 ///
-/// SUCCESS : The `body` is executed for each element of the vector `v` from the
-///           `start` index to the `end-1` index.
-/// FAILURE : If the vector `v` is NULL, its length is zero, or the range is invalid,
-///           the loop body will not be executed. Any failures within the `VecForeachInRangeIdx`
-///           macro will result in a fatal log message and program termination.
+/// TAGS: Foreach, Vec, Iteration, Loop, Range
 ///
-#define VecForeachInRange(v, var, start, end, body)                                                                    \
-    VecForeachInRangeIdx((v), (var), (____iter___), (start), (end), {body})
+#define VecForeachInRange(v, var, start, end) VecForeachInRangeIdx((v), (var), (____iter___), (start), (end))
 
 ///
 /// Iterate over elements in a specific range of the given vector `v` at each index `idx` (as pointers).
@@ -294,53 +187,16 @@
 /// idx[in]      : Name of variable to be used for iterating over indices.
 /// start[in]    : Starting index (inclusive).
 /// end[in]      : Ending index (exclusive).
-/// body         : Body of this foreach loop.
 ///
-/// SUCCESS : The `body` is executed for each element of the vector `v` from the
-///           `start` index to the `end-1` index, with `var` pointing to each element.
-/// FAILURE : If the vector `v` is NULL, its length is zero, or the range is invalid,
-///           the loop body will not be executed. Any access to an invalid index will
-///           result in a fatal log message and program termination.
+/// TAGS: Foreach, Vec, Iteration, Loop, Range, Pointer
 ///
-#define VecForeachPtrInRangeIdx(v, var, idx, start, end, body)                                                         \
-    do {                                                                                                               \
-        ValidateVec(v);                                                                                                \
-        size idx             = 0;                                                                                      \
-        VEC_DATATYPE(v) *var = NULL;                                                                                   \
-        u64 _s               = start;                                                                                  \
-        u64 _e               = end;                                                                                    \
-        if ((v)->length > 0) {                                                                                         \
-            if ((_e) > (v)->length) {                                                                                  \
-                LOG_FATAL(                                                                                             \
-                    "Vector range overflow: End index {} exceeds vector length {}. "                                   \
-                    "If you intended to iterate over all items, use VecForeach instead.",                              \
-                    _e,                                                                                                \
-                    (v)->length                                                                                        \
-                );                                                                                                     \
-            }                                                                                                          \
-            if ((_s) >= (v)->length) {                                                                                 \
-                LOG_FATAL(                                                                                             \
-                    "Vector range overflow: Start index {} exceeds or equals vector length {}.",                       \
-                    _e,                                                                                                \
-                    (v)->length                                                                                        \
-                );                                                                                                     \
-            }                                                                                                          \
-            if ((_s) > (_e)) {                                                                                         \
-                LOG_FATAL("Invalid range: Start index {} must be less than or equal to end index {}.", _s, _e);        \
-            }                                                                                                          \
-            for ((idx) = (_s); (idx) < (_e); ++(idx)) {                                                                \
-                if ((idx) >= (v)->length) {                                                                            \
-                    LOG_FATAL(                                                                                         \
-                        "Vector range overflow: Index {} exceeds vector length {} during iteration.",                  \
-                        idx,                                                                                           \
-                        (v)->length                                                                                    \
-                    );                                                                                                 \
-                }                                                                                                      \
-                var = VecPtrAt(v, idx);                                                                                \
-                { body }                                                                                               \
-            }                                                                                                          \
-        }                                                                                                              \
-    } while (0)
+#define VecForeachPtrInRangeIdx(v, var, idx, start, end)                                                               \
+    for (TYPE_OF(v) UNPL(pv) = (v); UNPL(pv); UNPL(pv) = NULL)                                                         \
+        if ((ValidateVec(UNPL(pv)), 1) && UNPL(pv)->length > 0)                                                        \
+            for (u64 UNPL(s) = (start), UNPL(e) = (end), idx = UNPL(s), UNPL(d) = 1;                                   \
+                 idx >= UNPL(s) && idx < UNPL(e) && idx < UNPL(pv)->length && UNPL(s) <= UNPL(e);                      \
+                 ++idx)                                                                                                \
+                for (VEC_DATATYPE(UNPL(pv)) *var = VecPtrAt(UNPL(pv), idx); UNPL(d); UNPL(d) = 0)
 
 ///
 /// Iterate over elements in a specific range of the given vector `v` (as pointers).
@@ -352,15 +208,9 @@
 /// var[in]      : Name of pointer variable to be used which'll point to the current element.
 /// start[in]    : Starting index (inclusive).
 /// end[in]      : Ending index (exclusive).
-/// body         : Body of this foreach loop.
 ///
-/// SUCCESS : The `body` is executed for each element of the vector `v` from the
-///           `start` index to the `end-1` index, with `var` pointing to each element.
-/// FAILURE : If the vector `v` is NULL, its length is zero, or the range is invalid,
-///           the loop body will not be executed. Any failures within the `VecForeachPtrInRangeIdx`
-///           macro will result in a fatal log message and program termination.
+/// TAGS: Foreach, Vec, Iteration, Loop, Range, Pointer
 ///
-#define VecForeachPtrInRange(v, var, start, end, body)                                                                 \
-    VecForeachPtrInRangeIdx((v), (var), (____iter___), (start), (end), {body})
+#define VecForeachPtrInRange(v, var, start, end) VecForeachPtrInRangeIdx((v), (var), (____iter___), (start), (end))
 
 #endif // MISRA_STD_CONTAINER_VEC_FOREACH_H

@@ -126,14 +126,14 @@ int main(int argc, char** argv) {
                 VecMerge(&dir_paths, &project.test_directories);
 
                 // recursively explore directories and get filenames
-                VecForeach(&dir_paths, dir_name, {
+                VecForeach(&dir_paths, dir_name) {
                     // keep track of current path we're exploring
                     Str current_path = StrInit();
                     StrMerge(&current_path, &dir_name);
 
                     SysDirContents dir_contents = SysGetDirContents(dir_name.data);
                     Scope(&dir_contents, VecDeinit, {
-                        VecForeach(&dir_contents, dir_entry, {
+                        VecForeach(&dir_contents, dir_entry) {
                             // if it's a directory then store it for exploration later on
                             if (dir_entry.type == SYS_DIR_ENTRY_TYPE_DIRECTORY) {
                                 // create new directory path relative to current directory search path
@@ -155,13 +155,13 @@ int main(int argc, char** argv) {
                                 VecPushBack(&file_paths, path);
                             }
                             // any other file type is not documented
-                        });
+                        }
                     });
-                });
+                }
             });
 
             // go over each file and generate corresponding markdown
-            VecForeach(&file_paths, file_path, {
+            VecForeach(&file_paths, file_path) {
                 Str file_contents = StrInit();
                 Scope(&file_contents, StrDeinit, {
                     if (!ReadCompleteFile(
@@ -218,7 +218,7 @@ int main(int argc, char** argv) {
                         });
                     });
                 });
-            });
+            };
         });
     });
 
