@@ -29,7 +29,9 @@ bool test_str_foreach_idx(void) {
 
     // Build a new string by iterating through each character with its index
     Str result = StrInit();
-    StrForeachIdx(&s, chr, idx, { StrWriteFmt(&result, "{c}{}", chr, idx); });
+    StrForeachIdx(&s, chr, idx) {
+        StrWriteFmt(&result, "{c}{}", chr, idx);
+    }
 
     // The result should be "H0e1l2l3o4"
     bool success = (ZstrCompare(result.data, "H0e1l2l3o4") == 0);
@@ -49,7 +51,7 @@ bool test_str_foreach_reverse_idx(void) {
     Str  result         = StrInit();
     bool saw_index_zero = false;
 
-    StrForeachReverseIdx(&s, chr, idx, {
+    StrForeachReverseIdx(&s, chr, idx) {
         // Check if we see index 0
         if (idx == 0) {
             saw_index_zero = true;
@@ -57,7 +59,7 @@ bool test_str_foreach_reverse_idx(void) {
 
         // Append the character and its index to the result string
         StrWriteFmt(&result, "{c}{}", chr, idx);
-    });
+    }
 
     // The expected result depends on whether index 0 is processed
     bool success = false;
@@ -83,7 +85,7 @@ bool test_str_foreach_ptr_idx(void) {
 
     // Build a new string by iterating through each character pointer with its index
     Str result = StrInit();
-    StrForeachPtrIdx(&s, chrptr, idx, {
+    StrForeachPtrIdx(&s, chrptr, idx) {
         // Append the character (via pointer) and its index to the result string
         StrWriteFmt(&result, "{c}{}", *chrptr, idx);
 
@@ -91,7 +93,7 @@ bool test_str_foreach_ptr_idx(void) {
         if (*chrptr >= 'a' && *chrptr <= 'z') {
             *chrptr = *chrptr - 'a' + 'A';
         }
-    });
+    }
 
     // The result should be "H0e1l2l3o4"
     bool success = (ZstrCompare(result.data, "H0e1l2l3o4") == 0);
@@ -114,7 +116,7 @@ bool test_str_foreach_reverse_ptr_idx(void) {
     Str  result         = StrInit();
     bool saw_index_zero = false;
 
-    StrForeachReversePtrIdx(&s, chrptr, idx, {
+    StrForeachReversePtrIdx(&s, chrptr, idx) {
         // Check if we see index 0
         if (idx == 0) {
             saw_index_zero = true;
@@ -127,7 +129,7 @@ bool test_str_foreach_reverse_ptr_idx(void) {
         if (*chrptr >= 'a' && *chrptr <= 'z') {
             *chrptr = *chrptr - 'a' + 'A';
         }
-    });
+    }
 
     // The expected result depends on whether index 0 is processed
     bool success = false;
@@ -155,10 +157,10 @@ bool test_str_foreach(void) {
 
     // Build a new string by iterating through each character
     Str result = StrInit();
-    StrForeach(&s, chr, {
+    StrForeach(&s, chr) {
         // Append the character to the result string
         StrPushBack(&result, chr);
-    });
+    }
 
     // The result should be "Hello"
     bool success = (ZstrCompare(result.data, "Hello") == 0);
@@ -178,11 +180,11 @@ bool test_str_foreach_reverse(void) {
     Str  result     = StrInit();
     size char_count = 0;
 
-    StrForeachReverse(&s, chr, {
+    StrForeachReverse(&s, chr) {
         // Append the character to the result string
         StrPushBack(&result, chr);
         char_count++;
-    });
+    }
 
     // The expected result depends on whether all characters are processed
     bool success = false;
@@ -207,7 +209,7 @@ bool test_str_foreach_ptr(void) {
 
     // Build a new string by iterating through each character pointer
     Str result = StrInit();
-    StrForeachPtr(&s, chrptr, {
+    StrForeachPtr(&s, chrptr) {
         // Append the character (via pointer) to the result string
         StrPushBack(&result, *chrptr);
 
@@ -215,7 +217,7 @@ bool test_str_foreach_ptr(void) {
         if (*chrptr >= 'a' && *chrptr <= 'z') {
             *chrptr = *chrptr - 'a' + 'A';
         }
-    });
+    }
 
     // The result should be "Hello" (original values before modification)
     bool success = (ZstrCompare(result.data, "Hello") == 0);
@@ -238,7 +240,7 @@ bool test_str_foreach_ptr_reverse(void) {
     Str  result     = StrInit();
     size char_count = 0;
 
-    StrForeachPtrReverse(&s, chrptr, {
+    StrForeachPtrReverse(&s, chrptr) {
         // Append the character (via pointer) to the result string
         StrPushBack(&result, *chrptr);
 
@@ -248,7 +250,7 @@ bool test_str_foreach_ptr_reverse(void) {
         }
 
         char_count++;
-    });
+    }
 
     // The expected result depends on whether all characters are processed
     bool success = false;
@@ -275,20 +277,20 @@ bool test_str_foreach_in_range_idx(void) {
 
     // Build a new string by iterating through a range of characters with indices
     Str result = StrInit();
-    StrForeachInRangeIdx(&s, chr, idx, 6, 11, {
+    StrForeachInRangeIdx(&s, chr, idx, 6, 11) {
         // Append the character and its index to the result string
         StrWriteFmt(&result, "{c}{}", chr, idx);
-    });
+    }
 
     // The result should be "W6o7r8l9d10" (characters from index 6-10 with their indices)
     bool success = (ZstrCompare(result.data, "W6o7r8l9d10") == 0);
 
     // Test with empty range
     Str empty_result = StrInit();
-    StrForeachInRangeIdx(&s, chr, idx, 3, 3, {
+    StrForeachInRangeIdx(&s, chr, idx, 3, 3) {
         // This block should not execute
         StrPushBack(&empty_result, chr);
-    });
+    }
 
     // The empty_result should remain empty
     success = success && (empty_result.length == 0);
@@ -307,20 +309,20 @@ bool test_str_foreach_in_range(void) {
 
     // Build a new string by iterating through a range of characters
     Str result = StrInit();
-    StrForeachInRange(&s, chr, 0, 5, {
+    StrForeachInRange(&s, chr, 0, 5) {
         // Append the character to the result string
         StrPushBack(&result, chr);
-    });
+    }
 
     // The result should be "Hello" (first 5 characters)
     bool success = (ZstrCompare(result.data, "Hello") == 0);
 
     // Test with range at the end of the string
     Str end_result = StrInit();
-    StrForeachInRange(&s, chr, 6, 11, {
+    StrForeachInRange(&s, chr, 6, 11) {
         // Append the character to the result string
         StrPushBack(&end_result, chr);
-    });
+    }
 
     // The end_result should be "World" (last 5 characters)
     success = success && (ZstrCompare(end_result.data, "World") == 0);
@@ -339,7 +341,7 @@ bool test_str_foreach_ptr_in_range_idx(void) {
 
     // Build a new string by iterating through a range of character pointers with indices
     Str result = StrInit();
-    StrForeachPtrInRangeIdx(&s, chrptr, idx, 6, 11, {
+    StrForeachPtrInRangeIdx(&s, chrptr, idx, 6, 11) {
         // Append the character and its index to the result string
         StrWriteFmt(&result, "{c}{}", *chrptr, idx);
 
@@ -347,7 +349,7 @@ bool test_str_foreach_ptr_in_range_idx(void) {
         if (*chrptr >= 'a' && *chrptr <= 'z') {
             *chrptr = *chrptr - 'a' + 'A';
         }
-    });
+    }
 
     // The result should be "W6o7r8l9d10" (characters from index 6-10 with their indices)
     bool success = (ZstrCompare(result.data, "W6o7r8l9d10") == 0);
@@ -368,7 +370,7 @@ bool test_str_foreach_ptr_in_range(void) {
 
     // Build a new string by iterating through a range of character pointers
     Str result = StrInit();
-    StrForeachPtrInRange(&s, chrptr, 0, 5, {
+    StrForeachPtrInRange(&s, chrptr, 0, 5) {
         // Append the character to the result string
         StrPushBack(&result, *chrptr);
 
@@ -376,7 +378,7 @@ bool test_str_foreach_ptr_in_range(void) {
         if (*chrptr >= 'a' && *chrptr <= 'z') {
             *chrptr = *chrptr - 'a' + 'A';
         }
-    });
+    }
 
     // The result should be "Hello" (first 5 characters)
     bool success = (ZstrCompare(result.data, "Hello") == 0);

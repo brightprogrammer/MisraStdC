@@ -861,7 +861,7 @@ void ValidateStr(const Str* s) {
 
 void ValidateStrs(const Strs* vs) {
     ValidateVec(vs);
-    VecForeachPtr(vs, sp, { ValidateStr(sp); });
+    VecForeachPtr(vs, sp) { ValidateStr(sp); }
 }
 
 // ======================================

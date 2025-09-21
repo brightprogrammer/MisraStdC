@@ -24,7 +24,7 @@ bool test_str_foreach_out_of_bounds_access(void) {
     // Use StrForeachInRangeIdx which captures the 'end' parameter at the start
     // Even if we shrink the string, the loop will continue until idx reaches the fixed end
     size original_length = s.length; // Capture this as 12
-    StrForeachInRangeIdx(&s, chr, idx, 0, original_length, {
+    StrForeachInRangeIdx(&s, chr, idx, 0, original_length) {
         WriteFmt("Accessing idx {} (s.length={}): '{c}'\n", idx, s.length, chr);
 
         // When we reach idx=4, drastically shrink the string to length 3
@@ -41,7 +41,7 @@ bool test_str_foreach_out_of_bounds_access(void) {
         // When idx >= 3 (after resize), StrForeachInRangeIdx will detect:
         // if ((idx) >= (v)->length) LOG_FATAL(...)
         // This should cause a fatal error when idx >= s.length
-    });
+    }
 
     // Should never reach here if idx goes out of bounds
     StrDeinit(&s);
@@ -57,7 +57,7 @@ bool test_str_foreach_idx_out_of_bounds_access(void) {
     // Use StrForeachInRangeIdx with a fixed range that will become invalid
     // when we delete characters during iteration
     size original_length = s.length; // Capture this as 11
-    StrForeachInRangeIdx(&s, chr, idx, 0, original_length, {
+    StrForeachInRangeIdx(&s, chr, idx, 0, original_length) {
         WriteFmt("Accessing idx {} (s.length={}): '{c}'\n", idx, s.length, chr);
 
         // When we reach idx=3, delete several characters from the beginning
@@ -74,7 +74,7 @@ bool test_str_foreach_idx_out_of_bounds_access(void) {
         // When idx >= 5 (after deletion), StrForeachInRangeIdx will detect:
         // if ((idx) >= (v)->length) LOG_FATAL(...)
         // This should cause a fatal error when idx >= s.length
-    });
+    }
 
     // Should never reach here if bounds checking triggers
     StrDeinit(&s);
@@ -88,7 +88,7 @@ bool test_str_foreach_reverse_idx_out_of_bounds_access(void) {
     Str s = StrInitFromZstr("Beautiful Weather"); // 17 characters
 
     // StrForeachReverseIdx (VecForeachReverseIdx) has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
-    StrForeachReverseIdx(&s, chr, idx, {
+    StrForeachReverseIdx(&s, chr, idx) {
         WriteFmt("Accessing idx {} (s.length={}): '{c}'\n", idx, s.length, chr);
 
         // When we reach idx=10, drastically shrink the string
@@ -101,7 +101,7 @@ bool test_str_foreach_reverse_idx_out_of_bounds_access(void) {
 
         // When idx >= s.length, the bounds check will trigger:
         // if ((idx) >= (v)->length) LOG_FATAL(...)
-    });
+    }
 
     // Should never reach here if bounds checking triggers
     StrDeinit(&s);
@@ -115,7 +115,7 @@ bool test_str_foreach_ptr_idx_out_of_bounds_access(void) {
     Str s = StrInitFromZstr("Programming Test"); // 16 characters
 
     // StrForeachPtrIdx (VecForeachPtrIdx) has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
-    StrForeachPtrIdx(&s, chr_ptr, idx, {
+    StrForeachPtrIdx(&s, chr_ptr, idx) {
         WriteFmt("Accessing idx {} (s.length={}): '{c}'\n", idx, s.length, *chr_ptr);
 
         // When we reach idx=4, delete most characters from the string
@@ -127,7 +127,7 @@ bool test_str_foreach_ptr_idx_out_of_bounds_access(void) {
 
         // When idx >= s.length, the bounds check will trigger:
         // if ((idx) >= (v)->length) LOG_FATAL(...)
-    });
+    }
 
     // Should never reach here if bounds checking triggers
     StrDeinit(&s);
@@ -141,7 +141,7 @@ bool test_str_foreach_reverse_ptr_idx_out_of_bounds_access(void) {
     Str s = StrInitFromZstr("Excellent Example"); // 17 characters
 
     // StrForeachReversePtrIdx (VecForeachPtrReverseIdx) has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
-    StrForeachReversePtrIdx(&s, chr_ptr, idx, {
+    StrForeachReversePtrIdx(&s, chr_ptr, idx) {
         WriteFmt("Accessing idx {} (s.length={}): '{c}'\n", idx, s.length, *chr_ptr);
 
         // When we reach idx=12, shrink the string significantly
@@ -152,7 +152,7 @@ bool test_str_foreach_reverse_ptr_idx_out_of_bounds_access(void) {
 
         // When idx >= s.length, the bounds check will trigger:
         // if ((idx) >= (v)->length) LOG_FATAL(...)
-    });
+    }
 
     // Should never reach here if bounds checking triggers
     StrDeinit(&s);
@@ -167,7 +167,7 @@ bool test_str_foreach_ptr_in_range_idx_out_of_bounds_access(void) {
 
     // Use StrForeachPtrInRangeIdx with a fixed range that becomes invalid when we modify the string
     size original_length = s.length; // Capture this as 32
-    StrForeachPtrInRangeIdx(&s, chr_ptr, idx, 0, original_length, {
+    StrForeachPtrInRangeIdx(&s, chr_ptr, idx, 0, original_length) {
         WriteFmt("Accessing idx {} (s.length={}): '{c}'\n", idx, s.length, *chr_ptr);
 
         // When we reach idx=8, delete several characters
@@ -182,7 +182,7 @@ bool test_str_foreach_ptr_in_range_idx_out_of_bounds_access(void) {
 
         // When idx >= s.length, the bounds check will trigger:
         // if ((idx) >= (v)->length) LOG_FATAL(...)
-    });
+    }
 
     // Should never reach here if bounds checking triggers
     StrDeinit(&s);
@@ -196,7 +196,7 @@ bool test_str_foreach_idx_basic_out_of_bounds_access(void) {
     Str s = StrInitFromZstr("Testing Basic"); // 13 characters
 
     // Basic StrForeachIdx (VecForeachIdx) now has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
-    StrForeachIdx(&s, chr, idx, {
+    StrForeachIdx(&s, chr, idx) {
         WriteFmt("Accessing idx {} (s.length={}): '{c}'\n", idx, s.length, chr);
 
         // When we reach idx=3, drastically shrink the string
@@ -208,7 +208,7 @@ bool test_str_foreach_idx_basic_out_of_bounds_access(void) {
 
         // When idx >= s.length, the bounds check will trigger:
         // if ((idx) >= (v)->length) LOG_FATAL(...)
-    });
+    }
 
     // Should never reach here if bounds checking triggers
     StrDeinit(&s);

@@ -41,7 +41,8 @@
     for (TYPE_OF(v) UNPL(pv) = (v); UNPL(pv); UNPL(pv) = NULL)                                                         \
         if ((ValidateVec(UNPL(pv)), 1) && UNPL(pv)->length > 0)                                                        \
             for (u64 idx = UNPL(pv)->length; idx-- > 0;)                                                               \
-                for (VEC_DATATYPE(UNPL(pv)) var = VecAt(UNPL(pv), idx); 1; break)
+                for (u8 UNPL(run_once) = 1; UNPL(run_once); UNPL(run_once) = 0)                                        \
+                    for (VEC_DATATYPE(UNPL(pv)) var = VecAt(UNPL(pv), idx); UNPL(run_once); UNPL(run_once) = 0)
 
 ///
 /// Iterate over each element `var` of given vector `v` at each index `idx` into the vector.
@@ -58,7 +59,7 @@
 #define VecForeachPtrIdx(v, var, idx)                                                                                  \
     for (TYPE_OF(v) UNPL(pv) = (v); UNPL(pv); UNPL(pv) = NULL)                                                         \
         if ((ValidateVec(UNPL(pv)), 1) && UNPL(pv)->length > 0)                                                        \
-            for (size_t idx = 0, UNPL(d) = 1; UNPL(d); UNPL(d)--)                                                      \
+            for (u64 idx = 0, UNPL(d) = 1; UNPL(d); UNPL(d)--)                                                         \
                 for (VEC_DATATYPE(UNPL(pv)) *var = NULL; idx < UNPL(pv)->length && (var = VecPtrAt(UNPL(pv), idx), 1); \
                      idx++)
 
@@ -78,7 +79,8 @@
     for (TYPE_OF(v) UNPL(pv) = (v); UNPL(pv); UNPL(pv) = NULL)                                                         \
         if ((ValidateVec(UNPL(pv)), 1) && UNPL(pv)->length > 0)                                                        \
             for (u64 idx = UNPL(pv)->length; idx-- > 0;)                                                               \
-                for (VEC_DATATYPE(UNPL(pv)) *var = VecPtrAt(UNPL(pv), idx); 1; break)
+                for (u8 UNPL(run_once) = 1; UNPL(run_once); UNPL(run_once) = 0)                                        \
+                    for (VEC_DATATYPE(UNPL(pv)) *var = VecPtrAt(UNPL(pv), idx); UNPL(run_once); UNPL(run_once) = 0)
 
 ///
 /// Iterate over each element `var` of the given vector `v`.
@@ -92,7 +94,7 @@
 ///
 /// TAGS: Foreach, Vec, Iteration, Loop
 ///
-#define VecForeach(v, var) VecForeachIdx((v), (var), (____iter___))
+#define VecForeach(v, var) VecForeachIdx((v), (var), UNPL(iter))
 
 ///
 /// Iterate over each element `var` of the given vector `v` in reverse order.
@@ -106,7 +108,7 @@
 ///
 /// TAGS: Foreach, Vec, Iteration, Loop, Reverse
 ///
-#define VecForeachReverse(v, var) VecForeachReverseIdx((v), (var), (____iter___))
+#define VecForeachReverse(v, var) VecForeachReverseIdx((v), (var), UNPL(iter))
 
 ///
 /// Iterate over each element `var` of the given vector `v` (as a pointer).
@@ -122,7 +124,7 @@
 ///
 /// TAGS: Foreach, Vec, Iteration, Loop, Pointer
 ///
-#define VecForeachPtr(v, var) VecForeachPtrIdx((v), (var), (____iter___))
+#define VecForeachPtr(v, var) VecForeachPtrIdx((v), (var), UNPL(iter))
 
 ///
 /// Iterate over each element `var` (as a pointer) of the given vector `v` in reverse order.

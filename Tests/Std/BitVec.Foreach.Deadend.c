@@ -83,10 +83,10 @@ bool test_bitvec_foreach_invalid_usage(void) {
 
     // This should abort due to ValidateBitVec check
     int count = 0;
-    BitVecForeach(&bv, bit, {
+    BitVecForeach(&bv, bit) {
         (void)bit;
         count++;
-    });
+    }
 
     // Should not reach here
     (void)count; // Silence unused variable warning

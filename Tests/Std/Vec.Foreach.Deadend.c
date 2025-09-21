@@ -30,7 +30,7 @@ bool test_vec_foreach_out_of_bounds_access(void) {
 
     // VecForeach doesn't use an explicit index but we can still cause issues
     int iteration_count = 0;
-    VecForeach(&vec, val, {
+    VecForeach(&vec, val) {
         WriteFmt("Iteration {} (vec.length={}): {}\n", iteration_count, vec.length, val);
 
         // After 2nd iteration, shrink the vector dramatically
@@ -41,7 +41,7 @@ bool test_vec_foreach_out_of_bounds_access(void) {
         iteration_count++;
 
         // This will eventually cause bounds checking to trigger
-    });
+    }
 
     // Should never reach here if bounds checking triggers
     VecDeinit(&vec);
@@ -61,7 +61,7 @@ bool test_vec_foreach_idx_out_of_bounds_access(void) {
     }
 
     // VecForeachIdx has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
-    VecForeachIdx(&vec, val, idx, {
+    VecForeachIdx(&vec, val, idx) {
         WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, vec.length, val);
 
         // When we reach idx=2, drastically shrink the vector to make the current idx invalid
@@ -73,7 +73,7 @@ bool test_vec_foreach_idx_out_of_bounds_access(void) {
 
         // When idx >= vec.length, the bounds check will trigger:
         // if ((idx) >= (v)->length) LOG_FATAL(...)
-    });
+    }
 
     // Should never reach here if bounds checking triggers
     VecDeinit(&vec);
@@ -93,7 +93,7 @@ bool test_vec_foreach_reverse_idx_out_of_bounds_access(void) {
     }
 
     // VecForeachReverseIdx has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
-    VecForeachReverseIdx(&vec, val, idx, {
+    VecForeachReverseIdx(&vec, val, idx) {
         WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, vec.length, val);
 
         // When we reach idx=3, drastically shrink the vector
@@ -106,7 +106,7 @@ bool test_vec_foreach_reverse_idx_out_of_bounds_access(void) {
 
         // When idx >= vec.length, the bounds check will trigger:
         // if ((idx) >= (v)->length) LOG_FATAL(...)
-    });
+    }
 
     // Should never reach here if bounds checking triggers
     VecDeinit(&vec);
@@ -126,7 +126,7 @@ bool test_vec_foreach_ptr_idx_out_of_bounds_access(void) {
     }
 
     // VecForeachPtrIdx has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
-    VecForeachPtrIdx(&vec, val_ptr, idx, {
+    VecForeachPtrIdx(&vec, val_ptr, idx) {
         WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, vec.length, *val_ptr);
 
         // When we reach idx=3, shrink the vector to make the CURRENT idx invalid
@@ -138,7 +138,7 @@ bool test_vec_foreach_ptr_idx_out_of_bounds_access(void) {
 
         // When idx >= vec.length, the bounds check will trigger:
         // if ((idx) >= (v)->length) LOG_FATAL(...)
-    });
+    }
 
     // Should never reach here if bounds checking triggers
     VecDeinit(&vec);
@@ -158,7 +158,7 @@ bool test_vec_foreach_ptr_reverse_idx_out_of_bounds_access(void) {
     }
 
     // VecForeachPtrReverseIdx has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
-    VecForeachPtrReverseIdx(&vec, val_ptr, idx, {
+    VecForeachPtrReverseIdx(&vec, val_ptr, idx) {
         WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, vec.length, *val_ptr);
 
         // When we reach idx=5, shrink the vector significantly
@@ -169,7 +169,7 @@ bool test_vec_foreach_ptr_reverse_idx_out_of_bounds_access(void) {
 
         // When idx >= vec.length, the bounds check will trigger:
         // if ((idx) >= (v)->length) LOG_FATAL(...)
-    });
+    }
 
     // Should never reach here if bounds checking triggers
     VecDeinit(&vec);
@@ -190,7 +190,7 @@ bool test_vec_foreach_ptr_in_range_idx_out_of_bounds_access(void) {
 
     // Use VecForeachPtrInRangeIdx with a fixed range that becomes invalid when we modify the vector
     size original_length = vec.length; // Capture this as 9
-    VecForeachPtrInRangeIdx(&vec, val_ptr, idx, 0, original_length, {
+    VecForeachPtrInRangeIdx(&vec, val_ptr, idx, 0, original_length) {
         WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, vec.length, *val_ptr);
 
         // When we reach idx=3, delete several elements
@@ -205,7 +205,7 @@ bool test_vec_foreach_ptr_in_range_idx_out_of_bounds_access(void) {
 
         // When idx >= vec.length, the bounds check will trigger:
         // if ((idx) >= (v)->length) LOG_FATAL(...)
-    });
+    }
 
     // Should never reach here if bounds checking triggers
     VecDeinit(&vec);
@@ -225,7 +225,7 @@ bool test_vec_foreach_idx_basic_out_of_bounds_access(void) {
     }
 
     // Basic VecForeachIdx now has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
-    VecForeachIdx(&vec, val, idx, {
+    VecForeachIdx(&vec, val, idx) {
         WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, vec.length, val);
 
         // When we reach idx=2, drastically shrink the vector
@@ -237,7 +237,7 @@ bool test_vec_foreach_idx_basic_out_of_bounds_access(void) {
 
         // When idx >= vec.length, the bounds check will trigger:
         // if ((idx) >= (v)->length) LOG_FATAL(...)
-    });
+    }
 
     // Should never reach here if bounds checking triggers
     VecDeinit(&vec);

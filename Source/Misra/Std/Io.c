@@ -847,7 +847,7 @@ void _write_Str(Str* o, FmtInfo* fmt_info, Str* s) {
         if (fmt_info->flags & FMT_FLAG_HEX) {
             // Format each character as hex
             StrIntFormat config = {.base = 16, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0};
-            StrForeachIdx(s, c, i, {
+            StrForeachIdx(s, c, i) {
                 if (i > 0) {
                     StrPushBack(o, ' ');
                 }
@@ -861,7 +861,7 @@ void _write_Str(Str* o, FmtInfo* fmt_info, Str* s) {
                 StrPushBackZstr(o, "0x");
                 StrMerge(o, &hex);
                 StrDeinit(&hex);
-            });
+            }
         } else {
             // If precision is specified, use it as max length
             size len = s->length;
@@ -878,7 +878,7 @@ void _write_Str(Str* o, FmtInfo* fmt_info, Str* s) {
             if (fmt_info->flags & FMT_FLAG_CHAR) {
                 write_char_internal(o, fmt_info->flags, (const char*)s->data, len);
             } else {
-                StrForeachInRange(s, c, 0, len, {
+                StrForeachInRange(s, c, 0, len) {
                     if (IS_PRINTABLE(c)) {
                         StrPushBack(o, c);
                     } else {
@@ -887,7 +887,7 @@ void _write_Str(Str* o, FmtInfo* fmt_info, Str* s) {
                         StrPushBack(o, digits[(c >> 4) & 0xf]);
                         StrPushBack(o, digits[c & 0xf]);
                     }
-                });
+                }
             }
         }
     }

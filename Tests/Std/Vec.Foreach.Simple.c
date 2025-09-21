@@ -33,16 +33,20 @@ bool test_vec_foreach(void) {
 
     // Use VecForeach to sum the values
     int sum = 0;
-    VecForeach(&vec, item, { sum += item; });
+    VecForeach(&vec, item) {
+        sum += item;
+    }
 
     // Check the sum
     bool result = (sum == 150); // 10 + 20 + 30 + 40 + 50 = 150
 
     // Use VecForeach to double each value
-    VecForeach(&vec, item, { item *= 2; });
+    VecForeach(&vec, item) {
+        item *= 2;
+    }
 
     // Check that the values in the vector are unchanged (foreach uses value, not reference)
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == values[i]);
     }
 
@@ -68,11 +72,15 @@ bool test_vec_foreach_idx(void) {
 
     // Use VecForeachIdx to verify indices and values
     bool result = true;
-    VecForeachIdx(&vec, item, idx, { result = result && (item == values[idx]); });
+    VecForeachIdx(&vec, item, idx) {
+        result = result && (item == values[idx]);
+    };
 
     // Use VecForeachIdx to calculate weighted sum (value * index)
     int weighted_sum = 0;
-    VecForeachIdx(&vec, item, idx, { weighted_sum += item * idx; });
+    VecForeachIdx(&vec, item, idx) {
+        weighted_sum += item * idx;
+    }
 
     // Check the weighted sum
     // 10*0 + 20*1 + 30*2 + 40*3 + 50*4 = 0 + 20 + 60 + 120 + 200 = 400
@@ -99,17 +107,21 @@ bool test_vec_foreach_ptr(void) {
     }
 
     // Use VecForeachPtr to modify the values in the vector
-    VecForeachPtr(&vec, item_ptr, { *item_ptr *= 2; });
+    VecForeachPtr(&vec, item_ptr) {
+        *item_ptr *= 2;
+    }
 
     // Check that the values in the vector are doubled
     bool result = true;
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == values[i] * 2);
     }
 
     // Use VecForeachPtr to calculate sum
     int sum = 0;
-    VecForeachPtr(&vec, item_ptr, { sum += *item_ptr; });
+    VecForeachPtr(&vec, item_ptr) {
+        sum += *item_ptr;
+    }
 
     // Check the sum (should be doubled values)
     // 20 + 40 + 60 + 80 + 100 = 300
@@ -136,11 +148,13 @@ bool test_vec_foreach_ptr_idx(void) {
     }
 
     // Use VecForeachPtrIdx to set each value to its index
-    VecForeachPtrIdx(&vec, item_ptr, idx, { *item_ptr = idx; });
+    VecForeachPtrIdx(&vec, item_ptr, idx) {
+        *item_ptr = idx;
+    }
 
     // Check that the values in the vector are set to their indices
     bool result = true;
-    for (size i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < vec.length; i++) {
         result = result && (VecAt(&vec, i) == i);
     }
 
@@ -167,7 +181,9 @@ bool test_vec_foreach_reverse(void) {
     // Use VecForeachReverse to build a reversed array
     int reversed[5] = {0};
     int idx         = 0;
-    VecForeachReverse(&vec, item, { reversed[idx++] = item; });
+    VecForeachReverse(&vec, item) {
+        reversed[idx++] = item;
+    }
 
     // Check that the reversed array is correct
     bool result = true;
@@ -197,10 +213,10 @@ bool test_vec_foreach_reverse_idx(void) {
 
     // Use VecForeachReverseIdx to verify indices are correct in reverse
     bool result = true;
-    VecForeachReverseIdx(&vec, item, idx, {
+    VecForeachReverseIdx(&vec, item, idx) {
         result = result && (item == values[idx]);
         result = result && (VecAt(&vec, idx) == item);
-    });
+    }
 
     // Clean up
     VecDeinit(&vec);
@@ -224,7 +240,9 @@ bool test_vec_foreach_ptr_reverse(void) {
 
     // Use VecForeachPtrReverse to increment values in reverse order
     int increment = 1;
-    VecForeachPtrReverse(&vec, item_ptr, { *item_ptr += increment++; });
+    VecForeachPtrReverse(&vec, item_ptr) {
+        *item_ptr += increment++;
+    }
 
     // Values should now be: [15, 24, 33, 42, 51]
     // (50+1, 40+2, 30+3, 20+4, 10+5)
@@ -255,7 +273,9 @@ bool test_vec_foreach_ptr_reverse_idx(void) {
     }
 
     // Use VecForeachPtrReverseIdx to set each value to its index + 100
-    VecForeachPtrReverseIdx(&vec, item_ptr, idx, { *item_ptr = idx + 100; });
+    VecForeachPtrReverseIdx(&vec, item_ptr, idx) {
+        *item_ptr = idx + 100;
+    }
 
     // Check that the values are set correctly
     // Even though we iterate in reverse, idx represents the actual vector index
