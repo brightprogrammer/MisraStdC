@@ -22,5 +22,6 @@ void             clear_list(GenericList *list, u64 item_size);
 GenericListNode *node_at_list(GenericList *list, u64 item_size, u64 idx);
 void            *item_ptr_at_list(GenericList *list, u64 item_size, u64 idx);
 void             validate_list(const GenericList *list);
+GenericListNode *get_node_relative_to_list_node(GenericListNode *node, i64 ridx);
 
 #endif // MISRA_STD_CONTAINER_LIST_PRIVATE_H

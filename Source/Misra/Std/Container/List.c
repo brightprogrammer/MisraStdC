@@ -318,3 +318,29 @@ void validate_list(const GenericList *l) {
         }
     }
 }
+
+GenericListNode *get_node_relative_to_list_node(GenericListNode *node, i64 ridx) {
+    if (!node) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    if (ridx > 0) {
+        while (node->next && ridx) {
+            node = node->next;
+            ridx--;
+        }
+        if (!node->next && ridx) {
+            return NULL;
+        }
+    } else if (ridx < 0) {
+        while (node->prev && ridx < 0) {
+            node = node->prev;
+            ridx++;
+        }
+        if (!node->prev && ridx < 0) {
+            return NULL;
+        }
+    }
+
+    return node;
+}

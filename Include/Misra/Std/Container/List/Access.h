@@ -140,4 +140,17 @@
 ///
 #define ListNodePrev(item) ((TYPE_OF(item))((item) ? (item)->prev : NULL))
 
+///
+/// Get item relative to given node.
+///
+/// item[in] : List node to get previous node of, in the list.
+/// ridx[in] : Relative index +ve or -ve.
+///
+/// If relative index exceeds the bounds of list, then NULL is returned.
+///
+/// SUCCESS: Node relative to given `item` in list.
+/// FAILURE: `NULL` or abort
+///
+#define ListNodeRelative(base_node, ridx) get_relative_node_to_list_node(GENERIC_LIST_NODE(base_node), (i64)(ridx))
+
 #endif // MISRA_STD_CONTAINER_LIST_OPS_H
