@@ -648,8 +648,8 @@ typedef i8 bool;
 ///
 /// Macro helper to generate unique names
 ///
-#define CONCAT_(a, b) a##b
-#define CONCAT(a, b) CONCAT_(a, b)
+#define CONCAT_(a, b)     a##b
+#define CONCAT(a, b)      CONCAT_(a, b)
 #define UNIQUE_NAME(base) CONCAT(base, __COUNTER__)
 
 ///  Unique name per line

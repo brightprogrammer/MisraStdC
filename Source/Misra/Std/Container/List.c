@@ -158,8 +158,8 @@ void qsort_list(GenericList *list, u64 item_size, GenericCompare comp) {
 
     ValidateList(list);
 
-    void  *data       = malloc(item_size * list->length);
-    u64 item_count = list->length;
+    void *data       = malloc(item_size * list->length);
+    u64   item_count = list->length;
     remove_range_list(list, data, item_size, 0, list->length);
     qsort(data, item_count, item_size, comp);
     push_arr_list(list, item_size, data, item_count);
