@@ -103,7 +103,7 @@ void remove_range_list(GenericList *list, void *removed_data, u64 item_size, u64
     if (removed_data) {
         GenericListNode *node = node_at_list(list, item_size, start);
         for (u64 c = 0; (c < count) && node; c++) {
-            memcpy(removed_data + c * item_size, node->data, item_size);
+            memcpy((u8 *)removed_data + c * item_size, node->data, item_size);
 
             memset(node->data, 0, item_size);
             free(node->data);
@@ -236,7 +236,7 @@ void push_arr_list(GenericList *list, u64 item_size, void *arr, u64 count) {
             memcpy(new_tail->data, arr, item_size);
         }
 
-        arr += item_size;
+        arr = (u8 *)arr + item_size;
     }
 }
 
