@@ -126,14 +126,14 @@ int main(int argc, char** argv) {
                 VecMerge(&dir_paths, &project.test_directories);
 
                 // recursively explore directories and get filenames
-                VecForeach(&dir_paths, dir_name, {
+                VecForeach(&dir_paths, dir_name) {
                     // keep track of current path we're exploring
                     Str current_path = StrInit();
                     StrMerge(&current_path, &dir_name);
 
                     SysDirContents dir_contents = SysGetDirContents(dir_name.data);
                     Scope(&dir_contents, VecDeinit, {
-                        VecForeach(&dir_contents, dir_entry, {
+                        VecForeach(&dir_contents, dir_entry) {
                             // if it's a directory then store it for exploration later on
                             if (dir_entry.type == SYS_DIR_ENTRY_TYPE_DIRECTORY) {
                                 // create new directory path relative to current directory search path
@@ -144,84 +144,80 @@ int main(int argc, char** argv) {
 
                                 // store the directory name, ownersip transferred
                                 VecPushBack(&dir_paths, path);
-                            } else if (dir_entry.type == SYS_DIR_ENTRY_TYPE_REGULAR_FILE) {
-                                // create complete relative file path
-                                Str path = StrInit();
-                                StrMerge(&path, &current_path);
-                                StrPushBack(&path, '/');
-                                StrMerge(&path, &dir_entry.name);
+                }
+                else if (dir_entry.type == SYS_DIR_ENTRY_TYPE_REGULAR_FILE) {
+                    // create complete relative file path
+                    Str path = StrInit();
+                    StrMerge(&path, &current_path);
+                    StrPushBack(&path, '/');
+                    StrMerge(&path, &dir_entry.name);
 
-                                // store discovered file name, ownersip transferred
-                                VecPushBack(&file_paths, path);
-                            }
-                            // any other file type is not documented
-                        });
-                    });
-                });
-            });
+                    // store discovered file name, ownersip transferred
+                    VecPushBack(&file_paths, path);
+                }
+                // any other file type is not documented
+                        }
+        });
+                }
+});
 
-            // go over each file and generate corresponding markdown
-            VecForeach(&file_paths, file_path, {
-                Str file_contents = StrInit();
-                Scope(&file_contents, StrDeinit, {
-                    if (!ReadCompleteFile(
-                            file_path.data,
-                            &file_contents.data,
-                            &file_contents.length,
-                            &file_contents.capacity
-                        )) {
-                        LOG_ERROR("Failed to read \"{}\" source file.", file_path.data);
-                        continue;
-                    }
+// go over each file and generate corresponding markdown
+VecForeach(&file_paths, file_path) {
+    Str file_contents = StrInit();
+    Scope(&file_contents, StrDeinit, {
+        if (!ReadCompleteFile(file_path.data, &file_contents.data, &file_contents.length, &file_contents.capacity)) {
+            LOG_ERROR("Failed to read \"{}\" source file.", file_path.data);
+            continue;
+        }
 
-                    Str output_path = StrInit();
-                    Scope(&output_path, StrDeinit, {
-                        StrMerge(&output_path, &file_path);
-                        LOG_INFO("{}", output_path);
-                        StrReplaceZstr(&output_path, "/", "-", -1);
-                        LOG_INFO("{}", output_path);
+        Str output_path = StrInit();
+        Scope(&output_path, StrDeinit, {
+            StrMerge(&output_path, &file_path);
+            LOG_INFO("{}", output_path);
+            StrReplaceZstr(&output_path, "/", "-", -1);
+            LOG_INFO("{}", output_path);
 
-                        Str md_code = StrInit();
-                        Scope(&md_code, StrDeinit, {
-                            // Create template strings for StrWriteFmt with escaped braces
-                            const char* mdHeader =
-                                "---\n"
-                                "title: \"{}\"\n"
-                                "meta_title: \"{}\"\n"
-                                "description: \"Documentation for {}\"\n"
-                                "date: 2025-05-12T05:00:00Z\n"
-                                "# image: \"/images/image-placeholder.png\"\n"
-                                "categories: [\"Vec\", \"Macro\", \"Generic\"]\n"
-                                "author: \"Siddharth Mishra\"\n"
-                                "tags: [\"vec\", \"macro\", \"generic\"]\n"
-                                "draft: false\n"
-                                "---\n"
-                                "```c\n";
+            Str md_code = StrInit();
+            Scope(&md_code, StrDeinit, {
+                // Create template strings for StrWriteFmt with escaped braces
+                const char* mdHeader =
+                    "---\n"
+                    "title: \"{}\"\n"
+                    "meta_title: \"{}\"\n"
+                    "description: \"Documentation for {}\"\n"
+                    "date: 2025-05-12T05:00:00Z\n"
+                    "# image: \"/images/image-placeholder.png\"\n"
+                    "categories: [\"Vec\", \"Macro\", \"Generic\"]\n"
+                    "author: \"Siddharth Mishra\"\n"
+                    "tags: [\"vec\", \"macro\", \"generic\"]\n"
+                    "draft: false\n"
+                    "---\n"
+                    "```c\n";
 
-                            StrWriteFmt(&md_code, mdHeader, output_path.data, output_path.data, output_path.data);
-                            StrMerge(&md_code, &file_contents);
-                            StrWriteFmt(&md_code, "\n```");
+                StrWriteFmt(&md_code, mdHeader, output_path.data, output_path.data, output_path.data);
+                StrMerge(&md_code, &file_contents);
+                StrWriteFmt(&md_code, "\n```");
 
-                            // complete relative file path
-                            StrPushFront(&output_path, '/');
-                            LOG_INFO("{}", output_path);
-                            StrPushFrontCstr(&output_path, project.build_dir.data, project.build_dir.length);
-                            LOG_INFO("{}", output_path);
-                            StrReplaceZstr(&output_path, ".c", ".md", 1);
-                            StrReplaceZstr(&output_path, ".h", ".md", 1);
-                            LOG_INFO("{}\n\n", output_path);
+                // complete relative file path
+                StrPushFront(&output_path, '/');
+                LOG_INFO("{}", output_path);
+                StrPushFrontCstr(&output_path, project.build_dir.data, project.build_dir.length);
+                LOG_INFO("{}", output_path);
+                StrReplaceZstr(&output_path, ".c", ".md", 1);
+                StrReplaceZstr(&output_path, ".h", ".md", 1);
+                LOG_INFO("{}\n\n", output_path);
 
 
-                            // dump code to output path
-                            FILE* f = fopen(output_path.data, "w");
-                            Scope(f, fclose, { fwrite(md_code.data, 1, md_code.length, f); });
-                        });
-                    });
-                });
+                // dump code to output path
+                FILE* f = fopen(output_path.data, "w");
+                Scope(f, fclose, { fwrite(md_code.data, 1, md_code.length, f); });
             });
         });
     });
+};
+});
+});
 
-    LogDeinit();
-    return 0;
+LogDeinit();
+return 0;
 }

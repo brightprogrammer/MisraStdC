@@ -79,7 +79,9 @@ void ModelInfoDeinit(ModelInfo* info) {
 void SearchResultDeinit(SearchResult* result) {
     StrDeinit(&result->binary_name);
     StrDeinit(&result->sha256);
-    VecForeach(&result->tags, tag, { StrDeinit(&tag); });
+    VecForeach(&result->tags, tag) {
+        StrDeinit(&tag);
+    }
     VecDeinit(&result->tags);
     StrDeinit(&result->created_at);
     StrDeinit(&result->model_name);

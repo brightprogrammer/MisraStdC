@@ -56,7 +56,7 @@
     WriteFmtLn("X : {}", obj.data.y);
     WriteFmtLn("N : {}", obj.data.n);
     WriteFmt("strs : [");
-    VecForeach(&obj.strs, str, { WriteFmt("{}, ", str); });
+    VecForeach(&obj.strs, str) { WriteFmt("{}, ", str); }
     WriteFmtLn("]");
 
     StrClear(&json);
@@ -730,14 +730,14 @@ StrIter JSkipValue(StrIter si);
         bool ___is_first___ = true;                                                                                    \
         (void)___is_first___;                                                                                          \
         StrPushBack(&(j), '[');                                                                                        \
-        VecForeach(&(arr), item, {                                                                                     \
+        VecForeach(&(arr), item) {                                                                                     \
             if (___is_first___) {                                                                                      \
                 ___is_first___ = false;                                                                                \
             } else {                                                                                                   \
                 StrPushBack(&(j), ',');                                                                                \
             }                                                                                                          \
             { writer }                                                                                                 \
-        });                                                                                                            \
+        }                                                                                                              \
         StrPushBack(&(j), ']');                                                                                        \
     } while (0)
 

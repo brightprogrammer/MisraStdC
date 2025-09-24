@@ -23,9 +23,8 @@ extern "C" {
 ///               at the iterated index `idx`. The type of `chr` will likely be
 ///               the character type used by the `Str` implementation (e.g., `char`).
 /// idx[in]     : Name of the variable to be used for iterating over indices (i64).
-/// body        : Body of this foreach loop.
 ///
-#define StrForeachIdx(str, chr, idx, body) VecForeachIdx((str), (chr), idx, {body})
+#define StrForeachIdx(str, chr, idx) VecForeachIdx((str), (chr), idx)
 
 ///
 /// Iterate over each character `chr` of the given Str `str` in reverse order at each index `idx`.
@@ -37,9 +36,8 @@ extern "C" {
 ///               at the iterated index `idx`. The type of `chr` will likely be
 ///               the character type used by the `Str` implementation (e.g., `char`).
 /// idx[in]     : Name of the variable to be used for iterating over indices (i64).
-/// body        : Body of this foreach loop.
 ///
-#define StrForeachReverseIdx(str, chr, idx, body) VecForeachReverseIdx((str), (chr), idx, {body})
+#define StrForeachReverseIdx(str, chr, idx) VecForeachReverseIdx((str), (chr), idx)
 
 ///
 /// Iterate over each character pointer `chrptr` of the given Str `str` at each index `idx`.
@@ -52,9 +50,8 @@ extern "C" {
 ///               likely be a pointer to the character type used by the `Str`
 ///               implementation (e.g., `char*`).
 /// idx[in]     : Name of the variable to be used for iterating over indices (i64).
-/// body        : Body of this foreach loop.
 ///
-#define StrForeachPtrIdx(str, chrptr, idx, body) VecForeachPtrIdx((str), (chrptr), idx, {body})
+#define StrForeachPtrIdx(str, chrptr, idx) VecForeachPtrIdx((str), (chrptr), idx)
 
 ///
 /// Iterate over each character pointer `chrptr` of the given Str `str` in reverse order at each index `idx`.
@@ -67,9 +64,8 @@ extern "C" {
 ///               likely be a pointer to the character type used by the `Str`
 ///               implementation (e.g., `char*`).
 /// idx[in]     : Name of the variable to be used for iterating over indices (i64).
-/// body        : Body of this foreach loop.
 ///
-#define StrForeachReversePtrIdx(str, chrptr, idx, body) VecForeachPtrReverseIdx((str), (chrptr), idx, {body})
+#define StrForeachReversePtrIdx(str, chrptr, idx) VecForeachPtrReverseIdx((str), (chrptr), idx)
 
 ///
 /// Iterate over each character `chr` of the given Str `str`.
@@ -80,9 +76,8 @@ extern "C" {
 /// chr[in]     : Name of the variable to be used which will contain the character of the
 ///               current element during iteration. The type of `chr` will likely be
 ///               the character type used by the `Str` implementation (e.g., `char`).
-/// body        : The block of code to be executed for each character of the Str.
 ///
-#define StrForeach(str, chr, body) VecForeach((str), (chr), {body})
+#define StrForeach(str, chr) VecForeach((str), (chr))
 
 ///
 /// Iterate over each character `chr` of the given Str `str` in reverse order.
@@ -93,9 +88,8 @@ extern "C" {
 /// chr[in]     : Name of the variable to be used which will contain the character of the
 ///               current element during iteration. The type of `chr` will likely be
 ///               the character type used by the `Str` implementation (e.g., `char`).
-/// body        : The block of code to be executed for each character of the Str.
 ///
-#define StrForeachReverse(str, chr, body) VecForeachReverse((str), (chr), {body})
+#define StrForeachReverse(str, chr) VecForeachReverse((str), (chr))
 
 ///
 /// Iterate over each character pointer `chrptr` of the given Str `str`.
@@ -108,9 +102,8 @@ extern "C" {
 ///               current character during iteration. The type of `chrptr` will
 ///               likely be a pointer to the character type used by the `Str`
 ///               implementation (e.g., `char*`).
-/// body        : The block of code to be executed for each character of the Str.
 ///
-#define StrForeachPtr(str, chrptr, body) VecForeachPtr((str), (chrptr), {body})
+#define StrForeachPtr(str, chrptr) VecForeachPtr((str), (chrptr))
 
 ///
 /// Iterate over each character pointer `chrptr` of the given Str `str` in reverse order.
@@ -123,9 +116,8 @@ extern "C" {
 ///               current character during iteration. The type of `chrptr` will
 ///               likely be a pointer to the character type used by the `Str`
 ///               implementation (e.g., `char*`).
-/// body        : The block of code to be executed for each character of the Str.
 ///
-#define StrForeachPtrReverse(str, chrptr, body) VecForeachPtrReverse((str), (chrptr), {body})
+#define StrForeachPtrReverse(str, chrptr) VecForeachPtrReverse((str), (chrptr))
 
 ///
 /// Iterate over characters in a specific range of the given Str `str` at each index `idx`.
@@ -137,16 +129,8 @@ extern "C" {
 /// idx[in]      : Name of variable to be used for iterating over indices.
 /// start[in]    : Starting index (inclusive).
 /// end[in]      : Ending index (exclusive).
-/// body         : Body of this foreach loop.
 ///
-/// SUCCESS : The `body` is executed for each character of the Str `str` from the
-///           `start` index to the `end-1` index.
-/// FAILURE : If the Str `str` is NULL, its length is zero, or the range is invalid,
-///           the loop body will not be executed. Any access to an invalid index will
-///           result in a fatal log message and program termination.
-///
-#define StrForeachInRangeIdx(str, chr, idx, start, end, body)                                                          \
-    VecForeachInRangeIdx((str), (chr), idx, (start), (end), {body})
+#define StrForeachInRangeIdx(str, chr, idx, start, end) VecForeachInRangeIdx((str), (chr), idx, (start), (end))
 
 ///
 /// Iterate over characters in a specific range of the given Str `str`.
@@ -157,15 +141,8 @@ extern "C" {
 /// chr[in]      : Name of variable to be used which'll contain character of the current element.
 /// start[in]    : Starting index (inclusive).
 /// end[in]      : Ending index (exclusive).
-/// body         : Body of this foreach loop.
 ///
-/// SUCCESS : The `body` is executed for each character of the Str `str` from the
-///           `start` index to the `end-1` index.
-/// FAILURE : If the Str `str` is NULL, its length is zero, or the range is invalid,
-///           the loop body will not be executed. Any failures within the `VecForeachInRangeIdx`
-///           macro will result in a fatal log message and program termination.
-///
-#define StrForeachInRange(str, chr, start, end, body) VecForeachInRange((str), (chr), (start), (end), {body})
+#define StrForeachInRange(str, chr, start, end) VecForeachInRange((str), (chr), (start), (end))
 
 ///
 /// Iterate over characters in a specific range of the given Str `str` at each index `idx` (as pointers).
@@ -177,16 +154,9 @@ extern "C" {
 /// idx[in]      : Name of variable to be used for iterating over indices.
 /// start[in]    : Starting index (inclusive).
 /// end[in]      : Ending index (exclusive).
-/// body         : Body of this foreach loop.
 ///
-/// SUCCESS : The `body` is executed for each character of the Str `str` from the
-///           `start` index to the `end-1` index, with `chrptr` pointing to each character.
-/// FAILURE : If the Str `str` is NULL, its length is zero, or the range is invalid,
-///           the loop body will not be executed. Any access to an invalid index will
-///           result in a fatal log message and program termination.
-///
-#define StrForeachPtrInRangeIdx(str, chrptr, idx, start, end, body)                                                    \
-    VecForeachPtrInRangeIdx((str), (chrptr), idx, (start), (end), {body})
+#define StrForeachPtrInRangeIdx(str, chrptr, idx, start, end)                                                          \
+    VecForeachPtrInRangeIdx((str), (chrptr), idx, (start), (end))
 
 ///
 /// Iterate over characters in a specific range of the given Str `str` (as pointers).
@@ -198,16 +168,8 @@ extern "C" {
 /// chrptr[in]   : Name of pointer variable to be used which'll point to the current character.
 /// start[in]    : Starting index (inclusive).
 /// end[in]      : Ending index (exclusive).
-/// body         : Body of this foreach loop.
 ///
-/// SUCCESS : The `body` is executed for each character of the Str `str` from the
-///           `start` index to the `end-1` index, with `chrptr` pointing to each character.
-/// FAILURE : If the Str `str` is NULL, its length is zero, or the range is invalid,
-///           the loop body will not be executed. Any failures within the `VecForeachPtrInRangeIdx`
-///           macro will result in a fatal log message and program termination.
-///
-#define StrForeachPtrInRange(str, chrptr, start, end, body)                                                            \
-    VecForeachPtrInRange((str), (chrptr), (start), (end), {body})
+#define StrForeachPtrInRange(str, chrptr, start, end) VecForeachPtrInRange((str), (chrptr), (start), (end))
 
 #ifdef __cplusplus
 }

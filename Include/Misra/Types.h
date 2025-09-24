@@ -644,4 +644,16 @@ typedef i8 bool;
 ///
 #define APPLY_MACRO_FOREACH_AGAIN() APPLY_MACRO_FOREACH_HELPER
 
+
+///
+/// Macro helper to generate unique names
+///
+#define CONCAT_(a, b)     a##b
+#define CONCAT(a, b)      CONCAT_(a, b)
+#define UNIQUE_NAME(base) CONCAT(base, __COUNTER__)
+
+///  Unique name per line
+#define UNPL(base) CONCAT(base, __LINE__)
+
+
 #endif // MISRA_TYPES_H

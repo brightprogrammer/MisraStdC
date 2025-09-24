@@ -1611,11 +1611,11 @@ u64 BitVecPrefixMatch(BitVec *bv, BitVecs *patterns) {
         LOG_FATAL("invalid BitVecs object provided");
     }
 
-    VecForeachPtrIdx(patterns, pattern, i, {
+    VecForeachPtrIdx(patterns, pattern, i) {
         if (BitVecStartsWith(bv, pattern)) {
             return i;
         }
-    });
+    }
 
     return SIZE_MAX;
 }
@@ -1626,11 +1626,11 @@ u64 BitVecSuffixMatch(BitVec *bv, BitVecs *patterns) {
         LOG_FATAL("invalid arguments");
     }
 
-    VecForeachPtrIdx(patterns, pattern, i, {
+    VecForeachPtrIdx(patterns, pattern, i) {
         if (BitVecEndsWith(bv, pattern)) {
             return i;
         }
-    });
+    }
 
     return SIZE_MAX;
 }

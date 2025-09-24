@@ -6,7 +6,7 @@ int main(void) {
         Strs lines = StrSplit(&file, "\n");
 
         // Use the fixed VecForeachPtr macro
-        VecForeachPtr(&lines, line, {
+        VecForeachPtr(&lines, line) {
             if (StrStartsWithZstr(line, "[.") && StrEndsWithZstr(line, "]")) {
                 Str rule_name = StrInit();
                 StrReadFmt(line->data, "[.{}]", rule_name);
@@ -16,7 +16,7 @@ int main(void) {
                     StrDeinit(&rule_name);
                 }
             }
-        });
+        }
 
         VecDeinit(&lines);
         VecDeinit(&file);

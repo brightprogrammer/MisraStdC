@@ -159,6 +159,27 @@ extern "C" {
     ///
     u64 BitVecBestAlignment(BitVec *bv1, BitVec *bv2);
 
+    ///
+    /// Analyze run lengths in a bitvector.
+    /// A run is a sequence of consecutive identical bits.
+    /// Results array must be pre-allocated with sufficient space.
+    ///
+    /// bv[in]         : Bitvector to analyze
+    /// runs[out]      : Array to store run lengths
+    /// values[out]    : Array to store run values (true/false)
+    /// max_runs[in]   : Maximum number of runs to store
+    ///
+    /// RETURNS: Number of runs found
+    ///
+    /// USAGE:
+    ///   u64 run_lengths[50];
+    ///   bool run_values[50];
+    ///   u64 count = BitVecRunLengths(&flags, run_lengths, run_values, 50);
+    ///
+    /// TAGS: BitVec, RunLength, Analysis, Pattern
+    ///
+    u64 BitVecRunLengths(BitVec *bv, u64 *runs, bool *values, u64 max_runs);
+
 #ifdef __cplusplus
 }
 #endif

@@ -405,37 +405,37 @@ bool test_dynamic_object_keys_writing(void) {
 
     JW_OBJ(json, {
         JW_OBJ_KV(json, "functions", {
-            VecForeach(&symbols, symbol, {
+            VecForeach(&symbols, symbol) {
                 Str source_key = StrInit();
                 StrWriteFmt(&source_key, "{}", symbol.source_function_id);
 
                 JW_OBJ_KV(json, source_key.data, {
-                    Str target_key = StrInit();
-                    StrWriteFmt(&target_key, "{}", symbol.target_function_id);
+            Str target_key = StrInit();
+            StrWriteFmt(&target_key, "{}", symbol.target_function_id);
 
-                    JW_OBJ_KV(json, target_key.data, {
-                        JW_FLT_KV(json, "distance", symbol.distance);
-                        JW_STR_KV(json, "name", symbol.function_name);
-                    });
+            JW_OBJ_KV(json, target_key.data, {
+                JW_FLT_KV(json, "distance", symbol.distance);
+                JW_STR_KV(json, "name", symbol.function_name);
+            });
 
-                    StrDeinit(&target_key);
+            StrDeinit(&target_key);
                 });
 
                 StrDeinit(&source_key);
-            });
-        });
-    });
+            }
+});
+});
 
-    const char* expected =
-        "{\"functions\":{\"111\":{\"222\":{\"distance\":0.900000,\"name\":\"func1\"}},\"333\":{\"444\":{\"distance\":0."
-        "800000,\"name\":\"func2\"}}}}";
-    if (!compare_json_output(&json, expected)) {
-        success = false;
-    }
+const char* expected =
+    "{\"functions\":{\"111\":{\"222\":{\"distance\":0.900000,\"name\":\"func1\"}},\"333\":{\"444\":{\"distance\":0."
+    "800000,\"name\":\"func2\"}}}}";
+if (!compare_json_output(&json, expected)) {
+    success = false;
+}
 
-    StrDeinit(&json);
-    VecDeinit(&symbols);
-    return success;
+StrDeinit(&json);
+VecDeinit(&symbols);
+return success;
 }
 
 // Test 7: Deeply nested structure writing

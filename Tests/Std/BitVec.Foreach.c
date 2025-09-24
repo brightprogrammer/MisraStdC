@@ -47,14 +47,14 @@ bool test_bitvec_foreach_idx(void) {
     u64  count           = 0;
     bool pattern_correct = true;
 
-    BitVecForeachIdx(&bv, bit, idx, {
+    BitVecForeachIdx(&bv, bit, idx) {
         if (idx == 0 || idx == 2) {
             pattern_correct = pattern_correct && (bit == true);
         } else {
             pattern_correct = pattern_correct && (bit == false);
         }
         count++;
-    });
+    }
 
     bool result = (count == 4) && pattern_correct;
 
@@ -79,13 +79,13 @@ bool test_bitvec_foreach(void) {
     u64 true_count  = 0;
     u64 false_count = 0;
 
-    BitVecForeach(&bv, bit, {
+    BitVecForeach(&bv, bit) {
         if (bit) {
             true_count++;
         } else {
             false_count++;
         }
-    });
+    }
 
     bool result = (true_count == 2) && (false_count == 1);
 
@@ -111,12 +111,12 @@ bool test_bitvec_foreach_reverse_idx(void) {
     u64  count              = 0;
     bool first_bit_is_false = false; // Should be last bit when iterating in reverse
 
-    BitVecForeachReverseIdx(&bv, bit, idx, {
+    BitVecForeachReverseIdx(&bv, bit, idx) {
         if (count == 0) {
             first_bit_is_false = (bit == false) && (idx == 3);
         }
         count++;
-    });
+    }
 
     bool result = (count == 4) && first_bit_is_false;
 
@@ -141,12 +141,12 @@ bool test_bitvec_foreach_reverse(void) {
     u64  count         = 0;
     bool first_is_true = false; // Should be the last bit (true)
 
-    BitVecForeachReverse(&bv, bit, {
+    BitVecForeachReverse(&bv, bit) {
         if (count == 0) {
             first_is_true = (bit == true);
         }
         count++;
-    });
+    }
 
     bool result = (count == 3) && first_is_true;
 
@@ -173,7 +173,7 @@ bool test_bitvec_foreach_in_range_idx(void) {
     u64  count         = 0;
     bool range_correct = true;
 
-    BitVecForeachInRangeIdx(&bv, bit, idx, 1, 4, {
+    BitVecForeachInRangeIdx(&bv, bit, idx, 1, 4) {
         // Should iterate over indices 1, 2, 3
         // Values: false, true, false
         if (idx == 1 || idx == 3) {
@@ -182,7 +182,7 @@ bool test_bitvec_foreach_in_range_idx(void) {
             range_correct = range_correct && (bit == true);
         }
         count++;
-    });
+    }
 
     bool result = (count == 3) && range_correct;
 
@@ -209,7 +209,7 @@ bool test_bitvec_foreach_in_range(void) {
     u64 true_count  = 0;
     u64 false_count = 0;
 
-    BitVecForeachInRange(&bv, bit, 1, 3, {
+    BitVecForeachInRange(&bv, bit, 1, 3) {
         // Should iterate over indices 1, 2
         // Values: true, true
         if (bit) {
@@ -217,7 +217,7 @@ bool test_bitvec_foreach_in_range(void) {
         } else {
             false_count++;
         }
-    });
+    }
 
     bool result = (true_count == 2) && (false_count == 0);
 
@@ -236,19 +236,19 @@ bool test_bitvec_foreach_edge_cases(void) {
     int    count  = 0;
 
     // Test foreach on empty bitvec
-    BitVecForeach(&bv, bit, {
+    BitVecForeach(&bv, bit) {
         (void)bit;
         count++; // Should not execute
-    });
+    }
     result = result && (count == 0);
 
     // Test foreach on single element
     BitVecPush(&bv, true);
     count = 0;
-    BitVecForeach(&bv, bit, {
+    BitVecForeach(&bv, bit) {
         count++;
         result = result && (bit == true);
-    });
+    }
     result = result && (count == 1);
 
     // Test foreach on large data
@@ -258,10 +258,10 @@ bool test_bitvec_foreach_edge_cases(void) {
     }
 
     count = 0;
-    BitVecForeach(&bv, bit, {
+    BitVecForeach(&bv, bit) {
         (void)bit;
         count++;
-    });
+    }
     result = result && (count == 1000);
 
     BitVecDeinit(&bv);
@@ -276,18 +276,18 @@ bool test_bitvec_foreach_idx_edge_cases(void) {
     u64    last_idx = SIZE_MAX;
 
     // Test foreach idx on empty bitvec
-    BitVecForeachIdx(&bv, bit, idx, {
+    BitVecForeachIdx(&bv, bit, idx) {
         (void)bit;
         result = false; // Should not execute
-    });
+    }
 
     // Test foreach idx on single element
     BitVecPush(&bv, false);
-    BitVecForeachIdx(&bv, bit, idx, {
+    BitVecForeachIdx(&bv, bit, idx) {
         result   = result && (idx == 0);
         result   = result && (bit == false);
         last_idx = idx;
-    });
+    }
     result = result && (last_idx == 0);
 
     // Test foreach idx ordering
@@ -297,11 +297,11 @@ bool test_bitvec_foreach_idx_edge_cases(void) {
     }
 
     u64 expected_idx = 0;
-    BitVecForeachIdx(&bv, bit, idx, {
+    BitVecForeachIdx(&bv, bit, idx) {
         (void)bit;
         result = result && (idx == expected_idx);
         expected_idx++;
-    });
+    }
 
     BitVecDeinit(&bv);
     return result;
@@ -314,18 +314,18 @@ bool test_bitvec_foreach_reverse_edge_cases(void) {
     bool   result = true;
 
     // Test reverse foreach on empty bitvec
-    BitVecForeachReverse(&bv, bit, {
+    BitVecForeachReverse(&bv, bit) {
         (void)bit;
         result = false; // Should not execute
-    });
+    }
 
     // Test reverse foreach on single element
     BitVecPush(&bv, true);
     int count = 0;
-    BitVecForeachReverse(&bv, bit, {
+    BitVecForeachReverse(&bv, bit) {
         count++;
         result = result && (bit == true);
-    });
+    }
     result = result && (count == 1);
 
     // Test reverse ordering
@@ -336,10 +336,10 @@ bool test_bitvec_foreach_reverse_edge_cases(void) {
 
     bool expected_sequence[] = {true, false, true}; // Reverse order
     int  seq_idx             = 0;
-    BitVecForeachReverse(&bv, bit, {
+    BitVecForeachReverse(&bv, bit) {
         result = result && (bit == expected_sequence[seq_idx]);
         seq_idx++;
-    });
+    }
 
     BitVecDeinit(&bv);
     return result;
@@ -358,34 +358,34 @@ bool test_bitvec_foreach_range_edge_cases(void) {
 
     // Test range with start == end (should not execute)
     int count = 0;
-    BitVecForeachInRange(&bv, bit, 5, 5, {
+    BitVecForeachInRange(&bv, bit, 5, 5) {
         (void)bit;
         count++; // Should not execute
-    });
+    }
     result = result && (count == 0);
 
     // Test range with single element
     count = 0;
-    BitVecForeachInRange(&bv, bit, 3, 4, {
+    BitVecForeachInRange(&bv, bit, 3, 4) {
         count++;
         result = result && (bit == false); // 3 % 2 != 0
-    });
+    }
     result = result && (count == 1);
 
     // Test range at boundaries
     count = 0;
-    BitVecForeachInRange(&bv, bit, 0, 2, {
+    BitVecForeachInRange(&bv, bit, 0, 2) {
         (void)bit;
         count++;
-    });
+    }
     result = result && (count == 2);
 
     // Test range at the end of bitvector
     count = 0;
-    BitVecForeachInRange(&bv, bit, 8, 10, {
+    BitVecForeachInRange(&bv, bit, 8, 10) {
         (void)bit;
         count++;
-    });
+    }
     result = result && (count == 2); // Should iterate over indices 8,9
 
     BitVecDeinit(&bv);
@@ -408,22 +408,22 @@ bool test_bitvec_foreach_stress_test(void) {
         // Test all foreach variants
         int count1 = 0, count2 = 0, count3 = 0, count4 = 0;
 
-        BitVecForeach(&bv, bitval, {
+        BitVecForeach(&bv, bitval) {
             (void)bitval;
             count1++;
-        });
-        BitVecForeachIdx(&bv, bitval, i, {
+        }
+        BitVecForeachIdx(&bv, bitval, i) {
             (void)bitval;
             count2++;
-        });
-        BitVecForeachReverse(&bv, bitval, {
+        }
+        BitVecForeachReverse(&bv, bitval) {
             (void)bitval;
             count3++;
-        });
-        BitVecForeachReverseIdx(&bv, bitval, i, {
+        }
+        BitVecForeachReverseIdx(&bv, bitval, i) {
             (void)bitval;
             count4++;
-        });
+        }
 
         result = result && (count1 == sz);
         result = result && (count2 == sz);
@@ -700,10 +700,10 @@ bool test_bitvec_foreach_invalid_usage(void) {
 
     // This should abort due to ValidateBitVec check
     int count = 0;
-    BitVecForeach(&bv, bit, {
+    BitVecForeach(&bv, bit) {
         (void)bit;
         count++;
-    });
+    }
 
     // Should not reach here
     (void)count; // Silence unused variable warning
