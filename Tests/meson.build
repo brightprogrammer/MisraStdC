@@ -27,12 +27,8 @@ str_tests = [
     ['Str.Access', 'Std/Str.Access.c'],
     ['Str.Memory', 'Std/Str.Memory.c'],
     ['Str.Convert', 'Std/Str.Convert.c'],
-    ['Str.Foreach.Simple', 'Std/Str.Foreach.Simple.c'],
+    ['Str.Foreach', 'Std/Str.Foreach.c'],
     ['Str.Ops', 'Std/Str.Ops.c'],
-]
-
-str_deadend_tests = [
-    ['Str.Foreach.Deadend', 'Std/Str.Foreach.Deadend.c'],
 ]
 
 vec_tests = [
@@ -42,13 +38,9 @@ vec_tests = [
     ['Vec.Memory', 'Std/Vec.Memory.c'],
     ['Vec.Insert', 'Std/Vec.Insert.c'],
     ['Vec.Remove', 'Std/Vec.Remove.c'],
-    ['Vec.Foreach.Simple', 'Std/Vec.Foreach.Simple.c'],
+    ['Vec.Foreach', 'Std/Vec.Foreach.c'],
     ['Vec.Ops', 'Std/Vec.Ops.c'],
     ['Vec.Complex', 'Std/Vec.Complex.c'],
-]
-
-vec_deadend_tests = [
-    ['Vec.Foreach.Deadend', 'Std/Vec.Foreach.Deadend.c'],
 ]
 
 bitvec_tests = [
@@ -187,40 +179,3 @@ foreach test_info : bitvec_deadend_tests
     
     test(test_name, test_exe)
 endforeach
-
-# Build and register deadend tests WITHOUT sanitizers to avoid memory leak reports
-foreach test_info : str_deadend_tests
-    test_name = test_info[0]
-    test_src = test_info[1]
-    
-    test_exe = executable(
-        test_name,
-        files(test_src),
-        link_with: [misra_std_no_sanitizers],  # Use the non-sanitized library
-        dependencies: [test_util_dep_no_sanitizers],  # Use non-sanitized test utils
-        c_args: test_args,
-        include_directories: inc_misra,
-        install: false,
-        override_options: ['b_sanitize=none']  # Disable all sanitizers for deadend tests
-    )
-    
-    test(test_name, test_exe)
-endforeach
-
-foreach test_info : vec_deadend_tests
-    test_name = test_info[0]
-    test_src = test_info[1]
-    
-    test_exe = executable(
-        test_name,
-        files(test_src),
-        link_with: [misra_std_no_sanitizers],  # Use the non-sanitized library
-        dependencies: [test_util_dep_no_sanitizers],  # Use non-sanitized test utils
-        c_args: test_args,
-        include_directories: inc_misra,
-        install: false,
-        override_options: ['b_sanitize=none']  # Disable all sanitizers for deadend tests
-    )
-    
-    test(test_name, test_exe)
-endforeach 

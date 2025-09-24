@@ -39,7 +39,7 @@
 #define BitVecForeachReverseIdx(bv, var, idx)                                                                          \
     for (TYPE_OF(bv) UNPL(pbv) = (bv); UNPL(pbv); UNPL(pbv) = NULL)                                                    \
         if ((ValidateBitVec(UNPL(pbv)), 1) && UNPL(pbv)->length > 0)                                                   \
-            for (u64 idx = UNPL(pbv)->length; idx-- > 0;)                                                              \
+            for (u64 idx = UNPL(pbv)->length; idx-- > 0 && idx < UNPL(pbv)->length;)                                   \
                 for (u8 UNPL(run_once) = 1; UNPL(run_once); UNPL(run_once) = 0)                                        \
                     for (bool var = BitVecGet(UNPL(pbv), idx); UNPL(run_once); UNPL(run_once) = 0)
 
@@ -82,7 +82,7 @@
         if ((ValidateBitVec(UNPL(pbv)), 1) && UNPL(pbv)->length > 0)                                                   \
             for (u64 UNPL(s) = (start), UNPL(e) = (end), idx = UNPL(s), UNPL(d) = 1;                                   \
                  UNPL(s) <= idx && idx < UNPL(e) && idx < UNPL(pbv)->length && UNPL(s) <= UNPL(e);                     \
-                 ++idx)                                                                                                \
+                 ++idx, UNPL(d) = 1)                                                                                   \
                 for (bool var = BitVecGet(UNPL(pbv), idx); UNPL(d); UNPL(d) = 0)
 
 

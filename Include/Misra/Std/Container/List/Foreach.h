@@ -26,9 +26,11 @@
 #define ListForeach(l, var)                                                                                            \
     for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                         \
         if ((ValidateList(UNPL(pl)), 1) && (UNPL(pl)->head))                                                           \
-            for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = UNPL(pl)->head; UNPL(node); UNPL(node) = UNPL(node)->next)    \
-                if ((UNPL(node)->next != UNPL(node)) && (UNPL(node)->prev != UNPL(node)) && (UNPL(node)->data))        \
-                    for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                    \
+            for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = (TYPE_OF(UNPL(node)))ListNodeBegin(UNPL(pl)); UNPL(node);     \
+                 UNPL(node)                            = ListNodeNext(UNPL(node)))                                     \
+                if (((void *)UNPL(node)->next != (void *)UNPL(node)) &&                     \
+                    ((void *)UNPL(node)->prev != (void *)UNPL(node)) && (UNPL(node)->data)) \
+                    for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)         \
                         for (LIST_DATA_TYPE(UNPL(pl)) var = *(UNPL(node)->data); UNPL(_once); UNPL(_once) = false)
 
 ///
@@ -49,9 +51,11 @@
 #define ListForeachPtr(l, var)                                                                                         \
     for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                         \
         if ((ValidateList(UNPL(pl)), 1) && (UNPL(pl)->head))                                                           \
-            for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = UNPL(pl)->head; UNPL(node); UNPL(node) = UNPL(node)->next)    \
-                if ((UNPL(node)->next != UNPL(node)) && (UNPL(node)->prev != UNPL(node)) && (UNPL(node)->data))        \
-                    for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                    \
+            for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = (TYPE_OF(UNPL(node)))ListNodeBegin(UNPL(pl)); UNPL(node);     \
+                 UNPL(node)                            = ListNodeNext(UNPL(node)))                                     \
+                if ((void *)(UNPL(node)->next != (void *)UNPL(node)) &&                     \
+                    ((void *)UNPL(node)->prev != (void *)UNPL(node)) && (UNPL(node)->data)) \
+                    for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)         \
                         for (LIST_DATA_TYPE(UNPL(pl)) *var = UNPL(node)->data; UNPL(_once); UNPL(_once) = false)
 
 ///
@@ -72,9 +76,11 @@
 #define ListForeachReverse(l, var)                                                                                     \
     for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                         \
         if ((ValidateList(UNPL(pl)), 1) && (UNPL(pl)->tail))                                                           \
-            for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = UNPL(pl)->tail; UNPL(node); UNPL(node) = UNPL(node)->prev)    \
-                if ((UNPL(node)->next != UNPL(node)) && (UNPL(node)->prev != UNPL(node)) && (UNPL(node)->data))        \
-                    for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                    \
+            for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = (TYPE_OF(UNPL(node)))ListNodeEnd(UNPL(pl)); UNPL(node);       \
+                 UNPL(node)                            = ListNodePrev(UNPL(node)))                                     \
+                if ((void *)(UNPL(node)->next != (void *)UNPL(node)) &&                     \
+                    ((void *)UNPL(node)->prev != (void *)UNPL(node)) && (UNPL(node)->data)) \
+                    for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)         \
                         for (LIST_DATA_TYPE(UNPL(pl)) var = *(UNPL(node)->data); UNPL(_once); UNPL(_once) = false)
 
 ///
@@ -95,9 +101,11 @@
 #define ListForeachPtrReverse(l, var)                                                                                  \
     for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                         \
         if ((ValidateList(UNPL(pl)), 1) && (UNPL(pl)->tail))                                                           \
-            for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = UNPL(pl)->tail; UNPL(node); UNPL(node) = UNPL(node)->prev)    \
-                if ((UNPL(node)->next != UNPL(node)) && (UNPL(node)->prev != UNPL(node)) && (UNPL(node)->data))        \
-                    for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                    \
+            for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = (TYPE_OF(UNPL(node)))ListNodeEnd(UNPL(pl)); UNPL(node);       \
+                 UNPL(node)                            = ListNodePrev(UNPL(node)))                                     \
+                if ((void *)(UNPL(node)->next != (void *)UNPL(node)) &&                     \
+                    ((void *)UNPL(node)->prev != (void *)UNPL(node)) && (UNPL(node)->data)) \
+                    for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)         \
                         for (LIST_DATA_TYPE(UNPL(pl)) *var = UNPL(node)->data; UNPL(_once); UNPL(_once) = false)
 
 ///
@@ -118,11 +126,12 @@
 ///
 /// TAGS: Foreach, List, Iteration, Loop, Range
 ///
-#define ListForeachInRange(l, var, start, end)                                                                         \
-    for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                         \
-        if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->head)                                                             \
-            for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = UNPL(pl)->head; UNPL(node); UNPL(node) = UNPL(node)->next)    \
-                for (u64 UNPL(i) = 0; UNPL(node) && UNPL(i) < (end); UNPL(node) = UNPL(node)->next, ++UNPL(i))         \
+#define ListForeachInRange(l, var, start, end)                                                                                                    \
+    for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                                                    \
+        if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->head)                                                                                        \
+            for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = (TYPE_OF(UNPL(node)))ListNodeBegin(UNPL(pl)); UNPL(node);                                \
+                 UNPL(node)                            = ListNodeNext(UNPL(node)))                                                                \
+                for (u64 UNPL(i) = 0; UNPL(node) && UNPL(i) < (end); UNPL(node) = ListNodeNext(UNPL(node)), ++UNPL(i)) \
                     if (UNPL(i) >= (start) && (UNPL(node)->data))                                                      \
                         for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                \
                             for (LIST_DATA_TYPE(UNPL(pl)) var = *(UNPL(node)->data); UNPL(_once); UNPL(_once) = false)
@@ -142,11 +151,12 @@
 ///
 /// TAGS: Foreach, List, Iteration, Loop, Range, Pointer
 ///
-#define ListForeachPtrInRange(l, var, start, end)                                                                      \
-    for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                         \
-        if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->head)                                                             \
-            for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = UNPL(pl)->head; UNPL(node); UNPL(node) = UNPL(node)->next)    \
-                for (u64 UNPL(i) = 0; UNPL(node) && UNPL(i) < (end); UNPL(node) = UNPL(node)->next, ++UNPL(i))         \
+#define ListForeachPtrInRange(l, var, start, end)                                                                                                 \
+    for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                                                    \
+        if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->head)                                                                                        \
+            for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = (TYPE_OF(UNPL(node)))ListNodeBegin(UNPL(pl)); UNPL(node);                                \
+                 UNPL(node)                            = ListNodeNext(UNPL(node)))                                                                \
+                for (u64 UNPL(i) = 0; UNPL(node) && UNPL(i) < (end); UNPL(node) = ListNodeNext(UNPL(node)), ++UNPL(i)) \
                     if (UNPL(i) >= (start) && (UNPL(node)->data))                                                      \
                         for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                \
                             for (LIST_DATA_TYPE(UNPL(pl)) *var = UNPL(node)->data; UNPL(_once); UNPL(_once) = false)
@@ -168,11 +178,12 @@
 ///
 /// TAGS: Foreach, List, Iteration, Loop, Reverse, Range
 ///
-#define ListForeachReverseInRange(l, var, start, end)                                                                  \
-    for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                         \
-        if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->tail)                                                             \
-            for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = UNPL(pl)->tail; UNPL(node); UNPL(node) = UNPL(node)->prev)    \
-                for (u64 UNPL(i) = 0; UNPL(node) && UNPL(i) < (end); UNPL(node) = UNPL(node)->prev, ++UNPL(i))         \
+#define ListForeachReverseInRange(l, var, start, end)                                                                                             \
+    for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                                                    \
+        if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->tail)                                                                                        \
+            for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = (TYPE_OF(UNPL(node)))ListNodeEnd(UNPL(pl)); UNPL(node);                                  \
+                 UNPL(node)                            = ListNodePrev(UNPL(node)))                                                                \
+                for (u64 UNPL(i) = 0; UNPL(node) && UNPL(i) < (end); UNPL(node) = ListNodePrev(UNPL(node)), ++UNPL(i)) \
                     if (UNPL(i) >= (start) && (UNPL(node)->data))                                                      \
                         for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                \
                             for (LIST_DATA_TYPE(UNPL(pl)) var = *(UNPL(node)->data); UNPL(_once); UNPL(_once) = false)
@@ -195,11 +206,12 @@
 ///
 /// TAGS: Foreach, List, Iteration, Loop, Reverse, Range, Pointer
 ///
-#define ListForeachPtrReverseInRange(l, var, start, end)                                                               \
-    for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                         \
-        if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->tail)                                                             \
-            for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = UNPL(pl)->tail; UNPL(node); UNPL(node) = UNPL(node)->prev)    \
-                for (u64 UNPL(i) = 0; UNPL(node) && UNPL(i) < (end); UNPL(node) = UNPL(node)->prev, ++UNPL(i))         \
+#define ListForeachPtrReverseInRange(l, var, start, end)                                                                                          \
+    for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                                                    \
+        if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->tail)                                                                                        \
+            for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = (TYPE_OF(UNPL(node)))ListNodeEnd(UNPL(pl)); UNPL(node);                                  \
+                 UNPL(node)                            = ListNodePrev(UNPL(node)))                                                                \
+                for (u64 UNPL(i) = 0; UNPL(node) && UNPL(i) < (end); UNPL(node) = ListNodePrev(UNPL(node)), ++UNPL(i)) \
                     if (UNPL(i) >= (start) && (UNPL(node)->data))                                                      \
                         for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                \
                             for (LIST_DATA_TYPE(UNPL(pl)) *var = UNPL(node)->data; UNPL(_once); UNPL(_once) = false)
@@ -228,10 +240,16 @@
     for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                         \
         if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->head)                                                             \
             for (u64 idx = 0, UNPL(pidx) = 0; idx < UNPL(pl)->length;)                                                 \
-                for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = UNPL(pl)->head, *UNPL(next) = NULL;                       \
+                for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node)  = (TYPE_OF(UNPL(node)))ListNodeBegin(UNPL(pl)),            \
+                                                *UNPL(next) = NULL;                                                    \
                      UNPL(node) &&                                                                                     \
                      (UNPL(next) =                                                                                     \
-                          (UNPL(pidx) ? ListNodeRelative(UNPL(node), (i64)(idx) - (i64)(UNPL(pidx))) :                 \
+                          (UNPL(pidx) ? get_node_random_access(                                                        \
+                                            GENERIC_LIST(UNPL(pl)),                                                    \
+                                            GENERIC_LIST_NODE(UNPL(node)),                                             \
+                                            UNPL(pidx),                                                                \
+                                            (i64)(idx) - (i64)UNPL(pidx)                                               \
+                                        ) :                                                                            \
                                         UNPL(pl)->head)) &&                                                            \
                      UNPL(next) && UNPL(next)->data;                                                                   \
                      UNPL(pidx) = ++idx, UNPL(node) = UNPL(next))                                                      \
@@ -262,10 +280,16 @@
     for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                         \
         if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->head)                                                             \
             for (u64 idx = 0, UNPL(pidx) = 0; idx < UNPL(pl)->length;)                                                 \
-                for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node) = UNPL(pl)->head, *UNPL(next) = NULL;                       \
+                for (LIST_NODE_TYPE(UNPL(pl)) * UNPL(node)  = (TYPE_OF(UNPL(node)))ListNodeBegin(UNPL(pl)),            \
+                                                *UNPL(next) = NULL;                                                    \
                      UNPL(node) &&                                                                                     \
                      (UNPL(next) =                                                                                     \
-                          (UNPL(pidx) ? ListNodeRelative(UNPL(node), (i64)(idx) - (i64)(UNPL(pidx))) :                 \
+                          (UNPL(pidx) ? get_node_random_access(                                                        \
+                                            GENERIC_LIST(UNPL(pl)),                                                    \
+                                            GENERIC_LIST_NODE(UNPL(node)),                                             \
+                                            UNPL(pidx),                                                                \
+                                            (i64)(idx) - (i64)UNPL(pidx)                                               \
+                                        ) :                                                                            \
                                         UNPL(pl)->head)) &&                                                            \
                      UNPL(next) && UNPL(next)->data;                                                                   \
                      UNPL(pidx) = ++idx, UNPL(node) = UNPL(next))                                                      \
@@ -299,7 +323,12 @@
                                                 *UNPL(next) = NULL;                                                    \
                      UNPL(node) && idx < UNPL(pl)->length && (UNPL(first) = 0) &&                                      \
                      (UNPL(next) =                                                                                     \
-                          (UNPL(pidx) != idx ? ListNodeRelative(UNPL(node), (i64)(idx) - (i64)(UNPL(pidx))) :          \
+                          (UNPL(pidx) != idx ? get_node_random_access(                                                 \
+                                                   GENERIC_LIST(UNPL(pl)),                                             \
+                                                   GENERIC_LIST_NODE(UNPL(node)),                                      \
+                                                   UNPL(pidx),                                                         \
+                                                   (i64)(idx) - (i64)UNPL(pidx)                                        \
+                                               ) :                                                                     \
                                                UNPL(node))) &&                                                         \
                      UNPL(next) && UNPL(next)->data;                                                                   \
                      UNPL(node) = UNPL(next), UNPL(pidx) = idx)                                                        \
@@ -339,7 +368,12 @@
                                                 *UNPL(next) = NULL;                                                    \
                      UNPL(node) && idx < UNPL(pl)->length && (UNPL(first) = 0) &&                                      \
                      (UNPL(next) =                                                                                     \
-                          (UNPL(pidx) != idx ? ListNodeRelative(UNPL(node), (i64)(idx) - (i64)(UNPL(pidx))) :          \
+                          (UNPL(pidx) != idx ? get_node_random_access(                                                 \
+                                                   GENERIC_LIST(UNPL(pl)),                                             \
+                                                   GENERIC_LIST_NODE(UNPL(node)),                                      \
+                                                   UNPL(pidx),                                                         \
+                                                   (i64)(idx) - (i64)(UNPL(pidx))                                      \
+                                               ) :                                                                     \
                                                UNPL(node))) &&                                                         \
                      UNPL(next) && UNPL(next)->data;                                                                   \
                      UNPL(node) = UNPL(next), UNPL(pidx) = idx)                                                        \

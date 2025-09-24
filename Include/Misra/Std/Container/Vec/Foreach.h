@@ -40,7 +40,7 @@
 #define VecForeachReverseIdx(v, var, idx)                                                                              \
     for (TYPE_OF(v) UNPL(pv) = (v); UNPL(pv); UNPL(pv) = NULL)                                                         \
         if ((ValidateVec(UNPL(pv)), 1) && UNPL(pv)->length > 0)                                                        \
-            for (u64 idx = UNPL(pv)->length; idx-- > 0;)                                                               \
+            for (u64 idx = UNPL(pv)->length; idx-- > 0 && idx < UNPL(pv)->length;)                                     \
                 for (u8 UNPL(run_once) = 1; UNPL(run_once); UNPL(run_once) = 0)                                        \
                     for (VEC_DATATYPE(UNPL(pv)) var = VecAt(UNPL(pv), idx); UNPL(run_once); UNPL(run_once) = 0)
 
@@ -78,7 +78,7 @@
 #define VecForeachPtrReverseIdx(v, var, idx)                                                                           \
     for (TYPE_OF(v) UNPL(pv) = (v); UNPL(pv); UNPL(pv) = NULL)                                                         \
         if ((ValidateVec(UNPL(pv)), 1) && UNPL(pv)->length > 0)                                                        \
-            for (u64 idx = UNPL(pv)->length; idx-- > 0;)                                                               \
+            for (u64 idx = UNPL(pv)->length; idx-- > 0 && idx < UNPL(pv)->length;)                                     \
                 for (u8 UNPL(run_once) = 1; UNPL(run_once); UNPL(run_once) = 0)                                        \
                     for (VEC_DATATYPE(UNPL(pv)) *var = VecPtrAt(UNPL(pv), idx); UNPL(run_once); UNPL(run_once) = 0)
 
@@ -161,7 +161,7 @@
         if ((ValidateVec(UNPL(pv)), 1) && UNPL(pv)->length > 0)                                                        \
             for (u64 UNPL(s) = (start), UNPL(e) = (end), idx = UNPL(s), UNPL(d) = 1;                                   \
                  UNPL(s) <= idx && idx < UNPL(e) && idx < UNPL(pv)->length && UNPL(s) <= UNPL(e);                      \
-                 ++idx)                                                                                                \
+                 ++idx, UNPL(d) = 1)                                                                                   \
                 for (VEC_DATATYPE(UNPL(pv)) var = VecAt(UNPL(pv), idx); UNPL(d); UNPL(d) = 0)
 
 ///
@@ -197,7 +197,7 @@
         if ((ValidateVec(UNPL(pv)), 1) && UNPL(pv)->length > 0)                                                        \
             for (u64 UNPL(s) = (start), UNPL(e) = (end), idx = UNPL(s), UNPL(d) = 1;                                   \
                  idx >= UNPL(s) && idx < UNPL(e) && idx < UNPL(pv)->length && UNPL(s) <= UNPL(e);                      \
-                 ++idx)                                                                                                \
+                 ++idx, UNPL(d) = 1)                                                                                   \
                 for (VEC_DATATYPE(UNPL(pv)) *var = VecPtrAt(UNPL(pv), idx); UNPL(d); UNPL(d) = 0)
 
 ///

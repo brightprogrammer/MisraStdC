@@ -344,3 +344,54 @@ GenericListNode *get_node_relative_to_list_node(GenericListNode *node, i64 ridx)
 
     return node;
 }
+
+GenericListNode *get_node_random_access(GenericList *list, GenericListNode *node, u64 nidx, i64 ridx) {
+    if (!list || !node) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    if (nidx >= list->length) {
+        LOG_FATAL("Node index exceeds list bounds");
+    }
+
+    if ((ridx < 0 && (u64)(-ridx) > nidx) || (ridx > 0 && nidx + (u64)ridx >= list->length)) {
+        LOG_FATAL("Relative node index outside of list bounds");
+    }
+
+    ValidateList(list);
+
+    u64 abs_target_idx = nidx + ridx;
+    u64 dist_from_node = (nidx > abs_target_idx) ? nidx - abs_target_idx : abs_target_idx - nidx;
+    u64 dist_from_head = abs_target_idx;
+    u64 dist_from_tail = list->length - 1 - abs_target_idx;
+
+    GenericListNode *cur = NULL;
+    if (dist_from_node <= dist_from_head && dist_from_node <= dist_from_tail) {
+        // Traverse from current node
+        cur       = node;
+        i64 steps = ridx;
+        while (steps > 0 && cur) {
+            cur = cur->next;
+            steps--;
+        }
+        while (steps < 0 && cur) {
+            cur = cur->prev;
+            steps++;
+        }
+        return cur;
+    } else if (dist_from_head <= dist_from_tail) {
+        // Traverse from head
+        cur = list->head;
+        for (u64 i = 0; i < abs_target_idx && cur; i++) {
+            cur = cur->next;
+        }
+        return cur;
+    } else {
+        // Traverse from tail
+        cur = list->tail;
+        for (u64 i = list->length - 1; i > abs_target_idx && cur; i--) {
+            cur = cur->prev;
+        }
+        return cur;
+    }
+}

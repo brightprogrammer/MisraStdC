@@ -79,7 +79,9 @@ bool test_bitvec_foreach_invalid_usage(void) {
     WriteFmt("Testing BitVec foreach with invalid bitvec\n");
 
     // Test foreach with invalid bitvec (length > 0 but data is NULL)
-    BitVec bv = {.length = 5, .capacity = 10, .data = NULL, .byte_size = 0};
+    BitVec bv   = BitVecInit();
+    bv.length   = 5;
+    bv.capacity = 10;
 
     // This should abort due to ValidateBitVec check
     int count = 0;
@@ -107,6 +109,12 @@ int main(void) {
     };
 
     int total_deadend_tests = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
+
+    typedef List(int) LI;
+    LI li = ListInit();
+    ListForeach(&li, i) {
+        (void)i;
+    }
 
     // Run all deadend tests using the centralized test driver
     return run_test_suite(NULL, 0, deadend_tests, total_deadend_tests, "BitVec.Foreach.Deadend");
