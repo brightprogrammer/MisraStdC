@@ -36,4 +36,6 @@
 #    define ListInitWithDeepCopyT(l, ci, cd) ((TYPE_OF(l))ListInitWithDeepCopy(ci, cd))
 #endif
 
+#define ListDeinit(v) deinit_list(GENERIC_LIST(v), sizeof(LIST_DATA_TYPE(v)))
+
 #endif // MISRA_STD_CONTAINER_LIST_H

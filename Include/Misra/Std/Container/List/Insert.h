@@ -43,11 +43,11 @@
 #define ListInsertL(l, lval, idx)                                                                                      \
     do {                                                                                                               \
         ValidateList(l);                                                                                               \
-        LIST_DATA_TYPE(l) *__ptr__val_##__LINE__ = &(lval);                                                            \
-        LIST_DATA_TYPE(l) __tmp__val_##__LINE__  = (lval);                                                             \
-        insert_into_list(GENERIC_LIST(l), __tmp__val_##__LINE__, sizeof(LIST_DATA_TYPE(l)), (idx));                    \
+        LIST_DATA_TYPE(l) * UNPL(_ptrval) = &(lval);                                                                   \
+        LIST_DATA_TYPE(l) UNPL(_tmpval)   = *UNPL(_ptrval);                                                            \
+        insert_into_list(GENERIC_LIST(l), UNPL(_ptrval), sizeof(LIST_DATA_TYPE(l)), (idx));                            \
         if (!(l)->copy_init) {                                                                                         \
-            memset(__ptr__val_##__LINE__, 0, sizeof(LIST_DATA_TYPE(l)));                                               \
+            memset(UNPL(_ptrval), 0, sizeof(LIST_DATA_TYPE(l)));                                                       \
         }                                                                                                              \
     } while (0)
 
@@ -79,8 +79,8 @@
 #define ListInsertR(l, rval, idx)                                                                                      \
     do {                                                                                                               \
         ValidateList(l);                                                                                               \
-        LIST_DATA_TYPE(l) __tmp__val_##__LINE__ = (rval);                                                              \
-        insert_range_into_vec(GENERIC_LIST(l), (char *)&__tmp__val_##__LINE__, sizeof(LIST_DATA_TYPE(l)), (idx), 1);   \
+        LIST_DATA_TYPE(l) UNPL(_rval) = (rval);                                                                        \
+        insert_into_list(GENERIC_LIST(l), (char *)&UNPL(_rval), sizeof(LIST_DATA_TYPE(l)), (idx));                     \
     } while (0)
 
 ///
@@ -156,7 +156,7 @@
 /// SUCCESS: Return.
 /// FAILURE: Does not return.
 ///
-#define ListPushFront(l, lval) ListPushFrontL((l), (lval), 0);
+#define ListPushFront(l, lval) ListPushFrontL((l), (lval));
 
 ///
 /// Push a l-value at the back of list.
@@ -169,7 +169,7 @@
 /// SUCCESS: Return
 /// FAILURE: Does not return
 ///
-#define ListPushBack(l, lval) ListPushBackL((l), (lval), (l)->length)
+#define ListPushBack(l, lval) ListPushBackL((l), (lval))
 
 ///
 /// Push a complete array into this list.
@@ -187,12 +187,12 @@
 #define ListPushArrL(l, arr, count)                                                                                    \
     do {                                                                                                               \
         ValidateList(l);                                                                                               \
-        LIST_DATA_TYPE(l) *__ptr_val_##__LINE__      = (arr);                                                          \
-        const LIST_DATA_TYPE(l) __tmp_val_##__LINE__ = *(arr);                                                         \
-        (void)__tmp_val_##__LINE__;                                                                                    \
-        push_arr_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), __ptr_val_##__LINE__, (count));                      \
+        LIST_DATA_TYPE(l) * UNPL(_ptrval)     = (arr);                                                                 \
+        const LIST_DATA_TYPE(l) UNPL(_tmpval) = *UNPL(_ptrval);                                                        \
+        (void)UNPL(_tmpval);                                                                                           \
+        push_arr_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), UNPL(_ptrval), (count));                             \
         if (!(l)->copy_init) {                                                                                         \
-            memset(__ptr_val_##__LINE__, 0, sizeof(LIST_DATA_TYPE(l)));                                                \
+            memset(UNPL(_ptrval), 0, sizeof(LIST_DATA_TYPE(l)));                                                       \
         }                                                                                                              \
     } while (0)
 
@@ -212,11 +212,11 @@
         ValidateList(l);                                                                                               \
         ValidateList(l2);                                                                                              \
         {                                                                                                              \
-            LIST_DATA_TYPE(l) __tmp1_##__LINE__  = {0};                                                                \
-            LIST_DATA_TYPE(l2) __tmp2_##__LINE__ = {0};                                                                \
-            __tmp1_##__LINE__                    = __tmp2_##__LINE__;                                                  \
-            (void)__tmp1_##__LINE__;                                                                                   \
-            (void)__tmp2_##__LINE__;                                                                                   \
+            LIST_DATA_TYPE(l) UNPL(_tmp1)  = {0};                                                                      \
+            LIST_DATA_TYPE(l2) UNPL(_tmp2) = {0};                                                                      \
+            UNPL(_tmp1)                    = UNPL(_tmp2);                                                              \
+            (void)UNPL(_tmp1);                                                                                         \
+            (void)UNPL(_tmp2);                                                                                         \
         }                                                                                                              \
         merge_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), GENERIC_LIST(l2));                                      \
         if (!(l)->copy_init) {                                                                                         \
@@ -243,11 +243,11 @@
         ValidateList(l);                                                                                               \
         ValidateList(l2);                                                                                              \
         {                                                                                                              \
-            LIST_DATA_TYPE(l) __tmp1_##__LINE__  = {0};                                                                \
-            LIST_DATA_TYPE(l2) __tmp2_##__LINE__ = {0};                                                                \
-            __tmp1_##__LINE__                    = __tmp2_##__LINE__;                                                  \
-            (void)__tmp1_##__LINE__;                                                                                   \
-            (void)__tmp2_##__LINE__;                                                                                   \
+            LIST_DATA_TYPE(l) UNPL(_tmp1)  = {0};                                                                      \
+            LIST_DATA_TYPE(l2) UNPL(_tmp2) = {0};                                                                      \
+            UNPL(_tmp1)                    = UNPL(_tmp2);                                                              \
+            (void)UNPL(_tmp1);                                                                                         \
+            (void)UNPL(_tmp2);                                                                                         \
         }                                                                                                              \
         merge_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), GENERIC_LIST(l2));                                      \
     } while (0)
