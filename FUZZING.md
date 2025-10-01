@@ -28,13 +28,13 @@ docker build -f Dockerfile.fuzz -t misra-fuzz .
 docker run -it --rm \
   -v $(pwd)/fuzz-outputs:/workspace/fuzz/outputs \
   misra-fuzz \
-  bash -c "./build_afl.sh && ./fuzz.sh no-asan"
+  bash -c "/usr/local/bin/build_afl.sh && /usr/local/bin/fuzz.sh no-asan"
 
 # Run AFL++ with ASAN
 docker run -it --rm \
   -v $(pwd)/fuzz-outputs:/workspace/fuzz/outputs \
   misra-fuzz \
-  bash -c "./build_afl_asan.sh && ./fuzz.sh asan"
+  bash -c "/usr/local/bin/build_afl_asan.sh && /usr/local/bin/fuzz.sh asan"
 ```
 
 ## Fuzzing Approaches
@@ -52,9 +52,12 @@ docker run -it --rm \
 ## Fuzzing Results
 
 Results are saved in the `fuzz-outputs/` directory:
-- `default/queue/` - Interesting test cases found
-- `default/crashes/` - Crashes discovered
-- `default/hangs/` - Timeout cases
+- `fuzzer-asan/queue/` - Interesting test cases found (ASAN mode)
+- `fuzzer-asan/crashes/` - Crashes discovered (ASAN mode)
+- `fuzzer-asan/hangs/` - Timeout cases (ASAN mode)
+- `fuzzer-no-asan/queue/` - Interesting test cases found (no ASAN mode)
+- `fuzzer-no-asan/crashes/` - Crashes discovered (no ASAN mode)
+- `fuzzer-no-asan/hangs/` - Timeout cases (no ASAN mode)
 
 ## CI/CD Integration
 
@@ -148,7 +151,7 @@ docker run -it --rm \
   -e AFL_MEM_LIMIT=200 \
   -v $(pwd)/fuzz-outputs:/workspace/fuzz/outputs \
   misra-fuzz \
-  bash -c "./build_afl.sh && afl-fuzz -t 5000 -m 200 -i ../fuzz/inputs -o ../fuzz/outputs ./FuzzHarness"
+  bash -c "/usr/local/bin/build_afl.sh && afl-fuzz -t 5000 -m 200 -i /usr/local/share/misra-fuzz/inputs -o ../fuzz/outputs ./FuzzHarness"
 ```
 
 ### Parallel Fuzzing
@@ -158,10 +161,10 @@ docker run -it --rm \
   -v $(pwd)/fuzz-outputs:/workspace/fuzz/outputs \
   misra-fuzz \
   bash -c "
-    ./build_afl.sh
+    /usr/local/bin/build_afl.sh
     cd build-afl
-    afl-fuzz -M fuzzer1 -i ../fuzz/inputs -o ../fuzz/outputs ./FuzzHarness &
-    afl-fuzz -S fuzzer2 -i ../fuzz/inputs -o ../fuzz/outputs ./FuzzHarness &
+    afl-fuzz -M fuzzer1 -i /usr/local/share/misra-fuzz/inputs -o ../fuzz/outputs ./FuzzHarness &
+    afl-fuzz -S fuzzer2 -i /usr/local/share/misra-fuzz/inputs -o ../fuzz/outputs ./FuzzHarness &
     wait
   "
 ```

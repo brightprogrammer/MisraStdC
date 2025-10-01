@@ -79,15 +79,19 @@ echo
 mkdir -p "$PROJECT_ROOT/fuzz-outputs"
 chmod 755 "$PROJECT_ROOT/fuzz-outputs"
 
+# Clean up any previous fuzzing outputs to avoid conflicts
+print_info "Cleaning up previous fuzzing outputs..."
+rm -rf "$PROJECT_ROOT/fuzz-outputs"/*
+
 docker run --rm \
     -v "$PROJECT_ROOT:/src" \
     -v "$PROJECT_ROOT/fuzz-outputs:/src/fuzz/outputs" \
     misra-fuzz \
     bash -c "
         echo 'Building AFL++ fuzzing harness with ASAN...'
-        ./build_afl_asan.sh
+        /usr/local/bin/build_afl_asan.sh
         echo 'Starting fuzzing...'
-        ./fuzz.sh $FUZZ_MODE
+        /usr/local/bin/fuzz.sh $FUZZ_MODE
     "
 
 print_success "Fuzzing session completed!"

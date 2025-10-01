@@ -25,6 +25,12 @@ jobs:
     - name: Make fuzz-docker.sh executable
       run: chmod +x Scripts/fuzz-docker.sh
       
+    - name: Clean up previous fuzzing outputs
+      run: |
+        # Clean up any previous fuzzing outputs to avoid conflicts
+        rm -rf fuzz-outputs/*
+        echo "Cleaned up previous fuzzing outputs"
+        
     - name: Run AFL++ fuzzing (with ASAN)
       run: |
         timeout 30m ./Scripts/fuzz-docker.sh || true
@@ -40,6 +46,12 @@ jobs:
           # List contents to verify
           echo "Fixed permissions for fuzz-outputs directory:"
           ls -la fuzz-outputs/
+          # Check for new fuzzer directory structure
+          if [ -d "fuzz-outputs/fuzzer-asan" ]; then
+            echo "Contents of fuzz-outputs/fuzzer-asan:"
+            ls -la fuzz-outputs/fuzzer-asan/
+          fi
+          # Check for legacy directory structure
           if [ -d "fuzz-outputs/default" ]; then
             echo "Contents of fuzz-outputs/default:"
             ls -la fuzz-outputs/default/
@@ -52,9 +64,13 @@ jobs:
       run: |
         echo "Checking for crashes in fuzzing results..."
         
-        # Check AFL++ with ASAN results  
-        if [ -d "fuzz-outputs/default/crashes" ] && [ "$(ls -A fuzz-outputs/default/crashes)" ]; then
+        # Check AFL++ with ASAN results (using new fuzzer directory name)
+        if [ -d "fuzz-outputs/fuzzer-asan/crashes" ] && [ "$(ls -A fuzz-outputs/fuzzer-asan/crashes)" ]; then
           echo "❌ Crashes found in AFL++ with ASAN:"
+          ls -la fuzz-outputs/fuzzer-asan/crashes/
+          exit 1
+        elif [ -d "fuzz-outputs/default/crashes" ] && [ "$(ls -A fuzz-outputs/default/crashes)" ]; then
+          echo "❌ Crashes found in AFL++ with ASAN (legacy directory):"
           ls -la fuzz-outputs/default/crashes/
           exit 1
         else
