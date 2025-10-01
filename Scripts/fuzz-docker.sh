@@ -80,6 +80,7 @@ mkdir -p "$PROJECT_ROOT/fuzz-outputs"
 chmod 755 "$PROJECT_ROOT/fuzz-outputs"
 
 docker run --rm \
+    -v "$PROJECT_ROOT:/src" \
     -v "$PROJECT_ROOT/fuzz-outputs:/src/fuzz/outputs" \
     misra-fuzz \
     bash -c "

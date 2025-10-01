@@ -40,8 +40,8 @@ ENV AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
 # Set up working directory
 WORKDIR /src
 
-# Copy project files to /src (as expected by AFL++ image)
-COPY . .
+# Create build directories (will be mounted from host)
+RUN mkdir -p /src/build-afl /src/build-afl-asan
 
 # Create fuzzing directories
 RUN mkdir -p fuzz/inputs fuzz/outputs
