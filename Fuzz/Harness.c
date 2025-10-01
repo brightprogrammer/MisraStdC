@@ -13,7 +13,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <unistd.h>
 
 // Object type enumeration (first 2 bytes)
 typedef enum {
