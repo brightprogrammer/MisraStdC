@@ -9,7 +9,6 @@ fuzz-outputs/
 *.dll
 
 # Exclude test outputs and logs
-Tests/
 meson-logs/
 meson-info/
 meson-private/
