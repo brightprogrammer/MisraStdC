@@ -62,28 +62,3 @@ jobs:
         name: fuzzing-results
         path: fuzz-outputs/
         retention-days: 7
-        
-    - name: Comment on PR with results
-      if: github.event_name == 'pull_request'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const fs = require('fs');
-          let comment = '## 🔍 AFL++ Fuzzing Results\n\n';
-          
-          // Check for crashes in fuzzing results
-          if (fs.existsSync('fuzz-outputs/default/crashes') && fs.readdirSync('fuzz-outputs/default/crashes').length > 0) {
-            comment += '❌ **Crashes found during fuzzing**\n';
-            comment += 'Check the artifacts for crash details.\n\n';
-          } else {
-            comment += '✅ **No crashes found during fuzzing**\n\n';
-          }
-          
-          comment += 'Fuzzing artifacts are available in the workflow run.';
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: comment
-          });
