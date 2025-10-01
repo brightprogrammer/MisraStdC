@@ -23,15 +23,15 @@ jobs:
       uses: docker/setup-buildx-action@v3
       
     - name: Make fuzz-docker.sh executable
-      run: chmod +x scripts/fuzz-docker.sh
+      run: chmod +x Scripts/fuzz-docker.sh
       
     - name: Run AFL++ fuzzing (without ASAN)
       run: |
-        echo "1" | timeout 30m ./scripts/fuzz-docker.sh || true
+        echo "1" | timeout 30m ./Scripts/fuzz-docker.sh || true
           
     - name: Run AFL++ fuzzing (with ASAN)
       run: |
-        echo "2" | timeout 30m ./scripts/fuzz-docker.sh || true
+        echo "2" | timeout 30m ./Scripts/fuzz-docker.sh || true
           
     - name: Check for crashes
       run: |
