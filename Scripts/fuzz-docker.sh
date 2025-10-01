@@ -66,71 +66,40 @@ else
     exit 1
 fi
 
-# Ask user for fuzzing approach
-echo
-print_info "Choose fuzzing approach:"
-echo "  1) AFL++ without AddressSanitizer (faster, basic coverage)"
-echo "  2) AFL++ with AddressSanitizer (slower, better bug detection)"
-echo "  3) Build both and let me choose later"
-echo
-read -p "Enter choice (1-3): " -n 1 -r
-echo
-
-case $REPLY in
-    1)
-        FUZZ_MODE="no-asan"
-        ;;
-    2)
-        FUZZ_MODE="asan"
-        ;;
-    3)
-        FUZZ_MODE="build-only"
-        ;;
-    *)
-        print_warning "Invalid choice, defaulting to AFL++ without ASAN"
-        FUZZ_MODE="no-asan"
-        ;;
-esac
+# Set fuzzing mode to ASAN only (for CI)
+FUZZ_MODE="asan"
+print_info "Running AFL++ with AddressSanitizer (ASAN) for better bug detection"
 
 # Run the container
-if [[ "$FUZZ_MODE" == "build-only" ]]; then
-    print_info "Building both AFL++ variants in Docker container..."
-        docker run -it --rm \
-            misra-fuzz \
-            bash -c "
-                echo 'Building AFL++ without ASAN...'
-                ./build_afl.sh
-                echo 'Building AFL++ with ASAN...'
-                ./build_afl_asan.sh
-                echo 'Both builds completed!'
-                echo 'To start fuzzing, run:'
-                echo '  ./fuzz.sh no-asan   # for AFL++ without ASAN'
-                echo '  ./fuzz.sh asan      # for AFL++ with ASAN'
-                bash
-            "
-else
-    print_info "Starting AFL++ fuzzing with $FUZZ_MODE mode..."
-    print_info "Press Ctrl+C to stop fuzzing"
-    echo
-    
-    # Create output directory on host
-    mkdir -p "$PROJECT_ROOT/fuzz-outputs"
-    
-    docker run --rm \
-        -v "$PROJECT_ROOT/fuzz-outputs:/src/fuzz/outputs" \
-        misra-fuzz \
-        bash -c "
-            echo 'Building AFL++ fuzzing harness...'
-            if [ '$FUZZ_MODE' = 'asan' ]; then
-                ./build_afl_asan.sh
-            else
-                ./build_afl.sh
-            fi
-            echo 'Starting fuzzing...'
-            ./fuzz.sh $FUZZ_MODE
-        "
-fi
+print_info "Starting AFL++ fuzzing with $FUZZ_MODE mode..."
+print_info "Press Ctrl+C to stop fuzzing"
+echo
+
+# Create output directory on host
+mkdir -p "$PROJECT_ROOT/fuzz-outputs"
+
+docker run --rm \
+    -v "$PROJECT_ROOT/fuzz-outputs:/src/fuzz/outputs" \
+    misra-fuzz \
+    bash -c "
+        echo 'Building AFL++ fuzzing harness with ASAN...'
+        ./build_afl_asan.sh
+        echo 'Starting fuzzing...'
+        ./fuzz.sh $FUZZ_MODE
+    "
 
 print_success "Fuzzing session completed!"
 print_info "Check fuzz-outputs directory for results:"
 print_info "  $PROJECT_ROOT/fuzz-outputs"
+echo
+print_info "AFL++ output structure:"
+print_info "  - crashes/     : Unique crash inputs that caused the program to crash"
+print_info "  - hangs/       : Inputs that caused the program to hang/timeout"
+print_info "  - queue/       : Test cases that found new code paths"
+print_info "  - plot_data    : Statistics and performance data"
+print_info "  - fuzzer_stats : Current fuzzing statistics"
+echo
+print_info "To analyze crashes:"
+print_info "  - Check crashes/ directory for crash inputs"
+print_info "  - Use: ./FuzzHarness < crash_file to reproduce crashes"
+print_info "  - Check fuzzer_stats for coverage information"

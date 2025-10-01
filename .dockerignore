@@ -1,0 +1,38 @@
+# Exclude build artifacts and outputs from Docker build context
+Build/
+fuzz-outputs/
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+*.dll
+
+# Exclude test outputs and logs
+Tests/
+meson-logs/
+meson-info/
+meson-private/
+meson-uninstalled/
+
+# Exclude documentation build artifacts
+Docs/
+*.md
+LICENSE*
+
+# Exclude CI/CD files
+.github/
+.git/
+.gitignore
+
+# Exclude editor and IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Exclude temporary files
+*.tmp
+*.temp
+*.log
