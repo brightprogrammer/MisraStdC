@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Docker-based fuzzing script for MisraStdC
-# This script builds and runs AFL++ fuzzing in a Docker container
+# Docker-based AFL++ fuzzing script for MisraStdC
+# This script builds and runs AFL++ fuzzing with AddressSanitizer (ASAN) in a Docker container
+# ASAN is always used for comprehensive memory bug detection
 
 set -e
 
@@ -33,7 +34,7 @@ print_error() {
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-print_info "Docker-based AFL++ fuzzing setup for MisraStdC"
+print_info "AFL++ fuzzing with AddressSanitizer (ASAN) for MisraStdC"
 print_info "Project root: $PROJECT_ROOT"
 
 # Check if Docker is available
@@ -52,28 +53,19 @@ fi
 
 print_success "Docker is available and running"
 
-# Detect architecture and build accordingly
+# Detect architecture
 ARCH=$(uname -m)
 print_info "Detected architecture: $ARCH"
 
-# Build the Docker image using Ubuntu base with AFL++ from source
-print_info "Building Docker image for AFL++ fuzzing on $ARCH..."
-print_info "Using Ubuntu 22.04 as base with AFL++ built from source (supports all architectures)"
+# Build the Docker image with AFL++ and ASAN support
+print_info "Building Docker image for AFL++ fuzzing with ASAN on $ARCH..."
+print_info "Using Ubuntu 22.04 as base with AFL++ built from source"
 if docker build -f Dockerfile.fuzz -t misra-fuzz .; then
     print_success "Docker image built successfully for $ARCH"
 else
     print_error "Failed to build Docker image"
     exit 1
 fi
-
-# Set fuzzing mode to ASAN only (for CI)
-FUZZ_MODE="asan"
-print_info "Running AFL++ with AddressSanitizer (ASAN) for better bug detection"
-
-# Run the container
-print_info "Starting AFL++ fuzzing with $FUZZ_MODE mode..."
-print_info "Press Ctrl+C to stop fuzzing"
-echo
 
 # Create output directory on host with proper permissions
 mkdir -p "$PROJECT_ROOT/fuzz-outputs"
@@ -83,15 +75,19 @@ chmod 755 "$PROJECT_ROOT/fuzz-outputs"
 print_info "Cleaning up previous fuzzing outputs..."
 rm -rf "$PROJECT_ROOT/fuzz-outputs"/*
 
+# Run AFL++ fuzzing with ASAN
+print_info "Starting AFL++ fuzzing with AddressSanitizer..."
+print_info "This will build the project with ASAN and start fuzzing"
+print_info "Press Ctrl+C to stop fuzzing"
+echo
+
 docker run --rm \
     -v "$PROJECT_ROOT:/src" \
     -v "$PROJECT_ROOT/fuzz-outputs:/src/fuzz/outputs" \
     misra-fuzz \
     bash -c "
-        echo 'Building AFL++ fuzzing harness with ASAN...'
-        /usr/local/bin/build_afl_asan.sh
-        echo 'Starting fuzzing...'
-        /usr/local/bin/fuzz.sh $FUZZ_MODE
+        echo 'Building AFL++ fuzzing harness with AddressSanitizer...'
+        /usr/local/bin/fuzz.sh
     "
 
 print_success "Fuzzing session completed!"
@@ -99,13 +95,13 @@ print_info "Check fuzz-outputs directory for results:"
 print_info "  $PROJECT_ROOT/fuzz-outputs"
 echo
 print_info "AFL++ output structure:"
-print_info "  - crashes/     : Unique crash inputs that caused the program to crash"
-print_info "  - hangs/       : Inputs that caused the program to hang/timeout"
-print_info "  - queue/       : Test cases that found new code paths"
-print_info "  - plot_data    : Statistics and performance data"
-print_info "  - fuzzer_stats : Current fuzzing statistics"
+print_info "  - fuzzer-asan/crashes/  : Unique crash inputs that caused the program to crash"
+print_info "  - fuzzer-asan/hangs/    : Inputs that caused the program to hang/timeout"
+print_info "  - fuzzer-asan/queue/    : Test cases that found new code paths"
+print_info "  - fuzzer-asan/plot_data : Statistics and performance data"
+print_info "  - fuzzer-asan/fuzzer_stats : Current fuzzing statistics"
 echo
 print_info "To analyze crashes:"
-print_info "  - Check crashes/ directory for crash inputs"
+print_info "  - Check fuzzer-asan/crashes/ directory for crash inputs"
 print_info "  - Use: ./FuzzHarness < crash_file to reproduce crashes"
-print_info "  - Check fuzzer_stats for coverage information"
+print_info "  - Check fuzzer-asan/fuzzer_stats for coverage information"

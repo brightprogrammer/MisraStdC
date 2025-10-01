@@ -8,6 +8,7 @@
 #include "Harness/VecInt.h"
 #include "Harness/VecCharPtr.h"
 #include "Harness/VecStr.h"
+#include "Harness/ListInt.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,14 +20,16 @@ typedef enum {
     OBJ_INT_VEC = 0,
     OBJ_CHAR_PTR_VEC,
     OBJ_STR_VEC,
+    OBJ_INT_LIST,
     OBJ_COUNT
 } ObjectType;
 
-// Main fuzzing state containing all Vec objects directly
+// Main fuzzing state containing all container objects directly
 typedef struct {
     IntVec     int_vec;
     CharPtrVec char_ptr_vec;
     StrVec     str_vec;
+    IntList    int_list;
     bool       initialized;
 } FuzzState;
 
@@ -88,7 +91,7 @@ void cleanup_cstring(char *str) {
     free(str);
 }
 
-// Initialize all Vec objects in FuzzState
+// Initialize all container objects in FuzzState
 static void init_fuzz_state(FuzzState *state) {
     if (state->initialized) {
         return;
@@ -97,11 +100,12 @@ static void init_fuzz_state(FuzzState *state) {
     init_int_vec(&state->int_vec);
     init_char_ptr_vec(&state->char_ptr_vec);
     init_str_vec(&state->str_vec);
+    init_int_list(&state->int_list);
 
     state->initialized = true;
 }
 
-// Deinitialize all Vec objects in FuzzState
+// Deinitialize all container objects in FuzzState
 static void deinit_fuzz_state(FuzzState *state) {
     if (!state->initialized) {
         return;
@@ -110,6 +114,7 @@ static void deinit_fuzz_state(FuzzState *state) {
     deinit_int_vec(&state->int_vec);
     deinit_char_ptr_vec(&state->char_ptr_vec);
     deinit_str_vec(&state->str_vec);
+    deinit_int_list(&state->int_list);
 
     state->initialized = false;
 }
@@ -155,6 +160,12 @@ static int process_fuzz_input(const uint8_t *data, size_t size) {
         case OBJ_STR_VEC : {
             VecStrFunction func = (VecStrFunction)(func_selector % VEC_STR_COUNT);
             fuzz_str_vec(&state.str_vec, func, data, &offset, size);
+            break;
+        }
+
+        case OBJ_INT_LIST : {
+            ListIntFunction func = (ListIntFunction)(func_selector % LIST_INT_COUNT);
+            fuzz_int_list(&state.int_list, func, data, &offset, size);
             break;
         }
 

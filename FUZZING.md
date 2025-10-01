@@ -11,10 +11,9 @@ This project uses AFL++ for fuzzing the MisraStdC library. We provide both Docke
    ./scripts/fuzz-docker.sh
    ```
 
-2. **Choose your fuzzing approach:**
-   - **Option 1**: AFL++ without AddressSanitizer (faster, basic coverage)
-   - **Option 2**: AFL++ with AddressSanitizer (slower, better bug detection)
-   - **Option 3**: Build both and choose later
+2. **Fuzzing with AddressSanitizer:**
+   - Always uses AFL++ with AddressSanitizer for comprehensive bug detection
+   - Catches memory bugs (use-after-free, buffer overflows, etc.)
 
 ### Manual Docker Commands
 
@@ -24,40 +23,26 @@ If you prefer to run Docker commands manually:
 # Build the fuzzing image
 docker build -f Dockerfile.fuzz -t misra-fuzz .
 
-# Run AFL++ without ASAN
+# Run AFL++ with ASAN (only option)
 docker run -it --rm \
   -v $(pwd)/fuzz-outputs:/workspace/fuzz/outputs \
   misra-fuzz \
-  bash -c "/usr/local/bin/build_afl.sh && /usr/local/bin/fuzz.sh no-asan"
-
-# Run AFL++ with ASAN
-docker run -it --rm \
-  -v $(pwd)/fuzz-outputs:/workspace/fuzz/outputs \
-  misra-fuzz \
-  bash -c "/usr/local/bin/build_afl_asan.sh && /usr/local/bin/fuzz.sh asan"
+  bash -c "/usr/local/bin/fuzz.sh"
 ```
 
-## Fuzzing Approaches
+## Fuzzing Approach
 
-### 1. AFL++ without AddressSanitizer
-- **Pros**: Faster execution, good coverage-guided fuzzing
-- **Cons**: May miss some memory bugs
-- **Use case**: Quick fuzzing runs, CI/CD pipelines
-
-### 2. AFL++ with AddressSanitizer
+### AFL++ with AddressSanitizer
 - **Pros**: Catches memory bugs (use-after-free, buffer overflows, etc.)
 - **Cons**: Slower execution, higher memory usage
-- **Use case**: Thorough testing, bug hunting
+- **Use case**: Comprehensive testing and bug hunting
 
 ## Fuzzing Results
 
 Results are saved in the `fuzz-outputs/` directory:
-- `fuzzer-asan/queue/` - Interesting test cases found (ASAN mode)
-- `fuzzer-asan/crashes/` - Crashes discovered (ASAN mode)
-- `fuzzer-asan/hangs/` - Timeout cases (ASAN mode)
-- `fuzzer-no-asan/queue/` - Interesting test cases found (no ASAN mode)
-- `fuzzer-no-asan/crashes/` - Crashes discovered (no ASAN mode)
-- `fuzzer-no-asan/hangs/` - Timeout cases (no ASAN mode)
+- `fuzzer-asan/queue/` - Interesting test cases found
+- `fuzzer-asan/crashes/` - Crashes discovered
+- `fuzzer-asan/hangs/` - Timeout cases
 
 ## CI/CD Integration
 
@@ -74,11 +59,10 @@ The CI workflow is triggered by:
 ### CI Process
 
 1. **Builds Docker image** using `Dockerfile.fuzz`
-2. **Runs AFL++ without ASAN** (30 min timeout)
-3. **Runs AFL++ with ASAN** (30 min timeout)
-4. **Checks for crashes** in both runs
-5. **Uploads artifacts** with fuzzing results
-6. **Comments on PRs** with results summary
+2. **Runs AFL++ with ASAN** (30 min timeout)
+3. **Checks for crashes** in fuzzing results
+4. **Uploads artifacts** with fuzzing results
+5. **Comments on PRs** with results summary
 
 ### CI Features
 
@@ -137,7 +121,6 @@ Each harness covers 50+ functions with comprehensive test cases.
 - Ensure sufficient memory for ASAN builds
 
 ### Performance
-- AFL++ without ASAN: ~1000-5000 execs/sec
 - AFL++ with ASAN: ~100-500 execs/sec
 - Adjust timeout values based on your needs
 
@@ -151,7 +134,7 @@ docker run -it --rm \
   -e AFL_MEM_LIMIT=200 \
   -v $(pwd)/fuzz-outputs:/workspace/fuzz/outputs \
   misra-fuzz \
-  bash -c "/usr/local/bin/build_afl.sh && afl-fuzz -t 5000 -m 200 -i /usr/local/share/misra-fuzz/inputs -o ../fuzz/outputs ./FuzzHarness"
+  bash -c "/usr/local/bin/build_afl_asan.sh && cd build-afl-asan && afl-fuzz -t 5000 -m 200 -i /usr/local/share/misra-fuzz/inputs -o ../fuzz/outputs ./FuzzHarness"
 ```
 
 ### Parallel Fuzzing
@@ -161,8 +144,8 @@ docker run -it --rm \
   -v $(pwd)/fuzz-outputs:/workspace/fuzz/outputs \
   misra-fuzz \
   bash -c "
-    /usr/local/bin/build_afl.sh
-    cd build-afl
+    /usr/local/bin/build_afl_asan.sh
+    cd build-afl-asan
     afl-fuzz -M fuzzer1 -i /usr/local/share/misra-fuzz/inputs -o ../fuzz/outputs ./FuzzHarness &
     afl-fuzz -S fuzzer2 -i /usr/local/share/misra-fuzz/inputs -o ../fuzz/outputs ./FuzzHarness &
     wait
@@ -174,5 +157,5 @@ docker run -it --rm \
 When adding new functions to the library:
 1. Add corresponding test cases to the appropriate harness
 2. Update the function enumeration in the harness header
-3. Test with both AFL++ approaches
+3. Test with AFL++ with ASAN
 4. Ensure no crashes in CI fuzzing

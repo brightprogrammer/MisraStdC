@@ -59,6 +59,38 @@ jobs:
         else
           echo "No fuzz-outputs directory found"
         fi
+        
+    - name: Rename files with invalid characters for artifact upload
+      run: |
+        # Function to rename files with invalid characters
+        rename_files() {
+          local dir="$1"
+          if [ -d "$dir" ]; then
+            echo "Renaming files in $dir to remove invalid characters..."
+            find "$dir" -type f -name "*:*" -o -name "*\"*" -o -name "*<*" -o -name "*>*" -o -name "*|*" -o -name "*\**" -o -name "*\?*" | while read -r file; do
+              # Get directory and filename
+              dirname=$(dirname "$file")
+              filename=$(basename "$file")
+              # Replace invalid characters with underscores
+              new_filename=$(echo "$filename" | sed 's/[:<>|*"?]/_/g')
+              # Only rename if the filename actually changed
+              if [ "$filename" != "$new_filename" ]; then
+                new_path="$dirname/$new_filename"
+                echo "Renaming: $file -> $new_path"
+                mv "$file" "$new_path"
+              fi
+            done
+          fi
+        }
+        
+        # Rename files in fuzzing output directories
+        if [ -d "fuzz-outputs" ]; then
+          rename_files "fuzz-outputs/fuzzer-asan"
+          rename_files "fuzz-outputs/default"
+          echo "File renaming completed"
+        else
+          echo "No fuzz-outputs directory found for renaming"
+        fi
           
     - name: Check for crashes
       run: |

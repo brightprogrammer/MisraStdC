@@ -211,23 +211,43 @@ void reverse_list(GenericList *list, u64 item_size) {
 
 
 void push_arr_list(GenericList *list, u64 item_size, void *arr, u64 count) {
-    if (!list || !arr || !count || !item_size) {
+    if (!list || !arr || !item_size) {
         LOG_FATAL("invalid arguments.");
+    }
+
+    if(!count) {
+        return;
     }
 
     ValidateList(list);
 
-    while (count-- && list->length++) {
+    while (count--) {
         GenericListNode *old_tail = list->tail;
+        GenericListNode *new_tail = malloc(sizeof(GenericListNode));
+        
+        if (!new_tail) {
+            LOG_FATAL("Failed to allocate memory for new node");
+        }
+        
+        new_tail->data = malloc(item_size);
+        if (!new_tail->data) {
+            free(new_tail);
+            LOG_FATAL("Failed to allocate memory for node data");
+        }
 
-        // new tail
-        GenericListNode *new_tail = malloc(sizeof(GenericListNode) + item_size);
+        // Handle empty list case
+        if (old_tail) {
+            // List is not empty - create dual link
+            old_tail->next = new_tail;
+            new_tail->prev = old_tail;
+        } else {
+            // List is empty - set as head
+            list->head = new_tail;
+            new_tail->prev = NULL;
+        }
 
-        // create new dual link
-        old_tail->next = new_tail;
-        new_tail->prev = old_tail;
         new_tail->next = NULL;
-        list->tail     = new_tail;
+        list->tail = new_tail;
 
         // insert data
         if (list->copy_init) {
@@ -236,6 +256,8 @@ void push_arr_list(GenericList *list, u64 item_size, void *arr, u64 count) {
             memcpy(new_tail->data, arr, item_size);
         }
 
+        // Only increment length after successful insertion
+        list->length++;
         arr = (u8 *)arr + item_size;
     }
 }
