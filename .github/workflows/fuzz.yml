@@ -33,9 +33,17 @@ jobs:
       run: |
         # Fix ownership and permissions for fuzz outputs
         if [ -d "fuzz-outputs" ]; then
+          # Change ownership to runner user
           sudo chown -R runner:runner fuzz-outputs/
+          # Ensure proper permissions
           chmod -R 755 fuzz-outputs/
-          echo "Fixed permissions for fuzz-outputs directory"
+          # List contents to verify
+          echo "Fixed permissions for fuzz-outputs directory:"
+          ls -la fuzz-outputs/
+          if [ -d "fuzz-outputs/default" ]; then
+            echo "Contents of fuzz-outputs/default:"
+            ls -la fuzz-outputs/default/
+          fi
         else
           echo "No fuzz-outputs directory found"
         fi
