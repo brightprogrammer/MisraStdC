@@ -12,16 +12,16 @@ bool test_vec_reverse(void);
 bool test_vec_sort(void);
 
 // Comparison function for sorting integers in ascending order
-int compare_ints_asc(const void* a, const void* b) {
-    int val_a = *(const int*)a;
-    int val_b = *(const int*)b;
+int compare_ints_asc(const void *a, const void *b) {
+    int val_a = *(const int *)a;
+    int val_b = *(const int *)b;
     return val_a - val_b;
 }
 
 // Comparison function for sorting integers in descending order
-int compare_ints_desc(const void* a, const void* b) {
-    int val_a = *(const int*)a;
-    int val_b = *(const int*)b;
+int compare_ints_desc(const void *a, const void *b) {
+    int val_a = *(const int *)a;
+    int val_b = *(const int *)b;
     return val_b - val_a;
 }
 

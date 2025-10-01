@@ -23,7 +23,7 @@
 #include <Misra/Sys.h>
 
 
-const char* SysDirEntryTypeToZstr(SysDirEntryType type) {
+const char *SysDirEntryTypeToZstr(SysDirEntryType type) {
     switch (type) {
         case SYS_DIR_ENTRY_TYPE_UNKNOWN :
             return "Unknown";
@@ -45,7 +45,7 @@ const char* SysDirEntryTypeToZstr(SysDirEntryType type) {
 }
 
 
-SysDirEntry* SysDirEntryInitCopy(SysDirEntry* dst, SysDirEntry* src) {
+SysDirEntry *SysDirEntryInitCopy(SysDirEntry *dst, SysDirEntry *src) {
     if (!dst || !src) {
         LOG_FATAL("invalid arguments.");
     }
@@ -57,7 +57,7 @@ SysDirEntry* SysDirEntryInitCopy(SysDirEntry* dst, SysDirEntry* src) {
 }
 
 
-SysDirEntry* SysDirEntryDeinitCopy(SysDirEntry* copy) {
+SysDirEntry *SysDirEntryDeinitCopy(SysDirEntry *copy) {
     if (!copy) {
         LOG_FATAL("invalid arguments.");
     }
@@ -70,7 +70,7 @@ SysDirEntry* SysDirEntryDeinitCopy(SysDirEntry* copy) {
 
 #ifdef _WIN32
 // Windows-specific implementation using FindFirstFile/FindNextFile
-SysDirContents SysGetDirContents(const char* path) {
+SysDirContents SysGetDirContents(const char *path) {
     if (!path) {
         LOG_FATAL("Invalid argument");
     }
@@ -116,14 +116,14 @@ SysDirContents SysGetDirContents(const char* path) {
 }
 #else
 // APPLE or Unix based system implementation using opendir/readdir
-SysDirContents SysGetDirContents(const char* path) {
+SysDirContents SysGetDirContents(const char *path) {
     if (!path) {
         LOG_FATAL("invalid arguments.");
     }
 
     SysDirContents dc = VecInit();
 
-    DIR* dir = opendir(path);
+    DIR *dir = opendir(path);
     if (NULL == dir) {
         LOG_SYS_ERROR("opendir(\"{}\") failed", path);
         return (SysDirContents) {0};
@@ -140,7 +140,7 @@ SysDirContents SysGetDirContents(const char* path) {
 #    endif
 
     // Go through each directory entry
-    struct dirent* entry = NULL;
+    struct dirent *entry = NULL;
     while (NULL != (entry = readdir(dir))) {
         if ('.' == DNAME_AT(0) && 0 == DNAME_AT(1)) {
             continue;
@@ -148,7 +148,7 @@ SysDirContents SysGetDirContents(const char* path) {
             continue;
         } else {
             Str         entry_path = StrInit();
-            const char* dir_name   = &entry->d_name[0];
+            const char *dir_name   = &entry->d_name[0];
             StrWriteFmt(&entry_path, "{}/{}", path, dir_name);
 
             struct stat path_stat;
@@ -187,7 +187,7 @@ SysDirContents SysGetDirContents(const char* path) {
 #endif
 
 // Cross-platform function to get file size
-i64 SysGetFileSize(const char* filename) {
+i64 SysGetFileSize(const char *filename) {
 #ifdef _WIN32
     // Windows-specific code using GetFileSizeEx
     HANDLE file = CreateFileA(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);

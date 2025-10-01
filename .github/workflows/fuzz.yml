@@ -1,0 +1,89 @@
+name: AFL++ Fuzzing
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master ]
+  schedule:
+    # Run fuzzing daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Make fuzz-docker.sh executable
+      run: chmod +x scripts/fuzz-docker.sh
+      
+    - name: Run AFL++ fuzzing (without ASAN)
+      run: |
+        echo "1" | timeout 30m ./scripts/fuzz-docker.sh || true
+          
+    - name: Run AFL++ fuzzing (with ASAN)
+      run: |
+        echo "2" | timeout 30m ./scripts/fuzz-docker.sh || true
+          
+    - name: Check for crashes
+      run: |
+        echo "Checking for crashes in fuzzing results..."
+        
+        # Check AFL++ without ASAN results
+        if [ -d "fuzz-outputs/default/crashes" ] && [ "$(ls -A fuzz-outputs/default/crashes)" ]; then
+          echo "❌ Crashes found in AFL++ without ASAN:"
+          ls -la fuzz-outputs/default/crashes/
+          exit 1
+        else
+          echo "✅ No crashes found in AFL++ without ASAN"
+        fi
+        
+        # Check AFL++ with ASAN results  
+        if [ -d "fuzz-outputs/default/crashes" ] && [ "$(ls -A fuzz-outputs/default/crashes)" ]; then
+          echo "❌ Crashes found in AFL++ with ASAN:"
+          ls -la fuzz-outputs/default/crashes/
+          exit 1
+        else
+          echo "✅ No crashes found in AFL++ with ASAN"
+        fi
+        
+    - name: Upload fuzzing results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: fuzzing-results
+        path: fuzz-outputs/
+        retention-days: 7
+        
+    - name: Comment on PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          let comment = '## 🔍 AFL++ Fuzzing Results\n\n';
+          
+          // Check for crashes in fuzzing results
+          if (fs.existsSync('fuzz-outputs/default/crashes') && fs.readdirSync('fuzz-outputs/default/crashes').length > 0) {
+            comment += '❌ **Crashes found during fuzzing**\n';
+            comment += 'Check the artifacts for crash details.\n\n';
+          } else {
+            comment += '✅ **No crashes found during fuzzing**\n\n';
+          }
+          
+          comment += 'Fuzzing artifacts are available in the workflow run.';
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });

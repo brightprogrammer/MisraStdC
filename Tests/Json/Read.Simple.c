@@ -31,15 +31,15 @@ typedef struct SimpleProduct {
 } SimpleProduct;
 
 // Cleanup functions
-void PersonDeinit(Person* person) {
+void PersonDeinit(Person *person) {
     StrDeinit(&person->name);
 }
 
-void ConfigDeinit(Config* config) {
+void ConfigDeinit(Config *config) {
     StrDeinit(&config->log_level);
 }
 
-void SimpleProductDeinit(SimpleProduct* product) {
+void SimpleProductDeinit(SimpleProduct *product) {
     StrDeinit(&product->name);
     VecDeinit(&product->tags);
 }
@@ -280,9 +280,9 @@ bool test_simple_array_of_strings(void) {
     }
 
     if (languages.length >= 3) {
-        Str* lang1 = &VecAt(&languages, 0);
-        Str* lang2 = &VecAt(&languages, 1);
-        Str* lang3 = &VecAt(&languages, 2);
+        Str *lang1 = &VecAt(&languages, 0);
+        Str *lang2 = &VecAt(&languages, 1);
+        Str *lang3 = &VecAt(&languages, 2);
 
         if (StrCmpCstr(lang1, "C", 1) != 0) {
             WriteFmt("[DEBUG] Language 1 check failed: expected 'C', got '");
@@ -425,9 +425,9 @@ bool test_simple_product_with_tags(void) {
     }
 
     if (product.tags.length >= 3) {
-        Str* tag1 = &VecAt(&product.tags, 0);
-        Str* tag2 = &VecAt(&product.tags, 1);
-        Str* tag3 = &VecAt(&product.tags, 2);
+        Str *tag1 = &VecAt(&product.tags, 0);
+        Str *tag2 = &VecAt(&product.tags, 1);
+        Str *tag3 = &VecAt(&product.tags, 2);
 
         if (StrCmpCstr(tag1, "electronics", 11) != 0) {
             WriteFmt("[DEBUG] Tag 1 check failed: expected 'electronics', got '");
@@ -463,7 +463,7 @@ bool test_simple_product_with_tags(void) {
 }
 
 // Main function that runs all simple tests
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     // Array of test functions
     TestFunction tests[] = {
         test_simple_string_parsing,

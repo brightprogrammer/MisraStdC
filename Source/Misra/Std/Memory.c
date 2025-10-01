@@ -8,13 +8,13 @@
 #include <Misra/Sys.h>
 #include <Misra/Std/Log.h>
 
-i32 MemCompare(const void* p1, const void* p2, size n) {
+i32 MemCompare(const void *p1, const void *p2, size n) {
     if (!p1 || !p2) {
         LOG_FATAL("Invalid arguments");
     }
 
-    const u8* s1 = (const u8*)p1;
-    const u8* s2 = (const u8*)p2;
+    const u8 *s1 = (const u8 *)p1;
+    const u8 *s2 = (const u8 *)p2;
     while (n--) {
         if (*s1 != *s2) {
             return *s1 - *s2;
@@ -25,26 +25,26 @@ i32 MemCompare(const void* p1, const void* p2, size n) {
     return 0;
 }
 
-void* MemCopy(void* dst, const void* src, size n) {
+void *MemCopy(void *dst, const void *src, size n) {
     if (!dst || !src) {
         LOG_FATAL("Invalid arguments");
     }
 
-    u8*       d = (u8*)dst;
-    const u8* s = (const u8*)src;
+    u8       *d = (u8 *)dst;
+    const u8 *s = (const u8 *)src;
     while (n--) {
         *d++ = *s++;
     }
     return dst;
 }
 
-void* MemMove(void* dst, const void* src, size n) {
+void *MemMove(void *dst, const void *src, size n) {
     if (!dst || !src) {
         LOG_FATAL("Invalid arguments");
     }
 
-    u8*       d = (u8*)dst;
-    const u8* s = (const u8*)src;
+    u8       *d = (u8 *)dst;
+    const u8 *s = (const u8 *)src;
     if (d < s) {
         while (n--) {
             *d++ = *s++;
@@ -59,30 +59,30 @@ void* MemMove(void* dst, const void* src, size n) {
     return dst;
 }
 
-void* MemSet(void* dst, i32 val, size n) {
+void *MemSet(void *dst, i32 val, size n) {
     if (!dst) {
         LOG_FATAL("Invalid arguments");
     }
 
-    u8* d = (u8*)dst;
+    u8 *d = (u8 *)dst;
     while (n--) {
         *d++ = (u8)val;
     }
     return dst;
 }
 
-size ZstrLen(const char* str) {
+size ZstrLen(const char *str) {
     if (!str) {
         LOG_FATAL("Invalid arguments");
     }
 
-    const char* s = str;
+    const char *s = str;
     while (*s)
         s++;
     return s - str;
 }
 
-i32 ZstrCompare(const char* s1, const char* s2) {
+i32 ZstrCompare(const char *s1, const char *s2) {
     if (!s1 || !s2) {
         LOG_FATAL("Invalid arguments");
     }
@@ -91,10 +91,10 @@ i32 ZstrCompare(const char* s1, const char* s2) {
         s1++;
         s2++;
     }
-    return *(const u8*)s1 - *(const u8*)s2;
+    return *(const u8 *)s1 - *(const u8 *)s2;
 }
 
-i32 ZstrCompareN(const char* s1, const char* s2, size n) {
+i32 ZstrCompareN(const char *s1, const char *s2, size n) {
     if (!s1 || !s2) {
         LOG_FATAL("Invalid arguments");
     }
@@ -117,7 +117,7 @@ i32 ZstrCompareN(const char* s1, const char* s2, size n) {
     return s1[i] ? 1 : -1;
 }
 
-char* ZstrDupN(const char* src, size n) {
+char *ZstrDupN(const char *src, size n) {
     if (!src) {
         LOG_FATAL("Invalid arguments");
     }
@@ -126,7 +126,7 @@ char* ZstrDupN(const char* src, size n) {
     while (len < n && src[len])
         len++;
 
-    char* new_str = (char*)malloc(len + 1);
+    char *new_str = (char *)malloc(len + 1);
     if (!new_str) {
         LOG_SYS_FATAL("malloc() failed");
     }
@@ -136,11 +136,11 @@ char* ZstrDupN(const char* src, size n) {
     return new_str;
 }
 
-char* ZstrDup(const char* src) {
+char *ZstrDup(const char *src) {
     return ZstrDupN(src, ZstrLen(src));
 }
 
-bool ZstrInitClone(const char** dst, const char** src) {
+bool ZstrInitClone(const char **dst, const char **src) {
     if (!dst || !src || !*src) {
         LOG_FATAL("Invalid arguments.");
     }
@@ -149,7 +149,7 @@ bool ZstrInitClone(const char** dst, const char** src) {
     return *dst != NULL;
 }
 
-void ZstrDeinit(const char** zs) {
+void ZstrDeinit(const char **zs) {
     if (!zs) {
         LOG_FATAL("Invalid arguments");
     }
@@ -158,13 +158,13 @@ void ZstrDeinit(const char** zs) {
         FREE(*zs);
 }
 
-char* ZstrFindSubstring(const char* haystack, const char* needle) {
+char *ZstrFindSubstring(const char *haystack, const char *needle) {
     if (!haystack || !needle) {
         LOG_FATAL("Invalid arguments");
     }
 
-    const char* p2;
-    const char* p1_advance = haystack;
+    const char *p2;
+    const char *p1_advance = haystack;
     for (p2 = needle; *p2; p2++) {
         p1_advance++;     // increment ahead of time
     }
@@ -173,7 +173,7 @@ char* ZstrFindSubstring(const char* haystack, const char* needle) {
         p1_advance = haystack;
         while (1) {
             if (!*p2)
-                return (char*)haystack;
+                return (char *)haystack;
             if (*p1_advance++ != *p2++)
                 break;
         }
@@ -183,14 +183,14 @@ char* ZstrFindSubstring(const char* haystack, const char* needle) {
     return NULL;
 }
 
-char* ZstrFindSubstringN(const char* haystack, const char* needle, size needle_len) {
+char *ZstrFindSubstringN(const char *haystack, const char *needle, size needle_len) {
     if (!haystack || !needle) {
         LOG_FATAL("Invalid arguments");
     }
 
     // Empty needle matches at the start of haystack
     if (needle_len == 0) {
-        return (char*)haystack;
+        return (char *)haystack;
     }
 
     // Calculate haystack length
@@ -215,7 +215,7 @@ char* ZstrFindSubstringN(const char* haystack, const char* needle, size needle_l
 
         // Compare the substring
         if (MemCompare(haystack + pos, needle, needle_len) == 0) {
-            return (char*)(haystack + pos);
+            return (char *)(haystack + pos);
         }
 
         pos++;

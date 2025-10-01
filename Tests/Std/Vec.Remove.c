@@ -821,7 +821,7 @@ bool test_rvalue_fast_delete_range_operations(void) {
 }
 
 // Main function that runs all tests
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     // Array of normal test functions
     TestFunction normal_tests[] = {
         test_vec_pop_back,

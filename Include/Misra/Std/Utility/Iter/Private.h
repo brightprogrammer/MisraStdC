@@ -6,6 +6,6 @@
 
 #include "Type.h"
 
-size remaining_length_iter(GenericIter* it);
+size remaining_length_iter(GenericIter *it);
 
 #endif // MISRA_STD_UTILITY_ITER_PRIVATE_H

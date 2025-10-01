@@ -1,0 +1,107 @@
+# Dockerfile for AFL++ fuzzing with MisraStdC
+# Uses Ubuntu as base and installs AFL++ from source
+
+FROM ubuntu:22.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    python3 \
+    python3-pip \
+    ninja-build \
+    pkg-config \
+    clang \
+    llvm \
+    llvm-dev \
+    git \
+    wget \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install AFL++ from source (works on all architectures)
+RUN git clone https://github.com/AFLplusplus/AFLplusplus.git /tmp/aflplusplus && \
+    cd /tmp/aflplusplus && \
+    make -j$(nproc) && make install && \
+    rm -rf /tmp/aflplusplus
+
+# Install Meson
+RUN pip3 install meson
+
+# Set up working directory
+WORKDIR /src
+
+# Copy project files to /src (as expected by AFL++ image)
+COPY . .
+
+# Create fuzzing directories
+RUN mkdir -p fuzz/inputs fuzz/outputs
+
+# Create seed input files for better fuzzing
+RUN echo -ne '\x00\x00\x00\x00\x12\x34\x56\x78' > fuzz/inputs/seed1_pushback && \
+    echo -ne '\x00\x00\x00\x04\x00\x00\xDE\xAD\xBE\xEF' > fuzz/inputs/seed2_insert && \
+    echo -ne '\x00\x00\x00\x07\x00\x00' > fuzz/inputs/seed3_at && \
+    echo -ne '\x00\x00\x00\x08' > fuzz/inputs/seed4_len && \
+    echo -ne '\x00\x00\x00\x00\x11\x11\x11\x11\x00\x00\x00\x01\x22\x22\x22\x22\x00\x00\x00\x02\x00\x00\x00\x08' > fuzz/inputs/seed5_sequence
+
+# Build script for AFL++ without ASAN
+RUN echo '#!/bin/bash\n\
+set -e\n\
+echo "Building AFL++ fuzzing harness (without ASAN)..."\n\
+export CC=afl-clang-fast\n\
+export CXX=afl-clang-fast++\n\
+unset AFL_USE_ASAN\n\
+rm -rf build-afl\n\
+meson setup build-afl --buildtype=debug\n\
+meson compile -C build-afl\n\
+echo "AFL++ build completed!"\n\
+' > /src/build_afl.sh && chmod +x /src/build_afl.sh
+
+# Build script for AFL++ with ASAN
+RUN echo '#!/bin/bash\n\
+set -e\n\
+echo "Building AFL++ fuzzing harness (with ASAN)..."\n\
+export CC=afl-clang-fast\n\
+export CXX=afl-clang-fast++\n\
+export AFL_USE_ASAN=1\n\
+rm -rf build-afl-asan\n\
+meson setup build-afl-asan --buildtype=debug -Db_sanitize=address\n\
+meson compile -C build-afl-asan\n\
+echo "AFL++ with ASAN build completed!"\n\
+' > /src/build_afl_asan.sh && chmod +x /src/build_afl_asan.sh
+
+# Fuzzing script
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+if [ "$1" = "asan" ]; then\n\
+    echo "Building AFL++ fuzzing harness (with ASAN)..."\n\
+    ./build_afl_asan.sh\n\
+    echo "Starting AFL++ fuzzing with AddressSanitizer..."\n\
+    cd build-afl-asan\n\
+    afl-fuzz -i ../fuzz/inputs -o ../fuzz/outputs ./FuzzHarness\n\
+elif [ "$1" = "no-asan" ]; then\n\
+    echo "Building AFL++ fuzzing harness (without ASAN)..."\n\
+    ./build_afl.sh\n\
+    echo "Starting AFL++ fuzzing without AddressSanitizer..."\n\
+    cd build-afl\n\
+    afl-fuzz -i ../fuzz/inputs -o ../fuzz/outputs ./FuzzHarness\n\
+else\n\
+    echo "Usage: $0 [asan|no-asan]"\n\
+    echo "  asan     - Run AFL++ with AddressSanitizer"\n\
+    echo "  no-asan  - Run AFL++ without AddressSanitizer"\n\
+    echo ""\n\
+    echo "Available AFL++ compilers:"\n\
+    ls -la /usr/local/bin/afl-*\n\
+    echo ""\n\
+    echo "To run fuzzing manually:"\n\
+    echo "  ./fuzz.sh no-asan    # Without AddressSanitizer"\n\
+    echo "  ./fuzz.sh asan       # With AddressSanitizer"\n\
+    exit 1\n\
+fi\n\
+' > /src/fuzz.sh && chmod +x /src/fuzz.sh
+
+# Default command
+CMD ["/bin/bash"]

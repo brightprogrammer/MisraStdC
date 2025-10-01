@@ -4,9 +4,9 @@
 // the prgram writes something to child process and expect's the same thing echoed back
 // so it can be verified that we got the same content
 // executed like : Build/SubProcComm /bin/head -n 1
-int main(int argc, char** argv, char** envp) {
+int main(int argc, char **argv, char **envp) {
     // create a new child process
-    SysProc* proc = SysProcCreate(argv[1], argv + 1, envp);
+    SysProc *proc = SysProcCreate(argv[1], argv + 1, envp);
 
     // write something to it's stdout
     SysProcWriteToStdinFmtLn(proc, "value = {}", 42);

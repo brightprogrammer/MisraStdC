@@ -64,7 +64,7 @@ bool test_bitvec_from_string(void) {
     WriteFmt("Testing BitVecFromStr\n");
 
     // Convert from string
-    const char* str = "1011";
+    const char *str = "1011";
     BitVec      bv  = BitVecFromStr(str);
 
     // Check result
@@ -355,7 +355,7 @@ bool test_bitvec_round_trip_conversions(void) {
     bool result = true;
 
     // Test string round-trip
-    const char* patterns[] = {"101", "1111000011110000", "1", "0", "10101010", "01010101"};
+    const char *patterns[] = {"101", "1111000011110000", "1", "0", "10101010", "01010101"};
 
     for (size_t i = 0; i < sizeof(patterns) / sizeof(patterns[0]); i++) {
         BitVec bv  = BitVecFromStr(patterns[i]);
@@ -460,7 +460,7 @@ bool test_bitvec_conversion_comprehensive(void) {
 
     // Test specific bit patterns with exact expectations
     struct {
-        const char* pattern;
+        const char *pattern;
         u64         expected_value;
         u8          expected_bytes[8];
         size_t      byte_count;

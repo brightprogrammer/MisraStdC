@@ -534,12 +534,14 @@
 ///
 #define VecMergeL(v, v2)                                                                                               \
     do {                                                                                                               \
-        VecPushBackArrL((v), (v2)->data, (v2)->length);                                                                \
-        if (!(v)->copy_init && (v2)->data) {                                                                           \
-            free((v2)->data);                                                                                          \
-            (v2)->data     = NULL;                                                                                     \
-            (v2)->length   = 0;                                                                                        \
-            (v2)->capacity = 0;                                                                                        \
+        if ((v2)->data) {                                                                                              \
+            VecPushBackArrL((v), (v2)->data, (v2)->length);                                                            \
+            if (!(v)->copy_init && (v2)->data) {                                                                       \
+                free((v2)->data);                                                                                      \
+                (v2)->data     = NULL;                                                                                 \
+                (v2)->length   = 0;                                                                                    \
+                (v2)->capacity = 0;                                                                                    \
+            }                                                                                                          \
         }                                                                                                              \
     } while (0)
 
@@ -560,7 +562,12 @@
 /// SUCCESS : `v`
 /// FAILURE : Does not return on failure
 ///
-#define VecMergeR(v, v2) VecPushBackArrR((v), (v2)->data, (v2)->length)
+#define VecMergeR(v, v2)                                                                                               \
+    do {                                                                                                               \
+        if ((v2)->data) {                                                                                              \
+            VecPushBackArrR((v), (v2)->data, (v2)->length);                                                            \
+        }                                                                                                              \
+    } while (0)
 
 ///
 /// Merge two vectors and store the result in the first vector.
@@ -672,6 +679,10 @@
 /// SUCCESS : `vd`
 /// FAILURE : Does not return on failure
 ///
-#define VecInitClone(vd, vs) (VecDeinit(vd), VecMerge(vd, vs))
+#define VecInitClone(vd, vs)                                                                                           \
+    do {                                                                                                               \
+        VecDeinit(vd);                                                                                                 \
+        VecMerge(vd, vs);                                                                                              \
+    } while (0)
 
 #endif // MISRA_STD_CONTAINER_VEC_INSERT_H

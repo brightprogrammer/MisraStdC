@@ -10,13 +10,13 @@
 
 // Define a complex structure with nested pointers
 typedef struct {
-    char* name;       // Dynamically allocated string
-    int*  values;     // Dynamically allocated array
+    char *name;       // Dynamically allocated string
+    int  *values;     // Dynamically allocated array
     size  num_values; // Size of the values array
 } ComplexItem;
 
 // Copy init function for ComplexItem
-bool ComplexItemCopyInit(ComplexItem* dst, ComplexItem* src) {
+bool ComplexItemCopyInit(ComplexItem *dst, ComplexItem *src) {
     if (!dst || !src)
         return false;
 
@@ -49,7 +49,7 @@ bool ComplexItemCopyInit(ComplexItem* dst, ComplexItem* src) {
 }
 
 // Deinit function for ComplexItem
-void ComplexItemDeinit(ComplexItem* item) {
+void ComplexItemDeinit(ComplexItem *item) {
     if (!item)
         return;
 
@@ -69,7 +69,7 @@ void ComplexItemDeinit(ComplexItem* item) {
 }
 
 // Helper function to create a ComplexItem
-ComplexItem CreateComplexItem(const char* name, int* values, size num_values) {
+ComplexItem CreateComplexItem(const char *name, int *values, size num_values) {
     ComplexItem item = {0};
 
     // Copy name
@@ -90,7 +90,7 @@ ComplexItem CreateComplexItem(const char* name, int* values, size num_values) {
 }
 
 // Helper function to check if two ComplexItems are equal
-bool ComplexItemsEqual(ComplexItem* a, ComplexItem* b) {
+bool ComplexItemsEqual(ComplexItem *a, ComplexItem *b) {
     if (!a || !b)
         return false;
 

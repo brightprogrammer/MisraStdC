@@ -527,7 +527,7 @@ bool test_str_edge_case_conversions(void) {
 
     // Test prefix handling
     struct {
-        const char* input;
+        const char *input;
         u64         expected;
         u8          base;
     } prefix_tests[] = {
@@ -567,7 +567,7 @@ bool test_str_precision_limits(void) {
         StrFromF64(&s, test_value, &config);
 
         // String should have expected decimal places
-        char* dot_pos = strchr(s.data, '.');
+        char *dot_pos = strchr(s.data, '.');
         if (dot_pos) {
             size_t decimal_places = strlen(dot_pos + 1);
             // Allow for trailing zeros being omitted in some cases

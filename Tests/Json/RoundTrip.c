@@ -33,16 +33,16 @@ typedef struct ComplexData {
 } ComplexData;
 
 // Cleanup functions
-void TestPersonDeinit(TestPerson* person) {
+void TestPersonDeinit(TestPerson *person) {
     StrDeinit(&person->name);
 }
 
-void TestConfigDeinit(TestConfig* config) {
+void TestConfigDeinit(TestConfig *config) {
     StrDeinit(&config->log_level);
     VecDeinit(&config->features);
 }
 
-void ComplexDataDeinit(ComplexData* data) {
+void ComplexDataDeinit(ComplexData *data) {
     TestPersonDeinit(&data->user);
     TestConfigDeinit(&data->config);
     VecDeinit(&data->numbers);
@@ -61,13 +61,13 @@ bool test_empty_containers_roundtrip(void);
 bool test_edge_cases_roundtrip(void);
 
 // Helper function to compare persons
-bool compare_persons(const TestPerson* a, const TestPerson* b) {
+bool compare_persons(const TestPerson *a, const TestPerson *b) {
     return a->id == b->id && StrCmp(&a->name, &b->name) == 0 && a->age == b->age && a->is_active == b->is_active &&
            a->salary == b->salary;
 }
 
 // Helper function to compare configs
-bool compare_configs(const TestConfig* a, const TestConfig* b) {
+bool compare_configs(const TestConfig *a, const TestConfig *b) {
     if (a->debug_mode != b->debug_mode || a->timeout != b->timeout || StrCmp(&a->log_level, &b->log_level) != 0 ||
         VecLen(&a->features) != VecLen(&b->features)) {
         return false;
@@ -775,7 +775,7 @@ bool test_edge_cases_roundtrip(void) {
 }
 
 // Main function that runs all round-trip tests
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     // Array of test functions
     TestFunction tests[] = {
         test_simple_roundtrip,

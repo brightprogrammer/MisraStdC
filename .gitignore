@@ -10,3 +10,4 @@ Docs/
 Docs/public
 .DS_Store
 .venv
+fuzz-outputs
