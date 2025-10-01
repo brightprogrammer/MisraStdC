@@ -75,11 +75,13 @@ print_info "Starting AFL++ fuzzing with $FUZZ_MODE mode..."
 print_info "Press Ctrl+C to stop fuzzing"
 echo
 
-# Create output directory on host
+# Create output directory on host with proper permissions
 mkdir -p "$PROJECT_ROOT/fuzz-outputs"
+chmod 755 "$PROJECT_ROOT/fuzz-outputs"
 
 docker run --rm \
     -v "$PROJECT_ROOT/fuzz-outputs:/src/fuzz/outputs" \
+    --user $(id -u):$(id -g) \
     misra-fuzz \
     bash -c "
         echo 'Building AFL++ fuzzing harness with ASAN...'

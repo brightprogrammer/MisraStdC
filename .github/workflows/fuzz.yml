@@ -25,26 +25,24 @@ jobs:
     - name: Make fuzz-docker.sh executable
       run: chmod +x Scripts/fuzz-docker.sh
       
-    - name: Run AFL++ fuzzing (without ASAN)
-      run: |
-        echo "1" | timeout 30m ./Scripts/fuzz-docker.sh || true
-          
     - name: Run AFL++ fuzzing (with ASAN)
       run: |
-        echo "2" | timeout 30m ./Scripts/fuzz-docker.sh || true
+        timeout 30m ./Scripts/fuzz-docker.sh || true
+        
+    - name: Fix permissions for artifact upload
+      run: |
+        # Fix ownership and permissions for fuzz outputs
+        if [ -d "fuzz-outputs" ]; then
+          sudo chown -R runner:runner fuzz-outputs/
+          chmod -R 755 fuzz-outputs/
+          echo "Fixed permissions for fuzz-outputs directory"
+        else
+          echo "No fuzz-outputs directory found"
+        fi
           
     - name: Check for crashes
       run: |
         echo "Checking for crashes in fuzzing results..."
-        
-        # Check AFL++ without ASAN results
-        if [ -d "fuzz-outputs/default/crashes" ] && [ "$(ls -A fuzz-outputs/default/crashes)" ]; then
-          echo "❌ Crashes found in AFL++ without ASAN:"
-          ls -la fuzz-outputs/default/crashes/
-          exit 1
-        else
-          echo "✅ No crashes found in AFL++ without ASAN"
-        fi
         
         # Check AFL++ with ASAN results  
         if [ -d "fuzz-outputs/default/crashes" ] && [ "$(ls -A fuzz-outputs/default/crashes)" ]; then
