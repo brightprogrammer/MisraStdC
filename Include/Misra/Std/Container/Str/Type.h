@@ -32,7 +32,7 @@ typedef Vec(Str) Strs;
 /// SUCCESS: Continue execution, meaning given `Str` object is ___most probably___ valid.
 /// FAILURE: `abort`
 ///
-void ValidateStr(const Str* s);
+void ValidateStr(const Str *s);
 
 ///
 /// Validate whether a given `Strs` object is valid.
@@ -44,7 +44,7 @@ void ValidateStr(const Str* s);
 /// SUCCESS: Continue execution, meaning given `Strs` object is ___most probably___ valid.
 /// FAILURE: `abort`
 ///
-void ValidateStrs(const Strs* vs);
+void ValidateStrs(const Strs *vs);
 
 
 #endif // MISRA_STD_CONTAINER_STR_TYPE_H

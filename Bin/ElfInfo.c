@@ -331,12 +331,12 @@ typedef struct {
     "{>2r}" /* shnum */                                                                                                \
     "{>2r}" /* shstrndx */
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     if (argc < 2) {
         LOG_FATAL("USAGE: {} {}", argv[0], argv[1]);
     }
 
-    FILE* elf = fopen(argv[1], "rb");
+    FILE *elf = fopen(argv[1], "rb");
     if (!elf) {
         LOG_ERROR("Failed to open file for reading.");
         return 1;

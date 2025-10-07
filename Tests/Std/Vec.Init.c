@@ -15,7 +15,7 @@ typedef struct {
 } TestItem;
 
 // Define custom copy init and deinit functions for TestItem
-bool TestItemCopyInit(TestItem* dst, TestItem* src) {
+bool TestItemCopyInit(TestItem *dst, TestItem *src) {
     if (!dst || !src)
         return false;
     dst->id    = src->id;
@@ -23,7 +23,7 @@ bool TestItemCopyInit(TestItem* dst, TestItem* src) {
     return true;
 }
 
-void TestItemDeinit(TestItem* item) {
+void TestItemDeinit(TestItem *item) {
     if (!item)
         return;
     // Nothing to free in this simple struct

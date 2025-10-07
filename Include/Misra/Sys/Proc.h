@@ -35,7 +35,7 @@ typedef enum SysProcStatus {
 /// SUCCESS: New created `SysProc` object opaque handle.
 /// FAILURE: NULL.
 ///
-SysProc* SysProcCreate(const char* path, char** argv, char** envp);
+SysProc *SysProcCreate(const char *path, char **argv, char **envp);
 
 ///
 /// Block the parent process and wait for provided child process to finish execution.
@@ -45,7 +45,7 @@ SysProc* SysProcCreate(const char* path, char** argv, char** envp);
 /// SUCCESS: Return
 /// FAILURE: Abort with log message.
 ///
-void SysProcWait(SysProc* proc);
+void SysProcWait(SysProc *proc);
 
 ///
 /// Block the parent process and wait for provided child process to finish execution.
@@ -58,7 +58,7 @@ void SysProcWait(SysProc* proc);
 /// SUCCESS: Return
 /// FAILURE: Abort with log message.
 ///
-SysProcStatus SysProcWaitFor(SysProc* proc, u64 timeout);
+SysProcStatus SysProcWaitFor(SysProc *proc, u64 timeout);
 
 ///
 /// Terminate the child process
@@ -68,7 +68,7 @@ SysProcStatus SysProcWaitFor(SysProc* proc, u64 timeout);
 /// SUCCESS: Return
 /// FAILURE: Abort with log message.
 ///
-void SysProcTerminate(SysProc* proc);
+void SysProcTerminate(SysProc *proc);
 
 ///
 /// Terminate the child process and then destroy given `SysProc` structure.
@@ -78,7 +78,7 @@ void SysProcTerminate(SysProc* proc);
 /// SUCCESS: Return
 /// FAILURE: Abort with log message.
 ///
-void SysProcDestroy(SysProc* proc);
+void SysProcDestroy(SysProc *proc);
 
 ///
 /// Write given raw data to `stdin` of child process.
@@ -89,7 +89,7 @@ void SysProcDestroy(SysProc* proc);
 /// SUCCESS: Return number of bytes written.
 /// FAILURE: Return -1
 ///
-i32 SysProcWriteToStdin(SysProc* proc, Str* buf);
+i32 SysProcWriteToStdin(SysProc *proc, Str *buf);
 
 ///
 /// Get exit code of given child process.
@@ -97,7 +97,7 @@ i32 SysProcWriteToStdin(SysProc* proc, Str* buf);
 /// SUCCESS: Exit code of given child process.
 /// FAILURE: Abort with a log message.
 ///
-i32 SysProcGetExitCode(SysProc* proc);
+i32 SysProcGetExitCode(SysProc *proc);
 
 ///
 /// Perform a blocking read from `stdout` of child process to provided buffer.
@@ -108,7 +108,7 @@ i32 SysProcGetExitCode(SysProc* proc);
 /// SUCCESS: Return number of bytes read.
 /// FAILURE: Return -1
 ///
-i32 SysProcReadFromStdout(SysProc* proc, Str* buf);
+i32 SysProcReadFromStdout(SysProc *proc, Str *buf);
 
 ///
 /// Perform a blocking read from `stderr` of child process to provided buffer.
@@ -119,7 +119,7 @@ i32 SysProcReadFromStdout(SysProc* proc, Str* buf);
 /// SUCCESS: Return number of bytes read.
 /// FAILURE: Return -1
 ///
-i32 SysProcReadFromStderr(SysProc* proc, Str* buf);
+i32 SysProcReadFromStderr(SysProc *proc, Str *buf);
 
 ///
 /// Get the OS-specific process ID of a child process.
@@ -129,14 +129,14 @@ i32 SysProcReadFromStderr(SysProc* proc, Str* buf);
 /// SUCCESS: Returns the process ID of the child process.
 /// FAILURE: Returns -1
 ///
-i32 SysProcGetId(SysProc* proc);
+i32 SysProcGetId(SysProc *proc);
 
 ///
 /// Check if a child process is still running.
 ///
 /// proc[in] : Child process handle.
 ///
-SysProcStatus SysProcGetStatus(SysProc* proc);
+SysProcStatus SysProcGetStatus(SysProc *proc);
 
 ///
 /// Platform independent method to get current process Id.
@@ -158,13 +158,13 @@ SysProcId SysGetCurrentProcessId(void);
 ///
 /// TAGS: System, Process, Path
 ///
-Str* SysGetCurrentExecutablePath(Str* exe_path);
+Str *SysGetCurrentExecutablePath(Str *exe_path);
 
 #define SysProcReadFromStdoutFmt(p, ...)                                                                               \
     do {                                                                                                               \
         Str b_ = StrInit();                                                                                            \
         SysProcReadFromStdout((p), &b_);                                                                               \
-        const char* in_ = b_.data;                                                                                     \
+        const char *in_ = b_.data;                                                                                     \
         StrReadFmt(in_, __VA_ARGS__);                                                                                  \
         StrDeinit(&b_);                                                                                                \
     } while (0)
@@ -173,7 +173,7 @@ Str* SysGetCurrentExecutablePath(Str* exe_path);
     do {                                                                                                               \
         Str b_ = StrInit();                                                                                            \
         SysProcReadFromStderr((p), &b_);                                                                               \
-        const char* in_ = b_.data;                                                                                     \
+        const char *in_ = b_.data;                                                                                     \
         StrReadFmt(in_, __VA_ARGS__);                                                                                  \
         StrDeinit(&b_);                                                                                                \
     } while (0)

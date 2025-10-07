@@ -27,8 +27,8 @@ struct SysMutex {
 #endif
 };
 
-SysMutex* SysMutexCreate(void) {
-    SysMutex* m = NEW(SysMutex);
+SysMutex *SysMutexCreate(void) {
+    SysMutex *m = NEW(SysMutex);
 #ifdef _WIN32
     InitializeCriticalSection(&m->lock);
 #else
@@ -37,7 +37,7 @@ SysMutex* SysMutexCreate(void) {
     return m;
 }
 
-void SysMutexDestroy(SysMutex* m) {
+void SysMutexDestroy(SysMutex *m) {
 #ifdef _WIN32
     DeleteCriticalSection(&m->lock);
 #else
@@ -47,7 +47,7 @@ void SysMutexDestroy(SysMutex* m) {
     FREE(m);
 }
 
-SysMutex* SysMutexLock(SysMutex* m) {
+SysMutex *SysMutexLock(SysMutex *m) {
 #ifdef _WIN32
     EnterCriticalSection(&m->lock);
 #else
@@ -56,7 +56,7 @@ SysMutex* SysMutexLock(SysMutex* m) {
     return m;
 }
 
-SysMutex* SysMutexUnlock(SysMutex* m) {
+SysMutex *SysMutexUnlock(SysMutex *m) {
 #ifdef _WIN32
     LeaveCriticalSection(&m->lock);
 #else

@@ -18,7 +18,7 @@ extern "C" {
 #ifdef __cplusplus
 #    define StrInitFromCstr(cstr, len)                                                                                 \
         (Str {                                                                                                         \
-            .data        = ZstrDupN((char*)(cstr), (len)),                                                             \
+            .data        = ZstrDupN((char *)(cstr), (len)),                                                            \
             .length      = (len),                                                                                      \
             .capacity    = (len),                                                                                      \
             .copy_init   = NULL,                                                                                       \
@@ -45,7 +45,7 @@ extern "C" {
 ///           after using this macro to handle potential memory allocation errors.
 ///
 #    define StrInitFromCstr(cstr, len)                                                                                 \
-        ((Str) {.data        = ZstrDupN((char*)(cstr), (len)),                                                         \
+        ((Str) {.data        = ZstrDupN((char *)(cstr), (len)),                                                        \
                 .length      = (len),                                                                                  \
                 .capacity    = (len),                                                                                  \
                 .copy_init   = NULL,                                                                                   \
@@ -90,7 +90,7 @@ extern "C" {
     /// SUCCESS : `str`
     /// FAILURE : NULL
     ///
-    Str* StrPrintf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
+    Str *StrPrintf(Str *str, const char *fmt, ...) FORMAT_STRING(2, 3);
 
 #ifdef __cplusplus
 #    define StrInit() (Str VecInit())
@@ -123,7 +123,7 @@ extern "C" {
     ///
     /// str : Pointer to string to be deinited
     ///
-    void StrDeinit(Str* str);
+    void StrDeinit(Str *str);
 
     ///
     /// Copy data from `src` to `dst`
@@ -134,7 +134,7 @@ extern "C" {
     /// SUCCESS : true
     /// FAILURE : false
     ///
-    bool StrInitCopy(Str* dst, const Str* src);
+    bool StrInitCopy(Str *dst, const Str *src);
 
 #ifdef __cplusplus
 }

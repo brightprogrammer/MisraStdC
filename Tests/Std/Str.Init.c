@@ -39,7 +39,7 @@ bool test_str_init(void) {
 bool test_str_init_from_cstr(void) {
     WriteFmt("Testing StrInitFromCstr\n");
 
-    const char* test_str = "Hello, World!";
+    const char *test_str = "Hello, World!";
     size_t      len      = 5; // Just "Hello"
     Str         s        = StrInitFromCstr(test_str, len);
 
@@ -57,7 +57,7 @@ bool test_str_init_from_cstr(void) {
 bool test_str_init_from_zstr(void) {
     WriteFmt("Testing StrInitFromZstr\n");
 
-    const char* test_str = "Hello, World!";
+    const char *test_str = "Hello, World!";
     Str         s        = StrInitFromZstr(test_str);
 
     // Validate the string

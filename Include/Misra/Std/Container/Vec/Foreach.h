@@ -23,7 +23,7 @@
     for (TYPE_OF(v) UNPL(pv) = (v); UNPL(pv); UNPL(pv) = NULL)                                                         \
         if ((ValidateVec(UNPL(pv)), 1) && UNPL(pv)->length > 0)                                                        \
             for (u64 idx = 0, UNPL(d) = 1; UNPL(d); UNPL(d)--)                                                         \
-                for (VEC_DATATYPE(UNPL(pv)) var = {}; idx < UNPL(pv)->length && (var = VecAt(UNPL(pv), idx), 1); idx++)
+                for (VEC_DATATYPE(UNPL(pv)) var = {0}; idx < UNPL(pv)->length && (var = VecAt(UNPL(pv), idx), 1); idx++)
 
 ///
 /// Iterate over each element `var` of given vector `v` at each index `idx` into the vector.

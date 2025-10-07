@@ -44,7 +44,7 @@ bool test_deadend(TestFunction test_func, bool expect_failure);
 ///
 /// TAGS: Testing, Driver, Simple
 ///
-int simple_test_driver(TestFunction* tests, int count);
+int simple_test_driver(TestFunction *tests, int count);
 
 ///
 /// Run an array of deadend test functions (all expecting failure).
@@ -57,7 +57,7 @@ int simple_test_driver(TestFunction* tests, int count);
 ///
 /// TAGS: Testing, Driver, Deadend
 ///
-int deadend_test_driver(TestFunction* tests, int count);
+int deadend_test_driver(TestFunction *tests, int count);
 
 ///
 /// Main test driver that handles both normal and deadend tests.
@@ -74,11 +74,11 @@ int deadend_test_driver(TestFunction* tests, int count);
 /// TAGS: Testing, Driver, Suite
 ///
 int run_test_suite(
-    TestFunction* normal_tests,
+    TestFunction *normal_tests,
     int           normal_count,
-    TestFunction* deadend_tests,
+    TestFunction *deadend_tests,
     int           deadend_count,
-    const char*   test_name
+    const char   *test_name
 );
 
 #endif // TEST_RUNNER_H

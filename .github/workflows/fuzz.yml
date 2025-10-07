@@ -1,0 +1,118 @@
+name: AFL++ Fuzzing
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master ]
+  schedule:
+    # Run fuzzing daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Make fuzz-docker.sh executable
+      run: chmod +x Scripts/fuzz-docker.sh
+      
+    - name: Clean up previous fuzzing outputs
+      run: |
+        # Clean up any previous fuzzing outputs to avoid conflicts
+        rm -rf fuzz-outputs/*
+        echo "Cleaned up previous fuzzing outputs"
+        
+    - name: Run AFL++ fuzzing (with ASAN)
+      run: |
+        timeout 30m ./Scripts/fuzz-docker.sh || true
+        
+    - name: Fix permissions for artifact upload
+      run: |
+        # Fix ownership and permissions for fuzz outputs
+        if [ -d "fuzz-outputs" ]; then
+          # Change ownership to runner user
+          sudo chown -R runner:runner fuzz-outputs/
+          # Ensure proper permissions
+          chmod -R 755 fuzz-outputs/
+          # List contents to verify
+          echo "Fixed permissions for fuzz-outputs directory:"
+          ls -la fuzz-outputs/
+          # Check for new fuzzer directory structure
+          if [ -d "fuzz-outputs/fuzzer-asan" ]; then
+            echo "Contents of fuzz-outputs/fuzzer-asan:"
+            ls -la fuzz-outputs/fuzzer-asan/
+          fi
+          # Check for legacy directory structure
+          if [ -d "fuzz-outputs/default" ]; then
+            echo "Contents of fuzz-outputs/default:"
+            ls -la fuzz-outputs/default/
+          fi
+        else
+          echo "No fuzz-outputs directory found"
+        fi
+        
+    - name: Rename files with invalid characters for artifact upload
+      run: |
+        # Function to rename files with invalid characters
+        rename_files() {
+          local dir="$1"
+          if [ -d "$dir" ]; then
+            echo "Renaming files in $dir to remove invalid characters..."
+            find "$dir" -type f -name "*:*" -o -name "*\"*" -o -name "*<*" -o -name "*>*" -o -name "*|*" -o -name "*\**" -o -name "*\?*" | while read -r file; do
+              # Get directory and filename
+              dirname=$(dirname "$file")
+              filename=$(basename "$file")
+              # Replace invalid characters with underscores
+              new_filename=$(echo "$filename" | sed 's/[:<>|*"?]/_/g')
+              # Only rename if the filename actually changed
+              if [ "$filename" != "$new_filename" ]; then
+                new_path="$dirname/$new_filename"
+                echo "Renaming: $file -> $new_path"
+                mv "$file" "$new_path"
+              fi
+            done
+          fi
+        }
+        
+        # Rename files in fuzzing output directories
+        if [ -d "fuzz-outputs" ]; then
+          rename_files "fuzz-outputs/fuzzer-asan"
+          rename_files "fuzz-outputs/default"
+          echo "File renaming completed"
+        else
+          echo "No fuzz-outputs directory found for renaming"
+        fi
+          
+    - name: Check for crashes
+      run: |
+        echo "Checking for crashes in fuzzing results..."
+        
+        # Check AFL++ with ASAN results (using new fuzzer directory name)
+        if [ -d "fuzz-outputs/fuzzer-asan/crashes" ] && [ "$(ls -A fuzz-outputs/fuzzer-asan/crashes)" ]; then
+          echo "❌ Crashes found in AFL++ with ASAN:"
+          ls -la fuzz-outputs/fuzzer-asan/crashes/
+          exit 1
+        elif [ -d "fuzz-outputs/default/crashes" ] && [ "$(ls -A fuzz-outputs/default/crashes)" ]; then
+          echo "❌ Crashes found in AFL++ with ASAN (legacy directory):"
+          ls -la fuzz-outputs/default/crashes/
+          exit 1
+        else
+          echo "✅ No crashes found in AFL++ with ASAN"
+        fi
+        
+    - name: Upload fuzzing results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: fuzzing-results
+        path: fuzz-outputs/
+        retention-days: 7

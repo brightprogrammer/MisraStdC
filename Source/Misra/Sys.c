@@ -32,9 +32,9 @@
 #include <stdio.h>
 #include <string.h>
 
-Str* SysGetEnv(const char* name, Str* value) {
+Str *SysGetEnv(const char *name, Str *value) {
 #ifdef _WIN32
-    char*  env_var;
+    char  *env_var;
     size_t requiredSize;
 
     getenv_s(&requiredSize, NULL, 0, name);
@@ -42,7 +42,7 @@ Str* SysGetEnv(const char* name, Str* value) {
         return NULL;
     }
 
-    env_var = (char*)malloc(requiredSize);
+    env_var = (char *)malloc(requiredSize);
     if (!env_var) {
         return NULL;
     }
@@ -56,7 +56,7 @@ Str* SysGetEnv(const char* name, Str* value) {
     value->capacity = requiredSize;
     return value;
 #else
-    char* env_var = getenv(name);
+    char *env_var = getenv(name);
     if (env_var) {
         *value = StrInitFromZstr(env_var);
         return value;
@@ -65,7 +65,7 @@ Str* SysGetEnv(const char* name, Str* value) {
 #endif
 }
 
-Str* SysStrError(i32 eno, Str* err_str) {
+Str *SysStrError(i32 eno, Str *err_str) {
     char buf[1024] = {0};
 #if _WIN32
     strerror_s(buf, 1023, eno);

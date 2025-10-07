@@ -71,7 +71,7 @@ bool test_deadend(TestFunction test_func, bool expect_failure) {
 }
 
 /// Run an array of simple tests
-int simple_test_driver(TestFunction* tests, int count) {
+int simple_test_driver(TestFunction *tests, int count) {
     if (!tests) {
         WriteFmt("[ERROR] simple_test_driver: NULL tests array provided\n");
         return count; // All tests failed
@@ -100,7 +100,7 @@ int simple_test_driver(TestFunction* tests, int count) {
 }
 
 /// Run an array of deadend tests (all expecting failure)
-int deadend_test_driver(TestFunction* tests, int count) {
+int deadend_test_driver(TestFunction *tests, int count) {
     if (!tests) {
         WriteFmt("[ERROR] deadend_test_driver: NULL tests array provided\n");
         return count; // All tests failed
@@ -132,11 +132,11 @@ int deadend_test_driver(TestFunction* tests, int count) {
 
 /// Main test driver - handles everything: normal tests and deadend tests
 int run_test_suite(
-    TestFunction* normal_tests,
+    TestFunction *normal_tests,
     int           normal_count,
-    TestFunction* deadend_tests,
+    TestFunction *deadend_tests,
     int           deadend_count,
-    const char*   test_name
+    const char   *test_name
 ) {
     WriteFmt("[INFO] Starting {} tests\n\n", test_name ? test_name : "Test Suite");
 

@@ -53,7 +53,7 @@ extern "C" {
     /// SUCCESS : Returns str
     /// FAILURE : Returns NULL if config is invalid
     ///
-    Str* StrFromU64(Str* str, u64 value, const StrIntFormat* config);
+    Str *StrFromU64(Str *str, u64 value, const StrIntFormat *config);
 
     ///
     /// Convert a signed 64-bit integer to string
@@ -65,7 +65,7 @@ extern "C" {
     /// SUCCESS : Returns str
     /// FAILURE : Returns NULL if config is invalid
     ///
-    Str* StrFromI64(Str* str, i64 value, const StrIntFormat* config);
+    Str *StrFromI64(Str *str, i64 value, const StrIntFormat *config);
 
     ///
     /// Convert a double to string
@@ -77,7 +77,7 @@ extern "C" {
     /// SUCCESS : Returns str
     /// FAILURE : Returns NULL if config is invalid
     ///
-    Str* StrFromF64(Str* str, f64 value, const StrFloatFormat* config);
+    Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config);
 
     ///
     /// Convert string to unsigned 64-bit integer
@@ -89,7 +89,7 @@ extern "C" {
     /// SUCCESS : Returns true and stores result in value
     /// FAILURE : Returns false if conversion fails
     ///
-    bool StrToU64(const Str* str, u64* value, const StrParseConfig* config);
+    bool StrToU64(const Str *str, u64 *value, const StrParseConfig *config);
 
     ///
     /// Convert string to signed 64-bit integer
@@ -101,7 +101,7 @@ extern "C" {
     /// SUCCESS : Returns true and stores result in value
     /// FAILURE : Returns false if conversion fails
     ///
-    bool StrToI64(const Str* str, i64* value, const StrParseConfig* config);
+    bool StrToI64(const Str *str, i64 *value, const StrParseConfig *config);
 
     ///
     /// Convert string to double
@@ -113,7 +113,7 @@ extern "C" {
     /// SUCCESS : Returns true and stores result in value
     /// FAILURE : Returns false if conversion fails
     ///
-    bool StrToF64(const Str* str, f64* value, const StrParseConfig* config);
+    bool StrToF64(const Str *str, f64 *value, const StrParseConfig *config);
 
 
 

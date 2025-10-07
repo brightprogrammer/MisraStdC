@@ -60,9 +60,9 @@ bool test_vec_ptr_at(void) {
     VecPushBackR(&vec, 30);
 
     // Get pointers to elements
-    int* ptr0 = VecPtrAt(&vec, 0);
-    int* ptr1 = VecPtrAt(&vec, 1);
-    int* ptr2 = VecPtrAt(&vec, 2);
+    int *ptr0 = VecPtrAt(&vec, 0);
+    int *ptr1 = VecPtrAt(&vec, 1);
+    int *ptr2 = VecPtrAt(&vec, 2);
 
     // Check values through pointers
     bool result = (*ptr0 == 10);
@@ -128,15 +128,15 @@ bool test_vec_begin_end(void) {
     VecPushBackR(&vec, 30);
 
     // Get begin and end pointers
-    int*  begin = VecBegin(&vec);
-    char* end   = (char*)VecEnd(&vec);
+    int  *begin = VecBegin(&vec);
+    char *end   = (char *)VecEnd(&vec);
 
     // Check that begin points to the first element
     bool result = (*begin == 10);
 
     // Check that end - begin equals the size of the vector
     size vec_size = VecSize(&vec);
-    result        = result && ((end - (char*)begin) == vec_size);
+    result        = result && ((end - (char *)begin) == vec_size);
 
     // Clean up
     VecDeinit(&vec);

@@ -14,6 +14,18 @@
 #define ListInit() ListInitWithDeepCopy(NULL, NULL)
 
 ///
+/// Initialize a list with default arguments.
+///
+/// l[in] : Pointer to list memory that needs to be initialized.
+///
+/// USAGE:
+///     List(i32) list = ListInitT(list);
+///
+/// TAGS: Init, List, Length, Size, Aligned, DeepCopy, DeepDeinit
+///
+#define ListInitT(l) ListInitWithDeepCopyT(l, NULL, NULL)
+
+///
 /// Initialize a list with copy init and deinit methods for maintaining a deep-copy.
 ///
 /// l[in]  : Pointer to list memory that needs to be initialized.

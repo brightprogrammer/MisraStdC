@@ -9,7 +9,7 @@
 #include "../Util/TestRunner.h"
 
 // Helper function to compare JSON output (removes spaces for comparison)
-bool compare_json_output(const Str* output, const char* expected) {
+bool compare_json_output(const Str *output, const char *expected) {
     // Create a copy of expected without spaces for comparison
     Str expected_str   = StrInitFromZstr(expected);
     Str output_clean   = StrInit();
@@ -83,7 +83,7 @@ bool test_empty_object_writing(void) {
         }
     );
 
-    const char* expected = "{}";
+    const char *expected = "{}";
     if (!compare_json_output(&json, expected)) {
         success = false;
     }
@@ -107,7 +107,7 @@ bool test_empty_array_writing(void) {
         JW_ARR_KV(json, "strings", empty_strings, str, { JW_STR(json, str); });
     });
 
-    const char* expected = "{\"numbers\":[],\"strings\":[]}";
+    const char *expected = "{\"numbers\":[],\"strings\":[]}";
     if (!compare_json_output(&json, expected)) {
         success = false;
     }
@@ -133,7 +133,7 @@ bool test_empty_string_writing(void) {
         JW_STR_KV(json, "description", empty_desc);
     });
 
-    const char* expected = "{\"name\":\"\",\"description\":\"\"}";
+    const char *expected = "{\"name\":\"\",\"description\":\"\"}";
     if (!compare_json_output(&json, expected)) {
         success = false;
     }
@@ -161,7 +161,7 @@ bool test_negative_numbers_writing(void) {
         JW_FLT_KV(json, "delta", delta);
     });
 
-    const char* expected = "{\"temp\":-25,\"balance\":-1000.500000,\"delta\":-0.001000}";
+    const char *expected = "{\"temp\":-25,\"balance\":-1000.500000,\"delta\":-0.001000}";
     if (!compare_json_output(&json, expected)) {
         success = false;
     }
@@ -218,7 +218,7 @@ bool test_zero_values_writing(void) {
         JW_BOOL_KV(json, "bool_false", bool_false);
     });
 
-    const char* expected = "{\"int_zero\":0,\"float_zero\":0.000000,\"bool_false\":false}";
+    const char *expected = "{\"int_zero\":0,\"float_zero\":0.000000,\"bool_false\":false}";
     if (!compare_json_output(&json, expected)) {
         success = false;
     }
@@ -329,7 +329,7 @@ bool test_nested_empty_containers_writing(void) {
         });
     });
 
-    const char* expected = "{\"outer\":{},\"list\":[],\"deep\":{\"inner\":{}}}";
+    const char *expected = "{\"outer\":{},\"list\":[],\"deep\":{\"inner\":{}}}";
     if (!compare_json_output(&json, expected)) {
         success = false;
     }
@@ -367,7 +367,7 @@ bool test_mixed_empty_and_filled_writing(void) {
         JW_ARR_KV(json, "filled_arr", filled_arr, item, { JW_INT(json, item); });
     });
 
-    const char* expected = "{\"empty_obj\":{},\"filled_obj\":{\"x\":1},\"empty_arr\":[],\"filled_arr\":[1,2]}";
+    const char *expected = "{\"empty_obj\":{},\"filled_obj\":{\"x\":1},\"empty_arr\":[],\"filled_arr\":[1,2]}";
     if (!compare_json_output(&json, expected)) {
         success = false;
     }
@@ -397,7 +397,7 @@ bool test_boundary_integers_writing(void) {
         JW_INT_KV(json, "minus_one", minus_one);
     });
 
-    const char* expected = "{\"max_int\":2147483647,\"min_int\":-2147483648,\"one\":1,\"minus_one\":-1}";
+    const char *expected = "{\"max_int\":2147483647,\"min_int\":-2147483648,\"one\":1,\"minus_one\":-1}";
     if (!compare_json_output(&json, expected)) {
         success = false;
     }
@@ -463,10 +463,10 @@ bool test_single_values_writing(void) {
     f64 single_float = 3.14;
     JW_OBJ(json4, { JW_FLT_KV(json4, "pi", single_float); });
 
-    const char* expected1 = "{\"value\":42}";
-    const char* expected2 = "{\"text\":\"hello\"}";
-    const char* expected3 = "{\"flag\":true}";
-    const char* expected4 = "{\"pi\":3.140000}";
+    const char *expected1 = "{\"value\":42}";
+    const char *expected2 = "{\"text\":\"hello\"}";
+    const char *expected3 = "{\"flag\":true}";
+    const char *expected4 = "{\"pi\":3.140000}";
 
     if (!compare_json_output(&json1, expected1))
         success = false;
@@ -486,7 +486,7 @@ bool test_single_values_writing(void) {
 }
 
 // Main function that runs all edge case writing tests
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     // Array of test functions
     TestFunction tests[] = {
         test_empty_object_writing,

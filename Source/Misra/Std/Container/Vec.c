@@ -141,6 +141,10 @@ void reduce_space_vec(GenericVec *vec, size item_size) {
 
 
 void insert_range_into_vec(GenericVec *vec, char *item_data, size item_size, size idx, size count) {
+    if (!count) {
+        return;
+    }
+
     ValidateVec(vec);
 
     if (idx > vec->length) {
@@ -175,6 +179,10 @@ void insert_range_into_vec(GenericVec *vec, char *item_data, size item_size, siz
 }
 
 void insert_range_fast_into_vec(GenericVec *vec, char *item_data, size item_size, size idx, size count) {
+    if (!count) {
+        return;
+    }
+
     ValidateVec(vec);
 
     if (idx > vec->length) {

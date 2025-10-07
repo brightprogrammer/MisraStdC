@@ -103,7 +103,7 @@ extern "C" {
     /// SUCCESS : Returns true if `s` starts with `prefix`.
     /// FAILURE : Returns false.
     ///
-    bool StrStartsWithZstr(const Str* s, const char* prefix);
+    bool StrStartsWithZstr(const Str *s, const char *prefix);
 
     ///
     /// Check if string ends with a null-terminated string (Zstr).
@@ -114,7 +114,7 @@ extern "C" {
     /// SUCCESS : Returns true if `s` ends with `suffix`.
     /// FAILURE : Returns false.
     ///
-    bool StrEndsWithZstr(const Str* s, const char* suffix);
+    bool StrEndsWithZstr(const Str *s, const char *suffix);
 
     ///
     /// Check if string starts with a fixed-length C-style string (Cstr).
@@ -126,7 +126,7 @@ extern "C" {
     /// SUCCESS : Returns true if `s` starts with `prefix`.
     /// FAILURE : Returns false.
     ///
-    bool StrStartsWithCstr(const Str* s, const char* prefix, size prefix_len);
+    bool StrStartsWithCstr(const Str *s, const char *prefix, size prefix_len);
 
     ///
     /// Check if string ends with a fixed-length C-style string (Cstr).
@@ -138,7 +138,7 @@ extern "C" {
     /// SUCCESS : Returns true if `s` ends with `suffix`.
     /// FAILURE : Returns false.
     ///
-    bool StrEndsWithCstr(const Str* s, const char* suffix, size suffix_len);
+    bool StrEndsWithCstr(const Str *s, const char *suffix, size suffix_len);
 
     ///
     /// Check if string starts with another Str object.
@@ -149,7 +149,7 @@ extern "C" {
     /// SUCCESS : Returns true if `s` starts with `prefix`.
     /// FAILURE : Returns false.
     ///
-    bool StrStartsWith(const Str* s, const Str* prefix);
+    bool StrStartsWith(const Str *s, const Str *prefix);
 
     ///
     /// Check if string ends with another Str object.
@@ -160,7 +160,7 @@ extern "C" {
     /// SUCCESS : Returns true if `s` ends with `suffix`.
     /// FAILURE : Returns false.
     ///
-    bool StrEndsWith(const Str* s, const Str* suffix);
+    bool StrEndsWith(const Str *s, const Str *suffix);
 
     //
     // Replace Operations
@@ -177,7 +177,7 @@ extern "C" {
     /// SUCCESS : Modifies `s` in place.
     /// FAILURE : No replacement if `match` not found.
     ///
-    void StrReplaceZstr(Str* s, const char* match, const char* replacement, size count);
+    void StrReplaceZstr(Str *s, const char *match, const char *replacement, size count);
 
     ///
     /// Replace occurrences of a fixed-length string (Cstr) in string.
@@ -193,10 +193,10 @@ extern "C" {
     /// FAILURE : No replacement if `match` not found.
     ///
     void StrReplaceCstr(
-        Str*        s,
-        const char* match,
+        Str        *s,
+        const char *match,
         size        match_len,
-        const char* replacement,
+        const char *replacement,
         size        replacement_len,
         size        count
     );
@@ -212,7 +212,7 @@ extern "C" {
     /// SUCCESS : Modifies `s` in place.
     /// FAILURE : No replacement if `match` not found.
     ///
-    void StrReplace(Str* s, const Str* match, const Str* replacement, size count);
+    void StrReplace(Str *s, const Str *match, const Str *replacement, size count);
 
     //
     // Split Operations
@@ -233,7 +233,7 @@ extern "C" {
     /// SUCCESS : StrIters vector of non-zero length
     /// FAILURE : StrIters vector of zero-length
     ///
-    StrIters StrSplitToIters(Str* s, const char* key);
+    StrIters StrSplitToIters(Str *s, const char *key);
 
     ///
     /// Split the given Str object into multiple Str objects stored in a vector
@@ -250,7 +250,7 @@ extern "C" {
     /// SUCCESS : Strs vector of non-zero length
     /// FAILURE : Strs vector of zero-length
     ///
-    Strs StrSplit(Str* s, const char* key);
+    Strs StrSplit(Str *s, const char *key);
 
     //
     // Strip Operations
@@ -260,7 +260,7 @@ extern "C" {
     /// Internal implementation for strip functions.
     /// Used by StrStrip, StrLStrip, and StrRStrip macros.
     ///
-    Str strip_str(Str* s, const char* key, int split_direction);
+    Str strip_str(Str *s, const char *key, int split_direction);
 
 ///
 /// Strip leading and trailing whitespace (or optional custom characters) from

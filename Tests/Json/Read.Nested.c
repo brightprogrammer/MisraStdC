@@ -30,7 +30,7 @@ typedef struct ApiResponse {
     AnnSymbols data;
 } ApiResponse;
 
-void AnnSymbolDeinit(AnnSymbol* sym) {
+void AnnSymbolDeinit(AnnSymbol *sym) {
     StrDeinit(&sym->analysis_name);
     StrDeinit(&sym->function_name);
     StrDeinit(&sym->sha256);
@@ -68,15 +68,15 @@ typedef struct SearchResult {
 
 typedef Vec(SearchResult) SearchResults;
 
-void FunctionInfoDeinit(FunctionInfo* info) {
+void FunctionInfoDeinit(FunctionInfo *info) {
     StrDeinit(&info->name);
 }
 
-void ModelInfoDeinit(ModelInfo* info) {
+void ModelInfoDeinit(ModelInfo *info) {
     StrDeinit(&info->name);
 }
 
-void SearchResultDeinit(SearchResult* result) {
+void SearchResultDeinit(SearchResult *result) {
     StrDeinit(&result->binary_name);
     StrDeinit(&result->sha256);
     VecForeach(&result->tags, tag) {
@@ -370,8 +370,8 @@ bool test_dynamic_key_parsing(void) {
     }
 
     if (symbols.length >= 2) {
-        AnnSymbol* sym1 = &VecAt(&symbols, 0);
-        AnnSymbol* sym2 = &VecAt(&symbols, 1);
+        AnnSymbol *sym1 = &VecAt(&symbols, 0);
+        AnnSymbol *sym2 = &VecAt(&symbols, 1);
 
         if (!(sym1->source_function_id == 12345 || sym1->source_function_id == 54321)) {
             WriteFmt(
@@ -494,7 +494,7 @@ bool test_complex_api_response(void) {
     }
 
     if (response.data.length > 0) {
-        AnnSymbol* sym = &VecAt(&response.data, 0);
+        AnnSymbol *sym = &VecAt(&response.data, 0);
 
         // Debug individual symbol checks
         if (sym->source_function_id != 12345) {
@@ -832,7 +832,7 @@ bool test_conditional_parsing(void) {
     }
 
     if (response.data.length > 0) {
-        AnnSymbol* sym = &VecAt(&response.data, 0);
+        AnnSymbol *sym = &VecAt(&response.data, 0);
 
         if (sym->source_function_id != 12345) {
             WriteFmt("[DEBUG] Source function ID check failed: expected 12345, got {}\n", sym->source_function_id);
@@ -1001,7 +1001,7 @@ bool test_status_response_pattern(void) {
     }
 
     if (response.data.length > 0) {
-        AnnSymbol* sym = &VecAt(&response.data, 0);
+        AnnSymbol *sym = &VecAt(&response.data, 0);
 
         if (sym->source_function_id != 12345) {
             WriteFmt("[DEBUG] Source function ID check failed: expected 12345, got {}\n", sym->source_function_id);
@@ -1077,7 +1077,7 @@ bool test_status_response_pattern(void) {
 }
 
 // Main function that runs all tests
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     // Array of test functions
     TestFunction tests[] = {
         test_basic_iterator_functionality,

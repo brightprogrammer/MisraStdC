@@ -61,23 +61,23 @@ bool test_str_find(void) {
     Str needle3  = StrInitFromZstr("NotFound");
 
     // Test StrFindStr with match at end
-    const char* found1 = StrFindStr(&haystack, &needle1);
+    const char *found1 = StrFindStr(&haystack, &needle1);
     bool        result = (found1 != NULL && ZstrCompare(found1, "World") == 0);
 
     // Test StrFindStr with match at beginning
-    const char* found2 = StrFindStr(&haystack, &needle2);
+    const char *found2 = StrFindStr(&haystack, &needle2);
     result             = result && (found2 != NULL && ZstrCompare(found2, "Hello World") == 0);
 
     // Test StrFindStr with no match
-    const char* found3 = StrFindStr(&haystack, &needle3);
+    const char *found3 = StrFindStr(&haystack, &needle3);
     result             = result && (found3 == NULL);
 
     // Test StrFindZstr
-    const char* found4 = StrFindZstr(&haystack, "World");
+    const char *found4 = StrFindZstr(&haystack, "World");
     result             = result && (found4 != NULL && ZstrCompare(found4, "World") == 0);
 
     // Test StrFindCstr
-    const char* found5 = StrFindCstr(&haystack, "Wor", 3);
+    const char *found5 = StrFindCstr(&haystack, "Wor", 3);
     result             = result && (found5 != NULL && ZstrCompareN(found5, "World", 3) == 0);
 
     StrDeinit(&haystack);
@@ -181,19 +181,19 @@ bool test_str_split(void) {
 
     if (iters.length >= 3) {
         // Check first iterator
-        StrIter* iter1       = &iters.data[0];
+        StrIter *iter1       = &iters.data[0];
         char     buffer1[10] = {0};
         memcpy(buffer1, iter1->data, iter1->length);
         result = result && (ZstrCompare(buffer1, "Hello") == 0);
 
         // Check second iterator
-        StrIter* iter2       = &iters.data[1];
+        StrIter *iter2       = &iters.data[1];
         char     buffer2[10] = {0};
         memcpy(buffer2, iter2->data, iter2->length);
         result = result && (ZstrCompare(buffer2, "World") == 0);
 
         // Check third iterator
-        StrIter* iter3       = &iters.data[2];
+        StrIter *iter3       = &iters.data[2];
         char     buffer3[10] = {0};
         memcpy(buffer3, iter3->data, iter3->length);
         result = result && (ZstrCompare(buffer3, "Test") == 0);

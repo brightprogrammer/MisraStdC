@@ -19,7 +19,7 @@ typedef struct EdgeCaseData {
     Vec(i64) numbers;
 } EdgeCaseData;
 
-void EdgeCaseDataDeinit(EdgeCaseData* data) {
+void EdgeCaseDataDeinit(EdgeCaseData *data) {
     StrDeinit(&data->empty_string);
     VecDeinit(&data->empty_array);
     VecDeinit(&data->numbers);
@@ -642,7 +642,7 @@ bool test_boundary_floats(void) {
 }
 
 // Main function that runs all edge case reading tests
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     // Array of test functions
     TestFunction tests[] = {
         test_empty_object_reading,

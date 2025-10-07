@@ -14,9 +14,9 @@
 
 #include "Misra/Std/Utility/StrIter.h"
 
-static Str* string_va_printf(Str* str, const char* fmt, va_list args);
+static Str *string_va_printf(Str *str, const char *fmt, va_list args);
 
-Str* StrPrintf(Str* str, const char* fmt, ...) {
+Str *StrPrintf(Str *str, const char *fmt, ...) {
     ValidateStr(str);
 
     StrClear(str);
@@ -29,7 +29,7 @@ Str* StrPrintf(Str* str, const char* fmt, ...) {
     return str;
 }
 
-Str* StrAppendf(Str* str, const char* fmt, ...) {
+Str *StrAppendf(Str *str, const char *fmt, ...) {
     ValidateStr(str);
 
     va_list args;
@@ -40,7 +40,7 @@ Str* StrAppendf(Str* str, const char* fmt, ...) {
     return str;
 }
 
-static Str* string_va_printf(Str* str, const char* fmt, va_list args) {
+static Str *string_va_printf(Str *str, const char *fmt, va_list args) {
     ValidateStr(str);
 
     va_list args_copy;
@@ -67,7 +67,7 @@ static Str* string_va_printf(Str* str, const char* fmt, va_list args) {
     return str;
 }
 
-bool StrInitCopy(Str* dst, const Str* src) {
+bool StrInitCopy(Str *dst, const Str *src) {
     ValidateStr(src);
 
     MemSet(dst, 0, sizeof(Str));
@@ -82,7 +82,7 @@ bool StrInitCopy(Str* dst, const Str* src) {
     return true;
 }
 
-void StrDeinit(Str* copy) {
+void StrDeinit(Str *copy) {
     ValidateStr(copy);
     if (copy->data) {
         FREE(copy->data);
@@ -90,23 +90,23 @@ void StrDeinit(Str* copy) {
     *copy = StrInit();
 }
 
-StrIters StrSplitToIters(Str* s, const char* key) {
+StrIters StrSplitToIters(Str *s, const char *key) {
     ValidateStr(s);
 
     StrIters sv     = VecInit();
     size     keylen = ZstrLen(key);
 
-    const char* prev = s->data;
-    const char* end  = s->data + s->length;
+    const char *prev = s->data;
+    const char *end  = s->data + s->length;
 
     while (prev <= end) {
-        const char* next = ZstrFindSubstring(prev, key);
+        const char *next = ZstrFindSubstring(prev, key);
         if (next) {
-            StrIter si = {.data = (char*)prev, .length = next - prev, .pos = 0, .alignment = 1};
+            StrIter si = {.data = (char *)prev, .length = next - prev, .pos = 0, .alignment = 1};
             VecPushBack(&sv, si);
             prev = next + keylen; // skip past delimiter
         } else {
-            StrIter si = {.data = (char*)prev, .length = end - prev, .pos = 0, .alignment = 1};
+            StrIter si = {.data = (char *)prev, .length = end - prev, .pos = 0, .alignment = 1};
             VecPushBack(&sv, si);
             break;
         }
@@ -115,18 +115,18 @@ StrIters StrSplitToIters(Str* s, const char* key) {
     return sv;
 }
 
-Strs StrSplit(Str* s, const char* key) {
+Strs StrSplit(Str *s, const char *key) {
     ValidateStr(s);
 
     Strs sv     = VecInitWithDeepCopy(NULL, StrDeinit);
     size keylen = ZstrLen(key);
 
-    const char* prev = s->data;
+    const char *prev = s->data;
 
     if (prev) {
-        const char* end = s->data + s->length;
+        const char *end = s->data + s->length;
         while (prev <= end) {
-            const char* next = ZstrFindSubstring(prev, key);
+            const char *next = ZstrFindSubstring(prev, key);
             if (next) {
                 Str tmp = StrInitFromCstr(prev, next - prev);
                 VecPushBack(&sv, tmp); // exclude delimiter
@@ -145,8 +145,8 @@ Strs StrSplit(Str* s, const char* key) {
 }
 
 // Helper function to check if char is in strip_chars
-static inline bool is_strip_char(char c, const char* strip_chars) {
-    const char* p = strip_chars;
+static inline bool is_strip_char(char c, const char *strip_chars) {
+    const char *p = strip_chars;
     while (*p) {
         if (c == *p)
             return true;
@@ -158,12 +158,12 @@ static inline bool is_strip_char(char c, const char* strip_chars) {
 // split direction = 0 means both sides
 //                 = -1 means from left
 //                 = 1 means from right
-Str strip_str(Str* s, const char* chars_to_strip, int split_direction) {
+Str strip_str(Str *s, const char *chars_to_strip, int split_direction) {
     ValidateStr(s);
 
-    const char* strip_chars = chars_to_strip ? chars_to_strip : " \t\n\r\v\f";
-    const char* start       = s->data;
-    const char* end         = s->data + s->length - 1;
+    const char *strip_chars = chars_to_strip ? chars_to_strip : " \t\n\r\v\f";
+    const char *start       = s->data;
+    const char *end         = s->data + s->length - 1;
 
     // Trim from the left
     if (split_direction <= 0) {
@@ -183,47 +183,47 @@ Str strip_str(Str* s, const char* chars_to_strip, int split_direction) {
     return StrInitFromCstr(start, new_len);
 }
 
-static inline bool starts_with(const char* data, size data_len, const char* prefix, size prefix_len) {
+static inline bool starts_with(const char *data, size data_len, const char *prefix, size prefix_len) {
     return data_len >= prefix_len && MemCompare(data, prefix, prefix_len) == 0;
 }
 
-static inline bool ends_with(const char* data, size data_len, const char* suffix, size suffix_len) {
+static inline bool ends_with(const char *data, size data_len, const char *suffix, size suffix_len) {
     return data_len >= suffix_len && MemCompare(data + data_len - suffix_len, suffix, suffix_len) == 0;
 }
 
-bool StrStartsWithZstr(const Str* s, const char* prefix) {
+bool StrStartsWithZstr(const Str *s, const char *prefix) {
     ValidateStr(s);
     return starts_with(s->data, s->length, prefix, ZstrLen(prefix));
 }
 
-bool StrEndsWithZstr(const Str* s, const char* suffix) {
+bool StrEndsWithZstr(const Str *s, const char *suffix) {
     ValidateStr(s);
     return ends_with(s->data, s->length, suffix, ZstrLen(suffix));
 }
 
-bool StrStartsWithCstr(const Str* s, const char* prefix, size prefix_len) {
+bool StrStartsWithCstr(const Str *s, const char *prefix, size prefix_len) {
     ValidateStr(s);
     return starts_with(s->data, s->length, prefix, prefix_len);
 }
 
-bool StrEndsWithCstr(const Str* s, const char* suffix, size suffix_len) {
+bool StrEndsWithCstr(const Str *s, const char *suffix, size suffix_len) {
     ValidateStr(s);
     return ends_with(s->data, s->length, suffix, suffix_len);
 }
 
-bool StrStartsWith(const Str* s, const Str* prefix) {
+bool StrStartsWith(const Str *s, const Str *prefix) {
     ValidateStr(s);
     return starts_with(s->data, s->length, prefix->data, prefix->length);
 }
 
-bool StrEndsWith(const Str* s, const Str* suffix) {
+bool StrEndsWith(const Str *s, const Str *suffix) {
     ValidateStr(s);
     return ends_with(s->data, s->length, suffix->data, suffix->length);
 }
 
 // Helper: replace in-place all `match` → `replacement` up to `count`
 static void
-    str_replace(Str* s, const char* match, size match_len, const char* replacement, size replacement_len, size count) {
+    str_replace(Str *s, const char *match, size match_len, const char *replacement, size replacement_len, size count) {
     ValidateStr(s);
     size i        = 0;
     size replaced = 0;
@@ -240,16 +240,16 @@ static void
     }
 }
 
-void StrReplaceZstr(Str* s, const char* match, const char* replacement, size count) {
+void StrReplaceZstr(Str *s, const char *match, const char *replacement, size count) {
     ValidateStr(s);
     str_replace(s, match, ZstrLen(match), replacement, ZstrLen(replacement), count);
 }
 
 void StrReplaceCstr(
-    Str*        s,
-    const char* match,
+    Str        *s,
+    const char *match,
     size        match_len,
-    const char* replacement,
+    const char *replacement,
     size        replacement_len,
     size        count
 ) {
@@ -257,7 +257,7 @@ void StrReplaceCstr(
     str_replace(s, match, match_len, replacement, replacement_len, count);
 }
 
-void StrReplace(Str* s, const Str* match, const Str* replacement, size count) {
+void StrReplace(Str *s, const Str *match, const Str *replacement, size count) {
     ValidateStr(s);
     str_replace(s, match->data, match->length, replacement->data, replacement->length, count);
 }
@@ -270,7 +270,7 @@ static inline char digit_to_char(u8 digit, bool uppercase) {
 }
 
 // Helper function to convert character to digit
-static inline bool char_to_digit(char c, u8* digit, u8 base) {
+static inline bool char_to_digit(char c, u8 *digit, u8 base) {
     if (IS_DIGIT(c)) {
         *digit = c - '0';
     } else if (IN_RANGE(c, 'a', 'z')) {
@@ -289,7 +289,7 @@ static inline bool is_valid_base(u8 base) {
 }
 
 // Helper function to skip prefixes for explicit bases
-static inline size_t skip_prefix(const Str* str, size_t pos, u8 base) {
+static inline size_t skip_prefix(const Str *str, size_t pos, u8 base) {
     if (pos + 2 > str->length || str->data[pos] != '0') {
         return pos;
     }
@@ -326,7 +326,7 @@ static inline size_t skip_prefix(const Str* str, size_t pos, u8 base) {
 // Conversion Functions - New Clean Implementation
 // ======================================
 
-Str* StrFromU64(Str* str, u64 value, const StrIntFormat* config) {
+Str *StrFromU64(Str *str, u64 value, const StrIntFormat *config) {
     ValidateStr(str);
 
     if (!config) {
@@ -373,7 +373,7 @@ Str* StrFromU64(Str* str, u64 value, const StrIntFormat* config) {
     return str;
 }
 
-Str* StrFromI64(Str* str, i64 value, const StrIntFormat* config) {
+Str *StrFromI64(Str *str, i64 value, const StrIntFormat *config) {
     ValidateStr(str);
 
     if (!config) {
@@ -407,7 +407,7 @@ Str* StrFromI64(Str* str, i64 value, const StrIntFormat* config) {
     return str;
 }
 
-Str* StrFromF64(Str* str, f64 value, const StrFloatFormat* config) {
+Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
     ValidateStr(str);
 
     if (!config) {
@@ -423,7 +423,7 @@ Str* StrFromF64(Str* str, f64 value, const StrFloatFormat* config) {
 
     // Handle special cases
     if (isnan(value)) {
-        const char* nan_str = config->uppercase ? "NAN" : "nan";
+        const char *nan_str = config->uppercase ? "NAN" : "nan";
         for (size_t i = 0; i < 3; i++) {
             StrPushBack(str, nan_str[i]);
         }
@@ -436,7 +436,7 @@ Str* StrFromF64(Str* str, f64 value, const StrFloatFormat* config) {
         } else if (config->always_sign) {
             StrPushBack(str, '+');
         }
-        const char* inf_str = config->uppercase ? "INF" : "inf";
+        const char *inf_str = config->uppercase ? "INF" : "inf";
         for (size_t i = 0; i < 3; i++) {
             StrPushBack(str, inf_str[i]);
         }
@@ -565,7 +565,7 @@ Str* StrFromF64(Str* str, f64 value, const StrFloatFormat* config) {
     return str;
 }
 
-bool StrToU64(const Str* str, u64* value, const StrParseConfig* config) {
+bool StrToU64(const Str *str, u64 *value, const StrParseConfig *config) {
     ValidateStr(str);
 
     if (!value) {
@@ -655,7 +655,7 @@ bool StrToU64(const Str* str, u64* value, const StrParseConfig* config) {
     return true;
 }
 
-bool StrToI64(const Str* str, i64* value, const StrParseConfig* config) {
+bool StrToI64(const Str *str, i64 *value, const StrParseConfig *config) {
     ValidateStr(str);
 
     if (!value) {
@@ -715,7 +715,7 @@ bool StrToI64(const Str* str, i64* value, const StrParseConfig* config) {
     return true;
 }
 
-bool StrToF64(const Str* str, f64* value, const StrParseConfig* config) {
+bool StrToF64(const Str *str, f64 *value, const StrParseConfig *config) {
     ValidateStr(str);
 
     if (!value) {
@@ -855,11 +855,11 @@ bool StrToF64(const Str* str, f64* value, const StrParseConfig* config) {
     return true;
 }
 
-void ValidateStr(const Str* s) {
+void ValidateStr(const Str *s) {
     return ValidateVec(s);
 }
 
-void ValidateStrs(const Strs* vs) {
+void ValidateStrs(const Strs *vs) {
     ValidateVec(vs);
     VecForeachPtr(vs, sp) {
         ValidateStr(sp);

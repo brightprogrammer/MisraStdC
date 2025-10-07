@@ -43,7 +43,7 @@ bool test_bitvec_reading(void);
 bool test_integer_decimal_reading(void) {
     WriteFmt("Testing integer decimal reading\n");
 
-    const char* z = NULL;
+    const char *z = NULL;
 
     bool success = true;
 
@@ -144,7 +144,7 @@ bool test_integer_decimal_reading(void) {
 bool test_integer_hex_reading(void) {
     WriteFmt("Testing integer hexadecimal reading\n");
 
-    const char* z = NULL;
+    const char *z = NULL;
 
     bool success = true;
 
@@ -181,7 +181,7 @@ bool test_integer_hex_reading(void) {
 bool test_integer_binary_reading(void) {
     WriteFmt("Testing integer binary reading\n");
 
-    const char* z = NULL;
+    const char *z = NULL;
 
     bool success = true;
 
@@ -208,7 +208,7 @@ bool test_integer_binary_reading(void) {
 bool test_integer_octal_reading(void) {
     WriteFmt("Testing integer octal reading\n");
 
-    const char* z = NULL;
+    const char *z = NULL;
 
     bool success = true;
 
@@ -240,7 +240,7 @@ bool test_integer_octal_reading(void) {
 bool test_float_basic_reading(void) {
     WriteFmt("Testing basic float reading\n");
 
-    const char* z = NULL;
+    const char *z = NULL;
 
     bool success = true;
 
@@ -285,7 +285,7 @@ bool test_float_basic_reading(void) {
 bool test_float_scientific_reading(void) {
     WriteFmt("Testing scientific notation reading\n");
 
-    const char* z = NULL;
+    const char *z = NULL;
 
     bool success = true;
 
@@ -332,7 +332,7 @@ bool test_float_scientific_reading(void) {
 bool test_string_reading(void) {
     WriteFmt("Testing string reading\n");
 
-    const char* z = NULL;
+    const char *z = NULL;
 
     bool success = true;
 
@@ -363,7 +363,7 @@ bool test_string_reading(void) {
 bool test_multiple_arguments_reading(void) {
     WriteFmt("Testing multiple arguments reading\n");
 
-    const char* z = NULL;
+    const char *z = NULL;
 
     bool success = true;
 
@@ -399,7 +399,7 @@ bool test_multiple_arguments_reading(void) {
 bool test_error_handling_reading(void) {
     WriteFmt("Testing error handling for reading\n");
 
-    const char* z = NULL;
+    const char *z = NULL;
 
     // For error handling tests, we'll just verify that the variables don't change
     // when invalid input is provided
@@ -431,7 +431,7 @@ bool test_error_handling_reading(void) {
 bool test_character_ordinal_reading(void) {
     WriteFmt("Testing character ordinal reading with :c format specifier\n");
 
-    const char* z = NULL;
+    const char *z = NULL;
 
     bool success = true;
 
@@ -496,12 +496,12 @@ bool test_character_ordinal_reading(void) {
     u16_val = 0;
     z       = "AB";
     StrReadFmt(z, "{c}", u16_val);
-    bool u16_multi_pass = (ZstrCompareN((const char*)&u16_val, "AB", 2) == 0);
+    bool u16_multi_pass = (ZstrCompareN((const char *)&u16_val, "AB", 2) == 0);
     WriteFmt("u16_val multi-char test: comparing memory with 'AB', pass = {}\n", u16_multi_pass ? "true" : "false");
     WriteFmt(
         "DEBUG: u16_val bytes: [{}, {}], expected 'AB' bytes: [{}, {}]\n",
-        (int)((u8*)&u16_val)[0],
-        (int)((u8*)&u16_val)[1],
+        (int)((u8 *)&u16_val)[0],
+        (int)((u8 *)&u16_val)[1],
         (int)'A',
         (int)'B'
     );
@@ -510,28 +510,28 @@ bool test_character_ordinal_reading(void) {
     i16_val = 0;
     z       = "CD";
     StrReadFmt(z, "{c}", i16_val);
-    bool i16_multi_pass = (ZstrCompareN((const char*)&i16_val, "CD", 2) == 0);
+    bool i16_multi_pass = (ZstrCompareN((const char *)&i16_val, "CD", 2) == 0);
     WriteFmt("i16_val multi-char test: comparing memory with 'CD', pass = {}\n", i16_multi_pass ? "true" : "false");
     success = success && i16_multi_pass;
 
     u32_val = 0;
     z       = "EFGH";
     StrReadFmt(z, "{c}", u32_val);
-    bool u32_multi_pass = (ZstrCompareN((const char*)&u32_val, "EFGH", 4) == 0);
+    bool u32_multi_pass = (ZstrCompareN((const char *)&u32_val, "EFGH", 4) == 0);
     WriteFmt("u32_val multi-char test: comparing memory with 'EFGH', pass = {}\n", u32_multi_pass ? "true" : "false");
     success = success && u32_multi_pass;
 
     i32_val = 0;
     z       = "IJKL";
     StrReadFmt(z, "{c}", i32_val);
-    bool i32_multi_pass = (ZstrCompareN((const char*)&i32_val, "IJKL", 4) == 0);
+    bool i32_multi_pass = (ZstrCompareN((const char *)&i32_val, "IJKL", 4) == 0);
     WriteFmt("i32_val multi-char test: comparing memory with 'IJKL', pass = {}\n", i32_multi_pass ? "true" : "false");
     success = success && i32_multi_pass;
 
     u64_val = 0;
     z       = "MNOPQRST";
     StrReadFmt(z, "{c}", u64_val);
-    bool u64_multi_pass = (ZstrCompareN((const char*)&u64_val, "MNOPQRST", 8) == 0);
+    bool u64_multi_pass = (ZstrCompareN((const char *)&u64_val, "MNOPQRST", 8) == 0);
     WriteFmt(
         "u64_val multi-char test: comparing memory with 'MNOPQRST', pass = {}\n",
         u64_multi_pass ? "true" : "false"
@@ -541,7 +541,7 @@ bool test_character_ordinal_reading(void) {
     i64_val = 0;
     z       = "UVWXYZab";
     StrReadFmt(z, "{c}", i64_val);
-    bool i64_multi_pass = (ZstrCompareN((const char*)&i64_val, "UVWXYZab", 8) == 0);
+    bool i64_multi_pass = (ZstrCompareN((const char *)&i64_val, "UVWXYZab", 8) == 0);
     WriteFmt(
         "i64_val multi-char test: comparing memory with 'UVWXYZab', pass = {}\n",
         i64_multi_pass ? "true" : "false"
@@ -572,14 +572,14 @@ bool test_character_ordinal_reading(void) {
     u32_val = 0;
     z       = "XY";
     StrReadFmt(z, "{c}", u32_val);
-    bool xy_pass = (ZstrCompareN((const char*)&u32_val, "XY", 2) == 0);
+    bool xy_pass = (ZstrCompareN((const char *)&u32_val, "XY", 2) == 0);
     WriteFmt("u32_val partial test: comparing memory with 'XY', pass = {}\n", xy_pass ? "true" : "false");
     success = success && xy_pass;
 
     u64_val = 0;
     z       = "abc";
     StrReadFmt(z, "{c}", u64_val);
-    bool abc_pass = (ZstrCompareN((const char*)&u64_val, "abc", 3) == 0);
+    bool abc_pass = (ZstrCompareN((const char *)&u64_val, "abc", 3) == 0);
     WriteFmt("u64_val partial test: comparing memory with 'abc', pass = {}\n", abc_pass ? "true" : "false");
     success = success && abc_pass;
 
@@ -611,14 +611,14 @@ bool test_character_ordinal_reading(void) {
 bool test_string_case_conversion_reading(void) {
     WriteFmt("Testing string case conversion with :a and :A format specifiers\n");
 
-    const char* z = NULL;
+    const char *z = NULL;
 
     bool success = true;
 
     // Test 1: :a (lowercase) conversion
     {
         Str         result = StrInit();
-        const char* in     = "Hello World";
+        const char *in     = "Hello World";
 
         z = in;
         StrReadFmt(z, "{a}", result);
@@ -643,7 +643,7 @@ bool test_string_case_conversion_reading(void) {
     // Test 1.1: :a (lowercase) conversion
     {
         Str         result = StrInit();
-        const char* in     = "Hello World";
+        const char *in     = "Hello World";
 
         z = in;
         StrReadFmt(z, "{as}", result);
@@ -668,7 +668,7 @@ bool test_string_case_conversion_reading(void) {
     // Test 2: :A (uppercase) conversion
     {
         Str         result = StrInit();
-        const char* in     = "hello world";
+        const char *in     = "hello world";
 
         z = in;
         StrReadFmt(z, "{A}", result);
@@ -694,7 +694,7 @@ bool test_string_case_conversion_reading(void) {
     {
         Str         result1 = StrInit();
         Str         result2 = StrInit();
-        const char* in      = "hello world";
+        const char *in      = "hello world";
 
         z = in;
         StrReadFmt(z, "{A} {A}", result1, result2);
@@ -715,7 +715,7 @@ bool test_string_case_conversion_reading(void) {
     {
         Str         result1 = StrInit();
         Str         result2 = StrInit();
-        const char* in      = "hello world mighty misra";
+        const char *in      = "hello world mighty misra";
 
         z = in;
         StrReadFmt(z, "{As}{A}", result1, result2);
@@ -737,7 +737,7 @@ bool test_string_case_conversion_reading(void) {
     // Test 3: :a with quoted string
     {
         Str         result = StrInit();
-        const char* in     = "\"MiXeD CaSe\"";
+        const char *in     = "\"MiXeD CaSe\"";
 
         z = in;
         StrReadFmt(z, "{as}", result);
@@ -762,7 +762,7 @@ bool test_string_case_conversion_reading(void) {
     // Test 4: :A with quoted string containing special characters
     {
         Str         result = StrInit();
-        const char* in     = "\"abc123XYZ\"";
+        const char *in     = "\"abc123XYZ\"";
 
         z = in;
         StrReadFmt(z, "{As}", result);
@@ -787,7 +787,7 @@ bool test_string_case_conversion_reading(void) {
     // Test 5: Regular :c format (no case conversion) for comparison
     {
         Str         result = StrInit();
-        const char* in     = "Hello World";
+        const char *in     = "Hello World";
 
         z = in;
         StrReadFmt(z, "{c}", result);
@@ -817,7 +817,7 @@ bool test_string_case_conversion_reading(void) {
 bool test_bitvec_reading(void) {
     WriteFmt("Testing BitVec reading\n");
 
-    const char* z = NULL;
+    const char *z = NULL;
 
     bool success = true;
 

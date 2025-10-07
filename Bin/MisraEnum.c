@@ -32,7 +32,7 @@ typedef struct EnumEntry {
 
 typedef Vec(EnumEntry) EnumEntries;
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     LogInit(false);
 
     if (argc < 2 || argc > 3) {
@@ -40,8 +40,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    const char* input_filename  = argv[1];
-    const char* output_filename = NULL;
+    const char *input_filename  = argv[1];
+    const char *output_filename = NULL;
     if (argc == 3) {
         output_filename = argv[3];
     }
@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
 
     if (to_from_str) {
         // Store string literals in temporary variables
-        const char* funcHeader =
+        const char *funcHeader =
             "///\n"
             "/// Converts given zero-terminated string to {} enum value.\n"
             "///\n"
@@ -142,7 +142,7 @@ int main(int argc, char** argv) {
             "    }}\n";
 
         // Prepare the return value for invalid enum
-        const char* invalidEnumName = "0";
+        const char *invalidEnumName = "0";
         if (invalid_enum.name.length) {
             invalidEnumName = invalid_enum.name.data;
         }
@@ -151,16 +151,16 @@ int main(int argc, char** argv) {
 
         // Use VecForeach for iterating over entries
         VecForeach(&entries, e) {
-            const char* compareTemplate = "    if(ZstrCompareN(\"{}\", zstr, {}) == 0) {{return {};}}\n";
+            const char *compareTemplate = "    if(ZstrCompareN(\"{}\", zstr, {}) == 0) {{return {};}}\n";
             // Store the length in a variable to avoid taking address of rvalue
             unsigned long long strLength = (unsigned long long)e.str.length;
             StrWriteFmt(&code, compareTemplate, e.str.data, strLength, e.name.data);
         };
 
-        const char* returnTemplate = "    return {};\n}}\n";
+        const char *returnTemplate = "    return {};\n}}\n";
         StrWriteFmt(&code, returnTemplate, invalidEnumName);
 
-        const char* toZstrHeader =
+        const char *toZstrHeader =
             "///\n"
             "/// Converts given enum to {} zero-terminated string.\n"
             "///\n"
@@ -176,19 +176,19 @@ int main(int argc, char** argv) {
 
         // Use VecForeach for iterating over entries
         VecForeach(&entries, e) {
-            const char* caseTemplate = "        case {} : {{return \"{}\";}}\n";
+            const char *caseTemplate = "        case {} : {{return \"{}\";}}\n";
             StrWriteFmt(&code, caseTemplate, e.name.data, e.str.data);
         };
 
-        const char* defaultTemplate =
+        const char *defaultTemplate =
             "        default: break;\n"
             "    }}\n"
             "    return \"{}\";\n"
             "}}\n";
 
         // Use a static string for NULL to avoid taking address of string literal
-        const char* nullStrValue = "NULL";
-        const char* nullStr      = nullStrValue;
+        const char *nullStrValue = "NULL";
+        const char *nullStr      = nullStrValue;
         if (invalid_enum.str.data) {
             nullStr = invalid_enum.str.data;
         }
@@ -197,7 +197,7 @@ int main(int argc, char** argv) {
     }
 
     if (output_filename) {
-        FILE* f = fopen(output_filename, "w");
+        FILE *f = fopen(output_filename, "w");
         fwrite(code.data, 1, code.length, f);
         fclose(f);
     } else {

@@ -829,9 +829,9 @@ bool test_bitvec_prefix_match_basic(void) {
     BitVecPush(&source, false);
     BitVecPush(&source, true);
 
-    BitVec* p0 = VecPtrAt(&patterns, 0);
-    BitVec* p1 = VecPtrAt(&patterns, 1);
-    BitVec* p2 = VecPtrAt(&patterns, 2);
+    BitVec *p0 = VecPtrAt(&patterns, 0);
+    BitVec *p1 = VecPtrAt(&patterns, 1);
+    BitVec *p2 = VecPtrAt(&patterns, 2);
 
     *p0 = BitVecInit();
     *p1 = BitVecInit();
@@ -878,9 +878,9 @@ bool test_bitvec_suffix_match_basic(void) {
     BitVecPush(&source, false);
     BitVecPush(&source, true);
 
-    BitVec* p0 = VecPtrAt(&patterns, 0);
-    BitVec* p1 = VecPtrAt(&patterns, 1);
-    BitVec* p2 = VecPtrAt(&patterns, 2);
+    BitVec *p0 = VecPtrAt(&patterns, 0);
+    BitVec *p1 = VecPtrAt(&patterns, 1);
+    BitVec *p2 = VecPtrAt(&patterns, 2);
 
     *p0 = BitVecInit();
     *p1 = BitVecInit();

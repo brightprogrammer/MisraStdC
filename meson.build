@@ -103,6 +103,22 @@ executable(
     install: false
 )
 
+# Fuzzing harness executable (modular)
+executable(
+    'FuzzHarness',
+    files(
+        'Fuzz/Harness.c',
+        'Fuzz/Harness/VecInt.c',
+        'Fuzz/Harness/VecCharPtr.c',
+        'Fuzz/Harness/VecStr.c',
+        'Fuzz/Harness/ListInt.c'
+    ),
+    link_with: [misra_std],
+    c_args: common_c_args,
+    include_directories: inc_misra,
+    install: false
+)
+
 # Include tests
 subdir('Tests')
 

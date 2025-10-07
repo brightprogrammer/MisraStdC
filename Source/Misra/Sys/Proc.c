@@ -66,7 +66,7 @@ struct SysProc {
 #define READ_END  0
 #define WRITE_END 1
 
-SysProc* SysProcCreate(const char* filepath, char** argv, char** envp) {
+SysProc *SysProcCreate(const char *filepath, char **argv, char **envp) {
 #if defined(__APPLE__) || defined(__linux__)
     int stdin_pipe[2]  = {-1};
     int stdout_pipe[2] = {-1};
@@ -141,7 +141,7 @@ SysProc* SysProcCreate(const char* filepath, char** argv, char** envp) {
     close(stdout_pipe[WRITE_END]);
     close(stderr_pipe[WRITE_END]);
 
-    SysProc* proc   = NEW(SysProc);
+    SysProc *proc   = NEW(SysProc);
     proc->pid       = pid;
     proc->stdin_fd  = stdin_pipe[WRITE_END];
     proc->stdout_fd = stdout_pipe[READ_END];
@@ -191,7 +191,7 @@ SysProc* SysProcCreate(const char* filepath, char** argv, char** envp) {
     // Build command line
     Str cmdline = StrInit();
     StrPushBackZstr(&cmdline, filepath);
-    for (char** arg = argv + 1; *arg; ++arg) {
+    for (char **arg = argv + 1; *arg; ++arg) {
         StrPushBack(&cmdline, ' ');
         StrPushBackZstr(&cmdline, *arg);
     }
@@ -215,7 +215,7 @@ SysProc* SysProcCreate(const char* filepath, char** argv, char** envp) {
     CloseHandle(hStdoutWrite); // parent won't write to child's stdout, will read from it
     CloseHandle(hStderrWrite); // parent won't write to child's stderr, will read from it
 
-    SysProc* proc     = NEW(SysProc);
+    SysProc *proc     = NEW(SysProc);
     proc->pi          = pi;
     proc->hStdinWrite = hStdinWrite;
     proc->hStdoutRead = hStdoutRead;
@@ -225,7 +225,7 @@ SysProc* SysProcCreate(const char* filepath, char** argv, char** envp) {
 #endif
 }
 
-void SysProcWait(SysProc* proc) {
+void SysProcWait(SysProc *proc) {
     if (!proc) {
         LOG_FATAL("Invalid argument");
     }
@@ -262,7 +262,7 @@ void SysProcWait(SysProc* proc) {
 #endif
 }
 
-SysProcStatus SysProcWaitFor(SysProc* proc, u64 timeout_ms) {
+SysProcStatus SysProcWaitFor(SysProc *proc, u64 timeout_ms) {
     if (!proc) {
         LOG_FATAL("Invalid arguments");
     }
@@ -330,7 +330,7 @@ SysProcStatus SysProcWaitFor(SysProc* proc, u64 timeout_ms) {
 #endif
 }
 
-void SysProcTerminate(SysProc* proc) {
+void SysProcTerminate(SysProc *proc) {
     if (!proc) {
         LOG_FATAL("Invalid argument");
     }
@@ -385,7 +385,7 @@ void SysProcTerminate(SysProc* proc) {
 }
 
 
-void SysProcDestroy(SysProc* proc) {
+void SysProcDestroy(SysProc *proc) {
     if (!proc) {
         LOG_FATAL("Invalid argument");
     }
@@ -404,7 +404,7 @@ void SysProcDestroy(SysProc* proc) {
     FREE(proc);
 }
 
-i32 SysProcWriteToStdin(SysProc* proc, Str* buf) {
+i32 SysProcWriteToStdin(SysProc *proc, Str *buf) {
     if (!proc || !buf) {
         LOG_FATAL("Invalid arguments");
     }
@@ -419,7 +419,7 @@ i32 SysProcWriteToStdin(SysProc* proc, Str* buf) {
 #endif
 }
 
-i32 sys_proc_read_internal(SysProc* proc, Str* buf, bool is_stdout) {
+i32 sys_proc_read_internal(SysProc *proc, Str *buf, bool is_stdout) {
     if (!proc || !buf) {
         LOG_FATAL("Invalid argument");
     }
@@ -503,15 +503,15 @@ i32 sys_proc_read_internal(SysProc* proc, Str* buf, bool is_stdout) {
     return (i32)total_read;
 }
 
-i32 SysProcReadFromStdout(SysProc* proc, Str* buf) {
+i32 SysProcReadFromStdout(SysProc *proc, Str *buf) {
     return sys_proc_read_internal(proc, buf, /* is stdout*/ true);
 }
 
-i32 SysProcReadFromStderr(SysProc* proc, Str* buf) {
+i32 SysProcReadFromStderr(SysProc *proc, Str *buf) {
     return sys_proc_read_internal(proc, buf, /* is stdout*/ false);
 }
 
-i32 SysProcGetId(SysProc* proc) {
+i32 SysProcGetId(SysProc *proc) {
     if (!proc) {
         LOG_FATAL("Invalid argument");
     }
@@ -523,7 +523,7 @@ i32 SysProcGetId(SysProc* proc) {
 #endif
 }
 
-i32 SysProcIsRunning(SysProc* proc) {
+i32 SysProcIsRunning(SysProc *proc) {
     if (!proc) {
         LOG_FATAL("Invalid argument");
     }
@@ -547,7 +547,7 @@ i32 SysProcIsRunning(SysProc* proc) {
 #endif
 }
 
-i32 SysProcGetExitCode(SysProc* proc) {
+i32 SysProcGetExitCode(SysProc *proc) {
     if (!proc) {
         LOG_FATAL("Invalid argument");
     }
@@ -575,7 +575,7 @@ SysProcId SysGetCurrentProcessId(void) {
 #endif
 }
 
-Str* SysGetCurrentExecutablePath(Str* exe_path) {
+Str *SysGetCurrentExecutablePath(Str *exe_path) {
     if (!exe_path) {
         LOG_FATAL("Invalid arguments: exe_path is NULL");
     }

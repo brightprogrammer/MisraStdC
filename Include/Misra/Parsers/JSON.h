@@ -121,7 +121,7 @@ StrIter JSkipWhitespace(StrIter si);
 ///
 /// TAGS: JSON, String, Parsing, EscapeSequences
 ///
-StrIter JReadString(StrIter si, Str* str);
+StrIter JReadString(StrIter si, Str *str);
 
 ///
 /// Read a JSON number (int or float) from input string.
@@ -134,7 +134,7 @@ StrIter JReadString(StrIter si, Str* str);
 ///
 /// TAGS: JSON, Number, Parsing, Numeric
 ///
-StrIter JReadNumber(StrIter si, Number* num);
+StrIter JReadNumber(StrIter si, Number *num);
 
 ///
 /// Strictly read an integer from input string.
@@ -147,7 +147,7 @@ StrIter JReadNumber(StrIter si, Number* num);
 ///
 /// TAGS: JSON, Integer, Parsing, Strict
 ///
-StrIter JReadInteger(StrIter si, i64* val);
+StrIter JReadInteger(StrIter si, i64 *val);
 
 ///
 /// Read a floating-point number from input string.
@@ -160,7 +160,7 @@ StrIter JReadInteger(StrIter si, i64* val);
 ///
 /// TAGS: JSON, Float, Parsing
 ///
-StrIter JReadFloat(StrIter si, f64* val);
+StrIter JReadFloat(StrIter si, f64 *val);
 
 ///
 /// Read a boolean value ("true" or "false") from input string.
@@ -173,7 +173,7 @@ StrIter JReadFloat(StrIter si, f64* val);
 ///
 /// TAGS: JSON, Boolean, Parsing
 ///
-StrIter JReadBool(StrIter si, bool* b);
+StrIter JReadBool(StrIter si, bool *b);
 
 ///
 /// Read a "null" value from input string.
@@ -184,7 +184,7 @@ StrIter JReadBool(StrIter si, bool* b);
 /// SUCCESS : Returns `StrIter` advanced past "null"
 /// FAILURE : Returns original `StrIter` if "null" not found
 ///
-StrIter JReadNull(StrIter si, bool* is_null);
+StrIter JReadNull(StrIter si, bool *is_null);
 
 ///
 /// Skip the current JSON value at reading position.

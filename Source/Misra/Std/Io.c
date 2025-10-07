@@ -40,15 +40,15 @@
 #include <stdio.h>
 
 
-static void _write_r8(Str* o, FmtInfo* fmt_info, u8* v);
-static void _write_r16(Str* o, FmtInfo* fmt_info, u16* v);
-static void _write_r32(Str* o, FmtInfo* fmt_info, u32* v);
-static void _write_r64(Str* o, FmtInfo* fmt_info, u64* v);
+static void _write_r8(Str *o, FmtInfo *fmt_info, u8 *v);
+static void _write_r16(Str *o, FmtInfo *fmt_info, u16 *v);
+static void _write_r32(Str *o, FmtInfo *fmt_info, u32 *v);
+static void _write_r64(Str *o, FmtInfo *fmt_info, u64 *v);
 
-static const char* _read_r8(const char* i, FmtInfo* fmt_info, u8* v);
-static const char* _read_r16(const char* i, FmtInfo* fmt_info, u16* v);
-static const char* _read_r32(const char* i, FmtInfo* fmt_info, u32* v);
-static const char* _read_r64(const char* i, FmtInfo* fmt_info, u64* v);
+static const char *_read_r8(const char *i, FmtInfo *fmt_info, u8 *v);
+static const char *_read_r16(const char *i, FmtInfo *fmt_info, u16 *v);
+static const char *_read_r32(const char *i, FmtInfo *fmt_info, u32 *v);
+static const char *_read_r64(const char *i, FmtInfo *fmt_info, u64 *v);
 
 // Portable helper for counting leading zeros in a 64-bit integer
 static inline u64 count_leading_zeros_u64(u64 value) {
@@ -87,7 +87,7 @@ static inline u64 count_leading_zeros_u64(u64 value) {
 
 // Helper function to parse format specifiers
 // {[(alignment/endianness)[alignment-width/raw-read-width]](specifier)}
-static bool ParseFormatSpec(const char* spec, u32 len, FmtInfo* fi) {
+static bool ParseFormatSpec(const char *spec, u32 len, FmtInfo *fi) {
     if (!spec || !fi) {
         LOG_FATAL("Invalid arguments to ParseFormatSpec");
         return false;
@@ -207,7 +207,7 @@ static bool ParseFormatSpec(const char* spec, u32 len, FmtInfo* fi) {
 }
 
 // Helper function to pad string with spaces
-static void PadString(Str* o, size width, Alignment align, size content_len) {
+static void PadString(Str *o, size width, Alignment align, size content_len) {
     if (content_len >= width)
         return;
 
@@ -239,7 +239,7 @@ static void PadString(Str* o, size width, Alignment align, size content_len) {
     }
 }
 
-bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, u64 argc) {
+bool StrWriteFmtInternal(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc) {
     if (!o || !fmt) {
         LOG_FATAL("Invalid arguments");
         return false;
@@ -291,7 +291,7 @@ bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, u64 argc
             }
 
             // Get current argument
-            TypeSpecificIO* arg = &args[arg_idx++];
+            TypeSpecificIO *arg = &args[arg_idx++];
             if (!arg->writer || !arg->data) {
 #if defined(_MSC_VER) || defined(__MSC_VER)
                 LOG_INFO("Using default writer for char, because MSVC is STUPID AF");
@@ -311,15 +311,15 @@ bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, u64 argc
 
                 // deduce the actual field size
                 u32 var_width = 0;
-                if (write_fn == (void*)_write_u8 || write_fn == (void*)_write_i8) {
+                if (write_fn == (void *)_write_u8 || write_fn == (void *)_write_i8) {
                     var_width = 1;
-                } else if (write_fn == (void*)_write_u16 || write_fn == (void*)_write_i16) {
+                } else if (write_fn == (void *)_write_u16 || write_fn == (void *)_write_i16) {
                     var_width = 2;
-                } else if (write_fn == (void*)_write_u32 || write_fn == (void*)_write_i32 ||
-                           write_fn == (void*)_write_f32) {
+                } else if (write_fn == (void *)_write_u32 || write_fn == (void *)_write_i32 ||
+                           write_fn == (void *)_write_f32) {
                     var_width = 4;
-                } else if (write_fn == (void*)_write_u64 || write_fn == (void*)_write_i64 ||
-                           write_fn == (void*)_write_f64) {
+                } else if (write_fn == (void *)_write_u64 || write_fn == (void *)_write_i64 ||
+                           write_fn == (void *)_write_f64) {
                     var_width = 8;
                 } else {
                     LOG_ERROR(
@@ -339,19 +339,19 @@ bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, u64 argc
                 u64 x = 0;
                 switch (var_width) {
                     case 1 : {
-                        x = *(u8*)arg->data;
+                        x = *(u8 *)arg->data;
                         break;
                     }
                     case 2 : {
-                        x = *(u16*)arg->data;
+                        x = *(u16 *)arg->data;
                         break;
                     }
                     case 4 : {
-                        x = *(u32*)arg->data;
+                        x = *(u32 *)arg->data;
                         break;
                     }
                     case 8 : {
-                        x = *(u64*)arg->data;
+                        x = *(u64 *)arg->data;
                         break;
                     }
                     default : {
@@ -417,13 +417,13 @@ bool StrWriteFmtInternal(Str* o, const char* fmt, TypeSpecificIO* args, u64 argc
     return true;
 }
 
-const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecificIO* argv, u64 argc) {
+const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
     if (!input || !fmtstr) {
         LOG_FATAL("Invalid arguments");
     }
 
-    const char* p         = fmtstr;
-    const char* in        = input;
+    const char *p         = fmtstr;
+    const char *in        = input;
     u64         rem_p     = ZstrLen(fmtstr);
     u64         rem_in    = ZstrLen(in);
     u64         arg_index = 0; // Current argument index
@@ -450,7 +450,7 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
             rem_p--;
 
             // Find closing brace
-            const char* start    = p;
+            const char *start    = p;
             size        spec_len = 0;
             while (rem_p > 0 && *p != '}') {
                 p++;
@@ -491,14 +491,14 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
             rem_p--;
 
             // Use the type-specific reader
-            TypeSpecificIO* io = &argv[arg_index++];
+            TypeSpecificIO *io = &argv[arg_index++];
             if (!io->reader) {
                 LOG_ERROR("Missing reader function");
                 return NULL;
             }
 
             // If raw data reading is specified, use raw readers
-            const char*        next       = NULL;
+            const char        *next       = NULL;
             TypeSpecificReader raw_reader = NULL;
             if (fmt_info.flags & FMT_FLAG_RAW) {
                 switch (fmt_info.width) {
@@ -534,14 +534,16 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
 
                 // deduce the actual field size
                 u32   var_width = 0;
-                void* read_fn   = (void*)io->reader;
-                if (read_fn == (void*)_read_u8 || read_fn == (void*)_read_i8) {
+                void *read_fn   = (void *)io->reader;
+                if (read_fn == (void *)_read_u8 || read_fn == (void *)_read_i8) {
                     var_width = 1;
-                } else if (read_fn == (void*)_read_u16 || read_fn == (void*)_read_i16) {
+                } else if (read_fn == (void *)_read_u16 || read_fn == (void *)_read_i16) {
                     var_width = 2;
-                } else if (read_fn == (void*)_read_u32 || read_fn == (void*)_read_i32 || read_fn == (void*)_read_f32) {
+                } else if (read_fn == (void *)_read_u32 || read_fn == (void *)_read_i32 ||
+                           read_fn == (void *)_read_f32) {
                     var_width = 4;
-                } else if (read_fn == (void*)_read_u64 || read_fn == (void*)_read_i64 || read_fn == (void*)_read_f64) {
+                } else if (read_fn == (void *)_read_u64 || read_fn == (void *)_read_i64 ||
+                           read_fn == (void *)_read_f64) {
                     var_width = 8;
                 } else {
                     LOG_ERROR(
@@ -558,19 +560,19 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
                 // make sure we write only as much space is provided
                 switch (var_width) {
                     case 1 : {
-                        *(u8*)io->data = (u8)x;
+                        *(u8 *)io->data = (u8)x;
                         break;
                     }
                     case 2 : {
-                        *(u16*)io->data = (u16)x;
+                        *(u16 *)io->data = (u16)x;
                         break;
                     }
                     case 4 : {
-                        *(u32*)io->data = (u32)x;
+                        *(u32 *)io->data = (u32)x;
                         break;
                     }
                     case 8 : {
-                        *(u64*)io->data = x;
+                        *(u64 *)io->data = x;
                         break;
                     }
                     default : {
@@ -596,7 +598,7 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
                 // otherwise end of input is the limit
                 if (space_len) {
                     // Find first occurence of content between current and next format specifier or null character
-                    const char* e = NULL;
+                    const char *e = NULL;
                     if ((e = ZstrFindSubstringN(in, p, space_len))) {
                         fmt_info.max_read_len = e - in;
                     }
@@ -640,7 +642,7 @@ const char* StrReadFmtInternal(const char* input, const char* fmtstr, TypeSpecif
     return in;
 }
 
-void FReadFmtInternal(FILE* file, const char* fmtstr, TypeSpecificIO* argv, u64 argc) {
+void FReadFmtInternal(FILE *file, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
     if (!file || !fmtstr) {
         LOG_FATAL("Invalid arguments");
     }
@@ -651,7 +653,7 @@ void FReadFmtInternal(FILE* file, const char* fmtstr, TypeSpecificIO* argv, u64 
     if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
         LOG_INFO("Reading from non-seekable stream (stdin/stdout/stderr).");
         char  in            = 0;
-        FILE* source_stream = fd == STDIN_FILENO ? stdin : fd == STDOUT_FILENO ? stdout : stderr;
+        FILE *source_stream = fd == STDIN_FILENO ? stdin : fd == STDOUT_FILENO ? stdout : stderr;
         while (!feof(source_stream) && fread(&in, 1, 1, source_stream)) {
             StrPushBack(&buffer, in);
         }
@@ -681,7 +683,7 @@ void FReadFmtInternal(FILE* file, const char* fmtstr, TypeSpecificIO* argv, u64 
 
         buffer.length = buffer.capacity;
         if (buffer.length) {
-            const char* new_pos = NULL;
+            const char *new_pos = NULL;
             if (!(new_pos = StrReadFmtInternal(buffer.data, fmtstr, argv, argc))) {
                 if (can_rollback) {
                     LOG_ERROR("Parse failed, rolling back...");
@@ -702,7 +704,7 @@ void FReadFmtInternal(FILE* file, const char* fmtstr, TypeSpecificIO* argv, u64 
 
 // Helper function to write integer values as character sequences in a consistent order
 // regardless of system endianness (big-endian order: most significant byte first)
-static inline void write_int_as_chars(Str* o, FormatFlags flags, u64 value, size num_bytes) {
+static inline void write_int_as_chars(Str *o, FormatFlags flags, u64 value, size num_bytes) {
     if (!o || !num_bytes || num_bytes > 8) {
         LOG_FATAL("Invalid arguments to write_int_as_chars");
     }
@@ -737,7 +739,7 @@ static inline void write_int_as_chars(Str* o, FormatFlags flags, u64 value, size
     }
 }
 
-static inline void write_char_internal(Str* o, FormatFlags flags, const char* vs, size len) {
+static inline void write_char_internal(Str *o, FormatFlags flags, const char *vs, size len) {
     if (!o || !vs || !len) {
         LOG_FATAL("Invalid arguments");
     }
@@ -779,13 +781,13 @@ static inline void write_char_internal(Str* o, FormatFlags flags, const char* vs
 ///
 /// TAGS: Helper, Character, Reading, EscapeSequences
 ///
-static inline const char* read_chars_internal(const char* i, u8* buffer, size buffer_size, FmtInfo* fmt_info) {
+static inline const char *read_chars_internal(const char *i, u8 *buffer, size buffer_size, FmtInfo *fmt_info) {
     if (!i || !buffer || !buffer_size) {
         LOG_FATAL("Invalid arguments to read_chars_internal");
     }
 
     size        bytes_read = 0;
-    const char* current    = i;
+    const char *current    = i;
     bool        force_case = fmt_info && (fmt_info->flags & FMT_FLAG_FORCE_CASE) != 0;
     bool        is_caps    = fmt_info && (fmt_info->flags & FMT_FLAG_CAPS) != 0;
 
@@ -797,7 +799,7 @@ static inline const char* read_chars_internal(const char* i, u8* buffer, size bu
             if (isxdigit(current[2]) && isxdigit(current[3])) {
                 // Parse two hex digits
                 char  hex_str[3] = {current[2], current[3], '\0'};
-                char* endptr;
+                char *endptr;
                 long  hex_val = strtol(hex_str, &endptr, 16);
 
                 if (endptr == hex_str + 2) { // Successfully parsed 2 hex digits
@@ -831,7 +833,7 @@ static inline const char* read_chars_internal(const char* i, u8* buffer, size bu
     return current;
 }
 
-void _write_Str(Str* o, FmtInfo* fmt_info, Str* s) {
+void _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
     if (!o || !s || !fmt_info) {
         LOG_FATAL("Invalid arguments");
     }
@@ -876,13 +878,13 @@ void _write_Str(Str* o, FmtInfo* fmt_info, Str* s) {
 
             // Copy string content
             if (fmt_info->flags & FMT_FLAG_CHAR) {
-                write_char_internal(o, fmt_info->flags, (const char*)s->data, len);
+                write_char_internal(o, fmt_info->flags, (const char *)s->data, len);
             } else {
                 StrForeachInRange(s, c, 0, len) {
                     if (IS_PRINTABLE(c)) {
                         StrPushBack(o, c);
                     } else {
-                        const char* digits = "0123456789abcdef";
+                        const char *digits = "0123456789abcdef";
                         StrPushBackZstr(o, "\\x");
                         StrPushBack(o, digits[(c >> 4) & 0xf]);
                         StrPushBack(o, digits[c & 0xf]);
@@ -899,7 +901,7 @@ void _write_Str(Str* o, FmtInfo* fmt_info, Str* s) {
     }
 }
 
-void _write_Zstr(Str* o, FmtInfo* fmt_info, const char** s) {
+void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s) {
     if (!o || !s || !*s || !fmt_info) {
         LOG_FATAL("Invalid arguments");
         return;
@@ -909,7 +911,7 @@ void _write_Zstr(Str* o, FmtInfo* fmt_info, const char** s) {
 
     // Store original length to calculate content size later
     size        start_len = o->length;
-    const char* xs        = *s;
+    const char *xs        = *s;
 
     // Handle null or empty string
     if (xs[0] != '\0') {
@@ -955,7 +957,7 @@ void _write_Zstr(Str* o, FmtInfo* fmt_info, const char** s) {
                     if (IS_PRINTABLE(xs[i])) {
                         StrPushBack(o, xs[i]);
                     } else {
-                        const char* digits = "0123456789abcdef";
+                        const char *digits = "0123456789abcdef";
                         StrPushBackZstr(o, "\\x");
                         StrPushBack(o, digits[(xs[i] >> 4) & 0xf]);
                         StrPushBack(o, digits[xs[i] & 0xf]);
@@ -972,7 +974,7 @@ void _write_Zstr(Str* o, FmtInfo* fmt_info, const char** s) {
     }
 }
 
-void _write_u64(Str* o, FmtInfo* fmt_info, u64* v) {
+void _write_u64(Str *o, FmtInfo *fmt_info, u64 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
         return;
@@ -1016,7 +1018,7 @@ void _write_u64(Str* o, FmtInfo* fmt_info, u64* v) {
     }
 }
 
-void _write_u32(Str* o, FmtInfo* fmt_info, u32* v) {
+void _write_u32(Str *o, FmtInfo *fmt_info, u32 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
         return;
@@ -1032,7 +1034,7 @@ void _write_u32(Str* o, FmtInfo* fmt_info, u32* v) {
     _write_u64(o, fmt_info, &val);
 }
 
-void _write_u16(Str* o, FmtInfo* fmt_info, u16* v) {
+void _write_u16(Str *o, FmtInfo *fmt_info, u16 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
         return;
@@ -1048,7 +1050,7 @@ void _write_u16(Str* o, FmtInfo* fmt_info, u16* v) {
     _write_u64(o, fmt_info, &val);
 }
 
-void _write_u8(Str* o, FmtInfo* fmt_info, u8* v) {
+void _write_u8(Str *o, FmtInfo *fmt_info, u8 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
         return;
@@ -1064,7 +1066,7 @@ void _write_u8(Str* o, FmtInfo* fmt_info, u8* v) {
     _write_u64(o, fmt_info, &vx);
 }
 
-void _write_i64(Str* o, FmtInfo* fmt_info, i64* v) {
+void _write_i64(Str *o, FmtInfo *fmt_info, i64 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
         return;
@@ -1108,7 +1110,7 @@ void _write_i64(Str* o, FmtInfo* fmt_info, i64* v) {
     }
 }
 
-void _write_i32(Str* o, FmtInfo* fmt_info, i32* v) {
+void _write_i32(Str *o, FmtInfo *fmt_info, i32 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
         return;
@@ -1124,7 +1126,7 @@ void _write_i32(Str* o, FmtInfo* fmt_info, i32* v) {
     _write_i64(o, fmt_info, &val);
 }
 
-void _write_i16(Str* o, FmtInfo* fmt_info, i16* v) {
+void _write_i16(Str *o, FmtInfo *fmt_info, i16 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
         return;
@@ -1140,7 +1142,7 @@ void _write_i16(Str* o, FmtInfo* fmt_info, i16* v) {
     _write_i64(o, fmt_info, &vx);
 }
 
-void _write_i8(Str* o, FmtInfo* fmt_info, i8* v) {
+void _write_i8(Str *o, FmtInfo *fmt_info, i8 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
         return;
@@ -1156,7 +1158,7 @@ void _write_i8(Str* o, FmtInfo* fmt_info, i8* v) {
     _write_i64(o, fmt_info, &vx);
 }
 
-void _write_f64(Str* o, FmtInfo* fmt_info, f64* v) {
+void _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
         return;
@@ -1219,7 +1221,7 @@ void _write_f64(Str* o, FmtInfo* fmt_info, f64* v) {
     }
 }
 
-void _write_f32(Str* o, FmtInfo* fmt_info, f32* v) {
+void _write_f32(Str *o, FmtInfo *fmt_info, f32 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
         return;
@@ -1239,11 +1241,11 @@ void _write_f32(Str* o, FmtInfo* fmt_info, f32* v) {
 }
 
 // Helper function to handle escape sequences
-static char ProcessEscape(const char** str) {
+static char ProcessEscape(const char **str) {
     if (!str || !*str)
         return 0;
 
-    const char* s = *str;
+    const char *s = *str;
     if (*s != '\\') {
         LOG_ERROR("ProcessEscape called on non-escape sequence");
         return 0;
@@ -1306,7 +1308,7 @@ static char ProcessEscape(const char** str) {
     return result;
 }
 
-const char* _read_Str(const char* i, FmtInfo* fmt_info, Str* s) {
+const char *_read_Str(const char *i, FmtInfo *fmt_info, Str *s) {
     if (!i || !s)
         LOG_FATAL("Invalid arguments");
 
@@ -1335,7 +1337,7 @@ const char* _read_Str(const char* i, FmtInfo* fmt_info, Str* s) {
         if (quote) {
             // Quoted string mode
             if (*i == '\\') {
-                const char* curr = i;
+                const char *curr = i;
                 char        c    = ProcessEscape(&curr);
                 if (c == 0) { // Error in escape sequence
                     StrDeinit(s);
@@ -1372,7 +1374,7 @@ const char* _read_Str(const char* i, FmtInfo* fmt_info, Str* s) {
             }
 
             if (*i == '\\') {
-                const char* curr = i;
+                const char *curr = i;
                 char        c    = ProcessEscape(&curr);
                 if (c == 0) { // Error in escape sequence
                     StrDeinit(s);
@@ -1453,7 +1455,7 @@ static bool IsValidNumberChar(char c, bool is_first_char, bool allow_decimal) {
 }
 
 // Create a helper function to check if the parsed string contains only valid numeric characters
-static bool IsValidNumericString(const Str* str, bool allow_float) {
+static bool IsValidNumericString(const Str *str, bool allow_float) {
     if (!str || !str->data)
         return false;
 
@@ -1572,14 +1574,14 @@ static bool IsValidNumericString(const Str* str, bool allow_float) {
     return true;
 }
 
-const char* _read_f64(const char* i, FmtInfo* fmt_info, f64* v) {
+const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v) {
     if (!i || !v)
         LOG_FATAL("Invalid arguments");
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         u64         temp = 0;
-        const char* next = read_chars_internal(i, (u8*)&temp, sizeof(temp), fmt_info);
+        const char *next = read_chars_internal(i, (u8 *)&temp, sizeof(temp), fmt_info);
         *v               = (f64)temp;
         return next;
     }
@@ -1597,7 +1599,7 @@ const char* _read_f64(const char* i, FmtInfo* fmt_info, f64* v) {
     // Check for special values (inf, nan)
     if ((*i == 'i' || *i == 'I' || *i == 'n' || *i == 'N') || (*i == '-' && (*(i + 1) == 'i' || *(i + 1) == 'I'))) {
         // For special values, use the original approach
-        const char* start = i;
+        const char *start = i;
         while (*i && !IS_SPACE(*i))
             i++;
 
@@ -1616,7 +1618,7 @@ const char* _read_f64(const char* i, FmtInfo* fmt_info, f64* v) {
     }
 
     // Find the end of the number using more precise rules
-    const char* start       = i;
+    const char *start       = i;
     size        pos         = 0;
     bool        has_decimal = false; // Track if we've seen a decimal point
 
@@ -1680,7 +1682,7 @@ const char* _read_f64(const char* i, FmtInfo* fmt_info, f64* v) {
     return start + pos;
 }
 
-const char* _read_u8(const char* i, FmtInfo* fmt_info, u8* v) {
+const char *_read_u8(const char *i, FmtInfo *fmt_info, u8 *v) {
     if (!i || !v)
         LOG_FATAL("Invalid arguments");
 
@@ -1696,12 +1698,12 @@ const char* _read_u8(const char* i, FmtInfo* fmt_info, u8* v) {
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
-        const char* next = read_chars_internal(i, (u8*)v, sizeof(*v), fmt_info);
+        const char *next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
         return next;
     }
 
     // Find the end of the number using more precise rules
-    const char* start = i;
+    const char *start = i;
     size        pos   = 0;
 
     // Parse character by character
@@ -1753,14 +1755,14 @@ const char* _read_u8(const char* i, FmtInfo* fmt_info, u8* v) {
     return start + pos;
 }
 
-const char* _read_u16(const char* i, FmtInfo* fmt_info, u16* v) {
+const char *_read_u16(const char *i, FmtInfo *fmt_info, u16 *v) {
     if (!i || !v)
         LOG_FATAL("Invalid arguments");
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         *v               = 0;
-        const char* next = read_chars_internal(i, (u8*)v, sizeof(*v), fmt_info);
+        const char *next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
 
         return next;
     }
@@ -1776,7 +1778,7 @@ const char* _read_u16(const char* i, FmtInfo* fmt_info, u16* v) {
     }
 
     // Find the end of the number using more precise rules
-    const char* start = i;
+    const char *start = i;
     size        pos   = 0;
 
     // Parse character by character
@@ -1828,14 +1830,14 @@ const char* _read_u16(const char* i, FmtInfo* fmt_info, u16* v) {
     return start + pos;
 }
 
-const char* _read_u32(const char* i, FmtInfo* fmt_info, u32* v) {
+const char *_read_u32(const char *i, FmtInfo *fmt_info, u32 *v) {
     if (!i || !v)
         LOG_FATAL("Invalid arguments");
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         *v               = 0;
-        const char* next = read_chars_internal(i, (u8*)v, sizeof(*v), fmt_info);
+        const char *next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
 
         return next;
     }
@@ -1850,7 +1852,7 @@ const char* _read_u32(const char* i, FmtInfo* fmt_info, u32* v) {
         return i;
     }
     // Find the end of the number using more precise rules
-    const char* start = i;
+    const char *start = i;
     size        pos   = 0;
 
     // Parse character by character
@@ -1902,14 +1904,14 @@ const char* _read_u32(const char* i, FmtInfo* fmt_info, u32* v) {
     return start + pos;
 }
 
-const char* _read_u64(const char* i, FmtInfo* fmt_info, u64* v) {
+const char *_read_u64(const char *i, FmtInfo *fmt_info, u64 *v) {
     if (!i || !v)
         LOG_FATAL("Invalid arguments");
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         *v               = 0;
-        const char* next = read_chars_internal(i, (u8*)v, sizeof(*v), fmt_info);
+        const char *next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
 
         return next;
     }
@@ -1925,7 +1927,7 @@ const char* _read_u64(const char* i, FmtInfo* fmt_info, u64* v) {
     }
 
     // Find the end of the number using more precise rules
-    const char* start = i;
+    const char *start = i;
     size        pos   = 0;
 
     // Parse character by character
@@ -1968,14 +1970,14 @@ const char* _read_u64(const char* i, FmtInfo* fmt_info, u64* v) {
     return start + pos;
 }
 
-const char* _read_i8(const char* i, FmtInfo* fmt_info, i8* v) {
+const char *_read_i8(const char *i, FmtInfo *fmt_info, i8 *v) {
     if (!i || !v)
         LOG_FATAL("Invalid arguments");
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         *v               = 0;
-        const char* next = read_chars_internal(i, (u8*)v, sizeof(*v), fmt_info);
+        const char *next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
         return next;
     }
 
@@ -1990,7 +1992,7 @@ const char* _read_i8(const char* i, FmtInfo* fmt_info, i8* v) {
     }
 
     // Find the end of the number using more precise rules
-    const char* start = i;
+    const char *start = i;
     size        pos   = 0;
 
     // Parse character by character
@@ -2042,14 +2044,14 @@ const char* _read_i8(const char* i, FmtInfo* fmt_info, i8* v) {
     return start + pos;
 }
 
-const char* _read_i16(const char* i, FmtInfo* fmt_info, i16* v) {
+const char *_read_i16(const char *i, FmtInfo *fmt_info, i16 *v) {
     if (!i || !v)
         LOG_FATAL("Invalid arguments");
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         *v               = 0;
-        const char* next = read_chars_internal(i, (u8*)v, sizeof(*v), fmt_info);
+        const char *next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
 
         return next;
     }
@@ -2065,7 +2067,7 @@ const char* _read_i16(const char* i, FmtInfo* fmt_info, i16* v) {
     }
 
     // Find the end of the number using more precise rules
-    const char* start = i;
+    const char *start = i;
     size        pos   = 0;
 
     // Parse character by character
@@ -2117,14 +2119,14 @@ const char* _read_i16(const char* i, FmtInfo* fmt_info, i16* v) {
     return start + pos;
 }
 
-const char* _read_i32(const char* i, FmtInfo* fmt_info, i32* v) {
+const char *_read_i32(const char *i, FmtInfo *fmt_info, i32 *v) {
     if (!i || !v)
         LOG_FATAL("Invalid arguments");
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         *v               = 0;
-        const char* next = read_chars_internal(i, (u8*)v, sizeof(*v), fmt_info);
+        const char *next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
 
         return next;
     }
@@ -2140,7 +2142,7 @@ const char* _read_i32(const char* i, FmtInfo* fmt_info, i32* v) {
     }
 
     // Find the end of the number using more precise rules
-    const char* start = i;
+    const char *start = i;
     size        pos   = 0;
 
     // Parse character by character
@@ -2192,14 +2194,14 @@ const char* _read_i32(const char* i, FmtInfo* fmt_info, i32* v) {
     return start + pos;
 }
 
-const char* _read_i64(const char* i, FmtInfo* fmt_info, i64* v) {
+const char *_read_i64(const char *i, FmtInfo *fmt_info, i64 *v) {
     if (!i || !v)
         LOG_FATAL("Invalid arguments");
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         *v               = 0;
-        const char* next = read_chars_internal(i, (u8*)v, sizeof(*v), fmt_info);
+        const char *next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
 
         return next;
     }
@@ -2215,7 +2217,7 @@ const char* _read_i64(const char* i, FmtInfo* fmt_info, i64* v) {
     }
 
     // Find the end of the number using more precise rules
-    const char* start = i;
+    const char *start = i;
     size        pos   = 0;
 
     // Parse character by character
@@ -2258,7 +2260,7 @@ const char* _read_i64(const char* i, FmtInfo* fmt_info, i64* v) {
     return start + pos;
 }
 
-const char* _read_Zstr(const char* i, FmtInfo* fmt_info, const char** out) {
+const char *_read_Zstr(const char *i, FmtInfo *fmt_info, const char **out) {
     (void)fmt_info; // Unused parameter
     if (!i || !out)
         LOG_FATAL("Invalid arguments");
@@ -2266,7 +2268,7 @@ const char* _read_Zstr(const char* i, FmtInfo* fmt_info, const char** out) {
     // For string types, :c has no effect - work like regular string reading
     Str         temp        = StrInit();
     FmtInfo     default_fmt = {.align = ALIGN_RIGHT, .width = 0, .precision = 6, .flags = FMT_FLAG_NONE};
-    const char* next        = _read_Str(i, &default_fmt, &temp);
+    const char *next        = _read_Str(i, &default_fmt, &temp);
 
     // Check if reading failed
     if (next == i) {
@@ -2275,7 +2277,7 @@ const char* _read_Zstr(const char* i, FmtInfo* fmt_info, const char** out) {
     }
 
     // Allocate and copy to null-terminated string
-    char* result = malloc(temp.length + 1);
+    char *result = malloc(temp.length + 1);
     if (!result) {
         LOG_ERROR("Failed to allocate memory for string");
         StrDeinit(&temp);
@@ -2290,7 +2292,7 @@ const char* _read_Zstr(const char* i, FmtInfo* fmt_info, const char** out) {
     return next;
 }
 
-void _write_BitVec(Str* o, FmtInfo* fmt_info, BitVec* bv) {
+void _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
     if (!o || !fmt_info || !bv) {
         LOG_FATAL("Invalid arguments");
         return;
@@ -2339,14 +2341,14 @@ void _write_BitVec(Str* o, FmtInfo* fmt_info, BitVec* bv) {
     }
 }
 
-void _write_UnsupportedType(Str* o, FmtInfo* fmt_info, const char** s) {
+void _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s) {
     (void)o;
     (void)fmt_info;
     (void)s;
     LOG_FATAL("Attempt to write unsupported type");
 }
 
-const char* _read_BitVec(const char* i, FmtInfo* fmt_info, BitVec* bv) {
+const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
     (void)fmt_info; // Unused parameter
     if (!i || !bv) {
         LOG_FATAL("Invalid arguments");
@@ -2365,13 +2367,13 @@ const char* _read_BitVec(const char* i, FmtInfo* fmt_info, BitVec* bv) {
         return i;
     }
 
-    const char* start = i;
+    const char *start = i;
 
     // Check for hex format (0x...)
     if (i[0] == '0' && (i[1] == 'x' || i[1] == 'X')) {
         // Read hex value
         i                     += 2; // Skip "0x"
-        const char* hex_start  = i;
+        const char *hex_start  = i;
 
         // Read hex digits
         while (IS_XDIGIT(*i)) {
@@ -2407,7 +2409,7 @@ const char* _read_BitVec(const char* i, FmtInfo* fmt_info, BitVec* bv) {
     if (i[0] == '0' && (i[1] == 'o' || i[1] == 'O')) {
         // Read octal value
         i                     += 2; // Skip "0o"
-        const char* oct_start  = i;
+        const char *oct_start  = i;
 
         // Read octal digits
         while (*i >= '0' && *i <= '7') {
@@ -2440,7 +2442,7 @@ const char* _read_BitVec(const char* i, FmtInfo* fmt_info, BitVec* bv) {
     }
 
     // Default: Read as binary string (e.g., "10110")
-    const char* bin_start = i;
+    const char *bin_start = i;
 
     // Read binary digits
     while (*i == '0' || *i == '1') {
@@ -2462,21 +2464,21 @@ const char* _read_BitVec(const char* i, FmtInfo* fmt_info, BitVec* bv) {
     return i;
 }
 
-const char* _read_UnsupportedType(const char* i, FmtInfo* fmt_info, const char** s) {
+const char *_read_UnsupportedType(const char *i, FmtInfo *fmt_info, const char **s) {
     (void)fmt_info; // Unused parameter
     (void)s;
     LOG_FATAL("Attempt to read unsupported type.");
     return i;
 }
 
-const char* _read_f32(const char* i, FmtInfo* fmt_info, f32* v) {
+const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v) {
     if (!i || !v)
         LOG_FATAL("Invalid arguments");
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         u32         temp = 0;
-        const char* next = read_chars_internal(i, (u8*)&temp, sizeof(temp), fmt_info);
+        const char *next = read_chars_internal(i, (u8 *)&temp, sizeof(temp), fmt_info);
         *v               = (f32)temp;
         return next;
     }
@@ -2494,7 +2496,7 @@ const char* _read_f32(const char* i, FmtInfo* fmt_info, f32* v) {
     // Check for special values (inf, nan)
     if ((*i == 'i' || *i == 'I' || *i == 'n' || *i == 'N') || (*i == '-' && (*(i + 1) == 'i' || *(i + 1) == 'I'))) {
         // For special values, use the original approach
-        const char* start = i;
+        const char *start = i;
         while (*i && !IS_SPACE(*i))
             i++;
 
@@ -2515,7 +2517,7 @@ const char* _read_f32(const char* i, FmtInfo* fmt_info, f32* v) {
     }
 
     // Find the end of the number using more precise rules
-    const char* start       = i;
+    const char *start       = i;
     size        pos         = 0;
     bool        has_decimal = false; // Track if we've seen a decimal point
 
@@ -2581,7 +2583,7 @@ const char* _read_f32(const char* i, FmtInfo* fmt_info, f32* v) {
     return start + pos;
 }
 
-static void _write_r8(Str* o, FmtInfo* fmt_info, u8* v) {
+static void _write_r8(Str *o, FmtInfo *fmt_info, u8 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
     }
@@ -2589,7 +2591,7 @@ static void _write_r8(Str* o, FmtInfo* fmt_info, u8* v) {
     StrPushBack(o, *v);
 }
 
-static void _write_r16(Str* o, FmtInfo* fmt_info, u16* v) {
+static void _write_r16(Str *o, FmtInfo *fmt_info, u16 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
     }
@@ -2618,7 +2620,7 @@ static void _write_r16(Str* o, FmtInfo* fmt_info, u16* v) {
     }
 }
 
-static void _write_r32(Str* o, FmtInfo* fmt_info, u32* v) {
+static void _write_r32(Str *o, FmtInfo *fmt_info, u32 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
     }
@@ -2653,7 +2655,7 @@ static void _write_r32(Str* o, FmtInfo* fmt_info, u32* v) {
 }
 
 
-static void _write_r64(Str* o, FmtInfo* fmt_info, u64* v) {
+static void _write_r64(Str *o, FmtInfo *fmt_info, u64 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
     }
@@ -2694,7 +2696,7 @@ static void _write_r64(Str* o, FmtInfo* fmt_info, u64* v) {
     }
 }
 
-static const char* _read_r8(const char* i, FmtInfo* fmt_info, u8* v) {
+static const char *_read_r8(const char *i, FmtInfo *fmt_info, u8 *v) {
     if (!i || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
     }
@@ -2706,7 +2708,7 @@ static const char* _read_r8(const char* i, FmtInfo* fmt_info, u8* v) {
     return i + 1;
 }
 
-static const char* _read_r16(const char* i, FmtInfo* fmt_info, u16* v) {
+static const char *_read_r16(const char *i, FmtInfo *fmt_info, u16 *v) {
     if (!i || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments to _read_r16");
     }
@@ -2717,7 +2719,7 @@ static const char* _read_r16(const char* i, FmtInfo* fmt_info, u16* v) {
     }
 
     // Cast the input pointer to unsigned char to avoid sign extension issues.
-    const u8* p = (const u8*)i;
+    const u8 *p = (const u8 *)i;
 
     switch (fmt_info->endian) {
         case ENDIAN_BIG :
@@ -2736,7 +2738,7 @@ static const char* _read_r16(const char* i, FmtInfo* fmt_info, u16* v) {
     return i + 2; // Advance the stream pointer by 2 bytes.
 }
 
-static const char* _read_r32(const char* i, FmtInfo* fmt_info, u32* v) {
+static const char *_read_r32(const char *i, FmtInfo *fmt_info, u32 *v) {
     if (!i || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments to _read_r32");
     }
@@ -2746,7 +2748,7 @@ static const char* _read_r32(const char* i, FmtInfo* fmt_info, u32* v) {
         fmt_info->endian = IS_LITTLE_ENDIAN() ? ENDIAN_LITTLE : ENDIAN_BIG;
     }
 
-    const u8* p = (const u8*)i;
+    const u8 *p = (const u8 *)i;
 
     switch (fmt_info->endian) {
         case ENDIAN_BIG :
@@ -2765,7 +2767,7 @@ static const char* _read_r32(const char* i, FmtInfo* fmt_info, u32* v) {
     return i + 4; // Advance the stream pointer by 4 bytes.
 }
 
-static const char* _read_r64(const char* i, FmtInfo* fmt_info, u64* v) {
+static const char *_read_r64(const char *i, FmtInfo *fmt_info, u64 *v) {
     if (!i || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments to _read_r64");
     }
@@ -2775,7 +2777,7 @@ static const char* _read_r64(const char* i, FmtInfo* fmt_info, u64* v) {
         fmt_info->endian = IS_LITTLE_ENDIAN() ? ENDIAN_LITTLE : ENDIAN_BIG;
     }
 
-    const u8* p = (const u8*)i;
+    const u8 *p = (const u8 *)i;
 
     switch (fmt_info->endian) {
         case ENDIAN_BIG :

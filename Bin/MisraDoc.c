@@ -24,7 +24,7 @@ typedef struct Project {
     Strs test_directories;
 } Project;
 
-void ProjectDeinit(Project* p) {
+void ProjectDeinit(Project *p) {
     if (!p) {
         LOG_ERROR("Invalid project object. Invalid arguments");
         abort();
@@ -94,7 +94,7 @@ void ProjectDeinit(Project* p) {
         obj_deinit(__o_b_j);                                                                                           \
     } while (0)
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     if (argc != 2) {
         FWriteFmtLn(stderr, "USAGE : {} config.json", argc == 0 ? "MisraDoc" : argv[0]);
         return 1;
@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
 
     LogInit(false);
 
-    const char* config_path = argv[1];
+    const char *config_path = argv[1];
 
     Project project = {0};
     Scope(&project, ProjectDeinit, {
@@ -180,7 +180,7 @@ VecForeach(&file_paths, file_path) {
             Str md_code = StrInit();
             Scope(&md_code, StrDeinit, {
                 // Create template strings for StrWriteFmt with escaped braces
-                const char* mdHeader =
+                const char *mdHeader =
                     "---\n"
                     "title: \"{}\"\n"
                     "meta_title: \"{}\"\n"
@@ -209,7 +209,7 @@ VecForeach(&file_paths, file_path) {
 
 
                 // dump code to output path
-                FILE* f = fopen(output_path.data, "w");
+                FILE *f = fopen(output_path.data, "w");
                 Scope(f, fclose, { fwrite(md_code.data, 1, md_code.length, f); });
             });
         });

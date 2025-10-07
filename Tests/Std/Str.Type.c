@@ -56,8 +56,8 @@ bool test_strs_type(void) {
 
     // Check the content of the strings
     if (result) {
-        Str* str1 = &VecAt(&sv, 0);
-        Str* str2 = &VecAt(&sv, 1);
+        Str *str1 = &VecAt(&sv, 0);
+        Str *str2 = &VecAt(&sv, 1);
 
         result = result && (ZstrCompare(str1->data, "Hello") == 0);
         result = result && (ZstrCompare(str2->data, "World") == 0);

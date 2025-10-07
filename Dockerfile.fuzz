@@ -1,0 +1,89 @@
+# Dockerfile for AFL++ fuzzing with MisraStdC
+# Uses Ubuntu as base and installs AFL++ from source
+
+FROM ubuntu:22.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    python3 \
+    python3-pip \
+    ninja-build \
+    pkg-config \
+    clang \
+    llvm \
+    llvm-dev \
+    git \
+    wget \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install AFL++ from source (works on all architectures)
+RUN git clone https://github.com/AFLplusplus/AFLplusplus.git /tmp/aflplusplus && \
+    cd /tmp/aflplusplus && \
+    make -j$(nproc) && make install && \
+    rm -rf /tmp/aflplusplus
+
+# Install Meson
+RUN pip3 install meson
+
+# Setup core dumps for AFL (if possible)
+RUN echo core | tee /proc/sys/kernel/core_pattern 2>/dev/null || echo "Warning: Could not set core pattern (read-only filesystem)"
+
+# Set environment variable to bypass core pattern check in Docker
+ENV AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
+
+
+# Set up working directory
+WORKDIR /src
+
+# Create build directories (will be mounted from host)
+RUN mkdir -p /src/build-afl-asan
+
+# Create fuzzing directories
+RUN mkdir -p fuzz/inputs
+
+# Create seed input files for better fuzzing in a location not overwritten by volume mount
+RUN mkdir -p /usr/local/share/misra-fuzz/inputs && \
+    echo -ne '\x00\x00\x00\x00\x12\x34\x56\x78' > /usr/local/share/misra-fuzz/inputs/seed1_pushback && \
+    echo -ne '\x00\x00\x00\x04\x00\x00\xDE\xAD\xBE\xEF' > /usr/local/share/misra-fuzz/inputs/seed2_insert && \
+    echo -ne '\x00\x00\x00\x07\x00\x00' > /usr/local/share/misra-fuzz/inputs/seed3_at && \
+    echo -ne '\x00\x00\x00\x08' > /usr/local/share/misra-fuzz/inputs/seed4_len && \
+    echo -ne '\x00\x00\x00\x00\x11\x11\x11\x11\x00\x00\x00\x01\x22\x22\x22\x22\x00\x00\x00\x02\x00\x00\x00\x08' > /usr/local/share/misra-fuzz/inputs/seed5_sequence
+
+
+# Build script for AFL++ with ASAN
+RUN echo '#!/bin/bash\n\
+set -e\n\
+echo "Building AFL++ fuzzing harness (with ASAN)..."\n\
+export CC=afl-clang-fast\n\
+export CXX=afl-clang-fast++\n\
+export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1\n\
+export AFL_USE_ASAN=1\n\
+rm -rf build-afl-asan\n\
+meson setup build-afl-asan --buildtype=debug -Db_sanitize=address\n\
+meson compile -C build-afl-asan\n\
+echo "AFL++ with ASAN build completed!"\n\
+' > /usr/local/bin/build_afl_asan.sh && chmod +x /usr/local/bin/build_afl_asan.sh
+
+# Fuzzing script (ASAN only)
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+# Set environment variable to bypass core pattern check\n\
+export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1\n\
+\n\
+echo "Building AFL++ fuzzing harness (with ASAN)..."\n\
+/usr/local/bin/build_afl_asan.sh\n\
+echo "Cleaning up previous fuzzing outputs..."\n\
+rm -rf ../fuzz/outputs/*\n\
+echo "Starting AFL++ fuzzing with AddressSanitizer..."\n\
+cd build-afl-asan\n\
+afl-fuzz -i /usr/local/share/misra-fuzz/inputs -o ../fuzz/outputs -S fuzzer-asan ./FuzzHarness\n\
+' > /usr/local/bin/fuzz.sh && chmod +x /usr/local/bin/fuzz.sh
+
+# Default command
+CMD ["/bin/bash"]

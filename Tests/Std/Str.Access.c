@@ -54,7 +54,7 @@ bool test_str_begin(void) {
     Str s = StrInitFromZstr("Hello");
 
     // Get a pointer to the first character using StrBegin
-    char* begin = StrBegin(&s);
+    char *begin = StrBegin(&s);
 
     // Check that the pointer is correct
     bool result = (begin == s.data && *begin == 'H');
@@ -70,7 +70,7 @@ bool test_str_end(void) {
     Str s = StrInitFromZstr("Hello");
 
     // Get a pointer to one past the last character using StrEnd
-    char* end = StrEnd(&s);
+    char *end = StrEnd(&s);
 
     // Check that the pointer is correct
     bool result = (end == s.data + s.length && *end == '\0');
@@ -108,11 +108,11 @@ bool test_str_char_ptr_at(void) {
 
     // Access character pointers at different indices
     // Now using the fixed StrCharPtrAt macro
-    char* p0 = StrCharPtrAt(&s, 0);
-    char* p1 = StrCharPtrAt(&s, 1);
-    char* p2 = StrCharPtrAt(&s, 2);
-    char* p3 = StrCharPtrAt(&s, 3);
-    char* p4 = StrCharPtrAt(&s, 4);
+    char *p0 = StrCharPtrAt(&s, 0);
+    char *p1 = StrCharPtrAt(&s, 1);
+    char *p2 = StrCharPtrAt(&s, 2);
+    char *p3 = StrCharPtrAt(&s, 3);
+    char *p4 = StrCharPtrAt(&s, 4);
 
     // Check that the pointers are correct
     bool result = (*p0 == 'H' && *p1 == 'e' && *p2 == 'l' && *p3 == 'l' && *p4 == 'o');

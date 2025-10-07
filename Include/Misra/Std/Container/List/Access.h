@@ -5,8 +5,8 @@
 /// Different list accessor helper macros.
 ///
 
-#ifndef MISRA_STD_CONTAINER_LIST_OPS_H
-#define MISRA_STD_CONTAINER_LIST_OPS_H
+#ifndef MISRA_STD_CONTAINER_LIST_ACCESS_H
+#define MISRA_STD_CONTAINER_LIST_ACCESS_H
 
 ///
 /// Swap items at given indices.
@@ -18,7 +18,7 @@
 /// SUCCESS: `v` on success
 /// FAILURE: NULL
 ///
-#define ListSwapItems(l, idx1, idx2) ((TYPE_OF(l))swap_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (idx1), (idx2)))
+#define ListSwapItems(l, idx1, idx2) swap_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (idx1), (idx2))
 
 ///
 /// Pointer to data in node at given index in given list
@@ -31,8 +31,13 @@
 ///
 #define ListPtrAt(l, idx) ((LIST_DATA_TYPE(l) *)item_ptr_at_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (idx)))
 
+#ifdef __cplusplus
+#define ListAt(l, idx) (ListPtrAt((l), (idx)) ? *ListPtrAt((l), (idx)) : (LIST_DATA_TYPE(l) {0}))
+#else
 ///
 /// Data in node at given index in given list
+/// This is a more expensive call. Fetches pointer to data twice and then dereferences.
+/// Better use ListPtrAt instead.
 ///
 /// l[in]   : List to get data from.
 /// idx[in] : Index to get data at.
@@ -40,10 +45,13 @@
 /// SUCCESS: Data from node in list at given index.
 /// FAILURE: Emtpy object.
 ///
-#define ListAt(l, idx) (ListPtrAt((l), (idx)) ? *ListPtrAt((l), (idx)) : (LIST_DATA_TYPE(l) {0}))
+#define ListAt(l, idx) (ListPtrAt((l), (idx)) ? *ListPtrAt((l), (idx)) : ((LIST_DATA_TYPE(l)) {0}))
+#endif
 
 ///
 /// Value at first node in list
+/// This is a more expensive call. Fetches pointer to data twice and then dereferences.
+/// Better use ListPtrAt instead.
 ///
 /// SUCCESS: Data in head node in list.
 /// FAILURE: Emtpy object.
@@ -52,6 +60,8 @@
 
 ///
 /// Value at last node in list
+/// This is a more expensive call. Fetches pointer to data twice and then dereferences.
+/// Better use ListPtrAt instead.
 ///
 /// SUCCESS: Data in tail node in list.
 /// FAILURE: Emtpy object.
@@ -153,4 +163,4 @@
 ///
 #define ListNodeRelative(base_node, ridx) get_relative_node_to_list_node(GENERIC_LIST_NODE(base_node), (i64)(ridx))
 
-#endif // MISRA_STD_CONTAINER_LIST_OPS_H
+#endif // MISRA_STD_CONTAINER_LIST_ACCESS_H

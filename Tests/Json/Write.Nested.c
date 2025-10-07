@@ -50,18 +50,18 @@ typedef struct SearchResult {
 } SearchResult;
 
 // Cleanup functions
-void AnnSymbolDeinit(AnnSymbol* sym) {
+void AnnSymbolDeinit(AnnSymbol *sym) {
     StrDeinit(&sym->analysis_name);
     StrDeinit(&sym->function_name);
     StrDeinit(&sym->sha256);
     StrDeinit(&sym->function_mangled_name);
 }
 
-void FunctionInfoDeinit(FunctionInfo* info) {
+void FunctionInfoDeinit(FunctionInfo *info) {
     StrDeinit(&info->name);
 }
 
-void SearchResultDeinit(SearchResult* result) {
+void SearchResultDeinit(SearchResult *result) {
     StrDeinit(&result->binary_name);
     StrDeinit(&result->sha256);
     VecDeinit(&result->tags);
@@ -71,7 +71,7 @@ void SearchResultDeinit(SearchResult* result) {
 }
 
 // Helper function to compare JSON output (removes whitespace for comparison)
-bool compare_json_output(const Str* output, const char* expected) {
+bool compare_json_output(const Str *output, const char *expected) {
     Str expected_str   = StrInitFromZstr(expected);
     Str output_clean   = StrInit();
     Str expected_clean = StrInit();
@@ -155,7 +155,7 @@ bool test_two_level_nesting_writing(void) {
         JW_STR_KV(json, "status", data.status);
     });
 
-    const char* expected = "{\"user\":{\"id\":123,\"profile\":{\"name\":\"Alice\",\"age\":30}},\"status\":\"active\"}";
+    const char *expected = "{\"user\":{\"id\":123,\"profile\":{\"name\":\"Alice\",\"age\":30}},\"status\":\"active\"}";
     if (!compare_json_output(&json, expected)) {
         success = false;
     }
@@ -201,7 +201,7 @@ bool test_three_level_nesting_writing(void) {
         });
     });
 
-    const char* expected =
+    const char *expected =
         "{\"company\":{\"departments\":{\"engineering\":{\"head\":\"John\",\"count\":25,\"budget\":150000.000000}},"
         "\"name\":\"TechCorp\"}}";
     if (!compare_json_output(&json, expected)) {
@@ -248,7 +248,7 @@ bool test_complex_api_response_writing(void) {
 
             JW_OBJ_KV(json, source_key.data, {
                 if (response.data.length > 0) {
-                    AnnSymbol* s          = &VecAt(&response.data, 0);
+                    AnnSymbol *s          = &VecAt(&response.data, 0);
                     Str        target_key = StrInit();
                     StrWriteFmt(&target_key, "{}", s->target_function_id);
 
@@ -271,7 +271,7 @@ bool test_complex_api_response_writing(void) {
         });
     });
 
-    const char* expected =
+    const char *expected =
         "{\"status\":true,\"message\":\"Success\",\"data\":{\"12345\":{\"67890\":{\"distance\":0.850000,\"nearest_"
         "neighbor_analysis_id\":999,\"nearest_neighbor_binary_id\":888,\"nearest_neighbor_analysis_name\":\"test_"
         "analysis\",\"nearest_neighbor_function_name\":\"main_func\",\"nearest_neighbor_sha_256_hash\":\"abc123\","
@@ -311,7 +311,7 @@ bool test_function_info_array_writing(void) {
         });
     });
 
-    const char* expected =
+    const char *expected =
         "{\"functions\":[{\"id\":12345,\"name\":\"test_func\",\"size\":1024,\"vaddr\":4096},{\"id\":54321,\"name\":"
         "\"helper_func\",\"size\":512,\"vaddr\":8192}]}";
     if (!compare_json_output(&json, expected)) {
@@ -361,7 +361,7 @@ bool test_search_results_with_tags_writing(void) {
         JW_STR_KV(json, "owned_by", result.owned_by);
     });
 
-    const char* expected =
+    const char *expected =
         "{\"binary_id\":888,\"binary_name\":\"test_binary\",\"analysis_id\":999,\"sha256\":\"abc123\",\"tags\":["
         "\"malware\",\"x86\"],\"created_at\":\"2024-04-01\",\"model_id\":12345,\"model_name\":\"test_model\",\"owned_"
         "by\":\"user1\"}";
@@ -426,7 +426,7 @@ bool test_dynamic_object_keys_writing(void) {
 });
 });
 
-const char* expected =
+const char *expected =
     "{\"functions\":{\"111\":{\"222\":{\"distance\":0.900000,\"name\":\"func1\"}},\"333\":{\"444\":{\"distance\":0."
     "800000,\"name\":\"func2\"}}}}";
 if (!compare_json_output(&json, expected)) {
@@ -462,7 +462,7 @@ bool test_deeply_nested_structure_writing(void) {
         });
     });
 
-    const char* expected =
+    const char *expected =
         "{\"level1\":{\"level2\":{\"level3\":{\"message\":\"deep\",\"value\":42},\"flag\":true},\"name\":\"test\"}}";
     if (!compare_json_output(&json, expected)) {
         success = false;
@@ -510,7 +510,7 @@ bool test_mixed_array_types_writing(void) {
         JW_ARR_KV(json, "booleans", booleans, b, { JW_BOOL(json, b); });
     });
 
-    const char* expected = "{\"numbers\":[1,2,3],\"strings\":[\"a\",\"b\",\"c\"],\"booleans\":[true,false,true]}";
+    const char *expected = "{\"numbers\":[1,2,3],\"strings\":[\"a\",\"b\",\"c\"],\"booleans\":[true,false,true]}";
     if (!compare_json_output(&json, expected)) {
         success = false;
     }
@@ -523,7 +523,7 @@ bool test_mixed_array_types_writing(void) {
 }
 
 // Main function that runs all nested writing tests
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     // Array of test functions
     TestFunction tests[] = {
         test_two_level_nesting_writing,

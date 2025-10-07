@@ -11,7 +11,7 @@
 #include <Misra/Types.h>
 #include <Misra/Std/Container/Vec/Type.h>
 
-typedef Vec(const char*) Zstrs;
+typedef Vec(const char *) Zstrs;
 
 ///
 /// Compare memory regions.
@@ -24,7 +24,7 @@ typedef Vec(const char*) Zstrs;
 /// FAILURE: Function cannot fail - always returns comparison result.
 ///
 /// TAGS: Memory, Comparison, Safety
-i32 MemCompare(const void* p1, const void* p2, size n);
+i32 MemCompare(const void *p1, const void *p2, size n);
 
 ///
 /// Copy memory from source to destination.
@@ -37,7 +37,7 @@ i32 MemCompare(const void* p1, const void* p2, size n);
 /// FAILURE: Function cannot fail if regions don't overlap.
 ///
 /// TAGS: Memory, Copy, Safety
-void* MemCopy(void* dst, const void* src, size n);
+void *MemCopy(void *dst, const void *src, size n);
 
 ///
 /// Move memory from source to destination, handling overlapping regions.
@@ -50,7 +50,7 @@ void* MemCopy(void* dst, const void* src, size n);
 /// FAILURE: Function cannot fail.
 ///
 /// TAGS: Memory, Move, Safety
-void* MemMove(void* dst, const void* src, size n);
+void *MemMove(void *dst, const void *src, size n);
 
 ///
 /// Set memory region to a value.
@@ -63,7 +63,7 @@ void* MemMove(void* dst, const void* src, size n);
 /// FAILURE: Function cannot fail.
 ///
 /// TAGS: Memory, Set, Safety
-void* MemSet(void* dst, i32 val, size n);
+void *MemSet(void *dst, i32 val, size n);
 
 ///
 /// Get length of a null-terminated string.
@@ -74,7 +74,7 @@ void* MemSet(void* dst, i32 val, size n);
 /// FAILURE: Function cannot fail if str is valid.
 ///
 /// TAGS: String, Length, Safety
-size ZstrLen(const char* str);
+size ZstrLen(const char *str);
 
 ///
 /// Compare two strings lexicographically.
@@ -86,7 +86,7 @@ size ZstrLen(const char* str);
 /// FAILURE: Function cannot fail if strings are valid.
 ///
 /// TAGS: String, Comparison, Safety
-i32 ZstrCompare(const char* s1, const char* s2);
+i32 ZstrCompare(const char *s1, const char *s2);
 
 ///
 /// Compare two strings lexicographically up to n characters.
@@ -99,7 +99,7 @@ i32 ZstrCompare(const char* s1, const char* s2);
 /// FAILURE: Function cannot fail if strings are valid.
 ///
 /// TAGS: String, Comparison, Safety
-i32 ZstrCompareN(const char* s1, const char* s2, size n);
+i32 ZstrCompareN(const char *s1, const char *s2, size n);
 
 ///
 /// Duplicates a string up to the specified length.
@@ -114,7 +114,7 @@ i32 ZstrCompareN(const char* s1, const char* s2, size n);
 ///
 /// TAGS: String, Memory, Allocation
 ///
-char* ZstrDupN(const char* src, size n);
+char *ZstrDupN(const char *src, size n);
 
 ///
 /// Duplicates a string.
@@ -128,7 +128,7 @@ char* ZstrDupN(const char* src, size n);
 ///
 /// TAGS: String, Memory, Allocation
 ///
-char* ZstrDup(const char* src);
+char *ZstrDup(const char *src);
 
 ///
 /// Init clone method for zero-terminated strings.
@@ -142,7 +142,7 @@ char* ZstrDup(const char* src);
 /// SUCCESS: Returns true
 /// FAILURE: May abort with a log message or may return false depending on severity of situation.
 ///
-bool ZstrInitClone(const char** dst, const char** src);
+bool ZstrInitClone(const char **dst, const char **src);
 
 ///
 /// Deinit method for zero-terminated strings.
@@ -155,7 +155,7 @@ bool ZstrInitClone(const char** dst, const char** src);
 /// SUCCESS: Returns.
 /// FAILURE: Does not return.
 ///
-void ZstrDeinit(const char** zs);
+void ZstrDeinit(const char **zs);
 
 ///
 /// Find first occurrence of needle in haystack.
@@ -167,7 +167,7 @@ void ZstrDeinit(const char** zs);
 /// FAILURE: Returns NULL if either string is invalid.
 ///
 /// TAGS: String, Search, Safety
-char* ZstrFindSubstring(const char* haystack, const char* needle);
+char *ZstrFindSubstring(const char *haystack, const char *needle);
 
 ///
 /// Find first occurrence of a substring of specified length in haystack.
@@ -180,6 +180,6 @@ char* ZstrFindSubstring(const char* haystack, const char* needle);
 /// FAILURE: Returns NULL if haystack is invalid or needle is NULL.
 ///
 /// TAGS: String, Search, Safety
-char* ZstrFindSubstringN(const char* haystack, const char* needle, size needle_len);
+char *ZstrFindSubstringN(const char *haystack, const char *needle, size needle_len);
 
 #endif // MISRA_STD_MEMORY_H

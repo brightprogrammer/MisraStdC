@@ -17,7 +17,7 @@
 /// SUCCESS: `v`
 /// FAILURE: NULL
 ///
-#define ListClear(l) ((TYPE_OF(l))clear_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l))))
+#define ListClear(l) clear_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)))
 
 ///
 /// Sort given list with given comparator using quicksort algorithm.
@@ -28,7 +28,7 @@
 /// SUCCESS: Returns `v` on success.
 /// FAILURE: Returns NULL otherwise.
 ///
-#define ListSort(l, compare) ((TYPE_OF(l))qsort_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (compare)))
+#define ListSort(l, compare) qsort_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (compare))
 
 ///
 /// Reverse contents of this list.
@@ -38,6 +38,6 @@
 /// SUCCESS: `v`
 /// FAILURE: NULL
 ///
-#define ListReverse(l) ((TYPE_OF(l))reverse_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l))))
+#define ListReverse(l) reverse_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)))
 
 #endif // MISRA_STD_CONTAINER_LIST_OPS_H

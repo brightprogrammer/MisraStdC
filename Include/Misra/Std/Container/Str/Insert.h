@@ -225,7 +225,7 @@ extern "C" {
     /// SUCCESS : `str`
     /// FAILURE : NULL
     ///
-    Str* StrAppendf(Str* str, const char* fmt, ...) FORMAT_STRING(2, 3);
+    Str *StrAppendf(Str *str, const char *fmt, ...) FORMAT_STRING(2, 3);
 
 #ifdef __cplusplus
 }
