@@ -8,6 +8,7 @@ on:
     branches:
     - 'master'
   pull_request:
+    - 'master'
 
 # Automatically cancel any previous workflow on new push.
 concurrency:
