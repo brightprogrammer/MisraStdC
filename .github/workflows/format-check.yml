@@ -35,11 +35,19 @@ jobs:
       id: find-files
       run: |
         FILES=$(find . -type f \( -name "*.c" -o -name "*.h" -o -name "*.cpp" -o -name "*.hpp" \) \
+                ! -path "./Build*" \
                 ! -path "./build*" \
                 ! -path "./builddir*" \
                 ! -path "./.git/*" \
                 ! -path "./demangler/*" \
                 ! -path "./.cache/*" \
+                ! -path "./Docs/*" \
+                ! -path "./.vs/*" \
+                ! -path "./.vscode/*" \
+                ! -path "./Make/*" \
+                ! -path "./.ccls/*" \
+                ! -path "./fuzz-outputs/*" \
+                ! -path "./Fuzz/outputs/*" \
                 -print)
         echo "Found files:"
         echo "$FILES"
@@ -68,7 +76,7 @@ jobs:
             echo "Checking $file..."
             formatted_file="/tmp/formatted/$file"
             mkdir -p "$(dirname "$formatted_file")"
-            clang-format "$file" > "$formatted_file"
+            clang-format -style=file "$file" > "$formatted_file"
 
             if ! diff -u "$file" "$formatted_file"; then
               echo "❌ $file is not properly formatted"
@@ -88,9 +96,9 @@ jobs:
           echo ""
           echo "💥 Some files are not properly formatted."
           echo "To fix formatting issues, run:"
-          echo "  clang-format -i <file>"
-          echo "Or format all files:"
-          echo "  find . -name '*.c' -o -name '*.h' | xargs clang-format -i"
+          echo "  clang-format -i -style=file <file>"
+          echo "Or format all files using the project script:"
+          echo "  python3 Scripts/clang-format.py"
         fi
 
         exit $EXIT_CODE
