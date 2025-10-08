@@ -1,9 +1,13 @@
 # Snagged from github.com/rizinorg/rizin
 # Thanks for having a reliable workflow!
 
-name: "Pull Request Labeler"
+name: "Format Check"
+
 on:
-- pull_request_target
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
 
 # Automatically cancel any previous workflow on new push.
 concurrency:
