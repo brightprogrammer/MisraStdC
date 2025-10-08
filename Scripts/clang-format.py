@@ -22,7 +22,7 @@ dirlist = [
     "Fuzz",
 ]
 
-skiplist = []
+skiplist = [".clang-format"]
 
 patterns = ["*.c", "*.cpp", "*.h", "*.hpp", "*.inc"]
 
