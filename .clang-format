@@ -96,7 +96,6 @@ PointerAlignment: Right
 QualifierAlignment: Leave
 ReferenceAlignment: Right
 ReflowComments: true
-RemoveParentheses: Leave
 SortIncludes: Never
 SpaceAfterCStyleCast: false
 SpaceAfterLogicalNot: false
