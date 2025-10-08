@@ -6,14 +6,49 @@ from pathlib import Path
 # List of file extensions for C and C++ source files
 C_CPP_EXTENSIONS = {'.c', '.cpp', '.h', '.hpp', '.cc', '.cxx', '.hxx'}
 
+def check_clang_format_version(clang_format_path):
+    """Check if clang-format is version 20 or higher."""
+    try:
+        result = subprocess.run([clang_format_path, '--version'], capture_output=True, text=True, check=True)
+        version_output = result.stdout.strip()
+        print(f"Found clang-format: {version_output}")
+        
+        # Extract version number from output like "clang-format version 20.1.8"
+        import re
+        version_match = re.search(r'version (\d+)\.(\d+)\.(\d+)', version_output)
+        if version_match:
+            major_version = int(version_match.group(1))
+            if major_version < 20:
+                print(f"❌ Error: clang-format version {major_version} is not supported.")
+                print("This project requires clang-format version 20 or higher.")
+                print("\nTo install clang-format 20:")
+                print("  Ubuntu/Debian: sudo apt-get install clang-format-20")
+                print("  macOS: brew install llvm@20")
+                print("  Or download from: https://releases.llvm.org/download.html")
+                print("\nAfter installation, ensure clang-format-20 is in your PATH or create a symlink:")
+                print("  sudo ln -sf /usr/bin/clang-format-20 /usr/bin/clang-format")
+                exit(1)
+            else:
+                print(f"✅ clang-format version {major_version} is supported.")
+        else:
+            print("⚠️  Warning: Could not determine clang-format version, proceeding anyway.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error checking clang-format version: {e}")
+        exit(1)
+
 def find_clang_format():
     """Find the path to the clang-format executable."""
     clang_format_path = shutil.which('clang-format')  # Works on both Windows and POSIX systems
     if clang_format_path:
         print(f"Using clang-format at: {clang_format_path}")
+        check_clang_format_version(clang_format_path)
         return clang_format_path
     else:
         print("Error: clang-format not found. Please ensure clang-format is installed and in your PATH.")
+        print("\nTo install clang-format 20:")
+        print("  Ubuntu/Debian: sudo apt-get install clang-format-20")
+        print("  macOS: brew install llvm@20")
+        print("  Or download from: https://releases.llvm.org/download.html")
         exit(1)
 
 def find_clang_format_dir(start_dir):
