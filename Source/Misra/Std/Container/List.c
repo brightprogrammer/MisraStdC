@@ -215,7 +215,7 @@ void push_arr_list(GenericList *list, u64 item_size, void *arr, u64 count) {
         LOG_FATAL("invalid arguments.");
     }
 
-    if(!count) {
+    if (!count) {
         return;
     }
 
@@ -224,11 +224,11 @@ void push_arr_list(GenericList *list, u64 item_size, void *arr, u64 count) {
     while (count--) {
         GenericListNode *old_tail = list->tail;
         GenericListNode *new_tail = malloc(sizeof(GenericListNode));
-        
+
         if (!new_tail) {
             LOG_FATAL("Failed to allocate memory for new node");
         }
-        
+
         new_tail->data = malloc(item_size);
         if (!new_tail->data) {
             free(new_tail);
@@ -242,12 +242,12 @@ void push_arr_list(GenericList *list, u64 item_size, void *arr, u64 count) {
             new_tail->prev = old_tail;
         } else {
             // List is empty - set as head
-            list->head = new_tail;
+            list->head     = new_tail;
             new_tail->prev = NULL;
         }
 
         new_tail->next = NULL;
-        list->tail = new_tail;
+        list->tail     = new_tail;
 
         // insert data
         if (list->copy_init) {

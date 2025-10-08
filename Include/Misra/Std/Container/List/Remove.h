@@ -20,7 +20,8 @@
 /// SUCCESS : Returns `v` on success.
 /// FAILURE : Returns NULL otherwise.
 ///
-#define ListRemove(l, val, idx) remove_range_list(GENERIC_LIST(l), (val), sizeof(LIST_DATA_TYPE(l)), ((l)->length - 1), 1)
+#define ListRemove(l, val, idx)                                                                                        \
+    remove_range_list(GENERIC_LIST(l), (val), sizeof(LIST_DATA_TYPE(l)), ((l)->length - 1), 1)
 
 ///
 /// Remove item from the very beginning of list.

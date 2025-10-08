@@ -192,7 +192,7 @@ void fuzz_int_list(IntList *list, ListIntFunction func, const uint8_t *data, siz
         }
 
         case LIST_INT_MERGE : {
-            IntList  temp  = ListInitT(temp);
+            IntList temp  = ListInitT(temp);
             uint8_t count = extract_u8(data, offset, size);
             count         = count % 4;
 

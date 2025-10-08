@@ -32,7 +32,7 @@
 #define ListPtrAt(l, idx) ((LIST_DATA_TYPE(l) *)item_ptr_at_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (idx)))
 
 #ifdef __cplusplus
-#define ListAt(l, idx) (ListPtrAt((l), (idx)) ? *ListPtrAt((l), (idx)) : (LIST_DATA_TYPE(l) {0}))
+#    define ListAt(l, idx) (ListPtrAt((l), (idx)) ? *ListPtrAt((l), (idx)) : (LIST_DATA_TYPE(l) {0}))
 #else
 ///
 /// Data in node at given index in given list
@@ -45,7 +45,7 @@
 /// SUCCESS: Data from node in list at given index.
 /// FAILURE: Emtpy object.
 ///
-#define ListAt(l, idx) (ListPtrAt((l), (idx)) ? *ListPtrAt((l), (idx)) : ((LIST_DATA_TYPE(l)) {0}))
+#    define ListAt(l, idx) (ListPtrAt((l), (idx)) ? *ListPtrAt((l), (idx)) : ((LIST_DATA_TYPE(l)) {0}))
 #endif
 
 ///
