@@ -1,125 +1,127 @@
-import os
+#!/usr/bin/env python3
+#
+# SPDX-FileCopyrightText: 2021 Anton Kochkov <anton.kochkov@gmail.com>
+# SPDX-License-Identifier: LGPL-3.0-only
+
+# Snagged from github.com/rizinorg/rizin
+# Thanks for having a reliable script and a workflow!
+
+import argparse
+import glob
+import itertools
 import subprocess
-import shutil
-from pathlib import Path
+import sys
 
-# List of file extensions for C and C++ source files
-C_CPP_EXTENSIONS = {'.c', '.cpp', '.h', '.hpp', '.cc', '.cxx', '.hxx'}
+from git import Repo
 
-def check_clang_format_version(clang_format_path):
-    """Check if clang-format is version 20 or higher."""
-    try:
-        result = subprocess.run([clang_format_path, '--version'], capture_output=True, text=True, check=True)
-        version_output = result.stdout.strip()
-        print(f"Found clang-format: {version_output}")
-        
-        # Extract version number from output like "clang-format version 20.1.8"
-        import re
-        version_match = re.search(r'version (\d+)\.(\d+)\.(\d+)', version_output)
-        if version_match:
-            major_version = int(version_match.group(1))
-            if major_version < 20:
-                print(f"❌ Error: clang-format version {major_version} is not supported.")
-                print("This project requires clang-format version 20 or higher.")
-                print("\nTo install clang-format 20:")
-                print("  Ubuntu/Debian: sudo apt-get install clang-format-20")
-                print("  macOS: brew install llvm@20")
-                print("  Or download from: https://releases.llvm.org/download.html")
-                print("\nAfter installation, ensure clang-format-20 is in your PATH or create a symlink:")
-                print("  sudo ln -sf /usr/bin/clang-format-20 /usr/bin/clang-format")
-                exit(1)
-            else:
-                print(f"✅ clang-format version {major_version} is supported.")
-        else:
-            print("⚠️  Warning: Could not determine clang-format version, proceeding anyway.")
-    except subprocess.CalledProcessError as e:
-        print(f"Error checking clang-format version: {e}")
-        exit(1)
+dirlist = [
+    "Source",
+    "Include",
+    "Bin",
+    "Tests",
+    "Fuzz",
+]
 
-def find_clang_format():
-    """Find the path to the clang-format executable."""
-    clang_format_path = shutil.which('clang-format')  # Works on both Windows and POSIX systems
-    if clang_format_path:
-        print(f"Using clang-format at: {clang_format_path}")
-        check_clang_format_version(clang_format_path)
-        return clang_format_path
+skiplist = []
+
+patterns = ["*.c", "*.cpp", "*.h", "*.hpp", "*.inc"]
+
+def should_scan(filename):
+    return any(directory in filename for directory in dirlist) and any(
+        pattern[1:] in filename for pattern in patterns
+    )
+
+
+def skip(filename):
+    return any(skipfile in filename for skipfile in skiplist)
+
+
+def get_matching_files():
+    for directory, pattern in itertools.product(dirlist, patterns):
+        for filename in glob.iglob(directory + "/**/" + pattern, recursive=True):
+            if not skip(filename):
+                yield filename
+
+
+def get_edited_files(args):
+    repo = Repo()
+
+    for diff in repo.index.diff(args.diff):
+        filename = diff.a_path
+        if should_scan(filename) and not skip(filename):
+            yield filename
+
+
+def build_command(clangformat, check, filenames, verbose):
+    cmd = [clangformat, "--style=file"]
+    if verbose:
+        cmd += ["--verbose"]
+    if check:
+        cmd += ["--Werror", "--dry-run"]
     else:
-        print("Error: clang-format not found. Please ensure clang-format is installed and in your PATH.")
-        print("\nTo install clang-format 20:")
-        print("  Ubuntu/Debian: sudo apt-get install clang-format-20")
-        print("  macOS: brew install llvm@20")
-        print("  Or download from: https://releases.llvm.org/download.html")
-        exit(1)
+        cmd += ["-i"]
+    return cmd + filenames
 
-def find_clang_format_dir(start_dir):
-    """Find the nearest directory containing a .clang-format file."""
-    current_dir = Path(start_dir).resolve()
-    
-    while current_dir != current_dir.parent:
-        clang_format_path = current_dir / ".clang-format"
-        if clang_format_path.exists():
-            return clang_format_path
-        current_dir = current_dir.parent
-    
-    return None  # No .clang-format found up to the root
 
-def parse_gitignore(root_dir):
-    """Parse the .gitignore file and return a list of patterns to ignore."""
-    gitignore_path = Path(root_dir) / '.gitignore'
-    ignored_paths = set()
-    
-    if gitignore_path.exists():
-        with open(gitignore_path, 'r') as f:
-            lines = f.readlines()
-            for line in lines:
-                line = line.strip()
-                if line and not line.startswith('#'):  # Skip comments and empty lines
-                    ignored_paths.add(line)
-    
-    return ignored_paths
+def format_files(args, files):
+    if len(files) == 0:
+        print("No C files to format.")
+        sys.exit(0)
+    cmd = build_command(args.clang_format, args.check, files, args.verbose)
+    r = subprocess.run(cmd, check=False)
+    sys.exit(r.returncode)
 
-def is_ignored(file_path, ignored_paths):
-    """Check if the file or directory should be ignored based on .gitignore patterns."""
-    relative_path = str(file_path.relative_to(os.getcwd()))
-    
-    for pattern in ignored_paths:
-        if relative_path.startswith(pattern):  # This assumes a simple matching, ignoring more complex patterns
-            return True
-    return False
 
-def format_file(file_path, clang_format_path):
-    """Apply clang-format to the file using the specified .clang-format."""
-    try:
-        # Ensure the file path is valid and belongs to C/C++ files
-        if file_path.suffix.lower() in C_CPP_EXTENSIONS:
-            subprocess.run([clang_format_path, '-i', '-style=file', str(file_path)], check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error formatting {file_path}: {e}")
+def get_file(args):
+    filename = args.file
+    if should_scan(filename) and not skip(filename):
+        return [filename]
 
-def traverse_and_format(root_dir, clang_format_path, ignored_paths):
-    """Traverse all files in the directory tree and apply clang-format."""
-    for root, dirs, files in os.walk(root_dir):
-        # Modify dirs in-place to ignore certain directories (skip traversal in them)
-        dirs[:] = [d for d in dirs if not is_ignored(Path(root) / d, ignored_paths)]
-        
-        for file in files:
-            file_path = Path(root) / file
-            if is_ignored(file_path, ignored_paths):
-                continue  # Skip files that are ignored
+    return []
 
-            clang_format_dir = find_clang_format_dir(file_path)
-            if clang_format_dir:
-                format_file(file_path, clang_format_path)
+
+def get_files(args):
+    if args.diff:
+        return get_edited_files(args)
+
+    if args.file:
+        return get_file(args)
+
+    return get_matching_files()
+
+
+def process(args):
+    files = get_files(args)
+    format_files(args, list(files))
+
+
+def parse():
+    parser = argparse.ArgumentParser(description="Clang format the rizin project")
+
+    parser.add_argument(
+        "-C", "--clang-format", default="clang-format", help="path of clang-format"
+    )
+    parser.add_argument(
+        "-c", "--check", action="store_true", help="enable the check mode"
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="use verbose output"
+    )
+    parser.add_argument("-f", "--file", help="formats (or checks) only the given file")
+    parser.add_argument(
+        "-d",
+        "--diff",
+        type=str,
+        default=None,
+        help="format all modified file related to branch",
+    )
+    return parser.parse_args()
+
+
+def main():
+    args = parse()
+    process(args)
+
 
 if __name__ == "__main__":
-    # Find the clang-format executable
-    clang_format_path = find_clang_format()
-
-    # Get the current working directory (the directory from which the script is executed)
-    root_directory = os.getcwd()
-    
-    # Parse the .gitignore file
-    ignored_paths = parse_gitignore(root_directory)
-    
-    # Traverse the project directory and format files
-    traverse_and_format(root_directory, clang_format_path, ignored_paths)
+    main()
