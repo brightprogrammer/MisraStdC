@@ -20,26 +20,13 @@ jobs:
   changes:
     runs-on: ubuntu-24.04
     outputs:
-#      yaml: ${{ steps.filter.outputs.yaml }}
       clang-format: ${{ steps.filter.outputs.clang-format }}
-#      bindgen-linter: ${{ steps.filter.outputs.bindgen-linter }}
-#      prettier: ${{ steps.filter.outputs.prettier }}
-#      python: ${{ steps.filter.outputs.python }}
     steps:
     - uses: actions/checkout@v5
     - uses: dorny/paths-filter@v3
       id: filter
       with:
         filters: |
-#          yaml:
-#            - '**.yml'
-#            - '**.yaml'
-#            - '.github/workflows/linter.yml'
-#          bindgen-linter:
-#            - '**.c'
-#            - '**.h'
-#            - '**.inc'
-#            - '.github/workflows/linter.yml'
           clang-format:
             - '**.c'
             - '**.h'
@@ -48,13 +35,6 @@ jobs:
             - '.github/workflows/linter.yml'
             - 'Scripts/clang-format.py'
             - '.clang-format'
-#          prettier:
-#            - '**.js'
-#            - '.github/workflows/linter.yml'
-#          python:
-#            - '**.py'
-#            - '.github/workflows/linter.yml'
-#            - '.pylintrc'
 
   clang-format:
     needs: changes
@@ -77,40 +57,3 @@ jobs:
         sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-16 160
         clang-format --version
         python3 Scripts/clang-format.py --check --verbose
-        
-#  prettier:
-#    needs: changes
-#    runs-on: ubuntu-24.04
-#    if: ${{ needs.changes.outputs.prettier == 'true' }}
-#    steps:
-#    - name: Checkout repository
-#      uses: actions/checkout@v5
-#
-#    - name: Install prettier
-#      run: |
-#        sudo apt --assume-yes install npm
-#        npm install prettier
-#
-#    - name: Run prettier
-#      run: find . -name "*.js" | grep -v "bindings/node/index.js\|subprojects/tree-sitter" | xargs npx prettier  --print-width 120 --check
-#
-#  python:
-#    needs: changes
-#    runs-on: ubuntu-24.04
-#    if: ${{ needs.changes.outputs.python == 'true' }}
-#    steps:
-#    - name: Checkout repository
-#      uses: actions/checkout@v5
-#
-#    - name: Install pylint, black, isort
-#      run: pip install pylint black isort
-#
-#    - name: Run black
-#      run: |
-#        export PATH=${HOME}/Library/Python/3.9/bin:${HOME}/Library/Python/3.10/bin:${HOME}/.local/bin:${PATH}
-#        find . -name "*.py" | grep -v "subprojects" | xargs black --check
-#
-#    - name: Run pylint
-#      run: |
-#        export PATH=${HOME}/Library/Python/3.9/bin:${HOME}/Library/Python/3.10/bin:${HOME}/.local/bin:${PATH}
-#        find . -name "*.py" | grep -v "subprojects" | grep -v "librz/bin/format/xnu/scripts/" | xargs -I % pylint --disable=R1737 '%'
