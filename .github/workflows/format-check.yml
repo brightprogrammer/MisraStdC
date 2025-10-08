@@ -8,6 +8,7 @@ on:
     branches:
     - 'master'
   pull_request:
+    branches:
     - 'master'
 
 # Automatically cancel any previous workflow on new push.
@@ -45,7 +46,7 @@ jobs:
             - '**.in'
             - '**.inc'
             - '.github/workflows/linter.yml'
-            - 'sys/clang-format.py'
+            - 'Scripts/clang-format.py'
             - '.clang-format'
 #          prettier:
 #            - '**.js'
@@ -66,14 +67,16 @@ jobs:
     - name: Install clang-format-16
       run: sudo apt --assume-yes install clang-format-16
 
-    - name: Install gitpython
-      run: sudo pip install gitpython
+    - name: Install Python3 and gitpython
+      run: |
+        sudo apt --assume-yes install python3-pip
+        sudo pip3 install gitpython
 
     - name: Run clang-format
       run: |
         sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-16 160
         clang-format --version
-        python sys/clang-format.py --check --verbose
+        python3 Scripts/clang-format.py --check --verbose
         
 #  prettier:
 #    needs: changes
