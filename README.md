@@ -17,7 +17,7 @@ A modern C11 library designed to make programming in C less painful and more pro
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Documentation](#documentation)
-- [Concenpts](#concepts)
+- [Concepts](#concepts)
 - [Examples](#examples)
   - [Vector Container (Vec)](#vector-container-vec)
   - [String Operations (Str)](#string-operations-str)
@@ -32,11 +32,12 @@ A modern C11 library designed to make programming in C less painful and more pro
 ## Features
 
 - **Cross-platform compatibility**: Supports MSVC, GCC, and Clang
-- **Type-safe generic containers**:
-  - `Vec(T)`: Generic vector with strict type checking
-  - `Str`: String handling (specialized `Vec(char)`)
-  - `Map(K, V)`: Generic key-value hash-map storage (WIP)
-  - `Int`: Custom big integer implementation (WIP)
+- **Macro-based generic containers and utilities**:
+  - `Vec(T)`: Generic vector backed by shared `GenericVec` runtime helpers
+  - `List(T)`: Generic doubly linked list backed by shared `GenericList` runtime helpers
+  - `Str` / `Strs`: Predefined `typedef`s for `Vec(char)` and `Vec(Str)`
+  - `BitVec`: Packed bit container for boolean-style storage
+  - `Iter(T)` and `Pair(xT, yT)`: Generic utility macros
 - **Rust-style formatted I/O**:
   - `WriteFmt`, `ReadFmt`: Type-safe formatted standard I/O
   - `StrWriteFmt`, `StrReadFmt`: Type-safe formatted string operations
@@ -60,7 +61,7 @@ A modern C11 library designed to make programming in C less painful and more pro
 
 ```bash
 # Clone the repository with submodules
-git clone --recursive https://github.com/brightprogrammer/MisraStdC.git
+git clone --recursive https://git.anvielabs.com/bp/MisraStdC.git
 cd MisraStdC
 
 # Configure the build
@@ -86,6 +87,31 @@ meson setup builddir -Db_sanitize=address,undefined -Db_lundef=false
 Comprehensive API documentation is available at [docs.brightprogrammer.in](https://docs.brightprogrammer.in).
 
 ## Concepts
+
+### How Generic Templating Works
+
+MisraStdC uses the C preprocessor plus a shared runtime layer rather than code generation. The template-style APIs are
+macros:
+
+- `Vec(T)`, `List(T)`, `Iter(T)`, and `Pair(xT, yT)` expand to anonymous structs.
+- Macros like `VecInsertR`, `VecAt`, `VecDeinit`, and `ListDeinit` infer the element type and `sizeof(...)` at the
+  call site, then forward to generic runtime helpers in `Source/`.
+- `Str` and `Strs` are ordinary `typedef`s built on top of `Vec(char)` and `Vec(Str)`.
+- `BitVec` is a dedicated concrete type, not `Vec(bool)`.
+
+That model has a few practical consequences:
+
+- Each `Vec(T)` or `List(T)` expansion is a distinct anonymous type. If you need a reusable type across declarations,
+  create a `typedef` first.
+- `VecInsertL` and similar `...L` forms expect an l-value expression, not a pointer. They can transfer ownership by
+  zeroing the source object when no deep-copy callback is configured.
+- If a nested macro type contains commas, wrap it in `T(...)` so the outer macro sees it as a single argument.
+
+```c
+typedef Vec(int) IntVec;
+typedef Vec(T(Pair(i32, Str))) PairVec;
+typedef List(Str) StrList;
+```
 
 ### Initialization
 
@@ -113,7 +139,8 @@ Functions/macros marked with ___L___ suffix follow this behavior. Functions/macr
 will make sure that there will always exist only one copy of data being inserted. If the container you're
 inserting an item to, makes it's own copy of items, the inserted l-value remains as it is, because
 unique ownership is maintained. If however the container does not create it's own copies, because `copy_init`
-method is not set, then it'll take ownership by calling `memset(lval, 0, sizeof(lval))` on given l-value `lval`.
+method is not set, then it'll take ownership by zeroing the source l-value after insertion (effectively
+`memset(&lval, 0, sizeof(lval))`).
 
 This is to explicitly state that the object must always have single ownership.
 
@@ -140,20 +167,22 @@ NOTE: The container will take ownership only if no `copy_init` is set!!
 ```c
 #include <Misra.h>
 
+typedef Vec(int) IntVec;
+
 int compare_ints(const void* a, const void* b) {
     return *(const int*)a - *(const int*)b;
 }
 
-int main() {
-    // Initialize vector with default alignment
-    Vec(int) numbers = VecInit();
+int main(void) {
+    // Initialize a reusable vector typedef
+    IntVec numbers = VecInit();
     
     // Pre-allocate space for better performance
     VecReserve(&numbers, 10);
     
     // Insert elements (ownership transfer for l-values)
     int val = 42;
-    VecInsertL(&numbers, &val, 0);      // val is now owned by vector
+    VecInsertL(&numbers, val, 0);       // val is now owned by vector
     VecInsertR(&numbers, 10, 0);        // Insert at front
     VecInsertR(&numbers, 30, 1);        // Insert in middle
     
@@ -164,24 +193,24 @@ int main() {
     
     // Batch operations
     int items[] = {15, 25, 35};
-    VecInsertRange(&numbers, items, VecLen(&numbers), 3);
+    VecInsertRangeR(&numbers, items, VecLen(&numbers), 3);
     
     // Sort the vector
     VecSort(&numbers, compare_ints);
     
     // Different iteration patterns
-    VecForeachIdx(&numbers, val, idx, {
-        WriteFmtLn("[{}] = {}\n", idx, val);
-    });
+    VecForeachIdx(&numbers, current, idx) {
+        WriteFmtLn("[{}] = {}", idx, current);
+    }
     
     // Modify elements in-place
-    VecForeachPtr(&numbers, ptr, {
-        *ptr *= 2;
-    });
+    VecForeachPtr(&numbers, current) {
+        *current *= 2;
+    }
     
     // Memory management
     VecTryReduceSpace(&numbers);  // Optimize memory usage
-    size_t size = VecSize(&numbers);  // Size in bytes
+    u64 size = VecSize(&numbers);  // Size in bytes
     
     // Batch removal
     VecDeleteRange(&numbers, 1, 2);  // Remove 2 elements starting at index 1
@@ -199,8 +228,8 @@ int main() {
 ```c
 #include <Misra.h>
 
-int main() {
-    // Strings are just Vec(char) with special operations
+int main(void) {
+    // Str is a typedef specialization of Vec(char)
     Str text = StrInit();
     
     // String creation
@@ -221,9 +250,9 @@ int main() {
     Strs parts = StrSplit(&csv, ",");
     
     // Process split results
-    VecForeach(&parts, str, {
-        WriteFmtLn("Part: {}\n", str);
-    });
+    VecForeach(&parts, part) {
+        WriteFmtLn("Part: {}", part);
+    }
     
     // Cleanup
     StrDeinit(&text);
@@ -232,9 +261,9 @@ int main() {
     StrDeinit(&csv);
     
     // Cleanup split results
-    VecForeachPtr(&parts, str, {
-        StrDeinit(str);
-    });
+    VecForeachPtr(&parts, part) {
+        StrDeinit(part);
+    }
     VecDeinit(&parts);
 }
 ```
@@ -244,7 +273,7 @@ int main() {
 ```c
 #include <Misra.h>
 
-int main() {
+int main(void) {
     // String formatting
     Str output = StrInit();
     
@@ -258,17 +287,17 @@ int main() {
     StrWriteFmt(&output, "Hex: {X}\n", hex_val);
     
     // Read formatted input
-    const char* input = "Count: 42, Name: Test";
-    int read_count;
+    const char* cursor = "Count: 42, Name: Test";
+    int read_count = 0;
     Str read_name = StrInit();
     
-    // For reading, we pass the variables directly
-    StrReadFmt(input, "Count: {}, Name: {}", read_count, read_name);  // No & operator needed
+    // StrReadFmt advances the input cursor on success
+    StrReadFmt(cursor, "Count: {}, Name: {}", read_count, read_name);
     
     // Multiple value types
     float pi = 3.14159f;
     u64 big_num = 123456789ULL;
-    StrWriteFmt(&output, "Float: {.2f}, Integer: {}, Hex: {x}\n", pi, big_num, big_num);
+    StrWriteFmt(&output, "Float: {.2}, Integer: {}, Hex: {x}\n", pi, big_num, big_num);
     
     // String formatting
     Str hello = StrInitFromZstr("Hello");
@@ -292,14 +321,16 @@ typedef struct Point {
     float y;
 } Point;
 
+typedef Vec(Point) PointVec;
+
 typedef struct Shape {
     Str name;
     Point position;
-    Vec(Point) vertices;
+    PointVec vertices;
     bool filled;
 } Shape;
 
-int main() {
+int main(void) {
     // Example JSON string
     Str json = StrInitFromZstr(
         "{"
@@ -348,9 +379,9 @@ int main() {
 
     // Modify some values
     shape.position.x += 5.0;
-    VecForeachPtr(&shape.vertices, vertex, {
+    VecForeachPtr(&shape.vertices, vertex) {
         vertex->y += 1.0;  // Move all points up by 1
-    });
+    }
 
     // Write back to JSON
     StrClear(&json);  // Clear existing content
@@ -391,11 +422,15 @@ int main() {
 ```c
 #include <Misra.h>
 
+typedef Vec(int) IntVec;
+
 // Complex type with owned resources
 typedef struct {
     int id;
-    Vec(int) data;
+    IntVec data;
 } ComplexType;
+
+typedef Vec(ComplexType) ComplexVec;
 
 // Copy initialization for deep copying
 bool ComplexTypeCopyInit(ComplexType* dst, const ComplexType* src) {
@@ -403,9 +438,9 @@ bool ComplexTypeCopyInit(ComplexType* dst, const ComplexType* src) {
     dst->data = VecInit();
     
     // Copy all elements from source vector
-    VecForeachIdx(&src->data, val, idx, {
+    VecForeachIdx(&src->data, val, idx) {
         VecInsertR(&dst->data, val, idx);
-    });
+    }
     return true;
 }
 
@@ -414,9 +449,9 @@ void ComplexTypeDeinit(ComplexType* ct) {
     VecDeinit(&ct->data);
 }
 
-int main() {
+int main(void) {
     // Vector of complex types with resource management
-    Vec(ComplexType) objects = VecInitWithDeepCopy(ComplexTypeCopyInit, ComplexTypeDeinit);
+    ComplexVec objects = VecInitWithDeepCopy(ComplexTypeCopyInit, ComplexTypeDeinit);
     
     // Create and insert items
     ComplexType item = {
@@ -427,7 +462,7 @@ int main() {
     VecInsertR(&item.data, 43, 1);
     
     // Insert with ownership transfer
-    VecInsertL(&objects, &item, 0);  // item is now owned by vector
+    VecInsertL(&objects, item, 0);   // item is now owned by vector
     
     // Direct deletion (vector handles cleanup)
     // Since we provided ComplexTypeDeinit during initialization,
@@ -476,96 +511,89 @@ int main(int argc, char** argv, char** envp) {
 
 ## Format Specifiers
 
-The library supports Rust-style format strings with placeholders in the form `{}` or `{pecifier}`.
+The library supports placeholders of the form `{}` or `{[alignment][width][.precision][flags]}`.
 
-### Important: Understanding Supported Argument Format
+### Important: Supported Argument Types
 
-The macro-tricks use `_Generic` for compile-time type specific io dispatching. Here's what works and what doesn't:
+The formatting macros use `_Generic` for compile-time dispatch through `IOFMT(...)`, so the exact C type matters.
 
-#### ❌ What Doesn't Work
+#### What Doesn't Work
 
 ```c
-// String literals (array types like char[6] not handled by _Generic)
-StrWriteFmt(&output, "Hello, {}!", "world");  // ERROR: char[6] not in _Generic cases
+// String literals are arrays, not pointers
+StrWriteFmt(&output, "Hello, {}!", "world");
 
-// Any char array types are not handled
-char buffer[20] = "Hello";                    // Type: char[20] 
-StrWriteFmt(&output, "Message: {}", buffer);  // ERROR: char[20] not in _Generic cases
+// Plain char arrays are also distinct array types
+char buffer[20] = "Hello";
+StrWriteFmt(&output, "Message: {}", buffer);
 
-const char name[] = "Alice";                  // Type: const char[6]
-StrWriteFmt(&output, "Name: {}", name);       // ERROR: const char[6] not in _Generic cases
+const char name[] = "Alice";
+StrWriteFmt(&output, "Name: {}", name);
 ```
 
-#### ✅ What Works Perfectly
+#### What Works
 
 ```c
-// const char* variables (pointer type matches _Generic case)
 const char* title = "Mr.";
 const char* surname = "Smith";
-StrWriteFmt(&output, "{} {}", title, surname);  // ✅ Works great!
+StrWriteFmt(&output, "{} {}", title, surname);
 
-// char* variables (pointer type matches _Generic case)
 char* dynamic_str = malloc(50);
 strcpy(dynamic_str, "Dynamic");
-StrWriteFmt(&output, "Value: {}", dynamic_str);      // ✅ Works perfectly!
+StrWriteFmt(&output, "Value: {}", dynamic_str);
 
-// Str objects (library's string type)
 Str greeting = StrInitFromZstr("Welcome");
 StrWriteFmt(&output, "Message: {}", greeting);
 
-// Primitive types (all handled by _Generic)
 int number = 42;
 float pi = 3.14f;
 StrWriteFmt(&output, "Number: {}, Pi: {.2}", number, pi);
 ```
 
-#### 💡 Best Practices
+#### Best Practices
 
 ```c
-// For constant strings, use const char* pointers:
-const char* program_name = "MyApp";      // ✅ const char* works perfectly!
-const char* version = "1.0.0";           // ✅ char* pointer types work!
+// Bind string constants to pointer variables
+const char* program_name = "MyApp";
+const char* version = "1.0.0";
 
-// For dynamic strings, use Str objects or char* pointers:
+// StrReadFmt expects the input itself to be an assignable cursor variable
+const char* input_line = "Name: Alice";
 Str user_input = StrInit();
 StrReadFmt(input_line, "Name: {}", user_input);
 
 char* allocated = malloc(100);
 strcpy(allocated, "Dynamic content");
-StrWriteFmt(&message, "Content: {}", allocated);     // ✅ char* works!
+StrWriteFmt(&message, "Content: {}", allocated);
 
-// For function parameters accepting strings:
-void log_message(const char* msg) {                      // ✅ const char* parameter
-    StrWriteFmt(&log_output, "[LOG] {}", msg);       // ✅ Works perfectly!
+void log_message(const char* msg) {
+    StrWriteFmt(&log_output, "[LOG] {}", msg);
 }
 
-void process_buffer(char* buffer) {                      // ✅ char* parameter  
-    StrWriteFmt(&output, "Processing: {}", buffer);  // ✅ Works great!
+void process_buffer(char* buffer) {
+    StrWriteFmt(&output, "Processing: {}", buffer);
 }
 ```
 
-#### 🔧 Technical Explanation
+#### Technical Explanation
 
-The macro-tricks use `_Generic` which only handles these specific types:
-- `const char*` ✅
-- `char*` ✅  
-- `Str` ✅
-- Primitive types (`int`, `float`, `u32`, etc.) ✅
+`_Generic` currently has cases for:
 
-But **NOT** array types like:
-- `char[6]` (from `"hello"`) ❌
-- `char[20]` (from `char buffer[20]`) ❌
-- `const char[10]` (from `const char arr[] = "test"`) ❌
+- `const char*`
+- `char*`
+- `Str`
+- `BitVec`
+- primitive integer and floating-point types
+- `char`
 
-The compiler knows these array types perfectly, but `_Generic` doesn't have cases for every possible array size.
+It does not automatically treat array types as pointer cases, so `char[6]`, `char[20]`, `const char[10]`, and similar
+types must be bound to `char*` or `const char*` variables first.
 
 ### Basic Usage
 
-If no specifier is provided (just `{}`), default formatting is used.
+If no specifier is provided, default formatting is used.
 
 ### Format Specifier Options
-
-Format specifiers can include the following components, which can be combined:
 
 #### Alignment
 
@@ -574,62 +602,55 @@ Controls text alignment within a field width:
 | Specifier | Description |
 |-----------|-------------|
 | `<` | Left-aligned (pad on the right) |
-| `>` | Right-aligned (pad on the left) - default |
+| `>` | Right-aligned (pad on the left, default) |
 | `^` | Center-aligned (pad on both sides) |
-
-This is also used to control the endianness of raw data read or written.
 
 #### Width
 
-Specifies the minimum field width. The value is padded with spaces if it's shorter than this width:
+Specifies the minimum field width for text formatting:
 
 ```c
-{}    // Minimum width of 5 characters, right-aligned
+{5}    // Minimum width of 5 characters, right-aligned
 {<5}   // Minimum width of 5 characters, left-aligned
 {^5}   // Minimum width of 5 characters, center-aligned
 ```
 
-### Endianness
+#### Endianness and Raw I/O
 
-The endianness specified is used to convert the read data to native endian after reading
-in specified endianness format.
+When the `r` flag is present, alignment controls endianness and width controls raw byte count:
 
 | Specifier | Description |
 |-----------|-------------|
-| `<` | Little Endian (Least significant byte first) |
-| `>` | Big Endian (Most significant byte first, default) |
-| `^` | Native Endian (Same as host endianness) |
-
-Much like how alignment is specified, width of data read can also be specified in bytes.
+| `<` | Little Endian |
+| `>` | Big Endian (default) |
+| `^` | Native Endian |
 
 ```c
-{4}    // Read/Write 4 bytes in big endian order.
-{>4}   // Read/Write 4 bytes in big endian order.
-{<2}   // Read/Write 2 bytes in little endian order.
-{^8}   // Read/Write 8 bytes in native endian
+{4r}    // Read or write 4 bytes in big-endian order
+{>4r}   // Same as above
+{<2r}   // Read or write 2 bytes in little-endian order
+{^8r}   // Read or write 8 bytes in native-endian order
 ```
 
-#### Type Specifiers
+#### Type Flags
 
-Specifies the output format for the value:
-
-| Specifier | Description | Example Output |
-|-----------|-------------|----------------|
+| Flag | Description | Example Output |
+|------|-------------|----------------|
 | `x` | Hexadecimal format (lowercase) | `0xdeadbeef` |
 | `X` | Hexadecimal format (uppercase) | `0xDEADBEEF` |
 | `b` | Binary format | `0b10100101` |
 | `o` | Octal format | `0o777` |
-| `c` | Character format (preserve case) | Raw character bytes |
-| `a` | Character format (force lowercase) | Converts characters to lowercase |
-| `A` | Character format (force uppercase) | Converts characters to uppercase |
-| `r` | Raw data reading or writing | `\x7fELF` (magic bytes of an elf file) |
+| `c` | Character formatting, preserve case | Raw character bytes |
+| `a` | Character formatting, force lowercase | Lowercased text |
+| `A` | Character formatting, force uppercase | Uppercased text |
+| `r` | Raw data read or write | raw bytes |
 | `e` | Scientific notation (lowercase) | `1.235e+02` |
 | `E` | Scientific notation (uppercase) | `1.235E+02` |
-| `s` | Read a string in single quotes or double quotes, or a single word | `"this is a string"`, `'this as well'`, `this not a string` |
+| `s` | Read a quoted string or a single word | `"hello world"` |
 
 #### Precision
 
-For floating-point values, specifies the number of decimal places:
+For floating-point values, precision controls decimal places:
 
 ```c
 {.2}   // Two decimal places
@@ -637,104 +658,73 @@ For floating-point values, specifies the number of decimal places:
 {.10}  // Ten decimal places
 ```
 
-Precision is ignored if specified when reading/writing raw data.
+Precision is ignored for raw I/O.
 
 ### Format Examples
 
 #### Basic Formatting
 
 ```c
-// Correct usage with const char*
 const char* greeting = "Hello";
 const char* subject = "world";
 StrWriteFmt(&output, "{}, {}!", greeting, subject);  // "Hello, world!"
 
-// Escaped braces
 StrWriteFmt(&output, "{{Hello}}");  // "{Hello}"
 ```
 
 #### String Formatting
 
 ```c
-const char* str = "Hello";  // const char* variable
+const char* str = "Hello";
 
-// Basic string
-StrWriteFmt(&output, "{}", str);  // "Hello"
-
-// String with width and alignment
-StrWriteFmt(&output, "{>10}", str);  // "     Hello"
-StrWriteFmt(&output, "{<10}", str);  // "Hello     "
-StrWriteFmt(&output, "{^10}", str);  // "  Hello   "
+StrWriteFmt(&output, "{}", str);       // "Hello"
+StrWriteFmt(&output, "{>10}", str);    // "     Hello"
+StrWriteFmt(&output, "{<10}", str);    // "Hello     "
+StrWriteFmt(&output, "{^10}", str);    // "  Hello   "
 ```
 
 #### Integer Formatting
 
 ```c
 i32 val = 42;
-
-// Default decimal
-StrWriteFmt(&output, "{}", val);  // "42"
-
-// Hexadecimal
 u32 hex_val = 0xDEADBEEF;
-StrWriteFmt(&output, "{}", hex_val);  // "0xdeadbeef"
-StrWriteFmt(&output, "{}", hex_val);  // "0xDEADBEEF"
-
-// Binary
-u8 bin_val = 0xA5;  // 10100101 in binary
-StrWriteFmt(&output, "{}", bin_val);  // "0b10100101"
-
-// Octal
+u8 bin_val = 0xA5;
 u16 oct_val = 0777;
-StrWriteFmt(&output, "{}", oct_val);  // "0o777"
 
-// Width and alignment with numbers
-StrWriteFmt(&output, "{}", val);   // "   42" (right-aligned)
-StrWriteFmt(&output, "{<5}", val);  // "42   " (left-aligned)
-StrWriteFmt(&output, "{^5}", val);  // " 42  " (center-aligned)
+StrWriteFmt(&output, "{}", val);       // "42"
+StrWriteFmt(&output, "{x}", hex_val);  // "0xdeadbeef"
+StrWriteFmt(&output, "{X}", hex_val);  // "0xDEADBEEF"
+StrWriteFmt(&output, "{b}", bin_val);  // "0b10100101"
+StrWriteFmt(&output, "{o}", oct_val);  // "0o777"
+
+StrWriteFmt(&output, "{5}", val);      // "   42"
+StrWriteFmt(&output, "{<5}", val);     // "42   "
+StrWriteFmt(&output, "{^5}", val);     // " 42  "
 ```
 
-#### Character Formatting
-
-The character format specifiers (`c`, `a`, `A`) work with integer types, treating them as character data:
+#### Character and Case Formatting
 
 ```c
-// Single character (u8)
 u8 upper_char = 'M';
 u8 lower_char = 'm';
 
-StrWriteFmt(&output, "{}", upper_char);  // "M" (preserve case)
-StrWriteFmt(&output, "{}", upper_char);  // "m" (force lowercase)
-StrWriteFmt(&output, "{}", lower_char);  // "M" (force uppercase)
+StrWriteFmt(&output, "{c}", upper_char);  // "M"
+StrWriteFmt(&output, "{a}", upper_char);  // "m"
+StrWriteFmt(&output, "{A}", lower_char);  // "M"
 
-// Multi-byte integers (interpreted as character sequences)
-u16 u16_value = ('A' << 8) | 'B'; // "AB" in big-endian
-StrWriteFmt(&output, "{}", u16_value);  // "AB" (preserve case)
-StrWriteFmt(&output, "{}", u16_value);  // "ab" (force lowercase)
-StrWriteFmt(&output, "{}", u16_value);  // "AB" (force uppercase)
+u16 u16_value = ('A' << 8) | 'B';
+StrWriteFmt(&output, "{c}", u16_value);   // "AB"
+StrWriteFmt(&output, "{a}", u16_value);   // "ab"
+StrWriteFmt(&output, "{A}", u16_value);   // "AB"
 
-// Works with u32 and u64 as well, treating them as byte sequences
-u32 u32_value = ('H' << 24) | ('i' << 16) | ('!' << 8) | '!';
-StrWriteFmt(&output, "{}", u32_value);  // "Hi!!" (preserve case)
-StrWriteFmt(&output, "{}", u32_value);  // "hi!!" (force lowercase)
-StrWriteFmt(&output, "{}", u32_value);  // "HI!!" (force uppercase)
-```
-
-#### String Case Formatting
-
-Character format specifiers also work with strings:
-
-```c
 const char* mixed_case = "MiXeD CaSe";
+StrWriteFmt(&output, "{c}", mixed_case);  // "MiXeD CaSe"
+StrWriteFmt(&output, "{a}", mixed_case);  // "mixed case"
+StrWriteFmt(&output, "{A}", mixed_case);  // "MIXED CASE"
 
-StrWriteFmt(&output, "{}", mixed_case);  // "MiXeD CaSe" (preserve case)
-StrWriteFmt(&output, "{}", mixed_case);  // "mixed case" (force lowercase)
-StrWriteFmt(&output, "{}", mixed_case);  // "MIXED CASE" (force uppercase)
-
-// Also works with Str objects
 Str s = StrInitFromZstr("Hello World");
-StrWriteFmt(&output, "{}", s);  // "hello world"
-StrWriteFmt(&output, "{}", s);  // "HELLO WORLD"
+StrWriteFmt(&output, "{a}", s);           // "hello world"
+StrWriteFmt(&output, "{A}", s);           // "HELLO WORLD"
 ```
 
 #### Floating-Point Formatting
@@ -742,78 +732,70 @@ StrWriteFmt(&output, "{}", s);  // "HELLO WORLD"
 ```c
 f64 pi = 3.14159265359;
 
-// Default precision (6 decimal places)
-StrWriteFmt(&output, "{}", pi);  // "3.141593"
+StrWriteFmt(&output, "{}", pi);         // "3.141593"
+StrWriteFmt(&output, "{.2}", pi);       // "3.14"
+StrWriteFmt(&output, "{.0}", pi);       // "3"
+StrWriteFmt(&output, "{.10}", pi);      // "3.1415926536"
 
-// Custom precision
-StrWriteFmt(&output, "{.2}", pi);   // "3.14"
-StrWriteFmt(&output, "{.0}", pi);   // "3"
-StrWriteFmt(&output, "{.10}", pi);  // "3.1415926536"
+StrWriteFmt(&output, "{e}", 123.456);   // "1.235e+02"
+StrWriteFmt(&output, "{E}", 123.456);   // "1.235E+02"
+StrWriteFmt(&output, "{.3e}", 123.456); // "1.235e+02"
 
-// Scientific notation
-StrWriteFmt(&output, "{}", 123.456);  // "1.235e+02"
-StrWriteFmt(&output, "{}", 123.456);  // "1.235E+02"
-
-// Custom precision with scientific notation
-StrWriteFmt(&output, "{.3e}", 123.456);  // "1.235e+02"
-
-// Special values
 f64 pos_inf = INFINITY;
 f64 neg_inf = -INFINITY;
 f64 nan_val = NAN;
-StrWriteFmt(&output, "{}", pos_inf);  // "inf"
-StrWriteFmt(&output, "{}", neg_inf);  // "-inf"
-StrWriteFmt(&output, "{}", nan_val);  // "nan"
+StrWriteFmt(&output, "{}", pos_inf);    // "inf"
+StrWriteFmt(&output, "{}", neg_inf);    // "-inf"
+StrWriteFmt(&output, "{}", nan_val);    // "nan"
 ```
 
 ### Reading Values
 
-The library also supports parsing values from strings using the same format specifier syntax:
+`StrReadFmt` updates the input cursor variable on success, so pass an assignable pointer variable rather than a string
+literal expression.
 
 ```c
-// Reading integers
+const char* cursor = "42";
 i32 num = 0;
-StrReadFmt("42", "{}", num);  // num = 42
+StrReadFmt(cursor, "{}", num);  // num = 42
 
-// Reading hexadecimal (auto-detected with 0x prefix)
+cursor = "0xdeadbeef";
 u32 hex_val = 0;
-StrReadFmt("0xdeadbeef", "{}", hex_val);  // hex_val = 0xdeadbeef
+StrReadFmt(cursor, "{}", hex_val);  // hex_val = 0xdeadbeef
 
-// Reading binary (auto-detected with 0b prefix)
+cursor = "0b101010";
 i8 bin_val = 0;
-StrReadFmt("0b101010", "{}", bin_val);  // bin_val = 42
+StrReadFmt(cursor, "{}", bin_val);  // bin_val = 42
 
-// Reading octal (auto-detected with 0o prefix)
+cursor = "0o755";
 i32 oct_val = 0;
-StrReadFmt("0o755", "{}", oct_val);  // oct_val = 493
+StrReadFmt(cursor, "{}", oct_val);  // oct_val = 493
 
-// Reading floating point
+cursor = "3.14159";
 f64 value = 0.0;
-StrReadFmt("3.14159", "{}", value);  // value = 3.14159
+StrReadFmt(cursor, "{}", value);  // value = 3.14159
 
-// Reading scientific notation
-StrReadFmt("1.23e4", "{}", value);  // value = 12300.0
+cursor = "1.23e4";
+StrReadFmt(cursor, "{}", value);  // value = 12300.0
 
-// Reading strings
+cursor = "Alice";
 Str name = StrInit();
-StrReadFmt("Alice", "{}", name);  // name = "Alice"
+StrReadFmt(cursor, "{}", name);  // name = "Alice"
 
-// Reading quoted strings
-StrReadFmt("\"Hello, World!\"", "{}", name);  // name = "Hello, World!"
+cursor = "\"Hello, World!\"";
+StrReadFmt(cursor, "{s}", name);  // name = "Hello, World!"
 
-// Reading multiple values
+cursor = "Count: 42, Name: Alice";
 i32 count = 0;
 Str user = StrInit();
-StrReadFmt("Count: 42, Name: Alice", "Count: {}, Name: {}", count, user);
+StrReadFmt(cursor, "Count: {}, Name: {}", count, user);
 // count = 42, user = "Alice"
 ```
 
 ### Available I/O Functions
 
-The library provides several I/O functions for formatted reading and writing:
-
 - `StrWriteFmt(&str, format, ...)`: Append formatted output to a string
-- `StrReadFmt(input, format, ...)`: Parse values from a string
+- `StrReadFmt(input, format, ...)`: Parse values from a cursor variable and advance it on success
 - `FWriteFmt(file, format, ...)`: Write formatted output to a file
 - `FWriteFmtLn(file, format, ...)`: Write formatted output to a file with a newline
 - `FReadFmt(file, format, ...)`: Read formatted input from a file
@@ -843,5 +825,3 @@ This means you are free to:
 - Sell the code or derivative works
 
 No attribution is required. See the [LICENSE.md](LICENSE.md) file for details.
-
-
