@@ -58,6 +58,22 @@ bitvec_tests = [
     ['BitVec.Foreach.Simple', 'Std/BitVec.Foreach.Simple.c'],
 ]
 
+int_tests = [
+    ['Int.Type', 'Std/Int.Type.c'],
+    ['Int.Access', 'Std/Int.Access.c'],
+    ['Int.Compare', 'Std/Int.Compare.c'],
+    ['Int.Convert', 'Std/Int.Convert.c'],
+    ['Int.Math', 'Std/Int.Math.c'],
+]
+
+float_tests = [
+    ['Float.Type', 'Std/Float.Type.c'],
+    ['Float.Access', 'Std/Float.Access.c'],
+    ['Float.Compare', 'Std/Float.Compare.c'],
+    ['Float.Convert', 'Std/Float.Convert.c'],
+    ['Float.Math', 'Std/Float.Math.c'],
+]
+
 bitvec_deadend_tests = [
     ['BitVec.Access.Deadend', 'Std/BitVec.Access.Deadend.c'],
     ['BitVec.BitWise.Deadend', 'Std/BitVec.BitWise.Deadend.c'],
@@ -159,6 +175,40 @@ foreach test_info : bitvec_tests
         install: false
     )
     
+    test(test_name, test_exe)
+endforeach
+
+foreach test_info : int_tests
+    test_name = test_info[0]
+    test_src = test_info[1]
+    
+    test_exe = executable(
+        test_name,
+        files(test_src),
+        link_with: [misra_std],
+        dependencies: [test_util_dep],
+        c_args: test_args,
+        include_directories: inc_misra,
+        install: false
+    )
+    
+    test(test_name, test_exe)
+endforeach
+
+foreach test_info : float_tests
+    test_name = test_info[0]
+    test_src = test_info[1]
+
+    test_exe = executable(
+        test_name,
+        files(test_src),
+        link_with: [misra_std],
+        dependencies: [test_util_dep],
+        c_args: test_args,
+        include_directories: inc_misra,
+        install: false
+    )
+
     test(test_name, test_exe)
 endforeach
 

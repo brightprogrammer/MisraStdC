@@ -17,5 +17,7 @@
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Container/List.h>
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Container/Int.h>
+#include <Misra/Std/Container/Float.h>
 
 #endif // MISRA_STD_CONTAINER_H

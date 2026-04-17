@@ -25,6 +25,8 @@ bool test_multiple_arguments(void);
 bool test_error_handling(void);
 bool test_char_formatting(void);
 bool test_bitvec_formatting(void);
+bool test_int_formatting(void);
+bool test_float_formatting(void);
 
 // Test basic formatting features
 bool test_basic_formatting(void) {
@@ -614,6 +616,83 @@ bool test_bitvec_formatting(void) {
     return success;
 }
 
+bool test_int_formatting(void) {
+    WriteFmt("Testing Int formatting\n");
+
+    Str  output  = StrInit();
+    bool success = true;
+
+    Int big_dec = IntFromStr("123456789012345678901234567890");
+    Int hex_val = IntFromHexStr("deadbeefcafebabe1234");
+    Int bin_val = IntFromBinary("10100011");
+    Int oct_val = IntFromU64(493);
+
+    StrWriteFmt(&output, "{}", big_dec);
+    success = success && (ZstrCompare(output.data, "123456789012345678901234567890") == 0);
+    StrClear(&output);
+
+    StrWriteFmt(&output, "{x}", hex_val);
+    success = success && (ZstrCompare(output.data, "deadbeefcafebabe1234") == 0);
+    StrClear(&output);
+
+    StrWriteFmt(&output, "{X}", hex_val);
+    success = success && (ZstrCompare(output.data, "DEADBEEFCAFEBABE1234") == 0);
+    StrClear(&output);
+
+    StrWriteFmt(&output, "{b}", bin_val);
+    success = success && (ZstrCompare(output.data, "10100011") == 0);
+    StrClear(&output);
+
+    StrWriteFmt(&output, "{o}", oct_val);
+    success = success && (ZstrCompare(output.data, "755") == 0);
+    StrClear(&output);
+
+    StrWriteFmt(&output, "{>34}", big_dec);
+    success = success && (ZstrCompare(output.data, "    123456789012345678901234567890") == 0);
+
+    IntDeinit(&big_dec);
+    IntDeinit(&hex_val);
+    IntDeinit(&bin_val);
+    IntDeinit(&oct_val);
+    StrDeinit(&output);
+    return success;
+}
+
+bool test_float_formatting(void) {
+    WriteFmt("Testing Float formatting\n");
+
+    Str   output  = StrInit();
+    bool  success = true;
+    Float exact   = FloatFromStr("1234567890.012345");
+    Float sci     = FloatFromStr("12345.67");
+    Float short_v = FloatFromStr("1.2");
+
+    StrWriteFmt(&output, "{}", exact);
+    success = success && (ZstrCompare(output.data, "1234567890.012345") == 0);
+    StrClear(&output);
+
+    StrWriteFmt(&output, "{e}", sci);
+    success = success && (ZstrCompare(output.data, "1.234567e+04") == 0);
+    StrClear(&output);
+
+    StrWriteFmt(&output, "{E}", sci);
+    success = success && (ZstrCompare(output.data, "1.234567E+04") == 0);
+    StrClear(&output);
+
+    StrWriteFmt(&output, "{.3}", short_v);
+    success = success && (ZstrCompare(output.data, "1.200") == 0);
+    StrClear(&output);
+
+    StrWriteFmt(&output, "{>18}", sci);
+    success = success && (ZstrCompare(output.data, "          12345.67") == 0);
+
+    FloatDeinit(&exact);
+    FloatDeinit(&sci);
+    FloatDeinit(&short_v);
+    StrDeinit(&output);
+    return success;
+}
+
 // // Test error handling
 // bool test_error_handling(void) {
 //     WriteFmt("Testing error handling\n");
@@ -650,7 +729,9 @@ int main(void) {
         test_width_alignment_formatting,
         test_multiple_arguments,
         test_char_formatting,
-        test_bitvec_formatting
+        test_bitvec_formatting,
+        test_int_formatting,
+        test_float_formatting
         // test_error_handling
     };
 

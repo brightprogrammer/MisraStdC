@@ -37,6 +37,8 @@ A modern C11 library designed to make programming in C less painful and more pro
   - `List(T)`: Generic doubly linked list backed by shared `GenericList` runtime helpers
   - `Str` / `Strs`: Predefined `typedef`s for `Vec(char)` and `Vec(Str)`
   - `BitVec`: Packed bit container for boolean-style storage
+  - `Int`: Arbitrary-precision unsigned integer API backed by `BitVec`, with byte and radix-string conversion, arithmetic, roots, gcd/lcm, primality helpers, and modular arithmetic
+  - `Float`: Arbitrary-precision decimal floating-point API backed by `Int`, with string conversion and exact add/sub/mul plus precision-based division
   - `Iter(T)` and `Pair(xT, yT)`: Generic utility macros
 - **Rust-style formatted I/O**:
   - `WriteFmt`, `ReadFmt`: Type-safe formatted standard I/O
@@ -98,6 +100,12 @@ macros:
   call site, then forward to generic runtime helpers in `Source/`.
 - `Str` and `Strs` are ordinary `typedef`s built on top of `Vec(char)` and `Vec(Str)`.
 - `BitVec` is a dedicated concrete type, not `Vec(bool)`.
+- `Int` is a concrete bigint type with `BitVec` storage inside it, but its public API is intentionally
+  integer-oriented: initialization, radix and byte conversion, comparison, arithmetic, roots, power-of-two
+  inspection, and modular number-theory helpers are exposed directly, while raw bitvector operations remain on
+  `BitVec`.
+- `Float` is a concrete decimal floating-point type built on top of `Int`, storing a sign, an integer significand,
+  and a base-10 exponent for exact decimal arithmetic.
 
 That model has a few practical consequences:
 
@@ -582,6 +590,8 @@ void process_buffer(char* buffer) {
 - `const char*`
 - `char*`
 - `Str`
+- `Float`
+- `Int`
 - `BitVec`
 - primitive integer and floating-point types
 - `char`
@@ -700,6 +710,10 @@ StrWriteFmt(&output, "{o}", oct_val);  // "0o777"
 StrWriteFmt(&output, "{5}", val);      // "   42"
 StrWriteFmt(&output, "{<5}", val);     // "42   "
 StrWriteFmt(&output, "{^5}", val);     // " 42  "
+
+Int big = IntFromHexStr("deadbeef");
+StrWriteFmt(&output, "{x}", big);      // "deadbeef"
+StrWriteFmt(&output, "{b}", big);      // "11011110101011011011111011101111"
 ```
 
 #### Character and Case Formatting
@@ -747,6 +761,11 @@ f64 nan_val = NAN;
 StrWriteFmt(&output, "{}", pos_inf);    // "inf"
 StrWriteFmt(&output, "{}", neg_inf);    // "-inf"
 StrWriteFmt(&output, "{}", nan_val);    // "nan"
+
+Float big_float = FloatFromStr("12345.67");
+StrWriteFmt(&output, "{}", big_float);   // "12345.67"
+StrWriteFmt(&output, "{e}", big_float);  // "1.234567e+04"
+StrWriteFmt(&output, "{.3}", big_float); // "12345.670"
 ```
 
 ### Reading Values
@@ -775,8 +794,16 @@ cursor = "3.14159";
 f64 value = 0.0;
 StrReadFmt(cursor, "{}", value);  // value = 3.14159
 
+cursor = "deadbeef";
+Int big = IntInit();
+StrReadFmt(cursor, "{x}", big);   // big = 0xdeadbeef
+
 cursor = "1.23e4";
 StrReadFmt(cursor, "{}", value);  // value = 12300.0
+
+cursor = "1.234567e+04";
+Float big_float = FloatInit();
+StrReadFmt(cursor, "{e}", big_float);  // big_float = 12345.67
 
 cursor = "Alice";
 Str name = StrInit();

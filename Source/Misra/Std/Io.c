@@ -770,6 +770,231 @@ static inline void write_char_internal(Str *o, FormatFlags flags, const char *vs
     }
 }
 
+static int IntFmtDigitValue(char c) {
+    if (c >= '0' && c <= '9') {
+        return c - '0';
+    }
+    if (c >= 'a' && c <= 'f') {
+        return 10 + (c - 'a');
+    }
+    if (c >= 'A' && c <= 'F') {
+        return 10 + (c - 'A');
+    }
+
+    return -1;
+}
+
+static bool IntFmtDigitMatchesRadix(char c, u8 radix) {
+    int digit = IntFmtDigitValue(c);
+
+    return digit >= 0 && digit < radix;
+}
+
+static u8 IntFmtRadixFromFlags(FmtInfo *fmt_info) {
+    if (fmt_info && (fmt_info->flags & FMT_FLAG_HEX)) {
+        return 16;
+    }
+    if (fmt_info && (fmt_info->flags & FMT_FLAG_BINARY)) {
+        return 2;
+    }
+    if (fmt_info && (fmt_info->flags & FMT_FLAG_OCTAL)) {
+        return 8;
+    }
+
+    return 10;
+}
+
+static bool FloatFmtUsesUnsupportedFlags(FmtInfo *fmt_info) {
+    return fmt_info && (fmt_info->flags & (FMT_FLAG_CHAR | FMT_FLAG_HEX | FMT_FLAG_BINARY | FMT_FLAG_OCTAL |
+                                           FMT_FLAG_RAW | FMT_FLAG_STRING)) != 0;
+}
+
+static void FloatFmtAppendExponent(Str *out, i64 exponent, bool uppercase) {
+    char sign         = exponent < 0 ? '-' : '+';
+    u64  magnitude    = exponent < 0 ? (u64)(-(exponent + 1)) + 1 : (u64)exponent;
+    char digits[32]   = {0};
+    u32  digit_count  = 0;
+
+    if (!out) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    if (magnitude == 0) {
+        digits[digit_count++] = '0';
+    } else {
+        while (magnitude > 0) {
+            digits[digit_count++] = (char)('0' + (magnitude % 10));
+            magnitude /= 10;
+        }
+    }
+
+    StrPushBack(out, uppercase ? 'E' : 'e');
+    StrPushBack(out, sign);
+
+    if (digit_count < 2) {
+        StrPushBack(out, '0');
+    }
+
+    while (digit_count > 0) {
+        StrPushBack(out, digits[--digit_count]);
+    }
+}
+
+static Str FloatFmtToDecimalStr(Float *value, u32 precision, bool has_precision) {
+    Str canonical = FloatToStr(value);
+
+    if (!has_precision) {
+        return canonical;
+    }
+
+    {
+        Str         result = StrInit();
+        const char *body   = canonical.data;
+        const char *dot    = NULL;
+        u64         prefix = 0;
+        u64         frac   = 0;
+
+        if (canonical.data[0] == '-') {
+            StrPushBack(&result, '-');
+            body++;
+        }
+
+        dot = strchr(body, '.');
+        if (!dot) {
+            StrPushBackCstr(&result, body, ZstrLen(body));
+
+            if (precision > 0) {
+                StrPushBack(&result, '.');
+                for (u32 i = 0; i < precision; i++) {
+                    StrPushBack(&result, '0');
+                }
+            }
+
+            StrDeinit(&canonical);
+            return result;
+        }
+
+        prefix = (u64)(dot - body);
+        frac   = (u64)ZstrLen(dot + 1);
+
+        StrPushBackCstr(&result, body, prefix);
+        if (precision > 0) {
+            StrPushBack(&result, '.');
+            StrPushBackCstr(&result, dot + 1, MIN2(frac, (u64)precision));
+            for (u32 i = (u32)MIN2(frac, (u64)precision); i < precision; i++) {
+                StrPushBack(&result, '0');
+            }
+        }
+
+        if (canonical.data[0] == '-') {
+            StrPushFront(&result, '-');
+        }
+
+        StrDeinit(&canonical);
+        return result;
+    }
+}
+
+static Str FloatFmtToScientificStr(Float *value, u32 precision, bool has_precision, bool uppercase) {
+    Str digits = IntToStr(&value->significand);
+    Str result = StrInit();
+    u64 frac_digits = 0;
+    i64 exponent    = 0;
+
+    if (FloatIsZero(value)) {
+        if (value->negative) {
+            StrPushBack(&result, '-');
+        }
+        StrPushBack(&result, '0');
+        if (has_precision && precision > 0) {
+            StrPushBack(&result, '.');
+            for (u32 i = 0; i < precision; i++) {
+                StrPushBack(&result, '0');
+            }
+        }
+        FloatFmtAppendExponent(&result, 0, uppercase);
+        StrDeinit(&digits);
+        return result;
+    }
+
+    if (value->negative) {
+        StrPushBack(&result, '-');
+    }
+
+    exponent = value->exponent + (i64)digits.length - 1;
+    StrPushBack(&result, digits.data[0]);
+
+    frac_digits = has_precision ? precision : (digits.length > 0 ? digits.length - 1 : 0);
+    if (frac_digits > 0) {
+        StrPushBack(&result, '.');
+        for (u64 i = 0; i < frac_digits; i++) {
+            if (i + 1 < digits.length) {
+                StrPushBack(&result, digits.data[i + 1]);
+            } else {
+                StrPushBack(&result, '0');
+            }
+        }
+    }
+
+    FloatFmtAppendExponent(&result, exponent, uppercase);
+    StrDeinit(&digits);
+    return result;
+}
+
+static size FloatFmtTokenLength(const char *input) {
+    size pos            = 0;
+    bool saw_digit      = false;
+    bool saw_decimal    = false;
+    bool saw_exponent   = false;
+    bool need_exp_digit = false;
+    bool allow_sign     = true;
+
+    if (!input) {
+        LOG_FATAL("input is NULL");
+    }
+
+    while (input[pos]) {
+        char ch = input[pos];
+
+        if (IS_DIGIT(ch)) {
+            saw_digit      = true;
+            need_exp_digit = false;
+            allow_sign     = false;
+            pos++;
+            continue;
+        }
+
+        if ((ch == '+' || ch == '-') && allow_sign) {
+            allow_sign = false;
+            pos++;
+            continue;
+        }
+
+        if (ch == '.' && !saw_decimal && !saw_exponent) {
+            saw_decimal = true;
+            allow_sign  = false;
+            pos++;
+            continue;
+        }
+
+        if ((ch == 'e' || ch == 'E') && !saw_exponent && saw_digit) {
+            saw_exponent   = true;
+            need_exp_digit = true;
+            allow_sign     = true;
+            pos++;
+            continue;
+        }
+
+        break;
+    }
+
+    if (!saw_digit || need_exp_digit) {
+        return 0;
+    }
+
+    return pos;
+}
+
 ///
 /// Helper function to read characters into a buffer, handling hex escape sequences
 ///
@@ -1238,6 +1463,43 @@ void _write_f32(Str *o, FmtInfo *fmt_info, f32 *v) {
 
     f64 val = *v;
     _write_f64(o, fmt_info, &val);
+}
+
+void _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
+    size start_len = 0;
+    Str  temp      = StrInit();
+
+    if (!o || !fmt_info || !value) {
+        LOG_FATAL("Invalid arguments");
+        return;
+    }
+
+    ValidateStr(o);
+    ValidateFloat(value);
+
+    if (FloatFmtUsesUnsupportedFlags(fmt_info)) {
+        LOG_FATAL("Float only supports decimal and scientific formatting");
+    }
+
+    start_len = o->length;
+    if (fmt_info->flags & FMT_FLAG_SCIENTIFIC) {
+        temp = FloatFmtToScientificStr(
+            value,
+            fmt_info->precision,
+            (fmt_info->flags & FMT_FLAG_HAS_PRECISION) != 0,
+            (fmt_info->flags & FMT_FLAG_CAPS) != 0
+        );
+    } else {
+        temp = FloatFmtToDecimalStr(value, fmt_info->precision, (fmt_info->flags & FMT_FLAG_HAS_PRECISION) != 0);
+    }
+
+    StrMerge(o, &temp);
+    StrDeinit(&temp);
+
+    if (fmt_info->width > 0) {
+        size content_len = o->length - start_len;
+        PadString(o, fmt_info->width, fmt_info->align, content_len);
+    }
 }
 
 // Helper function to handle escape sequences
@@ -2341,6 +2603,53 @@ void _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
     }
 }
 
+void _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
+    if (!o || !fmt_info || !value) {
+        LOG_FATAL("Invalid arguments");
+        return;
+    }
+
+    ValidateStr(o);
+    ValidateInt(value);
+
+    if (fmt_info->flags & FMT_FLAG_CHAR) {
+        u64 byte_len = IntByteLength(value);
+
+        if (byte_len == 0) {
+            return;
+        }
+
+        u8 *buffer = (u8 *)calloc(byte_len, sizeof(u8));
+
+        if (!buffer) {
+            LOG_FATAL("Failed to allocate buffer for Int character formatting");
+        }
+
+        (void)IntToBytesBE(value, buffer, byte_len);
+        write_char_internal(o, fmt_info->flags, (const char *)buffer, byte_len);
+        FREE(buffer);
+        return;
+    }
+
+    size start_len = o->length;
+    Str  temp      = StrInit();
+    u8   radix     = IntFmtRadixFromFlags(fmt_info);
+
+    if (radix == 10) {
+        temp = IntToStr(value);
+    } else {
+        temp = IntToStrRadix(value, radix, (fmt_info->flags & FMT_FLAG_CAPS) != 0);
+    }
+
+    StrMerge(o, &temp);
+    StrDeinit(&temp);
+
+    if (fmt_info->width > 0) {
+        size content_len = o->length - start_len;
+        PadString(o, fmt_info->width, fmt_info->align, content_len);
+    }
+}
+
 void _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s) {
     (void)o;
     (void)fmt_info;
@@ -2462,6 +2771,117 @@ const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
 
     StrDeinit(&bin_str);
     return i;
+}
+
+const char *_read_Int(const char *i, FmtInfo *fmt_info, Int *value) {
+    if (!i || !value) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
+        LOG_ERROR("Character-format reads are not supported for Int");
+        return i;
+    }
+
+    ValidateInt(value);
+
+    while (IS_SPACE(*i)) {
+        i++;
+    }
+
+    if (!*i) {
+        LOG_ERROR("Failed to parse Int: empty input");
+        return i;
+    }
+
+    const char *start        = i;
+    const char *digits_start = i;
+    u8          radix        = IntFmtRadixFromFlags(fmt_info);
+
+    if (*digits_start == '+') {
+        digits_start++;
+        i++;
+    }
+
+    if (radix == 16 && digits_start[0] == '0' && (digits_start[1] == 'x' || digits_start[1] == 'X')) {
+        LOG_ERROR("Int hex reads expect plain hex digits without a 0x prefix");
+        return start;
+    }
+    if (radix == 2 && digits_start[0] == '0' && (digits_start[1] == 'b' || digits_start[1] == 'B')) {
+        LOG_ERROR("Int binary reads expect plain binary digits without a 0b prefix");
+        return start;
+    }
+    if (radix == 8 && digits_start[0] == '0' && (digits_start[1] == 'o' || digits_start[1] == 'O')) {
+        LOG_ERROR("Int octal reads expect plain octal digits without a 0o prefix");
+        return start;
+    }
+
+    while (*i && IntFmtDigitMatchesRadix(*i, radix)) {
+        i++;
+    }
+
+    if (i == digits_start) {
+        LOG_ERROR("Failed to parse Int");
+        return start;
+    }
+
+    if (*i == '_') {
+        LOG_ERROR("Int reads do not accept digit separators");
+        return start;
+    }
+
+    Str temp   = StrInitFromCstr(start, i - start);
+    Int parsed = IntFromStrRadix(temp.data, radix);
+
+    IntDeinit(value);
+    *value = parsed;
+
+    StrDeinit(&temp);
+    return i;
+}
+
+const char *_read_Float(const char *i, FmtInfo *fmt_info, Float *value) {
+    size        token_len = 0;
+    const char *start     = NULL;
+    Str         temp      = StrInit();
+    Float       parsed    = FloatInit();
+
+    if (!i || !value) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    if (FloatFmtUsesUnsupportedFlags(fmt_info)) {
+        LOG_ERROR("Float only supports decimal and scientific reading");
+        return i;
+    }
+
+    ValidateFloat(value);
+
+    while (IS_SPACE(*i)) {
+        i++;
+    }
+
+    if (!*i) {
+        LOG_ERROR("Failed to parse Float: empty input");
+        return i;
+    }
+
+    start     = i;
+    token_len = FloatFmtTokenLength(start);
+
+    if (token_len == 0) {
+        LOG_ERROR("Failed to parse Float");
+        return start;
+    }
+
+    temp   = StrInitFromCstr(start, token_len);
+    parsed = FloatFromStr(temp.data);
+
+    FloatDeinit(value);
+    *value = parsed;
+
+    StrDeinit(&temp);
+    return start + token_len;
 }
 
 const char *_read_UnsupportedType(const char *i, FmtInfo *fmt_info, const char **s) {

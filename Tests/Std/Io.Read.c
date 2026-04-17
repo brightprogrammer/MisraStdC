@@ -38,6 +38,8 @@ bool test_error_handling_reading(void);
 bool test_character_ordinal_reading(void);
 bool test_string_case_conversion_reading(void);
 bool test_bitvec_reading(void);
+bool test_int_reading(void);
+bool test_float_reading(void);
 
 // Test decimal integer reading
 bool test_integer_decimal_reading(void) {
@@ -881,6 +883,93 @@ bool test_bitvec_reading(void) {
     return success;
 }
 
+bool test_int_reading(void) {
+    WriteFmt("Testing Int reading\n");
+
+    const char *z = NULL;
+    bool        success = true;
+
+    Int dec = IntInit();
+    Int hex = IntInit();
+    Int bin = IntInit();
+    Int oct = IntInit();
+
+    Str dec_text = StrInit();
+    Str hex_text = StrInit();
+    Str bin_text = StrInit();
+    Str oct_text = StrInit();
+
+    z = "123456789012345678901234567890";
+    StrReadFmt(z, "{}", dec);
+    dec_text = IntToStr(&dec);
+    success  = success && (ZstrCompare(dec_text.data, "123456789012345678901234567890") == 0);
+
+    z = "deadbeefcafebabe1234";
+    StrReadFmt(z, "{x}", hex);
+    hex_text = IntToHexStr(&hex);
+    success  = success && (ZstrCompare(hex_text.data, "deadbeefcafebabe1234") == 0);
+
+    z = "10100011";
+    StrReadFmt(z, "{b}", bin);
+    bin_text = IntToBinary(&bin);
+    success  = success && (ZstrCompare(bin_text.data, "10100011") == 0);
+
+    z = "755";
+    StrReadFmt(z, "{o}", oct);
+    oct_text = IntToOctStr(&oct);
+    success  = success && (ZstrCompare(oct_text.data, "755") == 0);
+
+    StrDeinit(&dec_text);
+    StrDeinit(&hex_text);
+    StrDeinit(&bin_text);
+    StrDeinit(&oct_text);
+    IntDeinit(&dec);
+    IntDeinit(&hex);
+    IntDeinit(&bin);
+    IntDeinit(&oct);
+
+    return success;
+}
+
+bool test_float_reading(void) {
+    WriteFmt("Testing Float reading\n");
+
+    const char *z = NULL;
+    bool        success = true;
+
+    Float dec = FloatInit();
+    Float sci = FloatInit();
+    Float neg = FloatInit();
+
+    Str dec_text = StrInit();
+    Str sci_text = StrInit();
+    Str neg_text = StrInit();
+
+    z = "1234567890.012345";
+    StrReadFmt(z, "{}", dec);
+    dec_text = FloatToStr(&dec);
+    success  = success && (ZstrCompare(dec_text.data, "1234567890.012345") == 0);
+
+    z = "1.234567e+04";
+    StrReadFmt(z, "{e}", sci);
+    sci_text = FloatToStr(&sci);
+    success  = success && (ZstrCompare(sci_text.data, "12345.67") == 0);
+
+    z = "-0.00125";
+    StrReadFmt(z, "{}", neg);
+    neg_text = FloatToStr(&neg);
+    success  = success && (ZstrCompare(neg_text.data, "-0.00125") == 0);
+
+    StrDeinit(&dec_text);
+    StrDeinit(&sci_text);
+    StrDeinit(&neg_text);
+    FloatDeinit(&dec);
+    FloatDeinit(&sci);
+    FloatDeinit(&neg);
+
+    return success;
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting format reader tests\n\n");
@@ -898,7 +987,9 @@ int main(void) {
         test_error_handling_reading,
         test_character_ordinal_reading,
         test_string_case_conversion_reading,
-        test_bitvec_reading
+        test_bitvec_reading,
+        test_int_reading,
+        test_float_reading
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

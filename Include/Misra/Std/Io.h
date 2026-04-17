@@ -134,7 +134,10 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 #    define IOFMT(x)                                                                                                   \
         _Generic(                                                                                                      \
             (x),                                                                                                       \
+            TypeSpecificIO: (x),                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                       \
+            Float: TO_TYPE_SPECIFIC_IO(Float, &(x)),                                                                   \
+            Int: TO_TYPE_SPECIFIC_IO(Int, &(x)),                                                                       \
             BitVec: TO_TYPE_SPECIFIC_IO(BitVec, &(x)),                                                                 \
             const char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                             \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                   \
@@ -167,7 +170,10 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 #    define IOFMT(x)                                                                                                   \
         _Generic(                                                                                                      \
             (x),                                                                                                       \
+            TypeSpecificIO: (x),                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, (void *)&(x)),                                                               \
+            Float: TO_TYPE_SPECIFIC_IO(Float, (void *)&(x)),                                                           \
+            Int: TO_TYPE_SPECIFIC_IO(Int, (void *)&(x)),                                                               \
             BitVec: TO_TYPE_SPECIFIC_IO(BitVec, (void *)&(x)),                                                         \
             const char *: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                     \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                           \
@@ -536,7 +542,9 @@ void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s);
 void _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s);
 void _write_f32(Str *o, FmtInfo *fmt_info, f32 *v);
 void _write_f64(Str *o, FmtInfo *fmt_info, f64 *v);
+void _write_Float(Str *o, FmtInfo *fmt_info, Float *value);
 void _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv);
+void _write_Int(Str *o, FmtInfo *fmt_info, Int *value);
 
 const char *_read_Str(const char *i, FmtInfo *fmt_info, Str *s);
 const char *_read_u8(const char *i, FmtInfo *fmt_info, u8 *v);
@@ -551,6 +559,8 @@ const char *_read_Zstr(const char *i, FmtInfo *fmt_info, const char **v);
 const char *_read_UnsupportedType(const char *i, FmtInfo *fmt_info, const char **s);
 const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v);
 const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v);
+const char *_read_Float(const char *i, FmtInfo *fmt_info, Float *value);
 const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv);
+const char *_read_Int(const char *i, FmtInfo *fmt_info, Int *value);
 
 #endif // MISRA_STD_IO
