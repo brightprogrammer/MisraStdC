@@ -5,7 +5,7 @@
 [![Windows Build](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows-msvc.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows-msvc.yml)
 [![Fuzzing](https://github.com/brightprogrammer/MisraStdC/actions/workflows/fuzz.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/fuzz.yml)
 
-> While this was really fun to do, I realize there will always be some limitations of this library. If you just wanna have some fun with macros, go ahead and try this library, otherwise I think maintaining it is a real PITA. There will always exist a use-case that's just too covoluted to handle. Ciao Ciao!
+> ~~While this was really fun to do, I realize there will always be some limitations of this library. If you just wanna have some fun with macros, go ahead and try this library, otherwise I think maintaining it is a real PITA. There will always exist a use-case that's just too covoluted to handle. Ciao Ciao!~~ Let's give it another shot!
 
 A modern C11 library designed to make programming in C less painful and more productive, written in pure C. MisraStdC provides generic containers, string handling, and formatted I/O inspired by higher-level languages while maintaining C's performance and control.
 
