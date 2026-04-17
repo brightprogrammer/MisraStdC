@@ -32,7 +32,7 @@ bool test_float_negate_abs(void) {
 
     bool result = strcmp(text.data, "-12.5") == 0;
 
-    StrClear(&text);
+    StrDeinit(&text);
     FloatAbs(&value);
     text   = FloatToStr(&value);
     result = result && (strcmp(text.data, "12.5") == 0);
@@ -171,7 +171,7 @@ bool test_float_sub_generic(void) {
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "3.5") == 0);
 
-    StrClear(&text);
+    StrDeinit(&text);
     FloatSub(&result_value, &a, -2);
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "7.5") == 0);
