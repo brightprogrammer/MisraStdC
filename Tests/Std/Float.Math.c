@@ -95,12 +95,12 @@ bool test_float_add_generic(void) {
     text = FloatToStr(&result_value);
     bool result = strcmp(text.data, "2") == 0;
 
-    StrClear(&text);
+    StrDeinit(&text);
     FloatAdd(&result_value, &a, whole);
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "3.25") == 0);
 
-    StrClear(&text);
+    StrDeinit(&text);
     FloatAdd(&result_value, &a, 0.75);
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "2") == 0);
@@ -166,7 +166,7 @@ bool test_float_sub_generic(void) {
     text = FloatToStr(&result_value);
     bool result = strcmp(text.data, "5") == 0;
 
-    StrClear(&text);
+    StrDeinit(&text);
     FloatSub(&result_value, &a, whole);
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "3.5") == 0);
@@ -237,12 +237,12 @@ bool test_float_mul_generic(void) {
     text = FloatToStr(&result_value);
     bool result = strcmp(text.data, "3") == 0;
 
-    StrClear(&text);
+    StrDeinit(&text);
     FloatMul(&result_value, &a, whole);
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "3") == 0);
 
-    StrClear(&text);
+    StrDeinit(&text);
     FloatMul(&result_value, &a, -2);
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "-3") == 0);
@@ -308,12 +308,12 @@ bool test_float_div_generic(void) {
     text = FloatToStr(&result_value);
     bool result = strcmp(text.data, "3") == 0;
 
-    StrClear(&text);
+    StrDeinit(&text);
     FloatDiv(&result_value, &a, whole, 1);
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "2.5") == 0);
 
-    StrClear(&text);
+    StrDeinit(&text);
     FloatDiv(&result_value, &a, 0.5, 1);
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "15") == 0);
