@@ -8,22 +8,20 @@
 bool test_int_shift_left_grows(void);
 bool test_int_shift_right_shrinks(void);
 bool test_int_add(void);
-bool test_int_add_u64(void);
 bool test_int_add_generic(void);
 bool test_int_sub(void);
-bool test_int_sub_u64(void);
 bool test_int_sub_generic(void);
 bool test_int_sub_underflow_preserves_result(void);
 bool test_int_mul(void);
-bool test_int_mul_u64(void);
+bool test_int_mul_scalar(void);
 bool test_int_mul_zero(void);
 bool test_int_square(void);
-bool test_int_pow_u64(void);
+bool test_int_pow_generic(void);
 bool test_int_div_mod(void);
 bool test_int_div(void);
 bool test_int_div_exact(void);
 bool test_int_div_exact_failure_preserves_result(void);
-bool test_int_div_u64_rem(void);
+bool test_int_div_mod_scalar(void);
 bool test_int_mod(void);
 bool test_int_gcd(void);
 bool test_int_lcm(void);
@@ -39,8 +37,9 @@ bool test_int_mod_add(void);
 bool test_int_mod_sub(void);
 bool test_int_mod_mul(void);
 bool test_int_mod_div(void);
-bool test_int_pow_u64_mod(void);
-bool test_int_mod_pow(void);
+bool test_int_mod_scalar(void);
+bool test_int_pow_mod_scalar(void);
+bool test_int_pow_mod_integer_exponent(void);
 bool test_int_mod_inv(void);
 bool test_int_mod_sqrt(void);
 bool test_int_mod_sqrt_no_solution(void);
@@ -52,17 +51,17 @@ bool test_int_add_null_result(void);
 bool test_int_shift_left_null(void);
 bool test_int_div_by_zero(void);
 bool test_int_root_zero_degree(void);
-bool test_int_div_u64_zero_divisor(void);
-bool test_int_mod_u64_zero_modulus(void);
+bool test_int_div_scalar_zero_divisor(void);
+bool test_int_mod_scalar_zero_modulus(void);
 bool test_int_mod_div_zero_modulus(void);
 bool test_int_jacobi_even_denominator(void);
-bool test_int_pow_u64_mod_zero_modulus(void);
-bool test_int_mod_pow_zero_modulus(void);
+bool test_int_pow_mod_scalar_zero_modulus(void);
+bool test_int_pow_mod_integer_zero_modulus(void);
 
 bool test_int_shift_left_grows(void) {
     WriteFmt("Testing IntShiftLeft\n");
 
-    Int value = IntFromU64(3);
+    Int value = IntFrom(3);
 
     IntShiftLeft(&value, 4);
 
@@ -90,8 +89,8 @@ bool test_int_shift_right_shrinks(void) {
 bool test_int_add(void) {
     WriteFmt("Testing IntAdd\n");
 
-    Int a      = IntFromU64(255);
-    Int b      = IntFromU64(1);
+    Int a      = IntFrom(255);
+    Int b      = IntFrom(1);
     Int result_value = IntInit();
     Str text   = StrInit();
 
@@ -108,30 +107,14 @@ bool test_int_add(void) {
     return result;
 }
 
-bool test_int_add_u64(void) {
-    WriteFmt("Testing IntAddU64\n");
-
-    Int value = IntFromStr("123456789012345678901234567890");
-    Int result_value = IntInit();
-    Str text = StrInit();
-
-    IntAddU64(&result_value, &value, 10);
-    text = IntToStr(&result_value);
-
-    bool result = strcmp(text.data, "123456789012345678901234567900") == 0;
-
-    IntDeinit(&value);
-    IntDeinit(&result_value);
-    StrDeinit(&text);
-    return result;
-}
-
 bool test_int_add_generic(void) {
     WriteFmt("Testing IntAdd generic dispatch\n");
 
-    Int base         = IntFromU64(40);
-    Int rhs          = IntFromU64(2);
+    Int base         = IntFrom(40);
+    Int rhs          = IntFrom(2);
     Int result_value = IntInit();
+    Int huge         = IntFromStr("123456789012345678901234567890");
+    Str text         = StrInit();
 
     IntAdd(&result_value, &base, rhs);
     bool result = IntToU64(&result_value) == 42;
@@ -142,17 +125,23 @@ bool test_int_add_generic(void) {
     IntAdd(&result_value, &base, -2);
     result = result && (IntToU64(&result_value) == 38);
 
+    IntAdd(&result_value, &huge, 10);
+    text   = IntToStr(&result_value);
+    result = result && (strcmp(text.data, "123456789012345678901234567900") == 0);
+
     IntDeinit(&base);
     IntDeinit(&rhs);
     IntDeinit(&result_value);
+    IntDeinit(&huge);
+    StrDeinit(&text);
     return result;
 }
 
 bool test_int_sub(void) {
     WriteFmt("Testing IntSub\n");
 
-    Int a      = IntFromU64(256);
-    Int b      = IntFromU64(1);
+    Int a      = IntFrom(256);
+    Int b      = IntFrom(1);
     Int result_value = IntInit();
 
     bool result = IntSub(&result_value, &a, &b);
@@ -164,30 +153,15 @@ bool test_int_sub(void) {
     return result;
 }
 
-bool test_int_sub_u64(void) {
-    WriteFmt("Testing IntSubU64\n");
-
-    Int value = IntFromStr("12345678901234567890");
-    Int result_value = IntInit();
-    Str text = StrInit();
-
-    bool result = IntSubU64(&result_value, &value, 90);
-    text = IntToStr(&result_value);
-    result = result && (strcmp(text.data, "12345678901234567800") == 0);
-
-    IntDeinit(&value);
-    IntDeinit(&result_value);
-    StrDeinit(&text);
-    return result;
-}
-
 bool test_int_sub_generic(void) {
     WriteFmt("Testing IntSub generic dispatch\n");
 
-    Int base         = IntFromU64(40);
-    Int rhs          = IntFromU64(2);
+    Int base         = IntFrom(40);
+    Int rhs          = IntFrom(2);
     Int result_value = IntInit();
-    Int preserved    = IntFromU64(99);
+    Int preserved    = IntFrom(99);
+    Int huge         = IntFromStr("12345678901234567890");
+    Str text         = StrInit();
 
     bool result = IntSub(&result_value, &base, rhs);
     result      = result && (IntToU64(&result_value) == 38);
@@ -198,6 +172,10 @@ bool test_int_sub_generic(void) {
     result = result && IntSub(&result_value, &base, -2);
     result = result && (IntToU64(&result_value) == 42);
 
+    result = result && IntSub(&result_value, &huge, 90);
+    text   = IntToStr(&result_value);
+    result = result && (strcmp(text.data, "12345678901234567800") == 0);
+
     result = result && !IntSub(&preserved, &base, 50);
     result = result && (IntToU64(&preserved) == 99);
 
@@ -205,15 +183,17 @@ bool test_int_sub_generic(void) {
     IntDeinit(&rhs);
     IntDeinit(&result_value);
     IntDeinit(&preserved);
+    IntDeinit(&huge);
+    StrDeinit(&text);
     return result;
 }
 
 bool test_int_sub_underflow_preserves_result(void) {
     WriteFmt("Testing IntSub underflow handling\n");
 
-    Int a      = IntFromU64(3);
-    Int b      = IntFromU64(5);
-    Int result_value = IntFromU64(99);
+    Int a      = IntFrom(3);
+    Int b      = IntFrom(5);
+    Int result_value = IntFrom(99);
 
     bool result = !IntSub(&result_value, &a, &b);
     result      = result && (IntToU64(&result_value) == 99);
@@ -227,8 +207,8 @@ bool test_int_sub_underflow_preserves_result(void) {
 bool test_int_mul(void) {
     WriteFmt("Testing IntMul\n");
 
-    Int a      = IntFromU64(21);
-    Int b      = IntFromU64(6);
+    Int a      = IntFrom(21);
+    Int b      = IntFrom(6);
     Int result_value = IntInit();
 
     IntMul(&result_value, &a, &b);
@@ -241,14 +221,14 @@ bool test_int_mul(void) {
     return result;
 }
 
-bool test_int_mul_u64(void) {
-    WriteFmt("Testing IntMulU64\n");
+bool test_int_mul_scalar(void) {
+    WriteFmt("Testing IntMul generic dispatch\n");
 
     Int value = IntFromStr("12345678901234567890");
     Int result_value = IntInit();
     Str text = StrInit();
 
-    IntMulU64(&result_value, &value, 25);
+    IntMul(&result_value, &value, 25u);
     text = IntToStr(&result_value);
 
     bool result = strcmp(text.data, "308641972530864197250") == 0;
@@ -262,8 +242,8 @@ bool test_int_mul_u64(void) {
 bool test_int_mul_zero(void) {
     WriteFmt("Testing IntMul with zero\n");
 
-    Int a      = IntFromU64(0);
-    Int b      = IntFromU64(12345);
+    Int a      = IntFrom(0);
+    Int b      = IntFrom(12345);
     Int result_value = IntInit();
 
     IntMul(&result_value, &a, &b);
@@ -280,7 +260,7 @@ bool test_int_mul_zero(void) {
 bool test_int_square(void) {
     WriteFmt("Testing IntSquare\n");
 
-    Int value = IntFromU64(12345);
+    Int value = IntFrom(12345);
     Int result_value = IntInit();
 
     IntSquare(&result_value, &value);
@@ -292,34 +272,39 @@ bool test_int_square(void) {
     return result;
 }
 
-bool test_int_pow_u64(void) {
-    WriteFmt("Testing IntPowU64\n");
+bool test_int_pow_generic(void) {
+    WriteFmt("Testing IntPow generic dispatch\n");
 
-    Int base = IntFromU64(7);
+    Int base = IntFrom(7);
+    Int exponent = IntFrom(20);
     Int result_value = IntInit();
     Str text = StrInit();
 
-    IntPowU64(&result_value, &base, 20);
-    text = IntToStr(&result_value);
-
+    IntPow(&result_value, &base, 20u);
+    text   = IntToStr(&result_value);
     bool result = strcmp(text.data, "79792266297612001") == 0;
 
+    StrDeinit(&text);
+    IntPow(&result_value, &base, exponent);
+    text   = IntToStr(&result_value);
+    result = result && (strcmp(text.data, "79792266297612001") == 0);
+
     IntDeinit(&base);
+    IntDeinit(&exponent);
     IntDeinit(&result_value);
     StrDeinit(&text);
     return result;
 }
 
 bool test_int_div_mod(void) {
-    WriteFmt("Testing IntDivMod\n");
+    WriteFmt("Testing IntDivMod generic dispatch\n");
 
     Int dividend  = IntFromStr("12345678901234567890");
-    Int divisor   = IntFromU64(97);
     Int quotient  = IntInit();
     Int remainder = IntInit();
     Str qtext     = StrInit();
 
-    IntDivMod(&quotient, &remainder, &dividend, &divisor);
+    IntDivMod(&quotient, &remainder, &dividend, 97u);
     qtext = IntToStr(&quotient);
 
     bool result = strcmp(qtext.data, "127275040218913071") == 0;
@@ -327,43 +312,38 @@ bool test_int_div_mod(void) {
 
     StrDeinit(&qtext);
     IntDeinit(&dividend);
-    IntDeinit(&divisor);
     IntDeinit(&quotient);
     IntDeinit(&remainder);
     return result;
 }
 
 bool test_int_div(void) {
-    WriteFmt("Testing IntDiv\n");
+    WriteFmt("Testing IntDiv generic dispatch\n");
 
-    Int dividend = IntFromU64(126);
-    Int divisor  = IntFromU64(10);
+    Int dividend = IntFrom(126);
     Int result_value = IntInit();
 
-    IntDiv(&result_value, &dividend, &divisor);
+    IntDiv(&result_value, &dividend, 10u);
 
     bool result = IntToU64(&result_value) == 12;
 
     IntDeinit(&dividend);
-    IntDeinit(&divisor);
     IntDeinit(&result_value);
     return result;
 }
 
 bool test_int_div_exact(void) {
-    WriteFmt("Testing IntDivExact\n");
+    WriteFmt("Testing IntDivExact generic dispatch\n");
 
     Int dividend = IntFromStr("12345678901234567890");
-    Int divisor = IntFromU64(90);
     Int result_value = IntInit();
     Str text = StrInit();
 
-    bool result = IntDivExact(&result_value, &dividend, &divisor);
+    bool result = IntDivExact(&result_value, &dividend, 90u);
     text = IntToStr(&result_value);
     result = result && (strcmp(text.data, "137174210013717421") == 0);
 
     IntDeinit(&dividend);
-    IntDeinit(&divisor);
     IntDeinit(&result_value);
     StrDeinit(&text);
     return result;
@@ -372,9 +352,9 @@ bool test_int_div_exact(void) {
 bool test_int_div_exact_failure_preserves_result(void) {
     WriteFmt("Testing IntDivExact failure handling\n");
 
-    Int dividend = IntFromU64(10);
-    Int divisor = IntFromU64(3);
-    Int result_value = IntFromU64(99);
+    Int dividend = IntFrom(10);
+    Int divisor = IntFrom(3);
+    Int result_value = IntFrom(99);
 
     bool result = !IntDivExact(&result_value, &dividend, &divisor);
     result      = result && (IntToU64(&result_value) == 99);
@@ -385,58 +365,61 @@ bool test_int_div_exact_failure_preserves_result(void) {
     return result;
 }
 
-bool test_int_div_u64_rem(void) {
-    WriteFmt("Testing IntDivU64Rem\n");
+bool test_int_div_mod_scalar(void) {
+    WriteFmt("Testing IntDivMod scalar-divisor dispatch\n");
 
     Int dividend = IntFromStr("12345678901234567890");
     Int quotient = IntInit();
+    Int remainder = IntInit();
     Str text = StrInit();
-    u64 remainder = 0;
 
-    remainder = IntDivU64Rem(&quotient, &dividend, 97);
+    IntDivMod(&quotient, &remainder, &dividend, 97);
     text = IntToStr(&quotient);
 
     bool result = strcmp(text.data, "127275040218913071") == 0;
-    result      = result && (remainder == 3);
+    result      = result && (IntToU64(&remainder) == 3);
 
     IntDeinit(&dividend);
     IntDeinit(&quotient);
+    IntDeinit(&remainder);
     StrDeinit(&text);
     return result;
 }
 
 bool test_int_mod(void) {
-    WriteFmt("Testing IntMod\n");
+    WriteFmt("Testing IntMod generic dispatch\n");
 
-    Int dividend = IntFromU64(126);
-    Int divisor  = IntFromU64(10);
+    Int dividend = IntFrom(126);
     Int result_value = IntInit();
 
-    IntMod(&result_value, &dividend, &divisor);
+    IntMod(&result_value, &dividend, 10u);
 
     bool result = IntToU64(&result_value) == 6;
 
     IntDeinit(&dividend);
-    IntDeinit(&divisor);
     IntDeinit(&result_value);
     return result;
 }
 
-bool test_int_mod_u64(void) {
-    WriteFmt("Testing IntModU64\n");
+bool test_int_mod_scalar(void) {
+    WriteFmt("Testing IntMod scalar-divisor dispatch\n");
 
     Int value = IntFromStr("12345678901234567890");
-    u64 remainder = IntModU64(&value, 97);
+    Int remainder = IntInit();
+
+    IntMod(&remainder, &value, 97u);
 
     IntDeinit(&value);
-    return remainder == 3;
+    bool result = IntToU64(&remainder) == 3;
+    IntDeinit(&remainder);
+    return result;
 }
 
 bool test_int_gcd(void) {
     WriteFmt("Testing IntGCD\n");
 
-    Int a = IntFromU64(48);
-    Int b = IntFromU64(18);
+    Int a = IntFrom(48);
+    Int b = IntFrom(18);
     Int result_value = IntInit();
 
     IntGCD(&result_value, &a, &b);
@@ -452,8 +435,8 @@ bool test_int_gcd(void) {
 bool test_int_lcm(void) {
     WriteFmt("Testing IntLCM\n");
 
-    Int a = IntFromU64(21);
-    Int b = IntFromU64(6);
+    Int a = IntFrom(21);
+    Int b = IntFrom(6);
     Int result_value = IntInit();
 
     IntLCM(&result_value, &a, &b);
@@ -469,7 +452,7 @@ bool test_int_lcm(void) {
 bool test_int_root(void) {
     WriteFmt("Testing IntRoot\n");
 
-    Int value = IntFromU64(4096);
+    Int value = IntFrom(4096);
     Int result_value = IntInit();
 
     IntRoot(&result_value, &value, 4);
@@ -484,7 +467,7 @@ bool test_int_root(void) {
 bool test_int_root_rem(void) {
     WriteFmt("Testing IntRootRem\n");
 
-    Int value = IntFromU64(200);
+    Int value = IntFrom(200);
     Int root = IntInit();
     Int remainder = IntInit();
 
@@ -502,7 +485,7 @@ bool test_int_root_rem(void) {
 bool test_int_sqrt(void) {
     WriteFmt("Testing IntSqrt\n");
 
-    Int value = IntFromU64(200);
+    Int value = IntFrom(200);
     Int result_value = IntInit();
 
     IntSqrt(&result_value, &value);
@@ -517,7 +500,7 @@ bool test_int_sqrt(void) {
 bool test_int_sqrt_rem(void) {
     WriteFmt("Testing IntSqrtRem\n");
 
-    Int value = IntFromU64(200);
+    Int value = IntFrom(200);
     Int root = IntInit();
     Int remainder = IntInit();
 
@@ -535,8 +518,8 @@ bool test_int_sqrt_rem(void) {
 bool test_int_is_perfect_square(void) {
     WriteFmt("Testing IntIsPerfectSquare\n");
 
-    Int square = IntFromU64(144);
-    Int non_square = IntFromU64(145);
+    Int square = IntFrom(144);
+    Int non_square = IntFrom(145);
 
     bool result = IntIsPerfectSquare(&square);
     result      = result && !IntIsPerfectSquare(&non_square);
@@ -549,9 +532,9 @@ bool test_int_is_perfect_square(void) {
 bool test_int_is_perfect_power(void) {
     WriteFmt("Testing IntIsPerfectPower\n");
 
-    Int power = IntFromU64(81);
-    Int non_power = IntFromU64(82);
-    Int one = IntFromU64(1);
+    Int power = IntFrom(81);
+    Int non_power = IntFrom(82);
+    Int one = IntFrom(1);
 
     bool result = IntIsPerfectPower(&power);
     result      = result && !IntIsPerfectPower(&non_power);
@@ -566,10 +549,10 @@ bool test_int_is_perfect_power(void) {
 bool test_int_jacobi(void) {
     WriteFmt("Testing IntJacobi\n");
 
-    Int a = IntFromU64(5);
-    Int p = IntFromU64(7);
-    Int b = IntFromU64(9);
-    Int n = IntFromU64(21);
+    Int a = IntFrom(5);
+    Int p = IntFrom(7);
+    Int b = IntFrom(9);
+    Int n = IntFrom(21);
 
     bool result = IntJacobi(&a, &p) == -1;
     result      = result && (IntJacobi(&b, &n) == 0);
@@ -584,8 +567,8 @@ bool test_int_jacobi(void) {
 bool test_int_square_mod(void) {
     WriteFmt("Testing IntSquareMod\n");
 
-    Int value = IntFromU64(12345);
-    Int mod = IntFromU64(97);
+    Int value = IntFrom(12345);
+    Int mod = IntFrom(97);
     Int result_value = IntInit();
 
     IntSquareMod(&result_value, &value, &mod);
@@ -601,9 +584,9 @@ bool test_int_square_mod(void) {
 bool test_int_mod_add(void) {
     WriteFmt("Testing IntModAdd\n");
 
-    Int a = IntFromU64(100);
-    Int b = IntFromU64(250);
-    Int m = IntFromU64(13);
+    Int a = IntFrom(100);
+    Int b = IntFrom(250);
+    Int m = IntFrom(13);
     Int result_value = IntInit();
 
     IntModAdd(&result_value, &a, &b, &m);
@@ -620,9 +603,9 @@ bool test_int_mod_add(void) {
 bool test_int_mod_sub(void) {
     WriteFmt("Testing IntModSub\n");
 
-    Int a = IntFromU64(5);
-    Int b = IntFromU64(9);
-    Int m = IntFromU64(13);
+    Int a = IntFrom(5);
+    Int b = IntFrom(9);
+    Int m = IntFrom(13);
     Int result_value = IntInit();
 
     IntModSub(&result_value, &a, &b, &m);
@@ -639,9 +622,9 @@ bool test_int_mod_sub(void) {
 bool test_int_mod_mul(void) {
     WriteFmt("Testing IntModMul\n");
 
-    Int a = IntFromU64(123);
-    Int b = IntFromU64(456);
-    Int m = IntFromU64(97);
+    Int a = IntFrom(123);
+    Int b = IntFrom(456);
+    Int m = IntFrom(97);
     Int result_value = IntInit();
 
     IntModMul(&result_value, &a, &b, &m);
@@ -658,9 +641,9 @@ bool test_int_mod_mul(void) {
 bool test_int_mod_div(void) {
     WriteFmt("Testing IntModDiv\n");
 
-    Int a = IntFromU64(10);
-    Int b = IntFromU64(3);
-    Int m = IntFromU64(13);
+    Int a = IntFrom(10);
+    Int b = IntFrom(3);
+    Int m = IntFrom(13);
     Int result_value = IntInit();
     Int check = IntInit();
 
@@ -668,7 +651,7 @@ bool test_int_mod_div(void) {
     result      = result && (IntToU64(&result_value) == 12);
 
     IntModMul(&check, &result_value, &b, &m);
-    result = result && (IntCompareU64(&check, 10) == 0);
+    result = result && (IntCompare(&check, 10) == 0);
 
     IntDeinit(&a);
     IntDeinit(&b);
@@ -678,14 +661,14 @@ bool test_int_mod_div(void) {
     return result;
 }
 
-bool test_int_pow_u64_mod(void) {
-    WriteFmt("Testing IntPowU64Mod\n");
+bool test_int_pow_mod_scalar(void) {
+    WriteFmt("Testing IntPowMod scalar-exponent dispatch\n");
 
-    Int base = IntFromU64(7);
-    Int mod = IntFromU64(13);
+    Int base = IntFrom(7);
+    Int mod = IntFrom(13);
     Int result_value = IntInit();
 
-    IntPowU64Mod(&result_value, &base, 20, &mod);
+    IntPowMod(&result_value, &base, 20u, &mod);
 
     bool result = IntToU64(&result_value) == 3;
 
@@ -695,15 +678,15 @@ bool test_int_pow_u64_mod(void) {
     return result;
 }
 
-bool test_int_mod_pow(void) {
-    WriteFmt("Testing IntModPow\n");
+bool test_int_pow_mod_integer_exponent(void) {
+    WriteFmt("Testing IntPowMod Int-exponent dispatch\n");
 
-    Int base = IntFromU64(4);
-    Int exp = IntFromU64(13);
-    Int mod = IntFromU64(497);
+    Int base = IntFrom(4);
+    Int exp = IntFrom(13);
+    Int mod = IntFrom(497);
     Int result_value = IntInit();
 
-    IntModPow(&result_value, &base, &exp, &mod);
+    IntPowMod(&result_value, &base, &exp, &mod);
 
     bool result = IntToU64(&result_value) == 445;
 
@@ -717,8 +700,8 @@ bool test_int_mod_pow(void) {
 bool test_int_mod_inv(void) {
     WriteFmt("Testing IntModInv\n");
 
-    Int value = IntFromU64(3);
-    Int mod = IntFromU64(11);
+    Int value = IntFrom(3);
+    Int mod = IntFrom(11);
     Int result_value = IntInit();
     Int check = IntInit();
 
@@ -738,14 +721,14 @@ bool test_int_mod_inv(void) {
 bool test_int_mod_sqrt(void) {
     WriteFmt("Testing IntModSqrt\n");
 
-    Int value = IntFromU64(10);
-    Int mod = IntFromU64(13);
+    Int value = IntFrom(10);
+    Int mod = IntFrom(13);
     Int root = IntInit();
     Int check = IntInit();
 
     bool result = IntModSqrt(&root, &value, &mod);
     IntSquareMod(&check, &root, &mod);
-    result = result && (IntCompareU64(&check, 10) == 0);
+    result = result && (IntCompare(&check, 10) == 0);
 
     IntDeinit(&value);
     IntDeinit(&mod);
@@ -757,12 +740,12 @@ bool test_int_mod_sqrt(void) {
 bool test_int_mod_sqrt_no_solution(void) {
     WriteFmt("Testing IntModSqrt no-solution case\n");
 
-    Int value = IntFromU64(3);
-    Int mod = IntFromU64(7);
-    Int root = IntFromU64(99);
+    Int value = IntFrom(3);
+    Int mod = IntFrom(7);
+    Int root = IntFrom(99);
 
     bool result = !IntModSqrt(&root, &value, &mod);
-    result      = result && (IntCompareU64(&root, 99) == 0);
+    result      = result && (IntCompare(&root, 99) == 0);
 
     IntDeinit(&value);
     IntDeinit(&mod);
@@ -774,7 +757,7 @@ bool test_int_is_probable_prime(void) {
     WriteFmt("Testing IntIsProbablePrime\n");
 
     Int prime = IntFromStr("1000000007");
-    Int composite = IntFromU64(561);
+    Int composite = IntFrom(561);
 
     bool result = IntIsProbablePrime(&prime);
     result      = result && !IntIsProbablePrime(&composite);
@@ -805,9 +788,9 @@ bool test_int_next_prime(void) {
 bool test_int_mod_inv_no_solution(void) {
     WriteFmt("Testing IntModInv no-solution case\n");
 
-    Int value = IntFromU64(6);
-    Int mod = IntFromU64(15);
-    Int result_value = IntFromU64(99);
+    Int value = IntFrom(6);
+    Int mod = IntFrom(15);
+    Int result_value = IntFrom(99);
 
     bool result = !IntModInv(&result_value, &value, &mod);
     result      = result && (IntToU64(&result_value) == 99);
@@ -821,13 +804,13 @@ bool test_int_mod_inv_no_solution(void) {
 bool test_int_mod_div_no_solution(void) {
     WriteFmt("Testing IntModDiv no-solution case\n");
 
-    Int a = IntFromU64(1);
-    Int b = IntFromU64(6);
-    Int m = IntFromU64(15);
-    Int result_value = IntFromU64(99);
+    Int a = IntFrom(1);
+    Int b = IntFrom(6);
+    Int m = IntFrom(15);
+    Int result_value = IntFrom(99);
 
     bool result = !IntModDiv(&result_value, &a, &b, &m);
-    result      = result && (IntCompareU64(&result_value, 99) == 0);
+    result      = result && (IntCompare(&result_value, 99) == 0);
 
     IntDeinit(&a);
     IntDeinit(&b);
@@ -839,8 +822,8 @@ bool test_int_mod_div_no_solution(void) {
 bool test_int_add_null_result(void) {
     WriteFmt("Testing IntAdd NULL result handling\n");
 
-    Int a = IntFromU64(1);
-    Int b = IntFromU64(2);
+    Int a = IntFrom(1);
+    Int b = IntFrom(2);
 
     IntAdd(NULL, &a, &b);
     return false;
@@ -856,7 +839,7 @@ bool test_int_shift_left_null(void) {
 bool test_int_div_by_zero(void) {
     WriteFmt("Testing Int division by zero handling\n");
 
-    Int dividend  = IntFromU64(1);
+    Int dividend  = IntFrom(1);
     Int divisor   = IntInit();
     Int quotient  = IntInit();
     Int remainder = IntInit();
@@ -868,7 +851,7 @@ bool test_int_div_by_zero(void) {
 bool test_int_root_zero_degree(void) {
     WriteFmt("Testing IntRoot zero-degree handling\n");
 
-    Int value = IntFromU64(16);
+    Int value = IntFrom(16);
     Int root = IntInit();
     Int remainder = IntInit();
 
@@ -876,30 +859,31 @@ bool test_int_root_zero_degree(void) {
     return false;
 }
 
-bool test_int_div_u64_zero_divisor(void) {
-    WriteFmt("Testing IntDivU64Rem zero-divisor handling\n");
+bool test_int_div_scalar_zero_divisor(void) {
+    WriteFmt("Testing IntDiv scalar zero-divisor handling\n");
 
-    Int dividend = IntFromU64(10);
+    Int dividend = IntFrom(10);
     Int quotient = IntInit();
 
-    (void)IntDivU64Rem(&quotient, &dividend, 0);
+    IntDiv(&quotient, &dividend, 0u);
     return false;
 }
 
-bool test_int_mod_u64_zero_modulus(void) {
-    WriteFmt("Testing IntModU64 zero modulus handling\n");
+bool test_int_mod_scalar_zero_modulus(void) {
+    WriteFmt("Testing IntMod scalar zero-modulus handling\n");
 
-    Int value = IntFromU64(10);
+    Int value = IntFrom(10);
+    Int result_value = IntInit();
 
-    (void)IntModU64(&value, 0);
+    IntMod(&result_value, &value, 0u);
     return false;
 }
 
 bool test_int_mod_div_zero_modulus(void) {
     WriteFmt("Testing IntModDiv zero modulus handling\n");
 
-    Int a = IntFromU64(10);
-    Int b = IntFromU64(3);
+    Int a = IntFrom(10);
+    Int b = IntFrom(3);
     Int m = IntInit();
     Int result_value = IntInit();
 
@@ -910,33 +894,33 @@ bool test_int_mod_div_zero_modulus(void) {
 bool test_int_jacobi_even_denominator(void) {
     WriteFmt("Testing IntJacobi even denominator handling\n");
 
-    Int a = IntFromU64(3);
-    Int n = IntFromU64(8);
+    Int a = IntFrom(3);
+    Int n = IntFrom(8);
 
     (void)IntJacobi(&a, &n);
     return false;
 }
 
-bool test_int_pow_u64_mod_zero_modulus(void) {
-    WriteFmt("Testing IntPowU64Mod zero modulus handling\n");
+bool test_int_pow_mod_scalar_zero_modulus(void) {
+    WriteFmt("Testing IntPowMod scalar-exponent zero modulus handling\n");
 
-    Int base = IntFromU64(2);
+    Int base = IntFrom(2);
     Int mod = IntInit();
     Int result_value = IntInit();
 
-    IntPowU64Mod(&result_value, &base, 8, &mod);
+    IntPowMod(&result_value, &base, 8u, &mod);
     return false;
 }
 
-bool test_int_mod_pow_zero_modulus(void) {
-    WriteFmt("Testing IntModPow zero modulus handling\n");
+bool test_int_pow_mod_integer_zero_modulus(void) {
+    WriteFmt("Testing IntPowMod Int-exponent zero modulus handling\n");
 
-    Int base = IntFromU64(2);
-    Int exp = IntFromU64(8);
+    Int base = IntFrom(2);
+    Int exp = IntFrom(8);
     Int mod = IntInit();
     Int result_value = IntInit();
 
-    IntModPow(&result_value, &base, &exp, &mod);
+    IntPowMod(&result_value, &base, &exp, &mod);
     return false;
 }
 
@@ -947,24 +931,22 @@ int main(void) {
         test_int_shift_left_grows,
         test_int_shift_right_shrinks,
         test_int_add,
-        test_int_add_u64,
         test_int_add_generic,
         test_int_sub,
-        test_int_sub_u64,
         test_int_sub_generic,
         test_int_sub_underflow_preserves_result,
         test_int_mul,
-        test_int_mul_u64,
+        test_int_mul_scalar,
         test_int_mul_zero,
         test_int_square,
-        test_int_pow_u64,
+        test_int_pow_generic,
         test_int_div_mod,
         test_int_div,
         test_int_div_exact,
         test_int_div_exact_failure_preserves_result,
-        test_int_div_u64_rem,
+        test_int_div_mod_scalar,
         test_int_mod,
-        test_int_mod_u64,
+        test_int_mod_scalar,
         test_int_gcd,
         test_int_lcm,
         test_int_root,
@@ -979,8 +961,8 @@ int main(void) {
         test_int_mod_sub,
         test_int_mod_mul,
         test_int_mod_div,
-        test_int_pow_u64_mod,
-        test_int_mod_pow,
+        test_int_pow_mod_scalar,
+        test_int_pow_mod_integer_exponent,
         test_int_mod_inv,
         test_int_mod_sqrt,
         test_int_mod_sqrt_no_solution,
@@ -995,12 +977,12 @@ int main(void) {
         test_int_shift_left_null,
         test_int_div_by_zero,
         test_int_root_zero_degree,
-        test_int_div_u64_zero_divisor,
-        test_int_mod_u64_zero_modulus,
+        test_int_div_scalar_zero_divisor,
+        test_int_mod_scalar_zero_modulus,
         test_int_mod_div_zero_modulus,
         test_int_jacobi_even_denominator,
-        test_int_pow_u64_mod_zero_modulus,
-        test_int_mod_pow_zero_modulus,
+        test_int_pow_mod_scalar_zero_modulus,
+        test_int_pow_mod_integer_zero_modulus,
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);

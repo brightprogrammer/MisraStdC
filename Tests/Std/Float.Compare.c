@@ -85,13 +85,21 @@ bool test_float_compare_wrappers(void) {
 }
 
 bool test_float_compare_generic(void) {
-    WriteFmt("Testing Float generic compare macros\n");
+    WriteFmt("Testing FloatCompare generic dispatch\n");
 
     Float value = FloatFromStr("12.5");
     Float same  = FloatFromStr("12.5");
-    Int   whole = IntFromU64(12);
+    Int   whole = IntFrom(12);
+    Int   next  = IntFrom(13);
 
-    bool result = FloatEQ(&value, same);
+    bool result = (FloatCompare(&value, same) == 0);
+    result      = result && (FloatCompare(&value, whole) > 0);
+    result      = result && (FloatCompare(&value, &next) < 0);
+    result      = result && (FloatCompare(&value, 12) > 0);
+    result      = result && (FloatCompare(&value, -1) > 0);
+    result      = result && (FloatCompare(&value, 12.5f) == 0);
+    result      = result && (FloatCompare(&value, 12.5) == 0);
+    result      = result && FloatEQ(&value, same);
     result      = result && FloatEQ(&value, 12.5);
     result      = result && FloatGE(&value, 12.5f);
     result      = result && FloatGT(&value, whole);
@@ -101,6 +109,7 @@ bool test_float_compare_generic(void) {
     FloatDeinit(&value);
     FloatDeinit(&same);
     IntDeinit(&whole);
+    IntDeinit(&next);
     return result;
 }
 

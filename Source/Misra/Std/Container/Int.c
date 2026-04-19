@@ -79,7 +79,7 @@ static SignedInt sint_init(void) {
 }
 
 static SignedInt sint_from_u64(u64 value) {
-    SignedInt result = {.negative = false, .magnitude = IntFromU64(value)};
+    SignedInt result = {.negative = false, .magnitude = MISRA_PRIV_IntFromU64(value)};
     return result;
 }
 
@@ -167,7 +167,7 @@ static bool int_is_one(Int *value) {
 
 static void int_mul_u64_in_place(Int *value, u64 factor) {
     Int lhs    = IntClone(value);
-    Int rhs    = IntFromU64(factor);
+    Int rhs    = MISRA_PRIV_IntFromU64(factor);
     Int result = IntInit();
 
     IntMul(&result, &lhs, &rhs);
@@ -179,7 +179,7 @@ static void int_mul_u64_in_place(Int *value, u64 factor) {
 
 static void int_add_u64_in_place(Int *value, u64 addend) {
     Int lhs    = IntClone(value);
-    Int rhs    = IntFromU64(addend);
+    Int rhs    = MISRA_PRIV_IntFromU64(addend);
     Int result = IntInit();
 
     IntAdd(&result, &lhs, &rhs);
@@ -348,7 +348,7 @@ Int IntClone(Int *value) {
     return clone;
 }
 
-Int IntFromU64(u64 value) {
+Int MISRA_PRIV_IntFromU64(u64 value) {
     u64 bits = int_u64_bits(value);
 
     if (bits == 0) {
@@ -356,6 +356,14 @@ Int IntFromU64(u64 value) {
     }
 
     return int_wrap(BitVecFromInteger(value, bits));
+}
+
+Int MISRA_PRIV_IntFromI64(i64 value) {
+    if (value < 0) {
+        LOG_FATAL("Int cannot represent negative values");
+    }
+
+    return MISRA_PRIV_IntFromU64((u64)value);
 }
 
 u64 IntToU64(Int *value) {
@@ -516,7 +524,7 @@ Str IntToStrRadix(Int *value, u8 radix, bool uppercase) {
         Int quotient = IntInit();
         u64 digit    = 0;
 
-        digit = IntDivU64Rem(&quotient, &current, radix);
+        digit = MISRA_PRIV_IntDivU64Rem(&quotient, &current, radix);
         StrPushBack(&result, int_radix_char((u8)digit, uppercase));
 
         IntDeinit(&current);
@@ -583,7 +591,7 @@ Str IntToHexStr(Int *value) {
     return IntToStrRadix(value, 16, false);
 }
 
-int IntCompare(Int *lhs, Int *rhs) {
+int(IntCompare)(Int *lhs, Int *rhs) {
     ValidateInt(lhs);
     ValidateInt(rhs);
 
@@ -609,7 +617,7 @@ int IntCompare(Int *lhs, Int *rhs) {
     return 0;
 }
 
-int IntCompareU64(Int *lhs, u64 rhs) {
+int MISRA_PRIV_IntCompareU64(Int *lhs, u64 rhs) {
     ValidateInt(lhs);
 
     if (IntBitLength(lhs) > 64) {
@@ -628,14 +636,14 @@ int IntCompareU64(Int *lhs, u64 rhs) {
     return 0;
 }
 
-int IntCompareI64(Int *lhs, i64 rhs) {
+int MISRA_PRIV_IntCompareI64(Int *lhs, i64 rhs) {
     ValidateInt(lhs);
 
     if (rhs < 0) {
         return 1;
     }
 
-    return IntCompareU64(lhs, (u64)rhs);
+    return MISRA_PRIV_IntCompareU64(lhs, (u64)rhs);
 }
 
 void IntShiftLeft(Int *value, u64 positions) {
@@ -719,7 +727,7 @@ void(IntAdd)(Int *result, Int *a, Int *b) {
     *result = temp;
 }
 
-void IntAddU64(Int *result, Int *value, u64 addend) {
+void MISRA_PRIV_IntAddU64(Int *result, Int *value, u64 addend) {
     ValidateInt(result);
     ValidateInt(value);
 
@@ -729,18 +737,18 @@ void IntAddU64(Int *result, Int *value, u64 addend) {
     int_replace(result, &temp);
 }
 
-void IntAddI64(Int *result, Int *value, i64 addend) {
+void MISRA_PRIV_IntAddI64(Int *result, Int *value, i64 addend) {
     u64 magnitude = int_i64_magnitude(addend);
 
     ValidateInt(result);
     ValidateInt(value);
 
     if (addend >= 0) {
-        IntAddU64(result, value, magnitude);
+        MISRA_PRIV_IntAddU64(result, value, magnitude);
         return;
     }
 
-    if (!IntSubU64(result, value, magnitude)) {
+    if (!MISRA_PRIV_IntSubU64(result, value, magnitude)) {
         LOG_FATAL("IntAdd would produce a negative result");
     }
 }
@@ -780,32 +788,32 @@ bool(IntSub)(Int *result, Int *a, Int *b) {
     return true;
 }
 
-bool IntSubU64(Int *result, Int *value, u64 subtrahend) {
+bool MISRA_PRIV_IntSubU64(Int *result, Int *value, u64 subtrahend) {
     ValidateInt(result);
     ValidateInt(value);
 
-    Int rhs = IntFromU64(subtrahend);
+    Int rhs = MISRA_PRIV_IntFromU64(subtrahend);
     bool ok = IntSub(result, value, &rhs);
 
     IntDeinit(&rhs);
     return ok;
 }
 
-bool IntSubI64(Int *result, Int *value, i64 subtrahend) {
+bool MISRA_PRIV_IntSubI64(Int *result, Int *value, i64 subtrahend) {
     u64 magnitude = int_i64_magnitude(subtrahend);
 
     ValidateInt(result);
     ValidateInt(value);
 
     if (subtrahend >= 0) {
-        return IntSubU64(result, value, magnitude);
+        return MISRA_PRIV_IntSubU64(result, value, magnitude);
     }
 
-    IntAddU64(result, value, magnitude);
+    MISRA_PRIV_IntAddU64(result, value, magnitude);
     return true;
 }
 
-void IntMul(Int *result, Int *a, Int *b) {
+void(IntMul)(Int *result, Int *a, Int *b) {
     ValidateInt(result);
     ValidateInt(a);
     ValidateInt(b);
@@ -842,7 +850,7 @@ void IntMul(Int *result, Int *a, Int *b) {
     *result = acc;
 }
 
-void IntMulU64(Int *result, Int *value, u64 factor) {
+void MISRA_PRIV_IntMulU64(Int *result, Int *value, u64 factor) {
     ValidateInt(result);
     ValidateInt(value);
 
@@ -852,15 +860,35 @@ void IntMulU64(Int *result, Int *value, u64 factor) {
     int_replace(result, &temp);
 }
 
+void MISRA_PRIV_IntMulI64(Int *result, Int *value, i64 factor) {
+    if (factor < 0) {
+        LOG_FATAL("Int cannot be multiplied by a negative scalar");
+    }
+
+    MISRA_PRIV_IntMulU64(result, value, (u64)factor);
+}
+
 void IntSquare(Int *result, Int *value) {
     IntMul(result, value, value);
 }
 
-void IntPowU64(Int *result, Int *base, u64 exponent) {
+void(IntPow)(Int *result, Int *base, Int *exponent) {
+    ValidateInt(result);
+    ValidateInt(base);
+    ValidateInt(exponent);
+
+    if (!IntFitsU64(exponent)) {
+        LOG_FATAL("Int exponent exceeds u64 range");
+    }
+
+    MISRA_PRIV_IntPowU64(result, base, IntToU64(exponent));
+}
+
+void MISRA_PRIV_IntPowU64(Int *result, Int *base, u64 exponent) {
     ValidateInt(result);
     ValidateInt(base);
 
-    Int acc      = IntFromU64(1);
+    Int acc      = MISRA_PRIV_IntFromU64(1);
     Int current  = IntClone(base);
 
     while (exponent > 0) {
@@ -886,7 +914,15 @@ void IntPowU64(Int *result, Int *base, u64 exponent) {
     int_replace(result, &acc);
 }
 
-void IntDivMod(Int *quotient, Int *remainder, Int *dividend, Int *divisor) {
+void MISRA_PRIV_IntPowI64(Int *result, Int *base, i64 exponent) {
+    if (exponent < 0) {
+        LOG_FATAL("Int exponent cannot be negative");
+    }
+
+    MISRA_PRIV_IntPowU64(result, base, (u64)exponent);
+}
+
+void(IntDivMod)(Int *quotient, Int *remainder, Int *dividend, Int *divisor) {
     ValidateInt(quotient);
     ValidateInt(remainder);
     ValidateInt(dividend);
@@ -945,7 +981,7 @@ void IntDivMod(Int *quotient, Int *remainder, Int *dividend, Int *divisor) {
     int_replace(remainder, &r);
 }
 
-void IntDiv(Int *result, Int *dividend, Int *divisor) {
+void(IntDiv)(Int *result, Int *dividend, Int *divisor) {
     Int quotient  = IntInit();
     Int remainder = IntInit();
 
@@ -954,7 +990,7 @@ void IntDiv(Int *result, Int *dividend, Int *divisor) {
     int_replace(result, &quotient);
 }
 
-bool IntDivExact(Int *result, Int *dividend, Int *divisor) {
+bool(IntDivExact)(Int *result, Int *dividend, Int *divisor) {
     ValidateInt(result);
     ValidateInt(dividend);
     ValidateInt(divisor);
@@ -978,7 +1014,51 @@ bool IntDivExact(Int *result, Int *dividend, Int *divisor) {
     return true;
 }
 
-u64 IntDivU64Rem(Int *quotient, Int *dividend, u64 divisor) {
+void MISRA_PRIV_IntDivU64(Int *result, Int *dividend, u64 divisor) {
+    Int divisor_value = MISRA_PRIV_IntFromU64(divisor);
+
+    IntDiv(result, dividend, &divisor_value);
+    IntDeinit(&divisor_value);
+}
+
+void MISRA_PRIV_IntDivI64(Int *result, Int *dividend, i64 divisor) {
+    Int divisor_value = MISRA_PRIV_IntFromI64(divisor);
+
+    IntDiv(result, dividend, &divisor_value);
+    IntDeinit(&divisor_value);
+}
+
+bool MISRA_PRIV_IntDivExactU64(Int *result, Int *dividend, u64 divisor) {
+    Int  divisor_value = MISRA_PRIV_IntFromU64(divisor);
+    bool ok            = IntDivExact(result, dividend, &divisor_value);
+
+    IntDeinit(&divisor_value);
+    return ok;
+}
+
+bool MISRA_PRIV_IntDivExactI64(Int *result, Int *dividend, i64 divisor) {
+    Int  divisor_value = MISRA_PRIV_IntFromI64(divisor);
+    bool ok            = IntDivExact(result, dividend, &divisor_value);
+
+    IntDeinit(&divisor_value);
+    return ok;
+}
+
+void MISRA_PRIV_IntDivModU64(Int *quotient, Int *remainder, Int *dividend, u64 divisor) {
+    Int divisor_value = MISRA_PRIV_IntFromU64(divisor);
+
+    IntDivMod(quotient, remainder, dividend, &divisor_value);
+    IntDeinit(&divisor_value);
+}
+
+void MISRA_PRIV_IntDivModI64(Int *quotient, Int *remainder, Int *dividend, i64 divisor) {
+    Int divisor_value = MISRA_PRIV_IntFromI64(divisor);
+
+    IntDivMod(quotient, remainder, dividend, &divisor_value);
+    IntDeinit(&divisor_value);
+}
+
+u64 MISRA_PRIV_IntDivU64Rem(Int *quotient, Int *dividend, u64 divisor) {
     ValidateInt(quotient);
     ValidateInt(dividend);
 
@@ -986,7 +1066,7 @@ u64 IntDivU64Rem(Int *quotient, Int *dividend, u64 divisor) {
         LOG_FATAL("Division by zero");
     }
 
-    Int divisor_value = IntFromU64(divisor);
+    Int divisor_value = MISRA_PRIV_IntFromU64(divisor);
     Int remainder     = IntInit();
     u64 rem           = 0;
 
@@ -998,7 +1078,7 @@ u64 IntDivU64Rem(Int *quotient, Int *dividend, u64 divisor) {
     return rem;
 }
 
-void IntMod(Int *result, Int *dividend, Int *divisor) {
+void(IntMod)(Int *result, Int *dividend, Int *divisor) {
     Int quotient  = IntInit();
     Int remainder = IntInit();
 
@@ -1007,7 +1087,21 @@ void IntMod(Int *result, Int *dividend, Int *divisor) {
     int_replace(result, &remainder);
 }
 
-u64 IntModU64(Int *value, u64 modulus) {
+void MISRA_PRIV_IntModU64Into(Int *result, Int *dividend, u64 divisor) {
+    Int quotient = IntInit();
+
+    MISRA_PRIV_IntDivModU64(&quotient, result, dividend, divisor);
+    IntDeinit(&quotient);
+}
+
+void MISRA_PRIV_IntModI64Into(Int *result, Int *dividend, i64 divisor) {
+    Int quotient = IntInit();
+
+    MISRA_PRIV_IntDivModI64(&quotient, result, dividend, divisor);
+    IntDeinit(&quotient);
+}
+
+u64 MISRA_PRIV_IntModU64(Int *value, u64 modulus) {
     ValidateInt(value);
 
     if (modulus == 0) {
@@ -1015,7 +1109,7 @@ u64 IntModU64(Int *value, u64 modulus) {
     }
 
     Int quotient = IntInit();
-    u64 rem      = IntDivU64Rem(&quotient, value, modulus);
+    u64 rem      = MISRA_PRIV_IntDivU64Rem(&quotient, value, modulus);
 
     IntDeinit(&quotient);
     return rem;
@@ -1098,9 +1192,9 @@ void IntRootRem(Int *root, Int *remainder, Int *value, u64 degree) {
     u64 bits       = IntBitLength(value);
     u64 high_shift = bits / degree;
     Int low        = IntInit();
-    Int high       = IntFromU64(1);
+    Int high       = MISRA_PRIV_IntFromU64(1);
     Int best       = IntInit();
-    Int one        = IntFromU64(1);
+    Int one        = MISRA_PRIV_IntFromU64(1);
 
     if ((bits % degree) != 0) {
         high_shift++;
@@ -1121,7 +1215,7 @@ void IntRootRem(Int *root, Int *remainder, Int *value, u64 degree) {
         IntShiftRight(&sum, 1);
         mid = sum;
 
-        IntPowU64(&mid_pow, &mid, degree);
+        MISRA_PRIV_IntPowU64(&mid_pow, &mid, degree);
         cmp = IntCompare(&mid_pow, value);
 
         if (cmp <= 0) {
@@ -1153,7 +1247,7 @@ void IntRootRem(Int *root, Int *remainder, Int *value, u64 degree) {
         Int power = IntInit();
         Int rem   = IntInit();
 
-        IntPowU64(&power, &best, degree);
+        MISRA_PRIV_IntPowU64(&power, &best, degree);
         (void)IntSub(&rem, value, &power);
 
         IntDeinit(&power);
@@ -1245,7 +1339,7 @@ int IntJacobi(Int *a, Int *n) {
             u64 n_mod_8 = 0;
 
             IntShiftRight(&aa, 1);
-            n_mod_8 = IntModU64(&nn, 8);
+            n_mod_8 = MISRA_PRIV_IntModU64(&nn, 8);
             if (n_mod_8 == 3 || n_mod_8 == 5) {
                 result = -result;
             }
@@ -1253,7 +1347,7 @@ int IntJacobi(Int *a, Int *n) {
 
         int_swap(&aa, &nn);
 
-        if (IntModU64(&aa, 4) == 3 && IntModU64(&nn, 4) == 3) {
+        if (MISRA_PRIV_IntModU64(&aa, 4) == 3 && MISRA_PRIV_IntModU64(&nn, 4) == 3) {
             result = -result;
         }
 
@@ -1261,7 +1355,7 @@ int IntJacobi(Int *a, Int *n) {
     }
 
     IntDeinit(&aa);
-    if (IntCompareU64(&nn, 1) != 0) {
+    if (MISRA_PRIV_IntCompareU64(&nn, 1) != 0) {
         IntDeinit(&nn);
         return 0;
     }
@@ -1386,7 +1480,7 @@ void IntSquareMod(Int *result, Int *value, Int *modulus) {
     IntModMul(result, value, value, modulus);
 }
 
-void IntPowU64Mod(Int *result, Int *base, u64 exponent, Int *modulus) {
+void MISRA_PRIV_IntPowU64Mod(Int *result, Int *base, u64 exponent, Int *modulus) {
     ValidateInt(result);
     ValidateInt(base);
     ValidateInt(modulus);
@@ -1395,7 +1489,7 @@ void IntPowU64Mod(Int *result, Int *base, u64 exponent, Int *modulus) {
         LOG_FATAL("modulus is zero");
     }
 
-    Int acc      = IntFromU64(1);
+    Int acc      = MISRA_PRIV_IntFromU64(1);
     Int base_mod = IntInit();
 
     IntMod(&acc, &acc, modulus);
@@ -1424,7 +1518,7 @@ void IntPowU64Mod(Int *result, Int *base, u64 exponent, Int *modulus) {
     int_replace(result, &acc);
 }
 
-void IntModPow(Int *result, Int *base, Int *exponent, Int *modulus) {
+void(IntPowMod)(Int *result, Int *base, Int *exponent, Int *modulus) {
     ValidateInt(result);
     ValidateInt(base);
     ValidateInt(exponent);
@@ -1434,7 +1528,7 @@ void IntModPow(Int *result, Int *base, Int *exponent, Int *modulus) {
         LOG_FATAL("modulus is zero");
     }
 
-    Int acc      = IntFromU64(1);
+    Int acc      = MISRA_PRIV_IntFromU64(1);
     Int base_mod = IntInit();
     Int exp      = IntClone(exponent);
 
@@ -1465,6 +1559,14 @@ void IntModPow(Int *result, Int *base, Int *exponent, Int *modulus) {
     int_replace(result, &acc);
 }
 
+void MISRA_PRIV_IntPowI64Mod(Int *result, Int *base, i64 exponent, Int *modulus) {
+    if (exponent < 0) {
+        LOG_FATAL("Int exponent cannot be negative");
+    }
+
+    MISRA_PRIV_IntPowU64Mod(result, base, (u64)exponent, modulus);
+}
+
 bool IntModInv(Int *result, Int *value, Int *modulus) {
     ValidateInt(result);
     ValidateInt(value);
@@ -1479,7 +1581,7 @@ bool IntModInv(Int *result, Int *value, Int *modulus) {
     SignedInt new_t   = sint_from_u64(1);
     Int       r       = IntClone(modulus);
     Int       new_r   = IntInit();
-    Int       one     = IntFromU64(1);
+    Int       one     = MISRA_PRIV_IntFromU64(1);
     bool      ok      = false;
 
     IntMod(&reduced, value, modulus);
@@ -1556,7 +1658,7 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
         IntDeinit(&a);
         return true;
     }
-    if (IntCompareU64(modulus, 2) == 0) {
+    if (MISRA_PRIV_IntCompareU64(modulus, 2) == 0) {
         int_replace(result, &a);
         return true;
     }
@@ -1568,13 +1670,13 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
         IntDeinit(&a);
         return false;
     }
-    if (IntModU64(modulus, 4) == 3) {
+    if (MISRA_PRIV_IntModU64(modulus, 4) == 3) {
         Int exponent = IntClone(modulus);
         Int root     = IntInit();
 
-        IntAddU64(&exponent, &exponent, 1);
+        MISRA_PRIV_IntAddU64(&exponent, &exponent, 1);
         IntShiftRight(&exponent, 2);
-        IntModPow(&root, &a, &exponent, modulus);
+        IntPowMod(&root, &a, &exponent, modulus);
 
         IntDeinit(&exponent);
         IntDeinit(&a);
@@ -1584,32 +1686,32 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
 
     {
         Int q       = IntClone(modulus);
-        Int z       = IntFromU64(2);
+        Int z       = MISRA_PRIV_IntFromU64(2);
         Int c       = IntInit();
         Int t       = IntInit();
         Int r       = IntInit();
         Int exponent = IntInit();
         u64 m       = 0;
 
-        (void)IntSubU64(&q, &q, 1);
+        (void)MISRA_PRIV_IntSubU64(&q, &q, 1);
         while (IntIsEven(&q)) {
             IntShiftRight(&q, 1);
             m++;
         }
 
         while (IntJacobi(&z, modulus) != -1) {
-            IntAddU64(&z, &z, 1);
+            MISRA_PRIV_IntAddU64(&z, &z, 1);
         }
 
-        IntModPow(&c, &z, &q, modulus);
-        IntModPow(&t, &a, &q, modulus);
+        IntPowMod(&c, &z, &q, modulus);
+        IntPowMod(&t, &a, &q, modulus);
 
         exponent = IntClone(&q);
-        IntAddU64(&exponent, &exponent, 1);
+        MISRA_PRIV_IntAddU64(&exponent, &exponent, 1);
         IntShiftRight(&exponent, 1);
-        IntModPow(&r, &a, &exponent, modulus);
+        IntPowMod(&r, &a, &exponent, modulus);
 
-        while (IntCompareU64(&t, 1) != 0) {
+        while (MISRA_PRIV_IntCompareU64(&t, 1) != 0) {
             Int t_power = IntClone(&t);
             u64 i       = 0;
 
@@ -1620,7 +1722,7 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
                 IntDeinit(&t_power);
                 t_power = next;
 
-                if (IntCompareU64(&t_power, 1) == 0) {
+                if (MISRA_PRIV_IntCompareU64(&t_power, 1) == 0) {
                     break;
                 }
             }
@@ -1662,7 +1764,7 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
             m = i;
         }
 
-        ok = IntCompareU64(&t, 1) == 0;
+        ok = MISRA_PRIV_IntCompareU64(&t, 1) == 0;
         IntDeinit(&q);
         IntDeinit(&z);
         IntDeinit(&c);
@@ -1685,10 +1787,10 @@ bool IntIsProbablePrime(Int *value) {
 
     ValidateInt(value);
 
-    if (IntCompareU64(value, 2) < 0) {
+    if (MISRA_PRIV_IntCompareU64(value, 2) < 0) {
         return false;
     }
-    if (IntCompareU64(value, 2) == 0) {
+    if (MISRA_PRIV_IntCompareU64(value, 2) == 0) {
         return true;
     }
     if (IntIsEven(value)) {
@@ -1696,10 +1798,10 @@ bool IntIsProbablePrime(Int *value) {
     }
 
     for (u64 i = 0; i < (u64)(sizeof(bases) / sizeof(bases[0])); i++) {
-        if (IntCompareU64(value, bases[i]) == 0) {
+        if (MISRA_PRIV_IntCompareU64(value, bases[i]) == 0) {
             return true;
         }
-        if (IntModU64(value, bases[i]) == 0) {
+        if (MISRA_PRIV_IntModU64(value, bases[i]) == 0) {
             return false;
         }
     }
@@ -1710,7 +1812,7 @@ bool IntIsProbablePrime(Int *value) {
         u64 s           = 0;
         bool probable   = true;
 
-        (void)IntSubU64(&d, &d, 1);
+        (void)MISRA_PRIV_IntSubU64(&d, &d, 1);
         n_minus_one = IntClone(&d);
 
         while (IntIsEven(&d)) {
@@ -1719,7 +1821,7 @@ bool IntIsProbablePrime(Int *value) {
         }
 
         for (u64 i = 0; i < (u64)(sizeof(bases) / sizeof(bases[0])); i++) {
-            Int base = IntFromU64(bases[i]);
+            Int base = MISRA_PRIV_IntFromU64(bases[i]);
             Int x    = IntInit();
 
             if (IntCompare(&base, value) >= 0) {
@@ -1728,8 +1830,8 @@ bool IntIsProbablePrime(Int *value) {
                 continue;
             }
 
-            IntModPow(&x, &base, &d, value);
-            if ((IntCompareU64(&x, 1) == 0) || IntEQ(&x, &n_minus_one)) {
+            IntPowMod(&x, &base, &d, value);
+            if ((MISRA_PRIV_IntCompareU64(&x, 1) == 0) || IntEQ(&x, &n_minus_one)) {
                 IntDeinit(&base);
                 IntDeinit(&x);
                 continue;
@@ -1773,27 +1875,27 @@ void IntNextPrime(Int *result, Int *value) {
     ValidateInt(result);
     ValidateInt(value);
 
-    if (IntCompareU64(value, 1) <= 0) {
-        Int two = IntFromU64(2);
+    if (MISRA_PRIV_IntCompareU64(value, 1) <= 0) {
+        Int two = MISRA_PRIV_IntFromU64(2);
         int_replace(result, &two);
         return;
     }
 
     Int candidate = IntClone(value);
 
-    IntAddU64(&candidate, &candidate, 1);
-    if (IntCompareU64(&candidate, 2) <= 0) {
-        Int two = IntFromU64(2);
+    MISRA_PRIV_IntAddU64(&candidate, &candidate, 1);
+    if (MISRA_PRIV_IntCompareU64(&candidate, 2) <= 0) {
+        Int two = MISRA_PRIV_IntFromU64(2);
         IntDeinit(&candidate);
         int_replace(result, &two);
         return;
     }
     if (IntIsEven(&candidate)) {
-        IntAddU64(&candidate, &candidate, 1);
+        MISRA_PRIV_IntAddU64(&candidate, &candidate, 1);
     }
 
     while (!IntIsProbablePrime(&candidate)) {
-        IntAddU64(&candidate, &candidate, 2);
+        MISRA_PRIV_IntAddU64(&candidate, &candidate, 2);
     }
 
     int_replace(result, &candidate);

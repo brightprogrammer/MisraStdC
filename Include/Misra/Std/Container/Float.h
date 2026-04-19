@@ -12,6 +12,7 @@
 #include "Float/Access.h"
 #include "Float/Memory.h"
 #include "Float/Convert.h"
+#include "Float/Private.h"
 #include "Float/Compare.h"
 #include "Float/Math.h"
 

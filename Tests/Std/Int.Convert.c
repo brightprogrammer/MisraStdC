@@ -5,7 +5,7 @@
 
 #include "../Util/TestRunner.h"
 
-bool test_int_from_u64(void);
+bool test_int_from_unsigned_integer(void);
 bool test_int_bytes_le_round_trip(void);
 bool test_int_bytes_be_round_trip(void);
 bool test_int_binary_round_trip(void);
@@ -33,10 +33,10 @@ bool test_int_from_bytes_le_null(void);
 bool test_int_to_bytes_le_null(void);
 bool test_int_to_bytes_be_zero_max_len(void);
 
-bool test_int_from_u64(void) {
-    WriteFmt("Testing IntFromU64\n");
+bool test_int_from_unsigned_integer(void) {
+    WriteFmt("Testing IntFrom with unsigned integer\n");
 
-    Int value = IntFromU64(13);
+    Int value = IntFrom(13);
     Str text  = IntToBinary(&value);
 
     bool result = IntBitLength(&value) == 4;
@@ -129,7 +129,7 @@ bool test_int_radix_round_trip(void) {
 bool test_int_upper_hex_radix(void) {
     WriteFmt("Testing Int uppercase radix conversion\n");
 
-    Int value = IntFromU64(0xBEEF);
+    Int value = IntFrom(0xBEEF);
     Str text  = IntToStrRadix(&value, 16, true);
 
     bool result = strcmp(text.data, "BEEF") == 0;
@@ -143,7 +143,7 @@ bool test_int_compare_ignores_leading_zeros(void) {
     WriteFmt("Testing IntCompare leading-zero normalization\n");
 
     Int lhs = IntFromBinary("0001011");
-    Int rhs = IntFromU64(11);
+    Int rhs = IntFrom(11);
 
     bool result = IntCompare(&lhs, &rhs) == 0;
     result      = result && IntEQ(&lhs, &rhs);
@@ -247,7 +247,7 @@ bool test_int_from_radix_invalid_radix(void) {
 bool test_int_to_u64_overflow(void) {
     WriteFmt("Testing IntToU64 overflow handling\n");
 
-    Int value = IntFromU64(1);
+    Int value = IntFrom(1);
     IntShiftLeft(&value, 64);
     IntToU64(&value);
 
@@ -257,7 +257,7 @@ bool test_int_to_u64_overflow(void) {
 bool test_int_to_str_radix_invalid_radix(void) {
     WriteFmt("Testing IntToStrRadix invalid radix handling\n");
 
-    Int value = IntFromU64(255);
+    Int value = IntFrom(255);
 
     IntToStrRadix(&value, 37, false);
     return false;
@@ -308,7 +308,7 @@ bool test_int_from_bytes_le_null(void) {
 bool test_int_to_bytes_le_null(void) {
     WriteFmt("Testing IntToBytesLE NULL handling\n");
 
-    Int value = IntFromU64(1);
+    Int value = IntFrom(1);
     IntToBytesLE(&value, NULL, 1);
     return false;
 }
@@ -316,7 +316,7 @@ bool test_int_to_bytes_le_null(void) {
 bool test_int_to_bytes_be_zero_max_len(void) {
     WriteFmt("Testing IntToBytesBE zero max_len handling\n");
 
-    Int value = IntFromU64(1);
+    Int value = IntFrom(1);
     u8  byte  = 0;
 
     IntToBytesBE(&value, &byte, 0);
@@ -327,7 +327,7 @@ int main(void) {
     WriteFmt("[INFO] Starting Int.Convert tests\n\n");
 
     TestFunction tests[] = {
-        test_int_from_u64,
+        test_int_from_unsigned_integer,
         test_int_bytes_le_round_trip,
         test_int_bytes_be_round_trip,
         test_int_binary_round_trip,

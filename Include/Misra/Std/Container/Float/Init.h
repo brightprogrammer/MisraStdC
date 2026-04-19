@@ -10,6 +10,14 @@
 #include "Type.h"
 #include <Misra/Std/Container/Int/Init.h>
 
+///
+/// Create a zero-valued floating-point number.
+///
+/// USAGE:
+///   Float value = FloatInit();
+///
+/// TAGS: Float, Init, Zero, Construct
+///
 static inline Float FloatInit(void) {
     Float value;
 
@@ -19,6 +27,16 @@ static inline Float FloatInit(void) {
     return value;
 }
 
+///
+/// Release all storage owned by a floating-point value.
+///
+/// value[in] : Float to deinitialize
+///
+/// USAGE:
+///   FloatDeinit(&value);
+///
+/// TAGS: Float, Deinit, Destroy, Memory
+///
 static inline void FloatDeinit(Float *value) {
     ValidateFloat(value);
     IntDeinit(&value->significand);
@@ -26,6 +44,16 @@ static inline void FloatDeinit(Float *value) {
     value->exponent = 0;
 }
 
+///
+/// Reset a floating-point value to numeric zero.
+///
+/// value[in] : Float to clear
+///
+/// USAGE:
+///   FloatClear(&value);
+///
+/// TAGS: Float, Clear, Zero, Reset
+///
 static inline void FloatClear(Float *value) {
     ValidateFloat(value);
     IntClear(&value->significand);

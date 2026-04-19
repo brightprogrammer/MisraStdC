@@ -12,6 +12,7 @@
 #include "Int/Access.h"
 #include "Int/Memory.h"
 #include "Int/Convert.h"
+#include "Int/Private.h"
 #include "Int/Compare.h"
 #include "Int/Math.h"
 

@@ -7,48 +7,146 @@
 #ifndef MISRA_STD_CONTAINER_INT_COMPARE_H
 #define MISRA_STD_CONTAINER_INT_COMPARE_H
 
-#include "Type.h"
+#include "Private.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int  IntCompare(Int *lhs, Int *rhs);
-int  IntCompareU64(Int *lhs, u64 rhs);
-int  IntCompareI64(Int *lhs, i64 rhs);
-
-static inline int IntCompareConst(Int *lhs, const Int *rhs) {
-    return IntCompare(lhs, (Int *)rhs);
-}
-
-static inline int IntCompareValue(Int *lhs, Int rhs) {
-    return IntCompare(lhs, &rhs);
-}
+///
+/// Compare two arbitrary-precision integers.
+///
+/// lhs[in] : Left-hand operand
+/// rhs[in] : Right-hand operand
+///
+/// RETURNS: `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
+///
+/// USAGE:
+///   int cmp = IntCompare(&a, &b);
+///
+/// TAGS: Int, Compare, Ordering
+///
+int (IntCompare)(Int *lhs, Int *rhs);
 
 #ifndef __cplusplus
 #    define MISRA_INT_COMPARE_DISPATCH(rhs)                                                                            \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Int: IntCompareValue,                                                                                      \
+            Int: MISRA_PRIV_IntCompareValue,                                                                           \
             Int *: IntCompare,                                                                                         \
-            const Int *: IntCompareConst,                                                                              \
-            unsigned char: IntCompareU64,                                                                              \
-            unsigned short: IntCompareU64,                                                                             \
-            unsigned int: IntCompareU64,                                                                               \
-            unsigned long: IntCompareU64,                                                                              \
-            unsigned long long: IntCompareU64,                                                                         \
-            signed char: IntCompareI64,                                                                                \
-            signed short: IntCompareI64,                                                                               \
-            signed int: IntCompareI64,                                                                                 \
-            signed long: IntCompareI64,                                                                                \
-            signed long long: IntCompareI64                                                                            \
+            const Int *: MISRA_PRIV_IntCompareConst,                                                                   \
+            unsigned char: MISRA_PRIV_IntCompareU64,                                                                   \
+            unsigned short: MISRA_PRIV_IntCompareU64,                                                                  \
+            unsigned int: MISRA_PRIV_IntCompareU64,                                                                    \
+            unsigned long: MISRA_PRIV_IntCompareU64,                                                                   \
+            unsigned long long: MISRA_PRIV_IntCompareU64,                                                              \
+            signed char: MISRA_PRIV_IntCompareI64,                                                                     \
+            signed short: MISRA_PRIV_IntCompareI64,                                                                    \
+            signed int: MISRA_PRIV_IntCompareI64,                                                                      \
+            signed long: MISRA_PRIV_IntCompareI64,                                                                     \
+            signed long long: MISRA_PRIV_IntCompareI64                                                                 \
         )
 
+///
+/// Compare an integer against another integer-like value.
+/// Dispatches on the type of `rhs` to the matching internal handler.
+///
+/// lhs[in] : Left-hand integer
+/// rhs[in] : Right-hand operand (`Int`, pointer, `u64`, or `i64` compatible type)
+///
+/// RETURNS: `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
+///
+/// USAGE:
+///   int cmp = IntCompare(&value, 42);
+///
+/// TAGS: Int, Compare, Ordering, Generic
+///
+#    define IntCompare(lhs, rhs) MISRA_INT_COMPARE_DISPATCH(rhs)((lhs), (rhs))
+
+///
+/// Test whether two numeric values compare equal.
+/// The right-hand operand may be an `Int`, `Int*`, `const Int*`, `u64`, or `i64` compatible type.
+///
+/// lhs[in] : Left-hand integer
+/// rhs[in] : Right-hand operand selected through generic dispatch
+///
+/// RETURNS: `true` when both values are equal.
+///
+/// USAGE:
+///   if (IntEQ(&value, 10u)) { /* ... */ }
+///
+/// TAGS: Int, Compare, Equal, Generic
+///
 #    define IntEQ(lhs, rhs) (MISRA_INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) == 0)
+///
+/// Test whether `lhs` is strictly less than `rhs`.
+///
+/// lhs[in] : Left-hand integer
+/// rhs[in] : Right-hand operand selected through generic dispatch
+///
+/// RETURNS: `true` when `lhs < rhs`.
+///
+/// USAGE:
+///   bool smaller = IntLT(&value, other);
+///
+/// TAGS: Int, Compare, LessThan, Generic
+///
 #    define IntLT(lhs, rhs) (MISRA_INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) < 0)
+///
+/// Test whether `lhs` is less than or equal to `rhs`.
+///
+/// lhs[in] : Left-hand integer
+/// rhs[in] : Right-hand operand selected through generic dispatch
+///
+/// RETURNS: `true` when `lhs <= rhs`.
+///
+/// USAGE:
+///   bool ok = IntLE(&value, 1024u);
+///
+/// TAGS: Int, Compare, LessEqual, Generic
+///
 #    define IntLE(lhs, rhs) (MISRA_INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) <= 0)
+///
+/// Test whether `lhs` is strictly greater than `rhs`.
+///
+/// lhs[in] : Left-hand integer
+/// rhs[in] : Right-hand operand selected through generic dispatch
+///
+/// RETURNS: `true` when `lhs > rhs`.
+///
+/// USAGE:
+///   bool larger = IntGT(&value, 0u);
+///
+/// TAGS: Int, Compare, GreaterThan, Generic
+///
 #    define IntGT(lhs, rhs) (MISRA_INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) > 0)
+///
+/// Test whether `lhs` is greater than or equal to `rhs`.
+///
+/// lhs[in] : Left-hand integer
+/// rhs[in] : Right-hand operand selected through generic dispatch
+///
+/// RETURNS: `true` when `lhs >= rhs`.
+///
+/// USAGE:
+///   bool at_least = IntGE(&value, threshold);
+///
+/// TAGS: Int, Compare, GreaterEqual, Generic
+///
 #    define IntGE(lhs, rhs) (MISRA_INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) >= 0)
+///
+/// Test whether two numeric values differ.
+///
+/// lhs[in] : Left-hand integer
+/// rhs[in] : Right-hand operand selected through generic dispatch
+///
+/// RETURNS: `true` when `lhs != rhs`.
+///
+/// USAGE:
+///   bool changed = IntNE(&value, expected);
+///
+/// TAGS: Int, Compare, NotEqual, Generic
+///
 #    define IntNE(lhs, rhs) (MISRA_INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) != 0)
 #endif
 

@@ -13,6 +13,18 @@
 extern "C" {
 #endif
 
+///
+/// Create a deep copy of an integer.
+///
+/// value[in] : Integer to clone
+///
+/// RETURNS: Independent copy of `value`.
+///
+/// USAGE:
+///   Int copy = IntClone(&value);
+///
+/// TAGS: Int, Memory, Clone, Copy
+///
 Int IntClone(Int *value);
 
 #ifdef __cplusplus

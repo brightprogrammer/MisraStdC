@@ -625,7 +625,7 @@ bool test_int_formatting(void) {
     Int big_dec = IntFromStr("123456789012345678901234567890");
     Int hex_val = IntFromHexStr("deadbeefcafebabe1234");
     Int bin_val = IntFromBinary("10100011");
-    Int oct_val = IntFromU64(493);
+    Int oct_val = IntFrom(493);
 
     StrWriteFmt(&output, "{}", big_dec);
     success = success && (ZstrCompare(output.data, "123456789012345678901234567890") == 0);

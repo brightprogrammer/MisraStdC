@@ -13,8 +13,44 @@
 extern "C" {
 #endif
 
+///
+/// Test whether a floating-point value is exactly zero.
+///
+/// value[in] : Float to test
+///
+/// RETURNS: `true` when the significand is zero.
+///
+/// USAGE:
+///   bool zero = FloatIsZero(&value);
+///
+/// TAGS: Float, Access, Zero, Predicate
+///
 bool FloatIsZero(Float *value);
+///
+/// Test whether a floating-point value is negative.
+///
+/// value[in] : Float to test
+///
+/// RETURNS: `true` when the value is non-zero and has a negative sign.
+///
+/// USAGE:
+///   bool negative = FloatIsNegative(&value);
+///
+/// TAGS: Float, Access, Negative, Predicate
+///
 bool FloatIsNegative(Float *value);
+///
+/// Read the base-10 exponent of a float.
+///
+/// value[in] : Float to inspect
+///
+/// RETURNS: Decimal exponent used by the normalized representation.
+///
+/// USAGE:
+///   i64 exp = FloatExponent(&value);
+///
+/// TAGS: Float, Access, Exponent
+///
 i64  FloatExponent(Float *value);
 
 #ifdef __cplusplus

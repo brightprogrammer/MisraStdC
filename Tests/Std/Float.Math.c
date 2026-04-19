@@ -87,7 +87,7 @@ bool test_float_add_generic(void) {
 
     Float a            = FloatFromStr("1.25");
     Float b            = FloatFromStr("0.75");
-    Int   whole        = IntFromU64(2);
+    Int   whole        = IntFrom(2);
     Float result_value = FloatInit();
     Str   text         = StrInit();
 
@@ -99,6 +99,21 @@ bool test_float_add_generic(void) {
     FloatAdd(&result_value, &a, whole);
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "3.25") == 0);
+
+    StrDeinit(&text);
+    FloatAdd(&result_value, &a, 2u);
+    text   = FloatToStr(&result_value);
+    result = result && (strcmp(text.data, "3.25") == 0);
+
+    StrDeinit(&text);
+    FloatAdd(&result_value, &a, -1);
+    text   = FloatToStr(&result_value);
+    result = result && (strcmp(text.data, "0.25") == 0);
+
+    StrDeinit(&text);
+    FloatAdd(&result_value, &a, 0.75f);
+    text   = FloatToStr(&result_value);
+    result = result && (strcmp(text.data, "2") == 0);
 
     StrDeinit(&text);
     FloatAdd(&result_value, &a, 0.75);
@@ -158,7 +173,7 @@ bool test_float_sub_generic(void) {
 
     Float a            = FloatFromStr("5.5");
     Float b            = FloatFromStr("0.5");
-    Int   whole        = IntFromU64(2);
+    Int   whole        = IntFrom(2);
     Float result_value = FloatInit();
     Str   text         = StrInit();
 
@@ -172,9 +187,19 @@ bool test_float_sub_generic(void) {
     result = result && (strcmp(text.data, "3.5") == 0);
 
     StrDeinit(&text);
+    FloatSub(&result_value, &a, 2u);
+    text   = FloatToStr(&result_value);
+    result = result && (strcmp(text.data, "3.5") == 0);
+
+    StrDeinit(&text);
     FloatSub(&result_value, &a, -2);
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "7.5") == 0);
+
+    StrDeinit(&text);
+    FloatSub(&result_value, &a, 0.5f);
+    text   = FloatToStr(&result_value);
+    result = result && (strcmp(text.data, "5") == 0);
 
     FloatDeinit(&a);
     FloatDeinit(&b);
@@ -229,7 +254,7 @@ bool test_float_mul_generic(void) {
 
     Float a            = FloatFromStr("1.5");
     Float b            = FloatFromStr("2");
-    Int   whole        = IntFromU64(2);
+    Int   whole        = IntFrom(2);
     Float result_value = FloatInit();
     Str   text         = StrInit();
 
@@ -243,9 +268,19 @@ bool test_float_mul_generic(void) {
     result = result && (strcmp(text.data, "3") == 0);
 
     StrDeinit(&text);
+    FloatMul(&result_value, &a, 2u);
+    text   = FloatToStr(&result_value);
+    result = result && (strcmp(text.data, "3") == 0);
+
+    StrDeinit(&text);
     FloatMul(&result_value, &a, -2);
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "-3") == 0);
+
+    StrDeinit(&text);
+    FloatMul(&result_value, &a, 0.5f);
+    text   = FloatToStr(&result_value);
+    result = result && (strcmp(text.data, "0.75") == 0);
 
     FloatDeinit(&a);
     FloatDeinit(&b);
@@ -300,7 +335,7 @@ bool test_float_div_generic(void) {
 
     Float a            = FloatFromStr("7.5");
     Float b            = FloatFromStr("2.5");
-    Int   whole        = IntFromU64(3);
+    Int   whole        = IntFrom(3);
     Float result_value = FloatInit();
     Str   text         = StrInit();
 
@@ -312,6 +347,21 @@ bool test_float_div_generic(void) {
     FloatDiv(&result_value, &a, whole, 1);
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "2.5") == 0);
+
+    StrDeinit(&text);
+    FloatDiv(&result_value, &a, 3u, 1);
+    text   = FloatToStr(&result_value);
+    result = result && (strcmp(text.data, "2.5") == 0);
+
+    StrDeinit(&text);
+    FloatDiv(&result_value, &a, -3, 1);
+    text   = FloatToStr(&result_value);
+    result = result && (strcmp(text.data, "-2.5") == 0);
+
+    StrDeinit(&text);
+    FloatDiv(&result_value, &a, 0.5f, 1);
+    text   = FloatToStr(&result_value);
+    result = result && (strcmp(text.data, "15") == 0);
 
     StrDeinit(&text);
     FloatDiv(&result_value, &a, 0.5, 1);

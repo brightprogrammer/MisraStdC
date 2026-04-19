@@ -41,7 +41,7 @@ bool test_int_is_zero(void) {
     WriteFmt("Testing IntIsZero\n");
 
     Int zero     = IntInit();
-    Int non_zero = IntFromU64(1);
+    Int non_zero = IntFrom(1);
 
     bool result = IntIsZero(&zero);
     result      = result && !IntIsZero(&non_zero);
@@ -54,8 +54,8 @@ bool test_int_is_zero(void) {
 bool test_int_is_one(void) {
     WriteFmt("Testing IntIsOne\n");
 
-    Int one = IntFromU64(1);
-    Int two = IntFromU64(2);
+    Int one = IntFrom(1);
+    Int two = IntFrom(2);
 
     bool result = IntIsOne(&one);
     result      = result && !IntIsOne(&two);
@@ -68,8 +68,8 @@ bool test_int_is_one(void) {
 bool test_int_parity(void) {
     WriteFmt("Testing Int parity helpers\n");
 
-    Int even = IntFromU64(42);
-    Int odd  = IntFromU64(43);
+    Int even = IntFrom(42);
+    Int odd  = IntFrom(43);
 
     bool result = IntIsEven(&even);
     result      = result && !IntIsOdd(&even);
@@ -84,8 +84,8 @@ bool test_int_parity(void) {
 bool test_int_fits_u64(void) {
     WriteFmt("Testing IntFitsU64\n");
 
-    Int small = IntFromU64(UINT64_MAX);
-    Int big   = IntFromU64(1);
+    Int small = IntFrom(UINT64_MAX);
+    Int big   = IntFrom(1);
 
     IntShiftLeft(&big, 64);
 
@@ -100,7 +100,7 @@ bool test_int_fits_u64(void) {
 bool test_int_log2(void) {
     WriteFmt("Testing IntLog2\n");
 
-    Int value = IntFromU64(1025);
+    Int value = IntFrom(1025);
 
     bool result = IntLog2(&value) == 10;
 
@@ -125,9 +125,9 @@ bool test_int_trailing_zero_count(void) {
 bool test_int_is_power_of_two(void) {
     WriteFmt("Testing IntIsPowerOfTwo\n");
 
-    Int one   = IntFromU64(1);
-    Int power = IntFromU64(1);
-    Int other = IntFromU64(24);
+    Int one   = IntFrom(1);
+    Int power = IntFrom(1);
+    Int other = IntFrom(24);
     Int zero  = IntInit();
 
     IntShiftLeft(&power, 20);

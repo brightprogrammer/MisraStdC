@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Script to check code formatting with clang-format
 # This script mimics the GitHub Actions workflow for local testing

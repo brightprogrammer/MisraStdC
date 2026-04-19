@@ -6,14 +6,13 @@
 
 bool test_int_compare(void);
 bool test_int_compare_wrappers(void);
-bool test_int_compare_u64(void);
 bool test_int_compare_generic(void);
 
 bool test_int_compare(void) {
     WriteFmt("Testing IntCompare\n");
 
-    Int a = IntFromU64(41);
-    Int b = IntFromU64(42);
+    Int a = IntFrom(41);
+    Int b = IntFrom(42);
     Int c = IntFromBinary("000101010");
 
     bool result = IntCompare(&a, &b) < 0;
@@ -29,8 +28,8 @@ bool test_int_compare(void) {
 bool test_int_compare_wrappers(void) {
     WriteFmt("Testing Int compare wrappers\n");
 
-    Int a = IntFromU64(41);
-    Int b = IntFromU64(42);
+    Int a = IntFrom(41);
+    Int b = IntFrom(42);
     Int c = IntFromBinary("000101010");
 
     bool result = IntLT(&a, &b);
@@ -48,32 +47,21 @@ bool test_int_compare_wrappers(void) {
     return result;
 }
 
-bool test_int_compare_u64(void) {
-    WriteFmt("Testing IntCompareU64\n");
+bool test_int_compare_generic(void) {
+    WriteFmt("Testing IntCompare generic dispatch\n");
 
-    Int small = IntFromU64(1234);
-    Int big   = IntFromU64(1);
+    Int value = IntFrom(42);
+    Int same  = IntFromBinary("00101010");
+    Int big   = IntFrom(1);
 
     IntShiftLeft(&big, 80);
 
-    bool result = IntCompareU64(&small, 2000) < 0;
-    result      = result && (IntCompareU64(&small, 1234) == 0);
-    result      = result && (IntCompareU64(&small, 10) > 0);
-    result      = result && (IntCompareU64(&big, UINT64_MAX) > 0);
-
-    IntDeinit(&small);
-    IntDeinit(&big);
-    return result;
-}
-
-bool test_int_compare_generic(void) {
-    WriteFmt("Testing Int generic compare macros\n");
-
-    Int value = IntFromU64(42);
-    Int same  = IntFromBinary("00101010");
-
-    bool result = IntEQ(&value, &same);
-    result      = result && IntEQ(&value, same);
+    bool result = (IntCompare(&value, &same) == 0);
+    result      = result && (IntCompare(&value, same) == 0);
+    result      = result && (IntCompare(&value, 42) == 0);
+    result      = result && (IntCompare(&value, 100ULL) < 0);
+    result      = result && (IntCompare(&value, -1) > 0);
+    result      = result && (IntCompare(&big, UINT64_MAX) > 0);
     result      = result && IntEQ(&value, 42);
     result      = result && IntLE(&value, 42);
     result      = result && IntGT(&value, -1);
@@ -82,6 +70,7 @@ bool test_int_compare_generic(void) {
 
     IntDeinit(&value);
     IntDeinit(&same);
+    IntDeinit(&big);
     return result;
 }
 
@@ -91,7 +80,6 @@ int main(void) {
     TestFunction tests[] = {
         test_int_compare,
         test_int_compare_wrappers,
-        test_int_compare_u64,
         test_int_compare_generic,
     };
 

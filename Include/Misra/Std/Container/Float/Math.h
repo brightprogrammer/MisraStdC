@@ -7,199 +7,237 @@
 #ifndef MISRA_STD_CONTAINER_FLOAT_MATH_H
 #define MISRA_STD_CONTAINER_FLOAT_MATH_H
 
-#include "Type.h"
+#include "Private.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+///
+/// Negate a floating-point value in place.
+///
+/// value[in] : Float to modify
+///
+/// INFO: Zero remains non-negative after normalization.
+///
+/// USAGE:
+///   FloatNegate(&value);
+///
+/// TAGS: Float, Math, Negate, Sign
+///
 void FloatNegate(Float *value);
+///
+/// Replace a float with its absolute value.
+///
+/// value[in] : Float to modify
+///
+/// USAGE:
+///   FloatAbs(&value);
+///
+/// TAGS: Float, Math, AbsoluteValue
+///
 void FloatAbs(Float *value);
+///
+/// Add two floats.
+///
+/// result[out] : Destination for the sum
+/// a[in]       : Left operand
+/// b[in]       : Right operand
+///
+/// USAGE:
+///   FloatAdd(&sum, &a, &b);
+///
+/// TAGS: Float, Math, Add
+///
 void (FloatAdd)(Float *result, Float *a, Float *b);
-void FloatAddInt(Float *result, Float *a, Int *b);
-void FloatAddU64(Float *result, Float *a, u64 b);
-void FloatAddI64(Float *result, Float *a, i64 b);
-void FloatAddF32(Float *result, Float *a, float b);
-void FloatAddF64(Float *result, Float *a, double b);
+///
+/// Subtract one float from another.
+///
+/// result[out] : Destination for the difference
+/// a[in]       : Minuend
+/// b[in]       : Subtrahend
+///
+/// USAGE:
+///   FloatSub(&diff, &a, &b);
+///
+/// TAGS: Float, Math, Subtract
+///
 void (FloatSub)(Float *result, Float *a, Float *b);
-void FloatSubInt(Float *result, Float *a, Int *b);
-void FloatSubU64(Float *result, Float *a, u64 b);
-void FloatSubI64(Float *result, Float *a, i64 b);
-void FloatSubF32(Float *result, Float *a, float b);
-void FloatSubF64(Float *result, Float *a, double b);
+///
+/// Multiply two floats.
+///
+/// result[out] : Destination for the product
+/// a[in]       : Left operand
+/// b[in]       : Right operand
+///
+/// USAGE:
+///   FloatMul(&product, &a, &b);
+///
+/// TAGS: Float, Math, Multiply
+///
 void (FloatMul)(Float *result, Float *a, Float *b);
-void FloatMulInt(Float *result, Float *a, Int *b);
-void FloatMulU64(Float *result, Float *a, u64 b);
-void FloatMulI64(Float *result, Float *a, i64 b);
-void FloatMulF32(Float *result, Float *a, float b);
-void FloatMulF64(Float *result, Float *a, double b);
+///
+/// Divide one float by another.
+/// The quotient is truncated after scaling by `10^precision`.
+///
+/// result[out]    : Destination for the quotient
+/// a[in]          : Dividend
+/// b[in]          : Divisor
+/// precision[in]  : Number of decimal digits to retain before truncation
+///
+/// WARN: Aborts on division by zero.
+///
+/// USAGE:
+///   FloatDiv(&quotient, &a, &b, 8);
+///
+/// TAGS: Float, Math, Divide, Precision
+///
 void (FloatDiv)(Float *result, Float *a, Float *b, u64 precision);
-void FloatDivInt(Float *result, Float *a, Int *b, u64 precision);
-void FloatDivU64(Float *result, Float *a, u64 b, u64 precision);
-void FloatDivI64(Float *result, Float *a, i64 b, u64 precision);
-void FloatDivF32(Float *result, Float *a, float b, u64 precision);
-void FloatDivF64(Float *result, Float *a, double b, u64 precision);
-
-static inline void FloatAddConstFloat(Float *result, Float *a, const Float *b) {
-    FloatAdd(result, a, (Float *)b);
-}
-
-static inline void FloatAddValueFloat(Float *result, Float *a, Float b) {
-    FloatAdd(result, a, &b);
-}
-
-static inline void FloatAddConstInt(Float *result, Float *a, const Int *b) {
-    FloatAddInt(result, a, (Int *)b);
-}
-
-static inline void FloatAddValueInt(Float *result, Float *a, Int b) {
-    FloatAddInt(result, a, &b);
-}
-
-static inline void FloatSubConstFloat(Float *result, Float *a, const Float *b) {
-    FloatSub(result, a, (Float *)b);
-}
-
-static inline void FloatSubValueFloat(Float *result, Float *a, Float b) {
-    FloatSub(result, a, &b);
-}
-
-static inline void FloatSubConstInt(Float *result, Float *a, const Int *b) {
-    FloatSubInt(result, a, (Int *)b);
-}
-
-static inline void FloatSubValueInt(Float *result, Float *a, Int b) {
-    FloatSubInt(result, a, &b);
-}
-
-static inline void FloatMulConstFloat(Float *result, Float *a, const Float *b) {
-    FloatMul(result, a, (Float *)b);
-}
-
-static inline void FloatMulValueFloat(Float *result, Float *a, Float b) {
-    FloatMul(result, a, &b);
-}
-
-static inline void FloatMulConstInt(Float *result, Float *a, const Int *b) {
-    FloatMulInt(result, a, (Int *)b);
-}
-
-static inline void FloatMulValueInt(Float *result, Float *a, Int b) {
-    FloatMulInt(result, a, &b);
-}
-
-static inline void FloatDivConstFloat(Float *result, Float *a, const Float *b, u64 precision) {
-    FloatDiv(result, a, (Float *)b, precision);
-}
-
-static inline void FloatDivValueFloat(Float *result, Float *a, Float b, u64 precision) {
-    FloatDiv(result, a, &b, precision);
-}
-
-static inline void FloatDivConstInt(Float *result, Float *a, const Int *b, u64 precision) {
-    FloatDivInt(result, a, (Int *)b, precision);
-}
-
-static inline void FloatDivValueInt(Float *result, Float *a, Int b, u64 precision) {
-    FloatDivInt(result, a, &b, precision);
-}
-
 #ifndef __cplusplus
 #    define MISRA_FLOAT_ADD_DISPATCH(rhs)                                                                              \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Float: FloatAddValueFloat,                                                                                 \
+            Float: MISRA_PRIV_FloatAddValueFloat,                                                                      \
             Float *: FloatAdd,                                                                                         \
-            const Float *: FloatAddConstFloat,                                                                         \
-            Int: FloatAddValueInt,                                                                                     \
-            Int *: FloatAddInt,                                                                                        \
-            const Int *: FloatAddConstInt,                                                                             \
-            unsigned char: FloatAddU64,                                                                                \
-            unsigned short: FloatAddU64,                                                                               \
-            unsigned int: FloatAddU64,                                                                                 \
-            unsigned long: FloatAddU64,                                                                                \
-            unsigned long long: FloatAddU64,                                                                           \
-            signed char: FloatAddI64,                                                                                  \
-            signed short: FloatAddI64,                                                                                 \
-            signed int: FloatAddI64,                                                                                   \
-            signed long: FloatAddI64,                                                                                  \
-            signed long long: FloatAddI64,                                                                             \
-            float: FloatAddF32,                                                                                        \
-            double: FloatAddF64                                                                                        \
+            const Float *: MISRA_PRIV_FloatAddConstFloat,                                                              \
+            Int: MISRA_PRIV_FloatAddValueInt,                                                                          \
+            Int *: MISRA_PRIV_FloatAddInt,                                                                             \
+            const Int *: MISRA_PRIV_FloatAddConstInt,                                                                  \
+            unsigned char: MISRA_PRIV_FloatAddU64,                                                                     \
+            unsigned short: MISRA_PRIV_FloatAddU64,                                                                    \
+            unsigned int: MISRA_PRIV_FloatAddU64,                                                                      \
+            unsigned long: MISRA_PRIV_FloatAddU64,                                                                     \
+            unsigned long long: MISRA_PRIV_FloatAddU64,                                                                \
+            signed char: MISRA_PRIV_FloatAddI64,                                                                       \
+            signed short: MISRA_PRIV_FloatAddI64,                                                                      \
+            signed int: MISRA_PRIV_FloatAddI64,                                                                        \
+            signed long: MISRA_PRIV_FloatAddI64,                                                                       \
+            signed long long: MISRA_PRIV_FloatAddI64,                                                                  \
+            float: MISRA_PRIV_FloatAddF32,                                                                             \
+            double: MISRA_PRIV_FloatAddF64                                                                             \
         )
 
 #    define MISRA_FLOAT_SUB_DISPATCH(rhs)                                                                              \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Float: FloatSubValueFloat,                                                                                 \
+            Float: MISRA_PRIV_FloatSubValueFloat,                                                                      \
             Float *: FloatSub,                                                                                         \
-            const Float *: FloatSubConstFloat,                                                                         \
-            Int: FloatSubValueInt,                                                                                     \
-            Int *: FloatSubInt,                                                                                        \
-            const Int *: FloatSubConstInt,                                                                             \
-            unsigned char: FloatSubU64,                                                                                \
-            unsigned short: FloatSubU64,                                                                               \
-            unsigned int: FloatSubU64,                                                                                 \
-            unsigned long: FloatSubU64,                                                                                \
-            unsigned long long: FloatSubU64,                                                                           \
-            signed char: FloatSubI64,                                                                                  \
-            signed short: FloatSubI64,                                                                                 \
-            signed int: FloatSubI64,                                                                                   \
-            signed long: FloatSubI64,                                                                                  \
-            signed long long: FloatSubI64,                                                                             \
-            float: FloatSubF32,                                                                                        \
-            double: FloatSubF64                                                                                        \
+            const Float *: MISRA_PRIV_FloatSubConstFloat,                                                              \
+            Int: MISRA_PRIV_FloatSubValueInt,                                                                          \
+            Int *: MISRA_PRIV_FloatSubInt,                                                                             \
+            const Int *: MISRA_PRIV_FloatSubConstInt,                                                                  \
+            unsigned char: MISRA_PRIV_FloatSubU64,                                                                     \
+            unsigned short: MISRA_PRIV_FloatSubU64,                                                                    \
+            unsigned int: MISRA_PRIV_FloatSubU64,                                                                      \
+            unsigned long: MISRA_PRIV_FloatSubU64,                                                                     \
+            unsigned long long: MISRA_PRIV_FloatSubU64,                                                                \
+            signed char: MISRA_PRIV_FloatSubI64,                                                                       \
+            signed short: MISRA_PRIV_FloatSubI64,                                                                      \
+            signed int: MISRA_PRIV_FloatSubI64,                                                                        \
+            signed long: MISRA_PRIV_FloatSubI64,                                                                       \
+            signed long long: MISRA_PRIV_FloatSubI64,                                                                  \
+            float: MISRA_PRIV_FloatSubF32,                                                                             \
+            double: MISRA_PRIV_FloatSubF64                                                                             \
         )
 
 #    define MISRA_FLOAT_MUL_DISPATCH(rhs)                                                                              \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Float: FloatMulValueFloat,                                                                                 \
+            Float: MISRA_PRIV_FloatMulValueFloat,                                                                      \
             Float *: FloatMul,                                                                                         \
-            const Float *: FloatMulConstFloat,                                                                         \
-            Int: FloatMulValueInt,                                                                                     \
-            Int *: FloatMulInt,                                                                                        \
-            const Int *: FloatMulConstInt,                                                                             \
-            unsigned char: FloatMulU64,                                                                                \
-            unsigned short: FloatMulU64,                                                                               \
-            unsigned int: FloatMulU64,                                                                                 \
-            unsigned long: FloatMulU64,                                                                                \
-            unsigned long long: FloatMulU64,                                                                           \
-            signed char: FloatMulI64,                                                                                  \
-            signed short: FloatMulI64,                                                                                 \
-            signed int: FloatMulI64,                                                                                   \
-            signed long: FloatMulI64,                                                                                  \
-            signed long long: FloatMulI64,                                                                             \
-            float: FloatMulF32,                                                                                        \
-            double: FloatMulF64                                                                                        \
+            const Float *: MISRA_PRIV_FloatMulConstFloat,                                                              \
+            Int: MISRA_PRIV_FloatMulValueInt,                                                                          \
+            Int *: MISRA_PRIV_FloatMulInt,                                                                             \
+            const Int *: MISRA_PRIV_FloatMulConstInt,                                                                  \
+            unsigned char: MISRA_PRIV_FloatMulU64,                                                                     \
+            unsigned short: MISRA_PRIV_FloatMulU64,                                                                    \
+            unsigned int: MISRA_PRIV_FloatMulU64,                                                                      \
+            unsigned long: MISRA_PRIV_FloatMulU64,                                                                     \
+            unsigned long long: MISRA_PRIV_FloatMulU64,                                                                \
+            signed char: MISRA_PRIV_FloatMulI64,                                                                       \
+            signed short: MISRA_PRIV_FloatMulI64,                                                                      \
+            signed int: MISRA_PRIV_FloatMulI64,                                                                        \
+            signed long: MISRA_PRIV_FloatMulI64,                                                                       \
+            signed long long: MISRA_PRIV_FloatMulI64,                                                                  \
+            float: MISRA_PRIV_FloatMulF32,                                                                             \
+            double: MISRA_PRIV_FloatMulF64                                                                             \
         )
 
 #    define MISRA_FLOAT_DIV_DISPATCH(rhs)                                                                              \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Float: FloatDivValueFloat,                                                                                 \
+            Float: MISRA_PRIV_FloatDivValueFloat,                                                                      \
             Float *: FloatDiv,                                                                                         \
-            const Float *: FloatDivConstFloat,                                                                         \
-            Int: FloatDivValueInt,                                                                                     \
-            Int *: FloatDivInt,                                                                                        \
-            const Int *: FloatDivConstInt,                                                                             \
-            unsigned char: FloatDivU64,                                                                                \
-            unsigned short: FloatDivU64,                                                                               \
-            unsigned int: FloatDivU64,                                                                                 \
-            unsigned long: FloatDivU64,                                                                                \
-            unsigned long long: FloatDivU64,                                                                           \
-            signed char: FloatDivI64,                                                                                  \
-            signed short: FloatDivI64,                                                                                 \
-            signed int: FloatDivI64,                                                                                   \
-            signed long: FloatDivI64,                                                                                  \
-            signed long long: FloatDivI64,                                                                             \
-            float: FloatDivF32,                                                                                        \
-            double: FloatDivF64                                                                                        \
+            const Float *: MISRA_PRIV_FloatDivConstFloat,                                                              \
+            Int: MISRA_PRIV_FloatDivValueInt,                                                                          \
+            Int *: MISRA_PRIV_FloatDivInt,                                                                             \
+            const Int *: MISRA_PRIV_FloatDivConstInt,                                                                  \
+            unsigned char: MISRA_PRIV_FloatDivU64,                                                                     \
+            unsigned short: MISRA_PRIV_FloatDivU64,                                                                    \
+            unsigned int: MISRA_PRIV_FloatDivU64,                                                                      \
+            unsigned long: MISRA_PRIV_FloatDivU64,                                                                     \
+            unsigned long long: MISRA_PRIV_FloatDivU64,                                                                \
+            signed char: MISRA_PRIV_FloatDivI64,                                                                       \
+            signed short: MISRA_PRIV_FloatDivI64,                                                                      \
+            signed int: MISRA_PRIV_FloatDivI64,                                                                        \
+            signed long: MISRA_PRIV_FloatDivI64,                                                                       \
+            signed long long: MISRA_PRIV_FloatDivI64,                                                                  \
+            float: MISRA_PRIV_FloatDivF32,                                                                             \
+            double: MISRA_PRIV_FloatDivF64                                                                             \
         )
 
+///
+/// Generic addition convenience macro for `Float`.
+///
+/// result[out] : Destination for the sum
+/// a[in]       : Left operand
+/// b[in]       : Right operand selected through generic dispatch
+///
+/// USAGE:
+///   FloatAdd(&sum, &value, 1.25);
+///
+/// TAGS: Float, Math, Add, Generic
+///
 #    define FloatAdd(result, a, b) MISRA_FLOAT_ADD_DISPATCH(b)((result), (a), (b))
+///
+/// Generic subtraction convenience macro for `Float`.
+///
+/// result[out] : Destination for the difference
+/// a[in]       : Left operand
+/// b[in]       : Right operand selected through generic dispatch
+///
+/// USAGE:
+///   FloatSub(&diff, &value, 2u);
+///
+/// TAGS: Float, Math, Subtract, Generic
+///
 #    define FloatSub(result, a, b) MISRA_FLOAT_SUB_DISPATCH(b)((result), (a), (b))
+///
+/// Generic multiplication convenience macro for `Float`.
+///
+/// result[out] : Destination for the product
+/// a[in]       : Left operand
+/// b[in]       : Right operand selected through generic dispatch
+///
+/// USAGE:
+///   FloatMul(&product, &value, 0.5f);
+///
+/// TAGS: Float, Math, Multiply, Generic
+///
 #    define FloatMul(result, a, b) MISRA_FLOAT_MUL_DISPATCH(b)((result), (a), (b))
+///
+/// Generic division convenience macro for `Float`.
+///
+/// result[out]    : Destination for the quotient
+/// a[in]          : Dividend
+/// b[in]          : Divisor selected through generic dispatch
+/// precision[in]  : Decimal precision to retain
+///
+/// USAGE:
+///   FloatDiv(&quotient, &value, 3.0, 8);
+///
+/// TAGS: Float, Math, Divide, Generic
+///
 #    define FloatDiv(result, a, b, precision) MISRA_FLOAT_DIV_DISPATCH(b)((result), (a), (b), (precision))
 #endif
 

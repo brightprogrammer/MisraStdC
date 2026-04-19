@@ -13,6 +13,18 @@
 extern "C" {
 #endif
 
+///
+/// Create a deep copy of a floating-point value.
+///
+/// value[in] : Float to clone
+///
+/// RETURNS: Independent copy of `value`.
+///
+/// USAGE:
+///   Float copy = FloatClone(&value);
+///
+/// TAGS: Float, Memory, Clone, Copy
+///
 Float FloatClone(Float *value);
 
 #ifdef __cplusplus

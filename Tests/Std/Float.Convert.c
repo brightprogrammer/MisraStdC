@@ -6,9 +6,9 @@
 #include "../Util/FloatTestData.h"
 #include "../Util/TestRunner.h"
 
-bool test_float_from_u64(void);
-bool test_float_from_i64(void);
-bool test_float_from_int(void);
+bool test_float_from_unsigned_integer(void);
+bool test_float_from_signed_integer(void);
+bool test_float_from_int_container(void);
 bool test_float_to_int_exact(void);
 bool test_float_to_int_fractional_failure(void);
 bool test_float_to_int_negative_failure(void);
@@ -18,10 +18,10 @@ bool test_float_scientific_parse(void);
 bool test_float_from_str_invalid(void);
 bool test_float_from_str_null(void);
 
-bool test_float_from_u64(void) {
-    WriteFmt("Testing FloatFromU64\n");
+bool test_float_from_unsigned_integer(void) {
+    WriteFmt("Testing FloatFrom with unsigned integer\n");
 
-    Float value = FloatFromU64(42);
+    Float value = FloatFrom(42);
     Str   text  = FloatToStr(&value);
 
     bool result = strcmp(text.data, "42") == 0;
@@ -32,10 +32,10 @@ bool test_float_from_u64(void) {
     return result;
 }
 
-bool test_float_from_i64(void) {
-    WriteFmt("Testing FloatFromI64\n");
+bool test_float_from_signed_integer(void) {
+    WriteFmt("Testing FloatFrom with signed integer\n");
 
-    Float value = FloatFromI64(-42);
+    Float value = FloatFrom(-42);
     Str   text  = FloatToStr(&value);
 
     bool result = strcmp(text.data, "-42") == 0;
@@ -46,11 +46,11 @@ bool test_float_from_i64(void) {
     return result;
 }
 
-bool test_float_from_int(void) {
-    WriteFmt("Testing FloatFromInt\n");
+bool test_float_from_int_container(void) {
+    WriteFmt("Testing FloatFrom with Int container\n");
 
     Int   integer = IntFromStr("12345678901234567890");
-    Float value   = FloatFromInt(&integer);
+    Float value   = FloatFrom(&integer);
     Str   text    = FloatToStr(&value);
 
     bool result = strcmp(text.data, "12345678901234567890") == 0;
@@ -82,7 +82,7 @@ bool test_float_to_int_fractional_failure(void) {
     WriteFmt("Testing FloatToInt fractional failure handling\n");
 
     Float value        = FloatFromStr("123.45");
-    Int   result_value = IntFromU64(99);
+    Int   result_value = IntFrom(99);
 
     bool result = !FloatToInt(&result_value, &value);
     result      = result && IntEQ(&result_value, 99);
@@ -96,7 +96,7 @@ bool test_float_to_int_negative_failure(void) {
     WriteFmt("Testing FloatToInt negative failure handling\n");
 
     Float value        = FloatFromStr("-42");
-    Int   result_value = IntFromU64(99);
+    Int   result_value = IntFrom(99);
 
     bool result = !FloatToInt(&result_value, &value);
     result      = result && IntEQ(&result_value, 99);
@@ -163,9 +163,9 @@ int main(void) {
     WriteFmt("[INFO] Starting Float.Convert tests\n\n");
 
     TestFunction tests[] = {
-        test_float_from_u64,
-        test_float_from_i64,
-        test_float_from_int,
+        test_float_from_unsigned_integer,
+        test_float_from_signed_integer,
+        test_float_from_int_container,
         test_float_to_int_exact,
         test_float_to_int_fractional_failure,
         test_float_to_int_negative_failure,

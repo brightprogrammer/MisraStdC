@@ -68,10 +68,10 @@ static void float_replace(Float *dst, Float *src) {
 }
 
 static Int float_pow10(u64 power) {
-    Int base   = IntFromU64(10);
-    Int result = IntFromU64(1);
+    Int base   = MISRA_PRIV_IntFromU64(10);
+    Int result = MISRA_PRIV_IntFromU64(1);
 
-    IntPowU64(&result, &base, power);
+    MISRA_PRIV_IntPowU64(&result, &base, power);
     IntDeinit(&base);
     return result;
 }
@@ -137,10 +137,10 @@ static void float_normalize(Float *value) {
         return;
     }
 
-    while (IntModU64(&value->significand, 10) == 0) {
+    while (MISRA_PRIV_IntModU64(&value->significand, 10) == 0) {
         Int quotient = IntInit();
 
-        (void)IntDivU64Rem(&quotient, &value->significand, 10);
+        (void)MISRA_PRIV_IntDivU64Rem(&quotient, &value->significand, 10);
         IntDeinit(&value->significand);
         value->significand = quotient;
         value->exponent    = float_add_i64_checked(value->exponent, 1);
@@ -172,15 +172,15 @@ Float FloatClone(Float *value) {
     return clone;
 }
 
-Float FloatFromU64(u64 value) {
+Float MISRA_PRIV_FloatFromU64(u64 value) {
     Float result = FloatInit();
 
-    result.significand = IntFromU64(value);
+    result.significand = MISRA_PRIV_IntFromU64(value);
     float_normalize(&result);
     return result;
 }
 
-Float FloatFromI64(i64 value) {
+Float MISRA_PRIV_FloatFromI64(i64 value) {
     Float result    = FloatInit();
     u64   magnitude = 0;
 
@@ -190,19 +190,27 @@ Float FloatFromI64(i64 value) {
         magnitude = (u64)value;
     }
 
-    result.significand = IntFromU64(magnitude);
+    result.significand = MISRA_PRIV_IntFromU64(magnitude);
     result.negative    = value < 0 && magnitude != 0;
     float_normalize(&result);
     return result;
 }
 
-Float FloatFromInt(Int *value) {
+Float MISRA_PRIV_FloatFromInt(Int *value) {
     Float result = FloatInit();
 
     ValidateInt(value);
     result.significand = IntClone(value);
     float_normalize(&result);
     return result;
+}
+
+Float MISRA_PRIV_FloatFromF32(float value) {
+    return float_from_f32_value(value);
+}
+
+Float MISRA_PRIV_FloatFromF64(double value) {
+    return float_from_f64_value(value);
 }
 
 bool FloatToInt(Int *result, Float *value) {
@@ -378,7 +386,7 @@ Str FloatToStr(Float *value) {
     return result;
 }
 
-int FloatCompare(Float *lhs, Float *rhs) {
+int(FloatCompare)(Float *lhs, Float *rhs) {
     int cmp = 0;
 
     ValidateFloat(lhs);
@@ -395,31 +403,31 @@ int FloatCompare(Float *lhs, Float *rhs) {
     return FloatIsNegative(lhs) ? -cmp : cmp;
 }
 
-int FloatCompareInt(Float *lhs, Int *rhs) {
-    Float rhs_value = FloatFromInt(rhs);
+int MISRA_PRIV_FloatCompareInt(Float *lhs, Int *rhs) {
+    Float rhs_value = MISRA_PRIV_FloatFromInt(rhs);
     int   cmp       = FloatCompare(lhs, &rhs_value);
 
     FloatDeinit(&rhs_value);
     return cmp;
 }
 
-int FloatCompareU64(Float *lhs, u64 rhs) {
-    Float rhs_value = FloatFromU64(rhs);
+int MISRA_PRIV_FloatCompareU64(Float *lhs, u64 rhs) {
+    Float rhs_value = MISRA_PRIV_FloatFromU64(rhs);
     int   cmp       = FloatCompare(lhs, &rhs_value);
 
     FloatDeinit(&rhs_value);
     return cmp;
 }
 
-int FloatCompareI64(Float *lhs, i64 rhs) {
-    Float rhs_value = FloatFromI64(rhs);
+int MISRA_PRIV_FloatCompareI64(Float *lhs, i64 rhs) {
+    Float rhs_value = MISRA_PRIV_FloatFromI64(rhs);
     int   cmp       = FloatCompare(lhs, &rhs_value);
 
     FloatDeinit(&rhs_value);
     return cmp;
 }
 
-int FloatCompareF32(Float *lhs, float rhs) {
+int MISRA_PRIV_FloatCompareF32(Float *lhs, float rhs) {
     Float rhs_value = float_from_f32_value(rhs);
     int   cmp       = FloatCompare(lhs, &rhs_value);
 
@@ -427,7 +435,7 @@ int FloatCompareF32(Float *lhs, float rhs) {
     return cmp;
 }
 
-int FloatCompareF64(Float *lhs, double rhs) {
+int MISRA_PRIV_FloatCompareF64(Float *lhs, double rhs) {
     Float rhs_value = float_from_f64_value(rhs);
     int   cmp       = FloatCompare(lhs, &rhs_value);
 
@@ -487,35 +495,35 @@ void(FloatAdd)(Float *result, Float *a, Float *b) {
     float_replace(result, &temp);
 }
 
-void FloatAddInt(Float *result, Float *a, Int *b) {
-    Float rhs = FloatFromInt(b);
+void MISRA_PRIV_FloatAddInt(Float *result, Float *a, Int *b) {
+    Float rhs = MISRA_PRIV_FloatFromInt(b);
 
     FloatAdd(result, a, &rhs);
     FloatDeinit(&rhs);
 }
 
-void FloatAddU64(Float *result, Float *a, u64 b) {
-    Float rhs = FloatFromU64(b);
+void MISRA_PRIV_FloatAddU64(Float *result, Float *a, u64 b) {
+    Float rhs = MISRA_PRIV_FloatFromU64(b);
 
     FloatAdd(result, a, &rhs);
     FloatDeinit(&rhs);
 }
 
-void FloatAddI64(Float *result, Float *a, i64 b) {
-    Float rhs = FloatFromI64(b);
+void MISRA_PRIV_FloatAddI64(Float *result, Float *a, i64 b) {
+    Float rhs = MISRA_PRIV_FloatFromI64(b);
 
     FloatAdd(result, a, &rhs);
     FloatDeinit(&rhs);
 }
 
-void FloatAddF32(Float *result, Float *a, float b) {
+void MISRA_PRIV_FloatAddF32(Float *result, Float *a, float b) {
     Float rhs = float_from_f32_value(b);
 
     FloatAdd(result, a, &rhs);
     FloatDeinit(&rhs);
 }
 
-void FloatAddF64(Float *result, Float *a, double b) {
+void MISRA_PRIV_FloatAddF64(Float *result, Float *a, double b) {
     Float rhs = float_from_f64_value(b);
 
     FloatAdd(result, a, &rhs);
@@ -534,35 +542,35 @@ void(FloatSub)(Float *result, Float *a, Float *b) {
     FloatDeinit(&rhs);
 }
 
-void FloatSubInt(Float *result, Float *a, Int *b) {
-    Float rhs = FloatFromInt(b);
+void MISRA_PRIV_FloatSubInt(Float *result, Float *a, Int *b) {
+    Float rhs = MISRA_PRIV_FloatFromInt(b);
 
     FloatSub(result, a, &rhs);
     FloatDeinit(&rhs);
 }
 
-void FloatSubU64(Float *result, Float *a, u64 b) {
-    Float rhs = FloatFromU64(b);
+void MISRA_PRIV_FloatSubU64(Float *result, Float *a, u64 b) {
+    Float rhs = MISRA_PRIV_FloatFromU64(b);
 
     FloatSub(result, a, &rhs);
     FloatDeinit(&rhs);
 }
 
-void FloatSubI64(Float *result, Float *a, i64 b) {
-    Float rhs = FloatFromI64(b);
+void MISRA_PRIV_FloatSubI64(Float *result, Float *a, i64 b) {
+    Float rhs = MISRA_PRIV_FloatFromI64(b);
 
     FloatSub(result, a, &rhs);
     FloatDeinit(&rhs);
 }
 
-void FloatSubF32(Float *result, Float *a, float b) {
+void MISRA_PRIV_FloatSubF32(Float *result, Float *a, float b) {
     Float rhs = float_from_f32_value(b);
 
     FloatSub(result, a, &rhs);
     FloatDeinit(&rhs);
 }
 
-void FloatSubF64(Float *result, Float *a, double b) {
+void MISRA_PRIV_FloatSubF64(Float *result, Float *a, double b) {
     Float rhs = float_from_f64_value(b);
 
     FloatSub(result, a, &rhs);
@@ -584,35 +592,35 @@ void(FloatMul)(Float *result, Float *a, Float *b) {
     float_replace(result, &temp);
 }
 
-void FloatMulInt(Float *result, Float *a, Int *b) {
-    Float rhs = FloatFromInt(b);
+void MISRA_PRIV_FloatMulInt(Float *result, Float *a, Int *b) {
+    Float rhs = MISRA_PRIV_FloatFromInt(b);
 
     FloatMul(result, a, &rhs);
     FloatDeinit(&rhs);
 }
 
-void FloatMulU64(Float *result, Float *a, u64 b) {
-    Float rhs = FloatFromU64(b);
+void MISRA_PRIV_FloatMulU64(Float *result, Float *a, u64 b) {
+    Float rhs = MISRA_PRIV_FloatFromU64(b);
 
     FloatMul(result, a, &rhs);
     FloatDeinit(&rhs);
 }
 
-void FloatMulI64(Float *result, Float *a, i64 b) {
-    Float rhs = FloatFromI64(b);
+void MISRA_PRIV_FloatMulI64(Float *result, Float *a, i64 b) {
+    Float rhs = MISRA_PRIV_FloatFromI64(b);
 
     FloatMul(result, a, &rhs);
     FloatDeinit(&rhs);
 }
 
-void FloatMulF32(Float *result, Float *a, float b) {
+void MISRA_PRIV_FloatMulF32(Float *result, Float *a, float b) {
     Float rhs = float_from_f32_value(b);
 
     FloatMul(result, a, &rhs);
     FloatDeinit(&rhs);
 }
 
-void FloatMulF64(Float *result, Float *a, double b) {
+void MISRA_PRIV_FloatMulF64(Float *result, Float *a, double b) {
     Float rhs = float_from_f64_value(b);
 
     FloatMul(result, a, &rhs);
@@ -651,35 +659,35 @@ void(FloatDiv)(Float *result, Float *a, Float *b, u64 precision) {
     float_replace(result, &temp);
 }
 
-void FloatDivInt(Float *result, Float *a, Int *b, u64 precision) {
-    Float rhs = FloatFromInt(b);
+void MISRA_PRIV_FloatDivInt(Float *result, Float *a, Int *b, u64 precision) {
+    Float rhs = MISRA_PRIV_FloatFromInt(b);
 
     FloatDiv(result, a, &rhs, precision);
     FloatDeinit(&rhs);
 }
 
-void FloatDivU64(Float *result, Float *a, u64 b, u64 precision) {
-    Float rhs = FloatFromU64(b);
+void MISRA_PRIV_FloatDivU64(Float *result, Float *a, u64 b, u64 precision) {
+    Float rhs = MISRA_PRIV_FloatFromU64(b);
 
     FloatDiv(result, a, &rhs, precision);
     FloatDeinit(&rhs);
 }
 
-void FloatDivI64(Float *result, Float *a, i64 b, u64 precision) {
-    Float rhs = FloatFromI64(b);
+void MISRA_PRIV_FloatDivI64(Float *result, Float *a, i64 b, u64 precision) {
+    Float rhs = MISRA_PRIV_FloatFromI64(b);
 
     FloatDiv(result, a, &rhs, precision);
     FloatDeinit(&rhs);
 }
 
-void FloatDivF32(Float *result, Float *a, float b, u64 precision) {
+void MISRA_PRIV_FloatDivF32(Float *result, Float *a, float b, u64 precision) {
     Float rhs = float_from_f32_value(b);
 
     FloatDiv(result, a, &rhs, precision);
     FloatDeinit(&rhs);
 }
 
-void FloatDivF64(Float *result, Float *a, double b, u64 precision) {
+void MISRA_PRIV_FloatDivF64(Float *result, Float *a, double b, u64 precision) {
     Float rhs = float_from_f64_value(b);
 
     FloatDiv(result, a, &rhs, precision);

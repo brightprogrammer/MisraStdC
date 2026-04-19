@@ -10,6 +10,14 @@
 #include "Type.h"
 #include <Misra/Std/Container/BitVec/Init.h>
 
+///
+/// Create an empty integer with value `0`.
+///
+/// USAGE:
+///   Int value = IntInit();
+///
+/// TAGS: Int, Init, Zero, Construct
+///
 static inline Int IntInit(void) {
     Int value;
 
@@ -17,11 +25,32 @@ static inline Int IntInit(void) {
     return value;
 }
 
+///
+/// Release all storage owned by an integer.
+/// The object must not be used again until reinitialized.
+///
+/// value[in] : Integer to deinitialize
+///
+/// USAGE:
+///   IntDeinit(&value);
+///
+/// TAGS: Int, Deinit, Destroy, Memory
+///
 static inline void IntDeinit(Int *value) {
     ValidateInt(value);
     BitVecDeinit(&value->bits);
 }
 
+///
+/// Reset an integer back to zero while preserving the object itself.
+///
+/// value[in] : Integer to clear
+///
+/// USAGE:
+///   IntClear(&value);
+///
+/// TAGS: Int, Clear, Zero, Reset
+///
 static inline void IntClear(Int *value) {
     ValidateInt(value);
     BitVecClear(&value->bits);

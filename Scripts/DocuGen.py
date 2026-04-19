@@ -3,7 +3,6 @@ import re
 import argparse
 from pathlib import Path
 from datetime import datetime
-from pathlib import PurePosixPath
 
 # Configuration
 DEFAULT_ROOT_DIRS = ["."]
@@ -16,15 +15,83 @@ file_contents = {}
 # Regular Expressions
 RE_COMMENT_LINE = re.compile(r'^\s*///\s?(.*)')
 RE_PARAM = re.compile(r'^\s*(\w+)\[(in|out|in,out)\]\s*:\s*(.+)')
+RE_RETURNS = re.compile(r'^\s*RETURNS?\s*:\s*(.+)')
 RE_SUCCESS = re.compile(r'^\s*SUCCESS\s*:\s*(.+)')
 RE_FAILURE = re.compile(r'^\s*FAILURE\s*:\s*(.+)')
 RE_USAGE_START = re.compile(r'^\s*USAGE\s*:\s*$')
 RE_INFO = re.compile(r'^\s*INFO\s*:\s*(.+)')
 RE_NOTE = re.compile(r'^\s*NOTE\s*:\s*(.+)')
 RE_WARN = re.compile(r'^\s*WARN\s*:\s*(.+)')
-RE_SYMBOL_DEFINITION = re.compile(
-    r'^\s*#define\s+(\w+)|^\s*(?:\w+\s+)+(\w+)\s*\(')
 RE_TAGS = re.compile(r"^\s*TAGS\s*:\s+(.*)")
+
+KIND_PRIORITY = {
+    "macro": 3,
+    "function": 2,
+    "type": 1,
+}
+
+
+def extract_symbol_name(code_line):
+    """Extract a documented symbol name from a definition/declaration line."""
+    stripped = code_line.strip()
+    if not stripped:
+        return None
+
+    macro_match = re.match(r'^\s*#\s*define\s+(\w+)\b', stripped)
+    if macro_match:
+        return macro_match.group(1), "macro"
+
+    typedef_fn_ptr_match = re.match(
+        r'^\s*typedef\b.*?\(\s*\*\s*(\w+)\s*\)\s*\(', stripped)
+    if typedef_fn_ptr_match:
+        return typedef_fn_ptr_match.group(1), "type"
+
+    typedef_alias_match = re.match(
+        r'^\s*typedef\b.*?\b(\w+)\s*;\s*$', stripped)
+    if typedef_alias_match and "(" not in stripped:
+        return typedef_alias_match.group(1), "type"
+
+    func_match = re.match(
+        r'^\s*(?:[\w\*]+\s+)+\(?(\w+)\)?\s*\([^;]*\)\s*;?\s*$', stripped)
+    if func_match:
+        return func_match.group(1), "function"
+
+    return None
+
+
+def should_replace_symbol(old_symbol_data, new_symbol_data):
+    """Prefer higher-level public docs when duplicate symbol names are encountered."""
+    old_priority = KIND_PRIORITY.get(old_symbol_data["kind"], 0)
+    new_priority = KIND_PRIORITY.get(new_symbol_data["kind"], 0)
+    return new_priority >= old_priority
+
+
+def to_repo_relative_path(file_path: Path):
+    """Convert an absolute path to a repo-relative POSIX path when possible."""
+    try:
+        return file_path.resolve().relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return file_path.name
+
+
+def collect_source_files(root_path: Path):
+    """Yield C/header files for either a single file root or a directory root."""
+    if root_path.is_file():
+        if root_path.suffix.lower() in (".c", ".h") and root_path.name != "Private.h":
+            yield root_path.resolve()
+        return
+
+    if not root_path.is_dir():
+        return
+
+    for dirpath_str, _, filenames in os.walk(root_path):
+        current_dir = Path(dirpath_str)
+        if any(part.lower() == "docs" for part in current_dir.parts):
+            print(f"Skipping directory: {current_dir} (contains 'docs')")
+            continue
+        for filename in filenames:
+            if filename.endswith((".c", ".h")) and filename != "Private.h":
+                yield (current_dir / filename).resolve()
 
 
 def extract_symbols_and_store_content(file_path: Path):
@@ -62,24 +129,28 @@ def extract_symbols_and_store_content(file_path: Path):
                 code_line = lines[definition_index].strip()
                 documentation = parse_comment_block(
                     comment_block, next_code_line=code_line)
-                symbol_match = RE_SYMBOL_DEFINITION.match(code_line)
-                if symbol_match:
-                    symbol_name = symbol_match.group(
-                        1) or symbol_match.group(2)
-                    if symbol_name:
-                        if symbol_name in parsed_symbols:
-                            print(f"Warning: Duplicate symbol '{symbol_name}' found. "
-                                  f"Old: {parsed_symbols[symbol_name]['filepath']}:{
-                                      parsed_symbols[symbol_name]['def_lineno']}, "
-                                  f"New: {file_path_str}:{definition_index + 1}. Overwriting.")
-                        parsed_symbols[symbol_name] = {
-                            "name": symbol_name,
-                            "kind": documentation["kind"],
-                            "doc": documentation,
-                            "filepath": file_path_str,
-                            "def_lineno": definition_index + 1,
-                            "definition_line_content": code_line
-                        }
+                symbol_info = extract_symbol_name(code_line)
+                if symbol_info:
+                    symbol_name, inferred_kind = symbol_info
+                    if symbol_name.startswith("MISRA_PRIV_"):
+                        line_index = definition_index + 1
+                        continue
+                    documentation["kind"] = inferred_kind
+                    new_symbol_data = {
+                        "name": symbol_name,
+                        "kind": documentation["kind"],
+                        "doc": documentation,
+                        "filepath": file_path_str,
+                        "def_lineno": definition_index + 1,
+                        "definition_line_content": code_line
+                    }
+                    if symbol_name in parsed_symbols:
+                        if should_replace_symbol(parsed_symbols[symbol_name], new_symbol_data):
+                            print(f"Info: Replacing duplicate symbol '{symbol_name}' with "
+                                  f"{file_path_str}:{definition_index + 1}.")
+                            parsed_symbols[symbol_name] = new_symbol_data
+                    else:
+                        parsed_symbols[symbol_name] = new_symbol_data
                 line_index = definition_index + 1
             else:
                 line_index = comment_index
@@ -163,6 +234,7 @@ def parse_comment_block(comment_lines, next_code_line=None):
     brief = []
     params = []
     usage = []
+    returns = []
     success = []
     failure = []
     info = []
@@ -190,6 +262,11 @@ def parse_comment_block(comment_lines, next_code_line=None):
                              "desc": description.strip()}
             params.append(current_param)
             last_parameter = current_param
+            continue
+        elif match := RE_RETURNS.match(line):
+            current_section = "returns"
+            returns.append(match.group(1).strip())
+            last_parameter = None
             continue
         elif match := RE_SUCCESS.match(line):
             current_section = "success"
@@ -233,6 +310,9 @@ def parse_comment_block(comment_lines, next_code_line=None):
             elif current_section == "failure" and failure:
                 failure.append(stripped_line)
                 continue
+            elif current_section == "returns" and returns:
+                returns.append(stripped_line)
+                continue
             elif current_section == "info" and info:
                 info.append(stripped_line)
                 continue
@@ -251,13 +331,13 @@ def parse_comment_block(comment_lines, next_code_line=None):
     symbol_kind = "function"
     if next_code_line:
         code = next_code_line.strip()
-        if code.startswith("#define") or re.match(r"^[A-Z0-9_]+\s*\(", code):
+        if re.match(r"^\s*#\s*define\b", code) or re.match(r"^[A-Z0-9_]+\s*\(", code):
             symbol_kind = "macro"
         elif any(code.startswith(kw) for kw in ("struct ", "enum ", "union ", "typedef ")):
             symbol_kind = "type"
         else:
             function_pattern = re.compile(
-                r"^[\w\*\s]+?\s+\**\w+\s*\([^;]*\)\s*;?$")
+                r"^(?:[\w\*]+\s+)+\(?\w+\)?\s*\([^;]*\)\s*;?$")
             if function_pattern.match(code):
                 symbol_kind = "function"
 
@@ -265,6 +345,7 @@ def parse_comment_block(comment_lines, next_code_line=None):
         "brief": " ".join(brief),
         "params": params,
         "usage": "\n".join(usage) if usage else None,
+        "returns": " ".join(returns) if returns else None,
         "success": " ".join(success) if success else None,
         "failure": " ".join(failure) if failure else None,
         "info": " ".join(info) if info else None,
@@ -314,7 +395,7 @@ def generate_markdown_file(symbol_name, symbol_data, usages, output_dir: Path):
             markdown_file.write("## Description\n\n")
             markdown_file.write(doc["brief"] + "\n\n")
 
-        markdown_file.write("<!--more-->")
+        markdown_file.write("<!--more-->\n\n")
 
         if doc.get("info"):
             markdown_file.write(
@@ -343,6 +424,9 @@ def generate_markdown_file(symbol_name, symbol_data, usages, output_dir: Path):
             markdown_file.write(doc["usage"])
             markdown_file.write("\n```\n\n")
 
+        if doc.get("returns"):
+            markdown_file.write(f"## Returns\n\n{doc['returns']}\n\n")
+
         for section in ["success", "failure"]:
             if doc.get(section):
                 markdown_file.write(f"## {section.capitalize()}\n\n{
@@ -354,24 +438,12 @@ def generate_markdown_file(symbol_name, symbol_data, usages, output_dir: Path):
         if usages:
             for usage_item in usages:
                 usage_file_path = Path(usage_item['filepath'])
-                try:
-                    relative_path = os.path.relpath(
-                        usage_file_path, start=markdown_dir)
-                    link_path = Path(relative_path).as_posix()
-                except ValueError:
-                    link_path = usage_file_path.name
-                    print(f"Warning: Could not create relative path for {
-                          usage_item['filepath']} from {markdown_dir}. Using filename.")
-
-                posix_path = PurePosixPath(link_path)
-                cleaned_parts = [
-                    part for part in posix_path.parts if part != ".."]
-                cleaned_path = "/".join(cleaned_parts)
+                cleaned_path = to_repo_relative_path(usage_file_path)
                 github_link = f"https://github.com/brightprogrammer/MisraStdC/blob/master/{
                     cleaned_path}#L{usage_item['lineno']}"
 
                 indented_code = '\n'.join(
-                    ["    " + line.strip() for line in usage_item['code'].splitlines()])
+                    ["    " + line.rstrip() for line in usage_item['code'].splitlines()])
 
                 markdown_file.write(
                     f'* In [`{usage_file_path.name}:{usage_item["lineno"]}`]({github_link}):\n\n')
@@ -393,25 +465,19 @@ def process_source_files(root_directories, output_directory):
     resolved_output_dir = Path(output_directory).resolve()
     os.makedirs(resolved_output_dir, exist_ok=True)
     print(f"Output directory: {resolved_output_dir}")
+    parsed_symbols.clear()
+    file_contents.clear()
 
     print("\n--- Starting Pass 1: Collecting symbols and file contents ---")
     for root_dir_str in root_directories:
         root_path = Path(root_dir_str).resolve()
-        if not root_path.is_dir():
+        if not root_path.exists():
             print(f"Warning: Root path '{root_dir_str}' ({
-                  root_path}) is not a valid directory. Skipping.")
+                  root_path}) does not exist. Skipping.")
             continue
-        print(f"Pass 1: Scanning under root directory: {root_path}")
-        for dirpath_str, _, filenames in os.walk(root_path):
-            current_dir = Path(dirpath_str)
-            # Skip processing files within any directory named 'Docs' (case-insensitive)
-            if any(part.lower() == "docs" for part in current_dir.parts):
-                print(f"Skipping directory: {current_dir} (contains 'docs')")
-                continue
-            for filename in filenames:
-                if filename.endswith((".c", ".h")):
-                    file_to_process = (current_dir / filename).resolve()
-                    extract_symbols_and_store_content(file_to_process)
+        print(f"Pass 1: Scanning root: {root_path}")
+        for file_to_process in collect_source_files(root_path):
+            extract_symbols_and_store_content(file_to_process)
     print(f"--- Pass 1 complete. Found {len(parsed_symbols)
                                         } unique symbols. Read {len(file_contents)} files. ---")
 
