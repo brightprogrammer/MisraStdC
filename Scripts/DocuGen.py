@@ -6,7 +6,7 @@ from datetime import datetime
 
 # Configuration
 DEFAULT_ROOT_DIRS = ["."]
-DEFAULT_OUTPUT_DIR = "Docs/content/english/blog"
+DEFAULT_OUTPUT_DIR = "Docs/content/english/blog/api"
 
 # Data Stores
 parsed_symbols = {}

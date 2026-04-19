@@ -1,0 +1,4 @@
+{{- $kind := .Get 0 | default "info" -}}
+<div class="misra-notice misra-notice--{{ $kind }}">
+  {{ .Inner | markdownify }}
+</div>

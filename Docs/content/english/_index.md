@@ -1,52 +1,53 @@
 ---
-# Banner
-banner:
-  title: "MisraStdC Documentation"
-  content: "A personal standard C library to make my life easier (and yours as well). The goal is to provide cross-platform, cross-compiler, type-safe and generic solutions. Search for any symbol to get started. This library is in NO WAY related to the MISRA-C standard."
-  image: "/images/banner.png"
-  # button:
-  #   enable: true
-  #   label: "Get Started For Free"
-  #   link: "https://github.com/zeon-studio/hugoplate"
-# Features
-# features:
-#   - title: "What's Included in Hugoplate"
-#     image: "/images/service-1.png"
-#     content: "Hugoplate is a comprehensive starter template that includes everything you need to get started with your Hugo project. What's Included in Hugoplate"
-#     bulletpoints:
-#       - "10+ Pre-build pages"
-#       - "95+ Google Pagespeed Score"
-#       - "Build with Hugo and TailwindCSS for easy and customizable styling"
-#       - "Fully responsive on all devices"
-#       - "SEO-optimized for better search engine rankings"
-#       - "**Open-source and free** for personal and commercial use"
-#     button:
-#       enable: false
-#       label: "Get Started Now"
-#       link: "#"
-#
-#   - title: "Discover the Key Features Of Hugo"
-#     image: "/images/service-2.png"
-#     content: "Hugo is an all-in-one web framework for building fast, content-focused websites. It offers a range of exciting features for developers and website creators. Some of the key features are:"
-#     bulletpoints:
-#       - "Zero JS, by default: No JavaScript runtime overhead to slow you down."
-#       - "Customizable: Tailwind, MDX, and 100+ other integrations to choose from."
-#       - "UI-agnostic: Supports React, Preact, Svelte, Vue, Solid, Lit and more."
-#     button:
-#       enable: true
-#       label: "Get Started Now"
-#       link: "https://github.com/zeon-studio/hugoplate"
-#
-#   - title: "The Top Reasons to Choose Hugo for Your Hugo Project"
-#     image: "/images/service-3.png"
-#     content: "With Hugo, you can build modern and content-focused websites without sacrificing performance or ease of use."
-#     bulletpoints:
-#       - "Instantly load static sites for better user experience and SEO."
-#       - "Intuitive syntax and support for popular frameworks make learning and using Hugo a breeze."
-#       - "Use any front-end library or framework, or build custom components, for any project size."
-#       - "Built on cutting-edge technology to keep your projects up-to-date with the latest web standards."
-#     button:
-#       enable: false
-#       label: ""
-#       link: ""
+title: MisraStdC
+layout: hextra-home
 ---
+
+{{< hextra/hero-badge >}}
+  <div class="hx:w-2 hx:h-2 hx:rounded-full hx:bg-primary-500"></div>
+  <span>Type-safe C containers and utilities</span>
+{{< /hextra/hero-badge >}}
+
+<div class="hx:mt-6 hx:mb-6">
+{{< hextra/hero-headline >}}
+  Reference documentation for a practical,<br class="hx:sm:block hx:hidden" />generic standard C library
+{{< /hextra/hero-headline >}}
+</div>
+
+<div class="hx:mb-10">
+{{< hextra/hero-subtitle >}}
+  MisraStdC focuses on cross-platform, type-safe, generic containers and utility APIs. Search any public symbol and jump straight into the generated reference.
+{{< /hextra/hero-subtitle >}}
+</div>
+
+<div class="hx:mb-6">
+{{< hextra/hero-button text="Open Documentation" link="/blog" >}}
+</div>
+
+{{< hextra/feature-grid >}}
+  {{< hextra/feature-card
+    title="Generated API Reference"
+    subtitle="Container, utility, and conversion APIs generated directly from the public headers."
+    icon="document-text"
+  >}}
+  {{< hextra/feature-card
+    title="Built for Search"
+    subtitle="Hextra's full-text search makes symbol lookup and cross-referenced examples fast."
+    icon="search"
+  >}}
+  {{< hextra/feature-card
+    title="Generic Front-Door APIs"
+    subtitle="The public surface now emphasizes generic entry points instead of type-combination overload clutter."
+    icon="sparkles"
+  >}}
+  {{< hextra/feature-card
+    title="Source-Linked"
+    subtitle="Each generated page links back to the repo and shows usage snippets from tests and implementation."
+    icon="link"
+  >}}
+  {{< hextra/feature-card
+    title="Narrative Guides"
+    subtitle="Blog-style documentation for project overview, build flow, and core usage patterns."
+    icon="book-open"
+  >}}
+{{< /hextra/feature-grid >}}

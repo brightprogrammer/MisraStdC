@@ -1,1 +1,59 @@
-/* Add your own custom styles here */
+.misra-notice {
+  margin: 1.5rem 0;
+  padding: 1rem 1rem 1rem 1.125rem;
+  border-left: 4px solid;
+  border-radius: 0.75rem;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.misra-notice > :first-child {
+  margin-top: 0;
+}
+
+.misra-notice > :last-child {
+  margin-bottom: 0;
+}
+
+.misra-notice--info,
+.misra-notice--note {
+  border-color: #2563eb;
+}
+
+.misra-notice--warning,
+.misra-notice--warn {
+  border-color: #d97706;
+}
+
+.misra-notice--tip {
+  border-color: #059669;
+}
+
+.misra-accordion {
+  margin: 1rem 0;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  border-radius: 0.75rem;
+  background: rgba(15, 23, 42, 0.02);
+}
+
+.misra-accordion__summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.9rem 1rem;
+  font-weight: 600;
+}
+
+.misra-accordion__summary::-webkit-details-marker {
+  display: none;
+}
+
+.misra-accordion__body {
+  padding: 0 1rem 1rem;
+}
+
+.misra-accordion__body > :first-child {
+  margin-top: 0;
+}
+
+.misra-accordion__body > :last-child {
+  margin-bottom: 0;
+}

@@ -1,63 +1,36 @@
 ############# English navigation ##############
 
-# main menu
 [[main]]
 name = "Home"
-url = "/"
+pageRef = "/"
 weight = 1
 
-# [[main]]
-# name = "About"
-# url = "/about"
-# weight = 2
-
-# [[main]]
-# name = "Elements"
-# url = "/elements"
-# weight = 3
-
-# [[main]]
-# weight = 4
-# name = "Pages"
-
 [[main]]
-# parent = "Pages"
 name = "Docs"
-url = "/blog"
+pageRef = "/blog"
+weight = 2
 
 [[main]]
-# parent = "Pages"
-name = "Contact"
-url = "/contact"
-
-[[main]]
-# parent = "Pages"
-name = "Authors"
-url = "/authors"
-
-# [[main]]
-# parent = "Pages"
-# name = "Categories"
-# url = "/categories"
-
-# [[main]]
-# parent = "Pages"
-# name = "404 Page"
-# url = "/404"
-
-
-# footer menu
-[[footer]]
-name = "About"
-url = "/about"
-weight = 1
-
-# [[footer]]
-# name = "Elements"
-# url = "/elements"
-# weight = 2
-
-[[footer]]
-name = "Privacy Policy"
-url = "/privacy-policy"
+name = "Guides"
+pageRef = "/guides"
 weight = 3
+
+[[main]]
+name = "About"
+pageRef = "/about"
+weight = 4
+
+[[main]]
+name = "Search"
+weight = 5
+
+[main.params]
+type = "search"
+
+[[main]]
+name = "GitHub"
+url = "https://github.com/brightprogrammer/MisraStdC"
+weight = 6
+
+[main.params]
+icon = "github"

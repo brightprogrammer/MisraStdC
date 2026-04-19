@@ -14,16 +14,11 @@ frontend:
         - export PATH=$PATH:/usr/local/go/bin
         - rm go1.23.3.linux-amd64.tar.gz
         - echo "GO 1.23.3 INSTALLED"
-        - npm install
     build:
       commands:
-        - npm run project-setup
-        - npm run build
+        - python3 ../Scripts/DocuGen.py --root .. ../Bin ../Tests --output content/english/blog/api
+        - hugo --gc
   artifacts:
-    # IMPORTANT - Please verify your build output directory
     baseDirectory: /public
     files:
       - "**/*"
-  cache:
-    paths:
-      - node_modules/**/*

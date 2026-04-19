@@ -23,7 +23,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      HUGO_VERSION: 0.143.0
+      HUGO_VERSION: 0.146.5
+      GO_VERSION: 1.24.2
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,8 +40,10 @@ jobs:
         id: pages
         uses: actions/configure-pages@v5
 
-      - name: Install Node.js dependencies
-        run: npm install
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
 
       - name: Check paths
         run: |
@@ -52,10 +55,11 @@ jobs:
           echo "Current directory: $PWD"
           echo "Files under ../Source:"
           find ../Source -type f
-          python3 ../Scripts/DocuGen.py --root .. ../Bin ../Tests --output content/english/blog
+          mkdir -p content/english/blog/api
+          python3 ../Scripts/DocuGen.py --root .. ../Bin ../Tests --output content/english/blog/api
 
       - name: Check paths after generatiom
-        run: ls -l content/english/blog
+        run: ls -l content/english/blog/api
 
       - name: Build with Hugo
         env:

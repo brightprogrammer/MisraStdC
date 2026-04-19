@@ -6,7 +6,6 @@ compile_commands.json
 Make
 .vs
 .vscode
-Docs/
 Docs/public
 .DS_Store
 .venv

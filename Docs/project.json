@@ -2,6 +2,6 @@
   "project": {
     "source_directories": ["Source", "Include", "Bin"],
     "test_directories": [],
-    "build_dir": "Docs/content/english/blog"
+    "build_dir": "Docs/content/english/blog/api"
   }
 }

@@ -1,0 +1,7 @@
+{{- $title := .Get 0 | default "Details" -}}
+<details class="misra-accordion">
+  <summary class="misra-accordion__summary">{{ $title }}</summary>
+  <div class="misra-accordion__body">
+    {{ .Inner | markdownify }}
+  </div>
+</details>
