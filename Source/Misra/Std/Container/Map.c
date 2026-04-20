@@ -22,35 +22,38 @@ static size quadratic_probe_index(u64 hash, size probe_count, size capacity) {
     return (size)(hash + ((probe_count * (probe_count + 1)) / 2));
 }
 
-static bool default_should_rehash(MapPolicySnapshot snapshot, size pending_inserts, size probe_pressure) {
-    if ((snapshot.length + pending_inserts) == 0) {
+static bool default_should_rehash(u64 length, u64 capacity, u64 tombstones, size pending_inserts, size probe_pressure) {
+    if ((length + pending_inserts) == 0) {
         return false;
     }
 
-    if (snapshot.capacity == 0) {
+    if (capacity == 0) {
         return true;
     }
 
-    if (((snapshot.length + snapshot.tombstones + pending_inserts) * 4) >= (snapshot.capacity * 3)) {
+    if (((length + tombstones + pending_inserts) * 4) >= (capacity * 3)) {
         return true;
     }
 
-    return probe_pressure > 0 && (probe_pressure * 4) >= snapshot.capacity;
+    return probe_pressure > 0 && (probe_pressure * 4) >= capacity;
 }
 
-static size default_next_capacity(MapPolicySnapshot snapshot, size min_entries) {
-    size capacity = 8;
-    size needed   = min_entries > snapshot.length ? min_entries : (size)snapshot.length;
+static size default_next_capacity(u64 length, u64 capacity, u64 tombstones, size min_entries) {
+    size new_capacity = 8;
+    size needed       = min_entries > length ? min_entries : (size)length;
+
+    (void)tombstones;
+    (void)capacity;
 
     if (needed == 0) {
         return 0;
     }
 
-    while (((capacity * 3) / 4) < needed) {
-        capacity <<= 1;
+    while (((new_capacity * 3) / 4) < needed) {
+        new_capacity <<= 1;
     }
 
-    return capacity;
+    return new_capacity;
 }
 
 static size linear_first_index(u64 hash, size capacity) {
@@ -72,16 +75,6 @@ static size quadratic_next_index(u64 hash, size capacity, size previous_index, s
     return capacity ? (quadratic_probe_index(hash, probe_count, capacity) % capacity) : 0;
 }
 
-static MapPolicySnapshot map_policy_snapshot(const GenericMap *map) {
-    MapPolicySnapshot snapshot = {
-        .length     = map->length,
-        .capacity   = map->capacity,
-        .tombstones = map->tombstones,
-    };
-
-    return snapshot;
-}
-
 static size map_validate_policy_index(size idx, size capacity, const char *callback_name) {
     if (capacity && idx >= capacity) {
         LOG_FATAL("{} returned index {} for capacity {}", callback_name, idx, capacity);
@@ -91,15 +84,19 @@ static size map_validate_policy_index(size idx, size capacity, const char *callb
 }
 
 void validate_map_policy(const MapPolicy *policy) {
-    static const MapPolicySnapshot snapshots[] = {
-        {.length = 0, .capacity = 0, .tombstones = 0},
-        {.length = 3, .capacity = 8, .tombstones = 0},
-        {.length = 5, .capacity = 8, .tombstones = 2},
+    static const struct {
+        u64 length;
+        u64 capacity;
+        u64 tombstones;
+    } snapshots[] = {
+        { .length = 0,  .capacity = 0, .tombstones = 0},
+        { .length = 3,  .capacity = 8, .tombstones = 0},
+        { .length = 5,  .capacity = 8, .tombstones = 2},
         {.length = 10, .capacity = 16, .tombstones = 3},
     };
     static const size capacities[] = {1, 8, 17};
-    size idx_i;
-    size cap_i;
+    size              idx_i;
+    size              cap_i;
 
     if (!policy) {
         LOG_FATAL("Expected a valid MapPolicy pointer");
@@ -118,22 +115,24 @@ void validate_map_policy(const MapPolicy *policy) {
     }
 
     for (idx_i = 0; idx_i < (sizeof(snapshots) / sizeof(snapshots[0])); idx_i++) {
-        MapPolicySnapshot snapshot = snapshots[idx_i];
-        size             next0     = policy->next_capacity(snapshot, 0);
-        size             next_same = policy->next_capacity(snapshot, (size)snapshot.length);
-        size             next_more = policy->next_capacity(snapshot, (size)snapshot.length + 1);
-        (void)policy->should_rehash(snapshot, 0, 0);
-        (void)policy->should_rehash(snapshot, 1, policy->max_probe_count);
+        u64  length     = snapshots[idx_i].length;
+        u64  capacity   = snapshots[idx_i].capacity;
+        u64  tombstones = snapshots[idx_i].tombstones;
+        size next0      = policy->next_capacity(length, capacity, tombstones, 0);
+        size next_same  = policy->next_capacity(length, capacity, tombstones, (size)length);
+        size next_more  = policy->next_capacity(length, capacity, tombstones, (size)length + 1);
+        (void)policy->should_rehash(length, capacity, tombstones, 0, 0);
+        (void)policy->should_rehash(length, capacity, tombstones, 1, policy->max_probe_count);
 
-        if ((next0 == 0) && ((snapshot.length != 0) || (snapshot.capacity != 0) || (snapshot.tombstones != 0))) {
+        if ((next0 == 0) && ((length != 0) || (capacity != 0) || (tombstones != 0))) {
             LOG_FATAL("MapPolicy '{}' returned zero capacity for a non-empty snapshot", policy->name);
         }
 
-        if ((next_same != 0) && (next_same < snapshot.length)) {
+        if ((next_same != 0) && (next_same < length)) {
             LOG_FATAL("MapPolicy '{}' returned capacity smaller than current length", policy->name);
         }
 
-        if (next_more < ((size)snapshot.length + 1)) {
+        if (next_more < ((size)length + 1)) {
             LOG_FATAL("MapPolicy '{}' returned capacity smaller than requested minimum entries", policy->name);
         }
     }
@@ -146,11 +145,7 @@ void validate_map_policy(const MapPolicy *policy) {
         map_validate_policy_index(policy->first_index(hash, capacity), capacity, "first_index");
 
         if ((capacity > 1) && (policy->max_probe_count > 1)) {
-            size next = map_validate_policy_index(
-                policy->next_index(hash, capacity, first, 1),
-                capacity,
-                "next_index"
-            );
+            size next = map_validate_policy_index(policy->next_index(hash, capacity, first, 1), capacity, "next_index");
 
             if (next == first) {
                 LOG_FATAL("MapPolicy '{}' produced a stuck probe sequence for capacity {}", policy->name, capacity);
@@ -165,20 +160,20 @@ MapPolicy validate_map_policy_copy(MapPolicy policy) {
 }
 
 const MapPolicy MisraMapPolicyLinear = {
-    .name          = "linear",
-    .should_rehash = default_should_rehash,
-    .next_capacity = default_next_capacity,
-    .first_index   = linear_first_index,
-    .next_index    = linear_next_index,
+    .name            = "linear",
+    .should_rehash   = default_should_rehash,
+    .next_capacity   = default_next_capacity,
+    .first_index     = linear_first_index,
+    .next_index      = linear_next_index,
     .max_probe_count = 128,
 };
 
 const MapPolicy MisraMapPolicyQuadratic = {
-    .name          = "quadratic",
-    .should_rehash = default_should_rehash,
-    .next_capacity = default_next_capacity,
-    .first_index   = quadratic_first_index,
-    .next_index    = quadratic_next_index,
+    .name            = "quadratic",
+    .should_rehash   = default_should_rehash,
+    .next_capacity   = default_next_capacity,
+    .first_index     = quadratic_first_index,
+    .next_index      = quadratic_next_index,
     .max_probe_count = 128,
 };
 
@@ -202,23 +197,11 @@ static u64 map_hash_key(const GenericMap *map, const void *key, size key_size) {
     return map->key_hash(key, (u32)key_size);
 }
 
-static bool map_keys_equal(
-    const GenericMap *map,
-    size                  entry_size,
-    size                  key_offset,
-    size                  idx,
-    const void           *key
-) {
+static bool map_keys_equal(const GenericMap *map, size entry_size, size key_offset, size idx, const void *key) {
     return map->key_compare(map_key_ptr(map, entry_size, key_offset, idx), key) == 0;
 }
 
-static void map_deinit_slot(
-    GenericMap *map,
-    size            entry_size,
-    size            key_offset,
-    size            value_offset,
-    size            idx
-) {
+static void map_deinit_slot(GenericMap *map, size entry_size, size key_offset, size value_offset, size idx) {
     if (map->key_copy_deinit) {
         map->key_copy_deinit(map_key_ptr(map, entry_size, key_offset, idx));
     }
@@ -232,16 +215,16 @@ static void map_deinit_slot(
 
 static void map_copy_into_slot(
     GenericMap *map,
-    size            entry_size,
-    size            key_offset,
-    size            key_size,
-    size            value_offset,
-    size            value_size,
-    size            hash_offset,
-    size            idx,
-    const void     *key,
-    const void     *value,
-    u64             hash
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset,
+    size        idx,
+    const void *key,
+    const void *value,
+    u64         hash
 ) {
     char *entry   = map_entry_ptr(map, entry_size, idx);
     void *dst_key = entry + key_offset;
@@ -266,15 +249,15 @@ static void map_copy_into_slot(
 
 static bool map_find_slot(
     GenericMap *map,
-    const void     *key,
-    size            entry_size,
-    size            key_offset,
-    size            key_size,
-    size            hash_offset,
-    u64             hash,
-    size           *found_idx,
-    size           *insert_idx,
-    size           *probe_pressure
+    const void *key,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        hash_offset,
+    u64         hash,
+    size       *found_idx,
+    size       *insert_idx,
+    size       *probe_pressure
 ) {
     size first_tombstone = map->capacity;
     size idx             = 0;
@@ -361,11 +344,11 @@ static bool map_find_slot(
 
 static void map_insert_raw_entry(
     GenericMap *map,
-    const void     *entry,
-    size            entry_size,
-    size            key_offset,
-    size            key_size,
-    size            hash_offset
+    const void *entry,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        hash_offset
 ) {
     u64  hash       = *(const u64 *)(const void *)((const char *)entry + hash_offset);
     size insert_idx = map->capacity;
@@ -389,8 +372,8 @@ static void map_insert_raw_entry(
     }
 
     memcpy(map_entry_ptr(map, entry_size, insert_idx), entry, entry_size);
-    map->states[insert_idx] = MAP_SLOT_OCCUPIED;
-    map->length += 1;
+    map->states[insert_idx]  = MAP_SLOT_OCCUPIED;
+    map->length             += 1;
 }
 
 void validate_map(const GenericMap *map) {
@@ -430,12 +413,12 @@ void validate_map(const GenericMap *map) {
 
 void deinit_map(
     GenericMap *map,
-    size            entry_size,
-    size            key_offset,
-    size            key_size,
-    size            value_offset,
-    size            value_size,
-    size            hash_offset
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset
 ) {
     ValidateMap(map);
 
@@ -444,34 +427,34 @@ void deinit_map(
     free(map->entries);
     free(map->states);
 
-    map->entries            = NULL;
-    map->states             = NULL;
-    map->length             = 0;
-    map->capacity           = 0;
-    map->tombstones         = 0;
-    map->key_copy_init      = NULL;
-    map->key_copy_deinit    = NULL;
-    map->value_copy_init    = NULL;
-    map->value_copy_deinit  = NULL;
-    map->key_compare        = NULL;
-    map->key_hash           = NULL;
-    map->policy.name          = NULL;
-    map->policy.should_rehash = NULL;
-    map->policy.next_capacity = NULL;
-    map->policy.first_index   = NULL;
-    map->policy.next_index    = NULL;
+    map->entries                = NULL;
+    map->states                 = NULL;
+    map->length                 = 0;
+    map->capacity               = 0;
+    map->tombstones             = 0;
+    map->key_copy_init          = NULL;
+    map->key_copy_deinit        = NULL;
+    map->value_copy_init        = NULL;
+    map->value_copy_deinit      = NULL;
+    map->key_compare            = NULL;
+    map->key_hash               = NULL;
+    map->policy.name            = NULL;
+    map->policy.should_rehash   = NULL;
+    map->policy.next_capacity   = NULL;
+    map->policy.first_index     = NULL;
+    map->policy.next_index      = NULL;
     map->policy.max_probe_count = 0;
-    map->__magic            = 0;
+    map->__magic                = 0;
 }
 
 void clear_map(
     GenericMap *map,
-    size            entry_size,
-    size            key_offset,
-    size            key_size,
-    size            value_offset,
-    size            value_size,
-    size            hash_offset
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset
 ) {
     size idx;
 
@@ -486,7 +469,7 @@ void clear_map(
         map->states[idx] = MAP_SLOT_EMPTY;
     }
 
-    map->length = 0;
+    map->length     = 0;
     map->tombstones = 0;
 
     (void)key_size;
@@ -496,13 +479,13 @@ void clear_map(
 
 void rehash_map(
     GenericMap *map,
-    size            entry_size,
-    size            key_offset,
-    size            key_size,
-    size            value_offset,
-    size            value_size,
-    size            hash_offset,
-    size            n,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset,
+    size        n,
     MapPolicy   policy
 ) {
     char *old_entries;
@@ -510,25 +493,22 @@ void rehash_map(
     size  old_capacity;
     size  new_capacity;
     size  idx;
-    MapPolicySnapshot snapshot;
-
     ValidateMap(map);
     validate_map_policy(&policy);
 
     if ((map->length == 0) && (n == 0)) {
         free(map->entries);
         free(map->states);
-        map->entries  = NULL;
-        map->states   = NULL;
-        map->length   = 0;
-        map->capacity = 0;
+        map->entries    = NULL;
+        map->states     = NULL;
+        map->length     = 0;
+        map->capacity   = 0;
         map->tombstones = 0;
-        map->policy   = policy;
+        map->policy     = policy;
         return;
     }
 
-    snapshot     = map_policy_snapshot(map);
-    new_capacity = policy.next_capacity(snapshot, n);
+    new_capacity = policy.next_capacity(map->length, map->capacity, map->tombstones, n);
 
     if (new_capacity < (n > map->length ? n : (size)map->length)) {
         LOG_FATAL("Map policy '{}' returned insufficient capacity {}", policy.name, new_capacity);
@@ -550,24 +530,17 @@ void rehash_map(
         LOG_SYS_FATAL("calloc() failed");
     }
 
-    map->capacity = new_capacity;
-    map->length   = 0;
+    map->capacity   = new_capacity;
+    map->length     = 0;
     map->tombstones = 0;
-    map->policy   = policy;
+    map->policy     = policy;
 
     for (idx = 0; idx < old_capacity; idx++) {
         if (!old_states || old_states[idx] != MAP_SLOT_OCCUPIED) {
             continue;
         }
 
-        map_insert_raw_entry(
-            map,
-            old_entries + (idx * entry_size),
-            entry_size,
-            key_offset,
-            key_size,
-            hash_offset
-        );
+        map_insert_raw_entry(map, old_entries + (idx * entry_size), entry_size, key_offset, key_size, hash_offset);
     }
 
     free(old_entries);
@@ -579,46 +552,35 @@ void rehash_map(
 
 void reserve_map(
     GenericMap *map,
-    size            entry_size,
-    size            key_offset,
-    size            key_size,
-    size            value_offset,
-    size            value_size,
-    size            hash_offset,
-    size            n
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset,
+    size        n
 ) {
-    MapPolicySnapshot snapshot;
-    size              target_capacity;
+    size target_capacity;
 
     ValidateMap(map);
 
-    snapshot        = map_policy_snapshot(map);
-    target_capacity = map->policy.next_capacity(snapshot, n);
+    target_capacity = map->policy.next_capacity(map->length, map->capacity, map->tombstones, n);
 
-    if ((target_capacity == map->capacity) && !map->policy.should_rehash(snapshot, 0, 0)) {
+    if ((target_capacity == map->capacity) &&
+        !map->policy.should_rehash(map->length, map->capacity, map->tombstones, 0, 0)) {
         return;
     }
 
-    rehash_map(
-        map,
-        entry_size,
-        key_offset,
-        key_size,
-        value_offset,
-        value_size,
-        hash_offset,
-        n,
-        map->policy
-    );
+    rehash_map(map, entry_size, key_offset, key_size, value_offset, value_size, hash_offset, n, map->policy);
 }
 
 size map_find_index(
     GenericMap *map,
-    const void     *key,
-    size            entry_size,
-    size            key_offset,
-    size            key_size,
-    size            hash_offset
+    const void *key,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        hash_offset
 ) {
     size found_idx = 0;
     u64  hash;
@@ -637,14 +599,7 @@ size map_find_index(
     return map->capacity;
 }
 
-bool map_contains(
-    GenericMap *map,
-    const void     *key,
-    size            entry_size,
-    size            key_offset,
-    size            key_size,
-    size            hash_offset
-) {
+bool map_contains(GenericMap *map, const void *key, size entry_size, size key_offset, size key_size, size hash_offset) {
     ValidateMap(map);
 
     return map->capacity && (map_find_index(map, key, entry_size, key_offset, key_size, hash_offset) < map->capacity);
@@ -652,12 +607,12 @@ bool map_contains(
 
 void *map_get_value_ptr(
     GenericMap *map,
-    const void     *key,
-    size            entry_size,
-    size            key_offset,
-    size            key_size,
-    size            value_offset,
-    size            hash_offset
+    const void *key,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        hash_offset
 ) {
     size idx;
 
@@ -677,41 +632,29 @@ void *map_get_value_ptr(
 
 void map_insert(
     GenericMap *map,
-    const void     *key,
-    const void     *value,
-    size            entry_size,
-    size            key_offset,
-    size            key_size,
-    size            value_offset,
-    size            value_size,
-    size            hash_offset,
-    bool            replace_existing
+    const void *key,
+    const void *value,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset,
+    bool        replace_existing
 ) {
-    size found_idx  = 0;
-    size insert_idx = 0;
+    size found_idx      = 0;
+    size insert_idx     = 0;
     size probe_pressure = 0;
     bool found;
     u64  hash;
-    MapPolicySnapshot snapshot;
 
     ValidateMap(map);
 
     if (map->capacity == 0) {
-        rehash_map(
-            map,
-            entry_size,
-            key_offset,
-            key_size,
-            value_offset,
-            value_size,
-            hash_offset,
-            1,
-            map->policy
-        );
+        rehash_map(map, entry_size, key_offset, key_size, value_offset, value_size, hash_offset, 1, map->policy);
     }
 
-    snapshot = map_policy_snapshot(map);
-    if (map->policy.should_rehash(snapshot, 1, 0)) {
+    if (map->policy.should_rehash(map->length, map->capacity, map->tombstones, 1, 0)) {
         rehash_map(
             map,
             entry_size,
@@ -725,7 +668,7 @@ void map_insert(
         );
     }
 
-    hash = map_hash_key(map, key, key_size);
+    hash  = map_hash_key(map, key, key_size);
     found = map_find_slot(
         map,
         key,
@@ -763,8 +706,7 @@ void map_insert(
     }
 
     if (insert_idx >= map->capacity) {
-        snapshot = map_policy_snapshot(map);
-        (void)map->policy.should_rehash(snapshot, 1, probe_pressure);
+        (void)map->policy.should_rehash(map->length, map->capacity, map->tombstones, 1, probe_pressure);
 
         rehash_map(
             map,
@@ -809,21 +751,21 @@ void map_insert(
         value,
         hash
     );
-    map->states[insert_idx] = MAP_SLOT_OCCUPIED;
-    map->length += 1;
+    map->states[insert_idx]  = MAP_SLOT_OCCUPIED;
+    map->length             += 1;
 }
 
 bool map_remove(
     GenericMap *map,
-    const void     *key,
-    void           *removed_key,
-    void           *removed_value,
-    size            entry_size,
-    size            key_offset,
-    size            key_size,
-    size            value_offset,
-    size            value_size,
-    size            hash_offset
+    const void *key,
+    void       *removed_key,
+    void       *removed_value,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset
 ) {
     size idx;
 
@@ -851,8 +793,8 @@ bool map_remove(
     }
 
     memset(map_entry_ptr(map, entry_size, idx), 0, entry_size);
-    map->states[idx] = MAP_SLOT_TOMBSTONE;
-    map->length -= 1;
-    map->tombstones += 1;
+    map->states[idx]  = MAP_SLOT_TOMBSTONE;
+    map->length      -= 1;
+    map->tombstones  += 1;
     return true;
 }

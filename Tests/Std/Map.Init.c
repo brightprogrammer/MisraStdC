@@ -17,24 +17,26 @@ static i32 int_compare(const void *lhs, const void *rhs) {
     return (a > b) - (a < b);
 }
 
-static bool custom_should_rehash(MapPolicySnapshot snapshot, size pending_inserts, size probe_pressure) {
+static bool custom_should_rehash(u64 length, u64 capacity, u64 tombstones, size pending_inserts, size probe_pressure) {
     (void)probe_pressure;
-    return snapshot.capacity == 0 || (snapshot.length + snapshot.tombstones + pending_inserts) > snapshot.capacity;
+    return capacity == 0 || (length + tombstones + pending_inserts) > capacity;
 }
 
-static size custom_next_capacity(MapPolicySnapshot snapshot, size min_entries) {
-    size needed = min_entries > snapshot.length ? min_entries : (size)snapshot.length;
-    size capacity = 5;
+static size custom_next_capacity(u64 length, u64 capacity, u64 tombstones, size min_entries) {
+    size needed       = min_entries > length ? min_entries : (size)length;
+    size new_capacity = 5;
 
     if (needed == 0) {
         return 0;
     }
 
-    while (capacity < needed) {
-        capacity += 5;
+    while (new_capacity < needed) {
+        new_capacity += 5;
     }
 
-    return capacity;
+    (void)capacity;
+    (void)tombstones;
+    return new_capacity;
 }
 
 static size custom_first_index(u64 hash, size capacity) {
@@ -79,7 +81,7 @@ static bool test_map_rehash_policy_switch(void) {
 
     for (int i = 0; i < 24; i++) {
         int *value = MapGetPtr(&map, i);
-        result = result && value && (*value == i * 10);
+        result     = result && value && (*value == i * 10);
     }
 
     MapDeinit(&map);
@@ -96,8 +98,8 @@ static bool test_map_custom_policy_growth(void) {
         .next_index      = custom_next_index,
         .max_probe_count = 32,
     };
-    IntIntMap map = MapInitWithPolicy(int_hash, int_compare, custom_policy);
-    bool result = true;
+    IntIntMap map    = MapInitWithPolicy(int_hash, int_compare, custom_policy);
+    bool      result = true;
 
     for (int i = 0; i < 6; i++) {
         MapSetR(&map, i, i + 100);
@@ -108,7 +110,7 @@ static bool test_map_custom_policy_growth(void) {
 
     for (int i = 0; i < 6; i++) {
         int *value = MapGetPtr(&map, i);
-        result = result && value && (*value == (i + 100));
+        result     = result && value && (*value == (i + 100));
     }
 
     MapDeinit(&map);

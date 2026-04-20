@@ -17,24 +17,28 @@ static i32 int_compare(const void *lhs, const void *rhs) {
     return (a > b) - (a < b);
 }
 
-static bool custom_should_rehash_snapshot(MapPolicySnapshot snapshot, size pending_inserts, size probe_pressure) {
+static bool
+    custom_should_rehash_snapshot(u64 length, u64 capacity, u64 tombstones, size pending_inserts, size probe_pressure) {
     (void)probe_pressure;
-    return snapshot.capacity == 0 || (snapshot.length + snapshot.tombstones + pending_inserts) >= snapshot.capacity;
+    return capacity == 0 || (length + tombstones + pending_inserts) >= capacity;
 }
 
-static size custom_next_capacity(MapPolicySnapshot snapshot, size min_entries) {
-    size needed = min_entries > snapshot.length ? min_entries : (size)snapshot.length;
-    size capacity = 5;
+static size custom_next_capacity(u64 length, u64 capacity, u64 tombstones, size min_entries) {
+    size needed       = min_entries > length ? min_entries : (size)length;
+    size new_capacity = 5;
+
+    (void)tombstones;
+    (void)capacity;
 
     if (needed == 0) {
         return 0;
     }
 
-    while (capacity < needed) {
-        capacity += 5;
+    while (new_capacity < needed) {
+        new_capacity += 5;
     }
 
-    return capacity;
+    return new_capacity;
 }
 
 static size custom_first_index(u64 hash, size capacity) {
@@ -50,13 +54,8 @@ static bool test_map_type_defaults(void) {
     typedef Map(int, int) IntIntMap;
     IntIntMap map = MapInit(int_hash, int_compare);
 
-    return map.length == 0 &&
-           map.capacity == 0 &&
-           map.tombstones == 0 &&
-           map.entries == NULL &&
-           map.states == NULL &&
-           map.key_compare == int_compare &&
-           map.key_hash == int_hash &&
+    return map.length == 0 && map.capacity == 0 && map.tombstones == 0 && map.entries == NULL && map.states == NULL &&
+           map.key_compare == int_compare && map.key_hash == int_hash &&
            map.policy.should_rehash == MisraMapPolicyLinear.should_rehash &&
            map.policy.next_capacity == MisraMapPolicyLinear.next_capacity &&
            map.policy.first_index == MisraMapPolicyLinear.first_index &&
@@ -67,27 +66,26 @@ static bool test_map_type_defaults(void) {
 static bool test_map_policy_copy(void) {
     typedef Map(int, int) IntIntMap;
     MapPolicy custom_policy = {
-        .name          = "custom-linear",
-        .should_rehash = custom_should_rehash_snapshot,
-        .next_capacity = custom_next_capacity,
-        .first_index   = custom_first_index,
-        .next_index    = custom_next_index,
+        .name            = "custom-linear",
+        .should_rehash   = custom_should_rehash_snapshot,
+        .next_capacity   = custom_next_capacity,
+        .first_index     = custom_first_index,
+        .next_index      = custom_next_index,
         .max_probe_count = 11,
     };
     IntIntMap map = MapInitWithPolicy(int_hash, int_compare, custom_policy);
 
-    custom_policy.name          = "changed";
-    custom_policy.should_rehash = NULL;
-    custom_policy.next_capacity = NULL;
-    custom_policy.first_index   = NULL;
-    custom_policy.next_index    = NULL;
+    custom_policy.name            = "changed";
+    custom_policy.should_rehash   = NULL;
+    custom_policy.next_capacity   = NULL;
+    custom_policy.first_index     = NULL;
+    custom_policy.next_index      = NULL;
     custom_policy.max_probe_count = 0;
 
     return ZstrCompare(MapPolicyName(&map), "custom-linear") == 0 &&
            MapPolicyGet(&map).should_rehash == custom_should_rehash_snapshot &&
            MapPolicyGet(&map).next_capacity == custom_next_capacity &&
-           MapPolicyGet(&map).first_index == custom_first_index &&
-           MapPolicyGet(&map).next_index == custom_next_index &&
+           MapPolicyGet(&map).first_index == custom_first_index && MapPolicyGet(&map).next_index == custom_next_index &&
            MapPolicyGet(&map).max_probe_count == 11;
 }
 
@@ -102,8 +100,7 @@ static bool test_validate_map_policy(void) {
     };
 
     ValidateMapPolicy(custom_policy);
-    return custom_next_capacity((MapPolicySnapshot) {.length = 6, .capacity = 5, .tombstones = 0}, 7) == 10 &&
-           custom_first_index(0x55u, 5) < 5 &&
+    return custom_next_capacity(6, 5, 0, 7) == 10 && custom_first_index(0x55u, 5) < 5 &&
            custom_next_index(0x55u, 5, 1, 2) < 5;
 }
 

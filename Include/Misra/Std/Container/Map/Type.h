@@ -14,14 +14,14 @@
 
 typedef struct GenericMap GenericMap;
 
-typedef struct {
-    u64 length;
-    u64 capacity;
-    u64 tombstones;
-} MapPolicySnapshot;
-
-typedef bool (*MapPolicyShouldRehashFn)(MapPolicySnapshot snapshot, size pending_inserts, size probe_pressure);
-typedef size (*MapPolicyNextCapacityFn)(MapPolicySnapshot snapshot, size min_entries);
+typedef bool (*MapPolicyShouldRehashFn)(
+    u64  length,
+    u64  capacity,
+    u64  tombstones,
+    size pending_inserts,
+    size probe_pressure
+);
+typedef size (*MapPolicyNextCapacityFn)(u64 length, u64 capacity, u64 tombstones, size min_entries);
 typedef size (*MapPolicyFirstIndexFn)(u64 hash, size capacity);
 typedef size (*MapPolicyNextIndexFn)(u64 hash, size capacity, size previous_index, size probe_count);
 
@@ -63,7 +63,7 @@ struct GenericMap {
 /// - value : Value stored in this entry.
 /// - hash  : Cached key hash used for probing.
 ///
-#define MapEntry(K, V)                                                                                             \
+#define MapEntry(K, V)                                                                                                 \
     struct {                                                                                                           \
         K   key;                                                                                                       \
         V   value;                                                                                                     \
@@ -97,7 +97,7 @@ struct GenericMap {
 ///
 /// TAGS: Map, Generic, KeyValue, Policy, Lookup
 ///
-#define Map(K, V)                                                                                                  \
+#define Map(K, V)                                                                                                      \
     struct {                                                                                                           \
         u64               length;                                                                                      \
         u64               capacity;                                                                                    \
@@ -108,10 +108,10 @@ struct GenericMap {
         GenericCopyDeinit value_copy_deinit;                                                                           \
         GenericCompare    key_compare;                                                                                 \
         GenericHash       key_hash;                                                                                    \
-        MapEntry(K, V) *entries;                                                                                       \
-        u8               *states;                                                                                      \
-        MapPolicy         policy;                                                                                      \
-        u64               __magic;                                                                                     \
+        MapEntry(K, V) * entries;                                                                                      \
+        u8       *states;                                                                                              \
+        MapPolicy policy;                                                                                              \
+        u64       __magic;                                                                                             \
     }
 
 #define MAP_ENTRY_TYPE(m) TYPE_OF((m)->entries[0])
