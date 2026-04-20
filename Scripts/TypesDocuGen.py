@@ -7,6 +7,54 @@ from datetime import datetime
 from clang.cindex import Index, CursorKind, Config, TypeKind
 
 
+def is_list_item(line: str):
+    """Return True when a stripped comment line is a markdown list item."""
+    return bool(
+        line.startswith(("- ", "* ")) or
+        re.match(r'^\d+\.\s+', line)
+    )
+
+
+def format_markdown_lines(lines):
+    """Preserve paragraphs and simple lists from comment text."""
+    if not lines:
+        return None
+
+    blocks = []
+    paragraph = []
+    list_items = []
+
+    def flush_paragraph():
+        if paragraph:
+            blocks.append(" ".join(paragraph))
+            paragraph.clear()
+
+    def flush_list():
+        if list_items:
+            blocks.append("\n".join(list_items))
+            list_items.clear()
+
+    for raw_line in lines:
+        stripped_line = raw_line.strip()
+
+        if not stripped_line:
+            flush_paragraph()
+            flush_list()
+            continue
+
+        if is_list_item(stripped_line):
+            flush_paragraph()
+            list_items.append(stripped_line)
+            continue
+
+        flush_list()
+        paragraph.append(stripped_line)
+
+    flush_paragraph()
+    flush_list()
+    return "\n\n".join(blocks) if blocks else None
+
+
 def parse_comment(raw):
     """
     Parse structured comment sections from /// comment block.
@@ -64,9 +112,7 @@ def parse_comment(raw):
     for key in sections:
         if key == "fields":
             continue
-        sections[key] = "".join(sections[key]).strip()
-
-    sections["brief"] = "".join(sections["brief"]).strip()
+        sections[key] = format_markdown_lines(sections[key])
     return sections
 
 
@@ -198,7 +244,7 @@ def generate_markdown(type_entry, output_dir: Path):
         md.write("draft: false\n")
         md.write("---\n\n")
 
-        md.write(f"# <center>`{symbol_name}`</center>\n\n")
+        md.write(f"# {symbol_name}\n\n")
 
         md.write("## Description\n\n")
         if doc.get("brief"):

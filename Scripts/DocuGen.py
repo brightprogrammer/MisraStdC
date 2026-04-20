@@ -19,6 +19,8 @@ RE_RETURNS = re.compile(r'^\s*RETURNS?\s*:\s*(.+)')
 RE_SUCCESS = re.compile(r'^\s*SUCCESS\s*:\s*(.+)')
 RE_FAILURE = re.compile(r'^\s*FAILURE\s*:\s*(.+)')
 RE_USAGE_START = re.compile(r'^\s*USAGE\s*:\s*$')
+RE_FIELDS_START = re.compile(r'^\s*FIELDS\s*:\s*$')
+RE_FIELD = re.compile(r'^\s*-\s*([A-Za-z_]\w*)\s*:\s*(.+)')
 RE_INFO = re.compile(r'^\s*INFO\s*:\s*(.+)')
 RE_NOTE = re.compile(r'^\s*NOTE\s*:\s*(.+)')
 RE_WARN = re.compile(r'^\s*WARN\s*:\s*(.+)')
@@ -72,6 +74,54 @@ def to_repo_relative_path(file_path: Path):
         return file_path.resolve().relative_to(Path.cwd().resolve()).as_posix()
     except ValueError:
         return file_path.name
+
+
+def is_list_item(line: str):
+    """Return True when a stripped comment line is a markdown list item."""
+    return bool(
+        line.startswith(("- ", "* ")) or
+        re.match(r'^\d+\.\s+', line)
+    )
+
+
+def format_markdown_lines(lines):
+    """Preserve paragraphs and simple lists from comment text."""
+    if not lines:
+        return None
+
+    blocks = []
+    paragraph = []
+    list_items = []
+
+    def flush_paragraph():
+        if paragraph:
+            blocks.append(" ".join(paragraph))
+            paragraph.clear()
+
+    def flush_list():
+        if list_items:
+            blocks.append("\n".join(list_items))
+            list_items.clear()
+
+    for raw_line in lines:
+        stripped_line = raw_line.strip()
+
+        if not stripped_line:
+            flush_paragraph()
+            flush_list()
+            continue
+
+        if is_list_item(stripped_line):
+            flush_paragraph()
+            list_items.append(stripped_line)
+            continue
+
+        flush_list()
+        paragraph.append(stripped_line)
+
+    flush_paragraph()
+    flush_list()
+    return "\n\n".join(blocks) if blocks else None
 
 
 def collect_source_files(root_path: Path):
@@ -237,6 +287,7 @@ def parse_comment_block(comment_lines, next_code_line=None):
     returns = []
     success = []
     failure = []
+    fields = []
     info = []
     note = []
     warn = []
@@ -244,15 +295,36 @@ def parse_comment_block(comment_lines, next_code_line=None):
 
     current_section = "brief"
     last_parameter = None
+    last_field = None
 
     for line in comment_lines:
         stripped_line = line.strip()
         if not stripped_line and current_section != "usage":
+            if current_section == "brief":
+                brief.append("")
+            elif current_section == "returns":
+                returns.append("")
+            elif current_section == "success":
+                success.append("")
+            elif current_section == "failure":
+                failure.append("")
+            elif current_section == "info":
+                info.append("")
+            elif current_section == "note":
+                note.append("")
+            elif current_section == "warn":
+                warn.append("")
             continue
 
         if RE_USAGE_START.match(line):
             current_section = "usage"
             last_parameter = None
+            last_field = None
+            continue
+        elif RE_FIELDS_START.match(line):
+            current_section = "fields"
+            last_parameter = None
+            last_field = None
             continue
         elif match := RE_PARAM.match(line):
             current_section = "params"
@@ -262,47 +334,68 @@ def parse_comment_block(comment_lines, next_code_line=None):
                              "desc": description.strip()}
             params.append(current_param)
             last_parameter = current_param
+            last_field = None
+            continue
+        elif match := RE_FIELD.match(line):
+            current_section = "fields"
+            current_field = {
+                "name": match.group(1),
+                "desc": match.group(2).strip()
+            }
+            fields.append(current_field)
+            last_parameter = None
+            last_field = current_field
             continue
         elif match := RE_RETURNS.match(line):
             current_section = "returns"
             returns.append(match.group(1).strip())
             last_parameter = None
+            last_field = None
             continue
         elif match := RE_SUCCESS.match(line):
             current_section = "success"
             success.append(match.group(1).strip())
             last_parameter = None
+            last_field = None
             continue
         elif match := RE_FAILURE.match(line):
             current_section = "failure"
             failure.append(match.group(1).strip())
             last_parameter = None
+            last_field = None
             continue
         elif match := RE_INFO.match(line):
             current_section = "info"
             info.append(match.group(1).strip())
             last_parameter = None
+            last_field = None
             continue
         elif match := RE_NOTE.match(line):
             current_section = "note"
             note.append(match.group(1).strip())
             last_parameter = None
+            last_field = None
             continue
         elif match := RE_WARN.match(line):
             current_section = "warn"
             warn.append(match.group(1).strip())
             last_parameter = None
+            last_field = None
             continue
         elif match := RE_TAGS.match(line):  # Handle the @tags section
             current_section = "tags"
             tags.extend([tag.strip()
                         for tag in match.group(1).split(',') if tag.strip()])
             last_parameter = None
+            last_field = None
             continue
 
         if line.startswith(" "):
             if current_section == "params" and last_parameter:
                 last_parameter["desc"] += " " + stripped_line
+                continue
+            elif current_section == "fields" and last_field:
+                last_field["desc"] += " " + stripped_line
                 continue
             elif current_section == "success" and success:
                 success.append(stripped_line)
@@ -342,15 +435,16 @@ def parse_comment_block(comment_lines, next_code_line=None):
                 symbol_kind = "function"
 
     return {
-        "brief": " ".join(brief),
+        "brief": format_markdown_lines(brief),
         "params": params,
         "usage": "\n".join(usage) if usage else None,
-        "returns": " ".join(returns) if returns else None,
-        "success": " ".join(success) if success else None,
-        "failure": " ".join(failure) if failure else None,
-        "info": " ".join(info) if info else None,
-        "note": " ".join(note) if note else None,
-        "warn": " ".join(warn) if warn else None,
+        "returns": format_markdown_lines(returns),
+        "success": format_markdown_lines(success),
+        "failure": format_markdown_lines(failure),
+        "fields": fields if fields else None,
+        "info": format_markdown_lines(info),
+        "note": format_markdown_lines(note),
+        "warn": format_markdown_lines(warn),
         "tags": tags if tags else None,  # Include the tags in the result
         "kind": symbol_kind,
     }
@@ -389,7 +483,7 @@ def generate_markdown_file(symbol_name, symbol_data, usages, output_dir: Path):
         markdown_file.write("draft: false\n")
         markdown_file.write("---\n\n")
 
-        markdown_file.write(f"# <center>`{symbol_name}`</center>\n\n")
+        markdown_file.write(f"# {symbol_name}\n\n")
 
         if doc.get("brief"):
             markdown_file.write("## Description\n\n")
@@ -416,6 +510,15 @@ def generate_markdown_file(symbol_name, symbol_data, usages, output_dir: Path):
             for param in doc["params"]:
                 markdown_file.write(f"| `{param['name']}` | {
                                     param['direction']} | {param['desc']} |\n")
+            markdown_file.write("\n\n")
+
+        if doc.get("fields"):
+            markdown_file.write("## Fields\n\n")
+            markdown_file.write("| Name | Description |\n")
+            markdown_file.write("|------|-------------|\n")
+            for field in doc["fields"]:
+                markdown_file.write(
+                    f"| `{field['name']}` | {field['desc']} |\n")
             markdown_file.write("\n\n")
 
         if doc.get("usage"):

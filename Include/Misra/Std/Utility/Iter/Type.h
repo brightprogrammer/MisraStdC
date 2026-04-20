@@ -19,18 +19,18 @@ typedef struct GenericIter {
 ///
 /// Memory iterators are there to allow reading regions of memory by remembering current
 /// read position and the size limit. With proper checking we can guarantee that we can never
-/// overflow or underflow when reading a memory region
+/// overflow or underflow when reading a memory region.
 ///
 /// This also means that Iter objects are created for use with only one reading operation,
-/// and one object in their lifetime.
+/// and only one object in their lifetime.
 ///
-/// The designed API does not allow modifications to the data Iter is iterating over
+/// The designed API does not allow modifications to the data Iter is iterating over.
 ///
 /// FIELDS:
 /// - data   : Pointer to memory we're iterating over
 /// - length : Number of objects in memory.
 /// - pos    : Current iterating position.
-/// - size   : Alignment requirements (if-any), must be at-least 1
+/// - alignment : Alignment requirements (if-any), must be at-least 1
 /// - dir    : Iteration direction, -1 or 1
 ///
 /// TAGS: Memory, Iterator, Safety
