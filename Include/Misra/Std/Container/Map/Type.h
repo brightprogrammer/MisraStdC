@@ -26,6 +26,50 @@ typedef size (*MapPolicyFirstIndexFn)(u64 hash, size capacity);
 typedef size (*MapPolicyNextIndexFn)(u64 hash, size capacity, size previous_index, size probe_count);
 typedef bool (*MapPredicateFn)(const void *key, const void *value, void *ctx);
 
+///
+/// Policy object controlling probe-table behavior of `Map`.
+///
+/// `MapPolicy` is intentionally narrower than a full backend interface.
+/// The map runtime still owns allocation, rollback, copying, and slot writes.
+/// The policy answers strategy questions:
+///
+/// - when probing pressure is unhealthy
+/// - what capacity should be chosen next
+/// - where probing starts
+/// - how probing advances after collisions
+///
+/// This keeps policies powerful enough to tune behavior for different workloads
+/// without letting them redefine container ownership or memory semantics.
+///
+/// USAGE:
+///   MapPolicy policy = {
+///       .name            = "dense-linear",
+///       .should_rehash   = my_should_rehash,
+///       .next_capacity   = my_next_capacity,
+///       .first_index     = my_first_index,
+///       .next_index      = my_next_index,
+///       .max_probe_count = 64,
+///   };
+///
+///   typedef Map(Str, Str) StrMap;
+///   StrMap map = MapInitWithPolicy(KvConfigHash, KvConfigCompare, policy);
+///
+/// FIELDS:
+/// - name            : Human-readable identifier used in diagnostics and validation errors.
+/// - should_rehash   : Callback deciding whether current occupancy, tombstones, pending inserts, and recent probe pressure require a rebuild.
+/// - next_capacity   : Callback choosing the next table capacity. It must return enough capacity to hold at least `min_entries`.
+/// - first_index     : Callback mapping a key hash to the first slot to probe in a table of the given capacity.
+/// - next_index      : Callback choosing the next slot after a collision, using the previous index and probe count.
+/// - max_probe_count : Hard limit on probe attempts before the map forces a rebuild or fails validation.
+///
+/// NOTE:
+/// - Use a low probe count and aggressive growth when lookup latency matters more than memory density.
+/// - Use a denser growth policy when memory footprint matters and longer probe chains are acceptable.
+/// - Linear probing is a good default for cache-friendly general workloads.
+/// - Quadratic probing is useful when you want to reduce primary clustering without changing the public map API.
+///
+/// TAGS: Map, Policy, Hashing, Probing, Configuration
+///
 typedef struct {
     const char             *name;
     MapPolicyShouldRehashFn should_rehash;
@@ -35,7 +79,18 @@ typedef struct {
     size                    max_probe_count;
 } MapPolicy;
 
+///
+/// Built-in linear probing policy.
+///
+/// INFO: This is the best general-purpose starting point when you do not have a workload-specific reason to choose something else.
+///
 extern const MapPolicy MisraMapPolicyLinear;
+
+///
+/// Built-in quadratic probing policy.
+///
+/// INFO: This is useful when you want to reduce clustering pressure while keeping the same `Map` API and runtime ownership model.
+///
 extern const MapPolicy MisraMapPolicyQuadratic;
 
 typedef struct {

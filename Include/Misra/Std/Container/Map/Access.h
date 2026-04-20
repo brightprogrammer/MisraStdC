@@ -120,13 +120,16 @@
 ///
 /// cursor[in] : Cursor returned by `MapFindFirstForKey` or `MapFindNextForKey`.
 ///
-#define MapValueCursorValid(cursor) ((cursor).__index != (size) - 1)
+#define MapValueCursorIsValid(cursor) ((cursor).__index != (size) - 1)
 
 ///
 /// Find the first value stored for a key as a cursor.
 ///
 /// m[in]   : Map.
 /// key[in] : Key to search for.
+///
+/// SUCCESS : Cursor positioned at the first value stored for the key.
+/// FAILURE : `MapValueCursorInvalid()` if the key does not exist.
 ///
 #define MapFindFirstForKey(m, lookup_key)                                                                              \
     map_find_first_cursor(                                                                                             \
@@ -145,6 +148,9 @@
 /// key[in]    : Key being queried.
 /// cursor[in] : Current cursor.
 ///
+/// SUCCESS : Cursor positioned at the next value for the same key.
+/// FAILURE : `MapValueCursorInvalid()` if there are no more values.
+///
 #define MapFindNextForKey(m, lookup_key, cursor)                                                                       \
     map_find_next_cursor(                                                                                              \
         GENERIC_MAP(m),                                                                                                \
@@ -161,6 +167,9 @@
 ///
 /// m[in,out]      : Map.
 /// cursor[in,out] : Valid cursor for this map.
+///
+/// SUCCESS : Pointer to the value referenced by the cursor.
+/// FAILURE : `NULL` if the cursor is invalid or no longer points to an occupied entry.
 ///
 #define MapValuePtrFromCursor(m, cursor)                                                                               \
     ((MAP_VALUE_TYPE(m) *)map_value_ptr_from_cursor(                                                                   \

@@ -68,7 +68,7 @@ static bool test_map_value_cursor_query(void) {
     MapInsertR(&map, 9, 90);
 
     cursor = MapFindFirstForKey(&map, 4);
-    while (MapValueCursorValid(cursor)) {
+    while (MapValueCursorIsValid(cursor)) {
         int *value_ptr = MapValuePtrFromCursor(&map, cursor);
         if (!value_ptr) {
             MapDeinit(&map);
@@ -81,7 +81,7 @@ static bool test_map_value_cursor_query(void) {
     }
 
     bool result = (seen == 3) && (value_sum == (40 + 41 + 42));
-    result      = result && !MapValueCursorValid(MapFindFirstForKey(&map, 99));
+    result      = result && !MapValueCursorIsValid(MapFindFirstForKey(&map, 99));
     result      = result && (MapValuePtrFromCursor(&map, MapValueCursorInvalid()) == NULL);
 
     MapDeinit(&map);
