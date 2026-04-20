@@ -58,7 +58,7 @@ static bool test_map_reserve_and_clear(void) {
     MapSetR(&map, 2, 20);
     MapClear(&map);
 
-    bool result = MapCapacity(&map) >= 32 && MapLen(&map) == 0 && MapEmpty(&map);
+    bool result = map.capacity >= 32 && MapPairCount(&map) == 0 && MapEmpty(&map);
 
     MapDeinit(&map);
     return result;
@@ -72,15 +72,15 @@ static bool test_map_rehash_policy_switch(void) {
         MapSetR(&map, i, i * 10);
     }
 
-    MapRehashWithPolicy(&map, MapLen(&map), MisraMapPolicyQuadratic);
+    MapRehashWithPolicy(&map, MapPairCount(&map), MisraMapPolicyQuadratic);
 
-    bool result = MapPolicyGet(&map).first_index == MisraMapPolicyQuadratic.first_index &&
-                  MapPolicyGet(&map).next_index == MisraMapPolicyQuadratic.next_index &&
-                  MapPolicyGet(&map).next_capacity == MisraMapPolicyQuadratic.next_capacity &&
-                  MapPolicyGet(&map).should_rehash == MisraMapPolicyQuadratic.should_rehash;
+    bool result = (map.policy.first_index == MisraMapPolicyQuadratic.first_index) &&
+                  (map.policy.next_index == MisraMapPolicyQuadratic.next_index) &&
+                  (map.policy.next_capacity == MisraMapPolicyQuadratic.next_capacity) &&
+                  (map.policy.should_rehash == MisraMapPolicyQuadratic.should_rehash);
 
     for (int i = 0; i < 24; i++) {
-        int *value = MapGetPtr(&map, i);
+        int *value = MapGetFirstPtr(&map, i);
         result     = result && value && (*value == i * 10);
     }
 
@@ -105,11 +105,11 @@ static bool test_map_custom_policy_growth(void) {
         MapSetR(&map, i, i + 100);
     }
 
-    result = result && (MapCapacity(&map) == 10);
-    result = result && (MapPolicyGet(&map).next_capacity == custom_next_capacity);
+    result = result && (map.capacity == 10);
+    result = result && (map.policy.next_capacity == custom_next_capacity);
 
     for (int i = 0; i < 6; i++) {
-        int *value = MapGetPtr(&map, i);
+        int *value = MapGetFirstPtr(&map, i);
         result     = result && value && (*value == (i + 100));
     }
 

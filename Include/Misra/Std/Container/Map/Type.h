@@ -71,18 +71,18 @@ struct GenericMap {
     }
 
 ///
-/// Typesafe map definition.
+/// Typesafe multimap definition.
 ///
 /// This behaves like the other generic containers in the project: each use of
 /// `Map(K, V)` creates a distinct anonymous type, so reusable aliases should
-/// be defined with `typedef`.
+/// be defined with `typedef`. Multiple values may be stored for the same key.
 ///
 /// USAGE:
 ///   typedef Map(int, Str) IntStrMap;
 ///   typedef Map(T(Pair(i32, i32)), float) PairFloatMap;
 ///
 /// FIELDS:
-/// - length            : Number of occupied entries in the map.
+/// - length            : Number of stored key/value pairs, including duplicate keys.
 /// - capacity          : Total number of probe slots currently allocated.
 /// - tombstones        : Number of deleted slots currently retained for probing.
 /// - key_copy_init     : Optional deep-copy callback for keys.

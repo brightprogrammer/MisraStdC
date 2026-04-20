@@ -82,11 +82,10 @@ static bool test_map_policy_copy(void) {
     custom_policy.next_index      = NULL;
     custom_policy.max_probe_count = 0;
 
-    return ZstrCompare(MapPolicyName(&map), "custom-linear") == 0 &&
-           MapPolicyGet(&map).should_rehash == custom_should_rehash_snapshot &&
-           MapPolicyGet(&map).next_capacity == custom_next_capacity &&
-           MapPolicyGet(&map).first_index == custom_first_index && MapPolicyGet(&map).next_index == custom_next_index &&
-           MapPolicyGet(&map).max_probe_count == 11;
+    return ZstrCompare(map.policy.name, "custom-linear") == 0 &&
+           map.policy.should_rehash == custom_should_rehash_snapshot &&
+           map.policy.next_capacity == custom_next_capacity && map.policy.first_index == custom_first_index &&
+           map.policy.next_index == custom_next_index && map.policy.max_probe_count == 11;
 }
 
 static bool test_validate_map_policy(void) {

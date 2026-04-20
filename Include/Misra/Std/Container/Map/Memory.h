@@ -15,15 +15,15 @@
 ///
 /// m[in,out] : Hash map.
 ///
-#define MapClear(m)                                                                                                \
-    clear_map(                                                                                                     \
-        GENERIC_MAP(m),                                                                                            \
-        sizeof(MAP_ENTRY_TYPE(m)),                                                                                 \
-        offsetof(MAP_ENTRY_TYPE(m), key),                                                                          \
-        sizeof(MAP_KEY_TYPE(m)),                                                                                   \
-        offsetof(MAP_ENTRY_TYPE(m), value),                                                                        \
-        sizeof(MAP_VALUE_TYPE(m)),                                                                                 \
-        offsetof(MAP_ENTRY_TYPE(m), hash)                                                                          \
+#define MapClear(m)                                                                                                    \
+    clear_map(                                                                                                         \
+        GENERIC_MAP(m),                                                                                                \
+        sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
+        sizeof(MAP_KEY_TYPE(m)),                                                                                       \
+        offsetof(MAP_ENTRY_TYPE(m), value),                                                                            \
+        sizeof(MAP_VALUE_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), hash)                                                                              \
     )
 
 ///
@@ -32,53 +32,33 @@
 /// m[in,out] : Hash map.
 /// n[in]     : Minimum number of entries expected.
 ///
-#define MapReserve(m, n)                                                                                           \
-    reserve_map(                                                                                                   \
-        GENERIC_MAP(m),                                                                                            \
-        sizeof(MAP_ENTRY_TYPE(m)),                                                                                 \
-        offsetof(MAP_ENTRY_TYPE(m), key),                                                                          \
-        sizeof(MAP_KEY_TYPE(m)),                                                                                   \
-        offsetof(MAP_ENTRY_TYPE(m), value),                                                                        \
-        sizeof(MAP_VALUE_TYPE(m)),                                                                                 \
-        offsetof(MAP_ENTRY_TYPE(m), hash),                                                                         \
+#define MapReserve(m, n)                                                                                               \
+    reserve_map(                                                                                                       \
+        GENERIC_MAP(m),                                                                                                \
+        sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
+        sizeof(MAP_KEY_TYPE(m)),                                                                                       \
+        offsetof(MAP_ENTRY_TYPE(m), value),                                                                            \
+        sizeof(MAP_VALUE_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), hash),                                                                             \
         (n)                                                                                                            \
     )
 
-///
-/// Remap to current policy and at least `n` expected entries.
-///
-/// m[in,out] : Hash map.
-/// n[in]     : Minimum number of entries expected after rehash.
-///
-#define MapRehash(m, n)                                                                                            \
-    rehash_map(                                                                                                    \
-        GENERIC_MAP(m),                                                                                            \
-        sizeof(MAP_ENTRY_TYPE(m)),                                                                                 \
-        offsetof(MAP_ENTRY_TYPE(m), key),                                                                          \
-        sizeof(MAP_KEY_TYPE(m)),                                                                                   \
-        offsetof(MAP_ENTRY_TYPE(m), value),                                                                        \
-        sizeof(MAP_VALUE_TYPE(m)),                                                                                 \
-        offsetof(MAP_ENTRY_TYPE(m), hash),                                                                         \
-        (n),                                                                                                           \
-        (m)->policy                                                                                                    \
-    )
-
-///
 /// Remap using a specific probing policy.
 ///
 /// m[in,out] : Hash map.
 /// n[in]     : Minimum number of entries expected after rehash.
 /// policy[in]: New probing policy copied into this map.
 ///
-#define MapRehashWithPolicy(m, n, policy_value)                                                                    \
-    rehash_map(                                                                                                    \
-        GENERIC_MAP(m),                                                                                            \
-        sizeof(MAP_ENTRY_TYPE(m)),                                                                                 \
-        offsetof(MAP_ENTRY_TYPE(m), key),                                                                          \
-        sizeof(MAP_KEY_TYPE(m)),                                                                                   \
-        offsetof(MAP_ENTRY_TYPE(m), value),                                                                        \
-        sizeof(MAP_VALUE_TYPE(m)),                                                                                 \
-        offsetof(MAP_ENTRY_TYPE(m), hash),                                                                         \
+#define MapRehashWithPolicy(m, n, policy_value)                                                                        \
+    rehash_map(                                                                                                        \
+        GENERIC_MAP(m),                                                                                                \
+        sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
+        sizeof(MAP_KEY_TYPE(m)),                                                                                       \
+        offsetof(MAP_ENTRY_TYPE(m), value),                                                                            \
+        sizeof(MAP_VALUE_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), hash),                                                                             \
         (n),                                                                                                           \
         (policy_value)                                                                                                 \
     )

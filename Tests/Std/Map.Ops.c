@@ -5,9 +5,9 @@
 #include "../Util/TestRunner.h"
 
 static u64 zstr_hash(const void *data, u32 size) {
-    const char *str = *(const char *const *)data;
-    const unsigned char *ptr = (const unsigned char *)str;
-    u64 hash = 1469598103934665603ULL;
+    const char          *str  = *(const char *const *)data;
+    const unsigned char *ptr  = (const unsigned char *)str;
+    u64                  hash = 1469598103934665603ULL;
     (void)size;
 
     while (*ptr) {
@@ -26,30 +26,36 @@ static i32 zstr_compare_ptr(const void *lhs, const void *rhs) {
 
 static bool test_map_deep_copy_zstrs(void) {
     typedef Map(const char *, const char *) ZstrMap;
-    ZstrMap map = MapInitWithDeepCopy(
-        zstr_hash,
-        zstr_compare_ptr,
-        ZstrInitClone,
-        ZstrDeinit,
-        ZstrInitClone,
-        ZstrDeinit
-    );
-    char key_buf[] = "alpha";
-    char value_buf[] = "first";
-    const char *key = key_buf;
-    const char *value = value_buf;
+    ZstrMap map =
+        MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, ZstrInitClone, ZstrDeinit, ZstrInitClone, ZstrDeinit);
+    char         key_buf[]          = "alpha";
+    char         value_buf[]        = "first";
+    char         second_value_buf[] = "second";
+    const char  *key                = key_buf;
+    const char  *value              = value_buf;
+    const char  *second_value       = second_value_buf;
     const char **stored_value;
+    int          value_count = 0;
 
     MapInsertL(&map, key, value);
+    MapInsertL(&map, key, second_value);
 
-    bool result = (key == key_buf) && (value == value_buf);
-    key_buf[0] = 'o';
-    value_buf[0] = 'w';
+    bool result         = (key == key_buf) && (value == value_buf) && (second_value == second_value_buf);
+    key_buf[0]          = 'o';
+    value_buf[0]        = 'w';
+    second_value_buf[0] = 'S';
 
-    result = result && MapContains(&map, "alpha");
-    result = result && !MapContains(&map, key);
-    stored_value = MapGetPtr(&map, "alpha");
-    result = result && stored_value && (*stored_value != value) && (ZstrCompare(*stored_value, "first") == 0);
+    result       = result && MapContainsKey(&map, "alpha");
+    result       = result && !MapContainsKey(&map, key);
+    result       = result && (MapValueCountForKey(&map, "alpha") == 2);
+    stored_value = MapGetFirstPtr(&map, "alpha");
+    result       = result && stored_value && (*stored_value != value) && (ZstrCompare(*stored_value, "first") == 0);
+    MapForeachValueForKey(&map, "alpha", entry_value) {
+        if ((ZstrCompare(entry_value, "first") == 0) || (ZstrCompare(entry_value, "second") == 0)) {
+            value_count += 1;
+        }
+    }
+    result = result && (value_count == 2);
 
     MapDeinit(&map);
     return result;
@@ -57,27 +63,31 @@ static bool test_map_deep_copy_zstrs(void) {
 
 static bool test_map_policy_switch_preserves_entries(void) {
     typedef Map(const char *, const char *) ZstrMap;
-    ZstrMap map = MapInitWithDeepCopy(
-        zstr_hash,
-        zstr_compare_ptr,
-        ZstrInitClone,
-        ZstrDeinit,
-        ZstrInitClone,
-        ZstrDeinit
-    );
+    ZstrMap map =
+        MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, ZstrInitClone, ZstrDeinit, ZstrInitClone, ZstrDeinit);
+
+    int red_count = 0;
 
     MapSetR(&map, "red", "apple");
+    MapInsertR(&map, "red", "cherry");
     MapSetR(&map, "yellow", "banana");
     MapSetR(&map, "green", "pear");
-    MapRehashWithPolicy(&map, MapLen(&map), MisraMapPolicyQuadratic);
+    MapRehashWithPolicy(&map, MapPairCount(&map), MisraMapPolicyQuadratic);
 
-    bool result = MapPolicyGet(&map).first_index == MisraMapPolicyQuadratic.first_index &&
-                  MapPolicyGet(&map).next_index == MisraMapPolicyQuadratic.next_index &&
-                  MapPolicyGet(&map).next_capacity == MisraMapPolicyQuadratic.next_capacity &&
-                  MapPolicyGet(&map).should_rehash == MisraMapPolicyQuadratic.should_rehash;
-    result = result && MapGetPtr(&map, "red") && (ZstrCompare(*MapGetPtr(&map, "red"), "apple") == 0);
-    result = result && MapGetPtr(&map, "yellow") && (ZstrCompare(*MapGetPtr(&map, "yellow"), "banana") == 0);
-    result = result && MapGetPtr(&map, "green") && (ZstrCompare(*MapGetPtr(&map, "green"), "pear") == 0);
+    bool result = (map.policy.first_index == MisraMapPolicyQuadratic.first_index) &&
+                  (map.policy.next_index == MisraMapPolicyQuadratic.next_index) &&
+                  (map.policy.next_capacity == MisraMapPolicyQuadratic.next_capacity) &&
+                  (map.policy.should_rehash == MisraMapPolicyQuadratic.should_rehash);
+    result = result && (MapValueCountForKey(&map, "red") == 2);
+    result = result && MapGetFirstPtr(&map, "red") && (ZstrCompare(*MapGetFirstPtr(&map, "red"), "apple") == 0);
+    result = result && MapGetFirstPtr(&map, "yellow") && (ZstrCompare(*MapGetFirstPtr(&map, "yellow"), "banana") == 0);
+    result = result && MapGetFirstPtr(&map, "green") && (ZstrCompare(*MapGetFirstPtr(&map, "green"), "pear") == 0);
+    MapForeachValueForKey(&map, "red", red_value) {
+        if ((ZstrCompare(red_value, "apple") == 0) || (ZstrCompare(red_value, "cherry") == 0)) {
+            red_count += 1;
+        }
+    }
+    result = result && (red_count == 2);
 
     MapDeinit(&map);
     return result;

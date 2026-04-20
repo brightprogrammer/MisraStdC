@@ -19,39 +19,58 @@ static i32 int_compare(const void *lhs, const void *rhs) {
 
 static bool test_map_foreach_ptr(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
-    int key_sum = 0;
-    int value_sum = 0;
+    IntIntMap map       = MapInit(int_hash, int_compare);
+    int       key_sum   = 0;
+    int       value_sum = 0;
 
     for (int i = 1; i <= 4; i++) {
         MapSetR(&map, i, i * 10);
     }
+    MapInsertR(&map, 2, 25);
 
-    MapForeachPtr(&map, key_ptr, value_ptr) {
-        key_sum += *key_ptr;
+    MapForeachPairPtr(&map, key_ptr, value_ptr) {
+        key_sum   += *key_ptr;
         value_sum += *value_ptr;
     }
 
-    bool result = (key_sum == 10) && (value_sum == 100);
+    bool result = (key_sum == 12) && (value_sum == 125);
 
     MapDeinit(&map);
     return result;
 }
 
-static bool test_map_foreach_values(void) {
+static bool test_map_foreach_multimap_iterators(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
-    int seen = 0;
+    IntIntMap map            = MapInit(int_hash, int_compare);
+    int       unique_key_sum = 0;
+    int       all_value_sum  = 0;
+    int       key_two_sum    = 0;
 
-    for (int i = 0; i < 3; i++) {
-        MapSetR(&map, i, i + 1);
+    MapInsertR(&map, 1, 10);
+    MapInsertR(&map, 1, 11);
+    MapInsertR(&map, 2, 20);
+    MapInsertR(&map, 2, 21);
+    MapInsertR(&map, 3, 30);
+
+    MapForeachKey(&map, key) {
+        unique_key_sum += key;
     }
 
-    MapForeach(&map, key, value) {
-        seen += key + value;
+    MapForeachValuePtrForKey(&map, 2, value_ptr) {
+        *value_ptr += 100;
     }
 
-    bool result = (seen == 9);
+    MapForeachValueForKey(&map, 2, value) {
+        key_two_sum += value;
+    }
+
+    MapForeachValue(&map, value) {
+        all_value_sum += value;
+    }
+
+    bool result = (unique_key_sum == 6);
+    result      = result && (key_two_sum == 241);
+    result      = result && (all_value_sum == 292);
 
     MapDeinit(&map);
     return result;
@@ -60,7 +79,7 @@ static bool test_map_foreach_values(void) {
 int main(void) {
     TestFunction tests[] = {
         test_map_foreach_ptr,
-        test_map_foreach_values,
+        test_map_foreach_multimap_iterators,
     };
 
     WriteFmt("[INFO] Starting Map.Foreach tests\n\n");

@@ -14,6 +14,6 @@
 ///
 /// m[in] : Hash map.
 ///
-#define MapEmpty(m) (MapLen(m) == 0)
+#define MapEmpty(m) (MapPairCount(m) == 0)
 
 #endif // MISRA_STD_CONTAINER_MAP_OPS_H

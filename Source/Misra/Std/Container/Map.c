@@ -247,7 +247,7 @@ static void map_copy_into_slot(
     *map_hash_ptr(map, entry_size, hash_offset, idx) = hash;
 }
 
-static bool map_find_slot(
+static void map_scan_slots(
     GenericMap *map,
     const void *key,
     size        entry_size,
@@ -255,18 +255,21 @@ static bool map_find_slot(
     size        key_size,
     size        hash_offset,
     u64         hash,
-    size       *found_idx,
+    size       *first_match_idx,
     size       *insert_idx,
     size       *probe_pressure
 ) {
     size first_tombstone = map->capacity;
+    size first_match     = map->capacity;
+    size candidate_empty = map->capacity;
     size idx             = 0;
+    size pressure        = 0;
     size probe_count;
     size limit;
 
     if (!map->capacity) {
-        if (found_idx) {
-            *found_idx = 0;
+        if (first_match_idx) {
+            *first_match_idx = 0;
         }
         if (insert_idx) {
             *insert_idx = 0;
@@ -274,7 +277,7 @@ static bool map_find_slot(
         if (probe_pressure) {
             *probe_pressure = 0;
         }
-        return false;
+        return;
     }
 
     limit = map->policy.max_probe_count;
@@ -293,17 +296,11 @@ static bool map_find_slot(
             );
         }
 
+        pressure = probe_count + 1;
+
         if (map->states[idx] == MAP_SLOT_EMPTY) {
-            if (found_idx) {
-                *found_idx = idx;
-            }
-            if (insert_idx) {
-                *insert_idx = first_tombstone < map->capacity ? first_tombstone : idx;
-            }
-            if (probe_pressure) {
-                *probe_pressure = probe_count + 1;
-            }
-            return false;
+            candidate_empty = idx;
+            break;
         }
 
         if (map->states[idx] == MAP_SLOT_TOMBSTONE) {
@@ -313,33 +310,27 @@ static bool map_find_slot(
             continue;
         }
 
-        if ((*map_hash_ptr(map, entry_size, hash_offset, idx) == hash) &&
+        if ((first_match == map->capacity) && (*map_hash_ptr(map, entry_size, hash_offset, idx) == hash) &&
             map_keys_equal(map, entry_size, key_offset, idx, key)) {
-            if (found_idx) {
-                *found_idx = idx;
-            }
-            if (insert_idx) {
-                *insert_idx = idx;
-            }
-            if (probe_pressure) {
-                *probe_pressure = probe_count + 1;
-            }
-            return true;
+            first_match = idx;
         }
     }
 
-    if (found_idx) {
-        *found_idx = map->capacity;
+    if (first_match_idx) {
+        *first_match_idx = first_match;
     }
 
     if (insert_idx) {
-        *insert_idx = first_tombstone;
-    }
-    if (probe_pressure) {
-        *probe_pressure = limit;
+        if (candidate_empty < map->capacity) {
+            *insert_idx = first_tombstone < map->capacity ? first_tombstone : candidate_empty;
+        } else {
+            *insert_idx = first_tombstone;
+        }
     }
 
-    return false;
+    if (probe_pressure) {
+        *probe_pressure = pressure;
+    }
 }
 
 static void map_insert_raw_entry(
@@ -352,9 +343,8 @@ static void map_insert_raw_entry(
 ) {
     u64  hash       = *(const u64 *)(const void *)((const char *)entry + hash_offset);
     size insert_idx = map->capacity;
-    bool found;
 
-    found = map_find_slot(
+    map_scan_slots(
         map,
         (const char *)entry + key_offset,
         entry_size,
@@ -367,7 +357,7 @@ static void map_insert_raw_entry(
         NULL
     );
 
-    if (found || insert_idx >= map->capacity) {
+    if (insert_idx >= map->capacity) {
         LOG_FATAL("Failed to insert raw map entry during rehash");
     }
 
@@ -592,17 +582,93 @@ size map_find_index(
     }
 
     hash = map_hash_key(map, key, key_size);
-    if (map_find_slot(map, key, entry_size, key_offset, key_size, hash_offset, hash, &found_idx, NULL, NULL)) {
-        return found_idx;
-    }
+    map_scan_slots(map, key, entry_size, key_offset, key_size, hash_offset, hash, &found_idx, NULL, NULL);
 
-    return map->capacity;
+    return found_idx;
 }
 
 bool map_contains(GenericMap *map, const void *key, size entry_size, size key_offset, size key_size, size hash_offset) {
     ValidateMap(map);
 
     return map->capacity && (map_find_index(map, key, entry_size, key_offset, key_size, hash_offset) < map->capacity);
+}
+
+size map_find_next_index(
+    GenericMap *map,
+    const void *key,
+    size        previous_index,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        hash_offset
+) {
+    size idx = 0;
+    size probe_count;
+    size limit;
+    u64  hash;
+    bool previous_seen = false;
+
+    ValidateMap(map);
+
+    if (!map->capacity || previous_index >= map->capacity) {
+        return map->capacity;
+    }
+
+    limit = map->policy.max_probe_count;
+    hash  = map_hash_key(map, key, key_size);
+    idx   = map_validate_policy_index(map->policy.first_index(hash, map->capacity), map->capacity, "first_index");
+
+    for (probe_count = 0; probe_count < limit; probe_count++) {
+        if (probe_count > 0) {
+            idx = map_validate_policy_index(
+                map->policy.next_index(hash, map->capacity, idx, probe_count),
+                map->capacity,
+                "next_index"
+            );
+        }
+
+        if (idx == previous_index) {
+            previous_seen = true;
+        }
+
+        if (map->states[idx] == MAP_SLOT_EMPTY) {
+            return map->capacity;
+        }
+
+        if ((map->states[idx] == MAP_SLOT_OCCUPIED) && previous_seen &&
+            (*map_hash_ptr(map, entry_size, hash_offset, idx) == hash) &&
+            map_keys_equal(map, entry_size, key_offset, idx, key) && (idx != previous_index)) {
+            return idx;
+        }
+    }
+
+    return map->capacity;
+}
+
+size map_value_count(
+    GenericMap *map,
+    const void *key,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        hash_offset
+) {
+    size idx;
+    size count = 0;
+
+    ValidateMap(map);
+
+    if (!map->capacity) {
+        return 0;
+    }
+
+    idx = map_find_index(map, key, entry_size, key_offset, key_size, hash_offset);
+    while (idx < map->capacity) {
+        count += 1;
+        idx    = map_find_next_index(map, key, idx, entry_size, key_offset, key_size, hash_offset);
+    }
+
+    return count;
 }
 
 void *map_get_value_ptr(
@@ -639,13 +705,10 @@ void map_insert(
     size        key_size,
     size        value_offset,
     size        value_size,
-    size        hash_offset,
-    bool        replace_existing
+    size        hash_offset
 ) {
-    size found_idx      = 0;
     size insert_idx     = 0;
     size probe_pressure = 0;
-    bool found;
     u64  hash;
 
     ValidateMap(map);
@@ -668,42 +731,8 @@ void map_insert(
         );
     }
 
-    hash  = map_hash_key(map, key, key_size);
-    found = map_find_slot(
-        map,
-        key,
-        entry_size,
-        key_offset,
-        key_size,
-        hash_offset,
-        hash,
-        &found_idx,
-        &insert_idx,
-        &probe_pressure
-    );
-
-    if (found) {
-        if (!replace_existing) {
-            LOG_FATAL("Attempt to insert duplicate key into Map");
-        }
-
-        map_deinit_slot(map, entry_size, key_offset, value_offset, found_idx);
-        map_copy_into_slot(
-            map,
-            entry_size,
-            key_offset,
-            key_size,
-            value_offset,
-            value_size,
-            hash_offset,
-            found_idx,
-            key,
-            value,
-            hash
-        );
-        map->states[found_idx] = MAP_SLOT_OCCUPIED;
-        return;
-    }
+    hash = map_hash_key(map, key, key_size);
+    map_scan_slots(map, key, entry_size, key_offset, key_size, hash_offset, hash, NULL, &insert_idx, &probe_pressure);
 
     if (insert_idx >= map->capacity) {
         (void)map->policy.should_rehash(map->length, map->capacity, map->tombstones, 1, probe_pressure);
@@ -719,18 +748,7 @@ void map_insert(
             map->length + 1,
             map->policy
         );
-        map_insert(
-            map,
-            key,
-            value,
-            entry_size,
-            key_offset,
-            key_size,
-            value_offset,
-            value_size,
-            hash_offset,
-            replace_existing
-        );
+        map_insert(map, key, value, entry_size, key_offset, key_size, value_offset, value_size, hash_offset);
         return;
     }
 
@@ -753,6 +771,35 @@ void map_insert(
     );
     map->states[insert_idx]  = MAP_SLOT_OCCUPIED;
     map->length             += 1;
+}
+
+static void map_remove_at_index(
+    GenericMap *map,
+    size        idx,
+    void       *removed_key,
+    void       *removed_value,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size
+) {
+    if (removed_key) {
+        memcpy(removed_key, map_key_ptr(map, entry_size, key_offset, idx), key_size);
+    } else if (map->key_copy_deinit) {
+        map->key_copy_deinit(map_key_ptr(map, entry_size, key_offset, idx));
+    }
+
+    if (removed_value) {
+        memcpy(removed_value, map_value_ptr(map, entry_size, value_offset, idx), value_size);
+    } else if (map->value_copy_deinit) {
+        map->value_copy_deinit(map_value_ptr(map, entry_size, value_offset, idx));
+    }
+
+    memset(map_entry_ptr(map, entry_size, idx), 0, entry_size);
+    map->states[idx]  = MAP_SLOT_TOMBSTONE;
+    map->length      -= 1;
+    map->tombstones  += 1;
 }
 
 bool map_remove(
@@ -780,21 +827,47 @@ bool map_remove(
         return false;
     }
 
-    if (removed_key) {
-        memcpy(removed_key, map_key_ptr(map, entry_size, key_offset, idx), key_size);
-    } else if (map->key_copy_deinit) {
-        map->key_copy_deinit(map_key_ptr(map, entry_size, key_offset, idx));
-    }
-
-    if (removed_value) {
-        memcpy(removed_value, map_value_ptr(map, entry_size, value_offset, idx), value_size);
-    } else if (map->value_copy_deinit) {
-        map->value_copy_deinit(map_value_ptr(map, entry_size, value_offset, idx));
-    }
-
-    memset(map_entry_ptr(map, entry_size, idx), 0, entry_size);
-    map->states[idx]  = MAP_SLOT_TOMBSTONE;
-    map->length      -= 1;
-    map->tombstones  += 1;
+    map_remove_at_index(
+        map,
+        idx,
+        removed_key,
+        removed_value,
+        entry_size,
+        key_offset,
+        key_size,
+        value_offset,
+        value_size
+    );
     return true;
+}
+
+size map_remove_all(
+    GenericMap *map,
+    const void *key,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset
+) {
+    size idx;
+    size removed = 0;
+
+    ValidateMap(map);
+
+    if (!map->capacity) {
+        return 0;
+    }
+
+    idx = map_find_index(map, key, entry_size, key_offset, key_size, hash_offset);
+    while (idx < map->capacity) {
+        size previous_idx = idx;
+
+        map_remove_at_index(map, idx, NULL, NULL, entry_size, key_offset, key_size, value_offset, value_size);
+        removed += 1;
+        idx      = map_find_next_index(map, key, previous_idx, entry_size, key_offset, key_size, hash_offset);
+    }
+
+    return removed;
 }

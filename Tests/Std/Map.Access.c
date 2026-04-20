@@ -22,14 +22,15 @@ static bool test_map_contains_and_find(void) {
     IntIntMap map = MapInit(int_hash, int_compare);
 
     MapSetR(&map, 7, 70);
+    MapInsertR(&map, 7, 71);
     MapSetR(&map, 9, 90);
 
-    bool result = MapContains(&map, 7);
-    result = result && MapContains(&map, 9);
-    result = result && !MapContains(&map, 8);
-    result = result && (MapFindIndex(&map, 7) < MapCapacity(&map));
-    result = result && (MapFindIndex(&map, 8) == MapCapacity(&map));
-    result = result && (MapLoadFactor(&map) > 0.0);
+    bool result = MapContainsKey(&map, 7);
+    result      = result && MapContainsKey(&map, 9);
+    result      = result && !MapContainsKey(&map, 8);
+    result      = result && (MapValueCountForKey(&map, 7) == 2);
+    result      = result && (MapValueCountForKey(&map, 9) == 1);
+    result      = result && (MapValueCountForKey(&map, 8) == 0);
 
     MapDeinit(&map);
     return result;
@@ -40,10 +41,11 @@ static bool test_map_get_ptr(void) {
     IntIntMap map = MapInit(int_hash, int_compare);
 
     MapSetR(&map, 11, 110);
+    MapInsertR(&map, 11, 111);
 
-    int *value = MapGetPtr(&map, 11);
+    int *value  = MapGetFirstPtr(&map, 11);
     bool result = value && (*value == 110);
-    result = result && (MapGetPtr(&map, 999) == NULL);
+    result      = result && (MapGetFirstPtr(&map, 999) == NULL);
 
     MapDeinit(&map);
     return result;

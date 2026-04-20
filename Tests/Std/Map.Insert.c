@@ -22,14 +22,18 @@ static bool test_map_insert_and_set(void) {
     IntIntMap map = MapInit(int_hash, int_compare);
 
     MapInsertR(&map, 1, 10);
+    MapInsertR(&map, 1, 11);
     MapInsertR(&map, 2, 20);
     MapSetR(&map, 2, 200);
     MapSetR(&map, 3, 30);
 
-    bool result = MapLen(&map) == 3;
-    result = result && MapGetPtr(&map, 1) && (*MapGetPtr(&map, 1) == 10);
-    result = result && MapGetPtr(&map, 2) && (*MapGetPtr(&map, 2) == 200);
-    result = result && MapGetPtr(&map, 3) && (*MapGetPtr(&map, 3) == 30);
+    bool result = MapPairCount(&map) == 4;
+    result      = result && (MapValueCountForKey(&map, 1) == 2);
+    result      = result && (MapValueCountForKey(&map, 2) == 1);
+    result      = result && (MapValueCountForKey(&map, 3) == 1);
+    result      = result && MapGetFirstPtr(&map, 1) && (*MapGetFirstPtr(&map, 1) == 10);
+    result      = result && MapGetFirstPtr(&map, 2) && (*MapGetFirstPtr(&map, 2) == 200);
+    result      = result && MapGetFirstPtr(&map, 3) && (*MapGetFirstPtr(&map, 3) == 30);
 
     MapDeinit(&map);
     return result;
@@ -37,14 +41,15 @@ static bool test_map_insert_and_set(void) {
 
 static bool test_map_lvalue_zeroing(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
-    int key = 42;
-    int value = 84;
+    IntIntMap map   = MapInit(int_hash, int_compare);
+    int       key   = 42;
+    int       value = 84;
 
     MapInsertL(&map, key, value);
 
     bool result = (key == 0) && (value == 0);
-    result = result && MapGetPtr(&map, 42) && (*MapGetPtr(&map, 42) == 84);
+    result      = result && (MapValueCountForKey(&map, 42) == 1);
+    result      = result && MapGetFirstPtr(&map, 42) && (*MapGetFirstPtr(&map, 42) == 84);
 
     MapDeinit(&map);
     return result;
