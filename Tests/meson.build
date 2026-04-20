@@ -1,19 +1,19 @@
-# Tests meson.build file
+#Tests meson.build file
 #
-# Note: If you see a warning about sanitizers on Clang with b_lundef,
-# you can fix it by setting b_lundef=false in your meson command:
-#   meson setup builddir -Db_sanitize=address,undefined -Db_lundef=false
+#Note : If you see a warning about sanitizers on Clang with b_lundef,
+#you can fix it by setting b_lundef = false in your meson command:
+#meson setup builddir - Db_sanitize = address, undefined - Db_lundef = false
 #
-# Or add this to your meson_options.txt file:
-#   option('b_lundef', type: 'boolean', value: false)
+#Or add this to your meson_options.txt file:
+#option('b_lundef', type : 'boolean', value : false)
 
-# Include test utilities
+#Include test utilities
 subdir('Util')
 
-# Test configuration
+#Test configuration
 test_args = common_c_args
 
-# Group tests by module
+#Group tests by module
 io_tests = [
     ['Io.Write', 'Std/Io.Write.c'],
     ['Io.Read', 'Std/Io.Read.c'],
@@ -99,10 +99,14 @@ json_tests = [
     ['Json.Write.Nested', 'Json/Write.Nested.c'],
     ['Json.Write.EdgeCases', 'Json/Write.EdgeCases.c'],
     ['Json.RoundTrip', 'Json/RoundTrip.c'],
-    # ['Json.RW', 'Json/RW.c'],
+#['Json.RW', 'Json/RW.c'],
 ]
 
-# Build and register all normal tests with full sanitizer support
+kvconfig_tests = [
+    ['KvConfig.Parse', 'KvConfig/Parse.c'],
+]
+
+#Build and register all normal tests with full sanitizer support
 foreach test_info : io_tests
     test_name = test_info[0]
     test_src = test_info[1]
@@ -185,6 +189,23 @@ foreach test_info : json_tests
         install: false
     )
     
+    test(test_name, test_exe)
+endforeach
+
+foreach test_info : kvconfig_tests
+    test_name = test_info[0]
+    test_src = test_info[1]
+
+    test_exe = executable(
+        test_name,
+        files(test_src),
+        link_with: [misra_std],
+        dependencies: [test_util_dep],
+        c_args: test_args,
+        include_directories: inc_misra,
+        install: false
+    )
+
     test(test_name, test_exe)
 endforeach
 

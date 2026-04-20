@@ -49,9 +49,18 @@ def extract_symbol_name(code_line):
         return typedef_fn_ptr_match.group(1), "type"
 
     typedef_alias_match = re.match(
-        r'^\s*typedef\b.*?\b(\w+)\s*;\s*$', stripped)
-    if typedef_alias_match and "(" not in stripped:
+        r'^\s*typedef\b(?!.*\(\s*\*\s*\w+\s*\)).*?\b(\w+)\s*;\s*$',
+        stripped,
+    )
+    if typedef_alias_match:
         return typedef_alias_match.group(1), "type"
+
+    ptr_func_match = re.match(
+        r'^\s*(?:[\w]+\s+)*[\w]+\s*\*+\s*(\w+)\s*\([^;]*\)\s*;?\s*$',
+        stripped,
+    )
+    if ptr_func_match:
+        return ptr_func_match.group(1), "function"
 
     func_match = re.match(
         r'^\s*(?:[\w\*]+\s+)+\(?(\w+)\)?\s*\([^;]*\)\s*;?\s*$', stripped)

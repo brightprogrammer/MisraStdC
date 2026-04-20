@@ -28,7 +28,8 @@ misra_std_sources = files(
     'Source/Misra/Std/Container/Int.c',
     'Source/Misra/Std/Container/Float.c',
     'Source/Misra/Std/Utility/Iter.c',
-    'Source/Misra/Parsers/JSON.c'
+    'Source/Misra/Parsers/JSON.c',
+    'Source/Misra/Parsers/KvConfig.c'
 )
 
 # Regular library with sanitizers for normal tests and executables
