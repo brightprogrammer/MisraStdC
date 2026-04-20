@@ -23,8 +23,39 @@
 ///
 /// TAGS: Map, Init, Policy, Linear
 ///
-#define MapInit(hash_fn, compare_fn)                                                                               \
-    MapInitWithDeepCopyAndPolicy((hash_fn), (compare_fn), NULL, NULL, NULL, NULL, MisraMapPolicyLinear)
+#define MapInit(hash_fn, compare_fn)                                                                                   \
+    MapInitWithDeepCopyAndValueCompareAndPolicy(                                                                       \
+        (hash_fn),                                                                                                     \
+        (compare_fn),                                                                                                  \
+        NULL,                                                                                                          \
+        NULL,                                                                                                          \
+        NULL,                                                                                                          \
+        NULL,                                                                                                          \
+        NULL,                                                                                                          \
+        MisraMapPolicyLinear                                                                                           \
+    )
+
+///
+/// Initialize map with required key hash, key compare, and value compare callbacks.
+/// Uses linear probing by default.
+///
+/// hash_fn[in]          : Hash callback for keys.
+/// compare_fn[in]       : Key comparator.
+/// value_compare_fn[in] : Value comparator used by pair-level APIs.
+///
+/// TAGS: Map, Init, Compare, Linear
+///
+#define MapInitWithValueCompare(hash_fn, compare_fn, value_compare_fn)                                                 \
+    MapInitWithDeepCopyAndValueCompareAndPolicy(                                                                       \
+        (hash_fn),                                                                                                     \
+        (compare_fn),                                                                                                  \
+        (value_compare_fn),                                                                                            \
+        NULL,                                                                                                          \
+        NULL,                                                                                                          \
+        NULL,                                                                                                          \
+        NULL,                                                                                                          \
+        MisraMapPolicyLinear                                                                                           \
+    )
 
 ///
 /// Initialize map with required key hash and compare callbacks.
@@ -35,8 +66,30 @@
 ///
 /// TAGS: Map, Init, Policy
 ///
-#define MapInitWithPolicy(hash_fn, compare_fn, policy_value)                                                       \
-    MapInitWithDeepCopyAndPolicy((hash_fn), (compare_fn), NULL, NULL, NULL, NULL, (policy_value))
+#define MapInitWithPolicy(hash_fn, compare_fn, policy_value)                                                           \
+    MapInitWithDeepCopyAndValueCompareAndPolicy((hash_fn), (compare_fn), NULL, NULL, NULL, NULL, NULL, (policy_value))
+
+///
+/// Initialize map with key/value comparators and an explicit probing policy.
+///
+/// hash_fn[in]          : Hash callback for keys.
+/// compare_fn[in]       : Key comparator.
+/// value_compare_fn[in] : Value comparator used by pair-level APIs.
+/// policy[in]           : Probing policy for this map.
+///
+/// TAGS: Map, Init, Compare, Policy
+///
+#define MapInitWithValueCompareAndPolicy(hash_fn, compare_fn, value_compare_fn, policy_value)                          \
+    MapInitWithDeepCopyAndValueCompareAndPolicy(                                                                       \
+        (hash_fn),                                                                                                     \
+        (compare_fn),                                                                                                  \
+        (value_compare_fn),                                                                                            \
+        NULL,                                                                                                          \
+        NULL,                                                                                                          \
+        NULL,                                                                                                          \
+        NULL,                                                                                                          \
+        (policy_value)                                                                                                 \
+    )
 
 ///
 /// Initialize map with deep-copy callbacks for keys and values.
@@ -51,15 +104,42 @@
 ///
 /// TAGS: Map, Init, DeepCopy, Linear
 ///
-#define MapInitWithDeepCopy(hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd)                              \
-    MapInitWithDeepCopyAndPolicy(                                                                                  \
+#define MapInitWithDeepCopy(hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd)                                   \
+    MapInitWithDeepCopyAndValueCompareAndPolicy(                                                                       \
         (hash_fn),                                                                                                     \
         (compare_fn),                                                                                                  \
+        NULL,                                                                                                          \
         (key_ci),                                                                                                      \
         (key_cd),                                                                                                      \
         (value_ci),                                                                                                    \
         (value_cd),                                                                                                    \
-        MisraMapPolicyLinear                                                                                        \
+        MisraMapPolicyLinear                                                                                           \
+    )
+
+///
+/// Initialize map with deep-copy callbacks and a stored value comparator.
+/// Uses linear probing by default.
+///
+/// hash_fn[in]          : Hash callback for keys.
+/// compare_fn[in]       : Key comparator.
+/// value_compare_fn[in] : Value comparator used by pair-level APIs.
+/// key_ci[in]           : Optional key deep-copy callback.
+/// key_cd[in]           : Optional key deinit callback.
+/// value_ci[in]         : Optional value deep-copy callback.
+/// value_cd[in]         : Optional value deinit callback.
+///
+/// TAGS: Map, Init, DeepCopy, Compare, Linear
+///
+#define MapInitWithDeepCopyAndValueCompare(hash_fn, compare_fn, value_compare_fn, key_ci, key_cd, value_ci, value_cd)  \
+    MapInitWithDeepCopyAndValueCompareAndPolicy(                                                                       \
+        (hash_fn),                                                                                                     \
+        (compare_fn),                                                                                                  \
+        (value_compare_fn),                                                                                            \
+        (key_ci),                                                                                                      \
+        (key_cd),                                                                                                      \
+        (value_ci),                                                                                                    \
+        (value_cd),                                                                                                    \
+        MisraMapPolicyLinear                                                                                           \
     )
 
 ///
@@ -75,7 +155,43 @@
 ///
 /// TAGS: Map, Init, DeepCopy, Policy
 ///
-#define MapInitWithDeepCopyAndPolicy(hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd, policy_value)      \
+#define MapInitWithDeepCopyAndPolicy(hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd, policy_value)            \
+    MapInitWithDeepCopyAndValueCompareAndPolicy(                                                                       \
+        (hash_fn),                                                                                                     \
+        (compare_fn),                                                                                                  \
+        NULL,                                                                                                          \
+        (key_ci),                                                                                                      \
+        (key_cd),                                                                                                      \
+        (value_ci),                                                                                                    \
+        (value_cd),                                                                                                    \
+        (policy_value)                                                                                                 \
+    )
+
+///
+/// Initialize map with deep-copy callbacks, optional stored value comparator,
+/// and explicit probing policy.
+///
+/// hash_fn[in]          : Hash callback for keys.
+/// compare_fn[in]       : Key comparator.
+/// value_compare_fn[in] : Value comparator used by pair-level APIs.
+/// key_ci[in]           : Optional key deep-copy callback.
+/// key_cd[in]           : Optional key deinit callback.
+/// value_ci[in]         : Optional value deep-copy callback.
+/// value_cd[in]         : Optional value deinit callback.
+/// policy_value[in]     : Probing policy copied into this map.
+///
+/// TAGS: Map, Init, DeepCopy, Compare, Policy
+///
+#define MapInitWithDeepCopyAndValueCompareAndPolicy(                                                                   \
+    hash_fn,                                                                                                           \
+    compare_fn,                                                                                                        \
+    value_compare_fn,                                                                                                  \
+    key_ci,                                                                                                            \
+    key_cd,                                                                                                            \
+    value_ci,                                                                                                          \
+    value_cd,                                                                                                          \
+    policy_value                                                                                                       \
+)                                                                                                                      \
     {.length            = 0,                                                                                           \
      .capacity          = 0,                                                                                           \
      .tombstones        = 0,                                                                                           \
@@ -84,6 +200,7 @@
      .value_copy_init   = (GenericCopyInit)(value_ci),                                                                 \
      .value_copy_deinit = (GenericCopyDeinit)(value_cd),                                                               \
      .key_compare       = (GenericCompare)(compare_fn),                                                                \
+     .value_compare     = (GenericCompare)(value_compare_fn),                                                          \
      .key_hash          = (GenericHash)(hash_fn),                                                                      \
      .entries           = NULL,                                                                                        \
      .states            = NULL,                                                                                        \
@@ -91,41 +208,125 @@
      .__magic           = MISRA_MAP_MAGIC}
 
 #ifdef __cplusplus
-#    define MapInitT(m, hash_fn, compare_fn)                                                                       \
-        (TYPE_OF(m) MapInit((hash_fn), (compare_fn)))
-#    define MapInitWithPolicyT(m, hash_fn, compare_fn, policy_value)                                               \
+#    define MapInitT(m, hash_fn, compare_fn) (TYPE_OF(m) MapInit((hash_fn), (compare_fn)))
+#    define MapInitWithValueCompareT(m, hash_fn, compare_fn, value_compare_fn)                                         \
+        (TYPE_OF(m) MapInitWithValueCompare((hash_fn), (compare_fn), (value_compare_fn)))
+#    define MapInitWithPolicyT(m, hash_fn, compare_fn, policy_value)                                                   \
         (TYPE_OF(m) MapInitWithPolicy((hash_fn), (compare_fn), (policy_value)))
-#    define MapInitWithDeepCopyT(m, hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd)                      \
+#    define MapInitWithValueCompareAndPolicyT(m, hash_fn, compare_fn, value_compare_fn, policy_value)                  \
+        (TYPE_OF(m) MapInitWithValueCompareAndPolicy((hash_fn), (compare_fn), (value_compare_fn), (policy_value)))
+#    define MapInitWithDeepCopyT(m, hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd)                           \
         (TYPE_OF(m) MapInitWithDeepCopy((hash_fn), (compare_fn), (key_ci), (key_cd), (value_ci), (value_cd)))
-#    define MapInitWithDeepCopyAndPolicyT(m, hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd, policy_value) \
-        (TYPE_OF(m)                                                                                                    \
-             MapInitWithDeepCopyAndPolicy(                                                                         \
-                 (hash_fn),                                                                                            \
-                 (compare_fn),                                                                                         \
-                 (key_ci),                                                                                             \
-                 (key_cd),                                                                                             \
-                 (value_ci),                                                                                           \
-                 (value_cd),                                                                                           \
-                 (policy_value)                                                                                        \
-             ))
+#    define MapInitWithDeepCopyAndValueCompareT(                                                                       \
+        m,                                                                                                             \
+        hash_fn,                                                                                                       \
+        compare_fn,                                                                                                    \
+        value_compare_fn,                                                                                              \
+        key_ci,                                                                                                        \
+        key_cd,                                                                                                        \
+        value_ci,                                                                                                      \
+        value_cd                                                                                                       \
+    )                                                                                                                  \
+        (TYPE_OF(m) MapInitWithDeepCopyAndValueCompare(                                                                \
+            (hash_fn),                                                                                                 \
+            (compare_fn),                                                                                              \
+            (value_compare_fn),                                                                                        \
+            (key_ci),                                                                                                  \
+            (key_cd),                                                                                                  \
+            (value_ci),                                                                                                \
+            (value_cd)                                                                                                 \
+        ))
+#    define MapInitWithDeepCopyAndPolicyT(m, hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd, policy_value)    \
+        (TYPE_OF(m) MapInitWithDeepCopyAndPolicy(                                                                      \
+            (hash_fn),                                                                                                 \
+            (compare_fn),                                                                                              \
+            (key_ci),                                                                                                  \
+            (key_cd),                                                                                                  \
+            (value_ci),                                                                                                \
+            (value_cd),                                                                                                \
+            (policy_value)                                                                                             \
+        ))
+#    define MapInitWithDeepCopyAndValueCompareAndPolicyT(                                                              \
+        m,                                                                                                             \
+        hash_fn,                                                                                                       \
+        compare_fn,                                                                                                    \
+        value_compare_fn,                                                                                              \
+        key_ci,                                                                                                        \
+        key_cd,                                                                                                        \
+        value_ci,                                                                                                      \
+        value_cd,                                                                                                      \
+        policy_value                                                                                                   \
+    )                                                                                                                  \
+        (TYPE_OF(m) MapInitWithDeepCopyAndValueCompareAndPolicy(                                                       \
+            (hash_fn),                                                                                                 \
+            (compare_fn),                                                                                              \
+            (value_compare_fn),                                                                                        \
+            (key_ci),                                                                                                  \
+            (key_cd),                                                                                                  \
+            (value_ci),                                                                                                \
+            (value_cd),                                                                                                \
+            (policy_value)                                                                                             \
+        ))
 #else
-#    define MapInitT(m, hash_fn, compare_fn)                                                                       \
-        ((TYPE_OF(m))MapInit((hash_fn), (compare_fn)))
-#    define MapInitWithPolicyT(m, hash_fn, compare_fn, policy_value)                                               \
+#    define MapInitT(m, hash_fn, compare_fn) ((TYPE_OF(m))MapInit((hash_fn), (compare_fn)))
+#    define MapInitWithValueCompareT(m, hash_fn, compare_fn, value_compare_fn)                                         \
+        ((TYPE_OF(m))MapInitWithValueCompare((hash_fn), (compare_fn), (value_compare_fn)))
+#    define MapInitWithPolicyT(m, hash_fn, compare_fn, policy_value)                                                   \
         ((TYPE_OF(m))MapInitWithPolicy((hash_fn), (compare_fn), (policy_value)))
-#    define MapInitWithDeepCopyT(m, hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd)                      \
+#    define MapInitWithValueCompareAndPolicyT(m, hash_fn, compare_fn, value_compare_fn, policy_value)                  \
+        ((TYPE_OF(m))MapInitWithValueCompareAndPolicy((hash_fn), (compare_fn), (value_compare_fn), (policy_value)))
+#    define MapInitWithDeepCopyT(m, hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd)                           \
         ((TYPE_OF(m))MapInitWithDeepCopy((hash_fn), (compare_fn), (key_ci), (key_cd), (value_ci), (value_cd)))
-#    define MapInitWithDeepCopyAndPolicyT(m, hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd, policy_value) \
-        ((TYPE_OF(m))                                                                                                  \
-             MapInitWithDeepCopyAndPolicy(                                                                         \
-                 (hash_fn),                                                                                            \
-                 (compare_fn),                                                                                         \
-                 (key_ci),                                                                                             \
-                 (key_cd),                                                                                             \
-                 (value_ci),                                                                                           \
-                 (value_cd),                                                                                           \
-                 (policy_value)                                                                                        \
-             ))
+#    define MapInitWithDeepCopyAndValueCompareT(                                                                       \
+        m,                                                                                                             \
+        hash_fn,                                                                                                       \
+        compare_fn,                                                                                                    \
+        value_compare_fn,                                                                                              \
+        key_ci,                                                                                                        \
+        key_cd,                                                                                                        \
+        value_ci,                                                                                                      \
+        value_cd                                                                                                       \
+    )                                                                                                                  \
+        ((TYPE_OF(m))MapInitWithDeepCopyAndValueCompare(                                                               \
+            (hash_fn),                                                                                                 \
+            (compare_fn),                                                                                              \
+            (value_compare_fn),                                                                                        \
+            (key_ci),                                                                                                  \
+            (key_cd),                                                                                                  \
+            (value_ci),                                                                                                \
+            (value_cd)                                                                                                 \
+        ))
+#    define MapInitWithDeepCopyAndPolicyT(m, hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd, policy_value)    \
+        ((TYPE_OF(m))MapInitWithDeepCopyAndPolicy(                                                                     \
+            (hash_fn),                                                                                                 \
+            (compare_fn),                                                                                              \
+            (key_ci),                                                                                                  \
+            (key_cd),                                                                                                  \
+            (value_ci),                                                                                                \
+            (value_cd),                                                                                                \
+            (policy_value)                                                                                             \
+        ))
+#    define MapInitWithDeepCopyAndValueCompareAndPolicyT(                                                              \
+        m,                                                                                                             \
+        hash_fn,                                                                                                       \
+        compare_fn,                                                                                                    \
+        value_compare_fn,                                                                                              \
+        key_ci,                                                                                                        \
+        key_cd,                                                                                                        \
+        value_ci,                                                                                                      \
+        value_cd,                                                                                                      \
+        policy_value                                                                                                   \
+    )                                                                                                                  \
+        ((TYPE_OF(m))MapInitWithDeepCopyAndValueCompareAndPolicy(                                                      \
+            (hash_fn),                                                                                                 \
+            (compare_fn),                                                                                              \
+            (value_compare_fn),                                                                                        \
+            (key_ci),                                                                                                  \
+            (key_cd),                                                                                                  \
+            (value_ci),                                                                                                \
+            (value_cd),                                                                                                \
+            (policy_value)                                                                                             \
+        ))
 #endif
 
 ///
@@ -135,15 +336,15 @@
 ///
 /// TAGS: Map, Deinit, Memory
 ///
-#define MapDeinit(m)                                                                                               \
-    deinit_map(                                                                                                    \
-        GENERIC_MAP(m),                                                                                            \
-        sizeof(MAP_ENTRY_TYPE(m)),                                                                                 \
-        offsetof(MAP_ENTRY_TYPE(m), key),                                                                          \
-        sizeof(MAP_KEY_TYPE(m)),                                                                                   \
-        offsetof(MAP_ENTRY_TYPE(m), value),                                                                        \
-        sizeof(MAP_VALUE_TYPE(m)),                                                                                 \
-        offsetof(MAP_ENTRY_TYPE(m), hash)                                                                          \
+#define MapDeinit(m)                                                                                                   \
+    deinit_map(                                                                                                        \
+        GENERIC_MAP(m),                                                                                                \
+        sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
+        sizeof(MAP_KEY_TYPE(m)),                                                                                       \
+        offsetof(MAP_ENTRY_TYPE(m), value),                                                                            \
+        sizeof(MAP_VALUE_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), hash)                                                                              \
     )
 
 #endif // MISRA_STD_CONTAINER_MAP_INIT_H

@@ -55,12 +55,19 @@ static bool test_map_type_defaults(void) {
     IntIntMap map = MapInit(int_hash, int_compare);
 
     return map.length == 0 && map.capacity == 0 && map.tombstones == 0 && map.entries == NULL && map.states == NULL &&
-           map.key_compare == int_compare && map.key_hash == int_hash &&
+           map.key_compare == int_compare && map.value_compare == NULL && map.key_hash == int_hash &&
            map.policy.should_rehash == MisraMapPolicyLinear.should_rehash &&
            map.policy.next_capacity == MisraMapPolicyLinear.next_capacity &&
            map.policy.first_index == MisraMapPolicyLinear.first_index &&
            map.policy.next_index == MisraMapPolicyLinear.next_index &&
            map.policy.max_probe_count == MisraMapPolicyLinear.max_probe_count;
+}
+
+static bool test_map_type_with_value_compare(void) {
+    typedef Map(int, int) IntIntMap;
+    IntIntMap map = MapInitWithValueCompare(int_hash, int_compare, int_compare);
+
+    return map.key_compare == int_compare && map.value_compare == int_compare && map.key_hash == int_hash;
 }
 
 static bool test_map_policy_copy(void) {
@@ -106,6 +113,7 @@ static bool test_validate_map_policy(void) {
 int main(void) {
     TestFunction tests[] = {
         test_map_type_defaults,
+        test_map_type_with_value_compare,
         test_map_policy_copy,
         test_validate_map_policy,
     };

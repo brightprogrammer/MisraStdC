@@ -62,6 +62,17 @@ void rehash_map(
     MapPolicy   policy
 );
 bool map_contains(GenericMap *map, const void *key, size entry_size, size key_offset, size key_size, size hash_offset);
+bool map_contains_pair(
+    GenericMap *map,
+    const void *key,
+    const void *value,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        hash_offset
+);
+size map_unique_key_count(GenericMap *map, size entry_size, size key_offset, size key_size, size hash_offset);
 size map_value_count(
     GenericMap *map,
     const void *key,
@@ -79,7 +90,18 @@ void *map_get_value_ptr(
     size        value_offset,
     size        hash_offset
 );
-size map_find_index(
+void *map_ensure_value_ptr(
+    GenericMap *map,
+    const void *key,
+    const void *value,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset
+);
+MapValueCursor map_find_first_cursor(
     GenericMap *map,
     const void *key,
     size        entry_size,
@@ -87,6 +109,24 @@ size map_find_index(
     size        key_size,
     size        hash_offset
 );
+MapValueCursor map_find_next_cursor(
+    GenericMap    *map,
+    const void    *key,
+    MapValueCursor cursor,
+    size           entry_size,
+    size           key_offset,
+    size           key_size,
+    size           hash_offset
+);
+void *map_value_ptr_from_cursor(GenericMap *map, MapValueCursor cursor, size entry_size, size value_offset);
+size  map_find_index(
+     GenericMap *map,
+     const void *key,
+     size        entry_size,
+     size        key_offset,
+     size        key_size,
+     size        hash_offset
+ );
 size map_find_next_index(
     GenericMap *map,
     const void *key,
@@ -110,8 +150,17 @@ void map_insert(
 bool map_remove(
     GenericMap *map,
     const void *key,
-    void       *removed_key,
-    void       *removed_value,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset
+);
+bool map_remove_pair(
+    GenericMap *map,
+    const void *key,
+    const void *value,
     size        entry_size,
     size        key_offset,
     size        key_size,
@@ -128,6 +177,26 @@ size map_remove_all(
     size        value_offset,
     size        value_size,
     size        hash_offset
+);
+size map_remove_if(
+    GenericMap    *map,
+    MapPredicateFn predicate,
+    void          *ctx,
+    size           entry_size,
+    size           key_offset,
+    size           key_size,
+    size           value_offset,
+    size           value_size
+);
+size map_retain_if(
+    GenericMap    *map,
+    MapPredicateFn predicate,
+    void          *ctx,
+    size           entry_size,
+    size           key_offset,
+    size           key_size,
+    size           value_offset,
+    size           value_size
 );
 
 #endif // MISRA_STD_CONTAINER_MAP_PRIVATE_H

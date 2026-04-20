@@ -4,6 +4,21 @@
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
 
+static u64 int_hash(const void *data, u32 size) {
+    u64 x = (u64)(u32)(*(const int *)data);
+    (void)size;
+    x ^= x >> 33;
+    x *= 0xff51afd7ed558ccdULL;
+    x ^= x >> 33;
+    return x;
+}
+
+static i32 int_compare(const void *lhs, const void *rhs) {
+    int a = *(const int *)lhs;
+    int b = *(const int *)rhs;
+    return (a > b) - (a < b);
+}
+
 static u64 zstr_hash(const void *data, u32 size) {
     const char          *str  = *(const char *const *)data;
     const unsigned char *ptr  = (const unsigned char *)str;
@@ -93,10 +108,76 @@ static bool test_map_policy_switch_preserves_entries(void) {
     return result;
 }
 
+static bool test_map_compact_and_swap(void) {
+    typedef Map(int, int) IntIntMap;
+    IntIntMap first  = MapInitWithValueCompare(int_hash, int_compare, int_compare);
+    IntIntMap second = MapInitWithValueCompare(int_hash, int_compare, int_compare);
+
+    MapInsertR(&first, 1, 10);
+    MapInsertR(&first, 1, 11);
+    MapInsertR(&first, 2, 20);
+    MapRemoveFirst(&first, 1);
+
+    MapInsertR(&second, 9, 90);
+    MapInsertR(&second, 10, 100);
+
+    bool result = (first.tombstones == 1);
+    MapCompact(&first);
+
+    result = result && (first.tombstones == 0);
+    result = result && MapContainsPair(&first, 1, 11);
+    result = result && MapContainsPair(&first, 2, 20);
+    result = result && (MapPairCount(&first) == 2);
+    result = result && (MapUniqueKeyCount(&first) == 2);
+
+    MapSwap(&first, &second);
+
+    result = result && MapContainsPair(&first, 9, 90);
+    result = result && MapContainsPair(&first, 10, 100);
+    result = result && (MapPairCount(&first) == 2);
+    result = result && MapContainsPair(&second, 1, 11);
+    result = result && MapContainsPair(&second, 2, 20);
+    result = result && (MapPairCount(&second) == 2);
+
+    MapDeinit(&first);
+    MapDeinit(&second);
+    return result;
+}
+
+static bool retain_values_above_threshold(const void *key, const void *value, void *ctx) {
+    const int *threshold = ctx;
+
+    (void)key;
+    return *(const int *)value >= *threshold;
+}
+
+static bool test_map_retain_if(void) {
+    typedef Map(int, int) IntIntMap;
+    IntIntMap map       = MapInit(int_hash, int_compare);
+    int       threshold = 30;
+
+    MapInsertR(&map, 1, 10);
+    MapInsertR(&map, 2, 20);
+    MapInsertR(&map, 3, 30);
+    MapInsertR(&map, 4, 40);
+
+    bool result = (MapRetainIf(&map, retain_values_above_threshold, &threshold) == 2);
+    result      = result && !MapContainsKey(&map, 1);
+    result      = result && !MapContainsKey(&map, 2);
+    result      = result && MapContainsKey(&map, 3);
+    result      = result && MapContainsKey(&map, 4);
+    result      = result && (MapPairCount(&map) == 2);
+
+    MapDeinit(&map);
+    return result;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_map_deep_copy_zstrs,
         test_map_policy_switch_preserves_entries,
+        test_map_compact_and_swap,
+        test_map_retain_if,
     };
 
     WriteFmt("[INFO] Starting Map.Ops tests\n\n");

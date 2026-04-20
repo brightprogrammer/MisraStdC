@@ -24,6 +24,7 @@ typedef bool (*MapPolicyShouldRehashFn)(
 typedef size (*MapPolicyNextCapacityFn)(u64 length, u64 capacity, u64 tombstones, size min_entries);
 typedef size (*MapPolicyFirstIndexFn)(u64 hash, size capacity);
 typedef size (*MapPolicyNextIndexFn)(u64 hash, size capacity, size previous_index, size probe_count);
+typedef bool (*MapPredicateFn)(const void *key, const void *value, void *ctx);
 
 typedef struct {
     const char             *name;
@@ -37,6 +38,10 @@ typedef struct {
 extern const MapPolicy MisraMapPolicyLinear;
 extern const MapPolicy MisraMapPolicyQuadratic;
 
+typedef struct {
+    size __index;
+} MapValueCursor;
+
 struct GenericMap {
     u64               length;
     u64               capacity;
@@ -46,6 +51,7 @@ struct GenericMap {
     GenericCopyInit   value_copy_init;
     GenericCopyDeinit value_copy_deinit;
     GenericCompare    key_compare;
+    GenericCompare    value_compare;
     GenericHash       key_hash;
     char             *entries;
     u8               *states;
@@ -90,6 +96,7 @@ struct GenericMap {
 /// - value_copy_init   : Optional deep-copy callback for values.
 /// - value_copy_deinit : Optional deinit callback for values held by the map.
 /// - key_compare       : Required comparator for keys. Equality is `compare == 0`.
+/// - value_compare     : Optional comparator for values. Required for pair-level APIs.
 /// - key_hash          : Required hash callback for keys.
 /// - entries           : Pointer to entry storage. Do not index directly.
 /// - states            : Slot-state storage used internally by the probing policy.
@@ -107,6 +114,7 @@ struct GenericMap {
         GenericCopyInit   value_copy_init;                                                                             \
         GenericCopyDeinit value_copy_deinit;                                                                           \
         GenericCompare    key_compare;                                                                                 \
+        GenericCompare    value_compare;                                                                               \
         GenericHash       key_hash;                                                                                    \
         MapEntry(K, V) * entries;                                                                                      \
         u8       *states;                                                                                              \

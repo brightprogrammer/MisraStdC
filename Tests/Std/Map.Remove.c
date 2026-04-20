@@ -19,19 +19,60 @@ static i32 int_compare(const void *lhs, const void *rhs) {
 
 static bool test_map_remove_value(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map           = MapInit(int_hash, int_compare);
-    int       removed_key   = -1;
-    int       removed_value = -1;
+    IntIntMap map = MapInit(int_hash, int_compare);
 
     MapSetR(&map, 1, 10);
     MapInsertR(&map, 1, 11);
     MapSetR(&map, 2, 20);
 
-    bool result = MapRemoveFirst(&map, 1, &removed_key, &removed_value);
-    result      = result && (removed_key == 1) && (removed_value == 10);
+    bool result = MapRemoveFirst(&map, 1);
     result      = result && MapContainsKey(&map, 1);
     result      = result && (MapValueCountForKey(&map, 1) == 1);
     result      = result && MapGetFirstPtr(&map, 1) && (*MapGetFirstPtr(&map, 1) == 11);
+    result      = result && (MapPairCount(&map) == 2);
+
+    MapDeinit(&map);
+    return result;
+}
+
+static bool test_map_remove_pair(void) {
+    typedef Map(int, int) IntIntMap;
+    IntIntMap map = MapInitWithValueCompare(int_hash, int_compare, int_compare);
+
+    MapInsertR(&map, 5, 50);
+    MapInsertR(&map, 5, 51);
+    MapInsertR(&map, 5, 52);
+
+    bool result = MapRemovePair(&map, 5, 51);
+    result      = result && MapContainsPair(&map, 5, 50);
+    result      = result && !MapContainsPair(&map, 5, 51);
+    result      = result && MapContainsPair(&map, 5, 52);
+    result      = result && (MapValueCountForKey(&map, 5) == 2);
+
+    MapDeinit(&map);
+    return result;
+}
+
+static bool remove_even_values(const void *key, const void *value, void *ctx) {
+    (void)key;
+    (void)ctx;
+    return (*(const int *)value % 2) == 0;
+}
+
+static bool test_map_remove_if(void) {
+    typedef Map(int, int) IntIntMap;
+    IntIntMap map = MapInit(int_hash, int_compare);
+
+    MapInsertR(&map, 1, 10);
+    MapInsertR(&map, 1, 11);
+    MapInsertR(&map, 2, 20);
+    MapInsertR(&map, 3, 31);
+
+    bool result = (MapRemoveIf(&map, remove_even_values, NULL) == 2);
+    result      = result && !MapContainsKey(&map, 2);
+    result      = result && (MapValueCountForKey(&map, 1) == 1);
+    result      = result && MapGetFirstPtr(&map, 1) && (*MapGetFirstPtr(&map, 1) == 11);
+    result      = result && MapContainsKey(&map, 3);
     result      = result && (MapPairCount(&map) == 2);
 
     MapDeinit(&map);
@@ -65,7 +106,7 @@ static bool test_map_tombstone_reuse(void) {
         MapSetR(&map, i, i + 100);
     }
 
-    MapRemoveFirst(&map, 5, NULL, NULL);
+    MapRemoveFirst(&map, 5);
     MapSetR(&map, 105, 205);
 
     bool result = !MapContainsKey(&map, 5);
@@ -79,8 +120,10 @@ static bool test_map_tombstone_reuse(void) {
 int main(void) {
     TestFunction tests[] = {
         test_map_remove_value,
+        test_map_remove_pair,
         test_map_remove_all,
         test_map_tombstone_reuse,
+        test_map_remove_if,
     };
 
     WriteFmt("[INFO] Starting Map.Remove tests\n\n");

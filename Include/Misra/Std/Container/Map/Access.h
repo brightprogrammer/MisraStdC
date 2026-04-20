@@ -18,6 +18,20 @@
 #define MapPairCount(m) ((m)->length)
 
 ///
+/// Number of distinct keys stored in the multimap.
+///
+/// m[in] : Map.
+///
+#define MapUniqueKeyCount(m)                                                                                           \
+    map_unique_key_count(                                                                                              \
+        GENERIC_MAP(m),                                                                                                \
+        sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
+        sizeof(MAP_KEY_TYPE(m)),                                                                                       \
+        offsetof(MAP_ENTRY_TYPE(m), hash)                                                                              \
+    )
+
+///
 /// Check if the map stores at least one value for a key.
 ///
 /// m[in]   : Map.
@@ -33,6 +47,27 @@
         sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
         offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
         sizeof(MAP_KEY_TYPE(m)),                                                                                       \
+        offsetof(MAP_ENTRY_TYPE(m), hash)                                                                              \
+    )
+
+///
+/// Check if the map stores a specific key/value pair.
+///
+/// m[in]               : Map.
+/// key[in]             : Key to search for.
+/// value[in]           : Value to search for.
+/// SUCCESS : `true` when the pair exists.
+/// FAILURE : `false`
+///
+#define MapContainsPair(m, lookup_key, lookup_value)                                                                   \
+    map_contains_pair(                                                                                                 \
+        GENERIC_MAP(m),                                                                                                \
+        &((MAP_KEY_TYPE(m)) {(lookup_key)}),                                                                           \
+        &((MAP_VALUE_TYPE(m)) {(lookup_value)}),                                                                       \
+        sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
+        sizeof(MAP_KEY_TYPE(m)),                                                                                       \
+        offsetof(MAP_ENTRY_TYPE(m), value),                                                                            \
         offsetof(MAP_ENTRY_TYPE(m), hash)                                                                              \
     )
 
@@ -73,6 +108,66 @@
         sizeof(MAP_KEY_TYPE(m)),                                                                                       \
         offsetof(MAP_ENTRY_TYPE(m), value),                                                                            \
         offsetof(MAP_ENTRY_TYPE(m), hash)                                                                              \
+    ))
+
+///
+/// Invalid cursor returned when a per-key query has no more values.
+///
+#define MapValueCursorInvalid() ((MapValueCursor) {.__index = (size) - 1})
+
+///
+/// Check whether a cursor currently points to a value.
+///
+/// cursor[in] : Cursor returned by `MapFindFirstForKey` or `MapFindNextForKey`.
+///
+#define MapValueCursorValid(cursor) ((cursor).__index != (size) - 1)
+
+///
+/// Find the first value stored for a key as a cursor.
+///
+/// m[in]   : Map.
+/// key[in] : Key to search for.
+///
+#define MapFindFirstForKey(m, lookup_key)                                                                              \
+    map_find_first_cursor(                                                                                             \
+        GENERIC_MAP(m),                                                                                                \
+        &((MAP_KEY_TYPE(m)) {(lookup_key)}),                                                                           \
+        sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
+        sizeof(MAP_KEY_TYPE(m)),                                                                                       \
+        offsetof(MAP_ENTRY_TYPE(m), hash)                                                                              \
+    )
+
+///
+/// Advance a per-key cursor to the next value for the same key.
+///
+/// m[in]      : Map.
+/// key[in]    : Key being queried.
+/// cursor[in] : Current cursor.
+///
+#define MapFindNextForKey(m, lookup_key, cursor)                                                                       \
+    map_find_next_cursor(                                                                                              \
+        GENERIC_MAP(m),                                                                                                \
+        &((MAP_KEY_TYPE(m)) {(lookup_key)}),                                                                           \
+        (cursor),                                                                                                      \
+        sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
+        sizeof(MAP_KEY_TYPE(m)),                                                                                       \
+        offsetof(MAP_ENTRY_TYPE(m), hash)                                                                              \
+    )
+
+///
+/// Get value pointer for a valid cursor.
+///
+/// m[in,out]      : Map.
+/// cursor[in,out] : Valid cursor for this map.
+///
+#define MapValuePtrFromCursor(m, cursor)                                                                               \
+    ((MAP_VALUE_TYPE(m) *)map_value_ptr_from_cursor(                                                                   \
+        GENERIC_MAP(m),                                                                                                \
+        (cursor),                                                                                                      \
+        sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), value)                                                                             \
     ))
 
 #endif // MISRA_STD_CONTAINER_MAP_ACCESS_H

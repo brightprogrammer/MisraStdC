@@ -427,6 +427,7 @@ void deinit_map(
     map->value_copy_init        = NULL;
     map->value_copy_deinit      = NULL;
     map->key_compare            = NULL;
+    map->value_compare          = NULL;
     map->key_hash               = NULL;
     map->policy.name            = NULL;
     map->policy.should_rehash   = NULL;
@@ -593,6 +594,63 @@ bool map_contains(GenericMap *map, const void *key, size entry_size, size key_of
     return map->capacity && (map_find_index(map, key, entry_size, key_offset, key_size, hash_offset) < map->capacity);
 }
 
+bool map_contains_pair(
+    GenericMap *map,
+    const void *key,
+    const void *value,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        hash_offset
+) {
+    size idx;
+
+    ValidateMap(map);
+
+    if (!map->value_compare) {
+        LOG_FATAL("MapContainsPair requires a value comparator");
+    }
+
+    if (!map->capacity) {
+        return false;
+    }
+
+    idx = map_find_index(map, key, entry_size, key_offset, key_size, hash_offset);
+    while (idx < map->capacity) {
+        if (map->value_compare(map_value_ptr(map, entry_size, value_offset, idx), value) == 0) {
+            return true;
+        }
+        idx = map_find_next_index(map, key, idx, entry_size, key_offset, key_size, hash_offset);
+    }
+
+    return false;
+}
+
+size map_unique_key_count(GenericMap *map, size entry_size, size key_offset, size key_size, size hash_offset) {
+    size idx;
+    size count = 0;
+
+    ValidateMap(map);
+
+    for (idx = 0; idx < map->capacity; idx++) {
+        if ((map->states[idx] != MAP_SLOT_OCCUPIED) || (map_find_index(
+                                                            map,
+                                                            map_key_ptr(map, entry_size, key_offset, idx),
+                                                            entry_size,
+                                                            key_offset,
+                                                            key_size,
+                                                            hash_offset
+                                                        ) != idx)) {
+            continue;
+        }
+
+        count += 1;
+    }
+
+    return count;
+}
+
 size map_find_next_index(
     GenericMap *map,
     const void *key,
@@ -696,6 +754,72 @@ void *map_get_value_ptr(
     return map_value_ptr(map, entry_size, value_offset, idx);
 }
 
+void *map_ensure_value_ptr(
+    GenericMap *map,
+    const void *key,
+    const void *value,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset
+) {
+    void *value_ptr = map_get_value_ptr(map, key, entry_size, key_offset, key_size, value_offset, hash_offset);
+
+    if (value_ptr) {
+        return value_ptr;
+    }
+
+    map_insert(map, key, value, entry_size, key_offset, key_size, value_offset, value_size, hash_offset);
+    return map_get_value_ptr(map, key, entry_size, key_offset, key_size, value_offset, hash_offset);
+}
+
+MapValueCursor map_find_first_cursor(
+    GenericMap *map,
+    const void *key,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        hash_offset
+) {
+    size idx = map_find_index(map, key, entry_size, key_offset, key_size, hash_offset);
+
+    return (MapValueCursor) {.__index = idx < map->capacity ? idx : (size)-1};
+}
+
+MapValueCursor map_find_next_cursor(
+    GenericMap    *map,
+    const void    *key,
+    MapValueCursor cursor,
+    size           entry_size,
+    size           key_offset,
+    size           key_size,
+    size           hash_offset
+) {
+    size idx;
+
+    ValidateMap(map);
+
+    if (cursor.__index == (size)-1) {
+        return cursor;
+    }
+
+    idx = map_find_next_index(map, key, cursor.__index, entry_size, key_offset, key_size, hash_offset);
+    return (MapValueCursor) {.__index = idx < map->capacity ? idx : (size)-1};
+}
+
+void *map_value_ptr_from_cursor(GenericMap *map, MapValueCursor cursor, size entry_size, size value_offset) {
+    ValidateMap(map);
+
+    if (cursor.__index == (size)-1 || cursor.__index >= map->capacity ||
+        map->states[cursor.__index] != MAP_SLOT_OCCUPIED) {
+        return NULL;
+    }
+
+    return map_value_ptr(map, entry_size, value_offset, cursor.__index);
+}
+
 void map_insert(
     GenericMap *map,
     const void *key,
@@ -776,24 +900,22 @@ void map_insert(
 static void map_remove_at_index(
     GenericMap *map,
     size        idx,
-    void       *removed_key,
-    void       *removed_value,
     size        entry_size,
     size        key_offset,
     size        key_size,
     size        value_offset,
     size        value_size
 ) {
-    if (removed_key) {
-        memcpy(removed_key, map_key_ptr(map, entry_size, key_offset, idx), key_size);
-    } else if (map->key_copy_deinit) {
+    if (map->key_copy_deinit) {
         map->key_copy_deinit(map_key_ptr(map, entry_size, key_offset, idx));
+    } else {
+        (void)key_size;
     }
 
-    if (removed_value) {
-        memcpy(removed_value, map_value_ptr(map, entry_size, value_offset, idx), value_size);
-    } else if (map->value_copy_deinit) {
+    if (map->value_copy_deinit) {
         map->value_copy_deinit(map_value_ptr(map, entry_size, value_offset, idx));
+    } else {
+        (void)value_size;
     }
 
     memset(map_entry_ptr(map, entry_size, idx), 0, entry_size);
@@ -805,8 +927,6 @@ static void map_remove_at_index(
 bool map_remove(
     GenericMap *map,
     const void *key,
-    void       *removed_key,
-    void       *removed_value,
     size        entry_size,
     size        key_offset,
     size        key_size,
@@ -827,18 +947,43 @@ bool map_remove(
         return false;
     }
 
-    map_remove_at_index(
-        map,
-        idx,
-        removed_key,
-        removed_value,
-        entry_size,
-        key_offset,
-        key_size,
-        value_offset,
-        value_size
-    );
+    map_remove_at_index(map, idx, entry_size, key_offset, key_size, value_offset, value_size);
     return true;
+}
+
+bool map_remove_pair(
+    GenericMap *map,
+    const void *key,
+    const void *value,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset
+) {
+    size idx;
+
+    ValidateMap(map);
+
+    if (!map->value_compare) {
+        LOG_FATAL("MapRemovePair requires a value comparator");
+    }
+
+    if (!map->capacity) {
+        return false;
+    }
+
+    idx = map_find_index(map, key, entry_size, key_offset, key_size, hash_offset);
+    while (idx < map->capacity) {
+        if (map->value_compare(map_value_ptr(map, entry_size, value_offset, idx), value) == 0) {
+            map_remove_at_index(map, idx, entry_size, key_offset, key_size, value_offset, value_size);
+            return true;
+        }
+        idx = map_find_next_index(map, key, idx, entry_size, key_offset, key_size, hash_offset);
+    }
+
+    return false;
 }
 
 size map_remove_all(
@@ -864,9 +1009,79 @@ size map_remove_all(
     while (idx < map->capacity) {
         size previous_idx = idx;
 
-        map_remove_at_index(map, idx, NULL, NULL, entry_size, key_offset, key_size, value_offset, value_size);
+        map_remove_at_index(map, idx, entry_size, key_offset, key_size, value_offset, value_size);
         removed += 1;
         idx      = map_find_next_index(map, key, previous_idx, entry_size, key_offset, key_size, hash_offset);
+    }
+
+    return removed;
+}
+
+size map_remove_if(
+    GenericMap    *map,
+    MapPredicateFn predicate,
+    void          *ctx,
+    size           entry_size,
+    size           key_offset,
+    size           key_size,
+    size           value_offset,
+    size           value_size
+) {
+    size idx;
+    size removed = 0;
+
+    ValidateMap(map);
+
+    if (!predicate) {
+        LOG_FATAL("MapRemoveIf requires a predicate");
+    }
+
+    for (idx = 0; idx < map->capacity; idx++) {
+        if ((map->states[idx] != MAP_SLOT_OCCUPIED) || !predicate(
+                                                           map_key_ptr(map, entry_size, key_offset, idx),
+                                                           map_value_ptr(map, entry_size, value_offset, idx),
+                                                           ctx
+                                                       )) {
+            continue;
+        }
+
+        map_remove_at_index(map, idx, entry_size, key_offset, key_size, value_offset, value_size);
+        removed += 1;
+    }
+
+    return removed;
+}
+
+size map_retain_if(
+    GenericMap    *map,
+    MapPredicateFn predicate,
+    void          *ctx,
+    size           entry_size,
+    size           key_offset,
+    size           key_size,
+    size           value_offset,
+    size           value_size
+) {
+    size idx;
+    size removed = 0;
+
+    ValidateMap(map);
+
+    if (!predicate) {
+        LOG_FATAL("MapRetainIf requires a predicate");
+    }
+
+    for (idx = 0; idx < map->capacity; idx++) {
+        if ((map->states[idx] != MAP_SLOT_OCCUPIED) || predicate(
+                                                           map_key_ptr(map, entry_size, key_offset, idx),
+                                                           map_value_ptr(map, entry_size, value_offset, idx),
+                                                           ctx
+                                                       )) {
+            continue;
+        }
+
+        map_remove_at_index(map, idx, entry_size, key_offset, key_size, value_offset, value_size);
+        removed += 1;
     }
 
     return removed;

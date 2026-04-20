@@ -44,6 +44,25 @@
         (n)                                                                                                            \
     )
 
+///
+/// Rebuild the map using the current policy and current pair count.
+/// This removes tombstones and re-packs the probe table.
+///
+/// m[in,out] : Map.
+///
+#define MapCompact(m)                                                                                                  \
+    rehash_map(                                                                                                        \
+        GENERIC_MAP(m),                                                                                                \
+        sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
+        sizeof(MAP_KEY_TYPE(m)),                                                                                       \
+        offsetof(MAP_ENTRY_TYPE(m), value),                                                                            \
+        sizeof(MAP_VALUE_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), hash),                                                                             \
+        (size)((m)->length),                                                                                           \
+        (m)->policy                                                                                                    \
+    )
+
 /// Remap using a specific probing policy.
 ///
 /// m[in,out] : Hash map.

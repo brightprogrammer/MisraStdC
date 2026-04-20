@@ -171,4 +171,32 @@
 ///
 #define MapSet(m, in_key, in_value) MapSetL((m), (in_key), (in_value))
 
+///
+/// Ensure a key has at least one value and return a pointer to the first value.
+/// If the key does not exist, `default_value` is inserted using r-value semantics.
+///
+/// m[in,out]           : Map.
+/// key[in]             : Key to search or insert.
+/// default_value[in]   : Value to insert if key does not exist.
+///
+/// SUCCESS : Pointer to the first value stored for the key.
+///
+#define MapEnsurePtr(m, lookup_key, default_value)                                                                     \
+    ((MAP_VALUE_TYPE(m) *)map_ensure_value_ptr(                                                                        \
+        GENERIC_MAP(m),                                                                                                \
+        &((MAP_KEY_TYPE(m)) {(lookup_key)}),                                                                           \
+        &((MAP_VALUE_TYPE(m)) {(default_value)}),                                                                      \
+        sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
+        sizeof(MAP_KEY_TYPE(m)),                                                                                       \
+        offsetof(MAP_ENTRY_TYPE(m), value),                                                                            \
+        sizeof(MAP_VALUE_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), hash)                                                                              \
+    ))
+
+///
+/// Alias for `MapEnsurePtr`.
+///
+#define MapGetOrInsertPtr(m, lookup_key, default_value) MapEnsurePtr((m), (lookup_key), (default_value))
+
 #endif // MISRA_STD_CONTAINER_MAP_INSERT_H

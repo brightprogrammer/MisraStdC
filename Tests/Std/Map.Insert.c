@@ -55,10 +55,31 @@ static bool test_map_lvalue_zeroing(void) {
     return result;
 }
 
+static bool test_map_ensure_ptr(void) {
+    typedef Map(int, int) IntIntMap;
+    IntIntMap map = MapInit(int_hash, int_compare);
+    int      *value_ptr;
+    bool      result;
+
+    value_ptr = MapEnsurePtr(&map, 8, 80);
+    result    = value_ptr && (*value_ptr == 80);
+    result    = result && (MapPairCount(&map) == 1);
+    result    = result && (MapValueCountForKey(&map, 8) == 1);
+
+    value_ptr = MapGetOrInsertPtr(&map, 8, 800);
+    result    = result && value_ptr && (*value_ptr == 80);
+    result    = result && (MapPairCount(&map) == 1);
+    result    = result && (MapValueCountForKey(&map, 8) == 1);
+
+    MapDeinit(&map);
+    return result;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_map_insert_and_set,
         test_map_lvalue_zeroing,
+        test_map_ensure_ptr,
     };
 
     WriteFmt("[INFO] Starting Map.Insert tests\n\n");
