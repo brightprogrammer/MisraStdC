@@ -11,8 +11,8 @@
 #include "Private.h"
 
 ///
-/// Insert new key/value pair using l-value semantics.
-/// Aborts if key already exists.
+/// Insert a new key/value pair using l-value semantics.
+/// Duplicate keys are allowed and append another value for the same key.
 ///
 /// NOTE: Ownership of key and value is transferred to the map if the corresponding
 ///       copy-init callbacks are not set.
@@ -23,36 +23,35 @@
 ///
 /// TAGS: Map, Insert, LValue, Ownership
 ///
-#define MapInsertL(m, in_key, in_value)                                                                            \
+#define MapInsertL(m, in_key, in_value)                                                                                \
     do {                                                                                                               \
-        ValidateMap(m);                                                                                            \
-        MAP_KEY_TYPE(m) *__hm_key_ptr_##__LINE__     = &(in_key);                                                  \
-        MAP_VALUE_TYPE(m) *__hm_value_ptr_##__LINE__ = &(in_value);                                                \
-        MAP_KEY_TYPE(m) __hm_key_tmp_##__LINE__      = (in_key);                                                   \
-        MAP_VALUE_TYPE(m) __hm_value_tmp_##__LINE__  = (in_value);                                                 \
-        map_insert(                                                                                                \
-            GENERIC_MAP(m),                                                                                        \
+        ValidateMap(m);                                                                                                \
+        MAP_KEY_TYPE(m) *__hm_key_ptr_##__LINE__     = &(in_key);                                                      \
+        MAP_VALUE_TYPE(m) *__hm_value_ptr_##__LINE__ = &(in_value);                                                    \
+        MAP_KEY_TYPE(m) __hm_key_tmp_##__LINE__      = (in_key);                                                       \
+        MAP_VALUE_TYPE(m) __hm_value_tmp_##__LINE__  = (in_value);                                                     \
+        map_insert(                                                                                                    \
+            GENERIC_MAP(m),                                                                                            \
             &__hm_key_tmp_##__LINE__,                                                                                  \
             &__hm_value_tmp_##__LINE__,                                                                                \
-            sizeof(MAP_ENTRY_TYPE(m)),                                                                             \
-            offsetof(MAP_ENTRY_TYPE(m), key),                                                                      \
-            sizeof(MAP_KEY_TYPE(m)),                                                                               \
-            offsetof(MAP_ENTRY_TYPE(m), value),                                                                    \
-            sizeof(MAP_VALUE_TYPE(m)),                                                                             \
-            offsetof(MAP_ENTRY_TYPE(m), hash),                                                                     \
-            false                                                                                                      \
+            sizeof(MAP_ENTRY_TYPE(m)),                                                                                 \
+            offsetof(MAP_ENTRY_TYPE(m), key),                                                                          \
+            sizeof(MAP_KEY_TYPE(m)),                                                                                   \
+            offsetof(MAP_ENTRY_TYPE(m), value),                                                                        \
+            sizeof(MAP_VALUE_TYPE(m)),                                                                                 \
+            offsetof(MAP_ENTRY_TYPE(m), hash)                                                                          \
         );                                                                                                             \
         if (!(m)->key_copy_init) {                                                                                     \
-            memset(__hm_key_ptr_##__LINE__, 0, sizeof(MAP_KEY_TYPE(m)));                                           \
+            memset(__hm_key_ptr_##__LINE__, 0, sizeof(MAP_KEY_TYPE(m)));                                               \
         }                                                                                                              \
         if (!(m)->value_copy_init) {                                                                                   \
-            memset(__hm_value_ptr_##__LINE__, 0, sizeof(MAP_VALUE_TYPE(m)));                                       \
+            memset(__hm_value_ptr_##__LINE__, 0, sizeof(MAP_VALUE_TYPE(m)));                                           \
         }                                                                                                              \
     } while (0)
 
 ///
-/// Insert new key/value pair using r-value semantics.
-/// Aborts if key already exists.
+/// Insert a new key/value pair using r-value semantics.
+/// Duplicate keys are allowed and append another value for the same key.
 ///
 /// m[in,out] : Hash map.
 /// key[in]   : Key to insert.
@@ -60,22 +59,21 @@
 ///
 /// TAGS: Map, Insert, RValue
 ///
-#define MapInsertR(m, in_key, in_value)                                                                            \
+#define MapInsertR(m, in_key, in_value)                                                                                \
     do {                                                                                                               \
-        ValidateMap(m);                                                                                            \
-        MAP_KEY_TYPE(m) __hm_key_tmp_##__LINE__     = (in_key);                                                    \
-        MAP_VALUE_TYPE(m) __hm_value_tmp_##__LINE__ = (in_value);                                                  \
-        map_insert(                                                                                                \
-            GENERIC_MAP(m),                                                                                        \
+        ValidateMap(m);                                                                                                \
+        MAP_KEY_TYPE(m) __hm_key_tmp_##__LINE__     = (in_key);                                                        \
+        MAP_VALUE_TYPE(m) __hm_value_tmp_##__LINE__ = (in_value);                                                      \
+        map_insert(                                                                                                    \
+            GENERIC_MAP(m),                                                                                            \
             &__hm_key_tmp_##__LINE__,                                                                                  \
             &__hm_value_tmp_##__LINE__,                                                                                \
-            sizeof(MAP_ENTRY_TYPE(m)),                                                                             \
-            offsetof(MAP_ENTRY_TYPE(m), key),                                                                      \
-            sizeof(MAP_KEY_TYPE(m)),                                                                               \
-            offsetof(MAP_ENTRY_TYPE(m), value),                                                                    \
-            sizeof(MAP_VALUE_TYPE(m)),                                                                             \
-            offsetof(MAP_ENTRY_TYPE(m), hash),                                                                     \
-            false                                                                                                      \
+            sizeof(MAP_ENTRY_TYPE(m)),                                                                                 \
+            offsetof(MAP_ENTRY_TYPE(m), key),                                                                          \
+            sizeof(MAP_KEY_TYPE(m)),                                                                                   \
+            offsetof(MAP_ENTRY_TYPE(m), value),                                                                        \
+            sizeof(MAP_VALUE_TYPE(m)),                                                                                 \
+            offsetof(MAP_ENTRY_TYPE(m), hash)                                                                          \
         );                                                                                                             \
     } while (0)
 
@@ -85,10 +83,9 @@
 #define MapInsert(m, in_key, in_value) MapInsertL((m), (in_key), (in_value))
 
 ///
-/// Insert or replace key/value pair using l-value semantics.
+/// Replace all values for a key with exactly one key/value pair using l-value semantics.
 ///
-/// NOTE: If the key already exists then both key and value stored in the map are
-///       replaced by the provided objects.
+/// NOTE: Existing values for the key are removed before the new value is inserted.
 ///
 /// m[in,out] : Hash map.
 /// key[in]   : Key to insert or replace.
@@ -96,35 +93,44 @@
 ///
 /// TAGS: Map, Set, LValue, Ownership
 ///
-#define MapSetL(m, in_key, in_value)                                                                               \
+#define MapSetL(m, in_key, in_value)                                                                                   \
     do {                                                                                                               \
-        ValidateMap(m);                                                                                            \
-        MAP_KEY_TYPE(m) *__hm_key_ptr_##__LINE__     = &(in_key);                                                  \
-        MAP_VALUE_TYPE(m) *__hm_value_ptr_##__LINE__ = &(in_value);                                                \
-        MAP_KEY_TYPE(m) __hm_key_tmp_##__LINE__      = (in_key);                                                   \
-        MAP_VALUE_TYPE(m) __hm_value_tmp_##__LINE__  = (in_value);                                                 \
-        map_insert(                                                                                                \
-            GENERIC_MAP(m),                                                                                        \
+        ValidateMap(m);                                                                                                \
+        MAP_KEY_TYPE(m) *__hm_key_ptr_##__LINE__     = &(in_key);                                                      \
+        MAP_VALUE_TYPE(m) *__hm_value_ptr_##__LINE__ = &(in_value);                                                    \
+        MAP_KEY_TYPE(m) __hm_key_tmp_##__LINE__      = (in_key);                                                       \
+        MAP_VALUE_TYPE(m) __hm_value_tmp_##__LINE__  = (in_value);                                                     \
+        map_remove_all(                                                                                                \
+            GENERIC_MAP(m),                                                                                            \
+            &__hm_key_tmp_##__LINE__,                                                                                  \
+            sizeof(MAP_ENTRY_TYPE(m)),                                                                                 \
+            offsetof(MAP_ENTRY_TYPE(m), key),                                                                          \
+            sizeof(MAP_KEY_TYPE(m)),                                                                                   \
+            offsetof(MAP_ENTRY_TYPE(m), value),                                                                        \
+            sizeof(MAP_VALUE_TYPE(m)),                                                                                 \
+            offsetof(MAP_ENTRY_TYPE(m), hash)                                                                          \
+        );                                                                                                             \
+        map_insert(                                                                                                    \
+            GENERIC_MAP(m),                                                                                            \
             &__hm_key_tmp_##__LINE__,                                                                                  \
             &__hm_value_tmp_##__LINE__,                                                                                \
-            sizeof(MAP_ENTRY_TYPE(m)),                                                                             \
-            offsetof(MAP_ENTRY_TYPE(m), key),                                                                      \
-            sizeof(MAP_KEY_TYPE(m)),                                                                               \
-            offsetof(MAP_ENTRY_TYPE(m), value),                                                                    \
-            sizeof(MAP_VALUE_TYPE(m)),                                                                             \
-            offsetof(MAP_ENTRY_TYPE(m), hash),                                                                     \
-            true                                                                                                       \
+            sizeof(MAP_ENTRY_TYPE(m)),                                                                                 \
+            offsetof(MAP_ENTRY_TYPE(m), key),                                                                          \
+            sizeof(MAP_KEY_TYPE(m)),                                                                                   \
+            offsetof(MAP_ENTRY_TYPE(m), value),                                                                        \
+            sizeof(MAP_VALUE_TYPE(m)),                                                                                 \
+            offsetof(MAP_ENTRY_TYPE(m), hash)                                                                          \
         );                                                                                                             \
         if (!(m)->key_copy_init) {                                                                                     \
-            memset(__hm_key_ptr_##__LINE__, 0, sizeof(MAP_KEY_TYPE(m)));                                           \
+            memset(__hm_key_ptr_##__LINE__, 0, sizeof(MAP_KEY_TYPE(m)));                                               \
         }                                                                                                              \
         if (!(m)->value_copy_init) {                                                                                   \
-            memset(__hm_value_ptr_##__LINE__, 0, sizeof(MAP_VALUE_TYPE(m)));                                       \
+            memset(__hm_value_ptr_##__LINE__, 0, sizeof(MAP_VALUE_TYPE(m)));                                           \
         }                                                                                                              \
     } while (0)
 
 ///
-/// Insert or replace key/value pair using r-value semantics.
+/// Replace all values for a key with exactly one key/value pair using r-value semantics.
 ///
 /// m[in,out] : Hash map.
 /// key[in]   : Key to insert or replace.
@@ -132,22 +138,31 @@
 ///
 /// TAGS: Map, Set, RValue
 ///
-#define MapSetR(m, in_key, in_value)                                                                               \
+#define MapSetR(m, in_key, in_value)                                                                                   \
     do {                                                                                                               \
-        ValidateMap(m);                                                                                            \
-        MAP_KEY_TYPE(m) __hm_key_tmp_##__LINE__     = (in_key);                                                    \
-        MAP_VALUE_TYPE(m) __hm_value_tmp_##__LINE__ = (in_value);                                                  \
-        map_insert(                                                                                                \
-            GENERIC_MAP(m),                                                                                        \
+        ValidateMap(m);                                                                                                \
+        MAP_KEY_TYPE(m) __hm_key_tmp_##__LINE__     = (in_key);                                                        \
+        MAP_VALUE_TYPE(m) __hm_value_tmp_##__LINE__ = (in_value);                                                      \
+        map_remove_all(                                                                                                \
+            GENERIC_MAP(m),                                                                                            \
+            &__hm_key_tmp_##__LINE__,                                                                                  \
+            sizeof(MAP_ENTRY_TYPE(m)),                                                                                 \
+            offsetof(MAP_ENTRY_TYPE(m), key),                                                                          \
+            sizeof(MAP_KEY_TYPE(m)),                                                                                   \
+            offsetof(MAP_ENTRY_TYPE(m), value),                                                                        \
+            sizeof(MAP_VALUE_TYPE(m)),                                                                                 \
+            offsetof(MAP_ENTRY_TYPE(m), hash)                                                                          \
+        );                                                                                                             \
+        map_insert(                                                                                                    \
+            GENERIC_MAP(m),                                                                                            \
             &__hm_key_tmp_##__LINE__,                                                                                  \
             &__hm_value_tmp_##__LINE__,                                                                                \
-            sizeof(MAP_ENTRY_TYPE(m)),                                                                             \
-            offsetof(MAP_ENTRY_TYPE(m), key),                                                                      \
-            sizeof(MAP_KEY_TYPE(m)),                                                                               \
-            offsetof(MAP_ENTRY_TYPE(m), value),                                                                    \
-            sizeof(MAP_VALUE_TYPE(m)),                                                                             \
-            offsetof(MAP_ENTRY_TYPE(m), hash),                                                                     \
-            true                                                                                                       \
+            sizeof(MAP_ENTRY_TYPE(m)),                                                                                 \
+            offsetof(MAP_ENTRY_TYPE(m), key),                                                                          \
+            sizeof(MAP_KEY_TYPE(m)),                                                                                   \
+            offsetof(MAP_ENTRY_TYPE(m), value),                                                                        \
+            sizeof(MAP_VALUE_TYPE(m)),                                                                                 \
+            offsetof(MAP_ENTRY_TYPE(m), hash)                                                                          \
         );                                                                                                             \
     } while (0)
 
