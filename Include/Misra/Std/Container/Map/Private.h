@@ -9,6 +9,8 @@
 
 #include "Type.h"
 
+void      validate_map_policy(const MapPolicy *policy);
+MapPolicy validate_map_policy_copy(MapPolicy policy);
 void   validate_map(const GenericMap *map);
 void   deinit_map(
       GenericMap *map,

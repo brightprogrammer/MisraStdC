@@ -14,13 +14,24 @@
 
 typedef struct GenericMap GenericMap;
 
-typedef size (*MapPolicyProbeFn)(u64 hash, size probe_count, size capacity);
-typedef bool (*MapPolicyShouldRehashFn)(const GenericMap *map);
+typedef struct {
+    u64 length;
+    u64 capacity;
+    u64 tombstones;
+} MapPolicySnapshot;
+
+typedef bool (*MapPolicyShouldRehashFn)(MapPolicySnapshot snapshot, size pending_inserts, size probe_pressure);
+typedef size (*MapPolicyNextCapacityFn)(MapPolicySnapshot snapshot, size min_entries);
+typedef size (*MapPolicyFirstIndexFn)(u64 hash, size capacity);
+typedef size (*MapPolicyNextIndexFn)(u64 hash, size capacity, size previous_index, size probe_count);
 
 typedef struct {
-    const char              *name;
-    MapPolicyProbeFn         probe_index;
-    MapPolicyShouldRehashFn  should_rehash;
+    const char             *name;
+    MapPolicyShouldRehashFn should_rehash;
+    MapPolicyNextCapacityFn next_capacity;
+    MapPolicyFirstIndexFn   first_index;
+    MapPolicyNextIndexFn    next_index;
+    size                    max_probe_count;
 } MapPolicy;
 
 extern const MapPolicy MisraMapPolicyLinear;
@@ -29,6 +40,7 @@ extern const MapPolicy MisraMapPolicyQuadratic;
 struct GenericMap {
     u64               length;
     u64               capacity;
+    u64               tombstones;
     GenericCopyInit   key_copy_init;
     GenericCopyDeinit key_copy_deinit;
     GenericCopyInit   value_copy_init;
@@ -72,6 +84,7 @@ struct GenericMap {
 /// FIELDS:
 /// - length            : Number of occupied entries in the map.
 /// - capacity          : Total number of probe slots currently allocated.
+/// - tombstones        : Number of deleted slots currently retained for probing.
 /// - key_copy_init     : Optional deep-copy callback for keys.
 /// - key_copy_deinit   : Optional deinit callback for keys held by the map.
 /// - value_copy_init   : Optional deep-copy callback for values.
@@ -88,6 +101,7 @@ struct GenericMap {
     struct {                                                                                                           \
         u64               length;                                                                                      \
         u64               capacity;                                                                                    \
+        u64               tombstones;                                                                                  \
         GenericCopyInit   key_copy_init;                                                                               \
         GenericCopyDeinit key_copy_deinit;                                                                             \
         GenericCopyInit   value_copy_init;                                                                             \
@@ -105,6 +119,14 @@ struct GenericMap {
 #define MAP_VALUE_TYPE(m) TYPE_OF((m)->entries[0].value)
 
 #define MISRA_MAP_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("map00000")
+
+///
+/// Validate whether a given `MapPolicy` object is valid.
+/// Aborts if the policy is structurally invalid.
+///
+/// policy_value[in] : Policy to validate.
+///
+#define ValidateMapPolicy(policy_value) validate_map_policy(&(policy_value))
 
 ///
 /// Validate whether a given `Map` object is valid.

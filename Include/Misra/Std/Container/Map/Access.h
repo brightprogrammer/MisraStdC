@@ -29,6 +29,13 @@
 #define MapCapacity(m) ((m)->capacity)
 
 ///
+/// Number of tombstone slots currently retained in the map.
+///
+/// m[in] : Map.
+///
+#define MapTombstones(m) ((m)->tombstones)
+
+///
 /// Active probing policy of the map.
 ///
 /// m[in] : Hash map.

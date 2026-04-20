@@ -17,13 +17,33 @@ static i32 int_compare(const void *lhs, const void *rhs) {
     return (a > b) - (a < b);
 }
 
-static size custom_probe(u64 hash, size probe_count, size capacity) {
-    (void)capacity;
-    return (size)(hash + probe_count);
+static bool custom_should_rehash_snapshot(MapPolicySnapshot snapshot, size pending_inserts, size probe_pressure) {
+    (void)probe_pressure;
+    return snapshot.capacity == 0 || (snapshot.length + snapshot.tombstones + pending_inserts) >= snapshot.capacity;
 }
 
-static bool custom_should_rehash(const GenericMap *map) {
-    return map->capacity == 0 || map->length >= map->capacity;
+static size custom_next_capacity(MapPolicySnapshot snapshot, size min_entries) {
+    size needed = min_entries > snapshot.length ? min_entries : (size)snapshot.length;
+    size capacity = 5;
+
+    if (needed == 0) {
+        return 0;
+    }
+
+    while (capacity < needed) {
+        capacity += 5;
+    }
+
+    return capacity;
+}
+
+static size custom_first_index(u64 hash, size capacity) {
+    return capacity ? (size)((hash ^ 0x5au) % capacity) : 0;
+}
+
+static size custom_next_index(u64 hash, size capacity, size previous_index, size probe_count) {
+    (void)hash;
+    return capacity ? ((previous_index + probe_count + 1) % capacity) : 0;
 }
 
 static bool test_map_type_defaults(void) {
@@ -32,36 +52,66 @@ static bool test_map_type_defaults(void) {
 
     return map.length == 0 &&
            map.capacity == 0 &&
+           map.tombstones == 0 &&
            map.entries == NULL &&
            map.states == NULL &&
            map.key_compare == int_compare &&
            map.key_hash == int_hash &&
-           map.policy.probe_index == MisraMapPolicyLinear.probe_index &&
-           map.policy.should_rehash == MisraMapPolicyLinear.should_rehash;
+           map.policy.should_rehash == MisraMapPolicyLinear.should_rehash &&
+           map.policy.next_capacity == MisraMapPolicyLinear.next_capacity &&
+           map.policy.first_index == MisraMapPolicyLinear.first_index &&
+           map.policy.next_index == MisraMapPolicyLinear.next_index &&
+           map.policy.max_probe_count == MisraMapPolicyLinear.max_probe_count;
 }
 
 static bool test_map_policy_copy(void) {
     typedef Map(int, int) IntIntMap;
     MapPolicy custom_policy = {
         .name          = "custom-linear",
-        .probe_index   = custom_probe,
-        .should_rehash = custom_should_rehash,
+        .should_rehash = custom_should_rehash_snapshot,
+        .next_capacity = custom_next_capacity,
+        .first_index   = custom_first_index,
+        .next_index    = custom_next_index,
+        .max_probe_count = 11,
     };
     IntIntMap map = MapInitWithPolicy(int_hash, int_compare, custom_policy);
 
     custom_policy.name          = "changed";
-    custom_policy.probe_index   = NULL;
     custom_policy.should_rehash = NULL;
+    custom_policy.next_capacity = NULL;
+    custom_policy.first_index   = NULL;
+    custom_policy.next_index    = NULL;
+    custom_policy.max_probe_count = 0;
 
     return ZstrCompare(MapPolicyName(&map), "custom-linear") == 0 &&
-           MapPolicyGet(&map).probe_index == custom_probe &&
-           MapPolicyGet(&map).should_rehash == custom_should_rehash;
+           MapPolicyGet(&map).should_rehash == custom_should_rehash_snapshot &&
+           MapPolicyGet(&map).next_capacity == custom_next_capacity &&
+           MapPolicyGet(&map).first_index == custom_first_index &&
+           MapPolicyGet(&map).next_index == custom_next_index &&
+           MapPolicyGet(&map).max_probe_count == 11;
+}
+
+static bool test_validate_map_policy(void) {
+    MapPolicy custom_policy = {
+        .name            = "custom-linear",
+        .should_rehash   = custom_should_rehash_snapshot,
+        .next_capacity   = custom_next_capacity,
+        .first_index     = custom_first_index,
+        .next_index      = custom_next_index,
+        .max_probe_count = 11,
+    };
+
+    ValidateMapPolicy(custom_policy);
+    return custom_next_capacity((MapPolicySnapshot) {.length = 6, .capacity = 5, .tombstones = 0}, 7) == 10 &&
+           custom_first_index(0x55u, 5) < 5 &&
+           custom_next_index(0x55u, 5, 1, 2) < 5;
 }
 
 int main(void) {
     TestFunction tests[] = {
         test_map_type_defaults,
         test_map_policy_copy,
+        test_validate_map_policy,
     };
 
     WriteFmt("[INFO] Starting Map.Type tests\n\n");

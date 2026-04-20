@@ -17,35 +17,34 @@ enum {
     MAP_SLOT_TOMBSTONE = 2,
 };
 
-static size linear_probe_index(u64 hash, size probe_count, size capacity) {
-    (void)capacity;
-    return (size)(hash + probe_count);
-}
-
 static size quadratic_probe_index(u64 hash, size probe_count, size capacity) {
     (void)capacity;
     return (size)(hash + ((probe_count * (probe_count + 1)) / 2));
 }
 
-static bool default_should_rehash(const GenericMap *map) {
-    return map->capacity == 0 || ((map->length * 4) >= (map->capacity * 3));
+static bool default_should_rehash(MapPolicySnapshot snapshot, size pending_inserts, size probe_pressure) {
+    if ((snapshot.length + pending_inserts) == 0) {
+        return false;
+    }
+
+    if (snapshot.capacity == 0) {
+        return true;
+    }
+
+    if (((snapshot.length + snapshot.tombstones + pending_inserts) * 4) >= (snapshot.capacity * 3)) {
+        return true;
+    }
+
+    return probe_pressure > 0 && (probe_pressure * 4) >= snapshot.capacity;
 }
 
-const MapPolicy MisraMapPolicyLinear = {
-    .name          = "linear",
-    .probe_index   = linear_probe_index,
-    .should_rehash = default_should_rehash,
-};
-
-const MapPolicy MisraMapPolicyQuadratic = {
-    .name          = "quadratic",
-    .probe_index   = quadratic_probe_index,
-    .should_rehash = default_should_rehash,
-};
-
-static size map_capacity_for_entries(size n) {
+static size default_next_capacity(MapPolicySnapshot snapshot, size min_entries) {
     size capacity = 8;
-    size needed   = n == 0 ? 8 : n;
+    size needed   = min_entries > snapshot.length ? min_entries : (size)snapshot.length;
+
+    if (needed == 0) {
+        return 0;
+    }
 
     while (((capacity * 3) / 4) < needed) {
         capacity <<= 1;
@@ -53,6 +52,135 @@ static size map_capacity_for_entries(size n) {
 
     return capacity;
 }
+
+static size linear_first_index(u64 hash, size capacity) {
+    return capacity ? (size)(hash % capacity) : 0;
+}
+
+static size linear_next_index(u64 hash, size capacity, size previous_index, size probe_count) {
+    (void)hash;
+    (void)probe_count;
+    return capacity ? ((previous_index + 1) % capacity) : 0;
+}
+
+static size quadratic_first_index(u64 hash, size capacity) {
+    return capacity ? (size)(hash % capacity) : 0;
+}
+
+static size quadratic_next_index(u64 hash, size capacity, size previous_index, size probe_count) {
+    (void)previous_index;
+    return capacity ? (quadratic_probe_index(hash, probe_count, capacity) % capacity) : 0;
+}
+
+static MapPolicySnapshot map_policy_snapshot(const GenericMap *map) {
+    MapPolicySnapshot snapshot = {
+        .length     = map->length,
+        .capacity   = map->capacity,
+        .tombstones = map->tombstones,
+    };
+
+    return snapshot;
+}
+
+static size map_validate_policy_index(size idx, size capacity, const char *callback_name) {
+    if (capacity && idx >= capacity) {
+        LOG_FATAL("{} returned index {} for capacity {}", callback_name, idx, capacity);
+    }
+
+    return idx;
+}
+
+void validate_map_policy(const MapPolicy *policy) {
+    static const MapPolicySnapshot snapshots[] = {
+        {.length = 0, .capacity = 0, .tombstones = 0},
+        {.length = 3, .capacity = 8, .tombstones = 0},
+        {.length = 5, .capacity = 8, .tombstones = 2},
+        {.length = 10, .capacity = 16, .tombstones = 3},
+    };
+    static const size capacities[] = {1, 8, 17};
+    size idx_i;
+    size cap_i;
+
+    if (!policy) {
+        LOG_FATAL("Expected a valid MapPolicy pointer");
+    }
+
+    if (!policy->name || !policy->name[0]) {
+        LOG_FATAL("MapPolicy must have a non-empty name");
+    }
+
+    if (!policy->should_rehash || !policy->next_capacity || !policy->first_index || !policy->next_index) {
+        LOG_FATAL("MapPolicy '{}' must provide all required callbacks", policy->name);
+    }
+
+    if (policy->max_probe_count == 0) {
+        LOG_FATAL("MapPolicy '{}' must provide a non-zero max_probe_count", policy->name);
+    }
+
+    for (idx_i = 0; idx_i < (sizeof(snapshots) / sizeof(snapshots[0])); idx_i++) {
+        MapPolicySnapshot snapshot = snapshots[idx_i];
+        size             next0     = policy->next_capacity(snapshot, 0);
+        size             next_same = policy->next_capacity(snapshot, (size)snapshot.length);
+        size             next_more = policy->next_capacity(snapshot, (size)snapshot.length + 1);
+        (void)policy->should_rehash(snapshot, 0, 0);
+        (void)policy->should_rehash(snapshot, 1, policy->max_probe_count);
+
+        if ((next0 == 0) && ((snapshot.length != 0) || (snapshot.capacity != 0) || (snapshot.tombstones != 0))) {
+            LOG_FATAL("MapPolicy '{}' returned zero capacity for a non-empty snapshot", policy->name);
+        }
+
+        if ((next_same != 0) && (next_same < snapshot.length)) {
+            LOG_FATAL("MapPolicy '{}' returned capacity smaller than current length", policy->name);
+        }
+
+        if (next_more < ((size)snapshot.length + 1)) {
+            LOG_FATAL("MapPolicy '{}' returned capacity smaller than requested minimum entries", policy->name);
+        }
+    }
+
+    for (cap_i = 0; cap_i < (sizeof(capacities) / sizeof(capacities[0])); cap_i++) {
+        size capacity = capacities[cap_i];
+        u64  hash     = 0x9e3779b97f4a7c15ULL;
+        size first    = map_validate_policy_index(policy->first_index(hash, capacity), capacity, "first_index");
+
+        map_validate_policy_index(policy->first_index(hash, capacity), capacity, "first_index");
+
+        if ((capacity > 1) && (policy->max_probe_count > 1)) {
+            size next = map_validate_policy_index(
+                policy->next_index(hash, capacity, first, 1),
+                capacity,
+                "next_index"
+            );
+
+            if (next == first) {
+                LOG_FATAL("MapPolicy '{}' produced a stuck probe sequence for capacity {}", policy->name, capacity);
+            }
+        }
+    }
+}
+
+MapPolicy validate_map_policy_copy(MapPolicy policy) {
+    validate_map_policy(&policy);
+    return policy;
+}
+
+const MapPolicy MisraMapPolicyLinear = {
+    .name          = "linear",
+    .should_rehash = default_should_rehash,
+    .next_capacity = default_next_capacity,
+    .first_index   = linear_first_index,
+    .next_index    = linear_next_index,
+    .max_probe_count = 128,
+};
+
+const MapPolicy MisraMapPolicyQuadratic = {
+    .name          = "quadratic",
+    .should_rehash = default_should_rehash,
+    .next_capacity = default_next_capacity,
+    .first_index   = quadratic_first_index,
+    .next_index    = quadratic_next_index,
+    .max_probe_count = 128,
+};
 
 static inline char *map_entry_ptr(const GenericMap *map, size entry_size, size idx) {
     return map->entries + (idx * entry_size);
@@ -68,14 +196,6 @@ static inline void *map_value_ptr(const GenericMap *map, size entry_size, size v
 
 static inline u64 *map_hash_ptr(const GenericMap *map, size entry_size, size hash_offset, size idx) {
     return (u64 *)(void *)(map_entry_ptr(map, entry_size, idx) + hash_offset);
-}
-
-static inline size map_probe_slot(const MapPolicy *policy, u64 hash, size probe_count, size capacity) {
-    if (!capacity) {
-        return 0;
-    }
-
-    return policy->probe_index(hash, probe_count, capacity) % capacity;
 }
 
 static u64 map_hash_key(const GenericMap *map, const void *key, size key_size) {
@@ -153,11 +273,13 @@ static bool map_find_slot(
     size            hash_offset,
     u64             hash,
     size           *found_idx,
-    size           *insert_idx
+    size           *insert_idx,
+    size           *probe_pressure
 ) {
     size first_tombstone = map->capacity;
+    size idx             = 0;
     size probe_count;
-    size idx;
+    size limit;
 
     if (!map->capacity) {
         if (found_idx) {
@@ -166,11 +288,27 @@ static bool map_find_slot(
         if (insert_idx) {
             *insert_idx = 0;
         }
+        if (probe_pressure) {
+            *probe_pressure = 0;
+        }
         return false;
     }
 
-    for (probe_count = 0; probe_count < map->capacity; probe_count++) {
-        idx = map_probe_slot(&map->policy, hash, probe_count, map->capacity);
+    limit = map->policy.max_probe_count;
+    if (limit == 0) {
+        LOG_FATAL("Map policy '{}' has invalid max_probe_count", map->policy.name);
+    }
+
+    idx = map_validate_policy_index(map->policy.first_index(hash, map->capacity), map->capacity, "first_index");
+
+    for (probe_count = 0; probe_count < limit; probe_count++) {
+        if (probe_count > 0) {
+            idx = map_validate_policy_index(
+                map->policy.next_index(hash, map->capacity, idx, probe_count),
+                map->capacity,
+                "next_index"
+            );
+        }
 
         if (map->states[idx] == MAP_SLOT_EMPTY) {
             if (found_idx) {
@@ -178,6 +316,9 @@ static bool map_find_slot(
             }
             if (insert_idx) {
                 *insert_idx = first_tombstone < map->capacity ? first_tombstone : idx;
+            }
+            if (probe_pressure) {
+                *probe_pressure = probe_count + 1;
             }
             return false;
         }
@@ -197,6 +338,9 @@ static bool map_find_slot(
             if (insert_idx) {
                 *insert_idx = idx;
             }
+            if (probe_pressure) {
+                *probe_pressure = probe_count + 1;
+            }
             return true;
         }
     }
@@ -207,6 +351,9 @@ static bool map_find_slot(
 
     if (insert_idx) {
         *insert_idx = first_tombstone;
+    }
+    if (probe_pressure) {
+        *probe_pressure = limit;
     }
 
     return false;
@@ -233,7 +380,8 @@ static void map_insert_raw_entry(
         hash_offset,
         hash,
         NULL,
-        &insert_idx
+        &insert_idx,
+        NULL
     );
 
     if (found || insert_idx >= map->capacity) {
@@ -258,12 +406,14 @@ void validate_map(const GenericMap *map) {
         LOG_FATAL("Map must have valid key compare and key hash callbacks");
     }
 
-    if (!map->policy.probe_index || !map->policy.should_rehash) {
-        LOG_FATAL("Map policy must provide valid probe and rehash callbacks");
-    }
+    validate_map_policy(&map->policy);
 
     if (map->length > map->capacity) {
         LOG_FATAL("Map length cannot exceed capacity");
+    }
+
+    if ((map->length + map->tombstones) > map->capacity) {
+        LOG_FATAL("Map occupied slots and tombstones cannot exceed capacity");
     }
 
     if (!map->capacity) {
@@ -298,6 +448,7 @@ void deinit_map(
     map->states             = NULL;
     map->length             = 0;
     map->capacity           = 0;
+    map->tombstones         = 0;
     map->key_copy_init      = NULL;
     map->key_copy_deinit    = NULL;
     map->value_copy_init    = NULL;
@@ -305,8 +456,11 @@ void deinit_map(
     map->key_compare        = NULL;
     map->key_hash           = NULL;
     map->policy.name          = NULL;
-    map->policy.probe_index   = NULL;
     map->policy.should_rehash = NULL;
+    map->policy.next_capacity = NULL;
+    map->policy.first_index   = NULL;
+    map->policy.next_index    = NULL;
+    map->policy.max_probe_count = 0;
     map->__magic            = 0;
 }
 
@@ -333,6 +487,7 @@ void clear_map(
     }
 
     map->length = 0;
+    map->tombstones = 0;
 
     (void)key_size;
     (void)value_size;
@@ -355,30 +510,28 @@ void rehash_map(
     size  old_capacity;
     size  new_capacity;
     size  idx;
+    MapPolicySnapshot snapshot;
 
     ValidateMap(map);
-
-    if (!policy.probe_index || !policy.should_rehash) {
-        LOG_FATAL("Map rehash requires a valid policy");
-    }
+    validate_map_policy(&policy);
 
     if ((map->length == 0) && (n == 0)) {
         free(map->entries);
         free(map->states);
         map->entries  = NULL;
         map->states   = NULL;
+        map->length   = 0;
         map->capacity = 0;
+        map->tombstones = 0;
         map->policy   = policy;
         return;
     }
 
-    new_capacity = map_capacity_for_entries(n > map->length ? n : map->length);
+    snapshot     = map_policy_snapshot(map);
+    new_capacity = policy.next_capacity(snapshot, n);
 
-    if ((new_capacity == map->capacity) &&
-        (map->policy.probe_index == policy.probe_index) &&
-        (map->policy.should_rehash == policy.should_rehash) &&
-        (map->policy.name == policy.name)) {
-        return;
+    if (new_capacity < (n > map->length ? n : (size)map->length)) {
+        LOG_FATAL("Map policy '{}' returned insufficient capacity {}", policy.name, new_capacity);
     }
 
     old_entries  = map->entries;
@@ -399,6 +552,7 @@ void rehash_map(
 
     map->capacity = new_capacity;
     map->length   = 0;
+    map->tombstones = 0;
     map->policy   = policy;
 
     for (idx = 0; idx < old_capacity; idx++) {
@@ -433,9 +587,15 @@ void reserve_map(
     size            hash_offset,
     size            n
 ) {
+    MapPolicySnapshot snapshot;
+    size              target_capacity;
+
     ValidateMap(map);
 
-    if ((n <= map->capacity) && (((map->capacity * 3) / 4) >= n)) {
+    snapshot        = map_policy_snapshot(map);
+    target_capacity = map->policy.next_capacity(snapshot, n);
+
+    if ((target_capacity == map->capacity) && !map->policy.should_rehash(snapshot, 0, 0)) {
         return;
     }
 
@@ -470,7 +630,7 @@ size map_find_index(
     }
 
     hash = map_hash_key(map, key, key_size);
-    if (map_find_slot(map, key, entry_size, key_offset, key_size, hash_offset, hash, &found_idx, NULL)) {
+    if (map_find_slot(map, key, entry_size, key_offset, key_size, hash_offset, hash, &found_idx, NULL, NULL)) {
         return found_idx;
     }
 
@@ -529,13 +689,15 @@ void map_insert(
 ) {
     size found_idx  = 0;
     size insert_idx = 0;
+    size probe_pressure = 0;
     bool found;
     u64  hash;
+    MapPolicySnapshot snapshot;
 
     ValidateMap(map);
 
     if (map->capacity == 0) {
-        reserve_map(
+        rehash_map(
             map,
             entry_size,
             key_offset,
@@ -543,9 +705,13 @@ void map_insert(
             value_offset,
             value_size,
             hash_offset,
-            1
+            1,
+            map->policy
         );
-    } else if (map->policy.should_rehash(map)) {
+    }
+
+    snapshot = map_policy_snapshot(map);
+    if (map->policy.should_rehash(snapshot, 1, 0)) {
         rehash_map(
             map,
             entry_size,
@@ -569,7 +735,8 @@ void map_insert(
         hash_offset,
         hash,
         &found_idx,
-        &insert_idx
+        &insert_idx,
+        &probe_pressure
     );
 
     if (found) {
@@ -596,6 +763,9 @@ void map_insert(
     }
 
     if (insert_idx >= map->capacity) {
+        snapshot = map_policy_snapshot(map);
+        (void)map->policy.should_rehash(snapshot, 1, probe_pressure);
+
         rehash_map(
             map,
             entry_size,
@@ -620,6 +790,10 @@ void map_insert(
             replace_existing
         );
         return;
+    }
+
+    if (map->states[insert_idx] == MAP_SLOT_TOMBSTONE) {
+        map->tombstones -= 1;
     }
 
     map_copy_into_slot(
@@ -679,5 +853,6 @@ bool map_remove(
     memset(map_entry_ptr(map, entry_size, idx), 0, entry_size);
     map->states[idx] = MAP_SLOT_TOMBSTONE;
     map->length -= 1;
+    map->tombstones += 1;
     return true;
 }

@@ -78,6 +78,7 @@
 #define MapInitWithDeepCopyAndPolicy(hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd, policy_value)      \
     {.length            = 0,                                                                                           \
      .capacity          = 0,                                                                                           \
+     .tombstones        = 0,                                                                                           \
      .key_copy_init     = (GenericCopyInit)(key_ci),                                                                   \
      .key_copy_deinit   = (GenericCopyDeinit)(key_cd),                                                                 \
      .value_copy_init   = (GenericCopyInit)(value_ci),                                                                 \
@@ -86,7 +87,7 @@
      .key_hash          = (GenericHash)(hash_fn),                                                                      \
      .entries           = NULL,                                                                                        \
      .states            = NULL,                                                                                        \
-     .policy            = (policy_value),                                                                              \
+     .policy            = validate_map_policy_copy((policy_value)),                                                    \
      .__magic           = MISRA_MAP_MAGIC}
 
 #ifdef __cplusplus

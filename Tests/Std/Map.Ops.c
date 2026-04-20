@@ -71,7 +71,10 @@ static bool test_map_policy_switch_preserves_entries(void) {
     MapSetR(&map, "green", "pear");
     MapRehashWithPolicy(&map, MapLen(&map), MisraMapPolicyQuadratic);
 
-    bool result = MapPolicyGet(&map).probe_index == MisraMapPolicyQuadratic.probe_index;
+    bool result = MapPolicyGet(&map).first_index == MisraMapPolicyQuadratic.first_index &&
+                  MapPolicyGet(&map).next_index == MisraMapPolicyQuadratic.next_index &&
+                  MapPolicyGet(&map).next_capacity == MisraMapPolicyQuadratic.next_capacity &&
+                  MapPolicyGet(&map).should_rehash == MisraMapPolicyQuadratic.should_rehash;
     result = result && MapGetPtr(&map, "red") && (ZstrCompare(*MapGetPtr(&map, "red"), "apple") == 0);
     result = result && MapGetPtr(&map, "yellow") && (ZstrCompare(*MapGetPtr(&map, "yellow"), "banana") == 0);
     result = result && MapGetPtr(&map, "green") && (ZstrCompare(*MapGetPtr(&map, "green"), "pear") == 0);

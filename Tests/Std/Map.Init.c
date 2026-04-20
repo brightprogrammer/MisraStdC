@@ -17,6 +17,36 @@ static i32 int_compare(const void *lhs, const void *rhs) {
     return (a > b) - (a < b);
 }
 
+static bool custom_should_rehash(MapPolicySnapshot snapshot, size pending_inserts, size probe_pressure) {
+    (void)probe_pressure;
+    return snapshot.capacity == 0 || (snapshot.length + snapshot.tombstones + pending_inserts) > snapshot.capacity;
+}
+
+static size custom_next_capacity(MapPolicySnapshot snapshot, size min_entries) {
+    size needed = min_entries > snapshot.length ? min_entries : (size)snapshot.length;
+    size capacity = 5;
+
+    if (needed == 0) {
+        return 0;
+    }
+
+    while (capacity < needed) {
+        capacity += 5;
+    }
+
+    return capacity;
+}
+
+static size custom_first_index(u64 hash, size capacity) {
+    return capacity ? (size)(((hash * 3u) + 1u) % capacity) : 0;
+}
+
+static size custom_next_index(u64 hash, size capacity, size previous_index, size probe_count) {
+    (void)hash;
+    (void)probe_count;
+    return capacity ? ((previous_index + 1) % capacity) : 0;
+}
+
 static bool test_map_reserve_and_clear(void) {
     typedef Map(int, int) IntIntMap;
     IntIntMap map = MapInit(int_hash, int_compare);
@@ -42,7 +72,10 @@ static bool test_map_rehash_policy_switch(void) {
 
     MapRehashWithPolicy(&map, MapLen(&map), MisraMapPolicyQuadratic);
 
-    bool result = MapPolicyGet(&map).probe_index == MisraMapPolicyQuadratic.probe_index;
+    bool result = MapPolicyGet(&map).first_index == MisraMapPolicyQuadratic.first_index &&
+                  MapPolicyGet(&map).next_index == MisraMapPolicyQuadratic.next_index &&
+                  MapPolicyGet(&map).next_capacity == MisraMapPolicyQuadratic.next_capacity &&
+                  MapPolicyGet(&map).should_rehash == MisraMapPolicyQuadratic.should_rehash;
 
     for (int i = 0; i < 24; i++) {
         int *value = MapGetPtr(&map, i);
@@ -53,10 +86,40 @@ static bool test_map_rehash_policy_switch(void) {
     return result;
 }
 
+static bool test_map_custom_policy_growth(void) {
+    typedef Map(int, int) IntIntMap;
+    MapPolicy custom_policy = {
+        .name            = "five-step",
+        .should_rehash   = custom_should_rehash,
+        .next_capacity   = custom_next_capacity,
+        .first_index     = custom_first_index,
+        .next_index      = custom_next_index,
+        .max_probe_count = 32,
+    };
+    IntIntMap map = MapInitWithPolicy(int_hash, int_compare, custom_policy);
+    bool result = true;
+
+    for (int i = 0; i < 6; i++) {
+        MapSetR(&map, i, i + 100);
+    }
+
+    result = result && (MapCapacity(&map) == 10);
+    result = result && (MapPolicyGet(&map).next_capacity == custom_next_capacity);
+
+    for (int i = 0; i < 6; i++) {
+        int *value = MapGetPtr(&map, i);
+        result = result && value && (*value == (i + 100));
+    }
+
+    MapDeinit(&map);
+    return result;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_map_reserve_and_clear,
         test_map_rehash_policy_switch,
+        test_map_custom_policy_growth,
     };
 
     WriteFmt("[INFO] Starting Map.Init tests\n\n");
