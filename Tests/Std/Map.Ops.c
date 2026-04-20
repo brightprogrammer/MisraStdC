@@ -1,0 +1,185 @@
+#include <Misra/Std/Container/Map.h>
+#include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Memory.h>
+#include <Misra/Std/Log.h>
+#include "../Util/TestRunner.h"
+
+static u64 int_hash(const void *data, u32 size) {
+    u64 x = (u64)(u32)(*(const int *)data);
+    (void)size;
+    x ^= x >> 33;
+    x *= 0xff51afd7ed558ccdULL;
+    x ^= x >> 33;
+    return x;
+}
+
+static i32 int_compare(const void *lhs, const void *rhs) {
+    int a = *(const int *)lhs;
+    int b = *(const int *)rhs;
+    return (a > b) - (a < b);
+}
+
+static u64 zstr_hash(const void *data, u32 size) {
+    const char          *str  = *(const char *const *)data;
+    const unsigned char *ptr  = (const unsigned char *)str;
+    u64                  hash = 1469598103934665603ULL;
+    (void)size;
+
+    while (*ptr) {
+        hash ^= (u64)(*ptr++);
+        hash *= 1099511628211ULL;
+    }
+
+    return hash;
+}
+
+static i32 zstr_compare_ptr(const void *lhs, const void *rhs) {
+    const char *a = *(const char *const *)lhs;
+    const char *b = *(const char *const *)rhs;
+    return ZstrCompare(a, b);
+}
+
+static bool test_map_deep_copy_zstrs(void) {
+    typedef Map(const char *, const char *) ZstrMap;
+    ZstrMap map =
+        MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, ZstrInitClone, ZstrDeinit, ZstrInitClone, ZstrDeinit);
+    char         key_buf[]          = "alpha";
+    char         value_buf[]        = "first";
+    char         second_value_buf[] = "second";
+    const char  *key                = key_buf;
+    const char  *value              = value_buf;
+    const char  *second_value       = second_value_buf;
+    const char **stored_value;
+    int          value_count = 0;
+
+    MapInsertL(&map, key, value);
+    MapInsertL(&map, key, second_value);
+
+    bool result         = (key == key_buf) && (value == value_buf) && (second_value == second_value_buf);
+    key_buf[0]          = 'o';
+    value_buf[0]        = 'w';
+    second_value_buf[0] = 'S';
+
+    result       = result && MapContainsKey(&map, "alpha");
+    result       = result && !MapContainsKey(&map, key);
+    result       = result && (MapValueCountForKey(&map, "alpha") == 2);
+    stored_value = MapGetFirstPtr(&map, "alpha");
+    result       = result && stored_value && (*stored_value != value) && (ZstrCompare(*stored_value, "first") == 0);
+    MapForeachValueForKey(&map, "alpha", entry_value) {
+        if ((ZstrCompare(entry_value, "first") == 0) || (ZstrCompare(entry_value, "second") == 0)) {
+            value_count += 1;
+        }
+    }
+    result = result && (value_count == 2);
+
+    MapDeinit(&map);
+    return result;
+}
+
+static bool test_map_policy_switch_preserves_entries(void) {
+    typedef Map(const char *, const char *) ZstrMap;
+    ZstrMap map =
+        MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, ZstrInitClone, ZstrDeinit, ZstrInitClone, ZstrDeinit);
+
+    int red_count = 0;
+
+    MapSetR(&map, "red", "apple");
+    MapInsertR(&map, "red", "cherry");
+    MapSetR(&map, "yellow", "banana");
+    MapSetR(&map, "green", "pear");
+    MapRehashWithPolicy(&map, MapPairCount(&map), MisraMapPolicyQuadratic);
+
+    bool result = (map.policy.first_index == MisraMapPolicyQuadratic.first_index) &&
+                  (map.policy.next_index == MisraMapPolicyQuadratic.next_index) &&
+                  (map.policy.next_capacity == MisraMapPolicyQuadratic.next_capacity) &&
+                  (map.policy.should_rehash == MisraMapPolicyQuadratic.should_rehash);
+    result = result && (MapValueCountForKey(&map, "red") == 2);
+    result = result && MapGetFirstPtr(&map, "red") && (ZstrCompare(*MapGetFirstPtr(&map, "red"), "apple") == 0);
+    result = result && MapGetFirstPtr(&map, "yellow") && (ZstrCompare(*MapGetFirstPtr(&map, "yellow"), "banana") == 0);
+    result = result && MapGetFirstPtr(&map, "green") && (ZstrCompare(*MapGetFirstPtr(&map, "green"), "pear") == 0);
+    MapForeachValueForKey(&map, "red", red_value) {
+        if ((ZstrCompare(red_value, "apple") == 0) || (ZstrCompare(red_value, "cherry") == 0)) {
+            red_count += 1;
+        }
+    }
+    result = result && (red_count == 2);
+
+    MapDeinit(&map);
+    return result;
+}
+
+static bool test_map_compact_and_swap(void) {
+    typedef Map(int, int) IntIntMap;
+    IntIntMap first  = MapInitWithValueCompare(int_hash, int_compare, int_compare);
+    IntIntMap second = MapInitWithValueCompare(int_hash, int_compare, int_compare);
+
+    MapInsertR(&first, 1, 10);
+    MapInsertR(&first, 1, 11);
+    MapInsertR(&first, 2, 20);
+    MapRemoveFirst(&first, 1);
+
+    MapInsertR(&second, 9, 90);
+    MapInsertR(&second, 10, 100);
+
+    bool result = (first.tombstones == 1);
+    MapCompact(&first);
+
+    result = result && (first.tombstones == 0);
+    result = result && MapContainsPair(&first, 1, 11);
+    result = result && MapContainsPair(&first, 2, 20);
+    result = result && (MapPairCount(&first) == 2);
+    result = result && (MapUniqueKeyCount(&first) == 2);
+
+    MapSwap(&first, &second);
+
+    result = result && MapContainsPair(&first, 9, 90);
+    result = result && MapContainsPair(&first, 10, 100);
+    result = result && (MapPairCount(&first) == 2);
+    result = result && MapContainsPair(&second, 1, 11);
+    result = result && MapContainsPair(&second, 2, 20);
+    result = result && (MapPairCount(&second) == 2);
+
+    MapDeinit(&first);
+    MapDeinit(&second);
+    return result;
+}
+
+static bool retain_values_above_threshold(const void *key, const void *value, void *ctx) {
+    const int *threshold = ctx;
+
+    (void)key;
+    return *(const int *)value >= *threshold;
+}
+
+static bool test_map_retain_if(void) {
+    typedef Map(int, int) IntIntMap;
+    IntIntMap map       = MapInit(int_hash, int_compare);
+    int       threshold = 30;
+
+    MapInsertR(&map, 1, 10);
+    MapInsertR(&map, 2, 20);
+    MapInsertR(&map, 3, 30);
+    MapInsertR(&map, 4, 40);
+
+    bool result = (MapRetainIf(&map, retain_values_above_threshold, &threshold) == 2);
+    result      = result && !MapContainsKey(&map, 1);
+    result      = result && !MapContainsKey(&map, 2);
+    result      = result && MapContainsKey(&map, 3);
+    result      = result && MapContainsKey(&map, 4);
+    result      = result && (MapPairCount(&map) == 2);
+
+    MapDeinit(&map);
+    return result;
+}
+
+int main(void) {
+    TestFunction tests[] = {
+        test_map_deep_copy_zstrs,
+        test_map_policy_switch_preserves_entries,
+        test_map_compact_and_swap,
+        test_map_retain_if,
+    };
+
+    WriteFmt("[INFO] Starting Map.Ops tests\n\n");
+    return run_test_suite(tests, (int)(sizeof(tests) / sizeof(tests[0])), NULL, 0, "Map.Ops");
+}

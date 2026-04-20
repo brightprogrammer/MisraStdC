@@ -6,6 +6,7 @@
 ///
 
 #include <Misra/Parsers/JSON.h>
+#include <Misra/Parsers/KvConfig.h>
 #include <Misra/Std.h>
 #include <Misra/Sys.h>
 #include <Misra/Types.h>

@@ -23,5 +23,6 @@ The documentation section is organized as a reference-first manual, with generat
 ## What You Will Find
 
 - Container APIs such as `Int`, `Float`, `Vec`, `Str`, and supporting utilities.
+- Parser APIs for JSON and key-value configuration files.
 - Cross-referenced usage examples pulled from the test suite.
 - Public documentation biased toward generic entry points instead of internal handlers.

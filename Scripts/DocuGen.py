@@ -36,29 +36,60 @@ KIND_PRIORITY = {
 def extract_symbol_name(code_line):
     """Extract a documented symbol name from a definition/declaration line."""
     stripped = code_line.strip()
+    single_line = re.sub(r'\s+', ' ', stripped)
     if not stripped:
         return None
 
-    macro_match = re.match(r'^\s*#\s*define\s+(\w+)\b', stripped)
+    macro_match = re.match(r'^\s*#\s*define\s+(\w+)\b', single_line)
     if macro_match:
         return macro_match.group(1), "macro"
 
     typedef_fn_ptr_match = re.match(
-        r'^\s*typedef\b.*?\(\s*\*\s*(\w+)\s*\)\s*\(', stripped)
+        r'^\s*typedef\b.*?\(\s*\*\s*(\w+)\s*\)\s*\(', single_line)
     if typedef_fn_ptr_match:
         return typedef_fn_ptr_match.group(1), "type"
 
     typedef_alias_match = re.match(
-        r'^\s*typedef\b.*?\b(\w+)\s*;\s*$', stripped)
-    if typedef_alias_match and "(" not in stripped:
+        r'^\s*typedef\b(?!.*\(\s*\*\s*\w+\s*\)).*\b(\w+)\s*;\s*$',
+        single_line,
+    )
+    if typedef_alias_match:
         return typedef_alias_match.group(1), "type"
 
+    ptr_func_match = re.match(
+        r'^\s*(?:[\w]+\s+)*[\w]+\s*\*+\s*(\w+)\s*\([^;]*\)\s*;?\s*$',
+        single_line,
+    )
+    if ptr_func_match:
+        return ptr_func_match.group(1), "function"
+
     func_match = re.match(
-        r'^\s*(?:[\w\*]+\s+)+\(?(\w+)\)?\s*\([^;]*\)\s*;?\s*$', stripped)
+        r'^\s*(?:[\w\*]+\s+)+\(?(\w+)\)?\s*\([^;]*\)\s*;?\s*$', single_line)
     if func_match:
         return func_match.group(1), "function"
 
     return None
+
+
+def collect_declaration(lines, start_index):
+    """Collect a declaration that may span multiple lines until the first semicolon."""
+    collected = []
+    idx = start_index
+    brace_depth = 0
+
+    while idx < len(lines):
+        current_line = lines[idx]
+        collected.append(current_line.rstrip())
+        brace_depth += current_line.count("{")
+        brace_depth -= current_line.count("}")
+        if ";" in current_line and brace_depth <= 0:
+            break
+        if "{" in current_line or "}" in current_line or current_line.strip():
+            idx += 1
+            continue
+        break
+
+    return "\n".join(collected).strip()
 
 
 def should_replace_symbol(old_symbol_data, new_symbol_data):
@@ -176,7 +207,7 @@ def extract_symbols_and_store_content(file_path: Path):
                 definition_index += 1
 
             if definition_index < len(lines):
-                code_line = lines[definition_index].strip()
+                code_line = collect_declaration(lines, definition_index)
                 documentation = parse_comment_block(
                     comment_block, next_code_line=code_line)
                 symbol_info = extract_symbol_name(code_line)
