@@ -1,0 +1,61 @@
+#include <Misra/Std/Container/Map.h>
+#include <Misra/Std/Log.h>
+#include "../Util/TestRunner.h"
+
+static u64 int_hash(const void *data, u32 size) {
+    u64 x = (u64)(u32)(*(const int *)data);
+    (void)size;
+    x ^= x >> 33;
+    x *= 0xff51afd7ed558ccdULL;
+    x ^= x >> 33;
+    return x;
+}
+
+static i32 int_compare(const void *lhs, const void *rhs) {
+    int a = *(const int *)lhs;
+    int b = *(const int *)rhs;
+    return (a > b) - (a < b);
+}
+
+static bool test_map_insert_and_set(void) {
+    typedef Map(int, int) IntIntMap;
+    IntIntMap map = MapInit(int_hash, int_compare);
+
+    MapInsertR(&map, 1, 10);
+    MapInsertR(&map, 2, 20);
+    MapSetR(&map, 2, 200);
+    MapSetR(&map, 3, 30);
+
+    bool result = MapLen(&map) == 3;
+    result = result && MapGetPtr(&map, 1) && (*MapGetPtr(&map, 1) == 10);
+    result = result && MapGetPtr(&map, 2) && (*MapGetPtr(&map, 2) == 200);
+    result = result && MapGetPtr(&map, 3) && (*MapGetPtr(&map, 3) == 30);
+
+    MapDeinit(&map);
+    return result;
+}
+
+static bool test_map_lvalue_zeroing(void) {
+    typedef Map(int, int) IntIntMap;
+    IntIntMap map = MapInit(int_hash, int_compare);
+    int key = 42;
+    int value = 84;
+
+    MapInsertL(&map, key, value);
+
+    bool result = (key == 0) && (value == 0);
+    result = result && MapGetPtr(&map, 42) && (*MapGetPtr(&map, 42) == 84);
+
+    MapDeinit(&map);
+    return result;
+}
+
+int main(void) {
+    TestFunction tests[] = {
+        test_map_insert_and_set,
+        test_map_lvalue_zeroing,
+    };
+
+    WriteFmt("[INFO] Starting Map.Insert tests\n\n");
+    return run_test_suite(tests, (int)(sizeof(tests) / sizeof(tests[0])), NULL, 0, "Map.Insert");
+}
