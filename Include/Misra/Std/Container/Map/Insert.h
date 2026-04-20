@@ -83,6 +83,67 @@
 #define MapInsert(m, in_key, in_value) MapInsertL((m), (in_key), (in_value))
 
 ///
+/// Replace the first value stored for a key using l-value semantics.
+///
+/// NOTE: This updates only the first matching value for the key and preserves all
+///       remaining values for that key.
+///
+/// m[in,out] : Hash map.
+/// key[in]   : Key to search for.
+/// value[in] : Replacement value.
+///
+/// TAGS: Map, Set, LValue, Ownership
+///
+#define MapSetFirstL(m, in_key, in_value)                                                                              \
+    do {                                                                                                               \
+        ValidateMap(m);                                                                                                \
+        MAP_VALUE_TYPE(m) *__hm_value_ptr_##__LINE__ = &(in_value);                                                    \
+        MAP_KEY_TYPE(m) __hm_key_tmp_##__LINE__      = (in_key);                                                       \
+        MAP_VALUE_TYPE(m) __hm_value_tmp_##__LINE__  = (in_value);                                                     \
+        bool __hm_replaced_##__LINE__                = map_set_first(                                                  \
+            GENERIC_MAP(m),                                                                             \
+            &__hm_key_tmp_##__LINE__,                                                                   \
+            &__hm_value_tmp_##__LINE__,                                                                 \
+            sizeof(MAP_ENTRY_TYPE(m)),                                                                  \
+            offsetof(MAP_ENTRY_TYPE(m), key),                                                           \
+            sizeof(MAP_KEY_TYPE(m)),                                                                    \
+            offsetof(MAP_ENTRY_TYPE(m), value),                                                         \
+            sizeof(MAP_VALUE_TYPE(m)),                                                                  \
+            offsetof(MAP_ENTRY_TYPE(m), hash)                                                           \
+        );                                                                                              \
+        if (__hm_replaced_##__LINE__ && !(m)->value_copy_init) {                                                       \
+            memset(__hm_value_ptr_##__LINE__, 0, sizeof(MAP_VALUE_TYPE(m)));                                           \
+        }                                                                                                              \
+    } while (0)
+
+///
+/// Replace the first value stored for a key using r-value semantics.
+///
+/// m[in,out] : Hash map.
+/// key[in]   : Key to search for.
+/// value[in] : Replacement value.
+///
+/// TAGS: Map, Set, RValue
+///
+#define MapSetFirstR(m, in_key, in_value)                                                                              \
+    do {                                                                                                               \
+        ValidateMap(m);                                                                                                \
+        MAP_KEY_TYPE(m) __hm_key_tmp_##__LINE__     = (in_key);                                                        \
+        MAP_VALUE_TYPE(m) __hm_value_tmp_##__LINE__ = (in_value);                                                      \
+        (void)map_set_first(                                                                                           \
+            GENERIC_MAP(m),                                                                                            \
+            &__hm_key_tmp_##__LINE__,                                                                                  \
+            &__hm_value_tmp_##__LINE__,                                                                                \
+            sizeof(MAP_ENTRY_TYPE(m)),                                                                                 \
+            offsetof(MAP_ENTRY_TYPE(m), key),                                                                          \
+            sizeof(MAP_KEY_TYPE(m)),                                                                                   \
+            offsetof(MAP_ENTRY_TYPE(m), value),                                                                        \
+            sizeof(MAP_VALUE_TYPE(m)),                                                                                 \
+            offsetof(MAP_ENTRY_TYPE(m), hash)                                                                          \
+        );                                                                                                             \
+    } while (0)
+
+///
 /// Replace all values for a key with exactly one key/value pair using l-value semantics.
 ///
 /// NOTE: Existing values for the key are removed before the new value is inserted.
@@ -91,9 +152,9 @@
 /// key[in]   : Key to insert or replace.
 /// value[in] : Value to insert or replace.
 ///
-/// TAGS: Map, Set, LValue, Ownership
+/// TAGS: Map, Set, Only, LValue, Ownership
 ///
-#define MapSetL(m, in_key, in_value)                                                                                   \
+#define MapSetOnlyL(m, in_key, in_value)                                                                               \
     do {                                                                                                               \
         ValidateMap(m);                                                                                                \
         MAP_KEY_TYPE(m) *__hm_key_ptr_##__LINE__     = &(in_key);                                                      \
@@ -136,9 +197,9 @@
 /// key[in]   : Key to insert or replace.
 /// value[in] : Value to insert or replace.
 ///
-/// TAGS: Map, Set, RValue
+/// TAGS: Map, Set, Only, RValue
 ///
-#define MapSetR(m, in_key, in_value)                                                                                   \
+#define MapSetOnlyR(m, in_key, in_value)                                                                               \
     do {                                                                                                               \
         ValidateMap(m);                                                                                                \
         MAP_KEY_TYPE(m) __hm_key_tmp_##__LINE__     = (in_key);                                                        \
@@ -167,9 +228,9 @@
     } while (0)
 
 ///
-/// Set by default behaves like `MapSetL`.
+/// Default set behaviour is same as `MapSetOnlyL`.
 ///
-#define MapSet(m, in_key, in_value) MapSetL((m), (in_key), (in_value))
+#define MapSet(m, in_key, in_value) MapSetOnlyL((m), (in_key), (in_value))
 
 ///
 /// Ensure a key has at least one value and return a pointer to the first value.

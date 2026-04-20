@@ -21,9 +21,9 @@ static bool test_map_contains_and_find(void) {
     typedef Map(int, int) IntIntMap;
     IntIntMap map = MapInitWithValueCompare(int_hash, int_compare, int_compare);
 
-    MapSetR(&map, 7, 70);
+    MapSetOnlyR(&map, 7, 70);
     MapInsertR(&map, 7, 71);
-    MapSetR(&map, 9, 90);
+    MapSetOnlyR(&map, 9, 90);
 
     bool result = MapContainsKey(&map, 7);
     result      = result && MapContainsKey(&map, 9);
@@ -44,7 +44,7 @@ static bool test_map_get_ptr(void) {
     typedef Map(int, int) IntIntMap;
     IntIntMap map = MapInit(int_hash, int_compare);
 
-    MapSetR(&map, 11, 110);
+    MapSetOnlyR(&map, 11, 110);
     MapInsertR(&map, 11, 111);
 
     int *value  = MapGetFirstPtr(&map, 11);

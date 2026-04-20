@@ -24,8 +24,8 @@ static bool test_map_insert_and_set(void) {
     MapInsertR(&map, 1, 10);
     MapInsertR(&map, 1, 11);
     MapInsertR(&map, 2, 20);
-    MapSetR(&map, 2, 200);
-    MapSetR(&map, 3, 30);
+    MapSetOnlyR(&map, 2, 200);
+    MapSetOnlyR(&map, 3, 30);
 
     bool result = MapPairCount(&map) == 4;
     result      = result && (MapValueCountForKey(&map, 1) == 2);
@@ -34,6 +34,26 @@ static bool test_map_insert_and_set(void) {
     result      = result && MapGetFirstPtr(&map, 1) && (*MapGetFirstPtr(&map, 1) == 10);
     result      = result && MapGetFirstPtr(&map, 2) && (*MapGetFirstPtr(&map, 2) == 200);
     result      = result && MapGetFirstPtr(&map, 3) && (*MapGetFirstPtr(&map, 3) == 30);
+
+    MapDeinit(&map);
+    return result;
+}
+
+static bool test_map_set_first(void) {
+    typedef Map(int, int) IntIntMap;
+    IntIntMap map = MapInitWithValueCompare(int_hash, int_compare, int_compare);
+
+    MapInsertR(&map, 1, 10);
+    MapInsertR(&map, 1, 11);
+    MapInsertR(&map, 1, 12);
+    MapSetFirstR(&map, 1, 100);
+
+    bool result = (MapPairCount(&map) == 3);
+    result      = result && (MapValueCountForKey(&map, 1) == 3);
+    result      = result && MapGetFirstPtr(&map, 1) && (*MapGetFirstPtr(&map, 1) == 100);
+    result      = result && MapContainsPair(&map, 1, 11);
+    result      = result && MapContainsPair(&map, 1, 12);
+    result      = result && !MapContainsPair(&map, 1, 10);
 
     MapDeinit(&map);
     return result;
@@ -78,6 +98,7 @@ static bool test_map_ensure_ptr(void) {
 int main(void) {
     TestFunction tests[] = {
         test_map_insert_and_set,
+        test_map_set_first,
         test_map_lvalue_zeroing,
         test_map_ensure_ptr,
     };

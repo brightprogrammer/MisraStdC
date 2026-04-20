@@ -23,9 +23,11 @@
 ///   Str text = StrInitFromZstr("host = localhost\nport = 8080\n");
 ///   StrIter si = KvConfigParse(StrIterFromStr(text), &cfg);
 ///
-///   Str *host = KvConfigGet(&cfg, "host");
+///   Str *host_ptr = KvConfigGetPtr(&cfg, "host");
+///   Str  host     = KvConfigGet(&cfg, "host");
 ///   i64  port = 0;
 ///   KvConfigGetI64(&cfg, "port", &port);
+///   StrDeinit(&host);
 ///
 /// FIELDS:
 /// - inherited `Map(Str, Str)` fields from the underlying map storage.
@@ -173,15 +175,26 @@ StrIter KvConfigReadPair(StrIter si, Str *key, Str *value);
 StrIter KvConfigParse(StrIter si, KvConfig *cfg);
 
 ///
-/// Get stored value for `key`.
+/// Get stored value for `key` as a new `Str` copy.
 ///
 /// cfg[in,out] : Parsed config.
 /// key[in]     : Zero-terminated key string.
 ///
-/// SUCCESS : Pointer to stored `Str` value.
+/// SUCCESS : Newly allocated copy of stored `Str` value. Caller must `StrDeinit(...)` it.
+/// FAILURE : Empty `Str` if key does not exist.
+///
+Str KvConfigGet(KvConfig *cfg, const char *key);
+
+///
+/// Get stored value for `key` by internal reference.
+///
+/// cfg[in,out] : Parsed config.
+/// key[in]     : Zero-terminated key string.
+///
+/// SUCCESS : Pointer to stored `Str` value. Do not deinitialize or mutate through ownership-sensitive APIs.
 /// FAILURE : `NULL` if key does not exist.
 ///
-Str *KvConfigGet(KvConfig *cfg, const char *key);
+Str *KvConfigGetPtr(KvConfig *cfg, const char *key);
 
 ///
 /// Check whether a key exists in config.

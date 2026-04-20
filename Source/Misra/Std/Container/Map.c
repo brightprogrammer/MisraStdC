@@ -897,6 +897,48 @@ void map_insert(
     map->length             += 1;
 }
 
+bool map_set_first(
+    GenericMap *map,
+    const void *key,
+    const void *value,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset
+) {
+    size  idx;
+    void *dst_value;
+
+    ValidateMap(map);
+
+    if (!map->capacity) {
+        return false;
+    }
+
+    idx = map_find_index(map, key, entry_size, key_offset, key_size, hash_offset);
+    if (idx >= map->capacity) {
+        return false;
+    }
+
+    dst_value = map_value_ptr(map, entry_size, value_offset, idx);
+
+    if (map->value_copy_deinit) {
+        map->value_copy_deinit(dst_value);
+    }
+
+    memset(dst_value, 0, value_size);
+
+    if (map->value_copy_init) {
+        map->value_copy_init(dst_value, (void *)value);
+    } else {
+        memcpy(dst_value, value, value_size);
+    }
+
+    return true;
+}
+
 static void map_remove_at_index(
     GenericMap *map,
     size        idx,

@@ -24,7 +24,7 @@ static bool test_map_foreach_ptr(void) {
     int       value_sum = 0;
 
     for (int i = 1; i <= 4; i++) {
-        MapSetR(&map, i, i * 10);
+        MapSetOnlyR(&map, i, i * 10);
     }
     MapInsertR(&map, 2, 25);
 

@@ -147,6 +147,17 @@ void map_insert(
     size        value_size,
     size        hash_offset
 );
+bool map_set_first(
+    GenericMap *map,
+    const void *key,
+    const void *value,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset
+);
 bool map_remove(
     GenericMap *map,
     const void *key,

@@ -54,8 +54,8 @@ static bool test_map_reserve_and_clear(void) {
     IntIntMap map = MapInit(int_hash, int_compare);
 
     MapReserve(&map, 32);
-    MapSetR(&map, 1, 10);
-    MapSetR(&map, 2, 20);
+    MapSetOnlyR(&map, 1, 10);
+    MapSetOnlyR(&map, 2, 20);
     MapClear(&map);
 
     bool result = map.capacity >= 32 && MapPairCount(&map) == 0 && MapEmpty(&map);
@@ -69,7 +69,7 @@ static bool test_map_rehash_policy_switch(void) {
     IntIntMap map = MapInit(int_hash, int_compare);
 
     for (int i = 0; i < 24; i++) {
-        MapSetR(&map, i, i * 10);
+        MapSetOnlyR(&map, i, i * 10);
     }
 
     MapRehashWithPolicy(&map, MapPairCount(&map), MisraMapPolicyQuadratic);
@@ -102,7 +102,7 @@ static bool test_map_custom_policy_growth(void) {
     bool      result = true;
 
     for (int i = 0; i < 6; i++) {
-        MapSetR(&map, i, i + 100);
+        MapSetOnlyR(&map, i, i + 100);
     }
 
     result = result && (map.capacity == 10);

@@ -21,9 +21,9 @@ static bool test_map_remove_value(void) {
     typedef Map(int, int) IntIntMap;
     IntIntMap map = MapInit(int_hash, int_compare);
 
-    MapSetR(&map, 1, 10);
+    MapSetOnlyR(&map, 1, 10);
     MapInsertR(&map, 1, 11);
-    MapSetR(&map, 2, 20);
+    MapSetOnlyR(&map, 2, 20);
 
     bool result = MapRemoveFirst(&map, 1);
     result      = result && MapContainsKey(&map, 1);
@@ -103,11 +103,11 @@ static bool test_map_tombstone_reuse(void) {
     IntIntMap map = MapInit(int_hash, int_compare);
 
     for (int i = 0; i < 12; i++) {
-        MapSetR(&map, i, i + 100);
+        MapSetOnlyR(&map, i, i + 100);
     }
 
     MapRemoveFirst(&map, 5);
-    MapSetR(&map, 105, 205);
+    MapSetOnlyR(&map, 105, 205);
 
     bool result = !MapContainsKey(&map, 5);
     result      = result && MapContainsKey(&map, 105);

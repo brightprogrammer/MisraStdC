@@ -389,7 +389,7 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg) {
             return saved_si;
         }
 
-        MapSetL(cfg, key, value);
+        MapSetOnlyL(cfg, key, value);
         StrDeinit(&key);
         StrDeinit(&value);
         si = read_si;
@@ -398,7 +398,7 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg) {
     return si;
 }
 
-Str *KvConfigGet(KvConfig *cfg, const char *key) {
+Str *KvConfigGetPtr(KvConfig *cfg, const char *key) {
     Str  lookup = {0};
     Str *value  = NULL;
 
@@ -420,12 +420,22 @@ Str *KvConfigGet(KvConfig *cfg, const char *key) {
     return value;
 }
 
+Str KvConfigGet(KvConfig *cfg, const char *key) {
+    Str *value = KvConfigGetPtr(cfg, key);
+
+    if (!value) {
+        return StrInit();
+    }
+
+    return StrInitFromStr(value);
+}
+
 bool KvConfigContains(KvConfig *cfg, const char *key) {
-    return KvConfigGet(cfg, key) != NULL;
+    return KvConfigGetPtr(cfg, key) != NULL;
 }
 
 bool KvConfigGetBool(KvConfig *cfg, const char *key, bool *value) {
-    Str *str = KvConfigGet(cfg, key);
+    Str *str = KvConfigGetPtr(cfg, key);
 
     if (!str) {
         return false;
@@ -435,7 +445,7 @@ bool KvConfigGetBool(KvConfig *cfg, const char *key, bool *value) {
 }
 
 bool KvConfigGetI64(KvConfig *cfg, const char *key, i64 *value) {
-    Str *str = KvConfigGet(cfg, key);
+    Str *str = KvConfigGetPtr(cfg, key);
 
     if (!str) {
         return false;
@@ -445,7 +455,7 @@ bool KvConfigGetI64(KvConfig *cfg, const char *key, i64 *value) {
 }
 
 bool KvConfigGetF64(KvConfig *cfg, const char *key, f64 *value) {
-    Str *str = KvConfigGet(cfg, key);
+    Str *str = KvConfigGetPtr(cfg, key);
 
     if (!str) {
         return false;

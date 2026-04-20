@@ -83,10 +83,10 @@ static bool test_map_policy_switch_preserves_entries(void) {
 
     int red_count = 0;
 
-    MapSetR(&map, "red", "apple");
+    MapSetOnlyR(&map, "red", "apple");
     MapInsertR(&map, "red", "cherry");
-    MapSetR(&map, "yellow", "banana");
-    MapSetR(&map, "green", "pear");
+    MapSetOnlyR(&map, "yellow", "banana");
+    MapSetOnlyR(&map, "green", "pear");
     MapRehashWithPolicy(&map, MapPairCount(&map), MisraMapPolicyQuadratic);
 
     bool result = (map.policy.first_index == MisraMapPolicyQuadratic.first_index) &&

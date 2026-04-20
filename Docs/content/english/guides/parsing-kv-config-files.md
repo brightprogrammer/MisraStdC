@@ -34,21 +34,23 @@ int main(void) {
         "port = 8080\n"
         "debug = true\n"
     );
-    KvConfig cfg  = KvConfigInit();
-    StrIter  si   = StrIterFromStr(text);
-    i64      port = 0;
+    KvConfig cfg   = KvConfigInit();
+    StrIter  si    = StrIterFromStr(text);
+    i64      port  = 0;
     bool     debug = false;
+    Str      host  = StrInit();
 
     si = KvConfigParse(si, &cfg);
 
-    Str *host = KvConfigGet(&cfg, "host");
+    host = KvConfigGet(&cfg, "host");
     KvConfigGetI64(&cfg, "port", &port);
     KvConfigGetBool(&cfg, "debug", &debug);
 
-    WriteFmtLn("host = {}", *host);
+    WriteFmtLn("host = {}", host);
     WriteFmtLn("port = {}", port);
     WriteFmtLn("debug = {}", debug);
 
+    StrDeinit(&host);
     KvConfigDeinit(&cfg);
     StrDeinit(&text);
 }
@@ -57,7 +59,8 @@ int main(void) {
 The important point is that parsing and access are separate concerns:
 
 - `KvConfigParse(...)` reads the file format
-- `KvConfigGet(...)` returns the stored string value
+- `KvConfigGet(...)` returns a new `Str` copy that the caller owns
+- `KvConfigGetPtr(...)` returns an internal reference when no copy is needed
 - typed helpers like `KvConfigGetI64(...)` and `KvConfigGetBool(...)` convert the stored text when needed
 
 ## What Syntax It Accepts
