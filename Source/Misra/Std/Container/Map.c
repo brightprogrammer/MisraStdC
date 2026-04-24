@@ -754,6 +754,36 @@ void *map_get_value_ptr(
     return map_value_ptr(map, entry_size, value_offset, idx);
 }
 
+void *map_get_value_or_default(
+    GenericMap *map,
+    const void *key,
+    const void *default_value,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset,
+    void       *out_value
+) {
+    void *value_ptr = NULL;
+
+    ValidateMap(map);
+
+    if (!key || !default_value || !out_value) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    value_ptr = map_get_value_ptr(map, key, entry_size, key_offset, key_size, value_offset, hash_offset);
+    if (value_ptr) {
+        memcpy(out_value, value_ptr, value_size);
+    } else {
+        memcpy(out_value, default_value, value_size);
+    }
+
+    return out_value;
+}
+
 void *map_ensure_value_ptr(
     GenericMap *map,
     const void *key,

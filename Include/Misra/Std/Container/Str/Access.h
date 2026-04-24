@@ -14,6 +14,30 @@ extern "C" {
 #endif
 
 ///
+/// Get string length in characters.
+///
+/// str[in] : String to query.
+///
+/// SUCCESS : Length of string.
+/// FAILURE : Function cannot fail.
+///
+/// TAGS: Str, Length, Query
+///
+#define StrLen(str) VecLen(str)
+
+///
+/// Check whether string is empty.
+///
+/// str[in] : String to query.
+///
+/// SUCCESS : `true` when string length is 0.
+/// FAILURE : `false`
+///
+/// TAGS: Str, Empty, Query
+///
+#define StrEmpty(str) (StrLen(str) == 0)
+
+///
 /// Access first character in string
 ///
 #define StrFirst(str) VecFirst(str)

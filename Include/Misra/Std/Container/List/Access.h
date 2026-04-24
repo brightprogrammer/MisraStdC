@@ -9,6 +9,30 @@
 #define MISRA_STD_CONTAINER_LIST_ACCESS_H
 
 ///
+/// Number of items in list.
+///
+/// l[in] : List to query.
+///
+/// SUCCESS: Length of list.
+/// FAILURE: Function cannot fail.
+///
+/// TAGS: List, Length, Query
+///
+#define ListLen(l) ((l)->length)
+
+///
+/// Check whether list has no items.
+///
+/// l[in] : List to query.
+///
+/// SUCCESS: `true` when list length is 0.
+/// FAILURE: `false`
+///
+/// TAGS: List, Empty, Query
+///
+#define ListEmpty(l) (ListLen(l) == 0)
+
+///
 /// Swap items at given indices.
 ///
 /// l[in,out] : List to swap items in.
@@ -47,6 +71,37 @@
 ///
 #    define ListAt(l, idx) (ListPtrAt((l), (idx)) ? *ListPtrAt((l), (idx)) : ((LIST_DATA_TYPE(l)) {0}))
 #endif
+
+///
+/// Find the first item equal to the searched value.
+///
+/// NOTE: `item_ptr` must point to a value comparable with list elements.
+///       Use `&LVAL(expr)` when searching with a temporary expression.
+///
+/// l[in]        : List to search.
+/// item_ptr[in] : Pointer to searched value.
+/// compare[in]  : Comparator returning `0` for equality.
+///
+/// SUCCESS: Index of first matching item.
+/// FAILURE: `SIZE_MAX`
+///
+/// TAGS: List, Find, Search, Compare
+///
+#define ListFind(l, item_ptr, compare) find_idx_list(GENERIC_LIST(l), (item_ptr), sizeof(LIST_DATA_TYPE(l)), (compare))
+
+///
+/// Check whether list contains a matching item.
+///
+/// l[in]        : List to search.
+/// item_ptr[in] : Pointer to searched value.
+/// compare[in]  : Comparator returning `0` for equality.
+///
+/// SUCCESS: `true` when a matching item exists.
+/// FAILURE: `false`
+///
+/// TAGS: List, Contains, Search, Compare
+///
+#define ListContains(l, item_ptr, compare) (ListFind((l), (item_ptr), (compare)) != SIZE_MAX)
 
 ///
 /// Value at first node in list

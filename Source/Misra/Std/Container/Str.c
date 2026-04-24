@@ -144,6 +144,75 @@ Strs StrSplit(Str *s, const char *key) {
     return sv;
 }
 
+static size str_index_of_cstr(const Str *s, const char *key, size key_len) {
+    const char *found = NULL;
+
+    ValidateStr(s);
+
+    if (!key) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    if (key_len == 0) {
+        return 0;
+    }
+
+    if (!s->data || s->length < key_len) {
+        return SIZE_MAX;
+    }
+
+    found = ZstrFindSubstringN(s->data, key, key_len);
+    return found ? (size)(found - s->data) : SIZE_MAX;
+}
+
+bool StrContains(const Str *s, const Str *key) {
+    if (!key) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    ValidateStr(key);
+
+    if (key->length == 0) {
+        return true;
+    }
+
+    return StrContainsCstr(s, key->data, key->length);
+}
+
+size StrIndexOfZstr(const Str *s, const char *key) {
+    if (!key) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    return str_index_of_cstr(s, key, ZstrLen(key));
+}
+
+size StrIndexOfCstr(const Str *s, const char *key, size key_len) {
+    return str_index_of_cstr(s, key, key_len);
+}
+
+size StrIndexOf(const Str *s, const Str *key) {
+    if (!key) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    ValidateStr(key);
+
+    if (key->length == 0) {
+        return 0;
+    }
+
+    return str_index_of_cstr(s, key->data, key->length);
+}
+
+bool StrContainsZstr(const Str *s, const char *key) {
+    return StrIndexOfZstr(s, key) != SIZE_MAX;
+}
+
+bool StrContainsCstr(const Str *s, const char *key, size key_len) {
+    return StrIndexOfCstr(s, key, key_len) != SIZE_MAX;
+}
+
 // Helper function to check if char is in strip_chars
 static inline bool is_strip_char(char c, const char *strip_chars) {
     const char *p = strip_chars;

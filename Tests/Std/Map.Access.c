@@ -55,6 +55,38 @@ static bool test_map_get_ptr(void) {
     return result;
 }
 
+static bool test_map_try_get_ptr(void) {
+    typedef Map(int, int) IntIntMap;
+    IntIntMap map = MapInit(int_hash, int_compare);
+
+    MapSetOnlyR(&map, 11, 110);
+    MapInsertR(&map, 11, 111);
+
+    int *value  = MapTryGetPtr(&map, 11);
+    bool result = value && (*value == 110);
+    result      = result && (MapTryGetPtr(&map, 999) == NULL);
+
+    MapDeinit(&map);
+    return result;
+}
+
+static bool test_map_get_or_default(void) {
+    typedef Map(int, int) IntIntMap;
+    IntIntMap map = MapInit(int_hash, int_compare);
+
+    MapSetOnlyR(&map, 11, 110);
+    MapInsertR(&map, 11, 111);
+
+    int  found  = MapGetOrDefault(&map, 11, 999);
+    int  miss   = MapGetOrDefault(&map, 999, 555);
+    bool result = (found == 110);
+    result      = result && (miss == 555);
+    result      = result && !MapContainsKey(&map, 999);
+
+    MapDeinit(&map);
+    return result;
+}
+
 static bool test_map_value_cursor_query(void) {
     typedef Map(int, int) IntIntMap;
     IntIntMap      map       = MapInit(int_hash, int_compare);
@@ -92,6 +124,8 @@ int main(void) {
     TestFunction tests[] = {
         test_map_contains_and_find,
         test_map_get_ptr,
+        test_map_try_get_ptr,
+        test_map_get_or_default,
         test_map_value_cursor_query,
     };
 

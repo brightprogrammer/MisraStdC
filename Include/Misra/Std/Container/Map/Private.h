@@ -90,6 +90,18 @@ void *map_get_value_ptr(
     size        value_offset,
     size        hash_offset
 );
+void *map_get_value_or_default(
+    GenericMap *map,
+    const void *key,
+    const void *default_value,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset,
+    void       *out_value
+);
 void *map_ensure_value_ptr(
     GenericMap *map,
     const void *key,

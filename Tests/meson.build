@@ -43,6 +43,10 @@ vec_tests = [
     ['Vec.Complex', 'Std/Vec.Complex.c'],
 ]
 
+list_tests = [
+    ['List.Access', 'Std/List.Access.c'],
+]
+
 map_tests = [
     ['Map.Type', 'Std/Map.Type.c'],
     ['Map.Init', 'Std/Map.Init.c'],
@@ -157,6 +161,23 @@ foreach test_info : vec_tests
     
     test(test_name, test_exe)
 endforeach 
+
+foreach test_info : list_tests
+    test_name = test_info[0]
+    test_src = test_info[1]
+
+    test_exe = executable(
+        test_name,
+        files(test_src),
+        link_with: [misra_std],
+        dependencies: [test_util_dep],
+        c_args: test_args,
+        include_directories: inc_misra,
+        install: false
+    )
+
+    test(test_name, test_exe)
+endforeach
 
 foreach test_info : map_tests
     test_name = test_info[0]

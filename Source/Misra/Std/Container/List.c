@@ -324,6 +324,26 @@ void *item_ptr_at_list(GenericList *list, u64 item_size, u64 idx) {
     return node->data;
 }
 
+size find_idx_list(GenericList *list, const void *item_data, u64 item_size, GenericCompare comp) {
+    if (!list || !item_data || !item_size || !comp) {
+        LOG_FATAL("invalid arguments.");
+    }
+
+    ValidateList(list);
+
+    GenericListNode *node = list->head;
+    size             idx  = 0;
+    while (node) {
+        if (comp(node->data, item_data) == 0) {
+            return idx;
+        }
+        node = node->next;
+        idx++;
+    }
+
+    return SIZE_MAX;
+}
+
 void validate_list(const GenericList *l) {
     if (!(l)) {
         LOG_FATAL("List pointer is NULL.");

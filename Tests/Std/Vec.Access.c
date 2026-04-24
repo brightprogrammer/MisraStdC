@@ -13,6 +13,13 @@ bool test_vec_first_last(void);
 bool test_vec_begin_end(void);
 bool test_vec_size_len(void);
 bool test_vec_aligned_offset_at(void);
+bool test_vec_empty_find_contains(void);
+
+static i32 compare_ints(const void *lhs, const void *rhs) {
+    int a = *(const int *)lhs;
+    int b = *(const int *)rhs;
+    return (a > b) - (a < b);
+}
 
 // Test VecAt function
 bool test_vec_at(void) {
@@ -228,6 +235,34 @@ bool test_vec_aligned_offset_at(void) {
     return result;
 }
 
+// Test VecEmpty, VecFind, and VecContains functions
+bool test_vec_empty_find_contains(void) {
+    WriteFmt("Testing VecEmpty, VecFind, and VecContains\n");
+
+    typedef Vec(int) IntVec;
+    IntVec vec = VecInit();
+
+    int  needle  = 20;
+    int  missing = 99;
+    bool result  = VecEmpty(&vec);
+    result       = result && (VecFind(&vec, &needle, compare_ints) == SIZE_MAX);
+    result       = result && !VecContains(&vec, &needle, compare_ints);
+
+    VecPushBackR(&vec, 10);
+    VecPushBackR(&vec, 20);
+    VecPushBackR(&vec, 30);
+    VecPushBackR(&vec, 20);
+
+    result = result && !VecEmpty(&vec);
+    result = result && (VecFind(&vec, &needle, compare_ints) == 1);
+    result = result && VecContains(&vec, &needle, compare_ints);
+    result = result && !VecContains(&vec, &missing, compare_ints);
+    result = result && (VecFind(&vec, &missing, compare_ints) == SIZE_MAX);
+
+    VecDeinit(&vec);
+    return result;
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting Vec.Access tests\n\n");
@@ -239,7 +274,8 @@ int main(void) {
         test_vec_first_last,
         test_vec_begin_end,
         test_vec_size_len,
-        test_vec_aligned_offset_at
+        test_vec_aligned_offset_at,
+        test_vec_empty_find_contains
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

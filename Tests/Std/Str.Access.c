@@ -14,6 +14,30 @@ bool test_str_begin(void);
 bool test_str_end(void);
 bool test_str_char_at(void);
 bool test_str_char_ptr_at(void);
+bool test_str_len_empty(void);
+
+// Test StrLen and StrEmpty functions
+bool test_str_len_empty(void) {
+    WriteFmt("Testing StrLen and StrEmpty\n");
+
+    Str s = StrInit();
+
+    bool result = (StrLen(&s) == 0);
+    result      = result && StrEmpty(&s);
+
+    StrPushBack(&s, 'H');
+    StrPushBack(&s, 'i');
+
+    result = result && (StrLen(&s) == 2);
+    result = result && !StrEmpty(&s);
+
+    StrClear(&s);
+    result = result && (StrLen(&s) == 0);
+    result = result && StrEmpty(&s);
+
+    StrDeinit(&s);
+    return result;
+}
 
 // Test StrFirst function
 bool test_str_first(void) {
@@ -130,7 +154,8 @@ int main(void) {
 
     // Array of test functions
     TestFunction tests[] =
-        {test_str_first, test_str_last, test_str_begin, test_str_end, test_str_char_at, test_str_char_ptr_at};
+        {test_str_len_empty, test_str_first, test_str_last, test_str_begin, test_str_end, test_str_char_at,
+         test_str_char_ptr_at};
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 

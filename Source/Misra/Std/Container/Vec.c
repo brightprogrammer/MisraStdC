@@ -361,6 +361,22 @@ void reverse_vec(GenericVec *vec, size item_size) {
     }
 }
 
+size find_idx_vec(GenericVec *vec, const void *item_data, size item_size, GenericCompare comp) {
+    ValidateVec(vec);
+
+    if (!item_data || !comp) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    for (size i = 0; i < vec->length; i++) {
+        if (comp(vec_ptr_at(vec, i, item_size), item_data) == 0) {
+            return i;
+        }
+    }
+
+    return SIZE_MAX;
+}
+
 void resize_vec(GenericVec *vec, size item_size, size new_size) {
     ValidateVec(vec);
 

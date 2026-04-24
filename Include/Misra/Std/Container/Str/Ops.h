@@ -90,6 +90,86 @@ extern "C" {
 ///
 #define StrFindCstr(str, key, key_len) ZstrFindSubstringN((str)->data, (key), (key_len))
 
+    ///
+    /// Check if string contains another Str.
+    ///
+    /// s[in]   : Str object to search in.
+    /// key[in] : Str object to search for.
+    ///
+    /// SUCCESS : `true` if a match exists.
+    /// FAILURE : `false`
+    ///
+    /// TAGS: Str, Contains, Search
+    ///
+    bool StrContains(const Str *s, const Str *key);
+
+    ///
+    /// Find the index of first occurrence of a null-terminated string.
+    ///
+    /// s[in]   : Str object to search in.
+    /// key[in] : Null-terminated string to search for.
+    ///
+    /// SUCCESS : Zero-based index of first match.
+    /// FAILURE : `SIZE_MAX` if no match is found.
+    ///
+    /// TAGS: Str, IndexOf, Search
+    ///
+    size StrIndexOfZstr(const Str *s, const char *key);
+
+    ///
+    /// Find the index of first occurrence of a fixed-length string.
+    ///
+    /// s[in]       : Str object to search in.
+    /// key[in]     : String to search for.
+    /// key_len[in] : Length of searched string.
+    ///
+    /// SUCCESS : Zero-based index of first match.
+    /// FAILURE : `SIZE_MAX` if no match is found.
+    ///
+    /// TAGS: Str, IndexOf, Search
+    ///
+    size StrIndexOfCstr(const Str *s, const char *key, size key_len);
+
+    ///
+    /// Find the index of first occurrence of another Str.
+    ///
+    /// s[in]   : Str object to search in.
+    /// key[in] : Str object to search for.
+    ///
+    /// SUCCESS : Zero-based index of first match.
+    /// FAILURE : `SIZE_MAX` if no match is found.
+    ///
+    /// TAGS: Str, IndexOf, Search
+    ///
+    size StrIndexOf(const Str *s, const Str *key);
+
+    ///
+    /// Check if string contains a null-terminated string.
+    ///
+    /// s[in]   : Str object to search in.
+    /// key[in] : Null-terminated string to search for.
+    ///
+    /// SUCCESS : `true` if a match exists.
+    /// FAILURE : `false`
+    ///
+    /// TAGS: Str, Contains, Search
+    ///
+    bool StrContainsZstr(const Str *s, const char *key);
+
+    ///
+    /// Check if string contains a fixed-length string.
+    ///
+    /// s[in]       : Str object to search in.
+    /// key[in]     : String to search for.
+    /// key_len[in] : Length of searched string.
+    ///
+    /// SUCCESS : `true` if a match exists.
+    /// FAILURE : `false`
+    ///
+    /// TAGS: Str, Contains, Search
+    ///
+    bool StrContainsCstr(const Str *s, const char *key, size key_len);
+
     //
     // Prefix/Suffix Operations
     //

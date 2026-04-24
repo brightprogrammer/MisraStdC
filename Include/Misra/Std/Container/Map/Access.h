@@ -111,6 +111,46 @@
     ))
 
 ///
+/// Try to get pointer to the first value stored for a key.
+///
+/// This is an alias for `MapGetFirstPtr` with a more stdlib-style lookup name.
+///
+/// m[in,out] : Map.
+/// key[in]   : Key to search for.
+///
+/// SUCCESS : Pointer to the first value stored for the key.
+/// FAILURE : `NULL`
+///
+#define MapTryGetPtr(m, lookup_key) MapGetFirstPtr((m), (lookup_key))
+
+///
+/// Get the first value stored for a key, or return a fallback value copy.
+///
+/// NOTE: This returns a value copy, not a pointer. The fallback value is not inserted
+///       into the map. If you want insertion-on-miss semantics, use `MapGetOrInsertPtr`.
+///
+/// m[in,out]             : Map.
+/// lookup_key[in]        : Key to search for.
+/// default_value[in]     : Value returned when key does not exist.
+///
+/// SUCCESS : First stored value for key, or `default_value` when absent.
+/// FAILURE : Does not return on invalid arguments.
+///
+#define MapGetOrDefault(m, lookup_key, default_value)                                                                  \
+    (*(MAP_VALUE_TYPE(m) *)map_get_value_or_default(                                                                   \
+        GENERIC_MAP(m),                                                                                                \
+        &((MAP_KEY_TYPE(m)) {(lookup_key)}),                                                                           \
+        &((MAP_VALUE_TYPE(m)) {(default_value)}),                                                                      \
+        sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
+        sizeof(MAP_KEY_TYPE(m)),                                                                                       \
+        offsetof(MAP_ENTRY_TYPE(m), value),                                                                            \
+        sizeof(MAP_VALUE_TYPE(m)),                                                                                     \
+        offsetof(MAP_ENTRY_TYPE(m), hash),                                                                             \
+        &((MAP_VALUE_TYPE(m)) {0})                                                                                     \
+    ))
+
+///
 /// Invalid cursor returned when a per-key query has no more values.
 ///
 #define MapValueCursorInvalid() ((MapValueCursor) {.__index = (size) - 1})

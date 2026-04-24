@@ -81,4 +81,50 @@
 ///
 #define VecLen(v) ((v)->length)
 
+///
+/// Check whether vector has no elements.
+///
+/// v[in] : Vector to query.
+///
+/// SUCCESS : `true` when vector length is 0.
+/// FAILURE : `false`
+///
+/// TAGS: Vec, Empty, Query
+///
+#define VecEmpty(v) (VecLen(v) == 0)
+
+///
+/// Find the first element equal to the searched value.
+///
+/// NOTE: `item_ptr` must point to a value comparable with vector elements.
+///       Use `&LVAL(expr)` when searching with a temporary expression.
+///
+/// v[in]        : Vector to search.
+/// item_ptr[in] : Pointer to searched value.
+/// compare[in]  : Comparator returning `0` for equality.
+///
+/// SUCCESS : Index of first matching element.
+/// FAILURE : `SIZE_MAX` if no element matches.
+///
+/// TAGS: Vec, Find, Search, Compare
+///
+#define VecFind(v, item_ptr, compare)                                                                                  \
+    find_idx_vec(GENERIC_VEC(v), (item_ptr), sizeof(VEC_DATATYPE(v)), (GenericCompare)(compare))
+
+///
+/// Check whether vector contains a matching element.
+///
+/// NOTE: `item_ptr` must point to a value comparable with vector elements.
+///
+/// v[in]        : Vector to search.
+/// item_ptr[in] : Pointer to searched value.
+/// compare[in]  : Comparator returning `0` for equality.
+///
+/// SUCCESS : `true` when a matching element exists.
+/// FAILURE : `false`
+///
+/// TAGS: Vec, Contains, Search, Compare
+///
+#define VecContains(v, item_ptr, compare) (VecFind((v), (item_ptr), (compare)) != SIZE_MAX)
+
 #endif // MISRA_STD_CONTAINER_VEC_ACCESS_H

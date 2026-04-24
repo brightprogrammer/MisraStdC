@@ -15,6 +15,7 @@ bool test_str_starts_ends_with(void);
 bool test_str_replace(void);
 bool test_str_split(void);
 bool test_str_strip(void);
+bool test_str_contains_index(void);
 
 // Test string comparison functions
 bool test_str_cmp(void) {
@@ -84,6 +85,29 @@ bool test_str_find(void) {
     StrDeinit(&needle1);
     StrDeinit(&needle2);
     StrDeinit(&needle3);
+    return result;
+}
+
+// Test string contains/index functions
+bool test_str_contains_index(void) {
+    WriteFmt("Testing StrContains and StrIndexOf variants\n");
+
+    Str haystack = StrInitFromZstr("Hello World");
+    Str needle   = StrInitFromZstr("World");
+
+    bool result = StrContains(&haystack, &needle);
+    result      = result && StrContainsZstr(&haystack, "Hello");
+    result      = result && StrContainsCstr(&haystack, "lo Wo", 5);
+    result      = result && (StrIndexOf(&haystack, &needle) == 6);
+    result      = result && (StrIndexOfZstr(&haystack, "Hello") == 0);
+    result      = result && (StrIndexOfCstr(&haystack, "World", 5) == 6);
+    result      = result && !StrContainsZstr(&haystack, "missing");
+    result      = result && (StrIndexOfZstr(&haystack, "missing") == SIZE_MAX);
+    result      = result && StrContainsZstr(&haystack, "");
+    result      = result && (StrIndexOfZstr(&haystack, "") == 0);
+
+    StrDeinit(&haystack);
+    StrDeinit(&needle);
     return result;
 }
 
@@ -250,7 +274,8 @@ int main(void) {
 
     // Array of test functions
     TestFunction tests[] =
-        {test_str_cmp, test_str_find, test_str_starts_ends_with, test_str_replace, test_str_split, test_str_strip};
+        {test_str_cmp,          test_str_find,        test_str_contains_index, test_str_starts_ends_with,
+         test_str_replace,      test_str_split,       test_str_strip};
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 
