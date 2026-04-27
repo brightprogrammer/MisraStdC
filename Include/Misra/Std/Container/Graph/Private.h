@@ -13,18 +13,43 @@
 extern "C" {
 #endif
 
-    bool         graph_neighbors_init_copy(void *dst, void *src);
-    void         graph_neighbors_deinit(void *copy);
-    void         validate_graph(const GenericGraph *graph);
-    void         deinit_graph(GenericGraph *graph, size item_size);
-    void         clear_graph(GenericGraph *graph, size item_size);
-    void         reserve_graph(GenericGraph *graph, size item_size, size n);
-    GraphNodeId  graph_push_node(GenericGraph *graph, const void *item_data, size item_size);
-    GraphNodeId  graph_push_node_owned(GenericGraph *graph, void *item_data, size item_size);
-    GraphNeighbors *graph_out_neighbors_ptr(GenericGraph *graph, GraphNodeId node_id);
-    size         graph_out_degree(GenericGraph *graph, GraphNodeId node_id);
-    bool         graph_has_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to);
-    bool         graph_add_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to);
+    typedef struct {
+        GenericGraph *graph;
+        u64           slot_index;
+        u64           expected_mutation_epoch;
+    } GenericGraphNodeIter;
+
+    typedef struct {
+        GenericGraph *graph;
+        GraphNodeId   source_id;
+        u64           neighbor_index;
+        u64           expected_mutation_epoch;
+    } GenericGraphNeighborIter;
+
+    void                    validate_graph(const GenericGraph *graph);
+    void                    deinit_graph(GenericGraph *graph, size item_size);
+    void                    clear_graph(GenericGraph *graph, size item_size);
+    void                    reserve_graph(GenericGraph *graph, size item_size, size n);
+    GraphNodeId             graph_push_node(GenericGraph *graph, const void *item_data, size item_size);
+    GraphNodeId             graph_push_node_owned(GenericGraph *graph, void *item_data, size item_size);
+    bool                    graph_contains_node(GenericGraph *graph, GraphNodeId node_id);
+    GraphNode               graph_get_node(GenericGraph *graph, GraphNodeId node_id);
+    void                   *graph_node_ptr_at(GenericGraph *graph, GraphNodeId node_id);
+    void                   *graph_node_data_ptr_checked(GenericGraph *graph, GraphNode node);
+    GraphNeighbors         *graph_out_neighbors_ptr(GenericGraph *graph, GraphNodeId node_id);
+    size                    graph_out_degree(GenericGraph *graph, GraphNodeId node_id);
+    bool                    graph_has_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to);
+    bool                    graph_add_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to);
+    u64                     graph_node_visit(GraphNode node);
+    void                    graph_node_unvisit(GraphNode node);
+    u64                     graph_node_visit_count(GraphNode node);
+    bool                    graph_node_visited(GraphNode node);
+    bool                    graph_mark_node_for_deletion(GraphNode node);
+    u64                     graph_commit_changes(GenericGraph *graph, size item_size);
+    GenericGraphNodeIter    graph_node_iter_begin(GenericGraph *graph);
+    bool                    graph_node_iter_next(GenericGraphNodeIter *iter, GraphNode *out_node);
+    GenericGraphNeighborIter graph_neighbor_iter_begin(GraphNode node);
+    bool                    graph_neighbor_iter_next(GenericGraphNeighborIter *iter, GraphNode *out_node);
 
 #ifdef __cplusplus
 }

@@ -53,7 +53,7 @@
 ///
 /// Initialize graph with explicit node alignment.
 ///
-/// aln[in] : Alignment used for stored node payloads.
+/// aln[in] : Alignment used for graph-owned node payload allocations.
 ///
 /// TAGS: Graph, Init, Alignment, Directed
 ///
@@ -63,7 +63,7 @@
 /// Initialize given graph with explicit node alignment.
 ///
 /// g[in]   : Variable or type of a graph to be initialized.
-/// aln[in] : Alignment used for stored node payloads.
+/// aln[in] : Alignment used for graph-owned node payload allocations.
 ///
 /// TAGS: Graph, Init, Alignment, Directed
 ///
@@ -74,15 +74,22 @@
 ///
 /// ci[in]  : Optional deep-copy callback for nodes.
 /// cd[in]  : Optional deinit callback for nodes.
-/// aln[in] : Alignment used for stored node payloads.
+/// aln[in] : Alignment used for graph-owned node payload allocations.
 ///
 /// TAGS: Graph, Init, DeepCopy, Alignment, Directed
 ///
 #define GraphInitAlignedWithDeepCopy(ci, cd, aln)                                                                     \
-    {.nodes         = VecInitAlignedWithDeepCopy((ci), (cd), (aln)),                                                  \
-     .out_neighbors = VecInitWithDeepCopy(graph_neighbors_init_copy, graph_neighbors_deinit),                         \
-     .edge_count    = 0,                                                                                              \
-     .__magic       = MISRA_GRAPH_MAGIC}
+    {.slots                = VecInit(),                                                                               \
+     .free_indices         = VecInit(),                                                                               \
+     .copy_init            = (GenericCopyInit)(ci),                                                                   \
+     .copy_deinit          = (GenericCopyDeinit)(cd),                                                                 \
+     .live_count           = 0,                                                                                       \
+     .edge_count           = 0,                                                                                       \
+     .pending_delete_count = 0,                                                                                       \
+     .mutation_epoch       = 0,                                                                                       \
+     .alignment            = (aln),                                                                                   \
+     .type_anchor          = NULL,                                                                                    \
+     .__magic              = MISRA_GRAPH_MAGIC}
 
 #ifdef __cplusplus
 #    define GraphInitAlignedWithDeepCopyT(g, ci, cd, aln) (TYPE_OF(g) GraphInitAlignedWithDeepCopy((ci), (cd), (aln)))
@@ -93,7 +100,7 @@
 /// g[in]   : Variable or type of a graph to be initialized.
 /// ci[in]  : Optional deep-copy callback for nodes.
 /// cd[in]  : Optional deinit callback for nodes.
-/// aln[in] : Alignment used for stored node payloads.
+/// aln[in] : Alignment used for graph-owned node payload allocations.
 ///
 /// TAGS: Graph, Init, DeepCopy, Alignment, Directed
 ///

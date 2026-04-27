@@ -13,20 +13,20 @@ static bool test_graph_reserve_clear(void) {
     GraphReserve(&graph, 8);
     ValidateGraph(&graph);
 
-    bool result = graph.nodes.capacity >= 8 && graph.out_neighbors.capacity >= 8;
+    bool        result           = graph.slots.capacity >= 8;
+    GraphNodeId first_id         = GraphAddNodeR(&graph, 10);
+    GraphNodeId second_id        = GraphAddNodeR(&graph, 20);
+    u64         slot_count       = graph.slots.length;
+    size        slot_capacity    = graph.slots.capacity;
 
-    GraphAddNodeR(&graph, 10);
-    GraphAddNodeR(&graph, 20);
-    result = result && GraphAddEdge(&graph, 0, 1);
-
-    size node_capacity      = graph.nodes.capacity;
-    size neighbor_capacity  = graph.out_neighbors.capacity;
+    result = result && GraphAddEdge(&graph, first_id, second_id);
 
     GraphClear(&graph);
 
-    result = result && GraphNodeCount(&graph) == 0 && GraphEdgeCount(&graph) == 0;
-    result = result && graph.nodes.capacity == node_capacity;
-    result = result && graph.out_neighbors.capacity == neighbor_capacity;
+    result = result && GraphNodeCount(&graph) == 0 && GraphEdgeCount(&graph) == 0 && GraphEmpty(&graph);
+    result = result && !GraphContainsNode(&graph, first_id) && !GraphContainsNode(&graph, second_id);
+    result = result && graph.slots.length == slot_count && graph.free_indices.length == slot_count;
+    result = result && graph.slots.capacity == slot_capacity && graph.free_indices.capacity >= slot_count;
 
     GraphDeinit(&graph);
     return result;
@@ -36,14 +36,18 @@ static bool test_graph_node_deep_copy(void) {
     WriteFmt("Testing Graph node deep-copy\n");
 
     typedef Graph(Str) StrGraph;
-    StrGraph graph = GraphInitWithDeepCopy(StrInitCopy, StrDeinit);
-    Str      name  = StrInitFromZstr("alpha");
+    StrGraph   graph = GraphInitWithDeepCopy(StrInitCopy, StrDeinit);
+    Str        name  = StrInitFromZstr("alpha");
+    GraphNodeId node_id;
+    GraphNode   node;
+    Str        *stored_name;
 
-    GraphNodeId node_id = GraphAddNodeL(&graph, name);
+    node_id     = GraphAddNodeL(&graph, name);
+    node        = GraphGetNode(&graph, node_id);
+    stored_name = GraphNodeDataPtr(&graph, node);
 
-    bool result = node_id == 0 && name.data != NULL && GraphNodeCount(&graph) == 1 &&
-                  ZstrCompare(GraphNodePtrAt(&graph, 0)->data, "alpha") == 0 &&
-                  GraphNodePtrAt(&graph, 0)->data != name.data;
+    bool result = GraphNodeIdIndex(node_id) == 0 && name.data != NULL && GraphNodeCount(&graph) == 1 &&
+                  ZstrCompare(stored_name->data, "alpha") == 0 && stored_name->data != name.data;
 
     StrDeinit(&name);
     GraphDeinit(&graph);

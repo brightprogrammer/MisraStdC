@@ -12,6 +12,10 @@ static bool test_graph_access_helpers(void) {
     GraphNodeId a = GraphAddNodeR(&graph, 10);
     GraphNodeId b = GraphAddNodeR(&graph, 20);
     GraphNodeId c = GraphAddNodeR(&graph, 30);
+    GraphNode   node_b;
+    GraphNeighbors *neighbors;
+    GraphNodeId    *neighbor0;
+    GraphNodeId    *neighbor1;
 
     GraphAddEdge(&graph, a, b);
     GraphAddEdge(&graph, a, c);
@@ -19,15 +23,19 @@ static bool test_graph_access_helpers(void) {
 
     ValidateGraph(&graph);
 
-    int *node_b = GraphNodePtrAt(&graph, b);
-    *node_b     = 25;
+    node_b = GraphGetNode(&graph, b);
+    *GraphNodeDataPtr(&graph, node_b) = 25;
 
-    GraphNeighbors *neighbors = GraphOutNeighborsPtr(&graph, a);
-    GraphNodeId    *neighbor0 = GraphNeighborPtrAt(&graph, a, 0);
-    GraphNodeId    *neighbor1 = GraphNeighborPtrAt(&graph, a, 1);
+    neighbors = GraphOutNeighborsPtr(&graph, a);
+    neighbor0 = GraphNeighborPtrAt(&graph, a, 0);
+    neighbor1 = GraphNeighborPtrAt(&graph, a, 1);
 
     bool result = GraphNodeCount(&graph) == 3 && GraphEdgeCount(&graph) == 3 && !GraphEmpty(&graph);
+    result      = result && GraphContainsNode(&graph, a) && GraphContainsNode(&graph, b) && GraphContainsNode(&graph, c);
     result      = result && GraphNodeAt(&graph, b) == 25;
+    result      = result && GraphNodeData(&graph, node_b) == 25;
+    result      = result && GraphNodeGetId(node_b) == b;
+    result      = result && GraphNodeIndex(node_b) == GraphNodeIdIndex(b);
     result      = result && VecLen(neighbors) == 2;
     result      = result && GraphOutDegree(&graph, a) == 2;
     result      = result && *neighbor0 == b && *neighbor1 == c;
@@ -40,20 +48,21 @@ static bool test_graph_access_helpers(void) {
 static bool test_graph_has_edge_query(void) {
     WriteFmt("Testing GraphHasEdge\n");
 
-    typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    typedef Graph(const char *) ZstrGraph;
+    ZstrGraph graph = GraphInit();
 
-    GraphAddNodeR(&graph, 1);
-    GraphAddNodeR(&graph, 2);
-    GraphAddNodeR(&graph, 3);
+    GraphNodeId red   = GraphAddNodeR(&graph, "red");
+    GraphNodeId green = GraphAddNodeR(&graph, "green");
+    GraphNodeId blue  = GraphAddNodeR(&graph, "blue");
 
-    GraphAddEdge(&graph, 0, 1);
-    GraphAddEdge(&graph, 1, 2);
+    GraphAddEdge(&graph, red, green);
+    GraphAddEdge(&graph, green, blue);
 
-    bool result = GraphHasEdge(&graph, 0, 1);
-    result      = result && GraphHasEdge(&graph, 1, 2);
-    result      = result && !GraphHasEdge(&graph, 2, 1);
-    result      = result && !GraphHasEdge(&graph, 0, 2);
+    bool result = GraphHasEdge(&graph, red, green);
+    result      = result && GraphHasEdge(&graph, green, blue);
+    result      = result && !GraphHasEdge(&graph, blue, green);
+    result      = result && !GraphHasEdge(&graph, red, blue);
+    result      = result && (ZstrCompare(*GraphNodePtrAt(&graph, red), "red") == 0);
 
     GraphDeinit(&graph);
     return result;

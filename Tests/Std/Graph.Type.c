@@ -12,23 +12,27 @@ static bool test_graph_type_defaults(void) {
     ValidateGraph(&graph);
 
     bool result = GraphNodeCount(&graph) == 0 && GraphEdgeCount(&graph) == 0 && GraphEmpty(&graph) &&
-                  graph.nodes.data == NULL && graph.out_neighbors.data == NULL && graph.nodes.copy_init == NULL &&
-                  graph.nodes.copy_deinit == NULL && graph.out_neighbors.copy_init == graph_neighbors_init_copy &&
-                  graph.out_neighbors.copy_deinit == graph_neighbors_deinit && graph.nodes.alignment == 1;
+                  graph.slots.data == NULL && graph.free_indices.data == NULL && graph.copy_init == NULL &&
+                  graph.copy_deinit == NULL && graph.live_count == 0 && graph.pending_delete_count == 0 &&
+                  graph.mutation_epoch == 0 && graph.alignment == 1 && graph.type_anchor == NULL;
 
     GraphDeinit(&graph);
     return result;
 }
 
-static bool test_graph_aligned_init(void) {
-    WriteFmt("Testing Graph aligned init\n");
+static bool test_graph_aligned_init_and_id_layout(void) {
+    WriteFmt("Testing Graph aligned init and node id layout\n");
 
     typedef Graph(int) IntGraph;
     IntGraph graph = GraphInitAligned(32);
 
-    ValidateGraph(&graph);
+    GraphNodeId node_id = GraphAddNodeR(&graph, 11);
+    GraphNode   node    = GraphGetNode(&graph, node_id);
 
-    bool result = graph.nodes.alignment == 32 && graph.out_neighbors.length == 0 && graph.edge_count == 0;
+    bool result = graph.alignment == 32 && GraphNodeIdIndex(node_id) == 0 && GraphNodeIdGeneration(node_id) == 1;
+    result      = result && GraphNodeGetId(node) == node_id;
+    result      = result && GraphNodeIndex(node) == 0;
+    result      = result && GraphContainsNode(&graph, node_id);
 
     GraphDeinit(&graph);
     return result;
@@ -37,7 +41,7 @@ static bool test_graph_aligned_init(void) {
 int main(void) {
     TestFunction tests[] = {
         test_graph_type_defaults,
-        test_graph_aligned_init,
+        test_graph_aligned_init_and_id_layout,
     };
 
     WriteFmt("[INFO] Starting Graph.Type tests\n\n");

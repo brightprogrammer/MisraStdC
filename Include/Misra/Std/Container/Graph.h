@@ -12,6 +12,8 @@
 #include "Graph/Init.h"
 #include "Graph/Insert.h"
 #include "Graph/Access.h"
+#include "Graph/Foreach.h"
+#include "Graph/Ops.h"
 #include "Graph/Memory.h"
 #include "Graph/Private.h"
 // clang-format on

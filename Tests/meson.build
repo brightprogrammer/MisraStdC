@@ -48,6 +48,8 @@ graph_tests = [
     ['Graph.Init', 'Std/Graph.Init.c'],
     ['Graph.Access', 'Std/Graph.Access.c'],
     ['Graph.Insert', 'Std/Graph.Insert.c'],
+    ['Graph.Foreach', 'Std/Graph.Foreach.c'],
+    ['Graph.Ops', 'Std/Graph.Ops.c'],
 ]
 
 list_tests = [
