@@ -43,6 +43,13 @@ vec_tests = [
     ['Vec.Complex', 'Std/Vec.Complex.c'],
 ]
 
+graph_tests = [
+    ['Graph.Type', 'Std/Graph.Type.c'],
+    ['Graph.Init', 'Std/Graph.Init.c'],
+    ['Graph.Access', 'Std/Graph.Access.c'],
+    ['Graph.Insert', 'Std/Graph.Insert.c'],
+]
+
 list_tests = [
     ['List.Access', 'Std/List.Access.c'],
 ]
@@ -161,6 +168,23 @@ foreach test_info : vec_tests
     
     test(test_name, test_exe)
 endforeach 
+
+foreach test_info : graph_tests
+    test_name = test_info[0]
+    test_src = test_info[1]
+
+    test_exe = executable(
+        test_name,
+        files(test_src),
+        link_with: [misra_std],
+        dependencies: [test_util_dep],
+        c_args: test_args,
+        include_directories: inc_misra,
+        install: false
+    )
+
+    test(test_name, test_exe)
+endforeach
 
 foreach test_info : list_tests
     test_name = test_info[0]

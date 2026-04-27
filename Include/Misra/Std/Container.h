@@ -15,6 +15,7 @@
 
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/Vec.h>
+#include <Misra/Std/Container/Graph.h>
 #include <Misra/Std/Container/List.h>
 #include <Misra/Std/Container/Map.h>
 #include <Misra/Std/Container/BitVec.h>

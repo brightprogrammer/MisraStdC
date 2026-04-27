@@ -22,6 +22,7 @@ misra_std_sources = files(
     'Source/Misra/Std/Memory.c',
     'Source/Misra/Std/Container/Vec.c',
     'Source/Misra/Std/Container/Str.c',
+    'Source/Misra/Std/Container/Graph.c',
     'Source/Misra/Std/Container/List.c',
     'Source/Misra/Std/Container/Map.c',
     'Source/Misra/Std/Container/BitVec.c',
