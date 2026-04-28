@@ -51,6 +51,22 @@ static bool test_validate_corrupt_nonempty_list_fails(void) {
     return false;
 }
 
+static bool test_validate_nonempty_head_null_fails(void) {
+    WriteFmt("Testing ValidateList on non-empty NULL head\n");
+
+    int             value = 1;
+    GenericListNode node  = {.next = NULL, .prev = NULL, .data = &value};
+    List(int)       list  = ListInit();
+    GenericList    *g     = GENERIC_LIST(&list);
+
+    g->head   = NULL;
+    g->tail   = &node;
+    g->length = 1;
+    ValidateList(&list);
+
+    return false;
+}
+
 static bool test_validate_head_prev_fails(void) {
     WriteFmt("Testing ValidateList on head prev corruption\n");
 
@@ -102,6 +118,16 @@ static bool test_list_ptr_at_out_of_bounds_fails(void) {
     return false;
 }
 
+static bool test_list_at_out_of_bounds_fails(void) {
+    WriteFmt("Testing ListAt out of bounds\n");
+
+    List(int) list = ListInit();
+    ListPushBackR(&list, 10);
+    (void)ListAt(&list, 1);
+
+    return false;
+}
+
 static bool test_list_node_ptr_at_empty_fails(void) {
     WriteFmt("Testing ListNodePtrAt on empty list\n");
 
@@ -117,6 +143,16 @@ static bool test_list_node_ptr_at_out_of_bounds_fails(void) {
     List(int) list = ListInit();
     ListPushBackR(&list, 10);
     ListNodePtrAt(&list, 1);
+
+    return false;
+}
+
+static bool test_list_node_at_out_of_bounds_fails(void) {
+    WriteFmt("Testing ListNodeAt out of bounds\n");
+
+    List(int) list = ListInit();
+    ListPushBackR(&list, 10);
+    (void)ListNodeAt(&list, 1);
 
     return false;
 }
@@ -250,12 +286,15 @@ int main(void) {
         test_validate_null_list_fails,
         test_validate_invalid_magic_fails,
         test_validate_corrupt_nonempty_list_fails,
+        test_validate_nonempty_head_null_fails,
         test_validate_head_prev_fails,
         test_validate_tail_next_fails,
         test_list_ptr_at_empty_fails,
         test_list_ptr_at_out_of_bounds_fails,
+        test_list_at_out_of_bounds_fails,
         test_list_node_ptr_at_empty_fails,
         test_list_node_ptr_at_out_of_bounds_fails,
+        test_list_node_at_out_of_bounds_fails,
         test_list_first_on_empty_fails,
         test_list_last_on_empty_fails,
         test_list_node_at_empty_fails,

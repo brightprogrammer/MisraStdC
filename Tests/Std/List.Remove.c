@@ -128,6 +128,25 @@ static bool test_list_remove_range_prefix_suffix_edges(void) {
     return result;
 }
 
+static bool test_list_remove_range_whole_list_to_buffer(void) {
+    WriteFmt("Testing ListRemoveRange whole-list buffered removal\n");
+
+    typedef List(int) IntList;
+    IntList list = ListInit();
+    int     removed[3] = {0, 0, 0};
+
+    ListPushBackR(&list, 7);
+    ListPushBackR(&list, 8);
+    ListPushBackR(&list, 9);
+    ListRemoveRange(&list, removed, 0, 3);
+
+    bool result = (removed[0] == 7) && (removed[1] == 8) && (removed[2] == 9);
+    result      = result && (ListLen(&list) == 0) && (list.head == NULL) && (list.tail == NULL);
+
+    ListDeinit(&list);
+    return result;
+}
+
 static bool test_list_remove_zero_count_and_deep_copy_delete(void) {
     WriteFmt("Testing ListRemoveRange zero-count and deep-copy delete\n");
 
@@ -193,6 +212,7 @@ int main(void) {
         test_list_remove_and_pop,
         test_list_remove_range_and_delete_aliases,
         test_list_remove_range_prefix_suffix_edges,
+        test_list_remove_range_whole_list_to_buffer,
         test_list_remove_zero_count_and_deep_copy_delete,
         test_list_remove_range_with_deep_copy_buffer,
     };
