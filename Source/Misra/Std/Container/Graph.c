@@ -175,6 +175,8 @@ static void graph_release_slot(GenericGraph *graph, GenericGraphSlot *slot, size
 
     deinit_vec(GENERIC_VEC(&slot->out_neighbors), sizeof(GraphNodeId));
     slot->out_neighbors = VecInitT(slot->out_neighbors);
+    deinit_vec(GENERIC_VEC(&slot->in_neighbors), sizeof(GraphNodeId));
+    slot->in_neighbors = VecInitT(slot->in_neighbors);
 
     slot->visit_count = 0;
     slot->flags       = 0;
@@ -241,52 +243,64 @@ static size graph_find_pending_edge_removal_index(const GenericGraph *graph, Gra
 }
 
 static bool graph_remove_edge_now(GenericGraph *graph, GraphNodeId from, GraphNodeId to) {
-    GraphNeighbors *neighbors;
-    size            idx;
+    GraphNeighbors *out_neighbors;
+    GraphNeighbors *in_neighbors;
+    size            out_idx;
+    size            in_idx;
 
-    neighbors = graph_out_neighbors_ptr(graph, from);
-    idx       = graph_find_neighbor_index(neighbors, to);
-
-    if (idx == SIZE_MAX) {
+    out_neighbors = graph_out_neighbors_ptr(graph, from);
+    out_idx       = graph_find_neighbor_index(out_neighbors, to);
+    if (out_idx == SIZE_MAX) {
         return false;
     }
 
-    remove_range_vec(GENERIC_VEC(neighbors), NULL, sizeof(GraphNodeId), idx, 1);
+    in_neighbors = graph_in_neighbors_ptr(graph, to);
+    in_idx       = graph_find_neighbor_index(in_neighbors, from);
+    if (in_idx == SIZE_MAX) {
+        LOG_FATAL("Graph reverse adjacency is inconsistent during edge removal");
+    }
+
+    remove_range_vec(GENERIC_VEC(out_neighbors), NULL, sizeof(GraphNodeId), out_idx, 1);
+    remove_range_vec(GENERIC_VEC(in_neighbors), NULL, sizeof(GraphNodeId), in_idx, 1);
     graph->edge_count -= 1;
     return true;
 }
 
-static size graph_remove_marked_targets_from_neighbors(GenericGraph *graph, GraphNeighbors *neighbors) {
-    size removed = 0;
-    size write   = 0;
-    size read;
+static size graph_remove_marked_outgoing_edges(GenericGraph *graph, GraphNodeId from) {
+    size            removed   = 0;
+    GraphNeighbors *neighbors = graph_out_neighbors_ptr(graph, from);
+    size            idx       = 0;
 
-    for (read = 0; read < neighbors->length; read++) {
-        GraphNodeId             neighbor_id = VecAt(neighbors, read);
+    while (idx < neighbors->length) {
+        GraphNodeId             neighbor_id = VecAt(neighbors, idx);
         const GenericGraphSlot *slot;
 
         graph_validate_node_index_raw(graph, GraphNodeIdIndex(neighbor_id));
         slot = graph_slot_ptr_const_raw(graph, GraphNodeIdIndex(neighbor_id));
 
-        if (graph_slot_is_occupied(slot) && !graph_slot_is_marked(slot) &&
-            (slot->generation == GraphNodeIdGeneration(neighbor_id))) {
-            if (write != read) {
-                VecAt(neighbors, write) = neighbor_id;
-            }
-            write += 1;
+        if (graph_slot_is_occupied(slot) && !graph_slot_is_marked(slot) && (slot->generation == GraphNodeIdGeneration(neighbor_id))) {
+            idx += 1;
         } else {
+            if (!graph_remove_edge_now(graph, from, neighbor_id)) {
+                LOG_FATAL("Graph failed to remove marked outgoing edge");
+            }
             removed += 1;
         }
     }
 
-    while (write < neighbors->length) {
-        VecAt(neighbors, write) = 0;
-        write += 1;
-    }
+    return removed;
+}
 
-    neighbors->length -= removed;
-    if (neighbors->data) {
-        VecAt(neighbors, neighbors->length) = 0;
+static size graph_remove_all_outgoing_edges(GenericGraph *graph, GraphNodeId from) {
+    size            removed   = 0;
+    GraphNeighbors *neighbors = graph_out_neighbors_ptr(graph, from);
+
+    while (neighbors->length) {
+        GraphNodeId to = VecAt(neighbors, neighbors->length - 1);
+        if (!graph_remove_edge_now(graph, from, to)) {
+            LOG_FATAL("Graph failed to remove outgoing edge during node deletion");
+        }
+        removed += 1;
     }
 
     return removed;
@@ -294,7 +308,8 @@ static size graph_remove_marked_targets_from_neighbors(GenericGraph *graph, Grap
 
 void validate_graph(const GenericGraph *graph) {
     u64 live_count   = 0;
-    u64 edge_count   = 0;
+    u64 out_edge_count = 0;
+    u64 in_edge_count  = 0;
     u64 marked_count = 0;
     u64 slot_index;
     u64 free_index_i;
@@ -327,8 +342,11 @@ void validate_graph(const GenericGraph *graph) {
 
     for (slot_index = 0; slot_index < graph->slots.length; slot_index++) {
         const GenericGraphSlot *slot = VecPtrAt((GraphSlots *)&graph->slots, slot_index);
+        GraphNodeId             self_id = graph_make_node_id((u32)slot_index, slot->generation);
+        u64                     neighbor_i;
 
         ValidateVec(&slot->out_neighbors);
+        ValidateVec(&slot->in_neighbors);
 
         if (graph_slot_is_occupied(slot)) {
             if (!slot->data) {
@@ -340,8 +358,31 @@ void validate_graph(const GenericGraph *graph) {
             }
 
             live_count += 1;
-            edge_count += slot->out_neighbors.length;
+            out_edge_count += slot->out_neighbors.length;
+            in_edge_count += slot->in_neighbors.length;
             marked_count += graph_slot_is_marked(slot) ? 1 : 0;
+
+            for (neighbor_i = 0; neighbor_i < slot->out_neighbors.length; neighbor_i++) {
+                GraphNodeId             neighbor_id  = VecAt(&slot->out_neighbors, neighbor_i);
+                const GenericGraphSlot *target_slot;
+
+                graph_validate_node_id(graph, neighbor_id);
+                target_slot = graph_require_live_slot_const(graph, neighbor_id);
+                if (!graph_neighbors_contains(&target_slot->in_neighbors, self_id)) {
+                    LOG_FATAL("Graph reverse adjacency is missing predecessor entry");
+                }
+            }
+
+            for (neighbor_i = 0; neighbor_i < slot->in_neighbors.length; neighbor_i++) {
+                GraphNodeId             predecessor_id = VecAt(&slot->in_neighbors, neighbor_i);
+                const GenericGraphSlot *source_slot;
+
+                graph_validate_node_id(graph, predecessor_id);
+                source_slot = graph_require_live_slot_const(graph, predecessor_id);
+                if (!graph_neighbors_contains(&source_slot->out_neighbors, self_id)) {
+                    LOG_FATAL("Graph reverse adjacency is missing outgoing edge");
+                }
+            }
         } else {
             if (slot->data) {
                 LOG_FATAL("Free graph slot retains payload pointer");
@@ -353,6 +394,10 @@ void validate_graph(const GenericGraph *graph) {
 
             if (slot->out_neighbors.length != 0) {
                 LOG_FATAL("Free graph slot retains outgoing edges");
+            }
+
+            if (slot->in_neighbors.length != 0) {
+                LOG_FATAL("Free graph slot retains incoming edges");
             }
         }
     }
@@ -385,7 +430,7 @@ void validate_graph(const GenericGraph *graph) {
         LOG_FATAL("Graph live node count is inconsistent");
     }
 
-    if (graph->edge_count != edge_count) {
+    if ((graph->edge_count != out_edge_count) || (graph->edge_count != in_edge_count)) {
         LOG_FATAL("Graph edge count is inconsistent");
     }
 
@@ -425,6 +470,8 @@ void clear_graph(GenericGraph *graph, size item_size) {
         } else {
             deinit_vec(GENERIC_VEC(&slot->out_neighbors), sizeof(GraphNodeId));
             slot->out_neighbors = VecInitT(slot->out_neighbors);
+            deinit_vec(GENERIC_VEC(&slot->in_neighbors), sizeof(GraphNodeId));
+            slot->in_neighbors = VecInitT(slot->in_neighbors);
             slot->visit_count   = 0;
             slot->flags         = 0;
         }
@@ -477,6 +524,7 @@ GraphNodeId graph_push_node(GenericGraph *graph, const void *item_data, size ite
         }
 
         slot_ptr->out_neighbors = VecInitT(slot_ptr->out_neighbors);
+        slot_ptr->in_neighbors  = VecInitT(slot_ptr->in_neighbors);
         slot_ptr->data          = graph_alloc_node_data(graph, item_size);
         slot_ptr->visit_count   = 0;
         slot_ptr->flags         = MISRA_GRAPH_SLOT_OCCUPIED;
@@ -490,6 +538,7 @@ GraphNodeId graph_push_node(GenericGraph *graph, const void *item_data, size ite
     graph_validate_slot_limit(graph);
 
     slot.out_neighbors = VecInitT(slot.out_neighbors);
+    slot.in_neighbors  = VecInitT(slot.in_neighbors);
     slot.data          = graph_alloc_node_data(graph, item_size);
     slot.visit_count   = 0;
     slot.generation    = 1;
@@ -573,8 +622,16 @@ GraphNeighbors *graph_out_neighbors_ptr(GenericGraph *graph, GraphNodeId node_id
     return &graph_require_live_slot(graph, node_id)->out_neighbors;
 }
 
+GraphNeighbors *graph_in_neighbors_ptr(GenericGraph *graph, GraphNodeId node_id) {
+    return &graph_require_live_slot(graph, node_id)->in_neighbors;
+}
+
 size graph_out_degree(GenericGraph *graph, GraphNodeId node_id) {
     return graph_out_neighbors_ptr(graph, node_id)->length;
+}
+
+size graph_in_degree(GenericGraph *graph, GraphNodeId node_id) {
+    return graph_in_neighbors_ptr(graph, node_id)->length;
 }
 
 GraphNodeId graph_neighbor_at(GenericGraph *graph, GraphNodeId from, size neighbor_idx) {
@@ -591,6 +648,20 @@ GraphNodeId graph_neighbor_at(GenericGraph *graph, GraphNodeId from, size neighb
     return VecAt(neighbors, neighbor_idx);
 }
 
+GraphNodeId graph_predecessor_at(GenericGraph *graph, GraphNodeId to, size predecessor_idx) {
+    GraphNeighbors *neighbors;
+
+    ValidateGraph(graph);
+    graph_validate_node_id(graph, to);
+    neighbors = graph_in_neighbors_ptr(graph, to);
+
+    if (predecessor_idx >= neighbors->length) {
+        LOG_FATAL("graph predecessor index out of bounds");
+    }
+
+    return VecAt(neighbors, predecessor_idx);
+}
+
 bool graph_has_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to) {
     GraphNeighbors *neighbors;
 
@@ -603,18 +674,21 @@ bool graph_has_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to) {
 }
 
 bool graph_add_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to) {
-    GraphNeighbors *neighbors;
+    GraphNeighbors *out_neighbors;
+    GraphNeighbors *in_neighbors;
 
     ValidateGraph(graph);
     graph_validate_node_id(graph, from);
     graph_validate_node_id(graph, to);
 
-    neighbors = graph_out_neighbors_ptr(graph, from);
-    if (graph_neighbors_contains(neighbors, to)) {
+    out_neighbors = graph_out_neighbors_ptr(graph, from);
+    if (graph_neighbors_contains(out_neighbors, to)) {
         return false;
     }
 
-    insert_range_into_vec(GENERIC_VEC(neighbors), (char *)&to, sizeof(GraphNodeId), neighbors->length, 1);
+    in_neighbors = graph_in_neighbors_ptr(graph, to);
+    insert_range_into_vec(GENERIC_VEC(out_neighbors), (char *)&to, sizeof(GraphNodeId), out_neighbors->length, 1);
+    insert_range_into_vec(GENERIC_VEC(in_neighbors), (char *)&from, sizeof(GraphNodeId), in_neighbors->length, 1);
     graph->edge_count += 1;
     graph_bump_mutation_epoch(graph);
     return true;
@@ -780,22 +854,25 @@ u64 graph_commit_changes(GenericGraph *graph, size item_size) {
     for (slot_index = 0; slot_index < graph->slots.length; slot_index++) {
         GenericGraphSlot *slot = VecPtrAt(&graph->slots, slot_index);
         if (graph_slot_is_occupied(slot) && graph_slot_is_marked(slot)) {
-            graph->edge_count -= slot->out_neighbors.length;
-            deinit_vec(GENERIC_VEC(&slot->out_neighbors), sizeof(GraphNodeId));
-            slot->out_neighbors = VecInitT(slot->out_neighbors);
+            GraphNodeId marked_id = graph_make_node_id((u32)slot_index, slot->generation);
+            (void)graph_remove_all_outgoing_edges(graph, marked_id);
         }
     }
 
     for (slot_index = 0; slot_index < graph->slots.length; slot_index++) {
         GenericGraphSlot *slot = VecPtrAt(&graph->slots, slot_index);
         if (graph_slot_is_occupied(slot) && !graph_slot_is_marked(slot)) {
-            graph->edge_count -= graph_remove_marked_targets_from_neighbors(graph, &slot->out_neighbors);
+            GraphNodeId live_id = graph_make_node_id((u32)slot_index, slot->generation);
+            (void)graph_remove_marked_outgoing_edges(graph, live_id);
         }
     }
 
     for (slot_index = 0; slot_index < graph->slots.length; slot_index++) {
         GenericGraphSlot *slot = VecPtrAt(&graph->slots, slot_index);
         if (graph_slot_is_occupied(slot) && graph_slot_is_marked(slot)) {
+            if (slot->out_neighbors.length || slot->in_neighbors.length) {
+                LOG_FATAL("Graph marked node retained incident edges before release");
+            }
             graph_release_slot(graph, slot, item_size);
             graph_push_free_index(graph, (u32)slot_index);
             graph->live_count -= 1;
@@ -889,6 +966,53 @@ bool graph_neighbor_iter_next(GenericGraphNeighborIter *iter, GraphNode *out_nod
 
         out_node->__graph = iter->graph;
         out_node->__id    = neighbor_id;
+        return true;
+    }
+
+    return false;
+}
+
+GenericGraphPredecessorIter graph_predecessor_iter_begin(GraphNode node) {
+    GenericGraphPredecessorIter iter;
+    GenericGraph               *graph;
+
+    node  = graph_validate_node_handle(node);
+    graph = GENERIC_GRAPH(node.__graph);
+
+    iter.graph                   = graph;
+    iter.target_id               = node.__id;
+    iter.predecessor_index       = 0;
+    iter.expected_mutation_epoch = graph->mutation_epoch;
+    return iter;
+}
+
+bool graph_predecessor_iter_next(GenericGraphPredecessorIter *iter, GraphNode *out_node) {
+    GraphNeighbors *neighbors;
+
+    if (!iter || !out_node) {
+        LOG_FATAL("invalid arguments");
+    }
+
+    if (!iter->graph) {
+        return false;
+    }
+
+    ValidateGraph(iter->graph);
+    if (iter->expected_mutation_epoch != iter->graph->mutation_epoch) {
+        LOG_FATAL("graph structure changed during predecessor iteration");
+    }
+
+    graph_validate_node_id(iter->graph, iter->target_id);
+    neighbors = graph_in_neighbors_ptr(iter->graph, iter->target_id);
+
+    while (iter->predecessor_index < neighbors->length) {
+        GraphNodeId predecessor_id = VecAt(neighbors, iter->predecessor_index);
+        iter->predecessor_index += 1;
+
+        graph_validate_node_id(iter->graph, predecessor_id);
+
+        out_node->__graph = iter->graph;
+        out_node->__id    = predecessor_id;
         return true;
     }
 

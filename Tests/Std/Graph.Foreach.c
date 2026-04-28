@@ -162,12 +162,119 @@ static bool test_graph_foreach_with_external_map_counts(void) {
     return result;
 }
 
+static bool test_graph_foreach_predecessors(void) {
+    WriteFmt("Testing GraphNodeForeachPredecessor\n");
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit();
+
+    GraphNodeId a = GraphAddNodeR(&graph, 1);
+    GraphNodeId b = GraphAddNodeR(&graph, 2);
+    GraphNodeId c = GraphAddNodeR(&graph, 3);
+    GraphNodeId d = GraphAddNodeR(&graph, 4);
+
+    GraphAddEdge(&graph, a, d);
+    GraphAddEdge(&graph, b, d);
+    GraphAddEdge(&graph, c, d);
+    GraphAddEdge(&graph, a, b);
+
+    u64 predecessor_sum = 0;
+    u64 predecessor_count = 0;
+
+    GraphNodeForeachPredecessor(GraphGetNode(&graph, d), predecessor) {
+        predecessor_sum += GraphNodeData(&graph, predecessor);
+        predecessor_count += 1;
+    }
+
+    bool result = (predecessor_count == 3);
+    result      = result && (predecessor_sum == 6);
+    result      = result && (GraphInDegree(&graph, d) == 3);
+    result      = result && (GraphInDegree(&graph, a) == 0);
+
+    GraphDeinit(&graph);
+    return result;
+}
+
+static bool test_graph_node_iteration_rejects_structural_mutation_deadend(void) {
+    WriteFmt("Testing GraphForeachNode rejects structural mutation (should abort)\n");
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit();
+
+    GraphAddNodeR(&graph, 1);
+    GraphAddNodeR(&graph, 2);
+
+    GraphForeachNode(&graph, node) {
+        (void)node;
+        (void)GraphAddNodeR(&graph, 3);
+    }
+
+    GraphDeinit(&graph);
+    return false;
+}
+
+static bool test_graph_neighbor_iteration_rejects_structural_mutation_deadend(void) {
+    WriteFmt("Testing GraphNodeForeachNeighbor rejects structural mutation (should abort)\n");
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit();
+
+    GraphNodeId a = GraphAddNodeR(&graph, 1);
+    GraphNodeId b = GraphAddNodeR(&graph, 2);
+    GraphNodeId c = GraphAddNodeR(&graph, 3);
+
+    GraphAddEdge(&graph, a, b);
+
+    GraphNodeForeachNeighbor(GraphGetNode(&graph, a), neighbor) {
+        (void)neighbor;
+        (void)GraphAddEdge(&graph, a, c);
+    }
+
+    GraphDeinit(&graph);
+    return false;
+}
+
+static bool test_graph_predecessor_iteration_rejects_structural_mutation_deadend(void) {
+    WriteFmt("Testing GraphNodeForeachPredecessor rejects structural mutation (should abort)\n");
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit();
+
+    GraphNodeId a = GraphAddNodeR(&graph, 1);
+    GraphNodeId b = GraphAddNodeR(&graph, 2);
+    GraphNodeId c = GraphAddNodeR(&graph, 3);
+    GraphNodeId d = GraphAddNodeR(&graph, 4);
+
+    GraphAddEdge(&graph, a, c);
+    GraphAddEdge(&graph, b, c);
+
+    GraphNodeForeachPredecessor(GraphGetNode(&graph, c), predecessor) {
+        (void)predecessor;
+        (void)GraphAddEdge(&graph, d, c);
+    }
+
+    GraphDeinit(&graph);
+    return false;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_graph_city_reachability,
         test_graph_foreach_with_external_map_counts,
+        test_graph_foreach_predecessors,
+    };
+    TestFunction deadend_tests[] = {
+        test_graph_node_iteration_rejects_structural_mutation_deadend,
+        test_graph_neighbor_iteration_rejects_structural_mutation_deadend,
+        test_graph_predecessor_iteration_rejects_structural_mutation_deadend,
     };
 
     WriteFmt("[INFO] Starting Graph.Foreach tests\n\n");
-    return run_test_suite(tests, (int)(sizeof(tests) / sizeof(tests[0])), NULL, 0, "Graph.Foreach");
+    return run_test_suite(
+        tests,
+        (int)(sizeof(tests) / sizeof(tests[0])),
+        deadend_tests,
+        (int)(sizeof(deadend_tests) / sizeof(deadend_tests[0])),
+        "Graph.Foreach"
+    );
 }

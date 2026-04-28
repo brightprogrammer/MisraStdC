@@ -45,4 +45,21 @@
              UNPL(iter).graph = NULL)                                                                                  \
             for (GraphNode neighbor = {0}; graph_neighbor_iter_next(&UNPL(iter), &neighbor);)
 
+///
+/// Iterate over each incoming predecessor of a node handle.
+///
+/// The predecessor loop variable is also a `GraphNode` handle.
+///
+/// node[in]          : Destination node handle.
+/// predecessor[in]   : Name of the `GraphNode` loop variable used for incoming predecessors.
+///
+/// TAGS: Graph, Foreach, Predecessor, Iteration
+///
+#define GraphNodeForeachPredecessor(node, predecessor)                                                                \
+    for (GraphNode UNPL(dst_node) = (node); UNPL(dst_node).__graph; UNPL(dst_node).__graph = NULL)                   \
+        for (GenericGraphPredecessorIter UNPL(iter) = graph_predecessor_iter_begin(UNPL(dst_node));                  \
+             UNPL(iter).graph;                                                                                        \
+             UNPL(iter).graph = NULL)                                                                                 \
+            for (GraphNode predecessor = {0}; graph_predecessor_iter_next(&UNPL(iter), &predecessor);)
+
 #endif // MISRA_STD_CONTAINER_GRAPH_FOREACH_H

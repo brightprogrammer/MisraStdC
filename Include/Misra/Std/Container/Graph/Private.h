@@ -26,6 +26,13 @@ extern "C" {
         u64           expected_mutation_epoch;
     } GenericGraphNeighborIter;
 
+    typedef struct {
+        GenericGraph *graph;
+        GraphNodeId   target_id;
+        u64           predecessor_index;
+        u64           expected_mutation_epoch;
+    } GenericGraphPredecessorIter;
+
     void                    validate_graph(const GenericGraph *graph);
     void                    deinit_graph(GenericGraph *graph, size item_size);
     void                    clear_graph(GenericGraph *graph, size item_size);
@@ -37,8 +44,11 @@ extern "C" {
     void                   *graph_node_ptr_at(GenericGraph *graph, GraphNodeId node_id);
     void                   *graph_node_data_ptr_checked(GenericGraph *graph, GraphNode node);
     GraphNeighbors         *graph_out_neighbors_ptr(GenericGraph *graph, GraphNodeId node_id);
+    GraphNeighbors         *graph_in_neighbors_ptr(GenericGraph *graph, GraphNodeId node_id);
     size                    graph_out_degree(GenericGraph *graph, GraphNodeId node_id);
+    size                    graph_in_degree(GenericGraph *graph, GraphNodeId node_id);
     GraphNodeId             graph_neighbor_at(GenericGraph *graph, GraphNodeId from, size neighbor_idx);
+    GraphNodeId             graph_predecessor_at(GenericGraph *graph, GraphNodeId to, size predecessor_idx);
     bool                    graph_has_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to);
     bool                    graph_add_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to);
     u64                     graph_node_visit(GraphNode node);
@@ -56,6 +66,8 @@ extern "C" {
     bool                    graph_node_iter_next(GenericGraphNodeIter *iter, GraphNode *out_node);
     GenericGraphNeighborIter graph_neighbor_iter_begin(GraphNode node);
     bool                    graph_neighbor_iter_next(GenericGraphNeighborIter *iter, GraphNode *out_node);
+    GenericGraphPredecessorIter graph_predecessor_iter_begin(GraphNode node);
+    bool                        graph_predecessor_iter_next(GenericGraphPredecessorIter *iter, GraphNode *out_node);
 
 #ifdef __cplusplus
 }

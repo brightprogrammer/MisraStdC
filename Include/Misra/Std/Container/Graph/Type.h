@@ -58,9 +58,10 @@ typedef struct {
 } GraphNode;
 
 ///
-/// Outgoing neighbor list for a single graph node.
+/// Adjacency list for a single graph node.
 ///
-/// Each item is a `GraphNodeId` of a node reachable by one directed edge.
+/// Each item is a `GraphNodeId` referring to another live node. Graph uses this
+/// same vector shape for both outgoing and incoming adjacency storage.
 ///
 /// TAGS: Graph, Edge, Neighbor, Vec
 ///
@@ -68,6 +69,7 @@ typedef Vec(GraphNodeId) GraphNeighbors;
 
 typedef struct {
     GraphNeighbors out_neighbors;
+    GraphNeighbors in_neighbors;
     void          *data;
     u64            visit_count;
     u32            generation;
@@ -106,7 +108,7 @@ typedef struct {
 ///
 /// Node payloads are owned by the graph. Each live node occupies one internal slot
 /// and is referred to by a stable generation/index `GraphNodeId`. Edges are directed
-/// and stored as outgoing adjacency lists of those ids.
+/// and tracked incrementally in both outgoing and incoming adjacency lists of those ids.
 ///
 /// NOTE: Like the other generic containers in this project, each `Graph(T)`
 ///       expansion creates a distinct anonymous type. Prefer a `typedef`

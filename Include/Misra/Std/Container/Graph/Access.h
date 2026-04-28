@@ -152,6 +152,19 @@
 #define GraphOutDegree(g, node_id) graph_out_degree(GENERIC_GRAPH(g), (node_id))
 
 ///
+/// Number of incoming neighbors for a node.
+///
+/// g[in]       : Graph to query.
+/// node_id[in] : Node id whose in-degree is requested.
+///
+/// SUCCESS: In-degree of node.
+/// FAILURE: Does not return on invalid node id.
+///
+/// TAGS: Graph, Edge, Degree, Query, Incoming
+///
+#define GraphInDegree(g, node_id) graph_in_degree(GENERIC_GRAPH(g), (node_id))
+
+///
 /// Access outgoing neighbor id at given offset.
 ///
 /// g[in]            : Graph to query.
@@ -161,6 +174,18 @@
 /// TAGS: Graph, Edge, Neighbor, Access
 ///
 #define GraphNeighborAt(g, node_id, neighbor_idx) graph_neighbor_at(GENERIC_GRAPH(g), (node_id), (neighbor_idx))
+
+///
+/// Access incoming predecessor id at given offset.
+///
+/// g[in]               : Graph to query.
+/// node_id[in]         : Destination node id.
+/// predecessor_idx[in] : Index in incoming predecessor list.
+///
+/// TAGS: Graph, Edge, Predecessor, Access
+///
+#define GraphPredecessorAt(g, node_id, predecessor_idx)                                                               \
+    graph_predecessor_at(GENERIC_GRAPH(g), (node_id), (predecessor_idx))
 
 ///
 /// Check whether graph contains directed edge `from -> to`.

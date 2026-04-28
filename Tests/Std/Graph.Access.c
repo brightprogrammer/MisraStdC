@@ -29,8 +29,14 @@ static bool test_graph_access_helpers(void) {
     result      = result && GraphNodeGetId(node_b) == b;
     result      = result && GraphNodeIndex(node_b) == GraphNodeIdIndex(b);
     result      = result && GraphOutDegree(&graph, a) == 2;
+    result      = result && GraphInDegree(&graph, a) == 1;
+    result      = result && GraphInDegree(&graph, b) == 1;
+    result      = result && GraphInDegree(&graph, c) == 1;
     result      = result && GraphNeighborAt(&graph, a, 0) == b && GraphNeighborAt(&graph, a, 1) == c;
     result      = result && GraphNeighborAt(&graph, c, 0) == a;
+    result      = result && GraphPredecessorAt(&graph, a, 0) == c;
+    result      = result && GraphPredecessorAt(&graph, b, 0) == a;
+    result      = result && GraphPredecessorAt(&graph, c, 0) == a;
 
     GraphDeinit(&graph);
     return result;
@@ -59,12 +65,53 @@ static bool test_graph_has_edge_query(void) {
     return result;
 }
 
+static bool test_graph_cross_graph_node_handle_deadend(void) {
+    WriteFmt("Testing GraphNodeData rejects foreign graph node handles (should abort)\n");
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph_a = GraphInit();
+    IntGraph graph_b = GraphInit();
+    GraphNode node   = GraphGetNode(&graph_a, GraphAddNodeR(&graph_a, 10));
+
+    (void)GraphNodeData(&graph_b, node);
+
+    GraphDeinit(&graph_b);
+    GraphDeinit(&graph_a);
+    return false;
+}
+
+static bool test_graph_predecessor_access_oob_deadend(void) {
+    WriteFmt("Testing GraphPredecessorAt out-of-bounds access (should abort)\n");
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit();
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+
+    GraphAddEdge(&graph, a, b);
+    (void)GraphPredecessorAt(&graph, a, 0);
+
+    GraphDeinit(&graph);
+    return false;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_graph_access_helpers,
         test_graph_has_edge_query,
     };
+    TestFunction deadend_tests[] = {
+        test_graph_cross_graph_node_handle_deadend,
+        test_graph_predecessor_access_oob_deadend,
+    };
 
     WriteFmt("[INFO] Starting Graph.Access tests\n\n");
-    return run_test_suite(tests, (int)(sizeof(tests) / sizeof(tests[0])), NULL, 0, "Graph.Access");
+    return run_test_suite(
+        tests,
+        (int)(sizeof(tests) / sizeof(tests[0])),
+        deadend_tests,
+        (int)(sizeof(deadend_tests) / sizeof(deadend_tests[0])),
+        "Graph.Access"
+    );
 }

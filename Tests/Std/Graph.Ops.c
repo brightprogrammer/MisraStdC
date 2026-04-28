@@ -54,7 +54,10 @@ static bool test_graph_mark_delete_commit_and_reuse(void) {
     result = result && (GraphEdgeCount(&graph) == 1);
     result = result && !GraphContainsNode(&graph, b);
     result = result && (GraphOutDegree(&graph, a) == 0);
+    result = result && (GraphInDegree(&graph, a) == 1);
+    result = result && (GraphInDegree(&graph, c) == 0);
     result = result && GraphHasEdge(&graph, c, a);
+    result = result && (GraphPredecessorAt(&graph, a, 0) == c);
 
     GraphNodeId d = GraphAddNodeR(&graph, 40);
 
@@ -128,7 +131,10 @@ static bool test_graph_mark_edge_for_removal(void) {
     result = result && !GraphHasEdge(&graph, b, c);
     result = result && (GraphEdgeCount(&graph) == 1);
     result = result && (GraphOutDegree(&graph, a) == 1);
+    result = result && (GraphInDegree(&graph, b) == 0);
+    result = result && (GraphInDegree(&graph, c) == 1);
     result = result && (GraphNeighborAt(&graph, a, 0) == c);
+    result = result && (GraphPredecessorAt(&graph, c, 0) == a);
 
     GraphDeinit(&graph);
     return result;
@@ -160,6 +166,77 @@ static bool test_graph_query_and_unmark_edge_removal(void) {
     return result;
 }
 
+static bool test_graph_partial_unmark_of_multiple_edge_removals(void) {
+    WriteFmt("Testing partial unmark of multiple pending edge removals\n");
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit();
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+    GraphNodeId c = GraphAddNodeR(&graph, 30);
+
+    GraphAddEdge(&graph, a, b);
+    GraphAddEdge(&graph, a, c);
+
+    bool result = GraphMarkEdgeForRemoval(&graph, a, b);
+    result      = result && GraphMarkEdgeForRemoval(&graph, a, c);
+    result      = result && GraphEdgeMarkedForRemoval(&graph, a, b);
+    result      = result && GraphEdgeMarkedForRemoval(&graph, a, c);
+    result      = result && GraphUnmarkEdgeForRemoval(&graph, a, b);
+    result      = result && !GraphEdgeMarkedForRemoval(&graph, a, b);
+    result      = result && GraphEdgeMarkedForRemoval(&graph, a, c);
+    result      = result && (GraphCommitChanges(&graph) == 1);
+    result      = result && GraphHasEdge(&graph, a, b);
+    result      = result && !GraphHasEdge(&graph, a, c);
+    result      = result && (GraphOutDegree(&graph, a) == 1);
+    result      = result && (GraphInDegree(&graph, b) == 1);
+    result      = result && (GraphInDegree(&graph, c) == 0);
+
+    GraphDeinit(&graph);
+    return result;
+}
+
+static bool test_graph_self_loop_edge_removal(void) {
+    WriteFmt("Testing deferred removal of self-loop edge\n");
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit();
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+
+    bool result = GraphAddEdge(&graph, a, a);
+    result      = result && (GraphOutDegree(&graph, a) == 1);
+    result      = result && (GraphInDegree(&graph, a) == 1);
+    result      = result && (GraphNeighborAt(&graph, a, 0) == a);
+    result      = result && (GraphPredecessorAt(&graph, a, 0) == a);
+    result      = result && GraphMarkEdgeForRemoval(&graph, a, a);
+    result      = result && (GraphCommitChanges(&graph) == 1);
+    result      = result && (GraphEdgeCount(&graph) == 0);
+    result      = result && (GraphOutDegree(&graph, a) == 0);
+    result      = result && (GraphInDegree(&graph, a) == 0);
+
+    GraphDeinit(&graph);
+    return result;
+}
+
+static bool test_graph_stale_node_handle_after_commit_deadend(void) {
+    WriteFmt("Testing stale GraphNode handle after commit (should abort)\n");
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit();
+
+    GraphNodeId a    = GraphAddNodeR(&graph, 10);
+    GraphNode   node = GraphGetNode(&graph, a);
+
+    (void)GraphMarkNodeForDeletion(node);
+    (void)GraphCommitChanges(&graph);
+    (void)GraphNodeVisit(node);
+
+    GraphDeinit(&graph);
+    return false;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_graph_node_visit_scratch_state,
@@ -167,8 +244,19 @@ int main(void) {
         test_graph_query_and_unmark_node_deletion,
         test_graph_mark_edge_for_removal,
         test_graph_query_and_unmark_edge_removal,
+        test_graph_partial_unmark_of_multiple_edge_removals,
+        test_graph_self_loop_edge_removal,
+    };
+    TestFunction deadend_tests[] = {
+        test_graph_stale_node_handle_after_commit_deadend,
     };
 
     WriteFmt("[INFO] Starting Graph.Ops tests\n\n");
-    return run_test_suite(tests, (int)(sizeof(tests) / sizeof(tests[0])), NULL, 0, "Graph.Ops");
+    return run_test_suite(
+        tests,
+        (int)(sizeof(tests) / sizeof(tests[0])),
+        deadend_tests,
+        (int)(sizeof(deadend_tests) / sizeof(deadend_tests[0])),
+        "Graph.Ops"
+    );
 }

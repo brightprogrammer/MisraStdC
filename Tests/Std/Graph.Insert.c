@@ -38,8 +38,39 @@ static bool test_graph_add_edge_dedup(void) {
     result      = result && !GraphAddEdge(&graph, a, b);
     result      = result && GraphEdgeCount(&graph) == 2;
     result      = result && GraphOutDegree(&graph, a) == 2;
+    result      = result && GraphInDegree(&graph, a) == 0;
+    result      = result && GraphInDegree(&graph, b) == 1;
+    result      = result && GraphInDegree(&graph, c) == 1;
     result      = result && GraphNeighborAt(&graph, a, 0) == b;
     result      = result && GraphNeighborAt(&graph, a, 1) == c;
+    result      = result && GraphPredecessorAt(&graph, b, 0) == a;
+    result      = result && GraphPredecessorAt(&graph, c, 0) == a;
+
+    GraphDeinit(&graph);
+    return result;
+}
+
+static bool test_graph_self_loop_and_predecessor_order(void) {
+    WriteFmt("Testing Graph self-loop handling and predecessor order\n");
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit();
+
+    GraphNodeId a = GraphAddNodeR(&graph, 1);
+    GraphNodeId b = GraphAddNodeR(&graph, 2);
+    GraphNodeId c = GraphAddNodeR(&graph, 3);
+
+    bool result = GraphAddEdge(&graph, a, a);
+    result      = result && GraphAddEdge(&graph, b, a);
+    result      = result && GraphAddEdge(&graph, c, a);
+    result      = result && !GraphAddEdge(&graph, a, a);
+    result      = result && (GraphEdgeCount(&graph) == 3);
+    result      = result && (GraphOutDegree(&graph, a) == 1);
+    result      = result && (GraphInDegree(&graph, a) == 3);
+    result      = result && (GraphNeighborAt(&graph, a, 0) == a);
+    result      = result && (GraphPredecessorAt(&graph, a, 0) == a);
+    result      = result && (GraphPredecessorAt(&graph, a, 1) == b);
+    result      = result && (GraphPredecessorAt(&graph, a, 2) == c);
 
     GraphDeinit(&graph);
     return result;
@@ -49,6 +80,7 @@ int main(void) {
     TestFunction tests[] = {
         test_graph_add_node_semantics,
         test_graph_add_edge_dedup,
+        test_graph_self_loop_and_predecessor_order,
     };
 
     WriteFmt("[INFO] Starting Graph.Insert tests\n\n");
