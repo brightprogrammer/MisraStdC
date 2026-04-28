@@ -215,6 +215,47 @@ static bool graph_neighbors_contains(const GraphNeighbors *neighbors, GraphNodeI
     return false;
 }
 
+static size graph_find_neighbor_index(const GraphNeighbors *neighbors, GraphNodeId node_id) {
+    size idx;
+
+    for (idx = 0; idx < neighbors->length; idx++) {
+        if (VecAt(neighbors, idx) == node_id) {
+            return idx;
+        }
+    }
+
+    return SIZE_MAX;
+}
+
+static size graph_find_pending_edge_removal_index(const GenericGraph *graph, GraphNodeId from, GraphNodeId to) {
+    size idx;
+
+    for (idx = 0; idx < graph->pending_edge_removals.length; idx++) {
+        const GraphPendingEdgeRemoval *pending = VecPtrAt((GraphPendingEdgeRemovals *)&graph->pending_edge_removals, idx);
+        if ((pending->from == from) && (pending->to == to)) {
+            return idx;
+        }
+    }
+
+    return SIZE_MAX;
+}
+
+static bool graph_remove_edge_now(GenericGraph *graph, GraphNodeId from, GraphNodeId to) {
+    GraphNeighbors *neighbors;
+    size            idx;
+
+    neighbors = graph_out_neighbors_ptr(graph, from);
+    idx       = graph_find_neighbor_index(neighbors, to);
+
+    if (idx == SIZE_MAX) {
+        return false;
+    }
+
+    remove_range_vec(GENERIC_VEC(neighbors), NULL, sizeof(GraphNodeId), idx, 1);
+    graph->edge_count -= 1;
+    return true;
+}
+
 static size graph_remove_marked_targets_from_neighbors(GenericGraph *graph, GraphNeighbors *neighbors) {
     size removed = 0;
     size write   = 0;
@@ -268,6 +309,7 @@ void validate_graph(const GenericGraph *graph) {
 
     validate_vec((const GenericVec *)&graph->slots);
     validate_vec((const GenericVec *)&graph->free_indices);
+    validate_vec((const GenericVec *)&graph->pending_edge_removals);
     graph_validate_alignment(graph);
     graph_validate_slot_limit(graph);
 
@@ -326,6 +368,19 @@ void validate_graph(const GenericGraph *graph) {
         }
     }
 
+    for (free_index_i = 0; free_index_i < graph->pending_edge_removals.length; free_index_i++) {
+        const GraphPendingEdgeRemoval *pending = VecPtrAt((GraphPendingEdgeRemovals *)&graph->pending_edge_removals, free_index_i);
+        const GraphNeighbors         *neighbors;
+
+        graph_validate_node_id(graph, pending->from);
+        graph_validate_node_id(graph, pending->to);
+        neighbors = &graph_require_live_slot_const(graph, pending->from)->out_neighbors;
+
+        if (!graph_neighbors_contains(neighbors, pending->to)) {
+            LOG_FATAL("Graph pending edge removal refers to a missing edge");
+        }
+    }
+
     if (graph->live_count != live_count) {
         LOG_FATAL("Graph live node count is inconsistent");
     }
@@ -345,6 +400,7 @@ void deinit_graph(GenericGraph *graph, size item_size) {
     clear_graph(graph, item_size);
     deinit_vec(GENERIC_VEC(&graph->slots), sizeof(GenericGraphSlot));
     deinit_vec(GENERIC_VEC(&graph->free_indices), sizeof(u32));
+    deinit_vec(GENERIC_VEC(&graph->pending_edge_removals), sizeof(GraphPendingEdgeRemoval));
 
     graph->copy_init            = NULL;
     graph->copy_deinit          = NULL;
@@ -375,6 +431,7 @@ void clear_graph(GenericGraph *graph, size item_size) {
     }
 
     clear_vec(GENERIC_VEC(&graph->free_indices), sizeof(u32));
+    clear_vec(GENERIC_VEC(&graph->pending_edge_removals), sizeof(GraphPendingEdgeRemoval));
     for (slot_index = 0; slot_index < graph->slots.length; slot_index++) {
         u32 index = (u32)slot_index;
         insert_range_into_vec(GENERIC_VEC(&graph->free_indices), (char *)&index, sizeof(u32), graph->free_indices.length, 1);
@@ -520,6 +577,20 @@ size graph_out_degree(GenericGraph *graph, GraphNodeId node_id) {
     return graph_out_neighbors_ptr(graph, node_id)->length;
 }
 
+GraphNodeId graph_neighbor_at(GenericGraph *graph, GraphNodeId from, size neighbor_idx) {
+    GraphNeighbors *neighbors;
+
+    ValidateGraph(graph);
+    graph_validate_node_id(graph, from);
+    neighbors = graph_out_neighbors_ptr(graph, from);
+
+    if (neighbor_idx >= neighbors->length) {
+        LOG_FATAL("graph neighbor index out of bounds");
+    }
+
+    return VecAt(neighbors, neighbor_idx);
+}
+
 bool graph_has_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to) {
     GraphNeighbors *neighbors;
 
@@ -607,15 +678,104 @@ bool graph_mark_node_for_deletion(GraphNode node) {
     return true;
 }
 
+bool graph_node_marked_for_deletion(GraphNode node) {
+    GenericGraph           *graph;
+    const GenericGraphSlot *slot;
+
+    node  = graph_validate_node_handle(node);
+    graph = GENERIC_GRAPH(node.__graph);
+    slot  = graph_require_live_slot_const(graph, node.__id);
+
+    return graph_slot_is_marked(slot);
+}
+
+bool graph_unmark_node_for_deletion(GraphNode node) {
+    GenericGraph     *graph;
+    GenericGraphSlot *slot;
+
+    node  = graph_validate_node_handle(node);
+    graph = GENERIC_GRAPH(node.__graph);
+    slot  = graph_require_live_slot(graph, node.__id);
+
+    if (!graph_slot_is_marked(slot)) {
+        return false;
+    }
+
+    slot->flags &= ~MISRA_GRAPH_SLOT_MARKED;
+    graph->pending_delete_count -= 1;
+    return true;
+}
+
+bool graph_mark_edge_for_removal(GenericGraph *graph, GraphNodeId from, GraphNodeId to) {
+    GraphPendingEdgeRemoval pending;
+
+    ValidateGraph(graph);
+    graph_validate_node_id(graph, from);
+    graph_validate_node_id(graph, to);
+
+    if (!graph_has_edge(graph, from, to)) {
+        return false;
+    }
+
+    if (graph_find_pending_edge_removal_index(graph, from, to) != SIZE_MAX) {
+        return false;
+    }
+
+    pending.from = from;
+    pending.to   = to;
+    insert_range_into_vec(
+        GENERIC_VEC(&graph->pending_edge_removals),
+        (char *)&pending,
+        sizeof(GraphPendingEdgeRemoval),
+        graph->pending_edge_removals.length,
+        1
+    );
+
+    return true;
+}
+
+bool graph_edge_marked_for_removal(GenericGraph *graph, GraphNodeId from, GraphNodeId to) {
+    ValidateGraph(graph);
+    graph_validate_node_id(graph, from);
+    graph_validate_node_id(graph, to);
+
+    return graph_find_pending_edge_removal_index(graph, from, to) != SIZE_MAX;
+}
+
+bool graph_unmark_edge_for_removal(GenericGraph *graph, GraphNodeId from, GraphNodeId to) {
+    size idx;
+
+    ValidateGraph(graph);
+    graph_validate_node_id(graph, from);
+    graph_validate_node_id(graph, to);
+
+    idx = graph_find_pending_edge_removal_index(graph, from, to);
+    if (idx == SIZE_MAX) {
+        return false;
+    }
+
+    remove_range_vec(GENERIC_VEC(&graph->pending_edge_removals), NULL, sizeof(GraphPendingEdgeRemoval), idx, 1);
+    return true;
+}
+
 u64 graph_commit_changes(GenericGraph *graph, size item_size) {
     u64 removed_count = 0;
     u64 slot_index;
+    u64 edge_idx;
+    u64 explicit_edge_removal_count;
 
     ValidateGraph(graph);
 
-    if (!graph->pending_delete_count) {
+    if (!graph->pending_delete_count && !graph->pending_edge_removals.length) {
         return 0;
     }
+
+    explicit_edge_removal_count = graph->pending_edge_removals.length;
+    for (edge_idx = 0; edge_idx < graph->pending_edge_removals.length; edge_idx++) {
+        GraphPendingEdgeRemoval *pending = VecPtrAt(&graph->pending_edge_removals, edge_idx);
+        (void)graph_remove_edge_now(graph, pending->from, pending->to);
+    }
+    clear_vec(GENERIC_VEC(&graph->pending_edge_removals), sizeof(GraphPendingEdgeRemoval));
 
     for (slot_index = 0; slot_index < graph->slots.length; slot_index++) {
         GenericGraphSlot *slot = VecPtrAt(&graph->slots, slot_index);
@@ -645,7 +805,7 @@ u64 graph_commit_changes(GenericGraph *graph, size item_size) {
     }
 
     graph_bump_mutation_epoch(graph);
-    return removed_count;
+    return removed_count + explicit_edge_removal_count;
 }
 
 GenericGraphNodeIter graph_node_iter_begin(GenericGraph *graph) {

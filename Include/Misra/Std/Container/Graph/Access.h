@@ -139,19 +139,6 @@
 #define GraphNodeDataPtr(g, node) ((GRAPH_NODE_TYPE(g) *)graph_node_data_ptr_checked(GENERIC_GRAPH(g), (node)))
 
 ///
-/// Get pointer to outgoing neighbor list for a node.
-///
-/// g[in,out]   : Graph to query.
-/// node_id[in] : Node id whose outgoing adjacency list is requested.
-///
-/// SUCCESS: Pointer to outgoing neighbor vector.
-/// FAILURE: Does not return on invalid node id.
-///
-/// TAGS: Graph, Edge, Neighbor, Access, Pointer
-///
-#define GraphOutNeighborsPtr(g, node_id) ((GraphNeighbors *)graph_out_neighbors_ptr(GENERIC_GRAPH(g), (node_id)))
-
-///
 /// Number of outgoing neighbors for a node.
 ///
 /// g[in]       : Graph to query.
@@ -173,18 +160,7 @@
 ///
 /// TAGS: Graph, Edge, Neighbor, Access
 ///
-#define GraphNeighborAt(g, node_id, neighbor_idx) VecAt(GraphOutNeighborsPtr((g), (node_id)), (neighbor_idx))
-
-///
-/// Get pointer to outgoing neighbor id at given offset.
-///
-/// g[in,out]        : Graph to query.
-/// node_id[in]      : Source node id.
-/// neighbor_idx[in] : Index in outgoing neighbor list.
-///
-/// TAGS: Graph, Edge, Neighbor, Access, Pointer
-///
-#define GraphNeighborPtrAt(g, node_id, neighbor_idx) VecPtrAt(GraphOutNeighborsPtr((g), (node_id)), (neighbor_idx))
+#define GraphNeighborAt(g, node_id, neighbor_idx) graph_neighbor_at(GENERIC_GRAPH(g), (node_id), (neighbor_idx))
 
 ///
 /// Check whether graph contains directed edge `from -> to`.

@@ -38,6 +38,7 @@ extern "C" {
     void                   *graph_node_data_ptr_checked(GenericGraph *graph, GraphNode node);
     GraphNeighbors         *graph_out_neighbors_ptr(GenericGraph *graph, GraphNodeId node_id);
     size                    graph_out_degree(GenericGraph *graph, GraphNodeId node_id);
+    GraphNodeId             graph_neighbor_at(GenericGraph *graph, GraphNodeId from, size neighbor_idx);
     bool                    graph_has_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to);
     bool                    graph_add_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to);
     u64                     graph_node_visit(GraphNode node);
@@ -45,6 +46,11 @@ extern "C" {
     u64                     graph_node_visit_count(GraphNode node);
     bool                    graph_node_visited(GraphNode node);
     bool                    graph_mark_node_for_deletion(GraphNode node);
+    bool                    graph_node_marked_for_deletion(GraphNode node);
+    bool                    graph_unmark_node_for_deletion(GraphNode node);
+    bool                    graph_mark_edge_for_removal(GenericGraph *graph, GraphNodeId from, GraphNodeId to);
+    bool                    graph_edge_marked_for_removal(GenericGraph *graph, GraphNodeId from, GraphNodeId to);
+    bool                    graph_unmark_edge_for_removal(GenericGraph *graph, GraphNodeId from, GraphNodeId to);
     u64                     graph_commit_changes(GenericGraph *graph, size item_size);
     GenericGraphNodeIter    graph_node_iter_begin(GenericGraph *graph);
     bool                    graph_node_iter_next(GenericGraphNodeIter *iter, GraphNode *out_node);

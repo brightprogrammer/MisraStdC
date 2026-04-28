@@ -78,17 +78,25 @@ typedef Vec(GenericGraphSlot) GraphSlots;
 typedef Vec(u32)              GraphFreeIndices;
 
 typedef struct {
-    GraphSlots         slots;
-    GraphFreeIndices   free_indices;
-    GenericCopyInit    copy_init;
-    GenericCopyDeinit  copy_deinit;
-    u64                live_count;
-    u64                edge_count;
-    u64                pending_delete_count;
-    u64                mutation_epoch;
-    u64                alignment;
-    void              *type_anchor;
-    u64                __magic;
+    GraphNodeId from;
+    GraphNodeId to;
+} GraphPendingEdgeRemoval;
+
+typedef Vec(GraphPendingEdgeRemoval) GraphPendingEdgeRemovals;
+
+typedef struct {
+    GraphSlots               slots;
+    GraphFreeIndices         free_indices;
+    GraphPendingEdgeRemovals pending_edge_removals;
+    GenericCopyInit          copy_init;
+    GenericCopyDeinit        copy_deinit;
+    u64                      live_count;
+    u64                      edge_count;
+    u64                      pending_delete_count;
+    u64                      mutation_epoch;
+    u64                      alignment;
+    void                    *type_anchor;
+    u64                      __magic;
 } GenericGraph;
 
 #define GENERIC_GRAPH(g) ((GenericGraph *)(void *)(g))
@@ -111,30 +119,32 @@ typedef struct {
 /// FIELDS:
 /// - slots                : Internal slot storage for live and reusable nodes.
 /// - free_indices         : Reusable slot indices populated by deletion/clear.
-/// - copy_init            : Optional deep-copy callback for node payloads.
-/// - copy_deinit          : Optional deinit callback for node payloads.
-/// - live_count           : Number of currently live nodes.
-/// - edge_count           : Number of directed edges currently stored.
-/// - pending_delete_count : Number of nodes marked for deletion but not yet committed.
-/// - mutation_epoch       : Structural mutation counter used by traversal helpers.
-/// - alignment            : Alignment used for graph-owned node payload allocations.
-/// - type_anchor          : Type anchor for generic node payload macros.
+/// - pending_edge_removals : Directed edges marked for removal on next commit.
+/// - copy_init             : Optional deep-copy callback for node payloads.
+/// - copy_deinit           : Optional deinit callback for node payloads.
+/// - live_count            : Number of currently live nodes.
+/// - edge_count            : Number of directed edges currently stored.
+/// - pending_delete_count  : Number of nodes marked for deletion but not yet committed.
+/// - mutation_epoch        : Structural mutation counter used by traversal helpers.
+/// - alignment             : Alignment used for graph-owned node payload allocations.
+/// - type_anchor           : Type anchor for generic node payload macros.
 ///
 /// TAGS: Graph, Generic, Directed, Slot, Handle
 ///
 #define Graph(T)                                                                                                       \
     struct {                                                                                                           \
-        GraphSlots         slots;                                                                                      \
-        GraphFreeIndices   free_indices;                                                                               \
-        GenericCopyInit    copy_init;                                                                                  \
-        GenericCopyDeinit  copy_deinit;                                                                                \
-        u64                live_count;                                                                                 \
-        u64                edge_count;                                                                                 \
-        u64                pending_delete_count;                                                                       \
-        u64                mutation_epoch;                                                                             \
-        u64                alignment;                                                                                  \
-        T                 *type_anchor;                                                                                \
-        u64                __magic;                                                                                    \
+        GraphSlots               slots;                                                                                \
+        GraphFreeIndices         free_indices;                                                                         \
+        GraphPendingEdgeRemovals pending_edge_removals;                                                                \
+        GenericCopyInit          copy_init;                                                                            \
+        GenericCopyDeinit        copy_deinit;                                                                          \
+        u64                      live_count;                                                                           \
+        u64                      edge_count;                                                                           \
+        u64                      pending_delete_count;                                                                 \
+        u64                      mutation_epoch;                                                                       \
+        u64                      alignment;                                                                            \
+        T                       *type_anchor;                                                                          \
+        u64                      __magic;                                                                              \
     }
 
 #define GRAPH_NODE_TYPE(g) TYPE_OF((g)->type_anchor[0])

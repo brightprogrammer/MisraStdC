@@ -81,6 +81,7 @@
 #define GraphInitAlignedWithDeepCopy(ci, cd, aln)                                                                     \
     {.slots                = VecInit(),                                                                               \
      .free_indices         = VecInit(),                                                                               \
+     .pending_edge_removals = VecInit(),                                                                              \
      .copy_init            = (GenericCopyInit)(ci),                                                                   \
      .copy_deinit          = (GenericCopyDeinit)(cd),                                                                 \
      .live_count           = 0,                                                                                       \

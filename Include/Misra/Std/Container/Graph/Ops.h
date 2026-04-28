@@ -49,14 +49,85 @@
 #define GraphMarkNodeForDeletion(node) graph_mark_node_for_deletion((node))
 
 ///
-/// Apply all pending deletion marks and remove incident edges.
+/// Check whether a node is currently marked for deletion.
+///
+/// node[in] : `GraphNode` handle to query.
+///
+/// SUCCESS: `true` when the node is marked for deletion.
+/// FAILURE: `false`
+///
+/// TAGS: Graph, Node, Delete, Query
+///
+#define GraphNodeMarkedForDeletion(node) graph_node_marked_for_deletion((node))
+
+///
+/// Remove a pending node-deletion mark before commit.
+///
+/// node[in] : `GraphNode` handle to unmark.
+///
+/// SUCCESS: `true` when a deletion mark was removed.
+/// FAILURE: `false` when the node was not marked.
+///
+/// TAGS: Graph, Node, Delete, Unmark
+///
+#define GraphUnmarkNodeForDeletion(node) graph_unmark_node_for_deletion((node))
+
+///
+/// Mark a directed edge for removal on the next `GraphCommitChanges`.
+///
+/// This operation is safe during traversal and does not structurally mutate the graph
+/// until commit.
+///
+/// g[in,out] : Graph owning the edge.
+/// from[in]  : Source node id.
+/// to[in]    : Destination node id.
+///
+/// SUCCESS: `true` when the edge was newly marked.
+/// FAILURE: `false` when the edge is absent or was already marked.
+///
+/// TAGS: Graph, Edge, Delete, Mark
+///
+#define GraphMarkEdgeForRemoval(g, from, to) graph_mark_edge_for_removal(GENERIC_GRAPH(g), (from), (to))
+
+///
+/// Check whether an edge is currently marked for removal.
+///
+/// g[in]    : Graph owning the edge.
+/// from[in] : Source node id.
+/// to[in]   : Destination node id.
+///
+/// SUCCESS: `true` when the edge is pending removal.
+/// FAILURE: `false`
+///
+/// TAGS: Graph, Edge, Delete, Query
+///
+#define GraphEdgeMarkedForRemoval(g, from, to) graph_edge_marked_for_removal(GENERIC_GRAPH(g), (from), (to))
+
+///
+/// Remove a pending edge-removal mark before commit.
+///
+/// g[in,out] : Graph owning the edge.
+/// from[in]  : Source node id.
+/// to[in]    : Destination node id.
+///
+/// SUCCESS: `true` when an edge-removal mark was removed.
+/// FAILURE: `false` when the edge was not marked.
+///
+/// TAGS: Graph, Edge, Delete, Unmark
+///
+#define GraphUnmarkEdgeForRemoval(g, from, to) graph_unmark_edge_for_removal(GENERIC_GRAPH(g), (from), (to))
+
+///
+/// Apply all pending edge removals and node deletion marks.
 ///
 /// Deleted slots remain reusable and future nodes may reuse their slot indices with
 /// fresh generations.
 ///
 /// g[in,out] : Graph to commit.
 ///
-/// SUCCESS: Number of nodes deleted by this commit.
+/// SUCCESS: Number of pending removals applied by this commit.
+///          Explicit edge removals and node deletion marks are counted once each.
+///          Incident edge cleanup caused by node deletion is not counted separately.
 /// FAILURE: Does not return on invalid graph.
 ///
 /// TAGS: Graph, Node, Delete, Commit

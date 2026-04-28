@@ -67,10 +67,106 @@ static bool test_graph_mark_delete_commit_and_reuse(void) {
     return result;
 }
 
+static bool test_graph_query_and_unmark_node_deletion(void) {
+    WriteFmt("Testing Graph node mark query and unmark\n");
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit();
+
+    GraphNodeId a    = GraphAddNodeR(&graph, 10);
+    GraphNode   node = GraphGetNode(&graph, a);
+
+    bool result = !GraphNodeMarkedForDeletion(node);
+    result      = result && GraphMarkNodeForDeletion(node);
+    result      = result && GraphNodeMarkedForDeletion(node);
+    result      = result && !GraphMarkNodeForDeletion(node);
+    result      = result && GraphUnmarkNodeForDeletion(node);
+    result      = result && !GraphNodeMarkedForDeletion(node);
+    result      = result && !GraphUnmarkNodeForDeletion(node);
+    result      = result && (GraphCommitChanges(&graph) == 0);
+    result      = result && GraphContainsNode(&graph, a);
+    result      = result && (GraphNodeCount(&graph) == 1);
+
+    GraphDeinit(&graph);
+    return result;
+}
+
+static bool test_graph_mark_edge_for_removal(void) {
+    WriteFmt("Testing GraphMarkEdgeForRemoval and deferred edge commit\n");
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit();
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+    GraphNodeId c = GraphAddNodeR(&graph, 30);
+
+    GraphAddEdge(&graph, a, b);
+    GraphAddEdge(&graph, a, c);
+    GraphAddEdge(&graph, b, c);
+
+    GraphForeachNode(&graph, node) {
+        if (GraphNodeGetId(node) == a) {
+            GraphNodeForeachNeighbor(node, neighbor) {
+                if (GraphNodeGetId(neighbor) == b) {
+                    (void)GraphMarkEdgeForRemoval(&graph, GraphNodeGetId(node), GraphNodeGetId(neighbor));
+                }
+            }
+        }
+    }
+
+    bool result = GraphHasEdge(&graph, a, b);
+    result      = result && GraphMarkEdgeForRemoval(&graph, b, c);
+    result      = result && !GraphMarkEdgeForRemoval(&graph, b, c);
+    result      = result && !GraphMarkEdgeForRemoval(&graph, c, b);
+
+    u64 committed = GraphCommitChanges(&graph);
+
+    result = result && (committed == 2);
+    result = result && !GraphHasEdge(&graph, a, b);
+    result = result && GraphHasEdge(&graph, a, c);
+    result = result && !GraphHasEdge(&graph, b, c);
+    result = result && (GraphEdgeCount(&graph) == 1);
+    result = result && (GraphOutDegree(&graph, a) == 1);
+    result = result && (GraphNeighborAt(&graph, a, 0) == c);
+
+    GraphDeinit(&graph);
+    return result;
+}
+
+static bool test_graph_query_and_unmark_edge_removal(void) {
+    WriteFmt("Testing Graph edge mark query and unmark\n");
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit();
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+
+    GraphAddEdge(&graph, a, b);
+
+    bool result = !GraphEdgeMarkedForRemoval(&graph, a, b);
+    result      = result && GraphMarkEdgeForRemoval(&graph, a, b);
+    result      = result && GraphEdgeMarkedForRemoval(&graph, a, b);
+    result      = result && !GraphMarkEdgeForRemoval(&graph, a, b);
+    result      = result && GraphUnmarkEdgeForRemoval(&graph, a, b);
+    result      = result && !GraphEdgeMarkedForRemoval(&graph, a, b);
+    result      = result && !GraphUnmarkEdgeForRemoval(&graph, a, b);
+    result      = result && (GraphCommitChanges(&graph) == 0);
+    result      = result && GraphHasEdge(&graph, a, b);
+    result      = result && (GraphEdgeCount(&graph) == 1);
+
+    GraphDeinit(&graph);
+    return result;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_graph_node_visit_scratch_state,
         test_graph_mark_delete_commit_and_reuse,
+        test_graph_query_and_unmark_node_deletion,
+        test_graph_mark_edge_for_removal,
+        test_graph_query_and_unmark_edge_removal,
     };
 
     WriteFmt("[INFO] Starting Graph.Ops tests\n\n");
