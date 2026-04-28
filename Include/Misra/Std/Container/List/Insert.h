@@ -45,6 +45,7 @@
         ValidateList(l);                                                                                               \
         LIST_DATA_TYPE(l) * UNPL(_ptrval) = &(lval);                                                                   \
         LIST_DATA_TYPE(l) UNPL(_tmpval)   = *UNPL(_ptrval);                                                            \
+        (void)UNPL(_tmpval);                                                                                           \
         insert_into_list(GENERIC_LIST(l), UNPL(_ptrval), sizeof(LIST_DATA_TYPE(l)), (idx));                            \
         if (!(l)->copy_init) {                                                                                         \
             memset(UNPL(_ptrval), 0, sizeof(LIST_DATA_TYPE(l)));                                                       \
@@ -188,11 +189,12 @@
     do {                                                                                                               \
         ValidateList(l);                                                                                               \
         LIST_DATA_TYPE(l) * UNPL(_ptrval)     = (arr);                                                                 \
+        u64                 UNPL(_count)      = (count);                                                               \
         const LIST_DATA_TYPE(l) UNPL(_tmpval) = *UNPL(_ptrval);                                                        \
         (void)UNPL(_tmpval);                                                                                           \
-        push_arr_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), UNPL(_ptrval), (count));                             \
+        push_arr_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), UNPL(_ptrval), UNPL(_count));                        \
         if (!(l)->copy_init) {                                                                                         \
-            memset(UNPL(_ptrval), 0, sizeof(LIST_DATA_TYPE(l)));                                                       \
+            memset(UNPL(_ptrval), 0, sizeof(LIST_DATA_TYPE(l)) * UNPL(_count));                                       \
         }                                                                                                              \
     } while (0)
 
@@ -220,9 +222,12 @@
         }                                                                                                              \
         merge_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), GENERIC_LIST(l2));                                      \
         if (!(l)->copy_init) {                                                                                         \
+            GenericCopyInit   ci = (l2)->copy_init;                                                                    \
             GenericCopyDeinit cd = (l2)->copy_deinit;                                                                  \
+            (l2)->copy_init      = NULL;                                                                               \
             (l2)->copy_deinit    = NULL;                                                                               \
             ListDeinit(l2);                                                                                            \
+            (l2)->copy_init   = ci;                                                                                    \
             (l2)->copy_deinit = cd;                                                                                    \
         }                                                                                                              \
     } while (0)

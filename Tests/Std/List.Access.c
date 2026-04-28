@@ -10,6 +10,21 @@ static i32 compare_ints(const void *lhs, const void *rhs) {
     return (a > b) - (a < b);
 }
 
+static bool list_matches(GenericList *list, const int *expected, size count) {
+    if (list->length != count) {
+        return false;
+    }
+
+    for (size i = 0; i < count; i++) {
+        int *value_ptr = item_ptr_at_list(list, sizeof(int), i);
+        if (!value_ptr || (*value_ptr != expected[i])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static bool test_list_len_empty(void) {
     WriteFmt("Testing ListLen and ListEmpty\n");
 
@@ -28,6 +43,78 @@ static bool test_list_len_empty(void) {
     ListClear(&list);
     result = result && (ListLen(&list) == 0);
     result = result && ListEmpty(&list);
+    result = result && (list.head == NULL) && (list.tail == NULL);
+
+    ListPushBackR(&list, 30);
+    result = result && list_matches(GENERIC_LIST(&list), (const int[]) {30}, 1);
+
+    ListDeinit(&list);
+    return result;
+}
+
+static bool test_list_value_access_and_swap(void) {
+    WriteFmt("Testing List accessors and swap\n");
+
+    typedef List(int) IntList;
+    IntList list = ListInit();
+
+    ListPushBackR(&list, 10);
+    ListPushBackR(&list, 20);
+    ListPushBackR(&list, 30);
+    ListPushBackR(&list, 40);
+
+    bool result = ListPtrAt(&list, 0) && (*ListPtrAt(&list, 0) == 10);
+    result      = result && ListPtrAt(&list, 3) && (*ListPtrAt(&list, 3) == 40);
+    result      = result && (ListAt(&list, 1) == 20);
+    result      = result && (ListAt(&list, 2) == 30);
+    result      = result && (ListFirst(&list) == 10);
+    result      = result && (ListLast(&list) == 40);
+
+    ListSwapItems(&list, 1, 3);
+    result = result && list_matches(GENERIC_LIST(&list), (const int[]) {10, 40, 30, 20}, 4);
+    ListSwapItems(&list, 2, 2);
+    result = result && list_matches(GENERIC_LIST(&list), (const int[]) {10, 40, 30, 20}, 4);
+
+    ListDeinit(&list);
+    return result;
+}
+
+static bool test_list_node_access_and_navigation(void) {
+    WriteFmt("Testing List node access and navigation\n");
+
+    typedef List(int) IntList;
+    IntList list = ListInit();
+
+    ListPushBackR(&list, 10);
+    ListPushBackR(&list, 20);
+    ListPushBackR(&list, 30);
+    ListPushBackR(&list, 40);
+
+    GenericListNode *node1  = GENERIC_LIST_NODE(ListNodePtrAt(&list, 1));
+    GenericListNode *begin  = GENERIC_LIST_NODE(ListNodeBegin(&list));
+    GenericListNode *end    = GENERIC_LIST_NODE(ListNodeEnd(&list));
+    GenericListNode *same   = ListNodeRelative(ListNodeBegin(&list), 0);
+    GenericListNode *rel_f2 = ListNodeRelative(ListNodeBegin(&list), 2);
+    GenericListNode *rel_b2 = ListNodeRelative(ListNodeEnd(&list), -2);
+    ListNode(int)   *null_node = NULL;
+
+    bool result = node1 && node1->data && (*(int *)node1->data == 20);
+    result      = result && begin && begin->data && (*(int *)begin->data == 10);
+    result      = result && end && end->data && (*(int *)end->data == 40);
+    result      = result && ListNodeAt(&list, 2).data && (*ListNodeAt(&list, 2).data == 30);
+    result      = result && ListNodeFirst(&list).data && (*ListNodeFirst(&list).data == 10);
+    result      = result && ListNodeLast(&list).data && (*ListNodeLast(&list).data == 40);
+    result      = result && ListNodeNext(ListNodeBegin(&list)) && ListNodeNext(ListNodeBegin(&list))->data &&
+                  (*ListNodeNext(ListNodeBegin(&list))->data == 20);
+    result      = result && ListNodePrev(ListNodeEnd(&list)) && ListNodePrev(ListNodeEnd(&list))->data &&
+                  (*ListNodePrev(ListNodeEnd(&list))->data == 30);
+    result      = result && (same == begin);
+    result      = result && rel_f2 && rel_f2->data && (*(int *)rel_f2->data == 30);
+    result      = result && rel_b2 && rel_b2->data && (*(int *)rel_b2->data == 20);
+    result      = result && (ListNodeRelative(ListNodeBegin(&list), -1) == NULL);
+    result      = result && (ListNodeRelative(ListNodeEnd(&list), 1) == NULL);
+    result      = result && (ListNodeNext(null_node) == NULL);
+    result      = result && (ListNodePrev(null_node) == NULL);
 
     ListDeinit(&list);
     return result;
@@ -61,6 +148,8 @@ static bool test_list_find_contains(void) {
 int main(void) {
     TestFunction tests[] = {
         test_list_len_empty,
+        test_list_value_access_and_swap,
+        test_list_node_access_and_navigation,
         test_list_find_contains,
     };
 

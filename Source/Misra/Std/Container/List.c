@@ -37,9 +37,15 @@ void insert_into_list(GenericList *list, void *item_data, u64 item_size, u64 idx
         if (node) {
             new_node->prev = node;
             new_node->next = node->next;
+            if (new_node->next) {
+                new_node->next->prev = new_node;
+            }
             node->next     = new_node;
         } else {
             new_node->next = list->head;
+            if (list->head) {
+                list->head->prev = new_node;
+            }
             list->head     = new_node;
             new_node->prev = NULL;
         }
@@ -135,9 +141,13 @@ void remove_range_list(GenericList *list, void *removed_data, u64 item_size, u64
         GenericListNode *prev = node->prev;
         if (prev) {
             prev->next = next;
+        } else {
+            list->head = next;
         }
         if (next) {
             next->prev = prev;
+        } else {
+            list->tail = prev;
         }
 
         // remove link
@@ -152,7 +162,7 @@ void remove_range_list(GenericList *list, void *removed_data, u64 item_size, u64
 
 
 void qsort_list(GenericList *list, u64 item_size, GenericCompare comp) {
-    if (!list || !item_size) {
+    if (!list || !item_size || !comp) {
         LOG_FATAL("invalid arguments.");
     }
 
@@ -251,6 +261,7 @@ void push_arr_list(GenericList *list, u64 item_size, void *arr, u64 count) {
 
         // insert data
         if (list->copy_init) {
+            memset(new_tail->data, 0, item_size);
             list->copy_init(new_tail->data, arr);
         } else {
             memcpy(new_tail->data, arr, item_size);
@@ -351,12 +362,22 @@ void validate_list(const GenericList *l) {
     if ((l)->__magic != MISRA_LIST_MAGIC) {
         LOG_FATAL("Invalid list. Either not initialized or corrupted!");
     }
-    if ((l)->length > 0) {
+    if ((l)->length == 0) {
+        if ((l)->head || (l)->tail) {
+            LOG_FATAL("Empty list must have NULL head and tail.");
+        }
+    } else {
         if (!(l)->head) {
             LOG_FATAL("Non-empty list has NULL head.");
         }
         if (!(l)->tail) {
             LOG_FATAL("Non-empty list has NULL tail.");
+        }
+        if ((l)->head->prev) {
+            LOG_FATAL("List head must not have a previous node.");
+        }
+        if ((l)->tail->next) {
+            LOG_FATAL("List tail must not have a next node.");
         }
     }
 }
@@ -436,4 +457,37 @@ GenericListNode *get_node_random_access(GenericList *list, GenericListNode *node
         }
         return cur;
     }
+}
+
+GenericListNode *get_node_for_list_iteration(GenericList *list, GenericListNode *node, u64 nidx, u64 target_idx) {
+    if (!list) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    ValidateList(list);
+
+    if (target_idx >= list->length) {
+        LOG_FATAL("Node index exceeds list bounds");
+    }
+
+    if (!node) {
+        u64 dist_from_head = target_idx;
+        u64 dist_from_tail = list->length - 1 - target_idx;
+
+        if (dist_from_head <= dist_from_tail) {
+            GenericListNode *cur = list->head;
+            for (u64 i = 0; i < target_idx && cur; i++) {
+                cur = cur->next;
+            }
+            return cur;
+        } else {
+            GenericListNode *cur = list->tail;
+            for (u64 i = list->length - 1; i > target_idx && cur; i--) {
+                cur = cur->prev;
+            }
+            return cur;
+        }
+    }
+
+    return get_node_random_access(list, node, nidx, (i64)target_idx - (i64)nidx);
 }

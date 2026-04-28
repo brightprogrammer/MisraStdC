@@ -252,26 +252,20 @@
 ///
 /// TAGS: Foreach, List, Iteration, Loop, Index
 ///
-#define ListForeachIdx(l, var, idx)                                                                                    \
-    for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                         \
-        if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->head)                                                             \
-            for (u64 idx = 0, UNPL(pidx) = 0; idx < UNPL(pl)->length;)                                                 \
-                for (GenericListNode * UNPL(node) = (GenericListNode *)ListNodeBegin(UNPL(pl)), *UNPL(next) = NULL;    \
-                     UNPL(node) &&                                                                                     \
-                     (UNPL(next) =                                                                                     \
-                          (UNPL(pidx) ? (GenericListNode *)get_node_random_access(                                     \
-                                            GENERIC_LIST(UNPL(pl)),                                                    \
-                                            GENERIC_LIST_NODE(UNPL(node)),                                             \
-                                            UNPL(pidx),                                                                \
-                                            (i64)(idx) - (i64)UNPL(pidx)                                               \
-                                        ) :                                                                            \
-                                        (GenericListNode *)UNPL(pl)->head)) &&                                         \
-                     UNPL(next) && UNPL(next)->data;                                                                   \
-                     UNPL(pidx) = ++idx, UNPL(node) = UNPL(next))                                                      \
-                    for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                    \
-                        for (LIST_DATA_TYPE(UNPL(pl)) var = *((LIST_DATA_TYPE(UNPL(pl)) *)(UNPL(next)->data));         \
-                             UNPL(_once);                                                                              \
-                             UNPL(_once) = false)
+#define ListForeachIdx(l, var, idx)                                                                                      \
+    for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                           \
+        if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->head)                                                               \
+            for (GenericListNode * UNPL(cursor) = NULL, *UNPL(node) = NULL; UNPL(pl); UNPL(pl) = NULL)                 \
+                for (u64 idx = 0, UNPL(cursor_idx) = 0, UNPL(resolved_idx) = 0; idx < UNPL(pl)->length;                \
+                     UNPL(cursor) = UNPL(node), UNPL(cursor_idx) = UNPL(resolved_idx),                                  \
+                         idx = ((idx != UNPL(resolved_idx)) ? idx : (UNPL(resolved_idx) + 1)))                          \
+                    if ((UNPL(node) = get_node_for_list_iteration(                                                       \
+                             GENERIC_LIST(UNPL(pl)), UNPL(cursor), UNPL(cursor_idx), idx)) &&                           \
+                        ((UNPL(resolved_idx) = idx), 1) && UNPL(node)->data)                                             \
+                        for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                  \
+                            for (LIST_DATA_TYPE(UNPL(pl)) var = *((LIST_DATA_TYPE(UNPL(pl)) *)(UNPL(node)->data));      \
+                                 UNPL(_once);                                                                            \
+                                 UNPL(_once) = false)
 
 ///
 /// Iterate over each element `var` (as a pointer) of the given list `l`, with index `idx`.
@@ -293,24 +287,20 @@
 ///
 /// TAGS: Foreach, List, Iteration, Loop, Index, Pointer
 ///
-#define ListForeachPtrIdx(l, var, idx)                                                                                 \
-    for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                         \
-        if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->head)                                                             \
-            for (u64 idx = 0, UNPL(pidx) = 0; idx < UNPL(pl)->length;)                                                 \
-                for (GenericListNode * UNPL(node) = (GenericListNode *)ListNodeBegin(UNPL(pl)), *UNPL(next) = NULL;    \
-                     UNPL(node) &&                                                                                     \
-                     (UNPL(next) =                                                                                     \
-                          (UNPL(pidx) ? (GenericListNode *)get_node_random_access(                                     \
-                                            GENERIC_LIST(UNPL(pl)),                                                    \
-                                            GENERIC_LIST_NODE(UNPL(node)),                                             \
-                                            UNPL(pidx),                                                                \
-                                            (i64)(idx) - (i64)UNPL(pidx)                                               \
-                                        ) :                                                                            \
-                                        (GenericListNode *)UNPL(pl)->head)) &&                                         \
-                     UNPL(next) && UNPL(next)->data;                                                                   \
-                     UNPL(pidx) = ++idx, UNPL(node) = UNPL(next))                                                      \
-                    for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                    \
-                        for (LIST_DATA_TYPE(UNPL(pl)) *var = UNPL(next)->data; UNPL(_once); UNPL(_once) = false)
+#define ListForeachPtrIdx(l, var, idx)                                                                                   \
+    for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                           \
+        if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->head)                                                               \
+            for (GenericListNode * UNPL(cursor) = NULL, *UNPL(node) = NULL; UNPL(pl); UNPL(pl) = NULL)                 \
+                for (u64 idx = 0, UNPL(cursor_idx) = 0, UNPL(resolved_idx) = 0; idx < UNPL(pl)->length;                \
+                     UNPL(cursor) = UNPL(node), UNPL(cursor_idx) = UNPL(resolved_idx),                                  \
+                         idx = ((idx != UNPL(resolved_idx)) ? idx : (UNPL(resolved_idx) + 1)))                          \
+                    if ((UNPL(node) = get_node_for_list_iteration(                                                       \
+                             GENERIC_LIST(UNPL(pl)), UNPL(cursor), UNPL(cursor_idx), idx)) &&                           \
+                        ((UNPL(resolved_idx) = idx), 1) && UNPL(node)->data)                                             \
+                        for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                  \
+                            for (LIST_DATA_TYPE(UNPL(pl)) *var = (LIST_DATA_TYPE(UNPL(pl)) *)UNPL(node)->data;          \
+                                 UNPL(_once);                                                                            \
+                                 UNPL(_once) = false)
 
 ///
 /// Iterate over each element `var` of the given list `l` in reverse order, with index `idx`.
@@ -330,37 +320,23 @@
 ///
 /// TAGS: Foreach, List, Iteration, Loop, Index, Reverse
 ///
-#define ListForeachReverseIdx(l, var, idx)                                                                             \
-    for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                         \
-        if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->tail && UNPL(pl)->length > 0)                                     \
-            for (u64 idx            = UNPL(pl)->length - 1,                                                            \
-                     UNPL(pidx)     = UNPL(pl)->length - 1,                                                            \
-                     UNPL(first)    = 1,                                                                               \
-                     UNPL(user_idx) = 0;                                                                               \
-                 idx < UNPL(pl)->length;)                                                                              \
-                for (GenericListNode * UNPL(node)  = (UNPL(first) ? (GenericListNode *)UNPL(pl)->tail : NULL),         \
-                                       *UNPL(next) = NULL;                                                             \
-                     UNPL(node) && idx < UNPL(pl)->length && (UNPL(first) = 0) &&                                      \
-                     (UNPL(next) =                                                                                     \
-                          (UNPL(pidx) != idx ? (GenericListNode *)get_node_random_access(                              \
-                                                   GENERIC_LIST(UNPL(pl)),                                             \
-                                                   GENERIC_LIST_NODE(UNPL(node)),                                      \
-                                                   UNPL(pidx),                                                         \
-                                                   (i64)(idx) - (i64)UNPL(pidx)                                        \
-                                               ) :                                                                     \
-                                               UNPL(node))) &&                                                         \
-                     UNPL(next) && UNPL(next)->data;                                                                   \
-                     UNPL(node) = UNPL(next), UNPL(pidx) = idx)                                                        \
-                    for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                    \
-                        for (LIST_DATA_TYPE(UNPL(pl)) var = *((LIST_DATA_TYPE(UNPL(pl)) *)(UNPL(next)->data));         \
-                             UNPL(_once);                                                                              \
-                             UNPL(_once) = false)                                                                      \
-                            for (bool UNPL(_update)  = true; UNPL(_update);                                            \
-                                 UNPL(_update)       = false,                                                          \
-                                      UNPL(user_idx) = idx,                                                            \
-                                      idx =                                                                            \
-                                          (UNPL(user_idx) != UNPL(pidx) ? UNPL(user_idx) :                             \
-                                                                          (idx > 0 ? idx - 1 : UNPL(pl)->length)))
+#define ListForeachReverseIdx(l, var, idx)                                                                               \
+    for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                           \
+        if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->tail && UNPL(pl)->length > 0)                                      \
+            for (GenericListNode * UNPL(cursor) = NULL, *UNPL(node) = NULL; UNPL(pl); UNPL(pl) = NULL)                 \
+                for (u64 idx = UNPL(pl)->length - 1, UNPL(cursor_idx) = 0, UNPL(resolved_idx) = 0;                     \
+                     idx < UNPL(pl)->length;                                                                            \
+                     UNPL(cursor) = UNPL(node), UNPL(cursor_idx) = UNPL(resolved_idx),                                  \
+                         idx = ((idx != UNPL(resolved_idx)) ? idx :                                                      \
+                                                               (UNPL(resolved_idx) > 0 ? UNPL(resolved_idx) - 1        \
+                                                                                        : UNPL(pl)->length)))            \
+                    if ((UNPL(node) = get_node_for_list_iteration(                                                       \
+                             GENERIC_LIST(UNPL(pl)), UNPL(cursor), UNPL(cursor_idx), idx)) &&                           \
+                        ((UNPL(resolved_idx) = idx), 1) && UNPL(node)->data)                                             \
+                        for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                  \
+                            for (LIST_DATA_TYPE(UNPL(pl)) var = *((LIST_DATA_TYPE(UNPL(pl)) *)(UNPL(node)->data));      \
+                                 UNPL(_once);                                                                            \
+                                 UNPL(_once) = false)
 
 ///
 /// Iterate over each element `var` of the given list `l` in reverse order, with index `idx`.
@@ -380,34 +356,22 @@
 ///
 /// TAGS: Foreach, List, Iteration, Loop, Index, Reverse
 ///
-#define ListForeachPtrReverseIdx(l, var, idx)                                                                          \
-    for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                         \
-        if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->tail && UNPL(pl)->length > 0)                                     \
-            for (u64 idx            = UNPL(pl)->length - 1,                                                            \
-                     UNPL(pidx)     = UNPL(pl)->length - 1,                                                            \
-                     UNPL(first)    = 1,                                                                               \
-                     UNPL(user_idx) = 0;                                                                               \
-                 idx < UNPL(pl)->length;)                                                                              \
-                for (GenericListNode * UNPL(node)  = (UNPL(first) ? (GenericListNode *)UNPL(pl)->tail : NULL),         \
-                                       *UNPL(next) = NULL;                                                             \
-                     UNPL(node) && idx < UNPL(pl)->length && (UNPL(first) = 0) &&                                      \
-                     (UNPL(next) =                                                                                     \
-                          (UNPL(pidx) != idx ? get_node_random_access(                                                 \
-                                                   GENERIC_LIST(UNPL(pl)),                                             \
-                                                   GENERIC_LIST_NODE(UNPL(node)),                                      \
-                                                   UNPL(pidx),                                                         \
-                                                   (i64)(idx) - (i64)(UNPL(pidx))                                      \
-                                               ) :                                                                     \
-                                               UNPL(node))) &&                                                         \
-                     UNPL(next) && UNPL(next)->data;                                                                   \
-                     UNPL(node) = UNPL(next), UNPL(pidx) = idx)                                                        \
-                    for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                    \
-                        for (LIST_DATA_TYPE(UNPL(pl)) *var = UNPL(next)->data; UNPL(_once); UNPL(_once) = false)       \
-                            for (bool UNPL(_update)  = true; UNPL(_update);                                            \
-                                 UNPL(_update)       = false,                                                          \
-                                      UNPL(user_idx) = idx,                                                            \
-                                      idx =                                                                            \
-                                          (UNPL(user_idx) != UNPL(pidx) ? UNPL(user_idx) :                             \
-                                                                          (idx > 0 ? idx - 1 : UNPL(pl)->length)))
+#define ListForeachPtrReverseIdx(l, var, idx)                                                                            \
+    for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                           \
+        if ((ValidateList(UNPL(pl)), 1) && UNPL(pl)->tail && UNPL(pl)->length > 0)                                      \
+            for (GenericListNode * UNPL(cursor) = NULL, *UNPL(node) = NULL; UNPL(pl); UNPL(pl) = NULL)                 \
+                for (u64 idx = UNPL(pl)->length - 1, UNPL(cursor_idx) = 0, UNPL(resolved_idx) = 0;                     \
+                     idx < UNPL(pl)->length;                                                                            \
+                     UNPL(cursor) = UNPL(node), UNPL(cursor_idx) = UNPL(resolved_idx),                                  \
+                         idx = ((idx != UNPL(resolved_idx)) ? idx :                                                      \
+                                                               (UNPL(resolved_idx) > 0 ? UNPL(resolved_idx) - 1        \
+                                                                                        : UNPL(pl)->length)))            \
+                    if ((UNPL(node) = get_node_for_list_iteration(                                                       \
+                             GENERIC_LIST(UNPL(pl)), UNPL(cursor), UNPL(cursor_idx), idx)) &&                           \
+                        ((UNPL(resolved_idx) = idx), 1) && UNPL(node)->data)                                             \
+                        for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                  \
+                            for (LIST_DATA_TYPE(UNPL(pl)) *var = (LIST_DATA_TYPE(UNPL(pl)) *)UNPL(node)->data;          \
+                                 UNPL(_once);                                                                            \
+                                 UNPL(_once) = false)
 
 #endif // MISRA_STD_CONTAINER_LIST_FOREACH_H

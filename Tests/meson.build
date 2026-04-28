@@ -53,7 +53,14 @@ graph_tests = [
 ]
 
 list_tests = [
+    ['List.Type', 'Std/List.Type.c'],
+    ['List.Init', 'Std/List.Init.c'],
     ['List.Access', 'Std/List.Access.c'],
+    ['List.Insert', 'Std/List.Insert.c'],
+    ['List.Remove', 'Std/List.Remove.c'],
+    ['List.Foreach', 'Std/List.Foreach.c'],
+    ['List.Ops', 'Std/List.Ops.c'],
+    ['List.Deadend', 'Std/List.Deadend.c'],
 ]
 
 map_tests = [

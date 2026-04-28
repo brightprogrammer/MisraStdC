@@ -163,7 +163,7 @@
 /// SUCCESS: Node in given list at given index.
 /// FAILURE: Empty node struct.
 ///
-#define ListNodeAt(l, idx) *((LIST_NODE_TYPE(l) *)(node_at_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (idx))))
+#define ListNodeAt(l, idx) (*((LIST_NODE_TYPE(l) *)(node_at_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (idx)))))
 
 ///
 /// Head node in list.
@@ -216,6 +216,6 @@
 /// SUCCESS: Node relative to given `item` in list.
 /// FAILURE: `NULL` or abort
 ///
-#define ListNodeRelative(base_node, ridx) get_relative_node_to_list_node(GENERIC_LIST_NODE(base_node), (i64)(ridx))
+#define ListNodeRelative(base_node, ridx) get_node_relative_to_list_node(GENERIC_LIST_NODE(base_node), (i64)(ridx))
 
 #endif // MISRA_STD_CONTAINER_LIST_ACCESS_H

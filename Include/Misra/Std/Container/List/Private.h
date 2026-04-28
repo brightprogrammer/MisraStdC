@@ -25,5 +25,6 @@ size             find_idx_list(GenericList *list, const void *item_data, u64 ite
 void             validate_list(const GenericList *list);
 GenericListNode *get_node_relative_to_list_node(GenericListNode *node, i64 ridx);
 GenericListNode *get_node_random_access(GenericList *list, GenericListNode *node, u64 nidx, i64 ridx);
+GenericListNode *get_node_for_list_iteration(GenericList *list, GenericListNode *node, u64 nidx, u64 target_idx);
 
 #endif // MISRA_STD_CONTAINER_LIST_PRIVATE_H

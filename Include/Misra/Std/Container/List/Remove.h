@@ -21,7 +21,7 @@
 /// FAILURE : Returns NULL otherwise.
 ///
 #define ListRemove(l, val, idx)                                                                                        \
-    remove_range_list(GENERIC_LIST(l), (val), sizeof(LIST_DATA_TYPE(l)), ((l)->length - 1), 1)
+    remove_range_list(GENERIC_LIST(l), (val), sizeof(LIST_DATA_TYPE(l)), (idx), 1)
 
 ///
 /// Remove item from the very beginning of list.
@@ -45,7 +45,7 @@
 /// SUCCESS : Returns `v` on success
 /// FAILURE : Returns NULL otherwise.
 ///
-#define ListPopBack(l, val) ListRemove((l), (val), ((l) ? (l)->length - 1 : (size_t)-1));
+#define ListPopBack(l, val) ListRemove((l), (val), (l)->length - 1)
 
 ///
 /// Remove data from list in given range [start, start + count)
@@ -66,7 +66,7 @@
 ///
 /// Delete last item from list
 ///
-#define ListDeleteLast(l) ListPop((l), NULL)
+#define ListDeleteLast(l) ListPopBack((l), NULL)
 
 ///
 /// Delete item at given index
