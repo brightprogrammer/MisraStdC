@@ -220,6 +220,71 @@ static bool test_graph_self_loop_edge_removal(void) {
     return result;
 }
 
+static bool test_graph_edge_removal_and_node_deletion_overlap(void) {
+    WriteFmt("Testing overlap between pending edge removal and node deletion\n");
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit();
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+    GraphNodeId c = GraphAddNodeR(&graph, 30);
+    GraphNodeId d = GraphAddNodeR(&graph, 40);
+
+    GraphAddEdge(&graph, a, b);
+    GraphAddEdge(&graph, b, c);
+    GraphAddEdge(&graph, d, b);
+
+    bool result = GraphMarkEdgeForRemoval(&graph, a, b);
+    result      = result && GraphMarkNodeForDeletion(GraphGetNode(&graph, b));
+    result      = result && GraphEdgeMarkedForRemoval(&graph, a, b);
+    result      = result && GraphNodeMarkedForDeletion(GraphGetNode(&graph, b));
+    result      = result && (GraphCommitChanges(&graph) == 2);
+    result      = result && !GraphContainsNode(&graph, b);
+    result      = result && (GraphNodeCount(&graph) == 3);
+    result      = result && (GraphEdgeCount(&graph) == 0);
+    result      = result && (GraphOutDegree(&graph, a) == 0);
+    result      = result && (GraphOutDegree(&graph, d) == 0);
+    result      = result && (GraphInDegree(&graph, c) == 0);
+    result      = result && (GraphInDegree(&graph, a) == 0);
+    result      = result && (GraphInDegree(&graph, d) == 0);
+
+    GraphDeinit(&graph);
+    return result;
+}
+
+static bool test_graph_external_indexed_state_requires_reset_on_reuse(void) {
+    WriteFmt("Testing external slot-indexed state across delete and reuse\n");
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit();
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+    u64         counts[2] = {0};
+
+    counts[GraphNodeIdIndex(a)] = 11;
+    counts[GraphNodeIdIndex(b)] = 29;
+
+    bool result = GraphMarkNodeForDeletion(GraphGetNode(&graph, b));
+    result      = result && (GraphCommitChanges(&graph) == 1);
+    result      = result && !GraphContainsNode(&graph, b);
+
+    GraphNodeId reused = GraphAddNodeR(&graph, 99);
+
+    result = result && (GraphNodeIdIndex(reused) == GraphNodeIdIndex(b));
+    result = result && (GraphNodeIdGeneration(reused) == (GraphNodeIdGeneration(b) + 1));
+    result = result && (counts[GraphNodeIdIndex(reused)] == 29);
+
+    counts[GraphNodeIdIndex(reused)] = 0;
+    result = result && (counts[GraphNodeIdIndex(reused)] == 0);
+    result = result && (counts[GraphNodeIdIndex(a)] == 11);
+    result = result && (GraphNodeAt(&graph, reused) == 99);
+
+    GraphDeinit(&graph);
+    return result;
+}
+
 static bool test_graph_stale_node_handle_after_commit_deadend(void) {
     WriteFmt("Testing stale GraphNode handle after commit (should abort)\n");
 
@@ -246,6 +311,8 @@ int main(void) {
         test_graph_query_and_unmark_edge_removal,
         test_graph_partial_unmark_of_multiple_edge_removals,
         test_graph_self_loop_edge_removal,
+        test_graph_edge_removal_and_node_deletion_overlap,
+        test_graph_external_indexed_state_requires_reset_on_reuse,
     };
     TestFunction deadend_tests[] = {
         test_graph_stale_node_handle_after_commit_deadend,

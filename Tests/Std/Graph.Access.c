@@ -96,6 +96,22 @@ static bool test_graph_predecessor_access_oob_deadend(void) {
     return false;
 }
 
+static bool test_graph_neighbor_access_oob_deadend(void) {
+    WriteFmt("Testing GraphNeighborAt out-of-bounds access (should abort)\n");
+
+    typedef Graph(int) IntGraph;
+    IntGraph graph = GraphInit();
+
+    GraphNodeId a = GraphAddNodeR(&graph, 10);
+    GraphNodeId b = GraphAddNodeR(&graph, 20);
+
+    GraphAddEdge(&graph, a, b);
+    (void)GraphNeighborAt(&graph, b, 0);
+
+    GraphDeinit(&graph);
+    return false;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_graph_access_helpers,
@@ -104,6 +120,7 @@ int main(void) {
     TestFunction deadend_tests[] = {
         test_graph_cross_graph_node_handle_deadend,
         test_graph_predecessor_access_oob_deadend,
+        test_graph_neighbor_access_oob_deadend,
     };
 
     WriteFmt("[INFO] Starting Graph.Access tests\n\n");
