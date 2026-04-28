@@ -285,14 +285,22 @@ int main(void) {
 ```c
 #include <Misra.h>
 
-typedef Graph(const char *) NameGraph;
+typedef Graph(Str) NameGraph;
 
 int main(void) {
-    NameGraph graph = GraphInit();
+    NameGraph graph = GraphInitWithDeepCopy(StrInitCopy, StrDeinit);
 
-    GraphNodeId alpha = GraphAddNodeR(&graph, "Alpha");
-    GraphNodeId beta  = GraphAddNodeR(&graph, "Beta");
-    GraphNodeId gamma = GraphAddNodeR(&graph, "Gamma");
+    Str alpha_name = StrInitFromZstr("Alpha");
+    Str beta_name  = StrInitFromZstr("Beta");
+    Str gamma_name = StrInitFromZstr("Gamma");
+
+    GraphNodeId alpha = GraphAddNodeL(&graph, alpha_name);
+    GraphNodeId beta  = GraphAddNodeL(&graph, beta_name);
+    GraphNodeId gamma = GraphAddNodeL(&graph, gamma_name);
+
+    StrDeinit(&alpha_name);
+    StrDeinit(&beta_name);
+    StrDeinit(&gamma_name);
 
     GraphAddEdge(&graph, alpha, beta);
     GraphAddEdge(&graph, beta, gamma);
@@ -308,7 +316,13 @@ int main(void) {
 }
 ```
 
-`Graph(T)` is meant for analysis-heavy work such as reachability, control-flow, and dependency traversal. In real named-node workloads you usually pair it with a side `Map(name -> node_id)`. The in-depth guide on the docs site covers that full model: node ids and handles, predecessor traversal, deferred deletion, and side-state patterns.
+`Graph(T)` is meant for analysis-heavy work such as reachability, control-flow, and dependency traversal. For graph-owned names, prefer `Graph(Str)` plus `GraphInitWithDeepCopy(StrInitCopy, StrDeinit)` as shown above.
+
+`Graph(const char *)` is still valid, but only when every stored pointer refers to memory that outlives the graph, such as string literals, interned names, or externally owned stable storage. It is a borrowed-pointer graph, not a copying string graph.
+
+This is separate from the formatted-I/O caveat later in this README: `WriteFmtLn("{}", GraphNodeData(&graph, node))` is fine here because `GraphNodeData(...)` yields a `Str` or `const char *` value. What does not work is passing a raw string-literal or `char[]` array expression directly to the formatter.
+
+In real named-node workloads you usually pair the graph with a side `Map(name -> node_id)`. The in-depth guide on the docs site covers that full model: node ids and handles, predecessor traversal, deferred deletion, and side-state patterns.
 
 ### Formatted I/O
 
@@ -632,6 +646,8 @@ void process_buffer(char* buffer) {
 
 It does not automatically treat array types as pointer cases, so `char[6]`, `char[20]`, `const char[10]`, and similar
 types must be bound to `char*` or `const char*` variables first.
+
+That typing rule is separate from pointer lifetime. Once a value has pointer type, formatting it is fine only if the pointed-to storage is still valid for the duration of the call.
 
 ### Basic Usage
 
