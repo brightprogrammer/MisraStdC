@@ -64,6 +64,7 @@ map_tests = [
     ['Map.Remove', 'Std/Map.Remove.c'],
     ['Map.Foreach', 'Std/Map.Foreach.c'],
     ['Map.Ops', 'Std/Map.Ops.c'],
+    ['Map.Deadend', 'Std/Map.Deadend.c'],
 ]
 
 bitvec_tests = [

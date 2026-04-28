@@ -120,6 +120,30 @@ static bool test_map_value_cursor_query(void) {
     return result;
 }
 
+static bool test_map_cursor_invalidated_after_removal(void) {
+    typedef Map(int, int) IntIntMap;
+    IntIntMap      map    = MapInit(int_hash, int_compare);
+    MapValueCursor cursor = MapValueCursorInvalid();
+
+    MapInsertR(&map, 5, 50);
+    MapInsertR(&map, 5, 51);
+
+    cursor = MapFindFirstForKey(&map, 5);
+    if (!MapValueCursorIsValid(cursor)) {
+        MapDeinit(&map);
+        return false;
+    }
+
+    MapRemoveFirst(&map, 5);
+
+    bool result = (MapValuePtrFromCursor(&map, cursor) == NULL);
+    result      = result && (MapValueCountForKey(&map, 5) == 1);
+    result      = result && MapGetFirstPtr(&map, 5) && (*MapGetFirstPtr(&map, 5) == 51);
+
+    MapDeinit(&map);
+    return result;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_map_contains_and_find,
@@ -127,6 +151,7 @@ int main(void) {
         test_map_try_get_ptr,
         test_map_get_or_default,
         test_map_value_cursor_query,
+        test_map_cursor_invalidated_after_removal,
     };
 
     WriteFmt("[INFO] Starting Map.Access tests\n\n");

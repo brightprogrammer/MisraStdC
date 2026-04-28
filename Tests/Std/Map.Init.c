@@ -52,13 +52,23 @@ static size custom_next_index(u64 hash, size capacity, size previous_index, size
 static bool test_map_reserve_and_clear(void) {
     typedef Map(int, int) IntIntMap;
     IntIntMap map = MapInit(int_hash, int_compare);
+    size      reserved_capacity;
 
     MapReserve(&map, 32);
-    MapSetOnlyR(&map, 1, 10);
-    MapSetOnlyR(&map, 2, 20);
+    reserved_capacity = (size)map.capacity;
+
+    MapInsertR(&map, 1, 10);
+    MapInsertR(&map, 1, 11);
+    MapInsertR(&map, 2, 20);
+    MapRemoveFirst(&map, 1);
     MapClear(&map);
 
-    bool result = map.capacity >= 32 && MapPairCount(&map) == 0 && MapEmpty(&map);
+    bool result = (reserved_capacity >= 32) && (map.capacity == reserved_capacity) && (map.tombstones == 0) &&
+                  (MapPairCount(&map) == 0) && MapEmpty(&map) && !MapContainsKey(&map, 1) && !MapContainsKey(&map, 2);
+
+    MapSetOnlyR(&map, 7, 70);
+    result = result && (MapPairCount(&map) == 1) && (MapValueCountForKey(&map, 7) == 1);
+    result = result && MapGetFirstPtr(&map, 7) && (*MapGetFirstPtr(&map, 7) == 70);
 
     MapDeinit(&map);
     return result;
