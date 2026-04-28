@@ -26,8 +26,20 @@ void insert_into_list(GenericList *list, void *item_data, u64 item_size, u64 idx
 
     ValidateList(list);
 
+    if (idx > list->length) {
+        LOG_FATAL("list index out of range.");
+    }
+
     GenericListNode *new_node = calloc(sizeof(GenericListNode), 1);
+    if (!new_node) {
+        LOG_FATAL("Failed to allocate memory for new node");
+    }
+
     new_node->data            = calloc(item_size, 1);
+    if (!new_node->data) {
+        free(new_node);
+        LOG_FATAL("Failed to allocate memory for node data");
+    }
 
     if (idx < list->length) {
         // get node after which insertion will take place
@@ -83,8 +95,6 @@ void insert_into_list(GenericList *list, void *item_data, u64 item_size, u64 idx
         } else {
             memcpy(new_node->data, item_data, item_size);
         }
-    } else {
-        LOG_FATAL("list index out of range.");
     }
 
     list->length += 1;
