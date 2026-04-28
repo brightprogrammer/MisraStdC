@@ -9,6 +9,9 @@
 #include <Misra/Sys.h>
 
 #include <stdlib.h>
+#if defined(_MSC_VER) || defined(__MSC_VER)
+#    include <malloc.h>
+#endif
 
 #define MISRA_GRAPH_SLOT_OCCUPIED ((u32)1u << 0)
 #define MISRA_GRAPH_SLOT_MARKED   ((u32)1u << 1)
@@ -29,6 +32,26 @@ static void graph_validate_alignment(const GenericGraph *graph) {
     if ((graph->alignment > 1) && !graph_alignment_is_pow2(graph->alignment)) {
         LOG_FATAL("Graph alignment must be 1 or a power of two");
     }
+}
+
+static bool graph_uses_custom_aligned_allocation(const GenericGraph *graph) {
+    return graph->alignment > sizeof(void *);
+}
+
+static void *graph_aligned_alloc(size alignment, size alloc_size) {
+#if defined(_MSC_VER) || defined(__MSC_VER)
+    return _aligned_malloc(alloc_size, alignment);
+#else
+    return aligned_alloc(alignment, alloc_size);
+#endif
+}
+
+static void graph_aligned_free(void *ptr) {
+#if defined(_MSC_VER) || defined(__MSC_VER)
+    _aligned_free(ptr);
+#else
+    free(ptr);
+#endif
 }
 
 static void graph_validate_slot_limit(const GenericGraph *graph) {
@@ -111,7 +134,7 @@ static void *graph_alloc_node_data(const GenericGraph *graph, size item_size) {
 
     graph_validate_alignment(graph);
 
-    if (graph->alignment <= sizeof(void *)) {
+    if (!graph_uses_custom_aligned_allocation(graph)) {
         ptr = calloc(item_size, 1);
         if (!ptr) {
             LOG_SYS_FATAL("calloc() failed");
@@ -123,7 +146,7 @@ static void *graph_alloc_node_data(const GenericGraph *graph, size item_size) {
         size alignment = (size)graph->alignment;
         size alloc_size = ALIGN_UP_POW2(item_size, alignment);
 
-        ptr = aligned_alloc(alignment, alloc_size);
+        ptr = graph_aligned_alloc(alignment, alloc_size);
         if (!ptr) {
             LOG_SYS_FATAL("aligned_alloc() failed");
         }
@@ -144,7 +167,11 @@ static void graph_free_node_data(GenericGraph *graph, void *data, size item_size
         memset(data, 0, item_size);
     }
 
-    free(data);
+    if (graph_uses_custom_aligned_allocation(graph)) {
+        graph_aligned_free(data);
+    } else {
+        free(data);
+    }
 }
 
 static void graph_copy_node_data(GenericGraph *graph, void *dst, const void *src, size item_size) {
