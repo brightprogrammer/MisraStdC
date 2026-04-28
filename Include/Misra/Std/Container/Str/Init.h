@@ -75,6 +75,27 @@ extern "C" {
 #define StrInitFromZstr(zstr) StrInitFromCstr((zstr), strlen(zstr))
 
 ///
+/// Short alias for `StrInitFromZstr(...)` when an owned temporary string is
+/// needed inline.
+///
+/// This is most useful with APIs that consume or store the resulting `Str`,
+/// such as:
+///
+///   GraphAddNodeR(&graph, StrZ("Alpha"));
+///
+/// If ownership is not transferred, the resulting `Str` must still be
+/// deinited manually.
+///
+/// zstr[in] : Pointer to a null-terminated C string.
+///
+/// SUCCESS : Returns a newly created owned `Str`.
+/// FAILURE : Same as `StrInitFromZstr(...)`.
+///
+/// TAGS: Str, Init, Zstr, Convenience
+///
+#define StrZ(zstr) StrInitFromZstr((zstr))
+
+///
 /// Initialize a Str object using another one
 ///
 #define StrInitFromStr(str) StrInitFromCstr((str)->data, (str)->length)

@@ -139,7 +139,8 @@ typedef Map(const char *, GraphNodeId) CityIndex;
 
 Then:
 
-- add the intersection name to `Graph(Str)`
+- initialize the graph with `GraphInitWithDeepCopy(NULL, StrDeinit)`
+- add the intersection name with `GraphAddNodeR(&graph, StrZ(name))`
 - store `name -> node_id` in a `Map`
 - connect intersections with `GraphAddEdge(...)`
 

@@ -11,6 +11,7 @@
 bool test_str_init(void);
 bool test_str_init_from_cstr(void);
 bool test_str_init_from_zstr(void);
+bool test_str_z_alias(void);
 bool test_str_init_from_str(void);
 bool test_str_dup(void);
 bool test_str_printf(void);
@@ -64,6 +65,21 @@ bool test_str_init_from_zstr(void) {
     ValidateStr(&s);
 
     // Check that it's initialized correctly
+    bool result = (s.length == strlen(test_str) && ZstrCompare(s.data, test_str) == 0);
+
+    StrDeinit(&s);
+    return result;
+}
+
+// Test StrZ alias
+bool test_str_z_alias(void) {
+    WriteFmt("Testing StrZ\n");
+
+    const char *test_str = "Alias Test";
+    Str         s        = StrZ(test_str);
+
+    ValidateStr(&s);
+
     bool result = (s.length == strlen(test_str) && ZstrCompare(s.data, test_str) == 0);
 
     StrDeinit(&s);
@@ -209,6 +225,7 @@ int main(void) {
         test_str_init,
         test_str_init_from_cstr,
         test_str_init_from_zstr,
+        test_str_z_alias,
         test_str_init_from_str,
         test_str_dup,
         test_str_WriteFmt,

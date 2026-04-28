@@ -47,11 +47,9 @@ typedef Graph(Str)                 CityGraph;
 typedef Map(const char *, GraphNodeId) CityIndex;
 
 static GraphNodeId city_add_intersection(CityGraph *graph, CityIndex *index, const char *name) {
-    Str         intersection = StrInitFromZstr(name);
-    GraphNodeId id           = GraphAddNodeL(graph, intersection);
+    GraphNodeId id = GraphAddNodeR(graph, StrZ(name));
 
     MapInsertR(index, name, id);
-    StrDeinit(&intersection);
     return id;
 }
 
@@ -95,7 +93,7 @@ static bool city_reachable(CityGraph *graph, CityIndex *index, const char *from,
 static bool test_graph_city_reachability(void) {
     WriteFmt("Testing GraphForeachNode and GraphNodeForeachNeighbor for reachability\n");
 
-    CityGraph graph = GraphInitWithDeepCopy(StrInitCopy, StrDeinit);
+    CityGraph graph = GraphInitWithDeepCopy(NULL, StrDeinit);
     CityIndex index = MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, ZstrInitClone, ZstrDeinit, NULL, NULL);
 
     GraphNodeId alpha = city_add_intersection(&graph, &index, "Alpha");

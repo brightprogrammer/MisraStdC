@@ -288,19 +288,11 @@ int main(void) {
 typedef Graph(Str) NameGraph;
 
 int main(void) {
-    NameGraph graph = GraphInitWithDeepCopy(StrInitCopy, StrDeinit);
+    NameGraph graph = GraphInitWithDeepCopy(NULL, StrDeinit);
 
-    Str alpha_name = StrInitFromZstr("Alpha");
-    Str beta_name  = StrInitFromZstr("Beta");
-    Str gamma_name = StrInitFromZstr("Gamma");
-
-    GraphNodeId alpha = GraphAddNodeL(&graph, alpha_name);
-    GraphNodeId beta  = GraphAddNodeL(&graph, beta_name);
-    GraphNodeId gamma = GraphAddNodeL(&graph, gamma_name);
-
-    StrDeinit(&alpha_name);
-    StrDeinit(&beta_name);
-    StrDeinit(&gamma_name);
+    GraphNodeId alpha = GraphAddNodeR(&graph, StrZ("Alpha"));
+    GraphNodeId beta  = GraphAddNodeR(&graph, StrZ("Beta"));
+    GraphNodeId gamma = GraphAddNodeR(&graph, StrZ("Gamma"));
 
     GraphAddEdge(&graph, alpha, beta);
     GraphAddEdge(&graph, beta, gamma);
@@ -316,7 +308,7 @@ int main(void) {
 }
 ```
 
-`Graph(T)` is meant for analysis-heavy work such as reachability, control-flow, and dependency traversal. For graph-owned names, prefer `Graph(Str)` plus `GraphInitWithDeepCopy(StrInitCopy, StrDeinit)` as shown above.
+`Graph(T)` is meant for analysis-heavy work such as reachability, control-flow, and dependency traversal. For graph-owned names, prefer `Graph(Str)` plus `GraphInitWithDeepCopy(NULL, StrDeinit)` and insert inline owned strings with `GraphAddNodeR(..., StrZ("..."))` as shown above.
 
 `Graph(const char *)` is still valid, but only when every stored pointer refers to memory that outlives the graph, such as string literals, interned names, or externally owned stable storage. It is a borrowed-pointer graph, not a copying string graph.
 

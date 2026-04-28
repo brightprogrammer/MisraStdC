@@ -80,10 +80,31 @@ static bool test_graph_node_deep_copy(void) {
     return result;
 }
 
+static bool test_graph_node_owned_str_rvalue(void) {
+    WriteFmt("Testing Graph node owned Str r-value insertion\n");
+
+    typedef Graph(Str) StrGraph;
+    StrGraph   graph = GraphInitWithDeepCopy(NULL, StrDeinit);
+    GraphNodeId node_id;
+    GraphNode   node;
+    Str        *stored_name;
+
+    node_id     = GraphAddNodeR(&graph, StrZ("alpha"));
+    node        = GraphGetNode(&graph, node_id);
+    stored_name = GraphNodeDataPtr(&graph, node);
+
+    bool result = GraphNodeIdIndex(node_id) == 0 && GraphNodeCount(&graph) == 1 && stored_name->data != NULL &&
+                  ZstrCompare(stored_name->data, "alpha") == 0;
+
+    GraphDeinit(&graph);
+    return result;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_graph_reserve_clear,
         test_graph_node_deep_copy,
+        test_graph_node_owned_str_rvalue,
     };
 
     WriteFmt("[INFO] Starting Graph.Init tests\n\n");
