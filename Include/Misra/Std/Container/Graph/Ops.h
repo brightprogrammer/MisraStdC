@@ -17,6 +17,9 @@
 /// SUCCESS: Updated scratch visit count.
 /// FAILURE: Does not return on invalid node handle.
 ///
+/// NOTE: This is intentionally simple shared scratch state. Use external `Vec`, `Map`,
+///       or domain-specific side tables when an algorithm needs more than one counter or bit.
+///
 /// TAGS: Graph, Node, Visit, Mutation
 ///
 #define GraphNodeVisit(node) graph_node_visit((node))
@@ -122,6 +125,7 @@
 ///
 /// Deleted slots remain reusable and future nodes may reuse their slot indices with
 /// fresh generations.
+/// Any deleted node id or `GraphNode` handle becomes invalid immediately after commit returns.
 ///
 /// g[in,out] : Graph to commit.
 ///
@@ -129,6 +133,9 @@
 ///          Explicit edge removals and node deletion marks are counted once each.
 ///          Incident edge cleanup caused by node deletion is not counted separately.
 /// FAILURE: Does not return on invalid graph.
+///
+/// INFO: This deferred mutation model is meant for passes that need stable traversal first
+///       and destructive graph rewrites second.
 ///
 /// TAGS: Graph, Node, Delete, Commit
 ///

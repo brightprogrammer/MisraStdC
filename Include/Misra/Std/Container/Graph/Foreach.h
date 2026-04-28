@@ -17,6 +17,11 @@
 /// changes such as adding nodes, adding edges, clearing, or committing changes will
 /// invalidate the traversal and abort on the next iteration step.
 ///
+/// INFO: Scratch-state operations such as `GraphNodeVisit`, `GraphNodeUnvisit`,
+///       `GraphMarkNodeForDeletion`, `GraphUnmarkNodeForDeletion`,
+///       `GraphMarkEdgeForRemoval`, and `GraphUnmarkEdgeForRemoval` are the intended
+///       mutation tools inside traversal-driven analysis or rewrite passes.
+///
 /// g[in,out] : Graph to iterate over.
 /// node[in]  : Name of the `GraphNode` loop variable.
 ///
@@ -33,6 +38,7 @@
 /// Iterate over each outgoing neighbor of a node handle.
 ///
 /// The neighbor loop variable is also a `GraphNode` handle.
+/// Structural graph mutation is not allowed while the iterator is active.
 ///
 /// node[in]      : Source node handle.
 /// neighbor[in]  : Name of the `GraphNode` loop variable used for outgoing neighbors.
@@ -49,6 +55,7 @@
 /// Iterate over each incoming predecessor of a node handle.
 ///
 /// The predecessor loop variable is also a `GraphNode` handle.
+/// Structural graph mutation is not allowed while the iterator is active.
 ///
 /// node[in]          : Destination node handle.
 /// predecessor[in]   : Name of the `GraphNode` loop variable used for incoming predecessors.

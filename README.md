@@ -21,6 +21,7 @@ A modern C11 library designed to make programming in C less painful and more pro
 - [Examples](#examples)
   - [Vector Container (Vec)](#vector-container-vec)
   - [String Operations (Str)](#string-operations-str)
+  - [Directed Graph Container (Graph)](#directed-graph-container-graph)
   - [Formatted I/O](#formatted-io)
   - [JSON Parsing and Writing](#json-parsing-and-writing)
   - [Working with Complex Types](#working-with-complex-types)
@@ -35,6 +36,7 @@ A modern C11 library designed to make programming in C less painful and more pro
 - **Macro-based generic containers and utilities**:
   - `Vec(T)`: Generic vector backed by shared `GenericVec` runtime helpers
   - `List(T)`: Generic doubly linked list backed by shared `GenericList` runtime helpers
+  - `Graph(T)`: Generic directed graph with stable node ids, predecessor/successor traversal, and deferred destructive mutation
   - `Str` / `Strs`: Predefined `typedef`s for `Vec(char)` and `Vec(Str)`
   - `BitVec`: Packed bit container for boolean-style storage
   - `Int`: Arbitrary-precision unsigned integer API backed by `BitVec`, with byte and radix-string conversion, arithmetic, roots, gcd/lcm, primality helpers, and modular arithmetic
@@ -88,6 +90,8 @@ meson setup builddir -Db_sanitize=address,undefined -Db_lundef=false
 
 Comprehensive API documentation is available at [docs.brightprogrammer.in](https://docs.brightprogrammer.in).
 
+The prose guides include a dedicated graph guide covering node handles, predecessor traversal, deferred deletion, and analysis-oriented usage patterns.
+
 ## Concepts
 
 ### How Generic Templating Works
@@ -95,7 +99,7 @@ Comprehensive API documentation is available at [docs.brightprogrammer.in](https
 MisraStdC uses the C preprocessor plus a shared runtime layer rather than code generation. The template-style APIs are
 macros:
 
-- `Vec(T)`, `List(T)`, `Iter(T)`, and `Pair(xT, yT)` expand to anonymous structs.
+- `Vec(T)`, `List(T)`, `Graph(T)`, `Iter(T)`, and `Pair(xT, yT)` expand to anonymous structs.
 - Macros like `VecInsertR`, `VecAt`, `VecDeinit`, and `ListDeinit` infer the element type and `sizeof(...)` at the
   call site, then forward to generic runtime helpers in `Source/`.
 - `Str` and `Strs` are ordinary `typedef`s built on top of `Vec(char)` and `Vec(Str)`.
@@ -275,6 +279,36 @@ int main(void) {
     VecDeinit(&parts);
 }
 ```
+
+### Directed Graph Container (Graph)
+
+```c
+#include <Misra.h>
+
+typedef Graph(const char *) NameGraph;
+
+int main(void) {
+    NameGraph graph = GraphInit();
+
+    GraphNodeId alpha = GraphAddNodeR(&graph, "Alpha");
+    GraphNodeId beta  = GraphAddNodeR(&graph, "Beta");
+    GraphNodeId gamma = GraphAddNodeR(&graph, "Gamma");
+
+    GraphAddEdge(&graph, alpha, beta);
+    GraphAddEdge(&graph, beta, gamma);
+
+    GraphForeachNode(&graph, node) {
+        WriteFmtLn("{}: out={}, in={}",
+                   GraphNodeData(&graph, node),
+                   GraphOutDegree(&graph, GraphNodeGetId(node)),
+                   GraphInDegree(&graph, GraphNodeGetId(node)));
+    }
+
+    GraphDeinit(&graph);
+}
+```
+
+`Graph(T)` is meant for analysis-heavy work such as reachability, control-flow, and dependency traversal. In real named-node workloads you usually pair it with a side `Map(name -> node_id)`. The in-depth guide on the docs site covers that full model: node ids and handles, predecessor traversal, deferred deletion, and side-state patterns.
 
 ### Formatted I/O
 

@@ -50,6 +50,7 @@
 /// Check whether graph currently contains the provided node id.
 ///
 /// Marked nodes still count as present until `GraphCommitChanges` is called.
+/// This is the safe probe to use before deciding whether an old stored id is still live.
 ///
 /// g[in]       : Graph to query.
 /// node_id[in] : Node id to check.
@@ -94,6 +95,10 @@
 /// SUCCESS: Slot index portion of the node id.
 /// FAILURE: Function cannot fail.
 ///
+/// WARN: Slot indices are intentionally reusable after `GraphCommitChanges`.
+///       External arrays keyed only by `GraphNodeIndex(node)` must be reset when
+///       deleted slots can be reused, or paired with generation-aware logic.
+///
 /// TAGS: Graph, Node, Index, Handle
 ///
 #define GraphNodeIndex(node) GraphNodeIdIndex(GraphNodeGetId(node))
@@ -103,6 +108,8 @@
 ///
 /// g[in]       : Graph to query.
 /// node_id[in] : Node id to access.
+///
+/// FAILURE: Does not return on invalid or stale node id.
 ///
 /// TAGS: Graph, Node, Access
 ///
@@ -114,6 +121,8 @@
 /// g[in,out]   : Graph to query.
 /// node_id[in] : Node id to access.
 ///
+/// FAILURE: Does not return on invalid or stale node id.
+///
 /// TAGS: Graph, Node, Access, Pointer
 ///
 #define GraphNodePtrAt(g, node_id) ((GRAPH_NODE_TYPE(g) *)graph_node_ptr_at(GENERIC_GRAPH(g), (node_id)))
@@ -124,6 +133,8 @@
 /// g[in]       : Graph owning the node.
 /// node[in]    : `GraphNode` handle to access.
 ///
+/// FAILURE: Does not return on invalid handle or graph/handle mismatch.
+///
 /// TAGS: Graph, Node, Access, Handle
 ///
 #define GraphNodeData(g, node) (*(GRAPH_NODE_TYPE(g) *)graph_node_data_ptr_checked(GENERIC_GRAPH(g), (node)))
@@ -133,6 +144,8 @@
 ///
 /// g[in,out] : Graph owning the node.
 /// node[in]  : `GraphNode` handle to access.
+///
+/// FAILURE: Does not return on invalid handle or graph/handle mismatch.
 ///
 /// TAGS: Graph, Node, Access, Pointer, Handle
 ///
@@ -171,6 +184,8 @@
 /// node_id[in]      : Source node id.
 /// neighbor_idx[in] : Index in outgoing neighbor list.
 ///
+/// FAILURE: Does not return on invalid node id or out-of-bounds neighbor index.
+///
 /// TAGS: Graph, Edge, Neighbor, Access
 ///
 #define GraphNeighborAt(g, node_id, neighbor_idx) graph_neighbor_at(GENERIC_GRAPH(g), (node_id), (neighbor_idx))
@@ -181,6 +196,8 @@
 /// g[in]               : Graph to query.
 /// node_id[in]         : Destination node id.
 /// predecessor_idx[in] : Index in incoming predecessor list.
+///
+/// FAILURE: Does not return on invalid node id or out-of-bounds predecessor index.
 ///
 /// TAGS: Graph, Edge, Predecessor, Access
 ///
@@ -197,6 +214,9 @@
 /// SUCCESS: `true` when the directed edge exists.
 /// FAILURE: `false`
 ///
+/// WARN: `from` and `to` must both be live node ids. This query treats stale ids
+///       as programmer error and aborts instead of quietly collapsing them to "not found".
+///
 /// TAGS: Graph, Edge, Query, Search
 ///
 #define GraphHasEdge(g, from, to) graph_has_edge(GENERIC_GRAPH(g), (from), (to))
@@ -208,6 +228,9 @@
 ///
 /// SUCCESS: Current scratch visit count for the node.
 /// FAILURE: Does not return on invalid node handle.
+///
+/// NOTE: This count is graph-owned scratch state. It is convenient for simple traversals,
+///       but it is not a substitute for richer application-owned side tables.
 ///
 /// TAGS: Graph, Node, Visit, Count, Query
 ///

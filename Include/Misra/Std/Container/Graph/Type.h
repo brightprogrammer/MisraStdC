@@ -16,6 +16,10 @@
 /// Node ids are opaque 64-bit values. Internally they pack a per-slot generation
 /// in the high 32 bits and a slot index in the low 32 bits.
 ///
+/// NOTE: A node id is stable only while that node remains live.
+///       After `GraphCommitChanges` deletes a node, any old id or handle referring
+///       to that slot becomes stale and must not be used with live-node access APIs.
+///
 /// TAGS: Graph, Node, Id
 ///
 typedef u64 GraphNodeId;
@@ -49,6 +53,10 @@ typedef u64 GraphNodeId;
 ///
 /// This carries the owning graph pointer plus the stable node id. Users typically
 /// obtain it from `GraphGetNode`, `GraphForeachNode`, or `GraphNodeForeachNeighbor`.
+///
+/// INFO: The handle is meant for active traversal and graph-aware node access.
+///       Long-lived external state should usually be stored separately, keyed by
+///       `GraphNodeGetId(node)` or by application data held in the node payload.
 ///
 /// TAGS: Graph, Node, Handle
 ///
@@ -109,6 +117,11 @@ typedef struct {
 /// Node payloads are owned by the graph. Each live node occupies one internal slot
 /// and is referred to by a stable generation/index `GraphNodeId`. Edges are directed
 /// and tracked incrementally in both outgoing and incoming adjacency lists of those ids.
+///
+/// INFO: This container is designed for analysis-style workloads such as reachability,
+///       control-flow, dependency, and graph-rewrite passes where cheap node lookup,
+///       explicit traversal, and deferred destructive mutation matter more than
+///       object-oriented node wrappers.
 ///
 /// NOTE: Like the other generic containers in this project, each `Graph(T)`
 ///       expansion creates a distinct anonymous type. Prefer a `typedef`
