@@ -514,8 +514,6 @@ def generate_markdown_file(symbol_name, symbol_data, usages, output_dir: Path):
         markdown_file.write("draft: false\n")
         markdown_file.write("---\n\n")
 
-        markdown_file.write(f"# {symbol_name}\n\n")
-
         if doc.get("brief"):
             markdown_file.write("## Description\n\n")
             markdown_file.write(doc["brief"] + "\n\n")
