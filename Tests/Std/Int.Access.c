@@ -100,9 +100,11 @@ bool test_int_fits_u64(void) {
 bool test_int_log2(void) {
     WriteFmt("Testing IntLog2\n");
 
-    Int value = IntFrom(1025);
+    Int  value = IntFrom(1025);
+    bool error = true;
 
-    bool result = IntLog2(&value) == 10;
+    bool result = IntLog2(&value, &error) == 10;
+    result      = result && !error;
 
     IntDeinit(&value);
     return result;
@@ -147,10 +149,14 @@ bool test_int_is_power_of_two(void) {
 bool test_int_log2_zero(void) {
     WriteFmt("Testing IntLog2 zero handling\n");
 
-    Int value = IntInit();
+    Int  value = IntInit();
+    bool error = false;
 
-    IntLog2(&value);
-    return false;
+    bool result = IntLog2(&value, &error) == 0;
+    result      = result && error;
+
+    IntDeinit(&value);
+    return result;
 }
 
 int main(void) {
@@ -166,14 +172,9 @@ int main(void) {
         test_int_log2,
         test_int_trailing_zero_count,
         test_int_is_power_of_two,
-    };
-
-    TestFunction deadend_tests[] = {
         test_int_log2_zero,
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);
-    int total_deadend_tests = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
-
-    return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Int.Access");
+    return run_test_suite(tests, total_tests, NULL, 0, "Int.Access");
 }

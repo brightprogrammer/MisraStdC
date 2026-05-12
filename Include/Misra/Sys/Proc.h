@@ -42,10 +42,10 @@ SysProc *SysProcCreate(const char *path, char **argv, char **envp);
 ///
 /// proc[in] : Child process handle to wait for.
 ///
-/// SUCCESS: Return
-/// FAILURE: Abort with log message.
+/// RETURNS: `SYS_PROC_STATUS_COMPLETED`, `SYS_PROC_STATUS_TERMINATED`, or
+/// `SYS_PROC_STATUS_ERROR`.
 ///
-void SysProcWait(SysProc *proc);
+SysProcStatus SysProcWait(SysProc *proc);
 
 ///
 /// Block the parent process and wait for provided child process to finish execution.
@@ -55,8 +55,8 @@ void SysProcWait(SysProc *proc);
 /// proc[in]    : Child process handle to wait for.
 /// timeout[in] : Timeout in milliseconds, 0 for infinite wait.
 ///
-/// SUCCESS: Return
-/// FAILURE: Abort with log message.
+/// RETURNS: Current process status, including `SYS_PROC_STATUS_ERROR` when
+/// waiting fails.
 ///
 SysProcStatus SysProcWaitFor(SysProc *proc, u64 timeout);
 

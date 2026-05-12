@@ -18,21 +18,19 @@ extern "C" {
 #    define MISRA_FLOAT_FROM_DISPATCH(value)                                                                           \
         _Generic(                                                                                                      \
             (value),                                                                                                   \
-            Int: MISRA_PRIV_FloatFromValueInt,                                                                         \
-            Int *: MISRA_PRIV_FloatFromInt,                                                                            \
-            const Int *: MISRA_PRIV_FloatFromConstInt,                                                                 \
-            unsigned char: MISRA_PRIV_FloatFromU64,                                                                    \
-            unsigned short: MISRA_PRIV_FloatFromU64,                                                                   \
-            unsigned int: MISRA_PRIV_FloatFromU64,                                                                     \
-            unsigned long: MISRA_PRIV_FloatFromU64,                                                                    \
-            unsigned long long: MISRA_PRIV_FloatFromU64,                                                               \
-            signed char: MISRA_PRIV_FloatFromI64,                                                                      \
-            signed short: MISRA_PRIV_FloatFromI64,                                                                     \
-            signed int: MISRA_PRIV_FloatFromI64,                                                                       \
-            signed long: MISRA_PRIV_FloatFromI64,                                                                      \
-            signed long long: MISRA_PRIV_FloatFromI64,                                                                 \
-            float: MISRA_PRIV_FloatFromF32,                                                                            \
-            double: MISRA_PRIV_FloatFromF64                                                                            \
+            Int *: FloatFromInt,                                                                                       \
+            unsigned char: FloatFromU64,                                                                               \
+            unsigned short: FloatFromU64,                                                                              \
+            unsigned int: FloatFromU64,                                                                                \
+            unsigned long: FloatFromU64,                                                                               \
+            unsigned long long: FloatFromU64,                                                                          \
+            signed char: FloatFromI64,                                                                                 \
+            signed short: FloatFromI64,                                                                                \
+            signed int: FloatFromI64,                                                                                  \
+            signed long: FloatFromI64,                                                                                 \
+            signed long long: FloatFromI64,                                                                            \
+            float: FloatFromF32,                                                                                       \
+            double: FloatFromF64                                                                                       \
         )
 
 ///
@@ -50,49 +48,23 @@ extern "C" {
 ///
 #    define FloatFrom(value) MISRA_FLOAT_FROM_DISPATCH(value)(value)
 #endif
-///
-/// Convert a float to an integer when no fractional or negative part remains.
-///
-/// result[out] : Destination integer
-/// value[in]   : Float to convert
-///
-/// RETURNS: `true` on exact non-negative conversion, otherwise `false`.
-///
-/// USAGE:
-///   bool ok = FloatToInt(&integer, &value);
-///
-/// TAGS: Float, Convert, Int, Export
-///
-bool  FloatToInt(Int *result, Float *value);
+
+bool FloatToInt(Int *result, Float *value);
+
 ///
 /// Parse a decimal string into a float.
 /// Supports an optional sign, decimal point, and scientific exponent.
 ///
-/// text[in] : Input string
+bool FloatTryFromStr(Float *out, const char *text);
+
 ///
-/// RETURNS: Parsed floating-point value.
+/// Compatibility wrapper for `FloatTryFromStr(...)`.
 ///
-/// WARN: Aborts on malformed input.
-///
-/// USAGE:
-///   Float value = FloatFromStr("-1.25e6");
-///
-/// TAGS: Float, Convert, String, Parse
+/// RETURNS: Parsed floating-point value, or zero on failure.
 ///
 Float FloatFromStr(const char *text);
-///
-/// Convert a float to a normalized decimal string.
-///
-/// value[in] : Float to convert
-///
-/// RETURNS: Decimal string representation without scientific notation.
-///
-/// USAGE:
-///   Str text = FloatToStr(&value);
-///
-/// TAGS: Float, Convert, String, Format
-///
-Str   FloatToStr(Float *value);
+
+Str FloatToStr(Float *value);
 
 #ifdef __cplusplus
 }

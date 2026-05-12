@@ -148,15 +148,31 @@ bool test_float_scientific_parse(void) {
 bool test_float_from_str_invalid(void) {
     WriteFmt("Testing FloatFromStr invalid format handling\n");
 
-    FloatFromStr("12.3.4");
-    return false;
+    Float parsed = FloatFromStr("12.3.4");
+    Float value  = FloatInit();
+    bool  result = !FloatTryFromStr(&value, "12.3.4");
+
+    result = result && FloatIsZero(&parsed);
+    result = result && FloatIsZero(&value);
+
+    FloatDeinit(&parsed);
+    FloatDeinit(&value);
+    return result;
 }
 
 bool test_float_from_str_null(void) {
     WriteFmt("Testing FloatFromStr NULL handling\n");
 
-    FloatFromStr(NULL);
-    return false;
+    Float parsed = FloatFromStr(NULL);
+    Float value  = FloatInit();
+    bool  result = !FloatTryFromStr(&value, NULL);
+
+    result = result && FloatIsZero(&parsed);
+    result = result && FloatIsZero(&value);
+
+    FloatDeinit(&parsed);
+    FloatDeinit(&value);
+    return result;
 }
 
 int main(void) {
@@ -172,15 +188,14 @@ int main(void) {
         test_float_string_round_trip,
         test_float_very_large_string_round_trip,
         test_float_scientific_parse,
-    };
-
-    TestFunction deadend_tests[] = {
         test_float_from_str_invalid,
         test_float_from_str_null,
     };
 
+    TestFunction deadend_tests[1] = {0};
+
     int total_tests         = sizeof(tests) / sizeof(tests[0]);
-    int total_deadend_tests = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
+    int total_deadend_tests = 0;
 
     return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Float.Convert");
 }

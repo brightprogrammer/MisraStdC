@@ -57,7 +57,7 @@ bool test_int_compare_generic(void) {
     IntShiftLeft(&big, 80);
 
     bool result = (IntCompare(&value, &same) == 0);
-    result      = result && (IntCompare(&value, same) == 0);
+    result      = result && (IntCompare(&value, &same) == 0);
     result      = result && (IntCompare(&value, 42) == 0);
     result      = result && (IntCompare(&value, 100ULL) < 0);
     result      = result && (IntCompare(&value, -1) > 0);

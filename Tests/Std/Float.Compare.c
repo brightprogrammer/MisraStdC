@@ -92,17 +92,17 @@ bool test_float_compare_generic(void) {
     Int   whole = IntFrom(12);
     Int   next  = IntFrom(13);
 
-    bool result = (FloatCompare(&value, same) == 0);
-    result      = result && (FloatCompare(&value, whole) > 0);
+    bool result = (FloatCompare(&value, &same) == 0);
+    result      = result && (FloatCompare(&value, &whole) > 0);
     result      = result && (FloatCompare(&value, &next) < 0);
     result      = result && (FloatCompare(&value, 12) > 0);
     result      = result && (FloatCompare(&value, -1) > 0);
     result      = result && (FloatCompare(&value, 12.5f) == 0);
     result      = result && (FloatCompare(&value, 12.5) == 0);
-    result      = result && FloatEQ(&value, same);
+    result      = result && FloatEQ(&value, &same);
     result      = result && FloatEQ(&value, 12.5);
     result      = result && FloatGE(&value, 12.5f);
-    result      = result && FloatGT(&value, whole);
+    result      = result && FloatGT(&value, &whole);
     result      = result && FloatLE(&value, 13);
     result      = result && FloatNE(&value, 12);
 

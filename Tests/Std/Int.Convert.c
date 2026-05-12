@@ -156,12 +156,14 @@ bool test_int_compare_ignores_leading_zeros(void) {
 bool test_int_zero_binary(void) {
     WriteFmt("Testing Int zero binary conversion\n");
 
-    Int zero = IntFromBinary("0");
-    Str text = IntToBinary(&zero);
+    Int  zero  = IntFromBinary("0");
+    Str  text  = IntToBinary(&zero);
+    bool error = true;
 
     bool result = IntBitLength(&zero) == 0;
     result      = result && IntIsZero(&zero);
-    result      = result && (IntToU64(&zero) == 0);
+    result      = result && (IntToU64(&zero, &error) == 0);
+    result      = result && !error;
     result      = result && (strcmp(text.data, "0") == 0);
 
     StrDeinit(&text);
@@ -212,90 +214,182 @@ bool test_int_hex_round_trip(void) {
 bool test_int_from_binary_invalid_digit(void) {
     WriteFmt("Testing IntFromBinary invalid digit handling\n");
 
-    IntFromBinary("10a1");
-    return false;
+    Int parsed = IntFromBinary("10a1");
+    Int value  = IntInit();
+    bool result = !IntTryFromBinary(&value, "10a1");
+
+    result = result && IntIsZero(&parsed);
+    result = result && IntIsZero(&value);
+
+    IntDeinit(&parsed);
+    IntDeinit(&value);
+    return result;
 }
 
 bool test_int_from_decimal_invalid_digit(void) {
     WriteFmt("Testing IntFromStr invalid digit handling\n");
 
-    IntFromStr("12x3");
-    return false;
+    Int parsed = IntFromStr("12x3");
+    Int value  = IntInit();
+    bool result = !IntTryFromStr(&value, "12x3");
+
+    result = result && IntIsZero(&parsed);
+    result = result && IntIsZero(&value);
+
+    IntDeinit(&parsed);
+    IntDeinit(&value);
+    return result;
 }
 
 bool test_int_from_hex_invalid_digit(void) {
     WriteFmt("Testing IntFromHexStr invalid digit handling\n");
 
-    IntFromHexStr("12g3");
-    return false;
+    Int parsed = IntFromHexStr("12g3");
+    Int value  = IntInit();
+    bool result = !IntTryFromHexStr(&value, "12g3");
+
+    result = result && IntIsZero(&parsed);
+    result = result && IntIsZero(&value);
+
+    IntDeinit(&parsed);
+    IntDeinit(&value);
+    return result;
 }
 
 bool test_int_from_radix_invalid_digit(void) {
     WriteFmt("Testing IntFromStrRadix invalid digit handling\n");
 
-    IntFromStrRadix("102", 2);
-    return false;
+    Int parsed = IntFromStrRadix("102", 2);
+    Int value  = IntInit();
+    bool result = !IntTryFromStrRadix(&value, "102", 2);
+
+    result = result && IntIsZero(&parsed);
+    result = result && IntIsZero(&value);
+
+    IntDeinit(&parsed);
+    IntDeinit(&value);
+    return result;
 }
 
 bool test_int_from_radix_invalid_radix(void) {
     WriteFmt("Testing IntFromStrRadix invalid radix handling\n");
 
-    IntFromStrRadix("10", 1);
-    return false;
+    Int parsed = IntFromStrRadix("10", 1);
+    Int value  = IntInit();
+    bool result = !IntTryFromStrRadix(&value, "10", 1);
+
+    result = result && IntIsZero(&parsed);
+    result = result && IntIsZero(&value);
+
+    IntDeinit(&parsed);
+    IntDeinit(&value);
+    return result;
 }
 
 bool test_int_to_u64_overflow(void) {
     WriteFmt("Testing IntToU64 overflow handling\n");
 
     Int value = IntFrom(1);
-    IntShiftLeft(&value, 64);
-    IntToU64(&value);
+    u64 out   = 0;
+    bool error = false;
 
-    return false;
+    IntShiftLeft(&value, 64);
+
+    bool result = !IntTryToU64(&value, &out);
+    result      = result && (IntToU64(&value, &error) == 0);
+    result      = result && error;
+    result      = result && (out == 0);
+
+    IntDeinit(&value);
+    return result;
 }
 
 bool test_int_to_str_radix_invalid_radix(void) {
     WriteFmt("Testing IntToStrRadix invalid radix handling\n");
 
     Int value = IntFrom(255);
+    Str text  = IntToStrRadix(&value, 37, false);
 
-    IntToStrRadix(&value, 37, false);
-    return false;
+    bool result = text.length == 0;
+
+    StrDeinit(&text);
+    IntDeinit(&value);
+    return result;
 }
 
 bool test_int_from_binary_null(void) {
     WriteFmt("Testing IntFromBinary NULL handling\n");
 
-    IntFromBinary(NULL);
-    return false;
+    Int parsed = IntFromBinary(NULL);
+    Int value  = IntInit();
+    bool result = !IntTryFromBinary(&value, NULL);
+
+    result = result && IntIsZero(&parsed);
+    result = result && IntIsZero(&value);
+
+    IntDeinit(&parsed);
+    IntDeinit(&value);
+    return result;
 }
 
 bool test_int_from_decimal_null(void) {
     WriteFmt("Testing IntFromStr NULL handling\n");
 
-    IntFromStr(NULL);
-    return false;
+    Int parsed = IntFromStr(NULL);
+    Int value  = IntInit();
+    bool result = !IntTryFromStr(&value, NULL);
+
+    result = result && IntIsZero(&parsed);
+    result = result && IntIsZero(&value);
+
+    IntDeinit(&parsed);
+    IntDeinit(&value);
+    return result;
 }
 
 bool test_int_from_radix_null(void) {
     WriteFmt("Testing IntFromStrRadix NULL handling\n");
 
-    IntFromStrRadix(NULL, 10);
-    return false;
+    Int parsed = IntFromStrRadix(NULL, 10);
+    Int value  = IntInit();
+    bool result = !IntTryFromStrRadix(&value, NULL, 10);
+
+    result = result && IntIsZero(&parsed);
+    result = result && IntIsZero(&value);
+
+    IntDeinit(&parsed);
+    IntDeinit(&value);
+    return result;
 }
 
 bool test_int_from_octal_null(void) {
     WriteFmt("Testing IntFromOctStr NULL handling\n");
 
-    IntFromOctStr(NULL);
-    return false;
+    Int parsed = IntFromOctStr(NULL);
+    Int value  = IntInit();
+    bool result = !IntTryFromOctStr(&value, NULL);
+
+    result = result && IntIsZero(&parsed);
+    result = result && IntIsZero(&value);
+
+    IntDeinit(&parsed);
+    IntDeinit(&value);
+    return result;
 }
 
 bool test_int_from_hex_null(void) {
     WriteFmt("Testing IntFromHexStr NULL handling\n");
 
-    IntFromHexStr(NULL);
-    return false;
+    Int parsed = IntFromHexStr(NULL);
+    Int value  = IntInit();
+    bool result = !IntTryFromHexStr(&value, NULL);
+
+    result = result && IntIsZero(&parsed);
+    result = result && IntIsZero(&value);
+
+    IntDeinit(&parsed);
+    IntDeinit(&value);
+    return result;
 }
 
 bool test_int_from_bytes_le_null(void) {
@@ -339,9 +433,6 @@ int main(void) {
         test_int_binary_prefix_and_separators,
         test_int_octal_round_trip,
         test_int_hex_round_trip,
-    };
-
-    TestFunction deadend_tests[] = {
         test_int_from_binary_invalid_digit,
         test_int_from_decimal_invalid_digit,
         test_int_from_hex_invalid_digit,
@@ -354,6 +445,9 @@ int main(void) {
         test_int_from_radix_null,
         test_int_from_octal_null,
         test_int_from_hex_null,
+    };
+
+    TestFunction deadend_tests[] = {
         test_int_from_bytes_le_null,
         test_int_to_bytes_le_null,
         test_int_to_bytes_be_zero_max_len,

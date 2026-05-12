@@ -31,24 +31,20 @@ int (FloatCompare)(Float *lhs, Float *rhs);
 #    define MISRA_FLOAT_COMPARE_DISPATCH(rhs)                                                                          \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Float: MISRA_PRIV_FloatCompareValueFloat,                                                                  \
             Float *: FloatCompare,                                                                                     \
-            const Float *: MISRA_PRIV_FloatCompareConstFloat,                                                          \
-            Int: MISRA_PRIV_FloatCompareValueInt,                                                                      \
-            Int *: MISRA_PRIV_FloatCompareInt,                                                                         \
-            const Int *: MISRA_PRIV_FloatCompareConstInt,                                                              \
-            unsigned char: MISRA_PRIV_FloatCompareU64,                                                                 \
-            unsigned short: MISRA_PRIV_FloatCompareU64,                                                                \
-            unsigned int: MISRA_PRIV_FloatCompareU64,                                                                  \
-            unsigned long: MISRA_PRIV_FloatCompareU64,                                                                 \
-            unsigned long long: MISRA_PRIV_FloatCompareU64,                                                            \
-            signed char: MISRA_PRIV_FloatCompareI64,                                                                   \
-            signed short: MISRA_PRIV_FloatCompareI64,                                                                  \
-            signed int: MISRA_PRIV_FloatCompareI64,                                                                    \
-            signed long: MISRA_PRIV_FloatCompareI64,                                                                   \
-            signed long long: MISRA_PRIV_FloatCompareI64,                                                              \
-            float: MISRA_PRIV_FloatCompareF32,                                                                         \
-            double: MISRA_PRIV_FloatCompareF64                                                                         \
+            Int *: FloatCompareInt,                                                                                    \
+            unsigned char: FloatCompareU64,                                                                            \
+            unsigned short: FloatCompareU64,                                                                           \
+            unsigned int: FloatCompareU64,                                                                             \
+            unsigned long: FloatCompareU64,                                                                            \
+            unsigned long long: FloatCompareU64,                                                                       \
+            signed char: FloatCompareI64,                                                                              \
+            signed short: FloatCompareI64,                                                                             \
+            signed int: FloatCompareI64,                                                                               \
+            signed long: FloatCompareI64,                                                                              \
+            signed long long: FloatCompareI64,                                                                         \
+            float: FloatCompareF32,                                                                                    \
+            double: FloatCompareF64                                                                                    \
         )
 
 ///

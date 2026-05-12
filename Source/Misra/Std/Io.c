@@ -2830,8 +2830,14 @@ const char *_read_Int(const char *i, FmtInfo *fmt_info, Int *value) {
         return start;
     }
 
-    Str temp   = StrInitFromCstr(start, i - start);
-    Int parsed = IntFromStrRadix(temp.data, radix);
+    Str  temp   = StrInitFromCstr(start, i - start);
+    Int  parsed = IntInit();
+    bool ok     = IntTryFromStrRadix(&parsed, temp.data, radix);
+
+    if (!ok) {
+        StrDeinit(&temp);
+        return start;
+    }
 
     IntDeinit(value);
     *value = parsed;
@@ -2874,8 +2880,11 @@ const char *_read_Float(const char *i, FmtInfo *fmt_info, Float *value) {
         return start;
     }
 
-    temp   = StrInitFromCstr(start, token_len);
-    parsed = FloatFromStr(temp.data);
+    temp = StrInitFromCstr(start, token_len);
+    if (!FloatTryFromStr(&parsed, temp.data)) {
+        StrDeinit(&temp);
+        return start;
+    }
 
     FloatDeinit(value);
     *value = parsed;

@@ -116,7 +116,7 @@ bool test_int_add_generic(void) {
     Int huge         = IntFromStr("123456789012345678901234567890");
     Str text         = StrInit();
 
-    IntAdd(&result_value, &base, rhs);
+    IntAdd(&result_value, &base, &rhs);
     bool result = IntToU64(&result_value) == 42;
 
     IntAdd(&result_value, &base, 2);
@@ -163,7 +163,7 @@ bool test_int_sub_generic(void) {
     Int huge         = IntFromStr("12345678901234567890");
     Str text         = StrInit();
 
-    bool result = IntSub(&result_value, &base, rhs);
+    bool result = IntSub(&result_value, &base, &rhs);
     result      = result && (IntToU64(&result_value) == 38);
 
     result = result && IntSub(&result_value, &base, 2u);
@@ -285,7 +285,7 @@ bool test_int_pow_generic(void) {
     bool result = strcmp(text.data, "79792266297612001") == 0;
 
     StrDeinit(&text);
-    IntPow(&result_value, &base, exponent);
+    IntPow(&result_value, &base, &exponent);
     text   = IntToStr(&result_value);
     result = result && (strcmp(text.data, "79792266297612001") == 0);
 
@@ -841,64 +841,100 @@ bool test_int_div_by_zero(void) {
 
     Int dividend  = IntFrom(1);
     Int divisor   = IntInit();
-    Int quotient  = IntInit();
-    Int remainder = IntInit();
+    Int quotient  = IntFrom(99);
+    Int remainder = IntFrom(77);
 
-    IntDivMod(&quotient, &remainder, &dividend, &divisor);
-    return false;
+    bool result = !IntDivMod(&quotient, &remainder, &dividend, &divisor);
+
+    result = result && (IntCompare(&quotient, 99) == 0);
+    result = result && (IntCompare(&remainder, 77) == 0);
+
+    IntDeinit(&dividend);
+    IntDeinit(&divisor);
+    IntDeinit(&quotient);
+    IntDeinit(&remainder);
+    return result;
 }
 
 bool test_int_root_zero_degree(void) {
     WriteFmt("Testing IntRoot zero-degree handling\n");
 
-    Int value = IntFrom(16);
-    Int root = IntInit();
-    Int remainder = IntInit();
+    Int value     = IntFrom(16);
+    Int root      = IntFrom(99);
+    Int remainder = IntFrom(77);
+    bool result   = !IntRootRem(&root, &remainder, &value, 0);
 
-    IntRootRem(&root, &remainder, &value, 0);
-    return false;
+    result = result && (IntCompare(&root, 99) == 0);
+    result = result && (IntCompare(&remainder, 77) == 0);
+
+    IntDeinit(&value);
+    IntDeinit(&root);
+    IntDeinit(&remainder);
+    return result;
 }
 
 bool test_int_div_scalar_zero_divisor(void) {
     WriteFmt("Testing IntDiv scalar zero-divisor handling\n");
 
     Int dividend = IntFrom(10);
-    Int quotient = IntInit();
+    Int quotient = IntFrom(99);
 
     IntDiv(&quotient, &dividend, 0u);
-    return false;
+    bool result = IntCompare(&quotient, 99) == 0;
+
+    IntDeinit(&dividend);
+    IntDeinit(&quotient);
+    return result;
 }
 
 bool test_int_mod_scalar_zero_modulus(void) {
     WriteFmt("Testing IntMod scalar zero-modulus handling\n");
 
-    Int value = IntFrom(10);
-    Int result_value = IntInit();
+    Int value        = IntFrom(10);
+    Int result_value = IntFrom(99);
 
     IntMod(&result_value, &value, 0u);
-    return false;
+    bool result = IntCompare(&result_value, 99) == 0;
+
+    IntDeinit(&value);
+    IntDeinit(&result_value);
+    return result;
 }
 
 bool test_int_mod_div_zero_modulus(void) {
     WriteFmt("Testing IntModDiv zero modulus handling\n");
 
-    Int a = IntFrom(10);
-    Int b = IntFrom(3);
-    Int m = IntInit();
-    Int result_value = IntInit();
+    Int a            = IntFrom(10);
+    Int b            = IntFrom(3);
+    Int m            = IntInit();
+    Int result_value = IntFrom(99);
 
-    (void)IntModDiv(&result_value, &a, &b, &m);
-    return false;
+    bool result = !IntModDiv(&result_value, &a, &b, &m);
+    result      = result && (IntCompare(&result_value, 99) == 0);
+
+    IntDeinit(&a);
+    IntDeinit(&b);
+    IntDeinit(&m);
+    IntDeinit(&result_value);
+    return result;
 }
 
 bool test_int_jacobi_even_denominator(void) {
     WriteFmt("Testing IntJacobi even denominator handling\n");
 
-    Int a = IntFrom(3);
-    Int n = IntFrom(8);
+    Int  a      = IntFrom(3);
+    Int  n      = IntFrom(8);
+    int  symbol = 99;
+    bool error  = false;
+    bool result = !IntTryJacobi(&symbol, &a, &n);
 
-    (void)IntJacobi(&a, &n);
-    return false;
+    result = result && (IntJacobi(&a, &n, &error) == 0);
+    result = result && (symbol == 99);
+    result = result && error;
+
+    IntDeinit(&a);
+    IntDeinit(&n);
+    return result;
 }
 
 bool test_int_pow_mod_scalar_zero_modulus(void) {
@@ -915,13 +951,19 @@ bool test_int_pow_mod_scalar_zero_modulus(void) {
 bool test_int_pow_mod_integer_zero_modulus(void) {
     WriteFmt("Testing IntPowMod Int-exponent zero modulus handling\n");
 
-    Int base = IntFrom(2);
-    Int exp = IntFrom(8);
-    Int mod = IntInit();
-    Int result_value = IntInit();
+    Int base         = IntFrom(2);
+    Int exp          = IntFrom(8);
+    Int mod          = IntInit();
+    Int result_value = IntFrom(99);
 
-    IntPowMod(&result_value, &base, &exp, &mod);
-    return false;
+    bool result = !IntPowMod(&result_value, &base, &exp, &mod);
+    result      = result && (IntCompare(&result_value, 99) == 0);
+
+    IntDeinit(&base);
+    IntDeinit(&exp);
+    IntDeinit(&mod);
+    IntDeinit(&result_value);
+    return result;
 }
 
 int main(void) {
@@ -970,19 +1012,19 @@ int main(void) {
         test_int_next_prime,
         test_int_mod_inv_no_solution,
         test_int_mod_div_no_solution,
-    };
-
-    TestFunction deadend_tests[] = {
-        test_int_add_null_result,
-        test_int_shift_left_null,
         test_int_div_by_zero,
         test_int_root_zero_degree,
         test_int_div_scalar_zero_divisor,
         test_int_mod_scalar_zero_modulus,
         test_int_mod_div_zero_modulus,
         test_int_jacobi_even_denominator,
-        test_int_pow_mod_scalar_zero_modulus,
         test_int_pow_mod_integer_zero_modulus,
+    };
+
+    TestFunction deadend_tests[] = {
+        test_int_add_null_result,
+        test_int_shift_left_null,
+        test_int_pow_mod_scalar_zero_modulus,
     };
 
     int total_tests         = sizeof(tests) / sizeof(tests[0]);

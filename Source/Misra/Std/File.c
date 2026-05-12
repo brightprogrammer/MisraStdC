@@ -31,9 +31,11 @@ bool ReadCompleteFile(const char *filename, char **data, u64 *file_size, u64 *ca
         buffer = realloc(buffer, fsize + 1);
 
         if (!buffer) {
-            LOG_SYS_FATAL("malloc() failed");
+            LOG_SYS_ERROR("realloc() failed");
+            return false;
         }
 
+        *data     = buffer;
         *capacity = fsize + 1;
     }
 
@@ -49,7 +51,6 @@ bool ReadCompleteFile(const char *filename, char **data, u64 *file_size, u64 *ca
     }
 #endif
     if (e || !file) {
-        free(buffer);
         LOG_SYS_ERROR("fopen() failed");
         return false;
     }

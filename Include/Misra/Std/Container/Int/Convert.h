@@ -18,16 +18,16 @@ extern "C" {
 #    define MISRA_INT_FROM_DISPATCH(value)                                                                             \
         _Generic(                                                                                                      \
             (value),                                                                                                   \
-            unsigned char: MISRA_PRIV_IntFromU64,                                                                      \
-            unsigned short: MISRA_PRIV_IntFromU64,                                                                     \
-            unsigned int: MISRA_PRIV_IntFromU64,                                                                       \
-            unsigned long: MISRA_PRIV_IntFromU64,                                                                      \
-            unsigned long long: MISRA_PRIV_IntFromU64,                                                                 \
-            signed char: MISRA_PRIV_IntFromI64,                                                                        \
-            signed short: MISRA_PRIV_IntFromI64,                                                                       \
-            signed int: MISRA_PRIV_IntFromI64,                                                                         \
-            signed long: MISRA_PRIV_IntFromI64,                                                                        \
-            signed long long: MISRA_PRIV_IntFromI64                                                                    \
+            unsigned char: IntFromU64,                                                                                 \
+            unsigned short: IntFromU64,                                                                                \
+            unsigned int: IntFromU64,                                                                                  \
+            unsigned long: IntFromU64,                                                                                 \
+            unsigned long long: IntFromU64,                                                                            \
+            signed char: IntFromI64,                                                                                   \
+            signed short: IntFromI64,                                                                                  \
+            signed int: IntFromI64,                                                                                    \
+            signed long: IntFromI64,                                                                                   \
+            signed long long: IntFromI64                                                                               \
         )
 
 ///
@@ -49,80 +49,42 @@ extern "C" {
 #endif
 
 ///
-/// Convert an integer to `u64`.
+/// Try to convert an integer to `u64`.
 ///
 /// value[in] : Integer to convert
+/// out[out]  : Destination for the converted value
 ///
-/// RETURNS: The numeric value as `u64`.
+/// RETURNS: `true` on success, `false` when the value does not fit in 64 bits.
 ///
-/// WARN: Aborts if the integer does not fit in 64 bits.
+bool IntTryToU64(Int *value, u64 *out);
+
 ///
-/// USAGE:
-///   u64 small = IntToU64(&value);
+/// Convert an integer to `u64`.
 ///
-/// TAGS: Int, Convert, U64, Export
+/// value[in]  : Integer to convert
+/// error[out] : Optional pointer set to `true` on failure and `false` on success
 ///
-u64 IntToU64(Int *value);
+/// RETURNS: The numeric value as `u64`, or `0` on failure.
+///
+u64 IntToU64WithError(Int *value, bool *error);
 
 ///
 /// Create an integer from little-endian bytes.
-///
-/// bytes[in] : Source byte buffer
-/// len[in]   : Number of bytes to read
-///
-/// RETURNS: Integer decoded from the byte sequence.
-///
-/// USAGE:
-///   Int value = IntFromBytesLE(buffer, buffer_len);
-///
-/// TAGS: Int, Convert, Bytes, LittleEndian, Import
 ///
 Int IntFromBytesLE(const u8 *bytes, u64 len);
 
 ///
 /// Export an integer into little-endian bytes.
 ///
-/// value[in]    : Integer to export
-/// bytes[out]   : Destination buffer
-/// max_len[in]  : Maximum bytes to write
-///
-/// RETURNS: Number of bytes written. Large values are truncated to `max_len` bytes.
-///
-/// USAGE:
-///   u64 written = IntToBytesLE(&value, buffer, sizeof(buffer));
-///
-/// TAGS: Int, Convert, Bytes, LittleEndian, Export
-///
 u64 IntToBytesLE(Int *value, u8 *bytes, u64 max_len);
 
 ///
 /// Create an integer from big-endian bytes.
 ///
-/// bytes[in] : Source byte buffer
-/// len[in]   : Number of bytes to read
-///
-/// RETURNS: Integer decoded from the byte sequence.
-///
-/// USAGE:
-///   Int value = IntFromBytesBE(buffer, buffer_len);
-///
-/// TAGS: Int, Convert, Bytes, BigEndian, Import
-///
 Int IntFromBytesBE(const u8 *bytes, u64 len);
 
 ///
 /// Export an integer into big-endian bytes.
-///
-/// value[in]    : Integer to export
-/// bytes[out]   : Destination buffer
-/// max_len[in]  : Maximum bytes to write
-///
-/// RETURNS: Number of bytes written. Large values are truncated to the least-significant `max_len` bytes.
-///
-/// USAGE:
-///   u64 written = IntToBytesBE(&value, buffer, sizeof(buffer));
-///
-/// TAGS: Int, Convert, Bytes, BigEndian, Export
 ///
 u64 IntToBytesBE(Int *value, u8 *bytes, u64 max_len);
 
@@ -130,33 +92,17 @@ u64 IntToBytesBE(Int *value, u8 *bytes, u64 max_len);
 /// Parse digits in the given radix into an integer.
 /// Supports radices from 2 through 36 and ignores underscore separators.
 ///
-/// digits[in] : Input digit string
-/// radix[in]  : Radix to use
+bool IntTryFromStrRadix(Int *out, const char *digits, u8 radix);
+
 ///
-/// RETURNS: Parsed integer value.
+/// Compatibility wrapper for `IntTryFromStrRadix(...)`.
 ///
-/// WARN: Aborts on invalid digits or unsupported radix.
-///
-/// USAGE:
-///   Int value = IntFromStrRadix("ff", 16);
-///
-/// TAGS: Int, Convert, String, Radix, Import
+/// RETURNS: Parsed integer value, or zero on failure.
 ///
 Int IntFromStrRadix(const char *digits, u8 radix);
 
 ///
 /// Convert an integer to text in the given radix.
-///
-/// value[in]      : Integer to convert
-/// radix[in]      : Radix to use
-/// uppercase[in]  : Use uppercase alphabetic digits when `true`
-///
-/// RETURNS: String containing the formatted digits.
-///
-/// USAGE:
-///   Str text = IntToStrRadix(&value, 16, true);
-///
-/// TAGS: Int, Convert, String, Radix, Export
 ///
 Str IntToStrRadix(Int *value, u8 radix, bool uppercase);
 
@@ -164,28 +110,17 @@ Str IntToStrRadix(Int *value, u8 radix, bool uppercase);
 /// Parse a decimal string into an integer.
 /// An optional leading `+` is accepted.
 ///
-/// decimal[in] : Decimal digit string
+bool IntTryFromStr(Int *out, const char *decimal);
+
 ///
-/// RETURNS: Parsed integer value.
+/// Compatibility wrapper for `IntTryFromStr(...)`.
 ///
-/// USAGE:
-///   Int value = IntFromStr("18446744073709551616");
-///
-/// TAGS: Int, Convert, Decimal, String, Import
+/// RETURNS: Parsed integer value, or zero on failure.
 ///
 Int IntFromStr(const char *decimal);
 
 ///
 /// Convert an integer to a decimal string.
-///
-/// value[in] : Integer to convert
-///
-/// RETURNS: Decimal representation of the integer.
-///
-/// USAGE:
-///   Str text = IntToStr(&value);
-///
-/// TAGS: Int, Convert, Decimal, String, Export
 ///
 Str IntToStr(Int *value);
 
@@ -193,28 +128,17 @@ Str IntToStr(Int *value);
 /// Parse a binary string into an integer.
 /// Accepts an optional `0b` or `0B` prefix.
 ///
-/// binary[in] : Binary digit string
+bool IntTryFromBinary(Int *out, const char *binary);
+
 ///
-/// RETURNS: Parsed integer value.
+/// Compatibility wrapper for `IntTryFromBinary(...)`.
 ///
-/// USAGE:
-///   Int value = IntFromBinary("0b101101");
-///
-/// TAGS: Int, Convert, Binary, String, Import
+/// RETURNS: Parsed integer value, or zero on failure.
 ///
 Int IntFromBinary(const char *binary);
 
 ///
 /// Convert an integer to a binary string.
-///
-/// value[in] : Integer to convert
-///
-/// RETURNS: Base-2 representation without a prefix.
-///
-/// USAGE:
-///   Str bits = IntToBinary(&value);
-///
-/// TAGS: Int, Convert, Binary, String, Export
 ///
 Str IntToBinary(Int *value);
 
@@ -222,28 +146,17 @@ Str IntToBinary(Int *value);
 /// Parse an octal string into an integer.
 /// Accepts an optional `0o` or `0O` prefix.
 ///
-/// octal[in] : Octal digit string
+bool IntTryFromOctStr(Int *out, const char *octal);
+
 ///
-/// RETURNS: Parsed integer value.
+/// Compatibility wrapper for `IntTryFromOctStr(...)`.
 ///
-/// USAGE:
-///   Int value = IntFromOctStr("0o755");
-///
-/// TAGS: Int, Convert, Octal, String, Import
+/// RETURNS: Parsed integer value, or zero on failure.
 ///
 Int IntFromOctStr(const char *octal);
 
 ///
 /// Convert an integer to an octal string.
-///
-/// value[in] : Integer to convert
-///
-/// RETURNS: Base-8 representation without a prefix.
-///
-/// USAGE:
-///   Str text = IntToOctStr(&value);
-///
-/// TAGS: Int, Convert, Octal, String, Export
 ///
 Str IntToOctStr(Int *value);
 
@@ -251,35 +164,29 @@ Str IntToOctStr(Int *value);
 /// Parse a hexadecimal string into an integer.
 /// This parser expects hexadecimal digits only and does not accept a `0x` prefix.
 ///
-/// hex[in] : Hexadecimal digit string
+bool IntTryFromHexStr(Int *out, const char *hex);
+
 ///
-/// RETURNS: Parsed integer value.
+/// Compatibility wrapper for `IntTryFromHexStr(...)`.
 ///
-/// WARN: Aborts on invalid characters.
-///
-/// USAGE:
-///   Int value = IntFromHexStr("deadbeef");
-///
-/// TAGS: Int, Convert, Hex, String, Import
+/// RETURNS: Parsed integer value, or zero on failure.
 ///
 Int IntFromHexStr(const char *hex);
 
 ///
 /// Convert an integer to a hexadecimal string.
 ///
-/// value[in] : Integer to convert
-///
-/// RETURNS: Lowercase base-16 representation without a prefix.
-///
-/// USAGE:
-///   Str text = IntToHexStr(&value);
-///
-/// TAGS: Int, Convert, Hex, String, Export
-///
 Str IntToHexStr(Int *value);
 
 #ifdef __cplusplus
 }
 #endif
+
+static inline u64 MISRA_PRIV_IntToU64NoError(Int *value) {
+    return IntToU64WithError(value, NULL);
+}
+
+#define MISRA_PRIV_INT_TO_U64_SELECT(_1, _2, NAME, ...) NAME
+#define IntToU64(...) MISRA_PRIV_INT_TO_U64_SELECT(__VA_ARGS__, IntToU64WithError, MISRA_PRIV_IntToU64NoError)(__VA_ARGS__)
 
 #endif // MISRA_STD_CONTAINER_INT_CONVERT_H

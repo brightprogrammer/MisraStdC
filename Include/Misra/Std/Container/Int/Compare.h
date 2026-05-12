@@ -32,19 +32,17 @@ int (IntCompare)(Int *lhs, Int *rhs);
 #    define MISRA_INT_COMPARE_DISPATCH(rhs)                                                                            \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Int: MISRA_PRIV_IntCompareValue,                                                                           \
             Int *: IntCompare,                                                                                         \
-            const Int *: MISRA_PRIV_IntCompareConst,                                                                   \
-            unsigned char: MISRA_PRIV_IntCompareU64,                                                                   \
-            unsigned short: MISRA_PRIV_IntCompareU64,                                                                  \
-            unsigned int: MISRA_PRIV_IntCompareU64,                                                                    \
-            unsigned long: MISRA_PRIV_IntCompareU64,                                                                   \
-            unsigned long long: MISRA_PRIV_IntCompareU64,                                                              \
-            signed char: MISRA_PRIV_IntCompareI64,                                                                     \
-            signed short: MISRA_PRIV_IntCompareI64,                                                                    \
-            signed int: MISRA_PRIV_IntCompareI64,                                                                      \
-            signed long: MISRA_PRIV_IntCompareI64,                                                                     \
-            signed long long: MISRA_PRIV_IntCompareI64                                                                 \
+            unsigned char: IntCompareU64,                                                                              \
+            unsigned short: IntCompareU64,                                                                             \
+            unsigned int: IntCompareU64,                                                                               \
+            unsigned long: IntCompareU64,                                                                              \
+            unsigned long long: IntCompareU64,                                                                         \
+            signed char: IntCompareI64,                                                                                \
+            signed short: IntCompareI64,                                                                               \
+            signed int: IntCompareI64,                                                                                 \
+            signed long: IntCompareI64,                                                                                \
+            signed long long: IntCompareI64                                                                            \
         )
 
 ///

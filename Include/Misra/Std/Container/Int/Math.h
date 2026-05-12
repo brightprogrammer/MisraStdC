@@ -102,7 +102,7 @@ void IntSquare(Int *result, Int *value);
 ///
 /// TAGS: Int, Math, Power, Exponentiation
 ///
-void (IntPow)(Int *result, Int *base, Int *exponent);
+bool (IntPow)(Int *result, Int *base, Int *exponent);
 ///
 /// Divide one integer by another using floor division.
 ///
@@ -110,14 +110,14 @@ void (IntPow)(Int *result, Int *base, Int *exponent);
 /// dividend[in]   : Dividend
 /// divisor[in]    : Divisor
 ///
-/// WARN: Aborts on division by zero.
+/// RETURNS: `true` on success, `false` when the divisor is zero.
 ///
 /// USAGE:
 ///   IntDiv(&quotient, &a, &b);
 ///
 /// TAGS: Int, Math, Divide, Quotient
 ///
-void (IntDiv)(Int *result, Int *dividend, Int *divisor);
+bool (IntDiv)(Int *result, Int *dividend, Int *divisor);
 ///
 /// Divide one integer by another only when the division is exact.
 ///
@@ -140,14 +140,14 @@ bool (IntDivExact)(Int *result, Int *dividend, Int *divisor);
 /// dividend[in]   : Dividend
 /// divisor[in]    : Divisor
 ///
-/// WARN: Aborts on division by zero.
+/// RETURNS: `true` on success, `false` when the divisor is zero.
 ///
 /// USAGE:
 ///   IntMod(&remainder, &a, &b);
 ///
 /// TAGS: Int, Math, Modulo
 ///
-void (IntMod)(Int *result, Int *dividend, Int *divisor);
+bool (IntMod)(Int *result, Int *dividend, Int *divisor);
 ///
 /// Compute quotient and remainder in one call.
 ///
@@ -156,14 +156,14 @@ void (IntMod)(Int *result, Int *dividend, Int *divisor);
 /// dividend[in]    : Dividend
 /// divisor[in]     : Divisor
 ///
-/// WARN: Aborts on division by zero.
+/// RETURNS: `true` on success, `false` when the divisor is zero.
 ///
 /// USAGE:
 ///   IntDivMod(&q, &r, &a, &b);
 ///
 /// TAGS: Int, Math, Divide, Modulo
 ///
-void (IntDivMod)(Int *quotient, Int *remainder, Int *dividend, Int *divisor);
+bool (IntDivMod)(Int *quotient, Int *remainder, Int *dividend, Int *divisor);
 ///
 /// Compute the greatest common divisor of two integers.
 ///
@@ -202,7 +202,7 @@ void IntLCM(Int *result, Int *a, Int *b);
 ///
 /// TAGS: Int, Math, Root, NumberTheory
 ///
-void IntRoot(Int *result, Int *value, u64 degree);
+bool IntRoot(Int *result, Int *value, u64 degree);
 ///
 /// Compute an integer root and the leftover remainder.
 ///
@@ -216,7 +216,7 @@ void IntRoot(Int *result, Int *value, u64 degree);
 ///
 /// TAGS: Int, Math, Root, Remainder
 ///
-void IntRootRem(Int *root, Int *remainder, Int *value, u64 degree);
+bool IntRootRem(Int *root, Int *remainder, Int *value, u64 degree);
 ///
 /// Compute the integer square root.
 ///
@@ -228,7 +228,7 @@ void IntRootRem(Int *root, Int *remainder, Int *value, u64 degree);
 ///
 /// TAGS: Int, Math, Sqrt
 ///
-void IntSqrt(Int *result, Int *value);
+bool IntSqrt(Int *result, Int *value);
 ///
 /// Compute the integer square root and remainder.
 ///
@@ -241,7 +241,7 @@ void IntSqrt(Int *result, Int *value);
 ///
 /// TAGS: Int, Math, Sqrt, Remainder
 ///
-void IntSqrtRem(Int *root, Int *remainder, Int *value);
+bool IntSqrtRem(Int *root, Int *remainder, Int *value);
 ///
 /// Test whether a value is a perfect square.
 ///
@@ -274,16 +274,17 @@ bool IntIsPerfectPower(Int *value);
 /// a[in] : Numerator
 /// n[in] : Odd positive modulus
 ///
-/// RETURNS: `-1`, `0`, or `1`.
+/// error[out] : Optional pointer set to `true` on failure and `false` on success
 ///
-/// WARN: Aborts when `n` is zero or even.
+/// RETURNS: `-1`, `0`, or `1`, or `0` on failure.
 ///
 /// USAGE:
 ///   int symbol = IntJacobi(&a, &n);
 ///
 /// TAGS: Int, Math, Jacobi, NumberTheory
 ///
-int  IntJacobi(Int *a, Int *n);
+bool IntTryJacobi(int *out, Int *a, Int *n);
+int  IntJacobiWithError(Int *a, Int *n, bool *error);
 ///
 /// Compute `(value^2) mod modulus`.
 ///
@@ -296,7 +297,7 @@ int  IntJacobi(Int *a, Int *n);
 ///
 /// TAGS: Int, Math, Modular, Square
 ///
-void IntSquareMod(Int *result, Int *value, Int *modulus);
+bool IntSquareMod(Int *result, Int *value, Int *modulus);
 ///
 /// Compute `(a + b) mod modulus`.
 ///
@@ -310,7 +311,7 @@ void IntSquareMod(Int *result, Int *value, Int *modulus);
 ///
 /// TAGS: Int, Math, Modular, Add
 ///
-void IntModAdd(Int *result, Int *a, Int *b, Int *modulus);
+bool IntModAdd(Int *result, Int *a, Int *b, Int *modulus);
 ///
 /// Compute `(a - b) mod modulus`.
 ///
@@ -324,7 +325,7 @@ void IntModAdd(Int *result, Int *a, Int *b, Int *modulus);
 ///
 /// TAGS: Int, Math, Modular, Subtract
 ///
-void IntModSub(Int *result, Int *a, Int *b, Int *modulus);
+bool IntModSub(Int *result, Int *a, Int *b, Int *modulus);
 ///
 /// Compute `(a * b) mod modulus`.
 ///
@@ -338,7 +339,7 @@ void IntModSub(Int *result, Int *a, Int *b, Int *modulus);
 ///
 /// TAGS: Int, Math, Modular, Multiply
 ///
-void IntModMul(Int *result, Int *a, Int *b, Int *modulus);
+bool IntModMul(Int *result, Int *a, Int *b, Int *modulus);
 ///
 /// Compute modular division `a / b (mod modulus)`.
 ///
@@ -368,7 +369,7 @@ bool IntModDiv(Int *result, Int *a, Int *b, Int *modulus);
 ///
 /// TAGS: Int, Math, Modular, Power
 ///
-void (IntPowMod)(Int *result, Int *base, Int *exponent, Int *modulus);
+bool (IntPowMod)(Int *result, Int *base, Int *exponent, Int *modulus);
 ///
 /// Compute the multiplicative inverse of a value modulo `modulus`.
 ///
@@ -431,163 +432,145 @@ void IntNextPrime(Int *result, Int *value);
 #    define MISRA_INT_ADD_DISPATCH(rhs)                                                                                \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Int: MISRA_PRIV_IntAddValue,                                                                               \
             Int *: IntAdd,                                                                                             \
-            const Int *: MISRA_PRIV_IntAddConst,                                                                       \
-            unsigned char: MISRA_PRIV_IntAddU64,                                                                       \
-            unsigned short: MISRA_PRIV_IntAddU64,                                                                      \
-            unsigned int: MISRA_PRIV_IntAddU64,                                                                        \
-            unsigned long: MISRA_PRIV_IntAddU64,                                                                       \
-            unsigned long long: MISRA_PRIV_IntAddU64,                                                                  \
-            signed char: MISRA_PRIV_IntAddI64,                                                                         \
-            signed short: MISRA_PRIV_IntAddI64,                                                                        \
-            signed int: MISRA_PRIV_IntAddI64,                                                                          \
-            signed long: MISRA_PRIV_IntAddI64,                                                                         \
-            signed long long: MISRA_PRIV_IntAddI64                                                                     \
+            unsigned char: IntAddU64,                                                                                  \
+            unsigned short: IntAddU64,                                                                                 \
+            unsigned int: IntAddU64,                                                                                   \
+            unsigned long: IntAddU64,                                                                                  \
+            unsigned long long: IntAddU64,                                                                             \
+            signed char: IntAddI64,                                                                                    \
+            signed short: IntAddI64,                                                                                   \
+            signed int: IntAddI64,                                                                                     \
+            signed long: IntAddI64,                                                                                    \
+            signed long long: IntAddI64                                                                                \
         )
 
 #    define MISRA_INT_SUB_DISPATCH(rhs)                                                                                \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Int: MISRA_PRIV_IntSubValue,                                                                               \
             Int *: IntSub,                                                                                             \
-            const Int *: MISRA_PRIV_IntSubConst,                                                                       \
-            unsigned char: MISRA_PRIV_IntSubU64,                                                                       \
-            unsigned short: MISRA_PRIV_IntSubU64,                                                                      \
-            unsigned int: MISRA_PRIV_IntSubU64,                                                                        \
-            unsigned long: MISRA_PRIV_IntSubU64,                                                                       \
-            unsigned long long: MISRA_PRIV_IntSubU64,                                                                  \
-            signed char: MISRA_PRIV_IntSubI64,                                                                         \
-            signed short: MISRA_PRIV_IntSubI64,                                                                        \
-            signed int: MISRA_PRIV_IntSubI64,                                                                          \
-            signed long: MISRA_PRIV_IntSubI64,                                                                         \
-            signed long long: MISRA_PRIV_IntSubI64                                                                     \
+            unsigned char: IntSubU64,                                                                                  \
+            unsigned short: IntSubU64,                                                                                 \
+            unsigned int: IntSubU64,                                                                                   \
+            unsigned long: IntSubU64,                                                                                  \
+            unsigned long long: IntSubU64,                                                                             \
+            signed char: IntSubI64,                                                                                    \
+            signed short: IntSubI64,                                                                                   \
+            signed int: IntSubI64,                                                                                     \
+            signed long: IntSubI64,                                                                                    \
+            signed long long: IntSubI64                                                                                \
         )
 
 #    define MISRA_INT_MUL_DISPATCH(rhs)                                                                                \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Int: MISRA_PRIV_IntMulValue,                                                                               \
             Int *: IntMul,                                                                                             \
-            const Int *: MISRA_PRIV_IntMulConst,                                                                       \
-            unsigned char: MISRA_PRIV_IntMulU64,                                                                       \
-            unsigned short: MISRA_PRIV_IntMulU64,                                                                      \
-            unsigned int: MISRA_PRIV_IntMulU64,                                                                        \
-            unsigned long: MISRA_PRIV_IntMulU64,                                                                       \
-            unsigned long long: MISRA_PRIV_IntMulU64,                                                                  \
-            signed char: MISRA_PRIV_IntMulI64,                                                                         \
-            signed short: MISRA_PRIV_IntMulI64,                                                                        \
-            signed int: MISRA_PRIV_IntMulI64,                                                                          \
-            signed long: MISRA_PRIV_IntMulI64,                                                                         \
-            signed long long: MISRA_PRIV_IntMulI64                                                                     \
+            unsigned char: IntMulU64,                                                                                  \
+            unsigned short: IntMulU64,                                                                                 \
+            unsigned int: IntMulU64,                                                                                   \
+            unsigned long: IntMulU64,                                                                                  \
+            unsigned long long: IntMulU64,                                                                             \
+            signed char: IntMulI64,                                                                                    \
+            signed short: IntMulI64,                                                                                   \
+            signed int: IntMulI64,                                                                                     \
+            signed long: IntMulI64,                                                                                    \
+            signed long long: IntMulI64                                                                                \
         )
 
 #    define MISRA_INT_POW_DISPATCH(exponent)                                                                           \
         _Generic(                                                                                                      \
             (exponent),                                                                                                \
-            Int: MISRA_PRIV_IntPowValue,                                                                               \
             Int *: IntPow,                                                                                             \
-            const Int *: MISRA_PRIV_IntPowConst,                                                                       \
-            unsigned char: MISRA_PRIV_IntPowU64,                                                                       \
-            unsigned short: MISRA_PRIV_IntPowU64,                                                                      \
-            unsigned int: MISRA_PRIV_IntPowU64,                                                                        \
-            unsigned long: MISRA_PRIV_IntPowU64,                                                                       \
-            unsigned long long: MISRA_PRIV_IntPowU64,                                                                  \
-            signed char: MISRA_PRIV_IntPowI64,                                                                         \
-            signed short: MISRA_PRIV_IntPowI64,                                                                        \
-            signed int: MISRA_PRIV_IntPowI64,                                                                          \
-            signed long: MISRA_PRIV_IntPowI64,                                                                         \
-            signed long long: MISRA_PRIV_IntPowI64                                                                     \
+            unsigned char: IntPowU64,                                                                                  \
+            unsigned short: IntPowU64,                                                                                 \
+            unsigned int: IntPowU64,                                                                                   \
+            unsigned long: IntPowU64,                                                                                  \
+            unsigned long long: IntPowU64,                                                                             \
+            signed char: IntPowI64,                                                                                    \
+            signed short: IntPowI64,                                                                                   \
+            signed int: IntPowI64,                                                                                     \
+            signed long: IntPowI64,                                                                                    \
+            signed long long: IntPowI64                                                                                \
         )
 
 #    define MISRA_INT_DIV_DISPATCH(divisor)                                                                            \
         _Generic(                                                                                                      \
             (divisor),                                                                                                 \
-            Int: MISRA_PRIV_IntDivValue,                                                                               \
             Int *: IntDiv,                                                                                             \
-            const Int *: MISRA_PRIV_IntDivConst,                                                                       \
-            unsigned char: MISRA_PRIV_IntDivU64,                                                                       \
-            unsigned short: MISRA_PRIV_IntDivU64,                                                                      \
-            unsigned int: MISRA_PRIV_IntDivU64,                                                                        \
-            unsigned long: MISRA_PRIV_IntDivU64,                                                                       \
-            unsigned long long: MISRA_PRIV_IntDivU64,                                                                  \
-            signed char: MISRA_PRIV_IntDivI64,                                                                         \
-            signed short: MISRA_PRIV_IntDivI64,                                                                        \
-            signed int: MISRA_PRIV_IntDivI64,                                                                          \
-            signed long: MISRA_PRIV_IntDivI64,                                                                         \
-            signed long long: MISRA_PRIV_IntDivI64                                                                     \
+            unsigned char: IntDivU64,                                                                                  \
+            unsigned short: IntDivU64,                                                                                 \
+            unsigned int: IntDivU64,                                                                                   \
+            unsigned long: IntDivU64,                                                                                  \
+            unsigned long long: IntDivU64,                                                                             \
+            signed char: IntDivI64,                                                                                    \
+            signed short: IntDivI64,                                                                                   \
+            signed int: IntDivI64,                                                                                     \
+            signed long: IntDivI64,                                                                                    \
+            signed long long: IntDivI64                                                                                \
         )
 
 #    define MISRA_INT_DIV_EXACT_DISPATCH(divisor)                                                                      \
         _Generic(                                                                                                      \
             (divisor),                                                                                                 \
-            Int: MISRA_PRIV_IntDivExactValue,                                                                          \
             Int *: IntDivExact,                                                                                        \
-            const Int *: MISRA_PRIV_IntDivExactConst,                                                                  \
-            unsigned char: MISRA_PRIV_IntDivExactU64,                                                                  \
-            unsigned short: MISRA_PRIV_IntDivExactU64,                                                                 \
-            unsigned int: MISRA_PRIV_IntDivExactU64,                                                                   \
-            unsigned long: MISRA_PRIV_IntDivExactU64,                                                                  \
-            unsigned long long: MISRA_PRIV_IntDivExactU64,                                                             \
-            signed char: MISRA_PRIV_IntDivExactI64,                                                                    \
-            signed short: MISRA_PRIV_IntDivExactI64,                                                                   \
-            signed int: MISRA_PRIV_IntDivExactI64,                                                                     \
-            signed long: MISRA_PRIV_IntDivExactI64,                                                                    \
-            signed long long: MISRA_PRIV_IntDivExactI64                                                                \
+            unsigned char: IntDivExactU64,                                                                             \
+            unsigned short: IntDivExactU64,                                                                            \
+            unsigned int: IntDivExactU64,                                                                              \
+            unsigned long: IntDivExactU64,                                                                             \
+            unsigned long long: IntDivExactU64,                                                                        \
+            signed char: IntDivExactI64,                                                                               \
+            signed short: IntDivExactI64,                                                                              \
+            signed int: IntDivExactI64,                                                                                \
+            signed long: IntDivExactI64,                                                                               \
+            signed long long: IntDivExactI64                                                                           \
         )
 
 #    define MISRA_INT_MOD_DISPATCH(divisor)                                                                            \
         _Generic(                                                                                                      \
             (divisor),                                                                                                 \
-            Int: MISRA_PRIV_IntModValue,                                                                               \
             Int *: IntMod,                                                                                             \
-            const Int *: MISRA_PRIV_IntModConst,                                                                       \
-            unsigned char: MISRA_PRIV_IntModU64Into,                                                                   \
-            unsigned short: MISRA_PRIV_IntModU64Into,                                                                  \
-            unsigned int: MISRA_PRIV_IntModU64Into,                                                                    \
-            unsigned long: MISRA_PRIV_IntModU64Into,                                                                   \
-            unsigned long long: MISRA_PRIV_IntModU64Into,                                                              \
-            signed char: MISRA_PRIV_IntModI64Into,                                                                     \
-            signed short: MISRA_PRIV_IntModI64Into,                                                                    \
-            signed int: MISRA_PRIV_IntModI64Into,                                                                      \
-            signed long: MISRA_PRIV_IntModI64Into,                                                                     \
-            signed long long: MISRA_PRIV_IntModI64Into                                                                 \
+            unsigned char: IntModU64Into,                                                                              \
+            unsigned short: IntModU64Into,                                                                             \
+            unsigned int: IntModU64Into,                                                                               \
+            unsigned long: IntModU64Into,                                                                              \
+            unsigned long long: IntModU64Into,                                                                         \
+            signed char: IntModI64Into,                                                                                \
+            signed short: IntModI64Into,                                                                               \
+            signed int: IntModI64Into,                                                                                 \
+            signed long: IntModI64Into,                                                                                \
+            signed long long: IntModI64Into                                                                            \
         )
 
 #    define MISRA_INT_DIVMOD_DISPATCH(divisor)                                                                         \
         _Generic(                                                                                                      \
             (divisor),                                                                                                 \
-            Int: MISRA_PRIV_IntDivModValue,                                                                            \
             Int *: IntDivMod,                                                                                          \
-            const Int *: MISRA_PRIV_IntDivModConst,                                                                    \
-            unsigned char: MISRA_PRIV_IntDivModU64,                                                                    \
-            unsigned short: MISRA_PRIV_IntDivModU64,                                                                   \
-            unsigned int: MISRA_PRIV_IntDivModU64,                                                                     \
-            unsigned long: MISRA_PRIV_IntDivModU64,                                                                    \
-            unsigned long long: MISRA_PRIV_IntDivModU64,                                                               \
-            signed char: MISRA_PRIV_IntDivModI64,                                                                      \
-            signed short: MISRA_PRIV_IntDivModI64,                                                                     \
-            signed int: MISRA_PRIV_IntDivModI64,                                                                       \
-            signed long: MISRA_PRIV_IntDivModI64,                                                                      \
-            signed long long: MISRA_PRIV_IntDivModI64                                                                  \
+            unsigned char: IntDivModU64,                                                                               \
+            unsigned short: IntDivModU64,                                                                              \
+            unsigned int: IntDivModU64,                                                                                \
+            unsigned long: IntDivModU64,                                                                               \
+            unsigned long long: IntDivModU64,                                                                          \
+            signed char: IntDivModI64,                                                                                 \
+            signed short: IntDivModI64,                                                                                \
+            signed int: IntDivModI64,                                                                                  \
+            signed long: IntDivModI64,                                                                                 \
+            signed long long: IntDivModI64                                                                             \
         )
 
 #    define MISRA_INT_POWMOD_DISPATCH(exponent)                                                                        \
         _Generic(                                                                                                      \
             (exponent),                                                                                                \
-            Int: MISRA_PRIV_IntPowModValue,                                                                            \
             Int *: IntPowMod,                                                                                          \
-            const Int *: MISRA_PRIV_IntPowModConst,                                                                    \
-            unsigned char: MISRA_PRIV_IntPowU64Mod,                                                                    \
-            unsigned short: MISRA_PRIV_IntPowU64Mod,                                                                   \
-            unsigned int: MISRA_PRIV_IntPowU64Mod,                                                                     \
-            unsigned long: MISRA_PRIV_IntPowU64Mod,                                                                    \
-            unsigned long long: MISRA_PRIV_IntPowU64Mod,                                                               \
-            signed char: MISRA_PRIV_IntPowI64Mod,                                                                      \
-            signed short: MISRA_PRIV_IntPowI64Mod,                                                                     \
-            signed int: MISRA_PRIV_IntPowI64Mod,                                                                       \
-            signed long: MISRA_PRIV_IntPowI64Mod,                                                                      \
-            signed long long: MISRA_PRIV_IntPowI64Mod                                                                  \
+            unsigned char: IntPowU64Mod,                                                                               \
+            unsigned short: IntPowU64Mod,                                                                              \
+            unsigned int: IntPowU64Mod,                                                                                \
+            unsigned long: IntPowU64Mod,                                                                               \
+            unsigned long long: IntPowU64Mod,                                                                          \
+            signed char: IntPowI64Mod,                                                                                 \
+            signed short: IntPowI64Mod,                                                                                \
+            signed int: IntPowI64Mod,                                                                                  \
+            signed long: IntPowI64Mod,                                                                                 \
+            signed long long: IntPowI64Mod                                                                             \
         )
 
 ///
@@ -719,6 +702,14 @@ void IntNextPrime(Int *result, Int *value);
 #    define IntPowMod(result, base, exponent, modulus)                                                                \
         MISRA_INT_POWMOD_DISPATCH(exponent)((result), (base), (exponent), (modulus))
 #endif
+
+static inline int MISRA_PRIV_IntJacobiNoError(Int *a, Int *n) {
+    return IntJacobiWithError(a, n, NULL);
+}
+
+#define MISRA_PRIV_INT_JACOBI_SELECT(_1, _2, _3, NAME, ...) NAME
+#define IntJacobi(...)                                                                                                 \
+    MISRA_PRIV_INT_JACOBI_SELECT(__VA_ARGS__, IntJacobiWithError, MISRA_PRIV_IntJacobiNoError)(__VA_ARGS__)
 
 #ifdef __cplusplus
 }

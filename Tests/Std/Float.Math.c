@@ -91,12 +91,12 @@ bool test_float_add_generic(void) {
     Float result_value = FloatInit();
     Str   text         = StrInit();
 
-    FloatAdd(&result_value, &a, b);
+    FloatAdd(&result_value, &a, &b);
     text = FloatToStr(&result_value);
     bool result = strcmp(text.data, "2") == 0;
 
     StrDeinit(&text);
-    FloatAdd(&result_value, &a, whole);
+    FloatAdd(&result_value, &a, &whole);
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "3.25") == 0);
 
@@ -177,12 +177,12 @@ bool test_float_sub_generic(void) {
     Float result_value = FloatInit();
     Str   text         = StrInit();
 
-    FloatSub(&result_value, &a, b);
+    FloatSub(&result_value, &a, &b);
     text = FloatToStr(&result_value);
     bool result = strcmp(text.data, "5") == 0;
 
     StrDeinit(&text);
-    FloatSub(&result_value, &a, whole);
+    FloatSub(&result_value, &a, &whole);
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "3.5") == 0);
 
@@ -258,12 +258,12 @@ bool test_float_mul_generic(void) {
     Float result_value = FloatInit();
     Str   text         = StrInit();
 
-    FloatMul(&result_value, &a, b);
+    FloatMul(&result_value, &a, &b);
     text = FloatToStr(&result_value);
     bool result = strcmp(text.data, "3") == 0;
 
     StrDeinit(&text);
-    FloatMul(&result_value, &a, whole);
+    FloatMul(&result_value, &a, &whole);
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "3") == 0);
 
@@ -339,12 +339,12 @@ bool test_float_div_generic(void) {
     Float result_value = FloatInit();
     Str   text         = StrInit();
 
-    FloatDiv(&result_value, &a, b, 1);
+    FloatDiv(&result_value, &a, &b, 1);
     text = FloatToStr(&result_value);
     bool result = strcmp(text.data, "3") == 0;
 
     StrDeinit(&text);
-    FloatDiv(&result_value, &a, whole, 1);
+    FloatDiv(&result_value, &a, &whole, 1);
     text   = FloatToStr(&result_value);
     result = result && (strcmp(text.data, "2.5") == 0);
 
@@ -382,9 +382,15 @@ bool test_float_div_by_zero(void) {
     Float a = FloatFromStr("1");
     Float b = FloatInit();
     Float r = FloatInit();
+    bool  ok;
 
-    FloatDiv(&r, &a, &b, 4);
-    return false;
+    ok = !FloatDiv(&r, &a, &b, 4);
+    ok = ok && FloatIsZero(&r);
+
+    FloatDeinit(&a);
+    FloatDeinit(&b);
+    FloatDeinit(&r);
+    return ok;
 }
 
 int main(void) {
@@ -404,14 +410,13 @@ int main(void) {
         test_float_div_small_small,
         test_float_div_very_large_small,
         test_float_div_generic,
-    };
-
-    TestFunction deadend_tests[] = {
         test_float_div_by_zero,
     };
 
+    TestFunction deadend_tests[1] = {0};
+
     int total_tests         = sizeof(tests) / sizeof(tests[0]);
-    int total_deadend_tests = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
+    int total_deadend_tests = 0;
 
     return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Float.Math");
 }

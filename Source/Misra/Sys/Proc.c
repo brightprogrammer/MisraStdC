@@ -225,7 +225,7 @@ SysProc *SysProcCreate(const char *filepath, char **argv, char **envp) {
 #endif
 }
 
-void SysProcWait(SysProc *proc) {
+SysProcStatus SysProcWait(SysProc *proc) {
     if (!proc) {
         LOG_FATAL("Invalid argument");
     }
@@ -233,22 +233,27 @@ void SysProcWait(SysProc *proc) {
 #if defined(__APPLE__) || defined(__linux__)
     int status;
     if (-1 == waitpid(proc->pid, &status, 0)) {
-        LOG_SYS_FATAL("Failed to wait for child process");
+        LOG_SYS_ERROR("Failed to wait for child process");
+        return SYS_PROC_STATUS_ERROR;
     }
 
     proc->completed = true;
 
     if (WIFEXITED(status)) {
         proc->exit_code = WEXITSTATUS(status);
+        return SYS_PROC_STATUS_COMPLETED;
     } else if (WIFSIGNALED(status)) {
         proc->exit_code = 128 + WTERMSIG(status);
+        return SYS_PROC_STATUS_TERMINATED;
     } else {
         proc->exit_code = -1; // Unknown termination
+        return SYS_PROC_STATUS_ERROR;
     }
 
 #else
     if (WAIT_FAILED == WaitForSingleObject(proc->pi.hProcess, INFINITE)) {
-        LOG_SYS_FATAL("Failed to wait for child process");
+        LOG_SYS_ERROR("Failed to wait for child process");
+        return SYS_PROC_STATUS_ERROR;
     }
 
     proc->completed = true;
@@ -256,8 +261,10 @@ void SysProcWait(SysProc *proc) {
     DWORD code = 0;
     if (!GetExitCodeProcess(proc->pi.hProcess, &code)) {
         proc->exit_code = -1;
+        return SYS_PROC_STATUS_ERROR;
     } else {
         proc->exit_code = (i32)code;
+        return SYS_PROC_STATUS_COMPLETED;
     }
 #endif
 }
