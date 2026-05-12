@@ -18,12 +18,18 @@
 ///
 /// TAGS: Int, Init, Zero, Construct
 ///
-static inline Int IntInit(void) {
+static inline Int IntInitWithAllocator(Allocator alloc) {
     Int value;
 
-    value.bits = BitVecInit();
+    value.bits = BitVecInit(alloc);
     return value;
 }
+
+#define INT_INIT_HAS_ARGS_IMPL(_0, _1, count, ...) count
+#define INT_INIT_HAS_ARGS(...) INT_INIT_HAS_ARGS_IMPL(__VA_OPT__(,) __VA_ARGS__, 1, 0, 0)
+#define IntInit(...) CONCAT(IntInit_, INT_INIT_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define IntInit_0() IntInitWithAllocator(DefaultAllocator())
+#define IntInit_1(alloc) IntInitWithAllocator((alloc))
 
 ///
 /// Release all storage owned by an integer.

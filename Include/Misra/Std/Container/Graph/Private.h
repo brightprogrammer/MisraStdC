@@ -36,7 +36,7 @@ extern "C" {
     void                    validate_graph(const GenericGraph *graph);
     void                    deinit_graph(GenericGraph *graph, size item_size);
     void                    clear_graph(GenericGraph *graph, size item_size);
-    void                    reserve_graph(GenericGraph *graph, size item_size, size n);
+    bool                    reserve_graph(GenericGraph *graph, size item_size, size n);
     GraphNodeId             graph_push_node(GenericGraph *graph, const void *item_data, size item_size);
     GraphNodeId             graph_push_node_owned(GenericGraph *graph, void *item_data, size item_size);
     bool                    graph_contains_node(GenericGraph *graph, GraphNodeId node_id);

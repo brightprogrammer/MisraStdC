@@ -115,6 +115,7 @@ i32 ZstrCompareN(const char *s1, const char *s2, size n);
 /// TAGS: String, Memory, Allocation
 ///
 char *ZstrDupN(const char *src, size n);
+char *ZstrDupNWithAllocator(const char *src, size n, Allocator alloc);
 
 ///
 /// Duplicates a string.
@@ -143,6 +144,7 @@ char *ZstrDup(const char *src);
 /// FAILURE: May abort with a log message or may return false depending on severity of situation.
 ///
 bool ZstrInitClone(const char **dst, const char **src);
+bool ZstrInitCloneWithAllocator(void *dst, const void *src, const Allocator *alloc);
 
 ///
 /// Deinit method for zero-terminated strings.
@@ -156,6 +158,7 @@ bool ZstrInitClone(const char **dst, const char **src);
 /// FAILURE: Does not return.
 ///
 void ZstrDeinit(const char **zs);
+void ZstrDeinitWithAllocator(void *zs, const Allocator *alloc);
 
 ///
 /// Find first occurrence of needle in haystack.

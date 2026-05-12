@@ -9,6 +9,46 @@
 
 #include "Type.h"
 #include <Misra/Types.h>
+#include <stdio.h>
+
+void SysAbort(void);
+
+#define BITVEC_INSERT_ABORT(message) bitvec_abort_insert_operation(__func__, __LINE__, (message))
+#define BitVecMustInsertRange(bv, idx, count, value)                                                                   \
+    do {                                                                                                               \
+        if (!BitVecInsertRange((bv), (idx), (count), (value))) {                                                       \
+            BITVEC_INSERT_ABORT("BitVecMustInsertRange failed");                                                       \
+        }                                                                                                              \
+    } while (0)
+#define BitVecMustInsertMultiple(bv, idx, other)                                                                       \
+    do {                                                                                                               \
+        if (!BitVecInsertMultiple((bv), (idx), (other))) {                                                             \
+            BITVEC_INSERT_ABORT("BitVecMustInsertMultiple failed");                                                    \
+        }                                                                                                              \
+    } while (0)
+#define BitVecMustInsertPattern(bv, idx, pattern, pattern_bits)                                                        \
+    do {                                                                                                               \
+        if (!BitVecInsertPattern((bv), (idx), (pattern), (pattern_bits))) {                                            \
+            BITVEC_INSERT_ABORT("BitVecMustInsertPattern failed");                                                     \
+        }                                                                                                              \
+    } while (0)
+#define BitVecMustPush(bv, value)                                                                                      \
+    do {                                                                                                               \
+        if (!BitVecPush((bv), (value))) {                                                                              \
+            BITVEC_INSERT_ABORT("BitVecMustPush failed");                                                              \
+        }                                                                                                              \
+    } while (0)
+#define BitVecMustInsert(bv, idx, value)                                                                               \
+    do {                                                                                                               \
+        if (!BitVecInsert((bv), (idx), (value))) {                                                                     \
+            BITVEC_INSERT_ABORT("BitVecMustInsert failed");                                                            \
+        }                                                                                                              \
+    } while (0)
+
+static inline void bitvec_abort_insert_operation(const char *function, int line, const char *message) {
+    fprintf(stderr, "FATAL [%s:%d] %s\n", function, line, message);
+    SysAbort();
+}
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,7 +68,7 @@ extern "C" {
     ///
     /// TAGS: Insert, BitVec, Range, Multiple
     ///
-    void BitVecInsertRange(BitVec *bv, u64 idx, u64 count, bool value);
+    bool BitVecInsertRange(BitVec *bv, u64 idx, u64 count, bool value);
 
     ///
     /// Insert all bits from another bitvector at a specific position.
@@ -43,7 +83,7 @@ extern "C" {
     ///
     /// TAGS: Insert, BitVec, Multiple, Copy
     ///
-    void BitVecInsertMultiple(BitVec *bv, u64 idx, BitVec *other);
+    bool BitVecInsertMultiple(BitVec *bv, u64 idx, BitVec *other);
 
     ///
     /// Insert a bit pattern from a byte at a specific position.
@@ -60,7 +100,7 @@ extern "C" {
     ///
     /// TAGS: Insert, BitVec, Pattern, Byte
     ///
-    void BitVecInsertPattern(BitVec *bv, u64 idx, u8 pattern, u64 pattern_bits);
+    bool BitVecInsertPattern(BitVec *bv, u64 idx, u8 pattern, u64 pattern_bits);
 
     ///
     /// Push a bit to the end of bitvector.
@@ -75,7 +115,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Push, Append, Insert
     ///
-    void BitVecPush(BitVec *bv, bool value);
+    bool BitVecPush(BitVec *bv, bool value);
 
     ///
     /// Insert a bit at given index in bitvector.
@@ -90,7 +130,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Insert, Shift, Single
     ///
-    void BitVecInsert(BitVec *bv, u64 idx, bool value);
+    bool BitVecInsert(BitVec *bv, u64 idx, bool value);
 
 #ifdef __cplusplus
 }

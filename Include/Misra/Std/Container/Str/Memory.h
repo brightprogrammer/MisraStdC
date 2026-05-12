@@ -25,6 +25,7 @@ extern "C" {
 /// FAILURE : Does not return
 ///
 #define StrTryReduceSpace(str) VecTryReduceSpace(str)
+#define StrMustTryReduceSpace(str) VecMustTryReduceSpace(str)
 
 ///
 /// Swap chars at given indices.
@@ -50,6 +51,7 @@ extern "C" {
 /// FAILURE : Does not return
 ///
 #define StrResize(str, len) VecResize((str), (len))
+#define StrMustResize(str, len) VecMustResize((str), (len))
 
 ///
 /// Reserve space for string.
@@ -61,6 +63,7 @@ extern "C" {
 /// FAILURE : Does not return
 ///
 #define StrReserve(str, n) VecReserve((str), (n))
+#define StrMustReserve(str, n) VecMustReserve((str), (n))
 
 ///
 /// Set string length to 0.

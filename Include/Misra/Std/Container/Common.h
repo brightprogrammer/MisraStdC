@@ -7,6 +7,7 @@
 #ifndef MISRA_STD_CONTAINER_COMMON_H
 #define MISRA_STD_CONTAINER_COMMON_H
 
+#include <Misra/Std/Allocator.h>
 #include <Misra/Types.h>
 
 ///
@@ -28,8 +29,8 @@
 // or attempt to reuse any resources if possible and then initialize the copy
 // from src to dst.
 
-typedef bool (*GenericCopyInit)(void *dst, void *src);
-typedef void (*GenericCopyDeinit)(void *copy);
+typedef bool (*GenericCopyInit)(void *dst, const void *src, const Allocator *alloc);
+typedef void (*GenericCopyDeinit)(void *copy, const Allocator *alloc);
 typedef i32 (*GenericCompare)(const void *first, const void *second);
 typedef u64 (*GenericHash)(const void *data, u32 size);
 

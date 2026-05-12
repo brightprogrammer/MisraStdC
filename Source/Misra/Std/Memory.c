@@ -117,7 +117,7 @@ i32 ZstrCompareN(const char *s1, const char *s2, size n) {
     return s1[i] ? 1 : -1;
 }
 
-char *ZstrDupN(const char *src, size n) {
+char *ZstrDupNWithAllocator(const char *src, size n, Allocator alloc) {
     if (!src) {
         LOG_FATAL("Invalid arguments");
     }
@@ -126,14 +126,19 @@ char *ZstrDupN(const char *src, size n) {
     while (len < n && src[len])
         len++;
 
-    char *new_str = (char *)malloc(len + 1);
+    char *new_str = (char *)AllocatorAlloc(&alloc, len + 1, 1, false);
     if (!new_str) {
-        LOG_SYS_FATAL("malloc() failed");
+        LOG_SYS_ERROR("allocator allocate failed");
+        return NULL;
     }
 
     MemCopy(new_str, src, len);
     new_str[len] = '\0'; // Null-terminate
     return new_str;
+}
+
+char *ZstrDupN(const char *src, size n) {
+    return ZstrDupNWithAllocator(src, n, DefaultAllocator());
 }
 
 char *ZstrDup(const char *src) {
@@ -149,6 +154,18 @@ bool ZstrInitClone(const char **dst, const char **src) {
     return *dst != NULL;
 }
 
+bool ZstrInitCloneWithAllocator(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
+    const char **dst = (const char **)dst_ptr;
+    const char *const *src = (const char *const *)src_ptr;
+
+    if (!dst || !src || !*src) {
+        LOG_FATAL("Invalid arguments.");
+    }
+
+    *dst = ZstrDupNWithAllocator(*src, ZstrLen(*src), alloc ? *alloc : DefaultAllocator());
+    return *dst != NULL;
+}
+
 void ZstrDeinit(const char **zs) {
     if (!zs) {
         LOG_FATAL("Invalid arguments");
@@ -156,6 +173,20 @@ void ZstrDeinit(const char **zs) {
 
     if (*zs)
         FREE(*zs);
+}
+
+void ZstrDeinitWithAllocator(void *zs_ptr, const Allocator *alloc) {
+    const char **zs = (const char **)zs_ptr;
+
+    if (!zs) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    if (*zs) {
+        Allocator allocator = alloc ? *alloc : DefaultAllocator();
+        AllocatorFree(&allocator, (void *)*zs, ZstrLen(*zs) + 1, 1);
+        *zs = NULL;
+    }
 }
 
 char *ZstrFindSubstring(const char *haystack, const char *needle) {

@@ -1,6 +1,6 @@
 /// file      : Insert.h
-/// author    : Siddharth Mishra (admin@brightprogrammer.in)
-/// copyright : Copyright (c) 2025, Siddharth Mishra, All rights reserved.
+/// author    : Generated following Misra project patterns
+/// This is free and unencumbered software released into the public domain.
 ///
 /// List insertion helpers.
 ///
@@ -8,266 +8,160 @@
 #ifndef MISRA_STD_CONTAINER_LIST_INSERT_H
 #define MISRA_STD_CONTAINER_LIST_INSERT_H
 
-///
-/// Insert an `l-value` into list of it's type.
-/// Insertion index must not exceed list length.
-///
-/// NOTE: Ownership of item is transferred to list if no `copy_init` method is set.
-///       This is to prevent multiple ownership of same object, once inserted into list.
-///       Object may not be usable after this call if `copy_init` is not set.
-///
-/// INFO: If `copy_init` is set, then vector will create it's own copy of items.
-/// INFO: If `copy_init` is not set, then provided l-value will be memset to 0 to keep unique ownership.
-///
-/// l[in,out] : List to insert item into
-/// lval[in]  : l-value to be inserted
-/// idx[in]   : Index to insert item at.
-///
-/// USAGE:
-///   // the data
-///   int x = 10;
-///   int y = 20;
-///
-///   // vector
-///   List(int) integers = ListInit();
-///
-///   // insert items
-///   ListInsertL(&integers, x, 0); // x = 0 now, unlike x = 10 in ListInsertR
-///   ListInsertL(&integers, y, 0); // y = 0 now, unlike y = 20 in ListInsertR
-///   ListInsertL(&integers, LVAL(101), 1); // took a r-value, and converted to l-value on spot
-///   // better use ListInsertR in this last case though, otherwise there'll be an extra useless function call
-///
-/// SUCCESS: return
-/// FAILURE: Does not return
-///
-#define ListInsertL(l, lval, idx)                                                                                      \
+#include "Private.h"
+
+#include <stdio.h>
+
+void SysAbort(void);
+
+#if defined(MISRA_ENFORCE_TYPE_SAFETY) && MISRA_ENFORCE_TYPE_SAFETY
+#    define LIST_TYPECHECK_L(l, lval) ((void)sizeof(char[_Generic(&(lval), LIST_DATA_TYPE(l) * : 1, default : -1)]))
+#    define LIST_TYPECHECK_R(l, rval) ((void)sizeof((LIST_DATA_TYPE(l)[]){(rval)}))
+#    define LIST_TYPECHECK_RANGE_L(l, ptr) ((void)sizeof(char[_Generic((ptr), LIST_DATA_TYPE(l) * : 1, default : -1)]))
+#    define LIST_TYPECHECK_RANGE_R(l, ptr)                                                                             \
+        ((void)sizeof(char[_Generic((ptr), LIST_DATA_TYPE(l) * : 1, const LIST_DATA_TYPE(l) * : 1, default : -1)]))
+#    define LIST_TYPECHECK_LIST(l, l2) ((void)sizeof(char[_Generic((l2)->head->data, LIST_DATA_TYPE(l) * : 1, default : -1)]))
+#else
+#    define LIST_TYPECHECK_L(l, lval) ((void)0)
+#    define LIST_TYPECHECK_R(l, rval) ((void)0)
+#    define LIST_TYPECHECK_RANGE_L(l, ptr) ((void)0)
+#    define LIST_TYPECHECK_RANGE_R(l, ptr) ((void)0)
+#    define LIST_TYPECHECK_LIST(l, l2) ((void)0)
+#endif
+
+#define LIST_ABORT(message) list_abort_insert_operation(__func__, __LINE__, (message))
+#define LIST_MUST(operation, message)                                                                                  \
     do {                                                                                                               \
-        ValidateList(l);                                                                                               \
-        LIST_DATA_TYPE(l) * UNPL(_ptrval) = &(lval);                                                                   \
-        LIST_DATA_TYPE(l) UNPL(_tmpval)   = *UNPL(_ptrval);                                                            \
-        (void)UNPL(_tmpval);                                                                                           \
-        insert_into_list(GENERIC_LIST(l), UNPL(_ptrval), sizeof(LIST_DATA_TYPE(l)), (idx));                            \
-        if (!(l)->copy_init) {                                                                                         \
-            memset(UNPL(_ptrval), 0, sizeof(LIST_DATA_TYPE(l)));                                                       \
+        if (!(operation)) {                                                                                            \
+            LIST_ABORT(message);                                                                                       \
         }                                                                                                              \
     } while (0)
 
+static inline void list_abort_insert_operation(const char *function, int line, const char *message) {
+    fprintf(stderr, "FATAL [%s:%d] %s\n", function, line, message);
+    SysAbort();
+}
 
-///
-/// Insert an `r-value` into list of it's type.
-/// Insertion index must not exceed list length.
-///
-/// l[in,out] : List to insert item into
-/// rval[in]  : r-value to be inserted
-/// idx[in]   : Index to insert item at.
-///
-/// USAGE:
-///   // the data
-///   int x = 10;
-///   int y = 20;
-///
-///   // vector
-///   List(int) integers = VecInit();
-///
-///   // insert items
-///   ListInsertR(&integers, x, 0); // x remains 10, unlike 0 in ListInsertL, two copies of x
-///   ListInsertR(&integers, y, 0); // y remains 20, unlike 0 in ListInsertL, two copies of y
-///   ListInsertR(&integers, 5, 1);
-///
-/// SUCCESS: return
-/// FAILURE: Does not return
-///
+static inline bool list_insert_one_l_impl(
+    GenericList *list, const void *item_copy, void *source, u64 item_size, u64 idx
+) {
+    return list_zero_source_on_success(list, source, item_size, insert_into_list(list, item_copy, item_size, idx));
+}
+
+static inline bool list_insert_one_r_impl(GenericList *list, const void *item_copy, u64 item_size, u64 idx) {
+    return insert_into_list(list, item_copy, item_size, idx);
+}
+
+static inline bool list_insert_range_l_impl(GenericList *list, void *items, u64 item_size, u64 count) {
+    if (!count) {
+        return true;
+    }
+
+    if (!items) {
+        LIST_ABORT("Expected a valid pointer");
+    }
+
+    return list_zero_source_on_success(list, items, item_size * count, push_arr_list(list, item_size, items, count));
+}
+
+static inline bool list_insert_range_r_impl(GenericList *list, const void *items, u64 item_size, u64 count) {
+    if (!count) {
+        return true;
+    }
+
+    if (!items) {
+        LIST_ABORT("Expected a valid pointer");
+    }
+
+    return push_arr_list(list, item_size, items, count);
+}
+
+static inline bool list_merge_l_impl(GenericList *dst, GenericList *src, u64 item_size) {
+    if (!src->length) {
+        return true;
+    }
+
+    return list_release_merged_source_on_success(dst, src, item_size, merge_list(dst, item_size, src));
+}
+
+static inline bool list_merge_r_impl(GenericList *dst, GenericList *src, u64 item_size) {
+    if (!src->length) {
+        return true;
+    }
+
+    return merge_list(dst, item_size, src);
+}
+
+#define ListInsertL(l, lval, idx)                                                                                      \
+    (ValidateList(l),                                                                                                  \
+     LIST_TYPECHECK_L((l), (lval)),                                                                                    \
+     list_insert_one_l_impl(                                                                                           \
+         GENERIC_LIST(l),                                                                                              \
+         &LVAL((LIST_DATA_TYPE(l))(lval)),                                                                             \
+         &(lval),                                                                                                      \
+         sizeof(LIST_DATA_TYPE(l)),                                                                                    \
+         (idx)                                                                                                         \
+     ))
+
 #define ListInsertR(l, rval, idx)                                                                                      \
-    do {                                                                                                               \
-        ValidateList(l);                                                                                               \
-        LIST_DATA_TYPE(l) UNPL(_rval) = (rval);                                                                        \
-        insert_into_list(GENERIC_LIST(l), (char *)&UNPL(_rval), sizeof(LIST_DATA_TYPE(l)), (idx));                     \
-    } while (0)
+    (ValidateList(l),                                                                                                  \
+     LIST_TYPECHECK_R((l), (rval)),                                                                                    \
+     list_insert_one_r_impl(GENERIC_LIST(l), &LVAL((LIST_DATA_TYPE(l))(rval)), sizeof(LIST_DATA_TYPE(l)), (idx)))
 
-///
-/// Insert an l-value into given list
-///
-/// NOTE: Ownership transfer takes place. Provided l-val memset to 0.
-///
-/// l[in,out] : List to insert item into
-/// lval[in]  : l-value to be inserted
-/// idx[in]   : Index to insert item at.
-///
-/// SUCCESS: return
-/// FAILURE: Does not return
-///
 #define ListInsert(l, lval, idx) ListInsertL((l), (lval), (idx))
 
-///
-/// Insert a l-value at the very beginning of list.
-///
-/// NOTE: Ownership transfer takes place. Provided l-val memset to 0.
-///
-/// l[in]    : List to push item into.
-/// lval[in] : Value (l-value) to be prepended.
-///
-/// SUCCESS: Return.
-/// FAILURE: Does not return.
-///
-#define ListPushFrontL(l, lval) ListInsertL((l), (lval), 0);
+#define ListPushFrontL(l, lval) ListInsertL((l), (lval), 0)
+#define ListPushFrontR(l, rval) ListInsertR((l), (rval), 0)
+#define ListPushFront(l, lval) ListPushFrontL((l), (lval))
 
-///
-/// Push a l-value at the back of list.
-///
-/// NOTE: Ownership transfer takes place. Provided l-val memset to 0.
-///
-/// l[in]   : List to push item into
-/// val[in] : Pointer to value to be pushed
-///
-/// SUCCESS: Return
-/// FAILURE: Does not return
-///
 #define ListPushBackL(l, lval) ListInsertL((l), (lval), (l)->length)
-
-///
-/// Insert a r-value at the very beginning of list.
-///
-/// l[in]    : List to push item into.
-/// rval[in] : Value (r-value) to be prepended.
-///
-/// SUCCESS: Return.
-/// FAILURE: Does not return.
-///
-#define ListPushFrontR(l, rval) ListInsertR((l), (rval), 0);
-
-///
-/// Push a r-value at the back of list.
-///
-/// l[in]    : List to push item into
-/// rval[in] : Value to be pushed
-///
-/// SUCCESS: Returns `v` the list itself on success.
-/// FAILURE: Returns `NULL` otherwise.
-///
 #define ListPushBackR(l, rval) ListInsertR((l), (rval), (l)->length)
-
-///
-/// Insert a l-value at the very beginning of list.
-///
-/// NOTE: Ownership transfer takes place. Provided l-val memset to 0.
-///
-/// l[in]    : List to push item into.
-/// lval[in] : Value (l-value) to be prepended.
-///
-/// SUCCESS: Return.
-/// FAILURE: Does not return.
-///
-#define ListPushFront(l, lval) ListPushFrontL((l), (lval));
-
-///
-/// Push a l-value at the back of list.
-///
-/// NOTE: Ownership transfer takes place. Provided l-val memset to 0.
-///
-/// l[in]    : List to push item into
-/// lval[in] : Pointer to value to be pushed
-///
-/// SUCCESS: Return
-/// FAILURE: Does not return
-///
 #define ListPushBack(l, lval) ListPushBackL((l), (lval))
 
-///
-/// Push a complete array into this list.
-///
-/// NOTE: If provided list `l` does not make it's own copy of items, the provided array `arr`
-///       will be memset to 0, to keep single ownership.
-///
-/// l[in,out] : List to insert array items into.
-/// arr[in]   : Array to be inserted.
-/// count[in] : Number (non-zero) of items in array.
-///
-/// SUCCESS: Return.
-/// FAILURE: Do not return.
-///
 #define ListPushArrL(l, arr, count)                                                                                    \
-    do {                                                                                                               \
-        ValidateList(l);                                                                                               \
-        LIST_DATA_TYPE(l) * UNPL(_ptrval)     = (arr);                                                                 \
-        u64                 UNPL(_count)      = (count);                                                               \
-        const LIST_DATA_TYPE(l) UNPL(_tmpval) = *UNPL(_ptrval);                                                        \
-        (void)UNPL(_tmpval);                                                                                           \
-        push_arr_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), UNPL(_ptrval), UNPL(_count));                        \
-        if (!(l)->copy_init) {                                                                                         \
-            memset(UNPL(_ptrval), 0, sizeof(LIST_DATA_TYPE(l)) * UNPL(_count));                                       \
-        }                                                                                                              \
-    } while (0)
+    (ValidateList(l),                                                                                                  \
+     LIST_TYPECHECK_RANGE_L((l), (arr)),                                                                               \
+     list_insert_range_l_impl(GENERIC_LIST(l), (void *)(arr), sizeof(LIST_DATA_TYPE(l)), (count)))
 
-///
-/// Merge two lists and store the result in first list.
-///
-/// NOTE : Merge list `l2` with `l` with r-value semantics.
-///
-/// l[in,out] : List to insert array items into.
-/// l2[in]    : Array to be inserted.
-///
-/// SUCCESS: Return
-/// FAILURE: Do not return.
-///
+#define ListPushArrR(l, arr, count)                                                                                    \
+    (ValidateList(l),                                                                                                  \
+     LIST_TYPECHECK_RANGE_R((l), (arr)),                                                                               \
+     push_arr_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (const void *)(arr), (count)))
+
+#define ListPushArr(l, arr, count) ListPushArrL((l), (arr), (count))
+
 #define ListMergeL(l, l2)                                                                                              \
-    do {                                                                                                               \
-        ValidateList(l);                                                                                               \
-        ValidateList(l2);                                                                                              \
-        {                                                                                                              \
-            LIST_DATA_TYPE(l) UNPL(_tmp1)  = {0};                                                                      \
-            LIST_DATA_TYPE(l2) UNPL(_tmp2) = {0};                                                                      \
-            UNPL(_tmp1)                    = UNPL(_tmp2);                                                              \
-            (void)UNPL(_tmp1);                                                                                         \
-            (void)UNPL(_tmp2);                                                                                         \
-        }                                                                                                              \
-        merge_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), GENERIC_LIST(l2));                                      \
-        if (!(l)->copy_init) {                                                                                         \
-            GenericCopyInit   ci = (l2)->copy_init;                                                                    \
-            GenericCopyDeinit cd = (l2)->copy_deinit;                                                                  \
-            (l2)->copy_init      = NULL;                                                                               \
-            (l2)->copy_deinit    = NULL;                                                                               \
-            ListDeinit(l2);                                                                                            \
-            (l2)->copy_init   = ci;                                                                                    \
-            (l2)->copy_deinit = cd;                                                                                    \
-        }                                                                                                              \
-    } while (0)
+    (ValidateList(l),                                                                                                  \
+     ValidateList(l2),                                                                                                 \
+     LIST_TYPECHECK_LIST((l), (l2)),                                                                                   \
+     list_merge_l_impl(GENERIC_LIST(l), GENERIC_LIST(l2), sizeof(LIST_DATA_TYPE(l))))
 
-///
-/// Merge two lists and store the result in first list.
-///
-/// NOTE : Merge list `l2` with `l` with r-value semantics.
-///
-/// l[in,out] : List to insert array items into.
-/// l2[in]    : Array to be inserted.
-///
-/// SUCCESS: Return.
-/// FAILURE: Do not return.
-///
 #define ListMergeR(l, l2)                                                                                              \
-    do {                                                                                                               \
-        ValidateList(l);                                                                                               \
-        ValidateList(l2);                                                                                              \
-        {                                                                                                              \
-            LIST_DATA_TYPE(l) UNPL(_tmp1)  = {0};                                                                      \
-            LIST_DATA_TYPE(l2) UNPL(_tmp2) = {0};                                                                      \
-            UNPL(_tmp1)                    = UNPL(_tmp2);                                                              \
-            (void)UNPL(_tmp1);                                                                                         \
-            (void)UNPL(_tmp2);                                                                                         \
-        }                                                                                                              \
-        merge_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), GENERIC_LIST(l2));                                      \
-    } while (0)
+    (ValidateList(l),                                                                                                  \
+     ValidateList(l2),                                                                                                 \
+     LIST_TYPECHECK_LIST((l), (l2)),                                                                                   \
+     list_merge_r_impl(GENERIC_LIST(l), GENERIC_LIST(l2), sizeof(LIST_DATA_TYPE(l))))
 
-///
-/// Merge two lists and store the result in first list.
-///
-/// NOTE : Merge list `l2` with `l` with r-value semantics.
-///
-/// l[in,out] : List to insert array items into.
-/// l2[in]    : Array to be inserted.
-///
-/// SUCCESS: Return
-/// FAILURE: Do not return.
-///
 #define ListMerge(l, l2) ListMergeL((l), (l2))
+
+#define ListMustInsertL(l, lval, idx) LIST_MUST(ListInsertL((l), (lval), (idx)), "ListMustInsertL failed")
+#define ListMustInsertR(l, rval, idx) LIST_MUST(ListInsertR((l), (rval), (idx)), "ListMustInsertR failed")
+#define ListMustInsert(l, lval, idx) LIST_MUST(ListInsert((l), (lval), (idx)), "ListMustInsert failed")
+
+#define ListMustPushFrontL(l, lval) LIST_MUST(ListPushFrontL((l), (lval)), "ListMustPushFrontL failed")
+#define ListMustPushFrontR(l, rval) LIST_MUST(ListPushFrontR((l), (rval)), "ListMustPushFrontR failed")
+#define ListMustPushFront(l, lval) LIST_MUST(ListPushFront((l), (lval)), "ListMustPushFront failed")
+
+#define ListMustPushBackL(l, lval) LIST_MUST(ListPushBackL((l), (lval)), "ListMustPushBackL failed")
+#define ListMustPushBackR(l, rval) LIST_MUST(ListPushBackR((l), (rval)), "ListMustPushBackR failed")
+#define ListMustPushBack(l, lval) LIST_MUST(ListPushBack((l), (lval)), "ListMustPushBack failed")
+
+#define ListMustPushArrL(l, arr, count) LIST_MUST(ListPushArrL((l), (arr), (count)), "ListMustPushArrL failed")
+#define ListMustPushArrR(l, arr, count) LIST_MUST(ListPushArrR((l), (arr), (count)), "ListMustPushArrR failed")
+#define ListMustPushArr(l, arr, count) LIST_MUST(ListPushArr((l), (arr), (count)), "ListMustPushArr failed")
+
+#define ListMustMergeL(l, l2) LIST_MUST(ListMergeL((l), (l2)), "ListMustMergeL failed")
+#define ListMustMergeR(l, l2) LIST_MUST(ListMergeR((l), (l2)), "ListMustMergeR failed")
+#define ListMustMerge(l, l2) LIST_MUST(ListMerge((l), (l2)), "ListMustMerge failed")
 
 #endif // MISRA_STD_CONTAINER_LIST_INSERT_H

@@ -17,6 +17,7 @@ bool test_str_dup(void);
 bool test_str_printf(void);
 bool test_str_init_stack(void);
 bool test_str_init_copy(void);
+bool test_str_clone_inherits_allocator_config(void);
 bool test_str_deinit(void);
 
 // Test StrInit function
@@ -197,6 +198,64 @@ bool test_str_init_copy(void) {
     return result;
 }
 
+// Test that default Str clones inherit allocator config but not bound state
+bool test_str_clone_inherits_allocator_config(void) {
+    WriteFmt("Testing Str clone allocator inheritance\n");
+
+    Allocator alloc = HeapAllocator();
+    alloc.effort = ALLOCATOR_EFFORT_RETRY_FALLBACK;
+    alloc.retry_limit = 7;
+    alloc.flags = 0x5A5Au;
+
+    Str src = StrInitFromCstrWithAllocator("Hello, World!", strlen("Hello, World!"), alloc);
+    src.allocator.state = (void *)&src;
+
+    Str dup = StrInitFromStr(&src);
+    Str dst = StrInit();
+    bool copied = StrInitCopy(&dst, &src);
+
+    ValidateStr(&src);
+    ValidateStr(&dup);
+    ValidateStr(&dst);
+
+    bool dup_allocator_matches =
+        dup.allocator.allocate == src.allocator.allocate &&
+        dup.allocator.reallocate == src.allocator.reallocate &&
+        dup.allocator.deallocate == src.allocator.deallocate &&
+        dup.allocator.state_init == src.allocator.state_init &&
+        dup.allocator.state_deinit == src.allocator.state_deinit &&
+        dup.allocator.effort == src.allocator.effort &&
+        dup.allocator.retry_limit == src.allocator.retry_limit &&
+        dup.allocator.flags == src.allocator.flags &&
+        dup.allocator.state == NULL;
+
+    bool dst_allocator_matches =
+        copied &&
+        dst.allocator.allocate == src.allocator.allocate &&
+        dst.allocator.reallocate == src.allocator.reallocate &&
+        dst.allocator.deallocate == src.allocator.deallocate &&
+        dst.allocator.state_init == src.allocator.state_init &&
+        dst.allocator.state_deinit == src.allocator.state_deinit &&
+        dst.allocator.effort == src.allocator.effort &&
+        dst.allocator.retry_limit == src.allocator.retry_limit &&
+        dst.allocator.flags == src.allocator.flags &&
+        dst.allocator.state == NULL;
+
+    bool result =
+        copied &&
+        dup.length == src.length &&
+        dst.length == src.length &&
+        ZstrCompare(dup.data, src.data) == 0 &&
+        ZstrCompare(dst.data, src.data) == 0 &&
+        dup_allocator_matches &&
+        dst_allocator_matches;
+
+    StrDeinit(&src);
+    StrDeinit(&dup);
+    StrDeinit(&dst);
+    return result;
+}
+
 // Test StrDeinit function
 bool test_str_deinit(void) {
     WriteFmt("Testing StrDeinit\n");
@@ -231,6 +290,7 @@ int main(void) {
         test_str_WriteFmt,
         test_str_init_stack,
         test_str_init_copy,
+        test_str_clone_inherits_allocator_config,
         test_str_deinit
     };
 

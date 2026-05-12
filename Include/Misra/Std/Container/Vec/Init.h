@@ -19,7 +19,11 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
-#define VecInit() VecInitAlignedWithDeepCopy(NULL, NULL, 1)
+#define VEC_INIT_HAS_ARGS_IMPL(_0, _1, count, ...) count
+#define VEC_INIT_HAS_ARGS(...) VEC_INIT_HAS_ARGS_IMPL(__VA_OPT__(,) __VA_ARGS__, 1, 0, 0)
+#define VecInit(...) CONCAT(VecInit_, VEC_INIT_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define VecInit_0() VecInitAlignedWithDeepCopyAndAlloc(NULL, NULL, 1, DefaultAllocator())
+#define VecInit_1(alloc) VecInitAlignedWithDeepCopyAndAlloc(NULL, NULL, 1, (alloc))
 
 ///
 /// Initialize given vector. Default alignment is 1
@@ -37,6 +41,7 @@
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
 #define VecInitT(v) VecInitAlignedWithDeepCopyT(v, NULL, NULL, 1)
+#define VecInitAllocT(v, alloc) VecInitAlignedWithDeepCopyAllocT(v, NULL, NULL, 1, (alloc))
 
 ///
 /// Initialize vector. Default alignment is 1
@@ -50,7 +55,8 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
-#define VecInitWithDeepCopy(ci, cd) VecInitAlignedWithDeepCopy(ci, cd, 1)
+#define VecInitWithDeepCopy(ci, cd) VecInitAlignedWithDeepCopyAndAlloc((ci), (cd), 1, DefaultAllocator())
+#define VecInitWithDeepCopyAlloc(ci, cd, alloc) VecInitAlignedWithDeepCopyAndAlloc((ci), (cd), 1, (alloc))
 
 ///
 /// Initialize given vector. Default alignment is 1
@@ -73,6 +79,7 @@
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
 #define VecInitWithDeepCopyT(v, ci, cd) VecInitAlignedWithDeepCopyT(v, ci, cd, 1)
+#define VecInitWithDeepCopyAllocT(v, ci, cd, alloc) VecInitAlignedWithDeepCopyAllocT(v, ci, cd, 1, (alloc))
 
 ///
 /// Initialize vector with given alignment.
@@ -90,7 +97,8 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
-#define VecInitAligned(aln) VecInitAlignedWithDeepCopy(NULL, NULL, aln)
+#define VecInitAligned(aln) VecInitAlignedWithDeepCopyAndAlloc(NULL, NULL, (aln), DefaultAllocator())
+#define VecInitAlignedAlloc(aln, alloc) VecInitAlignedWithDeepCopyAndAlloc(NULL, NULL, (aln), (alloc))
 
 ///
 /// Initialize given vector with given alignment.
@@ -117,6 +125,7 @@
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
 #define VecInitAlignedT(v, aln) VecInitAlignedWithDeepCopyT(v, NULL, NULL, aln)
+#define VecInitAlignedAllocT(v, aln, alloc) VecInitAlignedWithDeepCopyAllocT(v, NULL, NULL, (aln), (alloc))
 
 ///
 /// Initialize vector with given alignment.
@@ -137,17 +146,22 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
-#define VecInitAlignedWithDeepCopy(ci, cd, aln)                                                                        \
+#define VecInitAlignedWithDeepCopy(ci, cd, aln) VecInitAlignedWithDeepCopyAndAlloc((ci), (cd), (aln), DefaultAllocator())
+
+#define VecInitAlignedWithDeepCopyAndAlloc(ci, cd, aln, alloc)                                                         \
     {.length      = 0,                                                                                                 \
      .capacity    = 0,                                                                                                 \
      .copy_init   = (GenericCopyInit)(ci),                                                                             \
      .copy_deinit = (GenericCopyDeinit)(cd),                                                                           \
      .data        = NULL,                                                                                              \
      .alignment   = (aln),                                                                                             \
+     .allocator   = AllocatorBind((alloc)),                                                                            \
      .__magic     = MISRA_VEC_MAGIC}
 
 #ifdef __cplusplus
 #    define VecInitAlignedWithDeepCopyT(v, ci, cd, aln) (TYPE_OF(v) VecInitAlignedWithDeepCopy((ci), (cd), (aln)))
+#    define VecInitAlignedWithDeepCopyAllocT(v, ci, cd, aln, alloc)                                                    \
+        (TYPE_OF(v) VecInitAlignedWithDeepCopyAndAlloc((ci), (cd), (aln), (alloc)))
 #else
 ///
 /// Initialize given vector with given alignment.
@@ -180,6 +194,8 @@
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
 #    define VecInitAlignedWithDeepCopyT(v, ci, cd, aln) ((TYPE_OF(v))VecInitAlignedWithDeepCopy((ci), (cd), (aln)))
+#    define VecInitAlignedWithDeepCopyAllocT(v, ci, cd, aln, alloc)                                                    \
+        ((TYPE_OF(v))VecInitAlignedWithDeepCopyAndAlloc((ci), (cd), (aln), (alloc)))
 #endif
 
 ///

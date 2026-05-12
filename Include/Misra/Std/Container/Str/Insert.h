@@ -25,6 +25,7 @@ extern "C" {
 /// FAILURE : Returns `NULL` otherwise.
 ///
 #define StrInsertCharAt(str, chr, idx) VecInsertR((str), (chr), (idx))
+#define StrMustInsertCharAt(str, chr, idx) VecMustInsertR((str), (chr), (idx))
 
 ///
 /// Insert a string of given length into given Str at given index.
@@ -38,6 +39,7 @@ extern "C" {
 /// FAILURE : Does not return
 ///
 #define StrInsertCstr(str, cstr, idx, len) VecInsertRangeR((str), (cstr), (idx), (len))
+#define StrMustInsertCstr(str, cstr, idx, len) VecMustInsertRangeR((str), (cstr), (idx), (len))
 
 ///
 /// Insert a zero-terminated string into given Str at given index.
@@ -50,6 +52,7 @@ extern "C" {
 /// FAILURE : Does not return
 ///
 #define StrInsertZstr(str, zstr, idx) StrInsertCstr((str), (zstr), (idx), strlen(zstr))
+#define StrMustInsertZstr(str, zstr, idx) StrMustInsertCstr((str), (zstr), (idx), strlen(zstr))
 
 ///
 /// Insert contents of `str2` into `str` at given index.
@@ -62,6 +65,7 @@ extern "C" {
 /// FAILURE : Does not return
 ///
 #define StrInsert(str, str2, idx) StrInsertCstr((str), (str2)->data, (idx), (str2)->length)
+#define StrMustInsert(str, str2, idx) StrMustInsertCstr((str), (str2)->data, (idx), (str2)->length)
 
 ///
 /// Push a array of characters with given length into this string at the given
@@ -76,6 +80,7 @@ extern "C" {
 /// FAILURE : NULL
 ///
 #define StrPushCstr(str, cstr, len, pos) VecInsertRangeR((str), (cstr), (pos), (len))
+#define StrMustPushCstr(str, cstr, len, pos) VecMustInsertRangeR((str), (cstr), (pos), (len))
 
 ///
 /// Push a null-terminated string to this string
@@ -89,6 +94,7 @@ extern "C" {
 /// FAILURE : NULL
 ///
 #define StrPushZstr(str, zstr, pos) StrPushCstr((str), (zstr), strlen(zstr), (pos))
+#define StrMustPushZstr(str, zstr, pos) StrMustPushCstr((str), (zstr), strlen(zstr), (pos))
 
 ///
 /// Push an array of chars with given length to the back of this string.
@@ -101,6 +107,7 @@ extern "C" {
 /// FAILURE : NULL
 ///
 #define StrPushBackCstr(str, cstr, len) VecPushBackArrR((str), (cstr), (len))
+#define StrMustPushBackCstr(str, cstr, len) VecMustPushBackArrR((str), (cstr), (len))
 
 ///
 /// Push a null-terminated string to the back of string.
@@ -112,6 +119,7 @@ extern "C" {
 /// FAILURE : NULL
 ///
 #define StrPushBackZstr(str, zstr) StrPushBackCstr((str), (zstr), strlen((zstr)))
+#define StrMustPushBackZstr(str, zstr) StrMustPushBackCstr((str), (zstr), strlen((zstr)))
 
 ///
 /// Push a array of characters with given length to the front of this string
@@ -124,6 +132,7 @@ extern "C" {
 /// FAILURE : NULL
 ///
 #define StrPushFrontCstr(str, cstr, len) VecPushFrontArrR((str), (cstr), (len))
+#define StrMustPushFrontCstr(str, cstr, len) VecMustPushFrontArrR((str), (cstr), (len))
 
 ///
 /// Push a null-terminated string to the front of this string.
@@ -135,6 +144,7 @@ extern "C" {
 /// FAILURE : NULL
 ///
 #define StrPushFrontZstr(str, zstr) StrPushFrontCstr((str), (zstr), strlen((zstr)))
+#define StrMustPushFrontZstr(str, zstr) StrMustPushFrontCstr((str), (zstr), strlen((zstr)))
 
 ///
 /// Push char into string.
@@ -146,6 +156,7 @@ extern "C" {
 /// FAILURE : Returns `NULL` otherwise.
 ///
 #define StrPushBack(str, chr) VecPushBackR((str), (chr))
+#define StrMustPushBack(str, chr) VecMustPushBackR((str), (chr))
 
 ///
 /// Push char into string front.
@@ -157,6 +168,7 @@ extern "C" {
 /// FAILURE : Returns `NULL` otherwise.
 ///
 #define StrPushFront(str, chr) VecPushFrontR((str), (chr))
+#define StrMustPushFront(str, chr) VecMustPushFrontR((str), (chr))
 
 ///
 /// Merge two strings and store the result in first string, with L-value semantics.
@@ -179,6 +191,7 @@ extern "C" {
 /// FAILURE : NULL
 ///
 #define StrMergeL(str, str2) VecMergeL((str), (str2))
+#define StrMustMergeL(str, str2) VecMustMergeL((str), (str2))
 
 ///
 /// Merge two strings and store the result in first string, with R-value semantics.
@@ -196,6 +209,7 @@ extern "C" {
 /// FAILURE : NULL
 ///
 #define StrMergeR(str, str2) VecMergeR((str), (str2))
+#define StrMustMergeR(str, str2) VecMustMergeR((str), (str2))
 
 ///
 /// Merge two strings and store the result in first string.
@@ -215,6 +229,7 @@ extern "C" {
 /// FAILURE : NULL
 ///
 #define StrMerge(str, str2) StrMergeR((str), (str2))
+#define StrMustMerge(str, str2) StrMustMergeR((str), (str2))
 
     ///
     /// Print and append into given string object with given format.

@@ -8,6 +8,7 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Sys.h>
 
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -16,6 +17,10 @@ enum {
     MAP_SLOT_OCCUPIED  = 1,
     MAP_SLOT_TOMBSTONE = 2,
 };
+
+static inline size map_storage_alignment(void) {
+    return _Alignof(max_align_t);
+}
 
 static size quadratic_probe_index(u64 hash, size probe_count, size capacity) {
     (void)capacity;
@@ -203,48 +208,63 @@ static bool map_keys_equal(const GenericMap *map, size entry_size, size key_offs
 
 static void map_deinit_slot(GenericMap *map, size entry_size, size key_offset, size value_offset, size idx) {
     if (map->key_copy_deinit) {
-        map->key_copy_deinit(map_key_ptr(map, entry_size, key_offset, idx));
+        map->key_copy_deinit(map_key_ptr(map, entry_size, key_offset, idx), &map->allocator);
     }
 
     if (map->value_copy_deinit) {
-        map->value_copy_deinit(map_value_ptr(map, entry_size, value_offset, idx));
+        map->value_copy_deinit(map_value_ptr(map, entry_size, value_offset, idx), &map->allocator);
     }
 
     memset(map_entry_ptr(map, entry_size, idx), 0, entry_size);
 }
 
-static void map_copy_into_slot(
+static bool map_copy_into_entry(
     GenericMap *map,
+    char       *entry,
     size        entry_size,
     size        key_offset,
     size        key_size,
     size        value_offset,
     size        value_size,
     size        hash_offset,
-    size        idx,
     const void *key,
     const void *value,
     u64         hash
 ) {
-    char *entry   = map_entry_ptr(map, entry_size, idx);
     void *dst_key = entry + key_offset;
     void *dst_val = entry + value_offset;
 
     memset(entry, 0, entry_size);
 
     if (map->key_copy_init) {
-        map->key_copy_init(dst_key, (void *)key);
+        if (!map->key_copy_init(dst_key, key, &map->allocator)) {
+            if (map->key_copy_deinit) {
+                map->key_copy_deinit(dst_key, &map->allocator);
+            }
+            memset(entry, 0, entry_size);
+            return false;
+        }
     } else {
         memcpy(dst_key, key, key_size);
     }
 
     if (map->value_copy_init) {
-        map->value_copy_init(dst_val, (void *)value);
+        if (!map->value_copy_init(dst_val, value, &map->allocator)) {
+            if (map->value_copy_deinit) {
+                map->value_copy_deinit(dst_val, &map->allocator);
+            }
+            if (map->key_copy_deinit) {
+                map->key_copy_deinit(dst_key, &map->allocator);
+            }
+            memset(entry, 0, entry_size);
+            return false;
+        }
     } else {
         memcpy(dst_val, value, value_size);
     }
 
-    *map_hash_ptr(map, entry_size, hash_offset, idx) = hash;
+    *(u64 *)(void *)(entry + hash_offset) = hash;
+    return true;
 }
 
 static void map_scan_slots(
@@ -361,6 +381,10 @@ static void map_insert_raw_entry(
         LOG_FATAL("Failed to insert raw map entry during rehash");
     }
 
+    if (map->states[insert_idx] == MAP_SLOT_TOMBSTONE) {
+        map->tombstones -= 1;
+    }
+
     memcpy(map_entry_ptr(map, entry_size, insert_idx), entry, entry_size);
     map->states[insert_idx]  = MAP_SLOT_OCCUPIED;
     map->length             += 1;
@@ -377,6 +401,10 @@ void validate_map(const GenericMap *map) {
 
     if (!map->key_compare || !map->key_hash) {
         LOG_FATAL("Map must have valid key compare and key hash callbacks");
+    }
+
+    if (!map->allocator.allocate || !map->allocator.reallocate || !map->allocator.deallocate) {
+        LOG_FATAL("Map allocator is invalid");
     }
 
     validate_map_policy(&map->policy);
@@ -414,8 +442,9 @@ void deinit_map(
 
     clear_map(map, entry_size, key_offset, key_size, value_offset, value_size, hash_offset);
 
-    free(map->entries);
-    free(map->states);
+    AllocatorFree(&map->allocator, map->entries, map->capacity * entry_size, map_storage_alignment());
+    AllocatorFree(&map->allocator, map->states, map->capacity * sizeof(u8), map_storage_alignment());
+    AllocatorUnbind(&map->allocator);
 
     map->entries                = NULL;
     map->states                 = NULL;
@@ -435,6 +464,7 @@ void deinit_map(
     map->policy.first_index     = NULL;
     map->policy.next_index      = NULL;
     map->policy.max_probe_count = 0;
+    map->allocator              = AllocatorBind(DefaultAllocator());
     map->__magic                = 0;
 }
 
@@ -468,7 +498,7 @@ void clear_map(
     (void)hash_offset;
 }
 
-void rehash_map(
+bool rehash_map(
     GenericMap *map,
     size        entry_size,
     size        key_offset,
@@ -481,6 +511,8 @@ void rehash_map(
 ) {
     char *old_entries;
     u8   *old_states;
+    char *new_entries;
+    u8   *new_states;
     size  old_capacity;
     size  new_capacity;
     size  idx;
@@ -488,15 +520,15 @@ void rehash_map(
     validate_map_policy(&policy);
 
     if ((map->length == 0) && (n == 0)) {
-        free(map->entries);
-        free(map->states);
+        AllocatorFree(&map->allocator, map->entries, map->capacity * entry_size, map_storage_alignment());
+        AllocatorFree(&map->allocator, map->states, map->capacity * sizeof(u8), map_storage_alignment());
         map->entries    = NULL;
         map->states     = NULL;
         map->length     = 0;
         map->capacity   = 0;
         map->tombstones = 0;
         map->policy     = policy;
-        return;
+        return true;
     }
 
     new_capacity = policy.next_capacity(map->length, map->capacity, map->tombstones, n);
@@ -509,18 +541,17 @@ void rehash_map(
     old_states   = map->states;
     old_capacity = map->capacity;
 
-    map->entries = calloc(new_capacity, entry_size);
-    map->states  = calloc(new_capacity, sizeof(u8));
+    new_entries = AllocatorAlloc(&map->allocator, new_capacity * entry_size, map_storage_alignment(), true);
+    new_states  = AllocatorAlloc(&map->allocator, new_capacity * sizeof(u8), map_storage_alignment(), true);
 
-    if (!map->entries || !map->states) {
-        free(map->entries);
-        free(map->states);
-        map->entries  = old_entries;
-        map->states   = old_states;
-        map->capacity = old_capacity;
-        LOG_SYS_FATAL("calloc() failed");
+    if (!new_entries || !new_states) {
+        AllocatorFree(&map->allocator, new_entries, new_capacity * entry_size, map_storage_alignment());
+        AllocatorFree(&map->allocator, new_states, new_capacity * sizeof(u8), map_storage_alignment());
+        return false;
     }
 
+    map->entries    = new_entries;
+    map->states     = new_states;
     map->capacity   = new_capacity;
     map->length     = 0;
     map->tombstones = 0;
@@ -534,14 +565,15 @@ void rehash_map(
         map_insert_raw_entry(map, old_entries + (idx * entry_size), entry_size, key_offset, key_size, hash_offset);
     }
 
-    free(old_entries);
-    free(old_states);
+    AllocatorFree(&map->allocator, old_entries, old_capacity * entry_size, map_storage_alignment());
+    AllocatorFree(&map->allocator, old_states, old_capacity * sizeof(u8), map_storage_alignment());
 
     (void)value_offset;
     (void)value_size;
+    return true;
 }
 
-void reserve_map(
+bool reserve_map(
     GenericMap *map,
     size        entry_size,
     size        key_offset,
@@ -559,10 +591,10 @@ void reserve_map(
 
     if ((target_capacity == map->capacity) &&
         !map->policy.should_rehash(map->length, map->capacity, map->tombstones, 0, 0)) {
-        return;
+        return true;
     }
 
-    rehash_map(map, entry_size, key_offset, key_size, value_offset, value_size, hash_offset, n, map->policy);
+    return rehash_map(map, entry_size, key_offset, key_size, value_offset, value_size, hash_offset, n, map->policy);
 }
 
 size map_find_index(
@@ -801,7 +833,9 @@ void *map_ensure_value_ptr(
         return value_ptr;
     }
 
-    map_insert(map, key, value, entry_size, key_offset, key_size, value_offset, value_size, hash_offset);
+    if (!map_insert(map, key, value, entry_size, key_offset, key_size, value_offset, value_size, hash_offset)) {
+        return NULL;
+    }
     return map_get_value_ptr(map, key, entry_size, key_offset, key_size, value_offset, hash_offset);
 }
 
@@ -850,7 +884,7 @@ void *map_value_ptr_from_cursor(GenericMap *map, MapValueCursor cursor, size ent
     return map_value_ptr(map, entry_size, value_offset, cursor.__index);
 }
 
-void map_insert(
+bool map_insert(
     GenericMap *map,
     const void *key,
     const void *value,
@@ -868,21 +902,25 @@ void map_insert(
     ValidateMap(map);
 
     if (map->capacity == 0) {
-        rehash_map(map, entry_size, key_offset, key_size, value_offset, value_size, hash_offset, 1, map->policy);
+        if (!rehash_map(map, entry_size, key_offset, key_size, value_offset, value_size, hash_offset, 1, map->policy)) {
+            return false;
+        }
     }
 
     if (map->policy.should_rehash(map->length, map->capacity, map->tombstones, 1, 0)) {
-        rehash_map(
-            map,
-            entry_size,
-            key_offset,
-            key_size,
-            value_offset,
-            value_size,
-            hash_offset,
-            map->length + 1,
-            map->policy
-        );
+        if (!rehash_map(
+                map,
+                entry_size,
+                key_offset,
+                key_size,
+                value_offset,
+                value_size,
+                hash_offset,
+                map->length + 1,
+                map->policy
+            )) {
+            return false;
+        }
     }
 
     hash = map_hash_key(map, key, key_size);
@@ -891,40 +929,88 @@ void map_insert(
     if (insert_idx >= map->capacity) {
         (void)map->policy.should_rehash(map->length, map->capacity, map->tombstones, 1, probe_pressure);
 
-        rehash_map(
-            map,
-            entry_size,
-            key_offset,
-            key_size,
-            value_offset,
-            value_size,
-            hash_offset,
-            map->length + 1,
-            map->policy
-        );
-        map_insert(map, key, value, entry_size, key_offset, key_size, value_offset, value_size, hash_offset);
-        return;
+        if (!rehash_map(
+                map,
+                entry_size,
+                key_offset,
+                key_size,
+                value_offset,
+                value_size,
+                hash_offset,
+                map->length + 1,
+                map->policy
+            )) {
+            return false;
+        }
+        return map_insert(map, key, value, entry_size, key_offset, key_size, value_offset, value_size, hash_offset);
     }
 
     if (map->states[insert_idx] == MAP_SLOT_TOMBSTONE) {
         map->tombstones -= 1;
     }
 
-    map_copy_into_slot(
+    if (!map_copy_into_entry(
         map,
+        map_entry_ptr(map, entry_size, insert_idx),
         entry_size,
         key_offset,
         key_size,
         value_offset,
         value_size,
         hash_offset,
-        insert_idx,
         key,
         value,
         hash
-    );
+    )) {
+        if (map->states[insert_idx] == MAP_SLOT_TOMBSTONE) {
+            map->tombstones += 1;
+        }
+        return false;
+    }
     map->states[insert_idx]  = MAP_SLOT_OCCUPIED;
     map->length             += 1;
+    return true;
+}
+
+bool map_set_only(
+    GenericMap *map,
+    const void *key,
+    const void *value,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset
+) {
+    char *temp_entry;
+    size  existing_idx;
+    u64   hash;
+
+    ValidateMap(map);
+
+    existing_idx = map_find_index(map, key, entry_size, key_offset, key_size, hash_offset);
+    if (existing_idx >= map->capacity) {
+        return map_insert(map, key, value, entry_size, key_offset, key_size, value_offset, value_size, hash_offset);
+    }
+
+    hash       = map_hash_key(map, key, key_size);
+    temp_entry = AllocatorAlloc(&map->allocator, entry_size, map_storage_alignment(), true);
+    if (!temp_entry) {
+        return false;
+    }
+
+    if (!map_copy_into_entry(
+            map, temp_entry, entry_size, key_offset, key_size, value_offset, value_size, hash_offset, key, value, hash
+        )) {
+        AllocatorFree(&map->allocator, temp_entry, entry_size, map_storage_alignment());
+        return false;
+    }
+
+    (void)map_remove_all(map, key, entry_size, key_offset, key_size, value_offset, value_size, hash_offset);
+    map_insert_raw_entry(map, temp_entry, entry_size, key_offset, key_size, hash_offset);
+    AllocatorFree(&map->allocator, temp_entry, entry_size, map_storage_alignment());
+    return true;
 }
 
 bool map_set_first(
@@ -940,6 +1026,7 @@ bool map_set_first(
 ) {
     size  idx;
     void *dst_value;
+    void *temp_value;
 
     ValidateMap(map);
 
@@ -953,15 +1040,32 @@ bool map_set_first(
     }
 
     dst_value = map_value_ptr(map, entry_size, value_offset, idx);
+    temp_value = NULL;
+
+    if (map->value_copy_init) {
+        temp_value = AllocatorAlloc(&map->allocator, value_size, map_storage_alignment(), true);
+        if (!temp_value) {
+            return false;
+        }
+
+        if (!map->value_copy_init(temp_value, value, &map->allocator)) {
+            if (map->value_copy_deinit) {
+                map->value_copy_deinit(temp_value, &map->allocator);
+            }
+            AllocatorFree(&map->allocator, temp_value, value_size, map_storage_alignment());
+            return false;
+        }
+    }
 
     if (map->value_copy_deinit) {
-        map->value_copy_deinit(dst_value);
+        map->value_copy_deinit(dst_value, &map->allocator);
     }
 
     memset(dst_value, 0, value_size);
 
     if (map->value_copy_init) {
-        map->value_copy_init(dst_value, (void *)value);
+        memcpy(dst_value, temp_value, value_size);
+        AllocatorFree(&map->allocator, temp_value, value_size, map_storage_alignment());
     } else {
         memcpy(dst_value, value, value_size);
     }
@@ -979,13 +1083,13 @@ static void map_remove_at_index(
     size        value_size
 ) {
     if (map->key_copy_deinit) {
-        map->key_copy_deinit(map_key_ptr(map, entry_size, key_offset, idx));
+        map->key_copy_deinit(map_key_ptr(map, entry_size, key_offset, idx), &map->allocator);
     } else {
         (void)key_size;
     }
 
     if (map->value_copy_deinit) {
-        map->value_copy_deinit(map_value_ptr(map, entry_size, value_offset, idx));
+        map->value_copy_deinit(map_value_ptr(map, entry_size, value_offset, idx), &map->allocator);
     } else {
         (void)value_size;
     }

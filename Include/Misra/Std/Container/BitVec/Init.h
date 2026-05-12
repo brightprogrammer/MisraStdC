@@ -9,10 +9,32 @@
 
 #include "Type.h"
 #include <Misra/Std/Memory.h>
+#include <stdio.h>
 #include <string.h>
 
 // Helper macro for bit operations
 #define BITVEC_BYTES_FOR_BITS(bits) (((bits) + 7) / 8)
+
+void SysAbort(void);
+
+#define BITVEC_INIT_ABORT(message) bitvec_abort_init_operation(__func__, __LINE__, (message))
+#define BitVecMustReserve(bv, n)                                                                                       \
+    do {                                                                                                               \
+        if (!BitVecReserve((bv), (n))) {                                                                               \
+            BITVEC_INIT_ABORT("BitVecMustReserve failed");                                                             \
+        }                                                                                                              \
+    } while (0)
+#define BitVecMustResize(bv, n)                                                                                        \
+    do {                                                                                                               \
+        if (!BitVecResize((bv), (n))) {                                                                                \
+            BITVEC_INIT_ABORT("BitVecMustResize failed");                                                              \
+        }                                                                                                              \
+    } while (0)
+
+static inline void bitvec_abort_init_operation(const char *function, int line, const char *message) {
+    fprintf(stderr, "FATAL [%s:%d] %s\n", function, line, message);
+    SysAbort();
+}
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,12 +49,41 @@ extern "C" {
 ///
 /// TAGS: Init, BitVec, Boolean, Bits
 ///
+#define BITVEC_INIT_HAS_ARGS_IMPL(_0, _1, count, ...) count
+#define BITVEC_INIT_HAS_ARGS(...) BITVEC_INIT_HAS_ARGS_IMPL(__VA_OPT__(,) __VA_ARGS__, 1, 0, 0)
+
 #ifdef __cplusplus
-#    define BitVecInit()                                                                                               \
-        (BitVec {.length = 0, .capacity = 0, .data = NULL, .byte_size = 0, .__magic = MISRA_BITVEC_MAGIC})
+#    define BitVecInit(...) CONCAT(BitVecInit_, BITVEC_INIT_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#    define BitVecInit_0()                                                                                            \
+        (BitVec {.length = 0,                                                                                         \
+                 .capacity = 0,                                                                                       \
+                 .data = NULL,                                                                                        \
+                 .byte_size = 0,                                                                                      \
+                 .allocator = AllocatorBind(DefaultAllocator()),                                                      \
+                 .__magic = MISRA_BITVEC_MAGIC})
+#    define BitVecInit_1(alloc)                                                                                       \
+        (BitVec {.length = 0,                                                                                         \
+                 .capacity = 0,                                                                                       \
+                 .data = NULL,                                                                                        \
+                 .byte_size = 0,                                                                                      \
+                 .allocator = AllocatorBind((alloc)),                                                                 \
+                 .__magic = MISRA_BITVEC_MAGIC})
 #else
-#    define BitVecInit()                                                                                               \
-        ((BitVec) {.length = 0, .capacity = 0, .data = NULL, .byte_size = 0, .__magic = MISRA_BITVEC_MAGIC})
+#    define BitVecInit(...) CONCAT(BitVecInit_, BITVEC_INIT_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#    define BitVecInit_0()                                                                                            \
+        ((BitVec) {.length = 0,                                                                                       \
+                   .capacity = 0,                                                                                     \
+                   .data = NULL,                                                                                      \
+                   .byte_size = 0,                                                                                    \
+                   .allocator = AllocatorBind(DefaultAllocator()),                                                    \
+                   .__magic = MISRA_BITVEC_MAGIC})
+#    define BitVecInit_1(alloc)                                                                                       \
+        ((BitVec) {.length = 0,                                                                                       \
+                   .capacity = 0,                                                                                     \
+                   .data = NULL,                                                                                      \
+                   .byte_size = 0,                                                                                    \
+                   .allocator = AllocatorBind((alloc)),                                                               \
+                   .__magic = MISRA_BITVEC_MAGIC})
 #endif
 
 ///
@@ -46,23 +97,10 @@ extern "C" {
 ///
 /// TAGS: Init, BitVec, Boolean, Bits, Capacity
 ///
-#ifdef __cplusplus
-#    define BitVecInitWithCapacity(cap)                                                                                \
-        (BitVec {                                                                                                      \
-            .length    = 0,                                                                                            \
-            .capacity  = (cap),                                                                                        \
-            .data      = (u8 *)calloc(BITVEC_BYTES_FOR_BITS(cap), 1),                                                  \
-            .byte_size = BITVEC_BYTES_FOR_BITS(cap),                                                                   \
-            .__magic   = MISRA_BITVEC_MAGIC                                                                            \
-        })
-#else
-#    define BitVecInitWithCapacity(cap)                                                                                \
-        ((BitVec) {.length    = 0,                                                                                     \
-                   .capacity  = (cap),                                                                                 \
-                   .data      = (u8 *)calloc(BITVEC_BYTES_FOR_BITS(cap), 1),                                           \
-                   .byte_size = BITVEC_BYTES_FOR_BITS(cap),                                                            \
-                   .__magic   = MISRA_BITVEC_MAGIC})
-#endif
+    BitVec BitVecInitWithCapacityAlloc(u64 cap, Allocator alloc);
+
+#define BitVecInitWithCapacity(cap) BitVecInitWithCapacityAlloc((cap), DefaultAllocator())
+#define BitVecInitWithCapacityWithAlloc(cap, alloc) BitVecInitWithCapacityAlloc((cap), (alloc))
 
 
 
@@ -104,7 +142,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Reserve, Capacity, Memory
     ///
-    void BitVecReserve(BitVec *bv, u64 n);
+    bool BitVecReserve(BitVec *bv, u64 n);
 
     ///
     /// Reu64 bitvector to hold exactly n bits.
@@ -118,7 +156,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Resize, Length
     ///
-    void BitVecResize(BitVec *bv, u64 n);
+    bool BitVecResize(BitVec *bv, u64 n);
 
 #ifdef __cplusplus
 }

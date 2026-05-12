@@ -16,6 +16,36 @@
 
 static Str *string_va_printf(Str *str, const char *fmt, va_list args);
 
+bool StrTryInitFromCstrWithAllocator(Str *out, const char *cstr, size len, Allocator alloc) {
+    if (!out || !cstr) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    *out = StrInit(alloc);
+    if (len == 0) {
+        return true;
+    }
+
+    if (!StrReserve(out, len)) {
+        return false;
+    }
+
+    MemCopy(out->data, cstr, len);
+    out->data[len] = 0;
+    out->length    = len;
+    return true;
+}
+
+Str StrInitFromCstrWithAllocator(const char *cstr, size len, Allocator alloc) {
+    Str result = StrInit(alloc);
+
+    if (!StrTryInitFromCstrWithAllocator(&result, cstr, len, alloc)) {
+        return result;
+    }
+
+    return result;
+}
+
 Str *StrPrintf(Str *str, const char *fmt, ...) {
     ValidateStr(str);
 
@@ -54,7 +84,10 @@ static Str *string_va_printf(Str *str, const char *fmt, va_list args) {
     }
 
     // Make more space if required
-    StrReserve(str, str->length + n + 1);
+    if (!StrReserve(str, str->length + n + 1)) {
+        va_end(args_copy);
+        return NULL;
+    }
 
     // do formatted print at end of string
     vsnprintf(str->data + str->length, n + 1, fmt, args_copy);
@@ -68,26 +101,46 @@ static Str *string_va_printf(Str *str, const char *fmt, va_list args) {
 }
 
 bool StrInitCopy(Str *dst, const Str *src) {
+    if (!dst || !src) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    return StrInitCopyWithAllocator(dst, src, &src->allocator);
+}
+
+bool StrInitCopyWithAllocator(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
+    Str             *dst             = (Str *)dst_ptr;
+    const Str       *src             = (const Str *)src_ptr;
+    const Allocator *clone_allocator = NULL;
+
     ValidateStr(src);
+    if (!dst) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    clone_allocator = alloc ? alloc : &src->allocator;
 
     MemSet(dst, 0, sizeof(Str));
-    *dst             = StrInit();
+    *dst             = StrInit(*clone_allocator);
     dst->copy_init   = src->copy_init;
     dst->copy_deinit = src->copy_deinit;
     dst->alignment   = src->alignment;
 
-    VecMergeR(dst, src);
-    ValidateStr(dst);
+    if (!insert_range_into_vec(GENERIC_VEC(dst), src->data, sizeof(char), 0, src->length)) {
+        return false;
+    }
 
     return true;
 }
 
 void StrDeinit(Str *copy) {
     ValidateStr(copy);
-    if (copy->data) {
-        FREE(copy->data);
-    }
-    *copy = StrInit();
+    deinit_vec(GENERIC_VEC(copy), sizeof(char));
+}
+
+void StrDeinitWithAllocator(void *copy, const Allocator *alloc) {
+    (void)alloc;
+    StrDeinit((Str *)copy);
 }
 
 StrIters StrSplitToIters(Str *s, const char *key) {
@@ -118,7 +171,7 @@ StrIters StrSplitToIters(Str *s, const char *key) {
 Strs StrSplit(Str *s, const char *key) {
     ValidateStr(s);
 
-    Strs sv     = VecInitWithDeepCopy(NULL, StrDeinit);
+    Strs sv     = VecInitWithDeepCopy(NULL, StrDeinitWithAllocator);
     size keylen = ZstrLen(key);
 
     const char *prev = s->data;

@@ -18,7 +18,11 @@
 ///
 /// TAGS: Graph, Init, Directed
 ///
-#define GraphInit() GraphInitAlignedWithDeepCopy(NULL, NULL, 1)
+#define GRAPH_INIT_HAS_ARGS_IMPL(_0, _1, count, ...) count
+#define GRAPH_INIT_HAS_ARGS(...) GRAPH_INIT_HAS_ARGS_IMPL(__VA_OPT__(,) __VA_ARGS__, 1, 0, 0)
+#define GraphInit(...) CONCAT(GraphInit_, GRAPH_INIT_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define GraphInit_0() GraphInitAlignedWithDeepCopyAndAlloc(NULL, NULL, 1, DefaultAllocator())
+#define GraphInit_1(alloc) GraphInitAlignedWithDeepCopyAndAlloc(NULL, NULL, 1, (alloc))
 
 ///
 /// Initialize given graph. Default node alignment is 1.
@@ -37,7 +41,8 @@
 ///
 /// TAGS: Graph, Init, DeepCopy, Directed
 ///
-#define GraphInitWithDeepCopy(ci, cd) GraphInitAlignedWithDeepCopy((ci), (cd), 1)
+#define GraphInitWithDeepCopy(ci, cd) GraphInitAlignedWithDeepCopyAndAlloc((ci), (cd), 1, DefaultAllocator())
+#define GraphInitWithDeepCopyAlloc(ci, cd, alloc) GraphInitAlignedWithDeepCopyAndAlloc((ci), (cd), 1, (alloc))
 
 ///
 /// Initialize given graph with deep-copy callbacks for node payloads.
@@ -57,7 +62,8 @@
 ///
 /// TAGS: Graph, Init, Alignment, Directed
 ///
-#define GraphInitAligned(aln) GraphInitAlignedWithDeepCopy(NULL, NULL, (aln))
+#define GraphInitAligned(aln) GraphInitAlignedWithDeepCopyAndAlloc(NULL, NULL, (aln), DefaultAllocator())
+#define GraphInitAlignedAlloc(aln, alloc) GraphInitAlignedWithDeepCopyAndAlloc(NULL, NULL, (aln), (alloc))
 
 ///
 /// Initialize given graph with explicit node alignment.
@@ -79,9 +85,12 @@
 /// TAGS: Graph, Init, DeepCopy, Alignment, Directed
 ///
 #define GraphInitAlignedWithDeepCopy(ci, cd, aln)                                                                     \
-    {.slots                = VecInit(),                                                                               \
-     .free_indices         = VecInit(),                                                                               \
-     .pending_edge_removals = VecInit(),                                                                              \
+    GraphInitAlignedWithDeepCopyAndAlloc((ci), (cd), (aln), DefaultAllocator())
+
+#define GraphInitAlignedWithDeepCopyAndAlloc(ci, cd, aln, alloc)                                                      \
+    {.slots                = VecInit((alloc)),                                                                        \
+     .free_indices         = VecInit((alloc)),                                                                        \
+     .pending_edge_removals = VecInit((alloc)),                                                                       \
      .copy_init            = (GenericCopyInit)(ci),                                                                   \
      .copy_deinit          = (GenericCopyDeinit)(cd),                                                                 \
      .live_count           = 0,                                                                                       \
@@ -89,11 +98,14 @@
      .pending_delete_count = 0,                                                                                       \
      .mutation_epoch       = 0,                                                                                       \
      .alignment            = (aln),                                                                                   \
+     .allocator            = AllocatorBind((alloc)),                                                                  \
      .type_anchor          = NULL,                                                                                    \
      .__magic              = MISRA_GRAPH_MAGIC}
 
 #ifdef __cplusplus
 #    define GraphInitAlignedWithDeepCopyT(g, ci, cd, aln) (TYPE_OF(g) GraphInitAlignedWithDeepCopy((ci), (cd), (aln)))
+#    define GraphInitAlignedWithDeepCopyAllocT(g, ci, cd, aln, alloc)                                                  \
+        (TYPE_OF(g) GraphInitAlignedWithDeepCopyAndAlloc((ci), (cd), (aln), (alloc)))
 #else
 ///
 /// Initialize given graph with deep-copy callbacks and explicit node alignment.
@@ -106,6 +118,8 @@
 /// TAGS: Graph, Init, DeepCopy, Alignment, Directed
 ///
 #    define GraphInitAlignedWithDeepCopyT(g, ci, cd, aln) ((TYPE_OF(g))GraphInitAlignedWithDeepCopy((ci), (cd), (aln)))
+#    define GraphInitAlignedWithDeepCopyAllocT(g, ci, cd, aln, alloc)                                                  \
+        ((TYPE_OF(g))GraphInitAlignedWithDeepCopyAndAlloc((ci), (cd), (aln), (alloc)))
 #endif
 
 ///

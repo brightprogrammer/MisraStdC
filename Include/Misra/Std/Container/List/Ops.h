@@ -8,6 +8,15 @@
 #ifndef MISRA_STD_CONTAINER_LIST_OPS_H
 #define MISRA_STD_CONTAINER_LIST_OPS_H
 
+#include "Private.h"
+#include <stdio.h>
+
+void SysAbort(void);
+
+static inline void list_abort_ops_operation(const char *function, int line, const char *message) {
+    fprintf(stderr, "FATAL [%s:%d] %s\n", function, line, message);
+    SysAbort();
+}
 
 ///
 /// Set list length to 0.
@@ -29,6 +38,12 @@
 /// FAILURE: Returns NULL otherwise.
 ///
 #define ListSort(l, compare) qsort_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (compare))
+#define ListMustSort(l, compare)                                                                                       \
+    do {                                                                                                               \
+        if (!ListSort((l), (compare))) {                                                                               \
+            list_abort_ops_operation(__func__, __LINE__, "ListMustSort failed");                                       \
+        }                                                                                                              \
+    } while (0)
 
 ///
 /// Reverse contents of this list.

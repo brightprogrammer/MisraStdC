@@ -7,682 +7,251 @@
 #ifndef MISRA_STD_CONTAINER_VEC_INSERT_H
 #define MISRA_STD_CONTAINER_VEC_INSERT_H
 
-#include "Type.h"
+#include "Private.h"
 
-///
-/// Insert an `l-value` into vector of it's type.
-/// Insertion index must not exceed vector length.
-/// This preserves the ordering of elements. Best to be used with sorted vectors,
-/// if the sorted property is to be preserved.
-///
-/// NOTE: Ownership of item is transferred to vector if no `copy_init` method is set.
-///       This is to prevent multiple ownership of same object, once inserted into vector.
-///       Object may not be usable after this call if `copy_init` is not set.
-///
-/// INFO: If `copy_init` is set, then vector will create it's own copy of items.
-///
-/// In worst case this would to to O(n)
-///
-/// v[in,out] : Vector to insert item into
-/// lval[in]  : l-value to be inserted
-/// idx[in]   : Index to insert item at.
-///
-/// USAGE:
-///   // the data
-///   int x = 10;
-///   int y = 20;
-///
-///   // vector
-///   Vec(int) integers = VecInit();
-///
-///   // insert items
-///   VecInsertL(&integers, x, 0); // x inserted at position 0
-///   VecInsertL(&integers, y, 0); // x shifted one position and y is inserted
-///   VecInsertL(&integers, LVAL(101), 1); // x shifted one position and 101 is inserted at index 1
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
-#define VecInsertL(v, lval, idx)                                                                                       \
+#include <stdio.h>
+
+void SysAbort(void);
+
+#if defined(MISRA_ENFORCE_TYPE_SAFETY) && MISRA_ENFORCE_TYPE_SAFETY
+#    define VEC_TYPECHECK_L(v, lval) ((void)sizeof(char[_Generic(&(lval), VEC_DATATYPE(v) * : 1, default : -1)]))
+#    define VEC_TYPECHECK_R(v, rval) ((void)sizeof((VEC_DATATYPE(v)[]){(rval)}))
+#    define VEC_TYPECHECK_RANGE_L(v, ptr) ((void)sizeof(char[_Generic((ptr), VEC_DATATYPE(v) * : 1, default : -1)]))
+#    define VEC_TYPECHECK_RANGE_R(v, ptr)                                                                              \
+        ((void)sizeof(char[_Generic((ptr), VEC_DATATYPE(v) * : 1, const VEC_DATATYPE(v) * : 1, default : -1)]))
+#else
+#    define VEC_TYPECHECK_L(v, lval) ((void)0)
+#    define VEC_TYPECHECK_R(v, rval) ((void)0)
+#    define VEC_TYPECHECK_RANGE_L(v, ptr) ((void)0)
+#    define VEC_TYPECHECK_RANGE_R(v, ptr) ((void)0)
+#endif
+
+#define VEC_ABORT(message) vec_abort_insert_operation(__func__, __LINE__, (message))
+#define VEC_MUST(operation, message)                                                                                   \
     do {                                                                                                               \
-        ValidateVec(v);                                                                                                \
-        VEC_DATATYPE(v) *__ptr__val_##__LINE__ = &(lval);                                                              \
-        VEC_DATATYPE(v) __tmp__val_##__LINE__  = (lval);                                                               \
-        insert_range_into_vec(GENERIC_VEC(v), (char *)&__tmp__val_##__LINE__, sizeof(VEC_DATATYPE(v)), (idx), 1);      \
-        if (!(v)->copy_init) {                                                                                         \
-            memset(__ptr__val_##__LINE__, 0, sizeof(VEC_DATATYPE(v)));                                                 \
+        if (!(operation)) {                                                                                            \
+            VEC_ABORT(message);                                                                                        \
         }                                                                                                              \
     } while (0)
 
-///
-/// Insert an `r-value` into vector of it's type.
-/// Insertion index must not exceed vector length.
-/// This preserves the ordering of elements. Best to be used with sorted vectors,
-/// if the sorted property is to be preserved.
-///
-/// In worst case this would to to O(n)
-///
-/// v[in,out] : Vector to insert item into
-/// rval[in]  : r-value to be inserted
-/// idx[in]   : Index to insert item at.
-///
-/// USAGE:
-///   // the data
-///   int x = 10;
-///   int y = 20;
-///
-///   // vector
-///   Vec(int) integers = VecInit();
-///
-///   // insert items
-///   VecInsertR(&integers, x, 0); // x inserted at position 0
-///   VecInsertR(&integers, y, 0); // x shifted one position and y is inserted
-///   VecInsertR(&integers, 5, 1); // x shifted one position and 5 is inserted at index 1
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
-#define VecInsertR(v, rval, idx)                                                                                       \
-    do {                                                                                                               \
-        ValidateVec(v);                                                                                                \
-        VEC_DATATYPE(v) __tmp__val_##__LINE__ = (rval);                                                                \
-        insert_range_into_vec(GENERIC_VEC(v), (char *)&__tmp__val_##__LINE__, sizeof(VEC_DATATYPE(v)), (idx), 1);      \
-    } while (0)
+static inline void vec_abort_insert_operation(const char *function, int line, const char *message) {
+    fprintf(stderr, "FATAL [%s:%d] %s\n", function, line, message);
+    SysAbort();
+}
 
-///
-/// Insert by default behaves like `VecInsertL`, which is to insert an l-value into
-/// vector and then take ownership if vector does not have a copy-init method.
-///
-/// v[in,out] : Vector to insert item into
-/// lval[in]   : l-value to be inserted
-/// idx[in]   : Index to insert item at.
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
+static inline bool vec_insert_one_l_impl(
+    GenericVec *vec, const void *item_copy, void *source, size item_size, size idx, bool preserve_order
+) {
+    bool success = preserve_order ? insert_range_into_vec(vec, item_copy, item_size, idx, 1)
+                                  : insert_range_fast_into_vec(vec, item_copy, item_size, idx, 1);
+
+    return vec_zero_source_on_success(vec, source, item_size, success);
+}
+
+static inline bool vec_insert_one_r_impl(
+    GenericVec *vec, const void *item_copy, size item_size, size idx, bool preserve_order
+) {
+    return preserve_order ? insert_range_into_vec(vec, item_copy, item_size, idx, 1)
+                          : insert_range_fast_into_vec(vec, item_copy, item_size, idx, 1);
+}
+
+static inline bool vec_insert_range_l_impl(
+    GenericVec *vec, void *items, size item_size, size idx, size count, bool preserve_order
+) {
+    bool success;
+
+    if (!items) {
+        VEC_ABORT("Expected a valid pointer");
+    }
+
+    success = preserve_order ? insert_range_into_vec(vec, items, item_size, idx, count)
+                             : insert_range_fast_into_vec(vec, items, item_size, idx, count);
+
+    return vec_zero_source_on_success(vec, items, count * item_size, success);
+}
+
+static inline bool vec_insert_range_r_impl(
+    GenericVec *vec, const void *items, size item_size, size idx, size count, bool preserve_order
+) {
+    if (!items) {
+        VEC_ABORT("Expected a valid pointer");
+    }
+
+    return preserve_order ? insert_range_into_vec(vec, items, item_size, idx, count)
+                          : insert_range_fast_into_vec(vec, items, item_size, idx, count);
+}
+
+static inline bool vec_merge_l_impl(GenericVec *dst, GenericVec *src, size item_size) {
+    if (!src->data || !src->length) {
+        return true;
+    }
+
+    return vec_release_merged_source_on_success(
+        dst, src, item_size, vec_insert_range_l_impl(dst, src->data, item_size, dst->length, src->length, true)
+    );
+}
+
+static inline bool vec_merge_r_impl(GenericVec *dst, const GenericVec *src, size item_size) {
+    if (!src->data || !src->length) {
+        return true;
+    }
+
+    return vec_insert_range_r_impl(dst, src->data, item_size, dst->length, src->length, true);
+}
+
+#define VecInsertL(v, lval, idx)                                                                                       \
+    (ValidateVec(v),                                                                                                   \
+     VEC_TYPECHECK_L((v), (lval)),                                                                                     \
+     vec_insert_one_l_impl(                                                                                            \
+         GENERIC_VEC(v),                                                                                               \
+         &LVAL((VEC_DATATYPE(v))(lval)),                                                                               \
+         &(lval),                                                                                                      \
+         sizeof(VEC_DATATYPE(v)),                                                                                      \
+         (idx),                                                                                                        \
+         true                                                                                                          \
+     ))
+
+#define VecInsertR(v, rval, idx)                                                                                       \
+    (ValidateVec(v),                                                                                                   \
+     VEC_TYPECHECK_R((v), (rval)),                                                                                     \
+     vec_insert_one_r_impl(GENERIC_VEC(v), &LVAL((VEC_DATATYPE(v))(rval)), sizeof(VEC_DATATYPE(v)), (idx), true))
+
 #define VecInsert(v, lval, idx) VecInsertL((v), (lval), (idx))
 
-///
-/// Quickly insert item into vector. Ordering of elements is not guaranteed
-/// to be preserved. This call makes significant difference only for sufficiently
-/// large vectors and when `idx` is quite less than `(v)->length`.
-///
-/// Insertion time is guaranteed to be constant for same data types.
-///
-/// Usage is exactly same as `VecInsert`, just the internal implementation is
-/// different.
-///
-/// NOTE: Ownership of item is transferred to vector if no `copy_init` method is set.
-///       This is to prevent multiple ownership of same object, once inserted into vector.
-///       Object won't be usable after this call if `copy_init` is not set.
-///
-/// INFO: If `copy_init` is set, then vector will create it's own copy of items.
-///
-/// v[in,out] : Vector to insert item into
-/// lval[in]  : l-value to be inserted
-/// idx[in]   : Index to insert item at.
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
-#define VecInsertFastL(v, val, idx)                                                                                    \
-    do {                                                                                                               \
-        ValidateVec(v);                                                                                                \
-        VEC_DATATYPE(v) *__ptr_val_##__LINE__ = &(val);                                                                \
-        {                                                                                                              \
-            VEC_DATATYPE(v) __tmp_val_##__LINE__ = (val);                                                              \
-            (void)__tmp_val_##__LINE__;                                                                                \
-        }                                                                                                              \
-        insert_range_fast_into_vec(GENERIC_VEC(v), (char *)__ptr_val_##__LINE__, sizeof(VEC_DATATYPE(v)), (idx), 1);   \
-        if (!(v)->copy_init) {                                                                                         \
-            memset(__ptr_val_##__LINE__, 0, sizeof(VEC_DATATYPE(v)));                                                  \
-        }                                                                                                              \
-    } while (0)
+#define VecInsertFastL(v, lval, idx)                                                                                   \
+    (ValidateVec(v),                                                                                                   \
+     VEC_TYPECHECK_L((v), (lval)),                                                                                     \
+     vec_insert_one_l_impl(                                                                                            \
+         GENERIC_VEC(v),                                                                                               \
+         &LVAL((VEC_DATATYPE(v))(lval)),                                                                               \
+         &(lval),                                                                                                      \
+         sizeof(VEC_DATATYPE(v)),                                                                                      \
+         (idx),                                                                                                        \
+         false                                                                                                         \
+     ))
 
-///
-/// Quickly insert item into vector. Ordering of elements is not guaranteed
-/// to be preserved. This call makes significant difference only for sufficiently
-/// large vectors and when `idx` is quite less than `(v)->length`.
-///
-/// Insertion time is guaranteed to be constant for same data types.
-///
-/// Usage is exactly same as `VecInsert`, just the internal implementation is
-/// different.
-///
-/// v[in,out] : Vector to insert item into
-/// lval[in]  : r-value to be inserted
-/// idx[in]   : Index to insert item at.
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
-#define VecInsertFastR(v, val, idx)                                                                                    \
-    do {                                                                                                               \
-        ValidateVec(v);                                                                                                \
-        VEC_DATATYPE(v) *__ptr_val_##__LINE__ = &(val);                                                                \
-        {                                                                                                              \
-            VEC_DATATYPE(v) __tmp_val_##__LINE__ = (val);                                                              \
-            (void)__tmp_val_##__LINE__;                                                                                \
-        }                                                                                                              \
-        insert_range_fast_into_vec(GENERIC_VEC(v), (char *)__ptr_val_##__LINE__, sizeof(VEC_DATATYPE(v)), (idx), 1);   \
-        if (!(v)->copy_init) {                                                                                         \
-            memset(__ptr_val_##__LINE__, 0, sizeof(VEC_DATATYPE(v)));                                                  \
-        }                                                                                                              \
-    } while (0)
+#define VecInsertFastR(v, rval, idx)                                                                                   \
+    (ValidateVec(v),                                                                                                   \
+     VEC_TYPECHECK_R((v), (rval)),                                                                                     \
+     vec_insert_one_r_impl(GENERIC_VEC(v), &LVAL((VEC_DATATYPE(v))(rval)), sizeof(VEC_DATATYPE(v)), (idx), false))
 
-///
-/// By default this behaves like inserting an l-value using `VecInsertFastL`
-///
-/// v[in,out] : Vector to insert item into
-/// lval[in]  : l-value to be inserted
-/// idx[in]   : Index to insert item at.
-///
-#define VecInsertFast(v, lval, idx) VecInsertFastR((v), (lval), (idx))
+#define VecInsertFast(v, lval, idx) VecInsertFastL((v), (lval), (idx))
 
-///
-/// Insert array of items into vector, with L-value semantics.
-/// Insertion index must not exceed vector length.
-/// This preserves the ordering of elements. Best to be used with sorted vectors,
-/// if the sorted property is to be preserved.
-///
-/// NOTE: Ownership of items in array is transferred to vector if no `copy_init` method is set.
-///       This is to prevent multiple ownership of same object, once inserted into vector.
-///       Object won't be usable after this call if `copy_init` is not set.
-///
-/// INFO: If `copy_init` is set, then vector will create it's own copy of items.
-///
-/// v[in,out] : Vector to insert item into
-/// val[in]   : Array of items to be inserted
-/// idx[in]   : Index to start inserting item at.
-/// count[in] : Number of items to insert.
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
 #define VecInsertRangeL(v, varr, idx, count)                                                                           \
-    do {                                                                                                               \
-        ValidateVec(v);                                                                                                \
-        {                                                                                                              \
-            if (varr == NULL) {                                                                                        \
-                LOG_FATAL("Expected a valid pointer");                                                                 \
-            }                                                                                                          \
-            VEC_DATATYPE(v) __tmp_val_##__LINE__ = *(varr);                                                            \
-            (void)__tmp_val_##__LINE__;                                                                                \
-        }                                                                                                              \
-        VEC_DATATYPE(v) *__tmp_ptr_##__LINE__ = (varr);                                                                \
-        insert_range_into_vec(GENERIC_VEC(v), (char *)__tmp_ptr_##__LINE__, sizeof(VEC_DATATYPE(v)), (idx), (count));  \
-        if (!(v)->copy_init) {                                                                                         \
-            memset((void *)(__tmp_ptr_##__LINE__), 0, (count) * sizeof(VEC_DATATYPE(v)));                              \
-        }                                                                                                              \
-    } while (0)
+    (ValidateVec(v),                                                                                                   \
+     VEC_TYPECHECK_RANGE_L((v), (varr)),                                                                               \
+     vec_insert_range_l_impl(GENERIC_VEC(v), (void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), true))
 
-///
-/// Insert array of items into vector, with R-value semantics.
-/// Insertion index must not exceed vector length.
-/// This preserves the ordering of elements. Best to be used with sorted vectors,
-/// if the sorted property is to be preserved.
-///
-/// NOTE: Unlike VecInsertRangeL, this does NOT zero out the source array after insertion
-///       regardless of copy_init settings. Use this for temporary arrays or when you need
-///       to maintain the source array.
-///
-/// INFO: If `copy_init` is set, then vector will create it's own copy of items.
-///
-/// v[in,out] : Vector to insert item into
-/// val[in]   : Array of items to be inserted
-/// idx[in]   : Index to start inserting item at.
-/// count[in] : Number of items to insert.
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
 #define VecInsertRangeR(v, varr, idx, count)                                                                           \
-    do {                                                                                                               \
-        ValidateVec(v);                                                                                                \
-        {                                                                                                              \
-            if (varr == NULL) {                                                                                        \
-                LOG_FATAL("Expected a valid pointer");                                                                 \
-            }                                                                                                          \
-            VEC_DATATYPE(v) __tmp_val_##__LINE__ = *(varr);                                                            \
-            (void)__tmp_val_##__LINE__;                                                                                \
-        }                                                                                                              \
-        const VEC_DATATYPE(v) *__tmp_ptr_##__LINE__ = (varr);                                                          \
-        insert_range_into_vec(GENERIC_VEC(v), (char *)__tmp_ptr_##__LINE__, sizeof(VEC_DATATYPE(v)), (idx), (count));  \
-    } while (0)
+    (ValidateVec(v),                                                                                                   \
+     VEC_TYPECHECK_RANGE_R((v), (varr)),                                                                               \
+     vec_insert_range_r_impl(GENERIC_VEC(v), (const void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), true))
 
-///
-/// Insert array of items into vector of it's type.
-/// By default, this uses L-value semantics (ownership transfer).
-/// Insertion index must not exceed vector length.
-/// This preserves the ordering of elements. Best to be used with sorted vectors,
-/// if the sorted property is to be preserved.
-///
-/// NOTE: Ownership of items in array is transferred to vector if no `copy_init` method is set.
-///       This is to prevent multiple ownership of same object, once inserted into vector.
-///       Object won't be usable after this call if `copy_init` is not set.
-///
-/// INFO: If `copy_init` is set, then vector will create it's own copy of items.
-///
-/// v[in,out] : Vector to insert item into
-/// val[in]   : Array of items to be inserted
-/// idx[in]   : Index to start inserting item at.
-/// count[in] : Number of items to insert.
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
 #define VecInsertRange(v, varr, idx, count) VecInsertRangeL((v), (varr), (idx), (count))
 
-///
-/// Quickly insert array of items into vector, with L-value semantics.
-/// Ordering of elements is not guaranteed to be preserved.
-/// This call makes significant difference only for sufficiently
-/// large vectors and when `idx` is quite less than `(v)->length`.
-///
-/// Insertion time is guaranteed to be constant for same data types.
-///
-/// NOTE: Ownership of items in array is transferred to vector if no `copy_init` method is set.
-///       This is to prevent multiple ownership of same object, once inserted into vector.
-///       Object won't be usable after this call if `copy_init` is not set.
-///
-/// INFO: If `copy_init` is set, then vector will create it's own copy of items.
-///
-/// v[in,out] : Vector to insert item into
-/// val[in]   : Array of items to be inserted
-/// idx[in]   : Index to insert item at.
-/// count[in] : Number of items to insert.
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
 #define VecInsertRangeFastL(v, varr, idx, count)                                                                       \
-    do {                                                                                                               \
-        ValidateVec(v);                                                                                                \
-        {                                                                                                              \
-            if (varr == NULL) {                                                                                        \
-                LOG_FATAL("Expected a valid pointer");                                                                 \
-            }                                                                                                          \
-            VEC_DATATYPE(v) __tmp_val_##__LINE__ = *(varr);                                                            \
-            (void)__tmp_val_##__LINE__;                                                                                \
-        }                                                                                                              \
-        const VEC_DATATYPE(v) *__tmp_ptr_##__LINE__ = (varr);                                                          \
-        insert_range_fast_into_vec(                                                                                    \
-            GENERIC_VEC(v),                                                                                            \
-            (char *)__tmp_ptr_##__LINE__,                                                                              \
-            sizeof(VEC_DATATYPE(v)),                                                                                   \
-            (idx),                                                                                                     \
-            (count)                                                                                                    \
-        );                                                                                                             \
-        if (!(v)->copy_init) {                                                                                         \
-            memset((void *)__tmp_ptr_##__LINE__, 0, (count) * sizeof(VEC_DATATYPE(v)));                                \
-        }                                                                                                              \
-    } while (0)
+    (ValidateVec(v),                                                                                                   \
+     VEC_TYPECHECK_RANGE_L((v), (varr)),                                                                               \
+     vec_insert_range_l_impl(GENERIC_VEC(v), (void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), false))
 
-///
-/// Quickly insert array of items into vector, with R-value semantics.
-/// Ordering of elements is not guaranteed to be preserved.
-/// This call makes significant difference only for sufficiently
-/// large vectors and when `idx` is quite less than `(v)->length`.
-///
-/// Insertion time is guaranteed to be constant for same data types.
-///
-/// NOTE: Unlike VecInsertRangeFastL, this does NOT zero out the source array after insertion
-///       regardless of copy_init settings. Use this for temporary arrays or when you need
-///       to maintain the source array.
-///
-/// INFO: If `copy_init` is set, then vector will create it's own copy of items.
-///
-/// v[in,out] : Vector to insert item into
-/// val[in]   : Array of items to be inserted
-/// idx[in]   : Index to insert item at.
-/// count[in] : Number of items to insert.
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
 #define VecInsertRangeFastR(v, varr, idx, count)                                                                       \
-    do {                                                                                                               \
-        ValidateVec(v);                                                                                                \
-        {                                                                                                              \
-            if (varr == NULL) {                                                                                        \
-                LOG_FATAL("Expected a valid pointer");                                                                 \
-            }                                                                                                          \
-            VEC_DATATYPE(v) __tmp_val_##__LINE__ = *(varr);                                                            \
-            (void)__tmp_val_##__LINE__;                                                                                \
-        }                                                                                                              \
-        const VEC_DATATYPE(v) *__tmp_ptr_##__LINE__ = (varr);                                                          \
-        insert_range_fast_into_vec(                                                                                    \
-            GENERIC_VEC(v),                                                                                            \
-            (char *)__tmp_ptr_##__LINE__,                                                                              \
-            sizeof(VEC_DATATYPE(v)),                                                                                   \
-            (idx),                                                                                                     \
-            (count)                                                                                                    \
-        );                                                                                                             \
-    } while (0)
+    (ValidateVec(v),                                                                                                   \
+     VEC_TYPECHECK_RANGE_R((v), (varr)),                                                                               \
+     vec_insert_range_r_impl(GENERIC_VEC(v), (const void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), false))
 
-///
-/// Quickly insert array of items into vector.
-/// By default, this uses L-value semantics (ownership transfer).
-/// Ordering of elements is not guaranteed to be preserved.
-/// This call makes significant difference only for sufficiently
-/// large vectors and when `idx` is quite less than `(v)->length`.
-///
-/// Insertion time is guaranteed to be constant for same data types.
-///
-/// NOTE: Ownership of items in array is transferred to vector if no `copy_init` method is set.
-///       This is to prevent multiple ownership of same object, once inserted into vector.
-///       Object won't be usable after this call if `copy_init` is not set.
-///
-/// INFO: If `copy_init` is set, then vector will create it's own copy of items.
-///
-/// v[in,out] : Vector to insert item into
-/// val[in]   : Array of items to be inserted
-/// idx[in]   : Index to insert item at.
-/// count[in] : Number of items to insert.
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
 #define VecInsertRangeFast(v, varr, idx, count) VecInsertRangeFastL((v), (varr), (idx), (count))
 
-///
-/// Push a complete array into this vector, with L-value semantics.
-///
-/// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of items.
-///
-/// v[in,out] : Vector to insert array items into.
-/// arr[in]   : Array to be inserted.
-/// count[in] : Number (non-zero) of items in array.
-///
-/// SUCCESS : `v`
-/// FAILURE : Does not return on failure
-///
 #define VecPushBackArrL(v, arr, count) VecInsertRangeL((v), (arr), (v)->length, (count))
-
-///
-/// Push a complete array into this vector, with R-value semantics.
-///
-/// NOTE: Unlike VecPushBackArrL, this does NOT zero out the source array after insertion.
-///
-/// v[in,out] : Vector to insert array items into.
-/// arr[in]   : Array to be inserted.
-/// count[in] : Number (non-zero) of items in array.
-///
-/// SUCCESS : `v`
-/// FAILURE : Does not return on failure
-///
 #define VecPushBackArrR(v, arr, count) VecInsertRangeR((v), (arr), (v)->length, (count))
-
-///
-/// Push a complete array into this vector.
-/// By default, this uses L-value semantics (ownership transfer).
-///
-/// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of items.
-///
-/// v[in,out] : Vector to insert array items into.
-/// arr[in]   : Array to be inserted.
-/// count[in] : Number (non-zero) of items in array.
-///
-/// SUCCESS : `v`
-/// FAILURE : Does not return on failure
-///
 #define VecPushBackArr(v, arr, count) VecPushBackArrL((v), (arr), (count))
 
-///
-/// Push a complete array into this vector front, with L-value semantics.
-///
-/// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of items.
-///
-/// v[in,out] : Vector to insert array items into.
-/// arr[in]   : Array to be inserted.
-/// count[in] : Number (non-zero) of items in array.
-///
-/// SUCCESS : `v`
-/// FAILURE : Does not return on failure
-///
 #define VecPushFrontArrL(v, arr, count) VecInsertRangeL((v), (arr), 0, (count))
-
-///
-/// Push a complete array into this vector front, with R-value semantics.
-///
-/// NOTE: Unlike VecPushFrontArrL, this does NOT zero out the source array after insertion.
-///
-/// v[in,out] : Vector to insert array items into.
-/// arr[in]   : Array to be inserted.
-/// count[in] : Number (non-zero) of items in array.
-///
-/// SUCCESS : `v`
-/// FAILURE : Does not return on failure
-///
 #define VecPushFrontArrR(v, arr, count) VecInsertRangeR((v), (arr), 0, (count))
-
-///
-/// Push a complete array into this vector front.
-/// By default, this uses L-value semantics (ownership transfer).
-///
-/// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of items.
-///
-/// v[in,out] : Vector to insert array items into.
-/// arr[in]   : Array to be inserted.
-/// count[in] : Number (non-zero) of items in array.
-///
-/// SUCCESS : `v`
-/// FAILURE : Does not return on failure
-///
 #define VecPushFrontArr(v, arr, count) VecPushFrontArrL((v), (arr), (count))
 
-///
-/// Push a complete array into this vector front without preserving the order
-/// of elements in vector, with L-value semantics.
-///
-/// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of items.
-///
-/// v[in,out] : Vector to insert array items into.
-/// arr[in]   : Array to be inserted.
-/// count[in] : Number (non-zero) of items in array.
-///
-/// SUCCESS : `v`
-/// FAILURE : Does not return on failure
-///
 #define VecPushFrontArrFastL(v, arr, count) VecInsertRangeFastL((v), (arr), 0, (count))
-
-///
-/// Push a complete array into this vector front without preserving the order
-/// of elements in vector, with R-value semantics.
-///
-/// NOTE: Unlike VecPushFrontArrFastL, this does NOT zero out the source array after insertion.
-///
-/// v[in,out] : Vector to insert array items into.
-/// arr[in]   : Array to be inserted.
-/// count[in] : Number (non-zero) of items in array.
-///
-/// SUCCESS : `v`
-/// FAILURE : Does not return on failure
-///
 #define VecPushFrontArrFastR(v, arr, count) VecInsertRangeFastR((v), (arr), 0, (count))
-
-///
-/// Push a complete array into this vector front without preserving the order of elements
-/// in vector. By default, this uses L-value semantics (ownership transfer).
-///
-/// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of items.
-///
-/// v[in,out] : Vector to insert array items into.
-/// arr[in]   : Array to be inserted.
-/// count[in] : Number (non-zero) of items in array.
-///
-/// SUCCESS : `v`
-/// FAILURE : Does not return on failure
-///
 #define VecPushFrontArrFast(v, arr, count) VecPushFrontArrFastL((v), (arr), (count))
 
-///
-/// Merge two vectors and store the result in the first vector, with L-value semantics.
-/// Call to this makes sure, either both vectors have their own ownerships, or only one
-/// owns the objects. Meaning none of the two lists share ownership.
-///
-/// NOTE: Ownership transfer takes place only if (v) does not create it's own copies of objects.
-///       Vectors create their own copy only if `copy_init` method is provided, otherwise simple
-///       `memcpy` is performed, which is the case where objects tend to share ownership, that this
-///       method automatically resolves for you.
-///
-/// [in,out] v   : Destination vector that will receive data.
-/// [in,out] v2  : Source vector to merge from and reset.
-///
-/// SUCCESS : `v`
-/// FAILURE : Does not return on failure
-///
 #define VecMergeL(v, v2)                                                                                               \
-    do {                                                                                                               \
-        if ((v2)->data) {                                                                                              \
-            VecPushBackArrL((v), (v2)->data, (v2)->length);                                                            \
-            if (!(v)->copy_init && (v2)->data) {                                                                       \
-                free((v2)->data);                                                                                      \
-                (v2)->data     = NULL;                                                                                 \
-                (v2)->length   = 0;                                                                                    \
-                (v2)->capacity = 0;                                                                                    \
-            }                                                                                                          \
-        }                                                                                                              \
-    } while (0)
+    (ValidateVec(v), ValidateVec(v2), vec_merge_l_impl(GENERIC_VEC(v), GENERIC_VEC(v2), sizeof(VEC_DATATYPE(v))))
 
-///
-/// Merge two vectors and store the result in the first vector, with R-value semantics.
-///
-/// Data is copied from `v2` into `v`. If a `copy_init` method is provided in `v`,
-/// each element from `v2` will be copied using that method. Otherwise, a raw memory
-/// copy is performed, which may be unsafe for complex or pointer-containing data.
-///
-/// NOTE: Unlike VecMergeL, this does NOT zero out the source vector's data after merging.
-///
-/// The `copy_init` function must be set in `v` if ownership-safe copies are needed.
-///
-/// [in,out] v   : Destination vector that will receive data.
-/// [in]     v2  : Source vector to merge from.
-///
-/// SUCCESS : `v`
-/// FAILURE : Does not return on failure
-///
 #define VecMergeR(v, v2)                                                                                               \
-    do {                                                                                                               \
-        if ((v2)->data) {                                                                                              \
-            VecPushBackArrR((v), (v2)->data, (v2)->length);                                                            \
-        }                                                                                                              \
-    } while (0)
+    (ValidateVec(v), ValidateVec(v2), vec_merge_r_impl(GENERIC_VEC(v), GENERIC_VEC(v2), sizeof(VEC_DATATYPE(v))))
 
-///
-/// Merge two vectors and store the result in the first vector.
-///
-/// Data is copied from `v2` into `v`. If a `copy_init` method is provided in `v`,
-/// each element from `v2` will be copied using that method. Otherwise, a raw memory
-/// copy is performed, which may be unsafe for complex or pointer-containing data.
-///
-/// NOTE: This function (via VecMergeL) completely transfers ownership from `v2` to `v` by:
-///       1. Adding all elements from `v2` to `v`
-///       2. Freeing the memory allocated for `v2->data`
-///       3. Resetting all fields of `v2` to zero using MemSet
-///
-/// After this operation, `v2` will be in a reset state (as if just initialized with VecInit).
-/// If you want to preserve the source vector, use VecMergeR instead.
-///
-/// The `copy_init` function must be set in `v` if ownership-safe copies are needed.
-///
-/// [in,out] v   : Destination vector that will receive data.
-/// [in,out] v2  : Source vector to merge from and reset.
-///
-/// SUCCESS : `v`
-/// FAILURE : Does not return on failure
-///
 #define VecMerge(v, v2) VecMergeL((v), (v2))
 
-///
-/// Push an l-value into vector back.
-///
-/// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of item.
-///
-/// v[in,out] : Vector to push item into
-/// lval[in]  : l-value to be pushed back
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
 #define VecPushBackL(v, val) VecInsertL((v), (val), (v)->length)
-
-///
-/// Push item into vector back.
-///
-/// v[in,out] : Vector to push item into
-/// rval[in]  : r-value to be pushed back
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
 #define VecPushBackR(v, val) VecInsertR((v), (val), (v)->length)
-
-///
-/// Push item into vector back.
-///
-/// Default behaviour is same as `VecPushBackL`
-///
-/// v[in,out] : Vector to push item into
-/// lval[in]  : l-value to be pushed back
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
 #define VecPushBack(v, val) VecInsert((v), (val), (v)->length)
 
-///
-/// Push item into vector front.
-///
-/// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of item.
-///
-/// v[in,out] : Vector to push item into
-/// lval[in]  : l-value to be inserted
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
 #define VecPushFrontL(v, val) VecInsertL((v), (val), 0)
-
-///
-/// Push item into vector front.
-///
-/// v[in,out] : Vector to push item into
-/// rval[in]  : r-value to be inserted
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
 #define VecPushFrontR(v, val) VecInsertR((v), (val), 0)
+#define VecPushFront(v, val) VecPushFrontL((v), (val))
 
-///
-/// Push item into vector front.
-///
-/// NOTE: default behavior is same as inserting an l-value using `VecPushBackL`
-///
-/// v[in,out] : Vector to push item into
-/// rval[in]  : r-value to be inserted
-///
-/// SUCCESS : return
-/// FAILURE : Does not return
-///
-#define VecPushFront(v, val) VecPushBackL((v), (val))
+#define VecInitClone(vd, vs)                                                                                            \
+    (ValidateVec(vd),                                                                                                   \
+     ValidateVec(vs),                                                                                                   \
+     VecDeinit(vd),                                                                                                     \
+     *(vd) = (TYPE_OF(*(vd)))VecInitAlignedWithDeepCopyAndAlloc(                                                        \
+         (vs)->copy_init,                                                                                               \
+         (vs)->copy_deinit,                                                                                             \
+         (vs)->alignment,                                                                                               \
+         (vs)->allocator                                                                                                 \
+     ),                                                                                                                 \
+     clone_vec(GENERIC_VEC(vd), GENERIC_VEC(vs), sizeof(VEC_DATATYPE(vd))))
 
-///
-/// Initialize clone of vector from `vs` to `vd`.
-///
-/// NOTE: Ownership trasfer takes place if vector is not creating it's own copy of item.
-///
-/// vd[out] : Destination vector to create clone into
-/// vs[in]  : Source vector to create clone using.
-///
-/// SUCCESS : `vd`
-/// FAILURE : Does not return on failure
-///
-#define VecInitClone(vd, vs)                                                                                           \
-    do {                                                                                                               \
-        VecDeinit(vd);                                                                                                 \
-        VecMerge(vd, vs);                                                                                              \
-    } while (0)
+#define VecMustInsertL(v, lval, idx) VEC_MUST(VecInsertL((v), (lval), (idx)), "VecMustInsertL failed")
+#define VecMustInsertR(v, rval, idx) VEC_MUST(VecInsertR((v), (rval), (idx)), "VecMustInsertR failed")
+#define VecMustInsert(v, lval, idx) VEC_MUST(VecInsert((v), (lval), (idx)), "VecMustInsert failed")
+
+#define VecMustInsertFastL(v, lval, idx) VEC_MUST(VecInsertFastL((v), (lval), (idx)), "VecMustInsertFastL failed")
+#define VecMustInsertFastR(v, rval, idx) VEC_MUST(VecInsertFastR((v), (rval), (idx)), "VecMustInsertFastR failed")
+#define VecMustInsertFast(v, lval, idx) VEC_MUST(VecInsertFast((v), (lval), (idx)), "VecMustInsertFast failed")
+
+#define VecMustInsertRangeL(v, varr, idx, count)                                                                      \
+    VEC_MUST(VecInsertRangeL((v), (varr), (idx), (count)), "VecMustInsertRangeL failed")
+#define VecMustInsertRangeR(v, varr, idx, count)                                                                      \
+    VEC_MUST(VecInsertRangeR((v), (varr), (idx), (count)), "VecMustInsertRangeR failed")
+#define VecMustInsertRange(v, varr, idx, count)                                                                       \
+    VEC_MUST(VecInsertRange((v), (varr), (idx), (count)), "VecMustInsertRange failed")
+
+#define VecMustInsertRangeFastL(v, varr, idx, count)                                                                  \
+    VEC_MUST(VecInsertRangeFastL((v), (varr), (idx), (count)), "VecMustInsertRangeFastL failed")
+#define VecMustInsertRangeFastR(v, varr, idx, count)                                                                  \
+    VEC_MUST(VecInsertRangeFastR((v), (varr), (idx), (count)), "VecMustInsertRangeFastR failed")
+#define VecMustInsertRangeFast(v, varr, idx, count)                                                                   \
+    VEC_MUST(VecInsertRangeFast((v), (varr), (idx), (count)), "VecMustInsertRangeFast failed")
+
+#define VecMustPushBackArrL(v, arr, count) VEC_MUST(VecPushBackArrL((v), (arr), (count)), "VecMustPushBackArrL failed")
+#define VecMustPushBackArrR(v, arr, count) VEC_MUST(VecPushBackArrR((v), (arr), (count)), "VecMustPushBackArrR failed")
+#define VecMustPushBackArr(v, arr, count) VEC_MUST(VecPushBackArr((v), (arr), (count)), "VecMustPushBackArr failed")
+
+#define VecMustPushFrontArrL(v, arr, count)                                                                           \
+    VEC_MUST(VecPushFrontArrL((v), (arr), (count)), "VecMustPushFrontArrL failed")
+#define VecMustPushFrontArrR(v, arr, count)                                                                           \
+    VEC_MUST(VecPushFrontArrR((v), (arr), (count)), "VecMustPushFrontArrR failed")
+#define VecMustPushFrontArr(v, arr, count) VEC_MUST(VecPushFrontArr((v), (arr), (count)), "VecMustPushFrontArr failed")
+
+#define VecMustPushFrontArrFastL(v, arr, count)                                                                       \
+    VEC_MUST(VecPushFrontArrFastL((v), (arr), (count)), "VecMustPushFrontArrFastL failed")
+#define VecMustPushFrontArrFastR(v, arr, count)                                                                       \
+    VEC_MUST(VecPushFrontArrFastR((v), (arr), (count)), "VecMustPushFrontArrFastR failed")
+#define VecMustPushFrontArrFast(v, arr, count)                                                                        \
+    VEC_MUST(VecPushFrontArrFast((v), (arr), (count)), "VecMustPushFrontArrFast failed")
+
+#define VecMustMergeL(v, v2) VEC_MUST(VecMergeL((v), (v2)), "VecMustMergeL failed")
+#define VecMustMergeR(v, v2) VEC_MUST(VecMergeR((v), (v2)), "VecMustMergeR failed")
+#define VecMustMerge(v, v2) VEC_MUST(VecMerge((v), (v2)), "VecMustMerge failed")
+
+#define VecMustPushBackL(v, val) VEC_MUST(VecPushBackL((v), (val)), "VecMustPushBackL failed")
+#define VecMustPushBackR(v, val) VEC_MUST(VecPushBackR((v), (val)), "VecMustPushBackR failed")
+#define VecMustPushBack(v, val) VEC_MUST(VecPushBack((v), (val)), "VecMustPushBack failed")
+
+#define VecMustPushFrontL(v, val) VEC_MUST(VecPushFrontL((v), (val)), "VecMustPushFrontL failed")
+#define VecMustPushFrontR(v, val) VEC_MUST(VecPushFrontR((v), (val)), "VecMustPushFrontR failed")
+#define VecMustPushFront(v, val) VEC_MUST(VecPushFront((v), (val)), "VecMustPushFront failed")
+
+#define VecMustInitClone(vd, vs) VEC_MUST(VecInitClone((vd), (vs)), "VecMustInitClone failed")
 
 #endif // MISRA_STD_CONTAINER_VEC_INSERT_H

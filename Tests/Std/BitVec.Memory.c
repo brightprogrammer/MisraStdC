@@ -11,6 +11,7 @@ bool test_bitvec_shrink_to_fit(void);
 bool test_bitvec_set_capacity(void);
 bool test_bitvec_swap(void);
 bool test_bitvec_clone(void);
+bool test_bitvec_clone_inherits_allocator_config(void);
 bool test_bitvec_shrink_to_fit_edge_cases(void);
 bool test_bitvec_set_capacity_edge_cases(void);
 bool test_bitvec_swap_edge_cases(void);
@@ -181,6 +182,44 @@ bool test_bitvec_clone(void) {
     BitVecDeinit(&original);
     BitVecDeinit(&clone);
 
+    return result;
+}
+
+bool test_bitvec_clone_inherits_allocator_config(void) {
+    WriteFmt("Testing BitVecClone allocator inheritance\n");
+
+    Allocator alloc = HeapAllocator();
+    alloc.effort = ALLOCATOR_EFFORT_RETRY_FALLBACK;
+    alloc.retry_limit = 9;
+    alloc.flags = 0x3C3Cu;
+
+    BitVec original = BitVecInit(alloc);
+    original.allocator.state = (void *)&original;
+
+    BitVecPush(&original, true);
+    BitVecPush(&original, false);
+    BitVecPush(&original, true);
+
+    BitVec clone = BitVecClone(&original);
+
+    bool result =
+        clone.length == original.length &&
+        clone.capacity >= original.length &&
+        clone.allocator.allocate == original.allocator.allocate &&
+        clone.allocator.reallocate == original.allocator.reallocate &&
+        clone.allocator.deallocate == original.allocator.deallocate &&
+        clone.allocator.state_init == original.allocator.state_init &&
+        clone.allocator.state_deinit == original.allocator.state_deinit &&
+        clone.allocator.effort == original.allocator.effort &&
+        clone.allocator.retry_limit == original.allocator.retry_limit &&
+        clone.allocator.flags == original.allocator.flags &&
+        clone.allocator.state == NULL &&
+        BitVecGet(&clone, 0) == true &&
+        BitVecGet(&clone, 1) == false &&
+        BitVecGet(&clone, 2) == true;
+
+    BitVecDeinit(&original);
+    BitVecDeinit(&clone);
     return result;
 }
 
@@ -414,6 +453,7 @@ int main(void) {
         test_bitvec_set_capacity,
         test_bitvec_swap,
         test_bitvec_clone,
+        test_bitvec_clone_inherits_allocator_config,
         test_bitvec_shrink_to_fit_edge_cases,
         test_bitvec_set_capacity_edge_cases,
         test_bitvec_swap_edge_cases,

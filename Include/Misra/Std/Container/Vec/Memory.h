@@ -22,6 +22,12 @@
 /// FAILURE : Does not return
 ///
 #define VecTryReduceSpace(v) (reduce_space_vec(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v))))
+#define VecMustTryReduceSpace(v)                                                                                        \
+    do {                                                                                                               \
+        if (!VecTryReduceSpace((v))) {                                                                                 \
+            LOG_FATAL("VecTryReduceSpace failed");                                                                     \
+        }                                                                                                              \
+    } while (0)
 
 ///
 /// Resize vector.
@@ -35,6 +41,12 @@
 /// FAILURE : Does not return
 ///
 #define VecResize(v, len) (resize_vec(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v)), (len)))
+#define VecMustResize(v, len)                                                                                          \
+    do {                                                                                                               \
+        if (!VecResize((v), (len))) {                                                                                  \
+            LOG_FATAL("VecResize failed");                                                                             \
+        }                                                                                                              \
+    } while (0)
 
 ///
 /// Reserve space for vector.
@@ -46,6 +58,12 @@
 /// FAILURE : Does not return
 ///
 #define VecReserve(v, n) (reserve_vec(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v)), (n)))
+#define VecMustReserve(v, n)                                                                                           \
+    do {                                                                                                               \
+        if (!VecReserve((v), (n))) {                                                                                   \
+            LOG_FATAL("VecReserve failed");                                                                            \
+        }                                                                                                              \
+    } while (0)
 
 ///
 /// Clear vec contents.

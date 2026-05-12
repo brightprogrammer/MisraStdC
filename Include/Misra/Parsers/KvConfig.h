@@ -46,10 +46,10 @@ typedef Map(Str, Str) KvConfig;
         KvConfigHash,                                                                                                  \
         KvConfigCompare,                                                                                               \
         KvConfigCompare,                                                                                               \
-        StrInitCopy,                                                                                                   \
-        StrDeinit,                                                                                                     \
-        StrInitCopy,                                                                                                   \
-        StrDeinit                                                                                                      \
+        StrInitCopyWithAllocator,                                                                                      \
+        StrDeinitWithAllocator,                                                                                        \
+        StrInitCopyWithAllocator,                                                                                      \
+        StrDeinitWithAllocator                                                                                         \
     )
 
 ///

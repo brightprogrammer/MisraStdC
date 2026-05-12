@@ -17,6 +17,7 @@ typedef struct {
     GenericCopyDeinit copy_deinit;
     char             *data;
     u64               alignment;
+    Allocator         allocator;
     u64               __magic;
 } GenericVec;
 
@@ -59,6 +60,7 @@ typedef struct {
         GenericCopyDeinit copy_deinit;                                                                                 \
         T                *data;                                                                                        \
         u64               alignment;                                                                                   \
+        Allocator         allocator;                                                                                   \
         u64               __magic;                                                                                     \
     }
 

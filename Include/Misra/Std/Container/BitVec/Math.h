@@ -85,14 +85,34 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// RETURNS: Minimum edit distance
+    /// RETURNS: `true` on success, `false` when scratch allocation fails.
+    ///
+    /// The computed distance is written to `out` on success.
+    ///
+    /// USAGE:
+    ///   u64 distance;
+    ///   bool ok = BitVecTryEditDistance(&bv1, &bv2, &distance);
+    ///
+    /// TAGS: BitVec, Math, EditDistance, Transform, Fallible
+    ///
+    bool BitVecTryEditDistance(BitVec *bv1, BitVec *bv2, u64 *out);
+
+    ///
+    /// Calculate edit distance between two bitvectors.
+    /// Edit distance is minimum number of single-bit operations to transform one into the other.
+    ///
+    /// bv1[in]   : First bitvector
+    /// bv2[in]   : Second bitvector
+    /// error[out] : Optional pointer set to `true` on failure and `false` on success
+    ///
+    /// RETURNS: Minimum edit distance, or `0` on failure.
     ///
     /// USAGE:
     ///   u64 distance = BitVecEditDistance(&bv1, &bv2);
     ///
     /// TAGS: BitVec, Math, EditDistance, Transform
     ///
-    u64 BitVecEditDistance(BitVec *bv1, BitVec *bv2);
+    u64 BitVecEditDistanceWithError(BitVec *bv1, BitVec *bv2, bool *error);
 
     ///
     /// Calculate Pearson correlation coefficient between two bitvectors.
@@ -183,5 +203,13 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+
+static inline u64 MISRA_PRIV_BitVecEditDistanceNoError(BitVec *bv1, BitVec *bv2) {
+    return BitVecEditDistanceWithError(bv1, bv2, NULL);
+}
+
+#define MISRA_PRIV_BITVEC_EDIT_DISTANCE_SELECT(_1, _2, _3, NAME, ...) NAME
+#define BitVecEditDistance(...)                                                                                        \
+    MISRA_PRIV_BITVEC_EDIT_DISTANCE_SELECT(__VA_ARGS__, BitVecEditDistanceWithError, MISRA_PRIV_BitVecEditDistanceNoError)(__VA_ARGS__)
 
 #endif // MISRA_STD_CONTAINER_BITVEC_MATH_H

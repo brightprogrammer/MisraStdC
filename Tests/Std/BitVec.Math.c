@@ -340,8 +340,9 @@ bool test_bitvec_edit_distance_basic(void) {
     BitVecPush(&bv2, false);
     BitVecPush(&bv2, true);
 
-    u64 distance = BitVecEditDistance(&bv1, &bv2);
-    result       = result && (distance == 0);
+    bool error    = true;
+    u64  distance = BitVecEditDistance(&bv1, &bv2, &error);
+    result        = result && !error && (distance == 0);
 
     // Test single substitution
     BitVecClear(&bv2);

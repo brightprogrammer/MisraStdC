@@ -313,6 +313,8 @@ int main(void) {
 
     // Array of normal test functions
     TestFunction tests[] = {
+        test_bitvec_push,
+        test_bitvec_insert_single,
         test_bitvec_insert_range,
         test_bitvec_insert_multiple,
         test_bitvec_insert_pattern,

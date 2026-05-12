@@ -14,45 +14,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#ifdef __cplusplus
-#    define StrInitFromCstr(cstr, len)                                                                                 \
-        (Str {                                                                                                         \
-            .data        = ZstrDupN((char *)(cstr), (len)),                                                            \
-            .length      = (len),                                                                                      \
-            .capacity    = (len),                                                                                      \
-            .copy_init   = NULL,                                                                                       \
-            .copy_deinit = NULL,                                                                                       \
-            .alignment   = 1,                                                                                          \
-            .__magic     = MISRA_VEC_MAGIC                                                                             \
-        })
-#else
-///
-/// Initializes a Str object from a C-style string (`cstr`) with a specified length (`len`).
-/// This macro creates a new Str object and copies up to `len` characters from `cstr`.
-///
-/// cstr[in]    : Pointer to the null-terminated C-style string to initialize from.
-/// len[in]     : The number of characters to copy from `cstr`.
-///
-/// SUCCESS : Returns a newly created Str object with its `data` field pointing to a
-///           newly allocated memory containing a copy of the first `len` characters
-///           of `cstr`. The `length` and `capacity` fields are set to `len`.
-///           `copy_init` and `copy_deinit` are set to NULL, and `alignment` is set to 1.
-///
-/// FAILURE : Returns a Str object with `data` set to NULL if memory allocation using
-///           `ZstrDupN` fails. In such a case, `length` and `capacity` will likely be
-///           uninitialized or zero. It's crucial to check the `data` field for NULL
-///           after using this macro to handle potential memory allocation errors.
-///
-#    define StrInitFromCstr(cstr, len)                                                                                 \
-        ((Str) {.data        = ZstrDupN((char *)(cstr), (len)),                                                        \
-                .length      = (len),                                                                                  \
-                .capacity    = (len),                                                                                  \
-                .copy_init   = NULL,                                                                                   \
-                .copy_deinit = NULL,                                                                                   \
-                .alignment   = 1,                                                                                      \
-                .__magic     = MISRA_VEC_MAGIC})
-#endif
+    bool StrTryInitFromCstrWithAllocator(Str *out, const char *cstr, size len, Allocator alloc);
+    Str StrInitFromCstrWithAllocator(const char *cstr, size len, Allocator alloc);
 
 ///
 /// Initializes a Str object from a null-terminated C-style string (`zstr`).
@@ -72,7 +35,10 @@ extern "C" {
 ///           to check the `data` field for NULL after using this macro to handle
 ///           potential memory allocation errors.
 ///
+#define StrInitFromCstr(cstr, len) StrInitFromCstrWithAllocator((cstr), (len), DefaultAllocator())
+#define StrInitFromCstrAlloc(cstr, len, alloc) StrInitFromCstrWithAllocator((cstr), (len), (alloc))
 #define StrInitFromZstr(zstr) StrInitFromCstr((zstr), strlen(zstr))
+#define StrInitFromZstrAlloc(zstr, alloc) StrInitFromCstrWithAllocator((zstr), strlen(zstr), (alloc))
 
 ///
 /// Short alias for `StrInitFromZstr(...)` when an owned temporary string is
@@ -98,7 +64,7 @@ extern "C" {
 ///
 /// Initialize a Str object using another one
 ///
-#define StrInitFromStr(str) StrInitFromCstr((str)->data, (str)->length)
+#define StrInitFromStr(str) StrInitFromCstrWithAllocator((str)->data, (str)->length, (str)->allocator)
 #define StrDup(str)         StrInitFromStr(str)
 
     ///
@@ -114,7 +80,7 @@ extern "C" {
     Str *StrPrintf(Str *str, const char *fmt, ...) FORMAT_STRING(2, 3);
 
 #ifdef __cplusplus
-#    define StrInit() (Str VecInit())
+#    define StrInit(...) (Str VecInit(__VA_ARGS__))
 #else
 ///
 /// Initialize given string.
@@ -124,7 +90,7 @@ extern "C" {
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#    define StrInit() ((Str)VecInit())
+#    define StrInit(...) ((Str)VecInit(__VA_ARGS__))
 #endif
 
 ///
@@ -145,6 +111,7 @@ extern "C" {
     /// str : Pointer to string to be deinited
     ///
     void StrDeinit(Str *str);
+    void StrDeinitWithAllocator(void *copy, const Allocator *alloc);
 
     ///
     /// Copy data from `src` to `dst`
@@ -156,6 +123,7 @@ extern "C" {
     /// FAILURE : false
     ///
     bool StrInitCopy(Str *dst, const Str *src);
+    bool StrInitCopyWithAllocator(void *dst, const void *src, const Allocator *alloc);
 
 #ifdef __cplusplus
 }

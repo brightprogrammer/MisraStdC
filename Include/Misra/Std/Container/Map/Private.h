@@ -40,7 +40,7 @@ void clear_map(
     size        value_size,
     size        hash_offset
 );
-void reserve_map(
+bool reserve_map(
     GenericMap *map,
     size        entry_size,
     size        key_offset,
@@ -50,7 +50,7 @@ void reserve_map(
     size        hash_offset,
     size        n
 );
-void rehash_map(
+bool rehash_map(
     GenericMap *map,
     size        entry_size,
     size        key_offset,
@@ -148,7 +148,18 @@ size map_find_next_index(
     size        key_size,
     size        hash_offset
 );
-void map_insert(
+bool map_insert(
+    GenericMap *map,
+    const void *key,
+    const void *value,
+    size        entry_size,
+    size        key_offset,
+    size        key_size,
+    size        value_offset,
+    size        value_size,
+    size        hash_offset
+);
+bool map_set_only(
     GenericMap *map,
     const void *key,
     const void *value,

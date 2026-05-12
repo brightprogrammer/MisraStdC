@@ -12,13 +12,15 @@ static i32 compare_ints(const void *lhs, const void *rhs) {
     return (a > b) - (a < b);
 }
 
-static bool tracked_copy_init(void *dst, void *src) {
+static bool tracked_copy_init(void *dst, const void *src, const Allocator *alloc) {
+    (void)alloc;
     g_copy_init_count += 1;
     *(int *)dst = *(int *)src;
     return true;
 }
 
-static void tracked_copy_deinit(void *data) {
+static void tracked_copy_deinit(void *data, const Allocator *alloc) {
+    (void)alloc;
     g_copy_deinit_count += 1;
     *(int *)data = 0;
 }

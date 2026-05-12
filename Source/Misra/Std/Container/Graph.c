@@ -8,10 +8,8 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Sys.h>
 
+#include <stddef.h>
 #include <stdlib.h>
-#if defined(_MSC_VER) || defined(__MSC_VER)
-#    include <malloc.h>
-#endif
 
 #define MISRA_GRAPH_SLOT_OCCUPIED ((u32)1u << 0)
 #define MISRA_GRAPH_SLOT_MARKED   ((u32)1u << 1)
@@ -34,24 +32,12 @@ static void graph_validate_alignment(const GenericGraph *graph) {
     }
 }
 
-static bool graph_uses_custom_aligned_allocation(const GenericGraph *graph) {
-    return graph->alignment > sizeof(void *);
+static inline size graph_storage_alignment(void) {
+    return _Alignof(max_align_t);
 }
 
-static void *graph_aligned_alloc(size alignment, size alloc_size) {
-#if defined(_MSC_VER) || defined(__MSC_VER)
-    return _aligned_malloc(alloc_size, alignment);
-#else
-    return aligned_alloc(alignment, alloc_size);
-#endif
-}
-
-static void graph_aligned_free(void *ptr) {
-#if defined(_MSC_VER) || defined(__MSC_VER)
-    _aligned_free(ptr);
-#else
-    free(ptr);
-#endif
+static inline size graph_node_data_alignment(const GenericGraph *graph) {
+    return (size)(graph->alignment ? graph->alignment : 1);
 }
 
 static void graph_validate_slot_limit(const GenericGraph *graph) {
@@ -129,31 +115,9 @@ static GraphNode graph_validate_node_handle(GraphNode node) {
     return node;
 }
 
-static void *graph_alloc_node_data(const GenericGraph *graph, size item_size) {
-    void *ptr;
-
+static void *graph_alloc_node_data(GenericGraph *graph, size item_size) {
     graph_validate_alignment(graph);
-
-    if (!graph_uses_custom_aligned_allocation(graph)) {
-        ptr = calloc(item_size, 1);
-        if (!ptr) {
-            LOG_SYS_FATAL("calloc() failed");
-        }
-        return ptr;
-    }
-
-    {
-        size alignment = (size)graph->alignment;
-        size alloc_size = ALIGN_UP_POW2(item_size, alignment);
-
-        ptr = graph_aligned_alloc(alignment, alloc_size);
-        if (!ptr) {
-            LOG_SYS_FATAL("aligned_alloc() failed");
-        }
-        memset(ptr, 0, alloc_size);
-    }
-
-    return ptr;
+    return AllocatorAlloc(&graph->allocator, item_size, graph_node_data_alignment(graph), true);
 }
 
 static void graph_free_node_data(GenericGraph *graph, void *data, size item_size) {
@@ -162,24 +126,21 @@ static void graph_free_node_data(GenericGraph *graph, void *data, size item_size
     }
 
     if (graph->copy_deinit) {
-        graph->copy_deinit(data);
+        graph->copy_deinit(data, &graph->allocator);
     } else {
         memset(data, 0, item_size);
     }
 
-    if (graph_uses_custom_aligned_allocation(graph)) {
-        graph_aligned_free(data);
-    } else {
-        free(data);
-    }
+    AllocatorFree(&graph->allocator, data, item_size, graph_node_data_alignment(graph));
 }
 
-static void graph_copy_node_data(GenericGraph *graph, void *dst, const void *src, size item_size) {
+static bool graph_copy_node_data(GenericGraph *graph, void *dst, const void *src, size item_size) {
     if (graph->copy_init) {
-        graph->copy_init(dst, (void *)src);
-    } else {
-        memcpy(dst, src, item_size);
+        return graph->copy_init(dst, src, &graph->allocator);
     }
+
+    memcpy(dst, src, item_size);
+    return true;
 }
 
 static void graph_bump_mutation_epoch(GenericGraph *graph) {
@@ -201,9 +162,9 @@ static void graph_release_slot(GenericGraph *graph, GenericGraphSlot *slot, size
     slot->data = NULL;
 
     deinit_vec(GENERIC_VEC(&slot->out_neighbors), sizeof(GraphNodeId));
-    slot->out_neighbors = VecInitT(slot->out_neighbors);
+    slot->out_neighbors = VecInitAllocT(slot->out_neighbors, graph->allocator);
     deinit_vec(GENERIC_VEC(&slot->in_neighbors), sizeof(GraphNodeId));
-    slot->in_neighbors = VecInitT(slot->in_neighbors);
+    slot->in_neighbors = VecInitAllocT(slot->in_neighbors, graph->allocator);
 
     slot->visit_count = 0;
     slot->flags       = 0;
@@ -213,7 +174,9 @@ static void graph_release_slot(GenericGraph *graph, GenericGraphSlot *slot, size
 }
 
 static void graph_push_free_index(GenericGraph *graph, u32 index) {
-    insert_range_into_vec(GENERIC_VEC(&graph->free_indices), (char *)&index, sizeof(u32), graph->free_indices.length, 1);
+    if (!insert_range_into_vec(GENERIC_VEC(&graph->free_indices), (char *)&index, sizeof(u32), graph->free_indices.length, 1)) {
+        LOG_FATAL("Graph failed to record a reusable slot index");
+    }
 }
 
 static u32 graph_take_free_index(GenericGraph *graph) {
@@ -349,6 +312,10 @@ void validate_graph(const GenericGraph *graph) {
         LOG_FATAL("Graph is uninitialized or corrupted");
     }
 
+    if (!graph->allocator.allocate || !graph->allocator.reallocate || !graph->allocator.deallocate) {
+        LOG_FATAL("Graph allocator is not fully configured");
+    }
+
     validate_vec((const GenericVec *)&graph->slots);
     validate_vec((const GenericVec *)&graph->free_indices);
     validate_vec((const GenericVec *)&graph->pending_edge_removals);
@@ -481,6 +448,8 @@ void deinit_graph(GenericGraph *graph, size item_size) {
     graph->pending_delete_count = 0;
     graph->mutation_epoch       = 0;
     graph->alignment            = 0;
+    AllocatorUnbind(&graph->allocator);
+    graph->allocator            = AllocatorBind(DefaultAllocator());
     graph->type_anchor          = NULL;
     graph->__magic              = 0;
 }
@@ -496,9 +465,9 @@ void clear_graph(GenericGraph *graph, size item_size) {
             graph_release_slot(graph, slot, item_size);
         } else {
             deinit_vec(GENERIC_VEC(&slot->out_neighbors), sizeof(GraphNodeId));
-            slot->out_neighbors = VecInitT(slot->out_neighbors);
+            slot->out_neighbors = VecInitAllocT(slot->out_neighbors, graph->allocator);
             deinit_vec(GENERIC_VEC(&slot->in_neighbors), sizeof(GraphNodeId));
-            slot->in_neighbors = VecInitT(slot->in_neighbors);
+            slot->in_neighbors = VecInitAllocT(slot->in_neighbors, graph->allocator);
             slot->visit_count   = 0;
             slot->flags         = 0;
         }
@@ -508,7 +477,7 @@ void clear_graph(GenericGraph *graph, size item_size) {
     clear_vec(GENERIC_VEC(&graph->pending_edge_removals), sizeof(GraphPendingEdgeRemoval));
     for (slot_index = 0; slot_index < graph->slots.length; slot_index++) {
         u32 index = (u32)slot_index;
-        insert_range_into_vec(GENERIC_VEC(&graph->free_indices), (char *)&index, sizeof(u32), graph->free_indices.length, 1);
+        graph_push_free_index(graph, index);
     }
 
     graph->live_count           = 0;
@@ -517,18 +486,26 @@ void clear_graph(GenericGraph *graph, size item_size) {
     graph_bump_mutation_epoch(graph);
 }
 
-void reserve_graph(GenericGraph *graph, size item_size, size n) {
+bool reserve_graph(GenericGraph *graph, size item_size, size n) {
     size old_capacity;
+    bool success;
 
     (void)item_size;
 
     ValidateGraph(graph);
     old_capacity = graph->slots.capacity;
 
-    reserve_vec(GENERIC_VEC(&graph->slots), sizeof(GenericGraphSlot), n);
+    success = reserve_vec(GENERIC_VEC(&graph->free_indices), sizeof(u32), n) &&
+              reserve_vec(GENERIC_VEC(&graph->slots), sizeof(GenericGraphSlot), n);
+    if (!success) {
+        return false;
+    }
+
     if (graph->slots.capacity != old_capacity) {
         graph_bump_mutation_epoch(graph);
     }
+
+    return true;
 }
 
 GraphNodeId graph_push_node(GenericGraph *graph, const void *item_data, size item_size) {
@@ -550,12 +527,27 @@ GraphNodeId graph_push_node(GenericGraph *graph, const void *item_data, size ite
             LOG_FATAL("graph free slot unexpectedly occupied");
         }
 
-        slot_ptr->out_neighbors = VecInitT(slot_ptr->out_neighbors);
-        slot_ptr->in_neighbors  = VecInitT(slot_ptr->in_neighbors);
+        slot_ptr->out_neighbors = VecInitAllocT(slot_ptr->out_neighbors, graph->allocator);
+        slot_ptr->in_neighbors  = VecInitAllocT(slot_ptr->in_neighbors, graph->allocator);
         slot_ptr->data          = graph_alloc_node_data(graph, item_size);
+        if (!slot_ptr->data) {
+            graph_push_free_index(graph, slot_index);
+            return 0;
+        }
         slot_ptr->visit_count   = 0;
         slot_ptr->flags         = MISRA_GRAPH_SLOT_OCCUPIED;
-        graph_copy_node_data(graph, slot_ptr->data, item_data, item_size);
+        if (!graph_copy_node_data(graph, slot_ptr->data, item_data, item_size)) {
+            graph_free_node_data(graph, slot_ptr->data, item_size);
+            slot_ptr->data = NULL;
+            deinit_vec(GENERIC_VEC(&slot_ptr->out_neighbors), sizeof(GraphNodeId));
+            slot_ptr->out_neighbors = VecInitAllocT(slot_ptr->out_neighbors, graph->allocator);
+            deinit_vec(GENERIC_VEC(&slot_ptr->in_neighbors), sizeof(GraphNodeId));
+            slot_ptr->in_neighbors = VecInitAllocT(slot_ptr->in_neighbors, graph->allocator);
+            slot_ptr->visit_count = 0;
+            slot_ptr->flags       = 0;
+            graph_push_free_index(graph, slot_index);
+            return 0;
+        }
 
         graph->live_count += 1;
         graph_bump_mutation_epoch(graph);
@@ -563,16 +555,30 @@ GraphNodeId graph_push_node(GenericGraph *graph, const void *item_data, size ite
     }
 
     graph_validate_slot_limit(graph);
+    if (!reserve_graph(graph, item_size, graph->slots.length + 1)) {
+        return 0;
+    }
 
-    slot.out_neighbors = VecInitT(slot.out_neighbors);
-    slot.in_neighbors  = VecInitT(slot.in_neighbors);
+    slot.out_neighbors = VecInitAllocT(slot.out_neighbors, graph->allocator);
+    slot.in_neighbors  = VecInitAllocT(slot.in_neighbors, graph->allocator);
     slot.data          = graph_alloc_node_data(graph, item_size);
+    if (!slot.data) {
+        return 0;
+    }
     slot.visit_count   = 0;
     slot.generation    = 1;
     slot.flags         = MISRA_GRAPH_SLOT_OCCUPIED;
-    graph_copy_node_data(graph, slot.data, item_data, item_size);
+    if (!graph_copy_node_data(graph, slot.data, item_data, item_size)) {
+        graph_free_node_data(graph, slot.data, item_size);
+        return 0;
+    }
 
-    insert_range_into_vec(GENERIC_VEC(&graph->slots), (char *)&slot, sizeof(GenericGraphSlot), graph->slots.length, 1);
+    if (!insert_range_into_vec(GENERIC_VEC(&graph->slots), (char *)&slot, sizeof(GenericGraphSlot), graph->slots.length, 1)) {
+        graph_free_node_data(graph, slot.data, item_size);
+        deinit_vec(GENERIC_VEC(&slot.out_neighbors), sizeof(GraphNodeId));
+        deinit_vec(GENERIC_VEC(&slot.in_neighbors), sizeof(GraphNodeId));
+        return 0;
+    }
 
     slot_index = (u32)(graph->slots.length - 1);
     node_id    = graph_make_node_id(slot_index, 1);
@@ -591,7 +597,7 @@ GraphNodeId graph_push_node_owned(GenericGraph *graph, void *item_data, size ite
 
     node_id = graph_push_node(graph, item_data, item_size);
 
-    if (!graph->copy_init) {
+    if (node_id && !graph->copy_init) {
         memset(item_data, 0, item_size);
     }
 
@@ -714,8 +720,13 @@ bool graph_add_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to) {
     }
 
     in_neighbors = graph_in_neighbors_ptr(graph, to);
-    insert_range_into_vec(GENERIC_VEC(out_neighbors), (char *)&to, sizeof(GraphNodeId), out_neighbors->length, 1);
-    insert_range_into_vec(GENERIC_VEC(in_neighbors), (char *)&from, sizeof(GraphNodeId), in_neighbors->length, 1);
+    if (!insert_range_into_vec(GENERIC_VEC(out_neighbors), (char *)&to, sizeof(GraphNodeId), out_neighbors->length, 1)) {
+        return false;
+    }
+    if (!insert_range_into_vec(GENERIC_VEC(in_neighbors), (char *)&from, sizeof(GraphNodeId), in_neighbors->length, 1)) {
+        remove_range_vec(GENERIC_VEC(out_neighbors), NULL, sizeof(GraphNodeId), out_neighbors->length - 1, 1);
+        return false;
+    }
     graph->edge_count += 1;
     graph_bump_mutation_epoch(graph);
     return true;
@@ -824,15 +835,13 @@ bool graph_mark_edge_for_removal(GenericGraph *graph, GraphNodeId from, GraphNod
 
     pending.from = from;
     pending.to   = to;
-    insert_range_into_vec(
+    return insert_range_into_vec(
         GENERIC_VEC(&graph->pending_edge_removals),
         (char *)&pending,
         sizeof(GraphPendingEdgeRemoval),
         graph->pending_edge_removals.length,
         1
     );
-
-    return true;
 }
 
 bool graph_edge_marked_for_removal(GenericGraph *graph, GraphNodeId from, GraphNodeId to) {

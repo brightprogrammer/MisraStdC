@@ -18,16 +18,18 @@ extern "C" {
         size              item_size,
         GenericCopyInit   copy_init,
         GenericCopyDeinit copy_deinit,
-        size              alignment
+        size              alignment,
+        Allocator         allocator
     );
     void deinit_vec(GenericVec *vec, size item_size);
     void clear_vec(GenericVec *vec, size item_size);
-    void resize_vec(GenericVec *vec, size item_size, size new_size);
-    void reserve_vec(GenericVec *vec, size item_size, size n);
-    void reserve_pow2_vec(GenericVec *vec, size item_size, size n);
-    void reduce_space_vec(GenericVec *vec, size item_size);
-    void insert_range_into_vec(GenericVec *vec, char *item_data, size item_size, size idx, size count);
-    void insert_range_fast_into_vec(GenericVec *vec, char *item_data, size item_size, size idx, size count);
+    bool resize_vec(GenericVec *vec, size item_size, size new_size);
+    bool reserve_vec(GenericVec *vec, size item_size, size n);
+    bool reserve_pow2_vec(GenericVec *vec, size item_size, size n);
+    bool reduce_space_vec(GenericVec *vec, size item_size);
+    bool clone_vec(GenericVec *dst, const GenericVec *src, size item_size);
+    bool insert_range_into_vec(GenericVec *vec, const char *item_data, size item_size, size idx, size count);
+    bool insert_range_fast_into_vec(GenericVec *vec, const char *item_data, size item_size, size idx, size count);
     void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size start, size count);
     void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size start, size count);
     void qsort_vec(GenericVec *vec, size item_size, GenericCompare comp);
@@ -35,6 +37,37 @@ extern "C" {
     void reverse_vec(GenericVec *vec, size item_size);
     size find_idx_vec(GenericVec *vec, const void *item_data, size item_size, GenericCompare comp);
     void validate_vec(const GenericVec *v);
+
+    static inline bool vec_zero_source_on_success(GenericVec *vec, void *src, size bytes, bool success) {
+        if (success && !vec->copy_init) {
+            memset(src, 0, bytes);
+        }
+
+        return success;
+    }
+
+    static inline bool vec_release_merged_source_on_success(
+        GenericVec *dst,
+        GenericVec *src,
+        size        item_size,
+        bool        success
+    ) {
+        size aligned_item_size;
+
+        if (!success) {
+            return false;
+        }
+
+        if (!dst->copy_init && src->data) {
+            aligned_item_size = ALIGN_UP_POW2(item_size, src->alignment);
+            AllocatorFree(&src->allocator, src->data, (src->capacity + 1) * aligned_item_size, src->alignment);
+            src->data     = NULL;
+            src->length   = 0;
+            src->capacity = 0;
+        }
+
+        return true;
+    }
 
 #ifdef __cplusplus
 }

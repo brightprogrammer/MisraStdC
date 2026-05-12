@@ -205,6 +205,7 @@
      .entries           = NULL,                                                                                        \
      .states            = NULL,                                                                                        \
      .policy            = validate_map_policy_copy((policy_value)),                                                    \
+     .allocator         = AllocatorBind(DefaultAllocator()),                                                           \
      .__magic           = MISRA_MAP_MAGIC}
 
 #ifdef __cplusplus

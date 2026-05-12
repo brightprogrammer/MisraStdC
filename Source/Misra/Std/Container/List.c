@@ -1,10 +1,31 @@
 #include <Misra/Std/Container/List.h>
 #include <Misra/Std/Log.h>
 
+#include <stddef.h>
+
+static inline size list_alloc_alignment(void) {
+    return _Alignof(max_align_t);
+}
+
+static inline GenericListNode *alloc_list_node(GenericList *list) {
+    return AllocatorAlloc(&list->allocator, sizeof(GenericListNode), list_alloc_alignment(), true);
+}
+
+static inline void free_list_node(GenericList *list, GenericListNode *node) {
+    AllocatorFree(&list->allocator, node, sizeof(GenericListNode), list_alloc_alignment());
+}
+
+static inline void *alloc_list_item(GenericList *list, u64 item_size) {
+    return AllocatorAlloc(&list->allocator, item_size, list_alloc_alignment(), true);
+}
+
+static inline void free_list_item(GenericList *list, void *item, u64 item_size) {
+    AllocatorFree(&list->allocator, item, item_size, list_alloc_alignment());
+}
+
 void deinit_list(GenericList *list, u64 item_size) {
     if (!list || !item_size) {
-        LOG_ERROR("invalid arguments");
-        return;
+        LOG_FATAL("invalid arguments.");
     }
 
     ValidateList(list);
@@ -16,10 +37,16 @@ void deinit_list(GenericList *list, u64 item_size) {
     list->copy_init   = NULL;
     list->copy_deinit = NULL;
     list->length      = 0;
+    AllocatorUnbind(&list->allocator);
+    list->allocator   = AllocatorBind(DefaultAllocator());
 }
 
 
-void insert_into_list(GenericList *list, void *item_data, u64 item_size, u64 idx) {
+bool insert_into_list(GenericList *list, const void *item_data, u64 item_size, u64 idx) {
+    GenericListNode *new_node;
+    GenericListNode *next_node;
+    GenericListNode *prev_node;
+
     if (!list || !item_size || !item_data) {
         LOG_FATAL("invalid arguments.");
     }
@@ -30,74 +57,55 @@ void insert_into_list(GenericList *list, void *item_data, u64 item_size, u64 idx
         LOG_FATAL("list index out of range.");
     }
 
-    GenericListNode *new_node = calloc(sizeof(GenericListNode), 1);
+    new_node = alloc_list_node(list);
     if (!new_node) {
-        LOG_FATAL("Failed to allocate memory for new node");
+        return false;
     }
 
-    new_node->data            = calloc(item_size, 1);
+    new_node->data = alloc_list_item(list, item_size);
     if (!new_node->data) {
-        free(new_node);
-        LOG_FATAL("Failed to allocate memory for node data");
+        free_list_node(list, new_node);
+        return false;
     }
 
-    if (idx < list->length) {
-        // get node after which insertion will take place
-        GenericListNode *node = 0 == list->length ? NULL : node_at_list(list, item_size, idx)->prev;
+    if (list->copy_init) {
+        if (!list->copy_init(new_node->data, item_data, &list->allocator)) {
+            free_list_item(list, new_node->data, item_size);
+            free_list_node(list, new_node);
+            return false;
+        }
+    } else {
+        memcpy(new_node->data, item_data, item_size);
+    }
 
-        // node can be NULL only when we're inserting at head
-        if (node) {
-            new_node->prev = node;
-            new_node->next = node->next;
-            if (new_node->next) {
-                new_node->next->prev = new_node;
-            }
-            node->next     = new_node;
+    if (idx == list->length) {
+        prev_node     = list->tail;
+        new_node->prev = prev_node;
+        new_node->next = NULL;
+
+        if (prev_node) {
+            prev_node->next = new_node;
         } else {
-            new_node->next = list->head;
-            if (list->head) {
-                list->head->prev = new_node;
-            }
-            list->head     = new_node;
-            new_node->prev = NULL;
+            list->head = new_node;
         }
 
-        // insert data new data into current node
-        if (list->copy_init) {
-            memset(new_node->data, 0, item_size);
-            list->copy_init(new_node->data, item_data);
+        list->tail = new_node;
+    } else {
+        next_node      = node_at_list(list, item_size, idx);
+        prev_node      = next_node->prev;
+        new_node->next = next_node;
+        new_node->prev = prev_node;
+        next_node->prev = new_node;
+
+        if (prev_node) {
+            prev_node->next = new_node;
         } else {
-            memcpy(new_node->data, item_data, item_size);
-        }
-    } else if (idx == list->length) {
-        GenericListNode *new_tail = new_node;
-        GenericListNode *old_tail = list->tail;
-        GenericListNode *head     = list->head;
-
-        if (!head) {
-            list->head = new_tail;
-        }
-
-        if (old_tail) {
-            old_tail->next = new_tail;
-            new_tail->prev = old_tail;
-        } else {
-            new_tail->prev = NULL;
-        }
-
-        // create dual link & update tail
-        list->tail     = new_tail;
-        new_tail->next = NULL;
-
-        if (list->copy_init) {
-            memset(new_node->data, 0, item_size);
-            list->copy_init(new_node->data, item_data);
-        } else {
-            memcpy(new_node->data, item_data, item_size);
+            list->head = new_node;
         }
     }
 
     list->length += 1;
+    return true;
 }
 
 void remove_range_list(GenericList *list, void *removed_data, u64 item_size, u64 start, u64 count) {
@@ -122,7 +130,7 @@ void remove_range_list(GenericList *list, void *removed_data, u64 item_size, u64
             memcpy((u8 *)removed_data + c * item_size, node->data, item_size);
 
             memset(node->data, 0, item_size);
-            free(node->data);
+            free_list_item(list, node->data, item_size);
             node->data = NULL;
 
             node = node->next;
@@ -132,12 +140,12 @@ void remove_range_list(GenericList *list, void *removed_data, u64 item_size, u64
         GenericListNode *node = node_at_list(list, item_size, start);
         for (u64 c = 0; (c < count) && node; c++) {
             if (list->copy_deinit) {
-                list->copy_deinit(node->data);
+                list->copy_deinit(node->data, &list->allocator);
             } else {
                 memset(node->data, 0, item_size);
             }
 
-            free(node->data);
+            free_list_item(list, node->data, item_size);
             node->data = NULL;
             node       = node->next;
         }
@@ -165,25 +173,50 @@ void remove_range_list(GenericList *list, void *removed_data, u64 item_size, u64
         node->prev = NULL;
 
         // destroy and move ahead
-        free(node);
+        free_list_node(list, node);
         node = next;
     }
 }
 
 
-void qsort_list(GenericList *list, u64 item_size, GenericCompare comp) {
+bool qsort_list(GenericList *list, u64 item_size, GenericCompare comp) {
+    GenericListNode *node;
+    void            *data;
+    u64              item_count;
+    u64              index;
+
     if (!list || !item_size || !comp) {
         LOG_FATAL("invalid arguments.");
     }
 
     ValidateList(list);
 
-    void *data       = malloc(item_size * list->length);
-    u64   item_count = list->length;
-    remove_range_list(list, data, item_size, 0, list->length);
+    if (list->length < 2) {
+        return true;
+    }
+
+    item_count = list->length;
+    data       = AllocatorAlloc(&list->allocator, item_size * item_count, list_alloc_alignment(), false);
+    if (!data) {
+        return false;
+    }
+
+    node = list->head;
+    for (index = 0; node && index < item_count; index++) {
+        memcpy((u8 *)data + index * item_size, node->data, item_size);
+        node = node->next;
+    }
+
     qsort(data, item_count, item_size, comp);
-    push_arr_list(list, item_size, data, item_count);
-    free(data);
+
+    node = list->head;
+    for (index = 0; node && index < item_count; index++) {
+        memcpy(node->data, (u8 *)data + index * item_size, item_size);
+        node = node->next;
+    }
+
+    AllocatorFree(&list->allocator, data, item_size * item_count, list_alloc_alignment());
+    return true;
 }
 
 
@@ -230,61 +263,49 @@ void reverse_list(GenericList *list, u64 item_size) {
 }
 
 
-void push_arr_list(GenericList *list, u64 item_size, void *arr, u64 count) {
-    if (!list || !arr || !item_size) {
-        LOG_FATAL("invalid arguments.");
-    }
+bool push_arr_list(GenericList *list, u64 item_size, const void *arr, u64 count) {
+    const u8 *cursor;
+    u64       old_length;
+    u64       inserted;
 
-    if (!count) {
-        return;
+    if (!list || !item_size) {
+        LOG_FATAL("invalid arguments.");
     }
 
     ValidateList(list);
 
-    while (count--) {
-        GenericListNode *old_tail = list->tail;
-        GenericListNode *new_tail = malloc(sizeof(GenericListNode));
-
-        if (!new_tail) {
-            LOG_FATAL("Failed to allocate memory for new node");
-        }
-
-        new_tail->data = malloc(item_size);
-        if (!new_tail->data) {
-            free(new_tail);
-            LOG_FATAL("Failed to allocate memory for node data");
-        }
-
-        // Handle empty list case
-        if (old_tail) {
-            // List is not empty - create dual link
-            old_tail->next = new_tail;
-            new_tail->prev = old_tail;
-        } else {
-            // List is empty - set as head
-            list->head     = new_tail;
-            new_tail->prev = NULL;
-        }
-
-        new_tail->next = NULL;
-        list->tail     = new_tail;
-
-        // insert data
-        if (list->copy_init) {
-            memset(new_tail->data, 0, item_size);
-            list->copy_init(new_tail->data, arr);
-        } else {
-            memcpy(new_tail->data, arr, item_size);
-        }
-
-        // Only increment length after successful insertion
-        list->length++;
-        arr = (u8 *)arr + item_size;
+    if (!count) {
+        return true;
     }
+
+    if (!arr) {
+        LOG_FATAL("invalid arguments.");
+    }
+
+    old_length = list->length;
+    cursor     = arr;
+    inserted   = 0;
+
+    while (inserted < count) {
+        if (!insert_into_list(list, cursor, item_size, list->length)) {
+            if (list->length > old_length) {
+                remove_range_list(list, NULL, item_size, old_length, list->length - old_length);
+            }
+            return false;
+        }
+
+        inserted += 1;
+        cursor += item_size;
+    }
+
+    return true;
 }
 
 
-void merge_list(GenericList *list1, u64 item_size, GenericList *list2) {
+bool merge_list(GenericList *list1, u64 item_size, GenericList *list2) {
+    GenericListNode *node;
+    u64              old_length;
+
     if (!list1 || !item_size || !list2) {
         LOG_FATAL("invalid arguments.");
     }
@@ -292,11 +313,23 @@ void merge_list(GenericList *list1, u64 item_size, GenericList *list2) {
     ValidateList(list1);
     ValidateList(list2);
 
-    GenericListNode *node = list2->head;
+    if (list1 == list2) {
+        LOG_FATAL("cannot merge list with itself.");
+    }
+
+    old_length = list1->length;
+    node       = list2->head;
     while (node) {
-        insert_into_list(list1, node->data, item_size, list1->length);
+        if (!insert_into_list(list1, node->data, item_size, list1->length)) {
+            if (list1->length > old_length) {
+                remove_range_list(list1, NULL, item_size, old_length, list1->length - old_length);
+            }
+            return false;
+        }
         node = node->next;
     }
+
+    return true;
 }
 
 
@@ -371,6 +404,9 @@ void validate_list(const GenericList *l) {
     }
     if ((l)->__magic != MISRA_LIST_MAGIC) {
         LOG_FATAL("Invalid list. Either not initialized or corrupted!");
+    }
+    if (!(l)->allocator.allocate || !(l)->allocator.reallocate || !(l)->allocator.deallocate) {
+        LOG_FATAL("Invalid list allocator.");
     }
     if ((l)->length == 0) {
         if ((l)->head || (l)->tail) {

@@ -10,6 +10,15 @@
 #include "Type.h"
 #include "Private.h"
 
+#include <stdio.h>
+
+void SysAbort(void);
+
+static inline void map_abort_memory_operation(const char *function, int line, const char *message) {
+    fprintf(stderr, "FATAL [%s:%d] %s\n", function, line, message);
+    SysAbort();
+}
+
 ///
 /// Clear all entries but retain allocated storage.
 ///
@@ -43,6 +52,12 @@
         offsetof(MAP_ENTRY_TYPE(m), hash),                                                                             \
         (n)                                                                                                            \
     )
+#define MapMustReserve(m, n)                                                                                            \
+    do {                                                                                                               \
+        if (!MapReserve((m), (n))) {                                                                                   \
+            map_abort_memory_operation(__func__, __LINE__, "MapMustReserve failed");                                   \
+        }                                                                                                              \
+    } while (0)
 
 ///
 /// Rebuild the map using the current policy and current pair count.
@@ -62,6 +77,12 @@
         (size)((m)->length),                                                                                           \
         (m)->policy                                                                                                    \
     )
+#define MapMustCompact(m)                                                                                                \
+    do {                                                                                                               \
+        if (!MapCompact((m))) {                                                                                        \
+            map_abort_memory_operation(__func__, __LINE__, "MapMustCompact failed");                                   \
+        }                                                                                                              \
+    } while (0)
 
 /// Remap using a specific probing policy.
 ///
@@ -81,5 +102,11 @@
         (n),                                                                                                           \
         (policy_value)                                                                                                 \
     )
+#define MapMustRehashWithPolicy(m, n, policy_value)                                                                     \
+    do {                                                                                                               \
+        if (!MapRehashWithPolicy((m), (n), (policy_value))) {                                                          \
+            map_abort_memory_operation(__func__, __LINE__, "MapMustRehashWithPolicy failed");                          \
+        }                                                                                                              \
+    } while (0)
 
 #endif // MISRA_STD_CONTAINER_MAP_MEMORY_H
