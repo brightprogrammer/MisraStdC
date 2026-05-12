@@ -17,5 +17,6 @@ It explains the project in narrative form: what the library is for, how to build
 - Project overview and intended use.
 - Build and test workflow for local development.
 - Macro-based generic containers and ownership semantics.
+- Planned refactor work around fallible APIs, allocator-backed containers, and `Must...` wrappers.
 - Working with directed graphs for reachability, CFG, and dependency-style analysis.
 - Parsing simple key-value configuration files with `KvConfig`.
