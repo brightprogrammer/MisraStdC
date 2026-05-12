@@ -16,6 +16,7 @@ bool test_bitvec_to_bytes(void);
 bool test_bitvec_from_bytes(void);
 bool test_bitvec_to_integer(void);
 bool test_bitvec_from_integer(void);
+bool test_bitvec_try_conversion_allocators(void);
 bool test_bitvec_convert_edge_cases(void);
 bool test_bitvec_from_string_edge_cases(void);
 bool test_bitvec_bytes_conversion_edge_cases(void);
@@ -43,10 +44,11 @@ bool test_bitvec_to_string(void) {
     BitVecPush(&bv, true);
 
     // Convert to string
-    Str str = BitVecToStr(&bv);
+    Str  str;
+    bool ok = BitVecTryToStr(&str, &bv);
 
     // Check result
-    bool result = (str.length == 4);
+    bool result = ok && (str.length == 4);
     result      = result && (str.data[0] == '1');
     result      = result && (str.data[1] == '0');
     result      = result && (str.data[2] == '1');
@@ -65,10 +67,11 @@ bool test_bitvec_from_string(void) {
 
     // Convert from string
     const char *str = "1011";
-    BitVec      bv  = BitVecFromStr(str);
+    BitVec      bv;
+    bool        ok = BitVecTryFromStr(&bv, str);
 
     // Check result
-    bool result = (bv.length == 4);
+    bool result = ok && (bv.length == 4);
     result      = result && (BitVecGet(&bv, 0) == true);
     result      = result && (BitVecGet(&bv, 1) == false);
     result      = result && (BitVecGet(&bv, 2) == true);
@@ -122,11 +125,12 @@ bool test_bitvec_from_bytes(void) {
     WriteFmt("Testing BitVecFromBytes\n");
 
     // Create byte array
-    u8     bytes[] = {0xB3};                    // 10110011 in binary
-    BitVec bv      = BitVecFromBytes(bytes, 8); // 8 bits from the byte
+    u8     bytes[] = {0xB3}; // 10110011 in binary
+    BitVec bv;
+    bool   ok = BitVecTryFromBytes(&bv, bytes, 8); // 8 bits from the byte
 
     // Check result (8 bits from 1 byte)
-    bool result = (bv.length == 8);
+    bool result = ok && (bv.length == 8);
 
     // The exact bit order depends on implementation
     // Just check that we got 8 bits and some are true, some false
@@ -192,10 +196,11 @@ bool test_bitvec_from_integer(void) {
 
     // Convert from integer
     u64    value = 11; // 1011 in binary
-    BitVec bv    = BitVecFromInteger(value, 4);
+    BitVec bv;
+    bool   ok = BitVecTryFromInteger(&bv, value, 4);
 
     // Check result
-    bool result = (bv.length == 4);
+    bool result = ok && (bv.length == 4);
 
     // Count ones and zeros
     u64 true_count  = 0;
@@ -213,8 +218,9 @@ bool test_bitvec_from_integer(void) {
     result = result && (true_count == 3) && (false_count == 1);
 
     // Test with zero
-    BitVec zero_bv = BitVecFromInteger(0, 8);
-    result         = result && (zero_bv.length == 8);
+    BitVec zero_bv;
+    result = result && BitVecTryFromInteger(&zero_bv, 0, 8);
+    result = result && (zero_bv.length == 8);
 
     // All bits should be false
     bool all_false = true;
@@ -230,6 +236,27 @@ bool test_bitvec_from_integer(void) {
     BitVecDeinit(&bv);
     BitVecDeinit(&zero_bv);
 
+    return result;
+}
+
+bool test_bitvec_try_conversion_allocators(void) {
+    WriteFmt("Testing BitVec try conversion allocator behavior\n");
+
+    Allocator alloc = DefaultAllocator();
+    alloc.effort    = ALLOCATOR_EFFORT_RETRY;
+    alloc.retry_limit = 3;
+
+    BitVec bv;
+    Str    str;
+    bool   ok = BitVecTryFromStrWithAllocator(&bv, "101001", alloc);
+    bool   result = ok && (bv.allocator.effort == alloc.effort) && (bv.allocator.retry_limit == alloc.retry_limit);
+
+    ok     = BitVecTryToStr(&str, &bv);
+    result = result && ok && (str.allocator.effort == alloc.effort) && (str.allocator.retry_limit == alloc.retry_limit) &&
+             (ZstrCompare(str.data, "101001") == 0);
+
+    StrDeinit(&str);
+    BitVecDeinit(&bv);
     return result;
 }
 
@@ -676,6 +703,7 @@ int main(void) {
         test_bitvec_from_bytes,
         test_bitvec_to_integer,
         test_bitvec_from_integer,
+        test_bitvec_try_conversion_allocators,
         test_bitvec_convert_edge_cases,
         test_bitvec_from_string_edge_cases,
         test_bitvec_bytes_conversion_edge_cases,

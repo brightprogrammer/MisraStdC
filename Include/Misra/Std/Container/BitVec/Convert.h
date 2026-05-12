@@ -15,38 +15,14 @@
 extern "C" {
 #endif
 
-    ///
-    /// Convert bitvector to string representation.
-    /// Each bit becomes '1' or '0' character. Caller must free the returned string.
-    ///
-    /// bv[in] : Bitvector to convert
-    ///
-    /// RETURNS: String representation like "10110" or empty string if error
-    ///
-    /// USAGE:
-    ///   Str bit_string = BitVecToString(&flags);
-    ///   // ... use string ...
-    ///   StrDeinit(&bit_string);
-    ///
-    /// TAGS: BitVec, Convert, String, Export
-    ///
+    bool BitVecTryToStr(Str *out, BitVec *bv);
+    bool BitVecTryToStrWithAllocator(Str *out, BitVec *bv, Allocator alloc);
+    Str BitVecToStrWithAllocator(BitVec *bv, Allocator alloc);
     Str BitVecToStr(BitVec *bv);
 
-    ///
-    /// Create bitvector from string representation.
-    /// String should contain only '1' and '0' characters.
-    ///
-    /// str[in] : String containing bit pattern like "10110"
-    ///
-    /// RETURNS: Bitvector representing the bit pattern
-    ///
-    /// USAGE:
-    ///   BitVec flags = BitVecFromString("10110");
-    ///   // ... use bitvector ...
-    ///   BitVecDeinit(&flags);
-    ///
-    /// TAGS: BitVec, Convert, String, Import
-    ///
+    bool BitVecTryFromStr(BitVec *out, const char *str);
+    bool BitVecTryFromStrWithAllocator(BitVec *out, const char *str, Allocator alloc);
+    BitVec BitVecFromStrWithAllocator(const char *str, Allocator alloc);
     BitVec BitVecFromStr(const char *str);
 
     ///
@@ -67,21 +43,9 @@ extern "C" {
     ///
     u64 BitVecToBytes(BitVec *bv, u8 *bytes, u64 max_len);
 
-    ///
-    /// Create bitvector from byte array.
-    /// Reads the specified number of bits from the byte array.
-    ///
-    /// bytes[in]   : Byte array containing bit data
-    /// bit_len[in] : Number of bits to read from the byte array
-    ///
-    /// RETURNS: Bitvector containing the bits
-    ///
-    /// USAGE:
-    ///   u8 data[] = {0xFF, 0x00, 0xAA};
-    ///   BitVec flags = BitVecFromBytes(data, 20);  // Read 20 bits (needs 3 bytes)
-    ///
-    /// TAGS: BitVec, Convert, Bytes, Import
-    ///
+    bool BitVecTryFromBytes(BitVec *out, const u8 *bytes, u64 bit_len);
+    bool BitVecTryFromBytesWithAllocator(BitVec *out, const u8 *bytes, u64 bit_len, Allocator alloc);
+    BitVec BitVecFromBytesWithAllocator(const u8 *bytes, u64 bit_len, Allocator alloc);
     BitVec BitVecFromBytes(const u8 *bytes, u64 bit_len);
 
     ///
@@ -99,20 +63,9 @@ extern "C" {
     ///
     u64 BitVecToInteger(BitVec *bv);
 
-    ///
-    /// Create bitvector from integer value.
-    /// Creates a bitvector representing the specified number of bits from the integer.
-    ///
-    /// value[in] : Integer value to convert
-    /// bits[in]  : Number of bits to use (1-64)
-    ///
-    /// RETURNS: Bitvector containing the bits
-    ///
-    /// USAGE:
-    ///   BitVec flags = BitVecFromInteger(0xABCD, 16);  // Use 16 bits
-    ///
-    /// TAGS: BitVec, Convert, Integer, Import
-    ///
+    bool BitVecTryFromInteger(BitVec *out, u64 value, u64 bits);
+    bool BitVecTryFromIntegerWithAllocator(BitVec *out, u64 value, u64 bits, Allocator alloc);
+    BitVec BitVecFromIntegerWithAllocator(u64 value, u64 bits, Allocator alloc);
     BitVec BitVecFromInteger(u64 value, u64 bits);
 
 #ifdef __cplusplus

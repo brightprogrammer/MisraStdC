@@ -773,52 +773,106 @@ bool BitVecIsSorted(BitVec *bv) {
 }
 
 // Conversion functions
-Str BitVecToStr(BitVec *bv) {
+bool BitVecTryToStrWithAllocator(Str *out, BitVec *bv, Allocator alloc) {
     ValidateBitVec(bv);
+    if (!out) {
+        LOG_FATAL("out is NULL");
+    }
 
-    Str result = StrInit();
+    *out = StrInit(alloc);
     if (bv->length == 0) {
-        return result;
+        return true;
     }
 
     // Reserve space for the string (length + null terminator)
-    StrReserve(&result, bv->length + 1);
+    if (!StrReserve(out, bv->length + 1)) {
+        return false;
+    }
 
     // Convert each bit to '0' or '1'
     for (u64 i = 0; i < bv->length; i++) {
         char bit_char = BitVecGet(bv, i) ? '1' : '0';
-        StrPushBack(&result, bit_char);
+        if (!StrPushBack(out, bit_char)) {
+            StrDeinit(out);
+            *out = StrInit(alloc);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool BitVecTryToStr(Str *out, BitVec *bv) {
+    ValidateBitVec(bv);
+    return BitVecTryToStrWithAllocator(out, bv, bv->allocator);
+}
+
+Str BitVecToStrWithAllocator(BitVec *bv, Allocator alloc) {
+    Str result;
+
+    if (!BitVecTryToStrWithAllocator(&result, bv, alloc)) {
+        result = StrInit(alloc);
+    }
+
+    return result;
+}
+
+Str BitVecToStr(BitVec *bv) {
+    ValidateBitVec(bv);
+    return BitVecToStrWithAllocator(bv, bv->allocator);
+}
+
+bool BitVecTryFromStrWithAllocator(BitVec *out, const char *str, Allocator alloc) {
+    if (!str) {
+        LOG_FATAL("str is NULL");
+    }
+    if (!out) {
+        LOG_FATAL("out is NULL");
+    }
+
+    *out = BitVecInit(alloc);
+
+    u64 str_len = strlen(str);
+    if (!BitVecReserve(out, str_len)) {
+        return false;
+    }
+
+    for (u64 i = 0; i < str_len; i++) {
+        if (str[i] == '1') {
+            if (!BitVecPush(out, true)) {
+                BitVecDeinit(out);
+                *out = BitVecInit(alloc);
+                return false;
+            }
+        } else if (str[i] == '0') {
+            if (!BitVecPush(out, false)) {
+                BitVecDeinit(out);
+                *out = BitVecInit(alloc);
+                return false;
+            }
+        }
+        // Ignore other characters
+    }
+
+    return true;
+}
+
+bool BitVecTryFromStr(BitVec *out, const char *str) {
+    return BitVecTryFromStrWithAllocator(out, str, DefaultAllocator());
+}
+
+BitVec BitVecFromStrWithAllocator(const char *str, Allocator alloc) {
+    BitVec result;
+
+    if (!BitVecTryFromStrWithAllocator(&result, str, alloc)) {
+        result = BitVecInit(alloc);
     }
 
     return result;
 }
 
 BitVec BitVecFromStr(const char *str) {
-    if (!str) {
-        LOG_FATAL("str is NULL");
-    }
-
-    BitVec result = BitVecInit();
-
-    u64 str_len = strlen(str);
-    if (!BitVecReserve(&result, str_len)) {
-        return result;
-    }
-
-    for (u64 i = 0; i < str_len; i++) {
-        if (str[i] == '1') {
-            if (!BitVecPush(&result, true)) {
-                return result;
-            }
-        } else if (str[i] == '0') {
-            if (!BitVecPush(&result, false)) {
-                return result;
-            }
-        }
-        // Ignore other characters
-    }
-
-    return result;
+    return BitVecFromStrWithAllocator(str, DefaultAllocator());
 }
 
 u64 BitVecToBytes(BitVec *bv, u8 *bytes, u64 max_len) {
@@ -851,20 +905,25 @@ u64 BitVecToBytes(BitVec *bv, u8 *bytes, u64 max_len) {
     return bytes_to_copy;
 }
 
-BitVec BitVecFromBytes(const u8 *bytes, u64 bit_len) {
+bool BitVecTryFromBytesWithAllocator(BitVec *out, const u8 *bytes, u64 bit_len, Allocator alloc) {
     if (!bytes) {
         LOG_FATAL("bytes is NULL");
     }
+    if (!out) {
+        LOG_FATAL("out is NULL");
+    }
 
-    BitVec result = BitVecInit();
+    *out = BitVecInit(alloc);
 
     // Handle empty bitvector case
     if (bit_len == 0) {
-        return result;
+        return true;
     }
 
-    if (!BitVecReserve(&result, bit_len) || !BitVecResize(&result, bit_len)) {
-        return result;
+    if (!BitVecReserve(out, bit_len) || !BitVecResize(out, bit_len)) {
+        BitVecDeinit(out);
+        *out = BitVecInit(alloc);
+        return false;
     }
 
     // Copy bits from bytes
@@ -872,10 +931,28 @@ BitVec BitVecFromBytes(const u8 *bytes, u64 bit_len) {
         u64  byte_idx   = i / 8;
         u64  bit_offset = i % 8;
         bool bit        = (bytes[byte_idx] & (1u << bit_offset)) != 0;
-        BitVecSet(&result, i, bit);
+        BitVecSet(out, i, bit);
+    }
+
+    return true;
+}
+
+bool BitVecTryFromBytes(BitVec *out, const u8 *bytes, u64 bit_len) {
+    return BitVecTryFromBytesWithAllocator(out, bytes, bit_len, DefaultAllocator());
+}
+
+BitVec BitVecFromBytesWithAllocator(const u8 *bytes, u64 bit_len, Allocator alloc) {
+    BitVec result;
+
+    if (!BitVecTryFromBytesWithAllocator(&result, bytes, bit_len, alloc)) {
+        result = BitVecInit(alloc);
     }
 
     return result;
+}
+
+BitVec BitVecFromBytes(const u8 *bytes, u64 bit_len) {
+    return BitVecFromBytesWithAllocator(bytes, bit_len, DefaultAllocator());
 }
 
 u64 BitVecToInteger(BitVec *bv) {
@@ -897,10 +974,14 @@ u64 BitVecToInteger(BitVec *bv) {
     return result;
 }
 
-BitVec BitVecFromInteger(u64 value, u64 bits) {
-    BitVec result = BitVecInit();
+bool BitVecTryFromIntegerWithAllocator(BitVec *out, u64 value, u64 bits, Allocator alloc) {
+    if (!out) {
+        LOG_FATAL("out is NULL");
+    }
+
+    *out = BitVecInit(alloc);
     if (bits == 0) {
-        return result;
+        return true;
     }
 
     // Clamp to 64 bits maximum
@@ -908,17 +989,37 @@ BitVec BitVecFromInteger(u64 value, u64 bits) {
         bits = 64;
     }
 
-    if (!BitVecReserve(&result, bits) || !BitVecResize(&result, bits)) {
-        return result;
+    if (!BitVecReserve(out, bits) || !BitVecResize(out, bits)) {
+        BitVecDeinit(out);
+        *out = BitVecInit(alloc);
+        return false;
     }
 
     // Convert integer to bits (LSB first)
     for (u64 i = 0; i < bits; i++) {
         bool bit = (value & (1ULL << i)) != 0;
-        BitVecSet(&result, i, bit);
+        BitVecSet(out, i, bit);
+    }
+
+    return true;
+}
+
+bool BitVecTryFromInteger(BitVec *out, u64 value, u64 bits) {
+    return BitVecTryFromIntegerWithAllocator(out, value, bits, DefaultAllocator());
+}
+
+BitVec BitVecFromIntegerWithAllocator(u64 value, u64 bits, Allocator alloc) {
+    BitVec result;
+
+    if (!BitVecTryFromIntegerWithAllocator(&result, value, bits, alloc)) {
+        result = BitVecInit(alloc);
     }
 
     return result;
+}
+
+BitVec BitVecFromInteger(u64 value, u64 bits) {
+    return BitVecFromIntegerWithAllocator(value, bits, DefaultAllocator());
 }
 
 // Shift operations
