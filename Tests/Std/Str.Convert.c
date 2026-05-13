@@ -569,7 +569,7 @@ bool test_str_precision_limits(void) {
         // String should have expected decimal places
         char *dot_pos = strchr(s.data, '.');
         if (dot_pos) {
-            size_t decimal_places = strlen(dot_pos + 1);
+            size_t decimal_places = ZstrLen(dot_pos + 1);
             // Allow for trailing zeros being omitted in some cases
             result = result && (decimal_places <= precision);
         }

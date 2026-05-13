@@ -4,6 +4,7 @@
 ///
 /// File helper utilities implementation
 
+#include <errno.h>
 #include <stdlib.h>
 
 // decompiler
@@ -12,10 +13,18 @@
 #include <Misra/Sys.h>
 #include <Misra/Types.h>
 
-bool ReadCompleteFile(const char *filename, char **data, u64 *file_size, u64 *capacity) {
+bool ReadCompleteFileEx(
+    const char *filename,
+    char      **data,
+    u64        *file_size,
+    u64        *capacity,
+    Allocator  *allocator
+) {
+    Allocator  default_allocator;
+    Allocator *active_allocator = allocator;
+
     if (!filename || !data || !file_size || !capacity) {
-        LOG_ERROR("invalid arguments.");
-        return false;
+        LOG_FATAL("invalid arguments.");
     }
 
     // get actual size of file
@@ -26,17 +35,27 @@ bool ReadCompleteFile(const char *filename, char **data, u64 *file_size, u64 *ca
     }
 
     // allocate memory to hold the file contents if required
+    if (*data && !active_allocator) {
+        LOG_FATAL("allocator is required when reusing caller-provided buffer storage.");
+    }
+
+    if (!active_allocator) {
+        default_allocator = DefaultAllocator();
+        active_allocator  = &default_allocator;
+    }
+
     char *buffer = *data;
-    if (*capacity < (u64)fsize) {
-        buffer = realloc(buffer, fsize + 1);
+    u64   required_capacity = (u64)fsize + 1;
+    if (*capacity < required_capacity) {
+        buffer = AllocatorRealloc(active_allocator, buffer, *capacity, required_capacity, 1);
 
         if (!buffer) {
-            LOG_SYS_ERROR("realloc() failed");
+            LOG_ERROR("allocator reallocation failed");
             return false;
         }
 
         *data     = buffer;
-        *capacity = fsize + 1;
+        *capacity = required_capacity;
     }
 
     // Open the file in binary mode

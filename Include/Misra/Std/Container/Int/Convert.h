@@ -102,9 +102,19 @@ bool IntTryFromStrRadix(Int *out, const char *digits, u8 radix);
 Int IntFromStrRadix(const char *digits, u8 radix);
 
 ///
-/// Convert an integer to text in the given radix.
+/// Convert an integer to text in the given radix using an explicit allocator.
 ///
-bool IntTryToStrRadixWithAllocator(Str *out, Int *value, u8 radix, bool uppercase, Allocator alloc);
+/// out[out]      : Destination string.
+/// value[in]     : Integer to convert.
+/// radix[in]     : Output radix in the range `2..36`.
+/// uppercase[in] : Use uppercase letters for digits above `9`.
+/// alloc[in]     : Allocator to bind to the produced string.
+///
+/// RETURNS: `true` on success, `false` on allocation or validation failure.
+///
+/// TAGS: Int, Convert, String, Radix, Allocator
+///
+bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Allocator alloc);
 bool IntTryToStrRadix(Str *out, Int *value, u8 radix, bool uppercase);
 Str IntToStrRadix(Int *value, u8 radix, bool uppercase);
 
@@ -122,9 +132,17 @@ bool IntTryFromStr(Int *out, const char *decimal);
 Int IntFromStr(const char *decimal);
 
 ///
-/// Convert an integer to a decimal string.
+/// Convert an integer to a decimal string using an explicit allocator.
 ///
-bool IntTryToStrWithAllocator(Str *out, Int *value, Allocator alloc);
+/// out[out]  : Destination string.
+/// value[in] : Integer to convert.
+/// alloc[in] : Allocator to bind to the produced string.
+///
+/// RETURNS: `true` on success, `false` on allocation failure.
+///
+/// TAGS: Int, Convert, String, Decimal, Allocator
+///
+bool IntTryToStrAlloc(Str *out, Int *value, Allocator alloc);
 bool IntTryToStr(Str *out, Int *value);
 Str IntToStr(Int *value);
 

@@ -333,28 +333,6 @@ typedef i8 bool;
 #define TO_UPPER(c) (IN_RANGE(c, 'a', 'z') ? ((c) - ('a' - 'A')) : (c))
 
 ///
-/// Allocates zero-initialized memory for a type.
-///
-/// tname[in] : Type name to allocate memory for.
-///
-/// SUCCESS: Returns pointer to zero-initialized memory block.
-/// FAILURE: Returns NULL if memory allocation fails.
-///
-/// TAGS: Memory, Allocation, Initialization
-#define NEW(tname) calloc(1, sizeof(tname))
-
-///
-/// Safely deallocates memory and nullifies pointer.
-///
-/// x[in,out] : Pointer variable to free.
-///
-/// SUCCESS: Memory is deallocated and pointer set to NULL.
-/// FAILURE: Function cannot fail - safe to call with NULL.
-///
-/// TAGS: Memory, Deallocation, Safety
-#define FREE(x) ((x) ? free((void *)(x)) : (void)1, (x) = NULL)
-
-///
 /// Inverts endianness of 16-bit (2-byte) value.
 ///
 /// x[in] : 16-bit value to swap.

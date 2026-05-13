@@ -19,6 +19,10 @@ io_tests = [
     ['Io.Read', 'Std/Io.Read.c'],
 ]
 
+file_tests = [
+    ['File', 'Std/File.c'],
+]
+
 str_tests = [
     ['Str.Type', 'Std/Str.Type.c'],
     ['Str.Init', 'Std/Str.Init.c'],
@@ -142,6 +146,23 @@ foreach test_info : io_tests
         install: false
     )
     
+    test(test_name, test_exe)
+endforeach
+
+foreach test_info : file_tests
+    test_name = test_info[0]
+    test_src = test_info[1]
+
+    test_exe = executable(
+        test_name,
+        files(test_src),
+        link_with: [misra_std],
+        dependencies: [test_util_dep],
+        c_args: test_args,
+        include_directories: inc_misra,
+        install: false
+    )
+
     test(test_name, test_exe)
 endforeach
 

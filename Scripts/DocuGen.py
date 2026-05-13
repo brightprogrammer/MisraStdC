@@ -72,10 +72,20 @@ def extract_symbol_name(code_line):
 
 
 def collect_declaration(lines, start_index):
-    """Collect a declaration that may span multiple lines until the first semicolon."""
+    """Collect one macro/function/type declaration."""
     collected = []
     idx = start_index
     brace_depth = 0
+    first_line = lines[start_index].lstrip() if start_index < len(lines) else ""
+
+    if first_line.startswith("#"):
+        while idx < len(lines):
+            current_line = lines[idx]
+            collected.append(current_line.rstrip())
+            if not current_line.rstrip().endswith("\\"):
+                break
+            idx += 1
+        return "\n".join(collected).strip()
 
     while idx < len(lines):
         current_line = lines[idx]
@@ -97,6 +107,28 @@ def should_replace_symbol(old_symbol_data, new_symbol_data):
     old_priority = KIND_PRIORITY.get(old_symbol_data["kind"], 0)
     new_priority = KIND_PRIORITY.get(new_symbol_data["kind"], 0)
     return new_priority >= old_priority
+
+
+def internal_documentation_symbol_reason(symbol_name):
+    """Return why a symbol should not get its own public documentation page."""
+    if not symbol_name:
+        return "private"
+    if symbol_name.startswith("_") or symbol_name.startswith("MISRA_PRIV_"):
+        return "private"
+    if "_HAS_ARGS" in symbol_name:
+        return "plumbing"
+    if symbol_name.endswith("_IMPL") or symbol_name.endswith("_HELPER") or symbol_name.endswith("_AGAIN"):
+        return "plumbing"
+    if re.search(r'_[0-9]+$', symbol_name):
+        return "plumbing"
+    if symbol_name.endswith("Internal"):
+        return "private"
+    return None
+
+
+def is_internal_documentation_symbol(symbol_name):
+    """Return True for dispatch plumbing and private symbols users should not see."""
+    return internal_documentation_symbol_reason(symbol_name) is not None
 
 
 def to_repo_relative_path(file_path: Path):
@@ -207,15 +239,26 @@ def extract_symbols_and_store_content(file_path: Path):
                 definition_index += 1
 
             if definition_index < len(lines):
-                code_line = collect_declaration(lines, definition_index)
-                documentation = parse_comment_block(
-                    comment_block, next_code_line=code_line)
-                symbol_info = extract_symbol_name(code_line)
-                if symbol_info:
+                while definition_index < len(lines) and lines[definition_index].strip():
+                    code_line = collect_declaration(lines, definition_index)
+                    symbol_info = extract_symbol_name(code_line)
+                    declaration_line_count = max(1, len(code_line.splitlines()))
+
+                    if not symbol_info:
+                        line_index = definition_index + declaration_line_count
+                        break
+
                     symbol_name, inferred_kind = symbol_info
-                    if symbol_name.startswith("MISRA_PRIV_"):
-                        line_index = definition_index + 1
+                    internal_reason = internal_documentation_symbol_reason(symbol_name)
+                    if internal_reason == "private":
+                        line_index = definition_index + declaration_line_count
+                        break
+                    if internal_reason == "plumbing":
+                        definition_index += declaration_line_count
                         continue
+
+                    documentation = parse_comment_block(
+                        comment_block, next_code_line=code_line)
                     documentation["kind"] = inferred_kind
                     new_symbol_data = {
                         "name": symbol_name,
@@ -232,7 +275,11 @@ def extract_symbols_and_store_content(file_path: Path):
                             parsed_symbols[symbol_name] = new_symbol_data
                     else:
                         parsed_symbols[symbol_name] = new_symbol_data
-                line_index = definition_index + 1
+
+                    line_index = definition_index + declaration_line_count
+                    break
+                else:
+                    line_index = definition_index
             else:
                 line_index = comment_index
         else:

@@ -14,31 +14,111 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-    bool StrTryInitFromCstrWithAllocator(Str *out, const char *cstr, size len, Allocator alloc);
-    Str StrInitFromCstrWithAllocator(const char *cstr, size len, Allocator alloc);
+    ///
+    /// Initialize a `Str` from a C string buffer using an explicit allocator.
+    ///
+    /// out[out] : Destination string.
+    /// cstr[in] : Source character buffer.
+    /// len[in]  : Number of bytes to copy from `cstr`.
+    /// alloc[in]: Allocator to bind to `out`.
+    ///
+    /// SUCCESS : Returns true and initializes `out`.
+    /// FAILURE : Returns false if allocation fails.
+    ///
+    /// TAGS: Str, Init, CStr, Allocator
+    ///
+    bool StrTryInitFromCstrAlloc(Str *out, const char *cstr, size len, Allocator alloc);
+
+    ///
+    /// Initialize a `Str` from a C string buffer using an explicit allocator.
+    ///
+    /// cstr[in] : Source character buffer.
+    /// len[in]  : Number of bytes to copy from `cstr`.
+    /// alloc[in]: Allocator to bind to the returned string.
+    ///
+    /// SUCCESS : Returns initialized string.
+    /// FAILURE : Returns an empty string if allocation fails.
+    ///
+    /// TAGS: Str, Init, CStr, Allocator
+    ///
+    Str StrInitFromCstrAlloc(const char *cstr, size len, Allocator alloc);
 
 ///
-/// Initializes a Str object from a null-terminated C-style string (`zstr`).
-/// This macro calculates the length of `zstr` using `strlen` and then calls
-/// `StrInitFromCstr` to create the Str object.
+/// Try to initialize a `Str` by copying bytes from a C string buffer.
 ///
-/// zstr[in]    : Pointer to the null-terminated C-style string to initialize from.
+/// This public API supports both of these forms:
 ///
-/// SUCCESS : Returns a newly created Str object with its `data` field pointing to a
-///           newly allocated memory containing a copy of `zstr`. The `length` and
-///           `capacity` fields are set to the length of `zstr`. `copy_init` and
-///           `copy_deinit` are set to NULL, and `alignment` is set to 1.
+/// - `StrTryInitFromCstr(out, cstr, len)`
+/// - `StrTryInitFromCstr(out, cstr, len, alloc)`
 ///
-/// FAILURE : Returns a Str object with `data` set to NULL if memory allocation using
-///           `strndup` (called internally by `StrInitFromCstr`) fails. In such a case,
-///           `length` and `capacity` will likely be uninitialized or zero. It's crucial
-///           to check the `data` field for NULL after using this macro to handle
-///           potential memory allocation errors.
+/// Omitting the allocator uses `DefaultAllocator()`. Supplying an allocator
+/// overrides the default object allocator for the destination string.
 ///
-#define StrInitFromCstr(cstr, len) StrInitFromCstrWithAllocator((cstr), (len), DefaultAllocator())
-#define StrInitFromCstrAlloc(cstr, len, alloc) StrInitFromCstrWithAllocator((cstr), (len), (alloc))
-#define StrInitFromZstr(zstr) StrInitFromCstr((zstr), strlen(zstr))
-#define StrInitFromZstrAlloc(zstr, alloc) StrInitFromCstrWithAllocator((zstr), strlen(zstr), (alloc))
+/// out[out]  : Destination string.
+/// cstr[in]  : Source character buffer.
+/// len[in]   : Number of bytes to copy from `cstr`.
+/// alloc[in] : Optional allocator override for the destination string.
+///
+/// SUCCESS : Returns true and initializes `out`.
+/// FAILURE : Returns false if allocation fails.
+///
+/// TAGS: Str, Init, Convert, CStr, Allocator
+///
+#define STR_TRY_INIT_FROM_CSTR_HAS_ARGS_IMPL(_1, _2, _3, _4, count, ...) count
+#define STR_TRY_INIT_FROM_CSTR_HAS_ARGS(...) STR_TRY_INIT_FROM_CSTR_HAS_ARGS_IMPL(__VA_ARGS__, 4, 3, 2, 1, 0)
+#define StrTryInitFromCstr(...) CONCAT(StrTryInitFromCstr_, STR_TRY_INIT_FROM_CSTR_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define StrTryInitFromCstr_3(out, cstr, len) StrTryInitFromCstrAlloc((out), (cstr), (len), DefaultAllocator())
+#define StrTryInitFromCstr_4(out, cstr, len, alloc) StrTryInitFromCstrAlloc((out), (cstr), (len), (alloc))
+
+///
+/// Initialize a `Str` by copying bytes from a C string buffer.
+///
+/// This public API supports both of these forms:
+///
+/// - `StrInitFromCstr(cstr, len)`
+/// - `StrInitFromCstr(cstr, len, alloc)`
+///
+/// Omitting the allocator uses `DefaultAllocator()`. Supplying an allocator
+/// overrides the default object allocator for the new string.
+///
+/// cstr[in]  : Source character buffer.
+/// len[in]   : Number of bytes to copy from `cstr`.
+/// alloc[in] : Optional allocator override for the new string.
+///
+/// SUCCESS : Returns an initialized `Str` containing a copy of the requested bytes.
+/// FAILURE : Returns an empty `Str` if allocation fails.
+///
+/// TAGS: Str, Init, Convert, CStr, Allocator
+///
+#define STR_INIT_FROM_CSTR_HAS_ARGS_IMPL(_1, _2, _3, count, ...) count
+#define STR_INIT_FROM_CSTR_HAS_ARGS(...) STR_INIT_FROM_CSTR_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
+#define StrInitFromCstr(...) CONCAT(StrInitFromCstr_, STR_INIT_FROM_CSTR_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define StrInitFromCstr_2(cstr, len) StrInitFromCstrAlloc((cstr), (len), DefaultAllocator())
+#define StrInitFromCstr_3(cstr, len, alloc) StrInitFromCstrAlloc((cstr), (len), (alloc))
+
+///
+/// Initialize a `Str` from a null-terminated C string.
+///
+/// This public API supports both of these forms:
+///
+/// - `StrInitFromZstr(zstr)`
+/// - `StrInitFromZstr(zstr, alloc)`
+///
+/// Omitting the allocator uses `DefaultAllocator()`.
+///
+/// zstr[in]  : Null-terminated source string.
+/// alloc[in] : Optional allocator override for the new string.
+///
+/// SUCCESS : Returns an initialized `Str` containing a copy of `zstr`.
+/// FAILURE : Returns an empty `Str` if allocation fails.
+///
+/// TAGS: Str, Init, Zstr, Allocator
+///
+#define STR_INIT_FROM_ZSTR_HAS_ARGS_IMPL(_1, _2, count, ...) count
+#define STR_INIT_FROM_ZSTR_HAS_ARGS(...) STR_INIT_FROM_ZSTR_HAS_ARGS_IMPL(__VA_ARGS__, 2, 1, 0)
+#define StrInitFromZstr(...) CONCAT(StrInitFromZstr_, STR_INIT_FROM_ZSTR_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define StrInitFromZstr_1(zstr) StrInitFromCstr((zstr), ZstrLen(zstr))
+#define StrInitFromZstr_2(zstr, alloc) StrInitFromCstr((zstr), ZstrLen(zstr), (alloc))
 
 ///
 /// Short alias for `StrInitFromZstr(...)` when an owned temporary string is
@@ -62,10 +142,41 @@ extern "C" {
 #define StrZ(zstr) StrInitFromZstr((zstr))
 
 ///
-/// Initialize a Str object using another one
+/// Initialize a `Str` by copying another `Str`.
 ///
-#define StrInitFromStr(str) StrInitFromCstrWithAllocator((str)->data, (str)->length, (str)->allocator)
-#define StrDup(str)         StrInitFromStr(str)
+/// This public API supports both of these forms:
+///
+/// - `StrInitFromStr(str)`
+/// - `StrInitFromStr(str, alloc)`
+///
+/// Omitting the allocator makes the new string inherit the source string
+/// allocator configuration.
+///
+/// str[in]   : Source string.
+/// alloc[in] : Optional allocator override for the new string.
+///
+/// SUCCESS : Returns an initialized copy of `str`.
+/// FAILURE : Returns an empty string if allocation fails.
+///
+/// TAGS: Str, Init, Copy, Allocator
+///
+#define STR_INIT_FROM_STR_HAS_ARGS_IMPL(_1, _2, count, ...) count
+#define STR_INIT_FROM_STR_HAS_ARGS(...) STR_INIT_FROM_STR_HAS_ARGS_IMPL(__VA_ARGS__, 2, 1, 0)
+#define StrInitFromStr(...) CONCAT(StrInitFromStr_, STR_INIT_FROM_STR_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define StrInitFromStr_1(str) StrInitFromCstr((str)->data, (str)->length, (str)->allocator)
+#define StrInitFromStr_2(str, alloc) StrInitFromCstr((str)->data, (str)->length, (alloc))
+
+///
+/// Clone a `Str`, inheriting the source allocator configuration.
+///
+/// str[in] : Source string.
+///
+/// SUCCESS : Returns an initialized copy of `str`.
+/// FAILURE : Returns an empty string if allocation fails.
+///
+/// TAGS: Str, Init, Copy, Convenience
+///
+#define StrDup(str) StrInitFromStr(str)
 
     ///
     /// Init the string using the given format string and arguments.
@@ -111,7 +222,22 @@ extern "C" {
     /// str : Pointer to string to be deinited
     ///
     void StrDeinit(Str *str);
-    void StrDeinitWithAllocator(void *copy, const Allocator *alloc);
+
+    ///
+    /// Deinitialize a copied `Str` through an explicit allocator context.
+    ///
+    /// This is primarily used by generic containers that own copied `Str`
+    /// values and need allocator-aware copy cleanup callbacks.
+    ///
+    /// copy[in,out] : Pointer to the `Str` object to deinitialize.
+    /// alloc[in]    : Allocator context for the owning container.
+    ///
+    /// SUCCESS : Deinitializes `copy`.
+    /// FAILURE : Does not return if arguments violate the callback contract.
+    ///
+    /// TAGS: Str, Deinit, Allocator, Callback
+    ///
+    void StrDeinitAlloc(void *copy, const Allocator *alloc);
 
     ///
     /// Copy data from `src` to `dst`
@@ -123,7 +249,22 @@ extern "C" {
     /// FAILURE : false
     ///
     bool StrInitCopy(Str *dst, const Str *src);
-    bool StrInitCopyWithAllocator(void *dst, const void *src, const Allocator *alloc);
+
+    ///
+    /// Copy a `Str` through an explicit destination allocator context.
+    ///
+    /// This is primarily used by generic containers during deep-copy insertion.
+    ///
+    /// dst[out] : Destination `Str`.
+    /// src[in]  : Source `Str`.
+    /// alloc[in]: Allocator context for the owning destination container.
+    ///
+    /// SUCCESS : Returns true and initializes `dst`.
+    /// FAILURE : Returns false if allocation fails.
+    ///
+    /// TAGS: Str, Init, Copy, Allocator, Callback
+    ///
+    bool StrInitCopyAlloc(void *dst, const void *src, const Allocator *alloc);
 
 #ifdef __cplusplus
 }

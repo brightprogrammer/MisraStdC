@@ -18,7 +18,7 @@
 ///
 /// TAGS: Float, Init, Zero, Construct
 ///
-static inline Float FloatInitWithAllocator(Allocator alloc) {
+static inline Float FloatInitAlloc(Allocator alloc) {
     Float value;
 
     value.negative    = false;
@@ -30,8 +30,8 @@ static inline Float FloatInitWithAllocator(Allocator alloc) {
 #define FLOAT_INIT_HAS_ARGS_IMPL(_0, _1, count, ...) count
 #define FLOAT_INIT_HAS_ARGS(...) FLOAT_INIT_HAS_ARGS_IMPL(__VA_OPT__(,) __VA_ARGS__, 1, 0, 0)
 #define FloatInit(...) CONCAT(FloatInit_, FLOAT_INIT_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define FloatInit_0() FloatInitWithAllocator(DefaultAllocator())
-#define FloatInit_1(alloc) FloatInitWithAllocator((alloc))
+#define FloatInit_0() FloatInitAlloc(DefaultAllocator())
+#define FloatInit_1(alloc) FloatInitAlloc((alloc))
 
 ///
 /// Release all storage owned by a floating-point value.

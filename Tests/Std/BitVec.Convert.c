@@ -248,7 +248,7 @@ bool test_bitvec_try_conversion_allocators(void) {
 
     BitVec bv;
     Str    str;
-    bool   ok = BitVecTryFromStrWithAllocator(&bv, "101001", alloc);
+    bool   ok = BitVecTryFromStr(&bv, "101001", alloc);
     bool   result = ok && (bv.allocator.effort == alloc.effort) && (bv.allocator.retry_limit == alloc.retry_limit);
 
     ok     = BitVecTryToStr(&str, &bv);

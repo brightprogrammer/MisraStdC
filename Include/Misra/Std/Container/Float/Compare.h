@@ -26,6 +26,7 @@ extern "C" {
 ///
 /// TAGS: Float, Compare, Ordering
 ///
+int FloatCompareWithError(Float *lhs, Float *rhs, bool *error);
 int (FloatCompare)(Float *lhs, Float *rhs);
 #ifndef __cplusplus
 #    define MISRA_FLOAT_COMPARE_DISPATCH(rhs)                                                                          \
@@ -46,6 +47,25 @@ int (FloatCompare)(Float *lhs, Float *rhs);
             float: FloatCompareF32,                                                                                    \
             double: FloatCompareF64                                                                                    \
         )
+#    define MISRA_FLOAT_COMPARE_WITH_ERROR_DISPATCH(rhs)                                                               \
+        _Generic(                                                                                                      \
+            (rhs),                                                                                                     \
+            Float *: FloatCompareWithError,                                                                            \
+            Int *: FloatCompareIntWithError,                                                                           \
+            unsigned char: FloatCompareU64WithError,                                                                   \
+            unsigned short: FloatCompareU64WithError,                                                                  \
+            unsigned int: FloatCompareU64WithError,                                                                    \
+            unsigned long: FloatCompareU64WithError,                                                                   \
+            unsigned long long: FloatCompareU64WithError,                                                              \
+            signed char: FloatCompareI64WithError,                                                                     \
+            signed short: FloatCompareI64WithError,                                                                    \
+            signed int: FloatCompareI64WithError,                                                                      \
+            signed long: FloatCompareI64WithError,                                                                     \
+            signed long long: FloatCompareI64WithError,                                                                \
+            float: FloatCompareF32WithError,                                                                           \
+            double: FloatCompareF64WithError                                                                           \
+        )
+#    define MISRA_FLOAT_COMPARE_SELECT(_1, _2, _3, NAME, ...) NAME
 
 ///
 /// Compare a float against another numeric value.
@@ -53,6 +73,8 @@ int (FloatCompare)(Float *lhs, Float *rhs);
 ///
 /// lhs[in] : Left-hand float
 /// rhs[in] : Right-hand operand (`Float`, `Int`, pointer, integer, or native float type)
+/// error[out] : Optional error flag set to `true` on operational failure and
+///              `false` otherwise.
 ///
 /// RETURNS: `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
 ///
@@ -61,7 +83,9 @@ int (FloatCompare)(Float *lhs, Float *rhs);
 ///
 /// TAGS: Float, Compare, Ordering, Generic
 ///
-#    define FloatCompare(lhs, rhs) MISRA_FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs))
+#    define FloatCompare(...) MISRA_FLOAT_COMPARE_SELECT(__VA_ARGS__, FloatCompare_3, FloatCompare_2)(__VA_ARGS__)
+#    define FloatCompare_2(lhs, rhs) MISRA_FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs))
+#    define FloatCompare_3(lhs, rhs, error) MISRA_FLOAT_COMPARE_WITH_ERROR_DISPATCH(rhs)((lhs), (rhs), (error))
 
 ///
 /// Test whether two numeric values compare equal.

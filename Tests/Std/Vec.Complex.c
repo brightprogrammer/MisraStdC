@@ -97,7 +97,7 @@ bool ComplexItemsEqual(ComplexItem *a, ComplexItem *b) {
     // Check name
     if ((a->name && !b->name) || (!a->name && b->name))
         return false;
-    if (a->name && b->name && strcmp(a->name, b->name) != 0)
+    if (a->name && b->name && ZstrCompare(a->name, b->name) != 0)
         return false;
 
     // Check values array
@@ -166,7 +166,7 @@ bool test_complex_vec_init(void) {
     item.values[0] = 99;
 
     // The vector's copy should still have the original values
-    result = result && (strcmp(VecAt(&vec, 0).name, "Test Item") == 0);
+    result = result && (ZstrCompare(VecAt(&vec, 0).name, "Test Item") == 0);
     result = result && (VecAt(&vec, 0).values[0] == 1);
 
     // Clean up
@@ -202,9 +202,9 @@ bool test_complex_vec_push(void) {
     bool result = (vec.length == 3);
 
     // Check items order: item2, item1, item3
-    result = result && (strcmp(VecAt(&vec, 0).name, "Item 2") == 0);
-    result = result && (strcmp(VecAt(&vec, 1).name, "Item 1") == 0);
-    result = result && (strcmp(VecAt(&vec, 2).name, "Item 3") == 0);
+    result = result && (ZstrCompare(VecAt(&vec, 0).name, "Item 2") == 0);
+    result = result && (ZstrCompare(VecAt(&vec, 1).name, "Item 1") == 0);
+    result = result && (ZstrCompare(VecAt(&vec, 2).name, "Item 3") == 0);
 
     // Check values
     result = result && (VecAt(&vec, 0).values[0] == 40);
@@ -250,9 +250,9 @@ bool test_complex_vec_insert(void) {
     bool result = (vec.length == 3);
 
     // Check items order: item2, item3, item1
-    result = result && (strcmp(VecAt(&vec, 0).name, "Item 2") == 0);
-    result = result && (strcmp(VecAt(&vec, 1).name, "Item 3") == 0);
-    result = result && (strcmp(VecAt(&vec, 2).name, "Item 1") == 0);
+    result = result && (ZstrCompare(VecAt(&vec, 0).name, "Item 2") == 0);
+    result = result && (ZstrCompare(VecAt(&vec, 1).name, "Item 3") == 0);
+    result = result && (ZstrCompare(VecAt(&vec, 2).name, "Item 1") == 0);
 
     // Clean up
     ComplexItemDeinit(&item1);
@@ -294,9 +294,9 @@ bool test_complex_vec_merge(void) {
     result      = result && (vec2.length == 2); // VecMergeR doesn't modify source vector
 
     // Check items in vec1: item1, item2, item3
-    result = result && (strcmp(VecAt(&vec1, 0).name, "Item 1") == 0);
-    result = result && (strcmp(VecAt(&vec1, 1).name, "Item 2") == 0);
-    result = result && (strcmp(VecAt(&vec1, 2).name, "Item 3") == 0);
+    result = result && (ZstrCompare(VecAt(&vec1, 0).name, "Item 1") == 0);
+    result = result && (ZstrCompare(VecAt(&vec1, 1).name, "Item 2") == 0);
+    result = result && (ZstrCompare(VecAt(&vec1, 2).name, "Item 3") == 0);
 
     // Now test VecMergeL which transfers ownership
     ComplexVec vec3 = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
@@ -326,8 +326,8 @@ bool test_complex_vec_merge(void) {
     result = result && (vec4.data == NULL);
 
     // Check items in vec3: item4, item5
-    result = result && (strcmp(VecAt(&vec3, 0).name, "Item 4") == 0);
-    result = result && (strcmp(VecAt(&vec3, 1).name, "Item 5") == 0);
+    result = result && (ZstrCompare(VecAt(&vec3, 0).name, "Item 4") == 0);
+    result = result && (ZstrCompare(VecAt(&vec3, 1).name, "Item 5") == 0);
 
     // Clean up
     ComplexItemDeinit(&item1);

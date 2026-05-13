@@ -141,7 +141,16 @@ SysProc *SysProcCreate(const char *filepath, char **argv, char **envp) {
     close(stdout_pipe[WRITE_END]);
     close(stderr_pipe[WRITE_END]);
 
-    SysProc *proc   = NEW(SysProc);
+    Allocator allocator = DefaultAllocator();
+    SysProc  *proc      = (SysProc *)AllocatorAlloc(&allocator, sizeof(SysProc), _Alignof(SysProc), true);
+
+    if (!proc) {
+        close(stdin_pipe[WRITE_END]);
+        close(stdout_pipe[READ_END]);
+        close(stderr_pipe[READ_END]);
+        LOG_ERROR("Failed to allocate process handle");
+        return NULL;
+    }
     proc->pid       = pid;
     proc->stdin_fd  = stdin_pipe[WRITE_END];
     proc->stdout_fd = stdout_pipe[READ_END];
@@ -215,7 +224,18 @@ SysProc *SysProcCreate(const char *filepath, char **argv, char **envp) {
     CloseHandle(hStdoutWrite); // parent won't write to child's stdout, will read from it
     CloseHandle(hStderrWrite); // parent won't write to child's stderr, will read from it
 
-    SysProc *proc     = NEW(SysProc);
+    Allocator allocator = DefaultAllocator();
+    SysProc  *proc      = (SysProc *)AllocatorAlloc(&allocator, sizeof(SysProc), _Alignof(SysProc), true);
+
+    if (!proc) {
+        CloseHandle(hStdinWrite);
+        CloseHandle(hStdoutRead);
+        CloseHandle(hStderrRead);
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+        LOG_ERROR("Failed to allocate process handle");
+        return NULL;
+    }
     proc->pi          = pi;
     proc->hStdinWrite = hStdinWrite;
     proc->hStdoutRead = hStdoutRead;
@@ -393,6 +413,8 @@ void SysProcTerminate(SysProc *proc) {
 
 
 void SysProcDestroy(SysProc *proc) {
+    Allocator allocator = DefaultAllocator();
+
     if (!proc) {
         LOG_FATAL("Invalid argument");
     }
@@ -408,7 +430,7 @@ void SysProcDestroy(SysProc *proc) {
     CloseHandle(proc->pi.hThread);
     CloseHandle(proc->pi.hProcess);
 #endif
-    FREE(proc);
+    AllocatorFree(&allocator, proc, sizeof(SysProc), _Alignof(SysProc));
 }
 
 i32 SysProcWriteToStdin(SysProc *proc, Str *buf) {

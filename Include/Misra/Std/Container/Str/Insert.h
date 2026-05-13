@@ -51,8 +51,8 @@ extern "C" {
 /// SUCCESS : return
 /// FAILURE : Does not return
 ///
-#define StrInsertZstr(str, zstr, idx) StrInsertCstr((str), (zstr), (idx), strlen(zstr))
-#define StrMustInsertZstr(str, zstr, idx) StrMustInsertCstr((str), (zstr), (idx), strlen(zstr))
+#define StrInsertZstr(str, zstr, idx) StrInsertCstr((str), (zstr), (idx), ZstrLen(zstr))
+#define StrMustInsertZstr(str, zstr, idx) StrMustInsertCstr((str), (zstr), (idx), ZstrLen(zstr))
 
 ///
 /// Insert contents of `str2` into `str` at given index.
@@ -93,8 +93,8 @@ extern "C" {
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrPushZstr(str, zstr, pos) StrPushCstr((str), (zstr), strlen(zstr), (pos))
-#define StrMustPushZstr(str, zstr, pos) StrMustPushCstr((str), (zstr), strlen(zstr), (pos))
+#define StrPushZstr(str, zstr, pos) StrPushCstr((str), (zstr), ZstrLen(zstr), (pos))
+#define StrMustPushZstr(str, zstr, pos) StrMustPushCstr((str), (zstr), ZstrLen(zstr), (pos))
 
 ///
 /// Push an array of chars with given length to the back of this string.
@@ -118,8 +118,8 @@ extern "C" {
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrPushBackZstr(str, zstr) StrPushBackCstr((str), (zstr), strlen((zstr)))
-#define StrMustPushBackZstr(str, zstr) StrMustPushBackCstr((str), (zstr), strlen((zstr)))
+#define StrPushBackZstr(str, zstr) StrPushBackCstr((str), (zstr), ZstrLen((zstr)))
+#define StrMustPushBackZstr(str, zstr) StrMustPushBackCstr((str), (zstr), ZstrLen((zstr)))
 
 ///
 /// Push a array of characters with given length to the front of this string
@@ -143,8 +143,8 @@ extern "C" {
 /// SUCCESS : `str`
 /// FAILURE : NULL
 ///
-#define StrPushFrontZstr(str, zstr) StrPushFrontCstr((str), (zstr), strlen((zstr)))
-#define StrMustPushFrontZstr(str, zstr) StrMustPushFrontCstr((str), (zstr), strlen((zstr)))
+#define StrPushFrontZstr(str, zstr) StrPushFrontCstr((str), (zstr), ZstrLen((zstr)))
+#define StrMustPushFrontZstr(str, zstr) StrMustPushFrontCstr((str), (zstr), ZstrLen((zstr)))
 
 ///
 /// Push char into string.

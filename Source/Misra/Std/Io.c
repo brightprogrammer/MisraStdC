@@ -930,7 +930,7 @@ static bool FloatFmtTryToDecimalStr(Str *out, Float *value, u32 precision, bool 
 
     *out = StrInit(alloc);
 
-    if (!FloatTryToStrWithAllocator(&canonical, value, alloc)) {
+    if (!FloatTryToStrAlloc(&canonical, value, alloc)) {
         return false;
     }
 
@@ -1021,7 +1021,7 @@ static bool FloatFmtTryToScientificStr(
 
     *out = StrInit(alloc);
 
-    if (!IntTryToStrWithAllocator(&digits, &value->significand, alloc)) {
+    if (!IntTryToStrAlloc(&digits, &value->significand, alloc)) {
         return false;
     }
 
@@ -1390,6 +1390,17 @@ bool _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s) {
     }
 
     return true;
+}
+
+bool _write_ZstrAlloc(Str *o, FmtInfo *fmt_info, ZstrIOArg *arg) {
+    const char **value = NULL;
+
+    if (!arg) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    value = (const char **)arg->value;
+    return _write_Zstr(o, fmt_info, value);
 }
 
 bool _write_u64(Str *o, FmtInfo *fmt_info, u64 *v) {
@@ -2761,14 +2772,33 @@ const char *_read_i64(const char *i, FmtInfo *fmt_info, i64 *v) {
 }
 
 const char *_read_Zstr(const char *i, FmtInfo *fmt_info, const char **out) {
-    (void)fmt_info; // Unused parameter
+    char      *result            = NULL;
+    const char *next             = NULL;
+    Allocator  allocator         = DefaultAllocator();
+
     if (!i || !out)
         LOG_FATAL("Invalid arguments");
+    if (*out) {
+        LOG_FATAL("allocator is required when reusing caller-provided zero-terminated string storage.");
+    }
 
     // For string types, :c has no effect - work like regular string reading
-    Str         temp        = StrInit();
-    FmtInfo     default_fmt = {.align = ALIGN_RIGHT, .width = 0, .precision = 6, .flags = FMT_FLAG_NONE};
-    const char *next        = _read_Str(i, &default_fmt, &temp);
+    Str     temp        = StrInit();
+    FmtInfo default_fmt = fmt_info ? *fmt_info
+                                   : (FmtInfo) {
+                                         .align = ALIGN_RIGHT,
+                                         .width = 0,
+                                         .precision = 6,
+                                         .flags = FMT_FLAG_NONE,
+                                         .max_read_len = (u32)ZstrLen(i),
+                                     };
+
+    default_fmt.flags &= ~FMT_FLAG_CHAR;
+    if (!default_fmt.max_read_len) {
+        default_fmt.max_read_len = (u32)ZstrLen(i);
+    }
+
+    next = _read_Str(i, &default_fmt, &temp);
 
     // Check if reading failed
     if (next == i) {
@@ -2777,15 +2807,70 @@ const char *_read_Zstr(const char *i, FmtInfo *fmt_info, const char **out) {
     }
 
     // Allocate and copy to null-terminated string
-    char *result = malloc(temp.length + 1);
+    result = ZstrDupNAlloc(temp.data, temp.length, allocator);
     if (!result) {
         LOG_ERROR("Failed to allocate memory for string");
         StrDeinit(&temp);
         return i;
     }
 
-    MemCopy(result, temp.data, temp.length);
-    result[temp.length] = '\0';
+    *out = result;
+    StrDeinit(&temp);
+    return next;
+}
+
+const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg) {
+    char       **out              = NULL;
+    char        *previous         = NULL;
+    char        *result           = NULL;
+    const char  *next             = NULL;
+    Allocator   *allocator_ptr    = NULL;
+    Allocator    default_allocator;
+    Str          temp             = StrInit();
+    FmtInfo      default_fmt;
+
+    if (!i || !arg || !arg->value) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    out           = (char **)arg->value;
+    allocator_ptr = arg->allocator;
+    previous      = *out;
+
+    if (!allocator_ptr) {
+        default_allocator = DefaultAllocator();
+        allocator_ptr     = &default_allocator;
+    }
+
+    default_fmt = fmt_info ? *fmt_info
+                           : (FmtInfo) {
+                                 .align = ALIGN_RIGHT,
+                                 .width = 0,
+                                 .precision = 6,
+                                 .flags = FMT_FLAG_NONE,
+                                 .max_read_len = (u32)ZstrLen(i),
+                             };
+    default_fmt.flags &= ~FMT_FLAG_CHAR;
+    if (!default_fmt.max_read_len) {
+        default_fmt.max_read_len = (u32)ZstrLen(i);
+    }
+
+    next = _read_Str(i, &default_fmt, &temp);
+    if (next == i) {
+        StrDeinit(&temp);
+        return i;
+    }
+
+    result = ZstrDupNAlloc(temp.data, temp.length, *allocator_ptr);
+    if (!result) {
+        LOG_ERROR("Failed to allocate memory for string");
+        StrDeinit(&temp);
+        return i;
+    }
+
+    if (previous) {
+        AllocatorFree(allocator_ptr, previous, ZstrLen(previous) + 1, 1);
+    }
 
     *out = result;
     StrDeinit(&temp);
@@ -2838,7 +2923,7 @@ bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
         } else {
             Str bit_str;
 
-            if (!BitVecTryToStrWithAllocator(&bit_str, bv, o->allocator)) {
+            if (!BitVecTryToStrAlloc(&bit_str, bv, o->allocator)) {
                 return false;
             }
             if (!StrMerge(o, &bit_str)) {
@@ -2897,11 +2982,11 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
     u8   radix     = IntFmtRadixFromFlags(fmt_info);
 
     if (radix == 10) {
-        if (!IntTryToStrWithAllocator(&temp, value, o->allocator)) {
+        if (!IntTryToStrAlloc(&temp, value, o->allocator)) {
             return false;
         }
     } else {
-        if (!IntTryToStrRadixWithAllocator(&temp, value, radix, (fmt_info->flags & FMT_FLAG_CAPS) != 0, o->allocator)) {
+        if (!IntTryToStrRadixAlloc(&temp, value, radix, (fmt_info->flags & FMT_FLAG_CAPS) != 0, o->allocator)) {
             return false;
         }
     }

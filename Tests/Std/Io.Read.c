@@ -356,6 +356,20 @@ bool test_string_reading(void) {
     success  = success && (StrCmp(&s, &expected) == 0);
     StrDeinit(&expected);
 
+    {
+        char      *zs    = NULL;
+        Allocator  alloc = DefaultAllocator();
+
+        z = "Allocator-backed";
+        StrReadFmt(z, "{s}", ZstrIO(zs, &alloc));
+        success = success && (ZstrCompare(zs, "Allocator-backed") == 0);
+
+        z = "\"Allocator-backed replacement\"";
+        StrReadFmt(z, "{s}", ZstrIO(zs, &alloc));
+        success = success && (ZstrCompare(zs, "Allocator-backed replacement") == 0);
+        ZstrDeinitAlloc(&zs, &alloc);
+    }
+
     StrDeinit(&s);
 
     return success;

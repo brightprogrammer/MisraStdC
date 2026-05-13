@@ -15,7 +15,7 @@ tags:
 {{< notice "note" >}}
 This article is an AI-generated summary of an extended design discussion about the shape of an upcoming MisraStdC refactor.
 It is a snapshot of the current plan, not a statement that the implementation is already complete.
-The summary reflects repository state at commit `73af67f468d17ce7c97352738049d68fccbccabc` on `master`, which was in sync with `origin/master` when this note was written.
+The summary reflects the refactor direction as of commit `add5d0adaf591f63d27d6c2a79a0666a582a1162` on branch `allocator-fallible-container-refactor`.
 {{< /notice >}}
 
 The refactor described here is driven by one practical problem: the library needs to be usable in a real project where allocation failure, bad external data, and ownership boundaries all need to be handled deliberately instead of collapsing into process aborts too early.
@@ -257,6 +257,87 @@ If no allocator is supplied, `DefaultAllocator()` will be used.
 
 This keeps the common path convenient without giving up explicit allocator choice.
 
+The same idea is intended to apply more broadly across object and container helper APIs:
+
+- `StrInitFromCstr(text, len)`
+- `StrInitFromCstr(text, len, alloc)`
+- `BitVecFromStr("1010")`
+- `BitVecFromStr("1010", alloc)`
+- `StrInitCopy(&dst, &src)`
+- `StrInitCopy(&dst, &src, alloc)`
+
+The plain name stays the public surface. Passing an allocator becomes an optional override, not a separate public API family.
+
+### Internal allocator use stays mostly hidden
+
+The allocator policy is not supposed to leak into every helper call.
+
+For internal-only usage of `Init`, `Clone`, and other allocation-capable helpers:
+
+- the allocator should usually stay hidden from the public API
+- internal clones should inherit the allocator of the source object
+- internal temporaries should use the allocator of the object or result they are logically tied to
+- `DefaultAllocator()` should only be used for truly standalone scratch work
+
+That means the public contract stays simple while the internal implementation still preserves allocator correctness.
+
+Examples of the intended rule:
+
+- a public omitted-allocator `VecInit()` uses `DefaultAllocator()`
+- `StrInitCopy(...)` inherits the allocator configuration of the source object unless an explicit override API exists
+- an internal `Int` or `Float` temporary used during an operation should be allocated from the relevant object allocator, not from an arbitrary global default
+- a scratch formatting buffer in I/O can use a transient hidden allocator because it does not become caller-owned state
+
+The user should not have to care about allocator details for pure implementation scratch.
+
+### Raw pointer ownership APIs are different
+
+Raw-pointer APIs need a stricter rule.
+
+If a function may allocate, reallocate, free, or replace storage through a caller-provided raw pointer, then allocator provenance is part of the API contract.
+
+The intended policy is:
+
+- borrowed input pointers do not need allocators
+- purely internal scratch allocation does not need a public allocator parameter
+- object APIs like `Vec`, `Map`, `Int`, and `Float` do not need extra allocator parameters because allocator binding is already part of object state
+- raw-pointer ownership APIs must take the allocator responsible for that pointer if they may resize or free it
+
+This matters for functions that work with caller-managed buffers such as `char **data` or `void **buffer`.
+
+For those APIs:
+
+- the allocator handling that pointer must be passed alongside it
+- the function must use that allocator only for operations related to that pointer
+- the function should not rebind that allocator
+- the function should not stash local long-lived copies of that allocator for unrelated work
+
+This keeps allocator provenance correct without forcing allocator details into places where the user does not need to see them.
+
+The intended public shape for these APIs is still a single name, but with stricter argument rules.
+
+For example, a raw-buffer helper such as `ReadCompleteFile(...)` is expected to support both forms:
+
+- `ReadCompleteFile(path, &buffer, &file_size, &capacity)`
+- `ReadCompleteFile(path, &buffer, &file_size, &capacity, &allocator)`
+
+The contract is:
+
+- if `*buffer == NULL` and no allocator is supplied, `DefaultAllocator()` is used
+- if `*buffer == NULL` and an allocator is supplied, that allocator is used
+- if `*buffer != NULL`, the allocator responsible for that buffer must be supplied
+- omitting that allocator while asking the API to reuse or grow caller-owned storage is a caller bug and should be treated as fatal
+
+That keeps the public name simple while still preserving allocator provenance for escaping memory.
+
+### Prefer Library Utilities Internally
+
+The refactor should also remove direct usage of standard C utility functions when MisraStdC already provides an equivalent helper.
+
+This includes string helpers such as `strcmp` and `strlen`, which should be replaced with `ZstrCompare` and `ZstrLen`, and memory helpers such as `memcpy`, `memmove`, and `memset`, which should move toward `MemCopy`, `MemMove`, and `MemSet` outside the low-level memory implementation itself.
+
+The reason is consistency rather than novelty. Once the library owns allocation, failure policy, and object semantics, code inside the library should route through the same utility layer that user code is expected to use. That makes later audits easier and keeps low-level behavior centralized.
+
 ## Which Objects Own Allocators
 
 The allocator should live in root memory-owning objects, not in every nested wrapper type.
@@ -289,6 +370,11 @@ The allocator decides how hard it tries:
 - abort internally if configured that way
 
 The API layer decides whether failure is propagated or treated as must-succeed.
+
+In other words, this is a two-axis model:
+
+- effort axis: how hard the allocator tries before giving up
+- termination axis: whether the public API propagates failure or treats it as must-succeed
 
 That means even when allocators have aggressive retry behavior, the public operation names still matter:
 

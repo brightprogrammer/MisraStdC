@@ -74,7 +74,7 @@ typedef Vec(StrIter) StrIters;
 /// s[in] : Null-terminated C string
 ///
 /// TAGS: StrIter, Initialization, CString, Iter
-#define StrIterFromZstr(s) ((StrIter) {.data = (s), .length = strlen((s)), .pos = 0, .alignment = 1})
+#define StrIterFromZstr(s) ((StrIter) {.data = (s), .length = ZstrLen((s)), .pos = 0, .alignment = 1})
 
 ///
 /// Create string iterator from C string with explicit length

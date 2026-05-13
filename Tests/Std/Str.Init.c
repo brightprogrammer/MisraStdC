@@ -66,7 +66,7 @@ bool test_str_init_from_zstr(void) {
     ValidateStr(&s);
 
     // Check that it's initialized correctly
-    bool result = (s.length == strlen(test_str) && ZstrCompare(s.data, test_str) == 0);
+    bool result = (s.length == ZstrLen(test_str) && ZstrCompare(s.data, test_str) == 0);
 
     StrDeinit(&s);
     return result;
@@ -81,7 +81,7 @@ bool test_str_z_alias(void) {
 
     ValidateStr(&s);
 
-    bool result = (s.length == strlen(test_str) && ZstrCompare(s.data, test_str) == 0);
+    bool result = (s.length == ZstrLen(test_str) && ZstrCompare(s.data, test_str) == 0);
 
     StrDeinit(&s);
     return result;
@@ -207,7 +207,7 @@ bool test_str_clone_inherits_allocator_config(void) {
     alloc.retry_limit = 7;
     alloc.flags = 0x5A5Au;
 
-    Str src = StrInitFromCstrWithAllocator("Hello, World!", strlen("Hello, World!"), alloc);
+    Str src = StrInitFromCstr("Hello, World!", ZstrLen("Hello, World!"), alloc);
     src.allocator.state = (void *)&src;
 
     Str dup = StrInitFromStr(&src);

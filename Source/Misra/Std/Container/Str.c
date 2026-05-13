@@ -16,7 +16,7 @@
 
 static Str *string_va_printf(Str *str, const char *fmt, va_list args);
 
-bool StrTryInitFromCstrWithAllocator(Str *out, const char *cstr, size len, Allocator alloc) {
+bool StrTryInitFromCstrAlloc(Str *out, const char *cstr, size len, Allocator alloc) {
     if (!out || !cstr) {
         LOG_FATAL("Invalid arguments");
     }
@@ -36,10 +36,10 @@ bool StrTryInitFromCstrWithAllocator(Str *out, const char *cstr, size len, Alloc
     return true;
 }
 
-Str StrInitFromCstrWithAllocator(const char *cstr, size len, Allocator alloc) {
+Str StrInitFromCstrAlloc(const char *cstr, size len, Allocator alloc) {
     Str result = StrInit(alloc);
 
-    if (!StrTryInitFromCstrWithAllocator(&result, cstr, len, alloc)) {
+    if (!StrTryInitFromCstrAlloc(&result, cstr, len, alloc)) {
         return result;
     }
 
@@ -105,10 +105,10 @@ bool StrInitCopy(Str *dst, const Str *src) {
         LOG_FATAL("Invalid arguments");
     }
 
-    return StrInitCopyWithAllocator(dst, src, &src->allocator);
+    return StrInitCopyAlloc(dst, src, &src->allocator);
 }
 
-bool StrInitCopyWithAllocator(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
+bool StrInitCopyAlloc(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
     Str             *dst             = (Str *)dst_ptr;
     const Str       *src             = (const Str *)src_ptr;
     const Allocator *clone_allocator = NULL;
@@ -138,7 +138,7 @@ void StrDeinit(Str *copy) {
     deinit_vec(GENERIC_VEC(copy), sizeof(char));
 }
 
-void StrDeinitWithAllocator(void *copy, const Allocator *alloc) {
+void StrDeinitAlloc(void *copy, const Allocator *alloc) {
     (void)alloc;
     StrDeinit((Str *)copy);
 }
@@ -171,7 +171,7 @@ StrIters StrSplitToIters(Str *s, const char *key) {
 Strs StrSplit(Str *s, const char *key) {
     ValidateStr(s);
 
-    Strs sv     = VecInitWithDeepCopy(NULL, StrDeinitWithAllocator);
+    Strs sv     = VecInitWithDeepCopy(NULL, StrDeinitAlloc);
     size keylen = ZstrLen(key);
 
     const char *prev = s->data;

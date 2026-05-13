@@ -405,6 +405,8 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus);
 ///
 /// value[in] : Integer to test
 ///
+/// error[out] : Optional error flag set to `true` when the test cannot be completed.
+///
 /// RETURNS: `true` when the value is probably prime.
 ///
 /// INFO: This is a probable-prime test, not a proof of primality.
@@ -414,7 +416,7 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus);
 ///
 /// TAGS: Int, Math, Prime, Predicate
 ///
-bool IntIsProbablePrime(Int *value);
+bool IntIsProbablePrimeWithError(Int *value, bool *error);
 ///
 /// Find the next probable prime greater than or equal to a value.
 ///
@@ -422,11 +424,19 @@ bool IntIsProbablePrime(Int *value);
 /// value[in]   : Starting point
 ///
 /// USAGE:
-///   IntNextPrime(&prime, &value);
+///   bool ok = IntNextPrime(&prime, &value);
 ///
 /// TAGS: Int, Math, Prime, Search
 ///
-void IntNextPrime(Int *result, Int *value);
+bool IntNextPrime(Int *result, Int *value);
+
+static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
+    return IntIsProbablePrimeWithError(value, NULL);
+}
+
+#define MISRA_PRIV_INT_IS_PROBABLE_PRIME_SELECT(_1, _2, NAME, ...) NAME
+#define IntIsProbablePrime(...)                                                                                       \
+    MISRA_PRIV_INT_IS_PROBABLE_PRIME_SELECT(__VA_ARGS__, IntIsProbablePrimeWithError, MISRA_PRIV_IntIsProbablePrimeNoError)(__VA_ARGS__)
 
 #ifndef __cplusplus
 #    define MISRA_INT_ADD_DISPATCH(rhs)                                                                                \

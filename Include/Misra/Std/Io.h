@@ -117,6 +117,23 @@ typedef struct TypeSpecificIO {
     void              *data;
 } TypeSpecificIO;
 
+///
+/// Explicit raw C-string I/O descriptor with allocator provenance.
+///
+/// This is used when a formatted I/O call needs to read into or rewrite a
+/// caller-owned zero-terminated string pointer whose storage may already be
+/// managed by a specific allocator.
+///
+/// value[in,out] : Address of the `char *` / `const char *` variable.
+/// allocator[in] : Allocator responsible for any existing pointed-to storage.
+///
+/// TAGS: I/O, String, Allocator, Provenance
+///
+typedef struct {
+    void      *value;
+    Allocator *allocator;
+} ZstrIOArg;
+
 #ifdef __cplusplus
 #    define EMPTY_TYPE_SPECIFIC_IO() (TypeSpecificIO {NULL, NULL, NULL})
 #else
@@ -129,6 +146,40 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 
 #define TO_TYPE_SPECIFIC_IO(T, d)                                                                                      \
     TO_TYPE_SPECIFIC_IO_IMPL((TypeSpecificWriter)_write_##T, (TypeSpecificReader)_read_##T, (d))
+
+///
+/// Create a `TypeSpecificIO` wrapper for raw C-string storage with explicit
+/// allocator provenance.
+///
+/// This is primarily needed for formatted reads when the destination pointer
+/// may already own memory that must be freed or replaced through a specific
+/// allocator.
+///
+/// zstr[in,out]    : `char *` or `const char *` variable.
+/// alloc_ptr[in]   : Allocator responsible for the pointed-to storage.
+///
+/// SUCCESS: Returns a `TypeSpecificIO` wrapper suitable for `StrReadFmt(...)`
+///          or `FReadFmt(...)`.
+/// FAILURE: Function cannot fail.
+///
+/// USAGE:
+///   char *name = NULL;
+///   Allocator alloc = DefaultAllocator();
+///   StrReadFmt(text, "{s}", ZstrIO(name, &alloc));
+///
+/// TAGS: I/O, String, Allocator, Macro
+///
+#ifdef __cplusplus
+#    define ZstrIO(zstr, alloc_ptr)                                                                                   \
+        TO_TYPE_SPECIFIC_IO(ZstrAlloc, &LVAL(((ZstrIOArg) {.value = (void *)&(zstr), .allocator = (alloc_ptr)})))
+#else
+#    define ZstrIO(zstr, alloc_ptr)                                                                                   \
+        ((TypeSpecificIO) {                                                                                           \
+            .writer = (TypeSpecificWriter)_write_ZstrAlloc,                                                           \
+            .reader = (TypeSpecificReader)_read_ZstrAlloc,                                                           \
+            .data   = &((ZstrIOArg) {.value = (void *)&(zstr), .allocator = (alloc_ptr)}),                           \
+        })
+#endif
 
 #if defined(_MSC_VER) || defined(__MSC_VER)
 #    define IOFMT(x)                                                                                                   \
@@ -519,6 +570,7 @@ bool _write_i16(Str *o, FmtInfo *fmt_info, i16 *v);
 bool _write_i32(Str *o, FmtInfo *fmt_info, i32 *v);
 bool _write_i64(Str *o, FmtInfo *fmt_info, i64 *v);
 bool _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s);
+bool _write_ZstrAlloc(Str *o, FmtInfo *fmt_info, ZstrIOArg *arg);
 bool _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s);
 bool _write_f32(Str *o, FmtInfo *fmt_info, f32 *v);
 bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v);
@@ -536,6 +588,7 @@ const char *_read_i16(const char *i, FmtInfo *fmt_info, i16 *v);
 const char *_read_i32(const char *i, FmtInfo *fmt_info, i32 *v);
 const char *_read_i64(const char *i, FmtInfo *fmt_info, i64 *v);
 const char *_read_Zstr(const char *i, FmtInfo *fmt_info, const char **v);
+const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg);
 const char *_read_UnsupportedType(const char *i, FmtInfo *fmt_info, const char **s);
 const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v);
 const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v);

@@ -64,7 +64,18 @@ bool FloatTryFromStr(Float *out, const char *text);
 ///
 Float FloatFromStr(const char *text);
 
-bool FloatTryToStrWithAllocator(Str *out, Float *value, Allocator alloc);
+///
+/// Convert a float to a decimal string using an explicit allocator.
+///
+/// out[out]  : Destination string.
+/// value[in] : Float to convert.
+/// alloc[in] : Allocator to bind to the produced string.
+///
+/// RETURNS: `true` on success, `false` on allocation failure.
+///
+/// TAGS: Float, Convert, String, Allocator
+///
+bool FloatTryToStrAlloc(Str *out, Float *value, Allocator alloc);
 bool FloatTryToStr(Str *out, Float *value);
 Str FloatToStr(Float *value);
 

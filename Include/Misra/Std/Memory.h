@@ -110,12 +110,12 @@ i32 ZstrCompareN(const char *s1, const char *s2, size n);
 /// n[in]   : Maximum number of characters to copy.
 ///
 /// SUCCESS : Returns a pointer to the newly allocated duplicate string.
-/// FAILURE : Returns NULL if memory allocation fails or if src is NULL.
+/// FAILURE : Returns NULL if memory allocation fails.
 ///
 /// TAGS: String, Memory, Allocation
 ///
 char *ZstrDupN(const char *src, size n);
-char *ZstrDupNWithAllocator(const char *src, size n, Allocator alloc);
+char *ZstrDupNAlloc(const char *src, size n, Allocator alloc);
 
 ///
 /// Duplicates a string.
@@ -144,7 +144,7 @@ char *ZstrDup(const char *src);
 /// FAILURE: May abort with a log message or may return false depending on severity of situation.
 ///
 bool ZstrInitClone(const char **dst, const char **src);
-bool ZstrInitCloneWithAllocator(void *dst, const void *src, const Allocator *alloc);
+bool ZstrInitCloneAlloc(void *dst, const void *src, const Allocator *alloc);
 
 ///
 /// Deinit method for zero-terminated strings.
@@ -158,7 +158,7 @@ bool ZstrInitCloneWithAllocator(void *dst, const void *src, const Allocator *all
 /// FAILURE: Does not return.
 ///
 void ZstrDeinit(const char **zs);
-void ZstrDeinitWithAllocator(void *zs, const Allocator *alloc);
+void ZstrDeinitAlloc(void *zs, const Allocator *alloc);
 
 ///
 /// Find first occurrence of needle in haystack.

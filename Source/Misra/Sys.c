@@ -25,6 +25,7 @@
 #    endif
 #endif
 
+#include <Misra/Std/Allocator.h>
 #include <Misra/Std.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Sys.h>
@@ -36,13 +37,14 @@ Str *SysGetEnv(const char *name, Str *value) {
 #ifdef _WIN32
     char  *env_var;
     size_t requiredSize;
+    Allocator allocator = DefaultAllocator();
 
     getenv_s(&requiredSize, NULL, 0, name);
     if (requiredSize == 0) {
         return NULL;
     }
 
-    env_var = (char *)malloc(requiredSize);
+    env_var = (char *)AllocatorAlloc(&allocator, requiredSize, 1, false);
     if (!env_var) {
         return NULL;
     }
@@ -52,8 +54,8 @@ Str *SysGetEnv(const char *name, Str *value) {
 
     *value          = StrInit();
     value->data     = env_var;
-    value->length   = requiredSize;
-    value->capacity = requiredSize;
+    value->length   = requiredSize - 1;
+    value->capacity = requiredSize - 1;
     return value;
 #else
     char *env_var = getenv(name);

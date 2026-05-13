@@ -42,7 +42,7 @@ bool test_int_from_unsigned_integer(void) {
 
     bool result = IntBitLength(&value) == 4;
     result      = result && (IntToU64(&value) == 13);
-    result      = result && (strcmp(text.data, "1101") == 0);
+    result      = result && (ZstrCompare(text.data, "1101") == 0);
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -60,7 +60,7 @@ bool test_int_bytes_le_round_trip(void) {
 
     bool result = written == 4;
     result      = result && (memcmp(out, bytes, sizeof(bytes)) == 0);
-    result      = result && (strcmp(text.data, "cdef1234") == 0);
+    result      = result && (ZstrCompare(text.data, "cdef1234") == 0);
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -78,7 +78,7 @@ bool test_int_bytes_be_round_trip(void) {
 
     bool result = written == 4;
     result      = result && (memcmp(out, bytes, sizeof(bytes)) == 0);
-    result      = result && (strcmp(text.data, "12345678") == 0);
+    result      = result && (ZstrCompare(text.data, "12345678") == 0);
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -92,7 +92,7 @@ bool test_int_binary_round_trip(void) {
     Str text  = IntToBinary(&value);
 
     bool result = IntToU64(&value) == 11;
-    result      = result && (strcmp(text.data, "1011") == 0);
+    result      = result && (ZstrCompare(text.data, "1011") == 0);
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -106,7 +106,7 @@ bool test_int_decimal_round_trip(void) {
     Int         value  = IntFromStr(digits);
     Str         text   = IntToStr(&value);
 
-    bool result = strcmp(text.data, digits) == 0;
+    bool result = ZstrCompare(text.data, digits) == 0;
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -120,7 +120,7 @@ bool test_int_radix_round_trip(void) {
     Str text  = IntToStrRadix(&value, 36, false);
 
     bool result = IntToU64(&value) == 1295;
-    result      = result && (strcmp(text.data, "zz") == 0);
+    result      = result && (ZstrCompare(text.data, "zz") == 0);
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -133,7 +133,7 @@ bool test_int_upper_hex_radix(void) {
     Int value = IntFrom(0xBEEF);
     Str text  = IntToStrRadix(&value, 16, true);
 
-    bool result = strcmp(text.data, "BEEF") == 0;
+    bool result = ZstrCompare(text.data, "BEEF") == 0;
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -151,9 +151,9 @@ bool test_int_try_to_str_allocator_inheritance(void) {
     alloc.effort      = ALLOCATOR_EFFORT_RETRY;
     alloc.retry_limit = 4;
 
-    ok = IntTryToStrRadixWithAllocator(&text, &value, 16, true, alloc);
+    ok = IntTryToStrRadixAlloc(&text, &value, 16, true, alloc);
 
-    bool result = ok && (strcmp(text.data, "BEEF") == 0) && (text.allocator.effort == alloc.effort) &&
+    bool result = ok && (ZstrCompare(text.data, "BEEF") == 0) && (text.allocator.effort == alloc.effort) &&
                   (text.allocator.retry_limit == alloc.retry_limit);
 
     StrDeinit(&text);
@@ -186,7 +186,7 @@ bool test_int_zero_binary(void) {
     result      = result && IntIsZero(&zero);
     result      = result && (IntToU64(&zero, &error) == 0);
     result      = result && !error;
-    result      = result && (strcmp(text.data, "0") == 0);
+    result      = result && (ZstrCompare(text.data, "0") == 0);
 
     StrDeinit(&text);
     IntDeinit(&zero);
@@ -212,7 +212,7 @@ bool test_int_octal_round_trip(void) {
     Str text  = IntToOctStr(&value);
 
     bool result = IntToU64(&value) == 493;
-    result      = result && (strcmp(text.data, "755") == 0);
+    result      = result && (ZstrCompare(text.data, "755") == 0);
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -226,7 +226,7 @@ bool test_int_hex_round_trip(void) {
     Int         value = IntFromHexStr(hex);
     Str         text  = IntToHexStr(&value);
 
-    bool result = strcmp(text.data, hex) == 0;
+    bool result = ZstrCompare(text.data, hex) == 0;
 
     StrDeinit(&text);
     IntDeinit(&value);

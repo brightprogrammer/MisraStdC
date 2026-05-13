@@ -18,7 +18,7 @@
 ///
 /// TAGS: Int, Init, Zero, Construct
 ///
-static inline Int IntInitWithAllocator(Allocator alloc) {
+static inline Int IntInitAlloc(Allocator alloc) {
     Int value;
 
     value.bits = BitVecInit(alloc);
@@ -28,8 +28,8 @@ static inline Int IntInitWithAllocator(Allocator alloc) {
 #define INT_INIT_HAS_ARGS_IMPL(_0, _1, count, ...) count
 #define INT_INIT_HAS_ARGS(...) INT_INIT_HAS_ARGS_IMPL(__VA_OPT__(,) __VA_ARGS__, 1, 0, 0)
 #define IntInit(...) CONCAT(IntInit_, INT_INIT_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define IntInit_0() IntInitWithAllocator(DefaultAllocator())
-#define IntInit_1(alloc) IntInitWithAllocator((alloc))
+#define IntInit_0() IntInitAlloc(DefaultAllocator())
+#define IntInit_1(alloc) IntInitAlloc((alloc))
 
 ///
 /// Release all storage owned by an integer.

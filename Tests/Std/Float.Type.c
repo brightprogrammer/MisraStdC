@@ -49,7 +49,7 @@ bool test_float_clone(void) {
     FloatAbs(&original);
 
     bool result = FloatEQ(&clone, &expected);
-    result      = result && (strcmp(text.data, "-12.5") == 0);
+    result      = result && (ZstrCompare(text.data, "-12.5") == 0);
     result      = result && !FloatEQ(&clone, &original);
 
     StrDeinit(&text);

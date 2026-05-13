@@ -87,20 +87,42 @@ extern "C" {
 #endif
 
 ///
-/// Initialize bitvector with initial capacity.
+/// Initialize bitvector with initial capacity and explicit allocator.
 /// Creates a bitvector with reserved space for the specified number of bits.
 ///
-/// cap[in] : Initial capacity in bits
+/// cap[in]   : Initial capacity in bits.
+/// alloc[in] : Allocator to bind to the bitvector.
+///
+/// SUCCESS : Returns initialized bitvector.
+/// FAILURE : Returns an empty bitvector if allocation fails.
 ///
 /// USAGE:
-///   BitVec flags = BitVecInitWithCapacity(64);
+///   BitVec flags = BitVecInitWithCapacityAlloc(64, allocator);
 ///
-/// TAGS: Init, BitVec, Boolean, Bits, Capacity
+/// TAGS: Init, BitVec, Boolean, Bits, Capacity, Allocator
 ///
     BitVec BitVecInitWithCapacityAlloc(u64 cap, Allocator alloc);
 
-#define BitVecInitWithCapacity(cap) BitVecInitWithCapacityAlloc((cap), DefaultAllocator())
-#define BitVecInitWithCapacityWithAlloc(cap, alloc) BitVecInitWithCapacityAlloc((cap), (alloc))
+///
+/// Initialize bitvector with initial capacity.
+///
+/// This public API supports both forms:
+///
+/// - `BitVecInitWithCapacity(cap)`
+/// - `BitVecInitWithCapacity(cap, alloc)`
+///
+/// Omitting the allocator uses `DefaultAllocator()`.
+///
+/// SUCCESS : Returns initialized bitvector.
+/// FAILURE : Returns an empty bitvector if allocation fails.
+///
+/// TAGS: Init, BitVec, Boolean, Bits, Capacity, Allocator, Macro
+///
+#define BITVEC_INIT_WITH_CAPACITY_HAS_ARGS_IMPL(_1, _2, count, ...) count
+#define BITVEC_INIT_WITH_CAPACITY_HAS_ARGS(...) BITVEC_INIT_WITH_CAPACITY_HAS_ARGS_IMPL(__VA_ARGS__, 2, 1, 0)
+#define BitVecInitWithCapacity(...) CONCAT(BitVecInitWithCapacity_, BITVEC_INIT_WITH_CAPACITY_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define BitVecInitWithCapacity_1(cap) BitVecInitWithCapacityAlloc((cap), DefaultAllocator())
+#define BitVecInitWithCapacity_2(cap, alloc) BitVecInitWithCapacityAlloc((cap), (alloc))
 
 
 

@@ -24,7 +24,7 @@ static bool float_try_from_f32_value(Float *out, float value, Allocator alloc);
 static bool float_try_from_f64_value(Float *out, double value, Allocator alloc);
 static bool float_pow10(Int *out, u64 power, Allocator alloc);
 static bool float_scale_to_exponent(Float *value, i64 target_exponent);
-static int  float_abs_compare(Float *lhs, Float *rhs);
+static bool float_try_abs_compare(int *out, Float *lhs, Float *rhs);
 static i64  float_add_i64_checked(i64 a, i64 b);
 static i64  float_sub_i64_checked(i64 a, i64 b);
 
@@ -100,7 +100,7 @@ static bool float_try_int_from_u64(Int *out, u64 value, Allocator alloc) {
         bits++;
     }
 
-    if (!BitVecTryFromIntegerWithAllocator(&out->bits, value, bits, alloc)) {
+    if (!BitVecTryFromIntegerAlloc(&out->bits, value, bits, alloc)) {
         IntDeinit(out);
         *out = IntInit(alloc);
         return false;
@@ -168,27 +168,36 @@ static bool float_scale_to_exponent(Float *value, i64 target_exponent) {
     return true;
 }
 
-static int float_abs_compare(Float *lhs, Float *rhs) {
+static bool float_try_abs_compare(int *out, Float *lhs, Float *rhs) {
     ValidateFloat(lhs);
     ValidateFloat(rhs);
+    if (!out) {
+        LOG_ERROR("Invalid arguments");
+        return false;
+    }
 
     if (FloatIsZero(lhs) && FloatIsZero(rhs)) {
-        return 0;
+        *out = 0;
+        return true;
     }
 
     {
         i64   target_exponent = lhs->exponent < rhs->exponent ? lhs->exponent : rhs->exponent;
-        Float lhs_scaled      = FloatClone(lhs);
-        Float rhs_scaled      = FloatClone(rhs);
-        int   cmp             = 0;
+        Float lhs_scaled      = FloatInit(lhs->significand.bits.allocator);
+        Float rhs_scaled      = FloatInit(rhs->significand.bits.allocator);
 
-        float_scale_to_exponent(&lhs_scaled, target_exponent);
-        float_scale_to_exponent(&rhs_scaled, target_exponent);
-        cmp = IntCompare(&lhs_scaled.significand, &rhs_scaled.significand);
+        if (!FloatTryClone(&lhs_scaled, lhs) || !FloatTryClone(&rhs_scaled, rhs) ||
+            !float_scale_to_exponent(&lhs_scaled, target_exponent) ||
+            !float_scale_to_exponent(&rhs_scaled, target_exponent)) {
+            FloatDeinit(&lhs_scaled);
+            FloatDeinit(&rhs_scaled);
+            return false;
+        }
+        *out = IntCompare(&lhs_scaled.significand, &rhs_scaled.significand);
 
         FloatDeinit(&lhs_scaled);
         FloatDeinit(&rhs_scaled);
-        return cmp;
+        return true;
     }
 }
 
@@ -202,7 +211,7 @@ static void float_normalize(Float *value) {
     }
 
     while (MISRA_PRIV_IntModU64(&value->significand, 10) == 0) {
-        Int quotient = IntInit();
+        Int quotient = IntInit(value->significand.bits.allocator);
 
         (void)MISRA_PRIV_IntDivU64Rem(&quotient, &value->significand, 10);
         IntDeinit(&value->significand);
@@ -351,7 +360,7 @@ Float FloatFromF64(double value) {
 }
 
 bool FloatToInt(Int *result, Float *value) {
-    Int temp = IntInit();
+    Int temp = IntInit(result->bits.allocator);
 
     ValidateInt(result);
     ValidateFloat(value);
@@ -520,7 +529,7 @@ Float FloatFromStr(const char *text) {
     return result;
 }
 
-bool FloatTryToStrWithAllocator(Str *out, Float *value, Allocator alloc) {
+bool FloatTryToStrAlloc(Str *out, Float *value, Allocator alloc) {
     Str digits;
     Str result;
 
@@ -536,7 +545,7 @@ bool FloatTryToStrWithAllocator(Str *out, Float *value, Allocator alloc) {
         return StrPushBack(out, '0');
     }
 
-    if (!IntTryToStrWithAllocator(&digits, &value->significand, alloc)) {
+    if (!IntTryToStrAlloc(&digits, &value->significand, alloc)) {
         return false;
     }
 
@@ -606,7 +615,7 @@ fail:
 
 bool FloatTryToStr(Str *out, Float *value) {
     ValidateFloat(value);
-    return FloatTryToStrWithAllocator(out, value, value->significand.bits.allocator);
+    return FloatTryToStrAlloc(out, value, value->significand.bits.allocator);
 }
 
 Str FloatToStr(Float *value) {
@@ -621,8 +630,12 @@ Str FloatToStr(Float *value) {
     return result;
 }
 
-int(FloatCompare)(Float *lhs, Float *rhs) {
+int FloatCompareWithError(Float *lhs, Float *rhs, bool *error) {
     int cmp = 0;
+
+    if (error) {
+        *error = false;
+    }
 
     ValidateFloat(lhs);
     ValidateFloat(rhs);
@@ -634,48 +647,143 @@ int(FloatCompare)(Float *lhs, Float *rhs) {
         return FloatIsNegative(lhs) ? -1 : 1;
     }
 
-    cmp = float_abs_compare(lhs, rhs);
+    if (!float_try_abs_compare(&cmp, lhs, rhs)) {
+        if (error) {
+            *error = true;
+        }
+        return 0;
+    }
     return FloatIsNegative(lhs) ? -cmp : cmp;
 }
 
-int FloatCompareInt(Float *lhs, Int *rhs) {
-    Float rhs_value = FloatFromInt(rhs);
-    int   cmp       = FloatCompare(lhs, &rhs_value);
+int(FloatCompare)(Float *lhs, Float *rhs) {
+    return FloatCompareWithError(lhs, rhs, NULL);
+}
 
+int FloatCompareIntWithError(Float *lhs, Int *rhs, bool *error) {
+    Float rhs_value = FloatInit(lhs->significand.bits.allocator);
+    int   cmp       = 0;
+
+    ValidateFloat(lhs);
+    ValidateInt(rhs);
+    if (error) {
+        *error = false;
+    }
+
+    if (!float_try_from_int_value(&rhs_value, rhs)) {
+        if (error) {
+            *error = true;
+        }
+        FloatDeinit(&rhs_value);
+        return 0;
+    }
+    cmp = FloatCompareWithError(lhs, &rhs_value, error);
+    FloatDeinit(&rhs_value);
+    return cmp;
+}
+
+int FloatCompareInt(Float *lhs, Int *rhs) {
+    return FloatCompareIntWithError(lhs, rhs, NULL);
+}
+
+int FloatCompareU64WithError(Float *lhs, u64 rhs, bool *error) {
+    Float rhs_value = FloatInit(lhs->significand.bits.allocator);
+    int   cmp       = 0;
+
+    ValidateFloat(lhs);
+    if (error) {
+        *error = false;
+    }
+
+    if (!float_try_from_u64_value(&rhs_value, rhs, lhs->significand.bits.allocator)) {
+        if (error) {
+            *error = true;
+        }
+        FloatDeinit(&rhs_value);
+        return 0;
+    }
+    cmp = FloatCompareWithError(lhs, &rhs_value, error);
     FloatDeinit(&rhs_value);
     return cmp;
 }
 
 int FloatCompareU64(Float *lhs, u64 rhs) {
-    Float rhs_value = FloatFromU64(rhs);
-    int   cmp       = FloatCompare(lhs, &rhs_value);
+    return FloatCompareU64WithError(lhs, rhs, NULL);
+}
 
+int FloatCompareI64WithError(Float *lhs, i64 rhs, bool *error) {
+    Float rhs_value = FloatInit(lhs->significand.bits.allocator);
+    int   cmp       = 0;
+
+    ValidateFloat(lhs);
+    if (error) {
+        *error = false;
+    }
+
+    if (!float_try_from_i64_value(&rhs_value, rhs, lhs->significand.bits.allocator)) {
+        if (error) {
+            *error = true;
+        }
+        FloatDeinit(&rhs_value);
+        return 0;
+    }
+    cmp = FloatCompareWithError(lhs, &rhs_value, error);
     FloatDeinit(&rhs_value);
     return cmp;
 }
 
 int FloatCompareI64(Float *lhs, i64 rhs) {
-    Float rhs_value = FloatFromI64(rhs);
-    int   cmp       = FloatCompare(lhs, &rhs_value);
+    return FloatCompareI64WithError(lhs, rhs, NULL);
+}
 
+int FloatCompareF32WithError(Float *lhs, float rhs, bool *error) {
+    Float rhs_value = FloatInit(lhs->significand.bits.allocator);
+    int   cmp       = 0;
+
+    ValidateFloat(lhs);
+    if (error) {
+        *error = false;
+    }
+
+    if (!float_try_from_f32_value(&rhs_value, rhs, lhs->significand.bits.allocator)) {
+        if (error) {
+            *error = true;
+        }
+        FloatDeinit(&rhs_value);
+        return 0;
+    }
+    cmp = FloatCompareWithError(lhs, &rhs_value, error);
     FloatDeinit(&rhs_value);
     return cmp;
 }
 
 int FloatCompareF32(Float *lhs, float rhs) {
-    Float rhs_value = FloatFromF32(rhs);
-    int   cmp       = FloatCompare(lhs, &rhs_value);
+    return FloatCompareF32WithError(lhs, rhs, NULL);
+}
 
+int FloatCompareF64WithError(Float *lhs, double rhs, bool *error) {
+    Float rhs_value = FloatInit(lhs->significand.bits.allocator);
+    int   cmp       = 0;
+
+    ValidateFloat(lhs);
+    if (error) {
+        *error = false;
+    }
+
+    if (!float_try_from_f64_value(&rhs_value, rhs, lhs->significand.bits.allocator)) {
+        if (error) {
+            *error = true;
+        }
+        FloatDeinit(&rhs_value);
+        return 0;
+    }
+    cmp = FloatCompareWithError(lhs, &rhs_value, error);
     FloatDeinit(&rhs_value);
     return cmp;
 }
 
 int FloatCompareF64(Float *lhs, double rhs) {
-    Float rhs_value = FloatFromF64(rhs);
-    int   cmp       = FloatCompare(lhs, &rhs_value);
-
-    FloatDeinit(&rhs_value);
-    return cmp;
+    return FloatCompareF64WithError(lhs, rhs, NULL);
 }
 
 void FloatNegate(Float *value) {
