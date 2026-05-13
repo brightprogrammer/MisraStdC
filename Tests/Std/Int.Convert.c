@@ -12,6 +12,7 @@ bool test_int_binary_round_trip(void);
 bool test_int_decimal_round_trip(void);
 bool test_int_radix_round_trip(void);
 bool test_int_upper_hex_radix(void);
+bool test_int_try_to_str_allocator_inheritance(void);
 bool test_int_compare_ignores_leading_zeros(void);
 bool test_int_zero_binary(void);
 bool test_int_binary_prefix_and_separators(void);
@@ -133,6 +134,27 @@ bool test_int_upper_hex_radix(void) {
     Str text  = IntToStrRadix(&value, 16, true);
 
     bool result = strcmp(text.data, "BEEF") == 0;
+
+    StrDeinit(&text);
+    IntDeinit(&value);
+    return result;
+}
+
+bool test_int_try_to_str_allocator_inheritance(void) {
+    WriteFmt("Testing IntTryToStr allocator behavior\n");
+
+    Int       value = IntFrom(0xBEEF);
+    Str       text;
+    Allocator alloc = DefaultAllocator();
+    bool      ok;
+
+    alloc.effort      = ALLOCATOR_EFFORT_RETRY;
+    alloc.retry_limit = 4;
+
+    ok = IntTryToStrRadixWithAllocator(&text, &value, 16, true, alloc);
+
+    bool result = ok && (strcmp(text.data, "BEEF") == 0) && (text.allocator.effort == alloc.effort) &&
+                  (text.allocator.retry_limit == alloc.retry_limit);
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -428,6 +450,7 @@ int main(void) {
         test_int_decimal_round_trip,
         test_int_radix_round_trip,
         test_int_upper_hex_radix,
+        test_int_try_to_str_allocator_inheritance,
         test_int_compare_ignores_leading_zeros,
         test_int_zero_binary,
         test_int_binary_prefix_and_separators,

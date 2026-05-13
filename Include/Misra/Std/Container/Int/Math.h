@@ -24,7 +24,7 @@ extern "C" {
 ///
 /// TAGS: Int, Math, ShiftLeft, Bits
 ///
-void IntShiftLeft(Int *value, u64 positions);
+bool IntShiftLeft(Int *value, u64 positions);
 ///
 /// Shift an integer right by the given number of bit positions.
 ///
@@ -36,7 +36,7 @@ void IntShiftLeft(Int *value, u64 positions);
 ///
 /// TAGS: Int, Math, ShiftRight, Bits
 ///
-void IntShiftRight(Int *value, u64 positions);
+bool IntShiftRight(Int *value, u64 positions);
 ///
 /// Add two integers.
 ///
@@ -49,7 +49,7 @@ void IntShiftRight(Int *value, u64 positions);
 ///
 /// TAGS: Int, Math, Add
 ///
-void (IntAdd)(Int *result, Int *a, Int *b);
+bool (IntAdd)(Int *result, Int *a, Int *b);
 ///
 /// Subtract one integer from another.
 ///
@@ -77,7 +77,7 @@ bool (IntSub)(Int *result, Int *a, Int *b);
 ///
 /// TAGS: Int, Math, Multiply
 ///
-void (IntMul)(Int *result, Int *a, Int *b);
+bool (IntMul)(Int *result, Int *a, Int *b);
 ///
 /// Square an integer.
 ///
@@ -89,7 +89,7 @@ void (IntMul)(Int *result, Int *a, Int *b);
 ///
 /// TAGS: Int, Math, Square
 ///
-void IntSquare(Int *result, Int *value);
+bool IntSquare(Int *result, Int *value);
 ///
 /// Raise an integer to an arbitrary-precision power.
 ///
@@ -176,7 +176,7 @@ bool (IntDivMod)(Int *quotient, Int *remainder, Int *dividend, Int *divisor);
 ///
 /// TAGS: Int, Math, GCD, NumberTheory
 ///
-void IntGCD(Int *result, Int *a, Int *b);
+bool IntGCD(Int *result, Int *a, Int *b);
 ///
 /// Compute the least common multiple of two integers.
 ///
@@ -189,7 +189,7 @@ void IntGCD(Int *result, Int *a, Int *b);
 ///
 /// TAGS: Int, Math, LCM, NumberTheory
 ///
-void IntLCM(Int *result, Int *a, Int *b);
+bool IntLCM(Int *result, Int *a, Int *b);
 ///
 /// Compute the integer `degree`-th root of a value.
 ///

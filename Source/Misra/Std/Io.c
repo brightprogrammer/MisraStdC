@@ -40,10 +40,10 @@
 #include <stdio.h>
 
 
-static void _write_r8(Str *o, FmtInfo *fmt_info, u8 *v);
-static void _write_r16(Str *o, FmtInfo *fmt_info, u16 *v);
-static void _write_r32(Str *o, FmtInfo *fmt_info, u32 *v);
-static void _write_r64(Str *o, FmtInfo *fmt_info, u64 *v);
+static bool _write_r8(Str *o, FmtInfo *fmt_info, u8 *v);
+static bool _write_r16(Str *o, FmtInfo *fmt_info, u16 *v);
+static bool _write_r32(Str *o, FmtInfo *fmt_info, u32 *v);
+static bool _write_r64(Str *o, FmtInfo *fmt_info, u64 *v);
 
 static const char *_read_r8(const char *i, FmtInfo *fmt_info, u8 *v);
 static const char *_read_r16(const char *i, FmtInfo *fmt_info, u16 *v);
@@ -207,21 +207,25 @@ static bool ParseFormatSpec(const char *spec, u32 len, FmtInfo *fi) {
 }
 
 // Helper function to pad string with spaces
-static void PadString(Str *o, size width, Alignment align, size content_len) {
+static bool PadString(Str *o, size width, Alignment align, size content_len) {
     if (content_len >= width)
-        return;
+        return true;
 
     size pad_len = width - content_len;
 
     if (align == ALIGN_RIGHT) {
         // Pad on left
         for (size i = 0; i < pad_len; i++) {
-            StrPushFront(o, ' ');
+            if (!StrPushFront(o, ' ')) {
+                return false;
+            }
         }
     } else if (align == ALIGN_LEFT) {
         // Pad on right
         for (size i = 0; i < pad_len; i++) {
-            StrPushBack(o, ' ');
+            if (!StrPushBack(o, ' ')) {
+                return false;
+            }
         }
     } else { // ALIGN_CENTER
         size left_pad  = pad_len / 2;
@@ -229,14 +233,20 @@ static void PadString(Str *o, size width, Alignment align, size content_len) {
 
         // Pad on left
         for (size i = 0; i < left_pad; i++) {
-            StrPushFront(o, ' ');
+            if (!StrPushFront(o, ' ')) {
+                return false;
+            }
         }
 
         // Pad on right
         for (size i = 0; i < right_pad; i++) {
-            StrPushBack(o, ' ');
+            if (!StrPushBack(o, ' ')) {
+                return false;
+            }
         }
     }
+
+    return true;
 }
 
 bool StrWriteFmtInternal(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc) {
@@ -254,7 +264,9 @@ bool StrWriteFmtInternal(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc
         if (fmt[i] == '{') {
             // Check for escaped brace
             if (i + 1 < fmt_len && fmt[i + 1] == '{') {
-                StrPushBack(o, '{');
+                if (!StrPushBack(o, '{')) {
+                    return false;
+                }
                 i++; // Skip next brace
                 continue;
             }
@@ -364,21 +376,29 @@ bool StrWriteFmtInternal(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc
                 switch (fmt_info.width) {
                     case 1 : {
                         u8 y = (u8)x;
-                        _write_u8(o, &fmt_info, &y);
+                        if (!_write_u8(o, &fmt_info, &y)) {
+                            return false;
+                        }
                         break;
                     }
                     case 2 : {
                         u16 y = (u16)x;
-                        _write_u16(o, &fmt_info, &y);
+                        if (!_write_u16(o, &fmt_info, &y)) {
+                            return false;
+                        }
                         break;
                     }
                     case 4 : {
                         u32 y = (u32)x;
-                        _write_u32(o, &fmt_info, &y);
+                        if (!_write_u32(o, &fmt_info, &y)) {
+                            return false;
+                        }
                         break;
                     }
                     case 8 : {
-                        _write_u64(o, &fmt_info, &x);
+                        if (!_write_u64(o, &fmt_info, &x)) {
+                            return false;
+                        }
                         break;
                     }
                     default : {
@@ -388,7 +408,9 @@ bool StrWriteFmtInternal(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc
                 }
             } else {
                 // Write the formatted value
-                arg->writer(o, &fmt_info, arg->data);
+                if (!arg->writer(o, &fmt_info, arg->data)) {
+                    return false;
+                }
             }
 
 
@@ -397,14 +419,18 @@ bool StrWriteFmtInternal(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc
         } else if (fmt[i] == '}') {
             // Check for escaped brace
             if (i + 1 < fmt_len && fmt[i + 1] == '}') {
-                StrPushBack(o, '}');
+                if (!StrPushBack(o, '}')) {
+                    return false;
+                }
                 i++; // Skip next brace
                 continue;
             }
             LOG_ERROR("Unmatched closing brace");
             return false;
         } else {
-            StrPushBack(o, fmt[i]);
+            if (!StrPushBack(o, fmt[i])) {
+                return false;
+            }
         }
     }
 
@@ -415,6 +441,37 @@ bool StrWriteFmtInternal(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc
     }
 
     return true;
+}
+
+bool FWriteFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u64 argc, bool append_newline) {
+    Str  out;
+    bool ok = true;
+
+    if (!stream || !fmtstr) {
+        LOG_FATAL("Invalid arguments");
+        return false;
+    }
+
+    out = StrInit();
+    ok  = StrWriteFmtInternal(&out, fmtstr, argv, argc);
+
+    if (ok && out.length > 0 && fwrite(out.data, 1, out.length, stream) != out.length) {
+        LOG_SYS_ERROR("Failed to write formatted output");
+        ok = false;
+    }
+
+    if (ok && append_newline && fputc('\n', stream) == EOF) {
+        LOG_SYS_ERROR("Failed to append newline after formatted output");
+        ok = false;
+    }
+
+    if (ok && fflush(stream) != 0) {
+        LOG_SYS_ERROR("Failed to flush formatted output");
+        ok = false;
+    }
+
+    StrDeinit(&out);
+    return ok;
 }
 
 const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
@@ -704,7 +761,7 @@ void FReadFmtInternal(FILE *file, const char *fmtstr, TypeSpecificIO *argv, u64 
 
 // Helper function to write integer values as character sequences in a consistent order
 // regardless of system endianness (big-endian order: most significant byte first)
-static inline void write_int_as_chars(Str *o, FormatFlags flags, u64 value, size num_bytes) {
+static inline bool write_int_as_chars(Str *o, FormatFlags flags, u64 value, size num_bytes) {
     if (!o || !num_bytes || num_bytes > 8) {
         LOG_FATAL("Invalid arguments to write_int_as_chars");
     }
@@ -721,9 +778,13 @@ static inline void write_int_as_chars(Str *o, FormatFlags flags, u64 value, size
             // For 'a'/'A' format specifier (force_case), apply case conversion
             // For 'c' format specifier, preserve the original case
             if (force_case) {
-                StrPushBack(o, is_caps ? TO_UPPER(byte) : TO_LOWER(byte));
+                if (!StrPushBack(o, is_caps ? TO_UPPER(byte) : TO_LOWER(byte))) {
+                    return false;
+                }
             } else {
-                StrPushBack(o, byte);
+                if (!StrPushBack(o, byte)) {
+                    return false;
+                }
             }
         } else {
             // Handle non-printable characters
@@ -732,14 +793,16 @@ static inline void write_int_as_chars(Str *o, FormatFlags flags, u64 value, size
             char c1  = hiw < 10 ? '0' + hiw : is_caps ? 'A' + (hiw - 10) : 'a' + (hiw - 10);
             char c2  = low < 10 ? '0' + low : is_caps ? 'A' + (low - 10) : 'a' + (low - 10);
 
-            StrPushBackZstr(o, "\\x");
-            StrPushBack(o, c1);
-            StrPushBack(o, c2);
+            if (!StrPushBackZstr(o, "\\x") || !StrPushBack(o, c1) || !StrPushBack(o, c2)) {
+                return false;
+            }
         }
     }
+
+    return true;
 }
 
-static inline void write_char_internal(Str *o, FormatFlags flags, const char *vs, size len) {
+static inline bool write_char_internal(Str *o, FormatFlags flags, const char *vs, size len) {
     if (!o || !vs || !len) {
         LOG_FATAL("Invalid arguments");
     }
@@ -752,22 +815,32 @@ static inline void write_char_internal(Str *o, FormatFlags flags, const char *vs
             // For 'a'/'A' format specifier (force_case), apply case conversion
             // For 'c' format specifier, preserve the original case
             if (force_case) {
-                StrPushBack(o, is_caps ? TO_UPPER(*vs) : TO_LOWER(*vs));
+                if (!StrPushBack(o, is_caps ? TO_UPPER(*vs) : TO_LOWER(*vs))) {
+                    return false;
+                }
             } else {
-                StrPushBack(o, *vs);
+                if (!StrPushBack(o, *vs)) {
+                    return false;
+                }
             }
         } else {
-            StrPushBackZstr(o, "\\x");
+            if (!StrPushBackZstr(o, "\\x")) {
+                return false;
+            }
             u8   c     = *vs;
             u8   low   = c & 0xf;
             u8   hiw   = (c >> 4) & 0xf;
             char c1    = hiw < 10 ? '0' + hiw : is_caps ? 'A' + (hiw - 10) : 'a' + (hiw - 10);
             char c2    = low < 10 ? '0' + low : is_caps ? 'A' + (low - 10) : 'a' + (low - 10);
             char cs[3] = {'\\', c1, c2};
-            StrPushBackCstr(o, cs, 3);
+            if (!StrPushBackCstr(o, cs, 3)) {
+                return false;
+            }
         }
         vs++;
     }
+
+    return true;
 }
 
 static int IntFmtDigitValue(char c) {
@@ -809,7 +882,7 @@ static bool FloatFmtUsesUnsupportedFlags(FmtInfo *fmt_info) {
                                            FMT_FLAG_RAW | FMT_FLAG_STRING)) != 0;
 }
 
-static void FloatFmtAppendExponent(Str *out, i64 exponent, bool uppercase) {
+static bool FloatFmtAppendExponent(Str *out, i64 exponent, bool uppercase) {
     char sign         = exponent < 0 ? '-' : '+';
     u64  magnitude    = exponent < 0 ? (u64)(-(exponent + 1)) + 1 : (u64)exponent;
     char digits[32]   = {0};
@@ -828,117 +901,199 @@ static void FloatFmtAppendExponent(Str *out, i64 exponent, bool uppercase) {
         }
     }
 
-    StrPushBack(out, uppercase ? 'E' : 'e');
-    StrPushBack(out, sign);
+    if (!StrPushBack(out, uppercase ? 'E' : 'e') || !StrPushBack(out, sign)) {
+        return false;
+    }
 
     if (digit_count < 2) {
-        StrPushBack(out, '0');
+        if (!StrPushBack(out, '0')) {
+            return false;
+        }
     }
 
     while (digit_count > 0) {
-        StrPushBack(out, digits[--digit_count]);
+        if (!StrPushBack(out, digits[--digit_count])) {
+            return false;
+        }
     }
+
+    return true;
 }
 
-static Str FloatFmtToDecimalStr(Float *value, u32 precision, bool has_precision) {
-    Str canonical = FloatToStr(value);
+static bool FloatFmtTryToDecimalStr(Str *out, Float *value, u32 precision, bool has_precision, Allocator alloc) {
+    Str canonical;
+    Str result;
+
+    if (!out) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    *out = StrInit(alloc);
+
+    if (!FloatTryToStrWithAllocator(&canonical, value, alloc)) {
+        return false;
+    }
 
     if (!has_precision) {
-        return canonical;
+        *out = canonical;
+        return true;
     }
 
     {
-        Str         result = StrInit();
         const char *body   = canonical.data;
         const char *dot    = NULL;
         u64         prefix = 0;
         u64         frac   = 0;
 
+        result = StrInit(alloc);
+
         if (canonical.data[0] == '-') {
-            StrPushBack(&result, '-');
+            if (!StrPushBack(&result, '-')) {
+                goto fail;
+            }
             body++;
         }
 
         dot = strchr(body, '.');
         if (!dot) {
-            StrPushBackCstr(&result, body, ZstrLen(body));
+            if (!StrPushBackCstr(&result, body, ZstrLen(body))) {
+                goto fail;
+            }
 
             if (precision > 0) {
-                StrPushBack(&result, '.');
+                if (!StrPushBack(&result, '.')) {
+                    goto fail;
+                }
                 for (u32 i = 0; i < precision; i++) {
-                    StrPushBack(&result, '0');
+                    if (!StrPushBack(&result, '0')) {
+                        goto fail;
+                    }
                 }
             }
 
             StrDeinit(&canonical);
-            return result;
+            *out = result;
+            return true;
         }
 
         prefix = (u64)(dot - body);
         frac   = (u64)ZstrLen(dot + 1);
 
-        StrPushBackCstr(&result, body, prefix);
-        if (precision > 0) {
-            StrPushBack(&result, '.');
-            StrPushBackCstr(&result, dot + 1, MIN2(frac, (u64)precision));
-            for (u32 i = (u32)MIN2(frac, (u64)precision); i < precision; i++) {
-                StrPushBack(&result, '0');
-            }
+        if (!StrPushBackCstr(&result, body, prefix)) {
+            goto fail;
         }
-
-        if (canonical.data[0] == '-') {
-            StrPushFront(&result, '-');
+        if (precision > 0) {
+            if (!StrPushBack(&result, '.')) {
+                goto fail;
+            }
+            if (!StrPushBackCstr(&result, dot + 1, MIN2(frac, (u64)precision))) {
+                goto fail;
+            }
+            for (u32 i = (u32)MIN2(frac, (u64)precision); i < precision; i++) {
+                if (!StrPushBack(&result, '0')) {
+                    goto fail;
+                }
+            }
         }
 
         StrDeinit(&canonical);
-        return result;
+        *out = result;
+        return true;
     }
+
+fail:
+    StrDeinit(&canonical);
+    StrDeinit(&result);
+    return false;
 }
 
-static Str FloatFmtToScientificStr(Float *value, u32 precision, bool has_precision, bool uppercase) {
-    Str digits = IntToStr(&value->significand);
-    Str result = StrInit();
+static bool FloatFmtTryToScientificStr(
+    Str *out, Float *value, u32 precision, bool has_precision, bool uppercase, Allocator alloc
+) {
+    Str digits;
+    Str result;
     u64 frac_digits = 0;
     i64 exponent    = 0;
 
+    if (!out) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    *out = StrInit(alloc);
+
+    if (!IntTryToStrWithAllocator(&digits, &value->significand, alloc)) {
+        return false;
+    }
+
+    result = StrInit(alloc);
+
     if (FloatIsZero(value)) {
         if (value->negative) {
-            StrPushBack(&result, '-');
-        }
-        StrPushBack(&result, '0');
-        if (has_precision && precision > 0) {
-            StrPushBack(&result, '.');
-            for (u32 i = 0; i < precision; i++) {
-                StrPushBack(&result, '0');
+            if (!StrPushBack(&result, '-')) {
+                goto fail;
             }
         }
-        FloatFmtAppendExponent(&result, 0, uppercase);
+        if (!StrPushBack(&result, '0')) {
+            goto fail;
+        }
+        if (has_precision && precision > 0) {
+            if (!StrPushBack(&result, '.')) {
+                goto fail;
+            }
+            for (u32 i = 0; i < precision; i++) {
+                if (!StrPushBack(&result, '0')) {
+                    goto fail;
+                }
+            }
+        }
+        if (!FloatFmtAppendExponent(&result, 0, uppercase)) {
+            goto fail;
+        }
         StrDeinit(&digits);
-        return result;
+        *out = result;
+        return true;
     }
 
     if (value->negative) {
-        StrPushBack(&result, '-');
+        if (!StrPushBack(&result, '-')) {
+            goto fail;
+        }
     }
 
     exponent = value->exponent + (i64)digits.length - 1;
-    StrPushBack(&result, digits.data[0]);
+    if (!StrPushBack(&result, digits.data[0])) {
+        goto fail;
+    }
 
     frac_digits = has_precision ? precision : (digits.length > 0 ? digits.length - 1 : 0);
     if (frac_digits > 0) {
-        StrPushBack(&result, '.');
+        if (!StrPushBack(&result, '.')) {
+            goto fail;
+        }
         for (u64 i = 0; i < frac_digits; i++) {
             if (i + 1 < digits.length) {
-                StrPushBack(&result, digits.data[i + 1]);
+                if (!StrPushBack(&result, digits.data[i + 1])) {
+                    goto fail;
+                }
             } else {
-                StrPushBack(&result, '0');
+                if (!StrPushBack(&result, '0')) {
+                    goto fail;
+                }
             }
         }
     }
 
-    FloatFmtAppendExponent(&result, exponent, uppercase);
+    if (!FloatFmtAppendExponent(&result, exponent, uppercase)) {
+        goto fail;
+    }
     StrDeinit(&digits);
-    return result;
+    *out = result;
+    return true;
+
+fail:
+    StrDeinit(&digits);
+    StrDeinit(&result);
+    return false;
 }
 
 static size FloatFmtTokenLength(const char *input) {
@@ -1058,7 +1213,7 @@ static inline const char *read_chars_internal(const char *i, u8 *buffer, size bu
     return current;
 }
 
-void _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
+bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
     if (!o || !s || !fmt_info) {
         LOG_FATAL("Invalid arguments");
     }
@@ -1076,17 +1231,27 @@ void _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
             StrIntFormat config = {.base = 16, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0};
             StrForeachIdx(s, c, i) {
                 if (i > 0) {
-                    StrPushBack(o, ' ');
+                    if (!StrPushBack(o, ' ')) {
+                        return false;
+                    }
                 }
                 // Create hex string for each character
-                Str hex = StrInit();
-                StrFromU64(&hex, c, &config);
+                Str hex = StrInit(o->allocator);
+                if (!StrFromU64(&hex, c, &config)) {
+                    StrDeinit(&hex);
+                    return false;
+                }
                 // Ensure 2 digits with leading zero
                 if (hex.length == 1) {
-                    StrPushFront(&hex, '0');
+                    if (!StrPushFront(&hex, '0')) {
+                        StrDeinit(&hex);
+                        return false;
+                    }
                 }
-                StrPushBackZstr(o, "0x");
-                StrMerge(o, &hex);
+                if (!StrPushBackZstr(o, "0x") || !StrMerge(o, &hex)) {
+                    StrDeinit(&hex);
+                    return false;
+                }
                 StrDeinit(&hex);
             }
         } else {
@@ -1103,16 +1268,21 @@ void _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
 
             // Copy string content
             if (fmt_info->flags & FMT_FLAG_CHAR) {
-                write_char_internal(o, fmt_info->flags, (const char *)s->data, len);
+                if (!write_char_internal(o, fmt_info->flags, (const char *)s->data, len)) {
+                    return false;
+                }
             } else {
                 StrForeachInRange(s, c, 0, len) {
                     if (IS_PRINTABLE(c)) {
-                        StrPushBack(o, c);
+                        if (!StrPushBack(o, c)) {
+                            return false;
+                        }
                     } else {
                         const char *digits = "0123456789abcdef";
-                        StrPushBackZstr(o, "\\x");
-                        StrPushBack(o, digits[(c >> 4) & 0xf]);
-                        StrPushBack(o, digits[c & 0xf]);
+                        if (!StrPushBackZstr(o, "\\x") || !StrPushBack(o, digits[(c >> 4) & 0xf]) ||
+                            !StrPushBack(o, digits[c & 0xf])) {
+                            return false;
+                        }
                     }
                 }
             }
@@ -1122,14 +1292,18 @@ void _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        PadString(o, fmt_info->width, fmt_info->align, content_len);
+        if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+            return false;
+        }
     }
+
+    return true;
 }
 
-void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s) {
+bool _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s) {
     if (!o || !s || !*s || !fmt_info) {
         LOG_FATAL("Invalid arguments");
-        return;
+        return false;
     }
 
     ValidateStr(o);
@@ -1145,18 +1319,28 @@ void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s) {
             size i = 0;
             while (xs[i]) {
                 if (i > 0) {
-                    StrPushBack(o, ' ');
+                    if (!StrPushBack(o, ' ')) {
+                        return false;
+                    }
                 }
                 // Create hex string for each character
-                Str          hex    = StrInit();
+                Str          hex    = StrInit(o->allocator);
                 StrIntFormat config = {.base = 16, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0};
-                StrFromU64(&hex, (u8)xs[i], &config);
+                if (!StrFromU64(&hex, (u8)xs[i], &config)) {
+                    StrDeinit(&hex);
+                    return false;
+                }
                 // Ensure 2 digits with leading zero
                 if (hex.length == 1) {
-                    StrPushFront(&hex, '0');
+                    if (!StrPushFront(&hex, '0')) {
+                        StrDeinit(&hex);
+                        return false;
+                    }
                 }
-                StrPushBackZstr(o, "0x");
-                StrMerge(o, &hex);
+                if (!StrPushBackZstr(o, "0x") || !StrMerge(o, &hex)) {
+                    StrDeinit(&hex);
+                    return false;
+                }
                 StrDeinit(&hex);
                 i++;
             }
@@ -1176,16 +1360,21 @@ void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s) {
 
             // Copy string content
             if (fmt_info->flags & FMT_FLAG_CHAR) {
-                write_char_internal(o, fmt_info->flags, xs, len);
+                if (!write_char_internal(o, fmt_info->flags, xs, len)) {
+                    return false;
+                }
             } else {
                 for (size i = 0; i < len; i++) {
                     if (IS_PRINTABLE(xs[i])) {
-                        StrPushBack(o, xs[i]);
+                        if (!StrPushBack(o, xs[i])) {
+                            return false;
+                        }
                     } else {
                         const char *digits = "0123456789abcdef";
-                        StrPushBackZstr(o, "\\x");
-                        StrPushBack(o, digits[(xs[i] >> 4) & 0xf]);
-                        StrPushBack(o, digits[xs[i] & 0xf]);
+                        if (!StrPushBackZstr(o, "\\x") || !StrPushBack(o, digits[(xs[i] >> 4) & 0xf]) ||
+                            !StrPushBack(o, digits[xs[i] & 0xf])) {
+                            return false;
+                        }
                     }
                 }
             }
@@ -1195,27 +1384,30 @@ void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s) {
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        PadString(o, fmt_info->width, fmt_info->align, content_len);
+        if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+            return false;
+        }
     }
+
+    return true;
 }
 
-void _write_u64(Str *o, FmtInfo *fmt_info, u64 *v) {
+bool _write_u64(Str *o, FmtInfo *fmt_info, u64 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
-        return;
+        return false;
     }
 
     // If this is to be printed as a character sequence
     if (fmt_info->flags & FMT_FLAG_CHAR) {
-        write_int_as_chars(o, fmt_info->flags, *v, 8);
-        return;
+        return write_int_as_chars(o, fmt_info->flags, *v, 8);
     }
 
     // Store original length to calculate content size later
     size start_len = o->length;
 
     // Create temporary buffer for number formatting
-    Str temp = StrInit();
+    Str temp = StrInit(o->allocator);
 
     // Determine base based on format flags
     u8 base = 10; // default is decimal
@@ -1230,84 +1422,90 @@ void _write_u64(Str *o, FmtInfo *fmt_info, u64 *v) {
     // Use StrFromU64 directly with the appropriate base
     bool         use_prefix = (base != 10); // Add prefix for non-decimal bases
     StrIntFormat config = {.base = base, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0, .use_prefix = use_prefix};
-    StrFromU64(&temp, *v, &config);
+    if (!StrFromU64(&temp, *v, &config)) {
+        StrDeinit(&temp);
+        return false;
+    }
 
     // Merge the formatted number into output
-    StrMerge(o, &temp);
+    if (!StrMerge(o, &temp)) {
+        StrDeinit(&temp);
+        return false;
+    }
     StrDeinit(&temp);
 
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        PadString(o, fmt_info->width, fmt_info->align, content_len);
+        if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+            return false;
+        }
     }
+
+    return true;
 }
 
-void _write_u32(Str *o, FmtInfo *fmt_info, u32 *v) {
+bool _write_u32(Str *o, FmtInfo *fmt_info, u32 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
-        return;
+        return false;
     }
 
     // If this is to be printed as a character sequence
     if (fmt_info->flags & FMT_FLAG_CHAR) {
-        write_int_as_chars(o, fmt_info->flags, *v, 4);
-        return;
+        return write_int_as_chars(o, fmt_info->flags, *v, 4);
     }
 
     u64 val = *v;
-    _write_u64(o, fmt_info, &val);
+    return _write_u64(o, fmt_info, &val);
 }
 
-void _write_u16(Str *o, FmtInfo *fmt_info, u16 *v) {
+bool _write_u16(Str *o, FmtInfo *fmt_info, u16 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
-        return;
+        return false;
     }
 
     // If this is to be printed as a character sequence
     if (fmt_info->flags & FMT_FLAG_CHAR) {
-        write_int_as_chars(o, fmt_info->flags, *v, 2);
-        return;
+        return write_int_as_chars(o, fmt_info->flags, *v, 2);
     }
 
     u64 val = *v;
-    _write_u64(o, fmt_info, &val);
+    return _write_u64(o, fmt_info, &val);
 }
 
-void _write_u8(Str *o, FmtInfo *fmt_info, u8 *v) {
+bool _write_u8(Str *o, FmtInfo *fmt_info, u8 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
-        return;
+        return false;
     }
 
     // If this is to be printed as a character sequence
     if (fmt_info->flags & FMT_FLAG_CHAR) {
-        write_int_as_chars(o, fmt_info->flags, *v, 1);
-        return;
+        return write_int_as_chars(o, fmt_info->flags, *v, 1);
     }
 
     u64 vx = *v;
-    _write_u64(o, fmt_info, &vx);
+    return _write_u64(o, fmt_info, &vx);
 }
 
-void _write_i64(Str *o, FmtInfo *fmt_info, i64 *v) {
+bool _write_i64(Str *o, FmtInfo *fmt_info, i64 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
-        return;
+        return false;
     }
 
     // If this is to be printed as a character sequence
     if (fmt_info->flags & FMT_FLAG_CHAR) {
-        write_int_as_chars(o, fmt_info->flags, *v, 8);
-        return;
+        return write_int_as_chars(o, fmt_info->flags, *v, 8);
     }
 
     // Store original length to calculate content size later
     size start_len = o->length;
 
     // Create temporary buffer for number formatting
-    Str temp = StrInit();
+    Str temp = StrInit(o->allocator);
 
     // Determine base based on format flags
     u8 base = 10; // default is decimal
@@ -1322,71 +1520,78 @@ void _write_i64(Str *o, FmtInfo *fmt_info, i64 *v) {
     // Use StrFromI64 directly with the appropriate base
     bool         use_prefix = (base != 10); // Add prefix for non-decimal bases
     StrIntFormat config = {.base = base, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0, .use_prefix = use_prefix};
-    StrFromI64(&temp, *v, &config);
+    if (!StrFromI64(&temp, *v, &config)) {
+        StrDeinit(&temp);
+        return false;
+    }
 
     // Merge the formatted number into output
-    StrMerge(o, &temp);
+    if (!StrMerge(o, &temp)) {
+        StrDeinit(&temp);
+        return false;
+    }
     StrDeinit(&temp);
 
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        PadString(o, fmt_info->width, fmt_info->align, content_len);
+        if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+            return false;
+        }
     }
+
+    return true;
 }
 
-void _write_i32(Str *o, FmtInfo *fmt_info, i32 *v) {
+bool _write_i32(Str *o, FmtInfo *fmt_info, i32 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
-        return;
+        return false;
     }
 
     // If this is to be printed as a character sequence
     if (fmt_info->flags & FMT_FLAG_CHAR) {
-        write_int_as_chars(o, fmt_info->flags, *v, 4);
-        return;
+        return write_int_as_chars(o, fmt_info->flags, *v, 4);
     }
 
     i64 val = *v;
-    _write_i64(o, fmt_info, &val);
+    return _write_i64(o, fmt_info, &val);
 }
 
-void _write_i16(Str *o, FmtInfo *fmt_info, i16 *v) {
+bool _write_i16(Str *o, FmtInfo *fmt_info, i16 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
-        return;
+        return false;
     }
 
     // If this is to be printed as a character sequence
     if (fmt_info->flags & FMT_FLAG_CHAR) {
-        write_int_as_chars(o, fmt_info->flags, *v, 2);
-        return;
+        return write_int_as_chars(o, fmt_info->flags, *v, 2);
     }
 
     i64 vx = *v;
-    _write_i64(o, fmt_info, &vx);
+    return _write_i64(o, fmt_info, &vx);
 }
 
-void _write_i8(Str *o, FmtInfo *fmt_info, i8 *v) {
+bool _write_i8(Str *o, FmtInfo *fmt_info, i8 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
-        return;
+        return false;
     }
 
     // If this is to be printed as a character sequence
     if (fmt_info->flags & FMT_FLAG_CHAR) {
-        write_int_as_chars(o, fmt_info->flags, *v, 1);
-        return;
+        return write_int_as_chars(o, fmt_info->flags, *v, 1);
     }
 
     i64 vx = *v;
-    _write_i64(o, fmt_info, &vx);
+    return _write_i64(o, fmt_info, &vx);
 }
 
-void _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
+bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
-        return;
+        return false;
     }
 
     // If this is to be printed as a character sequence
@@ -1394,8 +1599,7 @@ void _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
         // Convert the 64-bit float value to a 64-bit integer for byte access
         u64 bits;
         memcpy(&bits, v, sizeof(bits)); // Avoid type punning issues
-        write_int_as_chars(o, fmt_info->flags, bits, 8);
-        return;
+        return write_int_as_chars(o, fmt_info->flags, bits, 8);
     }
 
     // Store original length to calculate content size later
@@ -1405,25 +1609,35 @@ void _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
     if (isnan(*v)) {
         // Direct string append for NaN
         if (fmt_info->flags & FMT_FLAG_CAPS) {
-            StrPushBackZstr(o, "NAN");
+            if (!StrPushBackZstr(o, "NAN")) {
+                return false;
+            }
         } else {
-            StrPushBackZstr(o, "nan");
+            if (!StrPushBackZstr(o, "nan")) {
+                return false;
+            }
         }
     } else if (isinf(*v)) {
         // Direct string append for infinity
         if (*v < 0) {
-            StrPushBack(o, '-');
+            if (!StrPushBack(o, '-')) {
+                return false;
+            }
         }
 
         if (fmt_info->flags & FMT_FLAG_CAPS) {
-            StrPushBackZstr(o, "INF");
+            if (!StrPushBackZstr(o, "INF")) {
+                return false;
+            }
         } else {
-            StrPushBackZstr(o, "inf");
+            if (!StrPushBackZstr(o, "inf")) {
+                return false;
+            }
         }
     } else {
         // Normal case - use StrFromF64
         // Create temporary buffer for number formatting
-        Str temp = StrInit();
+        Str temp = StrInit(o->allocator);
 
         // Use StrFromF64 directly with the appropriate parameters
         u8             precision = fmt_info->flags & FMT_FLAG_HAS_PRECISION ? fmt_info->precision : 6;
@@ -1432,24 +1646,34 @@ void _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
                .force_sci = (fmt_info->flags & FMT_FLAG_SCIENTIFIC) != 0,
                .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0
         };
-        StrFromF64(&temp, *v, &config);
+        if (!StrFromF64(&temp, *v, &config)) {
+            StrDeinit(&temp);
+            return false;
+        }
 
         // Merge the formatted number into output
-        StrMerge(o, &temp);
+        if (!StrMerge(o, &temp)) {
+            StrDeinit(&temp);
+            return false;
+        }
         StrDeinit(&temp);
     }
 
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        PadString(o, fmt_info->width, fmt_info->align, content_len);
+        if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+            return false;
+        }
     }
+
+    return true;
 }
 
-void _write_f32(Str *o, FmtInfo *fmt_info, f32 *v) {
+bool _write_f32(Str *o, FmtInfo *fmt_info, f32 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
-        return;
+        return false;
     }
 
     // If this is to be printed as a character sequence
@@ -1457,21 +1681,20 @@ void _write_f32(Str *o, FmtInfo *fmt_info, f32 *v) {
         // Convert the 32-bit float value to a 32-bit integer for byte access
         u32 bits;
         memcpy(&bits, v, sizeof(bits)); // Avoid type punning issues
-        write_int_as_chars(o, fmt_info->flags, bits, 4);
-        return;
+        return write_int_as_chars(o, fmt_info->flags, bits, 4);
     }
 
     f64 val = *v;
-    _write_f64(o, fmt_info, &val);
+    return _write_f64(o, fmt_info, &val);
 }
 
-void _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
+bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
     size start_len = 0;
-    Str  temp      = StrInit();
+    Str  temp;
 
     if (!o || !fmt_info || !value) {
         LOG_FATAL("Invalid arguments");
-        return;
+        return false;
     }
 
     ValidateStr(o);
@@ -1483,23 +1706,38 @@ void _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
 
     start_len = o->length;
     if (fmt_info->flags & FMT_FLAG_SCIENTIFIC) {
-        temp = FloatFmtToScientificStr(
-            value,
-            fmt_info->precision,
-            (fmt_info->flags & FMT_FLAG_HAS_PRECISION) != 0,
-            (fmt_info->flags & FMT_FLAG_CAPS) != 0
-        );
+        if (!FloatFmtTryToScientificStr(
+                &temp,
+                value,
+                fmt_info->precision,
+                (fmt_info->flags & FMT_FLAG_HAS_PRECISION) != 0,
+                (fmt_info->flags & FMT_FLAG_CAPS) != 0,
+                o->allocator
+            )) {
+            return false;
+        }
     } else {
-        temp = FloatFmtToDecimalStr(value, fmt_info->precision, (fmt_info->flags & FMT_FLAG_HAS_PRECISION) != 0);
+        if (!FloatFmtTryToDecimalStr(
+                &temp, value, fmt_info->precision, (fmt_info->flags & FMT_FLAG_HAS_PRECISION) != 0, o->allocator
+            )) {
+            return false;
+        }
     }
 
-    StrMerge(o, &temp);
+    if (!StrMerge(o, &temp)) {
+        StrDeinit(&temp);
+        return false;
+    }
     StrDeinit(&temp);
 
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        PadString(o, fmt_info->width, fmt_info->align, content_len);
+        if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+            return false;
+        }
     }
+
+    return true;
 }
 
 // Helper function to handle escape sequences
@@ -2554,10 +2792,10 @@ const char *_read_Zstr(const char *i, FmtInfo *fmt_info, const char **out) {
     return next;
 }
 
-void _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
+bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
     if (!o || !fmt_info || !bv) {
         LOG_FATAL("Invalid arguments");
-        return;
+        return false;
     }
 
     ValidateStr(o);
@@ -2569,29 +2807,44 @@ void _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
     if (fmt_info->flags & FMT_FLAG_HEX) {
         // Format as hexadecimal
         if (bv->length == 0) {
-            StrPushBackZstr(o, "0x0");
+            if (!StrPushBackZstr(o, "0x0")) {
+                return false;
+            }
         } else {
             // Convert to integer (up to 64 bits) and format as hex
             u64          value  = BitVecToInteger(bv);
             StrIntFormat config = {.base = 16, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0, .use_prefix = true};
-            StrFromU64(o, value, &config);
+            if (!StrFromU64(o, value, &config)) {
+                return false;
+            }
         }
     } else if (fmt_info->flags & FMT_FLAG_OCTAL) {
         // Format as octal
         if (bv->length == 0) {
-            StrPushBackZstr(o, "0o0");
+            if (!StrPushBackZstr(o, "0o0")) {
+                return false;
+            }
         } else {
             u64          value  = BitVecToInteger(bv);
             StrIntFormat config = {.base = 8, .uppercase = false, .use_prefix = true};
-            StrFromU64(o, value, &config);
+            if (!StrFromU64(o, value, &config)) {
+                return false;
+            }
         }
     } else {
         // Default: Format as binary string (e.g., "10110")
         if (bv->length == 0) {
             // Empty BitVec - don't output anything
         } else {
-            Str bit_str = BitVecToStr(bv);
-            StrMerge(o, &bit_str);
+            Str bit_str;
+
+            if (!BitVecTryToStrWithAllocator(&bit_str, bv, o->allocator)) {
+                return false;
+            }
+            if (!StrMerge(o, &bit_str)) {
+                StrDeinit(&bit_str);
+                return false;
+            }
             StrDeinit(&bit_str);
         }
     }
@@ -2599,14 +2852,18 @@ void _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        PadString(o, fmt_info->width, fmt_info->align, content_len);
+        if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+            return false;
+        }
     }
+
+    return true;
 }
 
-void _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
+bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
     if (!o || !fmt_info || !value) {
         LOG_FATAL("Invalid arguments");
-        return;
+        return false;
     }
 
     ValidateStr(o);
@@ -2616,45 +2873,61 @@ void _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
         u64 byte_len = IntByteLength(value);
 
         if (byte_len == 0) {
-            return;
+            return true;
         }
 
-        u8 *buffer = (u8 *)calloc(byte_len, sizeof(u8));
+        u8 *buffer = (u8 *)AllocatorAlloc(&o->allocator, byte_len * sizeof(u8), 1, true);
 
         if (!buffer) {
-            LOG_FATAL("Failed to allocate buffer for Int character formatting");
+            LOG_ERROR("Failed to allocate buffer for Int character formatting");
+            return false;
         }
 
         (void)IntToBytesBE(value, buffer, byte_len);
-        write_char_internal(o, fmt_info->flags, (const char *)buffer, byte_len);
-        FREE(buffer);
-        return;
+        if (!write_char_internal(o, fmt_info->flags, (const char *)buffer, byte_len)) {
+            AllocatorFree(&o->allocator, buffer, byte_len * sizeof(u8), 1);
+            return false;
+        }
+        AllocatorFree(&o->allocator, buffer, byte_len * sizeof(u8), 1);
+        return true;
     }
 
     size start_len = o->length;
-    Str  temp      = StrInit();
+    Str  temp;
     u8   radix     = IntFmtRadixFromFlags(fmt_info);
 
     if (radix == 10) {
-        temp = IntToStr(value);
+        if (!IntTryToStrWithAllocator(&temp, value, o->allocator)) {
+            return false;
+        }
     } else {
-        temp = IntToStrRadix(value, radix, (fmt_info->flags & FMT_FLAG_CAPS) != 0);
+        if (!IntTryToStrRadixWithAllocator(&temp, value, radix, (fmt_info->flags & FMT_FLAG_CAPS) != 0, o->allocator)) {
+            return false;
+        }
     }
 
-    StrMerge(o, &temp);
+    if (!StrMerge(o, &temp)) {
+        StrDeinit(&temp);
+        return false;
+    }
     StrDeinit(&temp);
 
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        PadString(o, fmt_info->width, fmt_info->align, content_len);
+        if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+            return false;
+        }
     }
+
+    return true;
 }
 
-void _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s) {
+bool _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s) {
     (void)o;
     (void)fmt_info;
     (void)s;
     LOG_FATAL("Attempt to write unsupported type");
+    return false;
 }
 
 const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
@@ -3012,17 +3285,19 @@ const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v) {
     return start + pos;
 }
 
-static void _write_r8(Str *o, FmtInfo *fmt_info, u8 *v) {
+static bool _write_r8(Str *o, FmtInfo *fmt_info, u8 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
+        return false;
     }
 
-    StrPushBack(o, *v);
+    return StrPushBack(o, *v);
 }
 
-static void _write_r16(Str *o, FmtInfo *fmt_info, u16 *v) {
+static bool _write_r16(Str *o, FmtInfo *fmt_info, u16 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
+        return false;
     }
 
     // if native endianness provided, then deduce endianness and set correspondingly
@@ -3033,25 +3308,23 @@ static void _write_r16(Str *o, FmtInfo *fmt_info, u16 *v) {
     u16 x = *v;
     switch (fmt_info->endian) {
         case ENDIAN_BIG : {
-            StrPushBack(o, ((x >> 8) & 0xff));
-            StrPushBack(o, (x & 0xff));
-            break;
+            return StrPushBack(o, ((x >> 8) & 0xff)) && StrPushBack(o, (x & 0xff));
         }
         case ENDIAN_LITTLE : {
-            StrPushBack(o, (x & 0xff));
-            StrPushBack(o, ((x >> 8) & 0xff));
-            break;
+            return StrPushBack(o, (x & 0xff)) && StrPushBack(o, ((x >> 8) & 0xff));
         }
         case ENDIAN_NATIVE :
         default : {
             LOG_FATAL("Invalid endianness provided. Unexpected code reached.");
+            return false;
         }
     }
 }
 
-static void _write_r32(Str *o, FmtInfo *fmt_info, u32 *v) {
+static bool _write_r32(Str *o, FmtInfo *fmt_info, u32 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
+        return false;
     }
 
     // if native endianness provided, then deduce endianness and set correspondingly
@@ -3063,30 +3336,26 @@ static void _write_r32(Str *o, FmtInfo *fmt_info, u32 *v) {
     u32 x = *v;
     switch (fmt_info->endian) {
         case ENDIAN_BIG : {
-            StrPushBack(o, ((x >> 24) & 0xff));
-            StrPushBack(o, (x >> 16) & 0xff);
-            StrPushBack(o, (x >> 8) & 0xff);
-            StrPushBack(o, (x & 0xff));
-            break;
+            return StrPushBack(o, ((x >> 24) & 0xff)) && StrPushBack(o, (x >> 16) & 0xff) &&
+                   StrPushBack(o, (x >> 8) & 0xff) && StrPushBack(o, (x & 0xff));
         }
         case ENDIAN_LITTLE : {
-            StrPushBack(o, (x & 0xff));
-            StrPushBack(o, (x >> 8) & 0xff);
-            StrPushBack(o, (x >> 16) & 0xff);
-            StrPushBack(o, ((x >> 24) & 0xff));
-            break;
+            return StrPushBack(o, (x & 0xff)) && StrPushBack(o, (x >> 8) & 0xff) &&
+                   StrPushBack(o, (x >> 16) & 0xff) && StrPushBack(o, ((x >> 24) & 0xff));
         }
         case ENDIAN_NATIVE :
         default : {
             LOG_FATAL("Invalid endianness provided. Unexpected code reached.");
+            return false;
         }
     }
 }
 
 
-static void _write_r64(Str *o, FmtInfo *fmt_info, u64 *v) {
+static bool _write_r64(Str *o, FmtInfo *fmt_info, u64 *v) {
     if (!o || !fmt_info || !v) {
         LOG_FATAL("Invalid arguments");
+        return false;
     }
 
     // if native endianness provided, then deduce endianness and set correspondingly
@@ -3097,30 +3366,21 @@ static void _write_r64(Str *o, FmtInfo *fmt_info, u64 *v) {
     u64 x = *v;
     switch (fmt_info->endian) {
         case ENDIAN_BIG : {
-            StrPushBack(o, ((x >> 56) & 0xff));
-            StrPushBack(o, (x >> 48) & 0xff);
-            StrPushBack(o, (x >> 40) & 0xff);
-            StrPushBack(o, (x >> 32) & 0xff);
-            StrPushBack(o, (x >> 24) & 0xff);
-            StrPushBack(o, (x >> 16) & 0xff);
-            StrPushBack(o, (x >> 8) & 0xff);
-            StrPushBack(o, (x & 0xff));
-            break;
+            return StrPushBack(o, ((x >> 56) & 0xff)) && StrPushBack(o, (x >> 48) & 0xff) &&
+                   StrPushBack(o, (x >> 40) & 0xff) && StrPushBack(o, (x >> 32) & 0xff) &&
+                   StrPushBack(o, (x >> 24) & 0xff) && StrPushBack(o, (x >> 16) & 0xff) &&
+                   StrPushBack(o, (x >> 8) & 0xff) && StrPushBack(o, (x & 0xff));
         }
         case ENDIAN_LITTLE : {
-            StrPushBack(o, (x & 0xff));
-            StrPushBack(o, (x >> 8) & 0xff);
-            StrPushBack(o, (x >> 16) & 0xff);
-            StrPushBack(o, (x >> 24) & 0xff);
-            StrPushBack(o, (x >> 32) & 0xff);
-            StrPushBack(o, (x >> 40) & 0xff);
-            StrPushBack(o, (x >> 48) & 0xff);
-            StrPushBack(o, ((x >> 56) & 0xff));
-            break;
+            return StrPushBack(o, (x & 0xff)) && StrPushBack(o, (x >> 8) & 0xff) &&
+                   StrPushBack(o, (x >> 16) & 0xff) && StrPushBack(o, (x >> 24) & 0xff) &&
+                   StrPushBack(o, (x >> 32) & 0xff) && StrPushBack(o, (x >> 40) & 0xff) &&
+                   StrPushBack(o, (x >> 48) & 0xff) && StrPushBack(o, ((x >> 56) & 0xff));
         }
         case ENDIAN_NATIVE :
         default : {
             LOG_FATAL("Invalid endianness provided. Unexpected code reached.");
+            return false;
         }
     }
 }

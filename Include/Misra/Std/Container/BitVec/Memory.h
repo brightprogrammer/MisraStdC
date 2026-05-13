@@ -58,6 +58,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Memory, Clone, Copy
     ///
+    bool BitVecTryClone(BitVec *out, BitVec *bv);
     BitVec BitVecClone(BitVec *bv);
 
 #ifdef __cplusplus

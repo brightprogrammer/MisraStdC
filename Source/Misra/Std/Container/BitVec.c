@@ -185,25 +185,40 @@ void BitVecSwap(BitVec *bv1, BitVec *bv2) {
     bv2->byte_size     = temp_byte_size;
 }
 
-BitVec BitVecClone(BitVec *bv) {
+bool BitVecTryClone(BitVec *out, BitVec *bv) {
     ValidateBitVec(bv);
+    if (!out) {
+        LOG_ERROR("Invalid arguments");
+        return false;
+    }
 
-    BitVec clone = BitVecInit(bv->allocator);
+    *out = BitVecInit(bv->allocator);
     if (bv->length == 0) {
-        return clone;
+        return true;
     }
 
     // Reserve space for the clone
-    if (!BitVecReserve(&clone, bv->length) || !BitVecResize(&clone, bv->length)) {
-        return clone;
+    if (!BitVecReserve(out, bv->length) || !BitVecResize(out, bv->length)) {
+        BitVecDeinit(out);
+        *out = BitVecInit(bv->allocator);
+        return false;
     }
 
     // Copy all bits
     for (u64 i = 0; i < bv->length; i++) {
         bool bit = BitVecGet(bv, i);
-        BitVecSet(&clone, i, bit);
+        BitVecSet(out, i, bit);
     }
 
+    return true;
+}
+
+BitVec BitVecClone(BitVec *bv) {
+    BitVec clone;
+
+    ValidateBitVec(bv);
+    clone = BitVecInit(bv->allocator);
+    (void)BitVecTryClone(&clone, bv);
     return clone;
 }
 

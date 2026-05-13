@@ -16,13 +16,17 @@
 
 static void float_normalize(Float *value);
 static void float_replace(Float *dst, Float *src);
-static Int  float_pow10(u64 power);
-static void float_scale_to_exponent(Float *value, i64 target_exponent);
+static bool float_try_int_from_u64(Int *out, u64 value, Allocator alloc);
+static bool float_try_from_u64_value(Float *out, u64 value, Allocator alloc);
+static bool float_try_from_i64_value(Float *out, i64 value, Allocator alloc);
+static bool float_try_from_int_value(Float *out, Int *value);
+static bool float_try_from_f32_value(Float *out, float value, Allocator alloc);
+static bool float_try_from_f64_value(Float *out, double value, Allocator alloc);
+static bool float_pow10(Int *out, u64 power, Allocator alloc);
+static bool float_scale_to_exponent(Float *value, i64 target_exponent);
 static int  float_abs_compare(Float *lhs, Float *rhs);
 static i64  float_add_i64_checked(i64 a, i64 b);
 static i64  float_sub_i64_checked(i64 a, i64 b);
-static Float float_from_f32_value(float value);
-static Float float_from_f64_value(double value);
 
 static i64 float_add_i64_checked(i64 a, i64 b) {
     if ((b > 0 && a > INT64_MAX - b) || (b < 0 && a < INT64_MIN - b)) {
@@ -40,36 +44,38 @@ static i64 float_sub_i64_checked(i64 a, i64 b) {
     return a - b;
 }
 
-static Float float_from_f32_value(float value) {
-    Float result   = FloatInit();
+static bool float_try_from_f32_value(Float *out, float value, Allocator alloc) {
     char  text[32] = {0};
     int   len      = snprintf(text, sizeof(text), "%.9g", (double)value);
+
+    if (!out) {
+        LOG_ERROR("Invalid arguments");
+        return false;
+    }
 
     if (len < 0 || len >= (int)sizeof(text)) {
         LOG_FATAL("Failed to convert f32 to Float");
     }
 
-    if (!FloatTryFromStr(&result, text)) {
-        LOG_FATAL("Failed to parse f32 conversion result");
-    }
-
-    return result;
+    *out = FloatInit(alloc);
+    return FloatTryFromStr(out, text);
 }
 
-static Float float_from_f64_value(double value) {
-    Float result   = FloatInit();
+static bool float_try_from_f64_value(Float *out, double value, Allocator alloc) {
     char  text[48] = {0};
     int   len      = snprintf(text, sizeof(text), "%.17g", value);
+
+    if (!out) {
+        LOG_ERROR("Invalid arguments");
+        return false;
+    }
 
     if (len < 0 || len >= (int)sizeof(text)) {
         LOG_FATAL("Failed to convert f64 to Float");
     }
 
-    if (!FloatTryFromStr(&result, text)) {
-        LOG_FATAL("Failed to parse f64 conversion result");
-    }
-
-    return result;
+    *out = FloatInit(alloc);
+    return FloatTryFromStr(out, text);
 }
 
 static void float_replace(Float *dst, Float *src) {
@@ -77,41 +83,89 @@ static void float_replace(Float *dst, Float *src) {
     *dst = *src;
 }
 
-static Int float_pow10(u64 power) {
-    Int base   = IntFromU64(10);
-    Int result = IntFromU64(1);
+static bool float_try_int_from_u64(Int *out, u64 value, Allocator alloc) {
+    u64 bits = 0;
 
-    IntPowU64(&result, &base, power);
-    IntDeinit(&base);
-    return result;
+    if (!out) {
+        LOG_ERROR("Invalid arguments");
+        return false;
+    }
+
+    *out = IntInit(alloc);
+    if (value == 0) {
+        return true;
+    }
+
+    for (u64 remaining = value; remaining != 0; remaining >>= 1) {
+        bits++;
+    }
+
+    if (!BitVecTryFromIntegerWithAllocator(&out->bits, value, bits, alloc)) {
+        IntDeinit(out);
+        *out = IntInit(alloc);
+        return false;
+    }
+
+    return true;
 }
 
-static void float_scale_to_exponent(Float *value, i64 target_exponent) {
+static bool float_pow10(Int *out, u64 power, Allocator alloc) {
+    Int base;
+    Int result;
+
+    if (!out) {
+        LOG_ERROR("Invalid arguments");
+        return false;
+    }
+    if (!float_try_int_from_u64(&base, 10, alloc) || !float_try_int_from_u64(&result, 1, alloc)) {
+        IntDeinit(&base);
+        IntDeinit(&result);
+        return false;
+    }
+
+    if (!IntPowU64(&result, &base, power)) {
+        IntDeinit(&base);
+        IntDeinit(&result);
+        return false;
+    }
+    IntDeinit(&base);
+    *out = result;
+    return true;
+}
+
+static bool float_scale_to_exponent(Float *value, i64 target_exponent) {
     ValidateFloat(value);
 
     if (FloatIsZero(value)) {
         value->exponent = target_exponent;
-        return;
+        return true;
     }
     if (target_exponent > value->exponent) {
         LOG_FATAL("target exponent must not exceed current exponent");
     }
     if (target_exponent == value->exponent) {
-        return;
+        return true;
     }
 
     {
         u64 places = (u64)(value->exponent - target_exponent);
-        Int factor = float_pow10(places);
-        Int scaled = IntInit();
+        Int factor = IntInit(value->significand.bits.allocator);
+        Int scaled = IntInit(value->significand.bits.allocator);
 
-        IntMul(&scaled, &value->significand, &factor);
+        if (!float_pow10(&factor, places, value->significand.bits.allocator) ||
+            !IntMul(&scaled, &value->significand, &factor)) {
+            IntDeinit(&factor);
+            IntDeinit(&scaled);
+            return false;
+        }
         IntDeinit(&factor);
         IntDeinit(&value->significand);
 
         value->significand = scaled;
         value->exponent    = target_exponent;
     }
+
+    return true;
 }
 
 static int float_abs_compare(Float *lhs, Float *rhs) {
@@ -173,26 +227,56 @@ i64 FloatExponent(Float *value) {
 }
 
 Float FloatClone(Float *value) {
-    Float clone = FloatInit();
+    Float clone;
 
     ValidateFloat(value);
-    clone.negative    = value->negative;
-    clone.exponent    = value->exponent;
-    clone.significand = IntClone(&value->significand);
+    clone = FloatInit(value->significand.bits.allocator);
+    (void)FloatTryClone(&clone, value);
     return clone;
 }
 
-Float FloatFromU64(u64 value) {
-    Float result = FloatInit();
+bool FloatTryClone(Float *out, Float *value) {
+    if (!out || !value) {
+        LOG_ERROR("Invalid arguments");
+        return false;
+    }
 
-    result.significand = IntFromU64(value);
-    float_normalize(&result);
-    return result;
+    ValidateFloat(value);
+    *out = FloatInit(value->significand.bits.allocator);
+    out->negative = value->negative;
+    out->exponent = value->exponent;
+    if (!IntTryClone(&out->significand, &value->significand)) {
+        FloatDeinit(out);
+        *out = FloatInit(value->significand.bits.allocator);
+        return false;
+    }
+
+    return true;
 }
 
-Float FloatFromI64(i64 value) {
-    Float result    = FloatInit();
-    u64   magnitude = 0;
+static bool float_try_from_u64_value(Float *out, u64 value, Allocator alloc) {
+    if (!out) {
+        LOG_ERROR("Invalid arguments");
+        return false;
+    }
+
+    *out = FloatInit(alloc);
+    if (!float_try_int_from_u64(&out->significand, value, alloc)) {
+        FloatDeinit(out);
+        *out = FloatInit(alloc);
+        return false;
+    }
+
+    return true;
+}
+
+static bool float_try_from_i64_value(Float *out, i64 value, Allocator alloc) {
+    u64 magnitude = 0;
+
+    if (!out) {
+        LOG_ERROR("Invalid arguments");
+        return false;
+    }
 
     if (value < 0) {
         magnitude = (u64)(-(value + 1)) + 1;
@@ -200,27 +284,70 @@ Float FloatFromI64(i64 value) {
         magnitude = (u64)value;
     }
 
-    result.significand = IntFromU64(magnitude);
-    result.negative    = value < 0 && magnitude != 0;
+    if (!float_try_from_u64_value(out, magnitude, alloc)) {
+        return false;
+    }
+
+    out->negative = value < 0 && magnitude != 0;
+    return true;
+}
+
+static bool float_try_from_int_value(Float *out, Int *value) {
+    if (!out || !value) {
+        LOG_ERROR("Invalid arguments");
+        return false;
+    }
+
+    ValidateInt(value);
+    *out = FloatInit(value->bits.allocator);
+    if (!IntTryClone(&out->significand, value)) {
+        FloatDeinit(out);
+        *out = FloatInit(value->bits.allocator);
+        return false;
+    }
+
+    return true;
+}
+
+Float FloatFromU64(u64 value) {
+    Float result;
+
+    result = FloatInit(DefaultAllocator());
+    (void)float_try_from_u64_value(&result, value, DefaultAllocator());
+    float_normalize(&result);
+    return result;
+}
+
+Float FloatFromI64(i64 value) {
+    Float result = FloatInit(DefaultAllocator());
+
+    (void)float_try_from_i64_value(&result, value, DefaultAllocator());
     float_normalize(&result);
     return result;
 }
 
 Float FloatFromInt(Int *value) {
-    Float result = FloatInit();
+    Float result;
 
     ValidateInt(value);
-    result.significand = IntClone(value);
+    result = FloatInit(value->bits.allocator);
+    (void)float_try_from_int_value(&result, value);
     float_normalize(&result);
     return result;
 }
 
 Float FloatFromF32(float value) {
-    return float_from_f32_value(value);
+    Float result = FloatInit(DefaultAllocator());
+
+    (void)float_try_from_f32_value(&result, value, DefaultAllocator());
+    return result;
 }
 
 Float FloatFromF64(double value) {
-    return float_from_f64_value(value);
+    Float result = FloatInit(DefaultAllocator());
+
+    (void)float_try_from_f64_value(&result, value, DefaultAllocator());
+    return result;
 }
 
 bool FloatToInt(Int *result, Float *value) {
@@ -241,11 +368,15 @@ bool FloatToInt(Int *result, Float *value) {
     }
 
     if (value->exponent >= 0) {
-        Int factor = IntInit();
+        Int factor = IntInit(value->significand.bits.allocator);
 
-        temp = IntClone(&value->significand);
-        factor = float_pow10((u64)value->exponent);
-        IntMul(&temp, &temp, &factor);
+        if (!IntTryClone(&temp, &value->significand) ||
+            !float_pow10(&factor, (u64)value->exponent, value->significand.bits.allocator) ||
+            !IntMul(&temp, &temp, &factor)) {
+            IntDeinit(&factor);
+            IntDeinit(&temp);
+            return false;
+        }
 
         IntDeinit(&factor);
         IntDeinit(result);
@@ -255,9 +386,14 @@ bool FloatToInt(Int *result, Float *value) {
 
     {
         u64  places = (u64)(-value->exponent);
-        Int  factor = float_pow10(places);
-        bool ok     = IntDivExact(&temp, &value->significand, &factor);
+        Int  factor = IntInit(value->significand.bits.allocator);
+        bool ok     = false;
 
+        if (!float_pow10(&factor, places, value->significand.bits.allocator)) {
+            IntDeinit(&factor);
+            return false;
+        }
+        ok = IntDivExact(&temp, &value->significand, &factor);
         IntDeinit(&factor);
         if (!ok) {
             IntDeinit(&temp);
@@ -271,8 +407,8 @@ bool FloatToInt(Int *result, Float *value) {
 }
 
 bool FloatTryFromStr(Float *out, const char *text) {
-    Float result       = FloatInit();
-    Str   digits       = StrInit();
+    Float result;
+    Str   digits;
     size  pos          = 0;
     bool  negative     = false;
     bool  saw_digit    = false;
@@ -286,6 +422,8 @@ bool FloatTryFromStr(Float *out, const char *text) {
     }
 
     ValidateFloat(out);
+    result = FloatInit(out->significand.bits.allocator);
+    digits = StrInit(out->significand.bits.allocator);
 
     if (text[pos] == '+' || text[pos] == '-') {
         negative = text[pos] == '-';
@@ -296,7 +434,9 @@ bool FloatTryFromStr(Float *out, const char *text) {
         char ch = text[pos];
 
         if (ch >= '0' && ch <= '9') {
-            StrPushBack(&digits, ch);
+            if (!StrPushBack(&digits, ch)) {
+                goto fail;
+            }
             saw_digit = true;
             if (saw_decimal) {
                 if (fractional == INT64_MAX) {
@@ -380,53 +520,104 @@ Float FloatFromStr(const char *text) {
     return result;
 }
 
-Str FloatToStr(Float *value) {
-    Str digits = StrInit();
-    Str result = StrInit();
+bool FloatTryToStrWithAllocator(Str *out, Float *value, Allocator alloc) {
+    Str digits;
+    Str result;
 
     ValidateFloat(value);
-
-    if (FloatIsZero(value)) {
-        return StrInitFromZstr("0");
+    if (!out) {
+        LOG_ERROR("Invalid arguments");
+        return false;
     }
 
-    digits = IntToStr(&value->significand);
+    *out = StrInit(alloc);
+
+    if (FloatIsZero(value)) {
+        return StrPushBack(out, '0');
+    }
+
+    if (!IntTryToStrWithAllocator(&digits, &value->significand, alloc)) {
+        return false;
+    }
+
+    result = StrInit(alloc);
 
     if (value->negative) {
-        StrPushBack(&result, '-');
+        if (!StrPushBack(&result, '-')) {
+            goto fail;
+        }
     }
 
     if (value->exponent >= 0) {
-        StrMerge(&result, &digits);
+        if (!StrMerge(&result, &digits)) {
+            goto fail;
+        }
 
         for (i64 i = 0; i < value->exponent; i++) {
-            StrPushBack(&result, '0');
+            if (!StrPushBack(&result, '0')) {
+                goto fail;
+            }
         }
     } else {
         i64 split = (i64)digits.length + value->exponent;
 
         if (split > 0) {
             for (i64 i = 0; i < split; i++) {
-                StrPushBack(&result, digits.data[i]);
+                if (!StrPushBack(&result, digits.data[i])) {
+                    goto fail;
+                }
             }
 
-            StrPushBack(&result, '.');
+            if (!StrPushBack(&result, '.')) {
+                goto fail;
+            }
 
             for (u64 i = (u64)split; i < digits.length; i++) {
-                StrPushBack(&result, digits.data[i]);
+                if (!StrPushBack(&result, digits.data[i])) {
+                    goto fail;
+                }
             }
         } else {
-            StrPushBackZstr(&result, "0.");
-
-            for (i64 i = 0; i < -split; i++) {
-                StrPushBack(&result, '0');
+            if (!StrPushBackZstr(&result, "0.")) {
+                goto fail;
             }
 
-            StrMerge(&result, &digits);
+            for (i64 i = 0; i < -split; i++) {
+                if (!StrPushBack(&result, '0')) {
+                    goto fail;
+                }
+            }
+
+            if (!StrMerge(&result, &digits)) {
+                goto fail;
+            }
         }
     }
 
     StrDeinit(&digits);
+    *out = result;
+    return true;
+
+fail:
+    StrDeinit(&digits);
+    StrDeinit(&result);
+    return false;
+}
+
+bool FloatTryToStr(Str *out, Float *value) {
+    ValidateFloat(value);
+    return FloatTryToStrWithAllocator(out, value, value->significand.bits.allocator);
+}
+
+Str FloatToStr(Float *value) {
+    Str result;
+
+    ValidateFloat(value);
+
+    if (!FloatTryToStr(&result, value)) {
+        result = StrInit(value->significand.bits.allocator);
+    }
+
     return result;
 }
 
@@ -472,7 +663,7 @@ int FloatCompareI64(Float *lhs, i64 rhs) {
 }
 
 int FloatCompareF32(Float *lhs, float rhs) {
-    Float rhs_value = float_from_f32_value(rhs);
+    Float rhs_value = FloatFromF32(rhs);
     int   cmp       = FloatCompare(lhs, &rhs_value);
 
     FloatDeinit(&rhs_value);
@@ -480,7 +671,7 @@ int FloatCompareF32(Float *lhs, float rhs) {
 }
 
 int FloatCompareF64(Float *lhs, double rhs) {
-    Float rhs_value = float_from_f64_value(rhs);
+    Float rhs_value = FloatFromF64(rhs);
     int   cmp       = FloatCompare(lhs, &rhs_value);
 
     FloatDeinit(&rhs_value);
@@ -500,33 +691,62 @@ void FloatAbs(Float *value) {
     value->negative = false;
 }
 
-void(FloatAdd)(Float *result, Float *a, Float *b) {
-    Float lhs  = FloatClone(a);
-    Float rhs  = FloatClone(b);
-    Float temp = FloatInit();
+bool(FloatAdd)(Float *result, Float *a, Float *b) {
+    Float lhs;
+    Float rhs;
+    Float temp;
     i64   exp  = 0;
 
     ValidateFloat(result);
     ValidateFloat(a);
     ValidateFloat(b);
+    lhs  = FloatInit(a->significand.bits.allocator);
+    rhs  = FloatInit(b->significand.bits.allocator);
+    temp = FloatInit(result->significand.bits.allocator);
+
+    if (!FloatTryClone(&lhs, a) || !FloatTryClone(&rhs, b)) {
+        FloatDeinit(&lhs);
+        FloatDeinit(&rhs);
+        FloatDeinit(&temp);
+        return false;
+    }
 
     exp = lhs.exponent < rhs.exponent ? lhs.exponent : rhs.exponent;
-    float_scale_to_exponent(&lhs, exp);
-    float_scale_to_exponent(&rhs, exp);
+    if (!float_scale_to_exponent(&lhs, exp) || !float_scale_to_exponent(&rhs, exp)) {
+        FloatDeinit(&lhs);
+        FloatDeinit(&rhs);
+        FloatDeinit(&temp);
+        return false;
+    }
 
     temp.exponent = exp;
 
     if (lhs.negative == rhs.negative) {
-        IntAdd(&temp.significand, &lhs.significand, &rhs.significand);
+        if (!IntAdd(&temp.significand, &lhs.significand, &rhs.significand)) {
+            FloatDeinit(&lhs);
+            FloatDeinit(&rhs);
+            FloatDeinit(&temp);
+            return false;
+        }
         temp.negative = lhs.negative;
     } else {
         int cmp = IntCompare(&lhs.significand, &rhs.significand);
 
         if (cmp > 0) {
-            (void)IntSub(&temp.significand, &lhs.significand, &rhs.significand);
+            if (!IntSub(&temp.significand, &lhs.significand, &rhs.significand)) {
+                FloatDeinit(&lhs);
+                FloatDeinit(&rhs);
+                FloatDeinit(&temp);
+                return false;
+            }
             temp.negative = lhs.negative;
         } else if (cmp < 0) {
-            (void)IntSub(&temp.significand, &rhs.significand, &lhs.significand);
+            if (!IntSub(&temp.significand, &rhs.significand, &lhs.significand)) {
+                FloatDeinit(&lhs);
+                FloatDeinit(&rhs);
+                FloatDeinit(&temp);
+                return false;
+            }
             temp.negative = rhs.negative;
         } else {
             FloatClear(&temp);
@@ -537,144 +757,213 @@ void(FloatAdd)(Float *result, Float *a, Float *b) {
     FloatDeinit(&lhs);
     FloatDeinit(&rhs);
     float_replace(result, &temp);
+    return true;
 }
 
-void FloatAddInt(Float *result, Float *a, Int *b) {
-    Float rhs = FloatFromInt(b);
+bool FloatAddInt(Float *result, Float *a, Int *b) {
+    Float rhs = FloatInit(result->significand.bits.allocator);
 
-    FloatAdd(result, a, &rhs);
+    if (!float_try_from_int_value(&rhs, b)) {
+        return false;
+    }
+    bool ok = FloatAdd(result, a, &rhs);
     FloatDeinit(&rhs);
+    return ok;
 }
 
-void FloatAddU64(Float *result, Float *a, u64 b) {
-    Float rhs = FloatFromU64(b);
+bool FloatAddU64(Float *result, Float *a, u64 b) {
+    Float rhs = FloatInit(result->significand.bits.allocator);
 
-    FloatAdd(result, a, &rhs);
+    if (!float_try_from_u64_value(&rhs, b, result->significand.bits.allocator)) {
+        return false;
+    }
+    bool ok = FloatAdd(result, a, &rhs);
     FloatDeinit(&rhs);
+    return ok;
 }
 
-void FloatAddI64(Float *result, Float *a, i64 b) {
-    Float rhs = FloatFromI64(b);
+bool FloatAddI64(Float *result, Float *a, i64 b) {
+    Float rhs = FloatInit(result->significand.bits.allocator);
 
-    FloatAdd(result, a, &rhs);
+    if (!float_try_from_i64_value(&rhs, b, result->significand.bits.allocator)) {
+        return false;
+    }
+    bool ok = FloatAdd(result, a, &rhs);
     FloatDeinit(&rhs);
+    return ok;
 }
 
-void FloatAddF32(Float *result, Float *a, float b) {
-    Float rhs = float_from_f32_value(b);
+bool FloatAddF32(Float *result, Float *a, float b) {
+    Float rhs = FloatInit(result->significand.bits.allocator);
 
-    FloatAdd(result, a, &rhs);
+    if (!float_try_from_f32_value(&rhs, b, result->significand.bits.allocator)) {
+        return false;
+    }
+    bool ok = FloatAdd(result, a, &rhs);
     FloatDeinit(&rhs);
+    return ok;
 }
 
-void FloatAddF64(Float *result, Float *a, double b) {
-    Float rhs = float_from_f64_value(b);
+bool FloatAddF64(Float *result, Float *a, double b) {
+    Float rhs = FloatInit(result->significand.bits.allocator);
 
-    FloatAdd(result, a, &rhs);
+    if (!float_try_from_f64_value(&rhs, b, result->significand.bits.allocator)) {
+        return false;
+    }
+    bool ok = FloatAdd(result, a, &rhs);
     FloatDeinit(&rhs);
+    return ok;
 }
 
-void(FloatSub)(Float *result, Float *a, Float *b) {
-    Float rhs = FloatClone(b);
+bool(FloatSub)(Float *result, Float *a, Float *b) {
+    Float rhs = FloatInit(b->significand.bits.allocator);
 
     ValidateFloat(result);
     ValidateFloat(a);
     ValidateFloat(b);
 
+    if (!FloatTryClone(&rhs, b)) {
+        return false;
+    }
     FloatNegate(&rhs);
-    FloatAdd(result, a, &rhs);
+    bool ok = FloatAdd(result, a, &rhs);
     FloatDeinit(&rhs);
+    return ok;
 }
 
-void FloatSubInt(Float *result, Float *a, Int *b) {
-    Float rhs = FloatFromInt(b);
+bool FloatSubInt(Float *result, Float *a, Int *b) {
+    Float rhs = FloatInit(result->significand.bits.allocator);
 
-    FloatSub(result, a, &rhs);
+    if (!float_try_from_int_value(&rhs, b)) {
+        return false;
+    }
+    bool ok = FloatSub(result, a, &rhs);
     FloatDeinit(&rhs);
+    return ok;
 }
 
-void FloatSubU64(Float *result, Float *a, u64 b) {
-    Float rhs = FloatFromU64(b);
+bool FloatSubU64(Float *result, Float *a, u64 b) {
+    Float rhs = FloatInit(result->significand.bits.allocator);
 
-    FloatSub(result, a, &rhs);
+    if (!float_try_from_u64_value(&rhs, b, result->significand.bits.allocator)) {
+        return false;
+    }
+    bool ok = FloatSub(result, a, &rhs);
     FloatDeinit(&rhs);
+    return ok;
 }
 
-void FloatSubI64(Float *result, Float *a, i64 b) {
-    Float rhs = FloatFromI64(b);
+bool FloatSubI64(Float *result, Float *a, i64 b) {
+    Float rhs = FloatInit(result->significand.bits.allocator);
 
-    FloatSub(result, a, &rhs);
+    if (!float_try_from_i64_value(&rhs, b, result->significand.bits.allocator)) {
+        return false;
+    }
+    bool ok = FloatSub(result, a, &rhs);
     FloatDeinit(&rhs);
+    return ok;
 }
 
-void FloatSubF32(Float *result, Float *a, float b) {
-    Float rhs = float_from_f32_value(b);
+bool FloatSubF32(Float *result, Float *a, float b) {
+    Float rhs = FloatInit(result->significand.bits.allocator);
 
-    FloatSub(result, a, &rhs);
+    if (!float_try_from_f32_value(&rhs, b, result->significand.bits.allocator)) {
+        return false;
+    }
+    bool ok = FloatSub(result, a, &rhs);
     FloatDeinit(&rhs);
+    return ok;
 }
 
-void FloatSubF64(Float *result, Float *a, double b) {
-    Float rhs = float_from_f64_value(b);
+bool FloatSubF64(Float *result, Float *a, double b) {
+    Float rhs = FloatInit(result->significand.bits.allocator);
 
-    FloatSub(result, a, &rhs);
+    if (!float_try_from_f64_value(&rhs, b, result->significand.bits.allocator)) {
+        return false;
+    }
+    bool ok = FloatSub(result, a, &rhs);
     FloatDeinit(&rhs);
+    return ok;
 }
 
-void(FloatMul)(Float *result, Float *a, Float *b) {
-    Float temp = FloatInit();
+bool(FloatMul)(Float *result, Float *a, Float *b) {
+    Float temp = FloatInit(result->significand.bits.allocator);
 
     ValidateFloat(result);
     ValidateFloat(a);
     ValidateFloat(b);
 
-    IntMul(&temp.significand, &a->significand, &b->significand);
+    if (!IntMul(&temp.significand, &a->significand, &b->significand)) {
+        FloatDeinit(&temp);
+        return false;
+    }
     temp.negative = FloatIsNegative(a) != FloatIsNegative(b);
     temp.exponent = float_add_i64_checked(a->exponent, b->exponent);
 
     float_normalize(&temp);
     float_replace(result, &temp);
+    return true;
 }
 
-void FloatMulInt(Float *result, Float *a, Int *b) {
-    Float rhs = FloatFromInt(b);
+bool FloatMulInt(Float *result, Float *a, Int *b) {
+    Float rhs = FloatInit(result->significand.bits.allocator);
 
-    FloatMul(result, a, &rhs);
+    if (!float_try_from_int_value(&rhs, b)) {
+        return false;
+    }
+    bool ok = FloatMul(result, a, &rhs);
     FloatDeinit(&rhs);
+    return ok;
 }
 
-void FloatMulU64(Float *result, Float *a, u64 b) {
-    Float rhs = FloatFromU64(b);
+bool FloatMulU64(Float *result, Float *a, u64 b) {
+    Float rhs = FloatInit(result->significand.bits.allocator);
 
-    FloatMul(result, a, &rhs);
+    if (!float_try_from_u64_value(&rhs, b, result->significand.bits.allocator)) {
+        return false;
+    }
+    bool ok = FloatMul(result, a, &rhs);
     FloatDeinit(&rhs);
+    return ok;
 }
 
-void FloatMulI64(Float *result, Float *a, i64 b) {
-    Float rhs = FloatFromI64(b);
+bool FloatMulI64(Float *result, Float *a, i64 b) {
+    Float rhs = FloatInit(result->significand.bits.allocator);
 
-    FloatMul(result, a, &rhs);
+    if (!float_try_from_i64_value(&rhs, b, result->significand.bits.allocator)) {
+        return false;
+    }
+    bool ok = FloatMul(result, a, &rhs);
     FloatDeinit(&rhs);
+    return ok;
 }
 
-void FloatMulF32(Float *result, Float *a, float b) {
-    Float rhs = float_from_f32_value(b);
+bool FloatMulF32(Float *result, Float *a, float b) {
+    Float rhs = FloatInit(result->significand.bits.allocator);
 
-    FloatMul(result, a, &rhs);
+    if (!float_try_from_f32_value(&rhs, b, result->significand.bits.allocator)) {
+        return false;
+    }
+    bool ok = FloatMul(result, a, &rhs);
     FloatDeinit(&rhs);
+    return ok;
 }
 
-void FloatMulF64(Float *result, Float *a, double b) {
-    Float rhs = float_from_f64_value(b);
+bool FloatMulF64(Float *result, Float *a, double b) {
+    Float rhs = FloatInit(result->significand.bits.allocator);
 
-    FloatMul(result, a, &rhs);
+    if (!float_try_from_f64_value(&rhs, b, result->significand.bits.allocator)) {
+        return false;
+    }
+    bool ok = FloatMul(result, a, &rhs);
     FloatDeinit(&rhs);
+    return ok;
 }
 
 bool(FloatDiv)(Float *result, Float *a, Float *b, u64 precision) {
-    Float temp   = FloatInit();
-    Int   scale  = IntInit();
-    Int   scaled = IntInit();
+    Float temp   = FloatInit(result->significand.bits.allocator);
+    Int   scale  = IntInit(result->significand.bits.allocator);
+    Int   scaled = IntInit(result->significand.bits.allocator);
 
     ValidateFloat(result);
     ValidateFloat(a);
@@ -692,8 +981,13 @@ bool(FloatDiv)(Float *result, Float *a, Float *b, u64 precision) {
         return true;
     }
 
-    scale = float_pow10(precision);
-    IntMul(&scaled, &a->significand, &scale);
+    if (!float_pow10(&scale, precision, result->significand.bits.allocator) ||
+        !IntMul(&scaled, &a->significand, &scale)) {
+        IntDeinit(&scale);
+        IntDeinit(&scaled);
+        FloatDeinit(&temp);
+        return false;
+    }
     if (!IntDiv(&temp.significand, &scaled, &b->significand)) {
         IntDeinit(&scale);
         IntDeinit(&scaled);
@@ -713,41 +1007,61 @@ bool(FloatDiv)(Float *result, Float *a, Float *b, u64 precision) {
 }
 
 bool FloatDivInt(Float *result, Float *a, Int *b, u64 precision) {
-    Float rhs = FloatFromInt(b);
-    bool  ok  = FloatDiv(result, a, &rhs, precision);
+    Float rhs = FloatInit(result->significand.bits.allocator);
+    bool  ok  = false;
 
+    if (!float_try_from_int_value(&rhs, b)) {
+        return false;
+    }
+    ok = FloatDiv(result, a, &rhs, precision);
     FloatDeinit(&rhs);
     return ok;
 }
 
 bool FloatDivU64(Float *result, Float *a, u64 b, u64 precision) {
-    Float rhs = FloatFromU64(b);
-    bool  ok  = FloatDiv(result, a, &rhs, precision);
+    Float rhs = FloatInit(result->significand.bits.allocator);
+    bool  ok  = false;
 
+    if (!float_try_from_u64_value(&rhs, b, result->significand.bits.allocator)) {
+        return false;
+    }
+    ok = FloatDiv(result, a, &rhs, precision);
     FloatDeinit(&rhs);
     return ok;
 }
 
 bool FloatDivI64(Float *result, Float *a, i64 b, u64 precision) {
-    Float rhs = FloatFromI64(b);
-    bool  ok  = FloatDiv(result, a, &rhs, precision);
+    Float rhs = FloatInit(result->significand.bits.allocator);
+    bool  ok  = false;
 
+    if (!float_try_from_i64_value(&rhs, b, result->significand.bits.allocator)) {
+        return false;
+    }
+    ok = FloatDiv(result, a, &rhs, precision);
     FloatDeinit(&rhs);
     return ok;
 }
 
 bool FloatDivF32(Float *result, Float *a, float b, u64 precision) {
-    Float rhs = float_from_f32_value(b);
-    bool  ok  = FloatDiv(result, a, &rhs, precision);
+    Float rhs = FloatInit(result->significand.bits.allocator);
+    bool  ok  = false;
 
+    if (!float_try_from_f32_value(&rhs, b, result->significand.bits.allocator)) {
+        return false;
+    }
+    ok = FloatDiv(result, a, &rhs, precision);
     FloatDeinit(&rhs);
     return ok;
 }
 
 bool FloatDivF64(Float *result, Float *a, double b, u64 precision) {
-    Float rhs = float_from_f64_value(b);
-    bool  ok  = FloatDiv(result, a, &rhs, precision);
+    Float rhs = FloatInit(result->significand.bits.allocator);
+    bool  ok  = false;
 
+    if (!float_try_from_f64_value(&rhs, b, result->significand.bits.allocator)) {
+        return false;
+    }
+    ok = FloatDiv(result, a, &rhs, precision);
     FloatDeinit(&rhs);
     return ok;
 }

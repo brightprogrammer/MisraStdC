@@ -18,6 +18,15 @@ extern "C" {
 ///
 /// value[in] : Integer to clone
 ///
+/// RETURNS: `true` on success, `false` if cloning fails.
+///
+bool IntTryClone(Int *out, Int *value);
+
+///
+/// Create a deep copy of an integer.
+///
+/// value[in] : Integer to clone
+///
 /// RETURNS: Independent copy of `value`.
 ///
 /// USAGE:

@@ -464,19 +464,29 @@ Str *StrFromU64(Str *str, u64 value, const StrIntFormat *config) {
 
     // Add prefix if requested
     if (config->use_prefix) {
-        StrPushBack(str, '0');
+        if (!StrPushBack(str, '0')) {
+            return NULL;
+        }
         if (config->base == 2) {
-            StrPushBack(str, 'b');
+            if (!StrPushBack(str, 'b')) {
+                return NULL;
+            }
         } else if (config->base == 8) {
-            StrPushBack(str, 'o');
+            if (!StrPushBack(str, 'o')) {
+                return NULL;
+            }
         } else if (config->base == 16) {
-            StrPushBack(str, 'x');
+            if (!StrPushBack(str, 'x')) {
+                return NULL;
+            }
         }
     }
 
     // Convert number to string
     if (value == 0) {
-        StrPushBack(str, '0');
+        if (!StrPushBack(str, '0')) {
+            return NULL;
+        }
     } else {
         char   buffer[65];
         size_t pos = 0;
@@ -488,7 +498,9 @@ Str *StrFromU64(Str *str, u64 value, const StrIntFormat *config) {
 
         // Add digits in correct order
         while (pos > 0) {
-            StrPushBack(str, buffer[--pos]);
+            if (!StrPushBack(str, buffer[--pos])) {
+                return NULL;
+            }
         }
     }
 
@@ -518,12 +530,16 @@ Str *StrFromI64(Str *str, i64 value, const StrIntFormat *config) {
     }
 
     // Use StrFromU64 for the conversion
-    StrFromU64(str, abs_value, config);
+    if (!StrFromU64(str, abs_value, config)) {
+        return NULL;
+    }
 
     // Add sign for negative decimal numbers AFTER conversion
     if (is_negative && config->base == 10) {
         // Insert the negative sign at the beginning
-        StrInsertCharAt(str, '-', 0);
+        if (!StrInsertCharAt(str, '-', 0)) {
+            return NULL;
+        }
     }
 
     return str;
@@ -547,30 +563,42 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
     if (isnan(value)) {
         const char *nan_str = config->uppercase ? "NAN" : "nan";
         for (size_t i = 0; i < 3; i++) {
-            StrPushBack(str, nan_str[i]);
+            if (!StrPushBack(str, nan_str[i])) {
+                return NULL;
+            }
         }
         return str;
     }
 
     if (isinf(value)) {
         if (value < 0) {
-            StrPushBack(str, '-');
+            if (!StrPushBack(str, '-')) {
+                return NULL;
+            }
         } else if (config->always_sign) {
-            StrPushBack(str, '+');
+            if (!StrPushBack(str, '+')) {
+                return NULL;
+            }
         }
         const char *inf_str = config->uppercase ? "INF" : "inf";
         for (size_t i = 0; i < 3; i++) {
-            StrPushBack(str, inf_str[i]);
+            if (!StrPushBack(str, inf_str[i])) {
+                return NULL;
+            }
         }
         return str;
     }
 
     // Handle sign
     if (value < 0) {
-        StrPushBack(str, '-');
+        if (!StrPushBack(str, '-')) {
+            return NULL;
+        }
         value = -value;
     } else if (config->always_sign) {
-        StrPushBack(str, '+');
+        if (!StrPushBack(str, '+')) {
+            return NULL;
+        }
     }
 
     // Simple implementation for now
@@ -594,10 +622,14 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
 
         // Format mantissa with proper rounding
         i64 int_part = (i64)mantissa;
-        StrPushBack(str, '0' + int_part);
+        if (!StrPushBack(str, '0' + int_part)) {
+            return NULL;
+        }
 
         if (config->precision > 0) {
-            StrPushBack(str, '.');
+            if (!StrPushBack(str, '.')) {
+                return NULL;
+            }
             f64 frac_part = mantissa - int_part;
 
             for (u8 i = 0; i < config->precision; i++) {
@@ -605,24 +637,33 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
                 int digit  = (int)(frac_part + 0.5); // Round each digit individually
                 if (digit >= 10)
                     digit = 9;                       // Clamp to prevent overflow
-                StrPushBack(str, '0' + digit);
+                if (!StrPushBack(str, '0' + digit)) {
+                    return NULL;
+                }
                 frac_part -= (int)frac_part;         // Remove the integer part
             }
         }
 
         // Add exponent
-        StrPushBack(str, config->uppercase ? 'E' : 'e');
+        if (!StrPushBack(str, config->uppercase ? 'E' : 'e')) {
+            return NULL;
+        }
         if (exp >= 0) {
-            StrPushBack(str, '+');
+            if (!StrPushBack(str, '+')) {
+                return NULL;
+            }
         } else {
-            StrPushBack(str, '-');
+            if (!StrPushBack(str, '-')) {
+                return NULL;
+            }
             exp = -exp;
         }
 
         // Format exponent digits (always at least 2 digits)
         if (exp == 0) {
-            StrPushBack(str, '0');
-            StrPushBack(str, '0');
+            if (!StrPushBack(str, '0') || !StrPushBack(str, '0')) {
+                return NULL;
+            }
         } else {
             char   exp_buf[8];
             size_t exp_pos = 0;
@@ -635,7 +676,9 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
                 exp_buf[exp_pos++] = '0';
             }
             while (exp_pos > 0) {
-                StrPushBack(str, exp_buf[--exp_pos]);
+                if (!StrPushBack(str, exp_buf[--exp_pos])) {
+                    return NULL;
+                }
             }
         }
     } else {
@@ -644,7 +687,9 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
 
         // Format integer part
         if (int_part == 0) {
-            StrPushBack(str, '0');
+            if (!StrPushBack(str, '0')) {
+                return NULL;
+            }
         } else {
             char   int_buf[32];
             size_t int_pos = 0;
@@ -653,13 +698,17 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
                 int_part           /= 10;
             }
             while (int_pos > 0) {
-                StrPushBack(str, int_buf[--int_pos]);
+                if (!StrPushBack(str, int_buf[--int_pos])) {
+                    return NULL;
+                }
             }
         }
 
         // Format fractional part
         if (config->precision > 0) {
-            StrPushBack(str, '.');
+            if (!StrPushBack(str, '.')) {
+                return NULL;
+            }
 
             // Apply rounding to the entire fractional part first
             f64 scale = 1.0;
@@ -678,7 +727,9 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
                     digit++;
                 }
 
-                StrPushBack(str, '0' + digit);
+                if (!StrPushBack(str, '0' + digit)) {
+                    return NULL;
+                }
                 frac_part -= digit;
             }
         }

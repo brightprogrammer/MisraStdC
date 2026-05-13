@@ -18,6 +18,15 @@ extern "C" {
 ///
 /// value[in] : Float to clone
 ///
+/// RETURNS: `true` on success, `false` if cloning fails.
+///
+bool FloatTryClone(Float *out, Float *value);
+
+///
+/// Create a deep copy of a floating-point value.
+///
+/// value[in] : Float to clone
+///
 /// RETURNS: Independent copy of `value`.
 ///
 /// USAGE:

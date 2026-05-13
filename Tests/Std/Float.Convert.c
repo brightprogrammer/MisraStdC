@@ -13,6 +13,7 @@ bool test_float_to_int_exact(void);
 bool test_float_to_int_fractional_failure(void);
 bool test_float_to_int_negative_failure(void);
 bool test_float_string_round_trip(void);
+bool test_float_try_to_str_allocator_inheritance(void);
 bool test_float_very_large_string_round_trip(void);
 bool test_float_scientific_parse(void);
 bool test_float_from_str_invalid(void);
@@ -119,6 +120,27 @@ bool test_float_string_round_trip(void) {
     return result;
 }
 
+bool test_float_try_to_str_allocator_inheritance(void) {
+    WriteFmt("Testing FloatTryToStr allocator behavior\n");
+
+    Float     value = FloatFromStr("-123.45");
+    Str       text;
+    Allocator alloc = DefaultAllocator();
+    bool      ok;
+
+    alloc.effort      = ALLOCATOR_EFFORT_RETRY;
+    alloc.retry_limit = 5;
+
+    ok = FloatTryToStrWithAllocator(&text, &value, alloc);
+
+    bool result = ok && (strcmp(text.data, "-123.45") == 0) && (text.allocator.effort == alloc.effort) &&
+                  (text.allocator.retry_limit == alloc.retry_limit);
+
+    StrDeinit(&text);
+    FloatDeinit(&value);
+    return result;
+}
+
 bool test_float_very_large_string_round_trip(void) {
     WriteFmt("Testing Float very large string round trip\n");
 
@@ -186,6 +208,7 @@ int main(void) {
         test_float_to_int_fractional_failure,
         test_float_to_int_negative_failure,
         test_float_string_round_trip,
+        test_float_try_to_str_allocator_inheritance,
         test_float_very_large_string_round_trip,
         test_float_scientific_parse,
         test_float_from_str_invalid,

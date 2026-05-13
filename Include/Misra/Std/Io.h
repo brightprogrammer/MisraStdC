@@ -92,7 +92,7 @@ typedef struct {
 ///
 /// TAGS: I/O, Callback, Generic
 ///
-typedef void (*TypeSpecificWriter)(Str *o, FmtInfo *fmt_info, void *data);
+typedef bool (*TypeSpecificWriter)(Str *o, FmtInfo *fmt_info, void *data);
 
 ///
 /// Unified I/O operations container
@@ -218,6 +218,7 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 /// TAGS: Formatting, I/O, String
 ///
 bool StrWriteFmtInternal(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc);
+bool FWriteFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u64 argc, bool append_newline);
 
 ///
 /// Parse input string according to format string with rust-style placeholders,
@@ -302,11 +303,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
     })                                                                                                             \
     )
 #define StrWriteFmt_IMPL2(input, fmtstr, varr)                                                                         \
-    do {                                                                                                               \
-        TypeSpecificIO *argv_ = &(varr)[0];                                                                            \
-        u64             argc_ = sizeof(varr) / sizeof(TypeSpecificIO);                                                 \
-        StrWriteFmtInternal((input), (fmtstr), argv_, argc_ - 1);                                                      \
-    } while (0)
+    StrWriteFmtInternal((input), (fmtstr), &(varr)[0], (sizeof(varr) / sizeof(TypeSpecificIO)) - 1)
 
 ///
 /// Parse input string according to format string with rust-style placeholders,
@@ -424,15 +421,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
     })                                                                                                             \
     )
 #define FWriteFmt_IMPL2(stream, fmtstr, varr)                                                                          \
-    do {                                                                                                               \
-        TypeSpecificIO *argv_ = &(varr)[0];                                                                            \
-        u64             argc_ = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                             \
-        Str             out_  = StrInit();                                                                             \
-        StrWriteFmtInternal(&out_, (fmtstr), argv_, argc_);                                                            \
-        fwrite(out_.data, 1, out_.length, (stream));                                                                   \
-        fflush(stream);                                                                                                \
-        StrDeinit(&out_);                                                                                              \
-    } while (0)
+    FWriteFmtInternal((stream), (fmtstr), &(varr)[0], (sizeof(varr) / sizeof(TypeSpecificIO)) - 1, false)
 
 ///
 /// Write formatted output to a file stream followed by a newline character.
@@ -462,16 +451,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
     })                                                                                                             \
     )
 #define FWriteFmtLn_IMPL2(stream, fmtstr, varr)                                                                        \
-    do {                                                                                                               \
-        TypeSpecificIO *argv_ = &(varr)[0];                                                                            \
-        u64             argc_ = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                             \
-        Str             out_  = StrInit();                                                                             \
-        StrWriteFmtInternal(&out_, (fmtstr), argv_, argc_);                                                            \
-        fwrite(out_.data, 1, out_.length, (stream));                                                                   \
-        fputc('\n', (stream));                                                                                         \
-        fflush(stream);                                                                                                \
-        StrDeinit(&out_);                                                                                              \
-    } while (0)
+    FWriteFmtInternal((stream), (fmtstr), &(varr)[0], (sizeof(varr) / sizeof(TypeSpecificIO)) - 1, true)
 
 ///
 /// Write formatted output to the standard output stream (`stdout`).
@@ -529,22 +509,22 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
 #define ReadFmt(...) FReadFmt(stdin, __VA_ARGS__)
 
 // not for direct use
-void _write_Str(Str *o, FmtInfo *fmt_info, Str *s);
-void _write_u8(Str *o, FmtInfo *fmt_info, u8 *v);
-void _write_u16(Str *o, FmtInfo *fmt_info, u16 *v);
-void _write_u32(Str *o, FmtInfo *fmt_info, u32 *v);
-void _write_u64(Str *o, FmtInfo *fmt_info, u64 *v);
-void _write_i8(Str *o, FmtInfo *fmt_info, i8 *v);
-void _write_i16(Str *o, FmtInfo *fmt_info, i16 *v);
-void _write_i32(Str *o, FmtInfo *fmt_info, i32 *v);
-void _write_i64(Str *o, FmtInfo *fmt_info, i64 *v);
-void _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s);
-void _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s);
-void _write_f32(Str *o, FmtInfo *fmt_info, f32 *v);
-void _write_f64(Str *o, FmtInfo *fmt_info, f64 *v);
-void _write_Float(Str *o, FmtInfo *fmt_info, Float *value);
-void _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv);
-void _write_Int(Str *o, FmtInfo *fmt_info, Int *value);
+bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s);
+bool _write_u8(Str *o, FmtInfo *fmt_info, u8 *v);
+bool _write_u16(Str *o, FmtInfo *fmt_info, u16 *v);
+bool _write_u32(Str *o, FmtInfo *fmt_info, u32 *v);
+bool _write_u64(Str *o, FmtInfo *fmt_info, u64 *v);
+bool _write_i8(Str *o, FmtInfo *fmt_info, i8 *v);
+bool _write_i16(Str *o, FmtInfo *fmt_info, i16 *v);
+bool _write_i32(Str *o, FmtInfo *fmt_info, i32 *v);
+bool _write_i64(Str *o, FmtInfo *fmt_info, i64 *v);
+bool _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s);
+bool _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s);
+bool _write_f32(Str *o, FmtInfo *fmt_info, f32 *v);
+bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v);
+bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value);
+bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv);
+bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value);
 
 const char *_read_Str(const char *i, FmtInfo *fmt_info, Str *s);
 const char *_read_u8(const char *i, FmtInfo *fmt_info, u8 *v);

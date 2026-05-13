@@ -64,6 +64,8 @@ bool FloatTryFromStr(Float *out, const char *text);
 ///
 Float FloatFromStr(const char *text);
 
+bool FloatTryToStrWithAllocator(Str *out, Float *value, Allocator alloc);
+bool FloatTryToStr(Str *out, Float *value);
 Str FloatToStr(Float *value);
 
 #ifdef __cplusplus

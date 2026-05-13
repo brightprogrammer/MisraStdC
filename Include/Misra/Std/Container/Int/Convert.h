@@ -104,6 +104,8 @@ Int IntFromStrRadix(const char *digits, u8 radix);
 ///
 /// Convert an integer to text in the given radix.
 ///
+bool IntTryToStrRadixWithAllocator(Str *out, Int *value, u8 radix, bool uppercase, Allocator alloc);
+bool IntTryToStrRadix(Str *out, Int *value, u8 radix, bool uppercase);
 Str IntToStrRadix(Int *value, u8 radix, bool uppercase);
 
 ///
@@ -122,6 +124,8 @@ Int IntFromStr(const char *decimal);
 ///
 /// Convert an integer to a decimal string.
 ///
+bool IntTryToStrWithAllocator(Str *out, Int *value, Allocator alloc);
+bool IntTryToStr(Str *out, Int *value);
 Str IntToStr(Int *value);
 
 ///

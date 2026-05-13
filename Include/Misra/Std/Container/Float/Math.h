@@ -49,7 +49,7 @@ void FloatAbs(Float *value);
 ///
 /// TAGS: Float, Math, Add
 ///
-void (FloatAdd)(Float *result, Float *a, Float *b);
+bool (FloatAdd)(Float *result, Float *a, Float *b);
 ///
 /// Subtract one float from another.
 ///
@@ -62,7 +62,7 @@ void (FloatAdd)(Float *result, Float *a, Float *b);
 ///
 /// TAGS: Float, Math, Subtract
 ///
-void (FloatSub)(Float *result, Float *a, Float *b);
+bool (FloatSub)(Float *result, Float *a, Float *b);
 ///
 /// Multiply two floats.
 ///
@@ -75,7 +75,7 @@ void (FloatSub)(Float *result, Float *a, Float *b);
 ///
 /// TAGS: Float, Math, Multiply
 ///
-void (FloatMul)(Float *result, Float *a, Float *b);
+bool (FloatMul)(Float *result, Float *a, Float *b);
 ///
 /// Divide one float by another.
 /// The quotient is truncated after scaling by `10^precision`.

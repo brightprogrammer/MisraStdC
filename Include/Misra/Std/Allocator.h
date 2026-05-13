@@ -2,18 +2,15 @@
 /// author    : Generated during allocator refactor
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Allocator configuration and helpers.
+/// Allocator configuration and generic helper functions.
 
 #ifndef MISRA_STD_ALLOCATOR_H
 #define MISRA_STD_ALLOCATOR_H
 
 #include <Misra/Types.h>
 
-#include <stdlib.h>
-#include <string.h>
-
-#if defined(_MSC_VER) || defined(__MSC_VER)
-#    include <malloc.h>
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 typedef enum {
@@ -42,221 +39,115 @@ struct Allocator {
     u32                   flags;
 };
 
-static inline bool allocator_alignment_is_pow2(size alignment) {
-    return alignment != 0 && ((alignment & (alignment - 1)) == 0);
+///
+/// Prepare an allocator for object binding.
+/// Missing allocation callbacks are filled from the default heap allocator and
+/// the runtime `state` pointer is reset so each bound object starts with a fresh
+/// allocator instance state.
+///
+/// alloc[in] : Allocator template to bind
+///
+/// SUCCESS: Returns a bound allocator descriptor.
+/// FAILURE: Function cannot fail.
+///
+/// TAGS: Allocator, Binding, Initialization, Memory
+///
+Allocator AllocatorBind(Allocator alloc);
+
+///
+/// Ensure that an allocator has initialized runtime state.
+/// If the allocator has no `state_init` callback or already has a state object,
+/// this succeeds immediately.
+///
+/// alloc[in,out] : Allocator to prepare for allocation
+///
+/// SUCCESS: Returns `true` when allocator state is ready.
+/// FAILURE: Returns `false` when state initialization fails or `alloc` is NULL.
+///
+/// TAGS: Allocator, State, Initialization, Memory
+///
+bool AllocatorEnsureState(Allocator *alloc);
+
+///
+/// Allocate memory through an allocator.
+/// The allocator effort policy controls how many attempts are made before the
+/// allocation is reported as failed.
+///
+/// alloc[in,out]   : Allocator used for the allocation
+/// bytes[in]       : Number of bytes to allocate
+/// alignment[in]   : Required alignment in bytes
+/// zeroed[in]      : Whether the allocated region must be zero-initialized
+///
+/// SUCCESS: Returns a writable pointer to allocated memory.
+/// FAILURE: Returns NULL when allocation fails or allocator is invalid.
+///
+/// TAGS: Allocator, Memory, Allocation, Runtime
+///
+void *AllocatorAlloc(Allocator *alloc, size bytes, size alignment, bool zeroed);
+
+///
+/// Reallocate memory through an allocator.
+/// The allocator effort policy controls how many attempts are made before the
+/// reallocation is reported as failed.
+///
+/// alloc[in,out]     : Allocator used for the reallocation
+/// ptr[in]           : Existing allocation pointer, or NULL
+/// old_size[in]      : Previous allocation size in bytes
+/// new_size[in]      : Requested new allocation size in bytes
+/// alignment[in]     : Required alignment in bytes
+///
+/// SUCCESS: Returns a pointer to the resized allocation, or NULL when
+///          `new_size` is zero.
+/// FAILURE: Returns NULL when reallocation fails or allocator is invalid.
+///
+/// TAGS: Allocator, Memory, Reallocation, Runtime
+///
+void *AllocatorRealloc(Allocator *alloc, void *ptr, size old_size, size new_size, size alignment);
+
+///
+/// Free memory through an allocator.
+///
+/// alloc[in,out]   : Allocator that owns the allocation
+/// ptr[in]         : Pointer to the allocation, or NULL
+/// bytes[in]       : Allocation size in bytes
+/// alignment[in]   : Allocation alignment in bytes
+///
+/// SUCCESS: Function cannot fail.
+/// FAILURE: No action is taken when `ptr` or `alloc` is invalid.
+///
+/// TAGS: Allocator, Memory, Deallocation, Runtime
+///
+void AllocatorFree(Allocator *alloc, void *ptr, size bytes, size alignment);
+
+///
+/// Release allocator runtime state bound to an object.
+/// This does not free allocations owned by containers; it only tears down the
+/// allocator's internal state object and resets `state` to NULL.
+///
+/// alloc[in,out] : Allocator to unbind
+///
+/// SUCCESS: Function cannot fail.
+/// FAILURE: No action is taken when `alloc` is NULL.
+///
+/// TAGS: Allocator, State, Cleanup, Memory
+///
+void AllocatorUnbind(Allocator *alloc);
+
+#ifdef __cplusplus
 }
-
-static inline void *heap_allocator_raw_allocate(size bytes, size alignment) {
-    if (bytes == 0) {
-        return NULL;
-    }
-
-    if (alignment <= sizeof(void *)) {
-        return malloc(bytes);
-    }
-
-    if (!allocator_alignment_is_pow2(alignment)) {
-        return NULL;
-    }
-
-#if defined(_MSC_VER) || defined(__MSC_VER)
-    return _aligned_malloc(bytes, alignment);
-#else
-    return aligned_alloc(alignment, ALIGN_UP_POW2(bytes, alignment));
 #endif
-}
 
-static inline void heap_allocator_raw_deallocate(void *ptr, size alignment) {
-    if (!ptr) {
-        return;
-    }
+#include <Misra/Std/Allocator/Heap.h>
 
-    if (alignment <= sizeof(void *)) {
-        free(ptr);
-        return;
-    }
-
-#if defined(_MSC_VER) || defined(__MSC_VER)
-    _aligned_free(ptr);
-#else
-    free(ptr);
-#endif
-}
-
-static inline void *heap_allocator_allocate(Allocator *alloc, size bytes, size alignment, bool zeroed) {
-    void *ptr = NULL;
-
-    (void)alloc;
-
-    ptr = heap_allocator_raw_allocate(bytes, alignment);
-    if (ptr && zeroed) {
-        memset(ptr, 0, bytes);
-    }
-
-    return ptr;
-}
-
-static inline void *heap_allocator_reallocate(
-    Allocator *alloc, void *ptr, size old_size, size new_size, size alignment
-) {
-    void *new_ptr = NULL;
-
-    (void)alloc;
-
-    if (new_size == 0) {
-        heap_allocator_raw_deallocate(ptr, alignment);
-        return NULL;
-    }
-
-    if (alignment <= sizeof(void *)) {
-        return realloc(ptr, new_size);
-    }
-
-    new_ptr = heap_allocator_raw_allocate(new_size, alignment);
-    if (!new_ptr) {
-        return NULL;
-    }
-
-    if (ptr) {
-        memcpy(new_ptr, ptr, MIN2(old_size, new_size));
-        heap_allocator_raw_deallocate(ptr, alignment);
-    }
-
-    return new_ptr;
-}
-
-static inline void heap_allocator_deallocate(Allocator *alloc, void *ptr, size bytes, size alignment) {
-    (void)alloc;
-    (void)bytes;
-    heap_allocator_raw_deallocate(ptr, alignment);
-}
-
-static inline Allocator HeapAllocator(void) {
-    return (Allocator) {
-        .state      = NULL,
-        .state_init = NULL,
-        .state_deinit = NULL,
-        .allocate   = heap_allocator_allocate,
-        .reallocate = heap_allocator_reallocate,
-        .deallocate = heap_allocator_deallocate,
-        .effort     = ALLOCATOR_EFFORT_ONCE,
-        .retry_limit = 0,
-        .flags      = 0,
-    };
-}
-
+///
+/// Obtain the library default allocator.
+/// This currently expands to the heap allocator descriptor.
+///
+/// USAGE:
+///   Allocator alloc = DefaultAllocator();
+///
+/// TAGS: Allocator, Macro, Default, Memory
+///
 #define DefaultAllocator() HeapAllocator()
-
-static inline Allocator AllocatorBind(Allocator alloc) {
-    Allocator heap = HeapAllocator();
-
-    if (!alloc.allocate) {
-        alloc.allocate = heap.allocate;
-    }
-    if (!alloc.reallocate) {
-        alloc.reallocate = heap.reallocate;
-    }
-    if (!alloc.deallocate) {
-        alloc.deallocate = heap.deallocate;
-    }
-
-    alloc.state = NULL;
-    return alloc;
-}
-
-static inline bool AllocatorEnsureState(Allocator *alloc) {
-    if (!alloc) {
-        return false;
-    }
-
-    if (!alloc->state_init || alloc->state) {
-        return true;
-    }
-
-    return alloc->state_init(alloc);
-}
-
-static inline size allocator_attempt_limit(const Allocator *alloc) {
-    if (!alloc) {
-        return 1;
-    }
-
-    switch (alloc->effort) {
-        case ALLOCATOR_EFFORT_RETRY:
-        case ALLOCATOR_EFFORT_RETRY_FALLBACK:
-            return alloc->retry_limit ? (size)(alloc->retry_limit + 1) : 2;
-        case ALLOCATOR_EFFORT_ONCE:
-        default:
-            return 1;
-    }
-}
-
-static inline void *AllocatorAlloc(Allocator *alloc, size bytes, size alignment, bool zeroed) {
-    size attempts;
-    size try_idx;
-    void *ptr = NULL;
-
-    if (!alloc || !alloc->allocate) {
-        return NULL;
-    }
-
-    if (!AllocatorEnsureState(alloc)) {
-        return NULL;
-    }
-
-    attempts = allocator_attempt_limit(alloc);
-    for (try_idx = 0; try_idx < attempts; try_idx++) {
-        ptr = alloc->allocate(alloc, bytes, alignment, zeroed);
-        if (ptr) {
-            return ptr;
-        }
-    }
-
-    return NULL;
-}
-
-static inline void *AllocatorRealloc(Allocator *alloc, void *ptr, size old_size, size new_size, size alignment) {
-    size attempts;
-    size try_idx;
-    void *new_ptr = NULL;
-
-    if (!alloc || !alloc->reallocate) {
-        return NULL;
-    }
-
-    if (!AllocatorEnsureState(alloc)) {
-        return NULL;
-    }
-
-    attempts = allocator_attempt_limit(alloc);
-    for (try_idx = 0; try_idx < attempts; try_idx++) {
-        new_ptr = alloc->reallocate(alloc, ptr, old_size, new_size, alignment);
-        if (new_ptr || new_size == 0) {
-            return new_ptr;
-        }
-    }
-
-    return NULL;
-}
-
-static inline void AllocatorFree(Allocator *alloc, void *ptr, size bytes, size alignment) {
-    if (!ptr || !alloc || !alloc->deallocate) {
-        return;
-    }
-
-    alloc->deallocate(alloc, ptr, bytes, alignment);
-}
-
-static inline void AllocatorUnbind(Allocator *alloc) {
-    if (!alloc) {
-        return;
-    }
-
-    if (alloc->state && alloc->state_deinit) {
-        alloc->state_deinit(alloc);
-    }
-
-    alloc->state = NULL;
-}
 
 #endif // MISRA_STD_ALLOCATOR_H
