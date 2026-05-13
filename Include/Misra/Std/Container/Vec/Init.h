@@ -245,8 +245,8 @@
                                                                                                                        \
         {scoped_body}                                                                                                  \
                                                                                                                        \
-        memset(___data___, 0, sizeof(___data___));                                                                     \
-        memset(&(v), 0, sizeof(v));                                                                                    \
+        MemSet(___data___, 0, sizeof(___data___));                                                                     \
+        MemSet(&(v), 0, sizeof(v));                                                                                    \
     } while (0)
 
 ///

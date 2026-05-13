@@ -8,6 +8,7 @@
 #define MISRA_STD_CONTAINER_VEC_PRIVATE_H
 
 #include "Type.h"
+#include <Misra/Std/Memory.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,7 +41,7 @@ extern "C" {
 
     static inline bool vec_zero_source_on_success(GenericVec *vec, void *src, size bytes, bool success) {
         if (success && !vec->copy_init) {
-            memset(src, 0, bytes);
+            MemSet(src, 0, bytes);
         }
 
         return success;

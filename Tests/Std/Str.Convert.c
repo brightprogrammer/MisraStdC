@@ -1,7 +1,7 @@
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
 #include <stdio.h>
-#include <string.h>
 #include <math.h>
 #include <Misra/Types.h>
 
@@ -567,7 +567,7 @@ bool test_str_precision_limits(void) {
         StrFromF64(&s, test_value, &config);
 
         // String should have expected decimal places
-        char *dot_pos = strchr(s.data, '.');
+        char *dot_pos = ZstrFindChar(s.data, '.');
         if (dot_pos) {
             size_t decimal_places = ZstrLen(dot_pos + 1);
             // Allow for trailing zeros being omitted in some cases
@@ -586,14 +586,14 @@ bool test_str_precision_limits(void) {
         // Force scientific notation
         StrFloatFormat config = {.precision = 3, .force_sci = true, .uppercase = false};
         StrFromF64(&s, sci_values[i], &config);
-        bool has_e = (strchr(s.data, 'e') != NULL);
+        bool has_e = (ZstrFindChar(s.data, 'e') != NULL);
         result     = result && has_e;
 
         // Test uppercase E
         StrClear(&s);
         config = (StrFloatFormat) {.precision = 3, .force_sci = true, .uppercase = true};
         StrFromF64(&s, sci_values[i], &config);
-        bool has_E = (strchr(s.data, 'E') != NULL);
+        bool has_E = (ZstrFindChar(s.data, 'E') != NULL);
         result     = result && has_E;
 
         StrDeinit(&s);
@@ -742,7 +742,7 @@ bool test_str_large_scale_conversions(void) {
 
     // Test very long strings
     char long_number[100];
-    strcpy(long_number, "12345678901234567890123456789012345678901234567890");
+    MemCopy(long_number, "12345678901234567890123456789012345678901234567890", 51);
 
     Str  long_str   = StrInitFromZstr(long_number);
     u64  long_value = 0;

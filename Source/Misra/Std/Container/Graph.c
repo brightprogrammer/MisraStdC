@@ -6,6 +6,7 @@
 
 #include <Misra/Std/Container/Graph.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
 #include <Misra/Sys.h>
 
 #include <stddef.h>
@@ -128,7 +129,7 @@ static void graph_free_node_data(GenericGraph *graph, void *data, size item_size
     if (graph->copy_deinit) {
         graph->copy_deinit(data, &graph->allocator);
     } else {
-        memset(data, 0, item_size);
+        MemSet(data, 0, item_size);
     }
 
     AllocatorFree(&graph->allocator, data, item_size, graph_node_data_alignment(graph));
@@ -139,7 +140,7 @@ static bool graph_copy_node_data(GenericGraph *graph, void *dst, const void *src
         return graph->copy_init(dst, src, &graph->allocator);
     }
 
-    memcpy(dst, src, item_size);
+    MemCopy(dst, src, item_size);
     return true;
 }
 
@@ -598,7 +599,7 @@ GraphNodeId graph_push_node_owned(GenericGraph *graph, void *item_data, size ite
     node_id = graph_push_node(graph, item_data, item_size);
 
     if (node_id && !graph->copy_init) {
-        memset(item_data, 0, item_size);
+        MemSet(item_data, 0, item_size);
     }
 
     return node_id;

@@ -6,6 +6,7 @@
 
 #include <Misra/Std/Container/Map.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
 #include <Misra/Sys.h>
 
 #include <stddef.h>
@@ -215,7 +216,7 @@ static void map_deinit_slot(GenericMap *map, size entry_size, size key_offset, s
         map->value_copy_deinit(map_value_ptr(map, entry_size, value_offset, idx), &map->allocator);
     }
 
-    memset(map_entry_ptr(map, entry_size, idx), 0, entry_size);
+    MemSet(map_entry_ptr(map, entry_size, idx), 0, entry_size);
 }
 
 static bool map_copy_into_entry(
@@ -234,18 +235,18 @@ static bool map_copy_into_entry(
     void *dst_key = entry + key_offset;
     void *dst_val = entry + value_offset;
 
-    memset(entry, 0, entry_size);
+    MemSet(entry, 0, entry_size);
 
     if (map->key_copy_init) {
         if (!map->key_copy_init(dst_key, key, &map->allocator)) {
             if (map->key_copy_deinit) {
                 map->key_copy_deinit(dst_key, &map->allocator);
             }
-            memset(entry, 0, entry_size);
+            MemSet(entry, 0, entry_size);
             return false;
         }
     } else {
-        memcpy(dst_key, key, key_size);
+        MemCopy(dst_key, key, key_size);
     }
 
     if (map->value_copy_init) {
@@ -256,11 +257,11 @@ static bool map_copy_into_entry(
             if (map->key_copy_deinit) {
                 map->key_copy_deinit(dst_key, &map->allocator);
             }
-            memset(entry, 0, entry_size);
+            MemSet(entry, 0, entry_size);
             return false;
         }
     } else {
-        memcpy(dst_val, value, value_size);
+        MemCopy(dst_val, value, value_size);
     }
 
     *(u64 *)(void *)(entry + hash_offset) = hash;
@@ -385,7 +386,7 @@ static void map_insert_raw_entry(
         map->tombstones -= 1;
     }
 
-    memcpy(map_entry_ptr(map, entry_size, insert_idx), entry, entry_size);
+    MemCopy(map_entry_ptr(map, entry_size, insert_idx), entry, entry_size);
     map->states[insert_idx]  = MAP_SLOT_OCCUPIED;
     map->length             += 1;
 }
@@ -808,9 +809,9 @@ void *map_get_value_or_default(
 
     value_ptr = map_get_value_ptr(map, key, entry_size, key_offset, key_size, value_offset, hash_offset);
     if (value_ptr) {
-        memcpy(out_value, value_ptr, value_size);
+        MemCopy(out_value, value_ptr, value_size);
     } else {
-        memcpy(out_value, default_value, value_size);
+        MemCopy(out_value, default_value, value_size);
     }
 
     return out_value;
@@ -1061,13 +1062,13 @@ bool map_set_first(
         map->value_copy_deinit(dst_value, &map->allocator);
     }
 
-    memset(dst_value, 0, value_size);
+    MemSet(dst_value, 0, value_size);
 
     if (map->value_copy_init) {
-        memcpy(dst_value, temp_value, value_size);
+        MemCopy(dst_value, temp_value, value_size);
         AllocatorFree(&map->allocator, temp_value, value_size, map_storage_alignment());
     } else {
-        memcpy(dst_value, value, value_size);
+        MemCopy(dst_value, value, value_size);
     }
 
     return true;
@@ -1094,7 +1095,7 @@ static void map_remove_at_index(
         (void)value_size;
     }
 
-    memset(map_entry_ptr(map, entry_size, idx), 0, entry_size);
+    MemSet(map_entry_ptr(map, entry_size, idx), 0, entry_size);
     map->states[idx]  = MAP_SLOT_TOMBSTONE;
     map->length      -= 1;
     map->tombstones  += 1;

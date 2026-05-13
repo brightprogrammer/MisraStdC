@@ -8,6 +8,7 @@
 #define MISRA_STD_CONTAINER_LIST_PRIVATE_H
 
 #include <Misra/Std/Container/List/Type.h>
+#include <Misra/Std/Memory.h>
 
 void             deinit_list(GenericList *list, u64 item_size);
 bool             insert_into_list(GenericList *list, const void *item_data, u64 item_size, u64 idx);
@@ -29,7 +30,7 @@ GenericListNode *get_node_for_list_iteration(GenericList *list, GenericListNode 
 
 static inline bool list_zero_source_on_success(GenericList *list, void *src, u64 bytes, bool success) {
     if (success && !list->copy_init) {
-        memset(src, 0, bytes);
+        MemSet(src, 0, bytes);
     }
 
     return success;

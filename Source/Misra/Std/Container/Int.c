@@ -549,7 +549,7 @@ u64 IntToBytesLE(Int *value, u8 *bytes, u64 max_len) {
         return 0;
     }
 
-    memset(bytes, 0, bytes_to_copy);
+    MemSet(bytes, 0, bytes_to_copy);
 
     for (u64 i = 0; i < bytes_to_copy; i++) {
         u8 byte = 0;
@@ -603,7 +603,7 @@ u64 IntToBytesBE(Int *value, u8 *bytes, u64 max_len) {
         return 0;
     }
 
-    memset(bytes, 0, bytes_to_copy);
+    MemSet(bytes, 0, bytes_to_copy);
 
     for (u64 i = 0; i < bytes_to_copy; i++) {
         u8 byte = 0;

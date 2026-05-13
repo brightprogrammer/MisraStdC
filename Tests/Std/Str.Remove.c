@@ -1,7 +1,7 @@
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
 #include <stdio.h>
-#include <string.h>
 #include <Misra/Types.h>
 
 // Include test utilities
@@ -96,7 +96,7 @@ bool test_str_remove_range(void) {
 
     // Create a buffer to store the removed characters
     char buffer[6];
-    memset(buffer, 0, sizeof(buffer));
+    MemSet(buffer, 0, sizeof(buffer));
 
     // Remove a range of characters
     StrRemoveRange(&s, buffer, 5, 5);

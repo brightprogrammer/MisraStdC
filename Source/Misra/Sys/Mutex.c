@@ -38,7 +38,7 @@ SysMutex *SysMutexCreate(void) {
 #ifdef _WIN32
     InitializeCriticalSection(&m->lock);
 #else
-    memset(&m->lock, 0, sizeof(m->lock));
+    MemSet(&m->lock, 0, sizeof(m->lock));
 #endif
     return m;
 }
@@ -51,7 +51,7 @@ void SysMutexDestroy(SysMutex *m) {
 #else
     pthread_mutex_destroy(&m->lock);
 #endif
-    memset(m, 0, sizeof(SysMutex));
+    MemSet(m, 0, sizeof(SysMutex));
     AllocatorFree(&allocator, m, sizeof(SysMutex), _Alignof(SysMutex));
 }
 

@@ -26,7 +26,7 @@ bool ComplexItemCopyInit(ComplexItem *dst, ComplexItem *src) {
         dst->name     = malloc(name_len + 1);
         if (!dst->name)
             return false;
-        strcpy(dst->name, src->name);
+        MemCopy(dst->name, src->name, name_len + 1);
     } else {
         dst->name = NULL;
     }
@@ -40,7 +40,7 @@ bool ComplexItemCopyInit(ComplexItem *dst, ComplexItem *src) {
             dst->name = NULL;
             return false;
         }
-        memcpy(dst->values, src->values, src->num_values * sizeof(int));
+        MemCopy(dst->values, src->values, src->num_values * sizeof(int));
     } else {
         dst->values = NULL;
     }
@@ -81,7 +81,7 @@ ComplexItem CreateComplexItem(const char *name, int *values, size num_values) {
     if (values && num_values > 0) {
         item.values = malloc(num_values * sizeof(int));
         if (item.values) {
-            memcpy(item.values, values, num_values * sizeof(int));
+            MemCopy(item.values, values, num_values * sizeof(int));
             item.num_values = num_values;
         }
     }

@@ -8,6 +8,7 @@
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
 #include <Misra/Sys.h>
 
 // libc
@@ -79,7 +80,7 @@ void deinit_vec(GenericVec *vec, size item_size) {
                 vec->copy_deinit(vec_ptr_at(vec, i, item_size), &vec->allocator);
             }
         } else {
-            memset(vec->data, 0, aligned_size * (vec->capacity + 1));
+            MemSet(vec->data, 0, aligned_size * (vec->capacity + 1));
         }
 
         AllocatorFree(&vec->allocator, vec->data, aligned_size * (vec->capacity + 1), vec->alignment);
@@ -105,7 +106,7 @@ void clear_vec(GenericVec *vec, size item_size) {
                 vec->copy_deinit(vec_ptr_at(vec, i, item_size), &vec->allocator);
             }
         } else {
-            memset(vec->data, 0, aligned_size * (vec->capacity + 1));
+            MemSet(vec->data, 0, aligned_size * (vec->capacity + 1));
         }
     }
 
@@ -134,7 +135,7 @@ bool reserve_vec(GenericVec *vec, size item_size, size n) {
             return false;
         }
         vec->data = ptr;
-        memset(
+        MemSet(
             ptr + old_capacity * aligned_size,
             0,
             aligned_size * (n + 1 - old_capacity)
@@ -238,7 +239,7 @@ bool insert_range_into_vec(GenericVec *vec, const char *item_data, size item_siz
     }
 
     if (idx < vec->length) {
-        memmove(
+        MemMove(
             vec_ptr_at(vec, idx + count, item_size),
             vec_ptr_at(vec, idx, item_size),
             (vec->length - idx) * aligned_size
@@ -247,34 +248,34 @@ bool insert_range_into_vec(GenericVec *vec, const char *item_data, size item_siz
 
     for (size i = 0; i < count; i++) {
         if (vec->copy_init) {
-            memset(vec_ptr_at(vec, idx + i, item_size), 0, item_size);
+            MemSet(vec_ptr_at(vec, idx + i, item_size), 0, item_size);
             if (!vec->copy_init(vec_ptr_at(vec, idx + i, item_size), item_data + i * item_size, &vec->allocator)) {
                 for (size s = 0; s < inserted_count; s++) {
                     vec->copy_deinit(vec_ptr_at(vec, idx + s, item_size), &vec->allocator);
                 }
 
-                memset(vec_ptr_at(vec, idx, item_size), 0, count * aligned_size);
+                MemSet(vec_ptr_at(vec, idx, item_size), 0, count * aligned_size);
                 if (idx < vec->length) {
-                    memmove(
+                    MemMove(
                         vec_ptr_at(vec, idx, item_size),
                         vec_ptr_at(vec, idx + count, item_size),
                         (vec->length - idx) * aligned_size
                     );
-                    memset(vec_ptr_at(vec, vec->length, item_size), 0, count * aligned_size);
+                    MemSet(vec_ptr_at(vec, vec->length, item_size), 0, count * aligned_size);
                 }
 
                 return false;
             }
             inserted_count++;
         } else {
-            memcpy(vec_ptr_at(vec, idx + i, item_size), item_data + i * item_size, item_size);
+            MemCopy(vec_ptr_at(vec, idx + i, item_size), item_data + i * item_size, item_size);
         }
     }
 
     vec->length += count;
 
     // make sure space just after vector length is memeset to 0
-    memset(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
+    MemSet(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
     return true;
 }
 
@@ -300,7 +301,7 @@ bool insert_range_fast_into_vec(GenericVec *vec, const char *item_data, size ite
     }
 
     if (idx < vec->length) {
-        memmove(
+        MemMove(
             vec_ptr_at(vec, vec->length, item_size),
             vec_ptr_at(vec, idx, item_size),
             aligned_size * count
@@ -309,33 +310,33 @@ bool insert_range_fast_into_vec(GenericVec *vec, const char *item_data, size ite
 
     for (size i = 0; i < count; i++) {
         if (vec->copy_init) {
-            memset(vec_ptr_at(vec, idx + i, item_size), 0, item_size);
+            MemSet(vec_ptr_at(vec, idx + i, item_size), 0, item_size);
             if (!vec->copy_init(vec_ptr_at(vec, idx + i, item_size), item_data + i * item_size, &vec->allocator)) {
                 for (size s = 0; s < inserted_count; s++) {
                     vec->copy_deinit(vec_ptr_at(vec, idx + s, item_size), &vec->allocator);
                 }
 
                 if (idx < vec->length) {
-                    memmove(
+                    MemMove(
                         vec_ptr_at(vec, idx, item_size),
                         vec_ptr_at(vec, vec->length, item_size),
                         aligned_size * count
                     );
                 }
 
-                memset(vec_ptr_at(vec, vec->length, item_size), 0, aligned_size * count);
+                MemSet(vec_ptr_at(vec, vec->length, item_size), 0, aligned_size * count);
                 return false;
             }
             inserted_count++;
         } else {
-            memcpy(vec_ptr_at(vec, idx + i, item_size), item_data + i * item_size, item_size);
+            MemCopy(vec_ptr_at(vec, idx + i, item_size), item_data + i * item_size, item_size);
         }
     }
 
     vec->length += count;
 
     // make sure space just after vector length is memeset to 0
-    memset(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
+    MemSet(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
     return true;
 }
 
@@ -349,7 +350,7 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size 
 
     if (removed_data) {
         // make copy of data if user want's a copy
-        memcpy(removed_data, vec_ptr_at(vec, start, item_size), count * vec_aligned_size(vec, item_size));
+        MemCopy(removed_data, vec_ptr_at(vec, start, item_size), count * vec_aligned_size(vec, item_size));
     } else {
         // if no space provided to copy data over to, just destroy or memset it
         if (vec->copy_deinit) {
@@ -359,12 +360,12 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size 
                 vec_data += vec_aligned_size(vec, item_size);
             }
         } else {
-            memset(vec_ptr_at(vec, start, item_size), 0, count * vec_aligned_size(vec, item_size));
+            MemSet(vec_ptr_at(vec, start, item_size), 0, count * vec_aligned_size(vec, item_size));
         }
     }
 
     // all elements to new created space
-    memmove(
+    MemMove(
         // move to freed up space
         vec_ptr_at(vec, start, item_size),
         // start moving all elements just after the freed up space
@@ -372,12 +373,12 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size 
         // these elements appear after "start + count" index
         (vec->length - start - count) * vec_aligned_size(vec, item_size)
     );
-    memset(vec_ptr_at(vec, (vec->length - count), item_size), 0, count * vec_aligned_size(vec, item_size));
+    MemSet(vec_ptr_at(vec, (vec->length - count), item_size), 0, count * vec_aligned_size(vec, item_size));
 
     vec->length -= count;
 
     // make sure space just after vector length is memeset to 0
-    memset(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
+    MemSet(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
 }
 
 
@@ -390,7 +391,7 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
 
     // Save the data to be removed if requested
     if (removed_data) {
-        memcpy(removed_data, vec_ptr_at(vec, start, item_size), count * vec_aligned_size(vec, item_size));
+        MemCopy(removed_data, vec_ptr_at(vec, start, item_size), count * vec_aligned_size(vec, item_size));
     } else {
         // Otherwise, properly clean up the memory
         if (vec->copy_deinit) {
@@ -400,7 +401,7 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
                 vec_data += vec_aligned_size(vec, item_size);
             }
         } else {
-            memset(vec_ptr_at(vec, start, item_size), 0, count * vec_aligned_size(vec, item_size));
+            MemSet(vec_ptr_at(vec, start, item_size), 0, count * vec_aligned_size(vec, item_size));
         }
     }
 
@@ -415,7 +416,7 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
 
     if (elements_to_move > 0) {
         // Move the last 'elements_to_move' elements to the gap
-        memmove(
+        MemMove(
             // Move to freed up space
             vec_ptr_at(vec, start, item_size),
             // Start from the position that leaves exactly 'elements_to_move' elements
@@ -426,12 +427,12 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
     }
 
     // Clear the remaining elements at the end
-    memset(vec_ptr_at(vec, vec->length - count, item_size), 0, count * vec_aligned_size(vec, item_size));
+    MemSet(vec_ptr_at(vec, vec->length - count, item_size), 0, count * vec_aligned_size(vec, item_size));
 
     vec->length -= count;
 
     // Make sure space just after vector length is memset to 0
-    memset(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
+    MemSet(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
 }
 
 
@@ -515,7 +516,7 @@ bool resize_vec(GenericVec *vec, size item_size, size new_size) {
     }
 
     if (vec->data) {
-        memset(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
+        MemSet(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
     }
 
     return true;

@@ -9,6 +9,10 @@
 #include <Misra/Std/Log.h>
 
 i32 MemCompare(const void *p1, const void *p2, size n) {
+    if (n == 0) {
+        return 0;
+    }
+
     if (!p1 || !p2) {
         LOG_FATAL("Invalid arguments");
     }
@@ -26,6 +30,10 @@ i32 MemCompare(const void *p1, const void *p2, size n) {
 }
 
 void *MemCopy(void *dst, const void *src, size n) {
+    if (n == 0) {
+        return dst;
+    }
+
     if (!dst || !src) {
         LOG_FATAL("Invalid arguments");
     }
@@ -39,6 +47,10 @@ void *MemCopy(void *dst, const void *src, size n) {
 }
 
 void *MemMove(void *dst, const void *src, size n) {
+    if (n == 0) {
+        return dst;
+    }
+
     if (!dst || !src) {
         LOG_FATAL("Invalid arguments");
     }
@@ -60,6 +72,10 @@ void *MemMove(void *dst, const void *src, size n) {
 }
 
 void *MemSet(void *dst, i32 val, size n) {
+    if (n == 0) {
+        return dst;
+    }
+
     if (!dst) {
         LOG_FATAL("Invalid arguments");
     }
@@ -115,6 +131,20 @@ i32 ZstrCompareN(const char *s1, const char *s2, size n) {
 
     // One string ended before the other
     return s1[i] ? 1 : -1;
+}
+
+char *ZstrFindChar(const char *str, char ch) {
+    if (!str) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    do {
+        if (*str == ch) {
+            return (char *)str;
+        }
+    } while (*str++);
+
+    return NULL;
 }
 
 char *ZstrDupNAlloc(const char *src, size n, Allocator alloc) {

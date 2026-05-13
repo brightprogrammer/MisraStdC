@@ -15,6 +15,7 @@ typedef Vec(const char *) Zstrs;
 
 ///
 /// Compare memory regions.
+/// A zero byte count returns 0 without reading either pointer.
 ///
 /// p1[in]  : First memory region.
 /// p2[in]  : Second memory region.
@@ -28,6 +29,7 @@ i32 MemCompare(const void *p1, const void *p2, size n);
 
 ///
 /// Copy memory from source to destination.
+/// A zero byte count returns `dst` without reading either pointer.
 ///
 /// dst[out] : Destination memory region.
 /// src[in]  : Source memory region.
@@ -41,6 +43,7 @@ void *MemCopy(void *dst, const void *src, size n);
 
 ///
 /// Move memory from source to destination, handling overlapping regions.
+/// A zero byte count returns `dst` without reading either pointer.
 ///
 /// dst[out] : Destination memory region.
 /// src[in]  : Source memory region.
@@ -54,6 +57,7 @@ void *MemMove(void *dst, const void *src, size n);
 
 ///
 /// Set memory region to a value.
+/// A zero byte count returns `dst` without writing to it.
 ///
 /// dst[out] : Memory region to set.
 /// val[in]  : Value to set (converted to unsigned char).
@@ -100,6 +104,18 @@ i32 ZstrCompare(const char *s1, const char *s2);
 ///
 /// TAGS: String, Comparison, Safety
 i32 ZstrCompareN(const char *s1, const char *s2, size n);
+
+///
+/// Find the first occurrence of a character in a null-terminated string.
+///
+/// str[in] : String to search in.
+/// ch[in]  : Character to search for.
+///
+/// SUCCESS: Returns pointer to first occurrence or NULL if not found.
+/// FAILURE: Function cannot fail if `str` is valid.
+///
+/// TAGS: String, Search, Safety
+char *ZstrFindChar(const char *str, char ch);
 
 ///
 /// Duplicates a string up to the specified length.

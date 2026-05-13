@@ -10,6 +10,7 @@
 #include "Type.h"
 #include "Private.h"
 
+#include <Misra/Std/Memory.h>
 #include <stdio.h>
 
 void SysAbort(void);
@@ -52,11 +53,11 @@ static inline bool map_zero_insert_sources_on_success(
     }
 
     if (!map->key_copy_init) {
-        memset(key_src, 0, key_size);
+        MemSet(key_src, 0, key_size);
     }
 
     if (!map->value_copy_init) {
-        memset(value_src, 0, value_size);
+        MemSet(value_src, 0, value_size);
     }
 
     return true;
@@ -64,7 +65,7 @@ static inline bool map_zero_insert_sources_on_success(
 
 static inline bool map_zero_value_source_on_success(GenericMap *map, void *value_src, size value_size, bool success) {
     if (success && !map->value_copy_init) {
-        memset(value_src, 0, value_size);
+        MemSet(value_src, 0, value_size);
     }
 
     return success;

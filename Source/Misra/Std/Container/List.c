@@ -1,5 +1,6 @@
 #include <Misra/Std/Container/List.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
 
 #include <stddef.h>
 
@@ -75,7 +76,7 @@ bool insert_into_list(GenericList *list, const void *item_data, u64 item_size, u
             return false;
         }
     } else {
-        memcpy(new_node->data, item_data, item_size);
+        MemCopy(new_node->data, item_data, item_size);
     }
 
     if (idx == list->length) {
@@ -127,9 +128,9 @@ void remove_range_list(GenericList *list, void *removed_data, u64 item_size, u64
     if (removed_data) {
         GenericListNode *node = node_at_list(list, item_size, start);
         for (u64 c = 0; (c < count) && node; c++) {
-            memcpy((u8 *)removed_data + c * item_size, node->data, item_size);
+            MemCopy((u8 *)removed_data + c * item_size, node->data, item_size);
 
-            memset(node->data, 0, item_size);
+            MemSet(node->data, 0, item_size);
             free_list_item(list, node->data, item_size);
             node->data = NULL;
 
@@ -142,7 +143,7 @@ void remove_range_list(GenericList *list, void *removed_data, u64 item_size, u64
             if (list->copy_deinit) {
                 list->copy_deinit(node->data, &list->allocator);
             } else {
-                memset(node->data, 0, item_size);
+                MemSet(node->data, 0, item_size);
             }
 
             free_list_item(list, node->data, item_size);
@@ -203,7 +204,7 @@ bool qsort_list(GenericList *list, u64 item_size, GenericCompare comp) {
 
     node = list->head;
     for (index = 0; node && index < item_count; index++) {
-        memcpy((u8 *)data + index * item_size, node->data, item_size);
+        MemCopy((u8 *)data + index * item_size, node->data, item_size);
         node = node->next;
     }
 
@@ -211,7 +212,7 @@ bool qsort_list(GenericList *list, u64 item_size, GenericCompare comp) {
 
     node = list->head;
     for (index = 0; node && index < item_count; index++) {
-        memcpy(node->data, (u8 *)data + index * item_size, item_size);
+        MemCopy(node->data, (u8 *)data + index * item_size, item_size);
         node = node->next;
     }
 

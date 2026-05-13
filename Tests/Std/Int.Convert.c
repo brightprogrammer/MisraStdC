@@ -1,7 +1,7 @@
 #include <Misra/Std/Container/Int.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
 #include <Misra/Types.h>
-#include <string.h>
 
 #include "../Util/TestRunner.h"
 
@@ -59,7 +59,7 @@ bool test_int_bytes_le_round_trip(void) {
     Str text    = IntToHexStr(&value);
 
     bool result = written == 4;
-    result      = result && (memcmp(out, bytes, sizeof(bytes)) == 0);
+    result      = result && (MemCompare(out, bytes, sizeof(bytes)) == 0);
     result      = result && (ZstrCompare(text.data, "cdef1234") == 0);
 
     StrDeinit(&text);
@@ -77,7 +77,7 @@ bool test_int_bytes_be_round_trip(void) {
     Str text    = IntToHexStr(&value);
 
     bool result = written == 4;
-    result      = result && (memcmp(out, bytes, sizeof(bytes)) == 0);
+    result      = result && (MemCompare(out, bytes, sizeof(bytes)) == 0);
     result      = result && (ZstrCompare(text.data, "12345678") == 0);
 
     StrDeinit(&text);

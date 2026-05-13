@@ -954,7 +954,7 @@ static bool FloatFmtTryToDecimalStr(Str *out, Float *value, u32 precision, bool 
             body++;
         }
 
-        dot = strchr(body, '.');
+        dot = ZstrFindChar(body, '.');
         if (!dot) {
             if (!StrPushBackCstr(&result, body, ZstrLen(body))) {
                 goto fail;
@@ -1609,7 +1609,7 @@ bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
     if (fmt_info->flags & FMT_FLAG_CHAR) {
         // Convert the 64-bit float value to a 64-bit integer for byte access
         u64 bits;
-        memcpy(&bits, v, sizeof(bits)); // Avoid type punning issues
+        MemCopy(&bits, v, sizeof(bits)); // Avoid type punning issues
         return write_int_as_chars(o, fmt_info->flags, bits, 8);
     }
 
@@ -1691,7 +1691,7 @@ bool _write_f32(Str *o, FmtInfo *fmt_info, f32 *v) {
     if (fmt_info->flags & FMT_FLAG_CHAR) {
         // Convert the 32-bit float value to a 32-bit integer for byte access
         u32 bits;
-        memcpy(&bits, v, sizeof(bits)); // Avoid type punning issues
+        MemCopy(&bits, v, sizeof(bits)); // Avoid type punning issues
         return write_int_as_chars(o, fmt_info->flags, bits, 4);
     }
 

@@ -69,7 +69,7 @@ void BitVecClear(BitVec *bitvec) {
     ValidateBitVec(bitvec);
     bitvec->length = 0;
     if (bitvec->data && bitvec->byte_size > 0) {
-        memset(bitvec->data, 0, bitvec->byte_size);
+        MemSet(bitvec->data, 0, bitvec->byte_size);
     }
 }
 
@@ -87,7 +87,7 @@ bool BitVecResize(BitVec *bitvec, u64 new_size) {
         u64 new_bytes = BYTES_FOR_BITS(new_size);
 
         if (new_bytes > old_bytes) {
-            memset(bitvec->data + old_bytes, 0, new_bytes - old_bytes);
+            MemSet(bitvec->data + old_bytes, 0, new_bytes - old_bytes);
         }
 
         // Clear any partial bits in the last byte of old length
@@ -119,7 +119,7 @@ bool BitVecReserve(BitVec *bitvec, u64 n) {
 
     // Clear new bytes
     if (new_byte_size > bitvec->byte_size) {
-        memset(new_data + bitvec->byte_size, 0, new_byte_size - bitvec->byte_size);
+        MemSet(new_data + bitvec->byte_size, 0, new_byte_size - bitvec->byte_size);
     }
 
     bitvec->data      = new_data;
@@ -893,7 +893,7 @@ u64 BitVecToBytes(BitVec *bv, u8 *bytes, u64 max_len) {
     u64 bytes_to_copy = bytes_needed < max_len ? bytes_needed : max_len;
 
     // Clear the output buffer
-    memset(bytes, 0, bytes_to_copy);
+    MemSet(bytes, 0, bytes_to_copy);
 
     // Copy bits to bytes
     for (u64 i = 0; i < bv->length && i / 8 < bytes_to_copy; i++) {
@@ -1779,7 +1779,7 @@ bool BitVecRegexMatch(BitVec *bv, const char *pattern) {
     bool result = false;
 
     // Very basic pattern matching - just check if pattern is substring
-    if (strstr(bv_str.data, pattern) != NULL) {
+    if (ZstrFindSubstring(bv_str.data, pattern) != NULL) {
         result = true;
     }
 

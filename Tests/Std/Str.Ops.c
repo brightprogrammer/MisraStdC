@@ -1,8 +1,8 @@
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
 
 #include <stdio.h>
-#include <string.h>
 #include <Misra/Types.h>
 
 // Include test utilities
@@ -207,19 +207,19 @@ bool test_str_split(void) {
         // Check first iterator
         StrIter *iter1       = &iters.data[0];
         char     buffer1[10] = {0};
-        memcpy(buffer1, iter1->data, iter1->length);
+        MemCopy(buffer1, iter1->data, iter1->length);
         result = result && (ZstrCompare(buffer1, "Hello") == 0);
 
         // Check second iterator
         StrIter *iter2       = &iters.data[1];
         char     buffer2[10] = {0};
-        memcpy(buffer2, iter2->data, iter2->length);
+        MemCopy(buffer2, iter2->data, iter2->length);
         result = result && (ZstrCompare(buffer2, "World") == 0);
 
         // Check third iterator
         StrIter *iter3       = &iters.data[2];
         char     buffer3[10] = {0};
-        memcpy(buffer3, iter3->data, iter3->length);
+        MemCopy(buffer3, iter3->data, iter3->length);
         result = result && (ZstrCompare(buffer3, "Test") == 0);
     }
 
