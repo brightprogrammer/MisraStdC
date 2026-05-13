@@ -100,11 +100,51 @@ static bool test_graph_node_owned_str_rvalue(void) {
     return result;
 }
 
+static bool test_graph_init_optional_allocator(void) {
+    WriteFmt("Testing Graph init optional allocator\n");
+
+    typedef Graph(Str) StrGraph;
+    Allocator alloc = DefaultAllocator();
+    alloc.retry_limit = 31;
+
+    StrGraph graph_a = GraphInit(alloc);
+    StrGraph graph_b = GraphInitT(graph_b, alloc);
+    StrGraph graph_c = GraphInitWithDeepCopy(StrInitCopy, StrDeinit, alloc);
+    StrGraph graph_d = GraphInitWithDeepCopyT(graph_d, StrInitCopy, StrDeinit, alloc);
+    StrGraph graph_e = GraphInitAligned(8, alloc);
+    StrGraph graph_f = GraphInitAlignedT(graph_f, 16, alloc);
+    StrGraph graph_g = GraphInitAlignedWithDeepCopy(StrInitCopy, StrDeinit, 32, alloc);
+    StrGraph graph_h = GraphInitAlignedWithDeepCopyT(graph_h, StrInitCopy, StrDeinit, 64, alloc);
+
+    bool result = (graph_a.allocator.retry_limit == 31) && (graph_b.allocator.retry_limit == 31);
+    result      = result && (graph_c.allocator.retry_limit == 31) && (graph_d.allocator.retry_limit == 31);
+    result      = result && (graph_e.allocator.retry_limit == 31) && (graph_f.allocator.retry_limit == 31);
+    result      = result && (graph_g.allocator.retry_limit == 31) && (graph_h.allocator.retry_limit == 31);
+    result      = result && (graph_e.alignment == 8) && (graph_f.alignment == 16);
+    result      = result && (graph_g.alignment == 32) && (graph_h.alignment == 64);
+    result      = result && (graph_c.copy_init == (GenericCopyInit)StrInitCopy);
+    result      = result && (graph_d.copy_deinit == (GenericCopyDeinit)StrDeinit);
+    result      = result && (graph_h.slots.allocator.retry_limit == 31);
+    result      = result && (graph_h.free_indices.allocator.retry_limit == 31);
+    result      = result && (graph_h.pending_edge_removals.allocator.retry_limit == 31);
+
+    GraphDeinit(&graph_a);
+    GraphDeinit(&graph_b);
+    GraphDeinit(&graph_c);
+    GraphDeinit(&graph_d);
+    GraphDeinit(&graph_e);
+    GraphDeinit(&graph_f);
+    GraphDeinit(&graph_g);
+    GraphDeinit(&graph_h);
+    return result;
+}
+
 int main(void) {
     TestFunction tests[] = {
         test_graph_reserve_clear,
         test_graph_node_deep_copy,
         test_graph_node_owned_str_rvalue,
+        test_graph_init_optional_allocator,
     };
 
     WriteFmt("[INFO] Starting Graph.Init tests\n\n");

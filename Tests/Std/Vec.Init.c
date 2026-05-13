@@ -35,6 +35,7 @@ bool test_vec_init_basic(void);
 bool test_vec_init_aligned(void);
 bool test_vec_init_with_deep_copy(void);
 bool test_vec_init_aligned_with_deep_copy(void);
+bool test_vec_init_optional_allocator(void);
 bool test_vec_init_stack(void);
 bool test_vec_init_clone(void);
 
@@ -133,6 +134,43 @@ bool test_vec_init_aligned_with_deep_copy(void) {
     // Clean up
     VecDeinit(&vec);
 
+    return result;
+}
+
+// Test vector initialization variants with an explicit optional allocator
+bool test_vec_init_optional_allocator(void) {
+    WriteFmt("Testing VecInit optional allocator\n");
+
+    typedef Vec(TestItem) TestVec;
+    Allocator alloc = DefaultAllocator();
+    alloc.retry_limit = 17;
+
+    TestVec vec_a = VecInit(alloc);
+    TestVec vec_b = VecInitT(vec_b, alloc);
+    TestVec vec_c = VecInitWithDeepCopy(TestItemCopyInit, TestItemDeinit, alloc);
+    TestVec vec_d = VecInitWithDeepCopyT(vec_d, TestItemCopyInit, TestItemDeinit, alloc);
+    TestVec vec_e = VecInitAligned(8, alloc);
+    TestVec vec_f = VecInitAlignedT(vec_f, 16, alloc);
+    TestVec vec_g = VecInitAlignedWithDeepCopy(TestItemCopyInit, TestItemDeinit, 32, alloc);
+    TestVec vec_h = VecInitAlignedWithDeepCopyT(vec_h, TestItemCopyInit, TestItemDeinit, 64, alloc);
+
+    bool result = (vec_a.allocator.retry_limit == 17) && (vec_b.allocator.retry_limit == 17);
+    result      = result && (vec_c.allocator.retry_limit == 17) && (vec_d.allocator.retry_limit == 17);
+    result      = result && (vec_e.allocator.retry_limit == 17) && (vec_f.allocator.retry_limit == 17);
+    result      = result && (vec_g.allocator.retry_limit == 17) && (vec_h.allocator.retry_limit == 17);
+    result      = result && (vec_e.alignment == 8) && (vec_f.alignment == 16);
+    result      = result && (vec_g.alignment == 32) && (vec_h.alignment == 64);
+    result      = result && (vec_c.copy_init == (GenericCopyInit)TestItemCopyInit);
+    result      = result && (vec_d.copy_deinit == (GenericCopyDeinit)TestItemDeinit);
+
+    VecDeinit(&vec_a);
+    VecDeinit(&vec_b);
+    VecDeinit(&vec_c);
+    VecDeinit(&vec_d);
+    VecDeinit(&vec_e);
+    VecDeinit(&vec_f);
+    VecDeinit(&vec_g);
+    VecDeinit(&vec_h);
     return result;
 }
 
@@ -259,6 +297,7 @@ int main(void) {
         test_vec_init_aligned,
         test_vec_init_with_deep_copy,
         test_vec_init_aligned_with_deep_copy,
+        test_vec_init_optional_allocator,
         test_vec_init_stack,
         test_vec_init_clone
     };

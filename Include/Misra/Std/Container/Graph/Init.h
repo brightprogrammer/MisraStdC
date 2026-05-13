@@ -12,82 +12,117 @@
 
 ///
 /// Initialize graph. Default node alignment is 1.
+/// An allocator can be passed as the final optional argument. If omitted, DefaultAllocator() is used.
 ///
 /// USAGE:
 ///   Graph(int) graph = GraphInit();
+///   Graph(int) arena_graph = GraphInit(arena_allocator);
 ///
 /// TAGS: Graph, Init, Directed
 ///
 #define GRAPH_INIT_HAS_ARGS_IMPL(_0, _1, count, ...) count
 #define GRAPH_INIT_HAS_ARGS(...) GRAPH_INIT_HAS_ARGS_IMPL(__VA_OPT__(,) __VA_ARGS__, 1, 0, 0)
 #define GraphInit(...) CONCAT(GraphInit_, GRAPH_INIT_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define GraphInit_0() GraphInitAlignedWithDeepCopyAndAlloc(NULL, NULL, 1, DefaultAllocator())
-#define GraphInit_1(alloc) GraphInitAlignedWithDeepCopyAndAlloc(NULL, NULL, 1, (alloc))
+#define GraphInit_0() GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_VALUE(NULL, NULL, 1, DefaultAllocator())
+#define GraphInit_1(alloc) GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_VALUE(NULL, NULL, 1, (alloc))
 
 ///
 /// Initialize given graph. Default node alignment is 1.
 ///
-/// g[in] : Variable or type of a graph to be initialized.
+/// g[in]     : Variable or type of a graph to be initialized.
+/// alloc[in] : Optional allocator copied into the graph. If omitted, DefaultAllocator() is used.
 ///
 /// TAGS: Graph, Init, Directed
 ///
-#define GraphInitT(g) GraphInitAlignedWithDeepCopyT((g), NULL, NULL, 1)
+#define GRAPH_INIT_T_HAS_ARGS_IMPL(_1, _2, count, ...) count
+#define GRAPH_INIT_T_HAS_ARGS(...) GRAPH_INIT_T_HAS_ARGS_IMPL(__VA_ARGS__, 2, 1, 0)
+#define GraphInitT(...) CONCAT(GraphInitT_, GRAPH_INIT_T_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define GraphInitT_1(g) GraphInitAlignedWithDeepCopyT((g), NULL, NULL, 1)
+#define GraphInitT_2(g, alloc) GraphInitAlignedWithDeepCopyT((g), NULL, NULL, 1, (alloc))
 
 ///
 /// Initialize graph with deep-copy callbacks for node payloads.
 ///
-/// ci[in] : Optional deep-copy callback for nodes.
-/// cd[in] : Optional deinit callback for nodes.
+/// ci[in]    : Optional deep-copy callback for nodes.
+/// cd[in]    : Optional deinit callback for nodes.
+/// alloc[in] : Optional allocator copied into the graph. If omitted, DefaultAllocator() is used.
 ///
 /// TAGS: Graph, Init, DeepCopy, Directed
 ///
-#define GraphInitWithDeepCopy(ci, cd) GraphInitAlignedWithDeepCopyAndAlloc((ci), (cd), 1, DefaultAllocator())
-#define GraphInitWithDeepCopyAlloc(ci, cd, alloc) GraphInitAlignedWithDeepCopyAndAlloc((ci), (cd), 1, (alloc))
+#define GRAPH_INIT_WITH_DEEP_COPY_HAS_ARGS_IMPL(_1, _2, _3, count, ...) count
+#define GRAPH_INIT_WITH_DEEP_COPY_HAS_ARGS(...) GRAPH_INIT_WITH_DEEP_COPY_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
+#define GraphInitWithDeepCopy(...)                                                                                    \
+    CONCAT(GraphInitWithDeepCopy_, GRAPH_INIT_WITH_DEEP_COPY_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define GraphInitWithDeepCopy_2(ci, cd) GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_VALUE((ci), (cd), 1, DefaultAllocator())
+#define GraphInitWithDeepCopy_3(ci, cd, alloc) GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_VALUE((ci), (cd), 1, (alloc))
 
 ///
 /// Initialize given graph with deep-copy callbacks for node payloads.
 ///
-/// g[in]  : Variable or type of a graph to be initialized.
-/// ci[in] : Optional deep-copy callback for nodes.
-/// cd[in] : Optional deinit callback for nodes.
+/// g[in]     : Variable or type of a graph to be initialized.
+/// ci[in]    : Optional deep-copy callback for nodes.
+/// cd[in]    : Optional deinit callback for nodes.
+/// alloc[in] : Optional allocator copied into the graph. If omitted, DefaultAllocator() is used.
 ///
 /// TAGS: Graph, Init, DeepCopy, Directed
 ///
-#define GraphInitWithDeepCopyT(g, ci, cd) GraphInitAlignedWithDeepCopyT((g), (ci), (cd), 1)
+#define GRAPH_INIT_WITH_DEEP_COPY_T_HAS_ARGS_IMPL(_1, _2, _3, _4, count, ...) count
+#define GRAPH_INIT_WITH_DEEP_COPY_T_HAS_ARGS(...) GRAPH_INIT_WITH_DEEP_COPY_T_HAS_ARGS_IMPL(__VA_ARGS__, 4, 3, 2, 1, 0)
+#define GraphInitWithDeepCopyT(...)                                                                                   \
+    CONCAT(GraphInitWithDeepCopyT_, GRAPH_INIT_WITH_DEEP_COPY_T_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define GraphInitWithDeepCopyT_3(g, ci, cd) GraphInitAlignedWithDeepCopyT((g), (ci), (cd), 1)
+#define GraphInitWithDeepCopyT_4(g, ci, cd, alloc) GraphInitAlignedWithDeepCopyT((g), (ci), (cd), 1, (alloc))
 
 ///
 /// Initialize graph with explicit node alignment.
 ///
-/// aln[in] : Alignment used for graph-owned node payload allocations.
+/// aln[in]   : Alignment used for graph-owned node payload allocations.
+/// alloc[in] : Optional allocator copied into the graph. If omitted, DefaultAllocator() is used.
 ///
 /// TAGS: Graph, Init, Alignment, Directed
 ///
-#define GraphInitAligned(aln) GraphInitAlignedWithDeepCopyAndAlloc(NULL, NULL, (aln), DefaultAllocator())
-#define GraphInitAlignedAlloc(aln, alloc) GraphInitAlignedWithDeepCopyAndAlloc(NULL, NULL, (aln), (alloc))
+#define GRAPH_INIT_ALIGNED_HAS_ARGS_IMPL(_1, _2, count, ...) count
+#define GRAPH_INIT_ALIGNED_HAS_ARGS(...) GRAPH_INIT_ALIGNED_HAS_ARGS_IMPL(__VA_ARGS__, 2, 1, 0)
+#define GraphInitAligned(...) CONCAT(GraphInitAligned_, GRAPH_INIT_ALIGNED_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define GraphInitAligned_1(aln) GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_VALUE(NULL, NULL, (aln), DefaultAllocator())
+#define GraphInitAligned_2(aln, alloc) GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_VALUE(NULL, NULL, (aln), (alloc))
 
 ///
 /// Initialize given graph with explicit node alignment.
 ///
-/// g[in]   : Variable or type of a graph to be initialized.
-/// aln[in] : Alignment used for graph-owned node payload allocations.
+/// g[in]     : Variable or type of a graph to be initialized.
+/// aln[in]   : Alignment used for graph-owned node payload allocations.
+/// alloc[in] : Optional allocator copied into the graph. If omitted, DefaultAllocator() is used.
 ///
 /// TAGS: Graph, Init, Alignment, Directed
 ///
-#define GraphInitAlignedT(g, aln) GraphInitAlignedWithDeepCopyT((g), NULL, NULL, (aln))
+#define GRAPH_INIT_ALIGNED_T_HAS_ARGS_IMPL(_1, _2, _3, count, ...) count
+#define GRAPH_INIT_ALIGNED_T_HAS_ARGS(...) GRAPH_INIT_ALIGNED_T_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
+#define GraphInitAlignedT(...) CONCAT(GraphInitAlignedT_, GRAPH_INIT_ALIGNED_T_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define GraphInitAlignedT_2(g, aln) GraphInitAlignedWithDeepCopyT((g), NULL, NULL, (aln))
+#define GraphInitAlignedT_3(g, aln, alloc) GraphInitAlignedWithDeepCopyT((g), NULL, NULL, (aln), (alloc))
 
 ///
 /// Initialize graph with deep-copy callbacks and explicit node alignment.
 ///
-/// ci[in]  : Optional deep-copy callback for nodes.
-/// cd[in]  : Optional deinit callback for nodes.
-/// aln[in] : Alignment used for graph-owned node payload allocations.
+/// ci[in]    : Optional deep-copy callback for nodes.
+/// cd[in]    : Optional deinit callback for nodes.
+/// aln[in]   : Alignment used for graph-owned node payload allocations.
+/// alloc[in] : Optional allocator copied into the graph. If omitted, DefaultAllocator() is used.
 ///
 /// TAGS: Graph, Init, DeepCopy, Alignment, Directed
 ///
-#define GraphInitAlignedWithDeepCopy(ci, cd, aln)                                                                     \
-    GraphInitAlignedWithDeepCopyAndAlloc((ci), (cd), (aln), DefaultAllocator())
+#define GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_HAS_ARGS_IMPL(_1, _2, _3, _4, count, ...) count
+#define GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_HAS_ARGS(...)                                                               \
+    GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_HAS_ARGS_IMPL(__VA_ARGS__, 4, 3, 2, 1, 0)
+#define GraphInitAlignedWithDeepCopy(...)                                                                             \
+    CONCAT(GraphInitAlignedWithDeepCopy_, GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define GraphInitAlignedWithDeepCopy_3(ci, cd, aln)                                                                   \
+    GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_VALUE((ci), (cd), (aln), DefaultAllocator())
+#define GraphInitAlignedWithDeepCopy_4(ci, cd, aln, alloc)                                                            \
+    GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_VALUE((ci), (cd), (aln), (alloc))
 
-#define GraphInitAlignedWithDeepCopyAndAlloc(ci, cd, aln, alloc)                                                      \
+#define GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_VALUE(ci, cd, aln, alloc)                                                   \
     {.slots                = VecInit((alloc)),                                                                        \
      .free_indices         = VecInit((alloc)),                                                                        \
      .pending_edge_removals = VecInit((alloc)),                                                                       \
@@ -102,24 +137,33 @@
      .type_anchor          = NULL,                                                                                    \
      .__magic              = MISRA_GRAPH_MAGIC}
 
+#define GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_T_HAS_ARGS_IMPL(_1, _2, _3, _4, _5, count, ...) count
+#define GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_T_HAS_ARGS(...)                                                             \
+    GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_T_HAS_ARGS_IMPL(__VA_ARGS__, 5, 4, 3, 2, 1, 0)
+
 #ifdef __cplusplus
-#    define GraphInitAlignedWithDeepCopyT(g, ci, cd, aln) (TYPE_OF(g) GraphInitAlignedWithDeepCopy((ci), (cd), (aln)))
-#    define GraphInitAlignedWithDeepCopyAllocT(g, ci, cd, aln, alloc)                                                  \
-        (TYPE_OF(g) GraphInitAlignedWithDeepCopyAndAlloc((ci), (cd), (aln), (alloc)))
+#    define GraphInitAlignedWithDeepCopyT(...)                                                                         \
+        CONCAT(GraphInitAlignedWithDeepCopyT_, GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_T_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#    define GraphInitAlignedWithDeepCopyT_4(g, ci, cd, aln) (TYPE_OF(g) GraphInitAlignedWithDeepCopy((ci), (cd), (aln)))
+#    define GraphInitAlignedWithDeepCopyT_5(g, ci, cd, aln, alloc)                                                     \
+        (TYPE_OF(g) GraphInitAlignedWithDeepCopy((ci), (cd), (aln), (alloc)))
 #else
 ///
 /// Initialize given graph with deep-copy callbacks and explicit node alignment.
 ///
-/// g[in]   : Variable or type of a graph to be initialized.
-/// ci[in]  : Optional deep-copy callback for nodes.
-/// cd[in]  : Optional deinit callback for nodes.
-/// aln[in] : Alignment used for graph-owned node payload allocations.
+/// g[in]     : Variable or type of a graph to be initialized.
+/// ci[in]    : Optional deep-copy callback for nodes.
+/// cd[in]    : Optional deinit callback for nodes.
+/// aln[in]   : Alignment used for graph-owned node payload allocations.
+/// alloc[in] : Optional allocator copied into the graph. If omitted, DefaultAllocator() is used.
 ///
 /// TAGS: Graph, Init, DeepCopy, Alignment, Directed
 ///
-#    define GraphInitAlignedWithDeepCopyT(g, ci, cd, aln) ((TYPE_OF(g))GraphInitAlignedWithDeepCopy((ci), (cd), (aln)))
-#    define GraphInitAlignedWithDeepCopyAllocT(g, ci, cd, aln, alloc)                                                  \
-        ((TYPE_OF(g))GraphInitAlignedWithDeepCopyAndAlloc((ci), (cd), (aln), (alloc)))
+#    define GraphInitAlignedWithDeepCopyT(...)                                                                         \
+        CONCAT(GraphInitAlignedWithDeepCopyT_, GRAPH_INIT_ALIGNED_WITH_DEEP_COPY_T_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#    define GraphInitAlignedWithDeepCopyT_4(g, ci, cd, aln) ((TYPE_OF(g))GraphInitAlignedWithDeepCopy((ci), (cd), (aln)))
+#    define GraphInitAlignedWithDeepCopyT_5(g, ci, cd, aln, alloc)                                                     \
+        ((TYPE_OF(g))GraphInitAlignedWithDeepCopy((ci), (cd), (aln), (alloc)))
 #endif
 
 ///

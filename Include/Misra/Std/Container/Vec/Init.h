@@ -13,23 +13,26 @@
 ///
 /// Initialize vector. Default alignment is 1
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
+/// An allocator can be passed as the final optional argument. If omitted, DefaultAllocator() is used.
 ///
 /// USAGE:
 ///   Vec(HttpRequest) requests = VecInit();
+///   Vec(HttpRequest) arena_requests = VecInit(arena_allocator);
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
 #define VEC_INIT_HAS_ARGS_IMPL(_0, _1, count, ...) count
 #define VEC_INIT_HAS_ARGS(...) VEC_INIT_HAS_ARGS_IMPL(__VA_OPT__(,) __VA_ARGS__, 1, 0, 0)
 #define VecInit(...) CONCAT(VecInit_, VEC_INIT_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define VecInit_0() VecInitAlignedWithDeepCopyAndAlloc(NULL, NULL, 1, DefaultAllocator())
-#define VecInit_1(alloc) VecInitAlignedWithDeepCopyAndAlloc(NULL, NULL, 1, (alloc))
+#define VecInit_0() VEC_INIT_ALIGNED_WITH_DEEP_COPY_VALUE(NULL, NULL, 1, DefaultAllocator())
+#define VecInit_1(alloc) VEC_INIT_ALIGNED_WITH_DEEP_COPY_VALUE(NULL, NULL, 1, (alloc))
 
 ///
 /// Initialize given vector. Default alignment is 1
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
 ///
-/// v[in] : Variable or type of a vector to be initialized.
+/// v[in]     : Variable or type of a vector to be initialized.
+/// alloc[in] : Optional allocator copied into the vector. If omitted, DefaultAllocator() is used.
 ///
 /// USAGE:
 ///     void SomeInterestingFn(DataVec* data_vec) {
@@ -40,31 +43,40 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
-#define VecInitT(v) VecInitAlignedWithDeepCopyT(v, NULL, NULL, 1)
-#define VecInitAllocT(v, alloc) VecInitAlignedWithDeepCopyAllocT(v, NULL, NULL, 1, (alloc))
+#define VEC_INIT_T_HAS_ARGS_IMPL(_1, _2, count, ...) count
+#define VEC_INIT_T_HAS_ARGS(...) VEC_INIT_T_HAS_ARGS_IMPL(__VA_ARGS__, 2, 1, 0)
+#define VecInitT(...) CONCAT(VecInitT_, VEC_INIT_T_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define VecInitT_1(v) VecInitAlignedWithDeepCopyT(v, NULL, NULL, 1)
+#define VecInitT_2(v, alloc) VecInitAlignedWithDeepCopyT(v, NULL, NULL, 1, (alloc))
 
 ///
 /// Initialize vector. Default alignment is 1
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
 ///
-/// ci[in]   : Copy init method.
-/// cd[in]   : Copy deinit method.
+/// ci[in]    : Copy init method.
+/// cd[in]    : Copy deinit method.
+/// alloc[in] : Optional allocator copied into the vector. If omitted, DefaultAllocator() is used.
 ///
 /// USAGE:
 ///   Vec(HttpRequest) requests = VecInitWithDeepCopy(RequestClone, RequestDeinit);
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
-#define VecInitWithDeepCopy(ci, cd) VecInitAlignedWithDeepCopyAndAlloc((ci), (cd), 1, DefaultAllocator())
-#define VecInitWithDeepCopyAlloc(ci, cd, alloc) VecInitAlignedWithDeepCopyAndAlloc((ci), (cd), 1, (alloc))
+#define VEC_INIT_WITH_DEEP_COPY_HAS_ARGS_IMPL(_1, _2, _3, count, ...) count
+#define VEC_INIT_WITH_DEEP_COPY_HAS_ARGS(...) VEC_INIT_WITH_DEEP_COPY_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
+#define VecInitWithDeepCopy(...)                                                                                       \
+    CONCAT(VecInitWithDeepCopy_, VEC_INIT_WITH_DEEP_COPY_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define VecInitWithDeepCopy_2(ci, cd) VEC_INIT_ALIGNED_WITH_DEEP_COPY_VALUE((ci), (cd), 1, DefaultAllocator())
+#define VecInitWithDeepCopy_3(ci, cd, alloc) VEC_INIT_ALIGNED_WITH_DEEP_COPY_VALUE((ci), (cd), 1, (alloc))
 
 ///
 /// Initialize given vector. Default alignment is 1
 /// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
 ///
-/// v[in] : Variable or type of a vector to be initialized.
-/// ci[in] : Copy init method.
-/// cd[in] : Copy deinit method.
+/// v[in]     : Variable or type of a vector to be initialized.
+/// ci[in]    : Copy init method.
+/// cd[in]    : Copy deinit method.
+/// alloc[in] : Optional allocator copied into the vector. If omitted, DefaultAllocator() is used.
 ///
 /// USAGE:
 ///     bool DataInitClone(Data* dst, Data* src) { /* cloning logic...*/ }
@@ -78,8 +90,12 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
-#define VecInitWithDeepCopyT(v, ci, cd) VecInitAlignedWithDeepCopyT(v, ci, cd, 1)
-#define VecInitWithDeepCopyAllocT(v, ci, cd, alloc) VecInitAlignedWithDeepCopyAllocT(v, ci, cd, 1, (alloc))
+#define VEC_INIT_WITH_DEEP_COPY_T_HAS_ARGS_IMPL(_1, _2, _3, _4, count, ...) count
+#define VEC_INIT_WITH_DEEP_COPY_T_HAS_ARGS(...) VEC_INIT_WITH_DEEP_COPY_T_HAS_ARGS_IMPL(__VA_ARGS__, 4, 3, 2, 1, 0)
+#define VecInitWithDeepCopyT(...)                                                                                      \
+    CONCAT(VecInitWithDeepCopyT_, VEC_INIT_WITH_DEEP_COPY_T_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define VecInitWithDeepCopyT_3(v, ci, cd) VecInitAlignedWithDeepCopyT((v), (ci), (cd), 1)
+#define VecInitWithDeepCopyT_4(v, ci, cd, alloc) VecInitAlignedWithDeepCopyT((v), (ci), (cd), 1, (alloc))
 
 ///
 /// Initialize vector with given alignment.
@@ -91,14 +107,18 @@
 ///
 /// aln[in]   : Vector element alignment. All items will be stored by respecting the
 ///             alignment boundary.
+/// alloc[in] : Optional allocator copied into the vector. If omitted, DefaultAllocator() is used.
 ///
 /// USAGE:
 ///   Vec(Node) nodes = VecInitAligned(16);
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
-#define VecInitAligned(aln) VecInitAlignedWithDeepCopyAndAlloc(NULL, NULL, (aln), DefaultAllocator())
-#define VecInitAlignedAlloc(aln, alloc) VecInitAlignedWithDeepCopyAndAlloc(NULL, NULL, (aln), (alloc))
+#define VEC_INIT_ALIGNED_HAS_ARGS_IMPL(_1, _2, count, ...) count
+#define VEC_INIT_ALIGNED_HAS_ARGS(...) VEC_INIT_ALIGNED_HAS_ARGS_IMPL(__VA_ARGS__, 2, 1, 0)
+#define VecInitAligned(...) CONCAT(VecInitAligned_, VEC_INIT_ALIGNED_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define VecInitAligned_1(aln) VEC_INIT_ALIGNED_WITH_DEEP_COPY_VALUE(NULL, NULL, (aln), DefaultAllocator())
+#define VecInitAligned_2(aln, alloc) VEC_INIT_ALIGNED_WITH_DEEP_COPY_VALUE(NULL, NULL, (aln), (alloc))
 
 ///
 /// Initialize given vector with given alignment.
@@ -108,9 +128,10 @@
 /// avoiding UB in some cases. It's recommended to use aligned vector when dealing with
 /// structs containing unions.
 ///
-/// v[in]   : Variable or type of a vector to be initialized.
-/// aln[in] : Vector element alignment. All items will be stored by respecting the
+/// v[in]     : Variable or type of a vector to be initialized.
+/// aln[in]   : Vector element alignment. All items will be stored by respecting the
 ///             alignment boundary.
+/// alloc[in] : Optional allocator copied into the vector. If omitted, DefaultAllocator() is used.
 ///
 /// USAGE:
 ///     Vec(Node) nodes = VecInitAligned(16);
@@ -124,8 +145,11 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned
 ///
-#define VecInitAlignedT(v, aln) VecInitAlignedWithDeepCopyT(v, NULL, NULL, aln)
-#define VecInitAlignedAllocT(v, aln, alloc) VecInitAlignedWithDeepCopyAllocT(v, NULL, NULL, (aln), (alloc))
+#define VEC_INIT_ALIGNED_T_HAS_ARGS_IMPL(_1, _2, _3, count, ...) count
+#define VEC_INIT_ALIGNED_T_HAS_ARGS(...) VEC_INIT_ALIGNED_T_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
+#define VecInitAlignedT(...) CONCAT(VecInitAlignedT_, VEC_INIT_ALIGNED_T_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define VecInitAlignedT_2(v, aln) VecInitAlignedWithDeepCopyT((v), NULL, NULL, (aln))
+#define VecInitAlignedT_3(v, aln, alloc) VecInitAlignedWithDeepCopyT((v), NULL, NULL, (aln), (alloc))
 
 ///
 /// Initialize vector with given alignment.
@@ -135,10 +159,11 @@
 /// avoiding UB in some cases. It's recommended to use aligned vector when dealing with
 /// structs containing unions.
 ///
-/// ci[in]   : Copy init method.
-/// cd[in]   : Copy deinit method.
+/// ci[in]    : Copy init method.
+/// cd[in]    : Copy deinit method.
 /// aln[in]   : Vector element alignment. All items will be stored by respecting the
 ///             alignment boundary.
+/// alloc[in] : Optional allocator copied into the vector. If omitted, DefaultAllocator() is used.
 ///
 /// USAGE:
 ///   typedef Vec(Node) NodeVec;
@@ -146,9 +171,17 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
-#define VecInitAlignedWithDeepCopy(ci, cd, aln) VecInitAlignedWithDeepCopyAndAlloc((ci), (cd), (aln), DefaultAllocator())
+#define VEC_INIT_ALIGNED_WITH_DEEP_COPY_HAS_ARGS_IMPL(_1, _2, _3, _4, count, ...) count
+#define VEC_INIT_ALIGNED_WITH_DEEP_COPY_HAS_ARGS(...)                                                                  \
+    VEC_INIT_ALIGNED_WITH_DEEP_COPY_HAS_ARGS_IMPL(__VA_ARGS__, 4, 3, 2, 1, 0)
+#define VecInitAlignedWithDeepCopy(...)                                                                                \
+    CONCAT(VecInitAlignedWithDeepCopy_, VEC_INIT_ALIGNED_WITH_DEEP_COPY_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define VecInitAlignedWithDeepCopy_3(ci, cd, aln)                                                                      \
+    VEC_INIT_ALIGNED_WITH_DEEP_COPY_VALUE((ci), (cd), (aln), DefaultAllocator())
+#define VecInitAlignedWithDeepCopy_4(ci, cd, aln, alloc)                                                               \
+    VEC_INIT_ALIGNED_WITH_DEEP_COPY_VALUE((ci), (cd), (aln), (alloc))
 
-#define VecInitAlignedWithDeepCopyAndAlloc(ci, cd, aln, alloc)                                                         \
+#define VEC_INIT_ALIGNED_WITH_DEEP_COPY_VALUE(ci, cd, aln, alloc)                                                      \
     {.length      = 0,                                                                                                 \
      .capacity    = 0,                                                                                                 \
      .copy_init   = (GenericCopyInit)(ci),                                                                             \
@@ -158,10 +191,16 @@
      .allocator   = AllocatorBind((alloc)),                                                                            \
      .__magic     = MISRA_VEC_MAGIC}
 
+#define VEC_INIT_ALIGNED_WITH_DEEP_COPY_T_HAS_ARGS_IMPL(_1, _2, _3, _4, _5, count, ...) count
+#define VEC_INIT_ALIGNED_WITH_DEEP_COPY_T_HAS_ARGS(...)                                                                \
+    VEC_INIT_ALIGNED_WITH_DEEP_COPY_T_HAS_ARGS_IMPL(__VA_ARGS__, 5, 4, 3, 2, 1, 0)
+
 #ifdef __cplusplus
-#    define VecInitAlignedWithDeepCopyT(v, ci, cd, aln) (TYPE_OF(v) VecInitAlignedWithDeepCopy((ci), (cd), (aln)))
-#    define VecInitAlignedWithDeepCopyAllocT(v, ci, cd, aln, alloc)                                                    \
-        (TYPE_OF(v) VecInitAlignedWithDeepCopyAndAlloc((ci), (cd), (aln), (alloc)))
+#    define VecInitAlignedWithDeepCopyT(...)                                                                           \
+        CONCAT(VecInitAlignedWithDeepCopyT_, VEC_INIT_ALIGNED_WITH_DEEP_COPY_T_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#    define VecInitAlignedWithDeepCopyT_4(v, ci, cd, aln) (TYPE_OF(v) VecInitAlignedWithDeepCopy((ci), (cd), (aln)))
+#    define VecInitAlignedWithDeepCopyT_5(v, ci, cd, aln, alloc)                                                       \
+        (TYPE_OF(v) VecInitAlignedWithDeepCopy((ci), (cd), (aln), (alloc)))
 #else
 ///
 /// Initialize given vector with given alignment.
@@ -171,11 +210,12 @@
 /// avoiding UB in some cases. It's recommended to use aligned vector when dealing with
 /// structs containing unions.
 ///
-/// v[in]   : Variable or type of a vector to be initialized.
-/// ci[in]  : Copy init method.
-/// cd[in]  : Copy deinit method.
-/// aln[in] : Vector element alignment. All items will be stored by respecting the
+/// v[in]     : Variable or type of a vector to be initialized.
+/// ci[in]    : Copy init method.
+/// cd[in]    : Copy deinit method.
+/// aln[in]   : Vector element alignment. All items will be stored by respecting the
 ///             alignment boundary.
+/// alloc[in] : Optional allocator copied into the vector. If omitted, DefaultAllocator() is used.
 ///
 /// USAGE:
 ///     bool DataInitClone(Data* dst, Data* src) { /* cloning logic...*/ }
@@ -193,9 +233,11 @@
 ///
 /// TAGS: Init, Vec, Length, Size, Aligned, DeepCopy, DeepDeinit
 ///
-#    define VecInitAlignedWithDeepCopyT(v, ci, cd, aln) ((TYPE_OF(v))VecInitAlignedWithDeepCopy((ci), (cd), (aln)))
-#    define VecInitAlignedWithDeepCopyAllocT(v, ci, cd, aln, alloc)                                                    \
-        ((TYPE_OF(v))VecInitAlignedWithDeepCopyAndAlloc((ci), (cd), (aln), (alloc)))
+#    define VecInitAlignedWithDeepCopyT(...)                                                                           \
+        CONCAT(VecInitAlignedWithDeepCopyT_, VEC_INIT_ALIGNED_WITH_DEEP_COPY_T_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#    define VecInitAlignedWithDeepCopyT_4(v, ci, cd, aln) ((TYPE_OF(v))VecInitAlignedWithDeepCopy((ci), (cd), (aln)))
+#    define VecInitAlignedWithDeepCopyT_5(v, ci, cd, aln, alloc)                                                       \
+        ((TYPE_OF(v))VecInitAlignedWithDeepCopy((ci), (cd), (aln), (alloc)))
 #endif
 
 ///

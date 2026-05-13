@@ -50,6 +50,34 @@ static bool test_list_init_variants(void) {
     return result;
 }
 
+static bool test_list_init_optional_allocator(void) {
+    WriteFmt("Testing List init optional allocator\n");
+
+    typedef List(int) IntList;
+    Allocator alloc = DefaultAllocator();
+    alloc.retry_limit = 23;
+
+    IntList list_a = ListInit(alloc);
+    IntList list_b = ListInitT(list_b, alloc);
+    IntList list_c = ListInitWithDeepCopy(tracked_copy_init, tracked_copy_deinit, alloc);
+    IntList list_d = ListInitWithDeepCopyT(list_d, tracked_copy_init, tracked_copy_deinit, alloc);
+
+    ValidateList(&list_a);
+    ValidateList(&list_b);
+    ValidateList(&list_c);
+    ValidateList(&list_d);
+
+    bool result = (list_a.allocator.retry_limit == 23) && (list_b.allocator.retry_limit == 23);
+    result      = result && (list_c.allocator.retry_limit == 23) && (list_d.allocator.retry_limit == 23);
+    result      = result && (list_c.copy_init == tracked_copy_init) && (list_d.copy_deinit == tracked_copy_deinit);
+
+    ListDeinit(&list_a);
+    ListDeinit(&list_b);
+    ListDeinit(&list_c);
+    ListDeinit(&list_d);
+    return result;
+}
+
 static bool test_list_deinit_with_deep_copy(void) {
     WriteFmt("Testing ListDeinit with deep copy\n");
 
@@ -75,6 +103,7 @@ static bool test_list_deinit_with_deep_copy(void) {
 int main(void) {
     TestFunction tests[] = {
         test_list_init_variants,
+        test_list_init_optional_allocator,
         test_list_deinit_with_deep_copy,
     };
 

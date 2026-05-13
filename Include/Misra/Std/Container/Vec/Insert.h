@@ -193,7 +193,7 @@ static inline bool vec_merge_r_impl(GenericVec *dst, const GenericVec *src, size
     (ValidateVec(vd),                                                                                                   \
      ValidateVec(vs),                                                                                                   \
      VecDeinit(vd),                                                                                                     \
-     *(vd) = (TYPE_OF(*(vd)))VecInitAlignedWithDeepCopyAndAlloc(                                                        \
+     *(vd) = (TYPE_OF(*(vd)))VEC_INIT_ALIGNED_WITH_DEEP_COPY_VALUE(                                                        \
          (vs)->copy_init,                                                                                               \
          (vs)->copy_deinit,                                                                                             \
          (vs)->alignment,                                                                                               \
