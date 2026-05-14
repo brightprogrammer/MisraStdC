@@ -14,231 +14,296 @@ extern "C" {
 #endif
 
 ///
-/// Insert char into string of it's type.
-/// Insertion index must not exceed string length.
+/// Insert a single character at `idx`, shifting trailing characters right.
 ///
-/// str[in] : Str to insert char into
-/// chr[in] : Character to be inserted
-/// idx[in] : Index to insert char at.
+/// str[in,out] : Str handle.
+/// chr[in]     : Character to insert.
+/// idx[in]     : Position in [0, length].
 ///
-/// SUCCESS : Returns `str` the string itself on success.
-/// FAILURE : Returns `NULL` otherwise.
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure. The string is unchanged.
+///
+/// TAGS: Str, Insert, Char
 ///
 #define StrInsertCharAt(str, chr, idx) VecInsertR((str), (chr), (idx))
+
+///
+/// Aborting variant of `StrInsertCharAt`. Calls `LOG_FATAL` on allocation
+/// failure.
+///
+/// TAGS: Str, Insert, Char, Must, Abort
+///
 #define StrMustInsertCharAt(str, chr, idx) VecMustInsertR((str), (chr), (idx))
 
 ///
-/// Insert a string of given length into given Str at given index.
+/// Insert a counted byte range from a C buffer at the given position.
 ///
-/// str[in,out] : Str object to insert into.
-/// zstr[in]    : Zero-terminated string to be inserted.
-/// idx[in]     : Index to insert the string at.
-/// len[in]     : Length of string or number of bytes to insert.
+/// str[in,out] : Str handle.
+/// cstr[in]    : Source byte buffer. Must be non-NULL when `len > 0`.
+/// idx[in]     : Position in [0, length].
+/// len[in]     : Number of bytes to insert.
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
+///
+/// TAGS: Str, Insert, Cstr, Range
 ///
 #define StrInsertCstr(str, cstr, idx, len) VecInsertRangeR((str), (cstr), (idx), (len))
+
+///
+/// Aborting variant of `StrInsertCstr`.
+///
+/// TAGS: Str, Insert, Cstr, Range, Must, Abort
+///
 #define StrMustInsertCstr(str, cstr, idx, len) VecMustInsertRangeR((str), (cstr), (idx), (len))
 
 ///
-/// Insert a zero-terminated string into given Str at given index.
+/// Insert a null-terminated C string at the given position. Length is derived
+/// from `ZstrLen(zstr)`.
 ///
-/// str[in,out] : Str object to insert into.
-/// zstr[in]    : Zero-terminated string to be inserted.
-/// idx[in]     : Index to insert the string at.
+/// str[in,out] : Str handle.
+/// zstr[in]    : Null-terminated source string.
+/// idx[in]     : Position in [0, length].
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
+///
+/// TAGS: Str, Insert, Zstr
 ///
 #define StrInsertZstr(str, zstr, idx) StrInsertCstr((str), (zstr), (idx), ZstrLen(zstr))
+
+///
+/// Aborting variant of `StrInsertZstr`.
+///
+/// TAGS: Str, Insert, Zstr, Must, Abort
+///
 #define StrMustInsertZstr(str, zstr, idx) StrMustInsertCstr((str), (zstr), (idx), ZstrLen(zstr))
 
 ///
-/// Insert contents of `str2` into `str` at given index.
+/// Insert the contents of `str2` into `str` at the given position.
 ///
-/// str[in,out] : Str object to insert into.
-/// str2[in]    : Str object to be inserted.
-/// idx[in]     : Index to insert at.
+/// str[in,out] : Str handle to insert into.
+/// str2[in]    : Source Str (read-only).
+/// idx[in]     : Position in [0, length].
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
+///
+/// TAGS: Str, Insert, Str
 ///
 #define StrInsert(str, str2, idx) StrInsertCstr((str), (str2)->data, (idx), (str2)->length)
+
+///
+/// Aborting variant of `StrInsert`.
+///
+/// TAGS: Str, Insert, Str, Must, Abort
+///
 #define StrMustInsert(str, str2, idx) StrMustInsertCstr((str), (str2)->data, (idx), (str2)->length)
 
 ///
-/// Push a array of characters with given length into this string at the given
-/// position.
+/// Push a counted byte range into the string at an arbitrary position.
+/// Equivalent to `StrInsertCstr` with the argument order suited for streaming
+/// emitters that keep `(cstr, len, pos)` triples around.
 ///
-/// str[in,out] : Str to insert array chars into.
-/// cstr[in]    : array of characters with given length to be inserted.
-/// len [in]    : Number of characters to be appended.
-/// pos[in]     : Position to insert at.
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
 ///
-/// SUCCESS : `str`
-/// FAILURE : NULL
+/// TAGS: Str, Push, Cstr, Range
 ///
 #define StrPushCstr(str, cstr, len, pos) VecInsertRangeR((str), (cstr), (pos), (len))
+
+///
+/// Aborting variant of `StrPushCstr`.
+///
+/// TAGS: Str, Push, Cstr, Range, Must, Abort
+///
 #define StrMustPushCstr(str, cstr, len, pos) VecMustInsertRangeR((str), (cstr), (pos), (len))
 
 ///
-/// Push a null-terminated string to this string
-/// at given position.
+/// Push a null-terminated string into the Str at the given position.
 ///
-/// str[in,out] : Str to insert array chars into.
-/// zstr[in]    : Null-terminated string to be appended.
-/// pos[in]     : Position to insert at.
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
 ///
-/// SUCCESS : `str`
-/// FAILURE : NULL
+/// TAGS: Str, Push, Zstr
 ///
 #define StrPushZstr(str, zstr, pos) StrPushCstr((str), (zstr), ZstrLen(zstr), (pos))
+
+///
+/// Aborting variant of `StrPushZstr`.
+///
+/// TAGS: Str, Push, Zstr, Must, Abort
+///
 #define StrMustPushZstr(str, zstr, pos) StrMustPushCstr((str), (zstr), ZstrLen(zstr), (pos))
 
 ///
-/// Push an array of chars with given length to the back of this string.
+/// Append a counted byte range to the end of the Str.
 ///
-/// str[in,out] : Str to insert array chars into.
-/// cstr[in]    : array of characters with given length to be inserted.
-/// len [in]    : Number of characters to be appended.
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
 ///
-/// SUCCESS : `str`
-/// FAILURE : NULL
+/// TAGS: Str, PushBack, Cstr, Range
 ///
 #define StrPushBackCstr(str, cstr, len) VecPushBackArrR((str), (cstr), (len))
+
+///
+/// Aborting variant of `StrPushBackCstr`.
+///
+/// TAGS: Str, PushBack, Cstr, Range, Must, Abort
+///
 #define StrMustPushBackCstr(str, cstr, len) VecMustPushBackArrR((str), (cstr), (len))
 
 ///
-/// Push a null-terminated string to the back of string.
+/// Append a null-terminated string to the end of the Str.
 ///
-/// str[in,out] : Str to insert array chars into.
-/// zstr[in]    : Null-terminated string to be appended.
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
 ///
-/// SUCCESS : `str`
-/// FAILURE : NULL
+/// TAGS: Str, PushBack, Zstr
 ///
 #define StrPushBackZstr(str, zstr) StrPushBackCstr((str), (zstr), ZstrLen((zstr)))
+
+///
+/// Aborting variant of `StrPushBackZstr`.
+///
+/// TAGS: Str, PushBack, Zstr, Must, Abort
+///
 #define StrMustPushBackZstr(str, zstr) StrMustPushBackCstr((str), (zstr), ZstrLen((zstr)))
 
 ///
-/// Push a array of characters with given length to the front of this string
+/// Prepend a counted byte range at the front of the Str.
 ///
-/// str[in,out] : Str to insert array chars into.
-/// cstr[in]    : array of characters with given length to be inserted.
-/// len [in]    : Number of characters to be appended.
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
 ///
-/// SUCCESS : `str`
-/// FAILURE : NULL
+/// TAGS: Str, PushFront, Cstr, Range
 ///
 #define StrPushFrontCstr(str, cstr, len) VecPushFrontArrR((str), (cstr), (len))
+
+///
+/// Aborting variant of `StrPushFrontCstr`.
+///
+/// TAGS: Str, PushFront, Cstr, Range, Must, Abort
+///
 #define StrMustPushFrontCstr(str, cstr, len) VecMustPushFrontArrR((str), (cstr), (len))
 
 ///
-/// Push a null-terminated string to the front of this string.
+/// Prepend a null-terminated string at the front of the Str.
 ///
-/// str[in,out] : Str to insert array chars into.
-/// zstr[in]    : Null-terminated string to be appended.
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
 ///
-/// SUCCESS : `str`
-/// FAILURE : NULL
+/// TAGS: Str, PushFront, Zstr
 ///
 #define StrPushFrontZstr(str, zstr) StrPushFrontCstr((str), (zstr), ZstrLen((zstr)))
+
+///
+/// Aborting variant of `StrPushFrontZstr`.
+///
+/// TAGS: Str, PushFront, Zstr, Must, Abort
+///
 #define StrMustPushFrontZstr(str, zstr) StrMustPushFrontCstr((str), (zstr), ZstrLen((zstr)))
 
 ///
-/// Push char into string.
+/// Append a single character to the end of the Str.
 ///
-/// str[in] : Str to push char into
-/// chr[in] : Pointer to value to be pushed
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
 ///
-/// SUCCESS : Returns `str` the string itself on success.
-/// FAILURE : Returns `NULL` otherwise.
+/// TAGS: Str, PushBack, Char
 ///
 #define StrPushBack(str, chr) VecPushBackR((str), (chr))
+
+///
+/// Aborting variant of `StrPushBack`.
+///
+/// TAGS: Str, PushBack, Char, Must, Abort
+///
 #define StrMustPushBack(str, chr) VecMustPushBackR((str), (chr))
 
 ///
-/// Push char into string front.
+/// Prepend a single character at the front of the Str.
 ///
-/// str[in] : Str to push char into
-/// chr[in] : Pointer to value to be pushed
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
 ///
-/// SUCCESS : Returns `str` the string itself on success.
-/// FAILURE : Returns `NULL` otherwise.
+/// TAGS: Str, PushFront, Char
 ///
 #define StrPushFront(str, chr) VecPushFrontR((str), (chr))
+
+///
+/// Aborting variant of `StrPushFront`.
+///
+/// TAGS: Str, PushFront, Char, Must, Abort
+///
 #define StrMustPushFront(str, chr) VecMustPushFrontR((str), (chr))
 
 ///
-/// Merge two strings and store the result in first string, with L-value semantics.
+/// Merge `str2` into the end of `str` with L-value (ownership-transfer)
+/// semantics. When `str` has no `copy_init` handler, `str2`'s storage is
+/// adopted and `str2` is left in a clean empty state on success.
 ///
-/// Data is copied from `str2` into `str`. If a `copy_init` method is provided in `str`,
-/// each element from `str2` will be copied using that method. Otherwise, a raw memory
-/// copy is performed.
+/// str[in,out]  : Destination Str.
+/// str2[in,out] : Source Str. May be emptied on success.
 ///
-/// NOTE: This function completely transfers ownership from `str2` to `str` by:
-///       1. Adding all elements from `str2` to `str`
-///       2. Freeing the memory allocated for `str2->data`
-///       3. Resetting all fields of `str2` to zero using MemSet
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure. Both strings are unchanged.
 ///
-/// After this operation, `str2` will be in a reset state (as if just initialized with StrInit).
-///
-/// str[in,out] : Str to insert array chars into.
-/// str2[in,out]: Str to be inserted and reset.
-///
-/// SUCCESS : `str`
-/// FAILURE : NULL
+/// TAGS: Str, Merge, LValue, Ownership
 ///
 #define StrMergeL(str, str2) VecMergeL((str), (str2))
+
+///
+/// Aborting variant of `StrMergeL`.
+///
+/// TAGS: Str, Merge, LValue, Must, Abort
+///
 #define StrMustMergeL(str, str2) VecMustMergeL((str), (str2))
 
 ///
-/// Merge two strings and store the result in first string, with R-value semantics.
+/// Merge a copy of `str2` into the end of `str` with R-value (read-only-source)
+/// semantics. The source is never emptied.
 ///
-/// Data is copied from `str2` into `str`. If a `copy_init` method is provided in `str`,
-/// each element from `str2` will be copied using that method. Otherwise, a raw memory
-/// copy is performed.
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
 ///
-/// NOTE: Unlike StrMergeL, this does NOT zero out the source string's data after merging.
-///
-/// str[in,out] : Str to insert array chars into.
-/// str2[in]    : Str to be inserted.
-///
-/// SUCCESS : `str`
-/// FAILURE : NULL
+/// TAGS: Str, Merge, RValue
 ///
 #define StrMergeR(str, str2) VecMergeR((str), (str2))
+
+///
+/// Aborting variant of `StrMergeR`.
+///
+/// TAGS: Str, Merge, RValue, Must, Abort
+///
 #define StrMustMergeR(str, str2) VecMustMergeR((str), (str2))
 
 ///
-/// Merge two strings and store the result in first string.
-/// By default, this uses R-value semantics (preserves source string).
+/// Default merge alias for `StrMergeR` - preserves the source string.
+/// Use `StrMergeL` when you want ownership transfer.
 ///
-/// Data is copied from `str2` into `str`. If a `copy_init` method is provided in `str`,
-/// each element from `str2` will be copied using that method. Otherwise, a raw memory
-/// copy is performed.
-///
-/// NOTE: This preserves the source string. If you want to transfer ownership and reset
-///       the source string, use StrMergeL instead.
-///
-/// str[in,out] : Str to insert array chars into.
-/// str2[in]    : Str to be inserted.
-///
-/// SUCCESS : `str`
-/// FAILURE : NULL
+/// TAGS: Str, Merge
 ///
 #define StrMerge(str, str2) StrMergeR((str), (str2))
+
+///
+/// Aborting variant of `StrMerge`.
+///
+/// TAGS: Str, Merge, Must, Abort
+///
 #define StrMustMerge(str, str2) StrMustMergeR((str), (str2))
 
     ///
-    /// Print and append into given string object with given format.
+    /// Format and append the result to `str` using printf-style placeholders.
     ///
-    /// str[in,out] : Str to print into.
-    /// fmt[in] : Format string, followed by variadic arguments.
+    /// str[in,out] : Destination Str.
+    /// fmt[in]     : printf-style format string, followed by the variadic
+    ///               arguments matching it.
     ///
-    /// SUCCESS : `str`
-    /// FAILURE : NULL
+    /// SUCCESS : Returns `str` (the same pointer).
+    /// FAILURE : Returns `NULL` on allocation failure during the append.
+    ///
+    /// TAGS: Str, Append, Format
     ///
     Str *StrAppendf(Str *str, const char *fmt, ...) FORMAT_STRING(2, 3);
 

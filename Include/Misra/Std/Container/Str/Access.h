@@ -38,32 +38,61 @@ extern "C" {
 #define StrEmpty(str) (StrLen(str) == 0)
 
 ///
-/// Access first character in string
+/// Access the first character of the string by value. Caller must ensure the
+/// string is non-empty.
+///
+/// str[in] : String to query.
+///
+/// TAGS: Str, Access, First
 ///
 #define StrFirst(str) VecFirst(str)
 
 ///
-/// Access last character in string
+/// Access the last character of the string by value. Caller must ensure the
+/// string is non-empty.
+///
+/// str[in] : String to query.
+///
+/// TAGS: Str, Access, Last
 ///
 #define StrLast(str) VecLast(str)
 
 ///
-/// Get pointer to first character in string
+/// Pointer to the first character of the string. Equivalent to `str->data`.
+///
+/// str[in] : String to query.
+///
+/// TAGS: Str, Access, Iterator, Begin
 ///
 #define StrBegin(str) VecBegin(str)
 
 ///
-/// Get pointer to one past the last character in string
+/// Pointer one past the last character of the string. Suitable as an iteration
+/// sentinel for `[begin, end)` loops.
+///
+/// str[in] : String to query.
+///
+/// TAGS: Str, Access, Iterator, End
 ///
 #define StrEnd(str) VecEnd(str)
 
 ///
-/// Access character at given index
+/// Access the character at `idx` by value. Caller must ensure `idx < length`.
+///
+/// str[in] : String to query.
+/// idx[in] : Index in [0, length).
+///
+/// TAGS: Str, Access, Index
 ///
 #define StrCharAt(str, idx) VecAt(str, idx)
 
 ///
-/// Get pointer to character at given index
+/// Pointer to the character at `idx`. Caller must ensure `idx < length`.
+///
+/// str[in] : String to query.
+/// idx[in] : Index in [0, length).
+///
+/// TAGS: Str, Access, Index, Pointer
 ///
 #define StrCharPtrAt(str, idx) VecPtrAt(str, idx)
 

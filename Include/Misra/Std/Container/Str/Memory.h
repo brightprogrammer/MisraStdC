@@ -14,74 +14,95 @@ extern "C" {
 #endif
 
 ///
-/// Try reducing memory footprint of string.
-/// This is to be used when we know actual allocated memory for vec is large,
-/// and we won't need it in future, so we can reduce it to whatever's required at
-/// the moment.
+/// Try to shrink the allocated capacity of the string back to its current
+/// length. Use when previous growth left a large unused tail.
 ///
-/// str[in,out] : Str
+/// str[in,out] : Str handle.
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure during the shrink reallocation.
+///           The string is unchanged.
+///
+/// TAGS: Str, Memory, ReduceSpace
 ///
 #define StrTryReduceSpace(str) VecTryReduceSpace(str)
+
+///
+/// Aborting variant of `StrTryReduceSpace`.
+///
+/// TAGS: Str, Memory, ReduceSpace, Must, Abort
+///
 #define StrMustTryReduceSpace(str) VecMustTryReduceSpace(str)
 
 ///
-/// Swap chars at given indices.
+/// Swap the characters at two given indices in place.
 ///
-/// str[in,out] : Str to swap chars in.
-/// idx1[in]  : Index/Position of first char.
-/// idx1[in]  : Index/Position of second char.
+/// str[in,out] : Str handle.
+/// idx1[in]    : First index in [0, length).
+/// idx2[in]    : Second index in [0, length).
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// TAGS: Str, Memory, Swap
 ///
 #define StrSwapCharAt(str, idx1, idx2) VecSwapItems((str), (idx1), (idx2))
 
 ///
-/// Resize string.
-/// If length is smaller than current capacity, string length is shrinked.
-/// If length is greater than current capacity, space is reserved and string is expanded.
+/// Resize the string to exactly `len` characters. Truncates when shrinking and
+/// allocates when growing. New characters (when growing) are zero-initialized.
 ///
-/// vec[in,out] : Str to be resized.
-/// len[in]     : New length of string.
+/// str[in,out] : Str handle.
+/// len[in]     : New length.
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure when growth is needed. The string
+///           is unchanged.
+///
+/// TAGS: Str, Memory, Resize
 ///
 #define StrResize(str, len) VecResize((str), (len))
+
+///
+/// Aborting variant of `StrResize`.
+///
+/// TAGS: Str, Memory, Resize, Must, Abort
+///
 #define StrMustResize(str, len) VecMustResize((str), (len))
 
 ///
-/// Reserve space for string.
+/// Reserve enough capacity to fit at least `n` characters without further
+/// allocation. Does not change the string length.
 ///
-/// vec[in,out] : Str to be resized.
-/// len[in]     : New capacity of string.
+/// str[in,out] : Str handle.
+/// n[in]       : Minimum capacity in characters.
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure. The string is unchanged.
+///
+/// TAGS: Str, Memory, Reserve
 ///
 #define StrReserve(str, n) VecReserve((str), (n))
+
+///
+/// Aborting variant of `StrReserve`.
+///
+/// TAGS: Str, Memory, Reserve, Must, Abort
+///
 #define StrMustReserve(str, n) VecMustReserve((str), (n))
 
 ///
-/// Set string length to 0.
+/// Set the string length to 0 while keeping the allocated capacity.
 ///
-/// vec[in,out] : Str to be cleared.
+/// str[in,out] : Str handle.
 ///
-/// SUCCESS :
-/// FAILURE : NULL
+/// TAGS: Str, Memory, Clear
 ///
 #define StrClear(str) VecClear(str)
 
 ///
-/// Reverse contents of this string.
+/// Reverse the characters of the string in place.
 ///
-/// str[in,out] : Str to be reversed.
+/// str[in,out] : Str handle.
 ///
-/// SUCCESS : `str`
-/// FAILURE : NULL
+/// TAGS: Str, Memory, Reverse
 ///
 #define StrReverse(str) VecReverse((str))
 

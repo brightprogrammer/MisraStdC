@@ -14,83 +14,82 @@ extern "C" {
 #endif
 
 ///
-/// Pop char from string back.
+/// Remove the last character from the string and optionally store it.
 ///
-/// str[in,out] : Str to pop char from.
-/// val[out]    : Popped char will be stored here. Make sure this has sufficient memory
-///              to store memcopied data. If no pointer is provided, then it's equivalent
-///              to deleting char from last position.
+/// str[in,out] : Str handle.
+/// chr[out]    : Optional destination for the popped character. Pass `NULL` to
+///               just delete the character.
 ///
-/// SUCCESS : Returns `str` on success
-/// FAILURE : Returns NULL otherwise.
+/// TAGS: Str, Remove, Pop, Back
 ///
 #define StrPopBack(str, chr) VecPopBack((str), (chr))
 
 ///
-/// Pop char from string front.
+/// Remove the first character from the string and optionally store it.
 ///
-/// str[in,out] : Str to pop char from.
-/// val[out]    : Popped char will be stored here. Make sure this has sufficient memory
-///              to store memcopied data. If no pointer is provided, then it's equivalent
-///              to deleting char from last position.
+/// str[in,out] : Str handle.
+/// chr[out]    : Optional destination for the popped character. Pass `NULL` to
+///               just delete the character.
 ///
-/// SUCCESS : Returns `str` on success
-/// FAILURE : Returns NULL otherwise.
+/// TAGS: Str, Remove, Pop, Front
 ///
 #define StrPopFront(str, chr) VecPopFront((str), (chr))
 
 ///
-/// Remove char from string at given index and store in given pointer.
+/// Remove the character at `idx` and optionally store it. Trailing characters
+/// shift one slot to the left.
 ///
-/// str[in,out] : Str to remove char from.
-/// val[out]  : Where removed char will be stored. If not provided then it's equivalent to
-///             deleting the char at specified index.
-/// idx[in]   : Index in string to remove char from.
+/// str[in,out] : Str handle.
+/// chr[out]    : Optional destination for the removed character. Pass `NULL`
+///               to just delete it.
+/// idx[in]     : Position in [0, length).
 ///
-/// SUCCESS : Returns `str` on success.
-/// FAILURE : Returns NULL otherwise.
+/// TAGS: Str, Remove, Char
 ///
 #define StrRemove(str, chr, idx) VecRemove((str), (chr), (idx))
 
 ///
-/// Remove data from string in given range [start, start + count)
+/// Remove `count` characters starting at `start` and optionally copy them out
+/// into the provided buffer.
 ///
-/// str[in,out] : Str to remove char from.
-/// rd[out]   : Where removed data will be stored. If not provided then it's equivalent to
-///             deleting the chars in specified range.
-/// start[in] : Index in string to removing chars from.
-/// count[in] : Number of chars from starting index.
+/// str[in,out] : Str handle.
+/// rd[out]     : Optional destination buffer of at least `count` bytes. Pass
+///               `NULL` to discard the removed bytes.
+/// start[in]   : First removed index.
+/// count[in]   : Number of characters to remove.
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// TAGS: Str, Remove, Range
 ///
 #define StrRemoveRange(str, rd, start, count) VecRemoveRange((str), (rd), (start), (count))
 
 ///
-/// Delete last char from vec
+/// Delete the last character of the string.
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// str[in,out] : Str handle.
+///
+/// TAGS: Str, Delete, Back
 ///
 #define StrDeleteLastChar(str) VecDeleteLast(str)
 
 ///
-/// Delete char at given index
+/// Delete the character at `idx`. Trailing characters shift one slot to the
+/// left.
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// str[in,out] : Str handle.
+/// idx[in]     : Position in [0, length).
+///
+/// TAGS: Str, Delete
 ///
 #define StrDelete(str, idx) VecDelete((str), (idx))
 
 ///
-/// Delete chars in given range [start, start + count)
+/// Delete `count` characters starting at `start`.
 ///
-/// str[in,out] : Str to delete a sequence of characters from.
-/// start[in]   : Starting index to start deleting from.
-/// count[in]   : Number of characters to be deleted (including the starting index).
+/// str[in,out] : Str handle.
+/// start[in]   : First deleted index.
+/// count[in]   : Number of characters to delete.
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// TAGS: Str, Delete, Range
 ///
 #define StrDeleteRange(str, start, count) VecDeleteRange((str), (start), (count))
 
