@@ -160,6 +160,7 @@ extern "C" {
 #include <Misra/Std/Allocator/Arena.h>
 #include <Misra/Std/Allocator/Heap.h>
 #include <Misra/Std/Allocator/Page.h>
+#include <Misra/Std/Allocator/Pool.h>
 
 ///
 /// Obtain the library default allocator.

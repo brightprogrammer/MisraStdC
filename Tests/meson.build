@@ -134,6 +134,7 @@ kvconfig_tests = [
 allocator_tests = [
     ['Allocator.Page', 'Std/Allocator.Page.c'],
     ['Allocator.Arena', 'Std/Allocator.Arena.c'],
+    ['Allocator.Pool', 'Std/Allocator.Pool.c'],
 ]
 
 #Build and register all normal tests with full sanitizer support
