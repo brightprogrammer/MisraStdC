@@ -6,9 +6,16 @@
 
 #include <Misra/Std/Allocator/Page.h>
 #include <Misra/Std/Allocator/Pool.h>
+#include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 
 #include <stdint.h>
+
+static void pool_validate_self(const Allocator *self) {
+    if (!self || self->__magic != MISRA_POOL_ALLOCATOR_MAGIC) {
+        LOG_FATAL("type-confusion: allocator passed to pool_allocator_* is not a PoolAllocator");
+    }
+}
 
 struct PoolChunk {
     struct PoolChunk *next;
@@ -62,18 +69,19 @@ static bool pool_grow(PoolAllocator *pool) {
     uintptr_t aligned_addr = (base_addr + (uintptr_t)(align - 1)) & ~(uintptr_t)(align - 1);
     char     *cursor       = (char *)(void *)aligned_addr;
     for (size i = 0; i < slot_count; i++) {
-        struct PoolFreeSlot *slot = (struct PoolFreeSlot *)(void *)cursor;
-        slot->next                = pool->free_head;
-        pool->free_head           = slot;
+        struct PoolFreeSlot *slot  = (struct PoolFreeSlot *)(void *)cursor;
+        slot->next                 = pool->free_head;
+        pool->free_head            = slot;
         cursor                    += padded_slot;
     }
     return true;
 }
 
 void *pool_allocator_allocate(Allocator *self, size bytes, bool zeroed) {
-    PoolAllocator *pool         = (PoolAllocator *)self;
-    size           align        = self->alignment > 1 ? self->alignment : sizeof(void *);
-    size           padded_slot  = pool_padded_slot_size(pool->slot_size, align);
+    pool_validate_self(self);
+    PoolAllocator *pool        = (PoolAllocator *)self;
+    size           align       = self->alignment > 1 ? self->alignment : sizeof(void *);
+    size           padded_slot = pool_padded_slot_size(pool->slot_size, align);
 
     if (bytes > padded_slot) {
         return NULL;
@@ -90,8 +98,9 @@ void *pool_allocator_allocate(Allocator *self, size bytes, bool zeroed) {
 }
 
 void *pool_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size) {
-    PoolAllocator *pool = (PoolAllocator *)self;
-    size           align = self->alignment > 1 ? self->alignment : sizeof(void *);
+    pool_validate_self(self);
+    PoolAllocator *pool   = (PoolAllocator *)self;
+    size           align  = self->alignment > 1 ? self->alignment : sizeof(void *);
     size           padded = pool_padded_slot_size(pool->slot_size, align);
 
     (void)old_size;
@@ -112,6 +121,7 @@ void *pool_allocator_reallocate(Allocator *self, void *ptr, size old_size, size 
 }
 
 void pool_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
+    pool_validate_self(self);
     PoolAllocator *pool = (PoolAllocator *)self;
     (void)bytes;
     if (!ptr) {

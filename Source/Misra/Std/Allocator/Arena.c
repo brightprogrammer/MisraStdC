@@ -6,9 +6,16 @@
 
 #include <Misra/Std/Allocator/Arena.h>
 #include <Misra/Std/Allocator/Page.h>
+#include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 
 #include <stdint.h>
+
+static void arena_validate_self(const Allocator *self) {
+    if (!self || self->__magic != MISRA_ARENA_ALLOCATOR_MAGIC) {
+        LOG_FATAL("type-confusion: allocator passed to arena_allocator_* is not an ArenaAllocator");
+    }
+}
 
 #define MISRA_ARENA_DEFAULT_CHUNK_SIZE (size)(64 * 1024)
 
@@ -54,12 +61,13 @@ static ArenaChunk *arena_new_chunk(ArenaAllocator *arena, size need_bytes) {
 }
 
 void *arena_allocator_allocate(Allocator *self, size bytes, bool zeroed) {
+    arena_validate_self(self);
     (void)zeroed; // page-backed memory is zero-initialized.
     if (!bytes) {
         return NULL;
     }
-    ArenaAllocator *arena = (ArenaAllocator *)self;
-    size            align = arena_effective_alignment(self);
+    ArenaAllocator *arena  = (ArenaAllocator *)self;
+    size            align  = arena_effective_alignment(self);
     size            padded = arena_round_up(bytes, align);
 
     ArenaChunk *chunk = arena->tail;
@@ -69,10 +77,10 @@ void *arena_allocator_allocate(Allocator *self, size bytes, bool zeroed) {
         uintptr_t aligned_addr = (free_addr + (uintptr_t)(align - 1)) & ~(uintptr_t)(align - 1);
         size      aligned_used = (size)(aligned_addr - base_addr);
         if (aligned_used + padded <= chunk->capacity) {
-            char *result      = chunk->base + aligned_used;
-            chunk->used       = aligned_used + padded;
-            arena->last_ptr   = result;
-            arena->last_size  = padded;
+            char *result     = chunk->base + aligned_used;
+            chunk->used      = aligned_used + padded;
+            arena->last_ptr  = result;
+            arena->last_size = padded;
             return result;
         }
     }
@@ -99,6 +107,7 @@ void *arena_allocator_allocate(Allocator *self, size bytes, bool zeroed) {
 }
 
 void *arena_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size) {
+    arena_validate_self(self);
     ArenaAllocator *arena = (ArenaAllocator *)self;
     size            align = arena_effective_alignment(self);
 
@@ -132,6 +141,7 @@ void *arena_allocator_reallocate(Allocator *self, void *ptr, size old_size, size
 }
 
 void arena_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
+    arena_validate_self(self);
     ArenaAllocator *arena = (ArenaAllocator *)self;
     (void)bytes;
     if (!ptr) {

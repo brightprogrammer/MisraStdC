@@ -205,10 +205,9 @@ bool test_bitvec_clone(void) {
 bool test_bitvec_clone_inherits_allocator_config(void) {
     WriteFmt("Testing BitVecClone allocator inheritance\n");
 
-    DefaultAllocator alloc  = DefaultAllocatorInit();
-    alloc.base.effort       = ALLOCATOR_EFFORT_RETRY_FALLBACK;
-    alloc.base.retry_limit  = 9;
-    alloc.base.flags        = 0x3C3Cu;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    alloc.base.effort      = ALLOCATOR_EFFORT_RETRY_FALLBACK;
+    alloc.base.retry_limit = 9;
 
     BitVec original = BitVecInit(ALLOCATOR_OF(&alloc));
 
@@ -220,19 +219,13 @@ bool test_bitvec_clone_inherits_allocator_config(void) {
 
     // Clone should share the same Allocator* and therefore see identical
     // configuration fields on the base allocator.
-    bool result =
-        clone.length == original.length &&
-        clone.capacity >= original.length &&
-        clone.allocator == original.allocator &&
-        clone.allocator->allocate == original.allocator->allocate &&
-        clone.allocator->reallocate == original.allocator->reallocate &&
-        clone.allocator->deallocate == original.allocator->deallocate &&
-        clone.allocator->effort == original.allocator->effort &&
-        clone.allocator->retry_limit == original.allocator->retry_limit &&
-        clone.allocator->flags == original.allocator->flags &&
-        BitVecGet(&clone, 0) == true &&
-        BitVecGet(&clone, 1) == false &&
-        BitVecGet(&clone, 2) == true;
+    bool result = clone.length == original.length && clone.capacity >= original.length &&
+                  clone.allocator == original.allocator && clone.allocator->allocate == original.allocator->allocate &&
+                  clone.allocator->reallocate == original.allocator->reallocate &&
+                  clone.allocator->deallocate == original.allocator->deallocate &&
+                  clone.allocator->effort == original.allocator->effort &&
+                  clone.allocator->retry_limit == original.allocator->retry_limit && BitVecGet(&clone, 0) == true &&
+                  BitVecGet(&clone, 1) == false && BitVecGet(&clone, 2) == true;
 
     BitVecDeinit(&original);
     BitVecDeinit(&clone);

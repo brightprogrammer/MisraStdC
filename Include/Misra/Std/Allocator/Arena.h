@@ -13,6 +13,15 @@
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Allocator/Page.h>
 
+///
+/// Per-type magic for `ArenaAllocator`. Stamped into
+/// `Allocator.base.__magic` by `ArenaAllocatorInit*`. The arena
+/// implementation functions validate this exact value so other
+/// allocator instances reinterpreted as an `ArenaAllocator *` are
+/// rejected at runtime as type-confusion.
+///
+#define MISRA_ARENA_ALLOCATOR_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("arenaalc")
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -50,31 +59,37 @@ extern "C" {
 #endif
 
 #define ArenaAllocatorInit()                                                                                           \
-    ((ArenaAllocator) {.base      = {.allocate    = arena_allocator_allocate,                                          \
-                                     .reallocate  = arena_allocator_reallocate,                                        \
-                                     .deallocate  = arena_allocator_deallocate,                                        \
-                                     .alignment   = 1,                                                                 \
-                                     .effort      = ALLOCATOR_EFFORT_ONCE,                                             \
-                                     .retry_limit = 0,                                                                 \
-                                     .flags       = 0},                                                                \
-                       .head      = NULL,                                                                              \
-                       .tail      = NULL,                                                                              \
-                       .last_ptr  = NULL,                                                                              \
-                       .last_size = 0,                                                                                 \
-                       .page      = PageAllocatorInit()})
+    ((ArenaAllocator) {                                                                                                \
+        .base =                                                                                                        \
+            {.allocate    = arena_allocator_allocate,                                                                  \
+                   .reallocate  = arena_allocator_reallocate,                                                                \
+                   .deallocate  = arena_allocator_deallocate,                                                                \
+                   .alignment   = 1,                                                                                         \
+                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
+                   .retry_limit = 0,                                                                                         \
+                   .__magic     = MISRA_ARENA_ALLOCATOR_MAGIC},                                                                  \
+        .head      = NULL,                                                                                             \
+        .tail      = NULL,                                                                                             \
+        .last_ptr  = NULL,                                                                                             \
+        .last_size = 0,                                                                                                \
+        .page      = PageAllocatorInit()                                                                               \
+    })
 
 #define ArenaAllocatorInitAligned(N)                                                                                   \
-    ((ArenaAllocator) {.base      = {.allocate    = arena_allocator_allocate,                                          \
-                                     .reallocate  = arena_allocator_reallocate,                                        \
-                                     .deallocate  = arena_allocator_deallocate,                                        \
-                                     .alignment   = (N) ? (N) : 1,                                                    \
-                                     .effort      = ALLOCATOR_EFFORT_ONCE,                                             \
-                                     .retry_limit = 0,                                                                 \
-                                     .flags       = 0},                                                                \
-                       .head      = NULL,                                                                              \
-                       .tail      = NULL,                                                                              \
-                       .last_ptr  = NULL,                                                                              \
-                       .last_size = 0,                                                                                 \
-                       .page      = PageAllocatorInit()})
+    ((ArenaAllocator) {                                                                                                \
+        .base =                                                                                                        \
+            {.allocate    = arena_allocator_allocate,                                                                  \
+                   .reallocate  = arena_allocator_reallocate,                                                                \
+                   .deallocate  = arena_allocator_deallocate,                                                                \
+                   .alignment   = (N) ? (N) : 1,                                                                             \
+                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
+                   .retry_limit = 0,                                                                                         \
+                   .__magic     = MISRA_ARENA_ALLOCATOR_MAGIC},                                                                  \
+        .head      = NULL,                                                                                             \
+        .tail      = NULL,                                                                                             \
+        .last_ptr  = NULL,                                                                                             \
+        .last_size = 0,                                                                                                \
+        .page      = PageAllocatorInit()                                                                               \
+    })
 
 #endif // MISRA_STD_ALLOCATOR_ARENA_H

@@ -8,9 +8,16 @@
 /// struct - just a cached page size.
 
 #include <Misra/Std/Allocator/Page.h>
+#include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 
 #include <stddef.h>
+
+static void page_validate_self(const Allocator *self) {
+    if (!self || self->__magic != MISRA_PAGE_ALLOCATOR_MAGIC) {
+        LOG_FATAL("type-confusion: allocator passed to page_allocator_* is not a PageAllocator");
+    }
+}
 
 #ifdef _WIN32
 #    define MISRA_PAGE_ALLOCATOR_WINDOWS 1
@@ -109,6 +116,7 @@ static size page_rounded_size(PageAllocator *self, size bytes) {
 }
 
 void *page_allocator_allocate(Allocator *self, size bytes, bool zeroed) {
+    page_validate_self(self);
     (void)zeroed; // OS-mapped pages are kernel-zeroed.
     if (!bytes) {
         return NULL;
@@ -118,6 +126,7 @@ void *page_allocator_allocate(Allocator *self, size bytes, bool zeroed) {
 }
 
 void *page_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size) {
+    page_validate_self(self);
     PageAllocator *page = (PageAllocator *)self;
 
     if (new_size == 0) {
@@ -138,6 +147,7 @@ void *page_allocator_reallocate(Allocator *self, void *ptr, size old_size, size 
 }
 
 void page_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
+    page_validate_self(self);
     PageAllocator *page = (PageAllocator *)self;
     page_unmap(ptr, page_rounded_size(page, bytes));
 }

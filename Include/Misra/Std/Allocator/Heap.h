@@ -13,9 +13,20 @@
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Allocator/Page.h>
 
-#define HEAP_MIN_BIN_LOG 4u                                          // smallest bin: 2^4 = 16 bytes
-#define HEAP_MAX_BIN_LOG 11u                                         // largest bin:  2^11 = 2048 bytes
+#define HEAP_MIN_BIN_LOG 4u  // smallest bin: 2^4 = 16 bytes
+#define HEAP_MAX_BIN_LOG 11u // largest bin:  2^11 = 2048 bytes
 #define HEAP_NUM_BINS    (HEAP_MAX_BIN_LOG - HEAP_MIN_BIN_LOG + 1u)
+
+///
+/// Per-type magic for `HeapAllocator`. Stamped into `Allocator.base.__magic`
+/// by `HeapAllocatorInit*`. The heap implementation functions
+/// (`heap_allocator_allocate` / `..._reallocate` / `..._deallocate`)
+/// validate this exact value, so passing a `PageAllocator` /
+/// `ArenaAllocator` / `PoolAllocator` through a `HeapAllocator *` cast
+/// is caught at runtime as type-confusion instead of silently corrupting
+/// memory.
+///
+#define MISRA_HEAP_ALLOCATOR_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("heapallc")
 
 #ifdef __cplusplus
 extern "C" {
@@ -71,16 +82,19 @@ extern "C" {
 ///     HeapAllocatorDeinit(&heap);
 ///
 #define HeapAllocatorInit()                                                                                            \
-    ((HeapAllocator) {.base        = {.allocate    = heap_allocator_allocate,                                          \
-                                      .reallocate  = heap_allocator_reallocate,                                        \
-                                      .deallocate  = heap_allocator_deallocate,                                        \
-                                      .alignment   = 1,                                                                \
-                                      .effort      = ALLOCATOR_EFFORT_ONCE,                                            \
-                                      .retry_limit = 0,                                                                \
-                                      .flags       = 0},                                                               \
-                      .bins        = {0},                                                                              \
-                      .chunks_head = NULL,                                                                              \
-                      .page        = PageAllocatorInit()})
+    ((HeapAllocator) {                                                                                                 \
+        .base =                                                                                                        \
+            {.allocate    = heap_allocator_allocate,                                                                   \
+                   .reallocate  = heap_allocator_reallocate,                                                                 \
+                   .deallocate  = heap_allocator_deallocate,                                                                 \
+                   .alignment   = 1,                                                                                         \
+                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
+                   .retry_limit = 0,                                                                                         \
+                   .__magic     = MISRA_HEAP_ALLOCATOR_MAGIC},                                                                   \
+        .bins        = {0},                                                                                            \
+        .chunks_head = NULL,                                                                                           \
+        .page        = PageAllocatorInit()                                                                             \
+    })
 
 ///
 /// Initialize a `HeapAllocator` with a custom alignment floor.
@@ -88,15 +102,18 @@ extern "C" {
 /// embedded `PageAllocator`.
 ///
 #define HeapAllocatorInitAligned(N)                                                                                    \
-    ((HeapAllocator) {.base        = {.allocate    = heap_allocator_allocate,                                          \
-                                      .reallocate  = heap_allocator_reallocate,                                        \
-                                      .deallocate  = heap_allocator_deallocate,                                        \
-                                      .alignment   = (N) ? (N) : 1,                                                    \
-                                      .effort      = ALLOCATOR_EFFORT_ONCE,                                            \
-                                      .retry_limit = 0,                                                                \
-                                      .flags       = 0},                                                               \
-                      .bins        = {0},                                                                              \
-                      .chunks_head = NULL,                                                                              \
-                      .page        = PageAllocatorInit()})
+    ((HeapAllocator) {                                                                                                 \
+        .base =                                                                                                        \
+            {.allocate    = heap_allocator_allocate,                                                                   \
+                   .reallocate  = heap_allocator_reallocate,                                                                 \
+                   .deallocate  = heap_allocator_deallocate,                                                                 \
+                   .alignment   = (N) ? (N) : 1,                                                                             \
+                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
+                   .retry_limit = 0,                                                                                         \
+                   .__magic     = MISRA_HEAP_ALLOCATOR_MAGIC},                                                                   \
+        .bins        = {0},                                                                                            \
+        .chunks_head = NULL,                                                                                           \
+        .page        = PageAllocatorInit()                                                                             \
+    })
 
 #endif // MISRA_STD_ALLOCATOR_HEAP_H

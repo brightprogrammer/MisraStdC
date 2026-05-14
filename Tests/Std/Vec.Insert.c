@@ -317,10 +317,9 @@ bool test_vec_init_clone_inherits_allocator_config(void) {
 
     typedef Vec(int) IntVec;
 
-    HeapAllocator local_heap     = HeapAllocatorInit();
-    local_heap.base.effort       = ALLOCATOR_EFFORT_RETRY_FALLBACK;
-    local_heap.base.retry_limit  = 11;
-    local_heap.base.flags        = 0xA55Au;
+    HeapAllocator local_heap    = HeapAllocatorInit();
+    local_heap.base.effort      = ALLOCATOR_EFFORT_RETRY_FALLBACK;
+    local_heap.base.retry_limit = 11;
 
     IntVec src      = VecInit(&local_heap);
     int    values[] = {10, 20, 30};
@@ -331,19 +330,18 @@ bool test_vec_init_clone_inherits_allocator_config(void) {
     // so alignment must be 1 (default) for src.data to be a contiguous
     // int[]. Stronger alignment is exercised separately - it's not what
     // this test is asserting.
-    IntVec dst = VecInit(src.allocator);
+    IntVec dst      = VecInit(src.allocator);
     dst.copy_init   = src.copy_init;
     dst.copy_deinit = src.copy_deinit;
-    bool cloned = VecPushBackArrR(&dst, src.data, src.length);
+    bool cloned     = VecPushBackArrR(&dst, src.data, src.length);
 
     bool allocator_matches = dst.allocator == src.allocator;
 
     bool result = cloned && dst.copy_init == src.copy_init && dst.copy_deinit == src.copy_deinit &&
-                  dst.allocator->effort == ALLOCATOR_EFFORT_RETRY_FALLBACK &&
-                  dst.allocator->retry_limit == 11 && dst.allocator->flags == 0xA55Au &&
-                  allocator_matches && src.length == 3 && VecAt(&src, 0) == 10 &&
-                  VecAt(&src, 1) == 20 && VecAt(&src, 2) == 30 && dst.length == 3 && VecAt(&dst, 0) == 10 &&
-                  VecAt(&dst, 1) == 20 && VecAt(&dst, 2) == 30;
+                  dst.allocator->effort == ALLOCATOR_EFFORT_RETRY_FALLBACK && dst.allocator->retry_limit == 11 &&
+                  allocator_matches && src.length == 3 && VecAt(&src, 0) == 10 && VecAt(&src, 1) == 20 &&
+                  VecAt(&src, 2) == 30 && dst.length == 3 && VecAt(&dst, 0) == 10 && VecAt(&dst, 1) == 20 &&
+                  VecAt(&dst, 2) == 30;
 
     VecDeinit(&src);
     VecDeinit(&dst);

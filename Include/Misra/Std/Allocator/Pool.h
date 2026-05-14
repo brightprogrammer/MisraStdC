@@ -12,6 +12,15 @@
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Allocator/Page.h>
 
+///
+/// Per-type magic for `PoolAllocator`. Stamped into
+/// `Allocator.base.__magic` by `PoolAllocatorInit*`. The pool
+/// implementation functions validate this exact value so other
+/// allocator instances reinterpreted as a `PoolAllocator *` are
+/// rejected at runtime as type-confusion.
+///
+#define MISRA_POOL_ALLOCATOR_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("poolallc")
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -46,36 +55,42 @@ extern "C" {
 /// padded internally so each slot holds the intrusive free-list pointer.
 ///
 #define PoolAllocatorInit(slot_size_bytes)                                                                             \
-    ((PoolAllocator) {.base            = {.allocate    = pool_allocator_allocate,                                      \
-                                          .reallocate  = pool_allocator_reallocate,                                    \
-                                          .deallocate  = pool_allocator_deallocate,                                    \
-                                          .alignment   = 1,                                                            \
-                                          .effort      = ALLOCATOR_EFFORT_ONCE,                                        \
-                                          .retry_limit = 0,                                                            \
-                                          .flags       = 0},                                                           \
-                      .head            = NULL,                                                                          \
-                      .tail            = NULL,                                                                          \
-                      .free_head       = NULL,                                                                          \
-                      .slot_size       = (slot_size_bytes),                                                              \
-                      .slots_per_chunk = MISRA_POOL_DEFAULT_CHUNK_SLOTS,                                                \
-                      .page            = PageAllocatorInit()})
+    ((PoolAllocator) {                                                                                                 \
+        .base =                                                                                                        \
+            {.allocate    = pool_allocator_allocate,                                                                   \
+                   .reallocate  = pool_allocator_reallocate,                                                                 \
+                   .deallocate  = pool_allocator_deallocate,                                                                 \
+                   .alignment   = 1,                                                                                         \
+                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
+                   .retry_limit = 0,                                                                                         \
+                   .__magic     = MISRA_POOL_ALLOCATOR_MAGIC},                                                                   \
+        .head            = NULL,                                                                                       \
+        .tail            = NULL,                                                                                       \
+        .free_head       = NULL,                                                                                       \
+        .slot_size       = (slot_size_bytes),                                                                          \
+        .slots_per_chunk = MISRA_POOL_DEFAULT_CHUNK_SLOTS,                                                             \
+        .page            = PageAllocatorInit()                                                                         \
+    })
 
 ///
 /// Initialize a `PoolAllocator` with a custom alignment floor.
 ///
 #define PoolAllocatorInitAligned(slot_size_bytes, alignment_value)                                                     \
-    ((PoolAllocator) {.base            = {.allocate    = pool_allocator_allocate,                                      \
-                                          .reallocate  = pool_allocator_reallocate,                                    \
-                                          .deallocate  = pool_allocator_deallocate,                                    \
-                                          .alignment   = (alignment_value) ? (alignment_value) : 1,                    \
-                                          .effort      = ALLOCATOR_EFFORT_ONCE,                                        \
-                                          .retry_limit = 0,                                                            \
-                                          .flags       = 0},                                                           \
-                      .head            = NULL,                                                                          \
-                      .tail            = NULL,                                                                          \
-                      .free_head       = NULL,                                                                          \
-                      .slot_size       = (slot_size_bytes),                                                              \
-                      .slots_per_chunk = MISRA_POOL_DEFAULT_CHUNK_SLOTS,                                                \
-                      .page            = PageAllocatorInit()})
+    ((PoolAllocator) {                                                                                                 \
+        .base =                                                                                                        \
+            {.allocate    = pool_allocator_allocate,                                                                   \
+                   .reallocate  = pool_allocator_reallocate,                                                                 \
+                   .deallocate  = pool_allocator_deallocate,                                                                 \
+                   .alignment   = (alignment_value) ? (alignment_value) : 1,                                                 \
+                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
+                   .retry_limit = 0,                                                                                         \
+                   .__magic     = MISRA_POOL_ALLOCATOR_MAGIC},                                                                   \
+        .head            = NULL,                                                                                       \
+        .tail            = NULL,                                                                                       \
+        .free_head       = NULL,                                                                                       \
+        .slot_size       = (slot_size_bytes),                                                                          \
+        .slots_per_chunk = MISRA_POOL_DEFAULT_CHUNK_SLOTS,                                                             \
+        .page            = PageAllocatorInit()                                                                         \
+    })
 
 #endif // MISRA_STD_ALLOCATOR_POOL_H

@@ -70,11 +70,10 @@ bool test_int_clone_inherits_allocator_config(void) {
     WriteFmt("Testing IntClone allocator inheritance\n");
 
     DefaultAllocator alloc = DefaultAllocatorInit();
-    alloc.base.effort = ALLOCATOR_EFFORT_RETRY_FALLBACK;
+    alloc.base.effort      = ALLOCATOR_EFFORT_RETRY_FALLBACK;
     alloc.base.retry_limit = 5;
-    alloc.base.flags = 0x4B4Bu;
 
-    Int original = IntInit(&alloc.base);
+    Int original = IntInit(&alloc);
 
     BitVecPush(&original.bits, true);
     BitVecPush(&original.bits, false);
@@ -82,18 +81,14 @@ bool test_int_clone_inherits_allocator_config(void) {
 
     Int clone = IntClone(&original);
 
-    bool result =
-        clone.bits.length == original.bits.length &&
-        clone.bits.allocator == original.bits.allocator &&
-        clone.bits.allocator->allocate == original.bits.allocator->allocate &&
-        clone.bits.allocator->reallocate == original.bits.allocator->reallocate &&
-        clone.bits.allocator->deallocate == original.bits.allocator->deallocate &&
-        clone.bits.allocator->effort == original.bits.allocator->effort &&
-        clone.bits.allocator->retry_limit == original.bits.allocator->retry_limit &&
-        clone.bits.allocator->flags == original.bits.allocator->flags &&
-        BitVecGet(&clone.bits, 0) == true &&
-        BitVecGet(&clone.bits, 1) == false &&
-        BitVecGet(&clone.bits, 2) == true;
+    bool result = clone.bits.length == original.bits.length && clone.bits.allocator == original.bits.allocator &&
+                  clone.bits.allocator->allocate == original.bits.allocator->allocate &&
+                  clone.bits.allocator->reallocate == original.bits.allocator->reallocate &&
+                  clone.bits.allocator->deallocate == original.bits.allocator->deallocate &&
+                  clone.bits.allocator->effort == original.bits.allocator->effort &&
+                  clone.bits.allocator->retry_limit == original.bits.allocator->retry_limit &&
+                  BitVecGet(&clone.bits, 0) == true && BitVecGet(&clone.bits, 1) == false &&
+                  BitVecGet(&clone.bits, 2) == true;
 
     IntDeinit(&original);
     IntDeinit(&clone);

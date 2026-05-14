@@ -54,17 +54,19 @@ extern "C" {
         size                  alignment;
         AllocatorEffort       effort;
         u32                   retry_limit;
-        u32                   flags;
+        u32                   __reserved;
+        u64                   __magic;
     };
 
     ///
-    /// Magic sentinel used to identify a properly-initialized allocator base
-    /// at runtime. Embedded inside the base via the `*Init` macros so
-    /// `ValidateAllocator` can catch use-of-uninitialized-allocator bugs.
+    /// Magic sentinel used to identify a properly-initialized allocator
+    /// base at runtime. Every typed allocator's `*Init` macro stamps this
+    /// into the embedded `Allocator.base.__magic`. `ValidateAllocator`
+    /// checks it before dispatching through the function pointers.
     ///
-    /// Stored in `flags` because it doesn't otherwise carry state in current
-    /// allocators - leaves room to add real flag bits later if needed by
-    /// using the lower bits and keeping the magic in the upper bits.
+    /// The sentinel both catches use-of-uninitialized-allocator and acts
+    /// as a weak type-confusion guard - random pointers reinterpreted as
+    /// `Allocator *` will almost never match.
     ///
 
     ///
@@ -162,12 +164,14 @@ extern "C" {
 /// (and forward-declaring it above).
 ///
 #define ALLOCATOR_OF(allocator_ptr)                                                                                    \
-    _Generic((allocator_ptr),                                                                                          \
+    _Generic(                                                                                                          \
+        (allocator_ptr),                                                                                               \
         Allocator *: (allocator_ptr),                                                                                  \
         HeapAllocator *: (Allocator *)(allocator_ptr),                                                                 \
         PageAllocator *: (Allocator *)(allocator_ptr),                                                                 \
         ArenaAllocator *: (Allocator *)(allocator_ptr),                                                                \
-        PoolAllocator *: (Allocator *)(allocator_ptr))
+        PoolAllocator *: (Allocator *)(allocator_ptr)                                                                  \
+    )
 
 // Typed allocator headers (PageAllocator, HeapAllocator, ArenaAllocator,
 // PoolAllocator) are NOT included here to avoid include-guard cycles:
@@ -223,15 +227,15 @@ extern "C" {
 #define Scope(name, AllocType)                                                                                         \
     for (AllocType _scope_user_##name     = AllocType##Init(),                                                         \
                    _scope_internal_##name = AllocType##Init(),                                                         \
-                  *_scope_loop_##name     = &_scope_user_##name;                                                       \
-         _scope_loop_##name;                                                                                            \
-         AllocType##Deinit(&_scope_internal_##name),                                                                    \
-         AllocType##Deinit(&_scope_user_##name),                                                                        \
-         _scope_loop_##name = NULL)                                                                                     \
-        for (Allocator *name              = &_scope_user_##name.base,                                                   \
-                      *MisraScope        = &_scope_internal_##name.base,                                                \
-                      *_scope_done_##name = name;                                                                        \
-             _scope_done_##name;                                                                                         \
+                   *_scope_loop_##name    = &_scope_user_##name;                                                       \
+         _scope_loop_##name;                                                                                           \
+         AllocType##Deinit(&_scope_internal_##name),                                                                   \
+                   AllocType##Deinit(&_scope_user_##name),                                                             \
+                   _scope_loop_##name = NULL)                                                                          \
+        for (Allocator *name               = &_scope_user_##name.base,                                                 \
+                       *MisraScope         = &_scope_internal_##name.base,                                             \
+                       *_scope_done_##name = name;                                                                     \
+             _scope_done_##name;                                                                                       \
              _scope_done_##name = NULL)
 
 ///
@@ -252,9 +256,7 @@ extern "C" {
 /// TAGS: Allocator, Scope, Lifetime
 ///
 #define ScopeWith(alloc_ptr)                                                                                           \
-    for (Allocator *MisraScope = (alloc_ptr), *_scope_with_done = MisraScope;                                          \
-         _scope_with_done;                                                                                              \
-         _scope_with_done = NULL)
+    for (Allocator *MisraScope = (alloc_ptr), *_scope_with_done = MisraScope; _scope_with_done; _scope_with_done = NULL)
 
 ///
 /// Early-exit the nearest enclosing `Scope` / `ScopeWith` block, running

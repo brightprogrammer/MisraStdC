@@ -13,6 +13,15 @@
 
 #include <Misra/Std/Allocator.h>
 
+///
+/// Per-type magic for `PageAllocator`. Stamped into
+/// `Allocator.base.__magic` by `PageAllocatorInit*`. The page
+/// implementation functions validate this exact value so a
+/// `HeapAllocator` / `ArenaAllocator` / `PoolAllocator` reinterpreted
+/// as a `PageAllocator *` is rejected at runtime as type-confusion.
+///
+#define MISRA_PAGE_ALLOCATOR_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("pageallc")
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -64,14 +73,17 @@ extern "C" {
 ///     Vec(int) v = VecInit(&page);
 ///
 #define PageAllocatorInit()                                                                                            \
-    ((PageAllocator) {.base             = {.allocate    = page_allocator_allocate,                                     \
-                                           .reallocate  = page_allocator_reallocate,                                   \
-                                           .deallocate  = page_allocator_deallocate,                                   \
-                                           .alignment   = 1,                                                           \
-                                           .effort      = ALLOCATOR_EFFORT_ONCE,                                       \
-                                           .retry_limit = 0,                                                           \
-                                           .flags       = 0},                                                          \
-                      .cached_page_size = 0})
+    ((PageAllocator) {                                                                                                 \
+        .base =                                                                                                        \
+            {.allocate    = page_allocator_allocate,                                                                   \
+                   .reallocate  = page_allocator_reallocate,                                                                 \
+                   .deallocate  = page_allocator_deallocate,                                                                 \
+                   .alignment   = 1,                                                                                         \
+                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
+                   .retry_limit = 0,                                                                                         \
+                   .__magic     = MISRA_PAGE_ALLOCATOR_MAGIC},                                                                   \
+        .cached_page_size = 0                                                                                          \
+    })
 
 ///
 /// Initialize a `PageAllocator` with a custom alignment floor. Page-backed
@@ -79,14 +91,17 @@ extern "C" {
 /// rounded up. Stronger-than-page alignment is best-effort.
 ///
 #define PageAllocatorInitAligned(N)                                                                                    \
-    ((PageAllocator) {.base             = {.allocate    = page_allocator_allocate,                                     \
-                                           .reallocate  = page_allocator_reallocate,                                   \
-                                           .deallocate  = page_allocator_deallocate,                                   \
-                                           .alignment   = (N) ? (N) : 1,                                               \
-                                           .effort      = ALLOCATOR_EFFORT_ONCE,                                       \
-                                           .retry_limit = 0,                                                           \
-                                           .flags       = 0},                                                          \
-                      .cached_page_size = 0})
+    ((PageAllocator) {                                                                                                 \
+        .base =                                                                                                        \
+            {.allocate    = page_allocator_allocate,                                                                   \
+                   .reallocate  = page_allocator_reallocate,                                                                 \
+                   .deallocate  = page_allocator_deallocate,                                                                 \
+                   .alignment   = (N) ? (N) : 1,                                                                             \
+                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
+                   .retry_limit = 0,                                                                                         \
+                   .__magic     = MISRA_PAGE_ALLOCATOR_MAGIC},                                                                   \
+        .cached_page_size = 0                                                                                          \
+    })
 
 ///
 /// Teardown for `PageAllocator`. Stateless; expands to a no-op. Provided for

@@ -33,6 +33,9 @@ void ValidateAllocator(const Allocator *self) {
     if (!self) {
         LOG_FATAL("NULL allocator pointer");
     }
+    if (self->__magic == 0u) {
+        LOG_FATAL("Allocator uninitialized (__magic is zero)");
+    }
     if (!self->allocate || !self->reallocate || !self->deallocate) {
         LOG_FATAL("Allocator missing required function pointers");
     }

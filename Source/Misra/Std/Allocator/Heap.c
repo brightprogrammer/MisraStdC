@@ -9,7 +9,14 @@
 
 #include <Misra/Std/Allocator/Heap.h>
 #include <Misra/Std/Allocator/Page.h>
+#include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
+
+static void heap_validate_self(const Allocator *self) {
+    if (!self || self->__magic != MISRA_HEAP_ALLOCATOR_MAGIC) {
+        LOG_FATAL("type-confusion: allocator passed to heap_allocator_* is not a HeapAllocator");
+    }
+}
 
 struct HeapFreeSlot {
     struct HeapFreeSlot *next;
@@ -59,15 +66,16 @@ static bool heap_grow_bin(HeapAllocator *heap, int bin) {
     size  n_slots      = page_size / slot_size;
     char *cursor       = raw + header_slots * slot_size;
     for (size i = header_slots; i < n_slots; i++) {
-        HeapFreeSlot *slot = (HeapFreeSlot *)(void *)cursor;
-        slot->next         = heap->bins[bin];
-        heap->bins[bin]    = slot;
+        HeapFreeSlot *slot  = (HeapFreeSlot *)(void *)cursor;
+        slot->next          = heap->bins[bin];
+        heap->bins[bin]     = slot;
         cursor             += slot_size;
     }
     return true;
 }
 
 void *heap_allocator_allocate(Allocator *self, size bytes, bool zeroed) {
+    heap_validate_self(self);
     HeapAllocator *heap = (HeapAllocator *)self;
     if (!bytes) {
         return NULL;
@@ -99,6 +107,7 @@ void *heap_allocator_allocate(Allocator *self, size bytes, bool zeroed) {
 }
 
 void heap_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
+    heap_validate_self(self);
     HeapAllocator *heap = (HeapAllocator *)self;
     if (!ptr) {
         return;
@@ -122,6 +131,7 @@ void heap_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
 }
 
 void *heap_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size) {
+    heap_validate_self(self);
     if (new_size == 0) {
         if (ptr) {
             heap_allocator_deallocate(self, ptr, old_size);

@@ -73,11 +73,10 @@ bool test_float_clone_inherits_allocator_config(void) {
     WriteFmt("Testing FloatClone allocator inheritance\n");
 
     DefaultAllocator alloc = DefaultAllocatorInit();
-    alloc.base.effort = ALLOCATOR_EFFORT_RETRY_FALLBACK;
+    alloc.base.effort      = ALLOCATOR_EFFORT_RETRY_FALLBACK;
     alloc.base.retry_limit = 6;
-    alloc.base.flags = 0x6D6Du;
 
-    Float original = FloatInit(&alloc.base);
+    Float original    = FloatInit(&alloc.base);
     original.negative = true;
     original.exponent = -3;
 
@@ -87,20 +86,16 @@ bool test_float_clone_inherits_allocator_config(void) {
 
     Float clone = FloatClone(&original);
 
-    bool result =
-        clone.negative == original.negative &&
-        clone.exponent == original.exponent &&
-        clone.significand.bits.length == original.significand.bits.length &&
-        clone.significand.bits.allocator == original.significand.bits.allocator &&
-        clone.significand.bits.allocator->allocate == original.significand.bits.allocator->allocate &&
-        clone.significand.bits.allocator->reallocate == original.significand.bits.allocator->reallocate &&
-        clone.significand.bits.allocator->deallocate == original.significand.bits.allocator->deallocate &&
-        clone.significand.bits.allocator->effort == original.significand.bits.allocator->effort &&
-        clone.significand.bits.allocator->retry_limit == original.significand.bits.allocator->retry_limit &&
-        clone.significand.bits.allocator->flags == original.significand.bits.allocator->flags &&
-        BitVecGet(&clone.significand.bits, 0) == true &&
-        BitVecGet(&clone.significand.bits, 1) == false &&
-        BitVecGet(&clone.significand.bits, 2) == true;
+    bool result = clone.negative == original.negative && clone.exponent == original.exponent &&
+                  clone.significand.bits.length == original.significand.bits.length &&
+                  clone.significand.bits.allocator == original.significand.bits.allocator &&
+                  clone.significand.bits.allocator->allocate == original.significand.bits.allocator->allocate &&
+                  clone.significand.bits.allocator->reallocate == original.significand.bits.allocator->reallocate &&
+                  clone.significand.bits.allocator->deallocate == original.significand.bits.allocator->deallocate &&
+                  clone.significand.bits.allocator->effort == original.significand.bits.allocator->effort &&
+                  clone.significand.bits.allocator->retry_limit == original.significand.bits.allocator->retry_limit &&
+                  BitVecGet(&clone.significand.bits, 0) == true && BitVecGet(&clone.significand.bits, 1) == false &&
+                  BitVecGet(&clone.significand.bits, 2) == true;
 
     FloatDeinit(&original);
     FloatDeinit(&clone);
