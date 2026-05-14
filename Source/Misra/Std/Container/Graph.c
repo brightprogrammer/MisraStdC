@@ -118,7 +118,7 @@ static GraphNode graph_validate_node_handle(GraphNode node) {
 
 static void *graph_alloc_node_data(GenericGraph *graph, size item_size) {
     graph_validate_alignment(graph);
-    return AllocatorAlloc(&graph->allocator, item_size, graph_node_data_alignment(graph), true);
+    return AllocatorAlloc(&graph->allocator, item_size, true);
 }
 
 static void graph_free_node_data(GenericGraph *graph, void *data, size item_size) {
@@ -132,7 +132,7 @@ static void graph_free_node_data(GenericGraph *graph, void *data, size item_size
         MemSet(data, 0, item_size);
     }
 
-    AllocatorFree(&graph->allocator, data, item_size, graph_node_data_alignment(graph));
+    AllocatorFree(&graph->allocator, data, item_size);
 }
 
 static bool graph_copy_node_data(GenericGraph *graph, void *dst, const void *src, size item_size) {

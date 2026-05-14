@@ -6,6 +6,7 @@
 
 #include <Misra/Std/Allocator.h>
 
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -15,6 +16,13 @@
 
 static bool allocator_alignment_is_pow2(size alignment) {
     return alignment != 0 && ((alignment & (alignment - 1)) == 0);
+}
+
+static size heap_allocator_alignment(const Allocator *alloc) {
+    if (alloc && alloc->alignment) {
+        return alloc->alignment;
+    }
+    return (size) _Alignof(max_align_t);
 }
 
 static void *heap_allocator_raw_allocate(size bytes, size alignment) {
@@ -54,25 +62,18 @@ static void heap_allocator_raw_deallocate(void *ptr, size alignment) {
 #endif
 }
 
-static void *heap_allocator_allocate(Allocator *alloc, size bytes, size alignment, bool zeroed) {
-    void *ptr = NULL;
-
-    (void)alloc;
-
-    ptr = heap_allocator_raw_allocate(bytes, alignment);
+static void *heap_allocator_allocate(Allocator *alloc, size bytes, bool zeroed) {
+    size  alignment = heap_allocator_alignment(alloc);
+    void *ptr       = heap_allocator_raw_allocate(bytes, alignment);
     if (ptr && zeroed) {
         memset(ptr, 0, bytes);
     }
-
     return ptr;
 }
 
-static void *heap_allocator_reallocate(
-    Allocator *alloc, void *ptr, size old_size, size new_size, size alignment
-) {
-    void *new_ptr = NULL;
-
-    (void)alloc;
+static void *heap_allocator_reallocate(Allocator *alloc, void *ptr, size old_size, size new_size) {
+    size  alignment = heap_allocator_alignment(alloc);
+    void *new_ptr   = NULL;
 
     if (new_size == 0) {
         heap_allocator_raw_deallocate(ptr, alignment);
@@ -96,10 +97,9 @@ static void *heap_allocator_reallocate(
     return new_ptr;
 }
 
-static void heap_allocator_deallocate(Allocator *alloc, void *ptr, size bytes, size alignment) {
-    (void)alloc;
+static void heap_allocator_deallocate(Allocator *alloc, void *ptr, size bytes) {
     (void)bytes;
-    heap_allocator_raw_deallocate(ptr, alignment);
+    heap_allocator_raw_deallocate(ptr, heap_allocator_alignment(alloc));
 }
 
 static size allocator_attempt_limit(const Allocator *alloc) {
@@ -108,27 +108,36 @@ static size allocator_attempt_limit(const Allocator *alloc) {
     }
 
     switch (alloc->effort) {
-        case ALLOCATOR_EFFORT_RETRY:
-        case ALLOCATOR_EFFORT_RETRY_FALLBACK:
+        case ALLOCATOR_EFFORT_RETRY :
+        case ALLOCATOR_EFFORT_RETRY_FALLBACK :
             return alloc->retry_limit ? (size)(alloc->retry_limit + 1) : 2;
-        case ALLOCATOR_EFFORT_ONCE:
-        default:
+        case ALLOCATOR_EFFORT_ONCE :
+        default :
             return 1;
     }
 }
 
 Allocator HeapAllocator(void) {
     return (Allocator) {
-        .state       = NULL,
-        .state_init  = NULL,
+        .state        = NULL,
+        .state_init   = NULL,
         .state_deinit = NULL,
-        .allocate    = heap_allocator_allocate,
-        .reallocate  = heap_allocator_reallocate,
-        .deallocate  = heap_allocator_deallocate,
-        .effort      = ALLOCATOR_EFFORT_ONCE,
-        .retry_limit = 0,
-        .flags       = 0,
+        .allocate     = heap_allocator_allocate,
+        .reallocate   = heap_allocator_reallocate,
+        .deallocate   = heap_allocator_deallocate,
+        .effort       = ALLOCATOR_EFFORT_ONCE,
+        .retry_limit  = 0,
+        .flags        = 0,
+        .alignment    = (size) _Alignof(max_align_t),
     };
+}
+
+Allocator HeapAllocatorAligned(size alignment) {
+    Allocator alloc = HeapAllocator();
+    if (alignment) {
+        alloc.alignment = alignment;
+    }
+    return alloc;
 }
 
 Allocator AllocatorBind(Allocator alloc) {
@@ -160,7 +169,7 @@ bool AllocatorEnsureState(Allocator *alloc) {
     return alloc->state_init(alloc);
 }
 
-void *AllocatorAlloc(Allocator *alloc, size bytes, size alignment, bool zeroed) {
+void *AllocatorAlloc(Allocator *alloc, size bytes, bool zeroed) {
     size  attempts;
     size  try_idx;
     void *ptr = NULL;
@@ -175,7 +184,7 @@ void *AllocatorAlloc(Allocator *alloc, size bytes, size alignment, bool zeroed) 
 
     attempts = allocator_attempt_limit(alloc);
     for (try_idx = 0; try_idx < attempts; try_idx++) {
-        ptr = alloc->allocate(alloc, bytes, alignment, zeroed);
+        ptr = alloc->allocate(alloc, bytes, zeroed);
         if (ptr) {
             return ptr;
         }
@@ -184,7 +193,7 @@ void *AllocatorAlloc(Allocator *alloc, size bytes, size alignment, bool zeroed) 
     return NULL;
 }
 
-void *AllocatorRealloc(Allocator *alloc, void *ptr, size old_size, size new_size, size alignment) {
+void *AllocatorRealloc(Allocator *alloc, void *ptr, size old_size, size new_size) {
     size  attempts;
     size  try_idx;
     void *new_ptr = NULL;
@@ -199,7 +208,7 @@ void *AllocatorRealloc(Allocator *alloc, void *ptr, size old_size, size new_size
 
     attempts = allocator_attempt_limit(alloc);
     for (try_idx = 0; try_idx < attempts; try_idx++) {
-        new_ptr = alloc->reallocate(alloc, ptr, old_size, new_size, alignment);
+        new_ptr = alloc->reallocate(alloc, ptr, old_size, new_size);
         if (new_ptr || new_size == 0) {
             return new_ptr;
         }
@@ -208,12 +217,12 @@ void *AllocatorRealloc(Allocator *alloc, void *ptr, size old_size, size new_size
     return NULL;
 }
 
-void AllocatorFree(Allocator *alloc, void *ptr, size bytes, size alignment) {
+void AllocatorFree(Allocator *alloc, void *ptr, size bytes) {
     if (!ptr || !alloc || !alloc->deallocate) {
         return;
     }
 
-    alloc->deallocate(alloc, ptr, bytes, alignment);
+    alloc->deallocate(alloc, ptr, bytes);
 }
 
 void AllocatorUnbind(Allocator *alloc) {

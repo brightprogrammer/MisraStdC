@@ -9,19 +9,19 @@ static inline size list_alloc_alignment(void) {
 }
 
 static inline GenericListNode *alloc_list_node(GenericList *list) {
-    return AllocatorAlloc(&list->allocator, sizeof(GenericListNode), list_alloc_alignment(), true);
+    return AllocatorAlloc(&list->allocator, sizeof(GenericListNode), true);
 }
 
 static inline void free_list_node(GenericList *list, GenericListNode *node) {
-    AllocatorFree(&list->allocator, node, sizeof(GenericListNode), list_alloc_alignment());
+    AllocatorFree(&list->allocator, node, sizeof(GenericListNode));
 }
 
 static inline void *alloc_list_item(GenericList *list, u64 item_size) {
-    return AllocatorAlloc(&list->allocator, item_size, list_alloc_alignment(), true);
+    return AllocatorAlloc(&list->allocator, item_size, true);
 }
 
 static inline void free_list_item(GenericList *list, void *item, u64 item_size) {
-    AllocatorFree(&list->allocator, item, item_size, list_alloc_alignment());
+    AllocatorFree(&list->allocator, item, item_size);
 }
 
 void deinit_list(GenericList *list, u64 item_size) {
@@ -197,7 +197,7 @@ bool qsort_list(GenericList *list, u64 item_size, GenericCompare comp) {
     }
 
     item_count = list->length;
-    data       = AllocatorAlloc(&list->allocator, item_size * item_count, list_alloc_alignment(), false);
+    data       = AllocatorAlloc(&list->allocator, item_size * item_count, false);
     if (!data) {
         return false;
     }
@@ -216,7 +216,7 @@ bool qsort_list(GenericList *list, u64 item_size, GenericCompare comp) {
         node = node->next;
     }
 
-    AllocatorFree(&list->allocator, data, item_size * item_count, list_alloc_alignment());
+    AllocatorFree(&list->allocator, data, item_size * item_count);
     return true;
 }
 

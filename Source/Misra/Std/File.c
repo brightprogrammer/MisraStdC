@@ -13,13 +13,7 @@
 #include <Misra/Sys.h>
 #include <Misra/Types.h>
 
-bool ReadCompleteFileEx(
-    const char *filename,
-    char      **data,
-    u64        *file_size,
-    u64        *capacity,
-    Allocator  *allocator
-) {
+bool ReadCompleteFileEx(const char *filename, char **data, u64 *file_size, u64 *capacity, Allocator *allocator) {
     Allocator  default_allocator;
     Allocator *active_allocator = allocator;
 
@@ -44,10 +38,10 @@ bool ReadCompleteFileEx(
         active_allocator  = &default_allocator;
     }
 
-    char *buffer = *data;
+    char *buffer            = *data;
     u64   required_capacity = (u64)fsize + 1;
     if (*capacity < required_capacity) {
-        buffer = AllocatorRealloc(active_allocator, buffer, *capacity, required_capacity, 1);
+        buffer = AllocatorRealloc(active_allocator, buffer, *capacity, required_capacity);
 
         if (!buffer) {
             LOG_ERROR("allocator reallocation failed");

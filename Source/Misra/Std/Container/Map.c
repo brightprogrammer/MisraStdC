@@ -437,8 +437,8 @@ void deinit_map(
 
     clear_map(map, entry_size, key_offset, key_size, value_offset, value_size, hash_offset);
 
-    AllocatorFree(&map->allocator, map->entries, map->capacity * entry_size, map_storage_alignment());
-    AllocatorFree(&map->allocator, map->states, map->capacity * sizeof(u8), map_storage_alignment());
+    AllocatorFree(&map->allocator, map->entries, map->capacity * entry_size);
+    AllocatorFree(&map->allocator, map->states, map->capacity * sizeof(u8));
     AllocatorUnbind(&map->allocator);
 
     map->entries                = NULL;
@@ -515,8 +515,8 @@ bool rehash_map(
     validate_map_policy(&policy);
 
     if ((map->length == 0) && (n == 0)) {
-        AllocatorFree(&map->allocator, map->entries, map->capacity * entry_size, map_storage_alignment());
-        AllocatorFree(&map->allocator, map->states, map->capacity * sizeof(u8), map_storage_alignment());
+        AllocatorFree(&map->allocator, map->entries, map->capacity * entry_size);
+        AllocatorFree(&map->allocator, map->states, map->capacity * sizeof(u8));
         map->entries    = NULL;
         map->states     = NULL;
         map->length     = 0;
@@ -536,12 +536,12 @@ bool rehash_map(
     old_states   = map->states;
     old_capacity = map->capacity;
 
-    new_entries = AllocatorAlloc(&map->allocator, new_capacity * entry_size, map_storage_alignment(), true);
-    new_states  = AllocatorAlloc(&map->allocator, new_capacity * sizeof(u8), map_storage_alignment(), true);
+    new_entries = AllocatorAlloc(&map->allocator, new_capacity * entry_size, true);
+    new_states  = AllocatorAlloc(&map->allocator, new_capacity * sizeof(u8), true);
 
     if (!new_entries || !new_states) {
-        AllocatorFree(&map->allocator, new_entries, new_capacity * entry_size, map_storage_alignment());
-        AllocatorFree(&map->allocator, new_states, new_capacity * sizeof(u8), map_storage_alignment());
+        AllocatorFree(&map->allocator, new_entries, new_capacity * entry_size);
+        AllocatorFree(&map->allocator, new_states, new_capacity * sizeof(u8));
         return false;
     }
 
@@ -560,8 +560,8 @@ bool rehash_map(
         map_insert_raw_entry(map, old_entries + (idx * entry_size), entry_size, key_offset, key_size, hash_offset);
     }
 
-    AllocatorFree(&map->allocator, old_entries, old_capacity * entry_size, map_storage_alignment());
-    AllocatorFree(&map->allocator, old_states, old_capacity * sizeof(u8), map_storage_alignment());
+    AllocatorFree(&map->allocator, old_entries, old_capacity * entry_size);
+    AllocatorFree(&map->allocator, old_states, old_capacity * sizeof(u8));
 
     (void)value_offset;
     (void)value_size;
@@ -990,7 +990,7 @@ bool map_set_only(
     }
 
     hash       = map_hash_key(map, key, key_size);
-    temp_entry = AllocatorAlloc(&map->allocator, entry_size, map_storage_alignment(), true);
+    temp_entry = AllocatorAlloc(&map->allocator, entry_size, true);
     if (!temp_entry) {
         return false;
     }
@@ -1008,13 +1008,13 @@ bool map_set_only(
             value,
             hash
         )) {
-        AllocatorFree(&map->allocator, temp_entry, entry_size, map_storage_alignment());
+        AllocatorFree(&map->allocator, temp_entry, entry_size);
         return false;
     }
 
     (void)map_remove_all(map, key, entry_size, key_offset, key_size, value_offset, value_size, hash_offset);
     map_insert_raw_entry(map, temp_entry, entry_size, key_offset, key_size, hash_offset);
-    AllocatorFree(&map->allocator, temp_entry, entry_size, map_storage_alignment());
+    AllocatorFree(&map->allocator, temp_entry, entry_size);
     return true;
 }
 
@@ -1048,7 +1048,7 @@ bool map_set_first(
     temp_value = NULL;
 
     if (map->value_copy_init) {
-        temp_value = AllocatorAlloc(&map->allocator, value_size, map_storage_alignment(), true);
+        temp_value = AllocatorAlloc(&map->allocator, value_size, true);
         if (!temp_value) {
             return false;
         }
@@ -1057,7 +1057,7 @@ bool map_set_first(
             if (map->value_copy_deinit) {
                 map->value_copy_deinit(temp_value, &map->allocator);
             }
-            AllocatorFree(&map->allocator, temp_value, value_size, map_storage_alignment());
+            AllocatorFree(&map->allocator, temp_value, value_size);
             return false;
         }
     }
@@ -1070,7 +1070,7 @@ bool map_set_first(
 
     if (map->value_copy_init) {
         MemCopy(dst_value, temp_value, value_size);
-        AllocatorFree(&map->allocator, temp_value, value_size, map_storage_alignment());
+        AllocatorFree(&map->allocator, temp_value, value_size);
     } else {
         MemCopy(dst_value, value, value_size);
     }

@@ -29,7 +29,7 @@ struct SysMutex {
 
 SysMutex *SysMutexCreate(void) {
     Allocator allocator = DefaultAllocator();
-    SysMutex *m         = (SysMutex *)AllocatorAlloc(&allocator, sizeof(SysMutex), _Alignof(SysMutex), true);
+    SysMutex *m         = (SysMutex *)AllocatorAlloc(&allocator, sizeof(SysMutex), true);
 
     if (!m) {
         LOG_ERROR("Failed to allocate mutex");
@@ -52,7 +52,7 @@ void SysMutexDestroy(SysMutex *m) {
     pthread_mutex_destroy(&m->lock);
 #endif
     MemSet(m, 0, sizeof(SysMutex));
-    AllocatorFree(&allocator, m, sizeof(SysMutex), _Alignof(SysMutex));
+    AllocatorFree(&allocator, m, sizeof(SysMutex));
 }
 
 SysMutex *SysMutexLock(SysMutex *m) {

@@ -78,7 +78,7 @@ extern "C" {
 
         if (!dst->copy_init && src->data) {
             aligned_item_size = ALIGN_UP_POW2(item_size, src->alignment);
-            AllocatorFree(&src->allocator, src->data, (src->capacity + 1) * aligned_item_size, src->alignment);
+            AllocatorFree(&src->allocator, src->data, (src->capacity + 1) * aligned_item_size);
             src->data     = NULL;
             src->length   = 0;
             src->capacity = 0;

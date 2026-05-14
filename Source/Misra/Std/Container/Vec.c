@@ -65,7 +65,10 @@ void init_vec(
     vec->data        = NULL;
     vec->alignment   = alignment;
     vec->allocator   = AllocatorBind(allocator);
-    vec->__magic     = MISRA_VEC_MAGIC;
+    if (alignment > vec->allocator.alignment) {
+        vec->allocator.alignment = alignment;
+    }
+    vec->__magic = MISRA_VEC_MAGIC;
 }
 
 void deinit_vec(GenericVec *vec, size item_size) {
@@ -83,7 +86,7 @@ void deinit_vec(GenericVec *vec, size item_size) {
             MemSet(vec->data, 0, aligned_size * (vec->capacity + 1));
         }
 
-        AllocatorFree(&vec->allocator, vec->data, aligned_size * (vec->capacity + 1), vec->alignment);
+        AllocatorFree(&vec->allocator, vec->data, aligned_size * (vec->capacity + 1));
     }
 
     vec->data     = NULL;
@@ -122,13 +125,8 @@ bool reserve_vec(GenericVec *vec, size item_size, size n) {
     aligned_size = vec_aligned_size(vec, item_size);
     if (n > vec->capacity) {
         size  old_capacity = (size)vec->capacity;
-        char *ptr          = (char *)AllocatorRealloc(
-            &vec->allocator,
-            vec->data,
-            aligned_size * (old_capacity + 1),
-            aligned_size * (n + 1),
-            vec->alignment
-        );
+        char *ptr          = (char *)
+            AllocatorRealloc(&vec->allocator, vec->data, aligned_size * (old_capacity + 1), aligned_size * (n + 1));
 
         if (!ptr) {
             LOG_SYS_ERROR("allocator reallocate failed");
@@ -166,7 +164,7 @@ bool reduce_space_vec(GenericVec *vec, size item_size) {
 
     aligned_size = vec_aligned_size(vec, item_size);
     if (vec->length == 0) {
-        AllocatorFree(&vec->allocator, vec->data, aligned_size * (vec->capacity + 1), vec->alignment);
+        AllocatorFree(&vec->allocator, vec->data, aligned_size * (vec->capacity + 1));
         vec->data     = NULL;
         vec->capacity = 0;
         vec->length   = 0;
@@ -176,8 +174,7 @@ bool reduce_space_vec(GenericVec *vec, size item_size) {
             &vec->allocator,
             vec->data,
             aligned_size * (vec->capacity + 1),
-            aligned_size * (vec->length + 1),
-            vec->alignment
+            aligned_size * (vec->length + 1)
         );
         if (!ptr) {
             LOG_SYS_ERROR("allocator reallocate failed");

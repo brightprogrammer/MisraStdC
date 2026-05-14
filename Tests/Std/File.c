@@ -38,7 +38,7 @@ static bool write_test_file(char *path, const char *text) {
 }
 
 bool test_read_complete_file_default_allocator(void) {
-    char path[]     = "/tmp/misra-file-test-XXXXXX";
+    char  path[]    = "/tmp/misra-file-test-XXXXXX";
     char *buffer    = NULL;
     u64   file_size = 0;
     u64   capacity  = 0;
@@ -50,25 +50,23 @@ bool test_read_complete_file_default_allocator(void) {
         return false;
     }
 
-    result = ReadCompleteFile(path, &buffer, &file_size, &capacity) &&
-             file_size == (u64)ZstrLen("hello from file") &&
-             ZstrCompare(buffer, "hello from file") == 0 &&
-             capacity >= file_size + 1;
+    result = ReadCompleteFile(path, &buffer, &file_size, &capacity) && file_size == (u64)ZstrLen("hello from file") &&
+             ZstrCompare(buffer, "hello from file") == 0 && capacity >= file_size + 1;
 
     {
         Allocator allocator = DefaultAllocator();
-        AllocatorFree(&allocator, buffer, capacity, 1);
+        AllocatorFree(&allocator, buffer, capacity);
     }
     unlink(path);
     return result;
 }
 
 bool test_read_complete_file_expands_existing_buffer(void) {
-    char path[]        = "/tmp/misra-file-grow-test-XXXXXX";
-    char *buffer       = NULL;
-    u64   file_size    = 0;
-    u64   capacity     = 0;
-    bool  result       = false;
+    char      path[]    = "/tmp/misra-file-grow-test-XXXXXX";
+    char     *buffer    = NULL;
+    u64       file_size = 0;
+    u64       capacity  = 0;
+    bool      result    = false;
     Allocator allocator = DefaultAllocator();
 
     WriteFmt("Testing ReadCompleteFile with existing buffer allocator\n");
@@ -77,7 +75,7 @@ bool test_read_complete_file_expands_existing_buffer(void) {
         return false;
     }
 
-    buffer = (char *)AllocatorAlloc(&allocator, 4, 1, true);
+    buffer = (char *)AllocatorAlloc(&allocator, 4, true);
     if (!buffer) {
         unlink(path);
         return false;
@@ -86,10 +84,9 @@ bool test_read_complete_file_expands_existing_buffer(void) {
 
     result = ReadCompleteFile(path, &buffer, &file_size, &capacity, &allocator) &&
              file_size == (u64)ZstrLen("this is longer than the initial buffer") &&
-             ZstrCompare(buffer, "this is longer than the initial buffer") == 0 &&
-             capacity >= file_size + 1;
+             ZstrCompare(buffer, "this is longer than the initial buffer") == 0 && capacity >= file_size + 1;
 
-    AllocatorFree(&allocator, buffer, capacity, 1);
+    AllocatorFree(&allocator, buffer, capacity);
     unlink(path);
     return result;
 }

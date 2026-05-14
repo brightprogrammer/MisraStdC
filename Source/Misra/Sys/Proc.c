@@ -142,7 +142,7 @@ SysProc *SysProcCreate(const char *filepath, char **argv, char **envp) {
     close(stderr_pipe[WRITE_END]);
 
     Allocator allocator = DefaultAllocator();
-    SysProc  *proc      = (SysProc *)AllocatorAlloc(&allocator, sizeof(SysProc), _Alignof(SysProc), true);
+    SysProc  *proc      = (SysProc *)AllocatorAlloc(&allocator, sizeof(SysProc), true);
 
     if (!proc) {
         close(stdin_pipe[WRITE_END]);
@@ -225,7 +225,7 @@ SysProc *SysProcCreate(const char *filepath, char **argv, char **envp) {
     CloseHandle(hStderrWrite); // parent won't write to child's stderr, will read from it
 
     Allocator allocator = DefaultAllocator();
-    SysProc  *proc      = (SysProc *)AllocatorAlloc(&allocator, sizeof(SysProc), _Alignof(SysProc), true);
+    SysProc  *proc      = (SysProc *)AllocatorAlloc(&allocator, sizeof(SysProc), true);
 
     if (!proc) {
         CloseHandle(hStdinWrite);
@@ -430,7 +430,7 @@ void SysProcDestroy(SysProc *proc) {
     CloseHandle(proc->pi.hThread);
     CloseHandle(proc->pi.hProcess);
 #endif
-    AllocatorFree(&allocator, proc, sizeof(SysProc), _Alignof(SysProc));
+    AllocatorFree(&allocator, proc, sizeof(SysProc));
 }
 
 i32 SysProcWriteToStdin(SysProc *proc, Str *buf) {

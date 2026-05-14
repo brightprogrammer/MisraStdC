@@ -883,10 +883,10 @@ static bool FloatFmtUsesUnsupportedFlags(FmtInfo *fmt_info) {
 }
 
 static bool FloatFmtAppendExponent(Str *out, i64 exponent, bool uppercase) {
-    char sign         = exponent < 0 ? '-' : '+';
-    u64  magnitude    = exponent < 0 ? (u64)(-(exponent + 1)) + 1 : (u64)exponent;
-    char digits[32]   = {0};
-    u32  digit_count  = 0;
+    char sign        = exponent < 0 ? '-' : '+';
+    u64  magnitude   = exponent < 0 ? (u64)(-(exponent + 1)) + 1 : (u64)exponent;
+    char digits[32]  = {0};
+    u32  digit_count = 0;
 
     if (!out) {
         LOG_FATAL("Invalid arguments");
@@ -896,8 +896,8 @@ static bool FloatFmtAppendExponent(Str *out, i64 exponent, bool uppercase) {
         digits[digit_count++] = '0';
     } else {
         while (magnitude > 0) {
-            digits[digit_count++] = (char)('0' + (magnitude % 10));
-            magnitude /= 10;
+            digits[digit_count++]  = (char)('0' + (magnitude % 10));
+            magnitude             /= 10;
         }
     }
 
@@ -1008,7 +1008,12 @@ fail:
 }
 
 static bool FloatFmtTryToScientificStr(
-    Str *out, Float *value, u32 precision, bool has_precision, bool uppercase, Allocator alloc
+    Str      *out,
+    Float    *value,
+    u32       precision,
+    bool      has_precision,
+    bool      uppercase,
+    Allocator alloc
 ) {
     Str digits;
     Str result;
@@ -1729,7 +1734,11 @@ bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
         }
     } else {
         if (!FloatFmtTryToDecimalStr(
-                &temp, value, fmt_info->precision, (fmt_info->flags & FMT_FLAG_HAS_PRECISION) != 0, o->allocator
+                &temp,
+                value,
+                fmt_info->precision,
+                (fmt_info->flags & FMT_FLAG_HAS_PRECISION) != 0,
+                o->allocator
             )) {
             return false;
         }
@@ -2772,9 +2781,9 @@ const char *_read_i64(const char *i, FmtInfo *fmt_info, i64 *v) {
 }
 
 const char *_read_Zstr(const char *i, FmtInfo *fmt_info, const char **out) {
-    char      *result            = NULL;
-    const char *next             = NULL;
-    Allocator  allocator         = DefaultAllocator();
+    char       *result    = NULL;
+    const char *next      = NULL;
+    Allocator   allocator = DefaultAllocator();
 
     if (!i || !out)
         LOG_FATAL("Invalid arguments");
@@ -2784,12 +2793,12 @@ const char *_read_Zstr(const char *i, FmtInfo *fmt_info, const char **out) {
 
     // For string types, :c has no effect - work like regular string reading
     Str     temp        = StrInit();
-    FmtInfo default_fmt = fmt_info ? *fmt_info
-                                   : (FmtInfo) {
-                                         .align = ALIGN_RIGHT,
-                                         .width = 0,
-                                         .precision = 6,
-                                         .flags = FMT_FLAG_NONE,
+    FmtInfo default_fmt = fmt_info ? *fmt_info :
+                                     (FmtInfo) {
+                                         .align        = ALIGN_RIGHT,
+                                         .width        = 0,
+                                         .precision    = 6,
+                                         .flags        = FMT_FLAG_NONE,
                                          .max_read_len = (u32)ZstrLen(i),
                                      };
 
@@ -2820,14 +2829,14 @@ const char *_read_Zstr(const char *i, FmtInfo *fmt_info, const char **out) {
 }
 
 const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg) {
-    char       **out              = NULL;
-    char        *previous         = NULL;
-    char        *result           = NULL;
-    const char  *next             = NULL;
-    Allocator   *allocator_ptr    = NULL;
-    Allocator    default_allocator;
-    Str          temp             = StrInit();
-    FmtInfo      default_fmt;
+    char      **out           = NULL;
+    char       *previous      = NULL;
+    char       *result        = NULL;
+    const char *next          = NULL;
+    Allocator  *allocator_ptr = NULL;
+    Allocator   default_allocator;
+    Str         temp = StrInit();
+    FmtInfo     default_fmt;
 
     if (!i || !arg || !arg->value) {
         LOG_FATAL("Invalid arguments");
@@ -2842,13 +2851,13 @@ const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg) {
         allocator_ptr     = &default_allocator;
     }
 
-    default_fmt = fmt_info ? *fmt_info
-                           : (FmtInfo) {
-                                 .align = ALIGN_RIGHT,
-                                 .width = 0,
-                                 .precision = 6,
-                                 .flags = FMT_FLAG_NONE,
-                                 .max_read_len = (u32)ZstrLen(i),
+    default_fmt        = fmt_info ? *fmt_info :
+                                    (FmtInfo) {
+                                        .align        = ALIGN_RIGHT,
+                                        .width        = 0,
+                                        .precision    = 6,
+                                        .flags        = FMT_FLAG_NONE,
+                                        .max_read_len = (u32)ZstrLen(i),
                              };
     default_fmt.flags &= ~FMT_FLAG_CHAR;
     if (!default_fmt.max_read_len) {
@@ -2869,7 +2878,7 @@ const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg) {
     }
 
     if (previous) {
-        AllocatorFree(allocator_ptr, previous, ZstrLen(previous) + 1, 1);
+        AllocatorFree(allocator_ptr, previous, ZstrLen(previous) + 1);
     }
 
     *out = result;
@@ -2961,7 +2970,7 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
             return true;
         }
 
-        u8 *buffer = (u8 *)AllocatorAlloc(&o->allocator, byte_len * sizeof(u8), 1, true);
+        u8 *buffer = (u8 *)AllocatorAlloc(&o->allocator, byte_len * sizeof(u8), true);
 
         if (!buffer) {
             LOG_ERROR("Failed to allocate buffer for Int character formatting");
@@ -2970,16 +2979,16 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
 
         (void)IntToBytesBE(value, buffer, byte_len);
         if (!write_char_internal(o, fmt_info->flags, (const char *)buffer, byte_len)) {
-            AllocatorFree(&o->allocator, buffer, byte_len * sizeof(u8), 1);
+            AllocatorFree(&o->allocator, buffer, byte_len * sizeof(u8));
             return false;
         }
-        AllocatorFree(&o->allocator, buffer, byte_len * sizeof(u8), 1);
+        AllocatorFree(&o->allocator, buffer, byte_len * sizeof(u8));
         return true;
     }
 
     size start_len = o->length;
     Str  temp;
-    u8   radix     = IntFmtRadixFromFlags(fmt_info);
+    u8   radix = IntFmtRadixFromFlags(fmt_info);
 
     if (radix == 10) {
         if (!IntTryToStrAlloc(&temp, value, o->allocator)) {
@@ -3425,8 +3434,8 @@ static bool _write_r32(Str *o, FmtInfo *fmt_info, u32 *v) {
                    StrPushBack(o, (x >> 8) & 0xff) && StrPushBack(o, (x & 0xff));
         }
         case ENDIAN_LITTLE : {
-            return StrPushBack(o, (x & 0xff)) && StrPushBack(o, (x >> 8) & 0xff) &&
-                   StrPushBack(o, (x >> 16) & 0xff) && StrPushBack(o, ((x >> 24) & 0xff));
+            return StrPushBack(o, (x & 0xff)) && StrPushBack(o, (x >> 8) & 0xff) && StrPushBack(o, (x >> 16) & 0xff) &&
+                   StrPushBack(o, ((x >> 24) & 0xff));
         }
         case ENDIAN_NATIVE :
         default : {
@@ -3457,10 +3466,10 @@ static bool _write_r64(Str *o, FmtInfo *fmt_info, u64 *v) {
                    StrPushBack(o, (x >> 8) & 0xff) && StrPushBack(o, (x & 0xff));
         }
         case ENDIAN_LITTLE : {
-            return StrPushBack(o, (x & 0xff)) && StrPushBack(o, (x >> 8) & 0xff) &&
-                   StrPushBack(o, (x >> 16) & 0xff) && StrPushBack(o, (x >> 24) & 0xff) &&
-                   StrPushBack(o, (x >> 32) & 0xff) && StrPushBack(o, (x >> 40) & 0xff) &&
-                   StrPushBack(o, (x >> 48) & 0xff) && StrPushBack(o, ((x >> 56) & 0xff));
+            return StrPushBack(o, (x & 0xff)) && StrPushBack(o, (x >> 8) & 0xff) && StrPushBack(o, (x >> 16) & 0xff) &&
+                   StrPushBack(o, (x >> 24) & 0xff) && StrPushBack(o, (x >> 32) & 0xff) &&
+                   StrPushBack(o, (x >> 40) & 0xff) && StrPushBack(o, (x >> 48) & 0xff) &&
+                   StrPushBack(o, ((x >> 56) & 0xff));
         }
         case ENDIAN_NATIVE :
         default : {

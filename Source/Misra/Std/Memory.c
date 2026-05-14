@@ -156,7 +156,7 @@ char *ZstrDupNAlloc(const char *src, size n, Allocator alloc) {
     while (len < n && src[len])
         len++;
 
-    char *new_str = (char *)AllocatorAlloc(&alloc, len + 1, 1, false);
+    char *new_str = (char *)AllocatorAlloc(&alloc, len + 1, false);
     if (!new_str) {
         LOG_SYS_ERROR("allocator allocate failed");
         return NULL;
@@ -185,7 +185,7 @@ bool ZstrInitClone(const char **dst, const char **src) {
 }
 
 bool ZstrInitCloneAlloc(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
-    const char **dst = (const char **)dst_ptr;
+    const char       **dst = (const char **)dst_ptr;
     const char *const *src = (const char *const *)src_ptr;
 
     if (!dst || !src || !*src) {
@@ -203,7 +203,7 @@ void ZstrDeinit(const char **zs) {
 
     if (*zs) {
         Allocator alloc = DefaultAllocator();
-        AllocatorFree(&alloc, (void *)*zs, ZstrLen(*zs) + 1, 1);
+        AllocatorFree(&alloc, (void *)*zs, ZstrLen(*zs) + 1);
         *zs = NULL;
     }
 }
@@ -217,7 +217,7 @@ void ZstrDeinitAlloc(void *zs_ptr, const Allocator *alloc) {
 
     if (*zs) {
         Allocator allocator = alloc ? *alloc : DefaultAllocator();
-        AllocatorFree(&allocator, (void *)*zs, ZstrLen(*zs) + 1, 1);
+        AllocatorFree(&allocator, (void *)*zs, ZstrLen(*zs) + 1);
         *zs = NULL;
     }
 }
