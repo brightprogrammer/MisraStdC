@@ -141,9 +141,23 @@ typedef enum LogMessageType {
 } LogMessageType;
 
 ///
-/// Initialize logging subsystem
+/// Initialize the logging subsystem.
 ///
-void LogInit(bool redirect);
+/// The `alloc` pointer is stored as module state and used for the
+/// internal mutex's create/destroy. It is borrowed, not owned - the
+/// caller must keep it alive for as long as any `LogWrite` /
+/// `LogDeinit` call may run (typically: until end of `main`).
+///
+/// Calling `LogInit` is optional. If the application never calls it,
+/// `LogWrite` falls back to writing directly to `stderr` without a
+/// mutex, which is fine for single-threaded callers.
+///
+/// redirect[in] : When true, redirects log output to a timestamped
+///                file under the system temp directory.
+/// alloc[in]    : Allocator used for the internal mutex handle. Must
+///                outlive any subsequent log call.
+///
+void LogInit(bool redirect, Allocator *alloc);
 
 ///
 /// Deinitialize logging subsystem
