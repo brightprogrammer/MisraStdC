@@ -1,0 +1,46 @@
+# MisraStdC feature flags.
+#
+# The library is split into a small mandatory foundation (Sys, Mutex, Log,
+# Memory, Allocator core + Page + Heap) and a set of optional features that
+# can be turned off if the consumer does not need them. Disabling a feature
+# drops its source files from the build, shrinking the static library and
+# the final executable.
+#
+# Dependencies are resolved automatically: enabling a feature whose
+# implementation needs another feature transparently enables that other
+# feature too. So `-Dgraph=true -Dvec=false` is not a conflict: `vec` is
+# automatically turned back on because `Graph` links into `vec_*` runtime
+# helpers.
+#
+# Each enabled feature also defines `MISRA_HAVE_<FEATURE>=1` at the
+# compile-time level, so downstream consumers can `#ifdef MISRA_HAVE_VEC`
+# in their own code if they need to compile against a partial build.
+
+# --- Optional allocator backends --------------------------------------------
+option('alloc_arena',  type: 'boolean', value: true,  description: 'Build ArenaAllocator (bump allocator).')
+option('alloc_slab',   type: 'boolean', value: true,  description: 'Build SlabAllocator (growable fixed-slot pool).')
+option('alloc_budget', type: 'boolean', value: true,  description: 'Build BudgetAllocator (caller-buffer bounded pool, no growth).')
+
+# Note: Vec, Str, Io are part of the mandatory foundation because
+# `LOG_FATAL` formats its message through them. They are not exposed as
+# feature options. The remaining containers below are optional.
+
+# --- Containers -------------------------------------------------------------
+option('bitvec', type: 'boolean', value: true, description: 'Build BitVec packed bit container.')
+option('list',   type: 'boolean', value: true, description: 'Build List doubly-linked list container.')
+option('map',    type: 'boolean', value: true, description: 'Build Map hash-map container.')
+option('graph',  type: 'boolean', value: true, description: 'Build Graph directed-graph container.')
+option('int',    type: 'boolean', value: true, description: 'Build Int arbitrary-precision integer. Requires bitvec.')
+option('float',  type: 'boolean', value: true, description: 'Build Float arbitrary-precision decimal. Requires int.')
+
+# --- Std subsystems ---------------------------------------------------------
+option('file', type: 'boolean', value: true, description: 'Build File helpers (ReadCompleteFile, ...).')
+option('iter', type: 'boolean', value: true, description: 'Build Iter utility helpers.')
+
+# --- Sys subsystems ---------------------------------------------------------
+option('sys_dir',  type: 'boolean', value: true, description: 'Build directory-handling syscalls (SysDirContents, ...).')
+option('sys_proc', type: 'boolean', value: true, description: 'Build process-spawning syscalls (SysProcCreate, ...).')
+
+# --- Parsers ----------------------------------------------------------------
+option('parser_json',     type: 'boolean', value: true, description: 'Build JSON reader/writer.')
+option('parser_kvconfig', type: 'boolean', value: true, description: 'Build key-value config parser. Requires map, str.')

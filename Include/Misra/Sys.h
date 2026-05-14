@@ -19,6 +19,19 @@
 #endif
 
 ///
+/// Platform-independent method to get current process Id. Foundation
+/// API: provided by `Sys.c` (always built), unlike the rest of the
+/// process-spawning functions in `Sys/Proc.h` which live in the optional
+/// `sys_proc` feature.
+///
+/// SUCCESS : Returns current process ID.
+/// FAILURE : Function cannot fail - always returns valid ID.
+///
+/// TAGS: System, Process
+///
+SysProcId SysGetCurrentProcessId(void);
+
+///
 /// Get environment value value in a `Str` object.
 /// Object must be destroyed after use.
 ///
