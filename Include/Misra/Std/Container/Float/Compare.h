@@ -19,7 +19,7 @@ extern "C" {
     /// lhs[in] : Left-hand operand
     /// rhs[in] : Right-hand operand
     ///
-    /// RETURNS: `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
+    /// SUCCESS : Returns `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
     ///
     /// USAGE:
     ///   int cmp = FloatCompare(&a, &b);
@@ -76,7 +76,7 @@ extern "C" {
 /// error[out] : Optional error flag set to `true` on operational failure and
 ///              `false` otherwise.
 ///
-/// RETURNS: `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
+/// SUCCESS : Returns `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
 ///
 /// USAGE:
 ///   int cmp = FloatCompare(&value, 1.5);
@@ -93,7 +93,8 @@ extern "C" {
 /// lhs[in] : Left-hand float
 /// rhs[in] : Right-hand operand selected through generic dispatch
 ///
-/// RETURNS: `true` when both values are equal.
+/// SUCCESS : Returns `true` when both values are equal.
+/// FAILURE : Returns `false` otherwise. Neither operand is modified.
 ///
 /// USAGE:
 ///   if (FloatEQ(&value, 1.5)) { /* ... */ }
@@ -107,7 +108,8 @@ extern "C" {
 /// lhs[in] : Left-hand float
 /// rhs[in] : Right-hand operand selected through generic dispatch
 ///
-/// RETURNS: `true` when `lhs < rhs`.
+/// SUCCESS : Returns `true` when `lhs < rhs`.
+/// FAILURE : Returns `false` otherwise. Neither operand is modified.
 ///
 /// USAGE:
 ///   bool smaller = FloatLT(&value, other);
@@ -121,7 +123,8 @@ extern "C" {
 /// lhs[in] : Left-hand float
 /// rhs[in] : Right-hand operand selected through generic dispatch
 ///
-/// RETURNS: `true` when `lhs <= rhs`.
+/// SUCCESS : Returns `true` when `lhs <= rhs`.
+/// FAILURE : Returns `false` otherwise. Neither operand is modified.
 ///
 /// USAGE:
 ///   bool ok = FloatLE(&value, 0.0);
@@ -135,7 +138,8 @@ extern "C" {
 /// lhs[in] : Left-hand float
 /// rhs[in] : Right-hand operand selected through generic dispatch
 ///
-/// RETURNS: `true` when `lhs > rhs`.
+/// SUCCESS : Returns `true` when `lhs > rhs`.
+/// FAILURE : Returns `false` otherwise. Neither operand is modified.
 ///
 /// USAGE:
 ///   bool larger = FloatGT(&value, 1u);
@@ -149,7 +153,8 @@ extern "C" {
 /// lhs[in] : Left-hand float
 /// rhs[in] : Right-hand operand selected through generic dispatch
 ///
-/// RETURNS: `true` when `lhs >= rhs`.
+/// SUCCESS : Returns `true` when `lhs >= rhs`.
+/// FAILURE : Returns `false` otherwise. Neither operand is modified.
 ///
 /// USAGE:
 ///   bool at_least = FloatGE(&value, baseline);
@@ -163,7 +168,8 @@ extern "C" {
 /// lhs[in] : Left-hand float
 /// rhs[in] : Right-hand operand selected through generic dispatch
 ///
-/// RETURNS: `true` when `lhs != rhs`.
+/// SUCCESS : Returns `true` when `lhs != rhs`.
+/// FAILURE : Returns `false` otherwise. Neither operand is modified.
 ///
 /// USAGE:
 ///   bool changed = FloatNE(&value, 0.0f);

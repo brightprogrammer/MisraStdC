@@ -39,7 +39,7 @@ extern "C" {
 ///
 /// value[in] : Integer, `Int`, `float`, or `double` source value
 ///
-/// RETURNS: Float representing the same numeric value.
+/// SUCCESS : Returns Float representing the same numeric value.
 ///
 /// USAGE:
 ///   Float value = FloatFrom(42);
@@ -60,7 +60,7 @@ extern "C" {
     ///
     /// Compatibility wrapper for `FloatTryFromStr(...)`.
     ///
-    /// RETURNS: Parsed floating-point value, or zero on failure.
+    /// SUCCESS : Returns Parsed floating-point value, or zero on failure.
     ///
     Float FloatFromStr(const char *text);
 
@@ -71,7 +71,10 @@ extern "C" {
     /// value[in] : Float to convert.
     /// alloc[in] : Allocator to bind to the produced string.
     ///
-    /// RETURNS: `true` on success, `false` on allocation failure.
+    /// SUCCESS : Returns `true`. The result has been computed and the
+    ///           destination object updated.
+    /// FAILURE : Returns `false` on allocation failure. The destination is left
+    ///           in a valid but unspecified state on partial failure.
     ///
     /// TAGS: Float, Convert, String, Allocator
     ///

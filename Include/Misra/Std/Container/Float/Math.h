@@ -85,7 +85,10 @@ extern "C" {
     /// b[in]          : Divisor
     /// precision[in]  : Number of decimal digits to retain before truncation
     ///
-    /// RETURNS: `true` on success, `false` when the divisor is zero.
+    /// SUCCESS : Returns `true`. The result has been computed and the
+    ///           destination object updated.
+    /// FAILURE : Returns `false` when the divisor is zero. The destination is left
+    ///           untouched.
     ///
     /// USAGE:
     ///   FloatDiv(&quotient, &a, &b, 8);
