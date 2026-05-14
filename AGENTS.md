@@ -295,18 +295,79 @@ order undefined. The library's design forces ownership to flow through
 explicit `Allocator` handoffs at object construction time. That makes
 ownership transfers visible at every call site, which is the whole point.
 
-Two concrete consequences:
+Concrete consequences:
 
-- **Allocator bootstrap goes through `PageAllocator`**, which is the only
-  stateless allocator in the library (its `allocate` calls `mmap` /
-  `VirtualAlloc` directly with no setup). Stateful allocators
-  (`HeapAllocator`, `ArenaAllocator`, `PoolAllocator`) allocate their state
-  via `PageAllocator` lazily on first use through `state_init` and free it
-  through `state_deinit`.
+- **Every concrete allocator is a typed struct with inline state.**
+  `HeapAllocator`, `PageAllocator`, `ArenaAllocator`, `PoolAllocator` are
+  structs whose first member is an `Allocator base`. The remaining fields
+  hold whatever state that allocator needs (free-list heads, page-chunk
+  list, bump cursor, etc.). State is statically present inside the typed
+  struct - never a `void *state` pointer that the library has to allocate
+  behind the user's back.
+- **User code declares the allocator with stack storage by default.**
+  `HeapAllocator h = HeapAllocatorInit();` puts the entire allocator -
+  base plus state - on the user's stack frame. No allocation happens during
+  construction. The user controls lifetime; the library doesn't reach behind
+  the user to acquire storage.
+- **Allocators are passed to containers by pointer to the typed struct.**
+  `VecInit(&h)` (where `h` is `HeapAllocator`). The container's init macro
+  compile-time-checks that the argument has an `Allocator base` field at
+  offset zero, then stores `Allocator *` internally - so the container is
+  generic over allocator type and the runtime layer only ever sees the base
+  view.
+- **The user owns lifetime.** Containers point to the allocator; they do not
+  copy it, do not bind it, do not deinit it. When the user is done with the
+  allocator they call its typed `*AllocatorDeinit` to release any pages it
+  acquired during use. The allocator must outlive every container that
+  references it. `ValidateAllocator(v->allocator)` runs at the container's
+  validate hooks to catch obvious lifetime bugs early.
 - **For raw buffer allocations (not through a container)**, the user must
   construct an allocator explicitly and pass it. The library does not
   provide a hidden "global heap" to fall back on. Users who want libc-managed
   allocations construct a libc-backed allocator and pass it.
+
+## Stack-first data layout
+
+Object types in this library are designed so that as much data as possible
+lives on the user's stack frame by default. This is why every container and
+every allocator has an `*Init` macro: it expands to a struct-literal
+initializer the user can drop directly into a local declaration without
+any heap allocation. Heap (or page) allocations happen only when the object
+genuinely needs storage that outlives the local frame - the backing buffer
+of a `Vec`, the slabs of a `PoolAllocator`, etc.
+
+Concretely:
+
+- An `*Init` macro is always a designated-initializer expression, not a
+  function call.
+  ```c
+  HeapAllocator h = HeapAllocatorInit();
+  Vec(int)      v = VecInit(&h);
+  ```
+- Typed allocator structs carry their state inline, not behind a `void *`
+  pointer. Constructing one is just stack-frame layout - no allocation.
+- Container metadata (length, capacity, fn-ptr table, allocator pointer,
+  magic byte) lives in the user-declared object. Only the dynamically-sized
+  payload buffer goes through the allocator.
+
+## Init API naming
+
+All publicly-visible initialization APIs are PascalCase, consistent with
+the rest of the public surface. This applies whether they are functions or
+macros.
+
+- Containers: `VecInit`, `VecInitT`, `VecInitWithDeepCopy`, `ListInit`,
+  `MapInit`, `GraphInit`, `BitVecInit`, `StrInit`, ...
+- Allocators: `HeapAllocatorInit`, `PageAllocatorInit`,
+  `ArenaAllocatorInit`, `PoolAllocatorInit`, ...
+- Subsystem objects: `IntInit`, `FloatInit`, `IterInit`, ...
+
+There is no SCREAMING_SNAKE_CASE allocator init form like
+`HEAP_ALLOCATOR_INIT()` - that style is reserved for internal dispatch
+helpers (`VEC_INIT_HAS_ARGS`, etc.) which are not user-facing.
+
+Matching teardown APIs are also PascalCase: `VecDeinit`,
+`HeapAllocatorDeinit`, `ArenaAllocatorReset`, etc.
 
 ## File placement and naming-shape pairing
 

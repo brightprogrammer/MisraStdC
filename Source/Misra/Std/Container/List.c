@@ -9,19 +9,19 @@ static inline size list_alloc_alignment(void) {
 }
 
 static inline GenericListNode *alloc_list_node(GenericList *list) {
-    return AllocatorAlloc(&list->allocator, sizeof(GenericListNode), true);
+    return AllocatorAlloc(list->allocator, sizeof(GenericListNode), true);
 }
 
 static inline void free_list_node(GenericList *list, GenericListNode *node) {
-    AllocatorFree(&list->allocator, node, sizeof(GenericListNode));
+    AllocatorFree(list->allocator, node, sizeof(GenericListNode));
 }
 
 static inline void *alloc_list_item(GenericList *list, u64 item_size) {
-    return AllocatorAlloc(&list->allocator, item_size, true);
+    return AllocatorAlloc(list->allocator, item_size, true);
 }
 
 static inline void free_list_item(GenericList *list, void *item, u64 item_size) {
-    AllocatorFree(&list->allocator, item, item_size);
+    AllocatorFree(list->allocator, item, item_size);
 }
 
 void deinit_list(GenericList *list, u64 item_size) {
@@ -38,8 +38,6 @@ void deinit_list(GenericList *list, u64 item_size) {
     list->copy_init   = NULL;
     list->copy_deinit = NULL;
     list->length      = 0;
-    AllocatorUnbind(&list->allocator);
-    list->allocator = AllocatorBind(DefaultAllocator());
 }
 
 
@@ -70,7 +68,7 @@ bool insert_into_list(GenericList *list, const void *item_data, u64 item_size, u
     }
 
     if (list->copy_init) {
-        if (!list->copy_init(new_node->data, item_data, &list->allocator)) {
+        if (!list->copy_init(new_node->data, item_data, list->allocator)) {
             free_list_item(list, new_node->data, item_size);
             free_list_node(list, new_node);
             return false;
@@ -141,7 +139,7 @@ void remove_range_list(GenericList *list, void *removed_data, u64 item_size, u64
         GenericListNode *node = node_at_list(list, item_size, start);
         for (u64 c = 0; (c < count) && node; c++) {
             if (list->copy_deinit) {
-                list->copy_deinit(node->data, &list->allocator);
+                list->copy_deinit(node->data, list->allocator);
             } else {
                 MemSet(node->data, 0, item_size);
             }
@@ -197,7 +195,7 @@ bool qsort_list(GenericList *list, u64 item_size, GenericCompare comp) {
     }
 
     item_count = list->length;
-    data       = AllocatorAlloc(&list->allocator, item_size * item_count, false);
+    data       = AllocatorAlloc(list->allocator, item_size * item_count, false);
     if (!data) {
         return false;
     }
@@ -216,7 +214,7 @@ bool qsort_list(GenericList *list, u64 item_size, GenericCompare comp) {
         node = node->next;
     }
 
-    AllocatorFree(&list->allocator, data, item_size * item_count);
+    AllocatorFree(list->allocator, data, item_size * item_count);
     return true;
 }
 

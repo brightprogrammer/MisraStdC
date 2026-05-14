@@ -1,8 +1,15 @@
 /// file      : std/allocator.h
-/// author    : Generated during allocator refactor
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Allocator configuration and generic helper functions.
+/// Allocator base type and dispatch API. Concrete allocator types
+/// (`HeapAllocator`, `PageAllocator`, `ArenaAllocator`, `PoolAllocator`)
+/// embed an `Allocator base` at offset 0 and carry their state inline so
+/// the library never owns mutable global state. Users construct typed
+/// allocators with their `*Init` macros and pass `&heap` / `&arena` /
+/// `&page` / `&pool` to container constructors - the container macros
+/// compile-check that the argument has an `Allocator base` and store a
+/// pointer to it.
 
 #ifndef MISRA_STD_ALLOCATOR_H
 #define MISRA_STD_ALLOCATOR_H
@@ -21,142 +28,126 @@ extern "C" {
 
     typedef struct Allocator Allocator;
 
-    typedef bool (*AllocatorStateInit)(Allocator *alloc);
-    typedef void (*AllocatorStateDeinit)(Allocator *alloc);
-    typedef void *(*AllocatorAllocateFn)(Allocator *alloc, size bytes, bool zeroed);
-    typedef void *(*AllocatorReallocateFn)(Allocator *alloc, void *ptr, size old_size, size new_size);
-    typedef void (*AllocatorDeallocateFn)(Allocator *alloc, void *ptr, size bytes);
+    typedef void *(*AllocatorAllocateFn)(Allocator *self, size bytes, bool zeroed);
+    typedef void *(*AllocatorReallocateFn)(Allocator *self, void *ptr, size old_size, size new_size);
+    typedef void (*AllocatorDeallocateFn)(Allocator *self, void *ptr, size bytes);
 
+    ///
+    /// Generic allocator base. Every typed allocator carries this struct as
+    /// its first member (named `base`). Pointers downcast cleanly between
+    /// `Allocator *` and the typed allocator pointer because `base` is at
+    /// offset 0 in every typed struct.
+    ///
+    /// State is **not** stored here. Each typed allocator stores its own
+    /// state inline after the base, so the library has no `void *state`
+    /// pointer to manage and never allocates state behind the caller's
+    /// back.
+    ///
     struct Allocator {
-        void                 *state;
-        AllocatorStateInit    state_init;
-        AllocatorStateDeinit  state_deinit;
         AllocatorAllocateFn   allocate;
         AllocatorReallocateFn reallocate;
         AllocatorDeallocateFn deallocate;
+        size                  alignment;
         AllocatorEffort       effort;
         u32                   retry_limit;
         u32                   flags;
-        size                  alignment;
     };
 
     ///
-    /// Prepare an allocator for object binding.
-    /// Missing allocation callbacks are filled from the default heap allocator and
-    /// the runtime `state` pointer is reset so each bound object starts with a fresh
-    /// allocator instance state.
+    /// Magic sentinel used to identify a properly-initialized allocator base
+    /// at runtime. Embedded inside the base via the `*Init` macros so
+    /// `ValidateAllocator` can catch use-of-uninitialized-allocator bugs.
     ///
-    /// alloc[in] : Allocator template to bind
+    /// Stored in `flags` because it doesn't otherwise carry state in current
+    /// allocators - leaves room to add real flag bits later if needed by
+    /// using the lower bits and keeping the magic in the upper bits.
     ///
-    /// SUCCESS: Returns a bound allocator descriptor.
-    /// FAILURE: Function cannot fail.
-    ///
-    /// TAGS: Allocator, Binding, Initialization, Memory
-    ///
-    Allocator AllocatorBind(Allocator alloc);
 
     ///
     /// Allocate memory through an allocator.
-    /// Allocations honor the allocator's configured alignment (`alloc->alignment`).
-    /// The allocator effort policy controls how many attempts are made before the
-    /// allocation is reported as failed.
+    /// Allocations honor the allocator's configured alignment.
     ///
-    /// alloc[in,out]   : Allocator used for the allocation
-    /// bytes[in]       : Number of bytes to allocate
-    /// zeroed[in]      : Whether the allocated region must be zero-initialized
+    /// self[in,out]  : Allocator base used for the allocation.
+    /// bytes[in]     : Number of bytes to allocate.
+    /// zeroed[in]    : Whether the allocated region must be zero-initialized.
     ///
     /// SUCCESS: Returns a writable pointer to allocated memory.
-    /// FAILURE: Returns NULL when allocation fails or allocator is invalid.
+    /// FAILURE: Returns NULL when allocation fails or `self` is invalid.
     ///
-    /// TAGS: Allocator, Memory, Allocation, Runtime
+    /// TAGS: Allocator, Memory, Allocation
     ///
-    void *AllocatorAlloc(Allocator *alloc, size bytes, bool zeroed);
+    void *AllocatorAlloc(Allocator *self, size bytes, bool zeroed);
 
     ///
-    /// Reallocate memory through an allocator.
-    /// Reallocations preserve the allocator's configured alignment.
+    /// Reallocate memory through an allocator. Preserves the allocator's
+    /// configured alignment across the resize.
     ///
-    /// alloc[in,out]     : Allocator used for the reallocation
-    /// ptr[in]           : Existing allocation pointer, or NULL
-    /// old_size[in]      : Previous allocation size in bytes
-    /// new_size[in]      : Requested new allocation size in bytes
+    /// self[in,out]  : Allocator base used for the reallocation.
+    /// ptr[in]       : Existing allocation pointer, or NULL.
+    /// old_size[in]  : Previous allocation size in bytes.
+    /// new_size[in]  : Requested new allocation size in bytes.
     ///
     /// SUCCESS: Returns a pointer to the resized allocation, or NULL when
     ///          `new_size` is zero.
-    /// FAILURE: Returns NULL when reallocation fails or allocator is invalid.
+    /// FAILURE: Returns NULL when reallocation fails.
     ///
-    /// TAGS: Allocator, Memory, Reallocation, Runtime
+    /// TAGS: Allocator, Memory, Reallocation
     ///
-    void *AllocatorRealloc(Allocator *alloc, void *ptr, size old_size, size new_size);
+    void *AllocatorRealloc(Allocator *self, void *ptr, size old_size, size new_size);
 
     ///
     /// Free memory through an allocator.
     ///
-    /// alloc[in,out]   : Allocator that owns the allocation
-    /// ptr[in]         : Pointer to the allocation, or NULL
-    /// bytes[in]       : Allocation size in bytes
+    /// self[in,out] : Allocator base that issued the original allocation.
+    /// ptr[in]      : Pointer to the allocation, or NULL.
+    /// bytes[in]    : Allocation size in bytes.
     ///
-    /// SUCCESS: Function cannot fail.
-    /// FAILURE: No action is taken when `ptr` or `alloc` is invalid.
+    /// SUCCESS: Function returns. The allocation is reclaimed.
+    /// FAILURE: No action is taken when `ptr` or `self` is invalid.
     ///
-    /// TAGS: Allocator, Memory, Deallocation, Runtime
+    /// TAGS: Allocator, Memory, Deallocation
     ///
-    void AllocatorFree(Allocator *alloc, void *ptr, size bytes);
+    void AllocatorFree(Allocator *self, void *ptr, size bytes);
 
     ///
-    /// Return a copy of `alloc` with its `alignment` field raised to at least
-    /// `min_alignment`. Existing alignment greater than `min_alignment` is kept.
-    /// Passing `0` for `min_alignment` returns `alloc` unchanged. Useful when an
-    /// object knows a minimum alignment requirement and wants to bind it onto
-    /// whatever allocator the caller supplied.
+    /// Validate an allocator base. Aborts via `LOG_FATAL` when the allocator
+    /// is structurally invalid (NULL pointer, missing fn pointers, alignment
+    /// is zero or not a power of two).
     ///
-    /// alloc[in]         : Allocator template.
-    /// min_alignment[in] : Floor alignment in bytes (power of two).
+    /// self[in] : Allocator base to validate.
     ///
-    /// SUCCESS: Returns an allocator descriptor with the higher alignment.
-    /// FAILURE: Function cannot fail.
+    /// SUCCESS: Function returns. The allocator is structurally valid.
+    /// FAILURE: Does not return - aborts via `LOG_FATAL` / `SysAbort`.
     ///
-    /// TAGS: Allocator, Alignment, Builder, Memory
+    /// TAGS: Allocator, Validation, Contract
     ///
-    static inline Allocator AllocatorWithMinAlignment(Allocator alloc, size min_alignment) {
-        if (min_alignment > alloc.alignment) {
-            alloc.alignment = min_alignment;
-        }
-        return alloc;
-    }
-
-    ///
-    /// Release allocator runtime state bound to an object.
-    /// This does not free allocations owned by containers; it only tears down the
-    /// allocator's internal state object and resets `state` to NULL.
-    ///
-    /// alloc[in,out] : Allocator to unbind
-    ///
-    /// SUCCESS: Function cannot fail.
-    /// FAILURE: No action is taken when `alloc` is NULL.
-    ///
-    /// TAGS: Allocator, State, Cleanup, Memory
-    ///
-    void AllocatorUnbind(Allocator *alloc);
+    void ValidateAllocator(const Allocator *self);
 
 #ifdef __cplusplus
 }
 #endif
 
+///
+/// Compile-time-check that `typed_alloc_ptr` points at a struct whose first
+/// field is named `base` of type `Allocator`, and yield `&typed_alloc_ptr->base`.
+///
+/// This is the bridge between the user's typed allocator handle
+/// (`HeapAllocator *`, `PageAllocator *`, ...) and the generic
+/// `Allocator *` that container init macros store internally. User code
+/// never writes `.base` by hand:
+///
+///     HeapAllocator heap = HeapAllocatorInit();
+///     Vec(int) v = VecInit(&heap);   // container macro uses ALLOCATOR_OF(&heap)
+///
+/// Passing a pointer to a struct that lacks an `Allocator base` field
+/// triggers a compile error from `CHECK_TYPE_EQUIVALENCE`.
+///
+#define ALLOCATOR_OF(typed_alloc_ptr)                                                                                  \
+    (CHECK_TYPE_EQUIVALENCE(TYPE_OF((typed_alloc_ptr)->base), Allocator), &(typed_alloc_ptr)->base)
+
 #include <Misra/Std/Allocator/Arena.h>
 #include <Misra/Std/Allocator/Heap.h>
 #include <Misra/Std/Allocator/Page.h>
 #include <Misra/Std/Allocator/Pool.h>
-
-///
-/// Obtain the library default allocator.
-/// This currently expands to the heap allocator descriptor.
-///
-/// USAGE:
-///   Allocator alloc = DefaultAllocator();
-///
-/// TAGS: Allocator, Macro, Default, Memory
-///
-#define DefaultAllocator() HeapAllocator()
 
 #endif // MISRA_STD_ALLOCATOR_H

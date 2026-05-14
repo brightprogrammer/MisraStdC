@@ -105,7 +105,7 @@ bool StrInitCopy(Str *dst, const Str *src) {
         LOG_FATAL("Invalid arguments");
     }
 
-    return StrInitCopyAlloc(dst, src, &src->allocator);
+    return StrInitCopyAlloc(dst, src, src->allocator);
 }
 
 bool StrInitCopyAlloc(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
@@ -118,7 +118,7 @@ bool StrInitCopyAlloc(void *dst_ptr, const void *src_ptr, const Allocator *alloc
         LOG_FATAL("Invalid arguments");
     }
 
-    clone_allocator = alloc ? alloc : &src->allocator;
+    clone_allocator = alloc ? alloc : src->allocator;
 
     MemSet(dst, 0, sizeof(Str));
     *dst             = StrInit(*clone_allocator);

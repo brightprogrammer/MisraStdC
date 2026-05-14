@@ -4,7 +4,8 @@
 ///
 /// Page-granular allocator implementation. Routes every allocation through
 /// the OS (mmap on POSIX, VirtualAlloc on Windows) so the library does not
-/// depend on libc malloc here.
+/// depend on libc malloc here. State is inline in the `PageAllocator`
+/// struct - just a cached page size.
 
 #include <Misra/Std/Allocator/Page.h>
 #include <Misra/Std/Memory.h>
@@ -23,9 +24,7 @@
 #    endif
 #endif
 
-static size cached_page_size = 0;
-
-static size page_allocator_query_page_size(void) {
+static size page_query_page_size(void) {
 #if defined(MISRA_PAGE_ALLOCATOR_WINDOWS)
     SYSTEM_INFO info;
     GetSystemInfo(&info);
@@ -42,38 +41,41 @@ static size page_allocator_query_page_size(void) {
 #endif
 }
 
-size PageAllocatorPageSize(void) {
-    if (!cached_page_size) {
-        cached_page_size = page_allocator_query_page_size();
+size PageAllocatorPageSize(PageAllocator *self) {
+    if (self && self->cached_page_size) {
+        return self->cached_page_size;
     }
-    return cached_page_size;
+    size ps = page_query_page_size();
+    if (self) {
+        self->cached_page_size = ps;
+    }
+    return ps;
 }
 
 static bool page_alignment_is_pow2(size alignment) {
     return alignment != 0 && ((alignment & (alignment - 1)) == 0);
 }
 
-static size page_allocator_effective_alignment(const Allocator *alloc) {
-    size requested = alloc ? alloc->alignment : 0;
-    size page_size = PageAllocatorPageSize();
+static size page_effective_alignment(PageAllocator *self) {
+    size requested = self ? self->base.alignment : 0;
+    size page_size = PageAllocatorPageSize(self);
     if (requested < page_size) {
         return page_size;
     }
     if (!page_alignment_is_pow2(requested)) {
-        // Fall back to page size if caller asked for non-pow2.
         return page_size;
     }
     return requested;
 }
 
-static size page_allocator_round_up(size bytes, size page_size) {
+static size page_round_up(size bytes, size align) {
     if (!bytes) {
         return 0;
     }
-    return (bytes + page_size - 1) & ~(page_size - 1);
+    return (bytes + align - 1) & ~(align - 1);
 }
 
-static void *page_allocator_map(size bytes) {
+static void *page_map(size bytes) {
 #if defined(MISRA_PAGE_ALLOCATOR_WINDOWS)
     return VirtualAlloc(NULL, (SIZE_T)bytes, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 #else
@@ -85,7 +87,7 @@ static void *page_allocator_map(size bytes) {
 #endif
 }
 
-static void page_allocator_unmap(void *ptr, size bytes) {
+static void page_unmap(void *ptr, size bytes) {
     if (!ptr || !bytes) {
         return;
     }
@@ -97,93 +99,45 @@ static void page_allocator_unmap(void *ptr, size bytes) {
 #endif
 }
 
-static void *page_allocator_allocate(Allocator *alloc, size bytes, bool zeroed) {
-    size  page_size = PageAllocatorPageSize();
-    size  rounded;
-    void *ptr;
+static size page_rounded_size(PageAllocator *self, size bytes) {
+    size align     = page_effective_alignment(self);
+    size page_size = PageAllocatorPageSize(self);
+    if (align > page_size) {
+        return page_round_up(bytes, align);
+    }
+    return page_round_up(bytes, page_size);
+}
 
-    (void)alloc;
-    (void)zeroed; // OS-mapped pages are zeroed by the kernel.
-
+void *page_allocator_allocate(Allocator *self, size bytes, bool zeroed) {
+    (void)zeroed; // OS-mapped pages are kernel-zeroed.
     if (!bytes) {
         return NULL;
     }
-
-    // Honor stricter alignment by simply rounding up to the alignment, which is
-    // always >= page_size after page_allocator_effective_alignment().
-    size align = page_allocator_effective_alignment(alloc);
-    if (align > page_size) {
-        // Over-aligned allocations: just round size up to the alignment too.
-        rounded = (bytes + align - 1) & ~(align - 1);
-    } else {
-        rounded = page_allocator_round_up(bytes, page_size);
-    }
-
-    ptr = page_allocator_map(rounded);
-    if (!ptr) {
-        return NULL;
-    }
-    return ptr;
+    PageAllocator *page = (PageAllocator *)self;
+    return page_map(page_rounded_size(page, bytes));
 }
 
-static void *page_allocator_reallocate(Allocator *alloc, void *ptr, size old_size, size new_size) {
-    void *new_ptr;
-    size  copy_bytes;
+void *page_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size) {
+    PageAllocator *page = (PageAllocator *)self;
 
     if (new_size == 0) {
-        size align     = page_allocator_effective_alignment(alloc);
-        size page_size = PageAllocatorPageSize();
-        size rounded =
-            align > page_size ? ((old_size + align - 1) & ~(align - 1)) : page_allocator_round_up(old_size, page_size);
-        page_allocator_unmap(ptr, rounded);
+        page_unmap(ptr, page_rounded_size(page, old_size));
         return NULL;
     }
 
-    new_ptr = page_allocator_allocate(alloc, new_size, true);
-    if (!new_ptr) {
+    void *fresh = page_allocator_allocate(self, new_size, true);
+    if (!fresh) {
         return NULL;
     }
-
     if (ptr) {
-        copy_bytes = old_size < new_size ? old_size : new_size;
-        MemCopy(new_ptr, ptr, copy_bytes);
-
-        size align     = page_allocator_effective_alignment(alloc);
-        size page_size = PageAllocatorPageSize();
-        size rounded =
-            align > page_size ? ((old_size + align - 1) & ~(align - 1)) : page_allocator_round_up(old_size, page_size);
-        page_allocator_unmap(ptr, rounded);
+        size copy_bytes = old_size < new_size ? old_size : new_size;
+        MemCopy(fresh, ptr, copy_bytes);
+        page_unmap(ptr, page_rounded_size(page, old_size));
     }
-
-    return new_ptr;
+    return fresh;
 }
 
-static void page_allocator_deallocate(Allocator *alloc, void *ptr, size bytes) {
-    size align     = page_allocator_effective_alignment(alloc);
-    size page_size = PageAllocatorPageSize();
-    size rounded = align > page_size ? ((bytes + align - 1) & ~(align - 1)) : page_allocator_round_up(bytes, page_size);
-    page_allocator_unmap(ptr, rounded);
-}
-
-Allocator PageAllocator(void) {
-    return (Allocator) {
-        .state        = NULL,
-        .state_init   = NULL,
-        .state_deinit = NULL,
-        .allocate     = page_allocator_allocate,
-        .reallocate   = page_allocator_reallocate,
-        .deallocate   = page_allocator_deallocate,
-        .effort       = ALLOCATOR_EFFORT_ONCE,
-        .retry_limit  = 0,
-        .flags        = 0,
-        .alignment    = 1,
-    };
-}
-
-Allocator PageAllocatorAligned(size alignment) {
-    Allocator alloc = PageAllocator();
-    if (alignment) {
-        alloc.alignment = alignment;
-    }
-    return alloc;
+void page_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
+    PageAllocator *page = (PageAllocator *)self;
+    page_unmap(ptr, page_rounded_size(page, bytes));
 }

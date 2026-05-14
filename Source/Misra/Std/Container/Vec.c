@@ -59,7 +59,6 @@ void init_vec(
     vec->copy_init   = copy_init;
     vec->copy_deinit = copy_deinit;
     vec->data        = NULL;
-    vec->allocator   = AllocatorBind(allocator);
     vec->__magic     = MISRA_VEC_MAGIC;
 }
 
@@ -72,20 +71,18 @@ void deinit_vec(GenericVec *vec, size item_size) {
     if (vec->data) {
         if (vec->copy_deinit) {
             for (size i = 0; i < vec->length; i++) {
-                vec->copy_deinit(vec_ptr_at(vec, i, item_size), &vec->allocator);
+                vec->copy_deinit(vec_ptr_at(vec, i, item_size), vec->allocator);
             }
         } else {
             MemSet(vec->data, 0, aligned_size * (vec->capacity + 1));
         }
 
-        AllocatorFree(&vec->allocator, vec->data, aligned_size * (vec->capacity + 1));
+        AllocatorFree(vec->allocator, vec->data, aligned_size * (vec->capacity + 1));
     }
 
     vec->data     = NULL;
     vec->length   = 0;
     vec->capacity = 0;
-    AllocatorUnbind(&vec->allocator);
-    vec->allocator = AllocatorBind(DefaultAllocator());
 }
 
 
@@ -98,7 +95,7 @@ void clear_vec(GenericVec *vec, size item_size) {
     if (vec->data) {
         if (vec->copy_deinit) {
             for (size i = 0; i < vec->length; i++) {
-                vec->copy_deinit(vec_ptr_at(vec, i, item_size), &vec->allocator);
+                vec->copy_deinit(vec_ptr_at(vec, i, item_size), vec->allocator);
             }
         } else {
             MemSet(vec->data, 0, aligned_size * (vec->capacity + 1));
@@ -118,7 +115,7 @@ bool reserve_vec(GenericVec *vec, size item_size, size n) {
     if (n > vec->capacity) {
         size  old_capacity = (size)vec->capacity;
         char *ptr          = (char *)
-            AllocatorRealloc(&vec->allocator, vec->data, aligned_size * (old_capacity + 1), aligned_size * (n + 1));
+            AllocatorRealloc(vec->allocator, vec->data, aligned_size * (old_capacity + 1), aligned_size * (n + 1));
 
         if (!ptr) {
             LOG_SYS_ERROR("allocator reallocate failed");
@@ -156,14 +153,14 @@ bool reduce_space_vec(GenericVec *vec, size item_size) {
 
     aligned_size = vec_aligned_size(vec, item_size);
     if (vec->length == 0) {
-        AllocatorFree(&vec->allocator, vec->data, aligned_size * (vec->capacity + 1));
+        AllocatorFree(vec->allocator, vec->data, aligned_size * (vec->capacity + 1));
         vec->data     = NULL;
         vec->capacity = 0;
         vec->length   = 0;
         return true;
     } else {
         char *ptr = (char *)AllocatorRealloc(
-            &vec->allocator,
+            vec->allocator,
             vec->data,
             aligned_size * (vec->capacity + 1),
             aligned_size * (vec->length + 1)
@@ -234,9 +231,9 @@ bool insert_range_into_vec(GenericVec *vec, const char *item_data, size item_siz
     for (size i = 0; i < count; i++) {
         if (vec->copy_init) {
             MemSet(vec_ptr_at(vec, idx + i, item_size), 0, item_size);
-            if (!vec->copy_init(vec_ptr_at(vec, idx + i, item_size), item_data + i * item_size, &vec->allocator)) {
+            if (!vec->copy_init(vec_ptr_at(vec, idx + i, item_size), item_data + i * item_size, vec->allocator)) {
                 for (size s = 0; s < inserted_count; s++) {
-                    vec->copy_deinit(vec_ptr_at(vec, idx + s, item_size), &vec->allocator);
+                    vec->copy_deinit(vec_ptr_at(vec, idx + s, item_size), vec->allocator);
                 }
 
                 MemSet(vec_ptr_at(vec, idx, item_size), 0, count * aligned_size);
@@ -292,9 +289,9 @@ bool insert_range_fast_into_vec(GenericVec *vec, const char *item_data, size ite
     for (size i = 0; i < count; i++) {
         if (vec->copy_init) {
             MemSet(vec_ptr_at(vec, idx + i, item_size), 0, item_size);
-            if (!vec->copy_init(vec_ptr_at(vec, idx + i, item_size), item_data + i * item_size, &vec->allocator)) {
+            if (!vec->copy_init(vec_ptr_at(vec, idx + i, item_size), item_data + i * item_size, vec->allocator)) {
                 for (size s = 0; s < inserted_count; s++) {
-                    vec->copy_deinit(vec_ptr_at(vec, idx + s, item_size), &vec->allocator);
+                    vec->copy_deinit(vec_ptr_at(vec, idx + s, item_size), vec->allocator);
                 }
 
                 if (idx < vec->length) {
@@ -337,7 +334,7 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size 
         if (vec->copy_deinit) {
             char *vec_data = vec_ptr_at(vec, start, item_size);
             for (size s = 0; s < count; s++) {
-                vec->copy_deinit(vec_data, &vec->allocator);
+                vec->copy_deinit(vec_data, vec->allocator);
                 vec_data += vec_aligned_size(vec, item_size);
             }
         } else {
@@ -378,7 +375,7 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
         if (vec->copy_deinit) {
             char *vec_data = vec_ptr_at(vec, start, item_size);
             for (size s = 0; s < count; s++) {
-                vec->copy_deinit(vec_data, &vec->allocator);
+                vec->copy_deinit(vec_data, vec->allocator);
                 vec_data += vec_aligned_size(vec, item_size);
             }
         } else {

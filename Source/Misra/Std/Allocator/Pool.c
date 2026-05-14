@@ -2,226 +2,137 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Fixed-size slot pool allocator.
+/// Per-descriptor fixed-size slot pool implementation.
 
 #include <Misra/Std/Allocator/Page.h>
 #include <Misra/Std/Allocator/Pool.h>
-#include <Misra/Std/Allocator/Private.h>
 #include <Misra/Std/Memory.h>
 
 #include <stdint.h>
 
-#define MISRA_POOL_DEFAULT_CHUNK_SLOTS 256u
-
-typedef struct PoolChunk {
+struct PoolChunk {
     struct PoolChunk *next;
     char             *slots;
     size              capacity;
-} PoolChunk;
+    size              raw_size;
+};
 
-typedef struct PoolFreeSlot {
+struct PoolFreeSlot {
     struct PoolFreeSlot *next;
-} PoolFreeSlot;
+};
 
-typedef struct {
-    PoolChunk    *head;
-    PoolChunk    *tail;
-    PoolFreeSlot *free_head;
-    Allocator     page;
-    size          slot_size;
-    size          slots_per_chunk;
-} PoolState;
-
-static size pool_round_up_pow2(size value, size alignment) {
+static size pool_round_up(size value, size alignment) {
     return (value + (alignment - 1)) & ~(alignment - 1);
 }
 
 static size pool_padded_slot_size(size slot_size, size alignment) {
-    size required = slot_size > sizeof(PoolFreeSlot) ? slot_size : sizeof(PoolFreeSlot);
+    size required = slot_size > sizeof(struct PoolFreeSlot) ? slot_size : sizeof(struct PoolFreeSlot);
     if (alignment < sizeof(void *)) {
         alignment = sizeof(void *);
     }
-    return pool_round_up_pow2(required, alignment);
+    return pool_round_up(required, alignment);
 }
 
-static bool pool_state_init(Allocator *alloc) {
-    Allocator  page = PageAllocator();
-    PoolState *state;
-    size       slot_size = (size)alloc->flags;
+static bool pool_grow(PoolAllocator *pool) {
+    size align         = pool->base.alignment > 1 ? pool->base.alignment : sizeof(void *);
+    size padded_slot   = pool_padded_slot_size(pool->slot_size, align);
+    size slot_count    = pool->slots_per_chunk;
+    size header_bytes  = sizeof(struct PoolChunk);
+    size payload_bytes = slot_count * padded_slot + align;
+    size raw_bytes     = header_bytes + payload_bytes;
 
-    if (!slot_size) {
-        return false;
-    }
-
-    if (!allocator_ensure_state(&page)) {
-        return false;
-    }
-
-    state = (PoolState *)AllocatorAlloc(&page, sizeof(PoolState), true);
-    if (!state) {
-        return false;
-    }
-
-    state->head            = NULL;
-    state->tail            = NULL;
-    state->free_head       = NULL;
-    state->page            = page;
-    state->slot_size       = pool_padded_slot_size(slot_size, alloc->alignment);
-    state->slots_per_chunk = MISRA_POOL_DEFAULT_CHUNK_SLOTS;
-
-    alloc->state = state;
-    return true;
-}
-
-static void pool_state_deinit(Allocator *alloc) {
-    PoolState *state = (PoolState *)alloc->state;
-    PoolChunk *chunk;
-    PoolChunk *next;
-    Allocator  page;
-
-    if (!state) {
-        return;
-    }
-
-    page  = state->page;
-    chunk = state->head;
-    while (chunk) {
-        next = chunk->next;
-        AllocatorFree(&page, chunk->slots, chunk->capacity);
-        AllocatorFree(&page, chunk, sizeof(PoolChunk));
-        chunk = next;
-    }
-
-    AllocatorFree(&page, state, sizeof(PoolState));
-    AllocatorUnbind(&page);
-    alloc->state = NULL;
-}
-
-static bool pool_grow(PoolState *state, size alignment) {
-    PoolChunk *chunk = (PoolChunk *)AllocatorAlloc(&state->page, sizeof(PoolChunk), true);
-    if (!chunk) {
-        return false;
-    }
-
-    size  slot_count = state->slots_per_chunk;
-    size  raw_bytes  = slot_count * state->slot_size + alignment;
-    char *raw        = (char *)AllocatorAlloc(&state->page, raw_bytes, true);
+    char *raw = (char *)AllocatorAlloc(&pool->page.base, raw_bytes, true);
     if (!raw) {
-        AllocatorFree(&state->page, chunk, sizeof(PoolChunk));
         return false;
     }
 
-    uintptr_t base_addr    = (uintptr_t)raw;
-    uintptr_t aligned_addr = (base_addr + (uintptr_t)(alignment - 1)) & ~(uintptr_t)(alignment - 1);
-
-    chunk->slots    = raw;
-    chunk->capacity = raw_bytes;
-    chunk->next     = NULL;
-    if (!state->head) {
-        state->head = chunk;
+    struct PoolChunk *chunk = (struct PoolChunk *)(void *)raw;
+    chunk->slots            = raw + header_bytes;
+    chunk->capacity         = payload_bytes;
+    chunk->raw_size         = raw_bytes;
+    chunk->next             = NULL;
+    if (!pool->head) {
+        pool->head = chunk;
     } else {
-        state->tail->next = chunk;
+        pool->tail->next = chunk;
     }
-    state->tail = chunk;
+    pool->tail = chunk;
 
-    // Link every freshly-mapped slot into the free list.
-    char *cursor = (char *)(void *)aligned_addr;
+    uintptr_t base_addr    = (uintptr_t)chunk->slots;
+    uintptr_t aligned_addr = (base_addr + (uintptr_t)(align - 1)) & ~(uintptr_t)(align - 1);
+    char     *cursor       = (char *)(void *)aligned_addr;
     for (size i = 0; i < slot_count; i++) {
-        PoolFreeSlot *slot  = (PoolFreeSlot *)(void *)cursor;
-        slot->next          = state->free_head;
-        state->free_head    = slot;
-        cursor             += state->slot_size;
+        struct PoolFreeSlot *slot = (struct PoolFreeSlot *)(void *)cursor;
+        slot->next                = pool->free_head;
+        pool->free_head           = slot;
+        cursor                    += padded_slot;
     }
-
     return true;
 }
 
-static void *pool_allocate(Allocator *alloc, size bytes, bool zeroed) {
-    PoolState    *state = (PoolState *)alloc->state;
-    PoolFreeSlot *slot;
-    size          align = alloc->alignment > 1 ? alloc->alignment : sizeof(void *);
+void *pool_allocator_allocate(Allocator *self, size bytes, bool zeroed) {
+    PoolAllocator *pool         = (PoolAllocator *)self;
+    size           align        = self->alignment > 1 ? self->alignment : sizeof(void *);
+    size           padded_slot  = pool_padded_slot_size(pool->slot_size, align);
 
-    if (!state) {
+    if (bytes > padded_slot) {
         return NULL;
     }
-
-    if (bytes > state->slot_size) {
-        return NULL; // Caller asked for more than the pool's slot size.
+    if (!pool->free_head && !pool_grow(pool)) {
+        return NULL;
     }
-
-    if (!state->free_head) {
-        if (!pool_grow(state, align)) {
-            return NULL;
-        }
-    }
-
-    slot             = state->free_head;
-    state->free_head = slot->next;
-
+    struct PoolFreeSlot *slot = pool->free_head;
+    pool->free_head           = slot->next;
     if (zeroed) {
-        MemSet(slot, 0, state->slot_size);
+        MemSet(slot, 0, padded_slot);
     }
-
     return slot;
 }
 
-static void *pool_reallocate(Allocator *alloc, void *ptr, size old_size, size new_size) {
-    PoolState *state = (PoolState *)alloc->state;
+void *pool_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size) {
+    PoolAllocator *pool = (PoolAllocator *)self;
+    size           align = self->alignment > 1 ? self->alignment : sizeof(void *);
+    size           padded = pool_padded_slot_size(pool->slot_size, align);
 
     (void)old_size;
 
     if (!ptr) {
-        return pool_allocate(alloc, new_size, true);
+        return pool_allocator_allocate(self, new_size, true);
     }
-
     if (new_size == 0) {
-        // Recycle by pushing back onto the free list.
-        PoolFreeSlot *slot = (PoolFreeSlot *)ptr;
-        slot->next         = state->free_head;
-        state->free_head   = slot;
+        struct PoolFreeSlot *slot = (struct PoolFreeSlot *)ptr;
+        slot->next                = pool->free_head;
+        pool->free_head           = slot;
         return NULL;
     }
-
-    if (new_size <= state->slot_size) {
-        return ptr; // Same slot still fits.
+    if (new_size <= padded) {
+        return ptr;
     }
-
-    // Caller wants a bigger slot than the pool can provide - fail rather
-    // than silently truncate or fall back to another allocator.
     return NULL;
 }
 
-static void pool_deallocate(Allocator *alloc, void *ptr, size bytes) {
-    PoolState    *state = (PoolState *)alloc->state;
-    PoolFreeSlot *slot;
-
+void pool_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
+    PoolAllocator *pool = (PoolAllocator *)self;
     (void)bytes;
-
-    if (!state || !ptr) {
+    if (!ptr) {
         return;
     }
-
-    slot             = (PoolFreeSlot *)ptr;
-    slot->next       = state->free_head;
-    state->free_head = slot;
+    struct PoolFreeSlot *slot = (struct PoolFreeSlot *)ptr;
+    slot->next                = pool->free_head;
+    pool->free_head           = slot;
 }
 
-Allocator PoolAllocator(size slot_size) {
-    return PoolAllocatorAligned(slot_size, 1);
-}
-
-Allocator PoolAllocatorAligned(size slot_size, size alignment) {
-    u32 flags_slot = slot_size > (size)UINT32_MAX ? UINT32_MAX : (u32)slot_size;
-    return (Allocator) {
-        .state        = NULL,
-        .state_init   = pool_state_init,
-        .state_deinit = pool_state_deinit,
-        .allocate     = pool_allocate,
-        .reallocate   = pool_reallocate,
-        .deallocate   = pool_deallocate,
-        .effort       = ALLOCATOR_EFFORT_ONCE,
-        .retry_limit  = 0,
-        .flags        = flags_slot,
-        .alignment    = alignment ? alignment : 1,
-    };
+void PoolAllocatorDeinit(PoolAllocator *self) {
+    if (!self) {
+        return;
+    }
+    struct PoolChunk *chunk = self->head;
+    while (chunk) {
+        struct PoolChunk *next = chunk->next;
+        AllocatorFree(&self->page.base, (void *)chunk, chunk->raw_size);
+        chunk = next;
+    }
+    self->head      = NULL;
+    self->tail      = NULL;
+    self->free_head = NULL;
 }
