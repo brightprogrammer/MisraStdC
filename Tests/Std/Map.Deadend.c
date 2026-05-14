@@ -3,7 +3,7 @@
 
 #include "../Util/TestRunner.h"
 
-static u64 int_hash(const void *data, u32 size) {
+static u64 i32_hash(const void *data, u32 size) {
     u64 x = (u64)(u32)(*(const int *)data);
     (void)size;
     x ^= x >> 33;
@@ -12,7 +12,7 @@ static u64 int_hash(const void *data, u32 size) {
     return x;
 }
 
-static i32 int_compare(const void *lhs, const void *rhs) {
+static i32 i32_compare(const void *lhs, const void *rhs) {
     int a = *(const int *)lhs;
     int b = *(const int *)rhs;
     return (a > b) - (a < b);
@@ -31,7 +31,7 @@ static bool test_map_contains_pair_without_value_compare_fails(void) {
     WriteFmt("Testing MapContainsPair without value comparator\n");
 
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
+    IntIntMap map = MapInit(i32_hash, i32_compare);
 
     MapContainsPair(&map, 1, 10);
 
@@ -43,7 +43,7 @@ static bool test_map_remove_pair_without_value_compare_fails(void) {
     WriteFmt("Testing MapRemovePair without value comparator\n");
 
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
+    IntIntMap map = MapInit(i32_hash, i32_compare);
 
     MapRemovePair(&map, 1, 10);
 
@@ -55,7 +55,7 @@ static bool test_map_remove_if_without_predicate_fails(void) {
     WriteFmt("Testing MapRemoveIf without predicate\n");
 
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
+    IntIntMap map = MapInit(i32_hash, i32_compare);
 
     MapRemoveIf(&map, NULL, NULL);
 
@@ -67,7 +67,7 @@ static bool test_map_retain_if_without_predicate_fails(void) {
     WriteFmt("Testing MapRetainIf without predicate\n");
 
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
+    IntIntMap map = MapInit(i32_hash, i32_compare);
 
     MapRetainIf(&map, NULL, NULL);
 
@@ -146,5 +146,11 @@ int main(void) {
     };
 
     WriteFmt("[INFO] Starting Map.Deadend tests\n\n");
-    return run_test_suite(NULL, 0, deadend_tests, (int)(sizeof(deadend_tests) / sizeof(deadend_tests[0])), "Map.Deadend");
+    return run_test_suite(
+        NULL,
+        0,
+        deadend_tests,
+        (int)(sizeof(deadend_tests) / sizeof(deadend_tests[0])),
+        "Map.Deadend"
+    );
 }

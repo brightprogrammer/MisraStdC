@@ -2,7 +2,7 @@
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
 
-static u64 int_hash(const void *data, u32 size) {
+static u64 i32_hash(const void *data, u32 size) {
     u64 x = (u64)(u32)(*(const int *)data);
     (void)size;
     x ^= x >> 33;
@@ -11,7 +11,7 @@ static u64 int_hash(const void *data, u32 size) {
     return x;
 }
 
-static i32 int_compare(const void *lhs, const void *rhs) {
+static i32 i32_compare(const void *lhs, const void *rhs) {
     int a = *(const int *)lhs;
     int b = *(const int *)rhs;
     return (a > b) - (a < b);
@@ -52,10 +52,10 @@ static size custom_next_index(u64 hash, size capacity, size previous_index, size
 
 static bool test_map_type_defaults(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
+    IntIntMap map = MapInit(i32_hash, i32_compare);
 
     return map.length == 0 && map.capacity == 0 && map.tombstones == 0 && map.entries == NULL && map.states == NULL &&
-           map.key_compare == int_compare && map.value_compare == NULL && map.key_hash == int_hash &&
+           map.key_compare == i32_compare && map.value_compare == NULL && map.key_hash == i32_hash &&
            map.policy.should_rehash == MisraMapPolicyLinear.should_rehash &&
            map.policy.next_capacity == MisraMapPolicyLinear.next_capacity &&
            map.policy.first_index == MisraMapPolicyLinear.first_index &&
@@ -65,9 +65,9 @@ static bool test_map_type_defaults(void) {
 
 static bool test_map_type_with_value_compare(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInitWithValueCompare(int_hash, int_compare, int_compare);
+    IntIntMap map = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare);
 
-    return map.key_compare == int_compare && map.value_compare == int_compare && map.key_hash == int_hash;
+    return map.key_compare == i32_compare && map.value_compare == i32_compare && map.key_hash == i32_hash;
 }
 
 static bool test_map_policy_copy(void) {
@@ -80,7 +80,7 @@ static bool test_map_policy_copy(void) {
         .next_index      = custom_next_index,
         .max_probe_count = 11,
     };
-    IntIntMap map = MapInitWithPolicy(int_hash, int_compare, custom_policy);
+    IntIntMap map = MapInitWithPolicy(i32_hash, i32_compare, custom_policy);
 
     custom_policy.name            = "changed";
     custom_policy.should_rehash   = NULL;

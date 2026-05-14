@@ -2,7 +2,7 @@
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
 
-static u64 int_hash(const void *data, u32 size) {
+static u64 i32_hash(const void *data, u32 size) {
     u64 x = (u64)(u32)(*(const int *)data);
     (void)size;
     x ^= x >> 33;
@@ -11,7 +11,7 @@ static u64 int_hash(const void *data, u32 size) {
     return x;
 }
 
-static i32 int_compare(const void *lhs, const void *rhs) {
+static i32 i32_compare(const void *lhs, const void *rhs) {
     int a = *(const int *)lhs;
     int b = *(const int *)rhs;
     return (a > b) - (a < b);
@@ -51,7 +51,7 @@ static size custom_next_index(u64 hash, size capacity, size previous_index, size
 
 static bool test_map_reserve_and_clear(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
+    IntIntMap map = MapInit(i32_hash, i32_compare);
     size      reserved_capacity;
 
     MapReserve(&map, 32);
@@ -76,7 +76,7 @@ static bool test_map_reserve_and_clear(void) {
 
 static bool test_map_rehash_policy_switch(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
+    IntIntMap map = MapInit(i32_hash, i32_compare);
 
     for (int i = 0; i < 24; i++) {
         MapSetOnlyR(&map, i, i * 10);
@@ -108,7 +108,7 @@ static bool test_map_custom_policy_growth(void) {
         .next_index      = custom_next_index,
         .max_probe_count = 32,
     };
-    IntIntMap map    = MapInitWithPolicy(int_hash, int_compare, custom_policy);
+    IntIntMap map    = MapInitWithPolicy(i32_hash, i32_compare, custom_policy);
     bool      result = true;
 
     for (int i = 0; i < 6; i++) {

@@ -18,16 +18,16 @@ extern "C" {
 #    define INT_FROM_DISPATCH(value)                                                                                   \
         _Generic(                                                                                                      \
             (value),                                                                                                   \
-            unsigned char: IntFromU64,                                                                                 \
-            unsigned short: IntFromU64,                                                                                \
-            unsigned int: IntFromU64,                                                                                  \
-            unsigned long: IntFromU64,                                                                                 \
-            unsigned long long: IntFromU64,                                                                            \
-            signed char: IntFromI64,                                                                                   \
-            signed short: IntFromI64,                                                                                  \
-            signed int: IntFromI64,                                                                                    \
-            signed long: IntFromI64,                                                                                   \
-            signed long long: IntFromI64                                                                               \
+            unsigned char: int_from_u64,                                                                               \
+            unsigned short: int_from_u64,                                                                              \
+            unsigned int: int_from_u64,                                                                                \
+            unsigned long: int_from_u64,                                                                               \
+            unsigned long long: int_from_u64,                                                                          \
+            signed char: int_from_i64,                                                                                 \
+            signed short: int_from_i64,                                                                                \
+            signed int: int_from_i64,                                                                                  \
+            signed long: int_from_i64,                                                                                 \
+            signed long long: int_from_i64                                                                             \
         )
 
 ///

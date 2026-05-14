@@ -2,7 +2,7 @@
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
 
-static u64 int_hash(const void *data, u32 size) {
+static u64 i32_hash(const void *data, u32 size) {
     u64 x = (u64)(u32)(*(const int *)data);
     (void)size;
     x ^= x >> 33;
@@ -11,7 +11,7 @@ static u64 int_hash(const void *data, u32 size) {
     return x;
 }
 
-static i32 int_compare(const void *lhs, const void *rhs) {
+static i32 i32_compare(const void *lhs, const void *rhs) {
     int a = *(const int *)lhs;
     int b = *(const int *)rhs;
     return (a > b) - (a < b);
@@ -19,7 +19,7 @@ static i32 int_compare(const void *lhs, const void *rhs) {
 
 static bool test_map_contains_and_find(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInitWithValueCompare(int_hash, int_compare, int_compare);
+    IntIntMap map = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare);
 
     MapSetOnlyR(&map, 7, 70);
     MapInsertR(&map, 7, 71);
@@ -42,7 +42,7 @@ static bool test_map_contains_and_find(void) {
 
 static bool test_map_get_ptr(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
+    IntIntMap map = MapInit(i32_hash, i32_compare);
 
     MapSetOnlyR(&map, 11, 110);
     MapInsertR(&map, 11, 111);
@@ -57,7 +57,7 @@ static bool test_map_get_ptr(void) {
 
 static bool test_map_try_get_ptr(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
+    IntIntMap map = MapInit(i32_hash, i32_compare);
 
     MapSetOnlyR(&map, 11, 110);
     MapInsertR(&map, 11, 111);
@@ -72,7 +72,7 @@ static bool test_map_try_get_ptr(void) {
 
 static bool test_map_get_or_default(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
+    IntIntMap map = MapInit(i32_hash, i32_compare);
 
     MapSetOnlyR(&map, 11, 110);
     MapInsertR(&map, 11, 111);
@@ -89,7 +89,7 @@ static bool test_map_get_or_default(void) {
 
 static bool test_map_value_cursor_query(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap      map       = MapInit(int_hash, int_compare);
+    IntIntMap      map       = MapInit(i32_hash, i32_compare);
     MapValueCursor cursor    = MapValueCursorInvalid();
     int            value_sum = 0;
     int            seen      = 0;
@@ -122,7 +122,7 @@ static bool test_map_value_cursor_query(void) {
 
 static bool test_map_cursor_invalidated_after_removal(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap      map    = MapInit(int_hash, int_compare);
+    IntIntMap      map    = MapInit(i32_hash, i32_compare);
     MapValueCursor cursor = MapValueCursorInvalid();
 
     MapInsertR(&map, 5, 50);

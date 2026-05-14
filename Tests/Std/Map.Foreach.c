@@ -2,7 +2,7 @@
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
 
-static u64 int_hash(const void *data, u32 size) {
+static u64 i32_hash(const void *data, u32 size) {
     u64 x = (u64)(u32)(*(const int *)data);
     (void)size;
     x ^= x >> 33;
@@ -11,7 +11,7 @@ static u64 int_hash(const void *data, u32 size) {
     return x;
 }
 
-static i32 int_compare(const void *lhs, const void *rhs) {
+static i32 i32_compare(const void *lhs, const void *rhs) {
     int a = *(const int *)lhs;
     int b = *(const int *)rhs;
     return (a > b) - (a < b);
@@ -19,7 +19,7 @@ static i32 int_compare(const void *lhs, const void *rhs) {
 
 static bool test_map_foreach_ptr(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map       = MapInit(int_hash, int_compare);
+    IntIntMap map       = MapInit(i32_hash, i32_compare);
     int       key_sum   = 0;
     int       value_sum = 0;
 
@@ -41,7 +41,7 @@ static bool test_map_foreach_ptr(void) {
 
 static bool test_map_foreach_multimap_iterators(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map            = MapInit(int_hash, int_compare);
+    IntIntMap map            = MapInit(i32_hash, i32_compare);
     int       unique_key_sum = 0;
     int       all_value_sum  = 0;
     int       key_two_sum    = 0;

@@ -49,7 +49,7 @@ extern "C" {
     ///
     /// TAGS: Float, Math, Add
     ///
-    bool(FloatAdd)(Float *result, Float *a, Float *b);
+    bool(float_add)(Float *result, Float *a, Float *b);
     ///
     /// Subtract one float from another.
     ///
@@ -62,7 +62,7 @@ extern "C" {
     ///
     /// TAGS: Float, Math, Subtract
     ///
-    bool(FloatSub)(Float *result, Float *a, Float *b);
+    bool(float_sub)(Float *result, Float *a, Float *b);
     ///
     /// Multiply two floats.
     ///
@@ -75,7 +75,7 @@ extern "C" {
     ///
     /// TAGS: Float, Math, Multiply
     ///
-    bool(FloatMul)(Float *result, Float *a, Float *b);
+    bool(float_mul)(Float *result, Float *a, Float *b);
     ///
     /// Divide one float by another.
     /// The quotient is truncated after scaling by `10^precision`.
@@ -92,82 +92,82 @@ extern "C" {
     ///
     /// TAGS: Float, Math, Divide, Precision
     ///
-    bool(FloatDiv)(Float *result, Float *a, Float *b, u64 precision);
+    bool(float_div)(Float *result, Float *a, Float *b, u64 precision);
 #ifndef __cplusplus
 #    define FLOAT_ADD_DISPATCH(rhs)                                                                                    \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Float *: FloatAdd,                                                                                         \
-            Int *: FloatAddInt,                                                                                        \
-            unsigned char: FloatAddU64,                                                                                \
-            unsigned short: FloatAddU64,                                                                               \
-            unsigned int: FloatAddU64,                                                                                 \
-            unsigned long: FloatAddU64,                                                                                \
-            unsigned long long: FloatAddU64,                                                                           \
-            signed char: FloatAddI64,                                                                                  \
-            signed short: FloatAddI64,                                                                                 \
-            signed int: FloatAddI64,                                                                                   \
-            signed long: FloatAddI64,                                                                                  \
-            signed long long: FloatAddI64,                                                                             \
-            float: FloatAddF32,                                                                                        \
-            double: FloatAddF64                                                                                        \
+            Float *: float_add,                                                                                        \
+            Int *: float_add_int,                                                                                      \
+            unsigned char: float_add_u64,                                                                              \
+            unsigned short: float_add_u64,                                                                             \
+            unsigned int: float_add_u64,                                                                               \
+            unsigned long: float_add_u64,                                                                              \
+            unsigned long long: float_add_u64,                                                                         \
+            signed char: float_add_i64,                                                                                \
+            signed short: float_add_i64,                                                                               \
+            signed int: float_add_i64,                                                                                 \
+            signed long: float_add_i64,                                                                                \
+            signed long long: float_add_i64,                                                                           \
+            float: float_add_f32,                                                                                      \
+            double: float_add_f64                                                                                      \
         )
 
 #    define FLOAT_SUB_DISPATCH(rhs)                                                                                    \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Float *: FloatSub,                                                                                         \
-            Int *: FloatSubInt,                                                                                        \
-            unsigned char: FloatSubU64,                                                                                \
-            unsigned short: FloatSubU64,                                                                               \
-            unsigned int: FloatSubU64,                                                                                 \
-            unsigned long: FloatSubU64,                                                                                \
-            unsigned long long: FloatSubU64,                                                                           \
-            signed char: FloatSubI64,                                                                                  \
-            signed short: FloatSubI64,                                                                                 \
-            signed int: FloatSubI64,                                                                                   \
-            signed long: FloatSubI64,                                                                                  \
-            signed long long: FloatSubI64,                                                                             \
-            float: FloatSubF32,                                                                                        \
-            double: FloatSubF64                                                                                        \
+            Float *: float_sub,                                                                                        \
+            Int *: float_sub_int,                                                                                      \
+            unsigned char: float_sub_u64,                                                                              \
+            unsigned short: float_sub_u64,                                                                             \
+            unsigned int: float_sub_u64,                                                                               \
+            unsigned long: float_sub_u64,                                                                              \
+            unsigned long long: float_sub_u64,                                                                         \
+            signed char: float_sub_i64,                                                                                \
+            signed short: float_sub_i64,                                                                               \
+            signed int: float_sub_i64,                                                                                 \
+            signed long: float_sub_i64,                                                                                \
+            signed long long: float_sub_i64,                                                                           \
+            float: float_sub_f32,                                                                                      \
+            double: float_sub_f64                                                                                      \
         )
 
 #    define FLOAT_MUL_DISPATCH(rhs)                                                                                    \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Float *: FloatMul,                                                                                         \
-            Int *: FloatMulInt,                                                                                        \
-            unsigned char: FloatMulU64,                                                                                \
-            unsigned short: FloatMulU64,                                                                               \
-            unsigned int: FloatMulU64,                                                                                 \
-            unsigned long: FloatMulU64,                                                                                \
-            unsigned long long: FloatMulU64,                                                                           \
-            signed char: FloatMulI64,                                                                                  \
-            signed short: FloatMulI64,                                                                                 \
-            signed int: FloatMulI64,                                                                                   \
-            signed long: FloatMulI64,                                                                                  \
-            signed long long: FloatMulI64,                                                                             \
-            float: FloatMulF32,                                                                                        \
-            double: FloatMulF64                                                                                        \
+            Float *: float_mul,                                                                                        \
+            Int *: float_mul_int,                                                                                      \
+            unsigned char: float_mul_u64,                                                                              \
+            unsigned short: float_mul_u64,                                                                             \
+            unsigned int: float_mul_u64,                                                                               \
+            unsigned long: float_mul_u64,                                                                              \
+            unsigned long long: float_mul_u64,                                                                         \
+            signed char: float_mul_i64,                                                                                \
+            signed short: float_mul_i64,                                                                               \
+            signed int: float_mul_i64,                                                                                 \
+            signed long: float_mul_i64,                                                                                \
+            signed long long: float_mul_i64,                                                                           \
+            float: float_mul_f32,                                                                                      \
+            double: float_mul_f64                                                                                      \
         )
 
 #    define FLOAT_DIV_DISPATCH(rhs)                                                                                    \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Float *: FloatDiv,                                                                                         \
-            Int *: FloatDivInt,                                                                                        \
-            unsigned char: FloatDivU64,                                                                                \
-            unsigned short: FloatDivU64,                                                                               \
-            unsigned int: FloatDivU64,                                                                                 \
-            unsigned long: FloatDivU64,                                                                                \
-            unsigned long long: FloatDivU64,                                                                           \
-            signed char: FloatDivI64,                                                                                  \
-            signed short: FloatDivI64,                                                                                 \
-            signed int: FloatDivI64,                                                                                   \
-            signed long: FloatDivI64,                                                                                  \
-            signed long long: FloatDivI64,                                                                             \
-            float: FloatDivF32,                                                                                        \
-            double: FloatDivF64                                                                                        \
+            Float *: float_div,                                                                                        \
+            Int *: float_div_int,                                                                                      \
+            unsigned char: float_div_u64,                                                                              \
+            unsigned short: float_div_u64,                                                                             \
+            unsigned int: float_div_u64,                                                                               \
+            unsigned long: float_div_u64,                                                                              \
+            unsigned long long: float_div_u64,                                                                         \
+            signed char: float_div_i64,                                                                                \
+            signed short: float_div_i64,                                                                               \
+            signed int: float_div_i64,                                                                                 \
+            signed long: float_div_i64,                                                                                \
+            signed long long: float_div_i64,                                                                           \
+            float: float_div_f32,                                                                                      \
+            double: float_div_f64                                                                                      \
         )
 
 ///

@@ -49,7 +49,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Add
     ///
-    bool(IntAdd)(Int *result, Int *a, Int *b);
+    bool(int_add)(Int *result, Int *a, Int *b);
     ///
     /// Subtract one integer from another.
     ///
@@ -64,7 +64,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Subtract
     ///
-    bool(IntSub)(Int *result, Int *a, Int *b);
+    bool(int_sub)(Int *result, Int *a, Int *b);
     ///
     /// Multiply two integers.
     ///
@@ -77,7 +77,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Multiply
     ///
-    bool(IntMul)(Int *result, Int *a, Int *b);
+    bool(int_mul)(Int *result, Int *a, Int *b);
     ///
     /// Square an integer.
     ///
@@ -102,7 +102,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Power, Exponentiation
     ///
-    bool(IntPow)(Int *result, Int *base, Int *exponent);
+    bool(int_pow)(Int *result, Int *base, Int *exponent);
     ///
     /// Divide one integer by another using floor division.
     ///
@@ -117,7 +117,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Divide, Quotient
     ///
-    bool(IntDiv)(Int *result, Int *dividend, Int *divisor);
+    bool(int_div)(Int *result, Int *dividend, Int *divisor);
     ///
     /// Divide one integer by another only when the division is exact.
     ///
@@ -132,7 +132,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, DivideExact
     ///
-    bool(IntDivExact)(Int *result, Int *dividend, Int *divisor);
+    bool(int_div_exact)(Int *result, Int *dividend, Int *divisor);
     ///
     /// Compute `dividend mod divisor`.
     ///
@@ -147,7 +147,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Modulo
     ///
-    bool(IntMod)(Int *result, Int *dividend, Int *divisor);
+    bool(int_mod)(Int *result, Int *dividend, Int *divisor);
     ///
     /// Compute quotient and remainder in one call.
     ///
@@ -163,7 +163,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Divide, Modulo
     ///
-    bool(IntDivMod)(Int *quotient, Int *remainder, Int *dividend, Int *divisor);
+    bool(int_div_mod)(Int *quotient, Int *remainder, Int *dividend, Int *divisor);
     ///
     /// Compute the greatest common divisor of two integers.
     ///
@@ -369,7 +369,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Modular, Power
     ///
-    bool(IntPowMod)(Int *result, Int *base, Int *exponent, Int *modulus);
+    bool(int_pow_mod)(Int *result, Int *base, Int *exponent, Int *modulus);
     ///
     /// Compute the multiplicative inverse of a value modulo `modulus`.
     ///
@@ -442,145 +442,145 @@ extern "C" {
 #    define INT_ADD_DISPATCH(rhs)                                                                                      \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Int *: IntAdd,                                                                                             \
-            unsigned char: IntAddU64,                                                                                  \
-            unsigned short: IntAddU64,                                                                                 \
-            unsigned int: IntAddU64,                                                                                   \
-            unsigned long: IntAddU64,                                                                                  \
-            unsigned long long: IntAddU64,                                                                             \
-            signed char: IntAddI64,                                                                                    \
-            signed short: IntAddI64,                                                                                   \
-            signed int: IntAddI64,                                                                                     \
-            signed long: IntAddI64,                                                                                    \
-            signed long long: IntAddI64                                                                                \
+            Int *: int_add,                                                                                            \
+            unsigned char: int_add_u64,                                                                                \
+            unsigned short: int_add_u64,                                                                               \
+            unsigned int: int_add_u64,                                                                                 \
+            unsigned long: int_add_u64,                                                                                \
+            unsigned long long: int_add_u64,                                                                           \
+            signed char: int_add_i64,                                                                                  \
+            signed short: int_add_i64,                                                                                 \
+            signed int: int_add_i64,                                                                                   \
+            signed long: int_add_i64,                                                                                  \
+            signed long long: int_add_i64                                                                              \
         )
 
 #    define INT_SUB_DISPATCH(rhs)                                                                                      \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Int *: IntSub,                                                                                             \
-            unsigned char: IntSubU64,                                                                                  \
-            unsigned short: IntSubU64,                                                                                 \
-            unsigned int: IntSubU64,                                                                                   \
-            unsigned long: IntSubU64,                                                                                  \
-            unsigned long long: IntSubU64,                                                                             \
-            signed char: IntSubI64,                                                                                    \
-            signed short: IntSubI64,                                                                                   \
-            signed int: IntSubI64,                                                                                     \
-            signed long: IntSubI64,                                                                                    \
-            signed long long: IntSubI64                                                                                \
+            Int *: int_sub,                                                                                            \
+            unsigned char: int_sub_u64,                                                                                \
+            unsigned short: int_sub_u64,                                                                               \
+            unsigned int: int_sub_u64,                                                                                 \
+            unsigned long: int_sub_u64,                                                                                \
+            unsigned long long: int_sub_u64,                                                                           \
+            signed char: int_sub_i64,                                                                                  \
+            signed short: int_sub_i64,                                                                                 \
+            signed int: int_sub_i64,                                                                                   \
+            signed long: int_sub_i64,                                                                                  \
+            signed long long: int_sub_i64                                                                              \
         )
 
 #    define INT_MUL_DISPATCH(rhs)                                                                                      \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Int *: IntMul,                                                                                             \
-            unsigned char: IntMulU64,                                                                                  \
-            unsigned short: IntMulU64,                                                                                 \
-            unsigned int: IntMulU64,                                                                                   \
-            unsigned long: IntMulU64,                                                                                  \
-            unsigned long long: IntMulU64,                                                                             \
-            signed char: IntMulI64,                                                                                    \
-            signed short: IntMulI64,                                                                                   \
-            signed int: IntMulI64,                                                                                     \
-            signed long: IntMulI64,                                                                                    \
-            signed long long: IntMulI64                                                                                \
+            Int *: int_mul,                                                                                            \
+            unsigned char: int_mul_u64,                                                                                \
+            unsigned short: int_mul_u64,                                                                               \
+            unsigned int: int_mul_u64,                                                                                 \
+            unsigned long: int_mul_u64,                                                                                \
+            unsigned long long: int_mul_u64,                                                                           \
+            signed char: int_mul_i64,                                                                                  \
+            signed short: int_mul_i64,                                                                                 \
+            signed int: int_mul_i64,                                                                                   \
+            signed long: int_mul_i64,                                                                                  \
+            signed long long: int_mul_i64                                                                              \
         )
 
 #    define INT_POW_DISPATCH(exponent)                                                                                 \
         _Generic(                                                                                                      \
             (exponent),                                                                                                \
-            Int *: IntPow,                                                                                             \
-            unsigned char: IntPowU64,                                                                                  \
-            unsigned short: IntPowU64,                                                                                 \
-            unsigned int: IntPowU64,                                                                                   \
-            unsigned long: IntPowU64,                                                                                  \
-            unsigned long long: IntPowU64,                                                                             \
-            signed char: IntPowI64,                                                                                    \
-            signed short: IntPowI64,                                                                                   \
-            signed int: IntPowI64,                                                                                     \
-            signed long: IntPowI64,                                                                                    \
-            signed long long: IntPowI64                                                                                \
+            Int *: int_pow,                                                                                            \
+            unsigned char: int_pow_u64,                                                                                \
+            unsigned short: int_pow_u64,                                                                               \
+            unsigned int: int_pow_u64,                                                                                 \
+            unsigned long: int_pow_u64,                                                                                \
+            unsigned long long: int_pow_u64,                                                                           \
+            signed char: int_pow_i64,                                                                                  \
+            signed short: int_pow_i64,                                                                                 \
+            signed int: int_pow_i64,                                                                                   \
+            signed long: int_pow_i64,                                                                                  \
+            signed long long: int_pow_i64                                                                              \
         )
 
 #    define INT_DIV_DISPATCH(divisor)                                                                                  \
         _Generic(                                                                                                      \
             (divisor),                                                                                                 \
-            Int *: IntDiv,                                                                                             \
-            unsigned char: IntDivU64,                                                                                  \
-            unsigned short: IntDivU64,                                                                                 \
-            unsigned int: IntDivU64,                                                                                   \
-            unsigned long: IntDivU64,                                                                                  \
-            unsigned long long: IntDivU64,                                                                             \
-            signed char: IntDivI64,                                                                                    \
-            signed short: IntDivI64,                                                                                   \
-            signed int: IntDivI64,                                                                                     \
-            signed long: IntDivI64,                                                                                    \
-            signed long long: IntDivI64                                                                                \
+            Int *: int_div,                                                                                            \
+            unsigned char: int_div_u64,                                                                                \
+            unsigned short: int_div_u64,                                                                               \
+            unsigned int: int_div_u64,                                                                                 \
+            unsigned long: int_div_u64,                                                                                \
+            unsigned long long: int_div_u64,                                                                           \
+            signed char: int_div_i64,                                                                                  \
+            signed short: int_div_i64,                                                                                 \
+            signed int: int_div_i64,                                                                                   \
+            signed long: int_div_i64,                                                                                  \
+            signed long long: int_div_i64                                                                              \
         )
 
 #    define INT_DIV_EXACT_DISPATCH(divisor)                                                                            \
         _Generic(                                                                                                      \
             (divisor),                                                                                                 \
-            Int *: IntDivExact,                                                                                        \
-            unsigned char: IntDivExactU64,                                                                             \
-            unsigned short: IntDivExactU64,                                                                            \
-            unsigned int: IntDivExactU64,                                                                              \
-            unsigned long: IntDivExactU64,                                                                             \
-            unsigned long long: IntDivExactU64,                                                                        \
-            signed char: IntDivExactI64,                                                                               \
-            signed short: IntDivExactI64,                                                                              \
-            signed int: IntDivExactI64,                                                                                \
-            signed long: IntDivExactI64,                                                                               \
-            signed long long: IntDivExactI64                                                                           \
+            Int *: int_div_exact,                                                                                      \
+            unsigned char: int_div_exact_u64,                                                                          \
+            unsigned short: int_div_exact_u64,                                                                         \
+            unsigned int: int_div_exact_u64,                                                                           \
+            unsigned long: int_div_exact_u64,                                                                          \
+            unsigned long long: int_div_exact_u64,                                                                     \
+            signed char: int_div_exact_i64,                                                                            \
+            signed short: int_div_exact_i64,                                                                           \
+            signed int: int_div_exact_i64,                                                                             \
+            signed long: int_div_exact_i64,                                                                            \
+            signed long long: int_div_exact_i64                                                                        \
         )
 
 #    define INT_MOD_DISPATCH(divisor)                                                                                  \
         _Generic(                                                                                                      \
             (divisor),                                                                                                 \
-            Int *: IntMod,                                                                                             \
-            unsigned char: IntModU64Into,                                                                              \
-            unsigned short: IntModU64Into,                                                                             \
-            unsigned int: IntModU64Into,                                                                               \
-            unsigned long: IntModU64Into,                                                                              \
-            unsigned long long: IntModU64Into,                                                                         \
-            signed char: IntModI64Into,                                                                                \
-            signed short: IntModI64Into,                                                                               \
-            signed int: IntModI64Into,                                                                                 \
-            signed long: IntModI64Into,                                                                                \
-            signed long long: IntModI64Into                                                                            \
+            Int *: int_mod,                                                                                            \
+            unsigned char: int_mod_u64_into,                                                                           \
+            unsigned short: int_mod_u64_into,                                                                          \
+            unsigned int: int_mod_u64_into,                                                                            \
+            unsigned long: int_mod_u64_into,                                                                           \
+            unsigned long long: int_mod_u64_into,                                                                      \
+            signed char: int_mod_i64_into,                                                                             \
+            signed short: int_mod_i64_into,                                                                            \
+            signed int: int_mod_i64_into,                                                                              \
+            signed long: int_mod_i64_into,                                                                             \
+            signed long long: int_mod_i64_into                                                                         \
         )
 
 #    define INT_DIVMOD_DISPATCH(divisor)                                                                               \
         _Generic(                                                                                                      \
             (divisor),                                                                                                 \
-            Int *: IntDivMod,                                                                                          \
-            unsigned char: IntDivModU64,                                                                               \
-            unsigned short: IntDivModU64,                                                                              \
-            unsigned int: IntDivModU64,                                                                                \
-            unsigned long: IntDivModU64,                                                                               \
-            unsigned long long: IntDivModU64,                                                                          \
-            signed char: IntDivModI64,                                                                                 \
-            signed short: IntDivModI64,                                                                                \
-            signed int: IntDivModI64,                                                                                  \
-            signed long: IntDivModI64,                                                                                 \
-            signed long long: IntDivModI64                                                                             \
+            Int *: int_div_mod,                                                                                        \
+            unsigned char: int_div_mod_u64,                                                                            \
+            unsigned short: int_div_mod_u64,                                                                           \
+            unsigned int: int_div_mod_u64,                                                                             \
+            unsigned long: int_div_mod_u64,                                                                            \
+            unsigned long long: int_div_mod_u64,                                                                       \
+            signed char: int_div_mod_i64,                                                                              \
+            signed short: int_div_mod_i64,                                                                             \
+            signed int: int_div_mod_i64,                                                                               \
+            signed long: int_div_mod_i64,                                                                              \
+            signed long long: int_div_mod_i64                                                                          \
         )
 
 #    define INT_POWMOD_DISPATCH(exponent)                                                                              \
         _Generic(                                                                                                      \
             (exponent),                                                                                                \
-            Int *: IntPowMod,                                                                                          \
-            unsigned char: IntPowU64Mod,                                                                               \
-            unsigned short: IntPowU64Mod,                                                                              \
-            unsigned int: IntPowU64Mod,                                                                                \
-            unsigned long: IntPowU64Mod,                                                                               \
-            unsigned long long: IntPowU64Mod,                                                                          \
-            signed char: IntPowI64Mod,                                                                                 \
-            signed short: IntPowI64Mod,                                                                                \
-            signed int: IntPowI64Mod,                                                                                  \
-            signed long: IntPowI64Mod,                                                                                 \
-            signed long long: IntPowI64Mod                                                                             \
+            Int *: int_pow_mod,                                                                                        \
+            unsigned char: int_pow_u64_mod,                                                                            \
+            unsigned short: int_pow_u64_mod,                                                                           \
+            unsigned int: int_pow_u64_mod,                                                                             \
+            unsigned long: int_pow_u64_mod,                                                                            \
+            unsigned long long: int_pow_u64_mod,                                                                       \
+            signed char: int_pow_i64_mod,                                                                              \
+            signed short: int_pow_i64_mod,                                                                             \
+            signed int: int_pow_i64_mod,                                                                               \
+            signed long: int_pow_i64_mod,                                                                              \
+            signed long long: int_pow_i64_mod                                                                          \
         )
 
 ///

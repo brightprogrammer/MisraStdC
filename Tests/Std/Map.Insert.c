@@ -2,7 +2,7 @@
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
 
-static u64 int_hash(const void *data, u32 size) {
+static u64 i32_hash(const void *data, u32 size) {
     u64 x = (u64)(u32)(*(const int *)data);
     (void)size;
     x ^= x >> 33;
@@ -11,7 +11,7 @@ static u64 int_hash(const void *data, u32 size) {
     return x;
 }
 
-static i32 int_compare(const void *lhs, const void *rhs) {
+static i32 i32_compare(const void *lhs, const void *rhs) {
     int a = *(const int *)lhs;
     int b = *(const int *)rhs;
     return (a > b) - (a < b);
@@ -19,7 +19,7 @@ static i32 int_compare(const void *lhs, const void *rhs) {
 
 static bool test_map_insert_and_set(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
+    IntIntMap map = MapInit(i32_hash, i32_compare);
 
     MapInsertR(&map, 1, 10);
     MapInsertR(&map, 1, 11);
@@ -41,7 +41,7 @@ static bool test_map_insert_and_set(void) {
 
 static bool test_map_set_first(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInitWithValueCompare(int_hash, int_compare, int_compare);
+    IntIntMap map = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare);
 
     MapInsertR(&map, 1, 10);
     MapInsertR(&map, 1, 11);
@@ -61,7 +61,7 @@ static bool test_map_set_first(void) {
 
 static bool test_map_lvalue_zeroing(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map   = MapInit(int_hash, int_compare);
+    IntIntMap map   = MapInit(i32_hash, i32_compare);
     int       key   = 42;
     int       value = 84;
 
@@ -77,7 +77,7 @@ static bool test_map_lvalue_zeroing(void) {
 
 static bool test_map_ensure_ptr(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
+    IntIntMap map = MapInit(i32_hash, i32_compare);
     int      *value_ptr;
     bool      result;
 

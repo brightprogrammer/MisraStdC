@@ -18,19 +18,19 @@ extern "C" {
 #    define FLOAT_FROM_DISPATCH(value)                                                                                 \
         _Generic(                                                                                                      \
             (value),                                                                                                   \
-            Int *: FloatFromInt,                                                                                       \
-            unsigned char: FloatFromU64,                                                                               \
-            unsigned short: FloatFromU64,                                                                              \
-            unsigned int: FloatFromU64,                                                                                \
-            unsigned long: FloatFromU64,                                                                               \
-            unsigned long long: FloatFromU64,                                                                          \
-            signed char: FloatFromI64,                                                                                 \
-            signed short: FloatFromI64,                                                                                \
-            signed int: FloatFromI64,                                                                                  \
-            signed long: FloatFromI64,                                                                                 \
-            signed long long: FloatFromI64,                                                                            \
-            float: FloatFromF32,                                                                                       \
-            double: FloatFromF64                                                                                       \
+            Int *: float_from_int,                                                                                     \
+            unsigned char: float_from_u64,                                                                             \
+            unsigned short: float_from_u64,                                                                            \
+            unsigned int: float_from_u64,                                                                              \
+            unsigned long: float_from_u64,                                                                             \
+            unsigned long long: float_from_u64,                                                                        \
+            signed char: float_from_i64,                                                                               \
+            signed short: float_from_i64,                                                                              \
+            signed int: float_from_i64,                                                                                \
+            signed long: float_from_i64,                                                                               \
+            signed long long: float_from_i64,                                                                          \
+            float: float_from_f32,                                                                                     \
+            double: float_from_f64                                                                                     \
         )
 
 ///

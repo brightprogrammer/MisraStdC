@@ -4,7 +4,7 @@
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
 
-static u64 int_hash(const void *data, u32 size) {
+static u64 i32_hash(const void *data, u32 size) {
     u64 x = (u64)(u32)(*(const int *)data);
     (void)size;
     x ^= x >> 33;
@@ -13,7 +13,7 @@ static u64 int_hash(const void *data, u32 size) {
     return x;
 }
 
-static i32 int_compare(const void *lhs, const void *rhs) {
+static i32 i32_compare(const void *lhs, const void *rhs) {
     int a = *(const int *)lhs;
     int b = *(const int *)rhs;
     return (a > b) - (a < b);
@@ -110,8 +110,8 @@ static bool test_map_policy_switch_preserves_entries(void) {
 
 static bool test_map_compact_and_swap(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap first  = MapInitWithValueCompare(int_hash, int_compare, int_compare);
-    IntIntMap second = MapInitWithValueCompare(int_hash, int_compare, int_compare);
+    IntIntMap first  = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare);
+    IntIntMap second = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare);
 
     MapInsertR(&first, 1, 10);
     MapInsertR(&first, 1, 11);
@@ -153,7 +153,7 @@ static bool retain_values_above_threshold(const void *key, const void *value, vo
 
 static bool test_map_retain_if(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map       = MapInit(int_hash, int_compare);
+    IntIntMap map       = MapInit(i32_hash, i32_compare);
     int       threshold = 30;
 
     MapInsertR(&map, 1, 10);

@@ -2,7 +2,7 @@
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
 
-static u64 int_hash(const void *data, u32 size) {
+static u64 i32_hash(const void *data, u32 size) {
     u64 x = (u64)(u32)(*(const int *)data);
     (void)size;
     x ^= x >> 33;
@@ -11,7 +11,7 @@ static u64 int_hash(const void *data, u32 size) {
     return x;
 }
 
-static i32 int_compare(const void *lhs, const void *rhs) {
+static i32 i32_compare(const void *lhs, const void *rhs) {
     int a = *(const int *)lhs;
     int b = *(const int *)rhs;
     return (a > b) - (a < b);
@@ -19,7 +19,7 @@ static i32 int_compare(const void *lhs, const void *rhs) {
 
 static bool test_map_remove_value(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
+    IntIntMap map = MapInit(i32_hash, i32_compare);
 
     MapSetOnlyR(&map, 1, 10);
     MapInsertR(&map, 1, 11);
@@ -37,7 +37,7 @@ static bool test_map_remove_value(void) {
 
 static bool test_map_remove_pair(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInitWithValueCompare(int_hash, int_compare, int_compare);
+    IntIntMap map = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare);
 
     MapInsertR(&map, 5, 50);
     MapInsertR(&map, 5, 51);
@@ -61,7 +61,7 @@ static bool remove_even_values(const void *key, const void *value, void *ctx) {
 
 static bool test_map_remove_if(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
+    IntIntMap map = MapInit(i32_hash, i32_compare);
 
     MapInsertR(&map, 1, 10);
     MapInsertR(&map, 1, 11);
@@ -81,7 +81,7 @@ static bool test_map_remove_if(void) {
 
 static bool test_map_remove_all(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
+    IntIntMap map = MapInit(i32_hash, i32_compare);
 
     MapInsertR(&map, 5, 50);
     MapInsertR(&map, 5, 51);
@@ -100,7 +100,7 @@ static bool test_map_remove_all(void) {
 
 static bool test_map_tombstone_reuse(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(int_hash, int_compare);
+    IntIntMap map = MapInit(i32_hash, i32_compare);
 
     for (int i = 0; i < 12; i++) {
         MapSetOnlyR(&map, i, i + 100);

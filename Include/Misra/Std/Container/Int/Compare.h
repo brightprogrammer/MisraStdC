@@ -26,23 +26,23 @@ extern "C" {
     ///
     /// TAGS: Int, Compare, Ordering
     ///
-    int(IntCompare)(Int *lhs, Int *rhs);
+    int(int_compare)(Int *lhs, Int *rhs);
 
 #ifndef __cplusplus
 #    define INT_COMPARE_DISPATCH(rhs)                                                                                  \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
-            Int *: IntCompare,                                                                                         \
-            unsigned char: IntCompareU64,                                                                              \
-            unsigned short: IntCompareU64,                                                                             \
-            unsigned int: IntCompareU64,                                                                               \
-            unsigned long: IntCompareU64,                                                                              \
-            unsigned long long: IntCompareU64,                                                                         \
-            signed char: IntCompareI64,                                                                                \
-            signed short: IntCompareI64,                                                                               \
-            signed int: IntCompareI64,                                                                                 \
-            signed long: IntCompareI64,                                                                                \
-            signed long long: IntCompareI64                                                                            \
+            Int *: int_compare,                                                                                        \
+            unsigned char: int_compare_u64,                                                                            \
+            unsigned short: int_compare_u64,                                                                           \
+            unsigned int: int_compare_u64,                                                                             \
+            unsigned long: int_compare_u64,                                                                            \
+            unsigned long long: int_compare_u64,                                                                       \
+            signed char: int_compare_i64,                                                                              \
+            signed short: int_compare_i64,                                                                             \
+            signed int: int_compare_i64,                                                                               \
+            signed long: int_compare_i64,                                                                              \
+            signed long long: int_compare_i64                                                                          \
         )
 
 ///
