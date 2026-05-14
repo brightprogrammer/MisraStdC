@@ -16,9 +16,12 @@
 ///
 /// v[in,out] : Vector handle.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure during the shrink reallocation.
-///           The vector is unchanged.
+/// SUCCESS : Returns `true`. The vector's capacity now equals its current
+///           length; any over-allocated tail bytes have been returned to the
+///           allocator.
+/// FAILURE : Returns `false` on allocation failure during the shrink
+///           reallocation. The vector is unchanged (length, capacity, and
+///           data pointer are all preserved).
 ///
 /// TAGS: Vec, Memory, ReduceSpace
 ///
@@ -46,9 +49,15 @@
 /// v[in,out] : Vector handle.
 /// len[in]   : New length.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure when growth is needed. The vector
-///           is unchanged.
+/// SUCCESS : Returns `true`. The vector length is now exactly `len`. When
+///           shrinking, the elements beyond `len` were deinitialized via the
+///           configured `copy_deinit` (if any) and dropped. When growing,
+///           the new slots in [old_length, len) are zero-initialized; the
+///           allocated capacity is at least `len`.
+/// FAILURE : Returns `false` on allocation failure when growth is needed.
+///           The vector is unchanged (length, capacity, and elements all
+///           preserved). Shrinking does not allocate and therefore cannot
+///           fail.
 ///
 /// TAGS: Vec, Memory, Resize
 ///
@@ -76,7 +85,9 @@
 /// v[in,out] : Vector handle.
 /// n[in]     : Minimum capacity in elements.
 ///
-/// SUCCESS : Returns `true`.
+/// SUCCESS : Returns `true`. The vector's allocated capacity is now at least
+///           `n` elements. The vector length and the values of all existing
+///           elements are unchanged.
 /// FAILURE : Returns `false` on allocation failure. The vector is unchanged.
 ///
 /// TAGS: Vec, Memory, Reserve
@@ -104,6 +115,12 @@
 /// when present.
 ///
 /// v[in,out] : Vector handle.
+///
+/// SUCCESS : Returns to the caller. The vector length is now 0; the
+///           allocated capacity and data buffer are preserved. When
+///           `copy_deinit` is configured it has been invoked on each
+///           previously-stored element.
+/// FAILURE : Function cannot fail.
 ///
 /// TAGS: Vec, Memory, Clear
 ///

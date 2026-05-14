@@ -106,8 +106,9 @@
 ///
 /// v[in] : Vector to query.
 ///
-/// SUCCESS : Returns `true` when vector length is 0.
-/// FAILURE : Returns `false`
+/// SUCCESS : Returns `true` when the vector length is 0.
+/// FAILURE : Returns `false` when the vector contains at least one element.
+///           The vector is not modified.
 ///
 /// TAGS: Vec, Empty, Query
 ///
@@ -123,8 +124,10 @@
 /// item_ptr[in] : Pointer to searched value.
 /// compare[in]  : Comparator returning `0` for equality.
 ///
-/// SUCCESS : Index of first matching element.
-/// FAILURE : `SIZE_MAX` if no element matches.
+/// SUCCESS : Returns the index of the first matching element in [0, length).
+///           The vector is not modified.
+/// FAILURE : Returns `SIZE_MAX` when no element matches. The vector is not
+///           modified.
 ///
 /// TAGS: Vec, Find, Search, Compare
 ///
@@ -140,8 +143,10 @@
 /// item_ptr[in] : Pointer to searched value.
 /// compare[in]  : Comparator returning `0` for equality.
 ///
-/// SUCCESS : Returns `true` when a matching element exists.
-/// FAILURE : Returns `false`
+/// SUCCESS : Returns `true` when at least one matching element exists. The
+///           vector is not modified.
+/// FAILURE : Returns `false` when no element matches. The vector is not
+///           modified.
 ///
 /// TAGS: Vec, Contains, Search, Compare
 ///

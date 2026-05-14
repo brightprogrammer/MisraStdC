@@ -148,8 +148,13 @@
 /// idx[in]   : Position in [0, length].
 /// count[in] : Number of elements to insert.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure. Vector and source are unchanged.
+/// SUCCESS : Returns `true`. The vector length grows by `count`. Source bytes
+///           now occupy indices [idx, idx + count); previous elements at and
+///           after `idx` have shifted right by `count`. When the vector has
+///           no `copy_init` handler, the `count * sizeof(element)` source
+///           bytes have been zeroed.
+/// FAILURE : Returns `false` on allocation failure. Both vector and source are
+///           unchanged.
 ///
 /// USAGE:
 ///   int items[] = { 1, 2, 3 };
@@ -172,8 +177,11 @@
 /// idx[in]   : Position in [0, length].
 /// count[in] : Number of elements to insert.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// SUCCESS : Returns `true`. The vector length grows by `count`; copies of the
+///           source elements now occupy indices [idx, idx + count); previous
+///           elements at and after `idx` have shifted right by `count`. The
+///           source range is untouched.
+/// FAILURE : Returns `false` on allocation failure. The vector is unchanged.
 ///
 /// TAGS: Vec, Insert, Range, RValue
 ///
@@ -189,6 +197,17 @@
 
 ///
 /// Insert a range using fast (order-not-preserving) placement. L-value form.
+/// The original tail-`count` elements of the vector are moved past the inserted
+/// region instead of having every element after `idx` shifted; iteration order
+/// is no longer meaningful.
+///
+/// SUCCESS : Returns `true`. The vector length grows by `count`; the inserted
+///           elements occupy [idx, idx + count), and the displaced elements
+///           sit somewhere in the new tail (no defined relative order). When
+///           the vector has no `copy_init` handler, the `count *
+///           sizeof(element)` source bytes have been zeroed.
+/// FAILURE : Returns `false` on allocation failure. Both vector and source are
+///           unchanged.
 ///
 /// TAGS: Vec, Insert, Range, LValue, Fast, Unordered
 ///
@@ -199,6 +218,10 @@
 
 ///
 /// Insert a range using fast (order-not-preserving) placement. R-value form.
+///
+/// SUCCESS : Returns `true`. Same state effects as `VecInsertRangeFastL` minus
+///           the source-zeroing step; the source range is left untouched.
+/// FAILURE : Returns `false` on allocation failure. The vector is unchanged.
 ///
 /// TAGS: Vec, Insert, Range, RValue, Fast, Unordered
 ///
@@ -221,8 +244,12 @@
 /// arr[in]   : Pointer to the source array.
 /// count[in] : Number of elements to append.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// SUCCESS : Returns `true`. The vector length grows by `count`; the appended
+///           elements occupy [old_length, new_length). When the vector has no
+///           `copy_init` handler, the `count * sizeof(element)` source bytes
+///           have been zeroed.
+/// FAILURE : Returns `false` on allocation failure. Both vector and source are
+///           unchanged.
 ///
 /// TAGS: Vec, PushBack, Range, LValue
 ///
@@ -230,6 +257,11 @@
 
 ///
 /// Append a contiguous range of elements to the end of the vector. R-value form.
+///
+/// SUCCESS : Returns `true`. The vector length grows by `count`; copies of the
+///           source elements occupy [old_length, new_length). The source range
+///           is untouched.
+/// FAILURE : Returns `false` on allocation failure. The vector is unchanged.
 ///
 /// TAGS: Vec, PushBack, Range, RValue
 ///
@@ -249,8 +281,12 @@
 /// arr[in]   : Pointer to the source array.
 /// count[in] : Number of elements to prepend.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// SUCCESS : Returns `true`. The vector length grows by `count`; the prepended
+///           elements occupy [0, count); all previous elements have shifted
+///           right by `count`. When the vector has no `copy_init` handler,
+///           the source bytes have been zeroed.
+/// FAILURE : Returns `false` on allocation failure. Both vector and source are
+///           unchanged.
 ///
 /// TAGS: Vec, PushFront, Range, LValue
 ///
@@ -258,6 +294,11 @@
 
 ///
 /// Prepend a contiguous range at the front of the vector. R-value form.
+///
+/// SUCCESS : Returns `true`. The vector length grows by `count`; copies of the
+///           source elements occupy [0, count); all previous elements have
+///           shifted right by `count`. The source range is untouched.
+/// FAILURE : Returns `false` on allocation failure. The vector is unchanged.
 ///
 /// TAGS: Vec, PushFront, Range, RValue
 ///
@@ -272,6 +313,14 @@
 /// Prepend a range at the front using fast (order-not-preserving) placement.
 /// L-value form.
 ///
+/// SUCCESS : Returns `true`. The vector length grows by `count`; the prepended
+///           elements occupy [0, count); previously-front elements are now
+///           somewhere in the tail (no defined relative order). When the
+///           vector has no `copy_init` handler, the source bytes have been
+///           zeroed.
+/// FAILURE : Returns `false` on allocation failure. Both vector and source are
+///           unchanged.
+///
 /// TAGS: Vec, PushFront, Range, LValue, Fast, Unordered
 ///
 #define VecPushFrontArrFastL(v, arr, count) VecInsertRangeFastL((v), (arr), 0, (count))
@@ -279,6 +328,11 @@
 ///
 /// Prepend a range at the front using fast (order-not-preserving) placement.
 /// R-value form.
+///
+/// SUCCESS : Returns `true`. Same state effects as `VecPushFrontArrFastL`
+///           minus the source-zeroing step; the source range is left
+///           untouched.
+/// FAILURE : Returns `false` on allocation failure. The vector is unchanged.
 ///
 /// TAGS: Vec, PushFront, Range, RValue, Fast, Unordered
 ///
@@ -298,8 +352,14 @@
 /// v[in,out]  : Destination vector.
 /// v2[in,out] : Source vector. May be emptied on success.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure. Both vectors are unchanged.
+/// SUCCESS : Returns `true`. `v->length` grows by the previous `v2->length`;
+///           the appended elements occupy the new tail of `v`. When `v` has
+///           no `copy_init` handler, `v2->data` ownership has transferred
+///           into `v` and `v2` is left empty (length 0, capacity 0, data
+///           freed and pointer reset). With a deep-copy handler, `v2` is
+///           unchanged.
+/// FAILURE : Returns `false` on allocation failure. Both `v` and `v2` are
+///           unchanged.
 ///
 /// TAGS: Vec, Merge, LValue, Ownership
 ///
@@ -313,8 +373,10 @@
 /// v[in,out] : Destination vector.
 /// v2[in]    : Source vector.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// SUCCESS : Returns `true`. `v->length` grows by `v2->length`; copies of
+///           every `v2` element occupy the new tail of `v`. `v2` is
+///           untouched.
+/// FAILURE : Returns `false` on allocation failure. `v` is unchanged.
 ///
 /// TAGS: Vec, Merge, RValue
 ///
@@ -329,8 +391,11 @@
 ///
 /// Append a single element to the end of the vector. L-value ownership form.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// SUCCESS : Returns `true`. The vector length grows by one; `val` occupies
+///           the new tail. When the vector has no `copy_init` handler, `val`
+///           has been zeroed (moved-from); otherwise unchanged.
+/// FAILURE : Returns `false` on allocation failure. Both vector and `val` are
+///           unchanged.
 ///
 /// TAGS: Vec, PushBack, LValue
 ///
@@ -338,6 +403,10 @@
 
 ///
 /// Append a single element to the end of the vector. R-value form.
+///
+/// SUCCESS : Returns `true`. The vector length grows by one; the value of
+///           `val` occupies the new tail.
+/// FAILURE : Returns `false` on allocation failure. The vector is unchanged.
 ///
 /// TAGS: Vec, PushBack, RValue
 ///
@@ -351,12 +420,24 @@
 ///
 /// Prepend a single element at the front of the vector. L-value ownership form.
 ///
+/// SUCCESS : Returns `true`. The vector length grows by one; `val` occupies
+///           index 0; previous elements have shifted right by one. When the
+///           vector has no `copy_init` handler, `val` has been zeroed
+///           (moved-from); otherwise unchanged.
+/// FAILURE : Returns `false` on allocation failure. Both vector and `val` are
+///           unchanged.
+///
 /// TAGS: Vec, PushFront, LValue
 ///
 #define VecPushFrontL(v, val) VecInsertL((v), (val), 0)
 
 ///
 /// Prepend a single element at the front of the vector. R-value form.
+///
+/// SUCCESS : Returns `true`. The vector length grows by one; the value of
+///           `val` occupies index 0; previous elements have shifted right by
+///           one.
+/// FAILURE : Returns `false` on allocation failure. The vector is unchanged.
 ///
 /// TAGS: Vec, PushFront, RValue
 ///
@@ -377,10 +458,14 @@
 ///           released before cloning.
 /// vs[in]  : Source vector.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure during the clone. `vd` is left in a
-///           valid but partially-populated state — callers should treat it as
-///           opaque on failure and deinitialize.
+/// SUCCESS : Returns `true`. `vd` now holds a deep copy of every element of
+///           `vs`, has the same length, and carries `vs`'s `copy_init` /
+///           `copy_deinit` / alignment / allocator configuration. The prior
+///           contents of `vd` were released before the clone began.
+/// FAILURE : Returns `false` on allocation failure during the clone. `vd` is
+///           left in a valid but partially-populated state (the prior
+///           contents are gone). Callers should treat `vd` as opaque on
+///           failure and call `VecDeinit(vd)` before reuse.
 ///
 /// TAGS: Vec, Clone, Init, DeepCopy
 ///
