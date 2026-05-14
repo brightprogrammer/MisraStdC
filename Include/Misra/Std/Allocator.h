@@ -168,34 +168,44 @@ extern "C" {
 #define MisraScope __misra_scope_alloc
 
 ///
-/// Open a fresh-allocator scope. Constructs an `AllocType` instance on
-/// the stack, exposes it as both `name` (an `Allocator *` for passing to
-/// helpers) and `MisraScope` (used implicitly by tier-1 macros), and
-/// destroys it automatically when the block ends.
+/// Open a fresh-allocator scope. Constructs TWO independent `AllocType`
+/// instances on the stack:
 ///
-/// Every object allocated through this scope is invalid memory after the
-/// block - reading from it is use-after-free.
+///   - the **user-visible** allocator, exposed as `name`, for the
+///     caller to pass deliberately to helpers and to use through
+///     `ScopeWith(name) { ... }` blocks when they want allocations
+///     to land in the user pool.
+///   - the **internal** allocator, aliased as `MisraScope`, used by
+///     all tier-1 library macros (`VecInit`, `StrInitFromCstr`, ...).
+///
+/// Library scratch allocations and the user's named-pool allocations
+/// therefore never share a backing pool by default. Both instances are
+/// destroyed together when the block exits, so anything allocated
+/// through either pool is invalid memory after the block.
 ///
 /// USAGE:
 ///   Scope(lifetimeA, DefaultAllocator) {
-///       Vec(int) v = VecInit();          // allocated through MisraScope
-///       my_helper(&v, lifetimeA);        // hand the named alias to a helper
+///       Vec(int) v = VecInit();          // INTERNAL pool (via MisraScope)
+///       my_helper(&v, lifetimeA);        // helper receives USER pool pointer
 ///   }
 ///
 /// CONTROL FLOW: normal fall-through, `break` (or `ExitScope`), and
 /// `continue` at the scope's top level all run the auto-deinit cleanly.
-/// `return` and `goto` out of the scope skip deinit and leak the
-/// allocator - a C-level limitation that has no portable workaround.
+/// `return` and `goto` out of the scope skip deinit and leak both
+/// allocators - a C-level limitation that has no portable workaround.
 ///
 /// TAGS: Allocator, Scope, Lifetime
 ///
 #define Scope(name, AllocType)                                                                                         \
-    for (AllocType _scope_a_##name      = AllocType##Init(),                                                           \
-                  *_scope_loop_##name   = &_scope_a_##name;                                                            \
+    for (AllocType _scope_user_##name     = AllocType##Init(),                                                         \
+                   _scope_internal_##name = AllocType##Init(),                                                         \
+                  *_scope_loop_##name     = &_scope_user_##name;                                                       \
          _scope_loop_##name;                                                                                            \
-         AllocType##Deinit(&_scope_a_##name), _scope_loop_##name = NULL)                                                \
-        for (Allocator *name             = &_scope_a_##name.base,                                                       \
-                      *MisraScope        = name,                                                                        \
+         AllocType##Deinit(&_scope_internal_##name),                                                                    \
+         AllocType##Deinit(&_scope_user_##name),                                                                        \
+         _scope_loop_##name = NULL)                                                                                     \
+        for (Allocator *name              = &_scope_user_##name.base,                                                   \
+                      *MisraScope        = &_scope_internal_##name.base,                                                \
                       *_scope_done_##name = name;                                                                        \
              _scope_done_##name;                                                                                         \
              _scope_done_##name = NULL)
