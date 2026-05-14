@@ -43,10 +43,10 @@
         offsetof(MAP_ENTRY_TYPE(m), hash),                                                                             \
         (n)                                                                                                            \
     )
-#define MapMustReserve(m, n)                                                                                            \
+#define MapMustReserve(m, n)                                                                                           \
     do {                                                                                                               \
         if (!MapReserve((m), (n))) {                                                                                   \
-            LOG_FATAL("MapMustReserve failed");                                   \
+            LOG_FATAL("MapMustReserve failed");                                                                        \
         }                                                                                                              \
     } while (0)
 
@@ -68,10 +68,10 @@
         (size)((m)->length),                                                                                           \
         (m)->policy                                                                                                    \
     )
-#define MapMustCompact(m)                                                                                                \
+#define MapMustCompact(m)                                                                                              \
     do {                                                                                                               \
         if (!MapCompact((m))) {                                                                                        \
-            LOG_FATAL("MapMustCompact failed");                                   \
+            LOG_FATAL("MapMustCompact failed");                                                                        \
         }                                                                                                              \
     } while (0)
 
@@ -93,10 +93,10 @@
         (n),                                                                                                           \
         (policy_value)                                                                                                 \
     )
-#define MapMustRehashWithPolicy(m, n, policy_value)                                                                     \
+#define MapMustRehashWithPolicy(m, n, policy_value)                                                                    \
     do {                                                                                                               \
         if (!MapRehashWithPolicy((m), (n), (policy_value))) {                                                          \
-            LOG_FATAL("MapMustRehashWithPolicy failed");                          \
+            LOG_FATAL("MapMustRehashWithPolicy failed");                                                               \
         }                                                                                                              \
     } while (0)
 

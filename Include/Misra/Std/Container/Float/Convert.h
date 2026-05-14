@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #ifndef __cplusplus
-#    define FLOAT_FROM_DISPATCH(value)                                                                           \
+#    define FLOAT_FROM_DISPATCH(value)                                                                                 \
         _Generic(                                                                                                      \
             (value),                                                                                                   \
             Int *: FloatFromInt,                                                                                       \
@@ -49,35 +49,35 @@ extern "C" {
 #    define FloatFrom(value) FLOAT_FROM_DISPATCH(value)(value)
 #endif
 
-bool FloatToInt(Int *result, Float *value);
+    bool FloatToInt(Int *result, Float *value);
 
-///
-/// Parse a decimal string into a float.
-/// Supports an optional sign, decimal point, and scientific exponent.
-///
-bool FloatTryFromStr(Float *out, const char *text);
+    ///
+    /// Parse a decimal string into a float.
+    /// Supports an optional sign, decimal point, and scientific exponent.
+    ///
+    bool FloatTryFromStr(Float *out, const char *text);
 
-///
-/// Compatibility wrapper for `FloatTryFromStr(...)`.
-///
-/// RETURNS: Parsed floating-point value, or zero on failure.
-///
-Float FloatFromStr(const char *text);
+    ///
+    /// Compatibility wrapper for `FloatTryFromStr(...)`.
+    ///
+    /// RETURNS: Parsed floating-point value, or zero on failure.
+    ///
+    Float FloatFromStr(const char *text);
 
-///
-/// Convert a float to a decimal string using an explicit allocator.
-///
-/// out[out]  : Destination string.
-/// value[in] : Float to convert.
-/// alloc[in] : Allocator to bind to the produced string.
-///
-/// RETURNS: `true` on success, `false` on allocation failure.
-///
-/// TAGS: Float, Convert, String, Allocator
-///
-bool FloatTryToStrAlloc(Str *out, Float *value, Allocator alloc);
-bool FloatTryToStr(Str *out, Float *value);
-Str FloatToStr(Float *value);
+    ///
+    /// Convert a float to a decimal string using an explicit allocator.
+    ///
+    /// out[out]  : Destination string.
+    /// value[in] : Float to convert.
+    /// alloc[in] : Allocator to bind to the produced string.
+    ///
+    /// RETURNS: `true` on success, `false` on allocation failure.
+    ///
+    /// TAGS: Float, Convert, String, Allocator
+    ///
+    bool FloatTryToStrAlloc(Str *out, Float *value, Allocator alloc);
+    bool FloatTryToStr(Str *out, Float *value);
+    Str  FloatToStr(Float *value);
 
 #ifdef __cplusplus
 }

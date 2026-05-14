@@ -40,14 +40,22 @@ extern "C" {
     void validate_vec(const GenericVec *v);
 
     bool vec_insert_one_l(
-        GenericVec *vec, const void *item_copy, void *source, size item_size, size idx, bool preserve_order
+        GenericVec *vec,
+        const void *item_copy,
+        void       *source,
+        size        item_size,
+        size        idx,
+        bool        preserve_order
     );
     bool vec_insert_one_r(GenericVec *vec, const void *item_copy, size item_size, size idx, bool preserve_order);
-    bool vec_insert_range_l(
-        GenericVec *vec, void *items, size item_size, size idx, size count, bool preserve_order
-    );
+    bool vec_insert_range_l(GenericVec *vec, void *items, size item_size, size idx, size count, bool preserve_order);
     bool vec_insert_range_r(
-        GenericVec *vec, const void *items, size item_size, size idx, size count, bool preserve_order
+        GenericVec *vec,
+        const void *items,
+        size        item_size,
+        size        idx,
+        size        count,
+        bool        preserve_order
     );
     bool vec_merge_l(GenericVec *dst, GenericVec *src, size item_size);
     bool vec_merge_r(GenericVec *dst, const GenericVec *src, size item_size);
@@ -60,12 +68,8 @@ extern "C" {
         return success;
     }
 
-    static inline bool vec_release_merged_source_on_success(
-        GenericVec *dst,
-        GenericVec *src,
-        size        item_size,
-        bool        success
-    ) {
+    static inline bool
+        vec_release_merged_source_on_success(GenericVec *dst, GenericVec *src, size item_size, bool success) {
         size aligned_item_size;
 
         if (!success) {

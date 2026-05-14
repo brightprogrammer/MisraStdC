@@ -945,18 +945,18 @@ bool map_insert(
     }
 
     if (!map_copy_into_entry(
-        map,
-        map_entry_ptr(map, entry_size, insert_idx),
-        entry_size,
-        key_offset,
-        key_size,
-        value_offset,
-        value_size,
-        hash_offset,
-        key,
-        value,
-        hash
-    )) {
+            map,
+            map_entry_ptr(map, entry_size, insert_idx),
+            entry_size,
+            key_offset,
+            key_size,
+            value_offset,
+            value_size,
+            hash_offset,
+            key,
+            value,
+            hash
+        )) {
         if (map->states[insert_idx] == MAP_SLOT_TOMBSTONE) {
             map->tombstones += 1;
         }
@@ -996,7 +996,17 @@ bool map_set_only(
     }
 
     if (!map_copy_into_entry(
-            map, temp_entry, entry_size, key_offset, key_size, value_offset, value_size, hash_offset, key, value, hash
+            map,
+            temp_entry,
+            entry_size,
+            key_offset,
+            key_size,
+            value_offset,
+            value_size,
+            hash_offset,
+            key,
+            value,
+            hash
         )) {
         AllocatorFree(&map->allocator, temp_entry, entry_size, map_storage_alignment());
         return false;
@@ -1034,7 +1044,7 @@ bool map_set_first(
         return false;
     }
 
-    dst_value = map_value_ptr(map, entry_size, value_offset, idx);
+    dst_value  = map_value_ptr(map, entry_size, value_offset, idx);
     temp_value = NULL;
 
     if (map->value_copy_init) {

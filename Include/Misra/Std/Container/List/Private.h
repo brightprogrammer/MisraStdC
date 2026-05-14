@@ -43,12 +43,8 @@ static inline bool list_zero_source_on_success(GenericList *list, void *src, u64
     return success;
 }
 
-static inline bool list_release_merged_source_on_success(
-    GenericList *dst,
-    GenericList *src,
-    u64          item_size,
-    bool         success
-) {
+static inline bool
+    list_release_merged_source_on_success(GenericList *dst, GenericList *src, u64 item_size, bool success) {
     GenericCopyInit   copy_init;
     GenericCopyDeinit copy_deinit;
 

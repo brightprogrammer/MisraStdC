@@ -10,14 +10,14 @@
 #include "Private.h"
 
 #if defined(MISRA_ENFORCE_TYPE_SAFETY) && MISRA_ENFORCE_TYPE_SAFETY
-#    define VEC_TYPECHECK_L(v, lval) ((void)sizeof(char[_Generic(&(lval), VEC_DATATYPE(v) * : 1, default : -1)]))
-#    define VEC_TYPECHECK_R(v, rval) ((void)sizeof((VEC_DATATYPE(v)[]){(rval)}))
-#    define VEC_TYPECHECK_RANGE_L(v, ptr) ((void)sizeof(char[_Generic((ptr), VEC_DATATYPE(v) * : 1, default : -1)]))
+#    define VEC_TYPECHECK_L(v, lval)      ((void)sizeof(char[_Generic(&(lval), VEC_DATATYPE(v) *: 1, default: -1)]))
+#    define VEC_TYPECHECK_R(v, rval)      ((void)sizeof((VEC_DATATYPE(v)[]) {(rval)}))
+#    define VEC_TYPECHECK_RANGE_L(v, ptr) ((void)sizeof(char[_Generic((ptr), VEC_DATATYPE(v) *: 1, default: -1)]))
 #    define VEC_TYPECHECK_RANGE_R(v, ptr)                                                                              \
-        ((void)sizeof(char[_Generic((ptr), VEC_DATATYPE(v) * : 1, const VEC_DATATYPE(v) * : 1, default : -1)]))
+        ((void)sizeof(char[_Generic((ptr), VEC_DATATYPE(v) *: 1, const VEC_DATATYPE(v) *: 1, default: -1)]))
 #else
-#    define VEC_TYPECHECK_L(v, lval) ((void)0)
-#    define VEC_TYPECHECK_R(v, rval) ((void)0)
+#    define VEC_TYPECHECK_L(v, lval)      ((void)0)
+#    define VEC_TYPECHECK_R(v, rval)      ((void)0)
 #    define VEC_TYPECHECK_RANGE_L(v, ptr) ((void)0)
 #    define VEC_TYPECHECK_RANGE_R(v, ptr) ((void)0)
 #endif
@@ -25,14 +25,7 @@
 #define VecInsertL(v, lval, idx)                                                                                       \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_L((v), (lval)),                                                                                     \
-     vec_insert_one_l(                                                                                            \
-         GENERIC_VEC(v),                                                                                               \
-         &LVAL((VEC_DATATYPE(v))(lval)),                                                                               \
-         &(lval),                                                                                                      \
-         sizeof(VEC_DATATYPE(v)),                                                                                      \
-         (idx),                                                                                                        \
-         true                                                                                                          \
-     ))
+     vec_insert_one_l(GENERIC_VEC(v), &LVAL((VEC_DATATYPE(v))(lval)), &(lval), sizeof(VEC_DATATYPE(v)), (idx), true))
 
 #define VecInsertR(v, rval, idx)                                                                                       \
     (ValidateVec(v),                                                                                                   \
@@ -44,14 +37,7 @@
 #define VecInsertFastL(v, lval, idx)                                                                                   \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_L((v), (lval)),                                                                                     \
-     vec_insert_one_l(                                                                                            \
-         GENERIC_VEC(v),                                                                                               \
-         &LVAL((VEC_DATATYPE(v))(lval)),                                                                               \
-         &(lval),                                                                                                      \
-         sizeof(VEC_DATATYPE(v)),                                                                                      \
-         (idx),                                                                                                        \
-         false                                                                                                         \
-     ))
+     vec_insert_one_l(GENERIC_VEC(v), &LVAL((VEC_DATATYPE(v))(lval)), &(lval), sizeof(VEC_DATATYPE(v)), (idx), false))
 
 #define VecInsertFastR(v, rval, idx)                                                                                   \
     (ValidateVec(v),                                                                                                   \
@@ -86,15 +72,15 @@
 
 #define VecPushBackArrL(v, arr, count) VecInsertRangeL((v), (arr), (v)->length, (count))
 #define VecPushBackArrR(v, arr, count) VecInsertRangeR((v), (arr), (v)->length, (count))
-#define VecPushBackArr(v, arr, count) VecPushBackArrL((v), (arr), (count))
+#define VecPushBackArr(v, arr, count)  VecPushBackArrL((v), (arr), (count))
 
 #define VecPushFrontArrL(v, arr, count) VecInsertRangeL((v), (arr), 0, (count))
 #define VecPushFrontArrR(v, arr, count) VecInsertRangeR((v), (arr), 0, (count))
-#define VecPushFrontArr(v, arr, count) VecPushFrontArrL((v), (arr), (count))
+#define VecPushFrontArr(v, arr, count)  VecPushFrontArrL((v), (arr), (count))
 
 #define VecPushFrontArrFastL(v, arr, count) VecInsertRangeFastL((v), (arr), 0, (count))
 #define VecPushFrontArrFastR(v, arr, count) VecInsertRangeFastR((v), (arr), 0, (count))
-#define VecPushFrontArrFast(v, arr, count) VecPushFrontArrFastL((v), (arr), (count))
+#define VecPushFrontArrFast(v, arr, count)  VecPushFrontArrFastL((v), (arr), (count))
 
 #define VecMergeL(v, v2)                                                                                               \
     (ValidateVec(v), ValidateVec(v2), vec_merge_l(GENERIC_VEC(v), GENERIC_VEC(v2), sizeof(VEC_DATATYPE(v))))
@@ -106,22 +92,18 @@
 
 #define VecPushBackL(v, val) VecInsertL((v), (val), (v)->length)
 #define VecPushBackR(v, val) VecInsertR((v), (val), (v)->length)
-#define VecPushBack(v, val) VecInsert((v), (val), (v)->length)
+#define VecPushBack(v, val)  VecInsert((v), (val), (v)->length)
 
 #define VecPushFrontL(v, val) VecInsertL((v), (val), 0)
 #define VecPushFrontR(v, val) VecInsertR((v), (val), 0)
-#define VecPushFront(v, val) VecPushFrontL((v), (val))
+#define VecPushFront(v, val)  VecPushFrontL((v), (val))
 
-#define VecInitClone(vd, vs)                                                                                            \
-    (ValidateVec(vd),                                                                                                   \
-     ValidateVec(vs),                                                                                                   \
-     VecDeinit(vd),                                                                                                     \
-     *(vd) = (TYPE_OF(*(vd)))VEC_INIT_ALIGNED_WITH_DEEP_COPY_VALUE(                                                        \
-         (vs)->copy_init,                                                                                               \
-         (vs)->copy_deinit,                                                                                             \
-         (vs)->alignment,                                                                                               \
-         (vs)->allocator                                                                                                 \
-     ),                                                                                                                 \
+#define VecInitClone(vd, vs)                                                                                           \
+    (ValidateVec(vd),                                                                                                  \
+     ValidateVec(vs),                                                                                                  \
+     VecDeinit(vd),                                                                                                    \
+     *(vd) = (TYPE_OF(*(vd)))                                                                                          \
+         VEC_INIT_ALIGNED_WITH_DEEP_COPY_VALUE((vs)->copy_init, (vs)->copy_deinit, (vs)->alignment, (vs)->allocator),  \
      clone_vec(GENERIC_VEC(vd), GENERIC_VEC(vs), sizeof(VEC_DATATYPE(vd))))
 
 #define VecMustInsertL(v, lval, idx)                                                                                   \

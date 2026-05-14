@@ -13,43 +13,43 @@
 extern "C" {
 #endif
 
-u64 IntBitLength(Int *value);
-u64 IntByteLength(Int *value);
+    u64 IntBitLength(Int *value);
+    u64 IntByteLength(Int *value);
 
-///
-/// Try to compute `floor(log2(value))`.
-///
-/// RETURNS: `true` on success, `false` when `value` is zero.
-///
-bool IntTryLog2(Int *value, u64 *out);
+    ///
+    /// Try to compute `floor(log2(value))`.
+    ///
+    /// RETURNS: `true` on success, `false` when `value` is zero.
+    ///
+    bool IntTryLog2(Int *value, u64 *out);
 
-///
-/// Compute `floor(log2(value))`.
-///
-/// value[in]  : Integer to inspect
-/// error[out] : Optional pointer set to `true` on failure and `false` on success
-///
-/// RETURNS: Index of the highest set bit, or `0` on failure.
-///
-u64 IntLog2WithError(Int *value, bool *error);
+    ///
+    /// Compute `floor(log2(value))`.
+    ///
+    /// value[in]  : Integer to inspect
+    /// error[out] : Optional pointer set to `true` on failure and `false` on success
+    ///
+    /// RETURNS: Index of the highest set bit, or `0` on failure.
+    ///
+    u64 IntLog2WithError(Int *value, bool *error);
 
-u64 IntTrailingZeroCount(Int *value);
-bool IntIsZero(Int *value);
-bool IntIsOne(Int *value);
-bool IntIsEven(Int *value);
-bool IntIsOdd(Int *value);
-bool IntFitsU64(Int *value);
-bool IntIsPowerOfTwo(Int *value);
+    u64  IntTrailingZeroCount(Int *value);
+    bool IntIsZero(Int *value);
+    bool IntIsOne(Int *value);
+    bool IntIsEven(Int *value);
+    bool IntIsOdd(Int *value);
+    bool IntFitsU64(Int *value);
+    bool IntIsPowerOfTwo(Int *value);
 
 #ifdef __cplusplus
 }
 #endif
 
-static inline u64 IntLog2NoError(Int *value) {
+static inline u64 int_log2_no_error(Int *value) {
     return IntLog2WithError(value, NULL);
 }
 
 #define INT_LOG2_SELECT(_1, _2, NAME, ...) NAME
-#define IntLog2(...) INT_LOG2_SELECT(__VA_ARGS__, IntLog2WithError, IntLog2NoError)(__VA_ARGS__)
+#define IntLog2(...)                       INT_LOG2_SELECT(__VA_ARGS__, IntLog2WithError, int_log2_no_error)(__VA_ARGS__)
 
 #endif // MISRA_STD_CONTAINER_INT_ACCESS_H

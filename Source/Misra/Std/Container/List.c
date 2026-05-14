@@ -39,7 +39,7 @@ void deinit_list(GenericList *list, u64 item_size) {
     list->copy_deinit = NULL;
     list->length      = 0;
     AllocatorUnbind(&list->allocator);
-    list->allocator   = AllocatorBind(DefaultAllocator());
+    list->allocator = AllocatorBind(DefaultAllocator());
 }
 
 
@@ -80,7 +80,7 @@ bool insert_into_list(GenericList *list, const void *item_data, u64 item_size, u
     }
 
     if (idx == list->length) {
-        prev_node     = list->tail;
+        prev_node      = list->tail;
         new_node->prev = prev_node;
         new_node->next = NULL;
 
@@ -92,10 +92,10 @@ bool insert_into_list(GenericList *list, const void *item_data, u64 item_size, u
 
         list->tail = new_node;
     } else {
-        next_node      = node_at_list(list, item_size, idx);
-        prev_node      = next_node->prev;
-        new_node->next = next_node;
-        new_node->prev = prev_node;
+        next_node       = node_at_list(list, item_size, idx);
+        prev_node       = next_node->prev;
+        new_node->next  = next_node;
+        new_node->prev  = prev_node;
         next_node->prev = new_node;
 
         if (prev_node) {
@@ -296,7 +296,7 @@ bool push_arr_list(GenericList *list, u64 item_size, const void *arr, u64 count)
         }
 
         inserted += 1;
-        cursor += item_size;
+        cursor   += item_size;
     }
 
     return true;

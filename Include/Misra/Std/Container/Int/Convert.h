@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #ifndef __cplusplus
-#    define INT_FROM_DISPATCH(value)                                                                             \
+#    define INT_FROM_DISPATCH(value)                                                                                   \
         _Generic(                                                                                                      \
             (value),                                                                                                   \
             unsigned char: IntFromU64,                                                                                 \
@@ -48,167 +48,167 @@ extern "C" {
 #    define IntFrom(value) INT_FROM_DISPATCH(value)(value)
 #endif
 
-///
-/// Try to convert an integer to `u64`.
-///
-/// value[in] : Integer to convert
-/// out[out]  : Destination for the converted value
-///
-/// RETURNS: `true` on success, `false` when the value does not fit in 64 bits.
-///
-bool IntTryToU64(Int *value, u64 *out);
+    ///
+    /// Try to convert an integer to `u64`.
+    ///
+    /// value[in] : Integer to convert
+    /// out[out]  : Destination for the converted value
+    ///
+    /// RETURNS: `true` on success, `false` when the value does not fit in 64 bits.
+    ///
+    bool IntTryToU64(Int *value, u64 *out);
 
-///
-/// Convert an integer to `u64`.
-///
-/// value[in]  : Integer to convert
-/// error[out] : Optional pointer set to `true` on failure and `false` on success
-///
-/// RETURNS: The numeric value as `u64`, or `0` on failure.
-///
-u64 IntToU64WithError(Int *value, bool *error);
+    ///
+    /// Convert an integer to `u64`.
+    ///
+    /// value[in]  : Integer to convert
+    /// error[out] : Optional pointer set to `true` on failure and `false` on success
+    ///
+    /// RETURNS: The numeric value as `u64`, or `0` on failure.
+    ///
+    u64 IntToU64WithError(Int *value, bool *error);
 
-///
-/// Create an integer from little-endian bytes.
-///
-Int IntFromBytesLE(const u8 *bytes, u64 len);
+    ///
+    /// Create an integer from little-endian bytes.
+    ///
+    Int IntFromBytesLE(const u8 *bytes, u64 len);
 
-///
-/// Export an integer into little-endian bytes.
-///
-u64 IntToBytesLE(Int *value, u8 *bytes, u64 max_len);
+    ///
+    /// Export an integer into little-endian bytes.
+    ///
+    u64 IntToBytesLE(Int *value, u8 *bytes, u64 max_len);
 
-///
-/// Create an integer from big-endian bytes.
-///
-Int IntFromBytesBE(const u8 *bytes, u64 len);
+    ///
+    /// Create an integer from big-endian bytes.
+    ///
+    Int IntFromBytesBE(const u8 *bytes, u64 len);
 
-///
-/// Export an integer into big-endian bytes.
-///
-u64 IntToBytesBE(Int *value, u8 *bytes, u64 max_len);
+    ///
+    /// Export an integer into big-endian bytes.
+    ///
+    u64 IntToBytesBE(Int *value, u8 *bytes, u64 max_len);
 
-///
-/// Parse digits in the given radix into an integer.
-/// Supports radices from 2 through 36 and ignores underscore separators.
-///
-bool IntTryFromStrRadix(Int *out, const char *digits, u8 radix);
+    ///
+    /// Parse digits in the given radix into an integer.
+    /// Supports radices from 2 through 36 and ignores underscore separators.
+    ///
+    bool IntTryFromStrRadix(Int *out, const char *digits, u8 radix);
 
-///
-/// Compatibility wrapper for `IntTryFromStrRadix(...)`.
-///
-/// RETURNS: Parsed integer value, or zero on failure.
-///
-Int IntFromStrRadix(const char *digits, u8 radix);
+    ///
+    /// Compatibility wrapper for `IntTryFromStrRadix(...)`.
+    ///
+    /// RETURNS: Parsed integer value, or zero on failure.
+    ///
+    Int IntFromStrRadix(const char *digits, u8 radix);
 
-///
-/// Convert an integer to text in the given radix using an explicit allocator.
-///
-/// out[out]      : Destination string.
-/// value[in]     : Integer to convert.
-/// radix[in]     : Output radix in the range `2..36`.
-/// uppercase[in] : Use uppercase letters for digits above `9`.
-/// alloc[in]     : Allocator to bind to the produced string.
-///
-/// RETURNS: `true` on success, `false` on allocation or validation failure.
-///
-/// TAGS: Int, Convert, String, Radix, Allocator
-///
-bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Allocator alloc);
-bool IntTryToStrRadix(Str *out, Int *value, u8 radix, bool uppercase);
-Str IntToStrRadix(Int *value, u8 radix, bool uppercase);
+    ///
+    /// Convert an integer to text in the given radix using an explicit allocator.
+    ///
+    /// out[out]      : Destination string.
+    /// value[in]     : Integer to convert.
+    /// radix[in]     : Output radix in the range `2..36`.
+    /// uppercase[in] : Use uppercase letters for digits above `9`.
+    /// alloc[in]     : Allocator to bind to the produced string.
+    ///
+    /// RETURNS: `true` on success, `false` on allocation or validation failure.
+    ///
+    /// TAGS: Int, Convert, String, Radix, Allocator
+    ///
+    bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Allocator alloc);
+    bool IntTryToStrRadix(Str *out, Int *value, u8 radix, bool uppercase);
+    Str  IntToStrRadix(Int *value, u8 radix, bool uppercase);
 
-///
-/// Parse a decimal string into an integer.
-/// An optional leading `+` is accepted.
-///
-bool IntTryFromStr(Int *out, const char *decimal);
+    ///
+    /// Parse a decimal string into an integer.
+    /// An optional leading `+` is accepted.
+    ///
+    bool IntTryFromStr(Int *out, const char *decimal);
 
-///
-/// Compatibility wrapper for `IntTryFromStr(...)`.
-///
-/// RETURNS: Parsed integer value, or zero on failure.
-///
-Int IntFromStr(const char *decimal);
+    ///
+    /// Compatibility wrapper for `IntTryFromStr(...)`.
+    ///
+    /// RETURNS: Parsed integer value, or zero on failure.
+    ///
+    Int IntFromStr(const char *decimal);
 
-///
-/// Convert an integer to a decimal string using an explicit allocator.
-///
-/// out[out]  : Destination string.
-/// value[in] : Integer to convert.
-/// alloc[in] : Allocator to bind to the produced string.
-///
-/// RETURNS: `true` on success, `false` on allocation failure.
-///
-/// TAGS: Int, Convert, String, Decimal, Allocator
-///
-bool IntTryToStrAlloc(Str *out, Int *value, Allocator alloc);
-bool IntTryToStr(Str *out, Int *value);
-Str IntToStr(Int *value);
+    ///
+    /// Convert an integer to a decimal string using an explicit allocator.
+    ///
+    /// out[out]  : Destination string.
+    /// value[in] : Integer to convert.
+    /// alloc[in] : Allocator to bind to the produced string.
+    ///
+    /// RETURNS: `true` on success, `false` on allocation failure.
+    ///
+    /// TAGS: Int, Convert, String, Decimal, Allocator
+    ///
+    bool IntTryToStrAlloc(Str *out, Int *value, Allocator alloc);
+    bool IntTryToStr(Str *out, Int *value);
+    Str  IntToStr(Int *value);
 
-///
-/// Parse a binary string into an integer.
-/// Accepts an optional `0b` or `0B` prefix.
-///
-bool IntTryFromBinary(Int *out, const char *binary);
+    ///
+    /// Parse a binary string into an integer.
+    /// Accepts an optional `0b` or `0B` prefix.
+    ///
+    bool IntTryFromBinary(Int *out, const char *binary);
 
-///
-/// Compatibility wrapper for `IntTryFromBinary(...)`.
-///
-/// RETURNS: Parsed integer value, or zero on failure.
-///
-Int IntFromBinary(const char *binary);
+    ///
+    /// Compatibility wrapper for `IntTryFromBinary(...)`.
+    ///
+    /// RETURNS: Parsed integer value, or zero on failure.
+    ///
+    Int IntFromBinary(const char *binary);
 
-///
-/// Convert an integer to a binary string.
-///
-Str IntToBinary(Int *value);
+    ///
+    /// Convert an integer to a binary string.
+    ///
+    Str IntToBinary(Int *value);
 
-///
-/// Parse an octal string into an integer.
-/// Accepts an optional `0o` or `0O` prefix.
-///
-bool IntTryFromOctStr(Int *out, const char *octal);
+    ///
+    /// Parse an octal string into an integer.
+    /// Accepts an optional `0o` or `0O` prefix.
+    ///
+    bool IntTryFromOctStr(Int *out, const char *octal);
 
-///
-/// Compatibility wrapper for `IntTryFromOctStr(...)`.
-///
-/// RETURNS: Parsed integer value, or zero on failure.
-///
-Int IntFromOctStr(const char *octal);
+    ///
+    /// Compatibility wrapper for `IntTryFromOctStr(...)`.
+    ///
+    /// RETURNS: Parsed integer value, or zero on failure.
+    ///
+    Int IntFromOctStr(const char *octal);
 
-///
-/// Convert an integer to an octal string.
-///
-Str IntToOctStr(Int *value);
+    ///
+    /// Convert an integer to an octal string.
+    ///
+    Str IntToOctStr(Int *value);
 
-///
-/// Parse a hexadecimal string into an integer.
-/// This parser expects hexadecimal digits only and does not accept a `0x` prefix.
-///
-bool IntTryFromHexStr(Int *out, const char *hex);
+    ///
+    /// Parse a hexadecimal string into an integer.
+    /// This parser expects hexadecimal digits only and does not accept a `0x` prefix.
+    ///
+    bool IntTryFromHexStr(Int *out, const char *hex);
 
-///
-/// Compatibility wrapper for `IntTryFromHexStr(...)`.
-///
-/// RETURNS: Parsed integer value, or zero on failure.
-///
-Int IntFromHexStr(const char *hex);
+    ///
+    /// Compatibility wrapper for `IntTryFromHexStr(...)`.
+    ///
+    /// RETURNS: Parsed integer value, or zero on failure.
+    ///
+    Int IntFromHexStr(const char *hex);
 
-///
-/// Convert an integer to a hexadecimal string.
-///
-Str IntToHexStr(Int *value);
+    ///
+    /// Convert an integer to a hexadecimal string.
+    ///
+    Str IntToHexStr(Int *value);
 
 #ifdef __cplusplus
 }
 #endif
 
-static inline u64 IntToU64NoError(Int *value) {
+static inline u64 int_to_u64_no_error(Int *value) {
     return IntToU64WithError(value, NULL);
 }
 
 #define INT_TO_U64_SELECT(_1, _2, NAME, ...) NAME
-#define IntToU64(...) INT_TO_U64_SELECT(__VA_ARGS__, IntToU64WithError, IntToU64NoError)(__VA_ARGS__)
+#define IntToU64(...)                        INT_TO_U64_SELECT(__VA_ARGS__, IntToU64WithError, int_to_u64_no_error)(__VA_ARGS__)
 
 #endif // MISRA_STD_CONTAINER_INT_CONVERT_H

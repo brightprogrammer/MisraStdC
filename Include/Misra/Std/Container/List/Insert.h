@@ -11,30 +11,25 @@
 #include "Private.h"
 
 #if defined(MISRA_ENFORCE_TYPE_SAFETY) && MISRA_ENFORCE_TYPE_SAFETY
-#    define LIST_TYPECHECK_L(l, lval) ((void)sizeof(char[_Generic(&(lval), LIST_DATA_TYPE(l) * : 1, default : -1)]))
-#    define LIST_TYPECHECK_R(l, rval) ((void)sizeof((LIST_DATA_TYPE(l)[]){(rval)}))
-#    define LIST_TYPECHECK_RANGE_L(l, ptr) ((void)sizeof(char[_Generic((ptr), LIST_DATA_TYPE(l) * : 1, default : -1)]))
+#    define LIST_TYPECHECK_L(l, lval)      ((void)sizeof(char[_Generic(&(lval), LIST_DATA_TYPE(l) *: 1, default: -1)]))
+#    define LIST_TYPECHECK_R(l, rval)      ((void)sizeof((LIST_DATA_TYPE(l)[]) {(rval)}))
+#    define LIST_TYPECHECK_RANGE_L(l, ptr) ((void)sizeof(char[_Generic((ptr), LIST_DATA_TYPE(l) *: 1, default: -1)]))
 #    define LIST_TYPECHECK_RANGE_R(l, ptr)                                                                             \
-        ((void)sizeof(char[_Generic((ptr), LIST_DATA_TYPE(l) * : 1, const LIST_DATA_TYPE(l) * : 1, default : -1)]))
-#    define LIST_TYPECHECK_LIST(l, l2) ((void)sizeof(char[_Generic((l2)->head->data, LIST_DATA_TYPE(l) * : 1, default : -1)]))
+        ((void)sizeof(char[_Generic((ptr), LIST_DATA_TYPE(l) *: 1, const LIST_DATA_TYPE(l) *: 1, default: -1)]))
+#    define LIST_TYPECHECK_LIST(l, l2)                                                                                 \
+        ((void)sizeof(char[_Generic((l2)->head->data, LIST_DATA_TYPE(l) *: 1, default: -1)]))
 #else
-#    define LIST_TYPECHECK_L(l, lval) ((void)0)
-#    define LIST_TYPECHECK_R(l, rval) ((void)0)
+#    define LIST_TYPECHECK_L(l, lval)      ((void)0)
+#    define LIST_TYPECHECK_R(l, rval)      ((void)0)
 #    define LIST_TYPECHECK_RANGE_L(l, ptr) ((void)0)
 #    define LIST_TYPECHECK_RANGE_R(l, ptr) ((void)0)
-#    define LIST_TYPECHECK_LIST(l, l2) ((void)0)
+#    define LIST_TYPECHECK_LIST(l, l2)     ((void)0)
 #endif
 
 #define ListInsertL(l, lval, idx)                                                                                      \
     (ValidateList(l),                                                                                                  \
      LIST_TYPECHECK_L((l), (lval)),                                                                                    \
-     list_insert_one_l(                                                                                                \
-         GENERIC_LIST(l),                                                                                              \
-         &LVAL((LIST_DATA_TYPE(l))(lval)),                                                                             \
-         &(lval),                                                                                                      \
-         sizeof(LIST_DATA_TYPE(l)),                                                                                    \
-         (idx)                                                                                                         \
-     ))
+     list_insert_one_l(GENERIC_LIST(l), &LVAL((LIST_DATA_TYPE(l))(lval)), &(lval), sizeof(LIST_DATA_TYPE(l)), (idx)))
 
 #define ListInsertR(l, rval, idx)                                                                                      \
     (ValidateList(l),                                                                                                  \
@@ -45,11 +40,11 @@
 
 #define ListPushFrontL(l, lval) ListInsertL((l), (lval), 0)
 #define ListPushFrontR(l, rval) ListInsertR((l), (rval), 0)
-#define ListPushFront(l, lval) ListPushFrontL((l), (lval))
+#define ListPushFront(l, lval)  ListPushFrontL((l), (lval))
 
 #define ListPushBackL(l, lval) ListInsertL((l), (lval), (l)->length)
 #define ListPushBackR(l, rval) ListInsertR((l), (rval), (l)->length)
-#define ListPushBack(l, lval) ListPushBackL((l), (lval))
+#define ListPushBack(l, lval)  ListPushBackL((l), (lval))
 
 #define ListPushArrL(l, arr, count)                                                                                    \
     (ValidateList(l),                                                                                                  \

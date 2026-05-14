@@ -40,57 +40,61 @@ extern "C" {
 /// TAGS: Init, BitVec, Boolean, Bits
 ///
 #define BITVEC_INIT_HAS_ARGS_IMPL(_0, _1, count, ...) count
-#define BITVEC_INIT_HAS_ARGS(...) BITVEC_INIT_HAS_ARGS_IMPL(__VA_OPT__(,) __VA_ARGS__, 1, 0, 0)
+#define BITVEC_INIT_HAS_ARGS(...)                     BITVEC_INIT_HAS_ARGS_IMPL(__VA_OPT__(, ) __VA_ARGS__, 1, 0, 0)
 
 #ifdef __cplusplus
 #    define BitVecInit(...) CONCAT(BitVecInit_, BITVEC_INIT_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#    define BitVecInit_0()                                                                                            \
-        (BitVec {.length = 0,                                                                                         \
-                 .capacity = 0,                                                                                       \
-                 .data = NULL,                                                                                        \
-                 .byte_size = 0,                                                                                      \
-                 .allocator = AllocatorBind(DefaultAllocator()),                                                      \
-                 .__magic = MISRA_BITVEC_MAGIC})
-#    define BitVecInit_1(alloc)                                                                                       \
-        (BitVec {.length = 0,                                                                                         \
-                 .capacity = 0,                                                                                       \
-                 .data = NULL,                                                                                        \
-                 .byte_size = 0,                                                                                      \
-                 .allocator = AllocatorBind((alloc)),                                                                 \
-                 .__magic = MISRA_BITVEC_MAGIC})
+#    define BitVecInit_0()                                                                                             \
+        (BitVec {                                                                                                      \
+            .length    = 0,                                                                                            \
+            .capacity  = 0,                                                                                            \
+            .data      = NULL,                                                                                         \
+            .byte_size = 0,                                                                                            \
+            .allocator = AllocatorBind(DefaultAllocator()),                                                            \
+            .__magic   = MISRA_BITVEC_MAGIC                                                                            \
+        })
+#    define BitVecInit_1(alloc)                                                                                        \
+        (BitVec {                                                                                                      \
+            .length    = 0,                                                                                            \
+            .capacity  = 0,                                                                                            \
+            .data      = NULL,                                                                                         \
+            .byte_size = 0,                                                                                            \
+            .allocator = AllocatorBind((alloc)),                                                                       \
+            .__magic   = MISRA_BITVEC_MAGIC                                                                            \
+        })
 #else
 #    define BitVecInit(...) CONCAT(BitVecInit_, BITVEC_INIT_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#    define BitVecInit_0()                                                                                            \
-        ((BitVec) {.length = 0,                                                                                       \
-                   .capacity = 0,                                                                                     \
-                   .data = NULL,                                                                                      \
-                   .byte_size = 0,                                                                                    \
-                   .allocator = AllocatorBind(DefaultAllocator()),                                                    \
-                   .__magic = MISRA_BITVEC_MAGIC})
-#    define BitVecInit_1(alloc)                                                                                       \
-        ((BitVec) {.length = 0,                                                                                       \
-                   .capacity = 0,                                                                                     \
-                   .data = NULL,                                                                                      \
-                   .byte_size = 0,                                                                                    \
-                   .allocator = AllocatorBind((alloc)),                                                               \
-                   .__magic = MISRA_BITVEC_MAGIC})
+#    define BitVecInit_0()                                                                                             \
+        ((BitVec) {.length    = 0,                                                                                     \
+                   .capacity  = 0,                                                                                     \
+                   .data      = NULL,                                                                                  \
+                   .byte_size = 0,                                                                                     \
+                   .allocator = AllocatorBind(DefaultAllocator()),                                                     \
+                   .__magic   = MISRA_BITVEC_MAGIC})
+#    define BitVecInit_1(alloc)                                                                                        \
+        ((BitVec) {.length    = 0,                                                                                     \
+                   .capacity  = 0,                                                                                     \
+                   .data      = NULL,                                                                                  \
+                   .byte_size = 0,                                                                                     \
+                   .allocator = AllocatorBind((alloc)),                                                                \
+                   .__magic   = MISRA_BITVEC_MAGIC})
 #endif
 
-///
-/// Initialize bitvector with initial capacity and explicit allocator.
-/// Creates a bitvector with reserved space for the specified number of bits.
-///
-/// cap[in]   : Initial capacity in bits.
-/// alloc[in] : Allocator to bind to the bitvector.
-///
-/// SUCCESS : Returns initialized bitvector.
-/// FAILURE : Returns an empty bitvector if allocation fails.
-///
-/// USAGE:
-///   BitVec flags = BitVecInitWithCapacityAlloc(64, allocator);
-///
-/// TAGS: Init, BitVec, Boolean, Bits, Capacity, Allocator
-///
+    ///
+    /// Initialize bitvector with initial capacity and explicit allocator.
+    /// Creates a bitvector with reserved space for the specified number of bits.
+    ///
+    /// cap[in]   : Initial capacity in bits.
+    /// alloc[in] : Allocator to bind to the bitvector.
+    ///
+    /// SUCCESS : Returns initialized bitvector.
+    /// FAILURE : Returns an empty bitvector if allocation fails.
+    ///
+    /// USAGE:
+    ///   BitVec flags = BitVecInitWithCapacityAlloc(64, allocator);
+    ///
+    /// TAGS: Init, BitVec, Boolean, Bits, Capacity, Allocator
+    ///
     BitVec BitVecInitWithCapacityAlloc(u64 cap, Allocator alloc);
 
 ///
@@ -109,9 +113,10 @@ extern "C" {
 /// TAGS: Init, BitVec, Boolean, Bits, Capacity, Allocator, Macro
 ///
 #define BITVEC_INIT_WITH_CAPACITY_HAS_ARGS_IMPL(_1, _2, count, ...) count
-#define BITVEC_INIT_WITH_CAPACITY_HAS_ARGS(...) BITVEC_INIT_WITH_CAPACITY_HAS_ARGS_IMPL(__VA_ARGS__, 2, 1, 0)
-#define BitVecInitWithCapacity(...) CONCAT(BitVecInitWithCapacity_, BITVEC_INIT_WITH_CAPACITY_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecInitWithCapacity_1(cap) BitVecInitWithCapacityAlloc((cap), DefaultAllocator())
+#define BITVEC_INIT_WITH_CAPACITY_HAS_ARGS(...)                     BITVEC_INIT_WITH_CAPACITY_HAS_ARGS_IMPL(__VA_ARGS__, 2, 1, 0)
+#define BitVecInitWithCapacity(...)                                                                                    \
+    CONCAT(BitVecInitWithCapacity_, BITVEC_INIT_WITH_CAPACITY_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define BitVecInitWithCapacity_1(cap)        BitVecInitWithCapacityAlloc((cap), DefaultAllocator())
 #define BitVecInitWithCapacity_2(cap, alloc) BitVecInitWithCapacityAlloc((cap), (alloc))
 
 

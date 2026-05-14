@@ -204,12 +204,12 @@ extern "C" {
 }
 #endif
 
-static inline u64 BitVecEditDistanceNoError(BitVec *bv1, BitVec *bv2) {
+static inline u64 bitvec_edit_distance_no_error(BitVec *bv1, BitVec *bv2) {
     return BitVecEditDistanceWithError(bv1, bv2, NULL);
 }
 
 #define BITVEC_EDIT_DISTANCE_SELECT(_1, _2, _3, NAME, ...) NAME
 #define BitVecEditDistance(...)                                                                                        \
-    BITVEC_EDIT_DISTANCE_SELECT(__VA_ARGS__, BitVecEditDistanceWithError, BitVecEditDistanceNoError)(__VA_ARGS__)
+    BITVEC_EDIT_DISTANCE_SELECT(__VA_ARGS__, BitVecEditDistanceWithError, bitvec_edit_distance_no_error)(__VA_ARGS__)
 
 #endif // MISRA_STD_CONTAINER_BITVEC_MATH_H

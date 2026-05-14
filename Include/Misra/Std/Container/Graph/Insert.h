@@ -11,21 +11,22 @@
 #include "Private.h"
 
 #if defined(MISRA_ENFORCE_TYPE_SAFETY) && MISRA_ENFORCE_TYPE_SAFETY
-#    define GRAPH_TYPECHECK_NODE_L(g, node) ((void)sizeof(char[_Generic(&(node), GRAPH_NODE_TYPE(g) * : 1, default : -1)]))
-#    define GRAPH_TYPECHECK_NODE_R(g, node) ((void)sizeof((GRAPH_NODE_TYPE(g)[]){(node)}))
+#    define GRAPH_TYPECHECK_NODE_L(g, node)                                                                            \
+        ((void)sizeof(char[_Generic(&(node), GRAPH_NODE_TYPE(g) *: 1, default: -1)]))
+#    define GRAPH_TYPECHECK_NODE_R(g, node) ((void)sizeof((GRAPH_NODE_TYPE(g)[]) {(node)}))
 #else
 #    define GRAPH_TYPECHECK_NODE_L(g, node) ((void)0)
 #    define GRAPH_TYPECHECK_NODE_R(g, node) ((void)0)
 #endif
 
 #define GraphAddNodeL(g, lval)                                                                                         \
-    (ValidateGraph(g),                                                                                                \
-     GRAPH_TYPECHECK_NODE_L((g), (lval)),                                                                            \
+    (ValidateGraph(g),                                                                                                 \
+     GRAPH_TYPECHECK_NODE_L((g), (lval)),                                                                              \
      graph_push_node_owned(GENERIC_GRAPH(g), &(lval), sizeof(GRAPH_NODE_TYPE(g))))
 
 #define GraphAddNodeR(g, rval)                                                                                         \
-    (ValidateGraph(g),                                                                                                \
-     GRAPH_TYPECHECK_NODE_R((g), (rval)),                                                                            \
+    (ValidateGraph(g),                                                                                                 \
+     GRAPH_TYPECHECK_NODE_R((g), (rval)),                                                                              \
      graph_push_node(GENERIC_GRAPH(g), &LVAL((GRAPH_NODE_TYPE(g))(rval)), sizeof(GRAPH_NODE_TYPE(g))))
 
 #define GraphAddNode(g, lval) GraphAddNodeL((g), (lval))

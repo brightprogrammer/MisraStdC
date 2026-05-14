@@ -13,23 +13,23 @@
 extern "C" {
 #endif
 
-///
-/// Compare two arbitrary-precision integers.
-///
-/// lhs[in] : Left-hand operand
-/// rhs[in] : Right-hand operand
-///
-/// RETURNS: `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
-///
-/// USAGE:
-///   int cmp = IntCompare(&a, &b);
-///
-/// TAGS: Int, Compare, Ordering
-///
-int (IntCompare)(Int *lhs, Int *rhs);
+    ///
+    /// Compare two arbitrary-precision integers.
+    ///
+    /// lhs[in] : Left-hand operand
+    /// rhs[in] : Right-hand operand
+    ///
+    /// RETURNS: `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
+    ///
+    /// USAGE:
+    ///   int cmp = IntCompare(&a, &b);
+    ///
+    /// TAGS: Int, Compare, Ordering
+    ///
+    int(IntCompare)(Int *lhs, Int *rhs);
 
 #ifndef __cplusplus
-#    define INT_COMPARE_DISPATCH(rhs)                                                                            \
+#    define INT_COMPARE_DISPATCH(rhs)                                                                                  \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Int *: IntCompare,                                                                                         \

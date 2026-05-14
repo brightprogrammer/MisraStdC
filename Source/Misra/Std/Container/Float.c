@@ -45,8 +45,8 @@ static i64 float_sub_i64_checked(i64 a, i64 b) {
 }
 
 static bool float_try_from_f32_value(Float *out, float value, Allocator alloc) {
-    char  text[32] = {0};
-    int   len      = snprintf(text, sizeof(text), "%.9g", (double)value);
+    char text[32] = {0};
+    int  len      = snprintf(text, sizeof(text), "%.9g", (double)value);
 
     if (!out) {
         LOG_ERROR("Invalid arguments");
@@ -62,8 +62,8 @@ static bool float_try_from_f32_value(Float *out, float value, Allocator alloc) {
 }
 
 static bool float_try_from_f64_value(Float *out, double value, Allocator alloc) {
-    char  text[48] = {0};
-    int   len      = snprintf(text, sizeof(text), "%.17g", value);
+    char text[48] = {0};
+    int  len      = snprintf(text, sizeof(text), "%.17g", value);
 
     if (!out) {
         LOG_ERROR("Invalid arguments");
@@ -210,10 +210,10 @@ static void float_normalize(Float *value) {
         return;
     }
 
-    while (IntModU64(&value->significand, 10) == 0) {
+    while (int_mod_u64(&value->significand, 10) == 0) {
         Int quotient = IntInit(value->significand.bits.allocator);
 
-        (void)IntDivU64Rem(&quotient, &value->significand, 10);
+        (void)int_div_u64_rem(&quotient, &value->significand, 10);
         IntDeinit(&value->significand);
         value->significand = quotient;
         value->exponent    = float_add_i64_checked(value->exponent, 1);
@@ -251,7 +251,7 @@ bool FloatTryClone(Float *out, Float *value) {
     }
 
     ValidateFloat(value);
-    *out = FloatInit(value->significand.bits.allocator);
+    *out          = FloatInit(value->significand.bits.allocator);
     out->negative = value->negative;
     out->exponent = value->exponent;
     if (!IntTryClone(&out->significand, &value->significand)) {
@@ -803,7 +803,7 @@ bool(FloatAdd)(Float *result, Float *a, Float *b) {
     Float lhs;
     Float rhs;
     Float temp;
-    i64   exp  = 0;
+    i64   exp = 0;
 
     ValidateFloat(result);
     ValidateFloat(a);

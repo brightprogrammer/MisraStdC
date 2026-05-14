@@ -13,88 +13,88 @@
 extern "C" {
 #endif
 
-///
-/// Negate a floating-point value in place.
-///
-/// value[in] : Float to modify
-///
-/// INFO: Zero remains non-negative after normalization.
-///
-/// USAGE:
-///   FloatNegate(&value);
-///
-/// TAGS: Float, Math, Negate, Sign
-///
-void FloatNegate(Float *value);
-///
-/// Replace a float with its absolute value.
-///
-/// value[in] : Float to modify
-///
-/// USAGE:
-///   FloatAbs(&value);
-///
-/// TAGS: Float, Math, AbsoluteValue
-///
-void FloatAbs(Float *value);
-///
-/// Add two floats.
-///
-/// result[out] : Destination for the sum
-/// a[in]       : Left operand
-/// b[in]       : Right operand
-///
-/// USAGE:
-///   FloatAdd(&sum, &a, &b);
-///
-/// TAGS: Float, Math, Add
-///
-bool (FloatAdd)(Float *result, Float *a, Float *b);
-///
-/// Subtract one float from another.
-///
-/// result[out] : Destination for the difference
-/// a[in]       : Minuend
-/// b[in]       : Subtrahend
-///
-/// USAGE:
-///   FloatSub(&diff, &a, &b);
-///
-/// TAGS: Float, Math, Subtract
-///
-bool (FloatSub)(Float *result, Float *a, Float *b);
-///
-/// Multiply two floats.
-///
-/// result[out] : Destination for the product
-/// a[in]       : Left operand
-/// b[in]       : Right operand
-///
-/// USAGE:
-///   FloatMul(&product, &a, &b);
-///
-/// TAGS: Float, Math, Multiply
-///
-bool (FloatMul)(Float *result, Float *a, Float *b);
-///
-/// Divide one float by another.
-/// The quotient is truncated after scaling by `10^precision`.
-///
-/// result[out]    : Destination for the quotient
-/// a[in]          : Dividend
-/// b[in]          : Divisor
-/// precision[in]  : Number of decimal digits to retain before truncation
-///
-/// RETURNS: `true` on success, `false` when the divisor is zero.
-///
-/// USAGE:
-///   FloatDiv(&quotient, &a, &b, 8);
-///
-/// TAGS: Float, Math, Divide, Precision
-///
-bool (FloatDiv)(Float *result, Float *a, Float *b, u64 precision);
+    ///
+    /// Negate a floating-point value in place.
+    ///
+    /// value[in] : Float to modify
+    ///
+    /// INFO: Zero remains non-negative after normalization.
+    ///
+    /// USAGE:
+    ///   FloatNegate(&value);
+    ///
+    /// TAGS: Float, Math, Negate, Sign
+    ///
+    void FloatNegate(Float *value);
+    ///
+    /// Replace a float with its absolute value.
+    ///
+    /// value[in] : Float to modify
+    ///
+    /// USAGE:
+    ///   FloatAbs(&value);
+    ///
+    /// TAGS: Float, Math, AbsoluteValue
+    ///
+    void FloatAbs(Float *value);
+    ///
+    /// Add two floats.
+    ///
+    /// result[out] : Destination for the sum
+    /// a[in]       : Left operand
+    /// b[in]       : Right operand
+    ///
+    /// USAGE:
+    ///   FloatAdd(&sum, &a, &b);
+    ///
+    /// TAGS: Float, Math, Add
+    ///
+    bool(FloatAdd)(Float *result, Float *a, Float *b);
+    ///
+    /// Subtract one float from another.
+    ///
+    /// result[out] : Destination for the difference
+    /// a[in]       : Minuend
+    /// b[in]       : Subtrahend
+    ///
+    /// USAGE:
+    ///   FloatSub(&diff, &a, &b);
+    ///
+    /// TAGS: Float, Math, Subtract
+    ///
+    bool(FloatSub)(Float *result, Float *a, Float *b);
+    ///
+    /// Multiply two floats.
+    ///
+    /// result[out] : Destination for the product
+    /// a[in]       : Left operand
+    /// b[in]       : Right operand
+    ///
+    /// USAGE:
+    ///   FloatMul(&product, &a, &b);
+    ///
+    /// TAGS: Float, Math, Multiply
+    ///
+    bool(FloatMul)(Float *result, Float *a, Float *b);
+    ///
+    /// Divide one float by another.
+    /// The quotient is truncated after scaling by `10^precision`.
+    ///
+    /// result[out]    : Destination for the quotient
+    /// a[in]          : Dividend
+    /// b[in]          : Divisor
+    /// precision[in]  : Number of decimal digits to retain before truncation
+    ///
+    /// RETURNS: `true` on success, `false` when the divisor is zero.
+    ///
+    /// USAGE:
+    ///   FloatDiv(&quotient, &a, &b, 8);
+    ///
+    /// TAGS: Float, Math, Divide, Precision
+    ///
+    bool(FloatDiv)(Float *result, Float *a, Float *b, u64 precision);
 #ifndef __cplusplus
-#    define FLOAT_ADD_DISPATCH(rhs)                                                                              \
+#    define FLOAT_ADD_DISPATCH(rhs)                                                                                    \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Float *: FloatAdd,                                                                                         \
@@ -113,7 +113,7 @@ bool (FloatDiv)(Float *result, Float *a, Float *b, u64 precision);
             double: FloatAddF64                                                                                        \
         )
 
-#    define FLOAT_SUB_DISPATCH(rhs)                                                                              \
+#    define FLOAT_SUB_DISPATCH(rhs)                                                                                    \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Float *: FloatSub,                                                                                         \
@@ -132,7 +132,7 @@ bool (FloatDiv)(Float *result, Float *a, Float *b, u64 precision);
             double: FloatSubF64                                                                                        \
         )
 
-#    define FLOAT_MUL_DISPATCH(rhs)                                                                              \
+#    define FLOAT_MUL_DISPATCH(rhs)                                                                                    \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Float *: FloatMul,                                                                                         \
@@ -151,7 +151,7 @@ bool (FloatDiv)(Float *result, Float *a, Float *b, u64 precision);
             double: FloatMulF64                                                                                        \
         )
 
-#    define FLOAT_DIV_DISPATCH(rhs)                                                                              \
+#    define FLOAT_DIV_DISPATCH(rhs)                                                                                    \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Float *: FloatDiv,                                                                                         \

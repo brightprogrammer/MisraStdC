@@ -13,13 +13,14 @@
 #include <Misra/Std/Memory.h>
 
 #if defined(MISRA_ENFORCE_TYPE_SAFETY) && MISRA_ENFORCE_TYPE_SAFETY
-#    define MAP_TYPECHECK_KEY_L(m, key) ((void)sizeof(char[_Generic(&(key), MAP_KEY_TYPE(m) * : 1, default : -1)]))
-#    define MAP_TYPECHECK_KEY_R(m, key) ((void)sizeof((MAP_KEY_TYPE(m)[]){(key)}))
-#    define MAP_TYPECHECK_VALUE_L(m, value) ((void)sizeof(char[_Generic(&(value), MAP_VALUE_TYPE(m) * : 1, default : -1)]))
-#    define MAP_TYPECHECK_VALUE_R(m, value) ((void)sizeof((MAP_VALUE_TYPE(m)[]){(value)}))
+#    define MAP_TYPECHECK_KEY_L(m, key) ((void)sizeof(char[_Generic(&(key), MAP_KEY_TYPE(m) *: 1, default: -1)]))
+#    define MAP_TYPECHECK_KEY_R(m, key) ((void)sizeof((MAP_KEY_TYPE(m)[]) {(key)}))
+#    define MAP_TYPECHECK_VALUE_L(m, value)                                                                            \
+        ((void)sizeof(char[_Generic(&(value), MAP_VALUE_TYPE(m) *: 1, default: -1)]))
+#    define MAP_TYPECHECK_VALUE_R(m, value) ((void)sizeof((MAP_VALUE_TYPE(m)[]) {(value)}))
 #else
-#    define MAP_TYPECHECK_KEY_L(m, key) ((void)0)
-#    define MAP_TYPECHECK_KEY_R(m, key) ((void)0)
+#    define MAP_TYPECHECK_KEY_L(m, key)     ((void)0)
+#    define MAP_TYPECHECK_KEY_R(m, key)     ((void)0)
 #    define MAP_TYPECHECK_VALUE_L(m, value) ((void)0)
 #    define MAP_TYPECHECK_VALUE_R(m, value) ((void)0)
 #endif
@@ -120,7 +121,17 @@ static inline bool map_set_first_r_impl(
     size        value_offset,
     size        hash_offset
 ) {
-    return map_set_first(map, key_src, value_src, entry_size, key_offset, key_size, value_offset, value_size, hash_offset);
+    return map_set_first(
+        map,
+        key_src,
+        value_src,
+        entry_size,
+        key_offset,
+        key_size,
+        value_offset,
+        value_size,
+        hash_offset
+    );
 }
 
 static inline bool map_set_only_l_impl(
@@ -155,7 +166,17 @@ static inline bool map_set_only_r_impl(
     size        value_offset,
     size        hash_offset
 ) {
-    return map_set_only(map, key_src, value_src, entry_size, key_offset, key_size, value_offset, value_size, hash_offset);
+    return map_set_only(
+        map,
+        key_src,
+        value_src,
+        entry_size,
+        key_offset,
+        key_size,
+        value_offset,
+        value_size,
+        hash_offset
+    );
 }
 
 #define MapInsertL(m, in_key, in_value)                                                                                \

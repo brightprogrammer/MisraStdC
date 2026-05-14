@@ -86,9 +86,9 @@ void deinit_vec(GenericVec *vec, size item_size) {
         AllocatorFree(&vec->allocator, vec->data, aligned_size * (vec->capacity + 1), vec->alignment);
     }
 
-    vec->data      = NULL;
-    vec->length    = 0;
-    vec->capacity  = 0;
+    vec->data     = NULL;
+    vec->length   = 0;
+    vec->capacity = 0;
     AllocatorUnbind(&vec->allocator);
     vec->allocator = AllocatorBind(DefaultAllocator());
 }
@@ -121,8 +121,8 @@ bool reserve_vec(GenericVec *vec, size item_size, size n) {
 
     aligned_size = vec_aligned_size(vec, item_size);
     if (n > vec->capacity) {
-        size old_capacity = (size)vec->capacity;
-        char *ptr         = (char *)AllocatorRealloc(
+        size  old_capacity = (size)vec->capacity;
+        char *ptr          = (char *)AllocatorRealloc(
             &vec->allocator,
             vec->data,
             aligned_size * (old_capacity + 1),
@@ -135,11 +135,7 @@ bool reserve_vec(GenericVec *vec, size item_size, size n) {
             return false;
         }
         vec->data = ptr;
-        MemSet(
-            ptr + old_capacity * aligned_size,
-            0,
-            aligned_size * (n + 1 - old_capacity)
-        );
+        MemSet(ptr + old_capacity * aligned_size, 0, aligned_size * (n + 1 - old_capacity));
         vec->capacity = n;
     }
 
@@ -301,11 +297,7 @@ bool insert_range_fast_into_vec(GenericVec *vec, const char *item_data, size ite
     }
 
     if (idx < vec->length) {
-        MemMove(
-            vec_ptr_at(vec, vec->length, item_size),
-            vec_ptr_at(vec, idx, item_size),
-            aligned_size * count
-        );
+        MemMove(vec_ptr_at(vec, vec->length, item_size), vec_ptr_at(vec, idx, item_size), aligned_size * count);
     }
 
     for (size i = 0; i < count; i++) {
@@ -541,16 +533,23 @@ void validate_vec(const GenericVec *v) {
     }
 }
 
-bool vec_insert_one_l(GenericVec *vec, const void *item_copy, void *source, size item_size, size idx, bool preserve_order) {
-    bool success = preserve_order ? insert_range_into_vec(vec, item_copy, item_size, idx, 1)
-                                  : insert_range_fast_into_vec(vec, item_copy, item_size, idx, 1);
+bool vec_insert_one_l(
+    GenericVec *vec,
+    const void *item_copy,
+    void       *source,
+    size        item_size,
+    size        idx,
+    bool        preserve_order
+) {
+    bool success = preserve_order ? insert_range_into_vec(vec, item_copy, item_size, idx, 1) :
+                                    insert_range_fast_into_vec(vec, item_copy, item_size, idx, 1);
 
     return vec_zero_source_on_success(vec, source, item_size, success);
 }
 
 bool vec_insert_one_r(GenericVec *vec, const void *item_copy, size item_size, size idx, bool preserve_order) {
-    return preserve_order ? insert_range_into_vec(vec, item_copy, item_size, idx, 1)
-                          : insert_range_fast_into_vec(vec, item_copy, item_size, idx, 1);
+    return preserve_order ? insert_range_into_vec(vec, item_copy, item_size, idx, 1) :
+                            insert_range_fast_into_vec(vec, item_copy, item_size, idx, 1);
 }
 
 bool vec_insert_range_l(GenericVec *vec, void *items, size item_size, size idx, size count, bool preserve_order) {
@@ -560,8 +559,8 @@ bool vec_insert_range_l(GenericVec *vec, void *items, size item_size, size idx, 
         LOG_FATAL("Expected a valid pointer");
     }
 
-    success = preserve_order ? insert_range_into_vec(vec, items, item_size, idx, count)
-                             : insert_range_fast_into_vec(vec, items, item_size, idx, count);
+    success = preserve_order ? insert_range_into_vec(vec, items, item_size, idx, count) :
+                               insert_range_fast_into_vec(vec, items, item_size, idx, count);
 
     return vec_zero_source_on_success(vec, items, count * item_size, success);
 }
@@ -571,8 +570,8 @@ bool vec_insert_range_r(GenericVec *vec, const void *items, size item_size, size
         LOG_FATAL("Expected a valid pointer");
     }
 
-    return preserve_order ? insert_range_into_vec(vec, items, item_size, idx, count)
-                          : insert_range_fast_into_vec(vec, items, item_size, idx, count);
+    return preserve_order ? insert_range_into_vec(vec, items, item_size, idx, count) :
+                            insert_range_fast_into_vec(vec, items, item_size, idx, count);
 }
 
 bool vec_merge_l(GenericVec *dst, GenericVec *src, size item_size) {
@@ -581,7 +580,10 @@ bool vec_merge_l(GenericVec *dst, GenericVec *src, size item_size) {
     }
 
     return vec_release_merged_source_on_success(
-        dst, src, item_size, vec_insert_range_l(dst, src->data, item_size, dst->length, src->length, true)
+        dst,
+        src,
+        item_size,
+        vec_insert_range_l(dst, src->data, item_size, dst->length, src->length, true)
     );
 }
 

@@ -33,7 +33,7 @@
 #define ListMustSort(l, compare)                                                                                       \
     do {                                                                                                               \
         if (!ListSort((l), (compare))) {                                                                               \
-            LOG_FATAL("ListMustSort failed");                                       \
+            LOG_FATAL("ListMustSort failed");                                                                          \
         }                                                                                                              \
     } while (0)
 

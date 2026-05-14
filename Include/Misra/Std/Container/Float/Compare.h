@@ -13,23 +13,23 @@
 extern "C" {
 #endif
 
-///
-/// Compare two arbitrary-precision floating-point values.
-///
-/// lhs[in] : Left-hand operand
-/// rhs[in] : Right-hand operand
-///
-/// RETURNS: `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
-///
-/// USAGE:
-///   int cmp = FloatCompare(&a, &b);
-///
-/// TAGS: Float, Compare, Ordering
-///
-int FloatCompareWithError(Float *lhs, Float *rhs, bool *error);
-int (FloatCompare)(Float *lhs, Float *rhs);
+    ///
+    /// Compare two arbitrary-precision floating-point values.
+    ///
+    /// lhs[in] : Left-hand operand
+    /// rhs[in] : Right-hand operand
+    ///
+    /// RETURNS: `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
+    ///
+    /// USAGE:
+    ///   int cmp = FloatCompare(&a, &b);
+    ///
+    /// TAGS: Float, Compare, Ordering
+    ///
+    int FloatCompareWithError(Float *lhs, Float *rhs, bool *error);
+    int(FloatCompare)(Float *lhs, Float *rhs);
 #ifndef __cplusplus
-#    define FLOAT_COMPARE_DISPATCH(rhs)                                                                          \
+#    define FLOAT_COMPARE_DISPATCH(rhs)                                                                                \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Float *: FloatCompare,                                                                                     \
@@ -47,7 +47,7 @@ int (FloatCompare)(Float *lhs, Float *rhs);
             float: FloatCompareF32,                                                                                    \
             double: FloatCompareF64                                                                                    \
         )
-#    define FLOAT_COMPARE_WITH_ERROR_DISPATCH(rhs)                                                               \
+#    define FLOAT_COMPARE_WITH_ERROR_DISPATCH(rhs)                                                                     \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Float *: FloatCompareWithError,                                                                            \
@@ -83,8 +83,8 @@ int (FloatCompare)(Float *lhs, Float *rhs);
 ///
 /// TAGS: Float, Compare, Ordering, Generic
 ///
-#    define FloatCompare(...) FLOAT_COMPARE_SELECT(__VA_ARGS__, FloatCompare_3, FloatCompare_2)(__VA_ARGS__)
-#    define FloatCompare_2(lhs, rhs) FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs))
+#    define FloatCompare(...)               FLOAT_COMPARE_SELECT(__VA_ARGS__, FloatCompare_3, FloatCompare_2)(__VA_ARGS__)
+#    define FloatCompare_2(lhs, rhs)        FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs))
 #    define FloatCompare_3(lhs, rhs, error) FLOAT_COMPARE_WITH_ERROR_DISPATCH(rhs)((lhs), (rhs), (error))
 
 ///

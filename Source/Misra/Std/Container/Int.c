@@ -717,7 +717,7 @@ bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Alloc
         Int quotient = IntInit();
         u64 digit    = 0;
 
-        digit = IntDivU64Rem(&quotient, &current, radix);
+        digit = int_div_u64_rem(&quotient, &current, radix);
         if (!StrPushBack(&result, int_radix_char((u8)digit, uppercase))) {
             IntDeinit(&quotient);
             IntDeinit(&current);
@@ -731,7 +731,7 @@ bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Alloc
 
     for (u64 i = 0; i < result.length / 2; i++) {
         char tmp                           = result.data[i];
-        result.data[i]                    = result.data[result.length - 1 - i];
+        result.data[i]                     = result.data[result.length - 1 - i];
         result.data[result.length - 1 - i] = tmp;
     }
 
@@ -947,11 +947,11 @@ bool(IntAdd)(Int *result, Int *a, Int *b) {
     ValidateInt(a);
     ValidateInt(b);
 
-    u64 a_bits   = IntBitLength(a);
-    u64 b_bits   = IntBitLength(b);
-    u64 max_bits = MAX2(a_bits, b_bits);
-    Int temp;
-    bool carry   = false;
+    u64  a_bits   = IntBitLength(a);
+    u64  b_bits   = IntBitLength(b);
+    u64  max_bits = MAX2(a_bits, b_bits);
+    Int  temp;
+    bool carry = false;
 
     if (!int_try_init_with_capacity(&temp, max_bits + 1, result->bits.allocator)) {
         return false;
@@ -1030,8 +1030,8 @@ bool(IntSub)(Int *result, Int *a, Int *b) {
         return false;
     }
 
-    u64 a_bits = IntBitLength(a);
-    u64 b_bits = IntBitLength(b);
+    u64  a_bits = IntBitLength(a);
+    u64  b_bits = IntBitLength(b);
     Int  temp;
     bool borrow = false;
 
@@ -1045,8 +1045,8 @@ bool(IntSub)(Int *result, Int *a, Int *b) {
         int diff = ai - bi - (borrow ? 1 : 0);
 
         if (diff < 0) {
-            diff += 2;
-            borrow = true;
+            diff   += 2;
+            borrow  = true;
         } else {
             borrow = false;
         }
@@ -1067,7 +1067,7 @@ bool IntSubU64(Int *result, Int *value, u64 subtrahend) {
     ValidateInt(result);
     ValidateInt(value);
 
-    Int rhs;
+    Int  rhs;
     bool ok = false;
 
     if (!int_try_from_u64_with_allocator(&rhs, subtrahend, value->bits.allocator)) {
@@ -1111,7 +1111,7 @@ bool(IntMul)(Int *result, Int *a, Int *b) {
         }
 
         Int partial;
-        Int next    = IntInit(result->bits.allocator);
+        Int next = IntInit(result->bits.allocator);
 
         if (!int_try_clone_value(&partial, a)) {
             IntDeinit(&acc);
@@ -1256,8 +1256,7 @@ bool(IntDivMod)(Int *quotient, Int *remainder, Int *dividend, Int *divisor) {
     Int  r                   = IntInit(remainder->bits.allocator);
     bool ok                  = false;
 
-    if (!int_try_clone_value(&normalized_dividend, dividend) ||
-        !int_try_clone_value(&normalized_divisor, divisor) ||
+    if (!int_try_clone_value(&normalized_dividend, dividend) || !int_try_clone_value(&normalized_divisor, divisor) ||
         !int_try_clone_value(&r, &normalized_dividend)) {
         goto cleanup;
     }
@@ -1272,7 +1271,7 @@ bool(IntDivMod)(Int *quotient, Int *remainder, Int *dividend, Int *divisor) {
         }
 
         for (u64 shift = dividend_bits - divisor_bits + 1; shift > 0; shift--) {
-            u64 bit = shift - 1;
+            u64 bit     = shift - 1;
             Int shifted = IntInit(quotient->bits.allocator);
 
             if (!int_try_clone_value(&shifted, &normalized_divisor) || !IntShiftLeft(&shifted, bit)) {
@@ -1445,7 +1444,7 @@ bool IntDivModI64(Int *quotient, Int *remainder, Int *dividend, i64 divisor) {
     return ok;
 }
 
-u64 IntDivU64Rem(Int *quotient, Int *dividend, u64 divisor) {
+u64 int_div_u64_rem(Int *quotient, Int *dividend, u64 divisor) {
     ValidateInt(quotient);
     ValidateInt(dividend);
 
@@ -1507,7 +1506,7 @@ bool IntModI64Into(Int *result, Int *dividend, i64 divisor) {
     return ok;
 }
 
-u64 IntModU64(Int *value, u64 modulus) {
+u64 int_mod_u64(Int *value, u64 modulus) {
     ValidateInt(value);
 
     if (modulus == 0) {
@@ -1516,7 +1515,7 @@ u64 IntModU64(Int *value, u64 modulus) {
     }
 
     Int quotient = IntInit();
-    u64 rem      = IntDivU64Rem(&quotient, value, modulus);
+    u64 rem      = int_div_u64_rem(&quotient, value, modulus);
 
     IntDeinit(&quotient);
     return rem;
@@ -1782,9 +1781,9 @@ bool IntSqrt(Int *result, Int *value) {
 bool IntIsPerfectSquare(Int *value) {
     ValidateInt(value);
 
-    Int root      = IntInit();
-    Int remainder = IntInit();
-    bool result   = false;
+    Int  root      = IntInit();
+    Int  remainder = IntInit();
+    bool result    = false;
 
     if (!IntSqrtRem(&root, &remainder, value)) {
         IntDeinit(&root);
@@ -1812,9 +1811,9 @@ bool IntIsPerfectPower(Int *value) {
     }
 
     for (u64 degree = 2; degree <= max_degree; degree++) {
-        Int root      = IntInit();
-        Int remainder = IntInit();
-        bool exact    = false;
+        Int  root      = IntInit();
+        Int  remainder = IntInit();
+        bool exact     = false;
 
         if (!IntRootRem(&root, &remainder, value, degree)) {
             IntDeinit(&root);
@@ -1848,9 +1847,9 @@ bool IntTryJacobi(int *out, Int *a, Int *n) {
         return false;
     }
 
-    Int  aa     = IntInit(a->bits.allocator);
-    Int  nn     = IntInit(n->bits.allocator);
-    int  result = 1;
+    Int aa     = IntInit(a->bits.allocator);
+    Int nn     = IntInit(n->bits.allocator);
+    int result = 1;
 
     if (!int_try_clone_value(&nn, n) || !IntMod(&aa, a, &nn)) {
         IntDeinit(&aa);
@@ -1867,7 +1866,7 @@ bool IntTryJacobi(int *out, Int *a, Int *n) {
                 IntDeinit(&nn);
                 return false;
             }
-            n_mod_8 = IntModU64(&nn, 8);
+            n_mod_8 = int_mod_u64(&nn, 8);
             if (n_mod_8 == 3 || n_mod_8 == 5) {
                 result = -result;
             }
@@ -1875,7 +1874,7 @@ bool IntTryJacobi(int *out, Int *a, Int *n) {
 
         int_swap(&aa, &nn);
 
-        if (IntModU64(&aa, 4) == 3 && IntModU64(&nn, 4) == 3) {
+        if (int_mod_u64(&aa, 4) == 3 && int_mod_u64(&nn, 4) == 3) {
             result = -result;
         }
 
@@ -1924,9 +1923,7 @@ bool IntModAdd(Int *result, Int *a, Int *b, Int *modulus) {
     Int br  = IntInit(result->bits.allocator);
     Int sum = IntInit(result->bits.allocator);
 
-    if (!IntMod(&ar, a, modulus) ||
-        !IntMod(&br, b, modulus) ||
-        !IntAdd(&sum, &ar, &br) ||
+    if (!IntMod(&ar, a, modulus) || !IntMod(&br, b, modulus) || !IntAdd(&sum, &ar, &br) ||
         !IntMod(result, &sum, modulus)) {
         IntDeinit(&ar);
         IntDeinit(&br);
@@ -2010,9 +2007,7 @@ bool IntModMul(Int *result, Int *a, Int *b, Int *modulus) {
     Int br   = IntInit();
     Int prod = IntInit();
 
-    if (!IntMod(&ar, a, modulus) ||
-        !IntMod(&br, b, modulus) ||
-        !IntMul(&prod, &ar, &br) ||
+    if (!IntMod(&ar, a, modulus) || !IntMod(&br, b, modulus) || !IntMul(&prod, &ar, &br) ||
         !IntMod(result, &prod, modulus)) {
         IntDeinit(&ar);
         IntDeinit(&br);
@@ -2037,9 +2032,9 @@ bool IntModDiv(Int *result, Int *a, Int *b, Int *modulus) {
         return false;
     }
 
-    Int inverse = IntInit();
-    Int value   = IntInit();
-    bool ok     = false;
+    Int  inverse = IntInit();
+    Int  value   = IntInit();
+    bool ok      = false;
 
     ok = IntModInv(&inverse, b, modulus);
     if (!ok) {
@@ -2130,14 +2125,12 @@ bool(IntPowMod)(Int *result, Int *base, Int *exponent, Int *modulus) {
         return false;
     }
 
-    Int  acc      = IntInit(result->bits.allocator);
-    Int  base_mod = IntInit();
-    Int  exp      = IntInit(exponent->bits.allocator);
+    Int acc      = IntInit(result->bits.allocator);
+    Int base_mod = IntInit();
+    Int exp      = IntInit(exponent->bits.allocator);
 
-    if (!int_try_from_u64_with_allocator(&acc, 1, result->bits.allocator) ||
-        !IntTryClone(&exp, exponent) ||
-        !IntMod(&acc, &acc, modulus) ||
-        !IntMod(&base_mod, base, modulus)) {
+    if (!int_try_from_u64_with_allocator(&acc, 1, result->bits.allocator) || !IntTryClone(&exp, exponent) ||
+        !IntMod(&acc, &acc, modulus) || !IntMod(&base_mod, base, modulus)) {
         IntDeinit(&acc);
         IntDeinit(&base_mod);
         IntDeinit(&exp);
@@ -2232,14 +2225,13 @@ bool IntModInv(Int *result, Int *value, Int *modulus) {
     }
 
     while (!IntIsZero(&new_r)) {
-        Int       q        = IntInit();
-        Int       rem      = IntInit();
-        SignedInt q_new_t  = sint_init();
-        SignedInt next_t   = sint_init();
-        Int       next_r   = IntInit();
+        Int       q       = IntInit();
+        Int       rem     = IntInit();
+        SignedInt q_new_t = sint_init();
+        SignedInt next_t  = sint_init();
+        Int       next_r  = IntInit();
 
-        if (!IntDivMod(&q, &rem, &r, &new_r) ||
-            !sint_mul_unsigned(&q_new_t, &new_t, &q) ||
+        if (!IntDivMod(&q, &rem, &r, &new_r) || !sint_mul_unsigned(&q_new_t, &new_t, &q) ||
             !sint_sub(&next_t, &t, &q_new_t)) {
             IntDeinit(&q);
             IntDeinit(&rem);
@@ -2272,7 +2264,7 @@ bool IntModInv(Int *result, Int *value, Int *modulus) {
 
     if (IntEQ(&r, &one)) {
         Int positive = IntInit();
-        Int mag_mod   = IntInit();
+        Int mag_mod  = IntInit();
 
         if (!IntMod(&mag_mod, &t.magnitude, modulus)) {
             IntDeinit(&positive);
@@ -2335,7 +2327,7 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
         return false;
     }
 
-    Int a = IntInit();
+    Int  a  = IntInit();
     bool ok = false;
 
     if (!IntMod(&a, value, modulus)) {
@@ -2373,13 +2365,11 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
             return false;
         }
     }
-    if (IntModU64(modulus, 4) == 3) {
+    if (int_mod_u64(modulus, 4) == 3) {
         Int exponent = IntInit(modulus->bits.allocator);
         Int root     = IntInit();
 
-        if (!IntTryClone(&exponent, modulus) ||
-            !IntAddU64(&exponent, &exponent, 1) ||
-            !IntShiftRight(&exponent, 2) ||
+        if (!IntTryClone(&exponent, modulus) || !IntAddU64(&exponent, &exponent, 1) || !IntShiftRight(&exponent, 2) ||
             !IntPowMod(&root, &a, &exponent, modulus)) {
             IntDeinit(&exponent);
             IntDeinit(&root);
@@ -2394,16 +2384,15 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
     }
 
     {
-        Int q       = IntInit(modulus->bits.allocator);
-        Int z       = IntInit(modulus->bits.allocator);
-        Int c       = IntInit();
-        Int t       = IntInit();
-        Int r       = IntInit();
+        Int q        = IntInit(modulus->bits.allocator);
+        Int z        = IntInit(modulus->bits.allocator);
+        Int c        = IntInit();
+        Int t        = IntInit();
+        Int r        = IntInit();
         Int exponent = IntInit();
-        u64 m       = 0;
+        u64 m        = 0;
 
-        if (!IntTryClone(&q, modulus) ||
-            !int_try_from_u64_with_allocator(&z, 2, modulus->bits.allocator) ||
+        if (!IntTryClone(&q, modulus) || !int_try_from_u64_with_allocator(&z, 2, modulus->bits.allocator) ||
             !IntSubU64(&q, &q, 1)) {
             IntDeinit(&q);
             IntDeinit(&z);
@@ -2469,9 +2458,7 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
             return false;
         }
 
-        if (!IntTryClone(&exponent, &q) ||
-            !IntAddU64(&exponent, &exponent, 1) ||
-            !IntShiftRight(&exponent, 1) ||
+        if (!IntTryClone(&exponent, &q) || !IntAddU64(&exponent, &exponent, 1) || !IntShiftRight(&exponent, 1) ||
             !IntPowMod(&r, &a, &exponent, modulus)) {
             IntDeinit(&q);
             IntDeinit(&z);
@@ -2499,23 +2486,23 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
                 return false;
             }
 
-                for (i = 1; i < m; i++) {
-                    Int next = IntInit();
+            for (i = 1; i < m; i++) {
+                Int next = IntInit();
 
-                    if (!IntSquareMod(&next, &t_power, modulus)) {
-                        IntDeinit(&next);
-                        IntDeinit(&t_power);
-                        IntDeinit(&q);
-                        IntDeinit(&z);
-                        IntDeinit(&c);
-                        IntDeinit(&t);
-                        IntDeinit(&r);
-                        IntDeinit(&exponent);
-                        IntDeinit(&a);
-                        return false;
-                    }
+                if (!IntSquareMod(&next, &t_power, modulus)) {
+                    IntDeinit(&next);
                     IntDeinit(&t_power);
-                    t_power = next;
+                    IntDeinit(&q);
+                    IntDeinit(&z);
+                    IntDeinit(&c);
+                    IntDeinit(&t);
+                    IntDeinit(&r);
+                    IntDeinit(&exponent);
+                    IntDeinit(&a);
+                    return false;
+                }
+                IntDeinit(&t_power);
+                t_power = next;
 
                 if (IntCompareU64(&t_power, 1) == 0) {
                     break;
@@ -2666,16 +2653,16 @@ bool IntIsProbablePrimeWithError(Int *value, bool *error) {
         if (IntCompareU64(value, bases[i]) == 0) {
             return true;
         }
-        if (IntModU64(value, bases[i]) == 0) {
+        if (int_mod_u64(value, bases[i]) == 0) {
             return false;
         }
     }
 
     {
-        Int d           = IntInit(value->bits.allocator);
-        Int n_minus_one = IntInit(value->bits.allocator);
-        u64 s           = 0;
-        bool probable   = true;
+        Int  d           = IntInit(value->bits.allocator);
+        Int  n_minus_one = IntInit(value->bits.allocator);
+        u64  s           = 0;
+        bool probable    = true;
 
         if (!IntTryClone(&d, value) || !IntSubU64(&d, &d, 1)) {
             IntDeinit(&d);

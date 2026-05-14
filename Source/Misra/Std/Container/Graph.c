@@ -175,7 +175,13 @@ static void graph_release_slot(GenericGraph *graph, GenericGraphSlot *slot, size
 }
 
 static void graph_push_free_index(GenericGraph *graph, u32 index) {
-    if (!insert_range_into_vec(GENERIC_VEC(&graph->free_indices), (char *)&index, sizeof(u32), graph->free_indices.length, 1)) {
+    if (!insert_range_into_vec(
+            GENERIC_VEC(&graph->free_indices),
+            (char *)&index,
+            sizeof(u32),
+            graph->free_indices.length,
+            1
+        )) {
         LOG_FATAL("Graph failed to record a reusable slot index");
     }
 }
@@ -187,7 +193,7 @@ static u32 graph_take_free_index(GenericGraph *graph) {
         LOG_FATAL("expected at least one free graph slot");
     }
 
-    index = VecLast(&graph->free_indices);
+    index                       = VecLast(&graph->free_indices);
     graph->free_indices.length -= 1;
     if (graph->free_indices.data) {
         VecAt(&graph->free_indices, graph->free_indices.length) = 0;
@@ -224,7 +230,8 @@ static size graph_find_pending_edge_removal_index(const GenericGraph *graph, Gra
     size idx;
 
     for (idx = 0; idx < graph->pending_edge_removals.length; idx++) {
-        const GraphPendingEdgeRemoval *pending = VecPtrAt((GraphPendingEdgeRemovals *)&graph->pending_edge_removals, idx);
+        const GraphPendingEdgeRemoval *pending =
+            VecPtrAt((GraphPendingEdgeRemovals *)&graph->pending_edge_removals, idx);
         if ((pending->from == from) && (pending->to == to)) {
             return idx;
         }
@@ -269,7 +276,8 @@ static size graph_remove_marked_outgoing_edges(GenericGraph *graph, GraphNodeId 
         graph_validate_node_index_raw(graph, GraphNodeIdIndex(neighbor_id));
         slot = graph_slot_ptr_const_raw(graph, GraphNodeIdIndex(neighbor_id));
 
-        if (graph_slot_is_occupied(slot) && !graph_slot_is_marked(slot) && (slot->generation == GraphNodeIdGeneration(neighbor_id))) {
+        if (graph_slot_is_occupied(slot) && !graph_slot_is_marked(slot) &&
+            (slot->generation == GraphNodeIdGeneration(neighbor_id))) {
             idx += 1;
         } else {
             if (!graph_remove_edge_now(graph, from, neighbor_id)) {
@@ -298,10 +306,10 @@ static size graph_remove_all_outgoing_edges(GenericGraph *graph, GraphNodeId fro
 }
 
 void validate_graph(const GenericGraph *graph) {
-    u64 live_count   = 0;
+    u64 live_count     = 0;
     u64 out_edge_count = 0;
     u64 in_edge_count  = 0;
-    u64 marked_count = 0;
+    u64 marked_count   = 0;
     u64 slot_index;
     u64 free_index_i;
 
@@ -336,7 +344,7 @@ void validate_graph(const GenericGraph *graph) {
     }
 
     for (slot_index = 0; slot_index < graph->slots.length; slot_index++) {
-        const GenericGraphSlot *slot = VecPtrAt((GraphSlots *)&graph->slots, slot_index);
+        const GenericGraphSlot *slot    = VecPtrAt((GraphSlots *)&graph->slots, slot_index);
         GraphNodeId             self_id = graph_make_node_id((u32)slot_index, slot->generation);
         u64                     neighbor_i;
 
@@ -352,13 +360,13 @@ void validate_graph(const GenericGraph *graph) {
                 LOG_FATAL("Occupied graph slot has invalid generation");
             }
 
-            live_count += 1;
+            live_count     += 1;
             out_edge_count += slot->out_neighbors.length;
-            in_edge_count += slot->in_neighbors.length;
-            marked_count += graph_slot_is_marked(slot) ? 1 : 0;
+            in_edge_count  += slot->in_neighbors.length;
+            marked_count   += graph_slot_is_marked(slot) ? 1 : 0;
 
             for (neighbor_i = 0; neighbor_i < slot->out_neighbors.length; neighbor_i++) {
-                GraphNodeId             neighbor_id  = VecAt(&slot->out_neighbors, neighbor_i);
+                GraphNodeId             neighbor_id = VecAt(&slot->out_neighbors, neighbor_i);
                 const GenericGraphSlot *target_slot;
 
                 graph_validate_node_id(graph, neighbor_id);
@@ -409,8 +417,9 @@ void validate_graph(const GenericGraph *graph) {
     }
 
     for (free_index_i = 0; free_index_i < graph->pending_edge_removals.length; free_index_i++) {
-        const GraphPendingEdgeRemoval *pending = VecPtrAt((GraphPendingEdgeRemovals *)&graph->pending_edge_removals, free_index_i);
-        const GraphNeighbors         *neighbors;
+        const GraphPendingEdgeRemoval *pending =
+            VecPtrAt((GraphPendingEdgeRemovals *)&graph->pending_edge_removals, free_index_i);
+        const GraphNeighbors *neighbors;
 
         graph_validate_node_id(graph, pending->from);
         graph_validate_node_id(graph, pending->to);
@@ -450,9 +459,9 @@ void deinit_graph(GenericGraph *graph, size item_size) {
     graph->mutation_epoch       = 0;
     graph->alignment            = 0;
     AllocatorUnbind(&graph->allocator);
-    graph->allocator            = AllocatorBind(DefaultAllocator());
-    graph->type_anchor          = NULL;
-    graph->__magic              = 0;
+    graph->allocator   = AllocatorBind(DefaultAllocator());
+    graph->type_anchor = NULL;
+    graph->__magic     = 0;
 }
 
 void clear_graph(GenericGraph *graph, size item_size) {
@@ -469,8 +478,8 @@ void clear_graph(GenericGraph *graph, size item_size) {
             slot->out_neighbors = VecInitT(slot->out_neighbors, graph->allocator);
             deinit_vec(GENERIC_VEC(&slot->in_neighbors), sizeof(GraphNodeId));
             slot->in_neighbors = VecInitT(slot->in_neighbors, graph->allocator);
-            slot->visit_count   = 0;
-            slot->flags         = 0;
+            slot->visit_count  = 0;
+            slot->flags        = 0;
         }
     }
 
@@ -535,8 +544,8 @@ GraphNodeId graph_push_node(GenericGraph *graph, const void *item_data, size ite
             graph_push_free_index(graph, slot_index);
             return 0;
         }
-        slot_ptr->visit_count   = 0;
-        slot_ptr->flags         = GRAPH_SLOT_OCCUPIED;
+        slot_ptr->visit_count = 0;
+        slot_ptr->flags       = GRAPH_SLOT_OCCUPIED;
         if (!graph_copy_node_data(graph, slot_ptr->data, item_data, item_size)) {
             graph_free_node_data(graph, slot_ptr->data, item_size);
             slot_ptr->data = NULL;
@@ -544,8 +553,8 @@ GraphNodeId graph_push_node(GenericGraph *graph, const void *item_data, size ite
             slot_ptr->out_neighbors = VecInitT(slot_ptr->out_neighbors, graph->allocator);
             deinit_vec(GENERIC_VEC(&slot_ptr->in_neighbors), sizeof(GraphNodeId));
             slot_ptr->in_neighbors = VecInitT(slot_ptr->in_neighbors, graph->allocator);
-            slot_ptr->visit_count = 0;
-            slot_ptr->flags       = 0;
+            slot_ptr->visit_count  = 0;
+            slot_ptr->flags        = 0;
             graph_push_free_index(graph, slot_index);
             return 0;
         }
@@ -566,15 +575,21 @@ GraphNodeId graph_push_node(GenericGraph *graph, const void *item_data, size ite
     if (!slot.data) {
         return 0;
     }
-    slot.visit_count   = 0;
-    slot.generation    = 1;
-    slot.flags         = GRAPH_SLOT_OCCUPIED;
+    slot.visit_count = 0;
+    slot.generation  = 1;
+    slot.flags       = GRAPH_SLOT_OCCUPIED;
     if (!graph_copy_node_data(graph, slot.data, item_data, item_size)) {
         graph_free_node_data(graph, slot.data, item_size);
         return 0;
     }
 
-    if (!insert_range_into_vec(GENERIC_VEC(&graph->slots), (char *)&slot, sizeof(GenericGraphSlot), graph->slots.length, 1)) {
+    if (!insert_range_into_vec(
+            GENERIC_VEC(&graph->slots),
+            (char *)&slot,
+            sizeof(GenericGraphSlot),
+            graph->slots.length,
+            1
+        )) {
         graph_free_node_data(graph, slot.data, item_size);
         deinit_vec(GENERIC_VEC(&slot.out_neighbors), sizeof(GraphNodeId));
         deinit_vec(GENERIC_VEC(&slot.in_neighbors), sizeof(GraphNodeId));
@@ -721,10 +736,22 @@ bool graph_add_edge(GenericGraph *graph, GraphNodeId from, GraphNodeId to) {
     }
 
     in_neighbors = graph_in_neighbors_ptr(graph, to);
-    if (!insert_range_into_vec(GENERIC_VEC(out_neighbors), (char *)&to, sizeof(GraphNodeId), out_neighbors->length, 1)) {
+    if (!insert_range_into_vec(
+            GENERIC_VEC(out_neighbors),
+            (char *)&to,
+            sizeof(GraphNodeId),
+            out_neighbors->length,
+            1
+        )) {
         return false;
     }
-    if (!insert_range_into_vec(GENERIC_VEC(in_neighbors), (char *)&from, sizeof(GraphNodeId), in_neighbors->length, 1)) {
+    if (!insert_range_into_vec(
+            GENERIC_VEC(in_neighbors),
+            (char *)&from,
+            sizeof(GraphNodeId),
+            in_neighbors->length,
+            1
+        )) {
         remove_range_vec(GENERIC_VEC(out_neighbors), NULL, sizeof(GraphNodeId), out_neighbors->length - 1, 1);
         return false;
     }
@@ -786,7 +813,7 @@ bool graph_mark_node_for_deletion(GraphNode node) {
         return false;
     }
 
-    slot->flags |= GRAPH_SLOT_MARKED;
+    slot->flags                 |= GRAPH_SLOT_MARKED;
     graph->pending_delete_count += 1;
     return true;
 }
@@ -814,7 +841,7 @@ bool graph_unmark_node_for_deletion(GraphNode node) {
         return false;
     }
 
-    slot->flags &= ~GRAPH_SLOT_MARKED;
+    slot->flags                 &= ~GRAPH_SLOT_MARKED;
     graph->pending_delete_count -= 1;
     return true;
 }
@@ -912,9 +939,9 @@ u64 graph_commit_changes(GenericGraph *graph, size item_size) {
             }
             graph_release_slot(graph, slot, item_size);
             graph_push_free_index(graph, (u32)slot_index);
-            graph->live_count -= 1;
+            graph->live_count           -= 1;
             graph->pending_delete_count -= 1;
-            removed_count += 1;
+            removed_count               += 1;
         }
     }
 
@@ -948,9 +975,9 @@ bool graph_node_iter_next(GenericGraphNodeIter *iter, GraphNode *out_node) {
     }
 
     while (iter->slot_index < iter->graph->slots.length) {
-        u32               index = (u32)iter->slot_index;
-        GenericGraphSlot *slot  = VecPtrAt(&iter->graph->slots, iter->slot_index);
-        iter->slot_index += 1;
+        u32               index  = (u32)iter->slot_index;
+        GenericGraphSlot *slot   = VecPtrAt(&iter->graph->slots, iter->slot_index);
+        iter->slot_index        += 1;
 
         if (graph_slot_is_occupied(slot)) {
             out_node->__graph = iter->graph;
@@ -996,8 +1023,8 @@ bool graph_neighbor_iter_next(GenericGraphNeighborIter *iter, GraphNode *out_nod
     neighbors = graph_out_neighbors_ptr(iter->graph, iter->source_id);
 
     while (iter->neighbor_index < neighbors->length) {
-        GraphNodeId neighbor_id = VecAt(neighbors, iter->neighbor_index);
-        iter->neighbor_index += 1;
+        GraphNodeId neighbor_id  = VecAt(neighbors, iter->neighbor_index);
+        iter->neighbor_index    += 1;
 
         graph_validate_node_id(iter->graph, neighbor_id);
 
@@ -1043,8 +1070,8 @@ bool graph_predecessor_iter_next(GenericGraphPredecessorIter *iter, GraphNode *o
     neighbors = graph_in_neighbors_ptr(iter->graph, iter->target_id);
 
     while (iter->predecessor_index < neighbors->length) {
-        GraphNodeId predecessor_id = VecAt(neighbors, iter->predecessor_index);
-        iter->predecessor_index += 1;
+        GraphNodeId predecessor_id  = VecAt(neighbors, iter->predecessor_index);
+        iter->predecessor_index    += 1;
 
         graph_validate_node_id(iter->graph, predecessor_id);
 
