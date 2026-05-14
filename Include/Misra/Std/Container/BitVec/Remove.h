@@ -18,9 +18,16 @@ extern "C" {
     /// Remove multiple consecutive bits starting at a specific position.
     /// All bits after the removed range are shifted left.
     ///
-    /// bv[in]     : Bitvector to remove from
-    /// idx[in]    : Starting position (0-based)
-    /// count[in]  : Number of bits to remove
+    /// bv[in,out] : Bitvector to remove from.
+    /// idx[in]    : Starting position (0-based), in [0, length).
+    /// count[in]  : Number of bits to remove; `idx + count` must not exceed
+    ///              the length.
+    ///
+    /// SUCCESS : Returns to the caller. Bitvector length shrinks by
+    ///           `count`; bits previously at indices >= `idx + count`
+    ///           have shifted left by `count`. Capacity is unchanged.
+    /// FAILURE : Function cannot fail. An out-of-range `idx + count` is
+    ///           a caller bug and aborts via `LOG_FATAL`.
     ///
     /// USAGE:
     ///   BitVecRemoveRange(&flags, 2, 3);  // Remove 3 bits starting at position 2
@@ -31,12 +38,15 @@ extern "C" {
 
     ///
     /// Remove the first occurrence of a specific bit value.
-    /// Returns true if a bit was found and removed, false otherwise.
     ///
-    /// bv[in]     : Bitvector to remove from
-    /// value[in]  : Bit value to find and remove (true or false)
+    /// bv[in,out] : Bitvector to remove from.
+    /// value[in]  : Bit value to find and remove (true or false).
     ///
-    /// RETURNS: true if bit was found and removed, false if not found
+    /// SUCCESS : Returns `true`. The first bit equal to `value` has been
+    ///           removed; bitvector length shrinks by one; subsequent
+    ///           bits have shifted left by one.
+    /// FAILURE : Returns `false` when no bit equal to `value` was found.
+    ///           The bitvector is unchanged.
     ///
     /// USAGE:
     ///   bool found = BitVecRemoveFirst(&flags, true);
@@ -47,12 +57,15 @@ extern "C" {
 
     ///
     /// Remove the last occurrence of a specific bit value.
-    /// Returns true if a bit was found and removed, false otherwise.
     ///
-    /// bv[in]     : Bitvector to remove from
-    /// value[in]  : Bit value to find and remove (true or false)
+    /// bv[in,out] : Bitvector to remove from.
+    /// value[in]  : Bit value to find and remove (true or false).
     ///
-    /// RETURNS: true if bit was found and removed, false if not found
+    /// SUCCESS : Returns `true`. The last bit equal to `value` has been
+    ///           removed; bitvector length shrinks by one; bits after
+    ///           the removed position have shifted left by one (if any).
+    /// FAILURE : Returns `false` when no bit equal to `value` was found.
+    ///           The bitvector is unchanged.
     ///
     /// USAGE:
     ///   bool found = BitVecRemoveLast(&flags, false);
@@ -63,12 +76,15 @@ extern "C" {
 
     ///
     /// Remove all occurrences of a specific bit value.
-    /// Returns the number of bits that were removed.
     ///
-    /// bv[in]     : Bitvector to remove from
-    /// value[in]  : Bit value to remove (true or false)
+    /// bv[in,out] : Bitvector to remove from.
+    /// value[in]  : Bit value to remove (true or false).
     ///
-    /// RETURNS: Number of bits removed
+    /// SUCCESS : Returns the count of bits removed. Bitvector length
+    ///           shrinks by the returned count; remaining bits are
+    ///           compacted to the front in their original relative order.
+    /// FAILURE : Returns `0` when no bit equal to `value` exists. The
+    ///           bitvector is unchanged.
     ///
     /// USAGE:
     ///   u64 removed = BitVecRemoveAll(&flags, true);
@@ -79,11 +95,13 @@ extern "C" {
 
     ///
     /// Pop the last bit from bitvector.
-    /// Returns the value of the removed bit.
     ///
-    /// bv[in] : Bitvector to pop bit from
+    /// bv[in,out] : Bitvector to pop bit from.
     ///
-    /// RETURNS: Value of the popped bit (true/false)
+    /// SUCCESS : Returns the value of the removed bit (true/false).
+    ///           Bitvector length shrinks by one; capacity is unchanged.
+    /// FAILURE : Function cannot fail. Calling on an empty bitvector is
+    ///           a caller bug and aborts via `LOG_FATAL`.
     ///
     /// USAGE:
     ///   bool last_bit = BitVecPop(&flags);
@@ -96,10 +114,14 @@ extern "C" {
     /// Remove a bit at given index from bitvector.
     /// Shifts all bits after the index to the left.
     ///
-    /// bv[in]  : Bitvector to remove bit from
-    /// idx[in] : Index of bit to remove (0-based)
+    /// bv[in,out] : Bitvector to remove bit from.
+    /// idx[in]    : Index of bit to remove (0-based), in [0, length).
     ///
-    /// RETURNS: Value of the removed bit (true/false)
+    /// SUCCESS : Returns the value of the removed bit (true/false).
+    ///           Bitvector length shrinks by one; bits previously at
+    ///           indices > `idx` have shifted left by one.
+    /// FAILURE : Function cannot fail. An out-of-range `idx` is a caller
+    ///           bug and aborts via `LOG_FATAL`.
     ///
     /// USAGE:
     ///   bool removed_bit = BitVecRemove(&flags, 5);
