@@ -172,6 +172,50 @@ container for storage.
 
 NOTE: The container will take ownership only if no `copy_init` is set!!
 
+### Fallible API and `Must` Variants
+
+Most container operations that allocate memory can fail. The library splits its
+public API into two parallel forms so callers decide where to draw the abort
+boundary:
+
+- **Plain operation name** — propagates failure. Returns `bool` (or a sentinel
+  such as `GraphNodeId == 0`, `Str` with `data == NULL`, `MAP_VALUE_TYPE * ==
+  NULL`). The container is left unchanged on failure so the caller can retry
+  or bubble the failure up.
+
+  ```c
+  if (!VecInsertL(&v, item, 0)) {
+      // recover or propagate
+  }
+  ```
+
+- **`Must` variant** (e.g. `VecMustInsertL`, `MapMustReserve`,
+  `GraphMustAddEdge`, `BitVecMustResize`) — statement-style do-while macro
+  that calls the propagating form and aborts via `LOG_FATAL` / `SysAbort()` on
+  failure. Use these at API boundaries where allocation failure is not
+  recoverable for the caller.
+
+  ```c
+  VecMustInsertL(&v, item, 0);   // never returns false; aborts on failure
+  ```
+
+This is a two-axis design. The allocator decides *how hard* it tries before
+giving up; the API name decides whether the failure propagates or terminates
+the program. Caller bugs (invalid handles, out-of-range indices, uninitialized
+objects) always abort via `LOG_FATAL` regardless of which form you use.
+
+The `Must` forms are statements, not expressions — they don't yield a value
+and can't be embedded inside another expression. Use the plain form when you
+need both a return value and the safety of an explicit abort:
+
+```c
+GraphNodeId id = GraphAddNodeL(&g, payload);
+if (!id) { /* recover */ }
+```
+
+The deeper rationale, including how allocators interact with this split, is in
+[`Docs/content/english/guides/planned-fallible-apis-and-allocators.md`](Docs/content/english/guides/planned-fallible-apis-and-allocators.md).
+
 ## Examples
 
 ### Vector Container (Vec)
@@ -189,14 +233,17 @@ int main(void) {
     // Initialize a reusable vector typedef
     IntVec numbers = VecInit();
     
-    // Pre-allocate space for better performance
-    VecReserve(&numbers, 10);
+    // Pre-allocate space for better performance. Must variants abort on
+    // allocation failure; use VecReserve(...) (returns bool) when the
+    // caller wants to handle failure.
+    VecMustReserve(&numbers, 10);
     
-    // Insert elements (ownership transfer for l-values)
+    // Insert elements (ownership transfer for l-values). Must variants
+    // abort on allocation failure; plain VecInsertL/R return bool.
     int val = 42;
-    VecInsertL(&numbers, val, 0);       // val is now owned by vector
-    VecInsertR(&numbers, 10, 0);        // Insert at front
-    VecInsertR(&numbers, 30, 1);        // Insert in middle
+    VecMustInsertL(&numbers, val, 0);   // val is now owned by vector
+    VecMustInsertR(&numbers, 10, 0);    // Insert at front
+    VecMustInsertR(&numbers, 30, 1);    // Insert in middle
     
     // Access elements safely
     int first = VecAt(&numbers, 0);                // Get by value
@@ -205,7 +252,7 @@ int main(void) {
     
     // Batch operations
     int items[] = {15, 25, 35};
-    VecInsertRangeR(&numbers, items, VecLen(&numbers), 3);
+    VecMustInsertRangeR(&numbers, items, VecLen(&numbers), 3);
     
     // Sort the vector
     VecSort(&numbers, compare_ints);
@@ -293,6 +340,8 @@ int main(void) {
     GraphNodeId alpha = GraphAddNodeR(&graph, StrZ("Alpha"));
     GraphNodeId beta  = GraphAddNodeR(&graph, StrZ("Beta"));
     GraphNodeId gamma = GraphAddNodeR(&graph, StrZ("Gamma"));
+    /* alpha/beta/gamma are zero on allocation failure - in production code,
+     * check each id and unwind, or use GraphMustAddNodeR for abort-on-failure. */
 
     GraphAddEdge(&graph, alpha, beta);
     GraphAddEdge(&graph, beta, gamma);
@@ -418,7 +467,7 @@ int main(void) {
                 JR_FLT_KV(si, "x", vertex.x);
                 JR_FLT_KV(si, "y", vertex.y);
             });
-            VecInsertR(&shape.vertices, vertex, VecLen(&shape.vertices));
+            VecMustInsertR(&shape.vertices, vertex, VecLen(&shape.vertices));
         });
         
         // Read boolean value with key "filled"
@@ -480,14 +529,18 @@ typedef struct {
 
 typedef Vec(ComplexType) ComplexVec;
 
-// Copy initialization for deep copying
+// Copy initialization for deep copying. Propagates allocation failure
+// back to the container's insert path so partial copies are not committed.
 bool ComplexTypeCopyInit(ComplexType* dst, const ComplexType* src) {
     dst->id = src->id;
     dst->data = VecInit();
     
     // Copy all elements from source vector
     VecForeachIdx(&src->data, val, idx) {
-        VecInsertR(&dst->data, val, idx);
+        if (!VecInsertR(&dst->data, val, idx)) {
+            VecDeinit(&dst->data);
+            return false;
+        }
     }
     return true;
 }
@@ -506,11 +559,11 @@ int main(void) {
         .id = 1,
         .data = VecInit()
     };
-    VecInsertR(&item.data, 42, 0);
-    VecInsertR(&item.data, 43, 1);
+    VecMustInsertR(&item.data, 42, 0);
+    VecMustInsertR(&item.data, 43, 1);
     
     // Insert with ownership transfer
-    VecInsertL(&objects, item, 0);   // item is now owned by vector
+    VecMustInsertL(&objects, item, 0);   // item is now owned by vector
     
     // Direct deletion (vector handles cleanup)
     // Since we provided ComplexTypeDeinit during initialization,
@@ -875,6 +928,13 @@ StrReadFmt(cursor, "Count: {}, Name: {}", count, user);
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+Before sending a change, please read [`AGENTS.md`](AGENTS.md) for the
+project's coding style, identifier conventions (PascalCase public, snake_case
+private, no `MISRA_` prefix on identifiers), error-handling policy (fallible
+plain forms + aborting `Must*` variants), pre-commit expectations (tests must
+pass, `clang-format` must run via `Scripts/clang-format.py`), and the
+documentation format expected by `Scripts/DocuGen.py`.
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
