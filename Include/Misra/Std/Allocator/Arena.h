@@ -37,7 +37,7 @@ extern "C" {
         PageAllocator page;
     } ArenaAllocator;
 
-    void *arena_allocator_allocate(Allocator *self, size bytes, bool zeroed);
+    void *arena_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
     void *arena_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size);
     void  arena_allocator_deallocate(Allocator *self, void *ptr, size bytes);
 

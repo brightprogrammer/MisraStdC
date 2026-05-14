@@ -30,7 +30,7 @@ static bool budget_alignment_is_pow2(size alignment) {
     return alignment != 0 && ((alignment & (alignment - 1)) == 0);
 }
 
-void *budget_allocator_allocate(Allocator *self, size bytes, bool zeroed) {
+void *budget_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     budget_validate_self(self);
     BudgetAllocator *bp = (BudgetAllocator *)self;
     if (bytes > bp->slot_size) {

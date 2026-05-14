@@ -38,7 +38,7 @@ extern "C" {
         PageAllocator page;
     } SlabAllocator;
 
-    void *slab_allocator_allocate(Allocator *self, size bytes, bool zeroed);
+    void *slab_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
     void *slab_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size);
     void  slab_allocator_deallocate(Allocator *self, void *ptr, size bytes);
 

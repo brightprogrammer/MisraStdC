@@ -100,9 +100,26 @@ typedef unsigned long size;
 #    endif
 #endif
 
-// bool is already defined in C++ and C23
+// bool is already a keyword in C++ and C23. In C11/C17 we typedef our
+// own `bool` to `i8` (i.e. `signed char`) deliberately. Rationale:
+// `_Bool` is a 1-bit truth-value type with implicit 0/1 narrowing on
+// every store and a few compiler-specific representation quirks. By
+// using `signed char` we get a plain 8-bit integer with the values
+// 0/1 - no narrowing, no surprises - and one less reason to depend
+// on `<stdbool.h>` (which we avoid for the same libc-free reason the
+// rest of the library does).
+//
+// IMPORTANT: do not use `bool` in cross-TU function-pointer typedefs
+// or in forward declarations of allocator dispatch functions. Some
+// system headers transitively `#define bool _Bool`, after which the
+// SAME identifier means different types in different TUs and
+// function-pointer assignment trips clang's
+// -Wincompatible-function-pointer-types. The allocator dispatch
+// contract (`AllocatorAllocateFn` and the `*_allocator_allocate`
+// signatures) uses `i8` directly for the `zeroed` parameter; user
+// code is free to use `bool` since the value converts naturally.
 #ifndef __cplusplus
-#    if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201710L
+#    if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L
 #        ifndef bool
 typedef i8 bool;
 #        endif

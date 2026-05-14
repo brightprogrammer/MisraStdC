@@ -74,7 +74,7 @@ static bool heap_grow_bin(HeapAllocator *heap, int bin) {
     return true;
 }
 
-void *heap_allocator_allocate(Allocator *self, size bytes, bool zeroed) {
+void *heap_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     heap_validate_self(self);
     HeapAllocator *heap = (HeapAllocator *)self;
     if (!bytes) {

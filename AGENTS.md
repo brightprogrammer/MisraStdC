@@ -262,10 +262,20 @@ non-obvious.
 
 ## Library hygiene
 
-- **Prefer the library's own utilities over libc** when an equivalent exists.
-  Use `MemCopy` / `MemMove` / `MemSet` instead of `memcpy` / `memmove` /
-  `memset` everywhere except inside the memory implementation itself. Use
-  `ZstrCompare` / `ZstrLen` instead of `strcmp` / `strlen`.
+- **Prefer the library's own utilities over libc** when an equivalent
+  exists. Use `MemCopy` / `MemMove` / `MemSet` instead of `memcpy` /
+  `memmove` / `memset` (except inside the memory implementation itself).
+  Use `ZstrCompare` / `ZstrLen` instead of `strcmp` / `strlen`.
+- **Do not add new libc includes.** No new `#include <stdbool.h>`,
+  `<stdio.h>`, `<stdlib.h>`, etc. from library headers or source files.
+  `bool` is `typedef i8 bool` in `Misra/Types.h`, not `_Bool`.
+- **Use `i8` (not `bool`) in cross-TU function-pointer contracts.**
+  Function-pointer typedefs and the forward declarations of functions
+  stored in them must use `i8` for boolean parameters. Some system
+  headers transitively `#define bool _Bool`, which makes `bool` mean
+  different types in different TUs and trips
+  `-Wincompatible-function-pointer-types`. Example: `AllocatorAllocateFn`
+  and every `*_allocator_allocate` declaration take `i8 zeroed`.
 - **Validation belongs in the macro layer** when feasible, so runtime helpers
   stay focused on the actual mutation. `ValidateVec(v)` and the
   `VEC_TYPECHECK_*` helpers run at the macro layer before the runtime helper

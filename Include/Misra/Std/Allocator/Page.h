@@ -43,7 +43,7 @@ extern "C" {
         size      cached_page_size;
     } PageAllocator;
 
-    void *page_allocator_allocate(Allocator *self, size bytes, bool zeroed);
+    void *page_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
     void *page_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size);
     void  page_allocator_deallocate(Allocator *self, void *ptr, size bytes);
 

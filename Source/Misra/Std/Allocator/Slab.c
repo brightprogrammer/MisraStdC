@@ -77,7 +77,7 @@ static bool slab_grow(SlabAllocator *slab) {
     return true;
 }
 
-void *slab_allocator_allocate(Allocator *self, size bytes, bool zeroed) {
+void *slab_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     slab_validate_self(self);
     SlabAllocator *slab        = (SlabAllocator *)self;
     size           align       = self->alignment > 1 ? self->alignment : sizeof(void *);

@@ -71,7 +71,7 @@ extern "C" {
         BudgetFreeSlot *free_head;
     } BudgetAllocator;
 
-    void *budget_allocator_allocate(Allocator *self, size bytes, bool zeroed);
+    void *budget_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
     void *budget_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size);
     void  budget_allocator_deallocate(Allocator *self, void *ptr, size bytes);
 

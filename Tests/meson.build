@@ -358,7 +358,11 @@ foreach test_info : float_tests
         install: false
     )
 
-    test(test_name, test_exe)
+    # Float tests exercise BitVec / Int / Float chains heavily; under
+    # sanitizer + per-call allocator magic validation they run for
+    # well over the meson default 30s. Give them generous headroom so
+    # CI doesn't flake on slow runners.
+    test(test_name, test_exe, timeout: 120)
 endforeach
 
 foreach test_info : bitvec_deadend_tests

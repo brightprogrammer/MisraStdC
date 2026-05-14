@@ -60,7 +60,7 @@ static ArenaChunk *arena_new_chunk(ArenaAllocator *arena, size need_bytes) {
     return chunk;
 }
 
-void *arena_allocator_allocate(Allocator *self, size bytes, bool zeroed) {
+void *arena_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     arena_validate_self(self);
     (void)zeroed; // page-backed memory is zero-initialized.
     if (!bytes) {

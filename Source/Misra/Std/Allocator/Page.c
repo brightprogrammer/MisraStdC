@@ -115,7 +115,7 @@ static size page_rounded_size(PageAllocator *self, size bytes) {
     return page_round_up(bytes, page_size);
 }
 
-void *page_allocator_allocate(Allocator *self, size bytes, bool zeroed) {
+void *page_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     page_validate_self(self);
     (void)zeroed; // OS-mapped pages are kernel-zeroed.
     if (!bytes) {

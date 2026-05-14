@@ -44,7 +44,7 @@ void ValidateAllocator(const Allocator *self) {
     }
 }
 
-void *AllocatorAlloc(Allocator *self, size bytes, bool zeroed) {
+void *AllocatorAlloc(Allocator *self, size bytes, i8 zeroed) {
     ValidateAllocator(self);
 
     size  attempts = allocator_attempt_limit(self);

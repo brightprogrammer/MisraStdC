@@ -33,7 +33,11 @@ extern "C" {
     typedef struct SlabAllocator   SlabAllocator;
     typedef struct BudgetAllocator BudgetAllocator;
 
-    typedef void *(*AllocatorAllocateFn)(Allocator *self, size bytes, bool zeroed);
+    // `zeroed` uses `i8` (signed char) directly instead of `bool` to
+    // sidestep TU-to-TU `bool` ambiguity on platforms that transitively
+    // pull in `<stdbool.h>` from system headers. See the comment block
+    // around the `bool` typedef in `Misra/Types.h`.
+    typedef void *(*AllocatorAllocateFn)(Allocator *self, size bytes, i8 zeroed);
     typedef void *(*AllocatorReallocateFn)(Allocator *self, void *ptr, size old_size, size new_size);
     typedef void (*AllocatorDeallocateFn)(Allocator *self, void *ptr, size bytes);
 
@@ -55,7 +59,6 @@ extern "C" {
         size                  alignment;
         AllocatorEffort       effort;
         u32                   retry_limit;
-        u32                   __reserved;
         u64                   __magic;
     };
 
@@ -83,7 +86,7 @@ extern "C" {
     ///
     /// TAGS: Allocator, Memory, Allocation
     ///
-    void *AllocatorAlloc(Allocator *self, size bytes, bool zeroed);
+    void *AllocatorAlloc(Allocator *self, size bytes, i8 zeroed);
 
     ///
     /// Reallocate memory through an allocator. Preserves the allocator's
