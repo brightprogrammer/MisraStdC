@@ -597,7 +597,7 @@ bool test_bitvec_formatting(void) {
     bool success = true;
 
     // Test 1: Basic binary formatting
-    BitVec bv1 = BitVecFromStrAlloc("10110", alloc_base);
+    BitVec bv1 = BitVecFromStr("10110", alloc_base);
     StrWriteFmt(&output, "{}", bv1);
     success = success && (ZstrCompare(output.data, "10110") == 0);
     StrClear(&output);
@@ -609,7 +609,7 @@ bool test_bitvec_formatting(void) {
     StrClear(&output);
 
     // Test 3: Hex formatting
-    BitVec bv2 = BitVecFromIntegerAlloc(0xABCD, 16, alloc_base);
+    BitVec bv2 = BitVecFromInteger(0xABCD, 16, alloc_base);
     StrWriteFmt(&output, "{x}", bv2);
     success = success && (ZstrCompare(output.data, "0xabcd") == 0);
     StrClear(&output);
@@ -620,7 +620,7 @@ bool test_bitvec_formatting(void) {
     StrClear(&output);
 
     // Test 5: Octal formatting
-    BitVec bv3 = BitVecFromIntegerAlloc(0755, 10, alloc_base);
+    BitVec bv3 = BitVecFromInteger(0755, 10, alloc_base);
     StrWriteFmt(&output, "{o}", bv3);
     success = success && (ZstrCompare(output.data, "0o755") == 0);
     StrClear(&output);
@@ -639,7 +639,7 @@ bool test_bitvec_formatting(void) {
     StrClear(&output);
 
     // Test 7: Zero value
-    BitVec bv_zero = BitVecFromIntegerAlloc(0, 1, alloc_base);
+    BitVec bv_zero = BitVecFromInteger(0, 1, alloc_base);
     StrWriteFmt(&output, "{x}", bv_zero);
     success = success && (ZstrCompare(output.data, "0x0") == 0);
     StrClear(&output);

@@ -75,7 +75,7 @@ bool test_bitvec_from_string(void) {
     // Convert from string
     const char *str = "1011";
     BitVec      bv;
-    bool        ok = BitVecTryFromStrAlloc(&bv, str, ALLOCATOR_OF(&alloc));
+    bool        ok = BitVecTryFromStr(&bv, str, ALLOCATOR_OF(&alloc));
 
     // Check result
     bool result = ok && (bv.length == 4);
@@ -85,7 +85,7 @@ bool test_bitvec_from_string(void) {
     result      = result && (BitVecGet(&bv, 3) == true);
 
     // Test with empty string
-    BitVec empty_bv = BitVecFromStrAlloc("", ALLOCATOR_OF(&alloc));
+    BitVec empty_bv = BitVecFromStr("", ALLOCATOR_OF(&alloc));
     result          = result && (empty_bv.length == 0);
 
     // Clean up
@@ -142,7 +142,7 @@ bool test_bitvec_from_bytes(void) {
     // Create byte array
     u8     bytes[] = {0xB3}; // 10110011 in binary
     BitVec bv;
-    bool   ok = BitVecTryFromBytesAlloc(&bv, bytes, 8, ALLOCATOR_OF(&alloc)); // 8 bits from the byte
+    bool   ok = BitVecTryFromBytes(&bv, bytes, 8, ALLOCATOR_OF(&alloc)); // 8 bits from the byte
 
     // Check result (8 bits from 1 byte)
     bool result = ok && (bv.length == 8);
@@ -219,7 +219,7 @@ bool test_bitvec_from_integer(void) {
     // Convert from integer
     u64    value = 11; // 1011 in binary
     BitVec bv;
-    bool   ok = BitVecTryFromIntegerAlloc(&bv, value, 4, ALLOCATOR_OF(&alloc));
+    bool   ok = BitVecTryFromInteger(&bv, value, 4, ALLOCATOR_OF(&alloc));
 
     // Check result
     bool result = ok && (bv.length == 4);
@@ -241,7 +241,7 @@ bool test_bitvec_from_integer(void) {
 
     // Test with zero
     BitVec zero_bv;
-    result = result && BitVecTryFromIntegerAlloc(&zero_bv, 0, 8, ALLOCATOR_OF(&alloc));
+    result = result && BitVecTryFromInteger(&zero_bv, 0, 8, ALLOCATOR_OF(&alloc));
     result = result && (zero_bv.length == 8);
 
     // All bits should be false
@@ -272,7 +272,7 @@ bool test_bitvec_try_conversion_allocators(void) {
     BitVec bv;
     Str    str;
     bool   ok =
-        BitVecTryFromStrAlloc(&bv, "101001", ALLOCATOR_OF(&alloc));
+        BitVecTryFromStr(&bv, "101001", ALLOCATOR_OF(&alloc));
     bool result = ok && (bv.allocator->effort == alloc.base.effort) &&
                   (bv.allocator->retry_limit == alloc.base.retry_limit);
 
@@ -330,12 +330,12 @@ bool test_bitvec_from_string_edge_cases(void) {
     bool result = true;
 
     // Test empty string
-    BitVec bv1 = BitVecFromStrAlloc("", ALLOCATOR_OF(&alloc));
+    BitVec bv1 = BitVecFromStr("", ALLOCATOR_OF(&alloc));
     result     = result && (bv1.length == 0);
     BitVecDeinit(&bv1);
 
     // Test single character
-    BitVec bv2 = BitVecFromStrAlloc("1", ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecFromStr("1", ALLOCATOR_OF(&alloc));
     result     = result && (bv2.length == 1);
     result     = result && (BitVecGet(&bv2, 0) == true);
     BitVecDeinit(&bv2);
@@ -347,7 +347,7 @@ bool test_bitvec_from_string_edge_cases(void) {
     }
     long_str[1000] = '\0';
 
-    BitVec bv3 = BitVecFromStrAlloc(long_str, ALLOCATOR_OF(&alloc));
+    BitVec bv3 = BitVecFromStr(long_str, ALLOCATOR_OF(&alloc));
     result     = result && (bv3.length == 1000);
     result     = result && (BitVecGet(&bv3, 0) == true);
     result     = result && (BitVecGet(&bv3, 1) == false);
@@ -373,13 +373,13 @@ bool test_bitvec_bytes_conversion_edge_cases(void) {
 
     // Test bytes to bitvec with 0 bits (should return empty bitvector)
     u8     empty_bytes[1] = {0x05};
-    BitVec bv2            = BitVecFromBytesAlloc(empty_bytes, 0, ALLOCATOR_OF(&alloc)); // 0 bits
+    BitVec bv2            = BitVecFromBytes(empty_bytes, 0, ALLOCATOR_OF(&alloc)); // 0 bits
     result                = result && (bv2.length == 0);
     BitVecDeinit(&bv2);
 
     // Test single byte
     u8     single_byte[1] = {0xFF};
-    BitVec bv3            = BitVecFromBytesAlloc(single_byte, 8, ALLOCATOR_OF(&alloc)); // 8 bits from 1 byte
+    BitVec bv3            = BitVecFromBytes(single_byte, 8, ALLOCATOR_OF(&alloc)); // 8 bits from 1 byte
     result                = result && (bv3.length == 8);
     BitVecDeinit(&bv3);
 
@@ -401,12 +401,12 @@ bool test_bitvec_integer_conversion_edge_cases(void) {
     result    = result && (value == 0);
 
     // Test integer to bitvec with 0
-    BitVec bv2 = BitVecFromIntegerAlloc(0, 8, ALLOCATOR_OF(&alloc));     // 8 bits for zero
+    BitVec bv2 = BitVecFromInteger(0, 8, ALLOCATOR_OF(&alloc));     // 8 bits for zero
     result     = result && (bv2.length == 8); // Should be 8 bits
     BitVecDeinit(&bv2);
 
     // Test large integer
-    BitVec bv3 = BitVecFromIntegerAlloc(UINT64_MAX, 64, ALLOCATOR_OF(&alloc)); // 64 bits for max value
+    BitVec bv3 = BitVecFromInteger(UINT64_MAX, 64, ALLOCATOR_OF(&alloc)); // 64 bits for max value
     result     = result && (bv3.length == 64);
     BitVecDeinit(&bv3);
 
@@ -427,7 +427,7 @@ bool test_bitvec_round_trip_conversions(void) {
     const char *patterns[] = {"101", "1111000011110000", "1", "0", "10101010", "01010101"};
 
     for (size_t i = 0; i < sizeof(patterns) / sizeof(patterns[0]); i++) {
-        BitVec bv  = BitVecFromStrAlloc(patterns[i], ALLOCATOR_OF(&alloc));
+        BitVec bv  = BitVecFromStr(patterns[i], ALLOCATOR_OF(&alloc));
         Str    str = BitVecToStr(&bv);
 
         // Should get exact same string back
@@ -450,7 +450,7 @@ bool test_bitvec_round_trip_conversions(void) {
             u64 mask  = (bits == 64) ? 0xFFFFFFFFFFFFFFFF : (1ULL << bits) - 1;
             value    &= mask;
 
-            BitVec bv        = BitVecFromIntegerAlloc(value, bits, ALLOCATOR_OF(&alloc));
+            BitVec bv        = BitVecFromInteger(value, bits, ALLOCATOR_OF(&alloc));
             u64    recovered = BitVecToInteger(&bv);
 
             result = result && (recovered == value);
@@ -463,7 +463,7 @@ bool test_bitvec_round_trip_conversions(void) {
     u8 test_bytes[] = {0x00, 0xFF, 0xAA, 0x55, 0x01, 0x80, 0x7F, 0xFE};
 
     for (size_t i = 0; i < sizeof(test_bytes); i++) {
-        BitVec bv             = BitVecFromBytesAlloc(&test_bytes[i], 8, ALLOCATOR_OF(&alloc));
+        BitVec bv             = BitVecFromBytes(&test_bytes[i], 8, ALLOCATOR_OF(&alloc));
         u8     recovered_byte = 0;
         u64    written        = BitVecToBytes(&bv, &recovered_byte, 1);
 
@@ -487,7 +487,7 @@ bool test_bitvec_conversion_bounds_checking(void) {
     bool result = true;
 
     // Test large integer conversion (should cap at 64 bits)
-    BitVec large_bv = BitVecFromIntegerAlloc(0xFFFFFFFFFFFFFFFF, 64, ALLOCATOR_OF(&alloc));
+    BitVec large_bv = BitVecFromInteger(0xFFFFFFFFFFFFFFFF, 64, ALLOCATOR_OF(&alloc));
     result          = result && (large_bv.length == 64);
 
     u64 large_value = BitVecToInteger(&large_bv);
@@ -551,7 +551,7 @@ bool test_bitvec_conversion_comprehensive(void) {
     };
 
     for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[0]); i++) {
-        BitVec bv = BitVecFromStrAlloc(test_cases[i].pattern, ALLOCATOR_OF(&alloc));
+        BitVec bv = BitVecFromStr(test_cases[i].pattern, ALLOCATOR_OF(&alloc));
 
         // Test string conversion consistency
         Str str = BitVecToStr(&bv);
@@ -572,9 +572,9 @@ bool test_bitvec_conversion_comprehensive(void) {
     }
 
     // Test cross-format validation
-    BitVec bv1 = BitVecFromStrAlloc("11010110", ALLOCATOR_OF(&alloc));
-    BitVec bv2 = BitVecFromIntegerAlloc(0xD6, 8, ALLOCATOR_OF(&alloc)); // Assuming MSB-first: 11010110 = 0xD6
-    BitVec bv3 = BitVecFromBytesAlloc((u8[]) {0xD6}, 8, ALLOCATOR_OF(&alloc));
+    BitVec bv1 = BitVecFromStr("11010110", ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecFromInteger(0xD6, 8, ALLOCATOR_OF(&alloc)); // Assuming MSB-first: 11010110 = 0xD6
+    BitVec bv3 = BitVecFromBytes((u8[]) {0xD6}, 8, ALLOCATOR_OF(&alloc));
 
     // All three should produce the same result when converted back
     Str str1 = BitVecToStr(&bv1);
@@ -638,7 +638,7 @@ bool test_bitvec_large_scale_conversions(void) {
     result      = result && (written == 125);
 
     // Test round-trip from bytes
-    BitVec recovered_bv = BitVecFromBytesAlloc(large_bytes, 1000, ALLOCATOR_OF(&alloc));
+    BitVec recovered_bv = BitVecFromBytes(large_bytes, 1000, ALLOCATOR_OF(&alloc));
     result              = result && (recovered_bv.length == 1000);
 
     // Verify recovered pattern
@@ -663,7 +663,7 @@ bool test_bitvec_large_scale_conversions(void) {
     }
     large_pattern[2000] = '\0';
 
-    BitVec large_from_str = BitVecFromStrAlloc(large_pattern, ALLOCATOR_OF(&alloc));
+    BitVec large_from_str = BitVecFromStr(large_pattern, ALLOCATOR_OF(&alloc));
     result                = result && (large_from_str.length == 2000);
 
     // Verify pattern
@@ -704,7 +704,7 @@ bool test_bitvec_bytes_bounds_failures(void) {
 
     // Test fromBytes with 0 bit length - should return empty bitvec
     u8     dummy_bytes[1] = {0xFF};
-    BitVec empty_bv       = BitVecFromBytesAlloc(dummy_bytes, 0, ALLOCATOR_OF(&alloc));
+    BitVec empty_bv       = BitVecFromBytes(dummy_bytes, 0, ALLOCATOR_OF(&alloc));
     bool   result         = (empty_bv.length == 0);
     BitVecDeinit(&empty_bv);
 
@@ -739,7 +739,7 @@ bool test_bitvec_from_string_null_failures(void) {
     WriteFmt("Testing BitVec from string NULL handling\n");
 
     // Test NULL string - should abort
-    BitVecFromStrAlloc(NULL, ALLOCATOR_OF(&alloc));
+    BitVecFromStr(NULL, ALLOCATOR_OF(&alloc));
 
     DefaultAllocatorDeinit(&alloc);
 
@@ -752,7 +752,7 @@ bool test_bitvec_bytes_null_failures(void) {
     WriteFmt("Testing BitVec bytes NULL handling\n");
 
     // Test NULL bytes - should abort
-    BitVecFromBytesAlloc(NULL, 8, ALLOCATOR_OF(&alloc)); // NULL bytes, 8 bits
+    BitVecFromBytes(NULL, 8, ALLOCATOR_OF(&alloc)); // NULL bytes, 8 bits
 
     DefaultAllocatorDeinit(&alloc);
 

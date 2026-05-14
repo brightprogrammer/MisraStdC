@@ -117,41 +117,8 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, String, Radix, Allocator
     ///
-    bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Allocator *alloc);
-
-    ///
-    /// Convert an integer to text in the given radix using the default allocator.
-    ///
-    /// out[out]      : Destination string.
-    /// value[in]     : Integer to convert.
-    /// radix[in]     : Output radix in the range `2..36`.
-    /// uppercase[in] : Use uppercase letters for digits above `9`.
-    ///
-    /// SUCCESS : Returns `true`. `*out` holds the textual representation of
-    ///           `value` in the given radix.
-    /// FAILURE : Returns `false` on allocation failure or when the radix is
-    ///           out of range. `*out` is left as an empty initialized Str.
-    ///
-    /// TAGS: Int, Convert, String, Radix
-    ///
-    bool IntTryToStrRadix(Str *out, Int *value, u8 radix, bool uppercase);
-
-    ///
-    /// Convert an integer to text in the given radix using the default allocator.
-    ///
-    /// value[in]     : Integer to convert.
-    /// radix[in]     : Output radix in the range `2..36`.
-    /// uppercase[in] : Use uppercase letters for digits above `9`.
-    ///
-    /// SUCCESS : Returns a freshly allocated `Str` holding the textual
-    ///           representation of `value` in the given radix.
-    /// FAILURE : Returns an empty `Str` on allocation failure or when the
-    ///           radix is out of range. Use `IntTryToStrRadix` if you need
-    ///           explicit failure propagation.
-    ///
-    /// TAGS: Int, Convert, String, Radix
-    ///
-    Str IntToStrRadix(Int *value, u8 radix, bool uppercase);
+    bool int_try_to_str_radix(Str *out, Int *value, u8 radix, bool uppercase, Allocator *alloc);
+    Str  int_to_str_radix(Int *value, u8 radix, bool uppercase, Allocator *alloc);
 
     ///
     /// Parse a decimal string into an integer.
@@ -177,36 +144,8 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, String, Decimal, Allocator
     ///
-    bool IntTryToStrAlloc(Str *out, Int *value, Allocator *alloc);
-
-    ///
-    /// Convert an integer to a decimal string using the default allocator.
-    ///
-    /// out[out]  : Destination string.
-    /// value[in] : Integer to convert.
-    ///
-    /// SUCCESS : Returns `true`. `*out` holds the decimal representation of
-    ///           `value`.
-    /// FAILURE : Returns `false` on allocation failure. `*out` is left as
-    ///           an empty initialized Str.
-    ///
-    /// TAGS: Int, Convert, String, Decimal
-    ///
-    bool IntTryToStr(Str *out, Int *value);
-
-    ///
-    /// Convert an integer to a decimal string using the default allocator.
-    ///
-    /// value[in] : Integer to convert.
-    ///
-    /// SUCCESS : Returns a freshly allocated `Str` holding the decimal
-    ///           representation of `value`.
-    /// FAILURE : Returns an empty `Str` on allocation failure. Use
-    ///           `IntTryToStr` if you need explicit failure propagation.
-    ///
-    /// TAGS: Int, Convert, String, Decimal
-    ///
-    Str IntToStr(Int *value);
+    bool int_try_to_str(Str *out, Int *value, Allocator *alloc);
+    Str  int_to_str(Int *value, Allocator *alloc);
 
     ///
     /// Parse a binary string into an integer.
@@ -296,5 +235,52 @@ static inline u64 int_to_u64_no_error(Int *value) {
 /// TAGS: Int, Convert, U64, Macro
 ///
 #define IntToU64(...) INT_TO_U64_SELECT(__VA_ARGS__, IntToU64WithError, int_to_u64_no_error)(__VA_ARGS__)
+
+///
+/// Convert an integer to a decimal string. Two forms via argument count:
+///
+/// - `IntTryToStr(out, value)`        - uses `value`'s allocator.
+/// - `IntTryToStr(out, value, alloc)` - uses the explicit allocator.
+///
+#define IntTryToStr(...)                 MISRA_OVERLOAD(IntTryToStr, __VA_ARGS__)
+#define IntTryToStr_2(out, value)        int_try_to_str((out), (value), (value)->bits.allocator)
+#define IntTryToStr_3(out, value, alloc) int_try_to_str((out), (value), (alloc))
+
+///
+/// Convert an integer to a decimal string. Two forms via argument count:
+///
+/// - `IntToStr(value)`        - uses `value`'s allocator.
+/// - `IntToStr(value, alloc)` - uses the explicit allocator.
+///
+#define IntToStr(...)            MISRA_OVERLOAD(IntToStr, __VA_ARGS__)
+#define IntToStr_1(value)        int_to_str((value), (value)->bits.allocator)
+#define IntToStr_2(value, alloc) int_to_str((value), (alloc))
+
+///
+/// Convert an integer to text in the given radix. Two forms via
+/// argument count:
+///
+/// - `IntTryToStrRadix(out, value, radix, uppercase)`
+///       uses `value`'s allocator.
+/// - `IntTryToStrRadix(out, value, radix, uppercase, alloc)`
+///       uses the explicit allocator.
+///
+#define IntTryToStrRadix(...) MISRA_OVERLOAD(IntTryToStrRadix, __VA_ARGS__)
+#define IntTryToStrRadix_4(out, value, radix, uppercase)                                                               \
+    int_try_to_str_radix((out), (value), (radix), (uppercase), (value)->bits.allocator)
+#define IntTryToStrRadix_5(out, value, radix, uppercase, alloc)                                                        \
+    int_try_to_str_radix((out), (value), (radix), (uppercase), (alloc))
+
+///
+/// Convert an integer to text in the given radix. Two forms via
+/// argument count:
+///
+/// - `IntToStrRadix(value, radix, uppercase)`        - `value`'s allocator.
+/// - `IntToStrRadix(value, radix, uppercase, alloc)` - explicit allocator.
+///
+#define IntToStrRadix(...) MISRA_OVERLOAD(IntToStrRadix, __VA_ARGS__)
+#define IntToStrRadix_3(value, radix, uppercase)                                                                       \
+    int_to_str_radix((value), (radix), (uppercase), (value)->bits.allocator)
+#define IntToStrRadix_4(value, radix, uppercase, alloc) int_to_str_radix((value), (radix), (uppercase), (alloc))
 
 #endif // MISRA_STD_CONTAINER_INT_CONVERT_H

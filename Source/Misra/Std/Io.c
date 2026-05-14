@@ -938,7 +938,7 @@ static bool FloatFmtTryToDecimalStr(Str *out, Float *value, u32 precision, bool 
 
     *out = StrInit(alloc);
 
-    if (!FloatTryToStrAlloc(&canonical, value, alloc)) {
+    if (!float_try_to_str(&canonical, value, alloc)) {
         return false;
     }
 
@@ -1034,7 +1034,7 @@ static bool FloatFmtTryToScientificStr(
 
     *out = StrInit(alloc);
 
-    if (!IntTryToStrAlloc(&digits, &value->significand, alloc)) {
+    if (!int_try_to_str(&digits, &value->significand, alloc)) {
         return false;
     }
 
@@ -2990,7 +2990,7 @@ bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
         } else {
             Str bit_str;
 
-            if (!BitVecTryToStrAlloc(&bit_str, bv, o->allocator)) {
+            if (!bitvec_try_to_str(&bit_str, bv, o->allocator)) {
                 return false;
             }
             if (!StrMerge(o, &bit_str)) {
@@ -3049,11 +3049,11 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
     u8   radix = IntFmtRadixFromFlags(fmt_info);
 
     if (radix == 10) {
-        if (!IntTryToStrAlloc(&temp, value, o->allocator)) {
+        if (!int_try_to_str(&temp, value, o->allocator)) {
             return false;
         }
     } else {
-        if (!IntTryToStrRadixAlloc(&temp, value, radix, (fmt_info->flags & FMT_FLAG_CAPS) != 0, o->allocator)) {
+        if (!int_try_to_str_radix(&temp, value, radix, (fmt_info->flags & FMT_FLAG_CAPS) != 0, o->allocator)) {
             return false;
         }
     }
@@ -3134,7 +3134,7 @@ const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
         if (bit_len < 4)
             bit_len = 4; // Minimum 4 bits for hex display
 
-        *bv = BitVecFromIntegerAlloc(value, bit_len, bv->allocator);
+        *bv = BitVecFromInteger(value, bit_len, bv->allocator);
         StrDeinit(&hex_str);
         return i;
     }
@@ -3170,7 +3170,7 @@ const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
         if (bit_len < 3)
             bit_len = 3; // Minimum 3 bits for octal display
 
-        *bv = BitVecFromIntegerAlloc(value, bit_len, bv->allocator);
+        *bv = BitVecFromInteger(value, bit_len, bv->allocator);
         StrDeinit(&oct_str);
         return i;
     }
@@ -3192,7 +3192,7 @@ const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
     Str bin_str = StrInitFromCstr(bin_start, i - bin_start, bv->allocator);
 
     // Convert to BitVec using the null-terminated string
-    *bv = BitVecFromStrAlloc(bin_str.data, bv->allocator);
+    *bv = BitVecFromStr(bin_str.data, bv->allocator);
 
     StrDeinit(&bin_str);
     return i;
