@@ -22,82 +22,354 @@
 #    define VEC_TYPECHECK_RANGE_R(v, ptr) ((void)0)
 #endif
 
+///
+/// Insert a single element at the given index, preserving order of trailing
+/// elements. L-value form: takes ownership of `lval` on success when the vector
+/// has no `copy_init` handler configured (source is zeroed). On failure the
+/// source is left untouched.
+///
+/// v[in,out] : Vector handle.
+/// lval[in]  : Addressable element to insert. Must match the vector's element type.
+/// idx[in]   : Position in [0, length]. Existing elements at and after this index
+///             shift one slot to the right.
+///
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure. The vector and `lval` are unchanged.
+///
+/// USAGE:
+///   typedef Vec(int) IntVec;
+///   IntVec v = VecInit();
+///   int x = 42;
+///   if (!VecInsertL(&v, x, 0)) { /* recover */ }
+///
+/// TAGS: Vec, Insert, LValue, Ownership
+///
 #define VecInsertL(v, lval, idx)                                                                                       \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_L((v), (lval)),                                                                                     \
      vec_insert_one_l(GENERIC_VEC(v), &LVAL((VEC_DATATYPE(v))(lval)), &(lval), sizeof(VEC_DATATYPE(v)), (idx), true))
 
+///
+/// Insert a single element at the given index, preserving order of trailing
+/// elements. R-value form: the source is treated as a temporary value and is
+/// never zeroed.
+///
+/// v[in,out] : Vector handle.
+/// rval[in]  : Value to insert. Must be convertible to the vector's element type.
+/// idx[in]   : Position in [0, length].
+///
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure. The vector is unchanged.
+///
+/// USAGE:
+///   if (!VecInsertR(&v, 42, 0)) { /* recover */ }
+///
+/// TAGS: Vec, Insert, RValue
+///
 #define VecInsertR(v, rval, idx)                                                                                       \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_R((v), (rval)),                                                                                     \
      vec_insert_one_r(GENERIC_VEC(v), &LVAL((VEC_DATATYPE(v))(rval)), sizeof(VEC_DATATYPE(v)), (idx), true))
 
+///
+/// Default insertion alias for `VecInsertL`. Use when ownership transfer of an
+/// l-value is the intended behaviour.
+///
 #define VecInsert(v, lval, idx) VecInsertL((v), (lval), (idx))
 
+///
+/// Insert a single element using fast (order-not-preserving) placement: the
+/// element previously occupying `idx` is moved to the tail before `lval` is
+/// written into the slot. L-value form takes ownership of `lval` on success.
+///
+/// Use when iteration order is not meaningful (sets, work queues with no
+/// ordering requirement, etc.). Faster than `VecInsertL` for non-tail inserts
+/// because no range shift is performed.
+///
+/// v[in,out] : Vector handle.
+/// lval[in]  : Addressable element to insert.
+/// idx[in]   : Position in [0, length].
+///
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
+///
+/// TAGS: Vec, Insert, LValue, Fast, Unordered
+///
 #define VecInsertFastL(v, lval, idx)                                                                                   \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_L((v), (lval)),                                                                                     \
      vec_insert_one_l(GENERIC_VEC(v), &LVAL((VEC_DATATYPE(v))(lval)), &(lval), sizeof(VEC_DATATYPE(v)), (idx), false))
 
+///
+/// Insert a single element using fast (order-not-preserving) placement.
+/// R-value form: the source is treated as a temporary value.
+///
+/// v[in,out] : Vector handle.
+/// rval[in]  : Value to insert.
+/// idx[in]   : Position in [0, length].
+///
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
+///
+/// TAGS: Vec, Insert, RValue, Fast, Unordered
+///
 #define VecInsertFastR(v, rval, idx)                                                                                   \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_R((v), (rval)),                                                                                     \
      vec_insert_one_r(GENERIC_VEC(v), &LVAL((VEC_DATATYPE(v))(rval)), sizeof(VEC_DATATYPE(v)), (idx), false))
 
+///
+/// Default fast-insertion alias for `VecInsertFastL`.
+///
 #define VecInsertFast(v, lval, idx) VecInsertFastL((v), (lval), (idx))
 
+///
+/// Insert a contiguous range of elements at the given index, preserving order.
+/// L-value form: takes ownership of the source range on success when the vector
+/// has no `copy_init` handler (source bytes are zeroed). On failure the source
+/// is left untouched.
+///
+/// v[in,out] : Vector handle.
+/// varr[in]  : Pointer to the source array. Must be non-NULL when `count > 0`.
+/// idx[in]   : Position in [0, length].
+/// count[in] : Number of elements to insert.
+///
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure. Vector and source are unchanged.
+///
+/// USAGE:
+///   int items[] = { 1, 2, 3 };
+///   if (!VecInsertRangeL(&v, items, 0, 3)) { /* recover */ }
+///
+/// TAGS: Vec, Insert, Range, LValue
+///
 #define VecInsertRangeL(v, varr, idx, count)                                                                           \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_RANGE_L((v), (varr)),                                                                               \
      vec_insert_range_l(GENERIC_VEC(v), (void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), true))
 
+///
+/// Insert a contiguous range of elements at the given index, preserving order.
+/// R-value form: the source range is treated as read-only input and is not
+/// zeroed.
+///
+/// v[in,out] : Vector handle.
+/// varr[in]  : Pointer to the source array. Must be non-NULL when `count > 0`.
+/// idx[in]   : Position in [0, length].
+/// count[in] : Number of elements to insert.
+///
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
+///
+/// TAGS: Vec, Insert, Range, RValue
+///
 #define VecInsertRangeR(v, varr, idx, count)                                                                           \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_RANGE_R((v), (varr)),                                                                               \
      vec_insert_range_r(GENERIC_VEC(v), (const void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), true))
 
+///
+/// Default range-insert alias for `VecInsertRangeL`.
+///
 #define VecInsertRange(v, varr, idx, count) VecInsertRangeL((v), (varr), (idx), (count))
 
+///
+/// Insert a range using fast (order-not-preserving) placement. L-value form.
+///
+/// TAGS: Vec, Insert, Range, LValue, Fast, Unordered
+///
 #define VecInsertRangeFastL(v, varr, idx, count)                                                                       \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_RANGE_L((v), (varr)),                                                                               \
      vec_insert_range_l(GENERIC_VEC(v), (void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), false))
 
+///
+/// Insert a range using fast (order-not-preserving) placement. R-value form.
+///
+/// TAGS: Vec, Insert, Range, RValue, Fast, Unordered
+///
 #define VecInsertRangeFastR(v, varr, idx, count)                                                                       \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_RANGE_R((v), (varr)),                                                                               \
      vec_insert_range_r(GENERIC_VEC(v), (const void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), false))
 
+///
+/// Default fast range-insert alias for `VecInsertRangeFastL`.
+///
 #define VecInsertRangeFast(v, varr, idx, count) VecInsertRangeFastL((v), (varr), (idx), (count))
 
+///
+/// Append a contiguous range of elements to the end of the vector.
+/// L-value form takes ownership of the source on success when the vector has
+/// no `copy_init` handler.
+///
+/// v[in,out] : Vector handle.
+/// arr[in]   : Pointer to the source array.
+/// count[in] : Number of elements to append.
+///
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
+///
+/// TAGS: Vec, PushBack, Range, LValue
+///
 #define VecPushBackArrL(v, arr, count) VecInsertRangeL((v), (arr), (v)->length, (count))
+
+///
+/// Append a contiguous range of elements to the end of the vector. R-value form.
+///
+/// TAGS: Vec, PushBack, Range, RValue
+///
 #define VecPushBackArrR(v, arr, count) VecInsertRangeR((v), (arr), (v)->length, (count))
-#define VecPushBackArr(v, arr, count)  VecPushBackArrL((v), (arr), (count))
 
+///
+/// Default tail-append alias for `VecPushBackArrL`.
+///
+#define VecPushBackArr(v, arr, count) VecPushBackArrL((v), (arr), (count))
+
+///
+/// Prepend a contiguous range of elements at the front of the vector, preserving
+/// order of existing elements. L-value form takes ownership of the source on
+/// success when the vector has no `copy_init` handler.
+///
+/// v[in,out] : Vector handle.
+/// arr[in]   : Pointer to the source array.
+/// count[in] : Number of elements to prepend.
+///
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
+///
+/// TAGS: Vec, PushFront, Range, LValue
+///
 #define VecPushFrontArrL(v, arr, count) VecInsertRangeL((v), (arr), 0, (count))
+
+///
+/// Prepend a contiguous range at the front of the vector. R-value form.
+///
+/// TAGS: Vec, PushFront, Range, RValue
+///
 #define VecPushFrontArrR(v, arr, count) VecInsertRangeR((v), (arr), 0, (count))
-#define VecPushFrontArr(v, arr, count)  VecPushFrontArrL((v), (arr), (count))
 
+///
+/// Default front-prepend alias for `VecPushFrontArrL`.
+///
+#define VecPushFrontArr(v, arr, count) VecPushFrontArrL((v), (arr), (count))
+
+///
+/// Prepend a range at the front using fast (order-not-preserving) placement.
+/// L-value form.
+///
+/// TAGS: Vec, PushFront, Range, LValue, Fast, Unordered
+///
 #define VecPushFrontArrFastL(v, arr, count) VecInsertRangeFastL((v), (arr), 0, (count))
-#define VecPushFrontArrFastR(v, arr, count) VecInsertRangeFastR((v), (arr), 0, (count))
-#define VecPushFrontArrFast(v, arr, count)  VecPushFrontArrFastL((v), (arr), (count))
 
+///
+/// Prepend a range at the front using fast (order-not-preserving) placement.
+/// R-value form.
+///
+/// TAGS: Vec, PushFront, Range, RValue, Fast, Unordered
+///
+#define VecPushFrontArrFastR(v, arr, count) VecInsertRangeFastR((v), (arr), 0, (count))
+
+///
+/// Default fast front-prepend alias for `VecPushFrontArrFastL`.
+///
+#define VecPushFrontArrFast(v, arr, count) VecPushFrontArrFastL((v), (arr), (count))
+
+///
+/// Append all elements of `v2` to the end of `v`.
+/// L-value form: when the destination has no `copy_init` handler, ownership of
+/// `v2`'s storage transfers and `v2` is left empty on success. With a deep-copy
+/// handler, `v2` is unchanged.
+///
+/// v[in,out]  : Destination vector.
+/// v2[in,out] : Source vector. May be emptied on success.
+///
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure. Both vectors are unchanged.
+///
+/// TAGS: Vec, Merge, LValue, Ownership
+///
 #define VecMergeL(v, v2)                                                                                               \
     (ValidateVec(v), ValidateVec(v2), vec_merge_l(GENERIC_VEC(v), GENERIC_VEC(v2), sizeof(VEC_DATATYPE(v))))
 
+///
+/// Append a copy of all elements of `v2` to the end of `v`. R-value form: the
+/// source vector is never emptied; its contents are read-only.
+///
+/// v[in,out] : Destination vector.
+/// v2[in]    : Source vector.
+///
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
+///
+/// TAGS: Vec, Merge, RValue
+///
 #define VecMergeR(v, v2)                                                                                               \
     (ValidateVec(v), ValidateVec(v2), vec_merge_r(GENERIC_VEC(v), GENERIC_VEC(v2), sizeof(VEC_DATATYPE(v))))
 
+///
+/// Default merge alias for `VecMergeL`.
+///
 #define VecMerge(v, v2) VecMergeL((v), (v2))
 
+///
+/// Append a single element to the end of the vector. L-value ownership form.
+///
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure.
+///
+/// TAGS: Vec, PushBack, LValue
+///
 #define VecPushBackL(v, val) VecInsertL((v), (val), (v)->length)
+
+///
+/// Append a single element to the end of the vector. R-value form.
+///
+/// TAGS: Vec, PushBack, RValue
+///
 #define VecPushBackR(v, val) VecInsertR((v), (val), (v)->length)
-#define VecPushBack(v, val)  VecInsert((v), (val), (v)->length)
 
+///
+/// Default tail-push alias for `VecPushBackL`.
+///
+#define VecPushBack(v, val) VecInsert((v), (val), (v)->length)
+
+///
+/// Prepend a single element at the front of the vector. L-value ownership form.
+///
+/// TAGS: Vec, PushFront, LValue
+///
 #define VecPushFrontL(v, val) VecInsertL((v), (val), 0)
-#define VecPushFrontR(v, val) VecInsertR((v), (val), 0)
-#define VecPushFront(v, val)  VecPushFrontL((v), (val))
 
+///
+/// Prepend a single element at the front of the vector. R-value form.
+///
+/// TAGS: Vec, PushFront, RValue
+///
+#define VecPushFrontR(v, val) VecInsertR((v), (val), 0)
+
+///
+/// Default front-push alias for `VecPushFrontL`.
+///
+#define VecPushFront(v, val) VecPushFrontL((v), (val))
+
+///
+/// Reinitialize `vd` as a deep clone of `vs`.
+/// Any current contents of `vd` are first deinitialized. The destination adopts
+/// `vs`'s `copy_init` / `copy_deinit` / alignment / allocator configuration,
+/// then all elements are deep-copied.
+///
+/// vd[out] : Destination vector. Must be initialized; its current contents are
+///           released before cloning.
+/// vs[in]  : Source vector.
+///
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure during the clone. `vd` is left in a
+///           valid but partially-populated state — callers should treat it as
+///           opaque on failure and deinitialize.
+///
+/// TAGS: Vec, Clone, Init, DeepCopy
+///
 #define VecInitClone(vd, vs)                                                                                           \
     (ValidateVec(vd),                                                                                                  \
      ValidateVec(vs),                                                                                                  \
@@ -106,6 +378,20 @@
          VEC_INIT_ALIGNED_WITH_DEEP_COPY_VALUE((vs)->copy_init, (vs)->copy_deinit, (vs)->alignment, (vs)->allocator),  \
      clone_vec(GENERIC_VEC(vd), GENERIC_VEC(vs), sizeof(VEC_DATATYPE(vd))))
 
+///
+/// Aborting (`Must*`) variants of every fallible insertion macro above.
+///
+/// Each `VecMustXxx(...)` is the statement-style do-while wrapper around the
+/// matching `VecXxx(...)` expression: it calls the underlying fallible form
+/// and triggers `LOG_FATAL(...)` if the call returns `false`. Use these at
+/// API boundaries where allocation failure is not a recoverable condition
+/// for the caller. Otherwise prefer the propagating forms.
+///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+///
+/// TAGS: Vec, Insert, Must, Abort
+///
 #define VecMustInsertL(v, lval, idx)                                                                                   \
     do {                                                                                                               \
         if (!VecInsertL((v), (lval), (idx))) {                                                                         \
