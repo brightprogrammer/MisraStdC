@@ -65,12 +65,10 @@ bool ReadCompleteFileEx(
 ///
 /// TAGS: Read, File, I/O, Utility, Allocator, Macro
 ///
-#define READ_COMPLETE_FILE_HAS_ARGS_IMPL(_1, _2, _3, _4, _5, count, ...) count
-#define READ_COMPLETE_FILE_HAS_ARGS(...) READ_COMPLETE_FILE_HAS_ARGS_IMPL(__VA_ARGS__, 5, 4, 3, 2, 1, 0)
-#define ReadCompleteFile(...) CONCAT(ReadCompleteFile_, READ_COMPLETE_FILE_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define ReadCompleteFile_4(filename, data, file_size, capacity)                                                         \
+#define ReadCompleteFile(...) MISRA_OVERLOAD(ReadCompleteFile, __VA_ARGS__)
+#define ReadCompleteFile_4(filename, data, file_size, capacity)                                                        \
     ReadCompleteFileEx((filename), (data), (file_size), (capacity), NULL)
-#define ReadCompleteFile_5(filename, data, file_size, capacity, allocator)                                              \
+#define ReadCompleteFile_5(filename, data, file_size, capacity, allocator)                                             \
     ReadCompleteFileEx((filename), (data), (file_size), (capacity), (allocator))
 
 #endif // MISRA_FILE_H
