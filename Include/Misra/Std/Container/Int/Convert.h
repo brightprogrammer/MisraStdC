@@ -36,7 +36,7 @@ extern "C" {
 ///
 /// value[in] : Signed or unsigned integer source value
 ///
-/// RETURNS: Integer holding the same non-negative value.
+/// SUCCESS : Returns Integer holding the same non-negative value.
 ///
 /// WARN: Aborts when a signed input is negative.
 ///
@@ -54,7 +54,10 @@ extern "C" {
     /// value[in] : Integer to convert
     /// out[out]  : Destination for the converted value
     ///
-    /// RETURNS: `true` on success, `false` when the value does not fit in 64 bits.
+    /// SUCCESS : Returns `true`. The result has been computed and the
+    ///           destination object updated.
+    /// FAILURE : Returns `false` when the value does not fit in 64 bits. The destination is left
+    ///           untouched.
     ///
     bool IntTryToU64(Int *value, u64 *out);
 
@@ -64,7 +67,7 @@ extern "C" {
     /// value[in]  : Integer to convert
     /// error[out] : Optional pointer set to `true` on failure and `false` on success
     ///
-    /// RETURNS: The numeric value as `u64`, or `0` on failure.
+    /// SUCCESS : Returns The numeric value as `u64`, or `0` on failure.
     ///
     u64 IntToU64WithError(Int *value, bool *error);
 
@@ -97,7 +100,7 @@ extern "C" {
     ///
     /// Compatibility wrapper for `IntTryFromStrRadix(...)`.
     ///
-    /// RETURNS: Parsed integer value, or zero on failure.
+    /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
     Int IntFromStrRadix(const char *digits, u8 radix);
 
@@ -110,7 +113,7 @@ extern "C" {
     /// uppercase[in] : Use uppercase letters for digits above `9`.
     /// alloc[in]     : Allocator to bind to the produced string.
     ///
-    /// RETURNS: `true` on success, `false` on allocation or validation failure.
+    /// SUCCESS : Returns `true` on success, `false` on allocation or validation failure.
     ///
     /// TAGS: Int, Convert, String, Radix, Allocator
     ///
@@ -127,7 +130,7 @@ extern "C" {
     ///
     /// Compatibility wrapper for `IntTryFromStr(...)`.
     ///
-    /// RETURNS: Parsed integer value, or zero on failure.
+    /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
     Int IntFromStr(const char *decimal);
 
@@ -138,7 +141,7 @@ extern "C" {
     /// value[in] : Integer to convert.
     /// alloc[in] : Allocator to bind to the produced string.
     ///
-    /// RETURNS: `true` on success, `false` on allocation failure.
+    /// SUCCESS : Returns `true` on success, `false` on allocation failure.
     ///
     /// TAGS: Int, Convert, String, Decimal, Allocator
     ///
@@ -155,7 +158,7 @@ extern "C" {
     ///
     /// Compatibility wrapper for `IntTryFromBinary(...)`.
     ///
-    /// RETURNS: Parsed integer value, or zero on failure.
+    /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
     Int IntFromBinary(const char *binary);
 
@@ -173,7 +176,7 @@ extern "C" {
     ///
     /// Compatibility wrapper for `IntTryFromOctStr(...)`.
     ///
-    /// RETURNS: Parsed integer value, or zero on failure.
+    /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
     Int IntFromOctStr(const char *octal);
 
@@ -191,7 +194,7 @@ extern "C" {
     ///
     /// Compatibility wrapper for `IntTryFromHexStr(...)`.
     ///
-    /// RETURNS: Parsed integer value, or zero on failure.
+    /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
     Int IntFromHexStr(const char *hex);
 

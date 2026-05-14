@@ -19,7 +19,10 @@ extern "C" {
     ///
     /// Try to compute `floor(log2(value))`.
     ///
-    /// RETURNS: `true` on success, `false` when `value` is zero.
+    /// SUCCESS : Returns `true`. The result has been computed and the
+    ///           destination object updated.
+    /// FAILURE : Returns `false` when `value` is zero. The destination is left
+    ///           untouched.
     ///
     bool IntTryLog2(Int *value, u64 *out);
 
@@ -29,7 +32,7 @@ extern "C" {
     /// value[in]  : Integer to inspect
     /// error[out] : Optional pointer set to `true` on failure and `false` on success
     ///
-    /// RETURNS: Index of the highest set bit, or `0` on failure.
+    /// SUCCESS : Returns Index of the highest set bit, or `0` on failure.
     ///
     u64 IntLog2WithError(Int *value, bool *error);
 

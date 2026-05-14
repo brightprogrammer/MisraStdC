@@ -19,7 +19,7 @@ extern "C" {
     /// lhs[in] : Left-hand operand
     /// rhs[in] : Right-hand operand
     ///
-    /// RETURNS: `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
+    /// SUCCESS : Returns `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
     ///
     /// USAGE:
     ///   int cmp = IntCompare(&a, &b);
@@ -52,7 +52,7 @@ extern "C" {
 /// lhs[in] : Left-hand integer
 /// rhs[in] : Right-hand operand (`Int`, pointer, `u64`, or `i64` compatible type)
 ///
-/// RETURNS: `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
+/// SUCCESS : Returns `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
 ///
 /// USAGE:
 ///   int cmp = IntCompare(&value, 42);
@@ -68,7 +68,8 @@ extern "C" {
 /// lhs[in] : Left-hand integer
 /// rhs[in] : Right-hand operand selected through generic dispatch
 ///
-/// RETURNS: `true` when both values are equal.
+/// SUCCESS : Returns `true` when both values are equal.
+/// FAILURE : Returns `false` otherwise.
 ///
 /// USAGE:
 ///   if (IntEQ(&value, 10u)) { /* ... */ }
@@ -82,7 +83,8 @@ extern "C" {
 /// lhs[in] : Left-hand integer
 /// rhs[in] : Right-hand operand selected through generic dispatch
 ///
-/// RETURNS: `true` when `lhs < rhs`.
+/// SUCCESS : Returns `true` when `lhs < rhs`.
+/// FAILURE : Returns `false` otherwise.
 ///
 /// USAGE:
 ///   bool smaller = IntLT(&value, other);
@@ -96,7 +98,8 @@ extern "C" {
 /// lhs[in] : Left-hand integer
 /// rhs[in] : Right-hand operand selected through generic dispatch
 ///
-/// RETURNS: `true` when `lhs <= rhs`.
+/// SUCCESS : Returns `true` when `lhs <= rhs`.
+/// FAILURE : Returns `false` otherwise.
 ///
 /// USAGE:
 ///   bool ok = IntLE(&value, 1024u);
@@ -110,7 +113,8 @@ extern "C" {
 /// lhs[in] : Left-hand integer
 /// rhs[in] : Right-hand operand selected through generic dispatch
 ///
-/// RETURNS: `true` when `lhs > rhs`.
+/// SUCCESS : Returns `true` when `lhs > rhs`.
+/// FAILURE : Returns `false` otherwise.
 ///
 /// USAGE:
 ///   bool larger = IntGT(&value, 0u);
@@ -124,7 +128,8 @@ extern "C" {
 /// lhs[in] : Left-hand integer
 /// rhs[in] : Right-hand operand selected through generic dispatch
 ///
-/// RETURNS: `true` when `lhs >= rhs`.
+/// SUCCESS : Returns `true` when `lhs >= rhs`.
+/// FAILURE : Returns `false` otherwise.
 ///
 /// USAGE:
 ///   bool at_least = IntGE(&value, threshold);
@@ -138,7 +143,8 @@ extern "C" {
 /// lhs[in] : Left-hand integer
 /// rhs[in] : Right-hand operand selected through generic dispatch
 ///
-/// RETURNS: `true` when `lhs != rhs`.
+/// SUCCESS : Returns `true` when `lhs != rhs`.
+/// FAILURE : Returns `false` otherwise.
 ///
 /// USAGE:
 ///   bool changed = IntNE(&value, expected);

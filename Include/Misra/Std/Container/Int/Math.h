@@ -57,7 +57,10 @@ extern "C" {
     /// a[in]       : Minuend
     /// b[in]       : Subtrahend
     ///
-    /// RETURNS: `true` on success, `false` when `a < b`.
+    /// SUCCESS : Returns `true`. The result has been computed and the
+    ///           destination object updated.
+    /// FAILURE : Returns `false` when `a < b`. The destination is left
+    ///           untouched.
     ///
     /// USAGE:
     ///   if (!IntSub(&diff, &a, &b)) { /* negative result not representable */ }
@@ -110,7 +113,10 @@ extern "C" {
     /// dividend[in]   : Dividend
     /// divisor[in]    : Divisor
     ///
-    /// RETURNS: `true` on success, `false` when the divisor is zero.
+    /// SUCCESS : Returns `true`. The result has been computed and the
+    ///           destination object updated.
+    /// FAILURE : Returns `false` when the divisor is zero. The destination is left
+    ///           untouched.
     ///
     /// USAGE:
     ///   IntDiv(&quotient, &a, &b);
@@ -125,7 +131,8 @@ extern "C" {
     /// dividend[in]   : Dividend
     /// divisor[in]    : Divisor
     ///
-    /// RETURNS: `true` when `divisor` divides `dividend` exactly.
+    /// SUCCESS : Returns `true` when `divisor` divides `dividend` exactly.
+    /// FAILURE : Returns `false` otherwise.
     ///
     /// USAGE:
     ///   bool exact = IntDivExact(&quotient, &a, &b);
@@ -140,7 +147,10 @@ extern "C" {
     /// dividend[in]   : Dividend
     /// divisor[in]    : Divisor
     ///
-    /// RETURNS: `true` on success, `false` when the divisor is zero.
+    /// SUCCESS : Returns `true`. The result has been computed and the
+    ///           destination object updated.
+    /// FAILURE : Returns `false` when the divisor is zero. The destination is left
+    ///           untouched.
     ///
     /// USAGE:
     ///   IntMod(&remainder, &a, &b);
@@ -156,7 +166,10 @@ extern "C" {
     /// dividend[in]    : Dividend
     /// divisor[in]     : Divisor
     ///
-    /// RETURNS: `true` on success, `false` when the divisor is zero.
+    /// SUCCESS : Returns `true`. The result has been computed and the
+    ///           destination object updated.
+    /// FAILURE : Returns `false` when the divisor is zero. The destination is left
+    ///           untouched.
     ///
     /// USAGE:
     ///   IntDivMod(&q, &r, &a, &b);
@@ -247,7 +260,8 @@ extern "C" {
     ///
     /// value[in] : Value to test
     ///
-    /// RETURNS: `true` when `value = n^2` for some integer `n`.
+    /// SUCCESS : Returns `true` when `value = n^2` for some integer `n`.
+    /// FAILURE : Returns `false` otherwise.
     ///
     /// USAGE:
     ///   bool square = IntIsPerfectSquare(&value);
@@ -260,7 +274,8 @@ extern "C" {
     ///
     /// value[in] : Value to test
     ///
-    /// RETURNS: `true` when the value can be written as `a^b` with `b > 1`.
+    /// SUCCESS : Returns `true` when the value can be written as `a^b` with `b > 1`.
+    /// FAILURE : Returns `false` otherwise.
     ///
     /// USAGE:
     ///   bool power = IntIsPerfectPower(&value);
@@ -276,7 +291,7 @@ extern "C" {
     ///
     /// error[out] : Optional pointer set to `true` on failure and `false` on success
     ///
-    /// RETURNS: `-1`, `0`, or `1`, or `0` on failure.
+    /// SUCCESS : Returns `-1`, `0`, or `1`, or `0` on failure.
     ///
     /// USAGE:
     ///   int symbol = IntJacobi(&a, &n);
@@ -348,7 +363,8 @@ extern "C" {
     /// b[in]         : Denominator
     /// modulus[in]   : Modulus
     ///
-    /// RETURNS: `true` when a modular inverse for `b` exists.
+    /// SUCCESS : Returns `true` when a modular inverse for `b` exists.
+    /// FAILURE : Returns `false` otherwise.
     ///
     /// USAGE:
     ///   bool ok = IntModDiv(&result, &a, &b, &modulus);
@@ -377,7 +393,8 @@ extern "C" {
     /// value[in]     : Value to invert
     /// modulus[in]   : Modulus
     ///
-    /// RETURNS: `true` when the inverse exists.
+    /// SUCCESS : Returns `true` when the inverse exists.
+    /// FAILURE : Returns `false` otherwise.
     ///
     /// USAGE:
     ///   bool ok = IntModInv(&inverse, &value, &modulus);
@@ -392,7 +409,8 @@ extern "C" {
     /// value[in]     : Value whose square root is requested
     /// modulus[in]   : Modulus
     ///
-    /// RETURNS: `true` when a modular square root exists.
+    /// SUCCESS : Returns `true` when a modular square root exists.
+    /// FAILURE : Returns `false` otherwise.
     ///
     /// USAGE:
     ///   bool ok = IntModSqrt(&root, &value, &modulus);
@@ -407,7 +425,8 @@ extern "C" {
     ///
     /// error[out] : Optional error flag set to `true` when the test cannot be completed.
     ///
-    /// RETURNS: `true` when the value is probably prime.
+    /// SUCCESS : Returns `true` when the value is probably prime.
+    /// FAILURE : Returns `false` otherwise.
     ///
     /// INFO: This is a probable-prime test, not a proof of primality.
     ///
@@ -605,7 +624,7 @@ extern "C" {
 /// a[in]       : Left operand
 /// b[in]       : Right operand (`Int`, pointer, `u64`, or `i64` compatible type)
 ///
-/// RETURNS: Result of the selected subtraction overload.
+/// SUCCESS : Returns Result of the selected subtraction overload.
 ///
 /// USAGE:
 ///   bool ok = IntSub(&diff, &value, 1u);
@@ -659,7 +678,8 @@ extern "C" {
 /// dividend[in]   : Dividend
 /// divisor[in]    : Divisor selected through generic dispatch
 ///
-/// RETURNS: `true` when the division is exact.
+/// SUCCESS : Returns `true` when the division is exact.
+/// FAILURE : Returns `false` otherwise.
 ///
 /// USAGE:
 ///   bool ok = IntDivExact(&quotient, &value, 5u);
