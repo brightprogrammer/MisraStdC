@@ -33,8 +33,13 @@
 /// idx[in]   : Position in [0, length]. Existing elements at and after this index
 ///             shift one slot to the right.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure. The vector and `lval` are unchanged.
+/// SUCCESS : Returns `true`. The element value of `lval` is written at `idx`,
+///           the vector length grows by one, and trailing elements have
+///           shifted one slot right. When the vector has no `copy_init`
+///           handler, `lval` has been zeroed (moved-from); otherwise `lval`
+///           is unchanged.
+/// FAILURE : Returns `false` on allocation failure. The vector and `lval`
+///           are both unchanged; the caller may retry or propagate the failure.
 ///
 /// USAGE:
 ///   typedef Vec(int) IntVec;
@@ -58,7 +63,9 @@
 /// rval[in]  : Value to insert. Must be convertible to the vector's element type.
 /// idx[in]   : Position in [0, length].
 ///
-/// SUCCESS : Returns `true`.
+/// SUCCESS : Returns `true`. The value of `rval` is written at `idx`, the
+///           vector length grows by one, and trailing elements have shifted
+///           one slot right.
 /// FAILURE : Returns `false` on allocation failure. The vector is unchanged.
 ///
 /// USAGE:
@@ -90,8 +97,13 @@
 /// lval[in]  : Addressable element to insert.
 /// idx[in]   : Position in [0, length].
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// SUCCESS : Returns `true`. The vector length grows by one. The element that
+///           previously sat at `idx` now sits at the new tail; `lval`'s value
+///           occupies `idx`. When the vector has no `copy_init` handler,
+///           `lval` has been zeroed (moved-from); otherwise `lval` is
+///           unchanged.
+/// FAILURE : Returns `false` on allocation failure. Both vector and `lval`
+///           are unchanged.
 ///
 /// TAGS: Vec, Insert, LValue, Fast, Unordered
 ///
@@ -108,8 +120,10 @@
 /// rval[in]  : Value to insert.
 /// idx[in]   : Position in [0, length].
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// SUCCESS : Returns `true`. The vector length grows by one. The element that
+///           previously sat at `idx` now sits at the new tail; `rval`'s value
+///           occupies `idx`.
+/// FAILURE : Returns `false` on allocation failure. The vector is unchanged.
 ///
 /// TAGS: Vec, Insert, RValue, Fast, Unordered
 ///
