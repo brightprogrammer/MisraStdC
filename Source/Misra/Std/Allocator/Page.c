@@ -11,13 +11,16 @@
 
 #include <stddef.h>
 
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER) || defined(__MSC_VER)
+#ifdef _WIN32
 #    define MISRA_PAGE_ALLOCATOR_WINDOWS 1
 #    include <windows.h>
 #else
 #    define MISRA_PAGE_ALLOCATOR_POSIX 1
 #    include <sys/mman.h>
 #    include <unistd.h>
+#    if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
+#        define MAP_ANONYMOUS MAP_ANON
+#    endif
 #endif
 
 static size cached_page_size = 0;

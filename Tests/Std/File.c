@@ -1,29 +1,49 @@
-#define _POSIX_C_SOURCE 200809L
+#ifndef _WIN32
+#    define _POSIX_C_SOURCE 200809L
+#endif
 
 #include <Misra/Std/File.h>
-#include <Misra/Std/Memory.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "../Util/TestRunner.h"
 
-static bool write_test_file(char *path, const char *text) {
-    int   fd      = mkstemp(path);
-    FILE *stream  = NULL;
-    bool  success = false;
-
-    if (fd < 0) {
-        return false;
+// `mkstemp` is POSIX-only. On Windows MSVC the equivalent is `_mktemp_s` plus
+// a normal `fopen`. Wrap both behind a tiny shim so the rest of the file can
+// stay portable.
+#ifdef _WIN32
+#    include <io.h>
+static FILE *open_unique_temp_file(char *path_template_inout) {
+    if (_mktemp_s(path_template_inout, strlen(path_template_inout) + 1) != 0) {
+        return NULL;
     }
-
-    stream = fdopen(fd, "wb");
+    return fopen(path_template_inout, "wb");
+}
+#else
+#    include <unistd.h>
+static FILE *open_unique_temp_file(char *path_template_inout) {
+    int fd = mkstemp(path_template_inout);
+    if (fd < 0) {
+        return NULL;
+    }
+    FILE *stream = fdopen(fd, "wb");
     if (!stream) {
         close(fd);
-        unlink(path);
+        remove(path_template_inout);
+    }
+    return stream;
+}
+#endif
+
+static bool write_test_file(char *path, const char *text) {
+    FILE *stream  = open_unique_temp_file(path);
+    bool  success = false;
+
+    if (!stream) {
         return false;
     }
 
@@ -31,14 +51,25 @@ static bool write_test_file(char *path, const char *text) {
     fclose(stream);
 
     if (!success) {
-        unlink(path);
+        remove(path);
     }
 
     return success;
 }
 
+// The POSIX form uses /tmp/... ; on Windows tests run from the build dir and
+// the relative path lands in the build dir's filesystem - good enough for a
+// scratch file.
+#ifdef _WIN32
+#    define MISRA_FILE_TEST_PATH_DEFAULT "misra-file-test-XXXXXX"
+#    define MISRA_FILE_TEST_PATH_GROW    "misra-file-grow-test-XXXXXX"
+#else
+#    define MISRA_FILE_TEST_PATH_DEFAULT "/tmp/misra-file-test-XXXXXX"
+#    define MISRA_FILE_TEST_PATH_GROW    "/tmp/misra-file-grow-test-XXXXXX"
+#endif
+
 bool test_read_complete_file_default_allocator(void) {
-    char  path[]    = "/tmp/misra-file-test-XXXXXX";
+    char  path[]    = MISRA_FILE_TEST_PATH_DEFAULT;
     char *buffer    = NULL;
     u64   file_size = 0;
     u64   capacity  = 0;
@@ -57,12 +88,12 @@ bool test_read_complete_file_default_allocator(void) {
         Allocator allocator = DefaultAllocator();
         AllocatorFree(&allocator, buffer, capacity);
     }
-    unlink(path);
+    remove(path);
     return result;
 }
 
 bool test_read_complete_file_expands_existing_buffer(void) {
-    char      path[]    = "/tmp/misra-file-grow-test-XXXXXX";
+    char      path[]    = MISRA_FILE_TEST_PATH_GROW;
     char     *buffer    = NULL;
     u64       file_size = 0;
     u64       capacity  = 0;
@@ -77,7 +108,7 @@ bool test_read_complete_file_expands_existing_buffer(void) {
 
     buffer = (char *)AllocatorAlloc(&allocator, 4, true);
     if (!buffer) {
-        unlink(path);
+        remove(path);
         return false;
     }
     capacity = 4;
@@ -87,7 +118,7 @@ bool test_read_complete_file_expands_existing_buffer(void) {
              ZstrCompare(buffer, "this is longer than the initial buffer") == 0 && capacity >= file_size + 1;
 
     AllocatorFree(&allocator, buffer, capacity);
-    unlink(path);
+    remove(path);
     return result;
 }
 
