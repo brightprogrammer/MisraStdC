@@ -1,106 +1,11 @@
 /// file      : std/allocator.c
-/// author    : Generated during allocator refactor
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Allocator configuration and generic helper functions.
+/// Allocator API entry points and default-binding helpers. The actual
+/// allocator backends live next to this file under `Allocator/`.
 
 #include <Misra/Std/Allocator.h>
-
-#include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
-
-#if defined(_MSC_VER) || defined(__MSC_VER)
-#    include <malloc.h>
-#endif
-
-static bool allocator_alignment_is_pow2(size alignment) {
-    return alignment != 0 && ((alignment & (alignment - 1)) == 0);
-}
-
-static size heap_allocator_alignment(const Allocator *alloc) {
-    if (alloc && alloc->alignment) {
-        return alloc->alignment;
-    }
-    return (size) _Alignof(max_align_t);
-}
-
-static void *heap_allocator_raw_allocate(size bytes, size alignment) {
-    if (bytes == 0) {
-        return NULL;
-    }
-
-    if (alignment <= sizeof(void *)) {
-        return malloc(bytes);
-    }
-
-    if (!allocator_alignment_is_pow2(alignment)) {
-        return NULL;
-    }
-
-#if defined(_MSC_VER) || defined(__MSC_VER)
-    return _aligned_malloc(bytes, alignment);
-#else
-    return aligned_alloc(alignment, ALIGN_UP_POW2(bytes, alignment));
-#endif
-}
-
-static void heap_allocator_raw_deallocate(void *ptr, size alignment) {
-    if (!ptr) {
-        return;
-    }
-
-    if (alignment <= sizeof(void *)) {
-        free(ptr);
-        return;
-    }
-
-#if defined(_MSC_VER) || defined(__MSC_VER)
-    _aligned_free(ptr);
-#else
-    free(ptr);
-#endif
-}
-
-static void *heap_allocator_allocate(Allocator *alloc, size bytes, bool zeroed) {
-    size  alignment = heap_allocator_alignment(alloc);
-    void *ptr       = heap_allocator_raw_allocate(bytes, alignment);
-    if (ptr && zeroed) {
-        memset(ptr, 0, bytes);
-    }
-    return ptr;
-}
-
-static void *heap_allocator_reallocate(Allocator *alloc, void *ptr, size old_size, size new_size) {
-    size  alignment = heap_allocator_alignment(alloc);
-    void *new_ptr   = NULL;
-
-    if (new_size == 0) {
-        heap_allocator_raw_deallocate(ptr, alignment);
-        return NULL;
-    }
-
-    if (alignment <= sizeof(void *)) {
-        return realloc(ptr, new_size);
-    }
-
-    new_ptr = heap_allocator_raw_allocate(new_size, alignment);
-    if (!new_ptr) {
-        return NULL;
-    }
-
-    if (ptr) {
-        memcpy(new_ptr, ptr, MIN2(old_size, new_size));
-        heap_allocator_raw_deallocate(ptr, alignment);
-    }
-
-    return new_ptr;
-}
-
-static void heap_allocator_deallocate(Allocator *alloc, void *ptr, size bytes) {
-    (void)bytes;
-    heap_allocator_raw_deallocate(ptr, heap_allocator_alignment(alloc));
-}
 
 static size allocator_attempt_limit(const Allocator *alloc) {
     if (!alloc) {
@@ -115,33 +20,6 @@ static size allocator_attempt_limit(const Allocator *alloc) {
         default :
             return 1;
     }
-}
-
-Allocator HeapAllocator(void) {
-    return (Allocator) {
-        .state        = NULL,
-        .state_init   = NULL,
-        .state_deinit = NULL,
-        .allocate     = heap_allocator_allocate,
-        .reallocate   = heap_allocator_reallocate,
-        .deallocate   = heap_allocator_deallocate,
-        .effort       = ALLOCATOR_EFFORT_ONCE,
-        .retry_limit  = 0,
-        .flags        = 0,
-        // Default alignment of 1 means "no stronger requirement than the
-        // backing allocator's natural alignment". For libc malloc that is
-        // already `_Alignof(max_align_t)`, so default heap allocations are
-        // safe for any standard scalar without padding stride.
-        .alignment = 1,
-    };
-}
-
-Allocator HeapAllocatorAligned(size alignment) {
-    Allocator alloc = HeapAllocator();
-    if (alignment) {
-        alloc.alignment = alignment;
-    }
-    return alloc;
 }
 
 Allocator AllocatorBind(Allocator alloc) {

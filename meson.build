@@ -17,6 +17,7 @@ misra_std_sources = files(
     'Source/Misra/Sys/Proc.c',
     'Source/Misra/Sys/Dir.c',
     'Source/Misra/Std/Allocator.c',
+    'Source/Misra/Std/Allocator/Heap.c',
     'Source/Misra/Std/Allocator/Page.c',
     'Source/Misra/Std/Allocator/Arena.c',
     'Source/Misra/Std/Allocator/Pool.c',

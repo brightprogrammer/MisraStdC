@@ -486,6 +486,38 @@ The container allocation helpers use `_Alignof(max_align_t)` to pick a "wide eno
 
 A small `typedef union { long long; long double; void *; void(*)(void); } max_align_t;` shim is now defined in `Misra/Types.h` when `_MSC_VER` is set and `__cplusplus` is not. Other compilers see the standard `<stddef.h>` definition.
 
+### Allocator alignment is owned by the allocator, not the container
+
+The original plan kept a per-container `alignment` field on `Vec`, `Graph`, and so on, configured via family-specific helpers like `VecInitAligned`. Implementation made it clear that the only thing this field actually controlled was the alignment of allocations issued through the container's allocator, which is information that naturally belongs on the allocator itself.
+
+The landed shape moves alignment onto the `Allocator` struct as a single `alignment` field. Containers no longer track alignment; they read it from `container.allocator.alignment`. Users who want stronger alignment build it into the allocator:
+
+```c
+Vec(SimdVec) v = VecInit(HeapAllocatorAligned(32));
+```
+
+The entire `VecInitAligned*` / `GraphInitAligned*` macro family is gone. Default allocator alignment of `1` means "no stronger requirement than the backing allocator's natural alignment" - for libc malloc that is already `_Alignof(max_align_t)`, so `Vec(char)` still has 1-byte stride by default.
+
+### Allocator backends form a small family
+
+Stage 2 of the allocator refactor adds three new backend allocators alongside `HeapAllocator`:
+
+- **`PageAllocator`** maps memory directly from the operating system via `mmap` on POSIX and `VirtualAlloc` on Windows. Allocations are rounded up to the system page size and zeroed by the kernel.
+- **`ArenaAllocator`** bumps a cursor inside page-backed chunks. Free is effectively a no-op; everything is released together when the arena is unbound. Best fit for parser / scratch workloads with batch-scoped lifetimes.
+- **`PoolAllocator`** hands out fixed-size slots through an intrusive free list. Slot size is captured on the descriptor and verified per allocation. O(1) alloc and free.
+
+All three are layered on `PageAllocator` so none of them call libc heap functions. Each comes with an `*Aligned(...)` builder for stronger alignment requirements. Container init now accepts any allocator descriptor, so any container can be backed by any of these.
+
+### `HeapAllocator` is libc-free
+
+The original `HeapAllocator` implementation was a thin wrapper over libc `malloc` / `realloc` / `free` / `aligned_alloc`. Stage 3 of the refactor replaces this with a process-global small-bin allocator backed by `PageAllocator`:
+
+- Small allocations (`<= 2 KiB`) come from power-of-two bins (`16, 32, 64, 128, 256, 512, 1024, 2048`) with intrusive free lists.
+- Large allocations pass straight through to `PageAllocator`.
+- Over-aligned allocations (`alignment > 16`) bypass the bin path and use the page allocator directly.
+
+After this change the library no longer calls `malloc` / `realloc` / `free` / `aligned_alloc` anywhere in `Source/`. The one exception is the test fixture in `Tests/Std/Vec.Complex.c`, which intentionally uses libc malloc/free for fixture-owned strings so its own deinit path stays libc-compatible.
+
 ### `UNIQUE_NAME` is removed
 
 The `UNIQUE_NAME` macro in `Misra/Types.h` collided with the Windows SDK header `nb30.h` which defines its own `UNIQUE_NAME`. The Misra macro had no in-tree users, so it was removed outright rather than renamed. `UNPL` (unique-name-per-line) covers the remaining "I need a fresh local name inside a macro" use case.
