@@ -846,6 +846,8 @@ int main(int argc, char *argv[]) {
 
     int normal_count = sizeof(normal_tests) / sizeof(normal_tests[0]);
 
-    // Use centralized test driver (no more argc/argv needed)
-    return run_test_suite(normal_tests, normal_count, NULL, 0, "Vec.Remove");
+    alloc       = DefaultAllocatorInit();
+    int __rc    = run_test_suite(normal_tests, normal_count, NULL, 0, "Vec.Remove");
+    DefaultAllocatorDeinit(&alloc);
+    return __rc;
 }
