@@ -55,10 +55,14 @@ bool ReadCompleteFileEx(
 ///
 /// This macro dispatches to `ReadCompleteFileEx(...)` and supports both:
 ///
-/// - `ReadCompleteFile(filename, data, file_size, capacity)`
+/// - `ReadCompleteFile(filename, data, file_size, capacity)` - inside a
+///   `Scope` block; the buffer is allocated through `MisraScope`.
 /// - `ReadCompleteFile(filename, data, file_size, capacity, allocator)`
+///   - explicit allocator (typed handle or raw `Allocator *`).
 ///
-/// If `*data` already owns memory, the allocator argument is required.
+/// The 4-arg form fails to compile outside any `Scope` block because
+/// `MisraScope` is undeclared - the library no longer accepts a NULL
+/// allocator path.
 ///
 /// SUCCESS : Returns true and updates `data`, `file_size`, and `capacity`.
 /// FAILURE : Returns false on I/O or allocation failure.
@@ -67,7 +71,7 @@ bool ReadCompleteFileEx(
 ///
 #define ReadCompleteFile(...) MISRA_OVERLOAD(ReadCompleteFile, __VA_ARGS__)
 #define ReadCompleteFile_4(filename, data, file_size, capacity)                                                        \
-    ReadCompleteFileEx((filename), (data), (file_size), (capacity), NULL)
+    ReadCompleteFileEx((filename), (data), (file_size), (capacity), MisraScope)
 #define ReadCompleteFile_5(filename, data, file_size, capacity, allocator)                                             \
     ReadCompleteFileEx((filename), (data), (file_size), (capacity), (allocator))
 
