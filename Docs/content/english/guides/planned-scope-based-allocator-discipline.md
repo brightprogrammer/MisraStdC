@@ -88,13 +88,15 @@ This keeps the public surface ergonomic, keeps the implementation surface explic
 #define MisraScope __misra_scope_alloc
 
 #define Scope(name, AllocType)                                                 \
-    for (AllocType _scope_a_##name = AllocType##Init(),                        \
-                  *_scope_loop_##name = &_scope_a_##name;                      \
+    for (AllocType _scope_user_##name     = AllocType##Init(),                 \
+                   _scope_internal_##name = AllocType##Init(),                 \
+                  *_scope_loop_##name     = &_scope_user_##name;               \
          _scope_loop_##name;                                                    \
-         AllocType##Deinit(&_scope_a_##name),                                   \
+         AllocType##Deinit(&_scope_internal_##name),                            \
+         AllocType##Deinit(&_scope_user_##name),                                \
          _scope_loop_##name = NULL)                                             \
-        for (Allocator *name              = &_scope_a_##name.base,             \
-                      *MisraScope        = name,                                \
+        for (Allocator *name              = &_scope_user_##name.base,          \
+                      *MisraScope        = &_scope_internal_##name.base,       \
                       *_scope_done_##name = name;                                \
              _scope_done_##name;                                                 \
              _scope_done_##name = NULL)
@@ -108,13 +110,15 @@ This keeps the public surface ergonomic, keeps the implementation surface explic
 #define ExitScope break
 ```
 
-The outer `for` declares the typed allocator instance (`_scope_a_<name>`) and a sentinel pointer (`_scope_loop_<name>`). Its increment expression destroys the allocator and trips the sentinel, ending the loop. The inner `for` exposes three identifiers to the user body:
+The outer `for` declares **two** typed allocator instances and a sentinel pointer. Its increment expression destroys both allocators and trips the sentinel, ending the loop. The inner `for` exposes three identifiers to the user body:
 
-- `name` - an `Allocator *` named by the caller, for handing the allocator to helpers as a function argument
-- `MisraScope` - an `Allocator *` used implicitly by the tier-1 macros
-- `_scope_done_<name>` - an internal sentinel that ends the inner loop
+- `name` - an `Allocator *` named by the caller, pointing at the **user-visible** allocator. Used by the caller for passing to helpers (`my_helper(arg, name)`) and for opt-in `ScopeWith(name) { ... }` blocks when the caller wants allocations to land in the user pool.
+- `MisraScope` - an `Allocator *` pointing at the **internal** allocator. Used implicitly by every tier-1 library macro (`VecInit`, `StrInitFromCstr`, ...). The two pools are separate instances of the same `AllocType`; they do not share backing memory.
+- `_scope_done_<name>` - an internal sentinel that ends the inner loop.
 
-The initial design considered making `name` and `MisraScope` point at *separate* allocator instances so that library scratch and user-driven allocations would land in disjoint pools. That separation was rejected because both pools would die together at `Scope` exit, which collapses every concrete benefit (fragmentation isolation, separable accounting, independent failure injection) without removing the cost (2x typed-allocator state on the stack, 2x mmap surface, double the cognitive load). `name` and `MisraScope` therefore alias the same pointer in the landed design. If isolation becomes useful later, it can be reintroduced as an opt-in `ScopeIsolated` variant without changing the call-site syntax of plain `Scope`.
+The dual-pool design is a deliberate isolation property: by default, library scratch allocations and the caller's deliberate user-pool allocations never share a backing pool. The cost (one extra allocator instance on the stack per `Scope`, one extra mmap surface when both pools actually get used) is paid up front so that future debugging, accounting, and fragmentation-isolation work has somewhere clean to live. The cost is also localized to a single macro: collapsing the design to a single pool later is a one-line change to `Scope`.
+
+`ScopeWith` is intentionally single-pool. A helper that receives an `Allocator *` from its caller is already operating "inside" the caller's lifetime story; layering a second allocator on top of that would just confuse the picture. The helper rides on whichever pool it was handed.
 
 ### Control flow inside a Scope
 
@@ -233,9 +237,13 @@ A helper function called from inside `Scope` does not see the caller's `MisraSco
 
 This was a positive design property, not a limitation. The alternative (TLS-based current-allocator) gives helpers automatic access to the caller's allocator, which makes it impossible to read a helper in isolation and know what it allocates from. Forcing the parameter to be explicit at function boundaries makes allocation behavior visible at every call site that crosses a function call.
 
-### `Scope` aliases instead of separating user / internal pools
+### `Scope` keeps user and internal pools separate
 
-`name` and `MisraScope` point at the same allocator. The earlier dual-pool design is recorded above and was rejected because the two pools would always co-terminate, neutralizing every concrete benefit while keeping all of the costs. An opt-in `ScopeIsolated` variant is reserved as an extension point for the day a real workload demonstrates that the separation pays off.
+`name` and `MisraScope` point at two independent allocator instances of the same `AllocType`. Library scratch routes through the internal pool; the caller-named alias addresses the user pool. The two pools share neither freelist state nor backing pages.
+
+The cost is real and quantifiable: each `Scope` adds one extra typed-allocator instance to the stack frame and, when both pools actually allocate, one extra mmap region. The benefit is the structural property itself - the library cannot accidentally route an unrelated formatting buffer through the caller's named pool, and a future tracking-allocator instrumentation can show user-driven memory and library-internal memory side by side without untangling them at runtime.
+
+The trade is taken deliberately. Should a real workload show the cost dominating, the design collapses into a single-pool variant via a one-line change to the `Scope` macro - every call site stays untouched. The dual-pool default is the conservative choice for an alpha-stage library that wants room to grow these properties without churning user code.
 
 ### `ExitScope` is `break`
 
