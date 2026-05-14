@@ -71,6 +71,49 @@ The `...R` forms are less strict. They let the caller treat the insertion more l
 
 That does not make ownership disappear. It just means the API is not trying to annotate the transfer as aggressively.
 
+## Allocator Ownership
+
+Every dynamically-sized container in MisraStdC carries an `Allocator *` field
+internally. Containers do not own their allocator and never deinit it; the
+allocator must outlive every container that references it.
+
+The recommended way to bind a container to an allocator is the `Scope` macro:
+
+```c
+#include <Misra/Std/Allocator/Default.h>
+
+Scope(alloc, DefaultAllocator) {
+    Vec(int) v = VecInit();         // implicit MisraScope pool
+    Vec(int) w = VecInit(alloc);    // explicit named pool
+    ...
+    VecDeinit(&v);
+    VecDeinit(&w);
+}   // allocator destroyed automatically at block exit
+```
+
+`Scope(name, AllocType)` constructs two typed allocator instances on the stack:
+
+- `name` - the user-visible pool, available to the caller and any helper
+  the caller hands the allocator to.
+- `MisraScope` - an internal pool that the zero-arg form of every `*Init()`
+  macro picks up implicitly.
+
+Both are deinit'd together when control leaves the block. Outside a `Scope`,
+calling `VecInit()` with no argument fails to compile, which is the safety net
+that prevents accidental dependence on a hidden global heap.
+
+For helpers that take an `Allocator *` parameter, use `ScopeWith(alloc)` to
+borrow the caller's allocator into the same `MisraScope` slot without
+constructing a new one. `return` and `goto` that leave a `Scope` block
+skip the deinit step and leak the allocator - a C-level limitation with no
+portable workaround. Use `ExitScope` (an alias for `break`) when you need to
+leave early but still run the cleanup.
+
+The four other allocator types - `PageAllocator`, `ArenaAllocator`,
+`SlabAllocator`, `BudgetAllocator` - all work the same way: declare on the
+stack, hand to containers (or `Scope`), deinit at the end of their useful
+lifetime.
+
 ## Why This Matters
 
 A lot of C bugs are not algorithmic bugs. They are lifetime bugs:

@@ -27,32 +27,35 @@ The parsed result is stored in a `Map(Str, Str)`, so the interface stays close t
 
 ```c
 #include <Misra.h>
+#include <Misra/Std/Allocator/Default.h>
 
 int main(void) {
-    Str      text = StrInitFromZstr(
-        "host = localhost\n"
-        "port = 8080\n"
-        "debug = true\n"
-    );
-    KvConfig cfg   = KvConfigInit();
-    StrIter  si    = StrIterFromStr(text);
-    i64      port  = 0;
-    bool     debug = false;
-    Str      host  = StrInit();
+    Scope(alloc, DefaultAllocator) {
+        Str text = StrInitFromZstr(
+            "host = localhost\n"
+            "port = 8080\n"
+            "debug = true\n"
+        );
+        KvConfig cfg   = KvConfigInit();
+        StrIter  si    = StrIterFromStr(text);
+        i64      port  = 0;
+        bool     debug = false;
+        Str      host  = StrInit();
 
-    si = KvConfigParse(si, &cfg);
+        si = KvConfigParse(si, &cfg);
 
-    host = KvConfigGet(&cfg, "host");
-    KvConfigGetI64(&cfg, "port", &port);
-    KvConfigGetBool(&cfg, "debug", &debug);
+        host = KvConfigGet(&cfg, "host");
+        KvConfigGetI64(&cfg, "port", &port);
+        KvConfigGetBool(&cfg, "debug", &debug);
 
-    WriteFmtLn("host = {}", host);
-    WriteFmtLn("port = {}", port);
-    WriteFmtLn("debug = {}", debug);
+        WriteFmtLn("host = {}", host);
+        WriteFmtLn("port = {}", port);
+        WriteFmtLn("debug = {}", debug);
 
-    StrDeinit(&host);
-    KvConfigDeinit(&cfg);
-    StrDeinit(&text);
+        StrDeinit(&host);
+        KvConfigDeinit(&cfg);
+        StrDeinit(&text);
+    }
 }
 ```
 

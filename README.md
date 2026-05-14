@@ -65,7 +65,7 @@ A modern C11 library designed to make programming in C less painful and more pro
 
 ```bash
 # Clone the repository with submodules
-git clone --recursive https://git.anvielabs.com/bp/MisraStdC.git
+git clone --recursive https://github.com/brightprogrammer/MisraStdC.git
 cd MisraStdC
 
 # Configure the build
@@ -127,13 +127,58 @@ typedef List(Str) StrList;
 
 ### Initialization
 
-If an object type provides an `Init()` method or macro, then that must necessarily be used. Some objects
-employ tricks to detect whether object is initialized properly or is corrupted at runtime. These checks
-are performed everytime during a function call. While this adds a bit of overhead to the function calls,
-it does make sure that everything's working as expected. There's no computation involved, and just a few
-comparision checks.
+If an object type provides an `Init` method or macro, that must be used. Containers
+stamp a magic value into a hidden field and validate it on every call, which catches
+use of an uninitialized or corrupted object at low runtime cost.
 
-Similar to initialization, all objects must be deinitialized at the end of their life cycle.
+Every object must also be deinitialized at the end of its life cycle (`VecDeinit`,
+`StrDeinit`, `GraphDeinit`, ...).
+
+### Allocators and Lifetime
+
+Containers, strings, and other dynamically-sized objects no longer reach into a hidden
+global heap. They take an `Allocator *` at init time and use it for every subsequent
+allocation. The allocator must outlive every object that points at it.
+
+The library ships five concrete allocator types - `HeapAllocator` (the default,
+per-descriptor binned heap on top of OS pages), `PageAllocator` (raw `mmap` /
+`VirtualAlloc`), `ArenaAllocator` (bump allocator, free is a no-op), `SlabAllocator`
+(growable fixed-size slabs), and `BudgetAllocator` (caller-buffer, fixed-budget pool
+that fails when empty). `DefaultAllocator` is a typedef for `HeapAllocator`.
+
+Manual pairing of `*AllocatorInit` and `*AllocatorDeinit` works, but the recommended
+pattern is the `Scope` macro from `Misra/Std/Allocator.h`:
+
+```c
+#include <Misra/Std/Allocator/Default.h>
+
+Scope(alloc, DefaultAllocator) {
+    Vec(int) v = VecInit();          // zero-arg form binds to the
+                                     // internal MisraScope allocator
+    VecPushBackR(&v, 42);
+    VecDeinit(&v);
+
+    Vec(int) w = VecInit();     // explicit form uses the named
+    VecDeinit(&w);                   // user-visible pool
+}   // both allocators destroyed automatically
+```
+
+`Scope(name, AllocType)` constructs **two** typed allocators on the stack:
+- `name` - exposed by the caller-chosen identifier for explicit hand-off.
+- `MisraScope` - an internal pool that every `*Init()` macro picks up implicitly
+  when no allocator argument is passed. Outside a `Scope`, the zero-arg form
+  fails to compile because `MisraScope` is undeclared - the safety net.
+
+`ScopeWith(alloc)` borrows an already-existing allocator pointer (typical for
+helpers that take an `Allocator *` parameter). `ExitScope` is the same as `break`
+and runs the cleanup; **`return` / `goto` out of a `Scope` skips cleanup and
+leaks the allocator** - a C-level limitation with no portable workaround.
+
+All examples below use `Scope(alloc, DefaultAllocator) { ... }` and call
+`VecInit()` / `StrInit()` / `...` in zero-arg form to keep the snippets tight.
+The named `alloc` is still available for cases where you want to route through
+the user-visible pool explicitly. In production code the allocator type and
+lifetime are yours to choose.
 
 ### Copy/Move Semantics
 
@@ -222,6 +267,7 @@ The deeper rationale, including how allocators interact with this split, is in
 
 ```c
 #include <Misra.h>
+#include <Misra/Std/Allocator/Default.h>
 
 typedef Vec(int) IntVec;
 
@@ -230,55 +276,59 @@ int compare_ints(const void* a, const void* b) {
 }
 
 int main(void) {
-    // Initialize a reusable vector typedef
-    IntVec numbers = VecInit();
-    
-    // Pre-allocate space for better performance. Must variants abort on
-    // allocation failure; use VecReserve(...) (returns bool) when the
-    // caller wants to handle failure.
-    VecMustReserve(&numbers, 10);
-    
-    // Insert elements (ownership transfer for l-values). Must variants
-    // abort on allocation failure; plain VecInsertL/R return bool.
-    int val = 42;
-    VecMustInsertL(&numbers, val, 0);   // val is now owned by vector
-    VecMustInsertR(&numbers, 10, 0);    // Insert at front
-    VecMustInsertR(&numbers, 30, 1);    // Insert in middle
-    
-    // Access elements safely
-    int first = VecAt(&numbers, 0);                // Get by value
-    int* first_ptr = VecPtrAt(&numbers, 0);       // Get by pointer
-    int last = VecLast(&numbers);                 // Last element
-    
-    // Batch operations
-    int items[] = {15, 25, 35};
-    VecMustInsertRangeR(&numbers, items, VecLen(&numbers), 3);
-    
-    // Sort the vector
-    VecSort(&numbers, compare_ints);
-    
-    // Different iteration patterns
-    VecForeachIdx(&numbers, current, idx) {
-        WriteFmtLn("[{}] = {}", idx, current);
+    Scope(alloc, DefaultAllocator) {
+        // Initialize a reusable vector typedef
+        IntVec numbers = VecInit();
+
+        // Pre-allocate space for better performance. Must variants abort
+        // on allocation failure; use VecReserve(...) (returns bool) when
+        // the caller wants to handle failure.
+        VecMustReserve(&numbers, 10);
+
+        // Insert elements (ownership transfer for l-values). Must
+        // variants abort on allocation failure; plain VecInsertL/R
+        // return bool.
+        int val = 42;
+        VecMustInsertL(&numbers, val, 0);   // val is now owned by vector
+        VecMustInsertR(&numbers, 10, 0);    // Insert at front
+        VecMustInsertR(&numbers, 30, 1);    // Insert in middle
+
+        // Access elements safely
+        int  first     = VecAt(&numbers, 0);     // Get by value
+        int *first_ptr = VecPtrAt(&numbers, 0);  // Get by pointer
+        int  last      = VecLast(&numbers);      // Last element
+
+        // Batch operations
+        int items[] = {15, 25, 35};
+        VecMustInsertRangeR(&numbers, items, VecLen(&numbers), 3);
+
+        // Sort the vector
+        VecSort(&numbers, compare_ints);
+
+        // Different iteration patterns
+        VecForeachIdx(&numbers, current, idx) {
+            WriteFmtLn("[{}] = {}", idx, current);
+        }
+
+        // Modify elements in-place
+        VecForeachPtr(&numbers, current) {
+            *current *= 2;
+        }
+
+        // Memory management
+        VecTryReduceSpace(&numbers);  // Optimize memory usage
+        u64 size = VecSize(&numbers); // Size in bytes
+
+        // Batch removal
+        VecDeleteRange(&numbers, 1, 2);
+
+        // Clear all elements but keep capacity
+        VecClear(&numbers);
+
+        // Container cleanup. The allocator itself is destroyed at the
+        // end of the Scope block.
+        VecDeinit(&numbers);
     }
-    
-    // Modify elements in-place
-    VecForeachPtr(&numbers, current) {
-        *current *= 2;
-    }
-    
-    // Memory management
-    VecTryReduceSpace(&numbers);  // Optimize memory usage
-    u64 size = VecSize(&numbers);  // Size in bytes
-    
-    // Batch removal
-    VecDeleteRange(&numbers, 1, 2);  // Remove 2 elements starting at index 1
-    
-    // Clear all elements but keep capacity
-    VecClear(&numbers);
-    
-    // Final cleanup
-    VecDeinit(&numbers);
 }
 ```
 
@@ -286,44 +336,44 @@ int main(void) {
 
 ```c
 #include <Misra.h>
+#include <Misra/Std/Allocator/Default.h>
 
 int main(void) {
-    // Str is a typedef specialization of Vec(char)
-    Str text = StrInit();
-    
-    // String creation
-    Str hello = StrInitFromZstr("Hello");
-    Str world = StrInitFromCstr(", World!", 8);
-    
-    // Formatted append
-    StrAppendf(&text, "%.*s%.*s\n", 
-               (int)hello.length, hello.data,
-               (int)world.length, world.data);
-    
-    // String operations
-    bool starts = StrStartsWithZstr(&text, "Hello");
-    bool ends = StrEndsWithZstr(&text, "!\n");
-    
-    // Split into vector of strings
-    Str csv = StrInitFromZstr("one,two,three");
-    Strs parts = StrSplit(&csv, ",");
-    
-    // Process split results
-    VecForeach(&parts, part) {
-        WriteFmtLn("Part: {}", part);
+    Scope(alloc, DefaultAllocator) {
+        // Str is a typedef specialization of Vec(char)
+        Str text = StrInit();
+
+        // String creation
+        Str hello = StrInitFromZstr("Hello");
+        Str world = StrInitFromCstr(", World!", 8);
+
+        // Formatted append
+        StrWriteFmt(&text, "{}{}\n", hello, world);
+
+        // String operations
+        bool starts = StrStartsWithZstr(&text, "Hello");
+        bool ends   = StrEndsWithZstr(&text, "!\n");
+
+        // Split into vector of strings
+        Str  csv   = StrInitFromZstr("one,two,three");
+        Strs parts = StrSplit(&csv, ",");
+
+        // Process split results
+        VecForeach(&parts, part) {
+            WriteFmtLn("Part: {}", part);
+        }
+
+        // Container cleanup. The allocator is destroyed at Scope exit.
+        StrDeinit(&text);
+        StrDeinit(&hello);
+        StrDeinit(&world);
+        StrDeinit(&csv);
+
+        VecForeachPtr(&parts, part) {
+            StrDeinit(part);
+        }
+        VecDeinit(&parts);
     }
-    
-    // Cleanup
-    StrDeinit(&text);
-    StrDeinit(&hello);
-    StrDeinit(&world);
-    StrDeinit(&csv);
-    
-    // Cleanup split results
-    VecForeachPtr(&parts, part) {
-        StrDeinit(part);
-    }
-    VecDeinit(&parts);
 }
 ```
 
@@ -331,29 +381,33 @@ int main(void) {
 
 ```c
 #include <Misra.h>
+#include <Misra/Std/Allocator/Default.h>
 
 typedef Graph(Str) NameGraph;
 
 int main(void) {
-    NameGraph graph = GraphInitWithDeepCopy(NULL, StrDeinit);
+    Scope(alloc, DefaultAllocator) {
+        NameGraph graph = GraphInitWithDeepCopy(NULL, StrDeinit);
 
-    GraphNodeId alpha = GraphAddNodeR(&graph, StrZ("Alpha"));
-    GraphNodeId beta  = GraphAddNodeR(&graph, StrZ("Beta"));
-    GraphNodeId gamma = GraphAddNodeR(&graph, StrZ("Gamma"));
-    /* alpha/beta/gamma are zero on allocation failure - in production code,
-     * check each id and unwind, or use GraphMustAddNodeR for abort-on-failure. */
+        GraphNodeId alpha = GraphAddNodeR(&graph, StrZ("Alpha"));
+        GraphNodeId beta  = GraphAddNodeR(&graph, StrZ("Beta"));
+        GraphNodeId gamma = GraphAddNodeR(&graph, StrZ("Gamma"));
+        /* alpha/beta/gamma are zero on allocation failure - in production
+         * code, check each id and unwind, or use GraphMustAddNodeR for
+         * abort-on-failure. */
 
-    GraphAddEdge(&graph, alpha, beta);
-    GraphAddEdge(&graph, beta, gamma);
+        GraphAddEdge(&graph, alpha, beta);
+        GraphAddEdge(&graph, beta,  gamma);
 
-    GraphForeachNode(&graph, node) {
-        WriteFmtLn("{}: out={}, in={}",
-                   GraphNodeData(&graph, node),
-                   GraphOutDegree(&graph, GraphNodeGetId(node)),
-                   GraphInDegree(&graph, GraphNodeGetId(node)));
+        GraphForeachNode(&graph, node) {
+            WriteFmtLn("{}: out={}, in={}",
+                       GraphNodeData(&graph, node),
+                       GraphOutDegree(&graph, GraphNodeGetId(node)),
+                       GraphInDegree(&graph, GraphNodeGetId(node)));
+        }
+
+        GraphDeinit(&graph);
     }
-
-    GraphDeinit(&graph);
 }
 ```
 
@@ -369,41 +423,44 @@ In real named-node workloads you usually pair the graph with a side `Map(name ->
 
 ```c
 #include <Misra.h>
+#include <Misra/Std/Allocator/Default.h>
 
 int main(void) {
-    // String formatting
-    Str output = StrInit();
-    
-    // Basic formatting with direct values
-    int count = 42;
-    const char* name = "Test";
-    StrWriteFmt(&output, "Count: {}, Name: {}\n", count, name);  // Pass values directly, not pointers
-    
-    // Format with alignment and hex
-    u32 hex_val = 0xDEADBEEF;
-    StrWriteFmt(&output, "Hex: {X}\n", hex_val);
-    
-    // Read formatted input
-    const char* cursor = "Count: 42, Name: Test";
-    int read_count = 0;
-    Str read_name = StrInit();
-    
-    // StrReadFmt advances the input cursor on success
-    StrReadFmt(cursor, "Count: {}, Name: {}", read_count, read_name);
-    
-    // Multiple value types
-    float pi = 3.14159f;
-    u64 big_num = 123456789ULL;
-    StrWriteFmt(&output, "Float: {.2}, Integer: {}, Hex: {x}\n", pi, big_num, big_num);
-    
-    // String formatting
-    Str hello = StrInitFromZstr("Hello");
-    StrWriteFmt(&output, "String: {}\n", hello);  // Pass Str directly
-    
-    // Cleanup
-    StrDeinit(&output);
-    StrDeinit(&read_name);
-    StrDeinit(&hello);
+    Scope(alloc, DefaultAllocator) {
+        // String formatting
+        Str output = StrInit();
+
+        // Basic formatting with direct values
+        int         count = 42;
+        const char *name  = "Test";
+        StrWriteFmt(&output, "Count: {}, Name: {}\n", count, name);
+
+        // Format with alignment and hex
+        u32 hex_val = 0xDEADBEEF;
+        StrWriteFmt(&output, "Hex: {X}\n", hex_val);
+
+        // Read formatted input
+        const char *cursor    = "Count: 42, Name: Test";
+        int         read_count = 0;
+        Str         read_name  = StrInit();
+
+        // StrReadFmt advances the input cursor on success
+        StrReadFmt(cursor, "Count: {}, Name: {}", read_count, read_name);
+
+        // Multiple value types
+        float pi       = 3.14159f;
+        u64   big_num  = 123456789ULL;
+        StrWriteFmt(&output, "Float: {.2}, Integer: {}, Hex: {x}\n",
+                    pi, big_num, big_num);
+
+        // String formatting with a Str argument
+        Str hello = StrInitFromZstr("Hello");
+        StrWriteFmt(&output, "String: {}\n", hello);
+
+        StrDeinit(&output);
+        StrDeinit(&read_name);
+        StrDeinit(&hello);
+    }
 }
 ```
 
@@ -411,8 +468,8 @@ int main(void) {
 
 ```c
 #include <Misra.h>
+#include <Misra/Std/Allocator/Default.h>
 
-// Define our data structures
 typedef struct Point {
     float x;
     float y;
@@ -421,96 +478,88 @@ typedef struct Point {
 typedef Vec(Point) PointVec;
 
 typedef struct Shape {
-    Str name;
-    Point position;
+    Str      name;
+    Point    position;
     PointVec vertices;
-    bool filled;
+    bool     filled;
 } Shape;
 
 int main(void) {
-    // Example JSON string
-    Str json = StrInitFromZstr(
-        "{"
-        "  \"name\": \"polygon\","
-        "  \"position\": {\"x\": 10.5, \"y\": 20.0},"
-        "  \"vertices\": ["
-        "    {\"x\": 0.0, \"y\": 0.0},"
-        "    {\"x\": 10.0, \"y\": 0.0},"
-        "    {\"x\": 5.0, \"y\": 10.0}"
-        "  ],"
-        "  \"filled\": true"
-        "}"
-    );
+    Scope(alloc, DefaultAllocator) {
+        // Example JSON string
+        Str json = StrInitFromZstr(
+            "{"
+            "  \"name\": \"polygon\","
+            "  \"position\": {\"x\": 10.5, \"y\": 20.0},"
+            "  \"vertices\": ["
+            "    {\"x\": 0.0, \"y\": 0.0},"
+            "    {\"x\": 10.0, \"y\": 0.0},"
+            "    {\"x\": 5.0, \"y\": 10.0}"
+            "  ],"
+            "  \"filled\": true"
+            "}",
+            alloc
+        );
 
-    // Create our shape object
-    Shape shape = {
-        .name = StrInit(),
-        .vertices = VecInit()
-    };
+        Shape shape = {
+            .name     = StrInit(),
+            .vertices = VecInit(),
+        };
 
-    // Parse JSON into our structure
-    StrIter si = StrIterFromStr(&json);
-    JR_OBJ(si, {
-        // Read string value with key "name"
-        JR_STR_KV(si, "name", shape.name);
-        
-        // Read nested object with key "position"
-        JR_OBJ_KV(si, "position", {
-            JR_FLT_KV(si, "x", shape.position.x);
-            JR_FLT_KV(si, "y", shape.position.y);
-        });
-        
-        // Read array of objects with key "vertices"
-        JR_ARR_KV(si, "vertices", {
-            Point vertex = {0};
-            JR_OBJ(si, {
-                JR_FLT_KV(si, "x", vertex.x);
-                JR_FLT_KV(si, "y", vertex.y);
+        // Parse JSON into our structure
+        StrIter si = StrIterFromStr(&json);
+        JR_OBJ(si, {
+            JR_STR_KV(si, "name", shape.name);
+
+            JR_OBJ_KV(si, "position", {
+                JR_FLT_KV(si, "x", shape.position.x);
+                JR_FLT_KV(si, "y", shape.position.y);
             });
-            VecMustInsertR(&shape.vertices, vertex, VecLen(&shape.vertices));
-        });
-        
-        // Read boolean value with key "filled"
-        JR_BOOL_KV(si, "filled", shape.filled);
-    });
 
-    // Modify some values
-    shape.position.x += 5.0;
-    VecForeachPtr(&shape.vertices, vertex) {
-        vertex->y += 1.0;  // Move all points up by 1
+            JR_ARR_KV(si, "vertices", {
+                Point vertex = {0};
+                JR_OBJ(si, {
+                    JR_FLT_KV(si, "x", vertex.x);
+                    JR_FLT_KV(si, "y", vertex.y);
+                });
+                VecMustInsertR(&shape.vertices, vertex, VecLen(&shape.vertices));
+            });
+
+            JR_BOOL_KV(si, "filled", shape.filled);
+        });
+
+        // Modify some values
+        shape.position.x += 5.0;
+        VecForeachPtr(&shape.vertices, vertex) {
+            vertex->y += 1.0;
+        }
+
+        // Write back to JSON
+        StrClear(&json);
+        JW_OBJ(json, {
+            JW_STR_KV(json, "name", shape.name);
+
+            JW_OBJ_KV(json, "position", {
+                JW_FLT_KV(json, "x", shape.position.x);
+                JW_FLT_KV(json, "y", shape.position.y);
+            });
+
+            JW_ARR_KV(json, "vertices", shape.vertices, vertex, {
+                JW_OBJ(json, {
+                    JW_FLT_KV(json, "x", vertex.x);
+                    JW_FLT_KV(json, "y", vertex.y);
+                });
+            });
+
+            JW_BOOL_KV(json, "filled", shape.filled);
+        });
+
+        WriteFmtLn("Modified JSON: {}", json);
+
+        StrDeinit(&shape.name);
+        VecDeinit(&shape.vertices);
+        StrDeinit(&json);
     }
-
-    // Write back to JSON
-    StrClear(&json);  // Clear existing content
-    JW_OBJ(json, {
-        // Write string key-value
-        JW_STR_KV(json, "name", shape.name);
-        
-        // Write nested object
-        JW_OBJ_KV(json, "position", {
-            JW_FLT_KV(json, "x", shape.position.x);
-            JW_FLT_KV(json, "y", shape.position.y);
-        });
-        
-        // Write array of objects
-        JW_ARR_KV(json, "vertices", shape.vertices, vertex, {
-            JW_OBJ(json, {
-                JW_FLT_KV(json, "x", vertex.x);
-                JW_FLT_KV(json, "y", vertex.y);
-            });
-        });
-        
-        // Write boolean value
-        JW_BOOL_KV(json, "filled", shape.filled);
-    });
-
-    // Print the resulting JSON
-    WriteFmtLn("Modified JSON: {}", json);
-
-    // Cleanup
-    StrDeinit(&shape.name);
-    VecDeinit(&shape.vertices);
-    StrDeinit(&json);
 }
 ```
 
@@ -518,24 +567,28 @@ int main(void) {
 
 ```c
 #include <Misra.h>
+#include <Misra/Std/Allocator/Default.h>
 
 typedef Vec(int) IntVec;
 
 // Complex type with owned resources
 typedef struct {
-    int id;
+    int    id;
     IntVec data;
 } ComplexType;
 
 typedef Vec(ComplexType) ComplexVec;
 
-// Copy initialization for deep copying. Propagates allocation failure
-// back to the container's insert path so partial copies are not committed.
-bool ComplexTypeCopyInit(ComplexType* dst, const ComplexType* src) {
-    dst->id = src->id;
-    dst->data = VecInit();
-    
-    // Copy all elements from source vector
+// Deep-copy callback. `dst` and `src` are erased pointers; `alloc` is
+// the allocator the destination container owns. Returns false to fail
+// the insert without leaking partial state.
+bool ComplexTypeCopyInit(void *dst_, const void *src_, const Allocator *alloc) {
+    ComplexType       *dst = (ComplexType *)dst_;
+    const ComplexType *src = (const ComplexType *)src_;
+
+    dst->id   = src->id;
+    dst->data = VecInit((Allocator *)alloc);
+
     VecForeachIdx(&src->data, val, idx) {
         if (!VecInsertR(&dst->data, val, idx)) {
             VecDeinit(&dst->data);
@@ -545,33 +598,32 @@ bool ComplexTypeCopyInit(ComplexType* dst, const ComplexType* src) {
     return true;
 }
 
-// Proper cleanup of owned resources
-void ComplexTypeDeinit(ComplexType* ct) {
+void ComplexTypeDeinit(void *self, const Allocator *alloc) {
+    (void)alloc;
+    ComplexType *ct = (ComplexType *)self;
     VecDeinit(&ct->data);
 }
 
 int main(void) {
-    // Vector of complex types with resource management
-    ComplexVec objects = VecInitWithDeepCopy(ComplexTypeCopyInit, ComplexTypeDeinit);
-    
-    // Create and insert items
-    ComplexType item = {
-        .id = 1,
-        .data = VecInit()
-    };
-    VecMustInsertR(&item.data, 42, 0);
-    VecMustInsertR(&item.data, 43, 1);
-    
-    // Insert with ownership transfer
-    VecMustInsertL(&objects, item, 0);   // item is now owned by vector
-    
-    // Direct deletion (vector handles cleanup)
-    // Since we provided ComplexTypeDeinit during initialization,
-    // the vector will automatically call it when deleting items
-    VecDelete(&objects, 0);  // ComplexTypeDeinit is called automatically
-    
-    // Cleanup
-    VecDeinit(&objects);     // Calls ComplexTypeDeinit for each remaining element
+    Scope(alloc, DefaultAllocator) {
+        ComplexVec objects = VecInitWithDeepCopy(
+            ComplexTypeCopyInit, ComplexTypeDeinit);
+
+        ComplexType item = {
+            .id   = 1,
+            .data = VecInit(),
+        };
+        VecMustInsertR(&item.data, 42, 0);
+        VecMustInsertR(&item.data, 43, 1);
+
+        // Insert with ownership transfer
+        VecMustInsertL(&objects, item, 0);
+
+        // The vector calls ComplexTypeDeinit on the removed slot.
+        VecDelete(&objects, 0);
+
+        VecDeinit(&objects);
+    }
 }
 ```
 
@@ -583,30 +635,27 @@ Refer to the following example, also present in `Bin/SubProcComm.c`.
 
 ```c
 #include <Misra.h>
+#include <Misra/Std/Allocator/Default.h>
 
-// this program was verifed to work when executed with /bin/head
-// the prgram writes something to child process and expect's the same thing echoed back
-// so it can be verified that we got the same content
-// executed like : Build/SubProcComm /bin/head -n 1
-int main(int argc, char** argv, char** envp) {
-    // create a new child process
-    SysProc* proc = SysProcCreate(argv[1], argv + 1, envp);
+// Verified to work when executed with /bin/head:
+//   Build/SubProcComm /bin/head -n 1
+// The parent writes a value to the child's stdin, expects the same
+// thing echoed back on stdout, and verifies that it round-tripped.
+int main(int argc, char **argv, char **envp) {
+    (void)argc;
+    Scope(alloc, DefaultAllocator) {
+        SysProc *proc = SysProcCreate(argv[1], argv + 1, envp, alloc);
 
-    // write something to it's stdout
-    SysProcWriteToStdinFmtLn(proc, "value = {}", 42);
+        SysProcWriteToStdinFmtLn(proc, "value = {}", 42);
 
-    // retrieve back the value
-    i32 val = 0;
-    SysProcReadFromStdoutFmt(proc, "value = {}", val);
+        i32 val = 0;
+        SysProcReadFromStdoutFmt(proc, "value = {}", val);
 
-    // write the retrieved value to stdout (parent, not child)
-    WriteFmtLn("got value = {}", val);
+        WriteFmtLn("got value = {}", val);
 
-    // wait for program to exit for 1 second
-    SysProcWaitFor(proc, 1000);
-
-    // finally terminate
-    SysProcDestroy(proc);
+        SysProcWaitFor(proc, 1000);
+        SysProcDestroy(proc, alloc);
+    }
 }
 ```
 

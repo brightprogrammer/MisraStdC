@@ -13,9 +13,7 @@ tags:
 ---
 
 {{< notice "note" >}}
-This article is an AI-generated summary of an extended design discussion about the shape of an upcoming MisraStdC refactor.
-It is a snapshot of the current plan, not a statement that the implementation is already complete.
-The summary reflects the refactor direction as of commit `add5d0adaf591f63d27d6c2a79a0666a582a1162` on branch `allocator-fallible-container-refactor`.
+This article is an AI-generated summary of an extended design discussion. The **allocator** half of the design has landed (typed allocator structs, allocator-owning containers, per-type magic validation, the `Scope` discipline - see *Scope-Based Allocator Discipline*). The **fallible-API** half (uniform `Must*` aborting variants on every container operation) is still in progress.
 {{< /notice >}}
 
 The refactor described here is driven by one practical problem: the library needs to be usable in a real project where allocation failure, bad external data, and ownership boundaries all need to be handled deliberately instead of collapsing into process aborts too early.
@@ -500,13 +498,14 @@ The entire `VecInitAligned*` / `GraphInitAligned*` macro family is gone. Default
 
 ### Allocator backends form a small family
 
-Stage 2 of the allocator refactor adds three new backend allocators alongside `HeapAllocator`:
+Four backend allocators live alongside `HeapAllocator`:
 
 - **`PageAllocator`** maps memory directly from the operating system via `mmap` on POSIX and `VirtualAlloc` on Windows. Allocations are rounded up to the system page size and zeroed by the kernel.
 - **`ArenaAllocator`** bumps a cursor inside page-backed chunks. Free is effectively a no-op; everything is released together when the arena is unbound. Best fit for parser / scratch workloads with batch-scoped lifetimes.
-- **`PoolAllocator`** hands out fixed-size slots through an intrusive free list. Slot size is captured on the descriptor and verified per allocation. O(1) alloc and free.
+- **`SlabAllocator`** hands out fixed-size slots through an intrusive free list and grows by pulling more page-backed slabs on demand. Slot size is captured on the descriptor and verified per allocation. O(1) alloc and free.
+- **`BudgetAllocator`** carves a caller-supplied buffer into N fixed-size slots at init time and refuses to grow past that budget. Stateless with respect to the OS - suitable for embedded / freestanding contexts and bounded scratch pools.
 
-All three are layered on `PageAllocator` so none of them call libc heap functions. Each comes with an `*Aligned(...)` builder for stronger alignment requirements. Container init now accepts any allocator descriptor, so any container can be backed by any of these.
+The growing allocators (`Heap`, `Arena`, `Slab`) are layered on `PageAllocator` so none of them call libc heap functions. `BudgetAllocator` doesn't even use `PageAllocator`. Each comes with an `*Aligned(...)` builder for stronger alignment requirements. Container init accepts any allocator descriptor, so any container can be backed by any of these.
 
 ### `HeapAllocator` is libc-free
 

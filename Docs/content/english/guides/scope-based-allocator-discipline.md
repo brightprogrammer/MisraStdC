@@ -1,7 +1,7 @@
 ---
-title: "Planned Refactor: Scope-Based Allocator Discipline"
+title: "Scope-Based Allocator Discipline"
 date: 2026-05-14
-description: "An AI-generated summary of the design direction for MisraStdC's allocator API, where the public surface is gated behind a lexical `Scope` macro and `*Alloc`-suffixed forms are removed from public headers."
+description: "How MisraStdC's allocator API gates the public surface behind a lexical `Scope` macro instead of library globals, thread-local handles, or per-call allocator threading."
 authors:
   - siddharth-mishra
 tags:
@@ -12,19 +12,13 @@ tags:
   - lifetimes
 ---
 
-{{< notice "note" >}}
-This article is an AI-generated summary of a design discussion about the next stage of the MisraStdC allocator refactor.
-It is a snapshot of the planned direction, not a statement that the implementation is already complete.
-The summary builds on top of the design recorded in *Planned Refactor: Fallible APIs, Typed Macros, and Allocators*.
-{{< /notice >}}
+The typed-allocator refactor introduced the foundational pieces: typed allocator structs (`HeapAllocator`, `PageAllocator`, `ArenaAllocator`, `SlabAllocator`, `BudgetAllocator`), allocator-owning containers, and per-type magic validation. This document describes the public-API layer on top of that foundation - a lexically scoped allocator handle that the compiler enforces.
 
-The fallible-APIs / typed-allocator refactor landed the foundational pieces: typed allocator structs (`HeapAllocator`, `PageAllocator`, `ArenaAllocator`, `PoolAllocator`), allocator-owning containers, and fallible runtime helpers. What remained was the question of *how* the public API should expose the choice of allocator to callers.
+There are no library globals, no thread-local storage, and no `*Alloc`-suffixed function in the public headers.
 
-That question is what this document is about. The conclusion is a three-tier architecture with a lexically scoped allocator handle. There are no library globals, no thread-local storage, and no `*Alloc`-suffixed function in the public headers.
+## Why The Design Looks This Way
 
-## Why This Refactor Is Happening
-
-The earlier work added an `Allocator *` field to every container. That part was right. What was missing was a clean answer for how callers supply the allocator at construction time.
+Earlier work added an `Allocator *` field to every container. That part was right. What was missing was a clean answer for how callers supply the allocator at construction time.
 
 Several intermediate designs were considered and rejected:
 
@@ -235,7 +229,7 @@ The `Must...` versus propagating naming distinction described in the earlier ref
 
 ### Allocator implementations stay
 
-`HeapAllocator`, `PageAllocator`, `ArenaAllocator`, and `PoolAllocator` are not changing shape. Only their lifecycle in user code is changing.
+`HeapAllocator`, `PageAllocator`, `ArenaAllocator`, `SlabAllocator`, and `BudgetAllocator` are not changing shape. Only their lifecycle in user code is changing.
 
 ### `*Aligned(...)` builders stay
 

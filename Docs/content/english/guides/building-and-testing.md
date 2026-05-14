@@ -28,7 +28,7 @@ The project is meant to work across GCC, Clang, and modern MSVC.
 The normal local flow is:
 
 ```bash
-git clone --recursive https://git.anvielabs.com/bp/MisraStdC.git
+git clone --recursive https://github.com/brightprogrammer/MisraStdC.git
 cd MisraStdC
 
 meson setup builddir
