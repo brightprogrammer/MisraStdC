@@ -17,6 +17,14 @@
 ///
 /// g[in,out] : Graph handle.
 ///
+/// SUCCESS : Returns to the caller. `live_count`, `edge_count`, and the
+///           pending-delete count are now 0. Every node slot is marked
+///           free; every adjacency list is reset. When `copy_deinit` is
+///           configured it has been invoked on each previously-stored
+///           payload. The slot array and free-index array keep their
+///           allocated capacity.
+/// FAILURE : Function cannot fail.
+///
 /// TAGS: Graph, Memory, Clear
 ///
 #define GraphClear(g) clear_graph(GENERIC_GRAPH(g), sizeof(GRAPH_NODE_TYPE(g)))
@@ -28,8 +36,12 @@
 /// g[in,out] : Graph handle.
 /// n[in]     : Minimum number of nodes the graph should accommodate.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure. The graph is unchanged.
+/// SUCCESS : Returns `true`. The slot array and free-index array now have
+///           capacity for at least `n` total nodes without triggering a
+///           regrow. `live_count` and the actual stored nodes are
+///           unchanged.
+/// FAILURE : Returns `false` on allocation failure for either backing
+///           array. The graph is unchanged.
 ///
 /// TAGS: Graph, Memory, Reserve
 ///

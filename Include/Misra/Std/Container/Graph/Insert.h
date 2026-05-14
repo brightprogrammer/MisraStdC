@@ -28,9 +28,15 @@
 /// g[in,out] : Graph handle.
 /// lval[in]  : Addressable node payload to insert.
 ///
-/// SUCCESS : Returns the new node's stable `GraphNodeId` (non-zero).
-/// FAILURE : Returns `0` on allocation failure. The graph and `lval` are
+/// SUCCESS : Returns the new node's stable `GraphNodeId` (non-zero). A new
+///           slot has been allocated (or a freed slot reused with a bumped
+///           generation); `live_count` grows by one. The node's outgoing
+///           and incoming adjacency lists are empty. When the graph has
+///           no `copy_init` handler, `lval` has been zeroed (payload
+///           ownership transferred into the slot); otherwise `lval` is
 ///           unchanged.
+/// FAILURE : Returns `0` on allocation failure (payload buffer or slot
+///           growth). The graph and `lval` are unchanged.
 ///
 /// USAGE:
 ///   GraphNodeId id = GraphAddNodeL(&g, payload);
@@ -50,8 +56,11 @@
 /// g[in,out] : Graph handle.
 /// rval[in]  : Node payload expression.
 ///
-/// SUCCESS : Returns the new node's stable `GraphNodeId` (non-zero).
-/// FAILURE : Returns `0` on allocation failure.
+/// SUCCESS : Returns the new node's stable `GraphNodeId` (non-zero). A new
+///           slot has been allocated (or a freed slot reused with a bumped
+///           generation); `live_count` grows by one. The new node's
+///           adjacency lists are empty. The source expression is untouched.
+/// FAILURE : Returns `0` on allocation failure. The graph is unchanged.
 ///
 /// USAGE:
 ///   GraphNodeId id = GraphAddNodeR(&g, StrZ("Alpha"));
@@ -76,8 +85,13 @@
 /// from[in]  : Source `GraphNodeId`.
 /// to[in]    : Destination `GraphNodeId`.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure for the edge entry.
+/// SUCCESS : Returns `true`. The edge entry has been appended to the
+///           outgoing-neighbour list of `from` and to the reverse
+///           predecessor list of `to`; `edge_count` grows by one.
+/// FAILURE : Returns `false` on allocation failure for either side of the
+///           adjacency entry. The graph is unchanged. A reference to a
+///           non-live `from` or `to` node id is a caller bug and aborts
+///           via `LOG_FATAL`.
 ///
 /// TAGS: Graph, AddEdge, Directed
 ///

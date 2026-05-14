@@ -11,24 +11,27 @@
 #include "Private.h"
 
 ///
-/// Number of live nodes currently stored in graph.
+/// Number of live nodes currently stored in graph. Includes nodes marked
+/// for deletion but not yet committed.
 ///
 /// g[in] : Graph to query.
 ///
-/// SUCCESS: Live node count.
-/// FAILURE: Function cannot fail.
+/// SUCCESS : Returns the live-node count as a `u64`. The graph is not
+///           modified.
+/// FAILURE : Function cannot fail.
 ///
 /// TAGS: Graph, Node, Count, Query
 ///
 #define GraphNodeCount(g) ((g)->live_count)
 
 ///
-/// Number of directed edges currently stored in graph.
+/// Number of directed edges currently stored in graph. Includes edges
+/// marked for removal but not yet committed.
 ///
 /// g[in] : Graph to query.
 ///
-/// SUCCESS: Edge count.
-/// FAILURE: Function cannot fail.
+/// SUCCESS : Returns the edge count as a `u64`. The graph is not modified.
+/// FAILURE : Function cannot fail.
 ///
 /// TAGS: Graph, Edge, Count, Query
 ///
@@ -39,8 +42,9 @@
 ///
 /// g[in] : Graph to query.
 ///
-/// SUCCESS: `true` when graph has zero live nodes.
-/// FAILURE: `false`
+/// SUCCESS : Returns `true` when `live_count == 0`. The graph is not
+///           modified.
+/// FAILURE : Returns `false` when the graph holds at least one live node.
 ///
 /// TAGS: Graph, Empty, Query
 ///
@@ -55,8 +59,11 @@
 /// g[in]       : Graph to query.
 /// node_id[in] : Node id to check.
 ///
-/// SUCCESS: `true` when `node_id` currently refers to a live node.
-/// FAILURE: `false`
+/// SUCCESS : Returns `true` when `node_id` currently refers to a live node
+///           (slot occupied, generation matching, and not yet committed
+///           for deletion). The graph is not modified.
+/// FAILURE : Returns `false` when the id refers to a freed or stale slot
+///           (mismatched generation). The graph is not modified.
 ///
 /// TAGS: Graph, Node, Contains, Query
 ///
@@ -68,8 +75,11 @@
 /// g[in,out]   : Graph owning the node.
 /// node_id[in] : Live node id to wrap as a `GraphNode`.
 ///
-/// SUCCESS: `GraphNode` handle for the requested node.
-/// FAILURE: Does not return on invalid node id.
+/// SUCCESS : Returns a `GraphNode` handle that resolves back to the same
+///           slot and generation. The graph is not modified. The handle is
+///           valid until the slot is committed for deletion.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` for an invalid or
+///           stale node id (caller bug).
 ///
 /// TAGS: Graph, Node, Handle, Access
 ///
@@ -80,8 +90,9 @@
 ///
 /// node[in] : `GraphNode` handle.
 ///
-/// SUCCESS: Stable `GraphNodeId` for the handle.
-/// FAILURE: Function cannot fail.
+/// SUCCESS : Returns the stable `GraphNodeId` (slot index + generation).
+///           The handle is not modified.
+/// FAILURE : Function cannot fail.
 ///
 /// TAGS: Graph, Node, Id, Handle
 ///
@@ -92,8 +103,10 @@
 ///
 /// node[in] : `GraphNode` handle.
 ///
-/// SUCCESS: Slot index portion of the node id.
-/// FAILURE: Function cannot fail.
+/// SUCCESS : Returns the slot-index portion (without generation bits) of
+///           the node id, useful as a key into external storage. The
+///           handle is not modified.
+/// FAILURE : Function cannot fail.
 ///
 /// WARN: Slot indices are intentionally reusable after `GraphCommitChanges`.
 ///       External arrays keyed only by `GraphNodeIndex(node)` must be reset when
@@ -109,7 +122,10 @@
 /// g[in]       : Graph to query.
 /// node_id[in] : Node id to access.
 ///
-/// FAILURE: Does not return on invalid or stale node id.
+/// SUCCESS : Returns the payload as a value of type `GRAPH_NODE_TYPE(g)`.
+///           The graph is not modified.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` for an invalid or
+///           stale node id (caller bug).
 ///
 /// TAGS: Graph, Node, Access
 ///
@@ -121,7 +137,11 @@
 /// g[in,out]   : Graph to query.
 /// node_id[in] : Node id to access.
 ///
-/// FAILURE: Does not return on invalid or stale node id.
+/// SUCCESS : Returns a pointer of type `GRAPH_NODE_TYPE(g) *` to the
+///           payload slot. The graph is not modified. The pointer is
+///           valid until the slot is committed for deletion.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` for an invalid or
+///           stale node id (caller bug).
 ///
 /// TAGS: Graph, Node, Access, Pointer
 ///
@@ -133,7 +153,11 @@
 /// g[in]       : Graph owning the node.
 /// node[in]    : `GraphNode` handle to access.
 ///
-/// FAILURE: Does not return on invalid handle or graph/handle mismatch.
+/// SUCCESS : Returns the payload as a value of type `GRAPH_NODE_TYPE(g)`.
+///           The graph is not modified. The handle is also validated
+///           against `g` so a handle from a different graph aborts.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` for an invalid
+///           handle or graph/handle mismatch (caller bug).
 ///
 /// TAGS: Graph, Node, Access, Handle
 ///
@@ -145,33 +169,42 @@
 /// g[in,out] : Graph owning the node.
 /// node[in]  : `GraphNode` handle to access.
 ///
-/// FAILURE: Does not return on invalid handle or graph/handle mismatch.
+/// SUCCESS : Returns a pointer of type `GRAPH_NODE_TYPE(g) *` to the
+///           payload slot referenced by the handle. The graph is not
+///           modified. The pointer is valid until the slot is committed
+///           for deletion.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` for an invalid
+///           handle or graph/handle mismatch (caller bug).
 ///
 /// TAGS: Graph, Node, Access, Pointer, Handle
 ///
 #define GraphNodeDataPtr(g, node) ((GRAPH_NODE_TYPE(g) *)graph_node_data_ptr_checked(GENERIC_GRAPH(g), (node)))
 
 ///
-/// Number of outgoing neighbors for a node.
+/// Number of outgoing neighbors for a node. Includes edges marked for
+/// removal but not yet committed.
 ///
 /// g[in]       : Graph to query.
 /// node_id[in] : Node id whose out-degree is requested.
 ///
-/// SUCCESS: Out-degree of node.
-/// FAILURE: Does not return on invalid node id.
+/// SUCCESS : Returns the out-degree as a `u64`. The graph is not modified.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` for an invalid or
+///           stale node id (caller bug).
 ///
 /// TAGS: Graph, Edge, Degree, Query
 ///
 #define GraphOutDegree(g, node_id) graph_out_degree(GENERIC_GRAPH(g), (node_id))
 
 ///
-/// Number of incoming neighbors for a node.
+/// Number of incoming neighbors for a node. Includes edges marked for
+/// removal but not yet committed.
 ///
 /// g[in]       : Graph to query.
 /// node_id[in] : Node id whose in-degree is requested.
 ///
-/// SUCCESS: In-degree of node.
-/// FAILURE: Does not return on invalid node id.
+/// SUCCESS : Returns the in-degree as a `u64`. The graph is not modified.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` for an invalid or
+///           stale node id (caller bug).
 ///
 /// TAGS: Graph, Edge, Degree, Query, Incoming
 ///
@@ -182,9 +215,12 @@
 ///
 /// g[in]            : Graph to query.
 /// node_id[in]      : Source node id.
-/// neighbor_idx[in] : Index in outgoing neighbor list.
+/// neighbor_idx[in] : Index in outgoing neighbor list, [0, out_degree).
 ///
-/// FAILURE: Does not return on invalid node id or out-of-bounds neighbor index.
+/// SUCCESS : Returns the `GraphNodeId` at the requested position in the
+///           outgoing adjacency list. The graph is not modified.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` for an invalid or
+///           stale `node_id` or out-of-bounds `neighbor_idx`.
 ///
 /// TAGS: Graph, Edge, Neighbor, Access
 ///
@@ -195,13 +231,16 @@
 ///
 /// g[in]               : Graph to query.
 /// node_id[in]         : Destination node id.
-/// predecessor_idx[in] : Index in incoming predecessor list.
+/// predecessor_idx[in] : Index in incoming predecessor list, [0, in_degree).
 ///
-/// FAILURE: Does not return on invalid node id or out-of-bounds predecessor index.
+/// SUCCESS : Returns the `GraphNodeId` at the requested position in the
+///           reverse predecessor list. The graph is not modified.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` for an invalid or
+///           stale `node_id` or out-of-bounds `predecessor_idx`.
 ///
 /// TAGS: Graph, Edge, Predecessor, Access
 ///
-#define GraphPredecessorAt(g, node_id, predecessor_idx)                                                               \
+#define GraphPredecessorAt(g, node_id, predecessor_idx)                                                                \
     graph_predecessor_at(GENERIC_GRAPH(g), (node_id), (predecessor_idx))
 
 ///
