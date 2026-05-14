@@ -34,7 +34,7 @@ typedef struct {
     u64       capacity;  // Max number of bits this bitvector can hold (in bits)
     u8       *data;      // Bit data stored as bytes
     u64       byte_size; // Size of data array in bytes
-    Allocator allocator;
+    Allocator        *allocator;
     u64       __magic;   // private, must not be modified
 } BitVec;
 

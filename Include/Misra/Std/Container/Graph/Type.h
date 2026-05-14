@@ -125,7 +125,7 @@ typedef struct {
     u64                      edge_count;
     u64                      pending_delete_count;
     u64                      mutation_epoch;
-    Allocator                allocator;
+    Allocator        *allocator;
     u64                      __magic;
 } GenericGraph;
 
@@ -177,7 +177,7 @@ typedef struct {
         u64                      edge_count;                                                                           \
         u64                      pending_delete_count;                                                                 \
         u64                      mutation_epoch;                                                                       \
-        Allocator                allocator;                                                                            \
+        Allocator        *allocator;                                                                            \
         u64                      __magic;                                                                              \
     }
 
