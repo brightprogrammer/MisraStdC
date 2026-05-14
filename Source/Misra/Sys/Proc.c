@@ -299,13 +299,16 @@ SysProcStatus SysProcWaitFor(SysProc *proc, u64 timeout_ms) {
     DWORD result    = WaitForSingleObject(proc->pi.hProcess, wait_time);
 
     switch (result) {
-        case WAIT_OBJECT_0 :
-            if (GetExitCodeProcess(proc->pi.hProcess, &proc->exit_code)) {
+        case WAIT_OBJECT_0 : {
+            DWORD code_dw = 0;
+            if (GetExitCodeProcess(proc->pi.hProcess, &code_dw)) {
+                proc->exit_code = (int)code_dw;
                 proc->completed = true;
                 return SYS_PROC_STATUS_COMPLETED;
             } else {
                 return SYS_PROC_STATUS_ERROR;
             }
+        }
         case WAIT_TIMEOUT :
             return SYS_PROC_STATUS_RUNNING;
         default :

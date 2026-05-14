@@ -131,10 +131,15 @@ typedef i8 bool;
 #    define TYPE_OF(x) __typeof__((x))
 #endif
 
-#if defined(_MSC_VER) && !defined(__cplusplus)
+#if defined(_MSC_VER) && !defined(__clang__) && !defined(__cplusplus)
 /// MSVC's `<stddef.h>` does not expose `max_align_t` in C mode. Provide a portable
 /// shim using a union of the widest standard scalar types so `_Alignof(max_align_t)`
 /// works uniformly across compilers.
+///
+/// Clang in MSVC-compat mode (`clang-cl`, or `clang --target=*-msvc`) also
+/// defines `_MSC_VER`, but its bundled `<stddef.h>` already provides
+/// `max_align_t`, so guarding on `!defined(__clang__)` avoids a typedef
+/// redefinition clash there.
 typedef union {
     long long   ll_;
     long double ld_;
