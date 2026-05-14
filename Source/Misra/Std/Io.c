@@ -249,7 +249,7 @@ static bool PadString(Str *o, size width, Alignment align, size content_len) {
     return true;
 }
 
-bool StrWriteFmtInternal(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc) {
+bool str_write_fmt(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc) {
     if (!o || !fmt) {
         LOG_FATAL("Invalid arguments");
         return false;
@@ -443,7 +443,7 @@ bool StrWriteFmtInternal(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc
     return true;
 }
 
-bool FWriteFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u64 argc, bool append_newline) {
+bool f_write_fmt(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u64 argc, bool append_newline) {
     Str  out;
     bool ok = true;
 
@@ -453,7 +453,7 @@ bool FWriteFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u
     }
 
     out = StrInit();
-    ok  = StrWriteFmtInternal(&out, fmtstr, argv, argc);
+    ok  = str_write_fmt(&out, fmtstr, argv, argc);
 
     if (ok && out.length > 0 && fwrite(out.data, 1, out.length, stream) != out.length) {
         LOG_SYS_ERROR("Failed to write formatted output");
@@ -474,7 +474,7 @@ bool FWriteFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u
     return ok;
 }
 
-const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
+const char *str_read_fmt(const char *input, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
     if (!input || !fmtstr) {
         LOG_FATAL("Invalid arguments");
     }
@@ -699,7 +699,7 @@ const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecif
     return in;
 }
 
-void FReadFmtInternal(FILE *file, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
+void f_read_fmt(FILE *file, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
     if (!file || !fmtstr) {
         LOG_FATAL("Invalid arguments");
     }
@@ -714,7 +714,7 @@ void FReadFmtInternal(FILE *file, const char *fmtstr, TypeSpecificIO *argv, u64 
         while (!feof(source_stream) && fread(&in, 1, 1, source_stream)) {
             StrPushBack(&buffer, in);
         }
-        StrReadFmtInternal(buffer.data, fmtstr, argv, argc);
+        str_read_fmt(buffer.data, fmtstr, argv, argc);
     } else {
         fpos_t start_pos;
         bool   can_rollback = false;
@@ -741,7 +741,7 @@ void FReadFmtInternal(FILE *file, const char *fmtstr, TypeSpecificIO *argv, u64 
         buffer.length = buffer.capacity;
         if (buffer.length) {
             const char *new_pos = NULL;
-            if (!(new_pos = StrReadFmtInternal(buffer.data, fmtstr, argv, argc))) {
+            if (!(new_pos = str_read_fmt(buffer.data, fmtstr, argv, argc))) {
                 if (can_rollback) {
                     LOG_ERROR("Parse failed, rolling back...");
                     fsetpos(file, &start_pos);

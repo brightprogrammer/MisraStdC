@@ -54,7 +54,6 @@ typedef struct GenericIter {
 /// FAILURE : `abort`
 ///
 #define ValidateIter(mi) validate_iter((GenericIter *)mi)
-void validate_iter(GenericIter *mi);
 
 ///
 /// Get data type of `Iter` elements

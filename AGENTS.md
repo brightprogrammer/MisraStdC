@@ -275,6 +275,66 @@ non-obvious.
   accept an optional allocator (`VecInit()` vs `VecInit(alloc)`); when omitted,
   `DefaultAllocator()` is used.
 
+## No library-owned global state
+
+The library never owns mutable global state. This includes:
+
+- No file-scope `static` variables holding mutable state that outlives a
+  single call.
+- No process-wide allocator pools, caches, or shared bookkeeping.
+- No thread-local fallbacks that behave like globals.
+
+Every piece of mutable state must live inside a user-owned object (a
+container, an allocator instance, etc.) and be allocated/released through
+the same allocator that owns the rest of that object's storage. The user
+constructs allocators; the library never creates them implicitly behind the
+user's back.
+
+Why: globals race under concurrent use, hide ownership, and make tear-down
+order undefined. The library's design forces ownership to flow through
+explicit `Allocator` handoffs at object construction time. That makes
+ownership transfers visible at every call site, which is the whole point.
+
+Two concrete consequences:
+
+- **Allocator bootstrap goes through `PageAllocator`**, which is the only
+  stateless allocator in the library (its `allocate` calls `mmap` /
+  `VirtualAlloc` directly with no setup). Stateful allocators
+  (`HeapAllocator`, `ArenaAllocator`, `PoolAllocator`) allocate their state
+  via `PageAllocator` lazily on first use through `state_init` and free it
+  through `state_deinit`.
+- **For raw buffer allocations (not through a container)**, the user must
+  construct an allocator explicitly and pass it. The library does not
+  provide a hidden "global heap" to fall back on. Users who want libc-managed
+  allocations construct a libc-backed allocator and pass it.
+
+## File placement and naming-shape pairing
+
+Internal helpers are signalled by **both** location and name shape. Either
+one alone is insufficient.
+
+- A function declared in a non-`Private.h` header but in `snake_case` is a
+  violation - either it's actually internal (move declaration to the matching
+  `Private.h`, leave the name in snake_case) or it's actually public (rename
+  to PascalCase and keep it in the public header).
+- A function declared in `Private.h` but in `PascalCase` is a violation -
+  rename it to snake_case.
+- A function declared in a public header with `Internal` suffix, `Impl`
+  suffix, or leading underscore is a violation - those naming dodges don't
+  substitute for proper file placement. Move the declaration to the matching
+  `Private.h` and rename to snake_case.
+
+Identifiers starting with an underscore are **reserved** by the C standard
+for the implementation (`_<lowercase>` at file scope, `_<uppercase>` or
+`__<anything>` always). Library identifiers must not start with an underscore
+even for "internal" helpers.
+
+When a public macro needs to call a snake_case runtime helper that lives in
+`Private.h`, the public umbrella header (`Misra/Std/Container/Vec.h`,
+`Misra/Std/Allocator.h`, ...) `#include`s the `Private.h` so the declaration
+is visible at the user's call site after macro expansion. Users don't include
+`Private.h` directly; they include the umbrella.
+
 ## Comments
 
 - Default to **no comments**. Names should be self-explanatory.

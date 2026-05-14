@@ -6,6 +6,7 @@
 
 #include <Misra/Std/Allocator/Arena.h>
 #include <Misra/Std/Allocator/Page.h>
+#include <Misra/Std/Allocator/Private.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 
@@ -70,7 +71,7 @@ static bool arena_state_init(Allocator *alloc) {
     Allocator   page = PageAllocator();
     ArenaState *state;
 
-    if (!AllocatorEnsureState(&page)) {
+    if (!allocator_ensure_state(&page)) {
         return false;
     }
 

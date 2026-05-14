@@ -12,6 +12,7 @@
 #include "Iter/Init.h"
 #include "Iter/Access.h"
 #include "Iter/Move.h"
+#include "Iter/Private.h"
 // clang-format on
 
 #endif // MISRA_STD_UTILITY_ITER_H

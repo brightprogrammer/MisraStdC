@@ -6,6 +6,7 @@
 
 #include <Misra/Std/Allocator/Page.h>
 #include <Misra/Std/Allocator/Pool.h>
+#include <Misra/Std/Allocator/Private.h>
 #include <Misra/Std/Memory.h>
 
 #include <stdint.h>
@@ -52,7 +53,7 @@ static bool pool_state_init(Allocator *alloc) {
         return false;
     }
 
-    if (!AllocatorEnsureState(&page)) {
+    if (!allocator_ensure_state(&page)) {
         return false;
     }
 

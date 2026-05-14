@@ -6,6 +6,7 @@
 /// allocator backends live next to this file under `Allocator/`.
 
 #include <Misra/Std/Allocator.h>
+#include <Misra/Std/Allocator/Private.h>
 
 static size allocator_attempt_limit(const Allocator *alloc) {
     if (!alloc) {
@@ -39,15 +40,13 @@ Allocator AllocatorBind(Allocator alloc) {
     return alloc;
 }
 
-bool AllocatorEnsureState(Allocator *alloc) {
+bool allocator_ensure_state(Allocator *alloc) {
     if (!alloc) {
         return false;
     }
-
     if (!alloc->state_init || alloc->state) {
         return true;
     }
-
     return alloc->state_init(alloc);
 }
 
@@ -60,7 +59,7 @@ void *AllocatorAlloc(Allocator *alloc, size bytes, bool zeroed) {
         return NULL;
     }
 
-    if (!AllocatorEnsureState(alloc)) {
+    if (!allocator_ensure_state(alloc)) {
         return NULL;
     }
 
@@ -84,7 +83,7 @@ void *AllocatorRealloc(Allocator *alloc, void *ptr, size old_size, size new_size
         return NULL;
     }
 
-    if (!AllocatorEnsureState(alloc)) {
+    if (!allocator_ensure_state(alloc)) {
         return NULL;
     }
 

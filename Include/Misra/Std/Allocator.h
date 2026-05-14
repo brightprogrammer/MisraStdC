@@ -56,20 +56,6 @@ extern "C" {
     Allocator AllocatorBind(Allocator alloc);
 
     ///
-    /// Ensure that an allocator has initialized runtime state.
-    /// If the allocator has no `state_init` callback or already has a state object,
-    /// this succeeds immediately.
-    ///
-    /// alloc[in,out] : Allocator to prepare for allocation
-    ///
-    /// SUCCESS: Returns `true` when allocator state is ready.
-    /// FAILURE: Returns `false` when state initialization fails or `alloc` is NULL.
-    ///
-    /// TAGS: Allocator, State, Initialization, Memory
-    ///
-    bool AllocatorEnsureState(Allocator *alloc);
-
-    ///
     /// Allocate memory through an allocator.
     /// Allocations honor the allocator's configured alignment (`alloc->alignment`).
     /// The allocator effort policy controls how many attempts are made before the

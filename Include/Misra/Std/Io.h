@@ -13,6 +13,8 @@
 // c
 #include <stdio.h>
 
+#include "Io/Private.h"
+
 // REF : https://devblogs.microsoft.com/cppblog/announcing-full-support-for-a-c-c-conformant-preprocessor-in-msvc/
 #if defined(_MSVC_TRADITIONAL) && _MSVC_TRADITIONAL
 #    error "I need /Zc:prerocessor flag enabled in MSVC to compile IO code correctly"
@@ -170,14 +172,14 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 /// TAGS: I/O, String, Allocator, Macro
 ///
 #ifdef __cplusplus
-#    define ZstrIO(zstr, alloc_ptr)                                                                                   \
+#    define ZstrIO(zstr, alloc_ptr)                                                                                    \
         TO_TYPE_SPECIFIC_IO(ZstrAlloc, &LVAL(((ZstrIOArg) {.value = (void *)&(zstr), .allocator = (alloc_ptr)})))
 #else
-#    define ZstrIO(zstr, alloc_ptr)                                                                                   \
-        ((TypeSpecificIO) {                                                                                           \
-            .writer = (TypeSpecificWriter)_write_ZstrAlloc,                                                           \
-            .reader = (TypeSpecificReader)_read_ZstrAlloc,                                                           \
-            .data   = &((ZstrIOArg) {.value = (void *)&(zstr), .allocator = (alloc_ptr)}),                           \
+#    define ZstrIO(zstr, alloc_ptr)                                                                                    \
+        ((TypeSpecificIO) {                                                                                            \
+            .writer = (TypeSpecificWriter)_write_ZstrAlloc,                                                            \
+            .reader = (TypeSpecificReader)_read_ZstrAlloc,                                                             \
+            .data   = &((ZstrIOArg) {.value = (void *)&(zstr), .allocator = (alloc_ptr)}),                             \
         })
 #endif
 
@@ -247,72 +249,10 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
         )
 #endif
 
-///
-/// Print out a formatted string with rust-style placeholders
-/// to given string `o`.
-///
-/// WARN: Directly passing literals like `1337` is not supported, especially const char*
-///       literals. For constants like integers, booleans, you can use `LVAL(r-value)`
-///       to convert an l-value to an r-value an then use in `FMT` like `LVAL(false)`
-///
-/// Takes in `TypeSpecificIO` structures as arguments. Use `.`
-/// to wrap any supported-type variable to it's `TypeSpecificIO` object.
-///
-/// o[out]     : Contents appended to this string.
-/// fmtstr[in] : Format string with placeholders.
-/// argv[in]   : Arguments that placeholders will be replaced with.
-/// argc[in]   : Number of arguments.
-///
-/// SUCCESS : Placeholders in `fmtstr` are replaced by passed arguments.
-/// FAILURE : Does not return, displays log messages.
-///
-/// TAGS: Formatting, I/O, String
-///
-bool StrWriteFmtInternal(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc);
-bool FWriteFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u64 argc, bool append_newline);
-
-///
-/// Parse input string according to format string with rust-style placeholders,
-/// extracting values into provided `TypeSpecificIO` arguments.
-///
-/// Takes in `TypeSpecificIO` structures as arguments. Use `.` to wrap any
-/// supported-type variable to its `TypeSpecificIO` object.
-///
-/// input[in]  : Input string to parse (null-terminated)
-/// fmtstr[in] : Format string with placeholders (null-terminated)
-/// argv[in]   : Arguments that will be read into from placeholders.
-/// argc[in]   : Number of arguments.
-///
-/// USAGE:
-///   const char *input = "Count: 42, Name: Alice";
-///   int count;
-///   Str name;
-///   const char *remaining = StrReadFmt(input, "Count: {}, Name: {}", count, name);
-///
-/// SUCCESS : After reading through `input`, returns back const char* to start reading from (from inside `input`)
-/// FAILURE : Returns NULL if `fmtstr` does not match with input. In any other case of error, does not return.
-///
-/// TAGS: Formatting, I/O, Parsing
-///
-const char *StrReadFmtInternal(const char *input, const char *fmtstr, TypeSpecificIO *argv, u64 argc);
-
-///
-/// Read formatted data from file streams (stdin, or other file)
-///
-/// stream[in] : `FILE*` we're reading from.
-/// fmtstr[in] : Format string to be used for reading. This must exactly describe input format.
-/// argv[in]   : Array of `TypeSpecificIO` structures describing where to read for each corresponding placeholder.
-/// argc[in]   : Number of `TypeSpecificIO` values in array.
-///
-/// SUCCESS : Compares fmtstr with stream of characters in `stream` and reads values at placeholders.
-///           A valid value will be stored in `.` arg provided.
-/// FAILURE : Logs out error message and returns. If rollback is possible, then un-reads all the read data.
-///           Restoring original state. Method can also abort if something really unexpected is encountered.
-///           Returns `NULL` if format string does not match with input `stream`.
-///
-/// TAGS: Formatting, I/O, File
-///
-void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u64 argc);
+// Internal runtime functions backing the formatted-I/O macros live in
+// `Misra/Std/Io/Private.h`. The umbrella `Misra/Std/Io.h` pulls them in via
+// the `#include "Io/Private.h"` at the top of this header so macros can
+// dispatch to them without exposing internal entry points as public API.
 
 ///
 /// Helper macro to append a comma after wrapping given argument in IOFMT
@@ -338,7 +278,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
 ///
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
 ///           result is appended to the `out` Str object.
-/// FAILURE : Failure occurs within `StrWriteFmtInternal`. Refer to its documentation
+/// FAILURE : Failure occurs within `str_write_fmt`. Refer to its documentation
 ///           for details on failure behavior (typically logs error messages and does not return).
 ///
 /// TAGS: Macro, Wrapper, Format, I/O
@@ -354,11 +294,11 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
     })                                                                                                             \
     )
 #define StrWriteFmt_IMPL2(input, fmtstr, varr)                                                                         \
-    StrWriteFmtInternal((input), (fmtstr), &(varr)[0], (sizeof(varr) / sizeof(TypeSpecificIO)) - 1)
+    str_write_fmt((input), (fmtstr), &(varr)[0], (sizeof(varr) / sizeof(TypeSpecificIO)) - 1)
 
 ///
 /// Parse input string according to format string with rust-style placeholders,
-/// extracting values into provided arguments. This is a macro wrapper around StrReadFmtInternal.
+/// extracting values into provided arguments. This is a macro wrapper around str_read_fmt.
 ///
 /// NOTE: Provided input string must be an assignable l-value. The macro automatically updates given
 ///       input string to new parse position after a successful parse. If parse fails, the input string
@@ -389,7 +329,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
 ///
 /// SUCCESS : Returns a `const char*` pointing to the beginning of the unparsed portion
 ///           of the `input` string after successful parsing.
-/// FAILURE : Failure occurs within `StrReadFmtInternal`. Refer to its documentation
+/// FAILURE : Failure occurs within `str_read_fmt`. Refer to its documentation
 ///           for details on failure behavior (typically logs error messages and does not return).
 ///
 /// TAGS: Macro, Wrapper, Format, Parsing, I/O
@@ -408,12 +348,12 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
         TypeSpecificIO *argv_     = &(varr)[0];                                                                        \
         char          **_p_input_ = (char **)(&(input));                                                               \
         u64             argc_     = sizeof(varr) / sizeof(TypeSpecificIO);                                             \
-        const char     *_input_   = StrReadFmtInternal((const char *)*(_p_input_), (fmtstr), argv_, argc_ - 1);        \
+        const char     *_input_   = str_read_fmt((const char *)*(_p_input_), (fmtstr), argv_, argc_ - 1);              \
         (*_p_input_)              = (char *)(_input_) ? (char *)(_input_) : (*_p_input_);                              \
     } while (0)
 
 ///
-/// Read formatted data from a file stream. This is a macro wrapper around FReadFmtInternal.
+/// Read formatted data from a file stream. This is a macro wrapper around f_read_fmt.
 ///
 /// stream[in]  : Pointer to the `FILE` stream to read from.
 /// fmtstr[in]  : Format string to be used for reading. This must exactly describe the
@@ -423,7 +363,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
 ///
 /// SUCCESS : Attempts to match `fmtstr` with the stream of characters in `stream` and
 ///           reads values into the provided arguments wrapped with ``.
-/// FAILURE : Failure occurs within `FReadFmtInternal`. Refer to its documentation for
+/// FAILURE : Failure occurs within `f_read_fmt`. Refer to its documentation for
 ///           details on failure behavior (logs error message and returns, may rollback
 ///           read data, or abort in unexpected situations).
 ///
@@ -442,11 +382,11 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
     do {                                                                                                               \
         TypeSpecificIO *argv_ = &(varr)[0];                                                                            \
         u64             argc_ = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                             \
-        FReadFmtInternal((file), (fmtstr), argv_, argc_);                                                              \
+        f_read_fmt((file), (fmtstr), argv_, argc_);                                                                    \
     } while (0)
 
 ///
-/// Write formatted output to a file stream. This macro internally uses StrWriteFmtInternal
+/// Write formatted output to a file stream. This macro internally uses str_write_fmt
 /// to format the string and then writes it to the stream.
 ///
 /// stream[in]  : Pointer to the `FILE` stream to write to.
@@ -458,7 +398,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
 ///           resulting formatted string is written to the specified `stream`.
 /// FAILURE : Failure might occur during memory allocation for the temporary string
 ///           or during the write operation to the stream (handled by `fputs`). Errors
-///           from `StrWriteFmtInternal` (logging messages) might also occur.
+///           from `str_write_fmt` (logging messages) might also occur.
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
@@ -472,11 +412,11 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
     })                                                                                                             \
     )
 #define FWriteFmt_IMPL2(stream, fmtstr, varr)                                                                          \
-    FWriteFmtInternal((stream), (fmtstr), &(varr)[0], (sizeof(varr) / sizeof(TypeSpecificIO)) - 1, false)
+    f_write_fmt((stream), (fmtstr), &(varr)[0], (sizeof(varr) / sizeof(TypeSpecificIO)) - 1, false)
 
 ///
 /// Write formatted output to a file stream followed by a newline character.
-/// This macro internally uses StrWriteFmtInternal to format the string and then writes
+/// This macro internally uses str_write_fmt to format the string and then writes
 /// it to the stream followed by a newline.
 ///
 /// stream[in]  : Pointer to the `FILE` stream to write to.
@@ -488,7 +428,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
 ///           resulting formatted string followed by a newline is written to the `stream`.
 /// FAILURE : Failure might occur during memory allocation for the temporary string
 ///           or during the write operation to the stream (`fputs` or `fputc`). Errors
-///           from `StrWriteFmtInternal` (logging messages) might also occur.
+///           from `str_write_fmt` (logging messages) might also occur.
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
@@ -502,7 +442,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
     })                                                                                                             \
     )
 #define FWriteFmtLn_IMPL2(stream, fmtstr, varr)                                                                        \
-    FWriteFmtInternal((stream), (fmtstr), &(varr)[0], (sizeof(varr) / sizeof(TypeSpecificIO)) - 1, true)
+    f_write_fmt((stream), (fmtstr), &(varr)[0], (sizeof(varr) / sizeof(TypeSpecificIO)) - 1, true)
 
 ///
 /// Write formatted output to the standard output stream (`stdout`).
@@ -516,7 +456,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
 ///           resulting formatted string is written to `stdout`.
 /// FAILURE : Failure might occur during memory allocation for the temporary string
 ///           or during the write operation to `stdout` (handled by `fputs`). Errors
-///           from `StrWriteFmtInternal` (logging messages) might also occur.
+///           from `str_write_fmt` (logging messages) might also occur.
 ///
 /// TAGS: Macro, Convenience, Stdout, I/O
 ///
@@ -534,7 +474,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
 ///           resulting formatted string followed by a newline is written to `stdout`.
 /// FAILURE : Failure might occur during memory allocation for the temporary string
 ///           or during the write operation to `stdout` (`fputs` or `fputc`). Errors
-///           from `StrWriteFmtInternal` (logging messages) might also occur.
+///           from `str_write_fmt` (logging messages) might also occur.
 ///
 /// TAGS: Macro, Convenience, Stdout, I/O
 ///
@@ -551,7 +491,7 @@ void FReadFmtInternal(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u6
 ///
 /// SUCCESS : Attempts to match `fmtstr` with the input from `stdin` and reads values
 ///           into the provided arguments wrapped with ``.
-/// FAILURE : Failure occurs within `FReadFmtInternal`. Refer to its documentation for
+/// FAILURE : Failure occurs within `f_read_fmt`. Refer to its documentation for
 ///           details on failure behavior (logs error message and returns, may rollback
 ///           read data, or abort in unexpected situations).
 ///
