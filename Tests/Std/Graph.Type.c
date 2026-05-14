@@ -15,7 +15,7 @@ static bool test_graph_type_defaults(void) {
                   graph.slots.data == NULL && graph.free_indices.data == NULL &&
                   graph.pending_edge_removals.data == NULL && graph.copy_init == NULL && graph.copy_deinit == NULL &&
                   graph.live_count == 0 && graph.pending_delete_count == 0 && graph.mutation_epoch == 0 &&
-                  graph.alignment == 1 && graph.type_anchor == NULL;
+                  graph.allocator.alignment == 1 && graph.type_anchor == NULL;
 
     GraphDeinit(&graph);
     return result;
@@ -25,15 +25,16 @@ static bool test_graph_aligned_init_and_id_layout(void) {
     WriteFmt("Testing Graph aligned init and node id layout\n");
 
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInitAligned(32);
+    IntGraph graph = GraphInit(HeapAllocatorAligned(32));
 
     GraphNodeId node_id = GraphAddNodeR(&graph, 11);
     GraphNode   node    = GraphGetNode(&graph, node_id);
 
-    bool result = graph.alignment == 32 && GraphNodeIdIndex(node_id) == 0 && GraphNodeIdGeneration(node_id) == 1;
-    result      = result && GraphNodeGetId(node) == node_id;
-    result      = result && GraphNodeIndex(node) == 0;
-    result      = result && GraphContainsNode(&graph, node_id);
+    bool result =
+        graph.allocator.alignment == 32 && GraphNodeIdIndex(node_id) == 0 && GraphNodeIdGeneration(node_id) == 1;
+    result = result && GraphNodeGetId(node) == node_id;
+    result = result && GraphNodeIndex(node) == 0;
+    result = result && GraphContainsNode(&graph, node_id);
 
     GraphDeinit(&graph);
     return result;

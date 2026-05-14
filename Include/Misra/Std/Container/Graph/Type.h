@@ -85,7 +85,7 @@ typedef struct {
 } GenericGraphSlot;
 
 typedef Vec(GenericGraphSlot) GraphSlots;
-typedef Vec(u32)              GraphFreeIndices;
+typedef Vec(u32) GraphFreeIndices;
 
 typedef struct {
     GraphNodeId from;
@@ -104,7 +104,6 @@ typedef struct {
     u64                      edge_count;
     u64                      pending_delete_count;
     u64                      mutation_epoch;
-    u64                      alignment;
     Allocator                allocator;
     void                    *type_anchor;
     u64                      __magic;
@@ -142,7 +141,8 @@ typedef struct {
 /// - edge_count            : Number of directed edges currently stored.
 /// - pending_delete_count  : Number of nodes marked for deletion but not yet committed.
 /// - mutation_epoch        : Structural mutation counter used by traversal helpers.
-/// - alignment             : Alignment used for graph-owned node payload allocations.
+/// - allocator             : Allocator bound to this graph. Its `alignment` field
+///                           governs node payload alignment.
 /// - type_anchor           : Type anchor for generic node payload macros.
 ///
 /// TAGS: Graph, Generic, Directed, Slot, Handle
@@ -158,7 +158,6 @@ typedef struct {
         u64                      edge_count;                                                                           \
         u64                      pending_delete_count;                                                                 \
         u64                      mutation_epoch;                                                                       \
-        u64                      alignment;                                                                            \
         Allocator                allocator;                                                                            \
         T                       *type_anchor;                                                                          \
         u64                      __magic;                                                                              \

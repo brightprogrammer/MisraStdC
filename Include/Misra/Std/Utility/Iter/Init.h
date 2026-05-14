@@ -45,7 +45,8 @@
 ///
 /// TAGS: Initialization, Container, Vector
 ///
-#define IterInitFromVec(v) {.data = (v).data, .length = (v).length, .pos = 0, .alignment = (v).alignment, .dir = 1}
+#define IterInitFromVec(v)                                                                                             \
+    {.data = (v).data, .length = (v).length, .pos = 0, .alignment = (v).allocator.alignment, .dir = 1}
 
 ///
 /// Initialize `Iter` from vector data to iterate in reverse direction.
@@ -54,7 +55,8 @@
 ///
 /// TAGS: Initialization, Container, Vector
 ///
-#define IterInitRevFromVec(v) {.data = (v).data, .length = (v).length, .pos = 0, .alignment = (v).alignment, .dir = -1}
+#define IterInitRevFromVec(v)                                                                                          \
+    {.data = (v).data, .length = (v).length, .pos = 0, .alignment = (v).allocator.alignment, .dir = -1}
 
 ///
 /// Initialize default `Iter` object to iterate in forward direction.
@@ -103,7 +105,7 @@
 /// TAGS: Initialization, Container, Vector
 ///
 #define IterInitFromVecT(i, v)                                                                                         \
-    ((TYPE_OF(i)) {.data = (v).data, .length = (v).length, .pos = 0, .alignment = (v).alignment, .dir = 1})
+    ((TYPE_OF(i)) {.data = (v).data, .length = (v).length, .pos = 0, .alignment = (v).allocator.alignment, .dir = 1})
 
 ///
 /// Initialize `Iter` from vector data starting at back
@@ -114,6 +116,6 @@
 /// TAGS: Initialization, Container, Vector
 ///
 #define IterInitRevFromVecT(i, v)                                                                                      \
-    ((TYPE_OF(i)) {.data = (v).data, .length = (v).length, .pos = 0, .alignment = (v).alignment, .dir = -1})
+    ((TYPE_OF(i)) {.data = (v).data, .length = (v).length, .pos = 0, .alignment = (v).allocator.alignment, .dir = -1})
 
 #endif // MISRA_STD_UTILITY_ITER_INIT_H

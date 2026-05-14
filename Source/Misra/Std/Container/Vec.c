@@ -20,17 +20,14 @@
 
 static inline size vec_aligned_size(GenericVec *v, size item_size) {
     ValidateVec(v);
-
-    if (!v->alignment) {
-        LOG_FATAL("Invalid alignment. Did you initialize before use? Aborting...");
-    }
-
-    return v->alignment > 1 ? ALIGN_UP_POW2(item_size, v->alignment) : item_size;
+    // Default allocator alignment of 1 leaves element stride at sizeof(T).
+    // Stronger allocator alignment requests pad each element so that every
+    // slot lies on the requested boundary.
+    return v->allocator.alignment > 1 ? ALIGN_UP_POW2(item_size, v->allocator.alignment) : item_size;
 }
 
 static inline size vec_aligned_offset_at(GenericVec *v, size idx, size item_size) {
     ValidateVec(v);
-
     return idx * vec_aligned_size(v, item_size);
 }
 
@@ -51,10 +48,9 @@ void init_vec(
     size              item_size,
     GenericCopyInit   copy_init,
     GenericCopyDeinit copy_deinit,
-    size              alignment,
     Allocator         allocator
 ) {
-    if (!vec || !item_size || !alignment) {
+    if (!vec || !item_size) {
         LOG_FATAL("Invalid arguments.");
     }
 
@@ -63,12 +59,8 @@ void init_vec(
     vec->copy_init   = copy_init;
     vec->copy_deinit = copy_deinit;
     vec->data        = NULL;
-    vec->alignment   = alignment;
     vec->allocator   = AllocatorBind(allocator);
-    if (alignment > vec->allocator.alignment) {
-        vec->allocator.alignment = alignment;
-    }
-    vec->__magic = MISRA_VEC_MAGIC;
+    vec->__magic     = MISRA_VEC_MAGIC;
 }
 
 void deinit_vec(GenericVec *vec, size item_size) {
@@ -518,7 +510,7 @@ void validate_vec(const GenericVec *v) {
     if ((v)->__magic != MISRA_VEC_MAGIC) {
         LOG_FATAL("Invalid vec object. Either uninitialized or corrupted!");
     }
-    if (!(v)->alignment || (v)->length > (v)->capacity) {
+    if ((v)->length > (v)->capacity) {
         LOG_FATAL("Invalid vec object.");
     }
     if (!(v)->allocator.allocate || !(v)->allocator.reallocate || !(v)->allocator.deallocate) {

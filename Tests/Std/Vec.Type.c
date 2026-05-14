@@ -26,8 +26,8 @@ bool test_vec_type_basic(void) {
 
     // Check initial state
     bool result =
-        (vec.length == 0 && vec.capacity == 0 && vec.data == NULL && vec.alignment == 1 && vec.copy_init == NULL &&
-         vec.copy_deinit == NULL);
+        (vec.length == 0 && vec.capacity == 0 && vec.data == NULL && vec.allocator.alignment == 1 &&
+         vec.copy_init == NULL && vec.copy_deinit == NULL);
 
     // Clean up
     VecDeinit(&vec);
@@ -37,8 +37,9 @@ bool test_vec_type_basic(void) {
     TestVec test_vec = VecInit();
 
     // Check initial state
-    result = result && (test_vec.length == 0 && test_vec.capacity == 0 && test_vec.data == NULL &&
-                        test_vec.alignment == 1 && test_vec.copy_init == NULL && test_vec.copy_deinit == NULL);
+    result =
+        result && (test_vec.length == 0 && test_vec.capacity == 0 && test_vec.data == NULL &&
+                   test_vec.allocator.alignment == 1 && test_vec.copy_init == NULL && test_vec.copy_deinit == NULL);
 
     // Clean up
     VecDeinit(&test_vec);

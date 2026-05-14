@@ -124,7 +124,6 @@ bool StrInitCopyAlloc(void *dst_ptr, const void *src_ptr, const Allocator *alloc
     *dst             = StrInit(*clone_allocator);
     dst->copy_init   = src->copy_init;
     dst->copy_deinit = src->copy_deinit;
-    dst->alignment   = src->alignment;
 
     if (!insert_range_into_vec(GENERIC_VEC(dst), src->data, sizeof(char), 0, src->length)) {
         return false;
@@ -640,7 +639,7 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
                 if (!StrPushBack(str, '0' + digit)) {
                     return NULL;
                 }
-                frac_part -= (int)frac_part;         // Remove the integer part
+                frac_part -= (int)frac_part; // Remove the integer part
             }
         }
 

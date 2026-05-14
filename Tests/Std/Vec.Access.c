@@ -182,7 +182,7 @@ bool test_vec_size_len(void) {
 
     // Test with a vector with alignment > 1
     typedef Vec(int) AlignedIntVec;
-    AlignedIntVec aligned_vec = VecInitAligned(8);
+    AlignedIntVec aligned_vec = VecInit(HeapAllocatorAligned(8));
 
     // Add some data
     VecPushBackR(&aligned_vec, 10);
@@ -219,7 +219,7 @@ bool test_vec_aligned_offset_at(void) {
 
     // Create a vector with 8-byte alignment
     typedef Vec(int) AlignedIntVec;
-    AlignedIntVec aligned_vec = VecInitAligned(8);
+    AlignedIntVec aligned_vec = VecInit(HeapAllocatorAligned(8));
 
     // For 8-byte alignment, each int (4 bytes) should be padded to 8 bytes
     size aligned_size = ALIGN_UP(sizeof(int), 8);

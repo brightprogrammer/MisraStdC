@@ -467,8 +467,7 @@
     (ValidateVec(vd),                                                                                                  \
      ValidateVec(vs),                                                                                                  \
      VecDeinit(vd),                                                                                                    \
-     *(vd) = (TYPE_OF(*(vd)))                                                                                          \
-         VEC_INIT_ALIGNED_WITH_DEEP_COPY_VALUE((vs)->copy_init, (vs)->copy_deinit, (vs)->alignment, (vs)->allocator),  \
+     *(vd) = (TYPE_OF(*(vd)))VEC_INIT_WITH_DEEP_COPY_VALUE((vs)->copy_init, (vs)->copy_deinit, (vs)->allocator),       \
      clone_vec(GENERIC_VEC(vd), GENERIC_VEC(vs), sizeof(VEC_DATATYPE(vd))))
 
 ///

@@ -24,21 +24,15 @@ static bool graph_alignment_is_pow2(u64 alignment) {
 }
 
 static void graph_validate_alignment(const GenericGraph *graph) {
-    if (!graph->alignment) {
-        LOG_FATAL("Invalid graph alignment. Did you initialize the graph before use?");
+    u64 alignment = graph->allocator.alignment;
+
+    if (!alignment) {
+        LOG_FATAL("Invalid graph allocator alignment. Did you initialize the graph before use?");
     }
 
-    if ((graph->alignment > 1) && !graph_alignment_is_pow2(graph->alignment)) {
-        LOG_FATAL("Graph alignment must be 1 or a power of two");
+    if ((alignment > 1) && !graph_alignment_is_pow2(alignment)) {
+        LOG_FATAL("Graph allocator alignment must be 1 or a power of two");
     }
-}
-
-static inline size graph_storage_alignment(void) {
-    return _Alignof(max_align_t);
-}
-
-static inline size graph_node_data_alignment(const GenericGraph *graph) {
-    return (size)(graph->alignment ? graph->alignment : 1);
 }
 
 static void graph_validate_slot_limit(const GenericGraph *graph) {
@@ -457,7 +451,6 @@ void deinit_graph(GenericGraph *graph, size item_size) {
     graph->edge_count           = 0;
     graph->pending_delete_count = 0;
     graph->mutation_epoch       = 0;
-    graph->alignment            = 0;
     AllocatorUnbind(&graph->allocator);
     graph->allocator   = AllocatorBind(DefaultAllocator());
     graph->type_anchor = NULL;

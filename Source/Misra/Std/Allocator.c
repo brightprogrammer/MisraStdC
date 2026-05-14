@@ -128,7 +128,11 @@ Allocator HeapAllocator(void) {
         .effort       = ALLOCATOR_EFFORT_ONCE,
         .retry_limit  = 0,
         .flags        = 0,
-        .alignment    = (size) _Alignof(max_align_t),
+        // Default alignment of 1 means "no stronger requirement than the
+        // backing allocator's natural alignment". For libc malloc that is
+        // already `_Alignof(max_align_t)`, so default heap allocations are
+        // safe for any standard scalar without padding stride.
+        .alignment = 1,
     };
 }
 

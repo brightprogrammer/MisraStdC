@@ -16,7 +16,6 @@ typedef struct {
     GenericCopyInit   copy_init;
     GenericCopyDeinit copy_deinit;
     char             *data;
-    u64               alignment;
     Allocator         allocator;
     u64               __magic;
 } GenericVec;
@@ -48,9 +47,10 @@ typedef struct {
 /// - copy_deinit : If provided then is used to deinit data held by vector.
 ///                 Caution when dealing with shared ownership.
 /// - data        : Data held by vector. Don't access by direct indexing. Use `VecAt(..)`
-/// - alignment   : Alignment requirement for each item in vector.
+/// - allocator   : Allocator bound to this vector. Its `alignment` field governs both
+///                 the alignment of the underlying buffer and the per-element stride.
 ///
-/// TAGS: Vec, Generic, Length, Size, Aligned, Pointer
+/// TAGS: Vec, Generic, Length, Size, Pointer
 ///
 #define Vec(T)                                                                                                         \
     struct {                                                                                                           \
@@ -59,7 +59,6 @@ typedef struct {
         GenericCopyInit   copy_init;                                                                                   \
         GenericCopyDeinit copy_deinit;                                                                                 \
         T                *data;                                                                                        \
-        u64               alignment;                                                                                   \
         Allocator         allocator;                                                                                   \
         u64               __magic;                                                                                     \
     }

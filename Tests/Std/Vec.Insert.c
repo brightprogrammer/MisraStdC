@@ -311,45 +311,32 @@ bool test_vec_init_clone_inherits_allocator_config(void) {
 
     typedef Vec(int) IntVec;
 
-    Allocator alloc = HeapAllocator();
-    alloc.effort = ALLOCATOR_EFFORT_RETRY_FALLBACK;
+    Allocator alloc   = HeapAllocator();
+    alloc.effort      = ALLOCATOR_EFFORT_RETRY_FALLBACK;
     alloc.retry_limit = 11;
-    alloc.flags = 0xA55Au;
+    alloc.flags       = 0xA55Au;
 
-    IntVec src = VecInit(alloc);
-    IntVec dst = VecInit();
-    int values[] = {10, 20, 30};
+    IntVec src      = VecInit(alloc);
+    IntVec dst      = VecInit();
+    int    values[] = {10, 20, 30};
 
-    src.alignment = 8;
-    src.allocator.state = (void *)&src;
+    src.allocator.alignment = 8;
+    src.allocator.state     = (void *)&src;
     VecPushBackArrR(&src, values, 3);
 
     bool cloned = VecInitClone(&dst, &src);
 
-    bool allocator_matches =
-        dst.allocator.allocate == alloc.allocate &&
-        dst.allocator.reallocate == alloc.reallocate &&
-        dst.allocator.deallocate == alloc.deallocate &&
-        dst.allocator.state_init == alloc.state_init &&
-        dst.allocator.state_deinit == alloc.state_deinit &&
-        dst.allocator.effort == alloc.effort &&
-        dst.allocator.retry_limit == alloc.retry_limit &&
-        dst.allocator.flags == alloc.flags &&
-        dst.allocator.state == NULL;
+    bool allocator_matches = dst.allocator.allocate == alloc.allocate && dst.allocator.reallocate == alloc.reallocate &&
+                             dst.allocator.deallocate == alloc.deallocate &&
+                             dst.allocator.state_init == alloc.state_init &&
+                             dst.allocator.state_deinit == alloc.state_deinit && dst.allocator.effort == alloc.effort &&
+                             dst.allocator.retry_limit == alloc.retry_limit && dst.allocator.flags == alloc.flags &&
+                             dst.allocator.state == NULL;
 
-    bool result = cloned &&
-        dst.copy_init == src.copy_init &&
-        dst.copy_deinit == src.copy_deinit &&
-        dst.alignment == 8 &&
-        allocator_matches &&
-        src.length == 3 &&
-        VecAt(&src, 0) == 10 &&
-        VecAt(&src, 1) == 20 &&
-        VecAt(&src, 2) == 30 &&
-        dst.length == 3 &&
-        VecAt(&dst, 0) == 10 &&
-        VecAt(&dst, 1) == 20 &&
-        VecAt(&dst, 2) == 30;
+    bool result = cloned && dst.copy_init == src.copy_init && dst.copy_deinit == src.copy_deinit &&
+                  dst.allocator.alignment == 8 && allocator_matches && src.length == 3 && VecAt(&src, 0) == 10 &&
+                  VecAt(&src, 1) == 20 && VecAt(&src, 2) == 30 && dst.length == 3 && VecAt(&dst, 0) == 10 &&
+                  VecAt(&dst, 1) == 20 && VecAt(&dst, 2) == 30;
 
     VecDeinit(&src);
     VecDeinit(&dst);
