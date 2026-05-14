@@ -55,19 +55,31 @@
 extern "C" {
 #endif
 
+#define BITVEC_INIT_HAS_ARGS_IMPL(_0, _1, count, ...) count
+#define BITVEC_INIT_HAS_ARGS(...)                     BITVEC_INIT_HAS_ARGS_IMPL(__VA_OPT__(, ) __VA_ARGS__, 1, 0, 0)
+
+#ifdef __cplusplus
 ///
-/// Initialize bitvector with default values.
-/// It is mandatory to initialize bitvectors before use. Not doing so is undefined behaviour.
+/// Initialize bitvector with default values. It is mandatory to initialize
+/// bitvectors before use; not doing so is undefined behaviour.
+///
+/// This public macro supports both forms:
+///
+/// - `BitVecInit()`         - uses `DefaultAllocator()`.
+/// - `BitVecInit(alloc)`    - binds the supplied allocator.
+///
+/// alloc[in] : Optional allocator override.
+///
+/// SUCCESS : Returns a fresh `BitVec` with length 0, capacity 0, NULL
+///           data pointer, and the chosen allocator bound. No heap
+///           allocation is performed until the bitvector is mutated.
+/// FAILURE : Function cannot fail.
 ///
 /// USAGE:
 ///   BitVec flags = BitVecInit();
 ///
 /// TAGS: Init, BitVec, Boolean, Bits
 ///
-#define BITVEC_INIT_HAS_ARGS_IMPL(_0, _1, count, ...) count
-#define BITVEC_INIT_HAS_ARGS(...)                     BITVEC_INIT_HAS_ARGS_IMPL(__VA_OPT__(, ) __VA_ARGS__, 1, 0, 0)
-
-#ifdef __cplusplus
 #    define BitVecInit(...) CONCAT(BitVecInit_, BITVEC_INIT_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
 #    define BitVecInit_0()                                                                                             \
         (BitVec {                                                                                                      \

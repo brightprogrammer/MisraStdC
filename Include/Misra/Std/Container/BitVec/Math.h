@@ -209,6 +209,33 @@ static inline u64 bitvec_edit_distance_no_error(BitVec *bv1, BitVec *bv2) {
 }
 
 #define BITVEC_EDIT_DISTANCE_SELECT(_1, _2, _3, NAME, ...) NAME
+
+///
+/// Calculate edit distance between two bitvectors. Edit distance is the
+/// minimum number of single-bit operations required to transform one into
+/// the other.
+///
+/// This public macro supports both forms:
+///
+/// - `BitVecEditDistance(bv1, bv2)`         - returns the result, no error channel.
+/// - `BitVecEditDistance(bv1, bv2, error)`  - writes the error flag through `error`.
+///
+/// bv1[in]    : First bitvector.
+/// bv2[in]    : Second bitvector.
+/// error[out] : Optional pointer set to `true` on failure and `false` on success.
+///
+/// SUCCESS : Returns the edit distance as a `u64`. Neither operand is
+///           modified.
+/// FAILURE : Returns `0` on scratch-buffer allocation failure. With the
+///           three-argument form `*error` is set to `true`; with the
+///           two-argument form the caller cannot distinguish failure from
+///           a true zero result.
+///
+/// USAGE:
+///   u64 distance = BitVecEditDistance(&bv1, &bv2);
+///
+/// TAGS: BitVec, Math, EditDistance, Macro
+///
 #define BitVecEditDistance(...)                                                                                        \
     BITVEC_EDIT_DISTANCE_SELECT(__VA_ARGS__, BitVecEditDistanceWithError, bitvec_edit_distance_no_error)(__VA_ARGS__)
 

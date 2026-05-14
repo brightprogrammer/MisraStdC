@@ -49,6 +49,21 @@ extern "C" {
 #    define FloatFrom(value) FLOAT_FROM_DISPATCH(value)(value)
 #endif
 
+    ///
+    /// Convert a float to an arbitrary-precision integer (truncation toward
+    /// zero - the fractional portion is discarded).
+    ///
+    /// result[out] : Destination integer.
+    /// value[in]   : Float to convert.
+    ///
+    /// SUCCESS : Returns `true`. `*result` holds the integer part of
+    ///           `value` (sign preserved). The source float is unchanged.
+    /// FAILURE : Returns `false` on allocation failure during the
+    ///           magnitude transfer. `*result` is left in a valid but
+    ///           unspecified state.
+    ///
+    /// TAGS: Float, Convert, Int, Truncate
+    ///
     bool FloatToInt(Int *result, Float *value);
 
     ///
@@ -79,8 +94,35 @@ extern "C" {
     /// TAGS: Float, Convert, String, Allocator
     ///
     bool FloatTryToStrAlloc(Str *out, Float *value, Allocator alloc);
+
+    ///
+    /// Convert a float to a decimal string using the default allocator.
+    ///
+    /// out[out]  : Destination string.
+    /// value[in] : Float to convert.
+    ///
+    /// SUCCESS : Returns `true`. `*out` holds the decimal representation of
+    ///           `value` (sign, integer part, fractional part).
+    /// FAILURE : Returns `false` on allocation failure. `*out` is left in
+    ///           a valid but unspecified state.
+    ///
+    /// TAGS: Float, Convert, String, Decimal
+    ///
     bool FloatTryToStr(Str *out, Float *value);
-    Str  FloatToStr(Float *value);
+
+    ///
+    /// Convert a float to a decimal string using the default allocator.
+    ///
+    /// value[in] : Float to convert.
+    ///
+    /// SUCCESS : Returns a freshly allocated `Str` holding the decimal
+    ///           representation of `value`.
+    /// FAILURE : Returns an empty `Str` on allocation failure. Use
+    ///           `FloatTryToStr` if you need explicit failure propagation.
+    ///
+    /// TAGS: Float, Convert, String, Decimal
+    ///
+    Str FloatToStr(Float *value);
 
 #ifdef __cplusplus
 }

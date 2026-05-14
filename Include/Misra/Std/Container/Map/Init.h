@@ -209,15 +209,80 @@
      .__magic           = MISRA_MAP_MAGIC}
 
 #ifdef __cplusplus
+///
+/// Typed initializer for a `Map(K, V)` typedef. Casts the inner anonymous
+/// struct produced by `MapInit` to the caller's declared type.
+///
+/// m[in]          : Variable whose type tag is recovered via `TYPE_OF(m)`.
+/// hash_fn[in]    : Hash callback for keys.
+/// compare_fn[in] : Key comparator.
+///
+/// SUCCESS : Returns a value of type `TYPE_OF(m)` initialized as an empty
+///           map (length 0, no probe table, linear policy bound). No heap
+///           allocation is performed.
+/// FAILURE : Function cannot fail.
+///
+/// TAGS: Map, Init, Typed, Linear
+///
 #    define MapInitT(m, hash_fn, compare_fn) (TYPE_OF(m) MapInit((hash_fn), (compare_fn)))
+
+///
+/// Typed initializer with stored value comparator.
+///
+/// SUCCESS : Returns a value of type `TYPE_OF(m)` initialized with the
+///           given key/value comparators and linear probing.
+/// FAILURE : Function cannot fail.
+///
+/// TAGS: Map, Init, Typed, Compare
+///
 #    define MapInitWithValueCompareT(m, hash_fn, compare_fn, value_compare_fn)                                         \
         (TYPE_OF(m) MapInitWithValueCompare((hash_fn), (compare_fn), (value_compare_fn)))
+
+///
+/// Typed initializer with explicit probing policy.
+///
+/// SUCCESS : Returns a value of type `TYPE_OF(m)` initialized with the
+///           given key callbacks and explicit probing policy.
+/// FAILURE : Function cannot fail.
+///
+/// TAGS: Map, Init, Typed, Policy
+///
 #    define MapInitWithPolicyT(m, hash_fn, compare_fn, policy_value)                                                   \
         (TYPE_OF(m) MapInitWithPolicy((hash_fn), (compare_fn), (policy_value)))
+
+///
+/// Typed initializer with value comparator and explicit probing policy.
+///
+/// SUCCESS : Returns a value of type `TYPE_OF(m)` initialized with the
+///           given key/value comparators and probing policy.
+/// FAILURE : Function cannot fail.
+///
+/// TAGS: Map, Init, Typed, Compare, Policy
+///
 #    define MapInitWithValueCompareAndPolicyT(m, hash_fn, compare_fn, value_compare_fn, policy_value)                  \
         (TYPE_OF(m) MapInitWithValueCompareAndPolicy((hash_fn), (compare_fn), (value_compare_fn), (policy_value)))
+
+///
+/// Typed initializer with deep-copy callbacks for keys and values.
+///
+/// SUCCESS : Returns a value of type `TYPE_OF(m)` initialized with the
+///           given key/value deep-copy callbacks and linear probing.
+/// FAILURE : Function cannot fail.
+///
+/// TAGS: Map, Init, Typed, DeepCopy, Linear
+///
 #    define MapInitWithDeepCopyT(m, hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd)                           \
         (TYPE_OF(m) MapInitWithDeepCopy((hash_fn), (compare_fn), (key_ci), (key_cd), (value_ci), (value_cd)))
+
+///
+/// Typed initializer with deep-copy callbacks and stored value comparator.
+///
+/// SUCCESS : Returns a value of type `TYPE_OF(m)` initialized with the
+///           given comparators and deep-copy callbacks.
+/// FAILURE : Function cannot fail.
+///
+/// TAGS: Map, Init, Typed, DeepCopy, Compare
+///
 #    define MapInitWithDeepCopyAndValueCompareT(                                                                       \
         m,                                                                                                             \
         hash_fn,                                                                                                       \
@@ -237,6 +302,16 @@
             (value_ci),                                                                                                \
             (value_cd)                                                                                                 \
         ))
+
+///
+/// Typed initializer with deep-copy callbacks and explicit probing policy.
+///
+/// SUCCESS : Returns a value of type `TYPE_OF(m)` initialized with the
+///           given deep-copy callbacks and probing policy.
+/// FAILURE : Function cannot fail.
+///
+/// TAGS: Map, Init, Typed, DeepCopy, Policy
+///
 #    define MapInitWithDeepCopyAndPolicyT(m, hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd, policy_value)    \
         (TYPE_OF(m) MapInitWithDeepCopyAndPolicy(                                                                      \
             (hash_fn),                                                                                                 \
@@ -247,6 +322,17 @@
             (value_cd),                                                                                                \
             (policy_value)                                                                                             \
         ))
+
+///
+/// Typed initializer with deep-copy callbacks, value comparator, and
+/// explicit probing policy.
+///
+/// SUCCESS : Returns a value of type `TYPE_OF(m)` initialized with the
+///           full callback set and probing policy.
+/// FAILURE : Function cannot fail.
+///
+/// TAGS: Map, Init, Typed, DeepCopy, Compare, Policy
+///
 #    define MapInitWithDeepCopyAndValueCompareAndPolicyT(                                                              \
         m,                                                                                                             \
         hash_fn,                                                                                                       \

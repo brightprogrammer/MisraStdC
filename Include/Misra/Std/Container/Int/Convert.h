@@ -118,8 +118,40 @@ extern "C" {
     /// TAGS: Int, Convert, String, Radix, Allocator
     ///
     bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Allocator alloc);
+
+    ///
+    /// Convert an integer to text in the given radix using the default allocator.
+    ///
+    /// out[out]      : Destination string.
+    /// value[in]     : Integer to convert.
+    /// radix[in]     : Output radix in the range `2..36`.
+    /// uppercase[in] : Use uppercase letters for digits above `9`.
+    ///
+    /// SUCCESS : Returns `true`. `*out` holds the textual representation of
+    ///           `value` in the given radix.
+    /// FAILURE : Returns `false` on allocation failure or when the radix is
+    ///           out of range. `*out` is left as an empty initialized Str.
+    ///
+    /// TAGS: Int, Convert, String, Radix
+    ///
     bool IntTryToStrRadix(Str *out, Int *value, u8 radix, bool uppercase);
-    Str  IntToStrRadix(Int *value, u8 radix, bool uppercase);
+
+    ///
+    /// Convert an integer to text in the given radix using the default allocator.
+    ///
+    /// value[in]     : Integer to convert.
+    /// radix[in]     : Output radix in the range `2..36`.
+    /// uppercase[in] : Use uppercase letters for digits above `9`.
+    ///
+    /// SUCCESS : Returns a freshly allocated `Str` holding the textual
+    ///           representation of `value` in the given radix.
+    /// FAILURE : Returns an empty `Str` on allocation failure or when the
+    ///           radix is out of range. Use `IntTryToStrRadix` if you need
+    ///           explicit failure propagation.
+    ///
+    /// TAGS: Int, Convert, String, Radix
+    ///
+    Str IntToStrRadix(Int *value, u8 radix, bool uppercase);
 
     ///
     /// Parse a decimal string into an integer.
@@ -146,8 +178,35 @@ extern "C" {
     /// TAGS: Int, Convert, String, Decimal, Allocator
     ///
     bool IntTryToStrAlloc(Str *out, Int *value, Allocator alloc);
+
+    ///
+    /// Convert an integer to a decimal string using the default allocator.
+    ///
+    /// out[out]  : Destination string.
+    /// value[in] : Integer to convert.
+    ///
+    /// SUCCESS : Returns `true`. `*out` holds the decimal representation of
+    ///           `value`.
+    /// FAILURE : Returns `false` on allocation failure. `*out` is left as
+    ///           an empty initialized Str.
+    ///
+    /// TAGS: Int, Convert, String, Decimal
+    ///
     bool IntTryToStr(Str *out, Int *value);
-    Str  IntToStr(Int *value);
+
+    ///
+    /// Convert an integer to a decimal string using the default allocator.
+    ///
+    /// value[in] : Integer to convert.
+    ///
+    /// SUCCESS : Returns a freshly allocated `Str` holding the decimal
+    ///           representation of `value`.
+    /// FAILURE : Returns an empty `Str` on allocation failure. Use
+    ///           `IntTryToStr` if you need explicit failure propagation.
+    ///
+    /// TAGS: Int, Convert, String, Decimal
+    ///
+    Str IntToStr(Int *value);
 
     ///
     /// Parse a binary string into an integer.
@@ -212,6 +271,30 @@ static inline u64 int_to_u64_no_error(Int *value) {
 }
 
 #define INT_TO_U64_SELECT(_1, _2, NAME, ...) NAME
-#define IntToU64(...)                        INT_TO_U64_SELECT(__VA_ARGS__, IntToU64WithError, int_to_u64_no_error)(__VA_ARGS__)
+
+///
+/// Convert an integer to `u64`.
+///
+/// This public macro supports both forms:
+///
+/// - `IntToU64(value)`               - returns the result, no error channel.
+/// - `IntToU64(value, error)`        - writes the error flag through `error`.
+///
+/// value[in]  : Integer to convert.
+/// error[out] : Optional pointer set to `true` on failure and `false` on success.
+///
+/// SUCCESS : Returns the numeric value as a `u64`. The integer is not
+///           modified.
+/// FAILURE : Returns `0` when the value does not fit in 64 bits. With the
+///           two-argument form `*error` is set to `true`; with the
+///           one-argument form the caller cannot distinguish overflow from
+///           a true zero result.
+///
+/// USAGE:
+///   u64 v = IntToU64(&big);
+///
+/// TAGS: Int, Convert, U64, Macro
+///
+#define IntToU64(...) INT_TO_U64_SELECT(__VA_ARGS__, IntToU64WithError, int_to_u64_no_error)(__VA_ARGS__)
 
 #endif // MISRA_STD_CONTAINER_INT_CONVERT_H

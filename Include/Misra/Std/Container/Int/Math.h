@@ -299,7 +299,26 @@ extern "C" {
     /// TAGS: Int, Math, Jacobi, NumberTheory
     ///
     bool IntTryJacobi(int *out, Int *a, Int *n);
-    int  IntJacobiWithError(Int *a, Int *n, bool *error);
+
+    ///
+    /// Compute the Jacobi symbol `(a/n)` with explicit failure channel.
+    ///
+    /// a[in]      : Numerator.
+    /// n[in]      : Odd positive modulus.
+    /// error[out] : Optional pointer set to `true` on failure (invalid `n`)
+    ///              and `false` on success.
+    ///
+    /// SUCCESS : Returns `-1`, `0`, or `1` reflecting the Jacobi symbol.
+    ///           Neither operand is modified. When `error` is non-NULL,
+    ///           `*error` is set to `false`.
+    /// FAILURE : Returns `0` when `n` is even, zero, or otherwise invalid
+    ///           for the Jacobi computation. When `error` is non-NULL,
+    ///           `*error` is set to `true` so the caller can distinguish
+    ///           failure from a true `0` result.
+    ///
+    /// TAGS: Int, Math, Jacobi, NumberTheory
+    ///
+    int IntJacobiWithError(Int *a, Int *n, bool *error);
     ///
     /// Compute `(value^2) mod modulus`.
     ///
@@ -454,6 +473,27 @@ extern "C" {
     }
 
 #define INT_IS_PROBABLE_PRIME_SELECT(_1, _2, NAME, ...) NAME
+
+///
+/// Test whether the integer is probably prime using a Miller-Rabin style
+/// primality check.
+///
+/// This public macro supports both forms:
+///
+/// - `IntIsProbablePrime(value)`         - returns the result, no error channel.
+/// - `IntIsProbablePrime(value, error)`  - writes the error flag through `error`.
+///
+/// value[in]  : Integer to test.
+/// error[out] : Optional pointer set to `true` on internal failure and
+///              `false` on success.
+///
+/// SUCCESS : Returns `true` when the value is probably prime.
+/// FAILURE : Returns `false` for composite values. With the two-argument
+///           form, `*error` is set to `true` on internal allocation failure
+///           during the witness loop and `false` otherwise.
+///
+/// TAGS: Int, Math, Prime, Predicate, Macro
+///
 #define IntIsProbablePrime(...)                                                                                        \
     INT_IS_PROBABLE_PRIME_SELECT(__VA_ARGS__, IntIsProbablePrimeWithError, int_is_probable_prime_no_error)(__VA_ARGS__)
 
@@ -737,7 +777,28 @@ extern "C" {
     }
 
 #define INT_JACOBI_SELECT(_1, _2, _3, NAME, ...) NAME
-#define IntJacobi(...)                           INT_JACOBI_SELECT(__VA_ARGS__, IntJacobiWithError, int_jacobi_no_error)(__VA_ARGS__)
+
+///
+/// Compute the Jacobi symbol `(a/n)`.
+///
+/// This public macro supports both forms:
+///
+/// - `IntJacobi(a, n)`         - returns the result, no error channel.
+/// - `IntJacobi(a, n, error)`  - writes the error flag through `error`.
+///
+/// a[in]      : Numerator.
+/// n[in]      : Odd positive modulus.
+/// error[out] : Optional pointer set to `true` on failure and `false` on success.
+///
+/// SUCCESS : Returns `-1`, `0`, or `1`. Neither operand is modified.
+/// FAILURE : Returns `0` when `n` is even, zero, or otherwise invalid for
+///           the Jacobi computation. With the two-argument form the caller
+///           cannot distinguish a true `0` result from failure; use the
+///           three-argument form with an `error` pointer to disambiguate.
+///
+/// TAGS: Int, Math, Jacobi, NumberTheory, Macro
+///
+#define IntJacobi(...) INT_JACOBI_SELECT(__VA_ARGS__, IntJacobiWithError, int_jacobi_no_error)(__VA_ARGS__)
 
 #ifdef __cplusplus
 }
