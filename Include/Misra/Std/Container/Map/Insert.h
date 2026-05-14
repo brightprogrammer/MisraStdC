@@ -240,9 +240,9 @@ static inline bool map_set_only_r_impl(
      MAP_TYPECHECK_VALUE_R((m), (in_value)),                                                                           \
      map_insert_r_impl(                                                                                                \
          GENERIC_MAP(m),                                                                                               \
-         &LVAL((MAP_KEY_TYPE(m))(in_key)),                                                                             \
+         &LVAL_AS(MAP_KEY_TYPE(m), in_key),                                                                            \
          sizeof(MAP_KEY_TYPE(m)),                                                                                      \
-         &LVAL((MAP_VALUE_TYPE(m))(in_value)),                                                                         \
+         &LVAL_AS(MAP_VALUE_TYPE(m), in_value),                                                                        \
          sizeof(MAP_VALUE_TYPE(m)),                                                                                    \
          sizeof(MAP_ENTRY_TYPE(m)),                                                                                    \
          offsetof(MAP_ENTRY_TYPE(m), key),                                                                             \
@@ -284,7 +284,7 @@ static inline bool map_set_only_r_impl(
      MAP_TYPECHECK_VALUE_L((m), (in_value)),                                                                           \
      map_set_first_l_impl(                                                                                             \
          GENERIC_MAP(m),                                                                                               \
-         &LVAL((MAP_KEY_TYPE(m))(in_key)),                                                                             \
+         &LVAL_AS(MAP_KEY_TYPE(m), in_key),                                                                            \
          &(in_value),                                                                                                  \
          sizeof(MAP_KEY_TYPE(m)),                                                                                      \
          sizeof(MAP_VALUE_TYPE(m)),                                                                                    \
@@ -311,8 +311,8 @@ static inline bool map_set_only_r_impl(
      MAP_TYPECHECK_VALUE_R((m), (in_value)),                                                                           \
      map_set_first_r_impl(                                                                                             \
          GENERIC_MAP(m),                                                                                               \
-         &LVAL((MAP_KEY_TYPE(m))(in_key)),                                                                             \
-         &LVAL((MAP_VALUE_TYPE(m))(in_value)),                                                                         \
+         &LVAL_AS(MAP_KEY_TYPE(m), in_key),                                                                            \
+         &LVAL_AS(MAP_VALUE_TYPE(m), in_value),                                                                        \
          sizeof(MAP_KEY_TYPE(m)),                                                                                      \
          sizeof(MAP_VALUE_TYPE(m)),                                                                                    \
          sizeof(MAP_ENTRY_TYPE(m)),                                                                                    \
@@ -373,9 +373,9 @@ static inline bool map_set_only_r_impl(
      MAP_TYPECHECK_VALUE_R((m), (in_value)),                                                                           \
      map_set_only_r_impl(                                                                                              \
          GENERIC_MAP(m),                                                                                               \
-         &LVAL((MAP_KEY_TYPE(m))(in_key)),                                                                             \
+         &LVAL_AS(MAP_KEY_TYPE(m), in_key),                                                                            \
          sizeof(MAP_KEY_TYPE(m)),                                                                                      \
-         &LVAL((MAP_VALUE_TYPE(m))(in_value)),                                                                         \
+         &LVAL_AS(MAP_VALUE_TYPE(m), in_value),                                                                        \
          sizeof(MAP_VALUE_TYPE(m)),                                                                                    \
          sizeof(MAP_ENTRY_TYPE(m)),                                                                                    \
          offsetof(MAP_ENTRY_TYPE(m), key),                                                                             \
@@ -420,8 +420,8 @@ static inline bool map_set_only_r_impl(
      MAP_TYPECHECK_VALUE_R((m), (default_value)),                                                                      \
      (MAP_VALUE_TYPE(m) *)map_ensure_value_ptr(                                                                        \
          GENERIC_MAP(m),                                                                                               \
-         &LVAL((MAP_KEY_TYPE(m))(lookup_key)),                                                                         \
-         &LVAL((MAP_VALUE_TYPE(m))(default_value)),                                                                    \
+         &LVAL_AS(MAP_KEY_TYPE(m), lookup_key),                                                                        \
+         &LVAL_AS(MAP_VALUE_TYPE(m), default_value),                                                                   \
          sizeof(MAP_ENTRY_TYPE(m)),                                                                                    \
          offsetof(MAP_ENTRY_TYPE(m), key),                                                                             \
          sizeof(MAP_KEY_TYPE(m)),                                                                                      \

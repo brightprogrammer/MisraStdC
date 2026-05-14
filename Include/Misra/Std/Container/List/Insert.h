@@ -48,7 +48,7 @@
 #define ListInsertL(l, lval, idx)                                                                                      \
     (ValidateList(l),                                                                                                  \
      LIST_TYPECHECK_L((l), (lval)),                                                                                    \
-     list_insert_one_l(GENERIC_LIST(l), &LVAL((LIST_DATA_TYPE(l))(lval)), &(lval), sizeof(LIST_DATA_TYPE(l)), (idx)))
+     list_insert_one_l(GENERIC_LIST(l), &LVAL_AS(LIST_DATA_TYPE(l), lval), &(lval), sizeof(LIST_DATA_TYPE(l)), (idx)))
 
 ///
 /// Insert a single element at the given index. R-value form: source is treated
@@ -68,7 +68,7 @@
 #define ListInsertR(l, rval, idx)                                                                                      \
     (ValidateList(l),                                                                                                  \
      LIST_TYPECHECK_R((l), (rval)),                                                                                    \
-     list_insert_one_r(GENERIC_LIST(l), &LVAL((LIST_DATA_TYPE(l))(rval)), sizeof(LIST_DATA_TYPE(l)), (idx)))
+     list_insert_one_r(GENERIC_LIST(l), &LVAL_AS(LIST_DATA_TYPE(l), rval), sizeof(LIST_DATA_TYPE(l)), (idx)))
 
 ///
 /// Default insertion alias for `ListInsertL`.

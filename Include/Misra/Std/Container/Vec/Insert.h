@@ -52,7 +52,7 @@
 #define VecInsertL(v, lval, idx)                                                                                       \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_L((v), (lval)),                                                                                     \
-     vec_insert_one_l(GENERIC_VEC(v), &LVAL((VEC_DATATYPE(v))(lval)), &(lval), sizeof(VEC_DATATYPE(v)), (idx), true))
+     vec_insert_one_l(GENERIC_VEC(v), &LVAL_AS(VEC_DATATYPE(v), lval), &(lval), sizeof(VEC_DATATYPE(v)), (idx), true))
 
 ///
 /// Insert a single element at the given index, preserving order of trailing
@@ -76,7 +76,7 @@
 #define VecInsertR(v, rval, idx)                                                                                       \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_R((v), (rval)),                                                                                     \
-     vec_insert_one_r(GENERIC_VEC(v), &LVAL((VEC_DATATYPE(v))(rval)), sizeof(VEC_DATATYPE(v)), (idx), true))
+     vec_insert_one_r(GENERIC_VEC(v), &LVAL_AS(VEC_DATATYPE(v), rval), sizeof(VEC_DATATYPE(v)), (idx), true))
 
 ///
 /// Default insertion alias for `VecInsertL`. Use when ownership transfer of an
@@ -110,7 +110,14 @@
 #define VecInsertFastL(v, lval, idx)                                                                                   \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_L((v), (lval)),                                                                                     \
-     vec_insert_one_l(GENERIC_VEC(v), &LVAL((VEC_DATATYPE(v))(lval)), &(lval), sizeof(VEC_DATATYPE(v)), (idx), false))
+     vec_insert_one_l(                                                                                                 \
+         GENERIC_VEC(v),                                                                                               \
+         &LVAL_AS(VEC_DATATYPE(v), lval),                                                                              \
+         &(lval),                                                                                                      \
+         sizeof(VEC_DATATYPE(v)),                                                                                      \
+         (idx),                                                                                                        \
+         false                                                                                                         \
+     ))
 
 ///
 /// Insert a single element using fast (order-not-preserving) placement.
@@ -130,7 +137,7 @@
 #define VecInsertFastR(v, rval, idx)                                                                                   \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_R((v), (rval)),                                                                                     \
-     vec_insert_one_r(GENERIC_VEC(v), &LVAL((VEC_DATATYPE(v))(rval)), sizeof(VEC_DATATYPE(v)), (idx), false))
+     vec_insert_one_r(GENERIC_VEC(v), &LVAL_AS(VEC_DATATYPE(v), rval), sizeof(VEC_DATATYPE(v)), (idx), false))
 
 ///
 /// Default fast-insertion alias for `VecInsertFastL`.

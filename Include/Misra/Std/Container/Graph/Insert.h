@@ -70,7 +70,7 @@
 #define GraphAddNodeR(g, rval)                                                                                         \
     (ValidateGraph(g),                                                                                                 \
      GRAPH_TYPECHECK_NODE_R((g), (rval)),                                                                              \
-     graph_push_node(GENERIC_GRAPH(g), &LVAL((GRAPH_NODE_TYPE(g))(rval)), sizeof(GRAPH_NODE_TYPE(g))))
+     graph_push_node(GENERIC_GRAPH(g), &LVAL_AS(GRAPH_NODE_TYPE(g), rval), sizeof(GRAPH_NODE_TYPE(g))))
 
 ///
 /// Default node-add alias for `GraphAddNodeL`.

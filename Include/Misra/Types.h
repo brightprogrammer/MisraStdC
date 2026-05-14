@@ -131,6 +131,32 @@ typedef i8 bool;
 #    define TYPE_OF(x) __typeof__((x))
 #endif
 
+#if defined(_MSC_VER) && !defined(__cplusplus)
+/// MSVC's `<stddef.h>` does not expose `max_align_t` in C mode. Provide a portable
+/// shim using a union of the widest standard scalar types so `_Alignof(max_align_t)`
+/// works uniformly across compilers.
+typedef union {
+    long long   ll_;
+    long double ld_;
+    void       *p_;
+    void (*fn_)(void);
+} max_align_t;
+#endif
+
+///
+/// Creates a fresh l-value of type `T` initialized from expression `x`.
+/// Uses compound-literal initialization rather than a cast so it works for
+/// structs as well as scalars (MSVC C2440 rejects struct-to-same-struct casts).
+///
+/// T[in] : Target type of the produced l-value.
+/// x[in] : Source expression. Must be convertible to `T` via initialization.
+///
+/// SUCCESS: Returns an addressable l-value of type `T`.
+/// FAILURE: Compile error when `x` is not initialization-compatible with `T`.
+///
+/// TAGS: Type, Cast, Compound, Literal, Utility
+#define LVAL_AS(T, x) (((T[]) {(x)})[0])
+
 //
 /// Returns the smaller of two values `x` and `y`.
 ///
@@ -626,9 +652,8 @@ typedef i8 bool;
 ///
 /// Macro helper to generate unique names
 ///
-#define CONCAT_(a, b)     a##b
-#define CONCAT(a, b)      CONCAT_(a, b)
-#define UNIQUE_NAME(base) CONCAT(base, __COUNTER__)
+#define CONCAT_(a, b) a##b
+#define CONCAT(a, b)  CONCAT_(a, b)
 
 ///  Unique name per line
 #define UNPL(base) CONCAT(base, __LINE__)
