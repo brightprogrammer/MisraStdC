@@ -26,11 +26,12 @@ extern "C" {
         ALLOCATOR_EFFORT_RETRY_FALLBACK,
     } AllocatorEffort;
 
-    typedef struct Allocator      Allocator;
-    typedef struct HeapAllocator  HeapAllocator;
-    typedef struct PageAllocator  PageAllocator;
-    typedef struct ArenaAllocator ArenaAllocator;
-    typedef struct SlabAllocator  SlabAllocator;
+    typedef struct Allocator       Allocator;
+    typedef struct HeapAllocator   HeapAllocator;
+    typedef struct PageAllocator   PageAllocator;
+    typedef struct ArenaAllocator  ArenaAllocator;
+    typedef struct SlabAllocator   SlabAllocator;
+    typedef struct BudgetAllocator BudgetAllocator;
 
     typedef void *(*AllocatorAllocateFn)(Allocator *self, size bytes, bool zeroed);
     typedef void *(*AllocatorReallocateFn)(Allocator *self, void *ptr, size old_size, size new_size);
@@ -137,7 +138,8 @@ extern "C" {
 /// Convert any allocator pointer to `Allocator *`. The argument may be:
 ///
 ///   - a typed allocator pointer (`HeapAllocator *`, `PageAllocator *`,
-///     `ArenaAllocator *`, `SlabAllocator *`), in which case the macro
+///     `ArenaAllocator *`, `SlabAllocator *`, `BudgetAllocator *`),
+///     in which case the macro
 ///     typecasts the whole pointer to `Allocator *`. The cast is safe
 ///     because every typed allocator carries `Allocator base` at offset
 ///     zero — the C-style inheritance contract.
@@ -170,7 +172,8 @@ extern "C" {
         HeapAllocator *: (Allocator *)(allocator_ptr),                                                                 \
         PageAllocator *: (Allocator *)(allocator_ptr),                                                                 \
         ArenaAllocator *: (Allocator *)(allocator_ptr),                                                                \
-        SlabAllocator *: (Allocator *)(allocator_ptr)                                                                  \
+        SlabAllocator *: (Allocator *)(allocator_ptr),                                                                 \
+        BudgetAllocator *: (Allocator *)(allocator_ptr)                                                                \
     )
 
 // Typed allocator headers (PageAllocator, HeapAllocator, ArenaAllocator,
