@@ -36,8 +36,12 @@
 /// lval[in]  : Addressable element to insert. Must match the list's element type.
 /// idx[in]   : Position in [0, length].
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure. The list and `lval` are unchanged.
+/// SUCCESS : Returns `true`. A new node holding `lval`'s payload is linked at
+///           position `idx`; the list length grows by one. When the list has
+///           no `copy_init` handler, `lval` has been zeroed (moved-from);
+///           otherwise `lval` is unchanged.
+/// FAILURE : Returns `false` on allocation failure (either the node header
+///           or the payload buffer). The list and `lval` are both unchanged.
 ///
 /// TAGS: List, Insert, LValue, Ownership
 ///
@@ -54,8 +58,10 @@
 /// rval[in]  : Value to insert.
 /// idx[in]   : Position in [0, length].
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// SUCCESS : Returns `true`. A new node holding a copy of `rval` is linked at
+///           position `idx`; the list length grows by one. The source
+///           expression is untouched.
+/// FAILURE : Returns `false` on allocation failure. The list is unchanged.
 ///
 /// TAGS: List, Insert, RValue
 ///
@@ -72,12 +78,22 @@
 ///
 /// Prepend an element at the head of the list. L-value ownership form.
 ///
+/// SUCCESS : Returns `true`. A new node holding `lval`'s payload is linked
+///           as the new head; the list length grows by one. When the list
+///           has no `copy_init` handler, `lval` has been zeroed.
+/// FAILURE : Returns `false` on allocation failure. The list and `lval`
+///           are unchanged.
+///
 /// TAGS: List, PushFront, LValue
 ///
 #define ListPushFrontL(l, lval) ListInsertL((l), (lval), 0)
 
 ///
 /// Prepend an element at the head of the list. R-value form.
+///
+/// SUCCESS : Returns `true`. A new node holding a copy of `rval` is linked
+///           as the new head; the list length grows by one.
+/// FAILURE : Returns `false` on allocation failure. The list is unchanged.
 ///
 /// TAGS: List, PushFront, RValue
 ///
@@ -91,12 +107,22 @@
 ///
 /// Append an element at the tail of the list. L-value ownership form.
 ///
+/// SUCCESS : Returns `true`. A new node holding `lval`'s payload is linked
+///           as the new tail; the list length grows by one. When the list
+///           has no `copy_init` handler, `lval` has been zeroed.
+/// FAILURE : Returns `false` on allocation failure. The list and `lval`
+///           are unchanged.
+///
 /// TAGS: List, PushBack, LValue
 ///
 #define ListPushBackL(l, lval) ListInsertL((l), (lval), (l)->length)
 
 ///
 /// Append an element at the tail of the list. R-value form.
+///
+/// SUCCESS : Returns `true`. A new node holding a copy of `rval` is linked
+///           as the new tail; the list length grows by one.
+/// FAILURE : Returns `false` on allocation failure. The list is unchanged.
 ///
 /// TAGS: List, PushBack, RValue
 ///
@@ -116,8 +142,14 @@
 /// arr[in]   : Pointer to source array. Must be non-NULL when `count > 0`.
 /// count[in] : Number of elements to append.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// SUCCESS : Returns `true`. `count` new nodes are linked at the tail of the
+///           list; list length grows by `count`. When the list has no
+///           `copy_init` handler, the `count * sizeof(element)` source bytes
+///           have been zeroed. If a node allocation fails partway through,
+///           the already-inserted nodes stay linked (caller may treat the
+///           operation as partially complete).
+/// FAILURE : Returns `false` on allocation failure during the first node
+///           allocation. The list and source are unchanged.
 ///
 /// TAGS: List, PushBack, Range, LValue
 ///
@@ -128,6 +160,12 @@
 
 ///
 /// Append a contiguous range of elements to the end of the list. R-value form.
+///
+/// SUCCESS : Returns `true`. `count` new nodes holding copies of the source
+///           elements are linked at the tail; list length grows by `count`.
+///           The source range is untouched.
+/// FAILURE : Returns `false` on allocation failure during the first node
+///           allocation. The list and source are unchanged.
 ///
 /// TAGS: List, PushBack, Range, RValue
 ///
@@ -149,8 +187,13 @@
 /// l[in,out]  : Destination list.
 /// l2[in,out] : Source list. May be emptied on success.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure. Both lists are unchanged.
+/// SUCCESS : Returns `true`. `l->length` grows by the previous `l2->length`;
+///           the appended nodes form the new tail of `l`. When `l` has no
+///           `copy_init` handler, the nodes from `l2` have been relinked
+///           into `l` and `l2` is left empty (head/tail NULL, length 0).
+///           With a deep-copy handler, `l2` is unchanged.
+/// FAILURE : Returns `false` on allocation failure. Both `l` and `l2` are
+///           unchanged.
 ///
 /// TAGS: List, Merge, LValue, Ownership
 ///
@@ -163,6 +206,10 @@
 ///
 /// Append a copy of all elements of `l2` to the end of `l`. R-value form: the
 /// source list is never emptied; its contents are read-only.
+///
+/// SUCCESS : Returns `true`. `l->length` grows by `l2->length`; copies of
+///           every `l2` node form the new tail of `l`. `l2` is untouched.
+/// FAILURE : Returns `false` on allocation failure. `l` is unchanged.
 ///
 /// TAGS: List, Merge, RValue
 ///

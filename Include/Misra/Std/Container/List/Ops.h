@@ -17,6 +17,12 @@
 ///
 /// l[in,out] : List to be cleared.
 ///
+/// SUCCESS : Returns to the caller. The list length is now 0, head and tail
+///           are NULL, and every previously-stored node has been freed.
+///           When `copy_deinit` is configured it has been invoked on each
+///           previously-stored element.
+/// FAILURE : Function cannot fail.
+///
 /// TAGS: List, Ops, Clear
 ///
 #define ListClear(l) clear_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)))
@@ -29,9 +35,11 @@
 /// compare[in] : Compare function with `strcmp`-style return (negative, zero,
 ///               positive).
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` if the scratch buffer allocation fails. The list order
-///           is unchanged in that case.
+/// SUCCESS : Returns `true`. Elements are now in non-decreasing order
+///           according to `compare`. The list length and node count are
+///           unchanged; the scratch buffer has been released.
+/// FAILURE : Returns `false` if the temporary contiguous buffer cannot be
+///           allocated. The list order and contents are unchanged.
 ///
 /// TAGS: List, Ops, Sort
 ///
@@ -57,6 +65,11 @@
 /// Reverse the order of nodes in the list in place.
 ///
 /// l[in,out] : List to be reversed.
+///
+/// SUCCESS : Returns to the caller. The previous head is now the tail and
+///           vice versa; every `next` / `prev` link has been flipped. The
+///           list length is unchanged.
+/// FAILURE : Function cannot fail.
 ///
 /// TAGS: List, Ops, Reverse
 ///

@@ -33,11 +33,17 @@
 #define ListEmpty(l) (ListLen(l) == 0)
 
 ///
-/// Swap the elements at two given indices in place.
+/// Swap the payloads of two list nodes in place.
 ///
 /// l[in,out] : List handle.
 /// idx1[in]  : First index in [0, length).
 /// idx2[in]  : Second index in [0, length).
+///
+/// SUCCESS : Returns to the caller. The data payloads at `idx1` and `idx2`
+///           have been exchanged byte-for-byte. Node identity and node
+///           order are unchanged - only the values they carry move.
+/// FAILURE : Function cannot fail. Either index being out of range is a
+///           caller bug and aborts via `LOG_FATAL`.
 ///
 /// TAGS: List, Access, Swap
 ///

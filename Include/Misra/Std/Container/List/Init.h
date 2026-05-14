@@ -91,6 +91,15 @@
 ///
 /// v[in,out] : Pointer to list to deinitialize.
 ///
+/// SUCCESS : Returns to the caller. Every node has been freed back to the
+///           list's allocator; head, tail, and length are reset; the
+///           allocator binding is unbound and replaced with
+///           `AllocatorBind(DefaultAllocator())` so the list object can
+///           be safely re-initialized. When `copy_deinit` is configured
+///           it has been invoked on each previously-stored element.
+/// FAILURE : Function cannot fail. A NULL `v` is a caller bug and aborts
+///           via `LOG_FATAL`.
+///
 /// TAGS: List, Deinit, Cleanup, Memory
 ///
 #define ListDeinit(v) deinit_list(GENERIC_LIST(v), sizeof(LIST_DATA_TYPE(v)))
