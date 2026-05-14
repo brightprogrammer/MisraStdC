@@ -26,7 +26,7 @@ extern "C" {
     ///
     /// TAGS: Int, Compare, Ordering
     ///
-    int(int_compare)(Int *lhs, Int *rhs);
+    int int_compare(Int *lhs, Int *rhs);
 
 #ifndef __cplusplus
 #    define INT_COMPARE_DISPATCH(rhs)                                                                                  \

@@ -49,7 +49,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Add
     ///
-    bool(int_add)(Int *result, Int *a, Int *b);
+    bool int_add(Int *result, Int *a, Int *b);
     ///
     /// Subtract one integer from another.
     ///
@@ -64,7 +64,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Subtract
     ///
-    bool(int_sub)(Int *result, Int *a, Int *b);
+    bool int_sub(Int *result, Int *a, Int *b);
     ///
     /// Multiply two integers.
     ///
@@ -77,7 +77,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Multiply
     ///
-    bool(int_mul)(Int *result, Int *a, Int *b);
+    bool int_mul(Int *result, Int *a, Int *b);
     ///
     /// Square an integer.
     ///
@@ -102,7 +102,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Power, Exponentiation
     ///
-    bool(int_pow)(Int *result, Int *base, Int *exponent);
+    bool int_pow(Int *result, Int *base, Int *exponent);
     ///
     /// Divide one integer by another using floor division.
     ///
@@ -117,7 +117,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Divide, Quotient
     ///
-    bool(int_div)(Int *result, Int *dividend, Int *divisor);
+    bool int_div(Int *result, Int *dividend, Int *divisor);
     ///
     /// Divide one integer by another only when the division is exact.
     ///
@@ -132,7 +132,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, DivideExact
     ///
-    bool(int_div_exact)(Int *result, Int *dividend, Int *divisor);
+    bool int_div_exact(Int *result, Int *dividend, Int *divisor);
     ///
     /// Compute `dividend mod divisor`.
     ///
@@ -147,7 +147,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Modulo
     ///
-    bool(int_mod)(Int *result, Int *dividend, Int *divisor);
+    bool int_mod(Int *result, Int *dividend, Int *divisor);
     ///
     /// Compute quotient and remainder in one call.
     ///
@@ -163,7 +163,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Divide, Modulo
     ///
-    bool(int_div_mod)(Int *quotient, Int *remainder, Int *dividend, Int *divisor);
+    bool int_div_mod(Int *quotient, Int *remainder, Int *dividend, Int *divisor);
     ///
     /// Compute the greatest common divisor of two integers.
     ///
@@ -369,7 +369,7 @@ extern "C" {
     ///
     /// TAGS: Int, Math, Modular, Power
     ///
-    bool(int_pow_mod)(Int *result, Int *base, Int *exponent, Int *modulus);
+    bool int_pow_mod(Int *result, Int *base, Int *exponent, Int *modulus);
     ///
     /// Compute the multiplicative inverse of a value modulo `modulus`.
     ///

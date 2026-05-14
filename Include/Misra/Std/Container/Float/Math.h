@@ -49,7 +49,7 @@ extern "C" {
     ///
     /// TAGS: Float, Math, Add
     ///
-    bool(float_add)(Float *result, Float *a, Float *b);
+    bool float_add(Float *result, Float *a, Float *b);
     ///
     /// Subtract one float from another.
     ///
@@ -62,7 +62,7 @@ extern "C" {
     ///
     /// TAGS: Float, Math, Subtract
     ///
-    bool(float_sub)(Float *result, Float *a, Float *b);
+    bool float_sub(Float *result, Float *a, Float *b);
     ///
     /// Multiply two floats.
     ///
@@ -75,7 +75,7 @@ extern "C" {
     ///
     /// TAGS: Float, Math, Multiply
     ///
-    bool(float_mul)(Float *result, Float *a, Float *b);
+    bool float_mul(Float *result, Float *a, Float *b);
     ///
     /// Divide one float by another.
     /// The quotient is truncated after scaling by `10^precision`.
@@ -92,7 +92,7 @@ extern "C" {
     ///
     /// TAGS: Float, Math, Divide, Precision
     ///
-    bool(float_div)(Float *result, Float *a, Float *b, u64 precision);
+    bool float_div(Float *result, Float *a, Float *b, u64 precision);
 #ifndef __cplusplus
 #    define FLOAT_ADD_DISPATCH(rhs)                                                                                    \
         _Generic(                                                                                                      \

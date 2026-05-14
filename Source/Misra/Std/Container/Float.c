@@ -656,7 +656,7 @@ int float_compare_with_error(Float *lhs, Float *rhs, bool *error) {
     return FloatIsNegative(lhs) ? -cmp : cmp;
 }
 
-int(float_compare)(Float *lhs, Float *rhs) {
+int float_compare(Float *lhs, Float *rhs) {
     return float_compare_with_error(lhs, rhs, NULL);
 }
 
@@ -799,7 +799,7 @@ void FloatAbs(Float *value) {
     value->negative = false;
 }
 
-bool(float_add)(Float *result, Float *a, Float *b) {
+bool float_add(Float *result, Float *a, Float *b) {
     Float lhs;
     Float rhs;
     Float temp;
@@ -923,7 +923,7 @@ bool float_add_f64(Float *result, Float *a, double b) {
     return ok;
 }
 
-bool(float_sub)(Float *result, Float *a, Float *b) {
+bool float_sub(Float *result, Float *a, Float *b) {
     Float rhs = FloatInit(b->significand.bits.allocator);
 
     ValidateFloat(result);
@@ -994,7 +994,7 @@ bool float_sub_f64(Float *result, Float *a, double b) {
     return ok;
 }
 
-bool(float_mul)(Float *result, Float *a, Float *b) {
+bool float_mul(Float *result, Float *a, Float *b) {
     Float temp = FloatInit(result->significand.bits.allocator);
 
     ValidateFloat(result);
@@ -1068,7 +1068,7 @@ bool float_mul_f64(Float *result, Float *a, double b) {
     return ok;
 }
 
-bool(float_div)(Float *result, Float *a, Float *b, u64 precision) {
+bool float_div(Float *result, Float *a, Float *b, u64 precision) {
     Float temp   = FloatInit(result->significand.bits.allocator);
     Int   scale  = IntInit(result->significand.bits.allocator);
     Int   scaled = IntInit(result->significand.bits.allocator);

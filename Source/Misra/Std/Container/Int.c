@@ -833,7 +833,7 @@ Str IntToHexStr(Int *value) {
     return IntToStrRadix(value, 16, false);
 }
 
-int(int_compare)(Int *lhs, Int *rhs) {
+int int_compare(Int *lhs, Int *rhs) {
     ValidateInt(lhs);
     ValidateInt(rhs);
 
@@ -942,7 +942,7 @@ bool IntShiftRight(Int *value, u64 positions) {
     return true;
 }
 
-bool(int_add)(Int *result, Int *a, Int *b) {
+bool int_add(Int *result, Int *a, Int *b) {
     ValidateInt(result);
     ValidateInt(a);
     ValidateInt(b);
@@ -1021,7 +1021,7 @@ bool int_add_i64(Int *result, Int *value, i64 addend) {
     return true;
 }
 
-bool(int_sub)(Int *result, Int *a, Int *b) {
+bool int_sub(Int *result, Int *a, Int *b) {
     ValidateInt(result);
     ValidateInt(a);
     ValidateInt(b);
@@ -1091,7 +1091,7 @@ bool int_sub_i64(Int *result, Int *value, i64 subtrahend) {
     return int_add_u64(result, value, magnitude);
 }
 
-bool(int_mul)(Int *result, Int *a, Int *b) {
+bool int_mul(Int *result, Int *a, Int *b) {
     ValidateInt(result);
     ValidateInt(a);
     ValidateInt(b);
@@ -1166,7 +1166,7 @@ bool IntSquare(Int *result, Int *value) {
     return int_mul(result, value, value);
 }
 
-bool(int_pow)(Int *result, Int *base, Int *exponent) {
+bool int_pow(Int *result, Int *base, Int *exponent) {
     ValidateInt(result);
     ValidateInt(base);
     ValidateInt(exponent);
@@ -1236,7 +1236,7 @@ bool int_pow_i64(Int *result, Int *base, i64 exponent) {
     return int_pow_u64(result, base, (u64)exponent);
 }
 
-bool(int_div_mod)(Int *quotient, Int *remainder, Int *dividend, Int *divisor) {
+bool int_div_mod(Int *quotient, Int *remainder, Int *dividend, Int *divisor) {
     ValidateInt(quotient);
     ValidateInt(remainder);
     ValidateInt(dividend);
@@ -1322,7 +1322,7 @@ cleanup:
     return ok;
 }
 
-bool(int_div)(Int *result, Int *dividend, Int *divisor) {
+bool int_div(Int *result, Int *dividend, Int *divisor) {
     Int quotient  = IntInit(result->bits.allocator);
     Int remainder = IntInit(result->bits.allocator);
 
@@ -1337,7 +1337,7 @@ bool(int_div)(Int *result, Int *dividend, Int *divisor) {
     return true;
 }
 
-bool(int_div_exact)(Int *result, Int *dividend, Int *divisor) {
+bool int_div_exact(Int *result, Int *dividend, Int *divisor) {
     ValidateInt(result);
     ValidateInt(dividend);
     ValidateInt(divisor);
@@ -1475,7 +1475,7 @@ u64 int_div_u64_rem(Int *quotient, Int *dividend, u64 divisor) {
     return rem;
 }
 
-bool(int_mod)(Int *result, Int *dividend, Int *divisor) {
+bool int_mod(Int *result, Int *dividend, Int *divisor) {
     Int quotient  = IntInit(result->bits.allocator);
     Int remainder = IntInit(result->bits.allocator);
 
@@ -2114,7 +2114,7 @@ bool int_pow_u64_mod(Int *result, Int *base, u64 exponent, Int *modulus) {
     return true;
 }
 
-bool(int_pow_mod)(Int *result, Int *base, Int *exponent, Int *modulus) {
+bool int_pow_mod(Int *result, Int *base, Int *exponent, Int *modulus) {
     ValidateInt(result);
     ValidateInt(base);
     ValidateInt(exponent);

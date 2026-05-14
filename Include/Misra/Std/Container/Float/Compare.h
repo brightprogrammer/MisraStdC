@@ -27,7 +27,7 @@ extern "C" {
     /// TAGS: Float, Compare, Ordering
     ///
     int float_compare_with_error(Float *lhs, Float *rhs, bool *error);
-    int(float_compare)(Float *lhs, Float *rhs);
+    int float_compare(Float *lhs, Float *rhs);
 #ifndef __cplusplus
 #    define FLOAT_COMPARE_DISPATCH(rhs)                                                                                \
         _Generic(                                                                                                      \
