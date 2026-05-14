@@ -112,8 +112,14 @@ extern "C" {
     /// cap[in]   : Initial capacity in bits.
     /// alloc[in] : Allocator to bind to the bitvector.
     ///
-    /// SUCCESS : Returns initialized bitvector.
-    /// FAILURE : Returns an empty bitvector if allocation fails.
+    /// SUCCESS : Returns an initialized `BitVec`. Length is 0, capacity is
+    ///           at least `cap` bits, the byte buffer has been allocated
+    ///           and zero-filled, and `alloc` has been bound into the
+    ///           bitvector's allocator slot.
+    /// FAILURE : Returns an empty bitvector (length 0, capacity 0, data
+    ///           NULL) when allocation of the underlying byte buffer
+    ///           fails. The allocator is still bound so the returned
+    ///           object is safe to `BitVecDeinit` or retry-reserve.
     ///
     /// USAGE:
     ///   BitVec flags = BitVecInitWithCapacityAlloc(64, allocator);
@@ -132,8 +138,11 @@ extern "C" {
 ///
 /// Omitting the allocator uses `DefaultAllocator()`.
 ///
-/// SUCCESS : Returns initialized bitvector.
-/// FAILURE : Returns an empty bitvector if allocation fails.
+/// SUCCESS : Returns an initialized `BitVec` with reserved capacity for at
+///           least `cap` bits (see `BitVecInitWithCapacityAlloc`).
+/// FAILURE : Returns an empty bitvector (length 0, capacity 0, data NULL,
+///           allocator still bound) when the underlying byte buffer
+///           allocation fails.
 ///
 /// TAGS: Init, BitVec, Boolean, Bits, Capacity, Allocator, Macro
 ///
@@ -150,7 +159,16 @@ extern "C" {
     /// Deinitialize bitvector and free all allocated memory.
     /// After calling this, the bitvector should not be used unless re-initialized.
     ///
-    /// bv[in] : Pointer to bitvector to deinitialize
+    /// bv[in,out] : Pointer to bitvector to deinitialize.
+    ///
+    /// SUCCESS : Returns to the caller. The underlying byte buffer has
+    ///           been released to the allocator; length, capacity, and
+    ///           byte_size are reset to 0 and `data` to NULL. The
+    ///           allocator is unbound and replaced with
+    ///           `AllocatorBind(DefaultAllocator())` so the struct is
+    ///           safe to re-initialize.
+    /// FAILURE : Function cannot fail. A NULL `bv` or invalid magic is a
+    ///           caller bug and aborts via `LOG_FATAL`.
     ///
     /// USAGE:
     ///   BitVecDeinit(&flags);
@@ -163,7 +181,13 @@ extern "C" {
     /// Clear all bits in bitvector without deallocating memory.
     /// Sets length to 0 but keeps allocated capacity.
     ///
-    /// bv[in] : Pointer to bitvector to clear
+    /// bv[in,out] : Pointer to bitvector to clear.
+    ///
+    /// SUCCESS : Returns to the caller. Length is now 0. Capacity and the
+    ///           underlying byte buffer are preserved (bits are not
+    ///           zeroed; subsequent inserts will overwrite them).
+    /// FAILURE : Function cannot fail. A NULL `bv` or invalid magic is a
+    ///           caller bug and aborts via `LOG_FATAL`.
     ///
     /// USAGE:
     ///   BitVecClear(&flags);
@@ -179,8 +203,13 @@ extern "C" {
     /// bv[in,out] : Bitvector to reserve space in.
     /// n[in]      : Number of bits to reserve space for.
     ///
-    /// SUCCESS : `true`. The bitvector capacity is at least `n` bits.
-    /// FAILURE : Returns `false` on allocation failure. The bitvector is unchanged.
+    /// SUCCESS : Returns `true`. The byte buffer is grown (if necessary)
+    ///           so the bitvector can hold at least `n` bits without
+    ///           further allocation; newly-allocated bytes beyond the
+    ///           previous buffer are zero-filled. Length and the values
+    ///           of all existing bits are unchanged.
+    /// FAILURE : Returns `false` on allocation failure during the realloc.
+    ///           The bitvector is unchanged.
     ///
     /// USAGE:
     ///   if (!BitVecReserve(&flags, 1000)) { /* recover */ }
@@ -197,9 +226,13 @@ extern "C" {
     /// bv[in,out] : Bitvector to resize.
     /// n[in]      : New length in bits.
     ///
-    /// SUCCESS : `true`. The bitvector length is exactly `n`.
-    /// FAILURE : Returns `false` on allocation failure when growth is needed. The
-    ///           bitvector is unchanged.
+    /// SUCCESS : Returns `true`. The bitvector length is now exactly `n`.
+    ///           When shrinking, bits beyond `n` are dropped (capacity is
+    ///           preserved). When growing, bits in `[old_length, n)` are
+    ///           `false`; capacity is at least `n`.
+    /// FAILURE : Returns `false` on allocation failure when growth is
+    ///           needed. The bitvector is unchanged. Shrinking does not
+    ///           allocate and therefore cannot fail.
     ///
     /// USAGE:
     ///   if (!BitVecResize(&flags, 64)) { /* recover */ }

@@ -64,10 +64,17 @@ extern "C" {
     /// Insert multiple bits of the same value at a specific position.
     /// All existing bits at and after the position are shifted right.
     ///
-    /// bv[in]     : Bitvector to insert into
-    /// idx[in]    : Position to insert at (0-based)
-    /// count[in]  : Number of bits to insert
-    /// value[in]  : Value for all inserted bits (true or false)
+    /// bv[in,out] : Bitvector to insert into.
+    /// idx[in]    : Position to insert at (0-based), in [0, length].
+    /// count[in]  : Number of bits to insert.
+    /// value[in]  : Value for all inserted bits (true or false).
+    ///
+    /// SUCCESS : Returns `true`. Bitvector length grows by `count`; the
+    ///           range `[idx, idx + count)` now holds `count` copies of
+    ///           `value`; previous bits at and after `idx` have shifted
+    ///           right by `count`. The byte buffer may have grown.
+    /// FAILURE : Returns `false` on allocation failure when capacity must
+    ///           grow. The bitvector is unchanged.
     ///
     /// USAGE:
     ///   BitVecInsertRange(&flags, 2, 5, true);  // Insert 5 true bits at position 2
@@ -80,9 +87,17 @@ extern "C" {
     /// Insert all bits from another bitvector at a specific position.
     /// All existing bits at and after the position are shifted right.
     ///
-    /// bv[in]     : Bitvector to insert into
-    /// idx[in]    : Position to insert at (0-based)
-    /// other[in]  : Bitvector whose bits to insert
+    /// bv[in,out] : Bitvector to insert into.
+    /// idx[in]    : Position to insert at (0-based), in [0, length].
+    /// other[in]  : Bitvector whose bits to insert.
+    ///
+    /// SUCCESS : Returns `true`. Bitvector length grows by `other->length`;
+    ///           the range `[idx, idx + other->length)` mirrors the bits
+    ///           of `other` in order; previous bits at and after `idx`
+    ///           have shifted right by `other->length`. `other` is
+    ///           untouched.
+    /// FAILURE : Returns `false` on allocation failure when capacity must
+    ///           grow. The bitvector is unchanged.
     ///
     /// USAGE:
     ///   BitVecInsertMultiple(&flags, 2, &other_flags);
@@ -93,12 +108,19 @@ extern "C" {
 
     ///
     /// Insert a bit pattern from a byte at a specific position.
-    /// Only the specified number of bits from the pattern are inserted.
+    /// Only the specified number of low-order bits from the pattern are inserted.
     ///
-    /// bv[in]           : Bitvector to insert into
-    /// idx[in]          : Position to insert at (0-based)
-    /// pattern[in]      : Byte containing the bit pattern
-    /// pattern_bits[in] : Number of bits to take from pattern (1-8)
+    /// bv[in,out]       : Bitvector to insert into.
+    /// idx[in]          : Position to insert at (0-based), in [0, length].
+    /// pattern[in]      : Byte containing the bit pattern.
+    /// pattern_bits[in] : Number of low-order bits to take from `pattern`, 1-8.
+    ///
+    /// SUCCESS : Returns `true`. Bitvector length grows by `pattern_bits`;
+    ///           the inserted bits at `[idx, idx + pattern_bits)` reflect
+    ///           the low `pattern_bits` of `pattern` (LSB-first); previous
+    ///           bits at and after `idx` have shifted right.
+    /// FAILURE : Returns `false` on allocation failure. The bitvector is
+    ///           unchanged.
     ///
     /// USAGE:
     ///   u8 pattern = 0x0B; // 1011 in binary
@@ -112,8 +134,14 @@ extern "C" {
     /// Push a bit to the end of bitvector.
     /// Grows the bitvector if necessary.
     ///
-    /// bv[in]    : Bitvector to push bit to
-    /// value[in] : Bit value to push (true/false)
+    /// bv[in,out] : Bitvector to push bit to.
+    /// value[in]  : Bit value to push (true/false).
+    ///
+    /// SUCCESS : Returns `true`. Bitvector length grows by one; bit at
+    ///           index `old_length` is now `value`. The byte buffer may
+    ///           have grown.
+    /// FAILURE : Returns `false` on allocation failure when capacity must
+    ///           grow. The bitvector is unchanged.
     ///
     /// USAGE:
     ///   BitVecPush(&flags, true);
@@ -127,9 +155,15 @@ extern "C" {
     /// Insert a bit at given index in bitvector.
     /// Shifts all bits at and after the index to the right.
     ///
-    /// bv[in]    : Bitvector to insert bit into
-    /// idx[in]   : Index at which to insert bit (0-based)
-    /// value[in] : Bit value to insert (true/false)
+    /// bv[in,out] : Bitvector to insert bit into.
+    /// idx[in]    : Index at which to insert bit (0-based), in [0, length].
+    /// value[in]  : Bit value to insert (true/false).
+    ///
+    /// SUCCESS : Returns `true`. Bitvector length grows by one; bit at
+    ///           index `idx` is now `value`; previous bits at and after
+    ///           `idx` have shifted right by one.
+    /// FAILURE : Returns `false` on allocation failure. The bitvector is
+    ///           unchanged.
     ///
     /// USAGE:
     ///   BitVecInsert(&flags, 5, true);
