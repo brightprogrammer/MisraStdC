@@ -52,7 +52,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, String, Allocator
     ///
-    Str  BitVecToStrAlloc(BitVec *bv, Allocator alloc);
+    Str BitVecToStrAlloc(BitVec *bv, Allocator alloc);
 
     ///
     /// Parse a bitvector from a null-terminated string using an explicit allocator.
@@ -89,7 +89,7 @@ extern "C" {
     /// bytes[out] : Byte array to write to (must be large enough)
     /// max_len[in]: Maximum bytes to write
     ///
-    /// RETURNS: Number of bytes written
+    /// SUCCESS : Number of bytes written
     ///
     /// USAGE:
     ///   u8 buffer[16];
@@ -134,7 +134,7 @@ extern "C" {
     ///
     /// bv[in] : Bitvector to convert (must be <= 64 bits)
     ///
-    /// RETURNS: Integer value, or 0 if bitvector is too large or empty
+    /// SUCCESS : Integer value, or 0 if bitvector is too large or empty
     ///
     /// USAGE:
     ///   u64 value = BitVecToInteger(&flags);
@@ -193,10 +193,10 @@ extern "C" {
 /// TAGS: BitVec, Convert, String, Allocator, Macro
 ///
 #define BITVEC_TRY_TO_STR_HAS_ARGS_IMPL(_1, _2, _3, count, ...) count
-#define BITVEC_TRY_TO_STR_HAS_ARGS(...) BITVEC_TRY_TO_STR_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
-#define BitVecTryToStr(...) CONCAT(BitVecTryToStr_, BITVEC_TRY_TO_STR_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecTryToStr_2(out, bv) BitVecTryToStrAlloc((out), (bv), BitVecGetAllocator((bv)))
-#define BitVecTryToStr_3(out, bv, alloc) BitVecTryToStrAlloc((out), (bv), (alloc))
+#define BITVEC_TRY_TO_STR_HAS_ARGS(...)                         BITVEC_TRY_TO_STR_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
+#define BitVecTryToStr(...)                                     CONCAT(BitVecTryToStr_, BITVEC_TRY_TO_STR_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define BitVecTryToStr_2(out, bv)                               BitVecTryToStrAlloc((out), (bv), BitVecGetAllocator((bv)))
+#define BitVecTryToStr_3(out, bv, alloc)                        BitVecTryToStrAlloc((out), (bv), (alloc))
 
 ///
 /// Convert a bitvector to a string.
@@ -215,10 +215,10 @@ extern "C" {
 /// TAGS: BitVec, Convert, String, Allocator, Macro
 ///
 #define BITVEC_TO_STR_HAS_ARGS_IMPL(_1, _2, count, ...) count
-#define BITVEC_TO_STR_HAS_ARGS(...) BITVEC_TO_STR_HAS_ARGS_IMPL(__VA_ARGS__, 2, 1, 0)
-#define BitVecToStr(...) CONCAT(BitVecToStr_, BITVEC_TO_STR_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecToStr_1(bv) BitVecToStrAlloc((bv), BitVecGetAllocator((bv)))
-#define BitVecToStr_2(bv, alloc) BitVecToStrAlloc((bv), (alloc))
+#define BITVEC_TO_STR_HAS_ARGS(...)                     BITVEC_TO_STR_HAS_ARGS_IMPL(__VA_ARGS__, 2, 1, 0)
+#define BitVecToStr(...)                                CONCAT(BitVecToStr_, BITVEC_TO_STR_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define BitVecToStr_1(bv)                               BitVecToStrAlloc((bv), BitVecGetAllocator((bv)))
+#define BitVecToStr_2(bv, alloc)                        BitVecToStrAlloc((bv), (alloc))
 
 ///
 /// Parse a bitvector from a null-terminated string.
@@ -236,10 +236,10 @@ extern "C" {
 /// TAGS: BitVec, Convert, String, Allocator, Macro
 ///
 #define BITVEC_TRY_FROM_STR_HAS_ARGS_IMPL(_1, _2, _3, count, ...) count
-#define BITVEC_TRY_FROM_STR_HAS_ARGS(...) BITVEC_TRY_FROM_STR_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
-#define BitVecTryFromStr(...) CONCAT(BitVecTryFromStr_, BITVEC_TRY_FROM_STR_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecTryFromStr_2(out, str) BitVecTryFromStrAlloc((out), (str), DefaultAllocator())
-#define BitVecTryFromStr_3(out, str, alloc) BitVecTryFromStrAlloc((out), (str), (alloc))
+#define BITVEC_TRY_FROM_STR_HAS_ARGS(...)                         BITVEC_TRY_FROM_STR_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
+#define BitVecTryFromStr(...)                                     CONCAT(BitVecTryFromStr_, BITVEC_TRY_FROM_STR_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define BitVecTryFromStr_2(out, str)                              BitVecTryFromStrAlloc((out), (str), DefaultAllocator())
+#define BitVecTryFromStr_3(out, str, alloc)                       BitVecTryFromStrAlloc((out), (str), (alloc))
 
 ///
 /// Parse a bitvector from a null-terminated string.
@@ -257,10 +257,10 @@ extern "C" {
 /// TAGS: BitVec, Convert, String, Allocator, Macro
 ///
 #define BITVEC_FROM_STR_HAS_ARGS_IMPL(_1, _2, count, ...) count
-#define BITVEC_FROM_STR_HAS_ARGS(...) BITVEC_FROM_STR_HAS_ARGS_IMPL(__VA_ARGS__, 2, 1, 0)
-#define BitVecFromStr(...) CONCAT(BitVecFromStr_, BITVEC_FROM_STR_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecFromStr_1(str) BitVecFromStrAlloc((str), DefaultAllocator())
-#define BitVecFromStr_2(str, alloc) BitVecFromStrAlloc((str), (alloc))
+#define BITVEC_FROM_STR_HAS_ARGS(...)                     BITVEC_FROM_STR_HAS_ARGS_IMPL(__VA_ARGS__, 2, 1, 0)
+#define BitVecFromStr(...)                                CONCAT(BitVecFromStr_, BITVEC_FROM_STR_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define BitVecFromStr_1(str)                              BitVecFromStrAlloc((str), DefaultAllocator())
+#define BitVecFromStr_2(str, alloc)                       BitVecFromStrAlloc((str), (alloc))
 
 ///
 /// Build a bitvector from raw bytes.
@@ -278,10 +278,10 @@ extern "C" {
 /// TAGS: BitVec, Convert, Bytes, Allocator, Macro
 ///
 #define BITVEC_TRY_FROM_BYTES_HAS_ARGS_IMPL(_1, _2, _3, _4, count, ...) count
-#define BITVEC_TRY_FROM_BYTES_HAS_ARGS(...) BITVEC_TRY_FROM_BYTES_HAS_ARGS_IMPL(__VA_ARGS__, 4, 3, 2, 1, 0)
-#define BitVecTryFromBytes(...) CONCAT(BitVecTryFromBytes_, BITVEC_TRY_FROM_BYTES_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecTryFromBytes_3(out, bytes, bit_len) BitVecTryFromBytesAlloc((out), (bytes), (bit_len), DefaultAllocator())
-#define BitVecTryFromBytes_4(out, bytes, bit_len, alloc) BitVecTryFromBytesAlloc((out), (bytes), (bit_len), (alloc))
+#define BITVEC_TRY_FROM_BYTES_HAS_ARGS(...)                             BITVEC_TRY_FROM_BYTES_HAS_ARGS_IMPL(__VA_ARGS__, 4, 3, 2, 1, 0)
+#define BitVecTryFromBytes(...)                                         CONCAT(BitVecTryFromBytes_, BITVEC_TRY_FROM_BYTES_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define BitVecTryFromBytes_3(out, bytes, bit_len)                       BitVecTryFromBytesAlloc((out), (bytes), (bit_len), DefaultAllocator())
+#define BitVecTryFromBytes_4(out, bytes, bit_len, alloc)                BitVecTryFromBytesAlloc((out), (bytes), (bit_len), (alloc))
 
 ///
 /// Build a bitvector from raw bytes.
@@ -299,10 +299,10 @@ extern "C" {
 /// TAGS: BitVec, Convert, Bytes, Allocator, Macro
 ///
 #define BITVEC_FROM_BYTES_HAS_ARGS_IMPL(_1, _2, _3, count, ...) count
-#define BITVEC_FROM_BYTES_HAS_ARGS(...) BITVEC_FROM_BYTES_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
-#define BitVecFromBytes(...) CONCAT(BitVecFromBytes_, BITVEC_FROM_BYTES_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecFromBytes_2(bytes, bit_len) BitVecFromBytesAlloc((bytes), (bit_len), DefaultAllocator())
-#define BitVecFromBytes_3(bytes, bit_len, alloc) BitVecFromBytesAlloc((bytes), (bit_len), (alloc))
+#define BITVEC_FROM_BYTES_HAS_ARGS(...)                         BITVEC_FROM_BYTES_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
+#define BitVecFromBytes(...)                                    CONCAT(BitVecFromBytes_, BITVEC_FROM_BYTES_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define BitVecFromBytes_2(bytes, bit_len)                       BitVecFromBytesAlloc((bytes), (bit_len), DefaultAllocator())
+#define BitVecFromBytes_3(bytes, bit_len, alloc)                BitVecFromBytesAlloc((bytes), (bit_len), (alloc))
 
 ///
 /// Build a bitvector from an integer.
@@ -320,10 +320,10 @@ extern "C" {
 /// TAGS: BitVec, Convert, Integer, Allocator, Macro
 ///
 #define BITVEC_TRY_FROM_INTEGER_HAS_ARGS_IMPL(_1, _2, _3, _4, count, ...) count
-#define BITVEC_TRY_FROM_INTEGER_HAS_ARGS(...)                                                                      \
-    BITVEC_TRY_FROM_INTEGER_HAS_ARGS_IMPL(__VA_ARGS__, 4, 3, 2, 1, 0)
-#define BitVecTryFromInteger(...) CONCAT(BitVecTryFromInteger_, BITVEC_TRY_FROM_INTEGER_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecTryFromInteger_3(out, value, bits) BitVecTryFromIntegerAlloc((out), (value), (bits), DefaultAllocator())
+#define BITVEC_TRY_FROM_INTEGER_HAS_ARGS(...)                             BITVEC_TRY_FROM_INTEGER_HAS_ARGS_IMPL(__VA_ARGS__, 4, 3, 2, 1, 0)
+#define BitVecTryFromInteger(...)                                                                                      \
+    CONCAT(BitVecTryFromInteger_, BITVEC_TRY_FROM_INTEGER_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define BitVecTryFromInteger_3(out, value, bits)        BitVecTryFromIntegerAlloc((out), (value), (bits), DefaultAllocator())
 #define BitVecTryFromInteger_4(out, value, bits, alloc) BitVecTryFromIntegerAlloc((out), (value), (bits), (alloc))
 
 ///
@@ -342,9 +342,9 @@ extern "C" {
 /// TAGS: BitVec, Convert, Integer, Allocator, Macro
 ///
 #define BITVEC_FROM_INTEGER_HAS_ARGS_IMPL(_1, _2, _3, count, ...) count
-#define BITVEC_FROM_INTEGER_HAS_ARGS(...) BITVEC_FROM_INTEGER_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
-#define BitVecFromInteger(...) CONCAT(BitVecFromInteger_, BITVEC_FROM_INTEGER_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecFromInteger_2(value, bits) BitVecFromIntegerAlloc((value), (bits), DefaultAllocator())
-#define BitVecFromInteger_3(value, bits, alloc) BitVecFromIntegerAlloc((value), (bits), (alloc))
+#define BITVEC_FROM_INTEGER_HAS_ARGS(...)                         BITVEC_FROM_INTEGER_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
+#define BitVecFromInteger(...)                                    CONCAT(BitVecFromInteger_, BITVEC_FROM_INTEGER_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
+#define BitVecFromInteger_2(value, bits)                          BitVecFromIntegerAlloc((value), (bits), DefaultAllocator())
+#define BitVecFromInteger_3(value, bits, alloc)                   BitVecFromIntegerAlloc((value), (bits), (alloc))
 
 #endif // MISRA_STD_CONTAINER_BITVEC_CONVERT_H

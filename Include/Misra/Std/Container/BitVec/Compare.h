@@ -23,7 +23,7 @@ extern "C" {
     /// start2[in]: Starting position in second bitvector
     /// len[in]   : Number of bits to compare
     ///
-    /// RETURNS: true if ranges are equal
+    /// SUCCESS : true if ranges are equal
     ///
     /// USAGE:
     ///   bool equal = BitVecEqualsRange(&bv1, 5, &bv2, 10, 8);
@@ -41,7 +41,7 @@ extern "C" {
     /// start2[in]: Starting position in second bitvector
     /// len[in]   : Number of bits to compare
     ///
-    /// RETURNS: -1 if bv1 < bv2, 0 if equal, 1 if bv1 > bv2
+    /// SUCCESS : -1 if bv1 < bv2, 0 if equal, 1 if bv1 > bv2
     ///
     /// USAGE:
     ///   int result = BitVecCompareRange(&bv1, 5, &bv2, 10, 8);
@@ -57,7 +57,7 @@ extern "C" {
     /// bv1[in] : Potential subset bitvector
     /// bv2[in] : Potential superset bitvector
     ///
-    /// RETURNS: true if bv1 is a subset of bv2
+    /// SUCCESS : true if bv1 is a subset of bv2
     ///
     /// USAGE:
     ///   bool is_subset = BitVecIsSubset(&small_set, &large_set);
@@ -73,7 +73,7 @@ extern "C" {
     /// bv1[in] : Potential superset bitvector
     /// bv2[in] : Potential subset bitvector
     ///
-    /// RETURNS: true if bv1 is a superset of bv2
+    /// SUCCESS : true if bv1 is a superset of bv2
     ///
     /// USAGE:
     ///   bool is_superset = BitVecIsSuperset(&large_set, &small_set);
@@ -88,7 +88,7 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// RETURNS: true if bitvectors have no common 1-bits
+    /// SUCCESS : true if bitvectors have no common 1-bits
     ///
     /// USAGE:
     ///   bool disjoint = BitVecDisjoint(&set1, &set2);
@@ -103,7 +103,7 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// RETURNS: true if bitvectors have any common 1-bits
+    /// SUCCESS : true if bitvectors have any common 1-bits
     ///
     /// USAGE:
     ///   bool overlaps = BitVecOverlaps(&set1, &set2);
@@ -119,7 +119,7 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// RETURNS: true if bitvectors are equal
+    /// SUCCESS : true if bitvectors are equal
     ///
     /// USAGE:
     ///   bool equal = BitVecEquals(&flags1, &flags2);
@@ -135,7 +135,7 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// RETURNS: -1 if bv1 < bv2, 0 if equal, 1 if bv1 > bv2
+    /// SUCCESS : -1 if bv1 < bv2, 0 if equal, 1 if bv1 > bv2
     ///
     /// USAGE:
     ///   int result = BitVecCompare(&flags1, &flags2);
@@ -151,7 +151,7 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// RETURNS: -1 if bv1 < bv2, 0 if equal, 1 if bv1 > bv2
+    /// SUCCESS : -1 if bv1 < bv2, 0 if equal, 1 if bv1 > bv2
     ///
     /// USAGE:
     ///   int result = BitVecNumericalCompare(&flags1, &flags2);
@@ -166,7 +166,7 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// RETURNS: -1 if bv1 has fewer 1s, 0 if equal, 1 if bv1 has more 1s
+    /// SUCCESS : -1 if bv1 has fewer 1s, 0 if equal, 1 if bv1 has more 1s
     ///
     /// USAGE:
     ///   int result = BitVecWeightCompare(&flags1, &flags2);
@@ -181,7 +181,7 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// RETURNS: -1 if bv1 < bv2, 0 if equal, 1 if bv1 > bv2
+    /// SUCCESS : -1 if bv1 < bv2, 0 if equal, 1 if bv1 > bv2
     ///
     /// USAGE:
     ///   int result = BitVecSignedCompare(&flags1, &flags2);
@@ -196,7 +196,7 @@ extern "C" {
     ///
     /// bv[in] : Bitvector to check
     ///
-    /// RETURNS: true if bits are in non-decreasing order (0s before 1s)
+    /// SUCCESS : true if bits are in non-decreasing order (0s before 1s)
     ///
     /// USAGE:
     ///   bool sorted = BitVecIsSorted(&flags);

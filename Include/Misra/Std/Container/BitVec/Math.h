@@ -21,7 +21,7 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// RETURNS: Number of differing bits
+    /// SUCCESS : Number of differing bits
     ///
     /// USAGE:
     ///   u64 distance = BitVecHammingDistance(&bv1, &bv2);
@@ -37,7 +37,7 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// RETURNS: Jaccard similarity coefficient (0.0 to 1.0)
+    /// SUCCESS : Jaccard similarity coefficient (0.0 to 1.0)
     ///
     /// USAGE:
     ///   double similarity = BitVecJaccardSimilarity(&bv1, &bv2);
@@ -53,7 +53,7 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// RETURNS: Cosine similarity coefficient (0.0 to 1.0)
+    /// SUCCESS : Cosine similarity coefficient (0.0 to 1.0)
     ///
     /// USAGE:
     ///   double similarity = BitVecCosineSimilarity(&bv1, &bv2);
@@ -69,7 +69,7 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// RETURNS: Number of positions where both bits are 1
+    /// SUCCESS : Number of positions where both bits are 1
     ///
     /// USAGE:
     ///   u64 dot_product = BitVecDotProduct(&bv1, &bv2);
@@ -85,7 +85,7 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// RETURNS: `true` on success, `false` when scratch allocation fails.
+    /// SUCCESS : `true` on success, `false` when scratch allocation fails.
     ///
     /// The computed distance is written to `out` on success.
     ///
@@ -105,7 +105,7 @@ extern "C" {
     /// bv2[in]   : Second bitvector
     /// error[out] : Optional pointer set to `true` on failure and `false` on success
     ///
-    /// RETURNS: Minimum edit distance, or `0` on failure.
+    /// SUCCESS : Minimum edit distance, or `0` on failure.
     ///
     /// USAGE:
     ///   u64 distance = BitVecEditDistance(&bv1, &bv2);
@@ -121,7 +121,7 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// RETURNS: Correlation coefficient (-1.0 to 1.0)
+    /// SUCCESS : Correlation coefficient (-1.0 to 1.0)
     ///
     /// USAGE:
     ///   double correlation = BitVecCorrelation(&bv1, &bv2);
@@ -136,7 +136,7 @@ extern "C" {
     ///
     /// bv[in] : Bitvector to analyze
     ///
-    /// RETURNS: Entropy value in bits (0.0 to 1.0)
+    /// SUCCESS : Entropy value in bits (0.0 to 1.0)
     ///
     /// USAGE:
     ///   double entropy = BitVecEntropy(&flags);
@@ -154,7 +154,7 @@ extern "C" {
     /// match[in]    : Score for matching bits
     /// mismatch[in] : Score for mismatching bits
     ///
-    /// RETURNS: Total alignment score
+    /// SUCCESS : Total alignment score
     ///
     /// USAGE:
     ///   int score = BitVecAlignmentScore(&seq1, &seq2, 2, -1);
@@ -170,7 +170,7 @@ extern "C" {
     /// bv1[in] : First bitvector (reference)
     /// bv2[in] : Second bitvector (query)
     ///
-    /// RETURNS: Best alignment offset, or SIZE_MAX if no good alignment
+    /// SUCCESS : Best alignment offset, or SIZE_MAX if no good alignment
     ///
     /// USAGE:
     ///   u64 offset = BitVecBestAlignment(&reference, &query);
@@ -189,7 +189,7 @@ extern "C" {
     /// values[out]    : Array to store run values (true/false)
     /// max_runs[in]   : Maximum number of runs to store
     ///
-    /// RETURNS: Number of runs found
+    /// SUCCESS : Number of runs found
     ///
     /// USAGE:
     ///   u64 run_lengths[50];

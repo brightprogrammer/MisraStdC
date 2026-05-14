@@ -20,7 +20,7 @@ extern "C" {
     /// bv[in]     : Bitvector to check
     /// prefix[in] : Pattern to match at the beginning
     ///
-    /// RETURNS: true if bitvector starts with the pattern
+    /// SUCCESS : true if bitvector starts with the pattern
     ///
     /// USAGE:
     ///   bool starts = BitVecStartsWith(&flags, &pattern);
@@ -35,7 +35,7 @@ extern "C" {
     /// bv[in]     : Bitvector to check
     /// suffix[in] : Pattern to match at the end
     ///
-    /// RETURNS: true if bitvector ends with the pattern
+    /// SUCCESS : true if bitvector ends with the pattern
     ///
     /// USAGE:
     ///   bool ends = BitVecEndsWith(&flags, &pattern);
@@ -51,7 +51,7 @@ extern "C" {
     /// pattern[in] : Pattern to match
     /// idx[in]     : Position to check at
     ///
-    /// RETURNS: true if pattern matches at the given position
+    /// SUCCESS : true if pattern matches at the given position
     ///
     /// USAGE:
     ///   bool at_pos = BitVecContainsAt(&flags, &pattern, 5);
@@ -66,7 +66,7 @@ extern "C" {
     /// bv[in]      : Bitvector to search in
     /// pattern[in] : Pattern to search for
     ///
-    /// RETURNS: Index of first occurrence, or SIZE_MAX if not found
+    /// SUCCESS : Index of first occurrence, or SIZE_MAX if not found
     ///
     /// USAGE:
     ///   u64 index = BitVecFindPattern(&flags, &pattern);
@@ -82,7 +82,7 @@ extern "C" {
     /// bv[in]      : Bitvector to search in
     /// pattern[in] : Pattern to search for
     ///
-    /// RETURNS: Index of last occurrence, or SIZE_MAX if not found
+    /// SUCCESS : Index of last occurrence, or SIZE_MAX if not found
     ///
     /// USAGE:
     ///   u64 index = BitVecFindLastPattern(&flags, &pattern);
@@ -100,7 +100,7 @@ extern "C" {
     /// results[out] : Array to store found indices
     /// max_results[in]: Maximum number of results to store
     ///
-    /// RETURNS: Number of occurrences found
+    /// SUCCESS : Number of occurrences found
     ///
     /// USAGE:
     ///   u64 indices[10];
@@ -116,7 +116,7 @@ extern "C" {
     /// bv[in]      : Bitvector to search in
     /// pattern[in] : Pattern to count
     ///
-    /// RETURNS: Number of occurrences found
+    /// SUCCESS : Number of occurrences found
     ///
     /// USAGE:
     ///   u64 count = BitVecCountPattern(&flags, &pattern);
@@ -132,7 +132,7 @@ extern "C" {
     /// pattern[in] : Pattern to search for
     /// start[in]   : Position to start reverse search from
     ///
-    /// RETURNS: Index of occurrence, or SIZE_MAX if not found
+    /// SUCCESS : Index of occurrence, or SIZE_MAX if not found
     ///
     /// USAGE:
     ///   u64 index = BitVecRFindPattern(&flags, &pattern, 20);
@@ -148,7 +148,7 @@ extern "C" {
     /// old_pattern[in] : Pattern to find and replace
     /// new_pattern[in] : Pattern to replace with
     ///
-    /// RETURNS: true if replacement was made, false if old pattern not found
+    /// SUCCESS : true if replacement was made, false if old pattern not found
     ///
     /// USAGE:
     ///   bool replaced = BitVecReplace(&flags, &old_pat, &new_pat);
@@ -164,7 +164,7 @@ extern "C" {
     /// old_pattern[in] : Pattern to find and replace
     /// new_pattern[in] : Pattern to replace with
     ///
-    /// RETURNS: Number of replacements made
+    /// SUCCESS : Number of replacements made
     ///
     /// USAGE:
     ///   u64 count = BitVecReplaceAll(&flags, &old_pat, &new_pat);
@@ -181,7 +181,7 @@ extern "C" {
     /// pattern[in]  : Pattern bitvector to match
     /// wildcard[in] : Wildcard bitvector (1 = wildcard position, 0 = exact match required)
     ///
-    /// RETURNS: true if pattern matches with wildcards
+    /// SUCCESS : true if pattern matches with wildcards
     ///
     /// USAGE:
     ///   bool matches = BitVecMatches(&data, &pattern, &wildcard);
@@ -198,7 +198,7 @@ extern "C" {
     /// pattern[in]    : Pattern to search for
     /// max_errors[in] : Maximum number of mismatches allowed
     ///
-    /// RETURNS: Index of first fuzzy match, or SIZE_MAX if not found
+    /// SUCCESS : Index of first fuzzy match, or SIZE_MAX if not found
     ///
     /// USAGE:
     ///   u64 index = BitVecFuzzyMatch(&data, &pattern, 2);  // Allow 2 errors
@@ -214,7 +214,7 @@ extern "C" {
     /// bv[in]      : Bitvector to match against
     /// pattern[in] : Pattern string using regex syntax
     ///
-    /// RETURNS: true if bitvector matches the regex pattern
+    /// SUCCESS : true if bitvector matches the regex pattern
     ///
     /// USAGE:
     ///   bool matches = BitVecRegexMatch(&data, "10*01");  // 10 followed by any bits, then 01
@@ -230,7 +230,7 @@ extern "C" {
     /// bv[in]         : BitVec to check
     /// patterns[in]   : Vec(BitVec) to check prefices against
     ///
-    /// RETURNS: Index of matching pattern, or SIZE_MAX if no match
+    /// SUCCESS : Index of matching pattern, or SIZE_MAX if no match
     ///
     /// USAGE:
     ///   BitVec prefixes[3] = { pattern1, pattern2, pattern3 };
@@ -247,7 +247,7 @@ extern "C" {
     /// bv[in]         : Bitvector to check
     /// patterns[in]   : Vec(BitVec) to check suffices against
     ///
-    /// RETURNS: Index of matching pattern, or SIZE_MAX if no match
+    /// SUCCESS : Index of matching pattern, or SIZE_MAX if no match
     ///
     /// USAGE:
     ///   BitVec suffixes[3] = { pattern1, pattern2, pattern3 };
