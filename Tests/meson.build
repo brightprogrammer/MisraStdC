@@ -150,23 +150,27 @@ if opt_alloc_budget
     allocator_tests += [['Allocator.Budget', 'Std/Allocator.Budget.c']]
 endif
 
-#Build and register all normal tests with full sanitizer support
-foreach test_info : io_tests
-    test_name = test_info[0]
-    test_src = test_info[1]
-    
-    test_exe = executable(
-        test_name,
-        files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
-        c_args: test_args,
-        include_directories: inc_misra,
-        install: false
-    )
-    
-    test(test_name, test_exe)
-endforeach
+#Io tests exercise format specifiers for every supported type
+#(Int, Float, BitVec included). Skip when any of those features
+#are disabled.
+if opt_bitvec and opt_int and opt_float
+    foreach test_info : io_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
+
+        test(test_name, test_exe)
+    endforeach
+endif
 
 if opt_file
     foreach test_info : file_tests
