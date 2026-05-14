@@ -16,33 +16,10 @@
 #include <Misra/Sys.h>
 #include <Misra/Types.h>
 
-///
-/// Read complete contents of a file at once.
-///
-/// This API supports two forms:
-///
-/// - `ReadCompleteFile(filename, data, file_size, capacity)`
-/// - `ReadCompleteFile(filename, data, file_size, capacity, allocator)`
-///
-/// If `*data == NULL` and no allocator is supplied, `DefaultAllocator()` is used.
-/// If `*data == NULL` and an allocator is supplied, that allocator is used.
-/// If `*data != NULL`, the allocator responsible for that buffer must be supplied.
-/// Omitting it in that case is a caller contract violation.
-///
-/// The returned buffer is null-terminated for convenience.
-///
-/// filename[in]     : Name/path of file to be read.
-/// data[in,out]     : Memory buffer where loaded file will be stored.
-/// file_size[out]   : Complete size of file in bytes will be stored here.
-/// capacity[in,out] : Current capacity of `*data`, updated on successful growth.
-/// allocator[in,out]: Optional allocator responsible for `*data`.
-///
-/// SUCCESS : true
-/// FAILURE : false
-///
-/// TAGS: Read, File, I/O, Utility, Allocator
-///
-bool ReadCompleteFileEx(
+/// Snake_case runtime helper. Users call `ReadCompleteFile(...)`; the
+/// macro routes through `MISRA_OVERLOAD` to one of the per-arity forms
+/// below, which forward to this function.
+bool read_complete_file(
     const char *filename,
     char      **data,
     u64        *file_size,
@@ -53,7 +30,7 @@ bool ReadCompleteFileEx(
 ///
 /// Read complete contents of a file at once.
 ///
-/// This macro dispatches to `ReadCompleteFileEx(...)` and supports both:
+/// Two forms via argument-count overload:
 ///
 /// - `ReadCompleteFile(filename, data, file_size, capacity)` - inside a
 ///   `Scope` block; the buffer is allocated through `MisraScope`.
@@ -61,18 +38,26 @@ bool ReadCompleteFileEx(
 ///   - explicit allocator (typed handle or raw `Allocator *`).
 ///
 /// The 4-arg form fails to compile outside any `Scope` block because
-/// `MisraScope` is undeclared - the library no longer accepts a NULL
-/// allocator path.
+/// `MisraScope` is undeclared - the library does not accept a NULL
+/// allocator anywhere.
 ///
-/// SUCCESS : Returns true and updates `data`, `file_size`, and `capacity`.
-/// FAILURE : Returns false on I/O or allocation failure.
+/// filename[in]     : Name/path of file to be read.
+/// data[in,out]     : Memory buffer where loaded file will be stored.
+///                    The buffer is null-terminated for convenience.
+/// file_size[out]   : Complete size of file in bytes.
+/// capacity[in,out] : Current capacity of `*data`, updated on successful growth.
+/// allocator[in,out]: Allocator responsible for `*data`.
 ///
-/// TAGS: Read, File, I/O, Utility, Allocator, Macro
+/// SUCCESS : Returns true. `*data`, `*file_size`, and `*capacity` are updated.
+/// FAILURE : Returns false on I/O or allocation failure. The buffer state
+///           may be partially updated.
+///
+/// TAGS: Read, File, I/O, Utility, Allocator
 ///
 #define ReadCompleteFile(...) MISRA_OVERLOAD(ReadCompleteFile, __VA_ARGS__)
 #define ReadCompleteFile_4(filename, data, file_size, capacity)                                                        \
-    ReadCompleteFileEx((filename), (data), (file_size), (capacity), MisraScope)
+    read_complete_file((filename), (data), (file_size), (capacity), MisraScope)
 #define ReadCompleteFile_5(filename, data, file_size, capacity, allocator)                                             \
-    ReadCompleteFileEx((filename), (data), (file_size), (capacity), (allocator))
+    read_complete_file((filename), (data), (file_size), (capacity), (allocator))
 
 #endif // MISRA_FILE_H

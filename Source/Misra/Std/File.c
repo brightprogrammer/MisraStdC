@@ -13,12 +13,12 @@
 #include <Misra/Sys.h>
 #include <Misra/Types.h>
 
-bool ReadCompleteFileEx(const char *filename, char **data, u64 *file_size, u64 *capacity, Allocator *allocator) {
+bool read_complete_file(const char *filename, char **data, u64 *file_size, u64 *capacity, Allocator *allocator) {
     if (!filename || !data || !file_size || !capacity) {
         LOG_FATAL("invalid arguments.");
     }
     if (!allocator) {
-        LOG_FATAL("ReadCompleteFileEx requires an allocator");
+        LOG_FATAL("read_complete_file requires an allocator");
     }
 
     i64 fsize = SysGetFileSize(filename);
