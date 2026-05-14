@@ -11,18 +11,28 @@
 #include "Private.h"
 
 ///
-/// Try reducing memory footprint of vector.
-/// This is to be used when we know actual allocated memory for vec is large,
-/// and we won't need it in future, so we can reduce it to whatever's required at
-/// the moment.
+/// Try to shrink the allocated capacity of the vector back to its current
+/// length. Use when previous growth left a large unused tail.
 ///
-/// v[in,out] : Vector
+/// v[in,out] : Vector handle.
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure during the shrink reallocation.
+///           The vector is unchanged.
+///
+/// TAGS: Vec, Memory, ReduceSpace
 ///
 #define VecTryReduceSpace(v) (reduce_space_vec(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v))))
-#define VecMustTryReduceSpace(v)                                                                                        \
+
+///
+/// Aborting variant of `VecTryReduceSpace`.
+///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+///
+/// TAGS: Vec, Memory, ReduceSpace, Must, Abort
+///
+#define VecMustTryReduceSpace(v)                                                                                       \
     do {                                                                                                               \
         if (!VecTryReduceSpace((v))) {                                                                                 \
             LOG_FATAL("VecTryReduceSpace failed");                                                                     \
@@ -30,17 +40,28 @@
     } while (0)
 
 ///
-/// Resize vector.
-/// If length is smaller than current capacity, vector length is shrinked.
-/// If length is greater than current capacity, space is reserved and vector is expanded.
+/// Resize the vector to exactly `len` elements. Truncates when shrinking and
+/// allocates when growing. New elements (when growing) are zero-initialized.
 ///
-/// vec[in,out] : Vector to be resized.
-/// len[in]     : New length of vector.
+/// v[in,out] : Vector handle.
+/// len[in]   : New length.
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure when growth is needed. The vector
+///           is unchanged.
+///
+/// TAGS: Vec, Memory, Resize
 ///
 #define VecResize(v, len) (resize_vec(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v)), (len)))
+
+///
+/// Aborting variant of `VecResize`.
+///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+///
+/// TAGS: Vec, Memory, Resize, Must, Abort
+///
 #define VecMustResize(v, len)                                                                                          \
     do {                                                                                                               \
         if (!VecResize((v), (len))) {                                                                                  \
@@ -49,15 +70,27 @@
     } while (0)
 
 ///
-/// Reserve space for vector.
+/// Reserve enough capacity to fit at least `n` elements without further
+/// allocation. Does not change the vector length.
 ///
-/// vec[in,out] : Vector to be resized.
-/// len[in]     : New capacity of vector.
+/// v[in,out] : Vector handle.
+/// n[in]     : Minimum capacity in elements.
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure. The vector is unchanged.
+///
+/// TAGS: Vec, Memory, Reserve
 ///
 #define VecReserve(v, n) (reserve_vec(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v)), (n)))
+
+///
+/// Aborting variant of `VecReserve`.
+///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+///
+/// TAGS: Vec, Memory, Reserve, Must, Abort
+///
 #define VecMustReserve(v, n)                                                                                           \
     do {                                                                                                               \
         if (!VecReserve((v), (n))) {                                                                                   \
@@ -66,12 +99,13 @@
     } while (0)
 
 ///
-/// Clear vec contents.
+/// Set the vector length to 0 while keeping the allocated capacity.
+/// Element payloads are deinitialized via the configured `copy_deinit` handler
+/// when present.
 ///
-/// vec[in,out] : Vector to be cleared.
+/// v[in,out] : Vector handle.
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// TAGS: Vec, Memory, Clear
 ///
 #define VecClear(v) (clear_vec(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v))))
 

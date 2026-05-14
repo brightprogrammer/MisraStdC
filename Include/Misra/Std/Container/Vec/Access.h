@@ -9,75 +9,95 @@
 #include "Type.h"
 
 ///
-/// Vector implementation already manages alignment for stored objects.
-/// It makes sure that objects of improper size are stored at alignment of 8 bytes each
-/// to avoid UB.
+/// Compute the aligned byte offset of element `idx` from the start of the
+/// vector data buffer. The vector applies per-element alignment internally so
+/// that arbitrarily-typed payloads are correctly aligned.
 ///
-/// v[in]   : Vector to get aligned offset for.
-/// idx[in] : Index of element to get offset of
+/// v[in]   : Vector to query.
+/// idx[in] : Element index.
 ///
-/// SUCCESS : Alignment address.
-/// FAILURE : Does not return on failure
+/// TAGS: Vec, Access, Alignment
 ///
 #define VecAlignedOffsetAt(v, idx) ((idx) * ALIGN_UP(sizeof(VEC_DATATYPE(v)), (v)->alignment))
+
 ///
-/// Value at given index in a vector.
-/// It's strongly recommended to always use this instead of directly accessing the data.
+/// Element at `idx` accessed by value. Use this rather than indexing `data`
+/// directly so element alignment is respected.
 ///
-/// v[in]   : Vector to get data from
-/// idx[in] : Index to get data at
+/// v[in]   : Vector to query.
+/// idx[in] : Index in [0, length).
+///
+/// TAGS: Vec, Access, Index
 ///
 #define VecAt(v, idx) ((VEC_DATATYPE(v) *)(VecAlignedOffsetAt((v), (idx)) + (char *)(v)->data))[0]
 
 ///
-/// Value at given index in a vector.
-/// It's strongly recommended to always use this instead of directly accessing the data.
+/// Pointer to the element at `idx`. Use this rather than indexing `data`
+/// directly so element alignment is respected.
 ///
-/// v[in]   : Vector to get data from
-/// idx[in] : Index to get data at
+/// v[in]   : Vector to query.
+/// idx[in] : Index in [0, length).
+///
+/// TAGS: Vec, Access, Index, Pointer
 ///
 #define VecPtrAt(v, idx) ((VEC_DATATYPE(v) *)(VecAlignedOffsetAt((v), (idx)) + (char *)(v)->data))
 
 ///
-/// Value of first element in vector.
+/// First element of the vector by value. Caller must ensure the vector is
+/// non-empty.
 ///
-/// v[in] : Vector to get first element of.
+/// v[in] : Vector to query.
+///
+/// TAGS: Vec, Access, First
 ///
 #define VecFirst(v) VecAt(v, 0)
 
 ///
-/// Value of last element in vector.
+/// Last element of the vector by value. Caller must ensure the vector is
+/// non-empty.
 ///
-/// v[in] : Vector to get last element of.
+/// v[in] : Vector to query.
+///
+/// TAGS: Vec, Access, Last
 ///
 #define VecLast(v) VecAt(v, (v)->length - 1)
 
 ///
-/// Pointer to first element in vector
+/// Pointer to the first element of the vector. Equivalent to `v->data`.
 ///
-/// v[in] : Vector to get beginning ptr of.
+/// v[in] : Vector to query.
+///
+/// TAGS: Vec, Access, Iterator, Begin
 ///
 #define VecBegin(v) ((v)->data)
 
 ///
-/// Pointer at the end (after last element) of vector
+/// Pointer one past the last element of the vector. Suitable as an iteration
+/// sentinel for `[begin, end)` loops.
 ///
-/// v[in] : Vector to get end of.
+/// v[in] : Vector to query.
+///
+/// TAGS: Vec, Access, Iterator, End
 ///
 #define VecEnd(v) ((char *)(v)->data + VecAlignedOffsetAt((v), (v)->length))
 
 ///
-/// Size of vector in bytes. Use this instead of multiplying
-/// size of item with vector length!
+/// Total used storage in bytes (aligned element size times length). Use this
+/// rather than `sizeof(element) * length` because vector elements may be
+/// padded for alignment.
 ///
-/// v[in] : Vector to get length of
+/// v[in] : Vector to query.
+///
+/// TAGS: Vec, Access, Size, Bytes
 ///
 #define VecSize(v) VecAlignedOffsetAt(v, (v)->length)
 
 ///
-/// Length of vector.
+/// Number of elements currently stored in the vector.
 ///
-/// v[in] : Vector to get length of
+/// v[in] : Vector to query.
+///
+/// TAGS: Vec, Access, Length
 ///
 #define VecLen(v) ((v)->length)
 

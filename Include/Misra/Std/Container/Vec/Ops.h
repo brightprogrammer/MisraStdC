@@ -11,35 +11,33 @@
 #include "Private.h"
 
 ///
-/// Sort given vector with given comparator using quicksort algorithm.
+/// Sort the vector in place using a quicksort over the comparator. The
+/// comparator must return a `strcmp`-style integer (negative, zero, positive).
 ///
-/// v[in,out]  : Vector to be sorted.
-/// compare[in] : Compare function. Signature and behaviour must be similar to that of `ZstrCompare`.
+/// v[in,out]   : Vector handle.
+/// compare[in] : Comparator with `strcmp`-style return.
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// TAGS: Vec, Ops, Sort
 ///
 #define VecSort(v, compare) (qsort_vec(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v)), (GenericCompare)(compare)))
 
 ///
-/// Reverse contents of this vector.
+/// Reverse the elements of the vector in place.
 ///
-/// v[in,out] : Vector to be reversed.
+/// v[in,out] : Vector handle.
 ///
-/// SUCCESS : `v`
-/// FAILURE : Does not return on failure
+/// TAGS: Vec, Ops, Reverse
 ///
 #define VecReverse(v) (reverse_vec(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v))))
 
 ///
-/// Swap items at given indices.
+/// Swap the elements at two given indices in place.
 ///
-/// v[in,out] : Vector to swap items in.
-/// idx1[in]  : Index/Position of first item.
-/// idx1[in]  : Index/Position of second item.
+/// v[in,out] : Vector handle.
+/// idx1[in]  : First index in [0, length).
+/// idx2[in]  : Second index in [0, length).
 ///
-/// SUCCESS : return
-/// FAILURE : Does not return
+/// TAGS: Vec, Ops, Swap
 ///
 #define VecSwapItems(v, idx1, idx2) (swap_vec(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v)), (idx1), (idx2)))
 
