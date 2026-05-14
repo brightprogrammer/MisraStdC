@@ -1,17 +1,23 @@
 #ifndef MISRA_SYS_MUTEX_H
 #define MISRA_SYS_MUTEX_H
 
+#include <Misra/Std/Allocator.h>
+
 typedef struct SysMutex SysMutex;
 
 ///
-/// Create a platform-independent mutex object.
+/// Create a platform-independent mutex object. The mutex stores the
+/// supplied allocator internally and uses it again on `SysMutexDestroy`
+/// to release its own storage. The allocator must outlive the mutex.
+///
+/// alloc[in] : Allocator that owns the mutex handle.
 ///
 /// SUCCESS : Returns valid SysMutex object.
 /// FAILURE : Returns NULL if mutex creation fails.
 ///
 /// TAGS: System, Threading, Synchronization
 ///
-SysMutex *SysMutexCreate(void);
+SysMutex *SysMutexCreate(Allocator *alloc);
 
 ///
 /// Destroy the provided mutex object.

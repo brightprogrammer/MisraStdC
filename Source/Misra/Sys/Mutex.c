@@ -20,6 +20,7 @@
 #include <Misra/Std/Log.h>
 
 struct SysMutex {
+    Allocator *allocator;
 #ifdef _WIN32
     CRITICAL_SECTION lock;
 #else
@@ -27,14 +28,17 @@ struct SysMutex {
 #endif
 };
 
-SysMutex *SysMutexCreate(void) {
-    Allocator *allocator = DefaultAllocator();
-    SysMutex *m         = (SysMutex *)AllocatorAlloc(&allocator, sizeof(SysMutex), true);
+SysMutex *SysMutexCreate(Allocator *alloc) {
+    if (!alloc) {
+        LOG_FATAL("SysMutexCreate requires an allocator");
+    }
+    SysMutex *m = (SysMutex *)AllocatorAlloc(alloc, sizeof(SysMutex), true);
 
     if (!m) {
         LOG_ERROR("Failed to allocate mutex");
         return NULL;
     }
+    m->allocator = alloc;
 #ifdef _WIN32
     InitializeCriticalSection(&m->lock);
 #else
@@ -44,15 +48,17 @@ SysMutex *SysMutexCreate(void) {
 }
 
 void SysMutexDestroy(SysMutex *m) {
-    Allocator *allocator = DefaultAllocator();
-
+    if (!m) {
+        return;
+    }
+    Allocator *alloc = m->allocator;
 #ifdef _WIN32
     DeleteCriticalSection(&m->lock);
 #else
     pthread_mutex_destroy(&m->lock);
 #endif
     MemSet(m, 0, sizeof(SysMutex));
-    AllocatorFree(&allocator, m, sizeof(SysMutex));
+    AllocatorFree(alloc, m, sizeof(SysMutex));
 }
 
 SysMutex *SysMutexLock(SysMutex *m) {
