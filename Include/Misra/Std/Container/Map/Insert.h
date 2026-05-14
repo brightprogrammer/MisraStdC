@@ -11,9 +11,6 @@
 #include "Private.h"
 
 #include <Misra/Std/Memory.h>
-#include <stdio.h>
-
-void SysAbort(void);
 
 #if defined(MISRA_ENFORCE_TYPE_SAFETY) && MISRA_ENFORCE_TYPE_SAFETY
 #    define MAP_TYPECHECK_KEY_L(m, key) ((void)sizeof(char[_Generic(&(key), MAP_KEY_TYPE(m) * : 1, default : -1)]))
@@ -26,19 +23,6 @@ void SysAbort(void);
 #    define MAP_TYPECHECK_VALUE_L(m, value) ((void)0)
 #    define MAP_TYPECHECK_VALUE_R(m, value) ((void)0)
 #endif
-
-#define MAP_ABORT(message) map_abort_insert_operation(__func__, __LINE__, (message))
-#define MAP_MUST(operation, message)                                                                                   \
-    do {                                                                                                               \
-        if (!(operation)) {                                                                                            \
-            MAP_ABORT(message);                                                                                        \
-        }                                                                                                              \
-    } while (0)
-
-static inline void map_abort_insert_operation(const char *function, int line, const char *message) {
-    fprintf(stderr, "FATAL [%s:%d] %s\n", function, line, message);
-    SysAbort();
-}
 
 static inline bool map_zero_insert_sources_on_success(
     GenericMap *map,
@@ -292,19 +276,55 @@ static inline bool map_set_only_r_impl(
 
 #define MapGetOrInsertPtr(m, lookup_key, default_value) MapEnsurePtr((m), (lookup_key), (default_value))
 
-#define MapMustInsertL(m, in_key, in_value) MAP_MUST(MapInsertL((m), (in_key), (in_value)), "MapMustInsertL failed")
-#define MapMustInsertR(m, in_key, in_value) MAP_MUST(MapInsertR((m), (in_key), (in_value)), "MapMustInsertR failed")
-#define MapMustInsert(m, in_key, in_value) MAP_MUST(MapInsert((m), (in_key), (in_value)), "MapMustInsert failed")
+#define MapMustInsertL(m, in_key, in_value)                                                                            \
+    do {                                                                                                               \
+        if (!MapInsertL((m), (in_key), (in_value))) {                                                                  \
+            LOG_FATAL("MapMustInsertL failed");                                                                        \
+        }                                                                                                              \
+    } while (0)
+#define MapMustInsertR(m, in_key, in_value)                                                                            \
+    do {                                                                                                               \
+        if (!MapInsertR((m), (in_key), (in_value))) {                                                                  \
+            LOG_FATAL("MapMustInsertR failed");                                                                        \
+        }                                                                                                              \
+    } while (0)
+#define MapMustInsert(m, in_key, in_value)                                                                             \
+    do {                                                                                                               \
+        if (!MapInsert((m), (in_key), (in_value))) {                                                                   \
+            LOG_FATAL("MapMustInsert failed");                                                                         \
+        }                                                                                                              \
+    } while (0)
 
 #define MapMustSetFirstL(m, in_key, in_value)                                                                          \
-    MAP_MUST(MapSetFirstL((m), (in_key), (in_value)), "MapMustSetFirstL failed")
+    do {                                                                                                               \
+        if (!MapSetFirstL((m), (in_key), (in_value))) {                                                                \
+            LOG_FATAL("MapMustSetFirstL failed");                                                                      \
+        }                                                                                                              \
+    } while (0)
 #define MapMustSetFirstR(m, in_key, in_value)                                                                          \
-    MAP_MUST(MapSetFirstR((m), (in_key), (in_value)), "MapMustSetFirstR failed")
+    do {                                                                                                               \
+        if (!MapSetFirstR((m), (in_key), (in_value))) {                                                                \
+            LOG_FATAL("MapMustSetFirstR failed");                                                                      \
+        }                                                                                                              \
+    } while (0)
 
 #define MapMustSetOnlyL(m, in_key, in_value)                                                                           \
-    MAP_MUST(MapSetOnlyL((m), (in_key), (in_value)), "MapMustSetOnlyL failed")
+    do {                                                                                                               \
+        if (!MapSetOnlyL((m), (in_key), (in_value))) {                                                                 \
+            LOG_FATAL("MapMustSetOnlyL failed");                                                                       \
+        }                                                                                                              \
+    } while (0)
 #define MapMustSetOnlyR(m, in_key, in_value)                                                                           \
-    MAP_MUST(MapSetOnlyR((m), (in_key), (in_value)), "MapMustSetOnlyR failed")
-#define MapMustSet(m, in_key, in_value) MAP_MUST(MapSet((m), (in_key), (in_value)), "MapMustSet failed")
+    do {                                                                                                               \
+        if (!MapSetOnlyR((m), (in_key), (in_value))) {                                                                 \
+            LOG_FATAL("MapMustSetOnlyR failed");                                                                       \
+        }                                                                                                              \
+    } while (0)
+#define MapMustSet(m, in_key, in_value)                                                                                \
+    do {                                                                                                               \
+        if (!MapSet((m), (in_key), (in_value))) {                                                                      \
+            LOG_FATAL("MapMustSet failed");                                                                            \
+        }                                                                                                              \
+    } while (0)
 
 #endif // MISRA_STD_CONTAINER_MAP_INSERT_H

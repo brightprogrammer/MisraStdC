@@ -9,32 +9,22 @@
 
 #include "Type.h"
 #include <Misra/Std/Memory.h>
-#include <stdio.h>
-#include <string.h>
 
 // Helper macro for bit operations
 #define BITVEC_BYTES_FOR_BITS(bits) (((bits) + 7) / 8)
 
-void SysAbort(void);
-
-#define BITVEC_INIT_ABORT(message) bitvec_abort_init_operation(__func__, __LINE__, (message))
 #define BitVecMustReserve(bv, n)                                                                                       \
     do {                                                                                                               \
         if (!BitVecReserve((bv), (n))) {                                                                               \
-            BITVEC_INIT_ABORT("BitVecMustReserve failed");                                                             \
+            LOG_FATAL("BitVecMustReserve failed");                                                                     \
         }                                                                                                              \
     } while (0)
 #define BitVecMustResize(bv, n)                                                                                        \
     do {                                                                                                               \
         if (!BitVecResize((bv), (n))) {                                                                                \
-            BITVEC_INIT_ABORT("BitVecMustResize failed");                                                              \
+            LOG_FATAL("BitVecMustResize failed");                                                                      \
         }                                                                                                              \
     } while (0)
-
-static inline void bitvec_abort_init_operation(const char *function, int line, const char *message) {
-    fprintf(stderr, "FATAL [%s:%d] %s\n", function, line, message);
-    SysAbort();
-}
 
 #ifdef __cplusplus
 extern "C" {

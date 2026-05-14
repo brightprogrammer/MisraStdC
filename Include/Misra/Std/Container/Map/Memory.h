@@ -10,15 +10,6 @@
 #include "Type.h"
 #include "Private.h"
 
-#include <stdio.h>
-
-void SysAbort(void);
-
-static inline void map_abort_memory_operation(const char *function, int line, const char *message) {
-    fprintf(stderr, "FATAL [%s:%d] %s\n", function, line, message);
-    SysAbort();
-}
-
 ///
 /// Clear all entries but retain allocated storage.
 ///
@@ -55,7 +46,7 @@ static inline void map_abort_memory_operation(const char *function, int line, co
 #define MapMustReserve(m, n)                                                                                            \
     do {                                                                                                               \
         if (!MapReserve((m), (n))) {                                                                                   \
-            map_abort_memory_operation(__func__, __LINE__, "MapMustReserve failed");                                   \
+            LOG_FATAL("MapMustReserve failed");                                   \
         }                                                                                                              \
     } while (0)
 
@@ -80,7 +71,7 @@ static inline void map_abort_memory_operation(const char *function, int line, co
 #define MapMustCompact(m)                                                                                                \
     do {                                                                                                               \
         if (!MapCompact((m))) {                                                                                        \
-            map_abort_memory_operation(__func__, __LINE__, "MapMustCompact failed");                                   \
+            LOG_FATAL("MapMustCompact failed");                                   \
         }                                                                                                              \
     } while (0)
 
@@ -105,7 +96,7 @@ static inline void map_abort_memory_operation(const char *function, int line, co
 #define MapMustRehashWithPolicy(m, n, policy_value)                                                                     \
     do {                                                                                                               \
         if (!MapRehashWithPolicy((m), (n), (policy_value))) {                                                          \
-            map_abort_memory_operation(__func__, __LINE__, "MapMustRehashWithPolicy failed");                          \
+            LOG_FATAL("MapMustRehashWithPolicy failed");                          \
         }                                                                                                              \
     } while (0)
 

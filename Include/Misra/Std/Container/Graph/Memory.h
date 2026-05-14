@@ -10,17 +10,6 @@
 #include "Type.h"
 #include "Private.h"
 
-#include <stdio.h>
-
-void SysAbort(void);
-
-static inline void graph_abort_memory_operation(const char *function, int line, const char *message) {
-    fprintf(stderr, "FATAL [%s:%d] %s\n", function, line, message);
-    SysAbort();
-}
-
-#define GRAPH_MEMORY_ABORT(message) graph_abort_memory_operation(__func__, __LINE__, (message))
-
 #define GraphClear(g) clear_graph(GENERIC_GRAPH(g), sizeof(GRAPH_NODE_TYPE(g)))
 
 #define GraphReserve(g, n) (ValidateGraph(g), reserve_graph(GENERIC_GRAPH(g), sizeof(GRAPH_NODE_TYPE(g)), (n)))
@@ -28,7 +17,7 @@ static inline void graph_abort_memory_operation(const char *function, int line, 
 #define GraphMustReserve(g, n)                                                                                         \
     do {                                                                                                               \
         if (!GraphReserve((g), (n))) {                                                                                 \
-            GRAPH_MEMORY_ABORT("GraphMustReserve failed");                                                             \
+            LOG_FATAL("GraphMustReserve failed");                                                                      \
         }                                                                                                              \
     } while (0)
 
