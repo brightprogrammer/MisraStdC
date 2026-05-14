@@ -77,7 +77,7 @@ extern "C" {
     ///
     /// SUCCESS : Returns Parsed floating-point value, or zero on failure.
     ///
-    Float FloatFromStr(const char *text);
+    Float FloatFromStr(const char *text, Allocator *alloc);
 
     ///
     /// Convert a float to a decimal string using an explicit allocator.

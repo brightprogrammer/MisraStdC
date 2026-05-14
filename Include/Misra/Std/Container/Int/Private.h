@@ -8,13 +8,22 @@
 #define MISRA_STD_CONTAINER_INT_PRIVATE_H
 
 #include "Type.h"
+#include <Misra/Std/Container/BitVec/Private.h>
+
+///
+/// Empty-Int struct literal (numeric value 0) bound to a raw allocator
+/// pointer. Equivalent to the public `IntInit(typed_alloc_ptr)` macro
+/// but takes a raw `Allocator *` directly. Used by library .c code that
+/// already holds an allocator pointer it wants to pass through.
+///
+#define int_init_alloc(alloc_ptr) ((Int) {.bits = bitvec_init_alloc(alloc_ptr)})
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-    Int  int_from_u64(u64 value);
-    Int  int_from_i64(i64 value);
+    Int  int_from_u64(u64 value, Allocator *alloc);
+    Int  int_from_i64(i64 value, Allocator *alloc);
     int  int_compare(Int *lhs, Int *rhs);
     bool int_add(Int *result, Int *a, Int *b);
     bool int_sub(Int *result, Int *a, Int *b);
