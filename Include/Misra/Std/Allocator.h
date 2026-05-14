@@ -158,6 +158,7 @@ extern "C" {
 #endif
 
 #include <Misra/Std/Allocator/Heap.h>
+#include <Misra/Std/Allocator/Page.h>
 
 ///
 /// Obtain the library default allocator.

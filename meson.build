@@ -17,6 +17,7 @@ misra_std_sources = files(
     'Source/Misra/Sys/Proc.c',
     'Source/Misra/Sys/Dir.c',
     'Source/Misra/Std/Allocator.c',
+    'Source/Misra/Std/Allocator/Page.c',
     'Source/Misra/Std/Io.c',
     'Source/Misra/Std/Log.c',
     'Source/Misra/Std/File.c',

@@ -131,6 +131,10 @@ kvconfig_tests = [
     ['KvConfig.Parse', 'KvConfig/Parse.c'],
 ]
 
+allocator_tests = [
+    ['Allocator.Page', 'Std/Allocator.Page.c'],
+]
+
 #Build and register all normal tests with full sanitizer support
 foreach test_info : io_tests
     test_name = test_info[0]
@@ -269,6 +273,23 @@ foreach test_info : json_tests
 endforeach
 
 foreach test_info : kvconfig_tests
+    test_name = test_info[0]
+    test_src = test_info[1]
+
+    test_exe = executable(
+        test_name,
+        files(test_src),
+        link_with: [misra_std],
+        dependencies: [test_util_dep],
+        c_args: test_args,
+        include_directories: inc_misra,
+        install: false
+    )
+
+    test(test_name, test_exe)
+endforeach
+
+foreach test_info : allocator_tests
     test_name = test_info[0]
     test_src = test_info[1]
 
