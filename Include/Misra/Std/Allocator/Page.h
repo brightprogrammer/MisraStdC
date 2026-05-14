@@ -29,7 +29,7 @@ extern "C" {
     ///
     /// TAGS: Allocator, Page, Memory
     ///
-    typedef struct {
+    typedef struct PageAllocator {
         Allocator base;
         size      cached_page_size;
     } PageAllocator;

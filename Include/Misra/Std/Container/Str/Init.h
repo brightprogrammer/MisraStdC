@@ -15,16 +15,22 @@
 extern "C" {
 #endif
 
-    bool StrTryInitFromCstr(Str *out, const char *cstr, size len, Allocator *alloc);
-    Str  StrInitFromCstr(const char *cstr, size len, Allocator *alloc);
+    bool str_try_init_from_cstr(Str *out, const char *cstr, size len, Allocator *alloc);
+    Str  str_init_from_cstr(const char *cstr, size len, Allocator *alloc);
 
-#define StrInitFromZstr(zstr, alloc_ptr) StrInitFromCstr((zstr), ZstrLen(zstr), (alloc_ptr))
+#define StrTryInitFromCstr(out, cstr, len, allocator_ptr)                                                              \
+    str_try_init_from_cstr((out), (cstr), (len), ALLOCATOR_OF(allocator_ptr))
 
-#define StrZ(zstr, alloc_ptr) StrInitFromZstr((zstr), (alloc_ptr))
+#define StrInitFromCstr(cstr, len, allocator_ptr)                                                                      \
+    str_init_from_cstr((cstr), (len), ALLOCATOR_OF(allocator_ptr))
 
-#define StrInitFromStr(str, alloc_ptr) StrInitFromCstr((str)->data, (str)->length, (alloc_ptr))
+#define StrInitFromZstr(zstr, allocator_ptr) StrInitFromCstr((zstr), ZstrLen(zstr), (allocator_ptr))
 
-#define StrDup(str, alloc_ptr) StrInitFromStr((str), (alloc_ptr))
+#define StrZ(zstr, allocator_ptr) StrInitFromZstr((zstr), (allocator_ptr))
+
+#define StrInitFromStr(str, allocator_ptr) StrInitFromCstr((str)->data, (str)->length, (allocator_ptr))
+
+#define StrDup(str, allocator_ptr) StrInitFromStr((str), (allocator_ptr))
 
     Str *StrPrintf(Str *str, const char *fmt, ...) FORMAT_STRING(2, 3);
 

@@ -11,27 +11,27 @@
 #include <Misra/Std/Allocator.h>
 
 ///
-/// Initialize a Vec bound to an `Allocator *`. The allocator must
-/// outlive the vector. The argument is a raw `Allocator *` (use
-/// `&heap.base` or `ALLOCATOR_OF(&heap)` or `MisraScope` to get one
-/// from a typed allocator handle / Scope).
+/// Initialize a Vec bound to an allocator. The argument may be either
+/// a typed allocator handle (`&heap`, `&arena`, ...) or a raw
+/// `Allocator *` — `ALLOCATOR_OF` typechecks both at compile time and
+/// converts to `Allocator *` via a whole-pointer typecast.
 ///
 /// USAGE:
 ///   DefaultAllocator heap = DefaultAllocatorInit();
-///   Vec(int) v = VecInit(&heap.base);
+///   Vec(int) v = VecInit(&heap);
 ///   ...
 ///   VecDeinit(&v);
 ///   DefaultAllocatorDeinit(&heap);
 ///
 /// TAGS: Init, Vec, Length, Size
 ///
-#define VecInit(alloc_ptr)                                                                                             \
+#define VecInit(allocator_ptr)                                                                                         \
     {.length      = 0,                                                                                                 \
      .capacity    = 0,                                                                                                 \
      .copy_init   = NULL,                                                                                              \
      .copy_deinit = NULL,                                                                                              \
      .data        = NULL,                                                                                              \
-     .allocator   = (alloc_ptr),                                                                                       \
+     .allocator   = ALLOCATOR_OF(allocator_ptr),                                                                       \
      .__magic     = MISRA_VEC_MAGIC}
 
 ///
@@ -47,15 +47,16 @@
 #endif
 
 ///
-/// Initialize a Vec with deep-copy callbacks bound to an `Allocator *`.
+/// Initialize a Vec with deep-copy callbacks. Allocator argument routed
+/// through `ALLOCATOR_OF` like `VecInit`.
 ///
-#define VecInitWithDeepCopy(ci, cd, alloc_ptr)                                                                         \
+#define VecInitWithDeepCopy(ci, cd, allocator_ptr)                                                                     \
     {.length      = 0,                                                                                                 \
      .capacity    = 0,                                                                                                 \
      .copy_init   = (GenericCopyInit)(ci),                                                                             \
      .copy_deinit = (GenericCopyDeinit)(cd),                                                                           \
      .data        = NULL,                                                                                              \
-     .allocator   = (alloc_ptr),                                                                                       \
+     .allocator   = ALLOCATOR_OF(allocator_ptr),                                                                       \
      .__magic     = MISRA_VEC_MAGIC}
 
 #ifdef __cplusplus

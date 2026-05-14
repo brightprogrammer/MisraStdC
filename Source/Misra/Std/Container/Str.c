@@ -17,7 +17,7 @@
 
 static Str *string_va_printf(Str *str, const char *fmt, va_list args);
 
-bool StrTryInitFromCstr(Str *out, const char *cstr, size len, Allocator *alloc) {
+bool str_try_init_from_cstr(Str *out, const char *cstr, size len, Allocator *alloc) {
     if (!out || !cstr) {
         LOG_FATAL("Invalid arguments");
     }
@@ -37,10 +37,10 @@ bool StrTryInitFromCstr(Str *out, const char *cstr, size len, Allocator *alloc) 
     return true;
 }
 
-Str StrInitFromCstr(const char *cstr, size len, Allocator *alloc) {
+Str str_init_from_cstr(const char *cstr, size len, Allocator *alloc) {
     Str result = StrInit(alloc);
 
-    if (!StrTryInitFromCstr(&result, cstr, len, alloc)) {
+    if (!str_try_init_from_cstr(&result, cstr, len, alloc)) {
         return result;
     }
 

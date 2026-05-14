@@ -30,7 +30,7 @@ extern "C" {
     /// - `chunks_head` : singly-linked list of page-backed chunks this heap owns.
     /// - `page`        : embedded `PageAllocator` used to acquire new chunks.
     ///
-    typedef struct {
+    typedef struct HeapAllocator {
         Allocator      base;
         HeapFreeSlot  *bins[HEAP_NUM_BINS];
         HeapPageChunk *chunks_head;

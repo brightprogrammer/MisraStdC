@@ -455,7 +455,7 @@ bool f_write_fmt(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u64 arg
         return false;
     }
 
-    out = StrInit(&scratch.base);
+    out = StrInit(&scratch);
     ok  = str_write_fmt(&out, fmtstr, argv, argc);
 
     if (ok && out.length > 0 && fwrite(out.data, 1, out.length, stream) != out.length) {
@@ -711,7 +711,7 @@ void f_read_fmt(FILE *file, const char *fmtstr, TypeSpecificIO *argv, u64 argc) 
         LOG_FATAL("Invalid arguments");
     }
 
-    Str buffer = StrInit(&scratch.base);
+    Str buffer = StrInit(&scratch);
     int fd     = FILENO(file);
 
     if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
@@ -2138,7 +2138,7 @@ const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v) {
             i++;
 
         // Create a temporary Str for parsing
-        Str temp = StrInitFromCstr(start, i - start, &scratch.base);
+        Str temp = StrInitFromCstr(start, i - start, &scratch);
 
         // Try to parse as special value
         if (StrToF64(&temp, v, NULL)) {
@@ -2197,7 +2197,7 @@ const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch.base);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Validate the string is a proper floating point number
     if (!IsValidNumericString(&temp, true)) {
@@ -2261,7 +2261,7 @@ const char *_read_u8(const char *i, FmtInfo *fmt_info, u8 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch.base);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Check for special prefixes with no digits
     if (temp.length == 2 && temp.data[0] == '0' &&
@@ -2347,7 +2347,7 @@ const char *_read_u16(const char *i, FmtInfo *fmt_info, u16 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch.base);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Check for special prefixes with no digits
     if (temp.length == 2 && temp.data[0] == '0' &&
@@ -2432,7 +2432,7 @@ const char *_read_u32(const char *i, FmtInfo *fmt_info, u32 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch.base);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Check for special prefixes with no digits
     if (temp.length == 2 && temp.data[0] == '0' &&
@@ -2518,7 +2518,7 @@ const char *_read_u64(const char *i, FmtInfo *fmt_info, u64 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch.base);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Check for special prefixes with no digits
     if (temp.length == 2 && temp.data[0] == '0' &&
@@ -2593,7 +2593,7 @@ const char *_read_i8(const char *i, FmtInfo *fmt_info, i8 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch.base);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Check for special prefixes with no digits
     if (temp.length == 2 && temp.data[0] == '0' &&
@@ -2679,7 +2679,7 @@ const char *_read_i16(const char *i, FmtInfo *fmt_info, i16 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch.base);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Check for special prefixes with no digits
     if (temp.length == 2 && temp.data[0] == '0' &&
@@ -2765,7 +2765,7 @@ const char *_read_i32(const char *i, FmtInfo *fmt_info, i32 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch.base);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Check for special prefixes with no digits
     if (temp.length == 2 && temp.data[0] == '0' &&
@@ -2851,7 +2851,7 @@ const char *_read_i64(const char *i, FmtInfo *fmt_info, i64 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch.base);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Check for special prefixes with no digits
     if (temp.length == 2 && temp.data[0] == '0' &&
@@ -3372,7 +3372,7 @@ const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v) {
             i++;
 
         // Create a temporary Str for parsing
-        Str temp = StrInitFromCstr(start, i - start, &scratch.base);
+        Str temp = StrInitFromCstr(start, i - start, &scratch);
 
         // Try to parse as special value
         f64 val;
@@ -3433,7 +3433,7 @@ const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos, &scratch.base);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Validate the string is a proper floating point number
     if (!IsValidNumericString(&temp, true)) {

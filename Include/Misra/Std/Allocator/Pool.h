@@ -19,7 +19,7 @@ extern "C" {
     typedef struct PoolChunk    PoolChunk;
     typedef struct PoolFreeSlot PoolFreeSlot;
 
-    typedef struct {
+    typedef struct PoolAllocator {
         Allocator     base;
         PoolChunk    *head;
         PoolChunk    *tail;

@@ -42,7 +42,7 @@ static StrIter JSkipObject(StrIter si) {
             si = JSkipWhitespace(si);
         }
 
-        Str key = StrInit(&scratch.base);
+        Str key = StrInit(&scratch);
 
         // key start
         read_si = JReadString(si, &key);
@@ -296,7 +296,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
     si               = JSkipWhitespace(si);
     // scratch allocator for the digit-accumulator Str `ns`.
     DefaultAllocator scratch = DefaultAllocatorInit();
-    Str ns                   = StrInit(&scratch.base);
+    Str ns                   = StrInit(&scratch);
 
     bool is_neg = false;
     if (StrIterPeek(&si) == '-') {
@@ -608,7 +608,7 @@ StrIter JSkipValue(StrIter si) {
     if (StrIterPeek(&si) == '"') {
         StrIter          before_si = si;
         DefaultAllocator scratch   = DefaultAllocatorInit();
-        Str              s         = StrInit(&scratch.base);
+        Str              s         = StrInit(&scratch);
         si                         = JReadString(si, &s);
         StrDeinit(&s);
         DefaultAllocatorDeinit(&scratch);

@@ -26,7 +26,11 @@ extern "C" {
         ALLOCATOR_EFFORT_RETRY_FALLBACK,
     } AllocatorEffort;
 
-    typedef struct Allocator Allocator;
+    typedef struct Allocator      Allocator;
+    typedef struct HeapAllocator  HeapAllocator;
+    typedef struct PageAllocator  PageAllocator;
+    typedef struct ArenaAllocator ArenaAllocator;
+    typedef struct PoolAllocator  PoolAllocator;
 
     typedef void *(*AllocatorAllocateFn)(Allocator *self, size bytes, bool zeroed);
     typedef void *(*AllocatorReallocateFn)(Allocator *self, void *ptr, size old_size, size new_size);
@@ -128,22 +132,42 @@ extern "C" {
 #endif
 
 ///
-/// Compile-time-check that `typed_alloc_ptr` points at a struct whose first
-/// field is named `base` of type `Allocator`, and yield `&typed_alloc_ptr->base`.
+/// Convert any allocator pointer to `Allocator *`. The argument may be:
 ///
-/// This is the bridge between the user's typed allocator handle
-/// (`HeapAllocator *`, `PageAllocator *`, ...) and the generic
-/// `Allocator *` that container init macros store internally. User code
-/// never writes `.base` by hand:
+///   - a typed allocator pointer (`HeapAllocator *`, `PageAllocator *`,
+///     `ArenaAllocator *`, `PoolAllocator *`), in which case the macro
+///     typecasts the whole pointer to `Allocator *`. The cast is safe
+///     because every typed allocator carries `Allocator base` at offset
+///     zero — the C-style inheritance contract.
+///
+///   - a raw `Allocator *`, which is returned unchanged.
+///
+/// Any other pointer type triggers a `_Generic` mismatch at compile
+/// time, which is the type-safety check the macro layer provides.
+///
+/// Callers do not write `&heap.base` or `(Allocator *)&heap` by hand —
+/// every macro that takes an allocator pointer routes it through this
+/// macro first.
+///
+/// USAGE:
 ///
 ///     HeapAllocator heap = HeapAllocatorInit();
-///     Vec(int) v = VecInit(&heap);   // container macro uses ALLOCATOR_OF(&heap)
+///     Vec(int) v = VecInit(&heap);   // macro internally does ALLOCATOR_OF(&heap)
 ///
-/// Passing a pointer to a struct that lacks an `Allocator base` field
-/// triggers a compile error from `CHECK_TYPE_EQUIVALENCE`.
+///     void library_helper(Vec *v, Allocator *alloc) {
+///         Vec(int) scratch = VecInit(alloc);   // raw Allocator* also accepted
+///     }
 ///
-#define ALLOCATOR_OF(typed_alloc_ptr)                                                                                  \
-    (CHECK_TYPE_EQUIVALENCE(TYPE_OF((typed_alloc_ptr)->base), Allocator), &(typed_alloc_ptr)->base)
+/// Adding a new typed allocator requires adding it to this whitelist
+/// (and forward-declaring it above).
+///
+#define ALLOCATOR_OF(allocator_ptr)                                                                                    \
+    _Generic((allocator_ptr),                                                                                          \
+        Allocator *: (allocator_ptr),                                                                                  \
+        HeapAllocator *: (Allocator *)(allocator_ptr),                                                                 \
+        PageAllocator *: (Allocator *)(allocator_ptr),                                                                 \
+        ArenaAllocator *: (Allocator *)(allocator_ptr),                                                                \
+        PoolAllocator *: (Allocator *)(allocator_ptr))
 
 // Typed allocator headers (PageAllocator, HeapAllocator, ArenaAllocator,
 // PoolAllocator) are NOT included here to avoid include-guard cycles:

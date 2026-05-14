@@ -19,7 +19,7 @@ extern "C" {
 
     typedef struct ArenaChunk ArenaChunk;
 
-    typedef struct {
+    typedef struct ArenaAllocator {
         Allocator     base;
         ArenaChunk   *head;
         ArenaChunk   *tail;
