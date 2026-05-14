@@ -11,20 +11,16 @@
 #include <Misra/Std/Container/Int/Init.h>
 
 ///
-/// Create a zero-valued floating-point number.
+/// Initialize a Float (numeric value 0) bound to an `Allocator *`. The
+/// argument is a raw `Allocator *` (use `&heap.base`,
+/// `ALLOCATOR_OF(&heap)`, or `MisraScope` to obtain one).
 ///
 /// USAGE:
-///   Float value = FloatInit();
+///   Float value = FloatInit(MisraScope);
 ///
 /// TAGS: Float, Init, Zero, Construct
 ///
-///
-/// Create a zero-valued floating-point number.
-///
-/// `FloatInit(&heap)` where `heap` is a typed allocator like `HeapAllocator`.
-///
-#define FloatInit(typed_alloc_ptr)                                                                                     \
-    ((Float) {.negative = false, .significand = IntInit(typed_alloc_ptr), .exponent = 0})
+#define FloatInit(alloc_ptr) ((Float) {.negative = false, .significand = IntInit(alloc_ptr), .exponent = 0})
 
 ///
 /// Release all storage owned by a floating-point value.

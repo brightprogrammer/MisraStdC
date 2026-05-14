@@ -11,19 +11,16 @@
 #include <Misra/Std/Container/BitVec/Init.h>
 
 ///
-/// Create an empty integer with value `0`.
+/// Initialize an Int (numeric value 0) bound to an `Allocator *`. The
+/// argument is a raw `Allocator *` (use `&heap.base`,
+/// `ALLOCATOR_OF(&heap)`, or `MisraScope` to obtain one).
 ///
 /// USAGE:
-///   Int value = IntInit();
+///   Int value = IntInit(MisraScope);
 ///
 /// TAGS: Int, Init, Zero, Construct
 ///
-///
-/// Create an empty integer with value `0`.
-///
-/// `IntInit(&heap)` where `heap` is a typed allocator like `HeapAllocator`.
-///
-#define IntInit(typed_alloc_ptr) ((Int) {.bits = BitVecInit(typed_alloc_ptr)})
+#define IntInit(alloc_ptr) ((Int) {.bits = BitVecInit(alloc_ptr)})
 
 ///
 /// Release all storage owned by an integer.

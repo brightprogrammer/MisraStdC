@@ -14,34 +14,23 @@
 #include <Misra/Types.h>
 
 bool ReadCompleteFileEx(const char *filename, char **data, u64 *file_size, u64 *capacity, Allocator *allocator) {
-    Allocator *default_allocator;
-    Allocator *active_allocator = allocator;
-
     if (!filename || !data || !file_size || !capacity) {
         LOG_FATAL("invalid arguments.");
     }
+    if (!allocator) {
+        LOG_FATAL("ReadCompleteFileEx requires an allocator");
+    }
 
-    // get actual size of file
     i64 fsize = SysGetFileSize(filename);
     if (-1 == fsize) {
         LOG_ERROR("failed to get file size");
         return false;
     }
 
-    // allocate memory to hold the file contents if required
-    if (*data && !active_allocator) {
-        LOG_FATAL("allocator is required when reusing caller-provided buffer storage.");
-    }
-
-    if (!active_allocator) {
-        default_allocator = DefaultAllocator();
-        active_allocator  = &default_allocator;
-    }
-
     char *buffer            = *data;
     u64   required_capacity = (u64)fsize + 1;
     if (*capacity < required_capacity) {
-        buffer = AllocatorRealloc(active_allocator, buffer, *capacity, required_capacity);
+        buffer = AllocatorRealloc(allocator, buffer, *capacity, required_capacity);
 
         if (!buffer) {
             LOG_ERROR("allocator reallocation failed");

@@ -7,58 +7,64 @@
 #ifndef MISRA_STD_CONTAINER_VEC_INIT_H
 #define MISRA_STD_CONTAINER_VEC_INIT_H
 
-#include "Private.h"
 #include "Type.h"
+#include <Misra/Std/Allocator.h>
 
 ///
-/// Initialize a vector with a user-owned allocator. The allocator must
-/// outlive the vector. Pass the typed allocator pointer directly - the
-/// container macro verifies at compile time that the argument has an
-/// `Allocator base` field.
+/// Initialize a Vec bound to an `Allocator *`. The allocator must
+/// outlive the vector. The argument is a raw `Allocator *` (use
+/// `&heap.base` or `ALLOCATOR_OF(&heap)` or `MisraScope` to get one
+/// from a typed allocator handle / Scope).
 ///
 /// USAGE:
-///   HeapAllocator heap = HeapAllocatorInit();
-///   Vec(int) v = VecInit(&heap);
+///   DefaultAllocator heap = DefaultAllocatorInit();
+///   Vec(int) v = VecInit(&heap.base);
 ///   ...
 ///   VecDeinit(&v);
-///   HeapAllocatorDeinit(&heap);
+///   DefaultAllocatorDeinit(&heap);
 ///
 /// TAGS: Init, Vec, Length, Size
 ///
-#define VecInit(typed_alloc_ptr) VEC_INIT_WITH_DEEP_COPY_VALUE(NULL, NULL, typed_alloc_ptr)
+#define VecInit(alloc_ptr)                                                                                             \
+    {.length      = 0,                                                                                                 \
+     .capacity    = 0,                                                                                                 \
+     .copy_init   = NULL,                                                                                              \
+     .copy_deinit = NULL,                                                                                              \
+     .data        = NULL,                                                                                              \
+     .allocator   = (alloc_ptr),                                                                                       \
+     .__magic     = MISRA_VEC_MAGIC}
 
 ///
-/// Initialize a vector named `v` with the given typed allocator pointer.
-/// The cast makes the macro usable both as an in-place initializer
-/// (`Vec(int) v = VecInitT(v, &heap);`) and as an assignment target.
+/// Typed-cast variant of `VecInit` for assigning into a typed Vec
+/// variable. The cast makes the macro usable both as an in-place
+/// initializer (`Vec(int) v = VecInitT(v, alloc);`) and as an
+/// assignment target.
 ///
 #ifdef __cplusplus
-#    define VecInitT(v, typed_alloc_ptr) (TYPE_OF(v) VecInit(typed_alloc_ptr))
+#    define VecInitT(v, alloc_ptr) (TYPE_OF(v) VecInit(alloc_ptr))
 #else
-#    define VecInitT(v, typed_alloc_ptr) ((TYPE_OF(v))VecInit(typed_alloc_ptr))
+#    define VecInitT(v, alloc_ptr) ((TYPE_OF(v))VecInit(alloc_ptr))
 #endif
 
 ///
-/// Initialize a vector with deep-copy callbacks.
+/// Initialize a Vec with deep-copy callbacks bound to an `Allocator *`.
 ///
-#define VecInitWithDeepCopy(ci, cd, typed_alloc_ptr) VEC_INIT_WITH_DEEP_COPY_VALUE(ci, cd, typed_alloc_ptr)
-
-#ifdef __cplusplus
-#    define VecInitWithDeepCopyT(v, ci, cd, typed_alloc_ptr)                                                           \
-        (TYPE_OF(v) VecInitWithDeepCopy(ci, cd, typed_alloc_ptr))
-#else
-#    define VecInitWithDeepCopyT(v, ci, cd, typed_alloc_ptr)                                                           \
-        ((TYPE_OF(v))VecInitWithDeepCopy(ci, cd, typed_alloc_ptr))
-#endif
-
-#define VEC_INIT_WITH_DEEP_COPY_VALUE(ci, cd, typed_alloc_ptr)                                                         \
+#define VecInitWithDeepCopy(ci, cd, alloc_ptr)                                                                         \
     {.length      = 0,                                                                                                 \
      .capacity    = 0,                                                                                                 \
      .copy_init   = (GenericCopyInit)(ci),                                                                             \
      .copy_deinit = (GenericCopyDeinit)(cd),                                                                           \
      .data        = NULL,                                                                                              \
-     .allocator   = ALLOCATOR_OF(typed_alloc_ptr),                                                                     \
+     .allocator   = (alloc_ptr),                                                                                       \
      .__magic     = MISRA_VEC_MAGIC}
+
+#ifdef __cplusplus
+#    define VecInitWithDeepCopyT(v, ci, cd, alloc_ptr)                                                                 \
+        (TYPE_OF(v) VecInitWithDeepCopy(ci, cd, alloc_ptr))
+#else
+#    define VecInitWithDeepCopyT(v, ci, cd, alloc_ptr)                                                                 \
+        ((TYPE_OF(v))VecInitWithDeepCopy(ci, cd, alloc_ptr))
+#endif
 
 ///
 /// Initialize a vector with stack-allocated backing storage and deep-copy

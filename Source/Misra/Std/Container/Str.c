@@ -9,7 +9,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <Misra/Std/Container/Str.h>
-#include <Misra/Std/Container/Str/Private.h>
 #include <Misra/Std/Container/Vec/Private.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Types.h>
@@ -23,7 +22,7 @@ bool StrTryInitFromCstrAlloc(Str *out, const char *cstr, size len, Allocator *al
         LOG_FATAL("Invalid arguments");
     }
 
-    *out = str_init_alloc(alloc);
+    *out = StrInit(alloc);
     if (len == 0) {
         return true;
     }
@@ -39,7 +38,7 @@ bool StrTryInitFromCstrAlloc(Str *out, const char *cstr, size len, Allocator *al
 }
 
 Str StrInitFromCstrAlloc(const char *cstr, size len, Allocator *alloc) {
-    Str result = str_init_alloc(alloc);
+    Str result = StrInit(alloc);
 
     if (!StrTryInitFromCstrAlloc(&result, cstr, len, alloc)) {
         return result;
@@ -123,7 +122,7 @@ bool StrInitCopyAlloc(void *dst_ptr, const void *src_ptr, const Allocator *alloc
     clone_allocator = alloc ? (Allocator *)alloc : src->allocator;
 
     MemSet(dst, 0, sizeof(Str));
-    *dst             = str_init_alloc(clone_allocator);
+    *dst             = StrInit(clone_allocator);
     dst->copy_init   = src->copy_init;
     dst->copy_deinit = src->copy_deinit;
 
@@ -147,7 +146,7 @@ void StrDeinitAlloc(void *copy, const Allocator *alloc) {
 StrIters StrSplitToIters(Str *s, const char *key) {
     ValidateStr(s);
 
-    StrIters    sv     = (StrIters)vec_init_alloc(s->allocator);
+    StrIters    sv     = (StrIters)VecInit(s->allocator);
     size        keylen = ZstrLen(key);
     const char *prev   = s->data;
     const char *end    = s->data + s->length;
@@ -171,7 +170,7 @@ StrIters StrSplitToIters(Str *s, const char *key) {
 Strs StrSplit(Str *s, const char *key) {
     ValidateStr(s);
 
-    Strs        sv     = (Strs)vec_init_alloc(s->allocator);
+    Strs        sv     = (Strs)VecInit(s->allocator);
     sv.copy_deinit     = (GenericCopyDeinit)StrDeinitAlloc;
     size        keylen = ZstrLen(key);
     const char *prev   = s->data;
@@ -862,7 +861,7 @@ bool StrToI64(const Str *str, i64 *value, const StrParseConfig *config) {
     // Create substring view without sign (no allocation - data is borrowed
     // from the input str and capacity stays 0 so StrToU64 never tries to
     // grow it).
-    Str temp_str      = str_init_alloc(str->allocator);
+    Str temp_str      = StrInit(str->allocator);
     temp_str.data     = str->data + pos;
     temp_str.length   = str->length - pos;
     temp_str.capacity = str->length - pos;

@@ -41,7 +41,7 @@ void SysAbort(void);
 #define LOG_FATAL(...)                                                                                                 \
     do {                                                                                                               \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
-        Str           m_         = StrInit(&log_alloc_);                                                               \
+        Str           m_         = StrInit(&log_alloc_.base);                                                               \
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, m_.data);                                                 \
         StrDeinit(&m_);                                                                                                \
@@ -55,7 +55,7 @@ void SysAbort(void);
 #define LOG_ERROR(...)                                                                                                 \
     do {                                                                                                               \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
-        Str           m_         = StrInit(&log_alloc_);                                                               \
+        Str           m_         = StrInit(&log_alloc_.base);                                                               \
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, m_.data);                                                 \
         StrDeinit(&m_);                                                                                                \
@@ -68,7 +68,7 @@ void SysAbort(void);
 #define LOG_INFO(...)                                                                                                  \
     do {                                                                                                               \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
-        Str           m_         = StrInit(&log_alloc_);                                                               \
+        Str           m_         = StrInit(&log_alloc_.base);                                                               \
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, m_.data);                                                  \
         StrDeinit(&m_);                                                                                                \
@@ -82,10 +82,10 @@ void SysAbort(void);
 #define LOG_SYS_FATAL(...)                                                                                             \
     do {                                                                                                               \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
-        Str           m_         = StrInit(&log_alloc_);                                                               \
+        Str           m_         = StrInit(&log_alloc_.base);                                                               \
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         Str syserr_;                                                                                                   \
-        StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
+        StrInitStack(syserr_, &log_alloc_.base, 256, {                                                                      \
             SysStrError(errno, &syserr_);                                                                              \
             StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
@@ -101,10 +101,10 @@ void SysAbort(void);
 #define LOG_SYS_ERROR(...)                                                                                             \
     do {                                                                                                               \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
-        Str           m_         = StrInit(&log_alloc_);                                                               \
+        Str           m_         = StrInit(&log_alloc_.base);                                                               \
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         Str syserr_;                                                                                                   \
-        StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
+        StrInitStack(syserr_, &log_alloc_.base, 256, {                                                                      \
             SysStrError(errno, &syserr_);                                                                              \
             StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
@@ -119,10 +119,10 @@ void SysAbort(void);
 #define LOG_SYS_INFO(...)                                                                                              \
     do {                                                                                                               \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
-        Str           m_         = StrInit(&log_alloc_);                                                               \
+        Str           m_         = StrInit(&log_alloc_.base);                                                               \
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         Str syserr_;                                                                                                   \
-        StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
+        StrInitStack(syserr_, &log_alloc_.base, 256, {                                                                      \
             SysStrError(errno, &syserr_);                                                                              \
             StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \

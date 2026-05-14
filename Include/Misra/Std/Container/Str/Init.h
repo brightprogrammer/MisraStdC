@@ -33,17 +33,22 @@ extern "C" {
 
     Str *StrPrintf(Str *str, const char *fmt, ...) FORMAT_STRING(2, 3);
 
+///
+/// Initialize a Str bound to an `Allocator *`. The argument is a raw
+/// `Allocator *` (use `&heap.base`, `ALLOCATOR_OF(&heap)`, or
+/// `MisraScope` to get one).
+///
 #ifdef __cplusplus
-#    define StrInit(typed_alloc_ptr) (Str VecInit(typed_alloc_ptr))
+#    define StrInit(alloc_ptr) (Str VecInit(alloc_ptr))
 #else
-#    define StrInit(typed_alloc_ptr) ((Str)VecInit(typed_alloc_ptr))
+#    define StrInit(alloc_ptr) ((Str)VecInit(alloc_ptr))
 #endif
 
 ///
 /// Initialize a `Str` using stack-allocated backing storage.
 /// Such strings cannot be dynamically resized.
 ///
-#define StrInitStack(str, typed_alloc_ptr, ne, scoped_body) VecInitStack(str, typed_alloc_ptr, ne, scoped_body)
+#define StrInitStack(str, alloc_ptr, ne, scoped_body) VecInitStack(str, alloc_ptr, ne, scoped_body)
 
     void StrDeinit(Str *str);
     void StrDeinitAlloc(void *copy, const Allocator *alloc);

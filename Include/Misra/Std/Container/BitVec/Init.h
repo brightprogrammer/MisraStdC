@@ -7,8 +7,8 @@
 #ifndef MISRA_STD_CONTAINER_BITVEC_INIT_H
 #define MISRA_STD_CONTAINER_BITVEC_INIT_H
 
-#include "Private.h"
 #include "Type.h"
+#include <Misra/Std/Allocator.h>
 #include <Misra/Std/Memory.h>
 
 #define BITVEC_BYTES_FOR_BITS(bits) (((bits) + 7) / 8)
@@ -32,14 +32,29 @@ extern "C" {
 #endif
 
 ///
-/// Initialize bitvector. The user-owned typed allocator pointer (e.g.
-/// `&heap` where `heap` is a `HeapAllocator`) is required.
+/// Initialize an empty BitVec bound to an `Allocator *`. The argument
+/// is a raw `Allocator *` (use `&heap.base`, `ALLOCATOR_OF(&heap)`, or
+/// `MisraScope` to obtain one).
 ///
-#define BitVecInit(typed_alloc_ptr) bitvec_init_alloc(ALLOCATOR_OF(typed_alloc_ptr))
+#ifdef __cplusplus
+#    define BitVecInit(alloc_ptr)                                                                                      \
+        (BitVec {.length    = 0,                                                                                       \
+                 .capacity  = 0,                                                                                       \
+                 .data      = NULL,                                                                                    \
+                 .byte_size = 0,                                                                                       \
+                 .allocator = (alloc_ptr),                                                                             \
+                 .__magic   = MISRA_BITVEC_MAGIC})
+#else
+#    define BitVecInit(alloc_ptr)                                                                                      \
+        ((BitVec) {.length    = 0,                                                                                     \
+                   .capacity  = 0,                                                                                     \
+                   .data      = NULL,                                                                                  \
+                   .byte_size = 0,                                                                                     \
+                   .allocator = (alloc_ptr),                                                                           \
+                   .__magic   = MISRA_BITVEC_MAGIC})
+#endif
 
-    BitVec BitVecInitWithCapacityAlloc(u64 cap, Allocator *alloc);
-
-#define BitVecInitWithCapacity(cap, typed_alloc_ptr) BitVecInitWithCapacityAlloc((cap), ALLOCATOR_OF(typed_alloc_ptr))
+    BitVec BitVecInitWithCapacity(u64 cap, Allocator *alloc);
 
     void BitVecDeinit(BitVec *bv);
     void BitVecClear(BitVec *bv);

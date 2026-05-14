@@ -5,7 +5,6 @@
 /// Generic directed graph implementation
 
 #include <Misra/Std/Container/Graph.h>
-#include <Misra/Std/Container/Vec/Private.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Sys.h>
@@ -158,9 +157,9 @@ static void graph_release_slot(GenericGraph *graph, GenericGraphSlot *slot, size
     slot->data = NULL;
 
     deinit_vec(GENERIC_VEC(&slot->out_neighbors), sizeof(GraphNodeId));
-    slot->out_neighbors = vec_init_alloc_t(slot->out_neighbors, graph->allocator);
+    slot->out_neighbors = VecInitT(slot->out_neighbors, graph->allocator);
     deinit_vec(GENERIC_VEC(&slot->in_neighbors), sizeof(GraphNodeId));
-    slot->in_neighbors = vec_init_alloc_t(slot->in_neighbors, graph->allocator);
+    slot->in_neighbors = VecInitT(slot->in_neighbors, graph->allocator);
 
     slot->visit_count = 0;
     slot->flags       = 0;
@@ -466,9 +465,9 @@ void clear_graph(GenericGraph *graph, size item_size) {
             graph_release_slot(graph, slot, item_size);
         } else {
             deinit_vec(GENERIC_VEC(&slot->out_neighbors), sizeof(GraphNodeId));
-            slot->out_neighbors = vec_init_alloc_t(slot->out_neighbors, graph->allocator);
+            slot->out_neighbors = VecInitT(slot->out_neighbors, graph->allocator);
             deinit_vec(GENERIC_VEC(&slot->in_neighbors), sizeof(GraphNodeId));
-            slot->in_neighbors = vec_init_alloc_t(slot->in_neighbors, graph->allocator);
+            slot->in_neighbors = VecInitT(slot->in_neighbors, graph->allocator);
             slot->visit_count  = 0;
             slot->flags        = 0;
         }
@@ -528,8 +527,8 @@ GraphNodeId graph_push_node(GenericGraph *graph, const void *item_data, size ite
             LOG_FATAL("graph free slot unexpectedly occupied");
         }
 
-        slot_ptr->out_neighbors = vec_init_alloc_t(slot_ptr->out_neighbors, graph->allocator);
-        slot_ptr->in_neighbors  = vec_init_alloc_t(slot_ptr->in_neighbors, graph->allocator);
+        slot_ptr->out_neighbors = VecInitT(slot_ptr->out_neighbors, graph->allocator);
+        slot_ptr->in_neighbors  = VecInitT(slot_ptr->in_neighbors, graph->allocator);
         slot_ptr->data          = graph_alloc_node_data(graph, item_size);
         if (!slot_ptr->data) {
             graph_push_free_index(graph, slot_index);
@@ -541,9 +540,9 @@ GraphNodeId graph_push_node(GenericGraph *graph, const void *item_data, size ite
             graph_free_node_data(graph, slot_ptr->data, item_size);
             slot_ptr->data = NULL;
             deinit_vec(GENERIC_VEC(&slot_ptr->out_neighbors), sizeof(GraphNodeId));
-            slot_ptr->out_neighbors = vec_init_alloc_t(slot_ptr->out_neighbors, graph->allocator);
+            slot_ptr->out_neighbors = VecInitT(slot_ptr->out_neighbors, graph->allocator);
             deinit_vec(GENERIC_VEC(&slot_ptr->in_neighbors), sizeof(GraphNodeId));
-            slot_ptr->in_neighbors = vec_init_alloc_t(slot_ptr->in_neighbors, graph->allocator);
+            slot_ptr->in_neighbors = VecInitT(slot_ptr->in_neighbors, graph->allocator);
             slot_ptr->visit_count  = 0;
             slot_ptr->flags        = 0;
             graph_push_free_index(graph, slot_index);
@@ -560,8 +559,8 @@ GraphNodeId graph_push_node(GenericGraph *graph, const void *item_data, size ite
         return 0;
     }
 
-    slot.out_neighbors = vec_init_alloc_t(slot.out_neighbors, graph->allocator);
-    slot.in_neighbors  = vec_init_alloc_t(slot.in_neighbors, graph->allocator);
+    slot.out_neighbors = VecInitT(slot.out_neighbors, graph->allocator);
+    slot.in_neighbors  = VecInitT(slot.in_neighbors, graph->allocator);
     slot.data          = graph_alloc_node_data(graph, item_size);
     if (!slot.data) {
         return 0;
