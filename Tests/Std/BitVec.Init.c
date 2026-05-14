@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
 #include <Misra/Types.h>
@@ -21,10 +22,12 @@ bool test_bitvec_multiple_cycles(void);
 
 // Test BitVecInit function
 bool test_bitvec_init(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecInit\n");
 
     // Test basic initialization
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Check initial state
     bool result = (bv.length == 0);
@@ -35,14 +38,18 @@ bool test_bitvec_init(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecDeinit function
 bool test_bitvec_deinit(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecDeinit\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Add some data to make sure deinitialization works with allocated memory
     BitVecPush(&bv, true);
@@ -63,14 +70,18 @@ bool test_bitvec_deinit(void) {
     result = result && (bv.data == NULL);
     result = result && (bv.byte_size == 0);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecReserve function
 bool test_bitvec_reserve(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecReserve\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Reserve space for 50 bits
     BitVecReserve(&bv, 50);
@@ -96,14 +107,18 @@ bool test_bitvec_reserve(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecClear function
 bool test_bitvec_clear(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecClear\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Add some data
     BitVecPush(&bv, true);
@@ -131,14 +146,18 @@ bool test_bitvec_clear(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecReu64 function
 bool test_bitvec_resize(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecResize\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Add some initial data
     BitVecPush(&bv, true);
@@ -172,17 +191,21 @@ bool test_bitvec_resize(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Edge case tests - boundary conditions and unusual but valid inputs
 bool test_bitvec_init_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecInit edge cases\n");
 
     // Test multiple initializations
-    BitVec bv1 = BitVecInit();
-    BitVec bv2 = BitVecInit();
-    BitVec bv3 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv3 = BitVecInit(ALLOCATOR_OF(&alloc));
 
     bool result = (bv1.length == 0) && (bv2.length == 0) && (bv3.length == 0);
     result      = result && (bv1.data == NULL) && (bv2.data == NULL) && (bv3.data == NULL);
@@ -192,13 +215,17 @@ bool test_bitvec_init_edge_cases(void) {
     BitVecDeinit(&bv2);
     BitVecDeinit(&bv3);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 bool test_bitvec_reserve_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecReserve edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test reserving 0 (should be safe no-op)
@@ -220,13 +247,16 @@ bool test_bitvec_reserve_edge_cases(void) {
     result = result && (bv.capacity == cap_before);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_resize_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecReu64 edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test reu64 to 0 (should clear but keep memory)
@@ -256,13 +286,16 @@ bool test_bitvec_resize_edge_cases(void) {
     result = result && (bv.length == 10);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_clear_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecClear edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test clear on empty bitvec
@@ -287,17 +320,20 @@ bool test_bitvec_clear_edge_cases(void) {
     result = result && (bv.length == 0);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_multiple_cycles(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec multiple init/deinit cycles\n");
 
     bool result = true;
 
     // Test multiple init/deinit cycles
     for (int cycle = 0; cycle < 100; cycle++) {
-        BitVec bv = BitVecInit();
+        BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
         // Add some data
         for (int i = 0; i < cycle % 10; i++) {
@@ -307,6 +343,8 @@ bool test_bitvec_multiple_cycles(void) {
         result = result && (bv.length == (size)(cycle % 10));
         BitVecDeinit(&bv);
     }
+
+    DefaultAllocatorDeinit(&alloc);
 
     return result;
 }
@@ -326,32 +364,38 @@ bool test_bitvec_null_pointer_failures(void) {
 }
 
 bool test_bitvec_invalid_operations(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec invalid operations\n");
 
     // BitVecReserve is now a fallible API that returns bool on allocation
     // failure rather than aborting. The Must variant aborts, so use it here
     // to validate the deadend abort path.
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     BitVecMustReserve(&bv, SIZE_MAX);
 
     // If we reach here, validation didn't work as expected
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 bool test_bitvec_set_operations_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec set operations on invalid indices\n");
 
     // BitVecResize is now a fallible API that returns bool on allocation
     // failure rather than aborting. The Must variant aborts, so use it here
     // to validate the deadend abort path.
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     BitVecMustResize(&bv, SIZE_MAX);
 
     // If we reach here, validation didn't work as expected
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 

@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 #include <stdio.h>
@@ -19,8 +20,10 @@ bool test_str_delete_range(void);
 // Test StrPopBack function
 bool test_str_pop_back(void) {
     WriteFmt("Testing StrPopBack\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Pop a character from the back
     char c;
@@ -37,14 +40,17 @@ bool test_str_pop_back(void) {
     result = result && (ZstrCompare(s.data, "Hel") == 0);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrPopFront function
 bool test_str_pop_front(void) {
     WriteFmt("Testing StrPopFront\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Pop a character from the front
     char c;
@@ -61,14 +67,17 @@ bool test_str_pop_front(void) {
     result = result && (ZstrCompare(s.data, "llo") == 0);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrRemove function
 bool test_str_remove(void) {
     WriteFmt("Testing StrRemove\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Remove a character from the middle
     char c;
@@ -85,14 +94,17 @@ bool test_str_remove(void) {
     result = result && (ZstrCompare(s.data, "Hlo") == 0);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrRemoveRange function
 bool test_str_remove_range(void) {
     WriteFmt("Testing StrRemoveRange\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello World");
+
+    Str s = StrInitFromZstr("Hello World", &alloc);
 
     // Create a buffer to store the removed characters
     char buffer[6];
@@ -112,14 +124,17 @@ bool test_str_remove_range(void) {
     result = result && (ZstrCompare(s.data, "Hell") == 0);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrDeleteLastChar function
 bool test_str_delete_last_char(void) {
     WriteFmt("Testing StrDeleteLastChar\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Delete the last character
     StrDeleteLastChar(&s);
@@ -134,14 +149,17 @@ bool test_str_delete_last_char(void) {
     result = result && (ZstrCompare(s.data, "Hel") == 0);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrDelete function
 bool test_str_delete(void) {
     WriteFmt("Testing StrDelete\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Delete a character from the middle
     StrDelete(&s, 2);
@@ -156,14 +174,17 @@ bool test_str_delete(void) {
     result = result && (ZstrCompare(s.data, "Hlo") == 0);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrDeleteRange function
 bool test_str_delete_range(void) {
     WriteFmt("Testing StrDeleteRange\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello World");
+
+    Str s = StrInitFromZstr("Hello World", &alloc);
 
     // Delete a range of characters
     StrDeleteRange(&s, 5, 6);
@@ -178,6 +199,7 @@ bool test_str_delete_range(void) {
     result = result && (ZstrCompare(s.data, "Heo") == 0);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

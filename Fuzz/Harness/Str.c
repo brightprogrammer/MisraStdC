@@ -15,32 +15,45 @@
 // Note: generate_cstring is already defined in Harness.h
 
 // Generate a Str from fuzz input data
-static Str generate_str_from_input(const uint8_t *data, size_t *offset, size_t size, size_t max_len) {
+static Str generate_str_from_input(
+    const uint8_t    *data,
+    size_t           *offset,
+    size_t            size,
+    size_t            max_len,
+    DefaultAllocator *alloc
+) {
     // Extract length (limit to max_len for sanity)
     uint8_t len = extract_u8(data, offset, size);
     len         = len % (max_len + 1); // 0 to max_len
 
     // Create Str from input data
-    Str str  = StrInitFromCstr((const char *)(data + *offset), len);
+    Str str  = StrInitFromCstr((const char *)(data + *offset), len, alloc);
     *offset += len;
 
     return str;
 }
 
-void init_str(Str *str) {
-    *str = StrInit();
+void init_str(Str *str, DefaultAllocator *alloc) {
+    *str = StrInit(alloc);
 }
 
 void deinit_str(Str *str) {
     StrDeinit(str);
 }
 
-void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, size_t size) {
+void fuzz_str(
+    Str              *str,
+    StrFunction       func,
+    const uint8_t    *data,
+    size_t           *offset,
+    size_t            size,
+    DefaultAllocator *alloc
+) {
     switch (func) {
         case STR_INIT : {
             // Reinitialize the string
             StrDeinit(str);
-            *str = StrInit();
+            *str = StrInit(alloc);
             break;
         }
 
@@ -49,7 +62,7 @@ void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, s
                 char *cstr = generate_cstring(data, offset, size, 50);
                 if (cstr) {
                     StrDeinit(str);
-                    *str = StrInitFromCstr(cstr, strlen(cstr));
+                    *str = StrInitFromCstr(cstr, strlen(cstr), alloc);
                     free(cstr);
                 }
             }
@@ -61,7 +74,7 @@ void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, s
                 char *zstr = generate_cstring(data, offset, size, 50);
                 if (zstr) {
                     StrDeinit(str);
-                    *str = StrInitFromZstr(zstr);
+                    *str = StrInitFromZstr(zstr, alloc);
                     free(zstr);
                 }
             }
@@ -70,7 +83,7 @@ void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, s
 
         case STR_INIT_FROM_STR : {
             if (VecLen(str) > 0) {
-                Str temp = StrInitFromStr(str);
+                Str temp = StrInitFromStr(str, alloc);
                 StrDeinit(str);
                 *str = temp;
             }
@@ -79,7 +92,7 @@ void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, s
 
         case STR_DUP : {
             if (VecLen(str) > 0) {
-                Str temp = StrDup(str);
+                Str temp = StrDup(str, alloc);
                 StrDeinit(str);
                 *str = temp;
             }
@@ -88,7 +101,7 @@ void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, s
 
         case STR_DEINIT : {
             StrDeinit(str);
-            *str = StrInit(); // Reinitialize for continued fuzzing
+            *str = StrInit(alloc); // Reinitialize for continued fuzzing
             break;
         }
 
@@ -181,7 +194,7 @@ void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, s
         // String operations
         case STR_CMP : {
             if (VecLen(str) > 0) {
-                Str temp   = generate_str_from_input(data, offset, size, 20);
+                Str temp   = generate_str_from_input(data, offset, size, 20, alloc);
                 int result = StrCmp(str, &temp);
                 (void)result; // Suppress unused variable warning
                 StrDeinit(&temp);
@@ -215,7 +228,7 @@ void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, s
 
         case STR_FIND_STR : {
             if (VecLen(str) > 0) {
-                Str   temp  = generate_str_from_input(data, offset, size, 10);
+                Str   temp  = generate_str_from_input(data, offset, size, 10, alloc);
                 char *found = StrFindStr(str, &temp);
                 (void)found; // Suppress unused variable warning
                 StrDeinit(&temp);
@@ -284,7 +297,7 @@ void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, s
         case STR_INSERT_STR : {
             if (*offset + 2 <= size) {
                 size_t idx  = extract_u16(data, offset, size) % (VecLen(str) + 1);
-                Str    temp = generate_str_from_input(data, offset, size, 20);
+                Str    temp = generate_str_from_input(data, offset, size, 20, alloc);
                 StrInsert(str, &temp, idx);
                 StrDeinit(&temp);
             }
@@ -338,7 +351,7 @@ void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, s
         }
 
         case STR_APPEND_STR : {
-            Str temp = generate_str_from_input(data, offset, size, 20);
+            Str temp = generate_str_from_input(data, offset, size, 20, alloc);
             StrMerge(str, &temp);
             StrDeinit(&temp);
             break;
@@ -420,7 +433,7 @@ void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, s
         }
 
         case STR_MERGE : {
-            Str temp = generate_str_from_input(data, offset, size, 20);
+            Str temp = generate_str_from_input(data, offset, size, 20, alloc);
             StrMerge(str, &temp);
             StrDeinit(&temp);
             break;
@@ -449,7 +462,7 @@ void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, s
         }
 
         case STR_MERGE_STR : {
-            Str temp = generate_str_from_input(data, offset, size, 20);
+            Str temp = generate_str_from_input(data, offset, size, 20, alloc);
             StrMerge(str, &temp);
             StrDeinit(&temp);
             break;

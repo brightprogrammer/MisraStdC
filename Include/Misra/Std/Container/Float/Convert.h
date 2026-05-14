@@ -35,18 +35,21 @@ extern "C" {
 
 ///
 /// Convert a numeric value into an arbitrary-precision float.
-/// Dispatches on the type of `value`.
+/// Dispatches on the type of `value`. The allocator argument may be a
+/// typed allocator pointer (`&heap`) or a raw `Allocator *`.
 ///
-/// value[in] : Integer, `Int`, `float`, or `double` source value
+/// value[in]     : Integer, `Int`, `float`, or `double` source value
+/// allocator_ptr : Allocator that owns the returned Float's storage.
 ///
 /// SUCCESS : Returns Float representing the same numeric value.
 ///
 /// USAGE:
-///   Float value = FloatFrom(42);
+///   DefaultAllocator a = DefaultAllocatorInit();
+///   Float value = FloatFrom(42, &a);
 ///
 /// TAGS: Float, Convert, Import, Generic
 ///
-#    define FloatFrom(value) FLOAT_FROM_DISPATCH(value)(value)
+#    define FloatFrom(value, allocator_ptr) FLOAT_FROM_DISPATCH(value)((value), ALLOCATOR_OF(allocator_ptr))
 #endif
 
     ///

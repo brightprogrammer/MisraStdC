@@ -11,6 +11,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#include <Misra/Std/Allocator/Default.h>
+
 // Common data extraction functions
 uint16_t extract_u16(const uint8_t *data, size_t *offset, size_t size);
 uint8_t  extract_u8(const uint8_t *data, size_t *offset, size_t size);

@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
 #include <Misra/Types.h>
@@ -33,9 +34,11 @@ bool test_bitvec_longest_run_deadend_tests(void);
 
 // Test BitVecGet function
 bool test_bitvec_get(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecGet\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Add a pattern: 1010
     BitVecPush(&bv, true);
@@ -52,14 +55,18 @@ bool test_bitvec_get(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecSet function
 bool test_bitvec_set(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecSet\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Initialize with some bits
     BitVecPush(&bv, false);
@@ -82,14 +89,18 @@ bool test_bitvec_set(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecFlip function
 bool test_bitvec_flip(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecFlip\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Initialize with pattern: 101
     BitVecPush(&bv, true);
@@ -119,14 +130,18 @@ bool test_bitvec_flip(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test length and capacity operations
 bool test_bitvec_length_capacity(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec length and capacity operations\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Initially should be empty
     bool result = (BitVecLen(&bv) == 0) && (BitVecCapacity(&bv) == 0);
@@ -150,14 +165,18 @@ bool test_bitvec_length_capacity(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test count operations
 bool test_bitvec_count_operations(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec count operations\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Create pattern: 1101000
     BitVecPush(&bv, true);  // 1 one,  0 zeros
@@ -184,14 +203,18 @@ bool test_bitvec_count_operations(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Edge case tests
 bool test_bitvec_get_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecGet edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test boundary conditions (no longer test empty bitvec - strict bounds checking now)
@@ -208,13 +231,16 @@ bool test_bitvec_get_edge_cases(void) {
     result = result && (BitVecGet(&bv, 999) == (999 % 3 == 0)); // Last
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_set_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecSet edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test normal setting
@@ -228,13 +254,16 @@ bool test_bitvec_set_edge_cases(void) {
     result = result && (BitVecGet(&bv, 0) == true);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_flip_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecFlip edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test normal flipping
@@ -246,13 +275,16 @@ bool test_bitvec_flip_edge_cases(void) {
     result = result && (BitVecGet(&bv, 0) == true);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_count_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec count edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test count on empty bitvec
@@ -278,13 +310,16 @@ bool test_bitvec_count_edge_cases(void) {
     result = result && (BitVecCountZeros(&bv) == 0);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_access_multiple_operations(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec multiple access operations\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Stress test with many operations
@@ -303,14 +338,17 @@ bool test_bitvec_access_multiple_operations(void) {
     }
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // NEW: Test large bit patterns and complex access patterns
 bool test_bitvec_access_large_patterns(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec large pattern access\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Create a large repeating pattern: 10110100 (8-bit pattern)
@@ -340,14 +378,17 @@ bool test_bitvec_access_large_patterns(void) {
     result = result && (BitVecGet(&bv, bv.length - 1) == true); // Last bit
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // NEW: Test macro functions comprehensively
 bool test_bitvec_macro_functions(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec macro functions\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test all macros on empty bitvector
@@ -376,14 +417,17 @@ bool test_bitvec_macro_functions(void) {
     result = result && (BitVecByteSize(&bv) >= 8); // At least 8 bytes for 64 bits
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // NEW: Stress test for access operations
 bool test_bitvec_access_stress_test(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec access stress test\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Create a large bitvector with known pattern
@@ -416,14 +460,17 @@ bool test_bitvec_access_stress_test(void) {
     }
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // NEW: Comprehensive bit pattern testing
 bool test_bitvec_bit_patterns_comprehensive(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec comprehensive bit patterns\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test all-zeros pattern
@@ -480,6 +527,7 @@ bool test_bitvec_bit_patterns_comprehensive(void) {
     result = result && (BitVecGet(&bv, 4) == true);  // F(4) = 0 XOR 1 = 1
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -512,46 +560,57 @@ bool test_bitvec_flip_null_failures(void) {
 }
 
 bool test_bitvec_get_bounds_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec get bounds checking\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test get from empty bitvec - should abort
     BitVecGet(&bv, 0);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 bool test_bitvec_set_bounds_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec set bounds checking\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test set on empty bitvec - should abort
     BitVecSet(&bv, 0, true);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 bool test_bitvec_flip_bounds_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec flip bounds checking\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test flip on empty bitvec - should abort
     BitVecFlip(&bv, 0);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 // NEW: More specific bounds checking deadend tests
 bool test_bitvec_get_large_index_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec get with large out-of-bounds index\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv, true);
     BitVecPush(&bv, false);
     BitVecPush(&bv, true);
@@ -560,13 +619,16 @@ bool test_bitvec_get_large_index_failures(void) {
     BitVecGet(&bv, 1000);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 bool test_bitvec_set_large_index_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec set with large out-of-bounds index\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv, true);
     BitVecPush(&bv, false);
 
@@ -574,13 +636,16 @@ bool test_bitvec_set_large_index_failures(void) {
     BitVecSet(&bv, 500, true);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 bool test_bitvec_flip_edge_index_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec flip with edge case out-of-bounds index\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
     for (int i = 0; i < 10; i++) {
         BitVecPush(&bv, i % 2 == 0);
     }
@@ -589,6 +654,7 @@ bool test_bitvec_flip_edge_index_failures(void) {
     BitVecFlip(&bv, 10);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
@@ -602,23 +668,28 @@ bool test_bitvec_count_null_failures(void) {
 }
 
 bool test_bitvec_get_max_index_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec get with maximum index value\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv, true);
 
     // Test with maximum possible index value - should abort
     BitVecGet(&bv, SIZE_MAX);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 // Test BitVecFind and BitVecFindLast functions
 bool test_bitvec_find_functions(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecFind and BitVecFindLast functions\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Create pattern: 10110100
@@ -655,14 +726,17 @@ bool test_bitvec_find_functions(void) {
     result = result && (BitVecFindLast(&bv, false) == SIZE_MAX);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecAll, BitVecAny, BitVecNone functions
 bool test_bitvec_predicate_functions(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecAll, BitVecAny, BitVecNone functions\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test with all true bits
@@ -704,14 +778,17 @@ bool test_bitvec_predicate_functions(void) {
     result = result && !BitVecNone(&bv, false);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecLongestRun function
 bool test_bitvec_longest_run(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecLongestRun function\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test pattern: 11100110011111
@@ -753,14 +830,17 @@ bool test_bitvec_longest_run(void) {
     result = result && (BitVecLongestRun(&bv, false) == 1);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Edge case tests for Find functions
 bool test_bitvec_find_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecFind edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test empty bitvector
@@ -785,14 +865,17 @@ bool test_bitvec_find_edge_cases(void) {
     result = result && (BitVecFindLast(&bv, true) == 999);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Edge case tests for predicate functions
 bool test_bitvec_predicate_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec predicate edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test empty bitvector - all predicates should return true for empty set
@@ -825,14 +908,17 @@ bool test_bitvec_predicate_edge_cases(void) {
     result = result && BitVecAny(&bv, false);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Edge case tests for LongestRun function
 bool test_bitvec_longest_run_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecLongestRun edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test empty bitvector
@@ -858,6 +944,7 @@ bool test_bitvec_longest_run_edge_cases(void) {
     result = result && (BitVecLongestRun(&bv, false) == 1);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

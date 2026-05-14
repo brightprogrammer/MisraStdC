@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
 #include <Misra/Types.h>
@@ -33,11 +34,13 @@ bool test_bitvec_sorted_null_failures(void);
 
 // Test BitVecEquals function
 bool test_bitvec_equals(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecEquals\n");
 
-    BitVec bv1 = BitVecInit();
-    BitVec bv2 = BitVecInit();
-    BitVec bv3 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv3 = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test equal empty bitvectors
     bool result = BitVecEquals(&bv1, &bv2);
@@ -71,15 +74,19 @@ bool test_bitvec_equals(void) {
     BitVecDeinit(&bv2);
     BitVecDeinit(&bv3);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecCompare function
 bool test_bitvec_compare(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecCompare\n");
 
-    BitVec bv1 = BitVecInit();
-    BitVec bv2 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test equal bitvectors
     BitVecPush(&bv1, true);
@@ -107,15 +114,19 @@ bool test_bitvec_compare(void) {
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecLexCompare function
 bool test_bitvec_lex_compare(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecLexCompare\n");
 
-    BitVec bv1 = BitVecInit();
-    BitVec bv2 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test lexicographic comparison
     BitVecPush(&bv1, true);
@@ -141,15 +152,19 @@ bool test_bitvec_lex_compare(void) {
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecNumericalCompare function
 bool test_bitvec_numerical_compare(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecNumericalCompare\n");
 
-    BitVec bv1 = BitVecInit();
-    BitVec bv2 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Create bitvectors representing different numbers
     // bv1: 101 (binary) = 5 (decimal)
@@ -177,15 +192,19 @@ bool test_bitvec_numerical_compare(void) {
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecWeightCompare function
 bool test_bitvec_weight_compare(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecWeightCompare\n");
 
-    BitVec bv1 = BitVecInit();
-    BitVec bv2 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // bv1: 111 (3 ones)
     BitVecPush(&bv1, true);
@@ -213,15 +232,19 @@ bool test_bitvec_weight_compare(void) {
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecIsSubset function
 bool test_bitvec_is_subset(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecIsSubset\n");
 
-    BitVec subset   = BitVecInit();
-    BitVec superset = BitVecInit();
+    BitVec subset   = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec superset = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Create superset: 1111
     BitVecPush(&superset, true);
@@ -256,15 +279,19 @@ bool test_bitvec_is_subset(void) {
     BitVecDeinit(&subset);
     BitVecDeinit(&superset);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecSignedCompare function
 bool test_bitvec_signed_compare(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecSignedCompare\n");
 
-    BitVec bv1 = BitVecInit();
-    BitVec bv2 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test positive vs negative (MSB is sign bit)
     // bv1: 011 (positive 3)
@@ -299,15 +326,19 @@ bool test_bitvec_signed_compare(void) {
     BitVecDeinit(&bv2);
     BitVecDeinit(&bv3);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecIsSuperset function
 bool test_bitvec_is_superset(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecIsSuperset\n");
 
-    BitVec superset = BitVecInit();
-    BitVec subset   = BitVecInit();
+    BitVec superset = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec subset   = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Create superset: 1111
     BitVecPush(&superset, true);
@@ -342,15 +373,19 @@ bool test_bitvec_is_superset(void) {
     BitVecDeinit(&superset);
     BitVecDeinit(&subset);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecOverlaps function
 bool test_bitvec_overlaps(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecOverlaps\n");
 
-    BitVec bv1 = BitVecInit();
-    BitVec bv2 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Create overlapping bitvectors
     // bv1: 1010
@@ -383,15 +418,19 @@ bool test_bitvec_overlaps(void) {
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecDisjoint and BitVecIntersects functions
 bool test_bitvec_disjoint_intersects(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecDisjoint and BitVecIntersects\n");
 
-    BitVec bv1 = BitVecInit();
-    BitVec bv2 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Create disjoint bitvectors
     // bv1: 1010
@@ -427,15 +466,19 @@ bool test_bitvec_disjoint_intersects(void) {
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecEqualsRange function
 bool test_bitvec_equals_range(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecEqualsRange\n");
 
-    BitVec bv1 = BitVecInit();
-    BitVec bv2 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Create test patterns
     // bv1: 11100111
@@ -469,15 +512,19 @@ bool test_bitvec_equals_range(void) {
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecCompareRange function
 bool test_bitvec_compare_range(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecCompareRange\n");
 
-    BitVec bv1 = BitVecInit();
-    BitVec bv2 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Create test patterns
     // bv1: 11010110
@@ -516,15 +563,19 @@ bool test_bitvec_compare_range(void) {
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecIsLexicographicallyLess and BitVecIsNumericallyLess
 bool test_bitvec_less_than_functions(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecIsLexicographicallyLess and BitVecIsNumericallyLess\n");
 
-    BitVec bv1 = BitVecInit();
-    BitVec bv2 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test lexicographic comparison
     // bv1: 10 (shorter)
@@ -556,14 +607,18 @@ bool test_bitvec_less_than_functions(void) {
     BitVecDeinit(&bv2);
     BitVecDeinit(&bv3);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecIsSorted function
 bool test_bitvec_is_sorted(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecIsSorted\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test empty bitvector (should be sorted)
     bool result = BitVecIsSorted(&bv);
@@ -600,15 +655,19 @@ bool test_bitvec_is_sorted(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Edge case tests
 bool test_bitvec_compare_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec compare edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test compare empty bitvecs
@@ -637,14 +696,17 @@ bool test_bitvec_compare_edge_cases(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_set_operations_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec set operations edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test with empty sets
@@ -668,15 +730,18 @@ bool test_bitvec_set_operations_edge_cases(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Comprehensive comparison testing with cross-validation
 bool test_bitvec_comprehensive_comparison(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec comprehensive comparison operations\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test comparison consistency across all comparison types
@@ -706,7 +771,7 @@ bool test_bitvec_comprehensive_comparison(void) {
     result        = result && ((lex_cmp < 0) == lex_less);
 
     // Test transitivity: if A < B and B < C, then A < C
-    BitVec bv3 = BitVecInit();
+    BitVec bv3 = BitVecInit(ALLOCATOR_OF(&alloc));
     // bv3: larger than bv2
     for (int i = 0; i < 8; i++) {
         BitVecPush(&bv3, true);
@@ -717,8 +782,8 @@ bool test_bitvec_comprehensive_comparison(void) {
     }
 
     // Test subset/superset consistency
-    BitVec subset   = BitVecInit();
-    BitVec superset = BitVecInit();
+    BitVec subset   = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec superset = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Create actual subset/superset relationship
     BitVecPush(&subset, true);
@@ -739,15 +804,19 @@ bool test_bitvec_comprehensive_comparison(void) {
     BitVecDeinit(&subset);
     BitVecDeinit(&superset);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Large-scale testing with stress patterns
 bool test_bitvec_large_scale_comparison(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec large-scale comparison operations\n");
 
-    BitVec large1 = BitVecInit();
-    BitVec large2 = BitVecInit();
+    BitVec large1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec large2 = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Create large bitvectors (2000 bits each)
@@ -774,8 +843,8 @@ bool test_bitvec_large_scale_comparison(void) {
     result        = result && (overlaps != disjoint); // Should be opposite
 
     // Verify signed vs unsigned comparison differences
-    BitVec pos = BitVecInit();
-    BitVec neg = BitVecInit();
+    BitVec pos = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec neg = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Positive number (MSB = 0): 01111111
     for (int i = 0; i < 7; i++) {
@@ -802,19 +871,24 @@ bool test_bitvec_large_scale_comparison(void) {
     BitVecDeinit(&pos);
     BitVecDeinit(&neg);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Deadend tests
 bool test_bitvec_compare_null_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec compare NULL pointer handling\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test NULL pointer - should abort
     BitVecEquals(NULL, &bv);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
@@ -828,22 +902,27 @@ bool test_bitvec_subset_null_failures(void) {
 }
 
 bool test_bitvec_range_null_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec range operations NULL handling\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test NULL pointer in range operations - should abort
     BitVecEqualsRange(NULL, 0, &bv, 0, 1);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 bool test_bitvec_range_bounds_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec range operations bounds checking\n");
 
-    BitVec bv1 = BitVecInit();
-    BitVec bv2 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Create small bitvectors
     for (int i = 0; i < 3; i++) {
@@ -856,6 +935,7 @@ bool test_bitvec_range_bounds_failures(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 

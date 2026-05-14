@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Log.h>
@@ -159,12 +160,14 @@ bool test_lvalue_memset_merge(void);
 bool test_lvalue_memset_array_ops(void);
 
 // Test initialization with complex structure
+static DefaultAllocator alloc;
+
 bool test_complex_vec_init(void) {
     WriteFmt("Testing vector initialization with complex structure\n");
 
     // Create a vector of ComplexItem with deep copy functions
     typedef Vec(ComplexItem) ComplexVec;
-    ComplexVec vec = VecInitWithDeepCopy(ComplexItemCopyInit, ComplexItemDeinit);
+    ComplexVec vec = VecInitWithDeepCopy(ComplexItemCopyInit, ComplexItemDeinit, &alloc);
 
     // Check initial state
     bool result =
@@ -207,7 +210,7 @@ bool test_complex_vec_push(void) {
 
     // Create a vector of ComplexItem with deep copy functions
     typedef Vec(ComplexItem) ComplexVec;
-    ComplexVec vec = VecInitWithDeepCopy(ComplexItemCopyInit, ComplexItemDeinit);
+    ComplexVec vec = VecInitWithDeepCopy(ComplexItemCopyInit, ComplexItemDeinit, &alloc);
 
     // Create test items
     int values1[] = {10, 20, 30};
@@ -251,7 +254,7 @@ bool test_complex_vec_insert(void) {
 
     // Create a vector of ComplexItem with deep copy functions
     typedef Vec(ComplexItem) ComplexVec;
-    ComplexVec vec = VecInitWithDeepCopy(ComplexItemCopyInit, ComplexItemDeinit);
+    ComplexVec vec = VecInitWithDeepCopy(ComplexItemCopyInit, ComplexItemDeinit, &alloc);
 
     // Create test items
     int values1[] = {10, 20, 30};
@@ -294,8 +297,8 @@ bool test_complex_vec_merge(void) {
 
     // Create two vectors of ComplexItem with deep copy functions
     typedef Vec(ComplexItem) ComplexVec;
-    ComplexVec vec1 = VecInitWithDeepCopy(ComplexItemCopyInit, ComplexItemDeinit);
-    ComplexVec vec2 = VecInitWithDeepCopy(ComplexItemCopyInit, ComplexItemDeinit);
+    ComplexVec vec1 = VecInitWithDeepCopy(ComplexItemCopyInit, ComplexItemDeinit, &alloc);
+    ComplexVec vec2 = VecInitWithDeepCopy(ComplexItemCopyInit, ComplexItemDeinit, &alloc);
 
     // Create test items
     int values1[] = {10, 20, 30};
@@ -324,8 +327,8 @@ bool test_complex_vec_merge(void) {
     result = result && (ZstrCompare(VecAt(&vec1, 2).name, "Item 3") == 0);
 
     // Now test VecMergeL which transfers ownership
-    ComplexVec vec3 = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
-    ComplexVec vec4 = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
+    ComplexVec vec3 = VecInitWithDeepCopy(NULL, ComplexItemDeinit, &alloc);
+    ComplexVec vec4 = VecInitWithDeepCopy(NULL, ComplexItemDeinit, &alloc);
 
     // Create more test items
     int values4[] = {100, 110, 120};
@@ -372,7 +375,7 @@ bool test_lvalue_operations(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Test VecPushBackL
     int val1 = 10;
@@ -420,7 +423,7 @@ bool test_fast_operations(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some initial elements
     for (int i = 0; i < 5; i++) {
@@ -455,7 +458,7 @@ bool test_fast_operations(void) {
     VecDeinit(&vec);
 
     // Now test VecInsertRangeFastR in isolation
-    IntVec vec2 = VecInit();
+    IntVec vec2 = VecInit(&alloc);
 
     // Add some initial elements
     for (int i = 0; i < 5; i++) {
@@ -497,7 +500,7 @@ bool test_delete_operations(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some initial elements
     int values[] = {10, 20, 30, 40, 50, 60, 70, 80, 90};
@@ -528,7 +531,7 @@ bool test_delete_operations(void) {
     VecDeinit(&vec);
 
     // Create a new vector for testing fast delete operations
-    vec = VecInitT(vec);
+    vec = VecInitT(vec, &alloc);
 
     // Add elements again
     VecPushBackArrR(&vec, values, 9);
@@ -559,7 +562,7 @@ bool test_delete_operations(void) {
     VecDeinit(&vec);
 
     // Test with an L-value index
-    vec = VecInitT(vec);
+    vec = VecInitT(vec, &alloc);
 
     // Add elements again
     VecPushBackArrR(&vec, values, 9);
@@ -588,7 +591,7 @@ bool test_edge_cases(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Test pushing to empty vector
     VecPushBackR(&vec, 10);
@@ -606,7 +609,7 @@ bool test_edge_cases(void) {
 
     // Test with large number of elements
     VecDeinit(&vec);
-    vec = VecInitT(vec);
+    vec = VecInitT(vec, &alloc);
 
     // Push a large number of elements
     const int large_count = 1000;
@@ -628,7 +631,7 @@ bool test_edge_cases(void) {
 
     // Test with zero-capacity vector
     VecDeinit(&vec);
-    vec = VecInitT(vec);
+    vec = VecInitT(vec, &alloc);
 
     // Reserve zero capacity
     VecReserve(&vec, 0);
@@ -654,7 +657,7 @@ bool test_lvalue_memset_pushback(void) {
 
     // Create a temporary vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
-    ComplexVec temp_vec = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
+    ComplexVec temp_vec = VecInitWithDeepCopy(NULL, ComplexItemDeinit, &alloc);
 
     // Insert with L-value semantics (vector takes ownership)
     VecPushBackL(&temp_vec, item);
@@ -680,7 +683,7 @@ bool test_lvalue_memset_insert(void) {
 
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
-    ComplexVec vec = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
+    ComplexVec vec = VecInitWithDeepCopy(NULL, ComplexItemDeinit, &alloc);
 
     // First, create a dummy item and add it to the vector
     ComplexItem dummy = {0};
@@ -712,7 +715,7 @@ bool test_lvalue_memset_fast_insert(void) {
 
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
-    ComplexVec vec = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
+    ComplexVec vec = VecInitWithDeepCopy(NULL, ComplexItemDeinit, &alloc);
 
     // Make sure we have enough capacity to avoid reallocation issues
     VecReserve(&vec, 10);
@@ -781,7 +784,7 @@ bool test_lvalue_memset_pushfront(void) {
 
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
-    ComplexVec vec = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
+    ComplexVec vec = VecInitWithDeepCopy(NULL, ComplexItemDeinit, &alloc);
 
     // Add a dummy item first
     ComplexItem dummy = {0};
@@ -808,8 +811,8 @@ bool test_lvalue_memset_merge(void) {
 
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
-    ComplexVec vec1 = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
-    ComplexVec vec2 = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
+    ComplexVec vec1 = VecInitWithDeepCopy(NULL, ComplexItemDeinit, &alloc);
+    ComplexVec vec2 = VecInitWithDeepCopy(NULL, ComplexItemDeinit, &alloc);
 
     // Create test items for vec2
     int values1[] = {130, 140, 150};
@@ -846,7 +849,7 @@ bool test_lvalue_memset_array_ops(void) {
 
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
-    ComplexVec vec = VecInitWithDeepCopy(NULL, ComplexItemDeinit);
+    ComplexVec vec = VecInitWithDeepCopy(NULL, ComplexItemDeinit, &alloc);
 
     // Create an array of complex items
     ComplexItem items[3];
@@ -879,6 +882,7 @@ bool test_lvalue_memset_array_ops(void) {
 
 // Main function that runs all tests
 int main(void) {
+    alloc = DefaultAllocatorInit();
     WriteFmt("[INFO] Starting Vec.Complex tests\n\n");
 
     // Array of test functions
@@ -902,5 +906,7 @@ int main(void) {
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 
     // Run all tests using the centralized test driver
-    return run_test_suite(tests, total_tests, NULL, 0, "Vec.Complex");
+    int __rc = run_test_suite(tests, total_tests, NULL, 0, "Vec.Complex");
+    DefaultAllocatorDeinit(&alloc);
+    return __rc;
 }

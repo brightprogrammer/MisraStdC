@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Log.h>
 
@@ -25,12 +26,14 @@ bool test_lvalue_fast_delete_range_operations(void);
 bool test_rvalue_fast_delete_range_operations(void);
 
 // Test VecPopBack function
+static DefaultAllocator alloc;
+
 bool test_vec_pop_back(void) {
     WriteFmtLn("Testing VecPopBack");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -78,7 +81,7 @@ bool test_vec_pop_front(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -126,7 +129,7 @@ bool test_vec_delete(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -174,7 +177,7 @@ bool test_vec_delete_fast(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -211,7 +214,7 @@ bool test_vec_delete_range(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50, 60, 70};
@@ -247,7 +250,7 @@ bool test_vec_delete_range_fast(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     for (int i = 0; i < 10; i++) {
@@ -323,7 +326,7 @@ bool test_vec_delete_last(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -369,7 +372,7 @@ bool test_lvalue_delete_operations(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -405,7 +408,7 @@ bool test_rvalue_delete_operations(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -440,7 +443,7 @@ bool test_lvalue_fast_delete_operations(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -521,7 +524,7 @@ bool test_rvalue_fast_delete_operations(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -598,7 +601,7 @@ bool test_lvalue_delete_range_operations(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50, 60, 70};
@@ -635,7 +638,7 @@ bool test_rvalue_delete_range_operations(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50, 60, 70};
@@ -670,7 +673,7 @@ bool test_lvalue_fast_delete_range_operations(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50, 60, 70};
@@ -749,7 +752,7 @@ bool test_rvalue_fast_delete_range_operations(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50, 60, 70};

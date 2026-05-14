@@ -8,6 +8,7 @@
 #define FUZZ_VEC_CHAR_PTR_H
 
 #include <Misra/Std/Container/Vec.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Types.h>
 
 // Vec(char*) typedef
@@ -82,8 +83,15 @@ typedef enum {
 } VecCharPtrFunction;
 
 // Function prototypes
-void init_char_ptr_vec(CharPtrVec *vec);
+void init_char_ptr_vec(CharPtrVec *vec, DefaultAllocator *alloc);
 void deinit_char_ptr_vec(CharPtrVec *vec);
-void fuzz_char_ptr_vec(CharPtrVec *vec, VecCharPtrFunction func, const uint8_t *data, size_t *offset, size_t size);
+void fuzz_char_ptr_vec(
+    CharPtrVec         *vec,
+    VecCharPtrFunction  func,
+    const uint8_t      *data,
+    size_t             *offset,
+    size_t              size,
+    DefaultAllocator   *alloc
+);
 
 #endif // FUZZ_VEC_CHAR_PTR_H

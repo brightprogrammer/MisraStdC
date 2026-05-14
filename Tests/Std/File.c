@@ -2,6 +2,7 @@
 #    define _POSIX_C_SOURCE 200809L
 #endif
 
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
@@ -77,48 +78,56 @@ bool test_read_complete_file_default_allocator(void) {
 
     WriteFmt("Testing ReadCompleteFile with default allocator\n");
 
+    DefaultAllocator alloc      = DefaultAllocatorInit();
+    Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
+
     if (!write_test_file(path, "hello from file")) {
+        DefaultAllocatorDeinit(&alloc);
         return false;
     }
 
-    result = ReadCompleteFile(path, &buffer, &file_size, &capacity) && file_size == (u64)ZstrLen("hello from file") &&
-             ZstrCompare(buffer, "hello from file") == 0 && capacity >= file_size + 1;
+    result = ReadCompleteFile(path, &buffer, &file_size, &capacity, alloc_base) &&
+             file_size == (u64)ZstrLen("hello from file") && ZstrCompare(buffer, "hello from file") == 0 &&
+             capacity >= file_size + 1;
 
-    {
-        Allocator allocator = DefaultAllocator();
-        AllocatorFree(&allocator, buffer, capacity);
-    }
+    AllocatorFree(alloc_base, buffer, capacity);
     remove(path);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_read_complete_file_expands_existing_buffer(void) {
-    char      path[]    = MISRA_FILE_TEST_PATH_GROW;
-    char     *buffer    = NULL;
-    u64       file_size = 0;
-    u64       capacity  = 0;
-    bool      result    = false;
-    Allocator allocator = DefaultAllocator();
+    char  path[]    = MISRA_FILE_TEST_PATH_GROW;
+    char *buffer    = NULL;
+    u64   file_size = 0;
+    u64   capacity  = 0;
+    bool  result    = false;
+
+    DefaultAllocator alloc      = DefaultAllocatorInit();
+    Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
 
     WriteFmt("Testing ReadCompleteFile with existing buffer allocator\n");
 
     if (!write_test_file(path, "this is longer than the initial buffer")) {
+        DefaultAllocatorDeinit(&alloc);
         return false;
     }
 
-    buffer = (char *)AllocatorAlloc(&allocator, 4, true);
+    buffer = (char *)AllocatorAlloc(alloc_base, 4, true);
     if (!buffer) {
         remove(path);
+        DefaultAllocatorDeinit(&alloc);
         return false;
     }
     capacity = 4;
 
-    result = ReadCompleteFile(path, &buffer, &file_size, &capacity, &allocator) &&
+    result = ReadCompleteFile(path, &buffer, &file_size, &capacity, alloc_base) &&
              file_size == (u64)ZstrLen("this is longer than the initial buffer") &&
              ZstrCompare(buffer, "this is longer than the initial buffer") == 0 && capacity >= file_size + 1;
 
-    AllocatorFree(&allocator, buffer, capacity);
+    AllocatorFree(alloc_base, buffer, capacity);
     remove(path);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

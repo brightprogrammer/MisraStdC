@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Map.h>
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
@@ -19,7 +20,8 @@ static i32 i32_compare(const void *lhs, const void *rhs) {
 
 static bool test_map_contains_and_find(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
 
     MapSetOnlyR(&map, 7, 70);
     MapInsertR(&map, 7, 71);
@@ -37,12 +39,14 @@ static bool test_map_contains_and_find(void) {
     result      = result && (MapUniqueKeyCount(&map) == 2);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_map_get_ptr(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
 
     MapSetOnlyR(&map, 11, 110);
     MapInsertR(&map, 11, 111);
@@ -52,12 +56,14 @@ static bool test_map_get_ptr(void) {
     result      = result && (MapGetFirstPtr(&map, 999) == NULL);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_map_try_get_ptr(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
 
     MapSetOnlyR(&map, 11, 110);
     MapInsertR(&map, 11, 111);
@@ -67,12 +73,14 @@ static bool test_map_try_get_ptr(void) {
     result      = result && (MapTryGetPtr(&map, 999) == NULL);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_map_get_or_default(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
 
     MapSetOnlyR(&map, 11, 110);
     MapInsertR(&map, 11, 111);
@@ -84,12 +92,14 @@ static bool test_map_get_or_default(void) {
     result      = result && !MapContainsKey(&map, 999);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_map_value_cursor_query(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap      map       = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap      map       = MapInit(i32_hash, i32_compare, &alloc);
     MapValueCursor cursor    = MapValueCursorInvalid();
     int            value_sum = 0;
     int            seen      = 0;
@@ -104,6 +114,7 @@ static bool test_map_value_cursor_query(void) {
         int *value_ptr = MapValuePtrFromCursor(&map, cursor);
         if (!value_ptr) {
             MapDeinit(&map);
+            DefaultAllocatorDeinit(&alloc);
             return false;
         }
 
@@ -117,12 +128,14 @@ static bool test_map_value_cursor_query(void) {
     result      = result && (MapValuePtrFromCursor(&map, MapValueCursorInvalid()) == NULL);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_map_cursor_invalidated_after_removal(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap      map    = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap      map    = MapInit(i32_hash, i32_compare, &alloc);
     MapValueCursor cursor = MapValueCursorInvalid();
 
     MapInsertR(&map, 5, 50);
@@ -131,6 +144,7 @@ static bool test_map_cursor_invalidated_after_removal(void) {
     cursor = MapFindFirstForKey(&map, 5);
     if (!MapValueCursorIsValid(cursor)) {
         MapDeinit(&map);
+        DefaultAllocatorDeinit(&alloc);
         return false;
     }
 
@@ -141,6 +155,7 @@ static bool test_map_cursor_invalidated_after_removal(void) {
     result      = result && MapGetFirstPtr(&map, 5) && (*MapGetFirstPtr(&map, 5) == 51);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

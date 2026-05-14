@@ -9,6 +9,7 @@
 
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Types.h>
 
 // Vec(Str) typedef
@@ -83,8 +84,15 @@ typedef enum {
 } VecStrFunction;
 
 // Function prototypes
-void init_str_vec(StrVec *vec);
+void init_str_vec(StrVec *vec, DefaultAllocator *alloc);
 void deinit_str_vec(StrVec *vec);
-void fuzz_str_vec(StrVec *vec, VecStrFunction func, const uint8_t *data, size_t *offset, size_t size);
+void fuzz_str_vec(
+    StrVec           *vec,
+    VecStrFunction    func,
+    const uint8_t    *data,
+    size_t           *offset,
+    size_t            size,
+    DefaultAllocator *alloc
+);
 
 #endif // FUZZ_VEC_STR_H

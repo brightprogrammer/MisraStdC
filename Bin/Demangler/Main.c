@@ -1,14 +1,24 @@
 #include <Misra.h>
+#include <Misra/Std/Allocator/Default.h>
 
 int main(void) {
-    Str file = StrInit();
-    if (ReadCompleteFile("Bin/Demangler/CppNameManglingGrammar", &file.data, &file.length, &file.capacity)) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    LogInit(false, &alloc.base);
+
+    Str file = StrInit(&alloc);
+    if (ReadCompleteFile(
+            "Bin/Demangler/CppNameManglingGrammar",
+            &file.data,
+            &file.length,
+            &file.capacity,
+            &alloc.base
+        )) {
         Strs lines = StrSplit(&file, "\n");
 
         // Use the fixed VecForeachPtr macro
         VecForeachPtr(&lines, line) {
             if (StrStartsWithZstr(line, "[.") && StrEndsWithZstr(line, "]")) {
-                Str rule_name = StrInit();
+                Str rule_name = StrInit(&alloc);
                 StrReadFmt(line->data, "[.{}]", rule_name);
 
                 if (rule_name.length) {
@@ -23,5 +33,8 @@ int main(void) {
     } else {
         LOG_ERROR("Failed to read file");
     }
+
+    LogDeinit();
+    DefaultAllocatorDeinit(&alloc);
     return 0;
 }

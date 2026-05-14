@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Map.h>
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
@@ -19,7 +20,8 @@ static i32 i32_compare(const void *lhs, const void *rhs) {
 
 static bool test_map_insert_and_set(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
 
     MapInsertR(&map, 1, 10);
     MapInsertR(&map, 1, 11);
@@ -36,12 +38,14 @@ static bool test_map_insert_and_set(void) {
     result      = result && MapGetFirstPtr(&map, 3) && (*MapGetFirstPtr(&map, 3) == 30);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_map_set_first(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
 
     MapInsertR(&map, 1, 10);
     MapInsertR(&map, 1, 11);
@@ -56,12 +60,14 @@ static bool test_map_set_first(void) {
     result      = result && !MapContainsPair(&map, 1, 10);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_map_lvalue_zeroing(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map   = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map   = MapInit(i32_hash, i32_compare, &alloc);
     int       key   = 42;
     int       value = 84;
 
@@ -72,12 +78,14 @@ static bool test_map_lvalue_zeroing(void) {
     result      = result && MapGetFirstPtr(&map, 42) && (*MapGetFirstPtr(&map, 42) == 84);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_map_ensure_ptr(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
     int      *value_ptr;
     bool      result;
 
@@ -92,6 +100,7 @@ static bool test_map_ensure_ptr(void) {
     result    = result && (MapValueCountForKey(&map, 8) == 1);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

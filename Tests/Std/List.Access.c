@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/List.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Types.h>
@@ -28,8 +29,10 @@ static bool list_matches(GenericList *list, const int *expected, size count) {
 static bool test_list_len_empty(void) {
     WriteFmt("Testing ListLen and ListEmpty\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list = ListInit(&alloc);
 
     bool result = (ListLen(&list) == 0);
     result      = result && ListEmpty(&list);
@@ -49,14 +52,17 @@ static bool test_list_len_empty(void) {
     result = result && list_matches(GENERIC_LIST(&list), (const int[]) {30}, 1);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_value_access_and_swap(void) {
     WriteFmt("Testing List accessors and swap\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list = ListInit(&alloc);
 
     ListPushBackR(&list, 10);
     ListPushBackR(&list, 20);
@@ -76,27 +82,30 @@ static bool test_list_value_access_and_swap(void) {
     result = result && list_matches(GENERIC_LIST(&list), (const int[]) {10, 40, 30, 20}, 4);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_node_access_and_navigation(void) {
     WriteFmt("Testing List node access and navigation\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list = ListInit(&alloc);
 
     ListPushBackR(&list, 10);
     ListPushBackR(&list, 20);
     ListPushBackR(&list, 30);
     ListPushBackR(&list, 40);
 
-    GenericListNode *node1  = GENERIC_LIST_NODE(ListNodePtrAt(&list, 1));
-    GenericListNode *begin  = GENERIC_LIST_NODE(ListNodeBegin(&list));
-    GenericListNode *end    = GENERIC_LIST_NODE(ListNodeEnd(&list));
-    GenericListNode *same   = ListNodeRelative(ListNodeBegin(&list), 0);
-    GenericListNode *rel_f2 = ListNodeRelative(ListNodeBegin(&list), 2);
-    GenericListNode *rel_b2 = ListNodeRelative(ListNodeEnd(&list), -2);
-    ListNode(int)   *null_node = NULL;
+    GenericListNode *node1   = GENERIC_LIST_NODE(ListNodePtrAt(&list, 1));
+    GenericListNode *begin   = GENERIC_LIST_NODE(ListNodeBegin(&list));
+    GenericListNode *end     = GENERIC_LIST_NODE(ListNodeEnd(&list));
+    GenericListNode *same    = ListNodeRelative(ListNodeBegin(&list), 0);
+    GenericListNode *rel_f2  = ListNodeRelative(ListNodeBegin(&list), 2);
+    GenericListNode *rel_b2  = ListNodeRelative(ListNodeEnd(&list), -2);
+    ListNode(int) *null_node = NULL;
 
     bool result = node1 && node1->data && (*(int *)node1->data == 20);
     result      = result && begin && begin->data && (*(int *)begin->data == 10);
@@ -105,26 +114,29 @@ static bool test_list_node_access_and_navigation(void) {
     result      = result && ListNodeFirst(&list).data && (*ListNodeFirst(&list).data == 10);
     result      = result && ListNodeLast(&list).data && (*ListNodeLast(&list).data == 40);
     result      = result && ListNodeNext(ListNodeBegin(&list)) && ListNodeNext(ListNodeBegin(&list))->data &&
-                  (*ListNodeNext(ListNodeBegin(&list))->data == 20);
-    result      = result && ListNodePrev(ListNodeEnd(&list)) && ListNodePrev(ListNodeEnd(&list))->data &&
-                  (*ListNodePrev(ListNodeEnd(&list))->data == 30);
-    result      = result && (same == begin);
-    result      = result && rel_f2 && rel_f2->data && (*(int *)rel_f2->data == 30);
-    result      = result && rel_b2 && rel_b2->data && (*(int *)rel_b2->data == 20);
-    result      = result && (ListNodeRelative(ListNodeBegin(&list), -1) == NULL);
-    result      = result && (ListNodeRelative(ListNodeEnd(&list), 1) == NULL);
-    result      = result && (ListNodeNext(null_node) == NULL);
-    result      = result && (ListNodePrev(null_node) == NULL);
+             (*ListNodeNext(ListNodeBegin(&list))->data == 20);
+    result = result && ListNodePrev(ListNodeEnd(&list)) && ListNodePrev(ListNodeEnd(&list))->data &&
+             (*ListNodePrev(ListNodeEnd(&list))->data == 30);
+    result = result && (same == begin);
+    result = result && rel_f2 && rel_f2->data && (*(int *)rel_f2->data == 30);
+    result = result && rel_b2 && rel_b2->data && (*(int *)rel_b2->data == 20);
+    result = result && (ListNodeRelative(ListNodeBegin(&list), -1) == NULL);
+    result = result && (ListNodeRelative(ListNodeEnd(&list), 1) == NULL);
+    result = result && (ListNodeNext(null_node) == NULL);
+    result = result && (ListNodePrev(null_node) == NULL);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_find_contains(void) {
     WriteFmt("Testing ListFind and ListContains\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list = ListInit(&alloc);
 
     int  needle  = 20;
     int  missing = 99;
@@ -142,6 +154,7 @@ static bool test_list_find_contains(void) {
     result = result && (ListFind(&list, &missing, compare_ints) == SIZE_MAX);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

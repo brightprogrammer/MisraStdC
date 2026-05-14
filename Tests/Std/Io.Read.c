@@ -1,5 +1,8 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Container/Int.h>
+#include <Misra/Std/Container/Float.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
@@ -334,16 +337,19 @@ bool test_float_scientific_reading(void) {
 bool test_string_reading(void) {
     WriteFmt("Testing string reading\n");
 
+    DefaultAllocator alloc      = DefaultAllocatorInit();
+    Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
+
     const char *z = NULL;
 
     bool success = true;
 
     // Test basic string reading
-    Str s = StrInit();
+    Str s = StrInit(&alloc);
     z     = "Hello";
     StrReadFmt(z, "{}", s);
 
-    Str expected = StrInitFromZstr("Hello");
+    Str expected = StrInitFromZstr("Hello", &alloc);
     success      = success && (StrCmp(&s, &expected) == 0);
     StrDeinit(&expected);
     StrClear(&s);
@@ -352,25 +358,25 @@ bool test_string_reading(void) {
     z = "\"Hello, World!\"";
     StrReadFmt(z, "{s}", s);
 
-    expected = StrInitFromZstr("Hello, World!");
+    expected = StrInitFromZstr("Hello, World!", &alloc);
     success  = success && (StrCmp(&s, &expected) == 0);
     StrDeinit(&expected);
 
     {
-        char      *zs    = NULL;
-        Allocator  alloc = DefaultAllocator();
+        char *zs = NULL;
 
         z = "Allocator-backed";
-        StrReadFmt(z, "{s}", ZstrIO(zs, &alloc));
+        StrReadFmt(z, "{s}", ZstrIO(zs, alloc_base));
         success = success && (ZstrCompare(zs, "Allocator-backed") == 0);
 
         z = "\"Allocator-backed replacement\"";
-        StrReadFmt(z, "{s}", ZstrIO(zs, &alloc));
+        StrReadFmt(z, "{s}", ZstrIO(zs, alloc_base));
         success = success && (ZstrCompare(zs, "Allocator-backed replacement") == 0);
-        ZstrDeinitAlloc(&zs, &alloc);
+        ZstrDeinitAlloc(&zs, alloc_base);
     }
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
 
     return success;
 }
@@ -379,18 +385,20 @@ bool test_string_reading(void) {
 bool test_multiple_arguments_reading(void) {
     WriteFmt("Testing multiple arguments reading\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     const char *z = NULL;
 
     bool success = true;
 
     i32 num  = 0;
-    Str name = StrInit();
+    Str name = StrInit(&alloc);
     z        = "Count: 42, Name: Alice";
     StrReadFmt(z, "Count: {}, Name: {}", num, name);
 
     success = success && (num == 42);
 
-    Str expected = StrInitFromZstr("Alice");
+    Str expected = StrInitFromZstr("Alice", &alloc);
     success      = success && (StrCmp(&name, &expected) == 0);
     StrDeinit(&expected);
     StrClear(&name);
@@ -402,11 +410,12 @@ bool test_multiple_arguments_reading(void) {
 
     success = success && double_equals(val, 3.14);
 
-    expected = StrInitFromZstr("Bob");
+    expected = StrInitFromZstr("Bob", &alloc);
     success  = success && (StrCmp(&name, &expected) == 0);
     StrDeinit(&expected);
 
     StrDeinit(&name);
+    DefaultAllocatorDeinit(&alloc);
 
     return success;
 }
@@ -446,6 +455,8 @@ bool test_error_handling_reading(void) {
 // Test character ordinal reading with :c format specifier
 bool test_character_ordinal_reading(void) {
     WriteFmt("Testing character ordinal reading with :c format specifier\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
     const char *z = NULL;
 
@@ -599,20 +610,20 @@ bool test_character_ordinal_reading(void) {
     WriteFmt("u64_val partial test: comparing memory with 'abc', pass = {}\n", abc_pass ? "true" : "false");
     success = success && abc_pass;
 
-    Str str_val = StrInit();
+    Str str_val = StrInit(&alloc);
     z           = "Hello";
     StrReadFmt(z, "{c}", str_val);
-    Str  expected = StrInitFromZstr("Hello");
+    Str  expected = StrInitFromZstr("Hello", &alloc);
     bool str_pass = (StrCmp(&str_val, &expected) == 0);
     WriteFmt("str_val test: comparing with 'Hello', pass = {}\n", str_pass ? "true" : "false");
     success = success && str_pass;
     StrDeinit(&expected);
     StrDeinit(&str_val);
 
-    str_val = StrInit();
+    str_val = StrInit(&alloc);
     z       = "\"World\"";
     StrReadFmt(z, "{cs}", str_val);
-    expected             = StrInitFromZstr("World");
+    expected             = StrInitFromZstr("World", &alloc);
     bool quoted_str_pass = (StrCmp(&str_val, &expected) == 0);
     WriteFmt("quoted str_val test: comparing with 'World', pass = {}\n", quoted_str_pass ? "true" : "false");
     success = success && quoted_str_pass;
@@ -620,6 +631,7 @@ bool test_character_ordinal_reading(void) {
     StrDeinit(&str_val);
 
     WriteFmt("Overall success: {}\n", success ? "true" : "false");
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -627,13 +639,15 @@ bool test_character_ordinal_reading(void) {
 bool test_string_case_conversion_reading(void) {
     WriteFmt("Testing string case conversion with :a and :A format specifiers\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     const char *z = NULL;
 
     bool success = true;
 
     // Test 1: :a (lowercase) conversion
     {
-        Str         result = StrInit();
+        Str         result = StrInit(&alloc);
         const char *in     = "Hello World";
 
         z = in;
@@ -647,7 +661,7 @@ bool test_string_case_conversion_reading(void) {
         WriteFmt("'\n");
 
         // Should read "hello" (stops at first space)
-        Str  expected   = StrInitFromZstr("hello world");
+        Str  expected   = StrInitFromZstr("hello world", &alloc);
         bool test1_pass = (StrCmp(&result, &expected) == 0);
         WriteFmt("Expected: 'hello', Pass: {}\n\n", test1_pass ? "true" : "false");
         success = success && test1_pass;
@@ -658,7 +672,7 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 1.1: :a (lowercase) conversion
     {
-        Str         result = StrInit();
+        Str         result = StrInit(&alloc);
         const char *in     = "Hello World";
 
         z = in;
@@ -672,7 +686,7 @@ bool test_string_case_conversion_reading(void) {
         WriteFmt("'\n");
 
         // Should read "hello" (stops at first space)
-        Str  expected   = StrInitFromZstr("hello");
+        Str  expected   = StrInitFromZstr("hello", &alloc);
         bool test1_pass = (StrCmp(&result, &expected) == 0);
         WriteFmt("Expected: 'hello', Pass: {}\n\n", test1_pass ? "true" : "false");
         success = success && test1_pass;
@@ -683,7 +697,7 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 2: :A (uppercase) conversion
     {
-        Str         result = StrInit();
+        Str         result = StrInit(&alloc);
         const char *in     = "hello world";
 
         z = in;
@@ -697,7 +711,7 @@ bool test_string_case_conversion_reading(void) {
         WriteFmt("'\n");
 
         // Should read "HELLO" (stops at first space)
-        Str  expected   = StrInitFromZstr("HELLO WORLD");
+        Str  expected   = StrInitFromZstr("HELLO WORLD", &alloc);
         bool test2_pass = (StrCmp(&result, &expected) == 0);
         WriteFmt("Expected: 'HELLO', Pass: {}\n\n", test2_pass ? "true" : "false");
         success = success && test2_pass;
@@ -708,8 +722,8 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 2.1: :A (uppercase) conversion
     {
-        Str         result1 = StrInit();
-        Str         result2 = StrInit();
+        Str         result1 = StrInit(&alloc);
+        Str         result2 = StrInit(&alloc);
         const char *in      = "hello world";
 
         z = in;
@@ -729,8 +743,8 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 2.2: :A (uppercase) conversion
     {
-        Str         result1 = StrInit();
-        Str         result2 = StrInit();
+        Str         result1 = StrInit(&alloc);
+        Str         result2 = StrInit(&alloc);
         const char *in      = "hello world mighty misra";
 
         z = in;
@@ -752,7 +766,7 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 3: :a with quoted string
     {
-        Str         result = StrInit();
+        Str         result = StrInit(&alloc);
         const char *in     = "\"MiXeD CaSe\"";
 
         z = in;
@@ -766,7 +780,7 @@ bool test_string_case_conversion_reading(void) {
         WriteFmt("'\n");
 
         // Should read "mixed case" (converts the entire quoted string)
-        Str  expected   = StrInitFromZstr("mixed case");
+        Str  expected   = StrInitFromZstr("mixed case", &alloc);
         bool test3_pass = (StrCmp(&result, &expected) == 0);
         WriteFmt("Expected: 'mixed case', Pass: {}\n\n", test3_pass ? "true" : "false");
         success = success && test3_pass;
@@ -777,7 +791,7 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 4: :A with quoted string containing special characters
     {
-        Str         result = StrInit();
+        Str         result = StrInit(&alloc);
         const char *in     = "\"abc123XYZ\"";
 
         z = in;
@@ -791,7 +805,7 @@ bool test_string_case_conversion_reading(void) {
         WriteFmt("'\n");
 
         // Should read "ABC123XYZ" (only letters are converted, numbers unchanged)
-        Str  expected   = StrInitFromZstr("ABC123XYZ");
+        Str  expected   = StrInitFromZstr("ABC123XYZ", &alloc);
         bool test4_pass = (StrCmp(&result, &expected) == 0);
         WriteFmt("Expected: 'ABC123XYZ', Pass: {}\n\n", test4_pass ? "true" : "false");
         success = success && test4_pass;
@@ -802,7 +816,7 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 5: Regular :c format (no case conversion) for comparison
     {
-        Str         result = StrInit();
+        Str         result = StrInit(&alloc);
         const char *in     = "Hello World";
 
         z = in;
@@ -816,7 +830,7 @@ bool test_string_case_conversion_reading(void) {
         WriteFmt("'\n");
 
         // Should read "Hello" (stops at first space, no case conversion)
-        Str  expected   = StrInitFromZstr("Hello World");
+        Str  expected   = StrInitFromZstr("Hello World", &alloc);
         bool test5_pass = (StrCmp(&result, &expected) == 0);
         WriteFmt("Expected: 'Hello World', Pass: {}\n\n", test5_pass ? "true" : "false");
         success = success && test5_pass;
@@ -826,6 +840,7 @@ bool test_string_case_conversion_reading(void) {
     }
 
     WriteFmt("Overall case conversion success: {}\n", success ? "true" : "false");
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -833,12 +848,15 @@ bool test_string_case_conversion_reading(void) {
 bool test_bitvec_reading(void) {
     WriteFmt("Testing BitVec reading\n");
 
+    DefaultAllocator alloc      = DefaultAllocatorInit();
+    Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
+
     const char *z = NULL;
 
     bool success = true;
 
     // Test 1: Reading binary string
-    BitVec bv1 = BitVecInit();
+    BitVec bv1 = BitVecInit(alloc_base);
     z          = "10110";
     StrReadFmt(z, "{}", bv1);
     Str result1 = BitVecToStr(&bv1);
@@ -852,7 +870,7 @@ bool test_bitvec_reading(void) {
     BitVecDeinit(&bv1);
 
     // Test 2: Reading hex format
-    BitVec bv2 = BitVecInit();
+    BitVec bv2 = BitVecInit(alloc_base);
     z          = "0xDEAD";
     StrReadFmt(z, "{}", bv2);
     u64 value2 = BitVecToInteger(&bv2);
@@ -861,7 +879,7 @@ bool test_bitvec_reading(void) {
     BitVecDeinit(&bv2);
 
     // Test 3: Reading octal format
-    BitVec bv3 = BitVecInit();
+    BitVec bv3 = BitVecInit(alloc_base);
     z          = "0o755";
     StrReadFmt(z, "{}", bv3);
     u64 value3 = BitVecToInteger(&bv3);
@@ -870,7 +888,7 @@ bool test_bitvec_reading(void) {
     BitVecDeinit(&bv3);
 
     // Test 4: Reading with whitespace
-    BitVec bv4 = BitVecInit();
+    BitVec bv4 = BitVecInit(alloc_base);
     z          = "   1101";
     StrReadFmt(z, "{}", bv4);
     Str result4 = BitVecToStr(&bv4);
@@ -884,7 +902,7 @@ bool test_bitvec_reading(void) {
     BitVecDeinit(&bv4);
 
     // Test 5: Reading zero values
-    BitVec bv5 = BitVecInit();
+    BitVec bv5 = BitVecInit(alloc_base);
     z          = "0";
     StrReadFmt(z, "{}", bv5);
     Str result5 = BitVecToStr(&bv5);
@@ -894,24 +912,28 @@ bool test_bitvec_reading(void) {
     BitVecDeinit(&bv5);
 
     WriteFmt("Overall BitVec reading success: {}\n", success ? "true" : "false");
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 bool test_int_reading(void) {
     WriteFmt("Testing Int reading\n");
 
+    DefaultAllocator alloc      = DefaultAllocatorInit();
+    Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
+
     const char *z = NULL;
     bool        success = true;
 
-    Int dec = IntInit();
-    Int hex = IntInit();
-    Int bin = IntInit();
-    Int oct = IntInit();
+    Int dec = IntInit(alloc_base);
+    Int hex = IntInit(alloc_base);
+    Int bin = IntInit(alloc_base);
+    Int oct = IntInit(alloc_base);
 
-    Str dec_text = StrInit();
-    Str hex_text = StrInit();
-    Str bin_text = StrInit();
-    Str oct_text = StrInit();
+    Str dec_text = StrInit(&alloc);
+    Str hex_text = StrInit(&alloc);
+    Str bin_text = StrInit(&alloc);
+    Str oct_text = StrInit(&alloc);
 
     z = "123456789012345678901234567890";
     StrReadFmt(z, "{}", dec);
@@ -941,6 +963,7 @@ bool test_int_reading(void) {
     IntDeinit(&hex);
     IntDeinit(&bin);
     IntDeinit(&oct);
+    DefaultAllocatorDeinit(&alloc);
 
     return success;
 }
@@ -948,16 +971,19 @@ bool test_int_reading(void) {
 bool test_float_reading(void) {
     WriteFmt("Testing Float reading\n");
 
+    DefaultAllocator alloc      = DefaultAllocatorInit();
+    Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
+
     const char *z = NULL;
     bool        success = true;
 
-    Float dec = FloatInit();
-    Float sci = FloatInit();
-    Float neg = FloatInit();
+    Float dec = FloatInit(alloc_base);
+    Float sci = FloatInit(alloc_base);
+    Float neg = FloatInit(alloc_base);
 
-    Str dec_text = StrInit();
-    Str sci_text = StrInit();
-    Str neg_text = StrInit();
+    Str dec_text = StrInit(&alloc);
+    Str sci_text = StrInit(&alloc);
+    Str neg_text = StrInit(&alloc);
 
     z = "1234567890.012345";
     StrReadFmt(z, "{}", dec);
@@ -980,6 +1006,7 @@ bool test_float_reading(void) {
     FloatDeinit(&dec);
     FloatDeinit(&sci);
     FloatDeinit(&neg);
+    DefaultAllocatorDeinit(&alloc);
 
     return success;
 }

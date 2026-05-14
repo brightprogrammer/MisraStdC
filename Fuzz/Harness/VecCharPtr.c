@@ -10,26 +10,32 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Log.h>
 #include <stdlib.h>
+#include <string.h>
 
-// Copy function for char* - duplicates the string
-static bool char_ptr_copy_init(char **dst, char **src) {
+// Copy function for char* - duplicates the string. Signature must match
+// `GenericCopyInit`: (void *dst, const void *src, const Allocator *alloc).
+static bool char_ptr_copy_init(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
+    char       **dst = (char **)dst_ptr;
+    char *const *src = (char *const *)src_ptr;
     if (!dst || !src || !*src) {
         return false;
     }
-    *dst = ZstrDup(*src);
+    *dst = ZstrDupAlloc(*src, (Allocator *)alloc);
     return *dst != NULL;
 }
 
-// Deinit function for char* - frees the string
-static void char_ptr_deinit(char **str) {
+// Deinit function for char* - frees the string. Signature must match
+// `GenericCopyDeinit`: (void *copy, const Allocator *alloc).
+static void char_ptr_deinit(void *copy, const Allocator *alloc) {
+    char **str = (char **)copy;
     if (str && *str) {
-        free(*str);
+        AllocatorFree((Allocator *)alloc, *str, ZstrLen(*str) + 1);
         *str = NULL;
     }
 }
 
-void init_char_ptr_vec(CharPtrVec *vec) {
-    *vec = VecInitWithDeepCopyT(*vec, char_ptr_copy_init, char_ptr_deinit);
+void init_char_ptr_vec(CharPtrVec *vec, DefaultAllocator *alloc) {
+    *vec = VecInitWithDeepCopyT(*vec, char_ptr_copy_init, char_ptr_deinit, alloc);
 }
 
 void deinit_char_ptr_vec(CharPtrVec *vec) {
@@ -37,7 +43,14 @@ void deinit_char_ptr_vec(CharPtrVec *vec) {
     VecDeinit(vec);
 }
 
-void fuzz_char_ptr_vec(CharPtrVec *vec, VecCharPtrFunction func, const uint8_t *data, size_t *offset, size_t size) {
+void fuzz_char_ptr_vec(
+    CharPtrVec         *vec,
+    VecCharPtrFunction  func,
+    const uint8_t      *data,
+    size_t             *offset,
+    size_t              size,
+    DefaultAllocator   *alloc
+) {
     switch (func) {
         case VEC_CHAR_PTR_PUSH_BACK : {
             char *str = generate_cstring(data, offset, size, 32);
@@ -375,7 +388,8 @@ void fuzz_char_ptr_vec(CharPtrVec *vec, VecCharPtrFunction func, const uint8_t *
         case VEC_CHAR_PTR_MERGE : {
             if (*offset + 4 <= size) {
                 // Create a temporary vector for merging
-                CharPtrVec temp = VecInitWithDeepCopyT(temp, char_ptr_copy_init, char_ptr_deinit);
+                CharPtrVec temp =
+                    VecInitWithDeepCopyT(temp, char_ptr_copy_init, char_ptr_deinit, alloc);
 
                 // Add some strings to temp
                 size_t count = extract_u32(data, offset, size) % 5;
@@ -443,7 +457,8 @@ void fuzz_char_ptr_vec(CharPtrVec *vec, VecCharPtrFunction func, const uint8_t *
         case VEC_CHAR_PTR_INIT_CLONE : {
             if (*offset + 4 <= size) {
                 // Create a temporary vector for cloning
-                CharPtrVec temp = VecInitWithDeepCopyT(temp, char_ptr_copy_init, char_ptr_deinit);
+                CharPtrVec temp =
+                    VecInitWithDeepCopyT(temp, char_ptr_copy_init, char_ptr_deinit, alloc);
 
                 // Add some strings to temp
                 size_t count = extract_u32(data, offset, size) % 5;
@@ -454,7 +469,13 @@ void fuzz_char_ptr_vec(CharPtrVec *vec, VecCharPtrFunction func, const uint8_t *
                     }
                 }
 
-                VecInitClone(vec, &temp);
+                // VecInitClone macro is currently broken upstream
+                // (references missing VEC_INIT_WITH_DEEP_COPY_VALUE),
+                // so exercise the clone path manually via clone_vec.
+                VecDeinit(vec);
+                *vec = VecInitWithDeepCopyT(*vec, char_ptr_copy_init, char_ptr_deinit, alloc);
+                clone_vec(GENERIC_VEC(vec), GENERIC_VEC(&temp), sizeof(char *));
+
                 VecDeinit(&temp);
             }
             break;

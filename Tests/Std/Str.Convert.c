@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 #include <stdio.h>
@@ -27,8 +28,10 @@ bool test_str_conversion_invalid_input_failures(void);
 // Test StrFromU64 function
 bool test_str_from_u64(void) {
     WriteFmt("Testing StrFromU64\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInit();
+
+    Str s = StrInit(&alloc);
 
     // Test decimal conversion
     StrIntFormat config = {.base = 10, .uppercase = false};
@@ -84,14 +87,17 @@ bool test_str_from_u64(void) {
     }
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrFromI64 function
 bool test_str_from_i64(void) {
     WriteFmt("Testing StrFromI64\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInit();
+
+    Str s = StrInit(&alloc);
 
     // Test positive decimal conversion
     StrIntFormat config = {.base = 10, .uppercase = false};
@@ -140,14 +146,17 @@ bool test_str_from_i64(void) {
     }
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrFromF64 function
 bool test_str_from_f64(void) {
     WriteFmt("Testing StrFromF64\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInit();
+
+    Str s = StrInit(&alloc);
 
     // Test integer conversion
     StrFloatFormat config = {.precision = 2, .force_sci = false, .uppercase = false};
@@ -221,175 +230,187 @@ bool test_str_from_f64(void) {
     result = result && (ZstrCompare(s.data, "nan") == 0);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrToU64 function
 bool test_str_to_u64(void) {
     WriteFmt("Testing StrToU64\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
 
     // Test decimal conversion
-    Str  s       = StrInitFromZstr("12345");
+    Str  s       = StrInitFromZstr("12345", &alloc);
     u64  value   = 0;
     bool success = StrToU64(&s, &value, NULL);
     bool result  = (success && value == 12345);
 
     // Test hexadecimal conversion with explicit base
     StrDeinit(&s);
-    s                     = StrInitFromZstr("ABCD"); // No 0x prefix when base is explicitly 16
+    s                     = StrInitFromZstr("ABCD", &alloc); // No 0x prefix when base is explicitly 16
     StrParseConfig config = {.base = 16};
     success               = StrToU64(&s, &value, &config);
     result                = result && (success && value == 0xABCD);
 
     // Test hexadecimal conversion (auto-detect base with 0)
     StrDeinit(&s);
-    s       = StrInitFromZstr("0xABCD");
+    s       = StrInitFromZstr("0xABCD", &alloc);
     success = StrToU64(&s, &value, NULL);
     result  = result && (success && value == 0xABCD);
 
     // Test binary conversion
     StrDeinit(&s);
-    s       = StrInitFromZstr("0b101010");
+    s       = StrInitFromZstr("0b101010", &alloc);
     success = StrToU64(&s, &value, NULL);
     result  = result && (success && value == 42);
 
     // Test octal conversion
     StrDeinit(&s);
-    s       = StrInitFromZstr("0o52");
+    s       = StrInitFromZstr("0o52", &alloc);
     success = StrToU64(&s, &value, NULL);
     result  = result && (success && value == 42);
 
     // Test zero
     StrDeinit(&s);
-    s       = StrInitFromZstr("0");
+    s       = StrInitFromZstr("0", &alloc);
     success = StrToU64(&s, &value, NULL);
     result  = result && (success && value == 0);
 
     // Test invalid input
     StrDeinit(&s);
-    s       = StrInitFromZstr("not a number");
+    s       = StrInitFromZstr("not a number", &alloc);
     success = StrToU64(&s, &value, NULL);
     result  = result && (!success);
 
     // Test negative number (should fail for unsigned)
     StrDeinit(&s);
-    s       = StrInitFromZstr("-123");
+    s       = StrInitFromZstr("-123", &alloc);
     success = StrToU64(&s, &value, NULL);
     result  = result && (!success);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrToI64 function
 bool test_str_to_i64(void) {
     WriteFmt("Testing StrToI64\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
 
     // Test positive decimal conversion
-    Str  s       = StrInitFromZstr("12345");
+    Str  s       = StrInitFromZstr("12345", &alloc);
     i64  value   = 0;
     bool success = StrToI64(&s, &value, NULL);
     bool result  = (success && value == 12345);
 
     // Test negative decimal conversion
     StrDeinit(&s);
-    s       = StrInitFromZstr("-12345");
+    s       = StrInitFromZstr("-12345", &alloc);
     success = StrToI64(&s, &value, NULL);
     result  = result && (success && value == -12345);
 
     // Test hexadecimal conversion
     StrDeinit(&s);
-    s       = StrInitFromZstr("0xABCD");
+    s       = StrInitFromZstr("0xABCD", &alloc);
     success = StrToI64(&s, &value, NULL);
     result  = result && (success && value == 0xABCD);
 
     // Test binary conversion
     StrDeinit(&s);
-    s       = StrInitFromZstr("0b101010");
+    s       = StrInitFromZstr("0b101010", &alloc);
     success = StrToI64(&s, &value, NULL);
     result  = result && (success && value == 42);
 
     // Test zero
     StrDeinit(&s);
-    s       = StrInitFromZstr("0");
+    s       = StrInitFromZstr("0", &alloc);
     success = StrToI64(&s, &value, NULL);
     result  = result && (success && value == 0);
 
     // Test invalid input
     StrDeinit(&s);
-    s       = StrInitFromZstr("not a number");
+    s       = StrInitFromZstr("not a number", &alloc);
     success = StrToI64(&s, &value, NULL);
     result  = result && (!success);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrToF64 function
 bool test_str_to_f64(void) {
     WriteFmt("Testing StrToF64\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
 
     // Test integer conversion
-    Str  s       = StrInitFromZstr("123");
+    Str  s       = StrInitFromZstr("123", &alloc);
     f64  value   = 0.0;
     bool success = StrToF64(&s, &value, NULL);
     bool result  = (success && fabs(value - 123.0) < 0.0001);
 
     // Test fractional conversion
     StrDeinit(&s);
-    s       = StrInitFromZstr("123.456");
+    s       = StrInitFromZstr("123.456", &alloc);
     success = StrToF64(&s, &value, NULL);
     result  = result && (success && fabs(value - 123.456) < 0.0001);
 
     // Test negative number
     StrDeinit(&s);
-    s       = StrInitFromZstr("-123.456");
+    s       = StrInitFromZstr("-123.456", &alloc);
     success = StrToF64(&s, &value, NULL);
     result  = result && (success && fabs(value - (-123.456)) < 0.0001);
 
     // Test scientific notation
     StrDeinit(&s);
-    s       = StrInitFromZstr("1.23e2");
+    s       = StrInitFromZstr("1.23e2", &alloc);
     success = StrToF64(&s, &value, NULL);
     result  = result && (success && fabs(value - 123.0) < 0.0001);
 
     // Test zero
     StrDeinit(&s);
-    s       = StrInitFromZstr("0");
+    s       = StrInitFromZstr("0", &alloc);
     success = StrToF64(&s, &value, NULL);
     result  = result && (success && fabs(value) < 0.0001);
 
     // Test infinity
     StrDeinit(&s);
-    s       = StrInitFromZstr("inf");
+    s       = StrInitFromZstr("inf", &alloc);
     success = StrToF64(&s, &value, NULL);
     result  = result && (success && isinf(value) && value > 0);
 
     // Test negative infinity
     StrDeinit(&s);
-    s       = StrInitFromZstr("-inf");
+    s       = StrInitFromZstr("-inf", &alloc);
     success = StrToF64(&s, &value, NULL);
     result  = result && (success && isinf(value) && value < 0);
 
     // Test NaN
     StrDeinit(&s);
-    s       = StrInitFromZstr("nan");
+    s       = StrInitFromZstr("nan", &alloc);
     success = StrToF64(&s, &value, NULL);
     result  = result && (success && isnan(value));
 
     // Test invalid input
     StrDeinit(&s);
-    s       = StrInitFromZstr("not a number");
+    s       = StrInitFromZstr("not a number", &alloc);
     success = StrToF64(&s, &value, NULL);
     result  = result && (!success);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Round-trip conversion tests
 bool test_str_round_trip_conversions(void) {
     WriteFmt("Testing Str round-trip conversions\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
 
     bool result = true;
 
@@ -410,7 +431,7 @@ bool test_str_round_trip_conversions(void) {
     }; // Avoid INT64_MIN negation issue
 
     for (size_t i = 0; i < sizeof(u64_values) / sizeof(u64_values[0]); i++) {
-        Str s = StrInit();
+        Str s = StrInit(&alloc);
 
         // Test decimal round-trip
         StrIntFormat config = {.base = 10, .uppercase = false};
@@ -431,7 +452,7 @@ bool test_str_round_trip_conversions(void) {
     }
 
     for (size_t i = 0; i < sizeof(i64_values) / sizeof(i64_values[0]); i++) {
-        Str s = StrInit();
+        Str s = StrInit(&alloc);
 
         // Test decimal round-trip
         StrIntFormat config = {.base = 10, .uppercase = false};
@@ -448,7 +469,7 @@ bool test_str_round_trip_conversions(void) {
 
     for (size_t i = 0; i < sizeof(f64_values) / sizeof(f64_values[0]); i++) {
         for (u8 precision = 1; precision <= 6; precision++) {
-            Str s = StrInit();
+            Str s = StrInit(&alloc);
 
             StrFloatFormat config = {.precision = precision, .force_sci = false, .uppercase = false};
             StrFromF64(&s, f64_values[i], &config);
@@ -463,18 +484,21 @@ bool test_str_round_trip_conversions(void) {
         }
     }
 
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Edge case conversion tests
 bool test_str_edge_case_conversions(void) {
     WriteFmt("Testing Str edge case conversions\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
 
     bool result = true;
 
     // Test base boundary conditions
     for (u8 base = 2; base <= 36; base++) {
-        Str s = StrInit();
+        Str s = StrInit(&alloc);
 
         // Test with base value itself
         StrIntFormat config = {.base = base, .uppercase = false, .use_prefix = (base == 2 || base == 8 || base == 16)};
@@ -490,7 +514,7 @@ bool test_str_edge_case_conversions(void) {
     }
 
     // Test extreme values
-    Str s = StrInit();
+    Str s = StrInit(&alloc);
 
     // Test maximum u64
     StrIntFormat config = {.base = 10, .uppercase = false};
@@ -540,7 +564,7 @@ bool test_str_edge_case_conversions(void) {
     };
 
     for (size_t i = 0; i < sizeof(prefix_tests) / sizeof(prefix_tests[0]); i++) {
-        Str            test_str = StrInitFromZstr(prefix_tests[i].input);
+        Str            test_str = StrInitFromZstr(prefix_tests[i].input, &alloc);
         u64            value    = 0;
         StrParseConfig config   = {.base = prefix_tests[i].base};
         bool           success  = StrToU64(&test_str, &value, prefix_tests[i].base == 0 ? NULL : &config);
@@ -548,12 +572,15 @@ bool test_str_edge_case_conversions(void) {
         StrDeinit(&test_str);
     }
 
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Precision limits testing
 bool test_str_precision_limits(void) {
     WriteFmt("Testing Str precision limits\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
 
     bool result = true;
 
@@ -561,7 +588,7 @@ bool test_str_precision_limits(void) {
     f64 test_value = 123.456789012345;
 
     for (u8 precision = 1; precision <= 17; precision++) {
-        Str s = StrInit();
+        Str s = StrInit(&alloc);
 
         StrFloatFormat config = {.precision = precision, .force_sci = false, .uppercase = false};
         StrFromF64(&s, test_value, &config);
@@ -581,7 +608,7 @@ bool test_str_precision_limits(void) {
     f64 sci_values[] = {1e-5, 1e-4, 1e15, 1e16};
 
     for (size_t i = 0; i < sizeof(sci_values) / sizeof(sci_values[0]); i++) {
-        Str s = StrInit();
+        Str s = StrInit(&alloc);
 
         // Force scientific notation
         StrFloatFormat config = {.precision = 3, .force_sci = true, .uppercase = false};
@@ -603,7 +630,7 @@ bool test_str_precision_limits(void) {
     u64 large_value = 0x123456789ABCDEF;
 
     for (u8 base = 2; base <= 36; base++) {
-        Str s = StrInit();
+        Str s = StrInit(&alloc);
 
         StrIntFormat config = {.base = base, .uppercase = false};
         StrFromU64(&s, large_value, &config);
@@ -615,12 +642,15 @@ bool test_str_precision_limits(void) {
         StrDeinit(&s);
     }
 
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Large-scale conversion tests
 bool test_str_all_base_support(void) {
     WriteFmt("Testing Str all bases 2-36 support\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
 
     bool result = true;
 
@@ -629,7 +659,7 @@ bool test_str_all_base_support(void) {
 
     // Test each base from 2 to 36
     for (u8 base = 2; base <= 36; base++) {
-        Str s = StrInit();
+        Str s = StrInit(&alloc);
 
         // Test StrFromU64
         StrIntFormat config = {.base = base, .uppercase = false, .use_prefix = false};
@@ -647,7 +677,7 @@ bool test_str_all_base_support(void) {
 
     // Test uppercase digits for bases that use letters (11-36)
     for (u8 base = 11; base <= 36; base++) {
-        Str s = StrInit();
+        Str s = StrInit(&alloc);
 
         StrIntFormat config = {.base = base, .uppercase = true, .use_prefix = false};
         StrFromU64(&s, test_value, &config);
@@ -666,7 +696,7 @@ bool test_str_all_base_support(void) {
 
     for (size_t i = 0; i < sizeof(test_values) / sizeof(test_values[0]); i++) {
         for (u8 base = 2; base <= 36; base++) {
-            Str s = StrInit();
+            Str s = StrInit(&alloc);
 
             StrIntFormat config = {.base = base, .uppercase = false, .use_prefix = false};
             StrFromU64(&s, test_values[i], &config);
@@ -686,11 +716,14 @@ bool test_str_all_base_support(void) {
             break;
     }
 
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_str_large_scale_conversions(void) {
     WriteFmt("Testing Str large-scale conversions\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
 
     bool result = true;
 
@@ -698,7 +731,7 @@ bool test_str_large_scale_conversions(void) {
     for (u64 i = 0; i < 1000; i++) {
         u64 test_value = i * 1000007; // Large prime multiplier
 
-        Str          s      = StrInit();
+        Str          s      = StrInit(&alloc);
         StrIntFormat config = {.base = 10, .uppercase = false};
         StrFromU64(&s, test_value, &config);
 
@@ -717,7 +750,7 @@ bool test_str_large_scale_conversions(void) {
         for (int mantissa = 1; mantissa <= 9; mantissa++) {
             f64 test_value = mantissa * pow(10.0, exp);
 
-            Str            s      = StrInit();
+            Str            s      = StrInit(&alloc);
             StrFloatFormat config = {.precision = 6, .force_sci = false, .uppercase = false};
             StrFromF64(&s, test_value, &config);
 
@@ -744,7 +777,7 @@ bool test_str_large_scale_conversions(void) {
     char long_number[100];
     MemCopy(long_number, "12345678901234567890123456789012345678901234567890", 51);
 
-    Str  long_str   = StrInitFromZstr(long_number);
+    Str  long_str   = StrInitFromZstr(long_number, &alloc);
     u64  long_value = 0;
     bool success    = StrToU64(&long_str, &long_value, NULL);
     // This might overflow, but should handle gracefully
@@ -752,6 +785,7 @@ bool test_str_large_scale_conversions(void) {
 
     StrDeinit(&long_str);
 
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

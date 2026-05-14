@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Float.h>
 #include <Misra/Std/Container/Int.h>
 #include <Misra/Std/Log.h>
@@ -14,9 +15,11 @@ bool test_float_compare_generic(void);
 bool test_float_compare_small_small(void) {
     WriteFmt("Testing FloatCompare with small floats\n");
 
-    Float a = FloatFromStr("1.23");
-    Float b = FloatFromStr("123e-2");
-    Float c = FloatFromStr("-1.23");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a = FloatFromStr("1.23", &alloc.base);
+    Float b = FloatFromStr("123e-2", &alloc.base);
+    Float c = FloatFromStr("-1.23", &alloc.base);
 
     bool result = FloatCompare(&a, &b) == 0;
     result      = result && FloatEQ(&a, &b);
@@ -26,15 +29,18 @@ bool test_float_compare_small_small(void) {
     FloatDeinit(&a);
     FloatDeinit(&b);
     FloatDeinit(&c);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_compare_very_large_large(void) {
     WriteFmt("Testing FloatCompare with very large floats\n");
 
-    Float a = FloatFromStr(FLOAT_TEST_VERY_LARGE_ONES);
-    Float b = FloatFromStr(FLOAT_TEST_VERY_LARGE_TWOS);
-    Float c = FloatFromStr(FLOAT_TEST_VERY_LARGE_ONES);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a = FloatFromStr(FLOAT_TEST_VERY_LARGE_ONES, &alloc.base);
+    Float b = FloatFromStr(FLOAT_TEST_VERY_LARGE_TWOS, &alloc.base);
+    Float c = FloatFromStr(FLOAT_TEST_VERY_LARGE_ONES, &alloc.base);
 
     bool result = FloatLT(&a, &b);
     result      = result && FloatGT(&b, &a);
@@ -44,15 +50,18 @@ bool test_float_compare_very_large_large(void) {
     FloatDeinit(&a);
     FloatDeinit(&b);
     FloatDeinit(&c);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_compare_very_large_small(void) {
     WriteFmt("Testing FloatCompare with very large and small floats\n");
 
-    Float large          = FloatFromStr(FLOAT_TEST_VERY_LARGE_ONES);
-    Float negative_large = FloatFromStr("-" FLOAT_TEST_VERY_LARGE_ONES);
-    Float small          = FloatFromStr("2.5");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float large          = FloatFromStr(FLOAT_TEST_VERY_LARGE_ONES, &alloc.base);
+    Float negative_large = FloatFromStr("-" FLOAT_TEST_VERY_LARGE_ONES, &alloc.base);
+    Float small          = FloatFromStr("2.5", &alloc.base);
 
     bool result = FloatGT(&large, &small);
     result      = result && FloatLT(&negative_large, &small);
@@ -61,15 +70,18 @@ bool test_float_compare_very_large_small(void) {
     FloatDeinit(&large);
     FloatDeinit(&negative_large);
     FloatDeinit(&small);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_compare_wrappers(void) {
     WriteFmt("Testing Float compare macros\n");
 
-    Float a        = FloatFromStr("-2");
-    Float b        = FloatFromStr("0.5");
-    Float expected = FloatFromStr("5e-1");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a        = FloatFromStr("-2", &alloc.base);
+    Float b        = FloatFromStr("0.5", &alloc.base);
+    Float expected = FloatFromStr("5e-1", &alloc.base);
 
     bool result = FloatLT(&a, &b);
     result      = result && FloatLE(&a, &b);
@@ -81,16 +93,19 @@ bool test_float_compare_wrappers(void) {
     FloatDeinit(&a);
     FloatDeinit(&b);
     FloatDeinit(&expected);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_compare_generic(void) {
     WriteFmt("Testing FloatCompare generic dispatch\n");
 
-    Float value = FloatFromStr("12.5");
-    Float same  = FloatFromStr("12.5");
-    Int   whole = IntFrom(12);
-    Int   next  = IntFrom(13);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float value = FloatFromStr("12.5", &alloc.base);
+    Float same  = FloatFromStr("12.5", &alloc.base);
+    Int   whole = IntFrom(12, &alloc.base);
+    Int   next  = IntFrom(13, &alloc.base);
 
     bool result = (FloatCompare(&value, &same) == 0);
     result      = result && (FloatCompare(&value, &whole) > 0);
@@ -110,6 +125,7 @@ bool test_float_compare_generic(void) {
     FloatDeinit(&same);
     IntDeinit(&whole);
     IntDeinit(&next);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

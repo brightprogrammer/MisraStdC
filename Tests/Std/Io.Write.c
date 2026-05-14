@@ -1,5 +1,8 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Container/Int.h>
+#include <Misra/Std/Container/Float.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <math.h>   // For INFINITY and NAN
@@ -32,7 +35,9 @@ bool test_float_formatting(void);
 bool test_basic_formatting(void) {
     WriteFmt("Testing basic formatting\n");
 
-    Str  output  = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  output  = StrInit(&alloc);
     bool success = true;
 
     // Test empty format string
@@ -55,6 +60,7 @@ bool test_basic_formatting(void) {
     success = success && (ZstrCompare(output.data, "{{") == 0);
 
     StrDeinit(&output);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -62,7 +68,9 @@ bool test_basic_formatting(void) {
 bool test_string_formatting(void) {
     WriteFmt("Testing string formatting\n");
 
-    Str  output  = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  output  = StrInit(&alloc);
     bool success = true;
 
     // Test basic string
@@ -91,12 +99,13 @@ bool test_string_formatting(void) {
     StrClear(&output);
 
     // Test Str object
-    Str s = StrInitFromZstr("World");
+    Str s = StrInitFromZstr("World", &alloc);
     StrWriteFmt(&output, "{}", s);
     success = success && (ZstrCompare(output.data, "World") == 0);
     StrDeinit(&s);
 
     StrDeinit(&output);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -104,7 +113,9 @@ bool test_string_formatting(void) {
 bool test_integer_decimal_formatting(void) {
     WriteFmt("Testing integer decimal formatting\n");
 
-    Str  output  = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  output  = StrInit(&alloc);
     bool success = true;
 
     // Test signed integers
@@ -170,6 +181,7 @@ bool test_integer_decimal_formatting(void) {
     success = success && (ZstrCompare(output.data, "0") == 0);
 
     StrDeinit(&output);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -177,7 +189,9 @@ bool test_integer_decimal_formatting(void) {
 bool test_integer_hex_formatting(void) {
     WriteFmt("Testing integer hexadecimal formatting\n");
 
-    Str  output  = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  output  = StrInit(&alloc);
     bool success = true;
 
     u32 val = 0xDEADBEEF;
@@ -189,6 +203,7 @@ bool test_integer_hex_formatting(void) {
     success = success && (ZstrCompare(output.data, "0xDEADBEEF") == 0);
 
     StrDeinit(&output);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -196,7 +211,9 @@ bool test_integer_hex_formatting(void) {
 bool test_integer_binary_formatting(void) {
     WriteFmt("Testing integer binary formatting\n");
 
-    Str  output  = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  output  = StrInit(&alloc);
     bool success = true;
 
     u8 val = 0xA5; // 10100101 in binary
@@ -204,6 +221,7 @@ bool test_integer_binary_formatting(void) {
     success = success && (ZstrCompare(output.data, "0b10100101") == 0);
 
     StrDeinit(&output);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -211,7 +229,9 @@ bool test_integer_binary_formatting(void) {
 bool test_integer_octal_formatting(void) {
     WriteFmt("Testing integer octal formatting\n");
 
-    Str  output  = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  output  = StrInit(&alloc);
     bool success = true;
 
     u16 val = 0777;
@@ -219,6 +239,7 @@ bool test_integer_octal_formatting(void) {
     success = success && (ZstrCompare(output.data, "0o777") == 0);
 
     StrDeinit(&output);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -226,7 +247,9 @@ bool test_integer_octal_formatting(void) {
 bool test_float_basic_formatting(void) {
     WriteFmt("Testing basic floating point formatting\n");
 
-    Str  output  = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  output  = StrInit(&alloc);
     bool success = true;
 
     f32 f32_val = 3.14159f;
@@ -239,6 +262,7 @@ bool test_float_basic_formatting(void) {
     success = success && (ZstrCompare(output.data, "2.718280") == 0);
 
     StrDeinit(&output);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -246,7 +270,9 @@ bool test_float_basic_formatting(void) {
 bool test_float_precision_formatting(void) {
     WriteFmt("Testing floating point precision formatting\n");
 
-    Str  output  = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  output  = StrInit(&alloc);
     bool success = true;
 
     f64 val = 3.14159265359;
@@ -264,6 +290,7 @@ bool test_float_precision_formatting(void) {
     success = success && (ZstrCompare(output.data, "3.1415926536") == 0);
 
     StrDeinit(&output);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -271,7 +298,9 @@ bool test_float_precision_formatting(void) {
 bool test_float_special_values(void) {
     WriteFmt("Testing special floating point values\n");
 
-    Str  output  = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  output  = StrInit(&alloc);
     bool success = true;
 
     // Test infinity
@@ -291,6 +320,7 @@ bool test_float_special_values(void) {
     success = success && (ZstrCompare(output.data, "nan") == 0);
 
     StrDeinit(&output);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -298,7 +328,9 @@ bool test_float_special_values(void) {
 bool test_width_alignment_formatting(void) {
     WriteFmt("Testing width and alignment formatting\n");
 
-    Str  output  = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  output  = StrInit(&alloc);
     bool success = true;
 
     // Test with integers
@@ -329,6 +361,7 @@ bool test_width_alignment_formatting(void) {
     success = success && (ZstrCompare(output.data, " abc ") == 0);
 
     StrDeinit(&output);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -336,7 +369,9 @@ bool test_width_alignment_formatting(void) {
 bool test_multiple_arguments(void) {
     WriteFmt("Testing multiple arguments\n");
 
-    Str  output  = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  output  = StrInit(&alloc);
     bool success = true;
 
     const char *hello = "Hello";
@@ -352,6 +387,7 @@ bool test_multiple_arguments(void) {
     success = success && (ZstrCompare(output.data, "3.140000 Hello 42") == 0);
 
     StrDeinit(&output);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -359,7 +395,9 @@ bool test_multiple_arguments(void) {
 bool test_char_formatting(void) {
     WriteFmt("Testing character formatting specifiers\n");
 
-    Str  output  = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str  output  = StrInit(&alloc);
     bool success = true;
 
     // Test mixed case string with :c (preserve case)
@@ -379,7 +417,7 @@ bool test_char_formatting(void) {
     StrClear(&output);
 
     // Test with Str object
-    Str s = StrInitFromZstr("MiXeD CaSe");
+    Str s = StrInitFromZstr("MiXeD CaSe", &alloc);
 
     // Test with :c (preserve case)
     StrWriteFmt(&output, "{c}", s);
@@ -544,6 +582,7 @@ bool test_char_formatting(void) {
 
     StrDeinit(&output);
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -551,23 +590,26 @@ bool test_char_formatting(void) {
 bool test_bitvec_formatting(void) {
     WriteFmt("Testing BitVec formatting\n");
 
-    Str  output  = StrInit();
+    DefaultAllocator alloc      = DefaultAllocatorInit();
+    Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
+
+    Str  output  = StrInit(&alloc);
     bool success = true;
 
     // Test 1: Basic binary formatting
-    BitVec bv1 = BitVecFromStr("10110");
+    BitVec bv1 = BitVecFromStrAlloc("10110", alloc_base);
     StrWriteFmt(&output, "{}", bv1);
     success = success && (ZstrCompare(output.data, "10110") == 0);
     StrClear(&output);
 
     // Test 2: Empty BitVec
-    BitVec bv_empty = BitVecInit();
+    BitVec bv_empty = BitVecInit(alloc_base);
     StrWriteFmt(&output, "{}", bv_empty);
     success = success && (output.length == 0);
     StrClear(&output);
 
     // Test 3: Hex formatting
-    BitVec bv2 = BitVecFromInteger(0xABCD, 16);
+    BitVec bv2 = BitVecFromIntegerAlloc(0xABCD, 16, alloc_base);
     StrWriteFmt(&output, "{x}", bv2);
     success = success && (ZstrCompare(output.data, "0xabcd") == 0);
     StrClear(&output);
@@ -578,7 +620,7 @@ bool test_bitvec_formatting(void) {
     StrClear(&output);
 
     // Test 5: Octal formatting
-    BitVec bv3 = BitVecFromInteger(0755, 10);
+    BitVec bv3 = BitVecFromIntegerAlloc(0755, 10, alloc_base);
     StrWriteFmt(&output, "{o}", bv3);
     success = success && (ZstrCompare(output.data, "0o755") == 0);
     StrClear(&output);
@@ -597,7 +639,7 @@ bool test_bitvec_formatting(void) {
     StrClear(&output);
 
     // Test 7: Zero value
-    BitVec bv_zero = BitVecFromInteger(0, 1);
+    BitVec bv_zero = BitVecFromIntegerAlloc(0, 1, alloc_base);
     StrWriteFmt(&output, "{x}", bv_zero);
     success = success && (ZstrCompare(output.data, "0x0") == 0);
     StrClear(&output);
@@ -613,19 +655,23 @@ bool test_bitvec_formatting(void) {
     BitVecDeinit(&bv3);
     BitVecDeinit(&bv_zero);
     StrDeinit(&output);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 bool test_int_formatting(void) {
     WriteFmt("Testing Int formatting\n");
 
-    Str  output  = StrInit();
+    DefaultAllocator alloc      = DefaultAllocatorInit();
+    Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
+
+    Str  output  = StrInit(&alloc);
     bool success = true;
 
-    Int big_dec = IntFromStr("123456789012345678901234567890");
-    Int hex_val = IntFromHexStr("deadbeefcafebabe1234");
-    Int bin_val = IntFromBinary("10100011");
-    Int oct_val = IntFrom(493);
+    Int big_dec = IntFromStr("123456789012345678901234567890", alloc_base);
+    Int hex_val = IntFromHexStr("deadbeefcafebabe1234", alloc_base);
+    Int bin_val = IntFromBinary("10100011", alloc_base);
+    Int oct_val = IntFrom(493, alloc_base);
 
     StrWriteFmt(&output, "{}", big_dec);
     success = success && (ZstrCompare(output.data, "123456789012345678901234567890") == 0);
@@ -655,17 +701,21 @@ bool test_int_formatting(void) {
     IntDeinit(&bin_val);
     IntDeinit(&oct_val);
     StrDeinit(&output);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 bool test_float_formatting(void) {
     WriteFmt("Testing Float formatting\n");
 
-    Str   output  = StrInit();
+    DefaultAllocator alloc      = DefaultAllocatorInit();
+    Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
+
+    Str   output  = StrInit(&alloc);
     bool  success = true;
-    Float exact   = FloatFromStr("1234567890.012345");
-    Float sci     = FloatFromStr("12345.67");
-    Float short_v = FloatFromStr("1.2");
+    Float exact   = FloatFromStr("1234567890.012345", alloc_base);
+    Float sci     = FloatFromStr("12345.67", alloc_base);
+    Float short_v = FloatFromStr("1.2", alloc_base);
 
     StrWriteFmt(&output, "{}", exact);
     success = success && (ZstrCompare(output.data, "1234567890.012345") == 0);
@@ -690,6 +740,7 @@ bool test_float_formatting(void) {
     FloatDeinit(&sci);
     FloatDeinit(&short_v);
     StrDeinit(&output);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 

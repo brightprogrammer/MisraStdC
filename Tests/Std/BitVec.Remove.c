@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 
 #include <stdio.h>
@@ -25,9 +26,11 @@ bool test_bitvec_remove_invalid_range_failures(void);
 
 // Test BitVecPop function
 bool test_bitvec_pop(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecPop\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Add some bits
     BitVecPush(&bv, true);
@@ -54,14 +57,18 @@ bool test_bitvec_pop(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecRemove single bit function
 bool test_bitvec_remove_single(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRemove (single bit)\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Add some bits: true, false, true, false, true
     BitVecPush(&bv, true);
@@ -90,14 +97,18 @@ bool test_bitvec_remove_single(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecRemoveRange function
 bool test_bitvec_remove_range(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRemoveRange\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Add some bits: true, false, true, true, false, true
     BitVecPush(&bv, true);
@@ -119,14 +130,18 @@ bool test_bitvec_remove_range(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecRemoveFirst function
 bool test_bitvec_remove_first(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRemoveFirst\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Add some bits: true, false, true, false, true
     BitVecPush(&bv, true);
@@ -156,14 +171,18 @@ bool test_bitvec_remove_first(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecRemoveLast function
 bool test_bitvec_remove_last(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRemoveLast\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Add some bits: true, false, true, false, true
     BitVecPush(&bv, true);
@@ -194,14 +213,18 @@ bool test_bitvec_remove_last(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecRemoveAll function
 bool test_bitvec_remove_all(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRemoveAll\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Add some bits: true, false, true, false, true, false
     BitVecPush(&bv, true);
@@ -231,14 +254,18 @@ bool test_bitvec_remove_all(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Edge case tests
 bool test_bitvec_pop_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecPop edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test pop single element
@@ -257,13 +284,16 @@ bool test_bitvec_pop_edge_cases(void) {
     }
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_remove_single_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRemove edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test remove last element
@@ -282,13 +312,16 @@ bool test_bitvec_remove_single_edge_cases(void) {
     result  = result && (bv.length == 999);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_remove_range_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRemoveRange edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test remove 0 elements (should be no-op)
@@ -312,13 +345,16 @@ bool test_bitvec_remove_range_edge_cases(void) {
     result = result && (bv.length == 5); // Should have 5 elements left
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_remove_first_last_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRemoveFirst/Last edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test remove from empty bitvec
@@ -348,13 +384,16 @@ bool test_bitvec_remove_first_last_edge_cases(void) {
     result = result && (found == true) && (bv.length == 999);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_remove_all_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRemoveAll edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test remove all from empty bitvec
@@ -383,6 +422,7 @@ bool test_bitvec_remove_all_edge_cases(void) {
     result = result && (count == 500) && (bv.length == 500);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -406,50 +446,62 @@ bool test_bitvec_remove_range_null_failures(void) {
 }
 
 bool test_bitvec_remove_invalid_range_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec remove invalid range handling\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test removing beyond capacity limit - should abort
     BitVecRemoveRange(&bv, SIZE_MAX, 1);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 bool test_bitvec_pop_bounds_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec pop bounds checking\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test pop from empty bitvec - should abort
     BitVecPop(&bv);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 bool test_bitvec_remove_bounds_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec remove bounds checking\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test remove from empty bitvec - should abort
     BitVecRemove(&bv, 0);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 bool test_bitvec_remove_range_bounds_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec remove range bounds checking\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test remove range from empty bitvec - should abort
     BitVecRemoveRange(&bv, 0, 1);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 

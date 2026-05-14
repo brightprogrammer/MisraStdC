@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
 #include <string.h>
@@ -19,8 +20,10 @@ bool test_str_len_empty(void);
 // Test StrLen and StrEmpty functions
 bool test_str_len_empty(void) {
     WriteFmt("Testing StrLen and StrEmpty\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInit();
+
+    Str s = StrInit(&alloc);
 
     bool result = (StrLen(&s) == 0);
     result      = result && StrEmpty(&s);
@@ -36,14 +39,17 @@ bool test_str_len_empty(void) {
     result = result && StrEmpty(&s);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrFirst function
 bool test_str_first(void) {
     WriteFmt("Testing StrFirst\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Get the first character
     char first = StrFirst(&s);
@@ -52,14 +58,17 @@ bool test_str_first(void) {
     bool result = (first == 'H');
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrLast function
 bool test_str_last(void) {
     WriteFmt("Testing StrLast\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Get the last character
     char last = StrLast(&s);
@@ -68,14 +77,17 @@ bool test_str_last(void) {
     bool result = (last == 'o');
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrBegin function
 bool test_str_begin(void) {
     WriteFmt("Testing StrBegin\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Get a pointer to the first character using StrBegin
     char *begin = StrBegin(&s);
@@ -84,14 +96,17 @@ bool test_str_begin(void) {
     bool result = (begin == s.data && *begin == 'H');
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrEnd function
 bool test_str_end(void) {
     WriteFmt("Testing StrEnd\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Get a pointer to one past the last character using StrEnd
     char *end = StrEnd(&s);
@@ -100,14 +115,17 @@ bool test_str_end(void) {
     bool result = (end == s.data + s.length && *end == '\0');
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrCharAt function
 bool test_str_char_at(void) {
     WriteFmt("Testing StrCharAt\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Access characters at different indices
     // Now using the fixed StrCharAt macro
@@ -121,14 +139,17 @@ bool test_str_char_at(void) {
     bool result = (c0 == 'H' && c1 == 'e' && c2 == 'l' && c3 == 'l' && c4 == 'o');
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrCharPtrAt function
 bool test_str_char_ptr_at(void) {
     WriteFmt("Testing StrCharPtrAt\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Access character pointers at different indices
     // Now using the fixed StrCharPtrAt macro
@@ -145,6 +166,7 @@ bool test_str_char_ptr_at(void) {
     result = result && (p0 == s.data && p1 == s.data + 1 && p2 == s.data + 2 && p3 == s.data + 3 && p4 == s.data + 4);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Int.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Types.h>
@@ -11,9 +12,11 @@ bool test_int_compare_generic(void);
 bool test_int_compare(void) {
     WriteFmt("Testing IntCompare\n");
 
-    Int a = IntFrom(41);
-    Int b = IntFrom(42);
-    Int c = IntFromBinary("000101010");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int a = IntFrom(41, &alloc.base);
+    Int b = IntFrom(42, &alloc.base);
+    Int c = IntFromBinary("000101010", &alloc.base);
 
     bool result = IntCompare(&a, &b) < 0;
     result      = result && (IntCompare(&b, &a) > 0);
@@ -22,15 +25,18 @@ bool test_int_compare(void) {
     IntDeinit(&a);
     IntDeinit(&b);
     IntDeinit(&c);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_int_compare_wrappers(void) {
     WriteFmt("Testing Int compare wrappers\n");
 
-    Int a = IntFrom(41);
-    Int b = IntFrom(42);
-    Int c = IntFromBinary("000101010");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int a = IntFrom(41, &alloc.base);
+    Int b = IntFrom(42, &alloc.base);
+    Int c = IntFromBinary("000101010", &alloc.base);
 
     bool result = IntLT(&a, &b);
     result      = result && IntLE(&a, &b);
@@ -44,15 +50,18 @@ bool test_int_compare_wrappers(void) {
     IntDeinit(&a);
     IntDeinit(&b);
     IntDeinit(&c);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_int_compare_generic(void) {
     WriteFmt("Testing IntCompare generic dispatch\n");
 
-    Int value = IntFrom(42);
-    Int same  = IntFromBinary("00101010");
-    Int big   = IntFrom(1);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int value = IntFrom(42, &alloc.base);
+    Int same  = IntFromBinary("00101010", &alloc.base);
+    Int big   = IntFrom(1, &alloc.base);
 
     IntShiftLeft(&big, 80);
 
@@ -71,6 +80,7 @@ bool test_int_compare_generic(void) {
     IntDeinit(&value);
     IntDeinit(&same);
     IntDeinit(&big);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

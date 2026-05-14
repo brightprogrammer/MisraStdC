@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/List.h>
 #include <Misra/Std/Log.h>
 
@@ -30,8 +31,10 @@ static bool list_matches(GenericList *list, const int *expected, size count) {
 static bool test_list_foreach_basic(void) {
     WriteFmt("Testing basic List foreach macros\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list              = ListInit(&alloc);
     int     reverse_values[5] = {0};
     int     reverse_i         = 0;
     int     forward_sum       = 0;
@@ -57,18 +60,21 @@ static bool test_list_foreach_basic(void) {
     bool result = (forward_sum == 150);
     result      = result && (reverse_i == 5);
     result      = result && (reverse_values[0] == 51) && (reverse_values[1] == 41) && (reverse_values[2] == 31) &&
-                  (reverse_values[3] == 21) && (reverse_values[4] == 11);
-    result      = result && list_matches(GENERIC_LIST(&list), (const int[]) {10, 20, 30, 40, 50}, 5);
+             (reverse_values[3] == 21) && (reverse_values[4] == 11);
+    result = result && list_matches(GENERIC_LIST(&list), (const int[]) {10, 20, 30, 40, 50}, 5);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_foreach_ranges(void) {
     WriteFmt("Testing ranged List foreach macros\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list              = ListInit(&alloc);
     int     forward_range_sum = 0;
     int     reverse_range_sum = 0;
 
@@ -95,14 +101,17 @@ static bool test_list_foreach_ranges(void) {
     result      = result && list_matches(GENERIC_LIST(&list), (const int[]) {10, 20, 30, 40, 50}, 5);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_foreach_range_edge_cases(void) {
     WriteFmt("Testing List ranged foreach edge cases\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list  = ListInit(&alloc);
     int     count = 0;
 
     FILL_INT_LIST(&list);
@@ -141,14 +150,17 @@ static bool test_list_foreach_range_edge_cases(void) {
     result      = result && list_matches(GENERIC_LIST(&list), (const int[]) {10, 20, 30, 40, 50}, 5);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_foreach_index_variants(void) {
     WriteFmt("Testing indexed List foreach macros\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list              = ListInit(&alloc);
     int     reverse_values[5] = {0};
     int     reverse_i         = 0;
     int     idx_sum           = 0;
@@ -167,8 +179,8 @@ static bool test_list_foreach_index_variants(void) {
     }
 
     ListForeachReverseIdx(&list, value, idx) {
-        reverse_idx_sum += (int)idx;
-        reverse_values[reverse_i++] = value;
+        reverse_idx_sum             += (int)idx;
+        reverse_values[reverse_i++]  = value;
     }
 
     ListForeachPtrReverseIdx(&list, value_ptr, idx) {
@@ -177,19 +189,22 @@ static bool test_list_foreach_index_variants(void) {
 
     bool result = (idx_sum == 10) && (value_sum == 150);
     result      = result && (reverse_idx_sum == 10) && (reverse_i == 5);
-    result      = result && (reverse_values[0] == 54) && (reverse_values[1] == 43) &&
-                  (reverse_values[2] == 32) && (reverse_values[3] == 21) && (reverse_values[4] == 10);
-    result      = result && list_matches(GENERIC_LIST(&list), (const int[]) {10, 20, 30, 40, 50}, 5);
+    result      = result && (reverse_values[0] == 54) && (reverse_values[1] == 43) && (reverse_values[2] == 32) &&
+             (reverse_values[3] == 21) && (reverse_values[4] == 10);
+    result = result && list_matches(GENERIC_LIST(&list), (const int[]) {10, 20, 30, 40, 50}, 5);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_foreach_index_jump_contract(void) {
     WriteFmt("Testing indexed List foreach jump contract\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list              = ListInit(&alloc);
     int     forward_values[3] = {0};
     int     reverse_values[3] = {0};
     int     forward_i         = 0;
@@ -239,14 +254,17 @@ static bool test_list_foreach_index_jump_contract(void) {
     result      = result && list_matches(GENERIC_LIST(&list), (const int[]) {10, 20, 30, 40, 50}, 5);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_foreach_empty_lists(void) {
     WriteFmt("Testing List foreach macros on empty list\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list  = ListInit(&alloc);
     u64     count = 0;
 
     ListForeach(&list, value) {
@@ -314,6 +332,7 @@ static bool test_list_foreach_empty_lists(void) {
     }
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return count == 0;
 }
 

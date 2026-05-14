@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/List.h>
 #include <Misra/Std/Log.h>
 
@@ -6,8 +7,10 @@
 static bool test_list_type_defaults(void) {
     WriteFmt("Testing List type defaults\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list = ListInit(&alloc);
 
     ValidateList(&list);
 
@@ -15,15 +18,16 @@ static bool test_list_type_defaults(void) {
                   (list.copy_deinit == NULL) && (list.length == 0) && (list.__magic == MISRA_LIST_MAGIC);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_node_type_layout(void) {
     WriteFmt("Testing ListNode type layout\n");
 
-    int           value = 42;
-    ListNode(int) node  = {0};
-    node.data           = &value;
+    int value          = 42;
+    ListNode(int) node = {0};
+    node.data          = &value;
 
     return (node.next == NULL) && (node.prev == NULL) && (node.data == &value) && (*node.data == 42);
 }

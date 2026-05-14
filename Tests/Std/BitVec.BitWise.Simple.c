@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 
 #include <stdio.h>
@@ -30,11 +31,13 @@ bool test_bitvec_bitwise_large_patterns(void);
 
 // Test BitVecAnd function
 bool test_bitvec_and(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecAnd\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
-    BitVec result = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec result = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Set up first bitvector: 1101
     BitVecPush(&bv1, true);
@@ -63,16 +66,20 @@ bool test_bitvec_and(void) {
     BitVecDeinit(&bv2);
     BitVecDeinit(&result);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return test_result;
 }
 
 // Test BitVecOr function
 bool test_bitvec_or(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecOr\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
-    BitVec result = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec result = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Set up first bitvector: 1100
     BitVecPush(&bv1, true);
@@ -101,16 +108,20 @@ bool test_bitvec_or(void) {
     BitVecDeinit(&bv2);
     BitVecDeinit(&result);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return test_result;
 }
 
 // Test BitVecXor function
 bool test_bitvec_xor(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecXor\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
-    BitVec result = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec result = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Set up first bitvector: 1100
     BitVecPush(&bv1, true);
@@ -139,15 +150,19 @@ bool test_bitvec_xor(void) {
     BitVecDeinit(&bv2);
     BitVecDeinit(&result);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return test_result;
 }
 
 // Test BitVecNot function
 bool test_bitvec_not(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecNot\n");
 
-    BitVec bv     = BitVecInit();
-    BitVec result = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec result = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Set up bitvector: 1010
     BitVecPush(&bv, true);
@@ -169,14 +184,18 @@ bool test_bitvec_not(void) {
     BitVecDeinit(&bv);
     BitVecDeinit(&result);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return test_result;
 }
 
 // Test BitVecShiftLeft function - CORRECTED EXPECTATIONS
 bool test_bitvec_shift_left(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecShiftLeft\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Set up bitvector: 1011 (indices 0,1,2,3)
     BitVecPush(&bv, true);  // index 0
@@ -210,14 +229,18 @@ bool test_bitvec_shift_left(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return test_result;
 }
 
 // Test BitVecShiftRight function - CORRECTED EXPECTATIONS
 bool test_bitvec_shift_right(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecShiftRight\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Set up bitvector: 1011
     BitVecPush(&bv, true);  // index 0
@@ -244,14 +267,18 @@ bool test_bitvec_shift_right(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return test_result;
 }
 
 // Test BitVecRotateLeft function
 bool test_bitvec_rotate_left(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRotateLeft\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Set up bitvector: 1011
     BitVecPush(&bv, true);
@@ -272,14 +299,18 @@ bool test_bitvec_rotate_left(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return test_result;
 }
 
 // Test BitVecRotateRight function
 bool test_bitvec_rotate_right(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRotateRight\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Set up bitvector: 1011
     BitVecPush(&bv, true);
@@ -300,14 +331,18 @@ bool test_bitvec_rotate_right(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return test_result;
 }
 
 // Test BitVecReverse function
 bool test_bitvec_reverse(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecReverse\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Set up bitvector: 1011
     BitVecPush(&bv, true);
@@ -328,14 +363,18 @@ bool test_bitvec_reverse(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return test_result;
 }
 
 // Edge case tests
 bool test_bitvec_shift_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec shift edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test shift empty bitvec
@@ -365,13 +404,16 @@ bool test_bitvec_shift_edge_cases(void) {
     result = result && (bv.length == 1000);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_rotate_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec rotate edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test rotate empty bitvec
@@ -393,18 +435,21 @@ bool test_bitvec_rotate_edge_cases(void) {
     result = result && (bv.length == 2);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_bitwise_ops_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec bitwise operations edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test operations on empty bitvecs
-    BitVec result_bv = BitVecInit();
+    BitVec result_bv = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecAnd(&result_bv, &bv1, &bv2);
     result = result && (result_bv.length == 0);
 
@@ -432,13 +477,16 @@ bool test_bitvec_bitwise_ops_edge_cases(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_reverse_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecReverse edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test reverse empty bitvec
@@ -465,16 +513,19 @@ bool test_bitvec_reverse_edge_cases(void) {
     result = result && (BitVecGet(&bv, 1) == false);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // NEW: Comprehensive bitwise operations testing
 bool test_bitvec_bitwise_comprehensive(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec comprehensive bitwise operations\n");
 
-    BitVec bv1         = BitVecInit();
-    BitVec bv2         = BitVecInit();
-    BitVec result      = BitVecInit();
+    BitVec bv1         = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2         = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec result      = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   test_result = true;
 
     // Test with different length operands
@@ -531,14 +582,17 @@ bool test_bitvec_bitwise_comprehensive(void) {
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
     BitVecDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
     return test_result;
 }
 
 // NEW: Comprehensive shift testing
 bool test_bitvec_shift_comprehensive(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec comprehensive shift operations\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test shift with known pattern that will show data loss
@@ -597,14 +651,17 @@ bool test_bitvec_shift_comprehensive(void) {
 
     BitVecDeinit(&bv);
     BitVecDeinit(&original);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // NEW: Comprehensive rotate testing
 bool test_bitvec_rotate_comprehensive(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec comprehensive rotate operations\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test that rotate left by n, then rotate right by n restores original
@@ -659,16 +716,19 @@ bool test_bitvec_rotate_comprehensive(void) {
 
     BitVecDeinit(&bv);
     BitVecDeinit(&original);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // NEW: Identity operations testing
 bool test_bitvec_bitwise_identity_operations(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec bitwise identity operations\n");
 
-    BitVec bv1         = BitVecInit();
-    BitVec bv2         = BitVecInit();
-    BitVec result      = BitVecInit();
+    BitVec bv1         = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2         = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec result      = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   test_result = true;
 
     // Create test pattern
@@ -753,17 +813,20 @@ bool test_bitvec_bitwise_identity_operations(void) {
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
     BitVecDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
     return test_result;
 }
 
 // NEW: Commutative properties testing
 bool test_bitvec_bitwise_commutative_properties(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec bitwise commutative properties\n");
 
-    BitVec bv1         = BitVecInit();
-    BitVec bv2         = BitVecInit();
-    BitVec result1     = BitVecInit();
-    BitVec result2     = BitVecInit();
+    BitVec bv1         = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2         = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec result1     = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec result2     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   test_result = true;
 
     // Create different patterns
@@ -815,16 +878,19 @@ bool test_bitvec_bitwise_commutative_properties(void) {
     BitVecDeinit(&bv2);
     BitVecDeinit(&result1);
     BitVecDeinit(&result2);
+    DefaultAllocatorDeinit(&alloc);
     return test_result;
 }
 
 // NEW: Large pattern testing
 bool test_bitvec_bitwise_large_patterns(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec bitwise operations with large patterns\n");
 
-    BitVec bv1         = BitVecInit();
-    BitVec bv2         = BitVecInit();
-    BitVec result      = BitVecInit();
+    BitVec bv1         = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2         = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec result      = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   test_result = true;
 
     // Create large bitvectors (1000 bits each)
@@ -876,6 +942,7 @@ bool test_bitvec_bitwise_large_patterns(void) {
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
     BitVecDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
     return test_result;
 }
 

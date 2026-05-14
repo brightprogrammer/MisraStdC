@@ -16,15 +16,22 @@ static int compare_ints(const void *a, const void *b) {
     return (ia > ib) - (ia < ib);
 }
 
-void init_int_list(IntList *list) {
-    *list = ListInitT(*list);
+void init_int_list(IntList *list, DefaultAllocator *alloc) {
+    *list = ListInitT(*list, alloc);
 }
 
 void deinit_int_list(IntList *list) {
     ListDeinit(list);
 }
 
-void fuzz_int_list(IntList *list, ListIntFunction func, const uint8_t *data, size_t *offset, size_t size) {
+void fuzz_int_list(
+    IntList          *list,
+    ListIntFunction   func,
+    const uint8_t    *data,
+    size_t           *offset,
+    size_t            size,
+    DefaultAllocator *alloc
+) {
     switch (func) {
         case LIST_INT_PUSH_BACK : {
             i32 value = (i32)extract_u32(data, offset, size);
@@ -192,7 +199,7 @@ void fuzz_int_list(IntList *list, ListIntFunction func, const uint8_t *data, siz
         }
 
         case LIST_INT_MERGE : {
-            IntList temp  = ListInitT(temp);
+            IntList temp  = ListInitT(temp, alloc);
             uint8_t count = extract_u8(data, offset, size);
             count         = count % 4;
 

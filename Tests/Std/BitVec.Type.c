@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/BitVec.h>
 #include <Misra/Std/Log.h>
 
@@ -15,14 +16,17 @@ bool test_bitvec_validate(void);
 bool test_bitvec_type_basic(void) {
     WriteFmt("Testing basic BitVec type functionality\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create a bitvector
-    BitVec bitvec = BitVecInit();
+    BitVec bitvec = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Check initial state
     bool result = (bitvec.length == 0 && bitvec.capacity == 0 && bitvec.data == NULL && bitvec.byte_size == 0);
 
     // Clean up
     BitVecDeinit(&bitvec);
+    DefaultAllocatorDeinit(&alloc);
 
     return result;
 }
@@ -31,14 +35,17 @@ bool test_bitvec_type_basic(void) {
 bool test_bitvec_validate(void) {
     WriteFmt("Testing ValidateBitVec macro\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create a valid bitvector
-    BitVec bitvec = BitVecInit();
+    BitVec bitvec = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // This should not abort
     ValidateBitVec(&bitvec);
 
     // Clean up
     BitVecDeinit(&bitvec);
+    DefaultAllocatorDeinit(&alloc);
 
     // Note: We can't easily test the negative case (invalid bitvector)
     // as it would abort the program

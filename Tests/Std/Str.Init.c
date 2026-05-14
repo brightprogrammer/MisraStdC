@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
 #include <string.h>
@@ -24,7 +25,9 @@ bool test_str_deinit(void);
 bool test_str_init(void) {
     WriteFmt("Testing StrInit\n");
 
-    Str s = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str s = StrInit(&alloc);
 
     // Validate the string
     ValidateStr(&s);
@@ -34,6 +37,7 @@ bool test_str_init(void) {
     bool result = (s.length == 0);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -41,9 +45,11 @@ bool test_str_init(void) {
 bool test_str_init_from_cstr(void) {
     WriteFmt("Testing StrInitFromCstr\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     const char *test_str = "Hello, World!";
     size_t      len      = 5; // Just "Hello"
-    Str         s        = StrInitFromCstr(test_str, len);
+    Str         s        = StrInitFromCstr(test_str, len, &alloc);
 
     // Validate the string
     ValidateStr(&s);
@@ -52,6 +58,7 @@ bool test_str_init_from_cstr(void) {
     bool result = (s.length == len && ZstrCompareN(s.data, test_str, len) == 0 && s.data[len] == '\0');
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -59,8 +66,10 @@ bool test_str_init_from_cstr(void) {
 bool test_str_init_from_zstr(void) {
     WriteFmt("Testing StrInitFromZstr\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     const char *test_str = "Hello, World!";
-    Str         s        = StrInitFromZstr(test_str);
+    Str         s        = StrInitFromZstr(test_str, &alloc);
 
     // Validate the string
     ValidateStr(&s);
@@ -69,6 +78,7 @@ bool test_str_init_from_zstr(void) {
     bool result = (s.length == ZstrLen(test_str) && ZstrCompare(s.data, test_str) == 0);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -76,14 +86,17 @@ bool test_str_init_from_zstr(void) {
 bool test_str_z_alias(void) {
     WriteFmt("Testing StrZ\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     const char *test_str = "Alias Test";
-    Str         s        = StrZ(test_str);
+    Str         s        = StrZ(test_str, &alloc);
 
     ValidateStr(&s);
 
     bool result = (s.length == ZstrLen(test_str) && ZstrCompare(s.data, test_str) == 0);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -91,8 +104,10 @@ bool test_str_z_alias(void) {
 bool test_str_init_from_str(void) {
     WriteFmt("Testing StrInitFromStr\n");
 
-    Str src = StrInitFromZstr("Hello, World!");
-    Str dst = StrInitFromStr(&src);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str src = StrInitFromZstr("Hello, World!", &alloc);
+    Str dst = StrInitFromStr(&src, &alloc);
 
     // Validate both strings
     ValidateStr(&src);
@@ -103,6 +118,7 @@ bool test_str_init_from_str(void) {
 
     StrDeinit(&src);
     StrDeinit(&dst);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -110,8 +126,10 @@ bool test_str_init_from_str(void) {
 bool test_str_dup(void) {
     WriteFmt("Testing StrDup\n");
 
-    Str src = StrInitFromZstr("Hello, World!");
-    Str dst = StrDup(&src);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str src = StrInitFromZstr("Hello, World!", &alloc);
+    Str dst = StrDup(&src, &alloc);
 
     // Validate both strings
     ValidateStr(&src);
@@ -122,6 +140,7 @@ bool test_str_dup(void) {
 
     StrDeinit(&src);
     StrDeinit(&dst);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -129,7 +148,9 @@ bool test_str_dup(void) {
 bool test_str_WriteFmt(void) {
     WriteFmt("Testing StrWriteFmt\n");
 
-    Str s = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str s = StrInit(&alloc);
     StrWriteFmt(&s, "Hello, {}!", &"World"[0]);
 
     // Validate the string
@@ -139,6 +160,7 @@ bool test_str_WriteFmt(void) {
     bool result = (ZstrCompare(s.data, "Hello, World!") == 0);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -146,11 +168,13 @@ bool test_str_WriteFmt(void) {
 bool test_str_init_stack(void) {
     WriteFmt("Testing StrInitStack\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool result = true;
 
     // Test with the actual StrInitStack macro
     Str stack_str;
-    StrInitStack(stack_str, 20, {
+    StrInitStack(stack_str, &alloc, 20, {
         // Inside the scope where the stack string is valid
         StrPushBackZstr(&stack_str, "Hello, Stack!");
 
@@ -173,6 +197,7 @@ bool test_str_init_stack(void) {
         result = false;
     }
 
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -180,8 +205,10 @@ bool test_str_init_stack(void) {
 bool test_str_init_copy(void) {
     WriteFmt("Testing StrInitCopy\n");
 
-    Str src = StrInitFromZstr("Hello, World!");
-    Str dst = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str src = StrInitFromZstr("Hello, World!", &alloc);
+    Str dst = StrInit(&alloc);
 
     // Copy src to dst
     bool success = StrInitCopy(&dst, &src);
@@ -195,51 +222,28 @@ bool test_str_init_copy(void) {
 
     StrDeinit(&src);
     StrDeinit(&dst);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
-// Test that default Str clones inherit allocator config but not bound state
+// Test that Str clones inherit the source allocator pointer
 bool test_str_clone_inherits_allocator_config(void) {
     WriteFmt("Testing Str clone allocator inheritance\n");
 
-    Allocator alloc = HeapAllocator();
-    alloc.effort = ALLOCATOR_EFFORT_RETRY_FALLBACK;
-    alloc.retry_limit = 7;
-    alloc.flags = 0x5A5Au;
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str src = StrInitFromCstr("Hello, World!", ZstrLen("Hello, World!"), alloc);
-    src.allocator.state = (void *)&src;
+    Str src = StrInitFromCstr("Hello, World!", ZstrLen("Hello, World!"), &alloc);
 
-    Str dup = StrInitFromStr(&src);
-    Str dst = StrInit();
+    Str dup = StrInitFromStr(&src, &alloc);
+    Str dst = StrInit(&alloc);
     bool copied = StrInitCopy(&dst, &src);
 
     ValidateStr(&src);
     ValidateStr(&dup);
     ValidateStr(&dst);
 
-    bool dup_allocator_matches =
-        dup.allocator.allocate == src.allocator.allocate &&
-        dup.allocator.reallocate == src.allocator.reallocate &&
-        dup.allocator.deallocate == src.allocator.deallocate &&
-        dup.allocator.state_init == src.allocator.state_init &&
-        dup.allocator.state_deinit == src.allocator.state_deinit &&
-        dup.allocator.effort == src.allocator.effort &&
-        dup.allocator.retry_limit == src.allocator.retry_limit &&
-        dup.allocator.flags == src.allocator.flags &&
-        dup.allocator.state == NULL;
-
-    bool dst_allocator_matches =
-        copied &&
-        dst.allocator.allocate == src.allocator.allocate &&
-        dst.allocator.reallocate == src.allocator.reallocate &&
-        dst.allocator.deallocate == src.allocator.deallocate &&
-        dst.allocator.state_init == src.allocator.state_init &&
-        dst.allocator.state_deinit == src.allocator.state_deinit &&
-        dst.allocator.effort == src.allocator.effort &&
-        dst.allocator.retry_limit == src.allocator.retry_limit &&
-        dst.allocator.flags == src.allocator.flags &&
-        dst.allocator.state == NULL;
+    bool dup_allocator_matches = (dup.allocator == src.allocator);
+    bool dst_allocator_matches = copied && (dst.allocator == src.allocator);
 
     bool result =
         copied &&
@@ -253,6 +257,7 @@ bool test_str_clone_inherits_allocator_config(void) {
     StrDeinit(&src);
     StrDeinit(&dup);
     StrDeinit(&dst);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -260,7 +265,9 @@ bool test_str_clone_inherits_allocator_config(void) {
 bool test_str_deinit(void) {
     WriteFmt("Testing StrDeinit\n");
 
-    Str s = StrInitFromZstr("Hello, World!");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str s = StrInitFromZstr("Hello, World!", &alloc);
 
     // Validate the string before deinit
     ValidateStr(&s);
@@ -272,6 +279,7 @@ bool test_str_deinit(void) {
     // Note: We can't really check much here, as the memory is freed
     // The best we can do is make sure we don't crash
 
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 

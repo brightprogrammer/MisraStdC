@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 
 #include <stdio.h>
@@ -21,8 +22,10 @@ bool test_validate_invalid_strs(void);
 bool test_str_type(void) {
     WriteFmt("Testing Str type definition\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create a Str object
-    Str s = StrInit();
+    Str s = StrInit(&alloc);
 
     // Check that it behaves like a Vec of chars
     StrPushBack(&s, 'H');
@@ -34,6 +37,7 @@ bool test_str_type(void) {
     bool result = (s.length == 5 && ZstrCompare(s.data, "Hello") == 0);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -41,12 +45,14 @@ bool test_str_type(void) {
 bool test_strs_type(void) {
     WriteFmt("Testing Strs type definition\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create a Strs object (vector of strings)
-    Strs sv = VecInitWithDeepCopy(NULL, StrDeinit);
+    Strs sv = VecInitWithDeepCopy(NULL, StrDeinit, &alloc);
 
     // Add some strings
-    Str s1 = StrInitFromZstr("Hello");
-    Str s2 = StrInitFromZstr("World");
+    Str s1 = StrInitFromZstr("Hello", &alloc);
+    Str s2 = StrInitFromZstr("World", &alloc);
 
     VecPushBack(&sv, s1);
     VecPushBack(&sv, s2);
@@ -64,6 +70,7 @@ bool test_strs_type(void) {
     }
 
     VecDeinit(&sv); // This should call StrDeinit on each element
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -71,8 +78,10 @@ bool test_strs_type(void) {
 bool test_validate_str(void) {
     WriteFmt("Testing ValidateStr macro\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create a valid Str
-    Str s = StrInit();
+    Str s = StrInit(&alloc);
 
     // This should not crash
     ValidateStr(&s);
@@ -84,6 +93,7 @@ bool test_validate_str(void) {
     bool result = true; // If we got here, the validation didn't crash
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -91,8 +101,10 @@ bool test_validate_str(void) {
 bool test_validate_strs(void) {
     WriteFmt("Testing ValidateStrs macro\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create a valid Strs
-    Strs sv = VecInit();
+    Strs sv = VecInit(&alloc);
 
     // This should not crash
     ValidateStrs(&sv);
@@ -103,6 +115,7 @@ bool test_validate_strs(void) {
     bool result = true; // If we got here, the validation didn't crash
 
     VecDeinit(&sv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -110,8 +123,10 @@ bool test_validate_strs(void) {
 bool test_validate_invalid_str(void) {
     WriteFmt("Testing ValidateStr with invalid string (should abort)\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create an invalid Str by corrupting its fields
-    Str s = StrInit();
+    Str s = StrInit(&alloc);
 
     // Corrupt the string to make it invalid
     s.length   = 100; // Set length much larger than actual capacity
@@ -129,8 +144,10 @@ bool test_validate_invalid_str(void) {
 bool test_validate_invalid_strs(void) {
     WriteFmt("Testing ValidateStrs with invalid Strs (should abort)\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create an invalid Strs by corrupting its fields
-    Strs sv = VecInit();
+    Strs sv = VecInit(&alloc);
 
     // Corrupt the vector to make it invalid
     sv.length   = 50; // Set length much larger than actual capacity

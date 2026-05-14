@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
 #include <string.h>
@@ -17,8 +18,10 @@ bool test_str_reverse(void);
 // Test StrTryReduceSpace function
 bool test_str_try_reduce_space(void) {
     WriteFmt("Testing StrTryReduceSpace\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInit();
+
+    Str s = StrInit(&alloc);
 
     // Reserve more space than needed
     StrReserve(&s, 100);
@@ -36,14 +39,17 @@ bool test_str_try_reduce_space(void) {
     result = result && (s.capacity < 100) && (s.capacity >= s.length);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrSwapCharAt function
 bool test_str_swap_char_at(void) {
     WriteFmt("Testing StrSwapCharAt\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Swap 'H' and 'o'
     StrSwapCharAt(&s, 0, 4);
@@ -58,14 +64,17 @@ bool test_str_swap_char_at(void) {
     result = result && (s.data[1] == 'l' && s.data[2] == 'e');
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrResize function
 bool test_str_resize(void) {
     WriteFmt("Testing StrResize\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Initial length should be 5
     bool result = (s.length == 5);
@@ -84,14 +93,17 @@ bool test_str_resize(void) {
     result = result && (s.length == 8) && (ZstrCompareN(s.data, "Hel", 3) == 0);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrReserve function
 bool test_str_reserve(void) {
     WriteFmt("Testing StrReserve\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInit();
+
+    Str s = StrInit(&alloc);
 
     // Reserve more space
     StrReserve(&s, 100);
@@ -109,14 +121,17 @@ bool test_str_reserve(void) {
     result = result && (s.capacity >= 100);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrClear function
 bool test_str_clear(void) {
     WriteFmt("Testing StrClear\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello, World!");
+
+    Str s = StrInitFromZstr("Hello, World!", &alloc);
 
     // Initial length should be 13
     bool result = (s.length == 13);
@@ -131,14 +146,17 @@ bool test_str_clear(void) {
     result = result && (s.data != NULL);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test StrReverse function
 bool test_str_reverse(void) {
     WriteFmt("Testing StrReverse\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Reverse the string
     StrReverse(&s);
@@ -148,7 +166,7 @@ bool test_str_reverse(void) {
 
     // Test with an even-length string
     StrDeinit(&s);
-    s = StrInitFromZstr("abcd");
+    s = StrInitFromZstr("abcd", &alloc);
 
     // Reverse the string
     StrReverse(&s);
@@ -158,7 +176,7 @@ bool test_str_reverse(void) {
 
     // Test with a single-character string
     StrDeinit(&s);
-    s = StrInitFromZstr("a");
+    s = StrInitFromZstr("a", &alloc);
 
     // Reverse the string
     StrReverse(&s);
@@ -168,7 +186,7 @@ bool test_str_reverse(void) {
 
     // Test with an empty string
     StrDeinit(&s);
-    s = StrInit();
+    s = StrInit(&alloc);
 
     // Reverse the string
     StrReverse(&s);
@@ -177,6 +195,7 @@ bool test_str_reverse(void) {
     result = result && (s.length == 0);
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

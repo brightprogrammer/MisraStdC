@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include <Misra/Std/Allocator.h>
+#include <Misra/Std/Allocator/Pool.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
@@ -16,44 +17,47 @@ typedef struct {
 } Node;
 
 static bool test_basic_alloc_and_free(void) {
-    Allocator pool = PoolAllocator(sizeof(Node));
-    Node     *a    = (Node *)AllocatorAlloc(&pool, sizeof(Node), true);
-    Node     *b    = (Node *)AllocatorAlloc(&pool, sizeof(Node), true);
-    bool      ok   = (a != NULL) && (b != NULL) && (a != b);
+    PoolAllocator pool       = PoolAllocatorInit(sizeof(Node));
+    Allocator    *alloc_base = ALLOCATOR_OF(&pool);
+    Node         *a          = (Node *)AllocatorAlloc(alloc_base, sizeof(Node), true);
+    Node         *b          = (Node *)AllocatorAlloc(alloc_base, sizeof(Node), true);
+    bool          ok         = (a != NULL) && (b != NULL) && (a != b);
 
     if (ok) {
         a->id = 1;
         b->id = 2;
         ok    = (a->id == 1) && (b->id == 2);
-        AllocatorFree(&pool, a, sizeof(Node));
-        AllocatorFree(&pool, b, sizeof(Node));
+        AllocatorFree(alloc_base, a, sizeof(Node));
+        AllocatorFree(alloc_base, b, sizeof(Node));
     }
 
-    AllocatorUnbind(&pool);
+    PoolAllocatorDeinit(&pool);
     return ok;
 }
 
 static bool test_free_then_alloc_recycles(void) {
-    Allocator pool = PoolAllocator(sizeof(Node));
-    Node     *a    = (Node *)AllocatorAlloc(&pool, sizeof(Node), true);
-    bool      ok   = (a != NULL);
+    PoolAllocator pool       = PoolAllocatorInit(sizeof(Node));
+    Allocator    *alloc_base = ALLOCATOR_OF(&pool);
+    Node         *a          = (Node *)AllocatorAlloc(alloc_base, sizeof(Node), true);
+    bool          ok         = (a != NULL);
 
-    AllocatorFree(&pool, a, sizeof(Node));
-    Node *b = (Node *)AllocatorAlloc(&pool, sizeof(Node), true);
+    AllocatorFree(alloc_base, a, sizeof(Node));
+    Node *b = (Node *)AllocatorAlloc(alloc_base, sizeof(Node), true);
     ok      = ok && (b == a); // The free list returned the same slot.
 
-    AllocatorFree(&pool, b, sizeof(Node));
-    AllocatorUnbind(&pool);
+    AllocatorFree(alloc_base, b, sizeof(Node));
+    PoolAllocatorDeinit(&pool);
     return ok;
 }
 
 static bool test_grow_across_chunks(void) {
-    Allocator pool = PoolAllocator(sizeof(Node));
-    Node     *slots[600];
-    bool      ok = true;
+    PoolAllocator pool       = PoolAllocatorInit(sizeof(Node));
+    Allocator    *alloc_base = ALLOCATOR_OF(&pool);
+    Node         *slots[600];
+    bool          ok = true;
 
     for (size i = 0; i < 600; i++) {
-        slots[i] = (Node *)AllocatorAlloc(&pool, sizeof(Node), true);
+        slots[i] = (Node *)AllocatorAlloc(alloc_base, sizeof(Node), true);
         if (!slots[i]) {
             ok = false;
             break;
@@ -70,30 +74,32 @@ static bool test_grow_across_chunks(void) {
 
     for (size i = 0; i < 600; i++) {
         if (slots[i]) {
-            AllocatorFree(&pool, slots[i], sizeof(Node));
+            AllocatorFree(alloc_base, slots[i], sizeof(Node));
         }
     }
 
-    AllocatorUnbind(&pool);
+    PoolAllocatorDeinit(&pool);
     return ok;
 }
 
 static bool test_oversized_request_fails(void) {
-    Allocator pool = PoolAllocator(sizeof(int));
-    void     *big  = AllocatorAlloc(&pool, 4096, true);
-    bool      ok   = (big == NULL);
+    PoolAllocator pool       = PoolAllocatorInit(sizeof(int));
+    Allocator    *alloc_base = ALLOCATOR_OF(&pool);
+    void         *big        = AllocatorAlloc(alloc_base, 4096, true);
+    bool          ok         = (big == NULL);
 
-    AllocatorUnbind(&pool);
+    PoolAllocatorDeinit(&pool);
     return ok;
 }
 
 static bool test_free_half_then_realloc(void) {
-    Allocator pool = PoolAllocator(sizeof(Node));
-    Node     *slots[200];
-    bool      ok = true;
+    PoolAllocator pool       = PoolAllocatorInit(sizeof(Node));
+    Allocator    *alloc_base = ALLOCATOR_OF(&pool);
+    Node         *slots[200];
+    bool          ok = true;
 
     for (size i = 0; i < 200; i++) {
-        slots[i] = (Node *)AllocatorAlloc(&pool, sizeof(Node), true);
+        slots[i] = (Node *)AllocatorAlloc(alloc_base, sizeof(Node), true);
         if (!slots[i]) {
             ok = false;
             break;
@@ -104,32 +110,33 @@ static bool test_free_half_then_realloc(void) {
     // Free every other slot, then re-allocate 100 more to make the pool
     // walk both the free list (recycling) and the slab on growth.
     for (size i = 0; ok && i < 200; i += 2) {
-        AllocatorFree(&pool, slots[i], sizeof(Node));
+        AllocatorFree(alloc_base, slots[i], sizeof(Node));
         slots[i] = NULL;
     }
 
     Node *fresh[100];
     for (size i = 0; ok && i < 100; i++) {
-        fresh[i] = (Node *)AllocatorAlloc(&pool, sizeof(Node), true);
+        fresh[i] = (Node *)AllocatorAlloc(alloc_base, sizeof(Node), true);
         if (!fresh[i]) {
             ok = false;
             break;
         }
     }
 
-    AllocatorUnbind(&pool);
+    PoolAllocatorDeinit(&pool);
     return ok;
 }
 
 static bool test_pool_alignment(void) {
-    Allocator pool = PoolAllocatorAligned(sizeof(int), 64);
-    int      *p    = (int *)AllocatorAlloc(&pool, sizeof(int), true);
-    bool      ok   = (p != NULL) && (((uintptr_t)p & 63u) == 0);
+    PoolAllocator pool       = PoolAllocatorInitAligned(sizeof(int), 64);
+    Allocator    *alloc_base = ALLOCATOR_OF(&pool);
+    int          *p          = (int *)AllocatorAlloc(alloc_base, sizeof(int), true);
+    bool          ok         = (p != NULL) && (((uintptr_t)p & 63u) == 0);
 
     if (p) {
-        AllocatorFree(&pool, p, sizeof(int));
+        AllocatorFree(alloc_base, p, sizeof(int));
     }
-    AllocatorUnbind(&pool);
+    PoolAllocatorDeinit(&pool);
     return ok;
 }
 

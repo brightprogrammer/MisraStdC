@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Log.h>
 
@@ -30,6 +31,8 @@ void TestItemDeinit(TestItem *item) {
     // But in real cases with pointers, we would free them here
 }
 
+static DefaultAllocator alloc;
+
 // Function prototypes
 bool test_vec_init_basic(void);
 bool test_vec_init_aligned(void);
@@ -45,11 +48,11 @@ bool test_vec_init_basic(void) {
 
     // Test with int type
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Check initial state
     bool result =
-        (vec.length == 0 && vec.capacity == 0 && vec.data == NULL && vec.allocator.alignment == 1 &&
+        (vec.length == 0 && vec.capacity == 0 && vec.data == NULL && vec.allocator->alignment == 1 &&
          vec.copy_init == NULL && vec.copy_deinit == NULL);
 
     // Clean up
@@ -57,12 +60,12 @@ bool test_vec_init_basic(void) {
 
     // Test with struct type
     typedef Vec(TestItem) TestVec;
-    TestVec test_vec = VecInit();
+    TestVec test_vec = VecInit(&alloc);
 
     // Check initial state
     result =
         result && (test_vec.length == 0 && test_vec.capacity == 0 && test_vec.data == NULL &&
-                   test_vec.allocator.alignment == 1 && test_vec.copy_init == NULL && test_vec.copy_deinit == NULL);
+                   test_vec.allocator->alignment == 1 && test_vec.copy_init == NULL && test_vec.copy_deinit == NULL);
 
     // Clean up
     VecDeinit(&test_vec);
@@ -74,13 +77,16 @@ bool test_vec_init_basic(void) {
 bool test_vec_init_aligned(void) {
     WriteFmt("Testing VecInit with aligned allocator\n");
 
+    HeapAllocator aligned4  = HeapAllocatorInitAligned(4);
+    HeapAllocator aligned16 = HeapAllocatorInitAligned(16);
+
     // Test with int type and 4-byte alignment
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit(HeapAllocatorAligned(4));
+    IntVec vec = VecInit(&aligned4);
 
     // Check initial state
     bool result =
-        (vec.length == 0 && vec.capacity == 0 && vec.data == NULL && vec.allocator.alignment == 4 &&
+        (vec.length == 0 && vec.capacity == 0 && vec.data == NULL && vec.allocator->alignment == 4 &&
          vec.copy_init == NULL && vec.copy_deinit == NULL);
 
     // Clean up
@@ -88,16 +94,18 @@ bool test_vec_init_aligned(void) {
 
     // Test with struct type and 16-byte alignment
     typedef Vec(TestItem) TestVec;
-    TestVec test_vec = VecInit(HeapAllocatorAligned(16));
+    TestVec test_vec = VecInit(&aligned16);
 
     // Check initial state
     result =
         result && (test_vec.length == 0 && test_vec.capacity == 0 && test_vec.data == NULL &&
-                   test_vec.allocator.alignment == 16 && test_vec.copy_init == NULL && test_vec.copy_deinit == NULL);
+                   test_vec.allocator->alignment == 16 && test_vec.copy_init == NULL && test_vec.copy_deinit == NULL);
 
     // Clean up
     VecDeinit(&test_vec);
 
+    HeapAllocatorDeinit(&aligned4);
+    HeapAllocatorDeinit(&aligned16);
     return result;
 }
 
@@ -107,11 +115,11 @@ bool test_vec_init_with_deep_copy(void) {
 
     // Test with struct type and custom copy/deinit functions
     typedef Vec(TestItem) TestVec;
-    TestVec vec = VecInitWithDeepCopy(TestItemCopyInit, TestItemDeinit);
+    TestVec vec = VecInitWithDeepCopy(TestItemCopyInit, TestItemDeinit, &alloc);
 
     // Check initial state
     bool result =
-        (vec.length == 0 && vec.capacity == 0 && vec.data == NULL && vec.allocator.alignment == 1 &&
+        (vec.length == 0 && vec.capacity == 0 && vec.data == NULL && vec.allocator->alignment == 1 &&
          vec.copy_init == (GenericCopyInit)TestItemCopyInit && vec.copy_deinit == (GenericCopyDeinit)TestItemDeinit);
 
     // Clean up
@@ -124,18 +132,21 @@ bool test_vec_init_with_deep_copy(void) {
 bool test_vec_init_aligned_with_deep_copy(void) {
     WriteFmt("Testing VecInit with aligned allocator and deep copy\n");
 
+    HeapAllocator aligned8 = HeapAllocatorInitAligned(8);
+
     // Test with struct type, custom copy/deinit functions, and 8-byte alignment
     typedef Vec(TestItem) TestVec;
-    TestVec vec = VecInitWithDeepCopy(TestItemCopyInit, TestItemDeinit, HeapAllocatorAligned(8));
+    TestVec vec = VecInitWithDeepCopy(TestItemCopyInit, TestItemDeinit, &aligned8);
 
     // Check initial state
     bool result =
-        (vec.length == 0 && vec.capacity == 0 && vec.data == NULL && vec.allocator.alignment == 8 &&
+        (vec.length == 0 && vec.capacity == 0 && vec.data == NULL && vec.allocator->alignment == 8 &&
          vec.copy_init == (GenericCopyInit)TestItemCopyInit && vec.copy_deinit == (GenericCopyDeinit)TestItemDeinit);
 
     // Clean up
     VecDeinit(&vec);
 
+    HeapAllocatorDeinit(&aligned8);
     return result;
 }
 
@@ -144,24 +155,37 @@ bool test_vec_init_optional_allocator(void) {
     WriteFmt("Testing VecInit optional allocator\n");
 
     typedef Vec(TestItem) TestVec;
-    Allocator alloc   = DefaultAllocator();
-    alloc.retry_limit = 17;
 
-    TestVec vec_a = VecInit(alloc);
-    TestVec vec_b = VecInitT(vec_b, alloc);
-    TestVec vec_c = VecInitWithDeepCopy(TestItemCopyInit, TestItemDeinit, alloc);
-    TestVec vec_d = VecInitWithDeepCopyT(vec_d, TestItemCopyInit, TestItemDeinit, alloc);
-    TestVec vec_e = VecInit(AllocatorWithMinAlignment(alloc, 8));
-    TestVec vec_f = VecInitT(vec_f, AllocatorWithMinAlignment(alloc, 16));
-    TestVec vec_g = VecInitWithDeepCopy(TestItemCopyInit, TestItemDeinit, AllocatorWithMinAlignment(alloc, 32));
-    TestVec vec_h = VecInitWithDeepCopyT(vec_h, TestItemCopyInit, TestItemDeinit, AllocatorWithMinAlignment(alloc, 64));
+    // Build several heaps with distinct configuration; the test verifies
+    // that the pointer-based allocator stored in the vector reflects each
+    // allocator's settings.
+    HeapAllocator h_default = HeapAllocatorInit();
+    HeapAllocator h8        = HeapAllocatorInitAligned(8);
+    HeapAllocator h16       = HeapAllocatorInitAligned(16);
+    HeapAllocator h32       = HeapAllocatorInitAligned(32);
+    HeapAllocator h64       = HeapAllocatorInitAligned(64);
 
-    bool result = (vec_a.allocator.retry_limit == 17) && (vec_b.allocator.retry_limit == 17);
-    result      = result && (vec_c.allocator.retry_limit == 17) && (vec_d.allocator.retry_limit == 17);
-    result      = result && (vec_e.allocator.retry_limit == 17) && (vec_f.allocator.retry_limit == 17);
-    result      = result && (vec_g.allocator.retry_limit == 17) && (vec_h.allocator.retry_limit == 17);
-    result      = result && (vec_e.allocator.alignment == 8) && (vec_f.allocator.alignment == 16);
-    result      = result && (vec_g.allocator.alignment == 32) && (vec_h.allocator.alignment == 64);
+    h_default.base.retry_limit = 17;
+    h8.base.retry_limit        = 17;
+    h16.base.retry_limit       = 17;
+    h32.base.retry_limit       = 17;
+    h64.base.retry_limit       = 17;
+
+    TestVec vec_a = VecInit(&h_default);
+    TestVec vec_b = VecInitT(vec_b, &h_default);
+    TestVec vec_c = VecInitWithDeepCopy(TestItemCopyInit, TestItemDeinit, &h_default);
+    TestVec vec_d = VecInitWithDeepCopyT(vec_d, TestItemCopyInit, TestItemDeinit, &h_default);
+    TestVec vec_e = VecInit(&h8);
+    TestVec vec_f = VecInitT(vec_f, &h16);
+    TestVec vec_g = VecInitWithDeepCopy(TestItemCopyInit, TestItemDeinit, &h32);
+    TestVec vec_h = VecInitWithDeepCopyT(vec_h, TestItemCopyInit, TestItemDeinit, &h64);
+
+    bool result = (vec_a.allocator->retry_limit == 17) && (vec_b.allocator->retry_limit == 17);
+    result      = result && (vec_c.allocator->retry_limit == 17) && (vec_d.allocator->retry_limit == 17);
+    result      = result && (vec_e.allocator->retry_limit == 17) && (vec_f.allocator->retry_limit == 17);
+    result      = result && (vec_g.allocator->retry_limit == 17) && (vec_h.allocator->retry_limit == 17);
+    result      = result && (vec_e.allocator->alignment == 8) && (vec_f.allocator->alignment == 16);
+    result      = result && (vec_g.allocator->alignment == 32) && (vec_h.allocator->alignment == 64);
     result      = result && (vec_c.copy_init == (GenericCopyInit)TestItemCopyInit);
     result      = result && (vec_d.copy_deinit == (GenericCopyDeinit)TestItemDeinit);
 
@@ -173,6 +197,12 @@ bool test_vec_init_optional_allocator(void) {
     VecDeinit(&vec_f);
     VecDeinit(&vec_g);
     VecDeinit(&vec_h);
+
+    HeapAllocatorDeinit(&h_default);
+    HeapAllocatorDeinit(&h8);
+    HeapAllocatorDeinit(&h16);
+    HeapAllocatorDeinit(&h32);
+    HeapAllocatorDeinit(&h64);
     return result;
 }
 
@@ -186,11 +216,11 @@ bool test_vec_init_stack(void) {
     typedef Vec(int) IntVec;
     IntVec vec;
 
-    VecInitStack(vec, 10, {
+    VecInitStack(vec, &alloc, 10, {
         // Inside the scope where the stack vector is valid
 
         // Check initial state
-        if (vec.length != 0 || vec.capacity != 10 || vec.data == NULL || vec.allocator.alignment != 1 ||
+        if (vec.length != 0 || vec.capacity != 10 || vec.data == NULL || vec.allocator->alignment != 1 ||
             vec.copy_init != NULL || vec.copy_deinit != NULL) {
             result = false;
         }
@@ -217,12 +247,12 @@ bool test_vec_init_stack(void) {
     typedef Vec(TestItem) TestVec;
     TestVec test_vec;
 
-    VecInitStack(test_vec, 5, {
+    VecInitStack(test_vec, &alloc, 5, {
         // Inside the scope where the stack vector is valid
 
         // Check initial state
         if (test_vec.length != 0 || test_vec.capacity != 5 || test_vec.data == NULL ||
-            test_vec.allocator.alignment != 1 || test_vec.copy_init != NULL || test_vec.copy_deinit != NULL) {
+            test_vec.allocator->alignment != 1 || test_vec.copy_init != NULL || test_vec.copy_deinit != NULL) {
             result = false;
         }
 
@@ -254,7 +284,7 @@ bool test_vec_init_clone(void) {
 
     // Create a source vector
     typedef Vec(int) IntVec;
-    IntVec src = VecInit();
+    IntVec src = VecInit(&alloc);
 
     // Add some data
     VecPushBackR(&src, 1);
@@ -262,7 +292,7 @@ bool test_vec_init_clone(void) {
     VecPushBackR(&src, 3);
 
     // Create a destination vector
-    IntVec clone = VecInit();
+    IntVec clone = VecInit(&alloc);
 
     // Clone the source vector into the destination
     VecPushBackArrR(&clone, src.data, src.length);
@@ -270,7 +300,7 @@ bool test_vec_init_clone(void) {
     // Check that the clone has the same data but different memory
     bool result =
         (clone.length == src.length && clone.capacity >= src.length && clone.data != src.data &&
-         clone.allocator.alignment == src.allocator.alignment);
+         clone.allocator->alignment == src.allocator->alignment);
 
     // Check the actual data
     if (result) {
@@ -293,6 +323,8 @@ bool test_vec_init_clone(void) {
 int main(void) {
     WriteFmt("[INFO] Starting Vec.Init tests\n\n");
 
+    alloc = DefaultAllocatorInit();
+
     // Array of test functions
     TestFunction tests[] = {
         test_vec_init_basic,
@@ -307,5 +339,7 @@ int main(void) {
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 
     // Run all tests using the centralized test driver
-    return run_test_suite(tests, total_tests, NULL, 0, "Vec.Init");
+    int rc = run_test_suite(tests, total_tests, NULL, 0, "Vec.Init");
+    DefaultAllocatorDeinit(&alloc);
+    return rc;
 }

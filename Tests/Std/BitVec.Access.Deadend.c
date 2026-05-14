@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 
 #include <stdio.h>
@@ -80,46 +81,57 @@ bool test_bitvec_flip_null_failures(void) {
 }
 
 bool test_bitvec_get_bounds_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec get bounds checking\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test get from empty bitvec - should abort
     BitVecGet(&bv, 0);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 bool test_bitvec_set_bounds_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec set bounds checking\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test set on empty bitvec - should abort
     BitVecSet(&bv, 0, true);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 bool test_bitvec_flip_bounds_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec flip bounds checking\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test flip on empty bitvec - should abort
     BitVecFlip(&bv, 0);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 // NEW: More specific bounds checking deadend tests
 bool test_bitvec_get_large_index_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec get with large out-of-bounds index\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv, true);
     BitVecPush(&bv, false);
     BitVecPush(&bv, true);
@@ -128,13 +140,16 @@ bool test_bitvec_get_large_index_failures(void) {
     BitVecGet(&bv, 1000);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 bool test_bitvec_set_large_index_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec set with large out-of-bounds index\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv, true);
     BitVecPush(&bv, false);
 
@@ -142,13 +157,16 @@ bool test_bitvec_set_large_index_failures(void) {
     BitVecSet(&bv, 500, true);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 bool test_bitvec_flip_edge_index_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec flip with edge case out-of-bounds index\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
     for (int i = 0; i < 10; i++) {
         BitVecPush(&bv, i % 2 == 0);
     }
@@ -157,6 +175,7 @@ bool test_bitvec_flip_edge_index_failures(void) {
     BitVecFlip(&bv, 10);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
@@ -170,15 +189,18 @@ bool test_bitvec_count_null_failures(void) {
 }
 
 bool test_bitvec_get_max_index_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec get with maximum index value\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv, true);
 
     // Test with maximum possible index value - should abort
     BitVecGet(&bv, SIZE_MAX);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
