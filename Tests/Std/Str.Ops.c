@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 
@@ -20,11 +21,13 @@ bool test_str_contains_index(void);
 // Test string comparison functions
 bool test_str_cmp(void) {
     WriteFmt("Testing StrCmp and StrCmpCstr\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s1 = StrInitFromZstr("Hello");
-    Str s2 = StrInitFromZstr("Hello");
-    Str s3 = StrInitFromZstr("World");
-    Str s4 = StrInitFromZstr("Hello World");
+
+    Str s1 = StrInitFromZstr("Hello", &alloc);
+    Str s2 = StrInitFromZstr("Hello", &alloc);
+    Str s3 = StrInitFromZstr("World", &alloc);
+    Str s4 = StrInitFromZstr("Hello World", &alloc);
 
     // Test StrCmp with equal strings
     int  cmp1   = StrCmp(&s1, &s2);
@@ -49,17 +52,20 @@ bool test_str_cmp(void) {
     StrDeinit(&s2);
     StrDeinit(&s3);
     StrDeinit(&s4);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test string find functions
 bool test_str_find(void) {
     WriteFmt("Testing StrFindStr, StrFindZstr, and StrFindCstr\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str haystack = StrInitFromZstr("Hello World");
-    Str needle1  = StrInitFromZstr("World");
-    Str needle2  = StrInitFromZstr("Hello");
-    Str needle3  = StrInitFromZstr("NotFound");
+
+    Str haystack = StrInitFromZstr("Hello World", &alloc);
+    Str needle1  = StrInitFromZstr("World", &alloc);
+    Str needle2  = StrInitFromZstr("Hello", &alloc);
+    Str needle3  = StrInitFromZstr("NotFound", &alloc);
 
     // Test StrFindStr with match at end
     const char *found1 = StrFindStr(&haystack, &needle1);
@@ -85,15 +91,18 @@ bool test_str_find(void) {
     StrDeinit(&needle1);
     StrDeinit(&needle2);
     StrDeinit(&needle3);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test string contains/index functions
 bool test_str_contains_index(void) {
     WriteFmt("Testing StrContains and StrIndexOf variants\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str haystack = StrInitFromZstr("Hello World");
-    Str needle   = StrInitFromZstr("World");
+
+    Str haystack = StrInitFromZstr("Hello World", &alloc);
+    Str needle   = StrInitFromZstr("World", &alloc);
 
     bool result = StrContains(&haystack, &needle);
     result      = result && StrContainsZstr(&haystack, "Hello");
@@ -108,16 +117,19 @@ bool test_str_contains_index(void) {
 
     StrDeinit(&haystack);
     StrDeinit(&needle);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test string starts/ends with functions
 bool test_str_starts_ends_with(void) {
     WriteFmt("Testing StrStartsWith and StrEndsWith variants\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s      = StrInitFromZstr("Hello World");
-    Str prefix = StrInitFromZstr("Hello");
-    Str suffix = StrInitFromZstr("World");
+
+    Str s      = StrInitFromZstr("Hello World", &alloc);
+    Str prefix = StrInitFromZstr("Hello", &alloc);
+    Str suffix = StrInitFromZstr("World", &alloc);
 
     // Test StrStartsWith
     bool result = StrStartsWith(&s, &prefix);
@@ -144,50 +156,56 @@ bool test_str_starts_ends_with(void) {
     StrDeinit(&s);
     StrDeinit(&prefix);
     StrDeinit(&suffix);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test string replace functions
 bool test_str_replace(void) {
     WriteFmt("Testing StrReplace variants\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
 
     // Test StrReplaceZstr
-    Str s1 = StrInitFromZstr("Hello World");
+    Str s1 = StrInitFromZstr("Hello World", &alloc);
     StrReplaceZstr(&s1, "World", "Universe", 1);
     bool result = (ZstrCompare(s1.data, "Hello Universe") == 0);
 
     // Test multiple replacements
     StrDeinit(&s1);
-    s1 = StrInitFromZstr("Hello Hello Hello");
+    s1 = StrInitFromZstr("Hello Hello Hello", &alloc);
     StrReplaceZstr(&s1, "Hello", "Hi", 2);
     result = result && (ZstrCompare(s1.data, "Hi Hi Hello") == 0);
 
     // Test StrReplaceCstr - use the full "World" string instead of just "Wo"
     StrDeinit(&s1);
-    s1 = StrInitFromZstr("Hello World");
+    s1 = StrInitFromZstr("Hello World", &alloc);
     StrReplaceCstr(&s1, "World", 5, "Universe", 8, 1);
     result = result && (ZstrCompare(s1.data, "Hello Universe") == 0);
 
     // Test StrReplace
     StrDeinit(&s1);
-    s1          = StrInitFromZstr("Hello World");
-    Str find    = StrInitFromZstr("World");
-    Str replace = StrInitFromZstr("Universe");
+    s1          = StrInitFromZstr("Hello World", &alloc);
+    Str find    = StrInitFromZstr("World", &alloc);
+    Str replace = StrInitFromZstr("Universe", &alloc);
     StrReplace(&s1, &find, &replace, 1);
     result = result && (ZstrCompare(s1.data, "Hello Universe") == 0);
 
     StrDeinit(&s1);
     StrDeinit(&find);
     StrDeinit(&replace);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test string split functions
 bool test_str_split(void) {
     WriteFmt("Testing StrSplit and StrSplitToIters\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
 
     // Test StrSplit
-    Str  s     = StrInitFromZstr("Hello,World,Test");
+    Str  s     = StrInitFromZstr("Hello,World,Test", &alloc);
     Strs split = StrSplit(&s, ",");
 
     bool result = (split.length == 3);
@@ -225,15 +243,18 @@ bool test_str_split(void) {
 
     VecDeinit(&iters);
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test string strip functions
 bool test_str_strip(void) {
     WriteFmt("Testing StrStrip variants\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
 
     // Test StrLStrip
-    Str  s1       = StrInitFromZstr("  Hello  ");
+    Str  s1       = StrInitFromZstr("  Hello  ", &alloc);
     Str  stripped = StrLStrip(&s1, NULL);
     bool result   = (ZstrCompare(stripped.data, "Hello  ") == 0);
     StrDeinit(&stripped);
@@ -250,7 +271,7 @@ bool test_str_strip(void) {
 
     // Test with custom strip characters
     StrDeinit(&s1);
-    s1 = StrInitFromZstr("***Hello***");
+    s1 = StrInitFromZstr("***Hello***", &alloc);
 
     stripped = StrLStrip(&s1, "*");
     result   = result && (ZstrCompare(stripped.data, "Hello***") == 0);
@@ -265,6 +286,7 @@ bool test_str_strip(void) {
     StrDeinit(&stripped);
 
     StrDeinit(&s1);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

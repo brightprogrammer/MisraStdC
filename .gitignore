@@ -11,3 +11,4 @@ Docs/public
 .venv
 fuzz-outputs
 Fuzz/outputs/
+.refactor-todo.md

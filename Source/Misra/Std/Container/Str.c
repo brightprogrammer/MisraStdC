@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Container/Vec/Private.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Types.h>
 
@@ -16,7 +17,7 @@
 
 static Str *string_va_printf(Str *str, const char *fmt, va_list args);
 
-bool StrTryInitFromCstrAlloc(Str *out, const char *cstr, size len, Allocator alloc) {
+bool str_try_init_from_cstr(Str *out, const char *cstr, size len, Allocator *alloc) {
     if (!out || !cstr) {
         LOG_FATAL("Invalid arguments");
     }
@@ -36,10 +37,10 @@ bool StrTryInitFromCstrAlloc(Str *out, const char *cstr, size len, Allocator all
     return true;
 }
 
-Str StrInitFromCstrAlloc(const char *cstr, size len, Allocator alloc) {
+Str str_init_from_cstr(const char *cstr, size len, Allocator *alloc) {
     Str result = StrInit(alloc);
 
-    if (!StrTryInitFromCstrAlloc(&result, cstr, len, alloc)) {
+    if (!str_try_init_from_cstr(&result, cstr, len, alloc)) {
         return result;
     }
 
@@ -105,23 +106,23 @@ bool StrInitCopy(Str *dst, const Str *src) {
         LOG_FATAL("Invalid arguments");
     }
 
-    return StrInitCopyAlloc(dst, src, &src->allocator);
+    return str_init_copy(dst, src, src->allocator);
 }
 
-bool StrInitCopyAlloc(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
-    Str             *dst             = (Str *)dst_ptr;
-    const Str       *src             = (const Str *)src_ptr;
-    const Allocator *clone_allocator = NULL;
+bool str_init_copy(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
+    Str       *dst             = (Str *)dst_ptr;
+    const Str *src             = (const Str *)src_ptr;
+    Allocator *clone_allocator = NULL;
 
     ValidateStr(src);
     if (!dst) {
         LOG_FATAL("Invalid arguments");
     }
 
-    clone_allocator = alloc ? alloc : &src->allocator;
+    clone_allocator = alloc ? (Allocator *)alloc : src->allocator;
 
     MemSet(dst, 0, sizeof(Str));
-    *dst             = StrInit(*clone_allocator);
+    *dst             = StrInit(clone_allocator);
     dst->copy_init   = src->copy_init;
     dst->copy_deinit = src->copy_deinit;
 
@@ -137,7 +138,7 @@ void StrDeinit(Str *copy) {
     deinit_vec(GENERIC_VEC(copy), sizeof(char));
 }
 
-void StrDeinitAlloc(void *copy, const Allocator *alloc) {
+void str_deinit(void *copy, const Allocator *alloc) {
     (void)alloc;
     StrDeinit((Str *)copy);
 }
@@ -145,18 +146,17 @@ void StrDeinitAlloc(void *copy, const Allocator *alloc) {
 StrIters StrSplitToIters(Str *s, const char *key) {
     ValidateStr(s);
 
-    StrIters sv     = VecInit();
-    size     keylen = ZstrLen(key);
-
-    const char *prev = s->data;
-    const char *end  = s->data + s->length;
+    StrIters    sv     = (StrIters)VecInit(s->allocator);
+    size        keylen = ZstrLen(key);
+    const char *prev   = s->data;
+    const char *end    = s->data + s->length;
 
     while (prev <= end) {
         const char *next = ZstrFindSubstring(prev, key);
         if (next) {
             StrIter si = {.data = (char *)prev, .length = next - prev, .pos = 0, .alignment = 1};
             VecPushBack(&sv, si);
-            prev = next + keylen; // skip past delimiter
+            prev = next + keylen;
         } else {
             StrIter si = {.data = (char *)prev, .length = end - prev, .pos = 0, .alignment = 1};
             VecPushBack(&sv, si);
@@ -170,23 +170,23 @@ StrIters StrSplitToIters(Str *s, const char *key) {
 Strs StrSplit(Str *s, const char *key) {
     ValidateStr(s);
 
-    Strs sv     = VecInitWithDeepCopy(NULL, StrDeinitAlloc);
-    size keylen = ZstrLen(key);
-
-    const char *prev = s->data;
+    Strs        sv     = (Strs)VecInit(s->allocator);
+    sv.copy_deinit     = (GenericCopyDeinit)str_deinit;
+    size        keylen = ZstrLen(key);
+    const char *prev   = s->data;
 
     if (prev) {
         const char *end = s->data + s->length;
         while (prev <= end) {
             const char *next = ZstrFindSubstring(prev, key);
             if (next) {
-                Str tmp = StrInitFromCstr(prev, next - prev);
-                VecPushBack(&sv, tmp); // exclude delimiter
-                prev = next + keylen;  // skip past delimiter
+                Str tmp = StrInitFromCstr(prev, next - prev, s->allocator);
+                VecPushBack(&sv, tmp);
+                prev = next + keylen;
             } else {
                 if (ZstrCompareN(prev, key, end - prev)) {
-                    Str tmp = StrInitFromCstr(prev, end - prev);
-                    VecPushBack(&sv, tmp); // remaining part
+                    Str tmp = StrInitFromCstr(prev, end - prev, s->allocator);
+                    VecPushBack(&sv, tmp);
                 }
                 break;
             }
@@ -301,7 +301,7 @@ Str strip_str(Str *s, const char *chars_to_strip, int split_direction) {
     }
 
     size new_len = end >= start ? (end - start + 1) : 0;
-    return StrInitFromCstr(start, new_len);
+    return StrInitFromCstr(start, new_len, s->allocator);
 }
 
 static inline bool starts_with(const char *data, size data_len, const char *prefix, size prefix_len) {
@@ -858,8 +858,10 @@ bool StrToI64(const Str *str, i64 *value, const StrParseConfig *config) {
         pos++;
     }
 
-    // Create substring without sign
-    Str temp_str      = StrInit();
+    // Create substring view without sign (no allocation - data is borrowed
+    // from the input str and capacity stays 0 so StrToU64 never tries to
+    // grow it).
+    Str temp_str      = StrInit(str->allocator);
     temp_str.data     = str->data + pos;
     temp_str.length   = str->length - pos;
     temp_str.capacity = str->length - pos;

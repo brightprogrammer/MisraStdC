@@ -45,7 +45,7 @@ extern "C" {
 ///
 /// TAGS: Int, Convert, Import, Generic
 ///
-#    define IntFrom(value) INT_FROM_DISPATCH(value)(value)
+#    define IntFrom(value, alloc) INT_FROM_DISPATCH(value)((value), (alloc))
 #endif
 
     ///
@@ -74,7 +74,7 @@ extern "C" {
     ///
     /// Create an integer from little-endian bytes.
     ///
-    Int IntFromBytesLE(const u8 *bytes, u64 len);
+    Int IntFromBytesLE(const u8 *bytes, u64 len, Allocator *alloc);
 
     ///
     /// Export an integer into little-endian bytes.
@@ -84,7 +84,7 @@ extern "C" {
     ///
     /// Create an integer from big-endian bytes.
     ///
-    Int IntFromBytesBE(const u8 *bytes, u64 len);
+    Int IntFromBytesBE(const u8 *bytes, u64 len, Allocator *alloc);
 
     ///
     /// Export an integer into big-endian bytes.
@@ -102,7 +102,7 @@ extern "C" {
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int IntFromStrRadix(const char *digits, u8 radix);
+    Int IntFromStrRadix(const char *digits, u8 radix, Allocator *alloc);
 
     ///
     /// Convert an integer to text in the given radix using an explicit allocator.
@@ -117,7 +117,7 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, String, Radix, Allocator
     ///
-    bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Allocator alloc);
+    bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Allocator *alloc);
 
     ///
     /// Convert an integer to text in the given radix using the default allocator.
@@ -164,7 +164,7 @@ extern "C" {
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int IntFromStr(const char *decimal);
+    Int IntFromStr(const char *decimal, Allocator *alloc);
 
     ///
     /// Convert an integer to a decimal string using an explicit allocator.
@@ -177,7 +177,7 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, String, Decimal, Allocator
     ///
-    bool IntTryToStrAlloc(Str *out, Int *value, Allocator alloc);
+    bool IntTryToStrAlloc(Str *out, Int *value, Allocator *alloc);
 
     ///
     /// Convert an integer to a decimal string using the default allocator.
@@ -219,7 +219,7 @@ extern "C" {
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int IntFromBinary(const char *binary);
+    Int IntFromBinary(const char *binary, Allocator *alloc);
 
     ///
     /// Convert an integer to a binary string.
@@ -237,7 +237,7 @@ extern "C" {
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int IntFromOctStr(const char *octal);
+    Int IntFromOctStr(const char *octal, Allocator *alloc);
 
     ///
     /// Convert an integer to an octal string.
@@ -255,7 +255,7 @@ extern "C" {
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int IntFromHexStr(const char *hex);
+    Int IntFromHexStr(const char *hex, Allocator *alloc);
 
     ///
     /// Convert an integer to a hexadecimal string.

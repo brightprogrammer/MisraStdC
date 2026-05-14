@@ -1,4 +1,5 @@
 #include <Misra/Parsers/JSON.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
@@ -55,11 +56,11 @@ bool test_simple_nested_object_writing(void);
 bool test_simple_product_with_tags_writing(void);
 
 // Helper function to compare expected JSON strings (removes spaces for comparison)
-bool compare_json_output(const Str *output, const char *expected) {
+bool compare_json_output(const Str *output, const char *expected, DefaultAllocator *alloc) {
     // Create a copy of expected without spaces for comparison
-    Str expected_str   = StrInitFromZstr(expected);
-    Str output_clean   = StrInit();
-    Str expected_clean = StrInit();
+    Str expected_str   = StrInitFromZstr(expected, alloc);
+    Str output_clean   = StrInit(alloc);
+    Str expected_clean = StrInit(alloc);
 
     // Remove spaces and newlines from both strings for comparison
     for (size i = 0; i < output->length; i++) {
@@ -102,11 +103,13 @@ bool compare_json_output(const Str *output, const char *expected) {
 bool test_simple_string_writing(void) {
     WriteFmt("Testing simple string writing\n");
 
-    bool success = true;
-    Str  json    = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str name = StrInitFromZstr("Alice");
-    Str city = StrInitFromZstr("New York");
+    bool success = true;
+    Str  json    = StrInit(&alloc);
+
+    Str name = StrInitFromZstr("Alice", &alloc);
+    Str city = StrInitFromZstr("New York", &alloc);
 
     JW_OBJ(json, {
         JW_STR_KV(json, "name", name);
@@ -114,13 +117,14 @@ bool test_simple_string_writing(void) {
     });
 
     const char *expected = "{\"name\":\"Alice\",\"city\":\"New York\"}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
     StrDeinit(&name);
     StrDeinit(&city);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -128,8 +132,10 @@ bool test_simple_string_writing(void) {
 bool test_simple_numbers_writing(void) {
     WriteFmt("Testing simple number writing\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
     u32 count = 42;
     f64 score = 95.5;
@@ -142,11 +148,12 @@ bool test_simple_numbers_writing(void) {
     });
 
     const char *expected = "{\"count\":42,\"score\":95.500000,\"year\":2024}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -154,8 +161,10 @@ bool test_simple_numbers_writing(void) {
 bool test_simple_boolean_writing(void) {
     WriteFmt("Testing simple boolean writing\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
     bool enabled = true;
     bool visible = false;
@@ -166,11 +175,12 @@ bool test_simple_boolean_writing(void) {
     });
 
     const char *expected = "{\"enabled\":true,\"visible\":false}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -178,10 +188,12 @@ bool test_simple_boolean_writing(void) {
 bool test_simple_person_object_writing(void) {
     WriteFmt("Testing simple person object writing\n");
 
-    bool success = true;
-    Str  json    = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Person person = {1001, StrInitFromZstr("Bob"), 25, true, 50000.0};
+    bool success = true;
+    Str  json    = StrInit(&alloc);
+
+    Person person = {1001, StrInitFromZstr("Bob", &alloc), 25, true, 50000.0};
 
     JW_OBJ(json, {
         JW_INT_KV(json, "id", person.id);
@@ -192,12 +204,13 @@ bool test_simple_person_object_writing(void) {
     });
 
     const char *expected = "{\"id\":1001,\"name\":\"Bob\",\"age\":25,\"is_active\":true,\"salary\":50000.000000}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
     PersonDeinit(&person);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -205,10 +218,12 @@ bool test_simple_person_object_writing(void) {
 bool test_simple_config_object_writing(void) {
     WriteFmt("Testing simple config object writing\n");
 
-    bool success = true;
-    Str  json    = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Config config = {false, 30, StrInitFromZstr("INFO")};
+    bool success = true;
+    Str  json    = StrInit(&alloc);
+
+    Config config = {false, 30, StrInitFromZstr("INFO", &alloc)};
 
     JW_OBJ(json, {
         JW_BOOL_KV(json, "debug_mode", config.debug_mode);
@@ -217,12 +232,13 @@ bool test_simple_config_object_writing(void) {
     });
 
     const char *expected = "{\"debug_mode\":false,\"timeout\":30,\"log_level\":\"INFO\"}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
     ConfigDeinit(&config);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -230,15 +246,17 @@ bool test_simple_config_object_writing(void) {
 bool test_simple_array_of_strings_writing(void) {
     WriteFmt("Testing simple array of strings writing\n");
 
-    bool success = true;
-    Str  json    = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Vec(Str) languages = VecInitWithDeepCopy(NULL, StrDeinit);
+    bool success = true;
+    Str  json    = StrInit(&alloc);
+
+    Vec(Str) languages = VecInitWithDeepCopy(NULL, StrDeinit, &alloc);
 
     // Create strings and push them properly
-    Str lang1 = StrInitFromZstr("C");
-    Str lang2 = StrInitFromZstr("Python");
-    Str lang3 = StrInitFromZstr("Rust");
+    Str lang1 = StrInitFromZstr("C", &alloc);
+    Str lang2 = StrInitFromZstr("Python", &alloc);
+    Str lang3 = StrInitFromZstr("Rust", &alloc);
 
     VecPushBack(&languages, lang1);
     VecPushBack(&languages, lang2);
@@ -247,12 +265,13 @@ bool test_simple_array_of_strings_writing(void) {
     JW_OBJ(json, { JW_ARR_KV(json, "languages", languages, lang, { JW_STR(json, lang); }); });
 
     const char *expected = "{\"languages\":[\"C\",\"Python\",\"Rust\"]}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
     VecDeinit(&languages);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -260,8 +279,10 @@ bool test_simple_array_of_strings_writing(void) {
 bool test_simple_nested_object_writing(void) {
     WriteFmt("Testing simple nested object writing\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
     struct {
         struct {
@@ -270,7 +291,7 @@ bool test_simple_nested_object_writing(void) {
         } user;
         bool active;
     } data = {
-        {StrInitFromZstr("Charlie"), StrInitFromZstr("charlie@example.com")},
+        {StrInitFromZstr("Charlie", &alloc), StrInitFromZstr("charlie@example.com", &alloc)},
         true
     };
 
@@ -283,13 +304,14 @@ bool test_simple_nested_object_writing(void) {
     });
 
     const char *expected = "{\"user\":{\"name\":\"Charlie\",\"email\":\"charlie@example.com\"},\"active\":true}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
     StrDeinit(&data.user.name);
     StrDeinit(&data.user.email);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -297,19 +319,21 @@ bool test_simple_nested_object_writing(void) {
 bool test_simple_product_with_tags_writing(void) {
     WriteFmt("Testing simple product with tags array writing\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
     SimpleProduct product = {0};
     product.id            = 12345;
-    product.name          = StrInitFromZstr("Laptop");
+    product.name          = StrInitFromZstr("Laptop", &alloc);
     product.price         = 999.99;
-    product.tags          = VecInitWithDeepCopyT(product.tags, NULL, StrDeinit);
+    product.tags          = VecInitWithDeepCopyT(product.tags, NULL, StrDeinit, &alloc);
 
     // Create strings and push them properly
-    Str tag1 = StrInitFromZstr("electronics");
-    Str tag2 = StrInitFromZstr("computers");
-    Str tag3 = StrInitFromZstr("portable");
+    Str tag1 = StrInitFromZstr("electronics", &alloc);
+    Str tag2 = StrInitFromZstr("computers", &alloc);
+    Str tag3 = StrInitFromZstr("portable", &alloc);
 
     VecPushBack(&product.tags, tag1);
     VecPushBack(&product.tags, tag2);
@@ -324,12 +348,13 @@ bool test_simple_product_with_tags_writing(void) {
 
     const char *expected =
         "{\"id\":12345,\"name\":\"Laptop\",\"price\":999.990000,\"tags\":[\"electronics\",\"computers\",\"portable\"]}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
     SimpleProductDeinit(&product);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 

@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Float.h>
 #include <Misra/Std/Container/Int.h>
 #include <Misra/Std/Log.h>
@@ -24,8 +25,10 @@ bool test_float_div_by_zero(void);
 bool test_float_negate_abs(void) {
     WriteFmt("Testing FloatNegate and FloatAbs\n");
 
-    Float value = FloatFromStr("12.5");
-    Str   text  = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float value = FloatFromStr("12.5", &alloc.base);
+    Str   text  = StrInit(&alloc.base);
 
     FloatNegate(&value);
     text = FloatToStr(&value);
@@ -39,16 +42,19 @@ bool test_float_negate_abs(void) {
 
     StrDeinit(&text);
     FloatDeinit(&value);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_add_small_small(void) {
     WriteFmt("Testing FloatAdd with small floats\n");
 
-    Float a            = FloatFromStr("1.2");
-    Float b            = FloatFromStr("0.03");
-    Float result_value = FloatInit();
-    Str   text         = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a            = FloatFromStr("1.2", &alloc.base);
+    Float b            = FloatFromStr("0.03", &alloc.base);
+    Float result_value = FloatInit(&alloc.base);
+    Str   text         = StrInit(&alloc.base);
 
     FloatAdd(&result_value, &a, &b);
     text = FloatToStr(&result_value);
@@ -59,16 +65,19 @@ bool test_float_add_small_small(void) {
     FloatDeinit(&a);
     FloatDeinit(&b);
     FloatDeinit(&result_value);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_add_very_large_large(void) {
     WriteFmt("Testing FloatAdd with very large floats\n");
 
-    Float a            = FloatFromStr(FLOAT_TEST_VERY_LARGE_ONES);
-    Float b            = FloatFromStr(FLOAT_TEST_VERY_LARGE_TWOS);
-    Float result_value = FloatInit();
-    Str   text         = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a            = FloatFromStr(FLOAT_TEST_VERY_LARGE_ONES, &alloc.base);
+    Float b            = FloatFromStr(FLOAT_TEST_VERY_LARGE_TWOS, &alloc.base);
+    Float result_value = FloatInit(&alloc.base);
+    Str   text         = StrInit(&alloc.base);
 
     FloatAdd(&result_value, &a, &b);
     text = FloatToStr(&result_value);
@@ -79,17 +88,20 @@ bool test_float_add_very_large_large(void) {
     FloatDeinit(&a);
     FloatDeinit(&b);
     FloatDeinit(&result_value);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_add_generic(void) {
     WriteFmt("Testing FloatAdd generic dispatch\n");
 
-    Float a            = FloatFromStr("1.25");
-    Float b            = FloatFromStr("0.75");
-    Int   whole        = IntFrom(2);
-    Float result_value = FloatInit();
-    Str   text         = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a            = FloatFromStr("1.25", &alloc.base);
+    Float b            = FloatFromStr("0.75", &alloc.base);
+    Int   whole        = IntFrom(2, &alloc.base);
+    Float result_value = FloatInit(&alloc.base);
+    Str   text         = StrInit(&alloc.base);
 
     FloatAdd(&result_value, &a, &b);
     text = FloatToStr(&result_value);
@@ -125,16 +137,19 @@ bool test_float_add_generic(void) {
     IntDeinit(&whole);
     FloatDeinit(&result_value);
     StrDeinit(&text);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_sub_small_small(void) {
     WriteFmt("Testing FloatSub with small floats\n");
 
-    Float a            = FloatFromStr("1.5");
-    Float b            = FloatFromStr("2");
-    Float result_value = FloatInit();
-    Str   text         = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a            = FloatFromStr("1.5", &alloc.base);
+    Float b            = FloatFromStr("2", &alloc.base);
+    Float result_value = FloatInit(&alloc.base);
+    Str   text         = StrInit(&alloc.base);
 
     FloatSub(&result_value, &a, &b);
     text = FloatToStr(&result_value);
@@ -145,16 +160,19 @@ bool test_float_sub_small_small(void) {
     FloatDeinit(&a);
     FloatDeinit(&b);
     FloatDeinit(&result_value);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_sub_very_large_large(void) {
     WriteFmt("Testing FloatSub with very large floats\n");
 
-    Float a            = FloatFromStr(FLOAT_TEST_VERY_LARGE_THREES);
-    Float b            = FloatFromStr(FLOAT_TEST_VERY_LARGE_ONES);
-    Float result_value = FloatInit();
-    Str   text         = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a            = FloatFromStr(FLOAT_TEST_VERY_LARGE_THREES, &alloc.base);
+    Float b            = FloatFromStr(FLOAT_TEST_VERY_LARGE_ONES, &alloc.base);
+    Float result_value = FloatInit(&alloc.base);
+    Str   text         = StrInit(&alloc.base);
 
     FloatSub(&result_value, &a, &b);
     text = FloatToStr(&result_value);
@@ -165,17 +183,20 @@ bool test_float_sub_very_large_large(void) {
     FloatDeinit(&a);
     FloatDeinit(&b);
     FloatDeinit(&result_value);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_sub_generic(void) {
     WriteFmt("Testing FloatSub generic dispatch\n");
 
-    Float a            = FloatFromStr("5.5");
-    Float b            = FloatFromStr("0.5");
-    Int   whole        = IntFrom(2);
-    Float result_value = FloatInit();
-    Str   text         = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a            = FloatFromStr("5.5", &alloc.base);
+    Float b            = FloatFromStr("0.5", &alloc.base);
+    Int   whole        = IntFrom(2, &alloc.base);
+    Float result_value = FloatInit(&alloc.base);
+    Str   text         = StrInit(&alloc.base);
 
     FloatSub(&result_value, &a, &b);
     text = FloatToStr(&result_value);
@@ -206,16 +227,19 @@ bool test_float_sub_generic(void) {
     IntDeinit(&whole);
     FloatDeinit(&result_value);
     StrDeinit(&text);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_mul_small_small(void) {
     WriteFmt("Testing FloatMul with small floats\n");
 
-    Float a            = FloatFromStr("12.5");
-    Float b            = FloatFromStr("-0.2");
-    Float result_value = FloatInit();
-    Str   text         = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a            = FloatFromStr("12.5", &alloc.base);
+    Float b            = FloatFromStr("-0.2", &alloc.base);
+    Float result_value = FloatInit(&alloc.base);
+    Str   text         = StrInit(&alloc.base);
 
     FloatMul(&result_value, &a, &b);
     text = FloatToStr(&result_value);
@@ -226,16 +250,19 @@ bool test_float_mul_small_small(void) {
     FloatDeinit(&a);
     FloatDeinit(&b);
     FloatDeinit(&result_value);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_mul_very_large_small(void) {
     WriteFmt("Testing FloatMul with very large and small floats\n");
 
-    Float a            = FloatFromStr(FLOAT_TEST_VERY_LARGE_ONES);
-    Float b            = FloatFromStr("2");
-    Float result_value = FloatInit();
-    Str   text         = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a            = FloatFromStr(FLOAT_TEST_VERY_LARGE_ONES, &alloc.base);
+    Float b            = FloatFromStr("2", &alloc.base);
+    Float result_value = FloatInit(&alloc.base);
+    Str   text         = StrInit(&alloc.base);
 
     FloatMul(&result_value, &a, &b);
     text = FloatToStr(&result_value);
@@ -246,17 +273,20 @@ bool test_float_mul_very_large_small(void) {
     FloatDeinit(&a);
     FloatDeinit(&b);
     FloatDeinit(&result_value);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_mul_generic(void) {
     WriteFmt("Testing FloatMul generic dispatch\n");
 
-    Float a            = FloatFromStr("1.5");
-    Float b            = FloatFromStr("2");
-    Int   whole        = IntFrom(2);
-    Float result_value = FloatInit();
-    Str   text         = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a            = FloatFromStr("1.5", &alloc.base);
+    Float b            = FloatFromStr("2", &alloc.base);
+    Int   whole        = IntFrom(2, &alloc.base);
+    Float result_value = FloatInit(&alloc.base);
+    Str   text         = StrInit(&alloc.base);
 
     FloatMul(&result_value, &a, &b);
     text = FloatToStr(&result_value);
@@ -287,16 +317,19 @@ bool test_float_mul_generic(void) {
     IntDeinit(&whole);
     FloatDeinit(&result_value);
     StrDeinit(&text);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_div_small_small(void) {
     WriteFmt("Testing FloatDiv with small floats\n");
 
-    Float a            = FloatFromStr("1");
-    Float b            = FloatFromStr("8");
-    Float result_value = FloatInit();
-    Str   text         = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a            = FloatFromStr("1", &alloc.base);
+    Float b            = FloatFromStr("8", &alloc.base);
+    Float result_value = FloatInit(&alloc.base);
+    Str   text         = StrInit(&alloc.base);
 
     FloatDiv(&result_value, &a, &b, 3);
     text = FloatToStr(&result_value);
@@ -307,16 +340,19 @@ bool test_float_div_small_small(void) {
     FloatDeinit(&a);
     FloatDeinit(&b);
     FloatDeinit(&result_value);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_div_very_large_small(void) {
     WriteFmt("Testing FloatDiv with very large and small floats\n");
 
-    Float a            = FloatFromStr(FLOAT_TEST_VERY_LARGE_TWOS);
-    Float b            = FloatFromStr("2");
-    Float result_value = FloatInit();
-    Str   text         = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a            = FloatFromStr(FLOAT_TEST_VERY_LARGE_TWOS, &alloc.base);
+    Float b            = FloatFromStr("2", &alloc.base);
+    Float result_value = FloatInit(&alloc.base);
+    Str   text         = StrInit(&alloc.base);
 
     FloatDiv(&result_value, &a, &b, 0);
     text = FloatToStr(&result_value);
@@ -327,17 +363,20 @@ bool test_float_div_very_large_small(void) {
     FloatDeinit(&a);
     FloatDeinit(&b);
     FloatDeinit(&result_value);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_div_generic(void) {
     WriteFmt("Testing FloatDiv generic dispatch\n");
 
-    Float a            = FloatFromStr("7.5");
-    Float b            = FloatFromStr("2.5");
-    Int   whole        = IntFrom(3);
-    Float result_value = FloatInit();
-    Str   text         = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a            = FloatFromStr("7.5", &alloc.base);
+    Float b            = FloatFromStr("2.5", &alloc.base);
+    Int   whole        = IntFrom(3, &alloc.base);
+    Float result_value = FloatInit(&alloc.base);
+    Str   text         = StrInit(&alloc.base);
 
     FloatDiv(&result_value, &a, &b, 1);
     text = FloatToStr(&result_value);
@@ -373,15 +412,18 @@ bool test_float_div_generic(void) {
     IntDeinit(&whole);
     FloatDeinit(&result_value);
     StrDeinit(&text);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_div_by_zero(void) {
     WriteFmt("Testing FloatDiv divide-by-zero handling\n");
 
-    Float a = FloatFromStr("1");
-    Float b = FloatInit();
-    Float r = FloatInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a = FloatFromStr("1", &alloc.base);
+    Float b = FloatInit(&alloc.base);
+    Float r = FloatInit(&alloc.base);
     bool  ok;
 
     ok = !FloatDiv(&r, &a, &b, 4);
@@ -390,6 +432,7 @@ bool test_float_div_by_zero(void) {
     FloatDeinit(&a);
     FloatDeinit(&b);
     FloatDeinit(&r);
+    DefaultAllocatorDeinit(&alloc);
     return ok;
 }
 

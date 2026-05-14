@@ -8,6 +8,7 @@
 #define FUZZ_STR_H
 
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h> // For size_t
@@ -96,8 +97,15 @@ typedef enum {
 } StrFunction;
 
 // Function prototypes
-void init_str(Str *str);
+void init_str(Str *str, DefaultAllocator *alloc);
 void deinit_str(Str *str);
-void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, size_t size);
+void fuzz_str(
+    Str              *str,
+    StrFunction       func,
+    const uint8_t    *data,
+    size_t           *offset,
+    size_t            size,
+    DefaultAllocator *alloc
+);
 
 #endif // FUZZ_STR_H

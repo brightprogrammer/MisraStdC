@@ -16,15 +16,22 @@ static int compare_ints(const void *a, const void *b) {
     return (ia > ib) - (ia < ib);
 }
 
-void init_int_vec(IntVec *vec) {
-    *vec = VecInitT(*vec);
+void init_int_vec(IntVec *vec, DefaultAllocator *alloc) {
+    *vec = VecInitT(*vec, alloc);
 }
 
 void deinit_int_vec(IntVec *vec) {
     VecDeinit(vec);
 }
 
-void fuzz_int_vec(IntVec *vec, VecIntFunction func, const uint8_t *data, size_t *offset, size_t size) {
+void fuzz_int_vec(
+    IntVec           *vec,
+    VecIntFunction    func,
+    const uint8_t    *data,
+    size_t           *offset,
+    size_t            size,
+    DefaultAllocator *alloc
+) {
     switch (func) {
         case VEC_INT_PUSH_BACK : {
             i32 value = (i32)extract_u32(data, offset, size);
@@ -324,7 +331,7 @@ void fuzz_int_vec(IntVec *vec, VecIntFunction func, const uint8_t *data, size_t 
         }
 
         case VEC_INT_MERGE : {
-            IntVec  temp  = VecInitT(temp);
+            IntVec  temp  = VecInitT(temp, alloc);
             uint8_t count = extract_u8(data, offset, size);
             count         = count % 4;
 
@@ -378,7 +385,7 @@ void fuzz_int_vec(IntVec *vec, VecIntFunction func, const uint8_t *data, size_t 
         }
 
         case VEC_INT_INIT_CLONE : {
-            IntVec  temp  = VecInitT(temp);
+            IntVec  temp  = VecInitT(temp, alloc);
             uint8_t count = extract_u8(data, offset, size);
             count         = count % 4;
 
@@ -387,7 +394,13 @@ void fuzz_int_vec(IntVec *vec, VecIntFunction func, const uint8_t *data, size_t 
                 VecPushBack(&temp, value);
             }
 
-            VecInitClone(vec, &temp);
+            // VecInitClone macro is currently broken upstream
+            // (references missing VEC_INIT_WITH_DEEP_COPY_VALUE),
+            // so exercise the clone path manually via clone_vec.
+            VecDeinit(vec);
+            *vec = VecInitT(*vec, alloc);
+            clone_vec(GENERIC_VEC(vec), GENERIC_VEC(&temp), sizeof(i32));
+
             VecDeinit(&temp); // Clean up temp to prevent memory leak
             break;
         }

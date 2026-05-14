@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 
 #include <stdio.h>
@@ -55,10 +56,12 @@ bool test_bitvec_suffix_match_null_patterns(void);
 
 // Test basic pattern matching functions
 bool test_bitvec_basic_pattern_functions(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing basic BitVec pattern functions\n");
 
-    BitVec source  = BitVecInit();
-    BitVec pattern = BitVecInit();
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result  = true;
 
     // Create source: 11010011101
@@ -85,15 +88,18 @@ bool test_bitvec_basic_pattern_functions(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecFindPattern function comprehensively
 bool test_bitvec_find_pattern(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecFindPattern function\n");
 
-    BitVec source  = BitVecInit();
-    BitVec pattern = BitVecInit();
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result  = true;
 
     // Create source: 110101011010
@@ -132,15 +138,18 @@ bool test_bitvec_find_pattern(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecFindLastPattern function
 bool test_bitvec_find_last_pattern(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecFindLastPattern function\n");
 
-    BitVec source  = BitVecInit();
-    BitVec pattern = BitVecInit();
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result  = true;
 
     // Create source with multiple pattern occurrences: 101010101
@@ -177,15 +186,18 @@ bool test_bitvec_find_last_pattern(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecFindAllPattern function
 bool test_bitvec_find_all_pattern(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecFindAllPattern function\n");
 
-    BitVec source  = BitVecInit();
-    BitVec pattern = BitVecInit();
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result  = true;
 
     // Create source: 10101010101
@@ -235,15 +247,18 @@ bool test_bitvec_find_all_pattern(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test edge cases for pattern functions
 bool test_bitvec_pattern_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec pattern edge cases\n");
 
-    BitVec source  = BitVecInit();
-    BitVec pattern = BitVecInit();
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result  = true;
 
     // Test empty pattern
@@ -304,15 +319,18 @@ bool test_bitvec_pattern_edge_cases(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Stress tests with large data
 bool test_bitvec_pattern_stress_tests(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec pattern stress tests\n");
 
-    BitVec source  = BitVecInit();
-    BitVec pattern = BitVecInit();
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result  = true;
 
     // Create large source with known pattern
@@ -345,60 +363,73 @@ bool test_bitvec_pattern_stress_tests(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Deadend test 1: BitVecFindPattern with NULL source
 bool test_bitvec_find_pattern_null_source(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecFindPattern(NULL, pattern) - should fatal\n");
 
-    BitVec pattern = BitVecInit();
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&pattern, true);
 
     BitVecFindPattern(NULL, &pattern); // Should cause LOG_FATAL
 
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 // Deadend test 2: BitVecFindPattern with NULL pattern
 bool test_bitvec_find_pattern_null_pattern(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecFindPattern(source, NULL) - should fatal\n");
 
-    BitVec source = BitVecInit();
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&source, true);
     BitVecPush(&source, false);
 
     BitVecFindPattern(&source, NULL); // Should cause LOG_FATAL
 
     BitVecDeinit(&source);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 // Deadend test 3: BitVecFindLastPattern with NULL source
 bool test_bitvec_find_last_pattern_null_source(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecFindLastPattern(NULL, pattern) - should fatal\n");
 
-    BitVec pattern = BitVecInit();
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&pattern, true);
 
     BitVecFindLastPattern(NULL, &pattern); // Should cause LOG_FATAL
 
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 // Deadend test 4: BitVecFindLastPattern with NULL pattern
 bool test_bitvec_find_last_pattern_null_pattern(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecFindLastPattern(source, NULL) - should fatal\n");
 
-    BitVec source = BitVecInit();
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&source, true);
     BitVecPush(&source, false);
 
     BitVecFindLastPattern(&source, NULL); // Should cause LOG_FATAL
 
     BitVecDeinit(&source);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
@@ -416,9 +447,11 @@ bool test_bitvec_find_all_pattern_null_source(void) {
 
 // Deadend test 6: BitVecFindAllPattern with NULL pattern
 bool test_bitvec_find_all_pattern_null_pattern(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecFindAllPattern(source, NULL, results, 10) - should fatal\n");
 
-    BitVec source = BitVecInit();
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
     size   results[10];
     BitVecPush(&source, true);
     BitVecPush(&source, false);
@@ -426,15 +459,18 @@ bool test_bitvec_find_all_pattern_null_pattern(void) {
     BitVecFindAllPattern(&source, NULL, results, 10); // Should cause LOG_FATAL
 
     BitVecDeinit(&source);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 // Deadend test 7: BitVecFindAllPattern with NULL results
 bool test_bitvec_find_all_pattern_null_results(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecFindAllPattern(source, pattern, NULL, 10) - should fatal\n");
 
-    BitVec source  = BitVecInit();
-    BitVec pattern = BitVecInit();
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&source, true);
     BitVecPush(&source, false);
     BitVecPush(&pattern, true);
@@ -443,15 +479,18 @@ bool test_bitvec_find_all_pattern_null_results(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 // Deadend test 8: BitVecFindAllPattern with zero max_results
 bool test_bitvec_find_all_pattern_zero_max_results(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecFindAllPattern(source, pattern, results, 0) - should fatal\n");
 
-    BitVec source  = BitVecInit();
-    BitVec pattern = BitVecInit();
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     size   results[10];
     BitVecPush(&source, true);
     BitVecPush(&source, false);
@@ -461,6 +500,7 @@ bool test_bitvec_find_all_pattern_zero_max_results(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
@@ -468,10 +508,12 @@ bool test_bitvec_find_all_pattern_zero_max_results(void) {
 
 // BitVecStartsWith tests
 bool test_bitvec_starts_with_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecStartsWith basic functionality\n");
 
-    BitVec source = BitVecInit();
-    BitVec prefix = BitVecInit();
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec prefix = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Create source: 110101
@@ -499,14 +541,17 @@ bool test_bitvec_starts_with_basic(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&prefix);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_starts_with_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecStartsWith edge cases\n");
 
-    BitVec source = BitVecInit();
-    BitVec prefix = BitVecInit();
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec prefix = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test empty prefix (should always match)
@@ -530,15 +575,18 @@ bool test_bitvec_starts_with_edge_cases(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&prefix);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // BitVecEndsWith tests
 bool test_bitvec_ends_with_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecEndsWith basic functionality\n");
 
-    BitVec source = BitVecInit();
-    BitVec suffix = BitVecInit();
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec suffix = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Create source: 110101
@@ -566,14 +614,17 @@ bool test_bitvec_ends_with_basic(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&suffix);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_ends_with_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecEndsWith edge cases\n");
 
-    BitVec source = BitVecInit();
-    BitVec suffix = BitVecInit();
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec suffix = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test empty suffix (should always match)
@@ -588,15 +639,18 @@ bool test_bitvec_ends_with_edge_cases(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&suffix);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // BitVecContains tests
 bool test_bitvec_contains_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecContains basic functionality\n");
 
-    BitVec source  = BitVecInit();
-    BitVec pattern = BitVecInit();
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result  = true;
 
     // Create source: 1101011
@@ -625,15 +679,18 @@ bool test_bitvec_contains_basic(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // BitVecContainsAt tests
 bool test_bitvec_contains_at_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecContainsAt basic functionality\n");
 
-    BitVec source  = BitVecInit();
-    BitVec pattern = BitVecInit();
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result  = true;
 
     // Create source: 1101011
@@ -656,14 +713,17 @@ bool test_bitvec_contains_at_basic(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_contains_at_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecContainsAt edge cases\n");
 
-    BitVec source  = BitVecInit();
-    BitVec pattern = BitVecInit();
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result  = true;
 
     // Create small source
@@ -679,15 +739,18 @@ bool test_bitvec_contains_at_edge_cases(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // BitVecCountPattern tests
 bool test_bitvec_count_pattern_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecCountPattern basic functionality\n");
 
-    BitVec source  = BitVecInit();
-    BitVec pattern = BitVecInit();
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result  = true;
 
     // Create source: 101010101
@@ -714,15 +777,18 @@ bool test_bitvec_count_pattern_basic(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // BitVecRFindPattern tests
 bool test_bitvec_rfind_pattern_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRFindPattern basic functionality\n");
 
-    BitVec source  = BitVecInit();
-    BitVec pattern = BitVecInit();
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result  = true;
 
     // Create source: 101101101
@@ -751,16 +817,19 @@ bool test_bitvec_rfind_pattern_basic(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // BitVecReplace tests
 bool test_bitvec_replace_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecReplace basic functionality\n");
 
-    BitVec source      = BitVecInit();
-    BitVec old_pattern = BitVecInit();
-    BitVec new_pattern = BitVecInit();
+    BitVec source      = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec old_pattern = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec new_pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result      = true;
 
     // Create source: 110110
@@ -793,16 +862,19 @@ bool test_bitvec_replace_basic(void) {
     BitVecDeinit(&source);
     BitVecDeinit(&old_pattern);
     BitVecDeinit(&new_pattern);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // BitVecReplaceAll tests
 bool test_bitvec_replace_all_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecReplaceAll basic functionality\n");
 
-    BitVec source      = BitVecInit();
-    BitVec old_pattern = BitVecInit();
-    BitVec new_pattern = BitVecInit();
+    BitVec source      = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec old_pattern = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec new_pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result      = true;
 
     // Create source: 110110110
@@ -830,16 +902,19 @@ bool test_bitvec_replace_all_basic(void) {
     BitVecDeinit(&source);
     BitVecDeinit(&old_pattern);
     BitVecDeinit(&new_pattern);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // BitVecMatches tests
 bool test_bitvec_matches_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecMatches basic functionality\n");
 
-    BitVec source   = BitVecInit();
-    BitVec pattern  = BitVecInit();
-    BitVec wildcard = BitVecInit();
+    BitVec source   = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec wildcard = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result   = true;
 
     // Create source: 1101
@@ -865,15 +940,18 @@ bool test_bitvec_matches_basic(void) {
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
     BitVecDeinit(&wildcard);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // BitVecFuzzyMatch tests
 bool test_bitvec_fuzzy_match_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecFuzzyMatch basic functionality\n");
 
-    BitVec source  = BitVecInit();
-    BitVec pattern = BitVecInit();
+    BitVec source  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result  = true;
 
     // Create source: 110100111
@@ -901,14 +979,17 @@ bool test_bitvec_fuzzy_match_basic(void) {
 
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // BitVecRegexMatch tests
 bool test_bitvec_regex_match_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRegexMatch basic functionality\n");
 
-    BitVec source = BitVecInit();
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Create source: 101010
@@ -924,20 +1005,23 @@ bool test_bitvec_regex_match_basic(void) {
     result = result && !BitVecRegexMatch(&source, "111");
 
     BitVecDeinit(&source);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // BitVecPrefixMatch tests
 bool test_bitvec_prefix_match_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecPrefixMatch basic functionality\n");
 
-    BitVec source = BitVecInit();
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVec patterns[3];
     bool   result = true;
 
     // Initialize patterns
     for (int i = 0; i < 3; i++) {
-        patterns[i] = BitVecInit();
+        patterns[i] = BitVecInit(ALLOCATOR_OF(&alloc));
     }
 
     // Create source: 110101
@@ -970,20 +1054,23 @@ bool test_bitvec_prefix_match_basic(void) {
         BitVecDeinit(&patterns[i]);
     }
     BitVecDeinit(&source);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // BitVecSuffixMatch tests
 bool test_bitvec_suffix_match_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecSuffixMatch basic functionality\n");
 
-    BitVec source = BitVecInit();
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVec patterns[3];
     bool   result = true;
 
     // Initialize patterns
     for (int i = 0; i < 3; i++) {
-        patterns[i] = BitVecInit();
+        patterns[i] = BitVecInit(ALLOCATOR_OF(&alloc));
     }
 
     // Create source: 110101
@@ -1016,62 +1103,81 @@ bool test_bitvec_suffix_match_basic(void) {
         BitVecDeinit(&patterns[i]);
     }
     BitVecDeinit(&source);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Additional deadend tests for missing Pattern functions
 
 bool test_bitvec_starts_with_null_source(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecStartsWith(NULL, prefix) - should fatal\n");
-    BitVec prefix = BitVecInit();
+    BitVec prefix = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&prefix, true);
     BitVecStartsWith(NULL, &prefix);
     BitVecDeinit(&prefix);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_starts_with_null_prefix(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecStartsWith(source, NULL) - should fatal\n");
-    BitVec source = BitVecInit();
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&source, true);
     BitVecStartsWith(&source, NULL);
     BitVecDeinit(&source);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_ends_with_null_source(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecEndsWith(NULL, suffix) - should fatal\n");
-    BitVec suffix = BitVecInit();
+    BitVec suffix = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&suffix, true);
     BitVecEndsWith(NULL, &suffix);
     BitVecDeinit(&suffix);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_ends_with_null_suffix(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecEndsWith(source, NULL) - should fatal\n");
-    BitVec source = BitVecInit();
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&source, true);
     BitVecEndsWith(&source, NULL);
     BitVecDeinit(&source);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_contains_at_null_source(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecContainsAt(NULL, pattern, 0) - should fatal\n");
-    BitVec pattern = BitVecInit();
+    BitVec pattern = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&pattern, true);
     BitVecContainsAt(NULL, &pattern, 0);
     BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_contains_at_null_pattern(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecContainsAt(source, NULL, 0) - should fatal\n");
-    BitVec source = BitVecInit();
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&source, true);
     BitVecContainsAt(&source, NULL, 0);
     BitVecDeinit(&source);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
@@ -1084,14 +1190,17 @@ bool test_bitvec_replace_null_source(void) {
 }
 
 bool test_bitvec_matches_null_source(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecMatches(NULL, pattern, wildcard) - should fatal\n");
-    BitVec pattern  = BitVecInit();
-    BitVec wildcard = BitVecInit();
+    BitVec pattern  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec wildcard = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&pattern, true);
     BitVecPush(&wildcard, false);
     BitVecMatches(NULL, &pattern, &wildcard);
     BitVecDeinit(&pattern);
     BitVecDeinit(&wildcard);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
@@ -1102,47 +1211,62 @@ bool test_bitvec_regex_match_null_source(void) {
 }
 
 bool test_bitvec_regex_match_null_pattern(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRegexMatch(source, NULL) - should fatal\n");
-    BitVec source = BitVecInit();
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&source, true);
     BitVecRegexMatch(&source, NULL);
     BitVecDeinit(&source);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_prefix_match_null_source(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecPrefixMatch(NULL, patterns, 1) - should fatal\n");
-    BitVec patterns[1] = {BitVecInit()};
+    BitVec patterns[1] = {BitVecInit(ALLOCATOR_OF(&alloc))};
     BitVecPush(&patterns[0], true);
     BitVecPrefixMatch(NULL, patterns, 1);
     BitVecDeinit(&patterns[0]);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_prefix_match_null_patterns(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecPrefixMatch(source, NULL, 1) - should fatal\n");
-    BitVec source = BitVecInit();
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&source, true);
     BitVecPrefixMatch(&source, NULL, 1);
     BitVecDeinit(&source);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_suffix_match_null_source(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecSuffixMatch(NULL, patterns, 1) - should fatal\n");
-    BitVec patterns[1] = {BitVecInit()};
+    BitVec patterns[1] = {BitVecInit(ALLOCATOR_OF(&alloc))};
     BitVecPush(&patterns[0], true);
     BitVecSuffixMatch(NULL, patterns, 1);
     BitVecDeinit(&patterns[0]);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_suffix_match_null_patterns(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecSuffixMatch(source, NULL, 1) - should fatal\n");
-    BitVec source = BitVecInit();
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&source, true);
     BitVecSuffixMatch(&source, NULL, 1);
     BitVecDeinit(&source);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 

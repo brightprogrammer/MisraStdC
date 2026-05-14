@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/List.h>
 #include <Misra/Std/Log.h>
 
@@ -15,14 +16,14 @@ static i32 compare_ints(const void *lhs, const void *rhs) {
 static bool tracked_copy_init(void *dst, const void *src, const Allocator *alloc) {
     (void)alloc;
     g_copy_init_count += 1;
-    *(int *)dst = *(int *)src;
+    *(int *)dst        = *(int *)src;
     return true;
 }
 
 static void tracked_copy_deinit(void *data, const Allocator *alloc) {
     (void)alloc;
     g_copy_deinit_count += 1;
-    *(int *)data = 0;
+    *(int *)data         = 0;
 }
 
 static void reset_counters(void) {
@@ -48,8 +49,10 @@ static bool list_matches(GenericList *list, const int *expected, size count) {
 static bool test_list_clear_and_reuse(void) {
     WriteFmt("Testing ListClear and reuse\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list = ListInit(&alloc);
 
     ListClear(&list);
     ListPushBackR(&list, 1);
@@ -63,14 +66,17 @@ static bool test_list_clear_and_reuse(void) {
     result = result && list_matches(GENERIC_LIST(&list), (const int[]) {9}, 1);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_sort_and_reverse(void) {
     WriteFmt("Testing ListSort and ListReverse\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list = ListInit(&alloc);
 
     ListPushBackR(&list, 4);
     ListPushBackR(&list, 1);
@@ -85,15 +91,18 @@ static bool test_list_sort_and_reverse(void) {
     result = result && list_matches(GENERIC_LIST(&list), (const int[]) {4, 3, 2, 2, 1}, 5);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_sort_and_reverse_edge_cases(void) {
     WriteFmt("Testing ListSort and ListReverse edge cases\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList empty     = ListInit();
-    IntList singleton = ListInit();
+    IntList empty     = ListInit(&alloc);
+    IntList singleton = ListInit(&alloc);
 
     ListSort(&empty, compare_ints);
     ListReverse(&empty);
@@ -106,14 +115,17 @@ static bool test_list_sort_and_reverse_edge_cases(void) {
 
     ListDeinit(&empty);
     ListDeinit(&singleton);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_clear_with_deep_copy(void) {
     WriteFmt("Testing ListClear with deep copy\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInitWithDeepCopy(tracked_copy_init, tracked_copy_deinit);
+    IntList list = ListInitWithDeepCopy(tracked_copy_init, tracked_copy_deinit, &alloc);
 
     reset_counters();
     ListPushBackR(&list, 7);
@@ -131,6 +143,7 @@ static bool test_list_clear_with_deep_copy(void) {
 
     ListDeinit(&list);
     result = result && (g_copy_deinit_count == 3);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Log.h>
 
@@ -26,12 +27,14 @@ bool test_vec_foreach_ptr_reverse_idx_out_of_bounds_access(void);
 bool test_vec_foreach_ptr_in_range_idx_out_of_bounds_access(void);
 
 // Test VecForeach macro
+static DefaultAllocator alloc;
+
 bool test_vec_foreach(void) {
     WriteFmt("Testing VecForeach\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -70,7 +73,7 @@ bool test_vec_foreach_idx(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -106,7 +109,7 @@ bool test_vec_foreach_ptr(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -147,7 +150,7 @@ bool test_vec_foreach_ptr_idx(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -178,7 +181,7 @@ bool test_vec_foreach_reverse(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -211,7 +214,7 @@ bool test_vec_foreach_reverse_idx(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -238,7 +241,7 @@ bool test_vec_foreach_ptr_reverse(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -272,7 +275,7 @@ bool test_vec_foreach_ptr_reverse_idx(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -306,7 +309,7 @@ bool test_vec_foreach_out_of_bounds_access(void) {
     WriteFmt("Testing VecForeach where modification causes out of bounds access (should crash)\n");
 
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some elements
     for (int i = 0; i < 5; i++) {
@@ -346,7 +349,7 @@ bool test_vec_foreach_idx_out_of_bounds_access(void) {
     WriteFmt("Testing VecForeachIdx where idx goes out of bounds (should crash)\n");
 
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some elements
     for (int i = 0; i < 6; i++) {
@@ -384,7 +387,7 @@ bool test_vec_foreach_reverse_idx_out_of_bounds_access(void) {
     WriteFmt("Testing VecForeachReverseIdx where idx goes out of bounds (should crash)\n");
 
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add several elements
     for (int i = 0; i < 6; i++) {
@@ -423,7 +426,7 @@ bool test_vec_foreach_ptr_idx_out_of_bounds_access(void) {
     WriteFmt("Testing VecForeachPtrIdx where idx goes out of bounds (should crash)\n");
 
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add several elements
     for (int i = 0; i < 7; i++) {
@@ -461,7 +464,7 @@ bool test_vec_foreach_ptr_reverse_idx_out_of_bounds_access(void) {
     WriteFmt("Testing VecForeachPtrReverseIdx where idx goes out of bounds (should crash)\n");
 
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add several elements
     for (int i = 0; i < 8; i++) {
@@ -498,7 +501,7 @@ bool test_vec_foreach_ptr_in_range_idx_out_of_bounds_access(void) {
     WriteFmt("Testing VecForeachPtrInRangeIdx where idx goes out of bounds (should crash)\n");
 
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add several elements
     for (int i = 0; i < 9; i++) {
@@ -536,7 +539,7 @@ bool test_vec_foreach_idx_basic_out_of_bounds_access(void) {
     WriteFmt("Testing basic VecForeachIdx where idx goes out of bounds (should crash)\n");
 
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add several elements
     for (int i = 0; i < 5; i++) {
@@ -571,6 +574,7 @@ bool test_vec_foreach_idx_basic_out_of_bounds_access(void) {
 
 // Main function that runs all tests
 int main(void) {
+    alloc = DefaultAllocatorInit();
     WriteFmt("[INFO] Starting Vec.Foreach.Simple tests\n\n");
 
     // Array of normal test functions
@@ -595,5 +599,7 @@ int main(void) {
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 
     // Run all tests using the centralized test driver
-    return run_test_suite(tests, total_tests, NULL, 0, "Vec.Foreach.Simple");
+    int __rc = run_test_suite(tests, total_tests, NULL, 0, "Vec.Foreach.Simple");
+    DefaultAllocatorDeinit(&alloc);
+    return __rc;
 }

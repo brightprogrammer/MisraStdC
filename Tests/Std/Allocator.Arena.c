@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include <Misra/Std/Allocator.h>
+#include <Misra/Std/Allocator/Arena.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
@@ -12,10 +13,11 @@
 #include "../Util/TestRunner.h"
 
 static bool test_basic_bump(void) {
-    Allocator arena = ArenaAllocator();
-    char     *a     = (char *)AllocatorAlloc(&arena, 16, true);
-    char     *b     = (char *)AllocatorAlloc(&arena, 32, true);
-    bool      ok    = (a != NULL) && (b != NULL) && (b > a);
+    ArenaAllocator arena      = ArenaAllocatorInit();
+    Allocator     *alloc_base = ALLOCATOR_OF(&arena);
+    char          *a          = (char *)AllocatorAlloc(alloc_base, 16, true);
+    char          *b          = (char *)AllocatorAlloc(alloc_base, 32, true);
+    bool           ok         = (a != NULL) && (b != NULL) && (b > a);
 
     if (ok) {
         a[0]  = 'a';
@@ -23,49 +25,52 @@ static bool test_basic_bump(void) {
         ok    = (a[0] == 'a') && (b[31] == 'z');
     }
 
-    AllocatorUnbind(&arena);
+    ArenaAllocatorDeinit(&arena);
     return ok;
 }
 
 static bool test_grow_last_in_place(void) {
-    Allocator arena = ArenaAllocator();
-    char     *p     = (char *)AllocatorAlloc(&arena, 16, true);
-    bool      ok    = (p != NULL);
+    ArenaAllocator arena      = ArenaAllocatorInit();
+    Allocator     *alloc_base = ALLOCATOR_OF(&arena);
+    char          *p          = (char *)AllocatorAlloc(alloc_base, 16, true);
+    bool           ok         = (p != NULL);
 
     if (ok) {
         p[0]        = 'h';
         p[15]       = 'i';
-        char *grown = (char *)AllocatorRealloc(&arena, p, 16, 32);
+        char *grown = (char *)AllocatorRealloc(alloc_base, p, 16, 32);
         // Grew in place at the same address, with content preserved.
         ok = (grown == p) && (grown[0] == 'h') && (grown[15] == 'i');
     }
 
-    AllocatorUnbind(&arena);
+    ArenaAllocatorDeinit(&arena);
     return ok;
 }
 
 static bool test_grow_non_last_relocates(void) {
-    Allocator arena = ArenaAllocator();
-    char     *a     = (char *)AllocatorAlloc(&arena, 16, true);
-    char     *b     = (char *)AllocatorAlloc(&arena, 16, true);
-    bool      ok    = (a != NULL) && (b != NULL);
+    ArenaAllocator arena      = ArenaAllocatorInit();
+    Allocator     *alloc_base = ALLOCATOR_OF(&arena);
+    char          *a          = (char *)AllocatorAlloc(alloc_base, 16, true);
+    char          *b          = (char *)AllocatorAlloc(alloc_base, 16, true);
+    bool           ok         = (a != NULL) && (b != NULL);
 
     if (ok) {
         a[0]        = 'a';
         a[15]       = '!';
-        char *grown = (char *)AllocatorRealloc(&arena, a, 16, 64);
+        char *grown = (char *)AllocatorRealloc(alloc_base, a, 16, 64);
         // `a` is no longer the tail, so realloc must move it.
         ok = (grown != NULL) && (grown != a) && (grown[0] == 'a') && (grown[15] == '!');
     }
 
-    AllocatorUnbind(&arena);
+    (void)b;
+    ArenaAllocatorDeinit(&arena);
     return ok;
 }
 
 static bool test_vec_on_arena(void) {
-    Allocator arena = ArenaAllocator();
+    ArenaAllocator arena = ArenaAllocatorInit();
     typedef Vec(int) IntVec;
-    IntVec v  = VecInit(arena);
+    IntVec v  = VecInit(&arena);
     bool   ok = true;
 
     for (int i = 0; i < 4096; i++) {
@@ -77,35 +82,37 @@ static bool test_vec_on_arena(void) {
 
     ok = ok && VecLen(&v) == 4096 && VecAt(&v, 0) == 0 && VecAt(&v, 4095) == 4095;
     VecDeinit(&v);
-    AllocatorUnbind(&arena);
+    ArenaAllocatorDeinit(&arena);
     return ok;
 }
 
 static bool test_reset(void) {
-    Allocator arena = ArenaAllocator();
-    char     *a     = (char *)AllocatorAlloc(&arena, 4096, true);
-    char     *b     = (char *)AllocatorAlloc(&arena, 4096, true);
-    bool      ok    = (a != NULL) && (b != NULL);
+    ArenaAllocator arena      = ArenaAllocatorInit();
+    Allocator     *alloc_base = ALLOCATOR_OF(&arena);
+    char          *a          = (char *)AllocatorAlloc(alloc_base, 4096, true);
+    char          *b          = (char *)AllocatorAlloc(alloc_base, 4096, true);
+    bool           ok         = (a != NULL) && (b != NULL);
 
     ArenaAllocatorReset(&arena);
-    char *c = (char *)AllocatorAlloc(&arena, 4096, true);
+    char *c = (char *)AllocatorAlloc(alloc_base, 4096, true);
     ok      = ok && (c != NULL) && (c == a); // Reset reuses the first chunk.
 
-    AllocatorUnbind(&arena);
+    ArenaAllocatorDeinit(&arena);
     return ok;
 }
 
 static bool test_alignment(void) {
-    Allocator arena = ArenaAllocatorAligned(64);
-    void     *a     = AllocatorAlloc(&arena, 1, true);
-    void     *b     = AllocatorAlloc(&arena, 1, true);
-    bool      ok    = (a != NULL) && (b != NULL);
+    ArenaAllocator arena      = ArenaAllocatorInitAligned(64);
+    Allocator     *alloc_base = ALLOCATOR_OF(&arena);
+    void          *a          = AllocatorAlloc(alloc_base, 1, true);
+    void          *b          = AllocatorAlloc(alloc_base, 1, true);
+    bool           ok         = (a != NULL) && (b != NULL);
 
     if (ok) {
         ok = (((uintptr_t)a & 63u) == 0) && (((uintptr_t)b & 63u) == 0);
     }
 
-    AllocatorUnbind(&arena);
+    ArenaAllocatorDeinit(&arena);
     return ok;
 }
 

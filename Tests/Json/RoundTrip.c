@@ -1,4 +1,5 @@
 #include <Misra/Parsers/JSON.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
@@ -8,6 +9,108 @@
 
 // Include test utilities
 #include "../Util/TestRunner.h"
+
+// --- Allocator-aware overrides of JR_OBJ/JR_STR/JR_STR_KV ---
+// These rewrite the JSON read path to use explicit JReadString
+// with a local `DefaultAllocator alloc` available in scope.
+// JSON.h is untouched.
+#undef JR_OBJ
+#define JR_OBJ(si, reader)                                                                                             \
+    do {                                                                                                               \
+        if (!StrIterRemainingLength(&si)) {                                                                            \
+            break;                                                                                                     \
+        }                                                                                                              \
+        StrIter saved_si = si;                                                                                         \
+        si               = JSkipWhitespace(si);                                                                        \
+        if (StrIterPeek(&si) != '{') {                                                                                 \
+            LOG_ERROR("Invalid object start. Expected '{'.");                                                          \
+            si = saved_si;                                                                                             \
+            break;                                                                                                     \
+        }                                                                                                              \
+        StrIterNext(&si);                                                                                              \
+        si = JSkipWhitespace(si);                                                                                      \
+        StrIter read_si_;                                                                                              \
+        bool    expect_comma = false;                                                                                  \
+        bool    failed       = false;                                                                                  \
+        while (StrIterPeek(&si) && StrIterPeek(&si) != '}') {                                                          \
+            if (expect_comma) {                                                                                        \
+                if (StrIterPeek(&si) != ',') {                                                                         \
+                    LOG_ERROR("Expected ',' after key/value pairs in object. Invalid JSON object.");                   \
+                    failed = true;                                                                                     \
+                    si     = saved_si;                                                                                 \
+                    break;                                                                                             \
+                }                                                                                                      \
+                StrIterNext(&si);                                                                                      \
+                si = JSkipWhitespace(si);                                                                              \
+            }                                                                                                          \
+            Str key = StrInit(&alloc);                                                                                 \
+            read_si_ = JReadString(si, &key);                                                                          \
+            if (read_si_.pos == si.pos) {                                                                              \
+                LOG_ERROR("Failed to read string key in object. Invalid JSON");                                        \
+                StrDeinit(&key);                                                                                       \
+                failed = true;                                                                                         \
+                si     = saved_si;                                                                                     \
+                break;                                                                                                 \
+            }                                                                                                          \
+            si = read_si_;                                                                                             \
+            si = JSkipWhitespace(si);                                                                                  \
+            if (StrIterPeek(&si) != ':') {                                                                             \
+                LOG_ERROR("Expected ':' after key string. Failed to read JSON");                                       \
+                StrDeinit(&key);                                                                                       \
+                failed = true;                                                                                         \
+                si     = saved_si;                                                                                     \
+                break;                                                                                                 \
+            }                                                                                                          \
+            StrIterNext(&si);                                                                                          \
+            si = JSkipWhitespace(si);                                                                                  \
+            StrIter si_before_read = si;                                                                               \
+            { reader }                                                                                                 \
+            if (si_before_read.pos == si.pos) {                                                                        \
+                StrIter read_si2 = JSkipValue(si);                                                                     \
+                if (read_si2.pos == si.pos) {                                                                          \
+                    LOG_ERROR("Failed to parse value. Invalid JSON.");                                                 \
+                    StrDeinit(&key);                                                                                   \
+                    failed = true;                                                                                     \
+                    si     = saved_si;                                                                                 \
+                    break;                                                                                             \
+                }                                                                                                      \
+                si = read_si2;                                                                                         \
+            }                                                                                                          \
+            StrDeinit(&key);                                                                                           \
+            si = JSkipWhitespace(si);                                                                                  \
+            expect_comma = true;                                                                                       \
+        }                                                                                                              \
+        if (!failed) {                                                                                                 \
+            char c = StrIterPeek(&si);                                                                                 \
+            if (c != '}') {                                                                                            \
+                LOG_ERROR("Expected end of object '}' but found '{c}'", c);                                            \
+                failed = true;                                                                                         \
+                si     = saved_si;                                                                                     \
+                break;                                                                                                 \
+            }                                                                                                          \
+            StrIterNext(&si);                                                                                          \
+        }                                                                                                              \
+    } while (0)
+
+#undef JR_STR
+#define JR_STR(si, str)                                                                                                \
+    do {                                                                                                               \
+        Str my_str = StrInit(&alloc);                                                                                  \
+        si         = JReadString((si), &my_str);                                                                       \
+        (str)      = my_str;                                                                                           \
+    } while (0)
+
+#undef JR_STR_KV
+#define JR_STR_KV(si, k, str)                                                                                          \
+    do {                                                                                                               \
+        if (!StrCmpZstr(&key, (k))) {                                                                                  \
+            Str my_str = StrInit(&alloc);                                                                              \
+            si         = JReadString((si), &my_str);                                                                   \
+            (str)      = my_str;                                                                                       \
+        }                                                                                                              \
+    } while (0)
+// --- end of allocator-aware overrides ---
+
 
 // Test structures for round-trip testing
 typedef struct TestPerson {
@@ -85,6 +188,8 @@ bool compare_configs(const TestConfig *a, const TestConfig *b) {
 bool test_simple_roundtrip(void) {
     WriteFmtLn("Testing simple value round-trip");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
     // Original data
@@ -93,10 +198,10 @@ bool test_simple_roundtrip(void) {
         f64  temperature;
         bool enabled;
         Str  message;
-    } original = {42, 25.5, true, StrInitFromZstr("hello world")};
+    } original = {42, 25.5, true, StrInitFromZstr("hello world", &alloc)};
 
     // Write to JSON
-    Str json = StrInit();
+    Str json = StrInit(&alloc);
     JW_OBJ(json, {
         JW_INT_KV(json, "count", original.count);
         JW_FLT_KV(json, "temperature", original.temperature);
@@ -112,7 +217,7 @@ bool test_simple_roundtrip(void) {
         f64  temperature;
         bool enabled;
         Str  message;
-    } parsed = {0, 0.0, false, StrInit()};
+    } parsed = {0, 0.0, false, StrInit(&alloc)};
 
     StrIter si = StrIterFromStr(json);
     JR_OBJ(si, {
@@ -148,12 +253,15 @@ bool test_simple_roundtrip(void) {
     StrDeinit(&json);
     StrDeinit(&original.message);
     StrDeinit(&parsed.message);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 // Test 2: Numeric precision round-trip
 bool test_numeric_roundtrip(void) {
     WriteFmtLn("Testing numeric precision round-trip");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
     bool success = true;
 
@@ -168,7 +276,7 @@ bool test_numeric_roundtrip(void) {
     } original = {9223372036854775807LL, -2147483648LL, 0, 3.141592653589793, 0.000001, -999.999};
 
     // Write to JSON
-    Str json = StrInit();
+    Str json = StrInit(&alloc);
     JW_OBJ(json, {
         JW_INT_KV(json, "big_int", original.big_int);
         JW_INT_KV(json, "negative_int", original.negative_int);
@@ -220,12 +328,15 @@ bool test_numeric_roundtrip(void) {
     }
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 // Test 3: Boolean round-trip
 bool test_boolean_roundtrip(void) {
     WriteFmtLn("Testing boolean round-trip");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
     bool success = true;
 
@@ -238,7 +349,7 @@ bool test_boolean_roundtrip(void) {
     } original = {true, false, true, false};
 
     // Write to JSON
-    Str json = StrInit();
+    Str json = StrInit(&alloc);
     JW_OBJ(json, {
         JW_BOOL_KV(json, "flag1", original.flag1);
         JW_BOOL_KV(json, "flag2", original.flag2);
@@ -272,12 +383,15 @@ bool test_boolean_roundtrip(void) {
     }
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 // Test 4: String round-trip
 bool test_string_roundtrip(void) {
     WriteFmtLn("Testing string round-trip");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
     bool success = true;
 
@@ -288,14 +402,14 @@ bool test_string_roundtrip(void) {
         Str with_spaces;
         Str with_special;
     } original = {
-        StrInit(),
-        StrInitFromZstr("hello"),
-        StrInitFromZstr("hello world with spaces"),
-        StrInitFromZstr("special: !@#$%^&*()")
+        StrInit(&alloc),
+        StrInitFromZstr("hello", &alloc),
+        StrInitFromZstr("hello world with spaces", &alloc),
+        StrInitFromZstr("special: !@#$%^&*()", &alloc)
     };
 
     // Write to JSON
-    Str json = StrInit();
+    Str json = StrInit(&alloc);
     JW_OBJ(json, {
         JW_STR_KV(json, "empty", original.empty);
         JW_STR_KV(json, "simple", original.simple);
@@ -309,7 +423,7 @@ bool test_string_roundtrip(void) {
         Str simple;
         Str with_spaces;
         Str with_special;
-    } parsed = {StrInit(), StrInit(), StrInit(), StrInit()};
+    } parsed = {StrInit(&alloc), StrInit(&alloc), StrInit(&alloc), StrInit(&alloc)};
 
     StrIter si = StrIterFromStr(json);
     JR_OBJ(si, {
@@ -339,6 +453,7 @@ bool test_string_roundtrip(void) {
     StrDeinit(&parsed.simple);
     StrDeinit(&parsed.with_spaces);
     StrDeinit(&parsed.with_special);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -346,11 +461,13 @@ bool test_string_roundtrip(void) {
 bool test_array_roundtrip(void) {
     WriteFmtLn("Testing array round-trip");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
     // Original data
-    Vec(i32) original_numbers = VecInit();
-    Vec(Str) original_strings = VecInitWithDeepCopy(NULL, StrDeinit);
+    Vec(i32) original_numbers = VecInit(&alloc);
+    Vec(Str) original_strings = VecInitWithDeepCopy(NULL, StrDeinit, &alloc);
 
     // Populate arrays
     i32 nums[5] = {1, 2, 3, -5, 0};
@@ -359,10 +476,10 @@ bool test_array_roundtrip(void) {
     }
 
     // Create strings and push them properly
-    Str str1 = StrInitFromZstr("first");
-    Str str2 = StrInitFromZstr("second");
-    Str str3 = StrInitFromZstr("");
-    Str str4 = StrInitFromZstr("last");
+    Str str1 = StrInitFromZstr("first", &alloc);
+    Str str2 = StrInitFromZstr("second", &alloc);
+    Str str3 = StrInitFromZstr("", &alloc);
+    Str str4 = StrInitFromZstr("last", &alloc);
 
     VecPushBack(&original_strings, str1);
     VecPushBack(&original_strings, str2);
@@ -370,15 +487,15 @@ bool test_array_roundtrip(void) {
     VecPushBack(&original_strings, str4);
 
     // Write to JSON
-    Str json = StrInit();
+    Str json = StrInit(&alloc);
     JW_OBJ(json, {
         JW_ARR_KV(json, "numbers", original_numbers, num, { JW_INT(json, num); });
         JW_ARR_KV(json, "strings", original_strings, str, { JW_STR(json, str); });
     });
 
     // Read back from JSON
-    Vec(i32) parsed_numbers = VecInit();
-    Vec(Str) parsed_strings = VecInitWithDeepCopy(NULL, StrDeinit);
+    Vec(i32) parsed_numbers = VecInit(&alloc);
+    Vec(Str) parsed_strings = VecInitWithDeepCopy(NULL, StrDeinit, &alloc);
 
     StrIter si = StrIterFromStr(json);
     JR_OBJ(si, {
@@ -388,7 +505,7 @@ bool test_array_roundtrip(void) {
             VecPushBack(&parsed_numbers, num);
         });
         JR_ARR_KV(si, "strings", {
-            Str str = StrInit();
+            Str str = StrInit(&alloc);
             JR_STR(si, str);
             VecPushBack(&parsed_strings, str);
         });
@@ -442,6 +559,7 @@ bool test_array_roundtrip(void) {
     VecDeinit(&original_strings);
     VecDeinit(&parsed_numbers);
     VecDeinit(&parsed_strings);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -449,13 +567,15 @@ bool test_array_roundtrip(void) {
 bool test_nested_object_roundtrip(void) {
     WriteFmtLn("Testing nested object round-trip");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
     // Original data
-    TestPerson original_person = {12345, StrInitFromZstr("John Doe"), 30, true, 75000.50};
+    TestPerson original_person = {12345, StrInitFromZstr("John Doe", &alloc), 30, true, 75000.50};
 
     // Write to JSON
-    Str json = StrInit();
+    Str json = StrInit(&alloc);
     JW_OBJ(json, {
         JW_OBJ_KV(json, "user", {
             JW_INT_KV(json, "id", original_person.id);
@@ -467,7 +587,7 @@ bool test_nested_object_roundtrip(void) {
     });
 
     // Read back from JSON
-    TestPerson parsed_person = {0, StrInit(), 0, false, 0.0};
+    TestPerson parsed_person = {0, StrInit(&alloc), 0, false, 0.0};
 
     StrIter si = StrIterFromStr(json);
     JR_OBJ(si, {
@@ -492,6 +612,7 @@ bool test_nested_object_roundtrip(void) {
     StrDeinit(&json);
     TestPersonDeinit(&original_person);
     TestPersonDeinit(&parsed_person);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -499,42 +620,44 @@ bool test_nested_object_roundtrip(void) {
 bool test_complex_data_roundtrip(void) {
     WriteFmtLn("Testing complex data round-trip");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
     // Create complex original data
     ComplexData original    = {0};
     original.user.id        = 999;
-    original.user.name      = StrInitFromZstr("Complex User");
+    original.user.name      = StrInitFromZstr("Complex User", &alloc);
     original.user.age       = 25;
     original.user.is_active = true;
     original.user.salary    = 50000.0;
 
     original.config.debug_mode = false;
     original.config.timeout    = 30;
-    original.config.log_level  = StrInitFromZstr("INFO");
-    original.config.features   = VecInitWithDeepCopyT(original.config.features, NULL, StrDeinit);
+    original.config.log_level  = StrInitFromZstr("INFO", &alloc);
+    original.config.features   = VecInitWithDeepCopyT(original.config.features, NULL, StrDeinit, &alloc);
 
     // Create strings and push them properly
-    Str feature1 = StrInitFromZstr("auth");
-    Str feature2 = StrInitFromZstr("logging");
+    Str feature1 = StrInitFromZstr("auth", &alloc);
+    Str feature2 = StrInitFromZstr("logging", &alloc);
 
     VecPushBack(&original.config.features, feature1);
     VecPushBack(&original.config.features, feature2);
 
-    original.numbers = VecInitT(original.numbers);
+    original.numbers = VecInitT(original.numbers, &alloc);
     i32 vals[3]      = {10, 20, -5};
     for (size i = 0; i < 3; i++) {
         VecPushBack(&original.numbers, vals[i]);
     }
 
-    original.flags = VecInitT(original.flags);
+    original.flags = VecInitT(original.flags, &alloc);
     bool bools[3]  = {true, false, true};
     for (size i = 0; i < 3; i++) {
         VecPushBack(&original.flags, bools[i]);
     }
 
     // Write to JSON
-    Str json = StrInit();
+    Str json = StrInit(&alloc);
     JW_OBJ(json, {
         JW_OBJ_KV(json, "user", {
             JW_INT_KV(json, "id", original.user.id);
@@ -557,13 +680,13 @@ bool test_complex_data_roundtrip(void) {
 
     // Read back from JSON
     ComplexData parsed       = {0};
-    parsed.user              = (TestPerson) {0, StrInit(), 0, false, 0.0};
+    parsed.user              = (TestPerson) {0, StrInit(&alloc), 0, false, 0.0};
     parsed.config.debug_mode = true; // opposite of original
     parsed.config.timeout    = 0;
-    parsed.config.log_level  = StrInit();
-    parsed.config.features   = VecInitWithDeepCopyT(parsed.config.features, NULL, StrDeinit);
-    parsed.numbers           = VecInitT(parsed.numbers);
-    parsed.flags             = VecInitT(parsed.flags);
+    parsed.config.log_level  = StrInit(&alloc);
+    parsed.config.features   = VecInitWithDeepCopyT(parsed.config.features, NULL, StrDeinit, &alloc);
+    parsed.numbers           = VecInitT(parsed.numbers, &alloc);
+    parsed.flags             = VecInitT(parsed.flags, &alloc);
 
     StrIter si = StrIterFromStr(json);
     JR_OBJ(si, {
@@ -579,7 +702,7 @@ bool test_complex_data_roundtrip(void) {
             JR_INT_KV(si, "timeout", parsed.config.timeout);
             JR_STR_KV(si, "log_level", parsed.config.log_level);
             JR_ARR_KV(si, "features", {
-                Str feature = StrInit();
+                Str feature = StrInit(&alloc);
                 JR_STR(si, feature);
                 VecPushBack(&parsed.config.features, feature);
             });
@@ -635,6 +758,7 @@ bool test_complex_data_roundtrip(void) {
     StrDeinit(&json);
     ComplexDataDeinit(&original);
     ComplexDataDeinit(&parsed);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -642,15 +766,17 @@ bool test_complex_data_roundtrip(void) {
 bool test_empty_containers_roundtrip(void) {
     WriteFmtLn("Testing empty containers round-trip");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
     // Original empty data
-    Vec(i32) empty_numbers = VecInit();
-    Vec(Str) empty_strings = VecInitWithDeepCopy(NULL, StrDeinit);
-    Str empty_str          = StrInit();
+    Vec(i32) empty_numbers = VecInit(&alloc);
+    Vec(Str) empty_strings = VecInitWithDeepCopy(NULL, StrDeinit, &alloc);
+    Str empty_str          = StrInit(&alloc);
 
     // Write to JSON
-    Str json = StrInit();
+    Str json = StrInit(&alloc);
     JW_OBJ(json, {
         JW_STR_KV(json, "empty_string", empty_str);
         JW_ARR_KV(json, "empty_numbers", empty_numbers, num, { JW_INT(json, num); });
@@ -665,9 +791,9 @@ bool test_empty_containers_roundtrip(void) {
     });
 
     // Read back from JSON
-    Vec(i32) parsed_numbers = VecInit();
-    Vec(Str) parsed_strings = VecInitWithDeepCopy(NULL, StrDeinit);
-    Str  parsed_str         = StrInit();
+    Vec(i32) parsed_numbers = VecInit(&alloc);
+    Vec(Str) parsed_strings = VecInitWithDeepCopy(NULL, StrDeinit, &alloc);
+    Str  parsed_str         = StrInit(&alloc);
     bool found_empty_object = false;
 
     StrIter si = StrIterFromStr(json);
@@ -679,7 +805,7 @@ bool test_empty_containers_roundtrip(void) {
             VecPushBack(&parsed_numbers, num);
         });
         JR_ARR_KV(si, "empty_strings", {
-            Str str = StrInit();
+            Str str = StrInit(&alloc);
             JR_STR(si, str);
             VecPushBack(&parsed_strings, str);
         });
@@ -710,12 +836,15 @@ bool test_empty_containers_roundtrip(void) {
     VecDeinit(&empty_strings);
     VecDeinit(&parsed_numbers);
     VecDeinit(&parsed_strings);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 // Test 9: Edge cases round-trip
 bool test_edge_cases_roundtrip(void) {
     WriteFmtLn("Testing edge cases round-trip");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
     bool success = true;
 
@@ -730,7 +859,7 @@ bool test_edge_cases_roundtrip(void) {
     } original = {2147483647LL, -2147483648LL, 0, 0.0, true, false};
 
     // Write to JSON
-    Str json = StrInit();
+    Str json = StrInit(&alloc);
     JW_OBJ(json, {
         JW_INT_KV(json, "max_int", original.max_int);
         JW_INT_KV(json, "min_int", original.min_int);
@@ -771,6 +900,7 @@ bool test_edge_cases_roundtrip(void) {
     }
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 

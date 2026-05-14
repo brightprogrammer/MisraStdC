@@ -9,6 +9,7 @@
 #define MISRA_SYS_PROC_H
 
 #include <Misra/Types.h>
+#include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Str.h>
 
 ///
@@ -28,14 +29,16 @@ typedef enum SysProcStatus {
 ///
 /// Create a new process
 ///
-/// path[in] : Path to executable to be executed.
-/// argv[in] : NULL terminated array containing zero-terminated strings.
-/// envp[in] : NULL terminated array containing zero-terminated strings.
+/// path[in]  : Path to executable to be executed.
+/// argv[in]  : NULL terminated array containing zero-terminated strings.
+/// envp[in]  : NULL terminated array containing zero-terminated strings.
+/// alloc[in] : Allocator used to allocate the returned `SysProc` handle.
+///             The same allocator must be passed to `SysProcDestroy`.
 ///
 /// SUCCESS: New created `SysProc` object opaque handle.
 /// FAILURE: NULL.
 ///
-SysProc *SysProcCreate(const char *path, char **argv, char **envp);
+SysProc *SysProcCreate(const char *path, char **argv, char **envp, Allocator *alloc);
 
 ///
 /// Block the parent process and wait for provided child process to finish execution.
@@ -73,12 +76,14 @@ void SysProcTerminate(SysProc *proc);
 ///
 /// Terminate the child process and then destroy given `SysProc` structure.
 ///
-/// proc[in] : Child process handle to terminate and destroy.
+/// proc[in]  : Child process handle to terminate and destroy.
+/// alloc[in] : Allocator originally passed to `SysProcCreate`. Used to free
+///             the handle. Must match the create-time allocator.
 ///
 /// SUCCESS: Return
 /// FAILURE: Abort with log message.
 ///
-void SysProcDestroy(SysProc *proc);
+void SysProcDestroy(SysProc *proc, Allocator *alloc);
 
 ///
 /// Write given raw data to `stdin` of child process.

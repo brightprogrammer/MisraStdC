@@ -26,11 +26,12 @@ typedef enum {
 
 // Main fuzzing state containing all container objects directly
 typedef struct {
-    IntVec     int_vec;
-    CharPtrVec char_ptr_vec;
-    StrVec     str_vec;
-    IntList    int_list;
-    bool       initialized;
+    DefaultAllocator alloc;
+    IntVec           int_vec;
+    CharPtrVec       char_ptr_vec;
+    StrVec           str_vec;
+    IntList          int_list;
+    bool             initialized;
 } FuzzState;
 
 // Helper function to extract uint16 from input data
@@ -97,10 +98,12 @@ static void init_fuzz_state(FuzzState *state) {
         return;
     }
 
-    init_int_vec(&state->int_vec);
-    init_char_ptr_vec(&state->char_ptr_vec);
-    init_str_vec(&state->str_vec);
-    init_int_list(&state->int_list);
+    state->alloc = DefaultAllocatorInit();
+
+    init_int_vec(&state->int_vec, &state->alloc);
+    init_char_ptr_vec(&state->char_ptr_vec, &state->alloc);
+    init_str_vec(&state->str_vec, &state->alloc);
+    init_int_list(&state->int_list, &state->alloc);
 
     state->initialized = true;
 }
@@ -115,6 +118,8 @@ static void deinit_fuzz_state(FuzzState *state) {
     deinit_char_ptr_vec(&state->char_ptr_vec);
     deinit_str_vec(&state->str_vec);
     deinit_int_list(&state->int_list);
+
+    DefaultAllocatorDeinit(&state->alloc);
 
     state->initialized = false;
 }
@@ -147,25 +152,25 @@ static int process_fuzz_input(const uint8_t *data, size_t size) {
     switch (obj_type) {
         case OBJ_INT_VEC : {
             VecIntFunction func = (VecIntFunction)(func_selector % VEC_INT_COUNT);
-            fuzz_int_vec(&state.int_vec, func, data, &offset, size);
+            fuzz_int_vec(&state.int_vec, func, data, &offset, size, &state.alloc);
             break;
         }
 
         case OBJ_CHAR_PTR_VEC : {
             VecCharPtrFunction func = (VecCharPtrFunction)(func_selector % VEC_CHAR_PTR_COUNT);
-            fuzz_char_ptr_vec(&state.char_ptr_vec, func, data, &offset, size);
+            fuzz_char_ptr_vec(&state.char_ptr_vec, func, data, &offset, size, &state.alloc);
             break;
         }
 
         case OBJ_STR_VEC : {
             VecStrFunction func = (VecStrFunction)(func_selector % VEC_STR_COUNT);
-            fuzz_str_vec(&state.str_vec, func, data, &offset, size);
+            fuzz_str_vec(&state.str_vec, func, data, &offset, size, &state.alloc);
             break;
         }
 
         case OBJ_INT_LIST : {
             ListIntFunction func = (ListIntFunction)(func_selector % LIST_INT_COUNT);
-            fuzz_int_list(&state.int_list, func, data, &offset, size);
+            fuzz_int_list(&state.int_list, func, data, &offset, size, &state.alloc);
             break;
         }
 

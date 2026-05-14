@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
@@ -20,13 +21,15 @@ bool test_vec_validate(void);
 bool test_vec_type_basic(void) {
     WriteFmt("Testing basic Vec type functionality\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Define a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Check initial state
     bool result =
-        (vec.length == 0 && vec.capacity == 0 && vec.data == NULL && vec.allocator.alignment == 1 &&
+        (vec.length == 0 && vec.capacity == 0 && vec.data == NULL && vec.allocator->alignment == 1 &&
          vec.copy_init == NULL && vec.copy_deinit == NULL);
 
     // Clean up
@@ -34,16 +37,17 @@ bool test_vec_type_basic(void) {
 
     // Test with a struct type
     typedef Vec(TestItem) TestVec;
-    TestVec test_vec = VecInit();
+    TestVec test_vec = VecInit(&alloc);
 
     // Check initial state
     result =
         result && (test_vec.length == 0 && test_vec.capacity == 0 && test_vec.data == NULL &&
-                   test_vec.allocator.alignment == 1 && test_vec.copy_init == NULL && test_vec.copy_deinit == NULL);
+                   test_vec.allocator->alignment == 1 && test_vec.copy_init == NULL && test_vec.copy_deinit == NULL);
 
     // Clean up
     VecDeinit(&test_vec);
 
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -51,9 +55,11 @@ bool test_vec_type_basic(void) {
 bool test_vec_validate(void) {
     WriteFmt("Testing ValidateVec macro\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create a valid vector
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // This should not abort
     ValidateVec(&vec);
@@ -64,6 +70,7 @@ bool test_vec_validate(void) {
     // Note: We can't easily test the negative case (invalid vector)
     // as it would abort the program
 
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 

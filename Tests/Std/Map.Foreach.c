@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Map.h>
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
@@ -19,7 +20,8 @@ static i32 i32_compare(const void *lhs, const void *rhs) {
 
 static bool test_map_foreach_ptr(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map       = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map       = MapInit(i32_hash, i32_compare, &alloc);
     int       key_sum   = 0;
     int       value_sum = 0;
 
@@ -36,12 +38,14 @@ static bool test_map_foreach_ptr(void) {
     bool result = (key_sum == 12) && (value_sum == 125);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_map_foreach_multimap_iterators(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map            = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map            = MapInit(i32_hash, i32_compare, &alloc);
     int       unique_key_sum = 0;
     int       all_value_sum  = 0;
     int       key_two_sum    = 0;
@@ -73,6 +77,7 @@ static bool test_map_foreach_multimap_iterators(void) {
     result      = result && (all_value_sum == 292);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

@@ -13,8 +13,8 @@
 extern "C" {
 #endif
 
-    Int  int_from_u64(u64 value);
-    Int  int_from_i64(i64 value);
+    Int  int_from_u64(u64 value, Allocator *alloc);
+    Int  int_from_i64(i64 value, Allocator *alloc);
     int  int_compare(Int *lhs, Int *rhs);
     bool int_add(Int *result, Int *a, Int *b);
     bool int_sub(Int *result, Int *a, Int *b);

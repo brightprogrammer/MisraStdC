@@ -111,7 +111,7 @@ struct GenericMap {
     char             *entries;
     u8               *states;
     MapPolicy         policy;
-    Allocator         allocator;
+    Allocator        *allocator;
     u64               __magic;
 };
 
@@ -175,7 +175,7 @@ struct GenericMap {
         MapEntry(K, V) * entries;                                                                                      \
         u8       *states;                                                                                              \
         MapPolicy policy;                                                                                              \
-        Allocator allocator;                                                                                           \
+        Allocator        *allocator;                                                                                           \
         u64       __magic;                                                                                             \
     }
 

@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
 #include <Misra/Types.h>
@@ -21,9 +22,11 @@ bool test_bitvec_insert_pattern_null_failures(void);
 
 // Test BitVecPush function
 bool test_bitvec_push(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecPush\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Push some bits
     BitVecPush(&bv, true);
@@ -45,14 +48,18 @@ bool test_bitvec_push(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecInsert single bit function
 bool test_bitvec_insert_single(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecInsert (single bit)\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Insert at index 0 (empty bitvector)
     BitVecInsert(&bv, 0, true);
@@ -80,14 +87,18 @@ bool test_bitvec_insert_single(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecInsertRange function
 bool test_bitvec_insert_range(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecInsertRange\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Create target bitvector
     BitVecPush(&bv, false);
@@ -107,15 +118,19 @@ bool test_bitvec_insert_range(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecInsertMultiple function
 bool test_bitvec_insert_multiple(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecInsertMultiple\n");
 
-    BitVec bv     = BitVecInit();
-    BitVec source = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Start with some bits
     BitVecPush(&bv, true);
@@ -141,14 +156,18 @@ bool test_bitvec_insert_multiple(void) {
     BitVecDeinit(&bv);
     BitVecDeinit(&source);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecInsertPattern function
 bool test_bitvec_insert_pattern(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecInsertPattern\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Start with some bits
     BitVecPush(&bv, false);
@@ -169,7 +188,7 @@ bool test_bitvec_insert_pattern(void) {
     result      = result && (BitVecGet(&bv, 5) == false); // original
 
     // Test with different pattern - 0x05 (0101 in binary) using only 3 bits
-    BitVec bv2 = BitVecInit();
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv2, true);
 
     u8 pattern2 = 0x05;
@@ -186,14 +205,18 @@ bool test_bitvec_insert_pattern(void) {
     BitVecDeinit(&bv);
     BitVecDeinit(&bv2);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Edge case tests
 bool test_bitvec_insert_range_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecInsertRange edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test inserting 0 bits (should be no-op)
@@ -215,15 +238,18 @@ bool test_bitvec_insert_range_edge_cases(void) {
     result = result && (BitVecGet(&bv, 999) == true);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_insert_multiple_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecInsertMultiple edge cases\n");
 
-    BitVec bv     = BitVecInit();
-    BitVec empty  = BitVecInit();
-    BitVec source = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec empty  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test inserting empty bitvec
@@ -248,13 +274,16 @@ bool test_bitvec_insert_multiple_edge_cases(void) {
     BitVecDeinit(&bv);
     BitVecDeinit(&empty);
     BitVecDeinit(&source);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_insert_pattern_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecInsertPattern edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test inserting empty pattern (should be no-op)
@@ -273,6 +302,7 @@ bool test_bitvec_insert_pattern_edge_cases(void) {
     result = result && (BitVecGet(&bv, 1) == true);  // Second bit
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -287,14 +317,17 @@ bool test_bitvec_insert_null_failures(void) {
 }
 
 bool test_bitvec_insert_invalid_range_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec insert invalid range handling\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test inserting beyond capacity limit - should abort
     BitVecInsertRange(&bv, SIZE_MAX, 1, true);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 

@@ -11,49 +11,19 @@
 #include <Misra/Std/Container/Int/Init.h>
 
 ///
-/// Create a zero-valued floating-point number.
+/// Initialize a Float (numeric value 0) bound to an allocator. Argument
+/// may be a typed allocator pointer (`&heap`) or raw `Allocator *` —
+/// the underlying `IntInit` / `BitVecInit` macros route through
+/// `ALLOCATOR_OF`.
 ///
 /// USAGE:
-///   Float value = FloatInit();
+///   DefaultAllocator a = DefaultAllocatorInit();
+///   Float value = FloatInit(&a);
 ///
 /// TAGS: Float, Init, Zero, Construct
 ///
-static inline Float FloatInitAlloc(Allocator alloc) {
-    Float value;
-
-    value.negative    = false;
-    value.significand = IntInit(alloc);
-    value.exponent    = 0;
-    return value;
-}
-
-#define FLOAT_INIT_HAS_ARGS_IMPL(_0, _1, count, ...) count
-#define FLOAT_INIT_HAS_ARGS(...)                     FLOAT_INIT_HAS_ARGS_IMPL(__VA_OPT__(, ) __VA_ARGS__, 1, 0, 0)
-
-///
-/// Create a zero-valued floating-point number.
-///
-/// This public macro supports both forms:
-///
-/// - `FloatInit()`          - uses `DefaultAllocator()`.
-/// - `FloatInit(alloc)`     - binds the supplied allocator.
-///
-/// alloc[in] : Optional allocator override.
-///
-/// SUCCESS : Returns a fresh `Float` representing positive zero
-///           (`negative=false`, `significand=0`, `exponent=0`) with the
-///           chosen allocator bound through the inner `Int`. No heap
-///           allocation happens until the value is mutated.
-/// FAILURE : Function cannot fail.
-///
-/// USAGE:
-///   Float value = FloatInit();
-///
-/// TAGS: Float, Init, Zero, Construct
-///
-#define FloatInit(...)     CONCAT(FloatInit_, FLOAT_INIT_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define FloatInit_0()      FloatInitAlloc(DefaultAllocator())
-#define FloatInit_1(alloc) FloatInitAlloc((alloc))
+#define FloatInit(allocator_ptr)                                                                                       \
+    ((Float) {.negative = false, .significand = IntInit(allocator_ptr), .exponent = 0})
 
 ///
 /// Release all storage owned by a floating-point value.

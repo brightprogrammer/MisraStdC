@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
@@ -26,12 +27,14 @@ int compare_ints_desc(const void *a, const void *b) {
 }
 
 // Test VecSwapItems function
+static DefaultAllocator alloc;
+
 bool test_vec_swap_items(void) {
     WriteFmt("Testing VecSwapItems\n");
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -66,7 +69,7 @@ bool test_vec_reverse(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -118,7 +121,7 @@ bool test_vec_sort(void) {
 
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data in unsorted order
     int values[] = {30, 10, 50, 20, 40};
@@ -153,6 +156,7 @@ bool test_vec_sort(void) {
 
 // Main function that runs all tests
 int main(void) {
+    alloc = DefaultAllocatorInit();
     WriteFmt("[INFO] Starting Vec.Ops tests\n\n");
 
     // Array of test functions
@@ -161,5 +165,7 @@ int main(void) {
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 
     // Run all tests using the centralized test driver
-    return run_test_suite(tests, total_tests, NULL, 0, "Vec.Ops");
+    int __rc = run_test_suite(tests, total_tests, NULL, 0, "Vec.Ops");
+    DefaultAllocatorDeinit(&alloc);
+    return __rc;
 }

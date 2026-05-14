@@ -34,7 +34,7 @@ typedef struct {
     GenericCopyInit   copy_init;
     GenericCopyDeinit copy_deinit;
     u64               length;
-    Allocator         allocator;
+    Allocator        *allocator;
     u64               __magic;
 } GenericList;
 
@@ -90,7 +90,7 @@ typedef struct {
         GenericCopyInit   copy_init;                                                                                   \
         GenericCopyDeinit copy_deinit;                                                                                 \
         u64               length;                                                                                      \
-        Allocator         allocator;                                                                                   \
+        Allocator        *allocator;                                                                                   \
         u64               __magic;                                                                                     \
     }
 

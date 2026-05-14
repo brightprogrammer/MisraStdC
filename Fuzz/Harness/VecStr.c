@@ -12,13 +12,19 @@
 #include <string.h> // For strlen
 
 // Generate a Str from fuzz input data
-static Str generate_str_from_input(const uint8_t *data, size_t *offset, size_t size, size_t max_len) {
+static Str generate_str_from_input(
+    const uint8_t    *data,
+    size_t           *offset,
+    size_t            size,
+    size_t            max_len,
+    DefaultAllocator *alloc
+) {
     // Extract length (limit to max_len for sanity)
     uint8_t len = extract_u8(data, offset, size);
     len         = len % (max_len + 1); // 0 to max_len
 
     // Create Str with capacity
-    Str str = StrInit();
+    Str str = StrInit(alloc);
 
     // Fill with data or generate simple pattern if not enough input
     for (size_t i = 0; i < len; i++) {
@@ -34,8 +40,10 @@ static Str generate_str_from_input(const uint8_t *data, size_t *offset, size_t s
     return str;
 }
 
-void init_str_vec(StrVec *vec) {
-    *vec = VecInitWithDeepCopyT(*vec, NULL, StrDeinit);
+void init_str_vec(StrVec *vec, DefaultAllocator *alloc) {
+    // str_deinit matches the GenericCopyDeinit signature required by
+    // VecInitWithDeepCopy (void *, const Allocator *).
+    *vec = VecInitWithDeepCopyT(*vec, NULL, str_deinit, alloc);
 }
 
 void deinit_str_vec(StrVec *vec) {
@@ -43,16 +51,23 @@ void deinit_str_vec(StrVec *vec) {
     VecDeinit(vec);
 }
 
-void fuzz_str_vec(StrVec *vec, VecStrFunction func, const uint8_t *data, size_t *offset, size_t size) {
+void fuzz_str_vec(
+    StrVec           *vec,
+    VecStrFunction    func,
+    const uint8_t    *data,
+    size_t           *offset,
+    size_t            size,
+    DefaultAllocator *alloc
+) {
     switch (func) {
         case VEC_STR_PUSH_BACK : {
-            Str str = generate_str_from_input(data, offset, size, 32);
+            Str str = generate_str_from_input(data, offset, size, 32, alloc);
             VecPushBack(vec, str);
             break;
         }
 
         case VEC_STR_PUSH_FRONT : {
-            Str str = generate_str_from_input(data, offset, size, 32);
+            Str str = generate_str_from_input(data, offset, size, 32, alloc);
             VecPushFront(vec, str);
             break;
         }
@@ -78,7 +93,7 @@ void fuzz_str_vec(StrVec *vec, VecStrFunction func, const uint8_t *data, size_t 
         case VEC_STR_INSERT : {
             if (*offset + 4 <= size) {
                 size_t index = extract_u32(data, offset, size) % (VecLen(vec) + 1);
-                Str    str   = generate_str_from_input(data, offset, size, 32);
+                Str    str   = generate_str_from_input(data, offset, size, 32, alloc);
                 VecInsert(vec, str, index);
             }
             break;
@@ -152,7 +167,7 @@ void fuzz_str_vec(StrVec *vec, VecStrFunction func, const uint8_t *data, size_t 
                 // Initialize new Str objects if vector grew
                 if (new_size > old_size) {
                     for (size_t i = old_size; i < new_size; i++) {
-                        Str str       = generate_str_from_input(data, offset, size, 16);
+                        Str str       = generate_str_from_input(data, offset, size, 16, alloc);
                         VecAt(vec, i) = str;
                     }
                 }
@@ -201,7 +216,7 @@ void fuzz_str_vec(StrVec *vec, VecStrFunction func, const uint8_t *data, size_t 
                 // Create temporary array of Str objects
                 Str temp_strings[10];
                 for (size_t i = 0; i < count; i++) {
-                    temp_strings[i] = generate_str_from_input(data, offset, size, 16);
+                    temp_strings[i] = generate_str_from_input(data, offset, size, 16, alloc);
                 }
 
                 VecInsertRange(vec, temp_strings, index, count);
@@ -231,7 +246,7 @@ void fuzz_str_vec(StrVec *vec, VecStrFunction func, const uint8_t *data, size_t 
         case VEC_STR_INSERT_FAST : {
             if (*offset + 4 <= size) {
                 size_t index = extract_u32(data, offset, size) % (VecLen(vec) + 1);
-                Str    str   = generate_str_from_input(data, offset, size, 32);
+                Str    str   = generate_str_from_input(data, offset, size, 32, alloc);
                 VecInsertFast(vec, str, index);
             }
             break;
@@ -272,7 +287,7 @@ void fuzz_str_vec(StrVec *vec, VecStrFunction func, const uint8_t *data, size_t 
                 // Create temporary array of Str objects
                 Str temp_strings[10];
                 for (size_t i = 0; i < count; i++) {
-                    temp_strings[i] = generate_str_from_input(data, offset, size, 16);
+                    temp_strings[i] = generate_str_from_input(data, offset, size, 16, alloc);
                 }
 
                 VecPushBackArr(vec, temp_strings, count);
@@ -288,7 +303,7 @@ void fuzz_str_vec(StrVec *vec, VecStrFunction func, const uint8_t *data, size_t 
                 // Create temporary array of Str objects
                 Str temp_strings[10];
                 for (size_t i = 0; i < count; i++) {
-                    temp_strings[i] = generate_str_from_input(data, offset, size, 16);
+                    temp_strings[i] = generate_str_from_input(data, offset, size, 16, alloc);
                 }
 
                 VecPushFrontArr(vec, temp_strings, count);
@@ -304,7 +319,7 @@ void fuzz_str_vec(StrVec *vec, VecStrFunction func, const uint8_t *data, size_t 
                 // Create temporary array of Str objects
                 Str temp_strings[10];
                 for (size_t i = 0; i < count; i++) {
-                    temp_strings[i] = generate_str_from_input(data, offset, size, 16);
+                    temp_strings[i] = generate_str_from_input(data, offset, size, 16, alloc);
                 }
 
                 VecPushFrontArrFast(vec, temp_strings, count);
@@ -347,12 +362,12 @@ void fuzz_str_vec(StrVec *vec, VecStrFunction func, const uint8_t *data, size_t 
         case VEC_STR_MERGE : {
             if (*offset + 4 <= size) {
                 // Create a temporary vector for merging
-                StrVec temp = VecInitWithDeepCopyT(temp, NULL, StrDeinit);
+                StrVec temp = VecInitWithDeepCopyT(temp, NULL, str_deinit, alloc);
 
                 // Add some strings to temp
                 size_t count = extract_u32(data, offset, size) % 5;
                 for (size_t i = 0; i < count; i++) {
-                    Str str = generate_str_from_input(data, offset, size, 16);
+                    Str str = generate_str_from_input(data, offset, size, 16, alloc);
                     VecPushBack(&temp, str);
                 }
 
@@ -370,7 +385,7 @@ void fuzz_str_vec(StrVec *vec, VecStrFunction func, const uint8_t *data, size_t 
                 // Create temporary array of Str objects
                 Str temp_strings[10];
                 for (size_t i = 0; i < count; i++) {
-                    temp_strings[i] = generate_str_from_input(data, offset, size, 16);
+                    temp_strings[i] = generate_str_from_input(data, offset, size, 16, alloc);
                 }
 
                 VecInsertRangeFast(vec, temp_strings, index, count);
@@ -407,16 +422,22 @@ void fuzz_str_vec(StrVec *vec, VecStrFunction func, const uint8_t *data, size_t 
         case VEC_STR_INIT_CLONE : {
             if (*offset + 4 <= size) {
                 // Create a temporary vector for cloning
-                StrVec temp = VecInitWithDeepCopyT(temp, NULL, StrDeinit);
+                StrVec temp = VecInitWithDeepCopyT(temp, NULL, str_deinit, alloc);
 
                 // Add some strings to temp
                 size_t count = extract_u32(data, offset, size) % 5;
                 for (size_t i = 0; i < count; i++) {
-                    Str str = generate_str_from_input(data, offset, size, 16);
+                    Str str = generate_str_from_input(data, offset, size, 16, alloc);
                     VecPushBack(&temp, str);
                 }
 
-                VecInitClone(vec, &temp);
+                // VecInitClone macro is currently broken upstream
+                // (references missing VEC_INIT_WITH_DEEP_COPY_VALUE),
+                // so exercise the clone path manually via clone_vec.
+                VecDeinit(vec);
+                *vec = VecInitWithDeepCopyT(*vec, NULL, str_deinit, alloc);
+                clone_vec(GENERIC_VEC(vec), GENERIC_VEC(&temp), sizeof(Str));
+
                 VecDeinit(&temp);
             }
             break;

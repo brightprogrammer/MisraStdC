@@ -39,17 +39,22 @@ typedef Map(Str, Str) KvConfig;
 ///
 /// Initialize a `KvConfig` object with deep-copy ownership for both keys and values.
 ///
+/// allocator_ptr : Allocator that owns the config's storage. May be a
+///                 typed allocator handle (`&heap`) or a raw `Allocator *`.
+///
 /// SUCCESS : Returns initialized config object.
 ///
-#define KvConfigInit()                                                                                                 \
-    MapInitWithDeepCopyAndValueCompare(                                                                                \
+#define KvConfigInit(allocator_ptr)                                                                                    \
+    MapInitFull(                                                                                                       \
         KvConfigHash,                                                                                                  \
         KvConfigCompare,                                                                                               \
         KvConfigCompare,                                                                                               \
-        StrInitCopyAlloc,                                                                                              \
-        StrDeinitAlloc,                                                                                                \
-        StrInitCopyAlloc,                                                                                              \
-        StrDeinitAlloc                                                                                                 \
+        str_init_copy,                                                                                              \
+        str_deinit,                                                                                                \
+        str_init_copy,                                                                                              \
+        str_deinit,                                                                                                \
+        MisraMapPolicyLinear,                                                                                          \
+        (allocator_ptr)                                                                                                \
     )
 
 ///

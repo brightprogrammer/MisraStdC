@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Float.h>
 #include <Misra/Std/Log.h>
 
@@ -10,23 +11,28 @@ bool test_float_exponent(void);
 bool test_float_is_zero(void) {
     WriteFmt("Testing FloatIsZero\n");
 
-    Float zero  = FloatInit();
-    Float value = FloatFromStr("0.001");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float zero  = FloatInit(&alloc.base);
+    Float value = FloatFromStr("0.001", &alloc.base);
 
     bool result = FloatIsZero(&zero);
     result      = result && !FloatIsZero(&value);
 
     FloatDeinit(&zero);
     FloatDeinit(&value);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_is_negative(void) {
     WriteFmt("Testing FloatIsNegative\n");
 
-    Float neg  = FloatFromStr("-42");
-    Float pos  = FloatFromStr("42");
-    Float zero = FloatFromStr("-0.0");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float neg  = FloatFromStr("-42", &alloc.base);
+    Float pos  = FloatFromStr("42", &alloc.base);
+    Float zero = FloatFromStr("-0.0", &alloc.base);
 
     bool result = FloatIsNegative(&neg);
     result      = result && !FloatIsNegative(&pos);
@@ -35,17 +41,21 @@ bool test_float_is_negative(void) {
     FloatDeinit(&neg);
     FloatDeinit(&pos);
     FloatDeinit(&zero);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_float_exponent(void) {
     WriteFmt("Testing FloatExponent\n");
 
-    Float value = FloatFromStr("12.34");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float value = FloatFromStr("12.34", &alloc.base);
 
     bool result = FloatExponent(&value) == -2;
 
     FloatDeinit(&value);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

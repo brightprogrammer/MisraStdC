@@ -1,7 +1,9 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Graph.h>
 #include <Misra/Std/Container/Map.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
 
 #include "../Util/TestRunner.h"
 
@@ -46,8 +48,8 @@ static i32 node_id_compare(const void *lhs, const void *rhs) {
 typedef Graph(Str)                 CityGraph;
 typedef Map(const char *, GraphNodeId) CityIndex;
 
-static GraphNodeId city_add_intersection(CityGraph *graph, CityIndex *index, const char *name) {
-    GraphNodeId id = GraphAddNodeR(graph, StrZ(name));
+static GraphNodeId city_add_intersection(CityGraph *graph, CityIndex *index, const char *name, DefaultAllocator *alloc) {
+    GraphNodeId id = GraphAddNodeR(graph, StrZ(name, alloc));
 
     MapInsertR(index, name, id);
     return id;
@@ -93,14 +95,16 @@ static bool city_reachable(CityGraph *graph, CityIndex *index, const char *from,
 static bool test_graph_city_reachability(void) {
     WriteFmt("Testing GraphForeachNode and GraphNodeForeachNeighbor for reachability\n");
 
-    CityGraph graph = GraphInitWithDeepCopy(NULL, StrDeinit);
-    CityIndex index = MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, ZstrInitClone, ZstrDeinit, NULL, NULL);
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    GraphNodeId alpha = city_add_intersection(&graph, &index, "Alpha");
-    GraphNodeId beta  = city_add_intersection(&graph, &index, "Beta");
-    GraphNodeId gamma = city_add_intersection(&graph, &index, "Gamma");
-    GraphNodeId delta = city_add_intersection(&graph, &index, "Delta");
-    GraphNodeId echo  = city_add_intersection(&graph, &index, "Echo");
+    CityGraph graph = GraphInitWithDeepCopy(NULL, str_deinit, &alloc);
+    CityIndex index = MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, zstr_init_clone, zstr_deinit, NULL, NULL, &alloc);
+
+    GraphNodeId alpha = city_add_intersection(&graph, &index, "Alpha", &alloc);
+    GraphNodeId beta  = city_add_intersection(&graph, &index, "Beta", &alloc);
+    GraphNodeId gamma = city_add_intersection(&graph, &index, "Gamma", &alloc);
+    GraphNodeId delta = city_add_intersection(&graph, &index, "Delta", &alloc);
+    GraphNodeId echo  = city_add_intersection(&graph, &index, "Echo", &alloc);
 
     GraphAddEdge(&graph, alpha, beta);
     GraphAddEdge(&graph, beta, gamma);
@@ -120,17 +124,20 @@ static bool test_graph_city_reachability(void) {
 
     MapDeinit(&index);
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_foreach_with_external_map_counts(void) {
     WriteFmt("Testing nested foreach with external count tracking map\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
     typedef Map(GraphNodeId, u64) CountMap;
 
-    IntGraph graph  = GraphInit();
-    CountMap counts = MapInit(node_id_hash, node_id_compare);
+    IntGraph graph  = GraphInit(&alloc);
+    CountMap counts = MapInit(node_id_hash, node_id_compare, &alloc);
 
     GraphNodeId a = GraphAddNodeR(&graph, 1);
     GraphNodeId b = GraphAddNodeR(&graph, 2);
@@ -157,14 +164,17 @@ static bool test_graph_foreach_with_external_map_counts(void) {
 
     MapDeinit(&counts);
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_foreach_predecessors(void) {
     WriteFmt("Testing GraphNodeForeachPredecessor\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a = GraphAddNodeR(&graph, 1);
     GraphNodeId b = GraphAddNodeR(&graph, 2);
@@ -190,14 +200,17 @@ static bool test_graph_foreach_predecessors(void) {
     result      = result && (GraphInDegree(&graph, a) == 0);
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_node_iteration_rejects_structural_mutation_deadend(void) {
     WriteFmt("Testing GraphForeachNode rejects structural mutation (should abort)\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphAddNodeR(&graph, 1);
     GraphAddNodeR(&graph, 2);
@@ -208,14 +221,17 @@ static bool test_graph_node_iteration_rejects_structural_mutation_deadend(void) 
     }
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 static bool test_graph_neighbor_iteration_rejects_structural_mutation_deadend(void) {
     WriteFmt("Testing GraphNodeForeachNeighbor rejects structural mutation (should abort)\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a = GraphAddNodeR(&graph, 1);
     GraphNodeId b = GraphAddNodeR(&graph, 2);
@@ -229,14 +245,17 @@ static bool test_graph_neighbor_iteration_rejects_structural_mutation_deadend(vo
     }
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 static bool test_graph_predecessor_iteration_rejects_structural_mutation_deadend(void) {
     WriteFmt("Testing GraphNodeForeachPredecessor rejects structural mutation (should abort)\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a = GraphAddNodeR(&graph, 1);
     GraphNodeId b = GraphAddNodeR(&graph, 2);
@@ -252,6 +271,7 @@ static bool test_graph_predecessor_iteration_rejects_structural_mutation_deadend
     }
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 

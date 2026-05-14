@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Map.h>
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
@@ -19,7 +20,8 @@ static i32 i32_compare(const void *lhs, const void *rhs) {
 
 static bool test_map_remove_value(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
 
     MapSetOnlyR(&map, 1, 10);
     MapInsertR(&map, 1, 11);
@@ -32,12 +34,14 @@ static bool test_map_remove_value(void) {
     result      = result && (MapPairCount(&map) == 2);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_map_remove_pair(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
 
     MapInsertR(&map, 5, 50);
     MapInsertR(&map, 5, 51);
@@ -50,6 +54,7 @@ static bool test_map_remove_pair(void) {
     result      = result && (MapValueCountForKey(&map, 5) == 2);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -61,7 +66,8 @@ static bool remove_even_values(const void *key, const void *value, void *ctx) {
 
 static bool test_map_remove_if(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
 
     MapInsertR(&map, 1, 10);
     MapInsertR(&map, 1, 11);
@@ -76,12 +82,14 @@ static bool test_map_remove_if(void) {
     result      = result && (MapPairCount(&map) == 2);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_map_remove_all(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
 
     MapInsertR(&map, 5, 50);
     MapInsertR(&map, 5, 51);
@@ -95,12 +103,14 @@ static bool test_map_remove_all(void) {
     result      = result && (MapPairCount(&map) == 1);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_map_tombstone_reuse(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
 
     for (int i = 0; i < 12; i++) {
         MapSetOnlyR(&map, i, i + 100);
@@ -114,6 +124,7 @@ static bool test_map_tombstone_reuse(void) {
     result      = result && MapGetFirstPtr(&map, 105) && (*MapGetFirstPtr(&map, 105) == 205);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

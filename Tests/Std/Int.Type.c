@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Int.h>
 #include <Misra/Std/Container/BitVec.h>
 #include <Misra/Std/Log.h>
@@ -13,19 +14,24 @@ bool test_int_clone_inherits_allocator_config(void);
 bool test_int_init(void) {
     WriteFmt("Testing IntInit\n");
 
-    Int value = IntInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int value = IntInit(&alloc.base);
 
     bool result = IntIsZero(&value);
     result      = result && (IntBitLength(&value) == 0);
 
     IntDeinit(&value);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_int_clear(void) {
     WriteFmt("Testing IntClear\n");
 
-    Int value = IntFromBinary("101101");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int value = IntFromBinary("101101", &alloc.base);
 
     IntClear(&value);
 
@@ -33,13 +39,16 @@ bool test_int_clear(void) {
     result      = result && (IntBitLength(&value) == 0);
 
     IntDeinit(&value);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_int_clone(void) {
     WriteFmt("Testing IntClone\n");
 
-    Int original = IntFromBinary("1011");
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Int original = IntFromBinary("1011", &alloc.base);
     Int clone    = IntClone(&original);
 
     bool result = IntEQ(&clone, &original);
@@ -53,19 +62,18 @@ bool test_int_clone(void) {
 
     IntDeinit(&original);
     IntDeinit(&clone);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_int_clone_inherits_allocator_config(void) {
     WriteFmt("Testing IntClone allocator inheritance\n");
 
-    Allocator alloc = HeapAllocator();
-    alloc.effort = ALLOCATOR_EFFORT_RETRY_FALLBACK;
-    alloc.retry_limit = 5;
-    alloc.flags = 0x4B4Bu;
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    alloc.base.effort      = ALLOCATOR_EFFORT_RETRY_FALLBACK;
+    alloc.base.retry_limit = 5;
 
-    Int original = IntInit(alloc);
-    original.bits.allocator.state = (void *)&original;
+    Int original = IntInit(&alloc);
 
     BitVecPush(&original.bits, true);
     BitVecPush(&original.bits, false);
@@ -73,23 +81,18 @@ bool test_int_clone_inherits_allocator_config(void) {
 
     Int clone = IntClone(&original);
 
-    bool result =
-        clone.bits.length == original.bits.length &&
-        clone.bits.allocator.allocate == original.bits.allocator.allocate &&
-        clone.bits.allocator.reallocate == original.bits.allocator.reallocate &&
-        clone.bits.allocator.deallocate == original.bits.allocator.deallocate &&
-        clone.bits.allocator.state_init == original.bits.allocator.state_init &&
-        clone.bits.allocator.state_deinit == original.bits.allocator.state_deinit &&
-        clone.bits.allocator.effort == original.bits.allocator.effort &&
-        clone.bits.allocator.retry_limit == original.bits.allocator.retry_limit &&
-        clone.bits.allocator.flags == original.bits.allocator.flags &&
-        clone.bits.allocator.state == NULL &&
-        BitVecGet(&clone.bits, 0) == true &&
-        BitVecGet(&clone.bits, 1) == false &&
-        BitVecGet(&clone.bits, 2) == true;
+    bool result = clone.bits.length == original.bits.length && clone.bits.allocator == original.bits.allocator &&
+                  clone.bits.allocator->allocate == original.bits.allocator->allocate &&
+                  clone.bits.allocator->reallocate == original.bits.allocator->reallocate &&
+                  clone.bits.allocator->deallocate == original.bits.allocator->deallocate &&
+                  clone.bits.allocator->effort == original.bits.allocator->effort &&
+                  clone.bits.allocator->retry_limit == original.bits.allocator->retry_limit &&
+                  BitVecGet(&clone.bits, 0) == true && BitVecGet(&clone.bits, 1) == false &&
+                  BitVecGet(&clone.bits, 2) == true;
 
     IntDeinit(&original);
     IntDeinit(&clone);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

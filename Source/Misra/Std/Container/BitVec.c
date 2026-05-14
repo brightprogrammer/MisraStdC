@@ -35,14 +35,14 @@
 #define BIT_OFFSET(idx)      ((idx) % BITS_PER_BYTE)
 #define BYTES_FOR_BITS(bits) (((bits) + BITS_PER_BYTE - 1) / BITS_PER_BYTE)
 
-BitVec BitVecInitWithCapacityAlloc(u64 cap, Allocator alloc) {
+BitVec BitVecInitWithCapacity(u64 cap, Allocator *alloc) {
     BitVec result = BitVecInit(alloc);
 
     if (cap == 0) {
         return result;
     }
 
-    result.data = (u8 *)AllocatorAlloc(&result.allocator, BITVEC_BYTES_FOR_BITS(cap), true);
+    result.data = (u8 *)AllocatorAlloc(result.allocator, BITVEC_BYTES_FOR_BITS(cap), true);
     if (!result.data) {
         return result;
     }
@@ -55,14 +55,12 @@ BitVec BitVecInitWithCapacityAlloc(u64 cap, Allocator alloc) {
 void BitVecDeinit(BitVec *bitvec) {
     ValidateBitVec(bitvec);
     if (bitvec->data) {
-        AllocatorFree(&bitvec->allocator, bitvec->data, bitvec->byte_size);
+        AllocatorFree(bitvec->allocator, bitvec->data, bitvec->byte_size);
         bitvec->data = NULL;
     }
     bitvec->length    = 0;
     bitvec->capacity  = 0;
     bitvec->byte_size = 0;
-    AllocatorUnbind(&bitvec->allocator);
-    bitvec->allocator = AllocatorBind(DefaultAllocator());
 }
 
 void BitVecClear(BitVec *bitvec) {
@@ -110,7 +108,7 @@ bool BitVecReserve(BitVec *bitvec, u64 n) {
     if (n <= bitvec->capacity)
         return true;
     u64 new_byte_size = BYTES_FOR_BITS(n);
-    u8 *new_data      = (u8 *)AllocatorRealloc(&bitvec->allocator, bitvec->data, bitvec->byte_size, new_byte_size);
+    u8 *new_data      = (u8 *)AllocatorRealloc(bitvec->allocator, bitvec->data, bitvec->byte_size, new_byte_size);
 
     if (!new_data) {
         LOG_ERROR("Failed to allocate memory for bitvec");
@@ -132,7 +130,7 @@ void BitVecShrinkToFit(BitVec *bv) {
     ValidateBitVec(bv);
     if (bv->length == 0) {
         // Free all memory if empty
-        AllocatorFree(&bv->allocator, bv->data, bv->byte_size);
+        AllocatorFree(bv->allocator, bv->data, bv->byte_size);
         bv->data      = NULL;
         bv->capacity  = 0;
         bv->byte_size = 0;
@@ -150,7 +148,7 @@ void BitVecShrinkToFit(BitVec *bv) {
         return;
     }
 
-    u8 *new_data = (u8 *)AllocatorRealloc(&bv->allocator, bv->data, bv->byte_size, new_byte_size);
+    u8 *new_data = (u8 *)AllocatorRealloc(bv->allocator, bv->data, bv->byte_size, new_byte_size);
     if (!new_data) {
         // Realloc failed, but that's okay for shrinking
         return;
@@ -788,12 +786,12 @@ bool BitVecIsSorted(BitVec *bv) {
 }
 
 // Conversion functions
-Allocator BitVecGetAllocator(BitVec *bv) {
+Allocator *BitVecGetAllocator(BitVec *bv) {
     ValidateBitVec(bv);
     return bv->allocator;
 }
 
-bool BitVecTryToStrAlloc(Str *out, BitVec *bv, Allocator alloc) {
+bool BitVecTryToStrAlloc(Str *out, BitVec *bv, Allocator *alloc) {
     ValidateBitVec(bv);
     if (!out) {
         LOG_FATAL("out is NULL");
@@ -822,7 +820,7 @@ bool BitVecTryToStrAlloc(Str *out, BitVec *bv, Allocator alloc) {
     return true;
 }
 
-Str BitVecToStrAlloc(BitVec *bv, Allocator alloc) {
+Str BitVecToStrAlloc(BitVec *bv, Allocator *alloc) {
     Str result;
 
     if (!BitVecTryToStrAlloc(&result, bv, alloc)) {
@@ -832,7 +830,7 @@ Str BitVecToStrAlloc(BitVec *bv, Allocator alloc) {
     return result;
 }
 
-bool BitVecTryFromStrAlloc(BitVec *out, const char *str, Allocator alloc) {
+bool BitVecTryFromStrAlloc(BitVec *out, const char *str, Allocator *alloc) {
     if (!str) {
         LOG_FATAL("str is NULL");
     }
@@ -867,7 +865,7 @@ bool BitVecTryFromStrAlloc(BitVec *out, const char *str, Allocator alloc) {
     return true;
 }
 
-BitVec BitVecFromStrAlloc(const char *str, Allocator alloc) {
+BitVec BitVecFromStrAlloc(const char *str, Allocator *alloc) {
     BitVec result;
 
     if (!BitVecTryFromStrAlloc(&result, str, alloc)) {
@@ -907,7 +905,7 @@ u64 BitVecToBytes(BitVec *bv, u8 *bytes, u64 max_len) {
     return bytes_to_copy;
 }
 
-bool BitVecTryFromBytesAlloc(BitVec *out, const u8 *bytes, u64 bit_len, Allocator alloc) {
+bool BitVecTryFromBytesAlloc(BitVec *out, const u8 *bytes, u64 bit_len, Allocator *alloc) {
     if (!bytes) {
         LOG_FATAL("bytes is NULL");
     }
@@ -939,7 +937,7 @@ bool BitVecTryFromBytesAlloc(BitVec *out, const u8 *bytes, u64 bit_len, Allocato
     return true;
 }
 
-BitVec BitVecFromBytesAlloc(const u8 *bytes, u64 bit_len, Allocator alloc) {
+BitVec BitVecFromBytesAlloc(const u8 *bytes, u64 bit_len, Allocator *alloc) {
     BitVec result;
 
     if (!BitVecTryFromBytesAlloc(&result, bytes, bit_len, alloc)) {
@@ -968,7 +966,7 @@ u64 BitVecToInteger(BitVec *bv) {
     return result;
 }
 
-bool BitVecTryFromIntegerAlloc(BitVec *out, u64 value, u64 bits, Allocator alloc) {
+bool BitVecTryFromIntegerAlloc(BitVec *out, u64 value, u64 bits, Allocator *alloc) {
     if (!out) {
         LOG_FATAL("out is NULL");
     }
@@ -998,7 +996,7 @@ bool BitVecTryFromIntegerAlloc(BitVec *out, u64 value, u64 bits, Allocator alloc
     return true;
 }
 
-BitVec BitVecFromIntegerAlloc(u64 value, u64 bits, Allocator alloc) {
+BitVec BitVecFromIntegerAlloc(u64 value, u64 bits, Allocator *alloc) {
     BitVec result;
 
     if (!BitVecTryFromIntegerAlloc(&result, value, bits, alloc)) {
@@ -1396,7 +1394,6 @@ u64 BitVecDotProduct(BitVec *bv1, BitVec *bv2) {
 }
 
 bool BitVecTryEditDistance(BitVec *bv1, BitVec *bv2, u64 *out) {
-    Allocator scratch;
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
     if (!out) {
@@ -1415,16 +1412,18 @@ bool BitVecTryEditDistance(BitVec *bv1, BitVec *bv2, u64 *out) {
         return true;
     }
 
-    scratch = AllocatorBind(bv1->allocator);
+    // Scratch allocations borrow bv1's allocator. The function is
+    // pass-through - results live in `*out` (a u64) and no container
+    // escapes - so any allocator that outlives the function works.
+    Allocator *scratch = bv1->allocator;
 
     // Dynamic programming matrix
-    u64 *prev_row = AllocatorAlloc(&scratch, (len2 + 1) * sizeof(u64), false);
-    u64 *curr_row = AllocatorAlloc(&scratch, (len2 + 1) * sizeof(u64), false);
+    u64 *prev_row = AllocatorAlloc(scratch, (len2 + 1) * sizeof(u64), false);
+    u64 *curr_row = AllocatorAlloc(scratch, (len2 + 1) * sizeof(u64), false);
 
     if (!prev_row || !curr_row) {
-        AllocatorFree(&scratch, prev_row, (len2 + 1) * sizeof(u64));
-        AllocatorFree(&scratch, curr_row, (len2 + 1) * sizeof(u64));
-        AllocatorUnbind(&scratch);
+        AllocatorFree(scratch, prev_row, (len2 + 1) * sizeof(u64));
+        AllocatorFree(scratch, curr_row, (len2 + 1) * sizeof(u64));
         return false;
     }
 
@@ -1454,9 +1453,8 @@ bool BitVecTryEditDistance(BitVec *bv1, BitVec *bv2, u64 *out) {
     }
 
     *out = prev_row[len2];
-    AllocatorFree(&scratch, prev_row, (len2 + 1) * sizeof(u64));
-    AllocatorFree(&scratch, curr_row, (len2 + 1) * sizeof(u64));
-    AllocatorUnbind(&scratch);
+    AllocatorFree(scratch, prev_row, (len2 + 1) * sizeof(u64));
+    AllocatorFree(scratch, curr_row, (len2 + 1) * sizeof(u64));
 
     return true;
 }

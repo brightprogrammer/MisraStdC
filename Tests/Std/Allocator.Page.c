@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include <Misra/Std/Allocator.h>
+#include <Misra/Std/Allocator/Page.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
@@ -12,7 +13,7 @@
 #include "../Util/TestRunner.h"
 
 static bool test_page_size_query(void) {
-    size ps = PageAllocatorPageSize();
+    size ps = PageAllocatorPageSize(NULL);
     bool ok = (ps >= 4096) && ((ps & (ps - 1)) == 0);
     if (!ok) {
         WriteFmt("page size invalid: {}\n", ps);
@@ -21,50 +22,53 @@ static bool test_page_size_query(void) {
 }
 
 static bool test_basic_alloc_and_free(void) {
-    Allocator alloc = PageAllocator();
-    void     *ptr   = AllocatorAlloc(&alloc, 128, true);
-    bool      ok    = (ptr != NULL);
+    PageAllocator alloc      = PageAllocatorInit();
+    Allocator    *alloc_base = ALLOCATOR_OF(&alloc);
+    void         *ptr        = AllocatorAlloc(alloc_base, 128, true);
+    bool          ok         = (ptr != NULL);
 
     if (ptr) {
         ((char *)ptr)[0]   = 'x';
         ((char *)ptr)[127] = 'y';
         ok                 = ok && (((char *)ptr)[0] == 'x') && (((char *)ptr)[127] == 'y');
-        AllocatorFree(&alloc, ptr, 128);
+        AllocatorFree(alloc_base, ptr, 128);
     }
 
-    AllocatorUnbind(&alloc);
+    PageAllocatorDeinit(&alloc);
     return ok;
 }
 
 static bool test_realloc_grow_then_shrink(void) {
-    Allocator alloc = PageAllocator();
-    size      page  = PageAllocatorPageSize();
-    char     *ptr   = (char *)AllocatorAlloc(&alloc, 64, true);
-    bool      ok    = (ptr != NULL);
+    PageAllocator alloc      = PageAllocatorInit();
+    Allocator    *alloc_base = ALLOCATOR_OF(&alloc);
+    size          page       = PageAllocatorPageSize(&alloc);
+    char         *ptr        = (char *)AllocatorAlloc(alloc_base, 64, true);
+    bool          ok         = (ptr != NULL);
 
     if (ptr) {
         ptr[0]      = 'a';
         ptr[63]     = 'z';
-        char *grown = (char *)AllocatorRealloc(&alloc, ptr, 64, page * 2);
+        char *grown = (char *)AllocatorRealloc(alloc_base, ptr, 64, page * 2);
         ok          = ok && (grown != NULL);
         ok          = ok && (grown[0] == 'a') && (grown[63] == 'z');
         if (grown) {
             grown[page * 2 - 1] = 'q';
-            char *shrunk        = (char *)AllocatorRealloc(&alloc, grown, page * 2, 32);
+            char *shrunk        = (char *)AllocatorRealloc(alloc_base, grown, page * 2, 32);
             ok                  = ok && (shrunk != NULL) && (shrunk[0] == 'a');
             if (shrunk) {
-                AllocatorFree(&alloc, shrunk, 32);
+                AllocatorFree(alloc_base, shrunk, 32);
             }
         }
     }
 
-    AllocatorUnbind(&alloc);
+    PageAllocatorDeinit(&alloc);
     return ok;
 }
 
 static bool test_vec_with_page_allocator(void) {
+    PageAllocator alloc = PageAllocatorInit();
     typedef Vec(int) IntVec;
-    IntVec v  = VecInit(PageAllocator());
+    IntVec v  = VecInit(&alloc);
     bool   ok = true;
 
     for (int i = 0; i < 1024; i++) {
@@ -76,24 +80,26 @@ static bool test_vec_with_page_allocator(void) {
 
     ok = ok && (VecLen(&v) == 1024) && (VecAt(&v, 0) == 0) && (VecAt(&v, 1023) == 1023);
     VecDeinit(&v);
+    PageAllocatorDeinit(&alloc);
     return ok;
 }
 
 static bool test_page_aligned_allocator(void) {
-    // PageAllocatorAligned is best-effort beyond the page size: requests
+    // PageAllocatorInitAligned is best-effort beyond the page size: requests
     // smaller than a page get rounded up to the page boundary. We only
     // assert page-alignment here since that is what mmap guarantees
     // portably.
-    Allocator alloc = PageAllocatorAligned(64);
-    size      page  = PageAllocatorPageSize();
-    void     *ptr   = AllocatorAlloc(&alloc, 1024, true);
-    bool      ok    = (ptr != NULL) && (((uintptr_t)ptr & (page - 1u)) == 0);
+    PageAllocator alloc      = PageAllocatorInitAligned(64);
+    Allocator    *alloc_base = ALLOCATOR_OF(&alloc);
+    size          page       = PageAllocatorPageSize(&alloc);
+    void         *ptr        = AllocatorAlloc(alloc_base, 1024, true);
+    bool          ok         = (ptr != NULL) && (((uintptr_t)ptr & (page - 1u)) == 0);
 
     if (ptr) {
-        AllocatorFree(&alloc, ptr, 1024);
+        AllocatorFree(alloc_base, ptr, 1024);
     }
 
-    AllocatorUnbind(&alloc);
+    PageAllocatorDeinit(&alloc);
     return ok;
 }
 

@@ -24,7 +24,7 @@ static bool graph_alignment_is_pow2(u64 alignment) {
 }
 
 static void graph_validate_alignment(const GenericGraph *graph) {
-    u64 alignment = graph->allocator.alignment;
+    u64 alignment = graph->allocator->alignment;
 
     if (!alignment) {
         LOG_FATAL("Invalid graph allocator alignment. Did you initialize the graph before use?");
@@ -112,7 +112,7 @@ static GraphNode graph_validate_node_handle(GraphNode node) {
 
 static void *graph_alloc_node_data(GenericGraph *graph, size item_size) {
     graph_validate_alignment(graph);
-    return AllocatorAlloc(&graph->allocator, item_size, true);
+    return AllocatorAlloc(graph->allocator, item_size, true);
 }
 
 static void graph_free_node_data(GenericGraph *graph, void *data, size item_size) {
@@ -121,17 +121,17 @@ static void graph_free_node_data(GenericGraph *graph, void *data, size item_size
     }
 
     if (graph->copy_deinit) {
-        graph->copy_deinit(data, &graph->allocator);
+        graph->copy_deinit(data, graph->allocator);
     } else {
         MemSet(data, 0, item_size);
     }
 
-    AllocatorFree(&graph->allocator, data, item_size);
+    AllocatorFree(graph->allocator, data, item_size);
 }
 
 static bool graph_copy_node_data(GenericGraph *graph, void *dst, const void *src, size item_size) {
     if (graph->copy_init) {
-        return graph->copy_init(dst, src, &graph->allocator);
+        return graph->copy_init(dst, src, graph->allocator);
     }
 
     MemCopy(dst, src, item_size);
@@ -315,7 +315,7 @@ void validate_graph(const GenericGraph *graph) {
         LOG_FATAL("Graph is uninitialized or corrupted");
     }
 
-    if (!graph->allocator.allocate || !graph->allocator.reallocate || !graph->allocator.deallocate) {
+    if (!graph->allocator->allocate || !graph->allocator->reallocate || !graph->allocator->deallocate) {
         LOG_FATAL("Graph allocator is not fully configured");
     }
 
@@ -451,8 +451,6 @@ void deinit_graph(GenericGraph *graph, size item_size) {
     graph->edge_count           = 0;
     graph->pending_delete_count = 0;
     graph->mutation_epoch       = 0;
-    AllocatorUnbind(&graph->allocator);
-    graph->allocator = AllocatorBind(DefaultAllocator());
     graph->__magic   = 0;
 }
 

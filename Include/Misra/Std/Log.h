@@ -9,15 +9,24 @@
 
 #include <errno.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 // Misra
-#include <Misra/Types.h>
+#include <Misra/Std/Allocator.h>
+#include <Misra/Std/Allocator/Heap.h>
 #include <Misra/Std/Io.h>
+#include <Misra/Types.h>
 
 // Forward declaration to avoid circular includes
 void SysAbort(void);
+
+///
+/// Each LOG_* macro builds its message string through a stack-local
+/// `HeapAllocator` declared inside the do-while body. This keeps the macros
+/// usable from any context (no user-supplied allocator argument needed)
+/// while honouring the no-library-globals rule.
+///
 
 ///
 /// Writes a fatal log message and aborts the program.
@@ -31,132 +40,99 @@ void SysAbort(void);
 ///
 #define LOG_FATAL(...)                                                                                                 \
     do {                                                                                                               \
-        Str m_ = StrInit();                                                                                            \
+        HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
+        Str           m_         = StrInit(&log_alloc_);                                                               \
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, m_.data);                                                 \
         StrDeinit(&m_);                                                                                                \
+        HeapAllocatorDeinit(&log_alloc_);                                                                              \
         SysAbort();                                                                                                    \
     } while (0)
 
 ///
 /// Writes an error-level log message.
 ///
-/// ...[in] : Format string and arguments following printf-style syntax.
-///
-/// SUCCESS: Error message written to log output
-/// FAILURE: Logging fails silently (output not guaranteed)
-///
-/// TAGS: Logging, Macro, Error, System
-///
 #define LOG_ERROR(...)                                                                                                 \
     do {                                                                                                               \
-        Str m_ = StrInit();                                                                                            \
+        HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
+        Str           m_         = StrInit(&log_alloc_);                                                               \
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, m_.data);                                                 \
         StrDeinit(&m_);                                                                                                \
+        HeapAllocatorDeinit(&log_alloc_);                                                                              \
     } while (0)
 
 ///
 /// Writes an informational log message.
 ///
-/// ...[in] : Format string and arguments following printf-style syntax.
-///
-/// SUCCESS: Informational message written to log output
-/// FAILURE: Logging fails silently (output not guaranteed)
-///
-/// TAGS: Logging, Macro, Info, System
-///
 #define LOG_INFO(...)                                                                                                  \
     do {                                                                                                               \
-        Str m_ = StrInit();                                                                                            \
+        HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
+        Str           m_         = StrInit(&log_alloc_);                                                               \
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, m_.data);                                                  \
         StrDeinit(&m_);                                                                                                \
+        HeapAllocatorDeinit(&log_alloc_);                                                                              \
     } while (0)
 
 ///
-/// Writes a fatal log message and aborts the program, with `errno` explanation appended
-/// at the end of final string.
-///
-/// INFO: Think of this as `perror()` with `LOG`
-///
-/// ...[in] : Format string and arguments following printf-style syntax.
-///
-/// SUCCESS: Message logged and program aborted via abort()
-/// FAILURE: Logging may fail silently, but abort() will still execute
-///
-/// TAGS: Logging, Macro, Fatal, System
+/// Writes a fatal log message and aborts the program, with `errno`
+/// explanation appended.
 ///
 #define LOG_SYS_FATAL(...)                                                                                             \
     do {                                                                                                               \
-        Str m_ = StrInit();                                                                                            \
+        HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
+        Str           m_         = StrInit(&log_alloc_);                                                               \
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         Str syserr_;                                                                                                   \
-        StrInitStack(syserr_, 256, {                                                                                   \
+        StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
             SysStrError(errno, &syserr_);                                                                              \
             StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
         LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, m_.data);                                                 \
         StrDeinit(&m_);                                                                                                \
+        HeapAllocatorDeinit(&log_alloc_);                                                                              \
         SysAbort();                                                                                                    \
     } while (0)
 
 ///
-/// Writes an error-level log message with `errno` explanation appended
-/// at the end of final string.
-///
-/// INFO: Think of this as `perror()` with `LOG`
-///
-/// ...[in] : Format string and arguments following printf-style syntax.
-///
-/// SUCCESS: Error message written to log output
-/// FAILURE: Logging fails silently (output not guaranteed)
-///
-/// TAGS: Logging, Macro, Error, System
+/// Writes an error-level log message with `errno` explanation appended.
 ///
 #define LOG_SYS_ERROR(...)                                                                                             \
     do {                                                                                                               \
-        Str m_ = StrInit();                                                                                            \
+        HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
+        Str           m_         = StrInit(&log_alloc_);                                                               \
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         Str syserr_;                                                                                                   \
-        StrInitStack(syserr_, 256, {                                                                                   \
+        StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
             SysStrError(errno, &syserr_);                                                                              \
             StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
         LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, m_.data);                                                 \
         StrDeinit(&m_);                                                                                                \
+        HeapAllocatorDeinit(&log_alloc_);                                                                              \
     } while (0)
 
 ///
-/// Writes an informational log message along with errno explanation appended
-/// at then end of final string.
-///
-/// INFO: Think of this like `perror()` but as `LOG` macros
-///
-/// ...[in] : Format string and arguments following printf-style syntax.
-///
-/// SUCCESS: Informational message written to log output
-/// FAILURE: Logging fails silently (output not guaranteed)
-///
-/// TAGS: Logging, Macro, Info, System
+/// Writes an informational log message with errno explanation appended.
 ///
 #define LOG_SYS_INFO(...)                                                                                              \
     do {                                                                                                               \
-        Str m_ = StrInit();                                                                                            \
+        HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
+        Str           m_         = StrInit(&log_alloc_);                                                               \
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         Str syserr_;                                                                                                   \
-        StrInitStack(syserr_, 256, {                                                                                   \
+        StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
             SysStrError(errno, &syserr_);                                                                              \
             StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
         LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, m_.data);                                                  \
         StrDeinit(&m_);                                                                                                \
+        HeapAllocatorDeinit(&log_alloc_);                                                                              \
     } while (0)
 
 ///
 /// Enumeration of log message severity levels
-///
-/// TAGS: Logging, Enum
 ///
 typedef enum LogMessageType {
     LOG_MESSAGE_TYPE_FATAL,
@@ -165,39 +141,32 @@ typedef enum LogMessageType {
 } LogMessageType;
 
 ///
-/// Initialize logging subsystem
+/// Initialize the logging subsystem.
 ///
-/// NOTE: Is lazily called if not called by user at start of program.
+/// The `alloc` pointer is stored as module state and used for the
+/// internal mutex's create/destroy. It is borrowed, not owned - the
+/// caller must keep it alive for as long as any `LogWrite` /
+/// `LogDeinit` call may run (typically: until end of `main`).
 ///
-/// redirect[in] : When true, redirect output to temporary file
+/// Calling `LogInit` is optional. If the application never calls it,
+/// `LogWrite` falls back to writing directly to `stderr` without a
+/// mutex, which is fine for single-threaded callers.
 ///
-/// SUCCESS: Logging system ready for use
-/// FAILURE: Logging remains uninitialized (will lazy-init later)
+/// redirect[in] : When true, redirects log output to a timestamped
+///                file under the system temp directory.
+/// alloc[in]    : Allocator used for the internal mutex handle. Must
+///                outlive any subsequent log call.
 ///
-/// TAGS: Logging, Initialization, System
-void LogInit(bool redirect);
+void LogInit(bool redirect, Allocator *alloc);
 
 ///
-/// Shut down logging subsystem and release resources
+/// Deinitialize logging subsystem
 ///
-/// SUCCESS: All logging resources released
-/// FAILURE: Some resources may leak (safe to call multiple times)
-///
-/// TAGS: Logging, Cleanup, System
 void LogDeinit(void);
 
 ///
-/// Core log message generation function
+/// Direct log message writer
 ///
-/// type[in]   : Severity level of message
-/// tag[in]    : Source identifier (typically function name)
-/// line[in]   : Source line number
-/// msg[in]    : Constant string to be printed
-///
-/// SUCCESS: Message formatted and written to log output
-/// FAILURE: Message silently dropped (output not guaranteed)
-///
-/// TAGS: Logging, LowLevel, System
-void LogWrite(LogMessageType type, const char *tag, int line, const char *msg);
+void LogWrite(LogMessageType type, const char *func, u64 line, const char *msg);
 
 #endif // MISRA_STD_LOG_H

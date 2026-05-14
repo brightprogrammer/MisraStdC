@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/List.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Types.h>
@@ -10,14 +11,14 @@ static int g_copy_deinit_count = 0;
 static bool tracked_copy_init(void *dst, const void *src, const Allocator *alloc) {
     (void)alloc;
     g_copy_init_count += 1;
-    *(int *)dst = *(int *)src;
+    *(int *)dst        = *(int *)src;
     return true;
 }
 
 static void tracked_copy_deinit(void *data, const Allocator *alloc) {
     (void)alloc;
     g_copy_deinit_count += 1;
-    *(int *)data = 0;
+    *(int *)data         = 0;
 }
 
 static void reset_counters(void) {
@@ -43,8 +44,10 @@ static bool list_matches(GenericList *list, const int *expected, size count) {
 static bool test_list_remove_and_pop(void) {
     WriteFmt("Testing ListRemove and pop helpers\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list    = ListInit();
+    IntList list    = ListInit(&alloc);
     int     removed = 0;
 
     ListPushBackR(&list, 10);
@@ -67,14 +70,17 @@ static bool test_list_remove_and_pop(void) {
     result = result && list.tail && list.tail->data && (*list.tail->data == 30);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_remove_range_and_delete_aliases(void) {
     WriteFmt("Testing ListRemoveRange and delete aliases\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list     = ListInit();
+    IntList list       = ListInit(&alloc);
     int     removed[2] = {0, 0};
 
     ListPushBackR(&list, 1);
@@ -98,14 +104,17 @@ static bool test_list_remove_range_and_delete_aliases(void) {
     result = result && (ListLen(&list) == 0) && (list.head == NULL) && (list.tail == NULL);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_remove_range_prefix_suffix_edges(void) {
     WriteFmt("Testing ListRemoveRange prefix/suffix edges\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list      = ListInit(&alloc);
     int     prefix[2] = {0, 0};
     int     suffix[2] = {0, 0};
 
@@ -127,14 +136,17 @@ static bool test_list_remove_range_prefix_suffix_edges(void) {
     result = result && list.tail && list.tail->data && (*list.tail->data == 4);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_remove_range_whole_list_to_buffer(void) {
     WriteFmt("Testing ListRemoveRange whole-list buffered removal\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list       = ListInit(&alloc);
     int     removed[3] = {0, 0, 0};
 
     ListPushBackR(&list, 7);
@@ -146,14 +158,17 @@ static bool test_list_remove_range_whole_list_to_buffer(void) {
     result      = result && (ListLen(&list) == 0) && (list.head == NULL) && (list.tail == NULL);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_remove_zero_count_and_deep_copy_delete(void) {
     WriteFmt("Testing ListRemoveRange zero-count and deep-copy delete\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list    = ListInitWithDeepCopy(tracked_copy_init, tracked_copy_deinit);
+    IntList list    = ListInitWithDeepCopy(tracked_copy_init, tracked_copy_deinit, &alloc);
     int     removed = 0;
 
     reset_counters();
@@ -182,14 +197,17 @@ static bool test_list_remove_zero_count_and_deep_copy_delete(void) {
     result = result && (ListLen(&list) == 0) && (list.head == NULL) && (list.tail == NULL);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_remove_range_with_deep_copy_buffer(void) {
     WriteFmt("Testing ListRemoveRange buffer semantics with deep copy\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInitWithDeepCopy(tracked_copy_init, tracked_copy_deinit);
+    IntList list       = ListInitWithDeepCopy(tracked_copy_init, tracked_copy_deinit, &alloc);
     int     removed[2] = {0, 0};
 
     reset_counters();
@@ -206,6 +224,7 @@ static bool test_list_remove_range_with_deep_copy_buffer(void) {
 
     ListDeinit(&list);
     result = result && (g_copy_deinit_count == 1);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

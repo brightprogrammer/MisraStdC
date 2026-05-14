@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Map.h>
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
@@ -51,7 +52,8 @@ static size custom_next_index(u64 hash, size capacity, size previous_index, size
 
 static bool test_map_reserve_and_clear(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
     size      reserved_capacity;
 
     MapReserve(&map, 32);
@@ -71,12 +73,14 @@ static bool test_map_reserve_and_clear(void) {
     result = result && MapGetFirstPtr(&map, 7) && (*MapGetFirstPtr(&map, 7) == 70);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_map_rehash_policy_switch(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
 
     for (int i = 0; i < 24; i++) {
         MapSetOnlyR(&map, i, i * 10);
@@ -95,11 +99,13 @@ static bool test_map_rehash_policy_switch(void) {
     }
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_map_custom_policy_growth(void) {
     typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
     MapPolicy custom_policy = {
         .name            = "five-step",
         .should_rehash   = custom_should_rehash,
@@ -108,7 +114,7 @@ static bool test_map_custom_policy_growth(void) {
         .next_index      = custom_next_index,
         .max_probe_count = 32,
     };
-    IntIntMap map    = MapInitWithPolicy(i32_hash, i32_compare, custom_policy);
+    IntIntMap map    = MapInitWithPolicy(i32_hash, i32_compare, custom_policy, &alloc);
     bool      result = true;
 
     for (int i = 0; i < 6; i++) {
@@ -124,6 +130,7 @@ static bool test_map_custom_policy_growth(void) {
     }
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

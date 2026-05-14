@@ -350,8 +350,8 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg) {
     ValidateMap(cfg);
 
     while (StrIterRemainingLength(&si)) {
-        Str     key   = StrInit();
-        Str     value = StrInit();
+        Str     key   = StrInit(cfg->allocator);
+        Str     value = StrInit(cfg->allocator);
         StrIter read_si;
 
         while (StrIterRemainingLength(&si)) {
@@ -406,7 +406,7 @@ Str *KvConfigGetPtr(KvConfig *cfg, const char *key) {
         return NULL;
     }
 
-    lookup = StrInitFromZstr(key);
+    lookup = StrInitFromCstr(key, ZstrLen(key), cfg->allocator);
     value  = map_get_value_ptr(
         GENERIC_MAP(cfg),
         &lookup,
@@ -424,10 +424,10 @@ Str KvConfigGet(KvConfig *cfg, const char *key) {
     Str *value = KvConfigGetPtr(cfg, key);
 
     if (!value) {
-        return StrInit();
+        return StrInit(cfg->allocator);
     }
 
-    return StrInitFromStr(value);
+    return StrInitFromCstr(value->data, value->length, cfg->allocator);
 }
 
 bool KvConfigContains(KvConfig *cfg, const char *key) {

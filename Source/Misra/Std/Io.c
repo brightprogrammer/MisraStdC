@@ -28,6 +28,7 @@
 #    define STDERR_FILENO FILENO(stderr)
 #endif
 
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Sys.h>
@@ -444,15 +445,17 @@ bool str_write_fmt(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc) {
 }
 
 bool f_write_fmt(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u64 argc, bool append_newline) {
-    Str  out;
-    bool ok = true;
+    Str              out;
+    bool             ok      = true;
+    DefaultAllocator scratch = DefaultAllocatorInit();
 
     if (!stream || !fmtstr) {
         LOG_FATAL("Invalid arguments");
+        DefaultAllocatorDeinit(&scratch);
         return false;
     }
 
-    out = StrInit();
+    out = StrInit(&scratch);
     ok  = str_write_fmt(&out, fmtstr, argv, argc);
 
     if (ok && out.length > 0 && fwrite(out.data, 1, out.length, stream) != out.length) {
@@ -471,6 +474,7 @@ bool f_write_fmt(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u64 arg
     }
 
     StrDeinit(&out);
+    DefaultAllocatorDeinit(&scratch);
     return ok;
 }
 
@@ -700,11 +704,14 @@ const char *str_read_fmt(const char *input, const char *fmtstr, TypeSpecificIO *
 }
 
 void f_read_fmt(FILE *file, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
+    DefaultAllocator scratch = DefaultAllocatorInit();
+
     if (!file || !fmtstr) {
+        DefaultAllocatorDeinit(&scratch);
         LOG_FATAL("Invalid arguments");
     }
 
-    Str buffer = StrInit();
+    Str buffer = StrInit(&scratch);
     int fd     = FILENO(file);
 
     if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
@@ -757,6 +764,7 @@ void f_read_fmt(FILE *file, const char *fmtstr, TypeSpecificIO *argv, u64 argc) 
     }
 
     StrDeinit(&buffer);
+    DefaultAllocatorDeinit(&scratch);
 }
 
 // Helper function to write integer values as character sequences in a consistent order
@@ -920,7 +928,7 @@ static bool FloatFmtAppendExponent(Str *out, i64 exponent, bool uppercase) {
     return true;
 }
 
-static bool FloatFmtTryToDecimalStr(Str *out, Float *value, u32 precision, bool has_precision, Allocator alloc) {
+static bool FloatFmtTryToDecimalStr(Str *out, Float *value, u32 precision, bool has_precision, Allocator *alloc) {
     Str canonical;
     Str result;
 
@@ -1008,12 +1016,12 @@ fail:
 }
 
 static bool FloatFmtTryToScientificStr(
-    Str      *out,
-    Float    *value,
-    u32       precision,
-    bool      has_precision,
-    bool      uppercase,
-    Allocator alloc
+    Str       *out,
+    Float     *value,
+    u32        precision,
+    bool       has_precision,
+    bool       uppercase,
+    Allocator *alloc
 ) {
     Str digits;
     Str result;
@@ -2095,14 +2103,19 @@ static bool IsValidNumericString(const Str *str, bool allow_float) {
 }
 
 const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v) {
-    if (!i || !v)
+    DefaultAllocator scratch = DefaultAllocatorInit();
+
+    if (!i || !v) {
+        DefaultAllocatorDeinit(&scratch);
         LOG_FATAL("Invalid arguments");
+    }
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         u64         temp = 0;
         const char *next = read_chars_internal(i, (u8 *)&temp, sizeof(temp), fmt_info);
         *v               = (f64)temp;
+        DefaultAllocatorDeinit(&scratch);
         return next;
     }
 
@@ -2113,6 +2126,7 @@ const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v) {
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse f64: empty input");
+        DefaultAllocatorDeinit(&scratch);
         return i;
     }
 
@@ -2124,11 +2138,12 @@ const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v) {
             i++;
 
         // Create a temporary Str for parsing
-        Str temp = StrInitFromCstr(start, i - start);
+        Str temp = StrInitFromCstr(start, i - start, &scratch);
 
         // Try to parse as special value
         if (StrToF64(&temp, v, NULL)) {
             StrDeinit(&temp);
+            DefaultAllocatorDeinit(&scratch);
             return i;
         }
         StrDeinit(&temp);
@@ -2182,12 +2197,13 @@ const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Validate the string is a proper floating point number
     if (!IsValidNumericString(&temp, true)) {
         LOG_ERROR("Invalid floating point format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2195,16 +2211,22 @@ const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v) {
     if (!StrToF64(&temp, v, NULL)) {
         LOG_ERROR("Failed to parse f64");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
     StrDeinit(&temp);
+    DefaultAllocatorDeinit(&scratch);
     return start + pos;
 }
 
 const char *_read_u8(const char *i, FmtInfo *fmt_info, u8 *v) {
-    if (!i || !v)
+    DefaultAllocator scratch = DefaultAllocatorInit();
+
+    if (!i || !v) {
+        DefaultAllocatorDeinit(&scratch);
         LOG_FATAL("Invalid arguments");
+    }
 
     // Skip whitespace
     while (IS_SPACE(*i))
@@ -2213,12 +2235,14 @@ const char *_read_u8(const char *i, FmtInfo *fmt_info, u8 *v) {
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse u8: empty input");
+        DefaultAllocatorDeinit(&scratch);
         return i;
     }
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         const char *next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
+        DefaultAllocatorDeinit(&scratch);
         return next;
     }
 
@@ -2237,7 +2261,7 @@ const char *_read_u8(const char *i, FmtInfo *fmt_info, u8 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Check for special prefixes with no digits
     if (temp.length == 2 && temp.data[0] == '0' &&
@@ -2245,6 +2269,7 @@ const char *_read_u8(const char *i, FmtInfo *fmt_info, u8 *v) {
          temp.data[1] == 'o' || temp.data[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2252,6 +2277,7 @@ const char *_read_u8(const char *i, FmtInfo *fmt_info, u8 *v) {
     if (!IsValidNumericString(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2260,6 +2286,7 @@ const char *_read_u8(const char *i, FmtInfo *fmt_info, u8 *v) {
     if (!StrToU64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse u8");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2267,23 +2294,30 @@ const char *_read_u8(const char *i, FmtInfo *fmt_info, u8 *v) {
     if (val > UINT8_MAX) {
         LOG_ERROR("Value {} exceeds u8 maximum ({})", val, UINT8_MAX);
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
     *v = (u8)val;
     StrDeinit(&temp);
+    DefaultAllocatorDeinit(&scratch);
     return start + pos;
 }
 
 const char *_read_u16(const char *i, FmtInfo *fmt_info, u16 *v) {
-    if (!i || !v)
+    DefaultAllocator scratch = DefaultAllocatorInit();
+
+    if (!i || !v) {
+        DefaultAllocatorDeinit(&scratch);
         LOG_FATAL("Invalid arguments");
+    }
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         *v               = 0;
         const char *next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
 
+        DefaultAllocatorDeinit(&scratch);
         return next;
     }
 
@@ -2294,6 +2328,7 @@ const char *_read_u16(const char *i, FmtInfo *fmt_info, u16 *v) {
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse u16: empty input");
+        DefaultAllocatorDeinit(&scratch);
         return i;
     }
 
@@ -2312,7 +2347,7 @@ const char *_read_u16(const char *i, FmtInfo *fmt_info, u16 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Check for special prefixes with no digits
     if (temp.length == 2 && temp.data[0] == '0' &&
@@ -2320,6 +2355,7 @@ const char *_read_u16(const char *i, FmtInfo *fmt_info, u16 *v) {
          temp.data[1] == 'o' || temp.data[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2327,6 +2363,7 @@ const char *_read_u16(const char *i, FmtInfo *fmt_info, u16 *v) {
     if (!IsValidNumericString(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2335,6 +2372,7 @@ const char *_read_u16(const char *i, FmtInfo *fmt_info, u16 *v) {
     if (!StrToU64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse u16");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2342,23 +2380,30 @@ const char *_read_u16(const char *i, FmtInfo *fmt_info, u16 *v) {
     if (val > UINT16_MAX) {
         LOG_ERROR("Value {} exceeds u16 maximum ({})", val, UINT16_MAX);
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
     *v = (u16)val;
     StrDeinit(&temp);
+    DefaultAllocatorDeinit(&scratch);
     return start + pos;
 }
 
 const char *_read_u32(const char *i, FmtInfo *fmt_info, u32 *v) {
-    if (!i || !v)
+    DefaultAllocator scratch = DefaultAllocatorInit();
+
+    if (!i || !v) {
+        DefaultAllocatorDeinit(&scratch);
         LOG_FATAL("Invalid arguments");
+    }
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         *v               = 0;
         const char *next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
 
+        DefaultAllocatorDeinit(&scratch);
         return next;
     }
 
@@ -2369,6 +2414,7 @@ const char *_read_u32(const char *i, FmtInfo *fmt_info, u32 *v) {
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse u32: empty input");
+        DefaultAllocatorDeinit(&scratch);
         return i;
     }
     // Find the end of the number using more precise rules
@@ -2386,7 +2432,7 @@ const char *_read_u32(const char *i, FmtInfo *fmt_info, u32 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Check for special prefixes with no digits
     if (temp.length == 2 && temp.data[0] == '0' &&
@@ -2394,6 +2440,7 @@ const char *_read_u32(const char *i, FmtInfo *fmt_info, u32 *v) {
          temp.data[1] == 'o' || temp.data[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2401,6 +2448,7 @@ const char *_read_u32(const char *i, FmtInfo *fmt_info, u32 *v) {
     if (!IsValidNumericString(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2409,6 +2457,7 @@ const char *_read_u32(const char *i, FmtInfo *fmt_info, u32 *v) {
     if (!StrToU64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse u32");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2416,23 +2465,30 @@ const char *_read_u32(const char *i, FmtInfo *fmt_info, u32 *v) {
     if (val > UINT32_MAX) {
         LOG_ERROR("Value {} exceeds u32 maximum ({})", val, UINT32_MAX);
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
     *v = (u32)val;
     StrDeinit(&temp);
+    DefaultAllocatorDeinit(&scratch);
     return start + pos;
 }
 
 const char *_read_u64(const char *i, FmtInfo *fmt_info, u64 *v) {
-    if (!i || !v)
+    DefaultAllocator scratch = DefaultAllocatorInit();
+
+    if (!i || !v) {
+        DefaultAllocatorDeinit(&scratch);
         LOG_FATAL("Invalid arguments");
+    }
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         *v               = 0;
         const char *next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
 
+        DefaultAllocatorDeinit(&scratch);
         return next;
     }
 
@@ -2443,6 +2499,7 @@ const char *_read_u64(const char *i, FmtInfo *fmt_info, u64 *v) {
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse u64: empty input");
+        DefaultAllocatorDeinit(&scratch);
         return i;
     }
 
@@ -2461,7 +2518,7 @@ const char *_read_u64(const char *i, FmtInfo *fmt_info, u64 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Check for special prefixes with no digits
     if (temp.length == 2 && temp.data[0] == '0' &&
@@ -2469,6 +2526,7 @@ const char *_read_u64(const char *i, FmtInfo *fmt_info, u64 *v) {
          temp.data[1] == 'o' || temp.data[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2476,6 +2534,7 @@ const char *_read_u64(const char *i, FmtInfo *fmt_info, u64 *v) {
     if (!IsValidNumericString(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2483,21 +2542,28 @@ const char *_read_u64(const char *i, FmtInfo *fmt_info, u64 *v) {
     if (!StrToU64(&temp, v, NULL)) {
         LOG_ERROR("Failed to parse u64");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
     StrDeinit(&temp);
+    DefaultAllocatorDeinit(&scratch);
     return start + pos;
 }
 
 const char *_read_i8(const char *i, FmtInfo *fmt_info, i8 *v) {
-    if (!i || !v)
+    DefaultAllocator scratch = DefaultAllocatorInit();
+
+    if (!i || !v) {
+        DefaultAllocatorDeinit(&scratch);
         LOG_FATAL("Invalid arguments");
+    }
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         *v               = 0;
         const char *next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
+        DefaultAllocatorDeinit(&scratch);
         return next;
     }
 
@@ -2508,6 +2574,7 @@ const char *_read_i8(const char *i, FmtInfo *fmt_info, i8 *v) {
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse i8: empty input");
+        DefaultAllocatorDeinit(&scratch);
         return i;
     }
 
@@ -2526,7 +2593,7 @@ const char *_read_i8(const char *i, FmtInfo *fmt_info, i8 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Check for special prefixes with no digits
     if (temp.length == 2 && temp.data[0] == '0' &&
@@ -2534,6 +2601,7 @@ const char *_read_i8(const char *i, FmtInfo *fmt_info, i8 *v) {
          temp.data[1] == 'o' || temp.data[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2541,6 +2609,7 @@ const char *_read_i8(const char *i, FmtInfo *fmt_info, i8 *v) {
     if (!IsValidNumericString(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2549,6 +2618,7 @@ const char *_read_i8(const char *i, FmtInfo *fmt_info, i8 *v) {
     if (!StrToI64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse i8");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2556,23 +2626,30 @@ const char *_read_i8(const char *i, FmtInfo *fmt_info, i8 *v) {
     if (val > INT8_MAX || val < INT8_MIN) {
         LOG_ERROR("Value {} outside i8 range ({} to {})", val, INT8_MIN, INT8_MAX);
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
     *v = (i8)val;
     StrDeinit(&temp);
+    DefaultAllocatorDeinit(&scratch);
     return start + pos;
 }
 
 const char *_read_i16(const char *i, FmtInfo *fmt_info, i16 *v) {
-    if (!i || !v)
+    DefaultAllocator scratch = DefaultAllocatorInit();
+
+    if (!i || !v) {
+        DefaultAllocatorDeinit(&scratch);
         LOG_FATAL("Invalid arguments");
+    }
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         *v               = 0;
         const char *next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
 
+        DefaultAllocatorDeinit(&scratch);
         return next;
     }
 
@@ -2583,6 +2660,7 @@ const char *_read_i16(const char *i, FmtInfo *fmt_info, i16 *v) {
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse i16: empty input");
+        DefaultAllocatorDeinit(&scratch);
         return i;
     }
 
@@ -2601,7 +2679,7 @@ const char *_read_i16(const char *i, FmtInfo *fmt_info, i16 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Check for special prefixes with no digits
     if (temp.length == 2 && temp.data[0] == '0' &&
@@ -2609,6 +2687,7 @@ const char *_read_i16(const char *i, FmtInfo *fmt_info, i16 *v) {
          temp.data[1] == 'o' || temp.data[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2616,6 +2695,7 @@ const char *_read_i16(const char *i, FmtInfo *fmt_info, i16 *v) {
     if (!IsValidNumericString(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2624,6 +2704,7 @@ const char *_read_i16(const char *i, FmtInfo *fmt_info, i16 *v) {
     if (!StrToI64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse i16");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2631,23 +2712,30 @@ const char *_read_i16(const char *i, FmtInfo *fmt_info, i16 *v) {
     if (val > INT16_MAX || val < INT16_MIN) {
         LOG_ERROR("Value {} outside i16 range ({} to {})", val, INT16_MIN, INT16_MAX);
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
     *v = (i16)val;
     StrDeinit(&temp);
+    DefaultAllocatorDeinit(&scratch);
     return start + pos;
 }
 
 const char *_read_i32(const char *i, FmtInfo *fmt_info, i32 *v) {
-    if (!i || !v)
+    DefaultAllocator scratch = DefaultAllocatorInit();
+
+    if (!i || !v) {
+        DefaultAllocatorDeinit(&scratch);
         LOG_FATAL("Invalid arguments");
+    }
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         *v               = 0;
         const char *next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
 
+        DefaultAllocatorDeinit(&scratch);
         return next;
     }
 
@@ -2658,6 +2746,7 @@ const char *_read_i32(const char *i, FmtInfo *fmt_info, i32 *v) {
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse i32: empty input");
+        DefaultAllocatorDeinit(&scratch);
         return i;
     }
 
@@ -2676,7 +2765,7 @@ const char *_read_i32(const char *i, FmtInfo *fmt_info, i32 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Check for special prefixes with no digits
     if (temp.length == 2 && temp.data[0] == '0' &&
@@ -2684,6 +2773,7 @@ const char *_read_i32(const char *i, FmtInfo *fmt_info, i32 *v) {
          temp.data[1] == 'o' || temp.data[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2691,6 +2781,7 @@ const char *_read_i32(const char *i, FmtInfo *fmt_info, i32 *v) {
     if (!IsValidNumericString(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2699,6 +2790,7 @@ const char *_read_i32(const char *i, FmtInfo *fmt_info, i32 *v) {
     if (!StrToI64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse i32");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2706,23 +2798,30 @@ const char *_read_i32(const char *i, FmtInfo *fmt_info, i32 *v) {
     if (val > INT32_MAX || val < INT32_MIN) {
         LOG_ERROR("Value {} outside i32 range ({} to {})", val, INT32_MIN, INT32_MAX);
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
     *v = (i32)val;
     StrDeinit(&temp);
+    DefaultAllocatorDeinit(&scratch);
     return start + pos;
 }
 
 const char *_read_i64(const char *i, FmtInfo *fmt_info, i64 *v) {
-    if (!i || !v)
+    DefaultAllocator scratch = DefaultAllocatorInit();
+
+    if (!i || !v) {
+        DefaultAllocatorDeinit(&scratch);
         LOG_FATAL("Invalid arguments");
+    }
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         *v               = 0;
         const char *next = read_chars_internal(i, (u8 *)v, sizeof(*v), fmt_info);
 
+        DefaultAllocatorDeinit(&scratch);
         return next;
     }
 
@@ -2733,6 +2832,7 @@ const char *_read_i64(const char *i, FmtInfo *fmt_info, i64 *v) {
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse i64: empty input");
+        DefaultAllocatorDeinit(&scratch);
         return i;
     }
 
@@ -2751,7 +2851,7 @@ const char *_read_i64(const char *i, FmtInfo *fmt_info, i64 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Check for special prefixes with no digits
     if (temp.length == 2 && temp.data[0] == '0' &&
@@ -2759,6 +2859,7 @@ const char *_read_i64(const char *i, FmtInfo *fmt_info, i64 *v) {
          temp.data[1] == 'o' || temp.data[1] == 'O')) {
         LOG_ERROR("Incomplete number format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2766,6 +2867,7 @@ const char *_read_i64(const char *i, FmtInfo *fmt_info, i64 *v) {
     if (!IsValidNumericString(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -2773,59 +2875,20 @@ const char *_read_i64(const char *i, FmtInfo *fmt_info, i64 *v) {
     if (!StrToI64(&temp, v, NULL)) {
         LOG_ERROR("Failed to parse i64");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
     StrDeinit(&temp);
+    DefaultAllocatorDeinit(&scratch);
     return start + pos;
 }
 
 const char *_read_Zstr(const char *i, FmtInfo *fmt_info, const char **out) {
-    char       *result    = NULL;
-    const char *next      = NULL;
-    Allocator   allocator = DefaultAllocator();
-
-    if (!i || !out)
-        LOG_FATAL("Invalid arguments");
-    if (*out) {
-        LOG_FATAL("allocator is required when reusing caller-provided zero-terminated string storage.");
-    }
-
-    // For string types, :c has no effect - work like regular string reading
-    Str     temp        = StrInit();
-    FmtInfo default_fmt = fmt_info ? *fmt_info :
-                                     (FmtInfo) {
-                                         .align        = ALIGN_RIGHT,
-                                         .width        = 0,
-                                         .precision    = 6,
-                                         .flags        = FMT_FLAG_NONE,
-                                         .max_read_len = (u32)ZstrLen(i),
-                                     };
-
-    default_fmt.flags &= ~FMT_FLAG_CHAR;
-    if (!default_fmt.max_read_len) {
-        default_fmt.max_read_len = (u32)ZstrLen(i);
-    }
-
-    next = _read_Str(i, &default_fmt, &temp);
-
-    // Check if reading failed
-    if (next == i) {
-        StrDeinit(&temp);
-        return i;
-    }
-
-    // Allocate and copy to null-terminated string
-    result = ZstrDupNAlloc(temp.data, temp.length, allocator);
-    if (!result) {
-        LOG_ERROR("Failed to allocate memory for string");
-        StrDeinit(&temp);
-        return i;
-    }
-
-    *out = result;
-    StrDeinit(&temp);
-    return next;
+    (void)fmt_info;
+    (void)out;
+    LOG_FATAL("_read_Zstr requires explicit allocator provenance; use _read_ZstrAlloc / ZstrIO(zstr, alloc) instead.");
+    return i;
 }
 
 const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg) {
@@ -2834,22 +2897,17 @@ const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg) {
     char       *result        = NULL;
     const char *next          = NULL;
     Allocator  *allocator_ptr = NULL;
-    Allocator   default_allocator;
-    Str         temp = StrInit();
+    Str         temp;
     FmtInfo     default_fmt;
 
-    if (!i || !arg || !arg->value) {
+    if (!i || !arg || !arg->value || !arg->allocator) {
         LOG_FATAL("Invalid arguments");
     }
 
     out           = (char **)arg->value;
     allocator_ptr = arg->allocator;
     previous      = *out;
-
-    if (!allocator_ptr) {
-        default_allocator = DefaultAllocator();
-        allocator_ptr     = &default_allocator;
-    }
+    temp          = StrInit(allocator_ptr);
 
     default_fmt        = fmt_info ? *fmt_info :
                                     (FmtInfo) {
@@ -2870,7 +2928,7 @@ const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg) {
         return i;
     }
 
-    result = ZstrDupNAlloc(temp.data, temp.length, *allocator_ptr);
+    result = ZstrDupN(temp.data, temp.length, allocator_ptr);
     if (!result) {
         LOG_ERROR("Failed to allocate memory for string");
         StrDeinit(&temp);
@@ -2970,7 +3028,7 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
             return true;
         }
 
-        u8 *buffer = (u8 *)AllocatorAlloc(&o->allocator, byte_len * sizeof(u8), true);
+        u8 *buffer = (u8 *)AllocatorAlloc(o->allocator, byte_len * sizeof(u8), true);
 
         if (!buffer) {
             LOG_ERROR("Failed to allocate buffer for Int character formatting");
@@ -2979,10 +3037,10 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
 
         (void)IntToBytesBE(value, buffer, byte_len);
         if (!write_char_internal(o, fmt_info->flags, (const char *)buffer, byte_len)) {
-            AllocatorFree(&o->allocator, buffer, byte_len * sizeof(u8));
+            AllocatorFree(o->allocator, buffer, byte_len * sizeof(u8));
             return false;
         }
-        AllocatorFree(&o->allocator, buffer, byte_len * sizeof(u8));
+        AllocatorFree(o->allocator, buffer, byte_len * sizeof(u8));
         return true;
     }
 
@@ -3062,7 +3120,7 @@ const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
         }
 
         // Parse hex string
-        Str            hex_str = StrInitFromCstr(hex_start, i - hex_start);
+        Str            hex_str = StrInitFromCstr(hex_start, i - hex_start, bv->allocator);
         u64            value;
         StrParseConfig config = {.base = 16};
         if (!StrToU64(&hex_str, &value, &config)) {
@@ -3076,7 +3134,7 @@ const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
         if (bit_len < 4)
             bit_len = 4; // Minimum 4 bits for hex display
 
-        *bv = BitVecFromInteger(value, bit_len);
+        *bv = BitVecFromIntegerAlloc(value, bit_len, bv->allocator);
         StrDeinit(&hex_str);
         return i;
     }
@@ -3098,7 +3156,7 @@ const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
         }
 
         // Parse octal string
-        Str            oct_str = StrInitFromCstr(oct_start, i - oct_start);
+        Str            oct_str = StrInitFromCstr(oct_start, i - oct_start, bv->allocator);
         u64            value;
         StrParseConfig config = {.base = 8};
         if (!StrToU64(&oct_str, &value, &config)) {
@@ -3112,7 +3170,7 @@ const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
         if (bit_len < 3)
             bit_len = 3; // Minimum 3 bits for octal display
 
-        *bv = BitVecFromInteger(value, bit_len);
+        *bv = BitVecFromIntegerAlloc(value, bit_len, bv->allocator);
         StrDeinit(&oct_str);
         return i;
     }
@@ -3131,10 +3189,10 @@ const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
     }
 
     // Create string from binary digits (already null-terminated by StrInitFromCstr)
-    Str bin_str = StrInitFromCstr(bin_start, i - bin_start);
+    Str bin_str = StrInitFromCstr(bin_start, i - bin_start, bv->allocator);
 
     // Convert to BitVec using the null-terminated string
-    *bv = BitVecFromStr(bin_str.data);
+    *bv = BitVecFromStrAlloc(bin_str.data, bv->allocator);
 
     StrDeinit(&bin_str);
     return i;
@@ -3197,8 +3255,8 @@ const char *_read_Int(const char *i, FmtInfo *fmt_info, Int *value) {
         return start;
     }
 
-    Str  temp   = StrInitFromCstr(start, i - start);
-    Int  parsed = IntInit();
+    Str  temp   = StrInitFromCstr(start, i - start, value->bits.allocator);
+    Int  parsed = IntInit(value->bits.allocator);
     bool ok     = IntTryFromStrRadix(&parsed, temp.data, radix);
 
     if (!ok) {
@@ -3216,15 +3274,20 @@ const char *_read_Int(const char *i, FmtInfo *fmt_info, Int *value) {
 const char *_read_Float(const char *i, FmtInfo *fmt_info, Float *value) {
     size        token_len = 0;
     const char *start     = NULL;
-    Str         temp      = StrInit();
-    Float       parsed    = FloatInit();
+    Str         temp;
+    Float       parsed;
 
     if (!i || !value) {
         LOG_FATAL("Invalid arguments");
     }
 
+    temp   = StrInit(value->significand.bits.allocator);
+    parsed = FloatInit(value->significand.bits.allocator);
+
     if (FloatFmtUsesUnsupportedFlags(fmt_info)) {
         LOG_ERROR("Float only supports decimal and scientific reading");
+        StrDeinit(&temp);
+        FloatDeinit(&parsed);
         return i;
     }
 
@@ -3236,6 +3299,8 @@ const char *_read_Float(const char *i, FmtInfo *fmt_info, Float *value) {
 
     if (!*i) {
         LOG_ERROR("Failed to parse Float: empty input");
+        StrDeinit(&temp);
+        FloatDeinit(&parsed);
         return i;
     }
 
@@ -3244,12 +3309,16 @@ const char *_read_Float(const char *i, FmtInfo *fmt_info, Float *value) {
 
     if (token_len == 0) {
         LOG_ERROR("Failed to parse Float");
+        StrDeinit(&temp);
+        FloatDeinit(&parsed);
         return start;
     }
 
-    temp = StrInitFromCstr(start, token_len);
+    StrDeinit(&temp);
+    temp = StrInitFromCstr(start, token_len, value->significand.bits.allocator);
     if (!FloatTryFromStr(&parsed, temp.data)) {
         StrDeinit(&temp);
+        FloatDeinit(&parsed);
         return start;
     }
 
@@ -3268,14 +3337,19 @@ const char *_read_UnsupportedType(const char *i, FmtInfo *fmt_info, const char *
 }
 
 const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v) {
-    if (!i || !v)
+    DefaultAllocator scratch = DefaultAllocatorInit();
+
+    if (!i || !v) {
+        DefaultAllocatorDeinit(&scratch);
         LOG_FATAL("Invalid arguments");
+    }
 
     // Handle character format specifier
     if (fmt_info && (fmt_info->flags & FMT_FLAG_CHAR)) {
         u32         temp = 0;
         const char *next = read_chars_internal(i, (u8 *)&temp, sizeof(temp), fmt_info);
         *v               = (f32)temp;
+        DefaultAllocatorDeinit(&scratch);
         return next;
     }
 
@@ -3286,6 +3360,7 @@ const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v) {
     // Check for empty string
     if (!*i) {
         LOG_ERROR("Failed to parse f32: empty input");
+        DefaultAllocatorDeinit(&scratch);
         return i;
     }
 
@@ -3297,13 +3372,14 @@ const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v) {
             i++;
 
         // Create a temporary Str for parsing
-        Str temp = StrInitFromCstr(start, i - start);
+        Str temp = StrInitFromCstr(start, i - start, &scratch);
 
         // Try to parse as special value
         f64 val;
         if (StrToF64(&temp, &val, NULL)) {
             *v = (f32)val;
             StrDeinit(&temp);
+            DefaultAllocatorDeinit(&scratch);
             return i;
         }
         StrDeinit(&temp);
@@ -3357,12 +3433,13 @@ const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v) {
     }
 
     // Create a temporary Str for parsing
-    Str temp = StrInitFromCstr(start, pos);
+    Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Validate the string is a proper floating point number
     if (!IsValidNumericString(&temp, true)) {
         LOG_ERROR("Invalid floating point format");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
@@ -3371,11 +3448,13 @@ const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v) {
     if (!StrToF64(&temp, &val, NULL)) {
         LOG_ERROR("Failed to parse f32");
         StrDeinit(&temp);
+        DefaultAllocatorDeinit(&scratch);
         return start;
     }
 
     *v = (f32)val;
     StrDeinit(&temp);
+    DefaultAllocatorDeinit(&scratch);
     return start + pos;
 }
 

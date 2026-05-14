@@ -2,118 +2,80 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Allocator API entry points and default-binding helpers. The actual
-/// allocator backends live next to this file under `Allocator/`.
+/// Generic allocator dispatch entry points. The concrete allocator
+/// implementations (Heap, Page, Arena, Pool) live next to this file under
+/// `Allocator/`; this file only routes through the function-pointer table
+/// on the `Allocator` base and applies the `effort`/`retry_limit` retry
+/// policy on top.
 
 #include <Misra/Std/Allocator.h>
-#include <Misra/Std/Allocator/Private.h>
+#include <Misra/Std/Log.h>
 
-static size allocator_attempt_limit(const Allocator *alloc) {
-    if (!alloc) {
+static size allocator_attempt_limit(const Allocator *self) {
+    if (!self) {
         return 1;
     }
-
-    switch (alloc->effort) {
+    switch (self->effort) {
         case ALLOCATOR_EFFORT_RETRY :
         case ALLOCATOR_EFFORT_RETRY_FALLBACK :
-            return alloc->retry_limit ? (size)(alloc->retry_limit + 1) : 2;
+            return self->retry_limit ? (size)(self->retry_limit + 1) : 2;
         case ALLOCATOR_EFFORT_ONCE :
         default :
             return 1;
     }
 }
 
-Allocator AllocatorBind(Allocator alloc) {
-    Allocator heap = HeapAllocator();
-
-    if (!alloc.allocate) {
-        alloc.allocate = heap.allocate;
-    }
-    if (!alloc.reallocate) {
-        alloc.reallocate = heap.reallocate;
-    }
-    if (!alloc.deallocate) {
-        alloc.deallocate = heap.deallocate;
-    }
-
-    alloc.state = NULL;
-    return alloc;
+static bool allocator_alignment_is_pow2(size alignment) {
+    return alignment != 0 && ((alignment & (alignment - 1)) == 0);
 }
 
-bool allocator_ensure_state(Allocator *alloc) {
-    if (!alloc) {
-        return false;
+void ValidateAllocator(const Allocator *self) {
+    if (!self) {
+        LOG_FATAL("NULL allocator pointer");
     }
-    if (!alloc->state_init || alloc->state) {
-        return true;
+    if (self->__magic == 0u) {
+        LOG_FATAL("Allocator uninitialized (__magic is zero)");
     }
-    return alloc->state_init(alloc);
+    if (!self->allocate || !self->reallocate || !self->deallocate) {
+        LOG_FATAL("Allocator missing required function pointers");
+    }
+    if (!allocator_alignment_is_pow2(self->alignment)) {
+        LOG_FATAL("Allocator alignment must be a power of two > 0");
+    }
 }
 
-void *AllocatorAlloc(Allocator *alloc, size bytes, bool zeroed) {
-    size  attempts;
-    size  try_idx;
-    void *ptr = NULL;
+void *AllocatorAlloc(Allocator *self, size bytes, bool zeroed) {
+    ValidateAllocator(self);
 
-    if (!alloc || !alloc->allocate) {
-        return NULL;
-    }
-
-    if (!allocator_ensure_state(alloc)) {
-        return NULL;
-    }
-
-    attempts = allocator_attempt_limit(alloc);
-    for (try_idx = 0; try_idx < attempts; try_idx++) {
-        ptr = alloc->allocate(alloc, bytes, zeroed);
+    size  attempts = allocator_attempt_limit(self);
+    void *ptr      = NULL;
+    for (size try_idx = 0; try_idx < attempts; try_idx++) {
+        ptr = self->allocate(self, bytes, zeroed);
         if (ptr) {
             return ptr;
         }
     }
-
     return NULL;
 }
 
-void *AllocatorRealloc(Allocator *alloc, void *ptr, size old_size, size new_size) {
-    size  attempts;
-    size  try_idx;
-    void *new_ptr = NULL;
+void *AllocatorRealloc(Allocator *self, void *ptr, size old_size, size new_size) {
+    ValidateAllocator(self);
 
-    if (!alloc || !alloc->reallocate) {
-        return NULL;
-    }
-
-    if (!allocator_ensure_state(alloc)) {
-        return NULL;
-    }
-
-    attempts = allocator_attempt_limit(alloc);
-    for (try_idx = 0; try_idx < attempts; try_idx++) {
-        new_ptr = alloc->reallocate(alloc, ptr, old_size, new_size);
+    size  attempts = allocator_attempt_limit(self);
+    void *new_ptr  = NULL;
+    for (size try_idx = 0; try_idx < attempts; try_idx++) {
+        new_ptr = self->reallocate(self, ptr, old_size, new_size);
         if (new_ptr || new_size == 0) {
             return new_ptr;
         }
     }
-
     return NULL;
 }
 
-void AllocatorFree(Allocator *alloc, void *ptr, size bytes) {
-    if (!ptr || !alloc || !alloc->deallocate) {
+void AllocatorFree(Allocator *self, void *ptr, size bytes) {
+    if (!ptr) {
         return;
     }
-
-    alloc->deallocate(alloc, ptr, bytes);
-}
-
-void AllocatorUnbind(Allocator *alloc) {
-    if (!alloc) {
-        return;
-    }
-
-    if (alloc->state && alloc->state_deinit) {
-        alloc->state_deinit(alloc);
-    }
-
-    alloc->state = NULL;
+    ValidateAllocator(self);
+    self->deallocate(self, ptr, bytes);
 }

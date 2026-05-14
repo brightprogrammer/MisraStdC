@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Graph.h>
 #include <Misra/Std/Log.h>
 
@@ -6,8 +7,10 @@
 static bool test_graph_add_node_semantics(void) {
     WriteFmt("Testing GraphAddNode semantics\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph  = GraphInit();
+    IntGraph graph  = GraphInit(&alloc);
     int      owned  = 42;
     int      shared = 7;
 
@@ -20,14 +23,17 @@ static bool test_graph_add_node_semantics(void) {
     result      = result && GraphNodeAt(&graph, id1) == 7;
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_add_edge_dedup(void) {
     WriteFmt("Testing GraphAddEdge deduplication\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a = GraphAddNodeR(&graph, 1);
     GraphNodeId b = GraphAddNodeR(&graph, 2);
@@ -47,14 +53,17 @@ static bool test_graph_add_edge_dedup(void) {
     result      = result && GraphPredecessorAt(&graph, c, 0) == a;
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_self_loop_and_predecessor_order(void) {
     WriteFmt("Testing Graph self-loop handling and predecessor order\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a = GraphAddNodeR(&graph, 1);
     GraphNodeId b = GraphAddNodeR(&graph, 2);
@@ -73,6 +82,7 @@ static bool test_graph_self_loop_and_predecessor_order(void) {
     result      = result && (GraphPredecessorAt(&graph, a, 2) == c);
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

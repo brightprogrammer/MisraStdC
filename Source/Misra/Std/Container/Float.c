@@ -5,6 +5,7 @@
 /// Arbitrary-precision decimal floating-point implementation built on top of Int.
 
 #include <Misra/Std/Container/Float.h>
+#include <Misra/Std/Container/Float/Private.h>
 #include <Misra/Std/Container/Int.h>
 #include <Misra/Std/Log.h>
 
@@ -16,13 +17,13 @@
 
 static void float_normalize(Float *value);
 static void float_replace(Float *dst, Float *src);
-static bool float_try_int_from_u64(Int *out, u64 value, Allocator alloc);
-static bool float_try_from_u64_value(Float *out, u64 value, Allocator alloc);
-static bool float_try_from_i64_value(Float *out, i64 value, Allocator alloc);
+static bool float_try_int_from_u64(Int *out, u64 value, Allocator *alloc);
+static bool float_try_from_u64_value(Float *out, u64 value, Allocator *alloc);
+static bool float_try_from_i64_value(Float *out, i64 value, Allocator *alloc);
 static bool float_try_from_int_value(Float *out, Int *value);
-static bool float_try_from_f32_value(Float *out, float value, Allocator alloc);
-static bool float_try_from_f64_value(Float *out, double value, Allocator alloc);
-static bool float_pow10(Int *out, u64 power, Allocator alloc);
+static bool float_try_from_f32_value(Float *out, float value, Allocator *alloc);
+static bool float_try_from_f64_value(Float *out, double value, Allocator *alloc);
+static bool float_pow10(Int *out, u64 power, Allocator *alloc);
 static bool float_scale_to_exponent(Float *value, i64 target_exponent);
 static bool float_try_abs_compare(int *out, Float *lhs, Float *rhs);
 static i64  float_add_i64_checked(i64 a, i64 b);
@@ -44,7 +45,7 @@ static i64 float_sub_i64_checked(i64 a, i64 b) {
     return a - b;
 }
 
-static bool float_try_from_f32_value(Float *out, float value, Allocator alloc) {
+static bool float_try_from_f32_value(Float *out, float value, Allocator *alloc) {
     char text[32] = {0};
     int  len      = snprintf(text, sizeof(text), "%.9g", (double)value);
 
@@ -61,7 +62,7 @@ static bool float_try_from_f32_value(Float *out, float value, Allocator alloc) {
     return FloatTryFromStr(out, text);
 }
 
-static bool float_try_from_f64_value(Float *out, double value, Allocator alloc) {
+static bool float_try_from_f64_value(Float *out, double value, Allocator *alloc) {
     char text[48] = {0};
     int  len      = snprintf(text, sizeof(text), "%.17g", value);
 
@@ -83,7 +84,7 @@ static void float_replace(Float *dst, Float *src) {
     *dst = *src;
 }
 
-static bool float_try_int_from_u64(Int *out, u64 value, Allocator alloc) {
+static bool float_try_int_from_u64(Int *out, u64 value, Allocator *alloc) {
     u64 bits = 0;
 
     if (!out) {
@@ -109,7 +110,7 @@ static bool float_try_int_from_u64(Int *out, u64 value, Allocator alloc) {
     return true;
 }
 
-static bool float_pow10(Int *out, u64 power, Allocator alloc) {
+static bool float_pow10(Int *out, u64 power, Allocator *alloc) {
     Int base;
     Int result;
 
@@ -263,7 +264,7 @@ bool FloatTryClone(Float *out, Float *value) {
     return true;
 }
 
-static bool float_try_from_u64_value(Float *out, u64 value, Allocator alloc) {
+static bool float_try_from_u64_value(Float *out, u64 value, Allocator *alloc) {
     if (!out) {
         LOG_ERROR("Invalid arguments");
         return false;
@@ -279,7 +280,7 @@ static bool float_try_from_u64_value(Float *out, u64 value, Allocator alloc) {
     return true;
 }
 
-static bool float_try_from_i64_value(Float *out, i64 value, Allocator alloc) {
+static bool float_try_from_i64_value(Float *out, i64 value, Allocator *alloc) {
     u64 magnitude = 0;
 
     if (!out) {
@@ -318,44 +319,45 @@ static bool float_try_from_int_value(Float *out, Int *value) {
     return true;
 }
 
-Float float_from_u64(u64 value) {
+Float float_from_u64(u64 value, Allocator *alloc) {
     Float result;
 
-    result = FloatInit(DefaultAllocator());
-    (void)float_try_from_u64_value(&result, value, DefaultAllocator());
+    result = FloatInit(alloc);
+    (void)float_try_from_u64_value(&result, value, alloc);
     float_normalize(&result);
     return result;
 }
 
-Float float_from_i64(i64 value) {
-    Float result = FloatInit(DefaultAllocator());
+Float float_from_i64(i64 value, Allocator *alloc) {
+    Float result = FloatInit(alloc);
 
-    (void)float_try_from_i64_value(&result, value, DefaultAllocator());
+    (void)float_try_from_i64_value(&result, value, alloc);
     float_normalize(&result);
     return result;
 }
 
-Float float_from_int(Int *value) {
+Float float_from_int(Int *value, Allocator *alloc) {
     Float result;
 
     ValidateInt(value);
+    (void)alloc;
     result = FloatInit(value->bits.allocator);
     (void)float_try_from_int_value(&result, value);
     float_normalize(&result);
     return result;
 }
 
-Float float_from_f32(float value) {
-    Float result = FloatInit(DefaultAllocator());
+Float float_from_f32(float value, Allocator *alloc) {
+    Float result = FloatInit(alloc);
 
-    (void)float_try_from_f32_value(&result, value, DefaultAllocator());
+    (void)float_try_from_f32_value(&result, value, alloc);
     return result;
 }
 
-Float float_from_f64(double value) {
-    Float result = FloatInit(DefaultAllocator());
+Float float_from_f64(double value, Allocator *alloc) {
+    Float result = FloatInit(alloc);
 
-    (void)float_try_from_f64_value(&result, value, DefaultAllocator());
+    (void)float_try_from_f64_value(&result, value, alloc);
     return result;
 }
 
@@ -522,14 +524,14 @@ fail:
     return false;
 }
 
-Float FloatFromStr(const char *text) {
-    Float result = FloatInit();
+Float FloatFromStr(const char *text, Allocator *alloc) {
+    Float result = FloatInit(alloc);
 
     (void)FloatTryFromStr(&result, text);
     return result;
 }
 
-bool FloatTryToStrAlloc(Str *out, Float *value, Allocator alloc) {
+bool FloatTryToStrAlloc(Str *out, Float *value, Allocator *alloc) {
     Str digits;
     Str result;
 
@@ -1082,7 +1084,7 @@ bool float_div(Float *result, Float *a, Float *b, u64 precision) {
         return false;
     }
     if (FloatIsZero(a)) {
-        Float zero = FloatInit();
+        Float zero = FloatInit(result->significand.bits.allocator);
 
         FloatDeinit(result);
         *result = zero;

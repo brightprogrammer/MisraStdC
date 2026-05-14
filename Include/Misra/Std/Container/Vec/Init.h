@@ -7,134 +7,77 @@
 #ifndef MISRA_STD_CONTAINER_VEC_INIT_H
 #define MISRA_STD_CONTAINER_VEC_INIT_H
 
-#include "Private.h"
 #include "Type.h"
+#include <Misra/Std/Allocator.h>
 
 ///
-/// Initialize vector. Element stride alignment is derived from the allocator's
-/// `alignment` field.
-/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
-/// An allocator can be passed as the final optional argument. If omitted, DefaultAllocator() is used.
-/// To request stronger alignment for vector elements, pass an allocator built via
-/// `HeapAllocatorAligned(n)` (or set the allocator's `alignment` field directly).
+/// Initialize a Vec bound to an allocator. The argument may be either
+/// a typed allocator handle (`&heap`, `&arena`, ...) or a raw
+/// `Allocator *` — `ALLOCATOR_OF` typechecks both at compile time and
+/// converts to `Allocator *` via a whole-pointer typecast.
 ///
 /// USAGE:
-///   Vec(HttpRequest) requests = VecInit();
-///   Vec(HttpRequest) arena_requests = VecInit(arena_allocator);
-///   Vec(SimdVec) wide = VecInit(HeapAllocatorAligned(32));
+///   DefaultAllocator heap = DefaultAllocatorInit();
+///   Vec(int) v = VecInit(&heap);
+///   ...
+///   VecDeinit(&v);
+///   DefaultAllocatorDeinit(&heap);
 ///
 /// TAGS: Init, Vec, Length, Size
 ///
-#define VEC_INIT_HAS_ARGS_IMPL(_0, _1, count, ...) count
-#define VEC_INIT_HAS_ARGS(...)                     VEC_INIT_HAS_ARGS_IMPL(__VA_OPT__(, ) __VA_ARGS__, 1, 0, 0)
-#define VecInit(...)                               CONCAT(VecInit_, VEC_INIT_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define VecInit_0()                                VEC_INIT_WITH_DEEP_COPY_VALUE(NULL, NULL, DefaultAllocator())
-#define VecInit_1(alloc)                           VEC_INIT_WITH_DEEP_COPY_VALUE(NULL, NULL, (alloc))
+#define VecInit(allocator_ptr)                                                                                         \
+    {.length      = 0,                                                                                                 \
+     .capacity    = 0,                                                                                                 \
+     .copy_init   = NULL,                                                                                              \
+     .copy_deinit = NULL,                                                                                              \
+     .data        = NULL,                                                                                              \
+     .allocator   = ALLOCATOR_OF(allocator_ptr),                                                                       \
+     .__magic     = MISRA_VEC_MAGIC}
 
 ///
-/// Initialize given vector.
-/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
+/// Typed-cast variant of `VecInit` for assigning into a typed Vec
+/// variable. The cast makes the macro usable both as an in-place
+/// initializer (`Vec(int) v = VecInitT(v, alloc);`) and as an
+/// assignment target.
 ///
-/// v[in]     : Variable or type of a vector to be initialized.
-/// alloc[in] : Optional allocator copied into the vector. If omitted, DefaultAllocator() is used.
-///
-/// USAGE:
-///     void SomeInterestingFn(DataVec* data_vec) {
-///         *data_vec = VecInitT(data_vec);
-///
-///         // use vector
-///     }
-///
-/// TAGS: Init, Vec, Length, Size
-///
-#define VEC_INIT_T_HAS_ARGS_IMPL(_1, _2, count, ...) count
-#define VEC_INIT_T_HAS_ARGS(...)                     VEC_INIT_T_HAS_ARGS_IMPL(__VA_ARGS__, 2, 1, 0)
-#define VecInitT(...)                                CONCAT(VecInitT_, VEC_INIT_T_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define VecInitT_1(v)                                VecInitWithDeepCopyT((v), NULL, NULL)
-#define VecInitT_2(v, alloc)                         VecInitWithDeepCopyT((v), NULL, NULL, (alloc))
+#ifdef __cplusplus
+#    define VecInitT(v, alloc_ptr) (TYPE_OF(v) VecInit(alloc_ptr))
+#else
+#    define VecInitT(v, alloc_ptr) ((TYPE_OF(v))VecInit(alloc_ptr))
+#endif
 
 ///
-/// Initialize vector with deep-copy callbacks.
-/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
+/// Initialize a Vec with deep-copy callbacks. Allocator argument routed
+/// through `ALLOCATOR_OF` like `VecInit`.
 ///
-/// ci[in]    : Copy init method.
-/// cd[in]    : Copy deinit method.
-/// alloc[in] : Optional allocator copied into the vector. If omitted, DefaultAllocator() is used.
-///
-/// USAGE:
-///   Vec(HttpRequest) requests = VecInitWithDeepCopy(RequestClone, RequestDeinit);
-///
-/// TAGS: Init, Vec, Length, Size, DeepCopy, DeepDeinit
-///
-#define VEC_INIT_WITH_DEEP_COPY_HAS_ARGS_IMPL(_1, _2, _3, count, ...) count
-#define VEC_INIT_WITH_DEEP_COPY_HAS_ARGS(...)                         VEC_INIT_WITH_DEEP_COPY_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
-#define VecInitWithDeepCopy(...)                                                                                       \
-    CONCAT(VecInitWithDeepCopy_, VEC_INIT_WITH_DEEP_COPY_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define VecInitWithDeepCopy_2(ci, cd)        VEC_INIT_WITH_DEEP_COPY_VALUE((ci), (cd), DefaultAllocator())
-#define VecInitWithDeepCopy_3(ci, cd, alloc) VEC_INIT_WITH_DEEP_COPY_VALUE((ci), (cd), (alloc))
-
-#define VEC_INIT_WITH_DEEP_COPY_VALUE(ci, cd, alloc)                                                                   \
+#define VecInitWithDeepCopy(ci, cd, allocator_ptr)                                                                     \
     {.length      = 0,                                                                                                 \
      .capacity    = 0,                                                                                                 \
      .copy_init   = (GenericCopyInit)(ci),                                                                             \
      .copy_deinit = (GenericCopyDeinit)(cd),                                                                           \
      .data        = NULL,                                                                                              \
-     .allocator   = AllocatorBind((alloc)),                                                                            \
+     .allocator   = ALLOCATOR_OF(allocator_ptr),                                                                       \
      .__magic     = MISRA_VEC_MAGIC}
 
-#define VEC_INIT_WITH_DEEP_COPY_T_HAS_ARGS_IMPL(_1, _2, _3, _4, count, ...) count
-#define VEC_INIT_WITH_DEEP_COPY_T_HAS_ARGS(...)                             VEC_INIT_WITH_DEEP_COPY_T_HAS_ARGS_IMPL(__VA_ARGS__, 4, 3, 2, 1, 0)
-
 #ifdef __cplusplus
-#    define VecInitWithDeepCopyT(...)                                                                                  \
-        CONCAT(VecInitWithDeepCopyT_, VEC_INIT_WITH_DEEP_COPY_T_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#    define VecInitWithDeepCopyT_3(v, ci, cd)        (TYPE_OF(v) VecInitWithDeepCopy((ci), (cd)))
-#    define VecInitWithDeepCopyT_4(v, ci, cd, alloc) (TYPE_OF(v) VecInitWithDeepCopy((ci), (cd), (alloc)))
+#    define VecInitWithDeepCopyT(v, ci, cd, alloc_ptr)                                                                 \
+        (TYPE_OF(v) VecInitWithDeepCopy(ci, cd, alloc_ptr))
 #else
-///
-/// Initialize given vector with deep-copy callbacks.
-/// It is mandatory to initialize vectors before use. Not doing so is undefined behaviour.
-///
-/// v[in]     : Variable or type of a vector to be initialized.
-/// ci[in]    : Copy init method.
-/// cd[in]    : Copy deinit method.
-/// alloc[in] : Optional allocator copied into the vector. If omitted, DefaultAllocator() is used.
-///
-/// TAGS: Init, Vec, Length, Size, DeepCopy, DeepDeinit
-///
-#    define VecInitWithDeepCopyT(...)                                                                                  \
-        CONCAT(VecInitWithDeepCopyT_, VEC_INIT_WITH_DEEP_COPY_T_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#    define VecInitWithDeepCopyT_3(v, ci, cd)        ((TYPE_OF(v))VecInitWithDeepCopy((ci), (cd)))
-#    define VecInitWithDeepCopyT_4(v, ci, cd, alloc) ((TYPE_OF(v))VecInitWithDeepCopy((ci), (cd), (alloc)))
+#    define VecInitWithDeepCopyT(v, ci, cd, alloc_ptr)                                                                 \
+        ((TYPE_OF(v))VecInitWithDeepCopy(ci, cd, alloc_ptr))
 #endif
 
 ///
-/// Initialize given vector with stack-allocated backing storage and deep-copy callbacks.
-/// Such vectors cannot be dynamically resized; doing so is undefined behaviour. They
-/// must not be deinitialized at the end of the scope - the macro tears down the
+/// Initialize a vector with stack-allocated backing storage and deep-copy
+/// callbacks. The vector cannot be dynamically resized; it must not be
+/// deinitialized at the end of the scope - the macro tears down the
 /// allocation automatically.
 ///
-/// v[in,out] : Vector that needs to be initialized.
-/// ne[in]    : Number of elements to allocate stack memory for.
-/// ci[in]    : Copy init method.
-/// cd[in]    : Copy deinit method.
-/// scoped_body[in] : Block of code where the vector is alive.
-///
-/// USAGE:
-///   Vec(ModelInfo) models;
-///   VecInitWithDeepCopyStack(&models, 64, ModelInfoInitClone, ModelInfoDeinit, {
-///       VecForeachPtr(&models, model, {
-///           Render(model);
-///       });
-///   });
-///
-/// TAGS: Init, Vec, Stack, Length, Size, Array, DeepCopy
-///
-#define VecInitWithDeepCopyStack(v, ne, ci, cd, scoped_body)                                                           \
+#define VecInitWithDeepCopyStack(v, typed_alloc_ptr, ne, ci, cd, scoped_body)                                          \
     do {                                                                                                               \
         char ___data___[sizeof(VEC_DATATYPE(&(v))) * ((ne) + 1)] = {0};                                                \
                                                                                                                        \
-        (v)          = VecInitWithDeepCopyT((v), (ci), (cd));                                                          \
+        (v)          = VecInitWithDeepCopyT((v), (ci), (cd), (typed_alloc_ptr));                                       \
         (v).capacity = (ne);                                                                                           \
         (v).data     = (VEC_DATATYPE(&(v)) *)&___data___[0];                                                           \
                                                                                                                        \
@@ -145,37 +88,13 @@
     } while (0)
 
 ///
-/// Initialize given vector using stack-allocated backing storage.
-/// Such vectors cannot be dynamically resized; doing so is undefined behaviour. They
-/// must not be deinitialized at the end of the scope - the macro tears down the
-/// allocation automatically.
+/// Initialize a vector using stack-allocated backing storage.
 ///
-/// v[in,out] : Vector that needs to be initialized.
-/// ne[in]    : Number of elements to allocate stack memory for.
-/// scoped_body[in] : Block of code where the vector is alive.
-///
-/// USAGE:
-///   Vec(i32) ids;
-///   VecInitStack(ids, 64, {
-///       ids = MakeClientRequestToFillVector(ids);
-///       VecForeach(&ids, id, {
-///           // some relevant logic
-///       });
-///   });
-///
-/// TAGS: Init, Vec, Stack, Length, Size, Array
-///
-#define VecInitStack(v, ne, scoped_body) VecInitWithDeepCopyStack(v, ne, NULL, NULL, scoped_body)
+#define VecInitStack(v, typed_alloc_ptr, ne, scoped_body)                                                              \
+    VecInitWithDeepCopyStack(v, typed_alloc_ptr, ne, NULL, NULL, scoped_body)
 
 ///
-/// Deinit vec by freeing all allocations.
-///
-/// v[in,out] : Pointer to `Vec` to be deinited
-///
-/// USAGE:
-///   Vec(Model)* models = GetAllModels(...);
-///   ... // use vector
-///   VecDeinit(models);
+/// Deinit vec by freeing its backing buffer.
 ///
 #define VecDeinit(v) deinit_vec(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v)))
 

@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Io.h>
 #include <stdio.h>
@@ -32,11 +33,13 @@ bool test_str_foreach_ptr_in_range_idx_out_of_bounds_access(void);
 // Test StrForeachIdx macro
 bool test_str_foreach_idx(void) {
     WriteFmt("Testing StrForeachIdx\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Build a new string by iterating through each character with its index
-    Str result = StrInit();
+    Str result = StrInit(&alloc);
     StrForeachIdx(&s, chr, idx) {
         StrWriteFmt(&result, "{c}{}", chr, idx);
     }
@@ -46,17 +49,20 @@ bool test_str_foreach_idx(void) {
 
     StrDeinit(&s);
     StrDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 // Test StrForeachReverseIdx macro
 bool test_str_foreach_reverse_idx(void) {
     WriteFmt("Testing StrForeachReverseIdx\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Build a new string by iterating through each character in reverse with its index
-    Str result = StrInit();
+    Str result = StrInit(&alloc);
 
     StrForeachReverseIdx(&s, chr, idx) {
         // Append the character and its index to the result string
@@ -68,17 +74,20 @@ bool test_str_foreach_reverse_idx(void) {
 
     StrDeinit(&s);
     StrDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 // Test StrForeachPtrIdx macro
 bool test_str_foreach_ptr_idx(void) {
     WriteFmt("Testing StrForeachPtrIdx\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Build a new string by iterating through each character pointer with its index
-    Str result = StrInit();
+    Str result = StrInit(&alloc);
     StrForeachPtrIdx(&s, chrptr, idx) {
         // Append the character (via pointer) and its index to the result string
         StrWriteFmt(&result, "{c}{}", *chrptr, idx);
@@ -97,17 +106,20 @@ bool test_str_foreach_ptr_idx(void) {
 
     StrDeinit(&s);
     StrDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 // Test StrForeachReversePtrIdx macro
 bool test_str_foreach_reverse_ptr_idx(void) {
     WriteFmt("Testing StrForeachReversePtrIdx\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Build a new string by iterating through each character pointer in reverse with its index
-    Str result = StrInit();
+    Str result = StrInit(&alloc);
 
     StrForeachReversePtrIdx(&s, chrptr, idx) {
         // Append the character (via pointer) and its index to the result string
@@ -126,17 +138,20 @@ bool test_str_foreach_reverse_ptr_idx(void) {
 
     StrDeinit(&s);
     StrDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 // Test StrForeach macro
 bool test_str_foreach(void) {
     WriteFmt("Testing StrForeach\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Build a new string by iterating through each character
-    Str result = StrInit();
+    Str result = StrInit(&alloc);
     StrForeach(&s, chr) {
         // Append the character to the result string
         StrPushBack(&result, chr);
@@ -147,17 +162,20 @@ bool test_str_foreach(void) {
 
     StrDeinit(&s);
     StrDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 // Test StrForeachReverse macro
 bool test_str_foreach_reverse(void) {
     WriteFmt("Testing StrForeachReverse\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Build a new string by iterating through each character in reverse
-    Str  result     = StrInit();
+    Str  result     = StrInit(&alloc);
     size char_count = 0;
 
     StrForeachReverse(&s, chr) {
@@ -178,17 +196,20 @@ bool test_str_foreach_reverse(void) {
 
     StrDeinit(&s);
     StrDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 // Test StrForeachPtr macro
 bool test_str_foreach_ptr(void) {
     WriteFmt("Testing StrForeachPtr\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Build a new string by iterating through each character pointer
-    Str result = StrInit();
+    Str result = StrInit(&alloc);
     StrForeachPtr(&s, chrptr) {
         // Append the character (via pointer) to the result string
         StrPushBack(&result, *chrptr);
@@ -207,17 +228,20 @@ bool test_str_foreach_ptr(void) {
 
     StrDeinit(&s);
     StrDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 // Test StrForeachPtrReverse macro
 bool test_str_foreach_ptr_reverse(void) {
     WriteFmt("Testing StrForeachPtrReverse\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello");
+
+    Str s = StrInitFromZstr("Hello", &alloc);
 
     // Build a new string by iterating through each character pointer in reverse
-    Str  result     = StrInit();
+    Str  result     = StrInit(&alloc);
     size char_count = 0;
 
     StrForeachPtrReverse(&s, chrptr) {
@@ -246,17 +270,20 @@ bool test_str_foreach_ptr_reverse(void) {
 
     StrDeinit(&s);
     StrDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 // Test StrForeachInRangeIdx macro
 bool test_str_foreach_in_range_idx(void) {
     WriteFmt("Testing StrForeachInRangeIdx\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello World");
+
+    Str s = StrInitFromZstr("Hello World", &alloc);
 
     // Build a new string by iterating through a range of characters with indices
-    Str result = StrInit();
+    Str result = StrInit(&alloc);
     StrForeachInRangeIdx(&s, chr, idx, 6, 11) {
         // Append the character and its index to the result string
         StrWriteFmt(&result, "{c}{}", chr, idx);
@@ -266,7 +293,7 @@ bool test_str_foreach_in_range_idx(void) {
     bool success = (ZstrCompare(result.data, "W6o7r8l9d10") == 0);
 
     // Test with empty range
-    Str empty_result = StrInit();
+    Str empty_result = StrInit(&alloc);
     StrForeachInRangeIdx(&s, chr, idx, 3, 3) {
         // This block should not execute
         StrPushBack(&empty_result, chr);
@@ -278,17 +305,20 @@ bool test_str_foreach_in_range_idx(void) {
     StrDeinit(&s);
     StrDeinit(&result);
     StrDeinit(&empty_result);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 // Test StrForeachInRange macro
 bool test_str_foreach_in_range(void) {
     WriteFmt("Testing StrForeachInRange\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello World");
+
+    Str s = StrInitFromZstr("Hello World", &alloc);
 
     // Build a new string by iterating through a range of characters
-    Str result = StrInit();
+    Str result = StrInit(&alloc);
     StrForeachInRange(&s, chr, 0, 5) {
         // Append the character to the result string
         StrPushBack(&result, chr);
@@ -298,7 +328,7 @@ bool test_str_foreach_in_range(void) {
     bool success = (ZstrCompare(result.data, "Hello") == 0);
 
     // Test with range at the end of the string
-    Str end_result = StrInit();
+    Str end_result = StrInit(&alloc);
     StrForeachInRange(&s, chr, 6, 11) {
         // Append the character to the result string
         StrPushBack(&end_result, chr);
@@ -310,17 +340,20 @@ bool test_str_foreach_in_range(void) {
     StrDeinit(&s);
     StrDeinit(&result);
     StrDeinit(&end_result);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 // Test StrForeachPtrInRangeIdx macro
 bool test_str_foreach_ptr_in_range_idx(void) {
     WriteFmt("Testing StrForeachPtrInRangeIdx\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello World");
+
+    Str s = StrInitFromZstr("Hello World", &alloc);
 
     // Build a new string by iterating through a range of character pointers with indices
-    Str result = StrInit();
+    Str result = StrInit(&alloc);
     StrForeachPtrInRangeIdx(&s, chrptr, idx, 6, 11) {
         // Append the character and its index to the result string
         StrWriteFmt(&result, "{c}{}", *chrptr, idx);
@@ -339,17 +372,20 @@ bool test_str_foreach_ptr_in_range_idx(void) {
 
     StrDeinit(&s);
     StrDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 // Test StrForeachPtrInRange macro
 bool test_str_foreach_ptr_in_range(void) {
     WriteFmt("Testing StrForeachPtrInRange\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello World");
+
+    Str s = StrInitFromZstr("Hello World", &alloc);
 
     // Build a new string by iterating through a range of character pointers
-    Str result = StrInit();
+    Str result = StrInit(&alloc);
     StrForeachPtrInRange(&s, chrptr, 0, 5) {
         // Append the character to the result string
         StrPushBack(&result, *chrptr);
@@ -368,14 +404,17 @@ bool test_str_foreach_ptr_in_range(void) {
 
     StrDeinit(&s);
     StrDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
 // Make idx go out of bounds in StrForeachInRangeIdx by shrinking string during iteration
 bool test_str_foreach_out_of_bounds_access(void) {
     WriteFmt("Testing StrForeachInRangeIdx where idx goes out of bounds\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Hello World!"); // 12 characters
+
+    Str s = StrInitFromZstr("Hello World!", &alloc); // 12 characters
 
     // Use StrForeachInRangeIdx which captures the 'end' parameter at the start
     // Even if we shrink the string, the loop will continue until idx reaches the fixed end
@@ -396,19 +435,23 @@ bool test_str_foreach_out_of_bounds_access(void) {
         if (idx > 4) {
             LOG_ERROR("Should've terminated");
             StrDeinit(&s);
+            DefaultAllocatorDeinit(&alloc);
             return false;
         }
     }
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 // Make idx go out of bounds in StrForeachInRangeIdx by deleting characters
 bool test_str_foreach_idx_out_of_bounds_access(void) {
     WriteFmt("Testing StrForeachInRangeIdx with character deletion where idx goes out of bounds\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Programming"); // 11 characters
+
+    Str s = StrInitFromZstr("Programming", &alloc); // 11 characters
 
     // Use StrForeachInRangeIdx with a fixed range that will become invalid
     // when we delete characters during iteration
@@ -429,19 +472,23 @@ bool test_str_foreach_idx_out_of_bounds_access(void) {
         if (idx >= 5) {
             LOG_ERROR("Should've terminated");
             StrDeinit(&s);
+            DefaultAllocatorDeinit(&alloc);
             return false;
         }
     }
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 // Make idx go out of bounds in StrForeachReverseIdx by modifying string during iteration
 bool test_str_foreach_reverse_idx_out_of_bounds_access(void) {
     WriteFmt("Testing StrForeachReverseIdx where idx goes out of bounds\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Beautiful Weather"); // 17 characters
+
+    Str s = StrInitFromZstr("Beautiful Weather", &alloc); // 17 characters
 
     // StrForeachReverseIdx (VecForeachReverseIdx) has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
     StrForeachReverseIdx(&s, chr, idx) {
@@ -460,19 +507,23 @@ bool test_str_foreach_reverse_idx_out_of_bounds_access(void) {
         if (idx < 10) {
             LOG_ERROR("Should've terminated");
             StrDeinit(&s);
+            DefaultAllocatorDeinit(&alloc);
             return false;
         }
     }
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 // Make idx go out of bounds in StrForeachPtrIdx by modifying string during iteration
 bool test_str_foreach_ptr_idx_out_of_bounds_access(void) {
     WriteFmt("Testing StrForeachPtrIdx where idx goes out of bounds\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Programming Test"); // 16 characters
+
+    Str s = StrInitFromZstr("Programming Test", &alloc); // 16 characters
 
     // StrForeachPtrIdx (VecForeachPtrIdx) has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
     StrForeachPtrIdx(&s, chr_ptr, idx) {
@@ -491,19 +542,23 @@ bool test_str_foreach_ptr_idx_out_of_bounds_access(void) {
         if (idx > 4) {
             LOG_ERROR("Should've terminated");
             StrDeinit(&s);
+            DefaultAllocatorDeinit(&alloc);
             return false;
         }
     }
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 // Make idx go out of bounds in StrForeachReversePtrIdx by modifying string during iteration
 bool test_str_foreach_reverse_ptr_idx_out_of_bounds_access(void) {
     WriteFmt("Testing StrForeachReversePtrIdx where idx goes out of bounds\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Excellent Example"); // 17 characters
+
+    Str s = StrInitFromZstr("Excellent Example", &alloc); // 17 characters
 
     // StrForeachReversePtrIdx (VecForeachPtrReverseIdx) has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
     StrForeachReversePtrIdx(&s, chr_ptr, idx) {
@@ -521,19 +576,23 @@ bool test_str_foreach_reverse_ptr_idx_out_of_bounds_access(void) {
         if (idx < 12) {
             LOG_ERROR("Should've terminated");
             StrDeinit(&s);
+            DefaultAllocatorDeinit(&alloc);
             return false;
         }
     }
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 // Make idx go out of bounds in StrForeachPtrInRangeIdx by modifying string during iteration
 bool test_str_foreach_ptr_in_range_idx_out_of_bounds_access(void) {
     WriteFmt("Testing StrForeachPtrInRangeIdx where idx goes out of bounds\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Comprehensive Testing Framework"); // 31 characters
+
+    Str s = StrInitFromZstr("Comprehensive Testing Framework", &alloc); // 31 characters
 
     // Use StrForeachPtrInRangeIdx with a fixed range that becomes invalid when we modify the string
     size original_length = s.length; // Capture this as 32
@@ -552,19 +611,23 @@ bool test_str_foreach_ptr_in_range_idx_out_of_bounds_access(void) {
         if (idx >= s.length) {
             LOG_ERROR("Should've terminated");
             StrDeinit(&s);
+            DefaultAllocatorDeinit(&alloc);
             return false;
         }
     }
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 // Make idx go out of bounds in basic StrForeachIdx by modifying string during iteration
 bool test_str_foreach_idx_basic_out_of_bounds_access(void) {
     WriteFmt("Testing basic StrForeachIdx where idx goes out of bounds\n");
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str s = StrInitFromZstr("Testing Basic"); // 13 characters
+
+    Str s = StrInitFromZstr("Testing Basic", &alloc); // 13 characters
 
     // Basic StrForeachIdx (VecForeachIdx) now has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
     StrForeachIdx(&s, chr, idx) {
@@ -583,11 +646,13 @@ bool test_str_foreach_idx_basic_out_of_bounds_access(void) {
         if (idx > 3) {
             LOG_ERROR("Should've terminated");
             StrDeinit(&s);
+            DefaultAllocatorDeinit(&alloc);
             return false;
         }
     }
 
     StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 

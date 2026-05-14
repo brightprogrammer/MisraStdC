@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Map.h>
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
@@ -52,26 +53,38 @@ static size custom_next_index(u64 hash, size capacity, size previous_index, size
 
 static bool test_map_type_defaults(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
 
-    return map.length == 0 && map.capacity == 0 && map.tombstones == 0 && map.entries == NULL && map.states == NULL &&
-           map.key_compare == i32_compare && map.value_compare == NULL && map.key_hash == i32_hash &&
-           map.policy.should_rehash == MisraMapPolicyLinear.should_rehash &&
-           map.policy.next_capacity == MisraMapPolicyLinear.next_capacity &&
-           map.policy.first_index == MisraMapPolicyLinear.first_index &&
-           map.policy.next_index == MisraMapPolicyLinear.next_index &&
-           map.policy.max_probe_count == MisraMapPolicyLinear.max_probe_count;
+    bool result =
+        map.length == 0 && map.capacity == 0 && map.tombstones == 0 && map.entries == NULL && map.states == NULL &&
+        map.key_compare == i32_compare && map.value_compare == NULL && map.key_hash == i32_hash &&
+        map.policy.should_rehash == MisraMapPolicyLinear.should_rehash &&
+        map.policy.next_capacity == MisraMapPolicyLinear.next_capacity &&
+        map.policy.first_index == MisraMapPolicyLinear.first_index &&
+        map.policy.next_index == MisraMapPolicyLinear.next_index &&
+        map.policy.max_probe_count == MisraMapPolicyLinear.max_probe_count;
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
 }
 
 static bool test_map_type_with_value_compare(void) {
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
 
-    return map.key_compare == i32_compare && map.value_compare == i32_compare && map.key_hash == i32_hash;
+    bool result = map.key_compare == i32_compare && map.value_compare == i32_compare && map.key_hash == i32_hash;
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
 }
 
 static bool test_map_policy_copy(void) {
     typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc = DefaultAllocatorInit();
     MapPolicy custom_policy = {
         .name            = "custom-linear",
         .should_rehash   = custom_should_rehash_snapshot,
@@ -80,7 +93,7 @@ static bool test_map_policy_copy(void) {
         .next_index      = custom_next_index,
         .max_probe_count = 11,
     };
-    IntIntMap map = MapInitWithPolicy(i32_hash, i32_compare, custom_policy);
+    IntIntMap map = MapInitWithPolicy(i32_hash, i32_compare, custom_policy, &alloc);
 
     custom_policy.name            = "changed";
     custom_policy.should_rehash   = NULL;
@@ -89,10 +102,14 @@ static bool test_map_policy_copy(void) {
     custom_policy.next_index      = NULL;
     custom_policy.max_probe_count = 0;
 
-    return ZstrCompare(map.policy.name, "custom-linear") == 0 &&
-           map.policy.should_rehash == custom_should_rehash_snapshot &&
-           map.policy.next_capacity == custom_next_capacity && map.policy.first_index == custom_first_index &&
-           map.policy.next_index == custom_next_index && map.policy.max_probe_count == 11;
+    bool result = ZstrCompare(map.policy.name, "custom-linear") == 0 &&
+                  map.policy.should_rehash == custom_should_rehash_snapshot &&
+                  map.policy.next_capacity == custom_next_capacity && map.policy.first_index == custom_first_index &&
+                  map.policy.next_index == custom_next_index && map.policy.max_probe_count == 11;
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
 }
 
 static bool test_validate_map_policy(void) {

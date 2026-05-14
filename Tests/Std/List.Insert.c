@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/List.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Types.h>
@@ -10,14 +11,14 @@ static int g_copy_deinit_count = 0;
 static bool tracked_copy_init(void *dst, const void *src, const Allocator *alloc) {
     (void)alloc;
     g_copy_init_count += 1;
-    *(int *)dst = *(int *)src + 1000;
+    *(int *)dst        = *(int *)src + 1000;
     return true;
 }
 
 static void tracked_copy_deinit(void *data, const Allocator *alloc) {
     (void)alloc;
     g_copy_deinit_count += 1;
-    *(int *)data = 0;
+    *(int *)data         = 0;
 }
 
 static void reset_counters(void) {
@@ -43,8 +44,10 @@ static bool list_matches(GenericList *list, const int *expected, size count) {
 static bool test_list_insert_and_push_aliases(void) {
     WriteFmt("Testing List insert and push aliases\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list = ListInit(&alloc);
     int     a    = 10;
     int     b    = 20;
     int     c    = 30;
@@ -65,19 +68,22 @@ static bool test_list_insert_and_push_aliases(void) {
     ListPushBackL(&list, i);
     ListPushBack(&list, g);
 
-    bool result = (a == 0) && (b == 20) && (c == 0) && (d == 0) && (e == 50) && (f == 0) && (g == 0) &&
-                  (h == 80) && (i == 0);
-    result      = result && list_matches(GENERIC_LIST(&list), (const int[]) {60, 80, 40, 10, 30, 20, 50, 90, 70}, 9);
+    bool result =
+        (a == 0) && (b == 20) && (c == 0) && (d == 0) && (e == 50) && (f == 0) && (g == 0) && (h == 80) && (i == 0);
+    result = result && list_matches(GENERIC_LIST(&list), (const int[]) {60, 80, 40, 10, 30, 20, 50, 90, 70}, 9);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_push_arr_l_zeroes_all_items(void) {
     WriteFmt("Testing ListPushArrL zeroes all transferred items\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list  = ListInit(&alloc);
     int     arr[] = {1, 2, 3};
 
     ListPushArrL(&list, arr, 3);
@@ -86,14 +92,17 @@ static bool test_list_push_arr_l_zeroes_all_items(void) {
     result      = result && (arr[0] == 0) && (arr[1] == 0) && (arr[2] == 0);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_push_arr_zero_count_is_noop(void) {
     WriteFmt("Testing ListPushArrL zero-count contract\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInit();
+    IntList list  = ListInit(&alloc);
     int     arr[] = {4, 5, 6};
 
     ListPushBackR(&list, 1);
@@ -103,15 +112,18 @@ static bool test_list_push_arr_zero_count_is_noop(void) {
     result      = result && (arr[0] == 4) && (arr[1] == 5) && (arr[2] == 6);
 
     ListDeinit(&list);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_insert_with_deep_copy(void) {
     WriteFmt("Testing List insert with deep copy\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList list = ListInitWithDeepCopy(tracked_copy_init, tracked_copy_deinit);
-    int     x    = 7;
+    IntList list  = ListInitWithDeepCopy(tracked_copy_init, tracked_copy_deinit, &alloc);
+    int     x     = 7;
     int     arr[] = {8, 9};
 
     reset_counters();
@@ -126,15 +138,18 @@ static bool test_list_insert_with_deep_copy(void) {
 
     ListDeinit(&list);
     result = result && (g_copy_deinit_count == 4);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_merge_l_preserves_source_hooks_for_reuse(void) {
     WriteFmt("Testing ListMergeL preserves source hooks for reuse\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList dest = ListInit();
-    IntList src  = ListInitWithDeepCopy(tracked_copy_init, tracked_copy_deinit);
+    IntList dest = ListInit(&alloc);
+    IntList src  = ListInitWithDeepCopy(tracked_copy_init, tracked_copy_deinit, &alloc);
 
     reset_counters();
     ListPushBackR(&src, 3);
@@ -153,19 +168,22 @@ static bool test_list_merge_l_preserves_source_hooks_for_reuse(void) {
     ListDeinit(&dest);
     ListDeinit(&src);
     result = result && (g_copy_deinit_count == 1);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_merge_variants(void) {
     WriteFmt("Testing List merge variants\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList dest_l = ListInit();
-    IntList src_l  = ListInit();
-    IntList dest_r = ListInit();
-    IntList src_r  = ListInit();
-    IntList dest_a = ListInit();
-    IntList src_a  = ListInit();
+    IntList dest_l = ListInit(&alloc);
+    IntList src_l  = ListInit(&alloc);
+    IntList dest_r = ListInit(&alloc);
+    IntList src_r  = ListInit(&alloc);
+    IntList dest_a = ListInit(&alloc);
+    IntList src_a  = ListInit(&alloc);
 
     ListPushBackR(&dest_l, 1);
     ListPushBackR(&dest_l, 2);
@@ -196,17 +214,20 @@ static bool test_list_merge_variants(void) {
     ListDeinit(&src_r);
     ListDeinit(&dest_a);
     ListDeinit(&src_a);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_list_merge_edge_cases(void) {
     WriteFmt("Testing List merge edge cases\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef List(int) IntList;
-    IntList deep_dest  = ListInitWithDeepCopy(tracked_copy_init, tracked_copy_deinit);
-    IntList shallow_src = ListInit();
-    IntList empty_dest = ListInit();
-    IntList empty_src  = ListInit();
+    IntList deep_dest   = ListInitWithDeepCopy(tracked_copy_init, tracked_copy_deinit, &alloc);
+    IntList shallow_src = ListInit(&alloc);
+    IntList empty_dest  = ListInit(&alloc);
+    IntList empty_src   = ListInit(&alloc);
 
     reset_counters();
     ListPushBackR(&shallow_src, 11);
@@ -225,6 +246,7 @@ static bool test_list_merge_edge_cases(void) {
     ListDeinit(&empty_dest);
     ListDeinit(&empty_src);
     result = result && (g_copy_deinit_count == 2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

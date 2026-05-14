@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
@@ -25,9 +26,11 @@ static i32 compare_ints(const void *lhs, const void *rhs) {
 bool test_vec_at(void) {
     WriteFmt("Testing VecAt\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     VecPushBackR(&vec, 10);
@@ -50,6 +53,7 @@ bool test_vec_at(void) {
     // Clean up
     VecDeinit(&vec);
 
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -57,9 +61,11 @@ bool test_vec_at(void) {
 bool test_vec_ptr_at(void) {
     WriteFmt("Testing VecPtrAt\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     VecPushBackR(&vec, 10);
@@ -87,6 +93,7 @@ bool test_vec_ptr_at(void) {
     // Clean up
     VecDeinit(&vec);
 
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -94,9 +101,11 @@ bool test_vec_ptr_at(void) {
 bool test_vec_first_last(void) {
     WriteFmt("Testing VecFirst and VecLast\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     VecPushBackR(&vec, 10);
@@ -118,6 +127,7 @@ bool test_vec_first_last(void) {
     // Clean up
     VecDeinit(&vec);
 
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -125,9 +135,11 @@ bool test_vec_first_last(void) {
 bool test_vec_begin_end(void) {
     WriteFmt("Testing VecBegin and VecEnd\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     VecPushBackR(&vec, 10);
@@ -148,6 +160,7 @@ bool test_vec_begin_end(void) {
     // Clean up
     VecDeinit(&vec);
 
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -155,9 +168,12 @@ bool test_vec_begin_end(void) {
 bool test_vec_size_len(void) {
     WriteFmt("Testing VecSize and VecLen\n");
 
+    DefaultAllocator alloc      = DefaultAllocatorInit();
+    HeapAllocator    aligned8   = HeapAllocatorInitAligned(8);
+
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Check initial size and length
     size vec_size = VecSize(&vec);
@@ -182,7 +198,7 @@ bool test_vec_size_len(void) {
 
     // Test with a vector with alignment > 1
     typedef Vec(int) AlignedIntVec;
-    AlignedIntVec aligned_vec = VecInit(HeapAllocatorAligned(8));
+    AlignedIntVec aligned_vec = VecInit(&aligned8);
 
     // Add some data
     VecPushBackR(&aligned_vec, 10);
@@ -198,6 +214,8 @@ bool test_vec_size_len(void) {
     // Clean up
     VecDeinit(&aligned_vec);
 
+    HeapAllocatorDeinit(&aligned8);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -205,9 +223,12 @@ bool test_vec_size_len(void) {
 bool test_vec_aligned_offset_at(void) {
     WriteFmt("Testing VecAlignedOffsetAt\n");
 
+    DefaultAllocator alloc    = DefaultAllocatorInit();
+    HeapAllocator    aligned8 = HeapAllocatorInitAligned(8);
+
     // Create a vector of integers with default alignment (1)
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Check offsets
     bool result = (VecAlignedOffsetAt(&vec, 0) == 0);
@@ -219,7 +240,7 @@ bool test_vec_aligned_offset_at(void) {
 
     // Create a vector with 8-byte alignment
     typedef Vec(int) AlignedIntVec;
-    AlignedIntVec aligned_vec = VecInit(HeapAllocatorAligned(8));
+    AlignedIntVec aligned_vec = VecInit(&aligned8);
 
     // For 8-byte alignment, each int (4 bytes) should be padded to 8 bytes
     size aligned_size = ALIGN_UP(sizeof(int), 8);
@@ -232,6 +253,8 @@ bool test_vec_aligned_offset_at(void) {
     // Clean up
     VecDeinit(&aligned_vec);
 
+    HeapAllocatorDeinit(&aligned8);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -239,8 +262,10 @@ bool test_vec_aligned_offset_at(void) {
 bool test_vec_empty_find_contains(void) {
     WriteFmt("Testing VecEmpty, VecFind, and VecContains\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     int  needle  = 20;
     int  missing = 99;
@@ -260,6 +285,7 @@ bool test_vec_empty_find_contains(void) {
     result = result && (VecFind(&vec, &missing, compare_ints) == SIZE_MAX);
 
     VecDeinit(&vec);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

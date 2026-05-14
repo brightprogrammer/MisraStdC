@@ -27,9 +27,11 @@ struct SysMutex {
 #endif
 };
 
-SysMutex *SysMutexCreate(void) {
-    Allocator allocator = DefaultAllocator();
-    SysMutex *m         = (SysMutex *)AllocatorAlloc(&allocator, sizeof(SysMutex), true);
+SysMutex *SysMutexCreate(Allocator *alloc) {
+    if (!alloc) {
+        LOG_FATAL("SysMutexCreate requires an allocator");
+    }
+    SysMutex *m = (SysMutex *)AllocatorAlloc(alloc, sizeof(SysMutex), true);
 
     if (!m) {
         LOG_ERROR("Failed to allocate mutex");
@@ -43,16 +45,20 @@ SysMutex *SysMutexCreate(void) {
     return m;
 }
 
-void SysMutexDestroy(SysMutex *m) {
-    Allocator allocator = DefaultAllocator();
-
+void SysMutexDestroy(SysMutex *m, Allocator *alloc) {
+    if (!m) {
+        return;
+    }
+    if (!alloc) {
+        LOG_FATAL("SysMutexDestroy requires the allocator that created the mutex");
+    }
 #ifdef _WIN32
     DeleteCriticalSection(&m->lock);
 #else
     pthread_mutex_destroy(&m->lock);
 #endif
     MemSet(m, 0, sizeof(SysMutex));
-    AllocatorFree(&allocator, m, sizeof(SysMutex));
+    AllocatorFree(alloc, m, sizeof(SysMutex));
 }
 
 SysMutex *SysMutexLock(SysMutex *m) {

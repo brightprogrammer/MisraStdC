@@ -17,6 +17,7 @@
 ///
 
 #include <Misra.h>
+#include <Misra/Std/Allocator/Default.h>
 
 typedef struct Project {
     Str  build_dir;
@@ -24,75 +25,141 @@ typedef struct Project {
     Strs test_directories;
 } Project;
 
-void ProjectDeinit(Project *p) {
+static void project_deinit(Project *p) {
     if (!p) {
         LOG_ERROR("Invalid project object. Invalid arguments");
         abort();
     }
-
     StrDeinit(&p->build_dir);
+    VecForeach(&p->source_directories, s) { StrDeinit(&s); };
+    VecForeach(&p->test_directories, s) { StrDeinit(&s); };
     VecDeinit(&p->source_directories);
     VecDeinit(&p->test_directories);
 }
 
-#define JR_PROJECT(json, proj)                                                                                         \
-    do {                                                                                                               \
-        Project p            = {0};                                                                                    \
-        p.test_directories   = VecInitT(p.test_directories);                                                           \
-        p.source_directories = VecInitT(p.source_directories);                                                         \
-        JR_OBJ(json, {                                                                                                 \
-            JR_OBJ_KV(json, "project", {                                                                               \
-                JR_STR_KV(json, "build_dir", p.build_dir);                                                             \
-                JR_ARR_KV(json, "test_directories", {                                                                  \
-                    Str s = StrInit();                                                                                 \
-                    JR_STR(json, s);                                                                                   \
-                    VecPushBack(&p.test_directories, s);                                                               \
-                });                                                                                                    \
-                JR_ARR_KV(json, "source_directories", {                                                                \
-                    Str s = StrInit();                                                                                 \
-                    JR_STR(json, s);                                                                                   \
-                    VecPushBack(&p.source_directories, s);                                                             \
-                });                                                                                                    \
-            });                                                                                                        \
-        });                                                                                                            \
-        (proj) = p;                                                                                                    \
-    } while (0)
+// Walk a JSON object; for each key invoke on_key(key, &value_si, ctx).
+static StrIter parse_object_keys(StrIter si, Allocator *alloc, void (*on_key)(Str *key, StrIter *value_si, void *ctx), void *ctx) {
+    if (!StrIterRemainingLength(&si)) {
+        return si;
+    }
+    StrIter saved_si = si;
+    si               = JSkipWhitespace(si);
+    if (StrIterPeek(&si) != '{') {
+        LOG_ERROR("Invalid object start. Expected '{'.");
+        return saved_si;
+    }
+    StrIterNext(&si);
+    si = JSkipWhitespace(si);
 
-///
-/// Run a scoped block and automatically deinitialize the object at the end.
-///
-/// Executes `scope_body` and ensures `obj_deinit(obj)` is called afterward,
-/// regardless of the block's control flow. This is similar to RAII-style
-/// resource management in C++ but implemented manually via a macro.
-///
-/// The object is passed by pointer. It is not copied or moved.
-///
-/// This macro ensures the object is only evaluated once by capturing it
-/// internally using `TYPE_OF`.
-///
-/// The memory pointed to by `obj` is **not** cleared after deinitialization;
-/// if zeroing is needed, do it inside `obj_deinit`.
-///
-/// Parameters:
-///     obj[in]         : Pointer to the object to manage.
-///     obj_deinit[in]  : Function or macro to deinitialize the object.
-///     scope_body[in]  : Block of code that uses the object.
-///
-/// Usage example:
-///     MyStruct s = MyStructInit();
-///     Scope(&s, MyStructDeinit, {
-///         UseStruct(&s);
-///     });
-///
-/// SUCCESS : Always continues execution after scope.
-/// FAILURE : Caller must handle errors inside the scoped body.
-///
-#define Scope(obj, obj_deinit, scope_body)                                                                             \
-    do {                                                                                                               \
-        TYPE_OF((obj)) __o_b_j = (obj);                                                                                \
-        {scope_body};                                                                                                  \
-        obj_deinit(__o_b_j);                                                                                           \
-    } while (0)
+    bool expect_comma = false;
+    while (StrIterPeek(&si) && StrIterPeek(&si) != '}') {
+        if (expect_comma) {
+            if (StrIterPeek(&si) != ',') {
+                LOG_ERROR("Expected ',' between key/value pairs.");
+                return saved_si;
+            }
+            StrIterNext(&si);
+            si = JSkipWhitespace(si);
+        }
+
+        Str     key     = StrInit(alloc);
+        StrIter read_si = JReadString(si, &key);
+        if (read_si.pos == si.pos) {
+            LOG_ERROR("Failed to read key.");
+            StrDeinit(&key);
+            return saved_si;
+        }
+        si = read_si;
+        si = JSkipWhitespace(si);
+        if (StrIterPeek(&si) != ':') {
+            LOG_ERROR("Expected ':' after key.");
+            StrDeinit(&key);
+            return saved_si;
+        }
+        StrIterNext(&si);
+        si = JSkipWhitespace(si);
+
+        StrIter si_before = si;
+        on_key(&key, &si, ctx);
+        if (si.pos == si_before.pos) {
+            si = JSkipValue(si);
+        }
+        StrDeinit(&key);
+        si           = JSkipWhitespace(si);
+        expect_comma = true;
+    }
+    if (StrIterPeek(&si) == '}') {
+        StrIterNext(&si);
+    }
+    return si;
+}
+
+static StrIter parse_string_array(StrIter si, Strs *out, Allocator *alloc) {
+    if (!StrIterRemainingLength(&si)) {
+        return si;
+    }
+    StrIter saved_si = si;
+    si               = JSkipWhitespace(si);
+    if (StrIterPeek(&si) != '[') {
+        LOG_ERROR("Invalid array start. Expected '['.");
+        return saved_si;
+    }
+    StrIterNext(&si);
+    si = JSkipWhitespace(si);
+
+    bool expect_comma = false;
+    while (StrIterPeek(&si) && StrIterPeek(&si) != ']') {
+        if (expect_comma) {
+            if (StrIterPeek(&si) != ',') {
+                LOG_ERROR("Expected ',' between array values.");
+                return saved_si;
+            }
+            StrIterNext(&si);
+            si = JSkipWhitespace(si);
+        }
+        Str     s        = StrInit(alloc);
+        StrIter rs       = JReadString(si, &s);
+        if (rs.pos == si.pos) {
+            StrDeinit(&s);
+            si = JSkipValue(si);
+        } else {
+            si = rs;
+            VecPushBack(out, s);
+        }
+        si           = JSkipWhitespace(si);
+        expect_comma = true;
+    }
+    if (StrIterPeek(&si) == ']') {
+        StrIterNext(&si);
+    }
+    return si;
+}
+
+typedef struct ProjCtx {
+    Project   *p;
+    Allocator *alloc;
+} ProjCtx;
+
+static void project_on_key(Str *key, StrIter *value_si, void *vctx) {
+    ProjCtx *ctx = (ProjCtx *)vctx;
+    if (!StrCmpZstr(key, "build_dir")) {
+        Str s     = StrInit(ctx->alloc);
+        *value_si = JReadString(*value_si, &s);
+        StrDeinit(&ctx->p->build_dir);
+        ctx->p->build_dir = s;
+    } else if (!StrCmpZstr(key, "source_directories")) {
+        *value_si = parse_string_array(*value_si, &ctx->p->source_directories, ctx->alloc);
+    } else if (!StrCmpZstr(key, "test_directories")) {
+        *value_si = parse_string_array(*value_si, &ctx->p->test_directories, ctx->alloc);
+    }
+}
+
+static void top_on_key(Str *key, StrIter *value_si, void *vctx) {
+    ProjCtx *ctx = (ProjCtx *)vctx;
+    if (!StrCmpZstr(key, "project")) {
+        *value_si = parse_object_keys(*value_si, ctx->alloc, project_on_key, ctx);
+    }
+}
 
 int main(int argc, char **argv) {
     if (argc != 2) {
@@ -100,124 +167,139 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    LogInit(false);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    LogInit(false, &alloc.base);
 
     const char *config_path = argv[1];
 
     Project project = {0};
-    Scope(&project, ProjectDeinit, {
-        // read project config
-        Str config = StrInit();
-        Scope(&config, StrDeinit, {
-            if (!ReadCompleteFile(config_path, &config.data, &config.length, &config.capacity)) {
-                LOG_FATAL("Failed to read config file.");
+    project.build_dir          = StrInit(&alloc);
+    project.source_directories = VecInitT(project.source_directories, &alloc);
+    project.test_directories   = VecInitT(project.test_directories, &alloc);
+
+    // read project config
+    Str config = StrInit(&alloc);
+    if (!ReadCompleteFile(config_path, &config.data, &config.length, &config.capacity, &alloc.base)) {
+        LOG_FATAL("Failed to read config file.");
+    }
+    StrIter json = StrIterFromStr(config);
+
+    ProjCtx ctx = {.p = &project, .alloc = &alloc.base};
+    json        = parse_object_keys(json, &alloc.base, top_on_key, &ctx);
+    StrDeinit(&config);
+
+    // recursively explore directories and get files that need documentation
+    Strs file_paths = VecInit(&alloc);
+    Strs dir_paths  = VecInit(&alloc);
+
+    // Seed dir_paths from project source/test dirs (copy so we own these strings)
+    VecForeach(&project.source_directories, src_dir) {
+        Str copy = StrInitFromStr(&src_dir, &alloc);
+        VecPushBack(&dir_paths, copy);
+    };
+    VecForeach(&project.test_directories, src_dir) {
+        Str copy = StrInitFromStr(&src_dir, &alloc);
+        VecPushBack(&dir_paths, copy);
+    };
+
+    // recursively explore directories and get filenames
+    for (u64 i = 0; i < dir_paths.length; ++i) {
+        Str *dir_name = &dir_paths.data[i];
+
+        SysDirContents dir_contents = SysGetDirContents(dir_name->data, &alloc.base);
+        VecForeach(&dir_contents, dir_entry) {
+            if (dir_entry.type == SYS_DIR_ENTRY_TYPE_DIRECTORY) {
+                Str path = StrInit(&alloc);
+                StrMerge(&path, dir_name);
+                StrPushBack(&path, '/');
+                StrMerge(&path, &dir_entry.name);
+                VecPushBack(&dir_paths, path);
+                // VecPushBack may have realloc'd; re-fetch dir_name pointer.
+                dir_name = &dir_paths.data[i];
+            } else if (dir_entry.type == SYS_DIR_ENTRY_TYPE_REGULAR_FILE) {
+                Str path = StrInit(&alloc);
+                StrMerge(&path, dir_name);
+                StrPushBack(&path, '/');
+                StrMerge(&path, &dir_entry.name);
+                VecPushBack(&file_paths, path);
             }
-            StrIter json = StrIterFromStr(config);
-            JR_PROJECT(json, project);
-        });
+        };
+        VecForeach(&dir_contents, e) {
+            StrDeinit(&e.name);
+        };
+        VecDeinit(&dir_contents);
+    }
 
-        // recursively explore directories and get files that need documentation
-        Strs file_paths = VecInit();
-        Scope(&file_paths, VecDeinit, {
-            // temporary vector to store all directory paths to explore files in
-            Strs dir_paths = VecInitWithDeepCopy(NULL, StrDeinit);
-            Scope(&dir_paths, VecDeinit, {
-                VecMerge(&dir_paths, &project.source_directories);
-                VecMerge(&dir_paths, &project.test_directories);
-
-                // recursively explore directories and get filenames
-                VecForeach(&dir_paths, dir_name) {
-                    // keep track of current path we're exploring
-                    Str current_path = StrInit();
-                    StrMerge(&current_path, &dir_name);
-
-                    SysDirContents dir_contents = SysGetDirContents(dir_name.data);
-                    Scope(&dir_contents, VecDeinit, {
-                        VecForeach(&dir_contents, dir_entry) {
-                            // if it's a directory then store it for exploration later on
-                            if (dir_entry.type == SYS_DIR_ENTRY_TYPE_DIRECTORY) {
-                                // create new directory path relative to current directory search path
-                                Str path = StrInit();
-                                StrMerge(&path, &current_path);
-                                StrPushBack(&path, '/');
-                                StrMerge(&path, &dir_entry.name);
-
-                                // store the directory name, ownersip transferred
-                                VecPushBack(&dir_paths, path);
-                }
-                else if (dir_entry.type == SYS_DIR_ENTRY_TYPE_REGULAR_FILE) {
-                    // create complete relative file path
-                    Str path = StrInit();
-                    StrMerge(&path, &current_path);
-                    StrPushBack(&path, '/');
-                    StrMerge(&path, &dir_entry.name);
-
-                    // store discovered file name, ownersip transferred
-                    VecPushBack(&file_paths, path);
-                }
-                // any other file type is not documented
-                        }
-        });
-                }
-});
-
-// go over each file and generate corresponding markdown
-VecForeach(&file_paths, file_path) {
-    Str file_contents = StrInit();
-    Scope(&file_contents, StrDeinit, {
-        if (!ReadCompleteFile(file_path.data, &file_contents.data, &file_contents.length, &file_contents.capacity)) {
+    // go over each file and generate corresponding markdown
+    VecForeach(&file_paths, file_path) {
+        Str file_contents = StrInit(&alloc);
+        if (!ReadCompleteFile(
+                file_path.data,
+                &file_contents.data,
+                &file_contents.length,
+                &file_contents.capacity,
+                &alloc.base
+            )) {
             LOG_ERROR("Failed to read \"{}\" source file.", file_path.data);
+            StrDeinit(&file_contents);
             continue;
         }
 
-        Str output_path = StrInit();
-        Scope(&output_path, StrDeinit, {
-            StrMerge(&output_path, &file_path);
-            LOG_INFO("{}", output_path);
-            StrReplaceZstr(&output_path, "/", "-", -1);
-            LOG_INFO("{}", output_path);
+        Str output_path = StrInit(&alloc);
+        StrMerge(&output_path, &file_path);
+        LOG_INFO("{}", output_path);
+        StrReplaceZstr(&output_path, "/", "-", -1);
+        LOG_INFO("{}", output_path);
 
-            Str md_code = StrInit();
-            Scope(&md_code, StrDeinit, {
-                // Create template strings for StrWriteFmt with escaped braces
-                const char *mdHeader =
-                    "---\n"
-                    "title: \"{}\"\n"
-                    "meta_title: \"{}\"\n"
-                    "description: \"Documentation for {}\"\n"
-                    "date: 2025-05-12T05:00:00Z\n"
-                    "# image: \"/images/image-placeholder.png\"\n"
-                    "categories: [\"Vec\", \"Macro\", \"Generic\"]\n"
-                    "author: \"Siddharth Mishra\"\n"
-                    "tags: [\"vec\", \"macro\", \"generic\"]\n"
-                    "draft: false\n"
-                    "---\n"
-                    "```c\n";
+        Str md_code = StrInit(&alloc);
+        // Create template strings for StrWriteFmt with escaped braces
+        const char *mdHeader =
+            "---\n"
+            "title: \"{}\"\n"
+            "meta_title: \"{}\"\n"
+            "description: \"Documentation for {}\"\n"
+            "date: 2025-05-12T05:00:00Z\n"
+            "# image: \"/images/image-placeholder.png\"\n"
+            "categories: [\"Vec\", \"Macro\", \"Generic\"]\n"
+            "author: \"Siddharth Mishra\"\n"
+            "tags: [\"vec\", \"macro\", \"generic\"]\n"
+            "draft: false\n"
+            "---\n"
+            "```c\n";
 
-                StrWriteFmt(&md_code, mdHeader, output_path.data, output_path.data, output_path.data);
-                StrMerge(&md_code, &file_contents);
-                StrWriteFmt(&md_code, "\n```");
+        StrWriteFmt(&md_code, mdHeader, output_path.data, output_path.data, output_path.data);
+        StrMerge(&md_code, &file_contents);
+        StrWriteFmt(&md_code, "\n```");
 
-                // complete relative file path
-                StrPushFront(&output_path, '/');
-                LOG_INFO("{}", output_path);
-                StrPushFrontCstr(&output_path, project.build_dir.data, project.build_dir.length);
-                LOG_INFO("{}", output_path);
-                StrReplaceZstr(&output_path, ".c", ".md", 1);
-                StrReplaceZstr(&output_path, ".h", ".md", 1);
-                LOG_INFO("{}\n\n", output_path);
+        // complete relative file path
+        StrPushFront(&output_path, '/');
+        LOG_INFO("{}", output_path);
+        StrPushFrontCstr(&output_path, project.build_dir.data, project.build_dir.length);
+        LOG_INFO("{}", output_path);
+        StrReplaceZstr(&output_path, ".c", ".md", 1);
+        StrReplaceZstr(&output_path, ".h", ".md", 1);
+        LOG_INFO("{}\n\n", output_path);
 
+        // dump code to output path
+        FILE *f = fopen(output_path.data, "w");
+        if (f) {
+            fwrite(md_code.data, 1, md_code.length, f);
+            fclose(f);
+        }
 
-                // dump code to output path
-                FILE *f = fopen(output_path.data, "w");
-                Scope(f, fclose, { fwrite(md_code.data, 1, md_code.length, f); });
-            });
-        });
-    });
-};
-});
-});
+        StrDeinit(&md_code);
+        StrDeinit(&output_path);
+        StrDeinit(&file_contents);
+    };
 
-LogDeinit();
-return 0;
+    VecForeach(&file_paths, p) { StrDeinit(&p); };
+    VecDeinit(&file_paths);
+    VecForeach(&dir_paths, p) { StrDeinit(&p); };
+    VecDeinit(&dir_paths);
+
+    project_deinit(&project);
+
+    LogDeinit();
+    DefaultAllocatorDeinit(&alloc);
+    return 0;
 }

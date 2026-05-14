@@ -8,6 +8,7 @@
 #define FUZZ_VEC_INT_H
 
 #include <Misra/Std/Container/Vec.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Types.h>
 
 // Vec(i32) typedef
@@ -82,8 +83,15 @@ typedef enum {
 } VecIntFunction;
 
 // Function prototypes
-void init_int_vec(IntVec *vec);
+void init_int_vec(IntVec *vec, DefaultAllocator *alloc);
 void deinit_int_vec(IntVec *vec);
-void fuzz_int_vec(IntVec *vec, VecIntFunction func, const uint8_t *data, size_t *offset, size_t size);
+void fuzz_int_vec(
+    IntVec           *vec,
+    VecIntFunction    func,
+    const uint8_t    *data,
+    size_t           *offset,
+    size_t            size,
+    DefaultAllocator *alloc
+);
 
 #endif // FUZZ_VEC_INT_H

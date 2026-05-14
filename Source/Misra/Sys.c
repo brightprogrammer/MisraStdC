@@ -34,25 +34,24 @@
 #include <string.h>
 
 Str *SysGetEnv(const char *name, Str *value) {
+    ValidateStr(value);
+    Allocator *alloc = value->allocator;
 #ifdef _WIN32
-    char     *env_var;
-    size_t    requiredSize;
-    Allocator allocator = DefaultAllocator();
+    char  *env_var;
+    size_t requiredSize;
 
     getenv_s(&requiredSize, NULL, 0, name);
     if (requiredSize == 0) {
         return NULL;
     }
 
-    env_var = (char *)AllocatorAlloc(&allocator, requiredSize, false);
+    env_var = (char *)AllocatorAlloc(alloc, requiredSize, false);
     if (!env_var) {
         return NULL;
     }
 
-    // Get the value of the LIB environment variable.
     getenv_s(&requiredSize, env_var, requiredSize, name);
 
-    *value          = StrInit();
     value->data     = env_var;
     value->length   = requiredSize - 1;
     value->capacity = requiredSize - 1;
@@ -60,7 +59,7 @@ Str *SysGetEnv(const char *name, Str *value) {
 #else
     char *env_var = getenv(name);
     if (env_var) {
-        *value = StrInitFromZstr(env_var);
+        *value = StrInitFromCstr(env_var, ZstrLen(env_var), alloc);
         return value;
     }
     return NULL;
@@ -68,13 +67,15 @@ Str *SysGetEnv(const char *name, Str *value) {
 }
 
 Str *SysStrError(i32 eno, Str *err_str) {
-    char buf[1024] = {0};
+    ValidateStr(err_str);
+    Allocator *alloc      = err_str->allocator;
+    char       buf[1024]  = {0};
 #if _WIN32
     strerror_s(buf, 1023, eno);
 #else
     strerror_r(eno, buf, 1023);
 #endif
-    *err_str = StrInitFromZstr(buf);
+    *err_str = StrInitFromCstr(buf, ZstrLen(buf), alloc);
     return err_str;
 }
 

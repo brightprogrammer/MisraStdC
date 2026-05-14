@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
 #include <Misra/Types.h>
@@ -50,10 +51,12 @@ bool test_bitvec_best_alignment_null_bv2(void);
 
 // Test BitVecHammingDistance basic functionality
 bool test_bitvec_hamming_distance_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecHammingDistance basic functionality\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test identical bitvectors
@@ -87,15 +90,18 @@ bool test_bitvec_hamming_distance_basic(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecHammingDistance edge cases
 bool test_bitvec_hamming_distance_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecHammingDistance edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test empty bitvectors
@@ -117,15 +123,18 @@ bool test_bitvec_hamming_distance_edge_cases(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecJaccardSimilarity basic functionality
 bool test_bitvec_jaccard_similarity_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecJaccardSimilarity basic functionality\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test identical bitvectors
@@ -166,15 +175,18 @@ bool test_bitvec_jaccard_similarity_basic(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecJaccardSimilarity edge cases
 bool test_bitvec_jaccard_similarity_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecJaccardSimilarity edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test empty bitvectors
@@ -192,15 +204,18 @@ bool test_bitvec_jaccard_similarity_edge_cases(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecCosineSimilarity basic functionality
 bool test_bitvec_cosine_similarity_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecCosineSimilarity basic functionality\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test identical bitvectors
@@ -227,15 +242,18 @@ bool test_bitvec_cosine_similarity_basic(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecCosineSimilarity edge cases
 bool test_bitvec_cosine_similarity_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecCosineSimilarity edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test zero vectors
@@ -257,15 +275,18 @@ bool test_bitvec_cosine_similarity_edge_cases(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecDotProduct basic functionality
 bool test_bitvec_dot_product_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecDotProduct basic functionality\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test basic dot product
@@ -294,15 +315,18 @@ bool test_bitvec_dot_product_basic(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecDotProduct edge cases
 bool test_bitvec_dot_product_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecDotProduct edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test empty bitvectors
@@ -321,15 +345,18 @@ bool test_bitvec_dot_product_edge_cases(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecEditDistance basic functionality
 bool test_bitvec_edit_distance_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecEditDistance basic functionality\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test identical strings
@@ -365,15 +392,18 @@ bool test_bitvec_edit_distance_basic(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecEditDistance edge cases
 bool test_bitvec_edit_distance_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecEditDistance edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test empty to empty
@@ -393,15 +423,18 @@ bool test_bitvec_edit_distance_edge_cases(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecCorrelation basic functionality
 bool test_bitvec_correlation_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecCorrelation basic functionality\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test perfect correlation
@@ -429,15 +462,18 @@ bool test_bitvec_correlation_basic(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecCorrelation edge cases
 bool test_bitvec_correlation_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecCorrelation edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test empty bitvectors
@@ -457,14 +493,17 @@ bool test_bitvec_correlation_edge_cases(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecEntropy basic functionality
 bool test_bitvec_entropy_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecEntropy basic functionality\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test maximum entropy (equal 0s and 1s)
@@ -486,14 +525,17 @@ bool test_bitvec_entropy_basic(void) {
     result  = result && (entropy == 0.0);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecEntropy edge cases
 bool test_bitvec_entropy_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecEntropy edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test empty bitvector
@@ -506,15 +548,18 @@ bool test_bitvec_entropy_edge_cases(void) {
     result  = result && (entropy == 0.0);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecAlignmentScore basic functionality
 bool test_bitvec_alignment_score_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecAlignmentScore basic functionality\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test perfect match
@@ -539,15 +584,18 @@ bool test_bitvec_alignment_score_basic(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecAlignmentScore edge cases
 bool test_bitvec_alignment_score_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecAlignmentScore edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test empty bitvectors
@@ -566,15 +614,18 @@ bool test_bitvec_alignment_score_edge_cases(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecBestAlignment basic functionality
 bool test_bitvec_best_alignment_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecBestAlignment basic functionality\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Create bv1: 1100110
@@ -596,15 +647,18 @@ bool test_bitvec_best_alignment_basic(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Test BitVecBestAlignment edge cases
 bool test_bitvec_best_alignment_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecBestAlignment edge cases\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test empty bitvectors
@@ -621,15 +675,18 @@ bool test_bitvec_best_alignment_edge_cases(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Stress test for Math functions
 bool test_bitvec_math_stress_tests(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec Math stress tests\n");
 
-    BitVec bv1    = BitVecInit();
-    BitVec bv2    = BitVecInit();
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2    = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Create large bitvectors
@@ -649,8 +706,8 @@ bool test_bitvec_math_stress_tests(void) {
     u64    best_align  = BitVecBestAlignment(&bv1, &bv2);
 
     // Test edit distance with smaller vectors (expensive operation)
-    BitVec small1 = BitVecInit();
-    BitVec small2 = BitVecInit();
+    BitVec small1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec small2 = BitVecInit(ALLOCATOR_OF(&alloc));
     for (int i = 0; i < 50; i++) {
         BitVecPush(&small1, i % 2 == 0);
         BitVecPush(&small2, i % 3 == 0);
@@ -672,116 +729,153 @@ bool test_bitvec_math_stress_tests(void) {
     BitVecDeinit(&bv2);
     BitVecDeinit(&small1);
     BitVecDeinit(&small2);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 // Deadend tests - each function with NULL parameters
 
 bool test_bitvec_hamming_distance_null_bv1(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecHammingDistance(NULL, bv2) - should fatal\n");
-    BitVec bv2 = BitVecInit();
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv2, true);
     BitVecHammingDistance(NULL, &bv2);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_hamming_distance_null_bv2(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecHammingDistance(bv1, NULL) - should fatal\n");
-    BitVec bv1 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv1, true);
     BitVecHammingDistance(&bv1, NULL);
     BitVecDeinit(&bv1);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_jaccard_similarity_null_bv1(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecJaccardSimilarity(NULL, bv2) - should fatal\n");
-    BitVec bv2 = BitVecInit();
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv2, true);
     BitVecJaccardSimilarity(NULL, &bv2);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_jaccard_similarity_null_bv2(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecJaccardSimilarity(bv1, NULL) - should fatal\n");
-    BitVec bv1 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv1, true);
     BitVecJaccardSimilarity(&bv1, NULL);
     BitVecDeinit(&bv1);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_cosine_similarity_null_bv1(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecCosineSimilarity(NULL, bv2) - should fatal\n");
-    BitVec bv2 = BitVecInit();
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv2, true);
     BitVecCosineSimilarity(NULL, &bv2);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_cosine_similarity_null_bv2(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecCosineSimilarity(bv1, NULL) - should fatal\n");
-    BitVec bv1 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv1, true);
     BitVecCosineSimilarity(&bv1, NULL);
     BitVecDeinit(&bv1);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_dot_product_null_bv1(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecDotProduct(NULL, bv2) - should fatal\n");
-    BitVec bv2 = BitVecInit();
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv2, true);
     BitVecDotProduct(NULL, &bv2);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_dot_product_null_bv2(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecDotProduct(bv1, NULL) - should fatal\n");
-    BitVec bv1 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv1, true);
     BitVecDotProduct(&bv1, NULL);
     BitVecDeinit(&bv1);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_edit_distance_null_bv1(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecEditDistance(NULL, bv2) - should fatal\n");
-    BitVec bv2 = BitVecInit();
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv2, true);
     BitVecEditDistance(NULL, &bv2);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_edit_distance_null_bv2(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecEditDistance(bv1, NULL) - should fatal\n");
-    BitVec bv1 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv1, true);
     BitVecEditDistance(&bv1, NULL);
     BitVecDeinit(&bv1);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_correlation_null_bv1(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecCorrelation(NULL, bv2) - should fatal\n");
-    BitVec bv2 = BitVecInit();
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv2, true);
     BitVecCorrelation(NULL, &bv2);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_correlation_null_bv2(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecCorrelation(bv1, NULL) - should fatal\n");
-    BitVec bv1 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv1, true);
     BitVecCorrelation(&bv1, NULL);
     BitVecDeinit(&bv1);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
@@ -792,38 +886,50 @@ bool test_bitvec_entropy_null(void) {
 }
 
 bool test_bitvec_alignment_score_null_bv1(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecAlignmentScore(NULL, bv2, 1, -1) - should fatal\n");
-    BitVec bv2 = BitVecInit();
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv2, true);
     BitVecAlignmentScore(NULL, &bv2, 1, -1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_alignment_score_null_bv2(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecAlignmentScore(bv1, NULL, 1, -1) - should fatal\n");
-    BitVec bv1 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv1, true);
     BitVecAlignmentScore(&bv1, NULL, 1, -1);
     BitVecDeinit(&bv1);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_best_alignment_null_bv1(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecBestAlignment(NULL, bv2) - should fatal\n");
-    BitVec bv2 = BitVecInit();
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv2, true);
     BitVecBestAlignment(NULL, &bv2);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 
 bool test_bitvec_best_alignment_null_bv2(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecBestAlignment(bv1, NULL) - should fatal\n");
-    BitVec bv1 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv1, true);
     BitVecBestAlignment(&bv1, NULL);
     BitVecDeinit(&bv1);
+    DefaultAllocatorDeinit(&alloc);
     return true;
 }
 

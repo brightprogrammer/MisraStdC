@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Map.h>
 #include <Misra/Std/Log.h>
 
@@ -31,11 +32,13 @@ static bool test_map_contains_pair_without_value_compare_fails(void) {
     WriteFmt("Testing MapContainsPair without value comparator\n");
 
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
 
     MapContainsPair(&map, 1, 10);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
@@ -43,11 +46,13 @@ static bool test_map_remove_pair_without_value_compare_fails(void) {
     WriteFmt("Testing MapRemovePair without value comparator\n");
 
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
 
     MapRemovePair(&map, 1, 10);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
@@ -55,11 +60,13 @@ static bool test_map_remove_if_without_predicate_fails(void) {
     WriteFmt("Testing MapRemoveIf without predicate\n");
 
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
 
     MapRemoveIf(&map, NULL, NULL);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
@@ -67,11 +74,13 @@ static bool test_map_retain_if_without_predicate_fails(void) {
     WriteFmt("Testing MapRetainIf without predicate\n");
 
     typedef Map(int, int) IntIntMap;
-    IntIntMap map = MapInit(i32_hash, i32_compare);
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
 
     MapRetainIf(&map, NULL, NULL);
 
     MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 

@@ -5,6 +5,7 @@
 /// Arbitrary-precision unsigned integer implementation built on top of BitVec.
 
 #include <Misra/Std/Container/Int.h>
+#include <Misra/Std/Container/Int/Private.h>
 #include <Misra/Std/Container/BitVec.h>
 #include <Misra/Std/Log.h>
 #include <string.h>
@@ -19,9 +20,9 @@ typedef struct {
 static void int_normalize(Int *value);
 static bool int_validate_radix(u8 radix);
 static bool int_try_from_str_radix_impl(Int *out, const char *digits, u64 start, u8 radix, bool allow_underscores);
-static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator alloc);
-static bool int_try_from_u64_with_allocator(Int *out, u64 value, Allocator alloc);
-static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator alloc);
+static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator *alloc);
+static bool int_try_from_u64_with_allocator(Int *out, u64 value, Allocator *alloc);
+static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator *alloc);
 static bool int_try_clone_value(Int *out, Int *value);
 static u64  int_u64_bits(u64 value);
 
@@ -32,13 +33,13 @@ static Int int_wrap(BitVec bits) {
     return value;
 }
 
-static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator alloc) {
+static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator *alloc) {
     if (!out) {
         LOG_ERROR("Invalid arguments");
         return false;
     }
 
-    *out = int_wrap(BitVecInitWithCapacityAlloc(capacity, alloc));
+    *out = int_wrap(BitVecInitWithCapacity(capacity, alloc));
     if (capacity != 0 && out->bits.capacity < capacity) {
         IntDeinit(out);
         *out = IntInit(alloc);
@@ -48,7 +49,7 @@ static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator alloc) 
     return true;
 }
 
-static bool int_try_from_u64_with_allocator(Int *out, u64 value, Allocator alloc) {
+static bool int_try_from_u64_with_allocator(Int *out, u64 value, Allocator *alloc) {
     u64 bits = int_u64_bits(value);
 
     if (!out) {
@@ -70,7 +71,7 @@ static bool int_try_from_u64_with_allocator(Int *out, u64 value, Allocator alloc
     return true;
 }
 
-static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator alloc) {
+static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator *alloc) {
     if (value < 0) {
         LOG_ERROR("Int cannot represent negative values");
         return false;
@@ -121,13 +122,13 @@ static void int_swap(Int *a, Int *b) {
     *b      = tmp;
 }
 
-static SignedInt sint_init(void) {
-    SignedInt value = {.negative = false, .magnitude = IntInit()};
+static SignedInt sint_init(Allocator *alloc) {
+    SignedInt value = {.negative = false, .magnitude = IntInit(alloc)};
     return value;
 }
 
-static SignedInt sint_from_u64(u64 value) {
-    SignedInt result = {.negative = false, .magnitude = int_from_u64(value)};
+static SignedInt sint_from_u64(u64 value, Allocator *alloc) {
+    SignedInt result = {.negative = false, .magnitude = int_from_u64(value, alloc)};
     return result;
 }
 
@@ -155,7 +156,7 @@ static void sint_replace(SignedInt *dst, SignedInt *src) {
 }
 
 static bool sint_add(SignedInt *result, SignedInt *a, SignedInt *b) {
-    SignedInt temp = sint_init();
+    SignedInt temp = sint_init(result->magnitude.bits.allocator);
 
     if (a->negative == b->negative) {
         if (!int_add(&temp.magnitude, &a->magnitude, &b->magnitude)) {
@@ -204,7 +205,7 @@ static bool sint_sub(SignedInt *result, SignedInt *a, SignedInt *b) {
 }
 
 static bool sint_mul_unsigned(SignedInt *result, SignedInt *a, Int *b) {
-    SignedInt temp = sint_init();
+    SignedInt temp = sint_init(result->magnitude.bits.allocator);
 
     if (!int_mul(&temp.magnitude, &a->magnitude, b)) {
         sint_deinit(&temp);
@@ -470,19 +471,19 @@ Int IntClone(Int *value) {
     return clone;
 }
 
-Int int_from_u64(u64 value) {
-    Int result = IntInit();
+Int int_from_u64(u64 value, Allocator *alloc) {
+    Int result = IntInit(alloc);
 
-    (void)int_try_from_u64_with_allocator(&result, value, DefaultAllocator());
+    (void)int_try_from_u64_with_allocator(&result, value, alloc);
     return result;
 }
 
-Int int_from_i64(i64 value) {
+Int int_from_i64(i64 value, Allocator *alloc) {
     if (value < 0) {
         LOG_FATAL("Int cannot represent negative values");
     }
 
-    return int_from_u64((u64)value);
+    return int_from_u64((u64)value, alloc);
 }
 
 bool IntTryToU64(Int *value, u64 *out) {
@@ -513,18 +514,18 @@ u64 IntToU64WithError(Int *value, bool *error) {
     return out;
 }
 
-Int IntFromBytesLE(const u8 *bytes, u64 len) {
+Int IntFromBytesLE(const u8 *bytes, u64 len, Allocator *alloc) {
     if (!bytes && len != 0) {
         LOG_FATAL("bytes is NULL");
     }
 
-    Int result = IntInit();
+    Int result = IntInit(alloc);
 
     if (len == 0) {
         return result;
     }
 
-    if (!BitVecTryFromBytesAlloc(INT_BITS(&result), bytes, len * 8, result.bits.allocator)) {
+    if (!BitVecTryFromBytesAlloc(INT_BITS(&result), bytes, len * 8, alloc)) {
         return result;
     }
 
@@ -568,17 +569,17 @@ u64 IntToBytesLE(Int *value, u8 *bytes, u64 max_len) {
     return bytes_to_copy;
 }
 
-Int IntFromBytesBE(const u8 *bytes, u64 len) {
+Int IntFromBytesBE(const u8 *bytes, u64 len, Allocator *alloc) {
     if (!bytes && len != 0) {
         LOG_FATAL("bytes is NULL");
     }
 
-    Int result = IntInit();
+    Int result = IntInit(alloc);
 
     for (u64 i = 0; i < len; i++) {
         if (!IntShiftLeft(&result, 8) || !int_add_u64_in_place(&result, bytes[i])) {
             IntDeinit(&result);
-            return IntInit();
+            return IntInit(alloc);
         }
     }
 
@@ -637,14 +638,14 @@ bool IntTryFromStr(Int *out, const char *decimal) {
     return int_try_from_str_radix_impl(out, decimal, start, 10, true);
 }
 
-Int IntFromStr(const char *decimal) {
-    Int out = IntInit();
+Int IntFromStr(const char *decimal, Allocator *alloc) {
+    Int out = IntInit(alloc);
 
     (void)IntTryFromStr(&out, decimal);
     return out;
 }
 
-bool IntTryToStrAlloc(Str *out, Int *value, Allocator alloc) {
+bool IntTryToStrAlloc(Str *out, Int *value, Allocator *alloc) {
     return IntTryToStrRadixAlloc(out, value, 10, false, alloc);
 }
 
@@ -679,14 +680,14 @@ bool IntTryFromStrRadix(Int *out, const char *digits, u8 radix) {
     return int_try_from_str_radix_impl(out, digits, start, radix, true);
 }
 
-Int IntFromStrRadix(const char *digits, u8 radix) {
-    Int out = IntInit();
+Int IntFromStrRadix(const char *digits, u8 radix, Allocator *alloc) {
+    Int out = IntInit(alloc);
 
     (void)IntTryFromStrRadix(&out, digits, radix);
     return out;
 }
 
-bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Allocator alloc) {
+bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Allocator *alloc) {
     Int current;
     Str result;
 
@@ -714,7 +715,7 @@ bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Alloc
     result = StrInit(alloc);
 
     while (!IntIsZero(&current)) {
-        Int quotient = IntInit();
+        Int quotient = IntInit(alloc);
         u64 digit    = 0;
 
         digit = int_div_u64_rem(&quotient, &current, radix);
@@ -774,8 +775,8 @@ bool IntTryFromBinary(Int *out, const char *binary) {
     return int_try_from_str_radix_impl(out, binary, start, 2, true);
 }
 
-Int IntFromBinary(const char *binary) {
-    Int out = IntInit();
+Int IntFromBinary(const char *binary, Allocator *alloc) {
+    Int out = IntInit(alloc);
 
     (void)IntTryFromBinary(&out, binary);
     return out;
@@ -802,8 +803,8 @@ bool IntTryFromOctStr(Int *out, const char *octal) {
     return int_try_from_str_radix_impl(out, octal, start, 8, true);
 }
 
-Int IntFromOctStr(const char *octal) {
-    Int out = IntInit();
+Int IntFromOctStr(const char *octal, Allocator *alloc) {
+    Int out = IntInit(alloc);
 
     (void)IntTryFromOctStr(&out, octal);
     return out;
@@ -822,8 +823,8 @@ bool IntTryFromHexStr(Int *out, const char *hex) {
     return int_try_from_str_radix_impl(out, hex, 0, 16, false);
 }
 
-Int IntFromHexStr(const char *hex) {
-    Int out = IntInit();
+Int IntFromHexStr(const char *hex, Allocator *alloc) {
+    Int out = IntInit(alloc);
 
     (void)IntTryFromHexStr(&out, hex);
     return out;
@@ -1280,7 +1281,7 @@ bool int_div_mod(Int *quotient, Int *remainder, Int *dividend, Int *divisor) {
             }
 
             if (IntGE(&r, &shifted)) {
-                Int next = IntInit();
+                Int next = IntInit(quotient->bits.allocator);
 
                 if (!int_sub(&next, &r, &shifted)) {
                     IntDeinit(&shifted);
@@ -1301,7 +1302,7 @@ bool int_div_mod(Int *quotient, Int *remainder, Int *dividend, Int *divisor) {
         }
     } else {
         IntDeinit(&q);
-        q = IntInit();
+        q = IntInit(quotient->bits.allocator);
     }
 
     int_normalize(&q);
@@ -1514,7 +1515,7 @@ u64 int_mod_u64(Int *value, u64 modulus) {
         return 0;
     }
 
-    Int quotient = IntInit();
+    Int quotient = IntInit(value->bits.allocator);
     u64 rem      = int_div_u64_rem(&quotient, value, modulus);
 
     IntDeinit(&quotient);
@@ -1781,8 +1782,8 @@ bool IntSqrt(Int *result, Int *value) {
 bool IntIsPerfectSquare(Int *value) {
     ValidateInt(value);
 
-    Int  root      = IntInit();
-    Int  remainder = IntInit();
+    Int  root      = IntInit(value->bits.allocator);
+    Int  remainder = IntInit(value->bits.allocator);
     bool result    = false;
 
     if (!IntSqrtRem(&root, &remainder, value)) {
@@ -1811,8 +1812,8 @@ bool IntIsPerfectPower(Int *value) {
     }
 
     for (u64 degree = 2; degree <= max_degree; degree++) {
-        Int  root      = IntInit();
-        Int  remainder = IntInit();
+        Int  root      = IntInit(value->bits.allocator);
+        Int  remainder = IntInit(value->bits.allocator);
         bool exact     = false;
 
         if (!IntRootRem(&root, &remainder, value, degree)) {
@@ -2003,9 +2004,9 @@ bool IntModMul(Int *result, Int *a, Int *b, Int *modulus) {
         return false;
     }
 
-    Int ar   = IntInit();
-    Int br   = IntInit();
-    Int prod = IntInit();
+    Int ar   = IntInit(result->bits.allocator);
+    Int br   = IntInit(result->bits.allocator);
+    Int prod = IntInit(result->bits.allocator);
 
     if (!int_mod(&ar, a, modulus) || !int_mod(&br, b, modulus) || !int_mul(&prod, &ar, &br) ||
         !int_mod(result, &prod, modulus)) {
@@ -2032,8 +2033,8 @@ bool IntModDiv(Int *result, Int *a, Int *b, Int *modulus) {
         return false;
     }
 
-    Int  inverse = IntInit();
-    Int  value   = IntInit();
+    Int  inverse = IntInit(result->bits.allocator);
+    Int  value   = IntInit(result->bits.allocator);
     bool ok      = false;
 
     ok = IntModInv(&inverse, b, modulus);
@@ -2068,7 +2069,7 @@ bool int_pow_u64_mod(Int *result, Int *base, u64 exponent, Int *modulus) {
     }
 
     Int acc      = IntInit(result->bits.allocator);
-    Int base_mod = IntInit();
+    Int base_mod = IntInit(result->bits.allocator);
 
     if (!int_try_from_u64_with_allocator(&acc, 1, result->bits.allocator)) {
         IntDeinit(&base_mod);
@@ -2082,7 +2083,7 @@ bool int_pow_u64_mod(Int *result, Int *base, u64 exponent, Int *modulus) {
 
     while (exponent > 0) {
         if (exponent & 1u) {
-            Int next = IntInit();
+            Int next = IntInit(result->bits.allocator);
 
             if (!IntModMul(&next, &acc, &base_mod, modulus)) {
                 IntDeinit(&acc);
@@ -2096,7 +2097,7 @@ bool int_pow_u64_mod(Int *result, Int *base, u64 exponent, Int *modulus) {
 
         exponent >>= 1u;
         if (exponent > 0) {
-            Int next = IntInit();
+            Int next = IntInit(result->bits.allocator);
 
             if (!IntModMul(&next, &base_mod, &base_mod, modulus)) {
                 IntDeinit(&acc);
@@ -2126,7 +2127,7 @@ bool int_pow_mod(Int *result, Int *base, Int *exponent, Int *modulus) {
     }
 
     Int acc      = IntInit(result->bits.allocator);
-    Int base_mod = IntInit();
+    Int base_mod = IntInit(result->bits.allocator);
     Int exp      = IntInit(exponent->bits.allocator);
 
     if (!int_try_from_u64_with_allocator(&acc, 1, result->bits.allocator) || !IntTryClone(&exp, exponent) ||
@@ -2139,7 +2140,7 @@ bool int_pow_mod(Int *result, Int *base, Int *exponent, Int *modulus) {
 
     while (!IntIsZero(&exp)) {
         if (int_is_odd(&exp)) {
-            Int next = IntInit();
+            Int next = IntInit(result->bits.allocator);
 
             if (!IntModMul(&next, &acc, &base_mod, modulus)) {
                 IntDeinit(&acc);
@@ -2159,7 +2160,7 @@ bool int_pow_mod(Int *result, Int *base, Int *exponent, Int *modulus) {
             return false;
         }
         if (!IntIsZero(&exp)) {
-            Int next = IntInit();
+            Int next = IntInit(result->bits.allocator);
 
             if (!IntModMul(&next, &base_mod, &base_mod, modulus)) {
                 IntDeinit(&acc);
@@ -2197,12 +2198,12 @@ bool IntModInv(Int *result, Int *value, Int *modulus) {
         return false;
     }
 
-    Int       reduced = IntInit();
-    SignedInt t       = sint_init();
-    SignedInt new_t   = sint_from_u64(1);
+    Int       reduced = IntInit(result->bits.allocator);
+    SignedInt t       = sint_init(result->bits.allocator);
+    SignedInt new_t   = sint_from_u64(1, result->bits.allocator);
     Int       r       = IntInit(modulus->bits.allocator);
-    Int       new_r   = IntInit();
-    Int       one     = int_from_u64(1);
+    Int       new_r   = IntInit(result->bits.allocator);
+    Int       one     = int_from_u64(1, result->bits.allocator);
     bool      ok      = false;
 
     if (!IntTryClone(&r, modulus) || !int_mod(&reduced, value, modulus)) {
@@ -2225,11 +2226,11 @@ bool IntModInv(Int *result, Int *value, Int *modulus) {
     }
 
     while (!IntIsZero(&new_r)) {
-        Int       q       = IntInit();
-        Int       rem     = IntInit();
-        SignedInt q_new_t = sint_init();
-        SignedInt next_t  = sint_init();
-        Int       next_r  = IntInit();
+        Int       q       = IntInit(result->bits.allocator);
+        Int       rem     = IntInit(result->bits.allocator);
+        SignedInt q_new_t = sint_init(result->bits.allocator);
+        SignedInt next_t  = sint_init(result->bits.allocator);
+        Int       next_r  = IntInit(result->bits.allocator);
 
         if (!int_div_mod(&q, &rem, &r, &new_r) || !sint_mul_unsigned(&q_new_t, &new_t, &q) ||
             !sint_sub(&next_t, &t, &q_new_t)) {
@@ -2263,8 +2264,8 @@ bool IntModInv(Int *result, Int *value, Int *modulus) {
     }
 
     if (IntEQ(&r, &one)) {
-        Int positive = IntInit();
-        Int mag_mod  = IntInit();
+        Int positive = IntInit(result->bits.allocator);
+        Int mag_mod  = IntInit(result->bits.allocator);
 
         if (!int_mod(&mag_mod, &t.magnitude, modulus)) {
             IntDeinit(&positive);
@@ -2327,7 +2328,7 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
         return false;
     }
 
-    Int  a  = IntInit();
+    Int  a  = IntInit(result->bits.allocator);
     bool ok = false;
 
     if (!int_mod(&a, value, modulus)) {
@@ -2336,7 +2337,7 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
     }
 
     if (IntIsZero(&a)) {
-        Int zero = IntInit();
+        Int zero = IntInit(result->bits.allocator);
         int_replace(result, &zero);
         IntDeinit(&a);
         return true;
@@ -2367,7 +2368,7 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
     }
     if (int_mod_u64(modulus, 4) == 3) {
         Int exponent = IntInit(modulus->bits.allocator);
-        Int root     = IntInit();
+        Int root     = IntInit(result->bits.allocator);
 
         if (!IntTryClone(&exponent, modulus) || !int_add_u64(&exponent, &exponent, 1) || !IntShiftRight(&exponent, 2) ||
             !int_pow_mod(&root, &a, &exponent, modulus)) {
@@ -2386,10 +2387,10 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
     {
         Int q        = IntInit(modulus->bits.allocator);
         Int z        = IntInit(modulus->bits.allocator);
-        Int c        = IntInit();
-        Int t        = IntInit();
-        Int r        = IntInit();
-        Int exponent = IntInit();
+        Int c        = IntInit(result->bits.allocator);
+        Int t        = IntInit(result->bits.allocator);
+        Int r        = IntInit(result->bits.allocator);
+        Int exponent = IntInit(result->bits.allocator);
         u64 m        = 0;
 
         if (!IntTryClone(&q, modulus) || !int_try_from_u64_with_allocator(&z, 2, modulus->bits.allocator) ||
@@ -2487,7 +2488,7 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
             }
 
             for (i = 1; i < m; i++) {
-                Int next = IntInit();
+                Int next = IntInit(result->bits.allocator);
 
                 if (!IntSquareMod(&next, &t_power, modulus)) {
                     IntDeinit(&next);
@@ -2516,8 +2517,8 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
 
             {
                 Int b    = IntInit(c.bits.allocator);
-                Int b_sq = IntInit();
-                Int next = IntInit();
+                Int b_sq = IntInit(result->bits.allocator);
+                Int next = IntInit(result->bits.allocator);
 
                 if (!IntTryClone(&b, &c)) {
                     IntDeinit(&b);
@@ -2535,7 +2536,7 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
                 }
 
                 for (u64 j = 0; j + i + 1 < m; j++) {
-                    Int square = IntInit();
+                    Int square = IntInit(result->bits.allocator);
 
                     if (!IntSquareMod(&square, &b, modulus)) {
                         IntDeinit(&square);
@@ -2586,7 +2587,7 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
                     IntDeinit(&a);
                     return false;
                 }
-                next = IntInit();
+                next = IntInit(result->bits.allocator);
                 if (!IntModMul(&next, &t, &b_sq, modulus)) {
                     IntDeinit(&b);
                     IntDeinit(&b_sq);

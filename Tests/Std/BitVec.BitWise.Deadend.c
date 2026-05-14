@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 
 #include <stdio.h>
@@ -29,16 +30,19 @@ bool test_bitvec_bitwise_null_failures(void) {
 }
 
 bool test_bitvec_bitwise_ops_null_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec bitwise operations NULL handling\n");
 
-    BitVec bv  = BitVecInit();
-    BitVec bv2 = BitVecInit();
+    BitVec bv  = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test NULL pointer - should abort
     BitVecAnd(NULL, &bv, &bv2);
 
     BitVecDeinit(&bv);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
@@ -71,10 +75,12 @@ bool test_bitvec_rotate_ops_null_failures(void) {
 }
 
 bool test_bitvec_and_result_null_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec AND with NULL result handling\n");
 
-    BitVec bv1 = BitVecInit();
-    BitVec bv2 = BitVecInit();
+    BitVec bv1 = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&bv1, true);
     BitVecPush(&bv2, false);
 
@@ -83,46 +89,56 @@ bool test_bitvec_and_result_null_failures(void) {
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 bool test_bitvec_or_operand_null_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec OR with NULL operand handling\n");
 
-    BitVec result = BitVecInit();
-    BitVec bv1    = BitVecInit();
+    BitVec result = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test NULL operand - should abort
     BitVecOr(&result, &bv1, NULL);
 
     BitVecDeinit(&result);
     BitVecDeinit(&bv1);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 bool test_bitvec_xor_second_operand_null_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec XOR with NULL second operand handling\n");
 
-    BitVec result = BitVecInit();
-    BitVec bv1    = BitVecInit();
+    BitVec result = BitVecInit(ALLOCATOR_OF(&alloc));
+    BitVec bv1    = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test NULL second operand - should abort
     BitVecXor(&result, NULL, &bv1);
 
     BitVecDeinit(&result);
     BitVecDeinit(&bv1);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 bool test_bitvec_not_null_failures(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec NOT with NULL handling\n");
 
-    BitVec result = BitVecInit();
+    BitVec result = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Test NULL operand - should abort
     BitVecNot(&result, NULL);
 
     BitVecDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 

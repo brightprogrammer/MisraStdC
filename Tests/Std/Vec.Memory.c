@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
@@ -16,9 +17,11 @@ bool test_vec_clear(void);
 bool test_vec_try_reduce_space(void) {
     WriteFmt("Testing VecTryReduceSpace\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Reserve more space than needed
     VecReserve(&vec, 100);
@@ -46,6 +49,7 @@ bool test_vec_try_reduce_space(void) {
     // Clean up
     VecDeinit(&vec);
 
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -53,9 +57,11 @@ bool test_vec_try_reduce_space(void) {
 bool test_vec_resize(void) {
     WriteFmt("Testing VecResize\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -91,6 +97,7 @@ bool test_vec_resize(void) {
     // Clean up
     VecDeinit(&vec);
 
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -98,9 +105,11 @@ bool test_vec_resize(void) {
 bool test_vec_reserve(void) {
     WriteFmt("Testing VecReserve\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Initial capacity should be 0
     bool result = (vec.capacity == 0);
@@ -135,6 +144,7 @@ bool test_vec_reserve(void) {
     // Clean up
     VecDeinit(&vec);
 
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
@@ -142,9 +152,11 @@ bool test_vec_reserve(void) {
 bool test_vec_clear(void) {
     WriteFmt("Testing VecClear\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     // Create a vector of integers
     typedef Vec(int) IntVec;
-    IntVec vec = VecInit();
+    IntVec vec = VecInit(&alloc);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -173,6 +185,7 @@ bool test_vec_clear(void) {
     // Clean up
     VecDeinit(&vec);
 
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

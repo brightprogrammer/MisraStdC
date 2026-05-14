@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Graph.h>
 #include <Misra/Std/Log.h>
 
@@ -6,8 +7,10 @@
 static bool test_graph_access_helpers(void) {
     WriteFmt("Testing Graph access helpers\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a = GraphAddNodeR(&graph, 10);
     GraphNodeId b = GraphAddNodeR(&graph, 20);
@@ -39,14 +42,17 @@ static bool test_graph_access_helpers(void) {
     result      = result && GraphPredecessorAt(&graph, c, 0) == a;
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_has_edge_query(void) {
     WriteFmt("Testing GraphHasEdge\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(const char *) ZstrGraph;
-    ZstrGraph graph = GraphInit();
+    ZstrGraph graph = GraphInit(&alloc);
 
     GraphNodeId red   = GraphAddNodeR(&graph, "red");
     GraphNodeId green = GraphAddNodeR(&graph, "green");
@@ -62,29 +68,35 @@ static bool test_graph_has_edge_query(void) {
     result      = result && (ZstrCompare(*GraphNodePtrAt(&graph, red), "red") == 0);
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_cross_graph_node_handle_deadend(void) {
     WriteFmt("Testing GraphNodeData rejects foreign graph node handles (should abort)\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph_a = GraphInit();
-    IntGraph graph_b = GraphInit();
+    IntGraph graph_a = GraphInit(&alloc);
+    IntGraph graph_b = GraphInit(&alloc);
     GraphNode node   = GraphGetNode(&graph_a, GraphAddNodeR(&graph_a, 10));
 
     (void)GraphNodeData(&graph_b, node);
 
     GraphDeinit(&graph_b);
     GraphDeinit(&graph_a);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 static bool test_graph_predecessor_access_oob_deadend(void) {
     WriteFmt("Testing GraphPredecessorAt out-of-bounds access (should abort)\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a = GraphAddNodeR(&graph, 10);
     GraphNodeId b = GraphAddNodeR(&graph, 20);
@@ -93,14 +105,17 @@ static bool test_graph_predecessor_access_oob_deadend(void) {
     (void)GraphPredecessorAt(&graph, a, 0);
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 
 static bool test_graph_neighbor_access_oob_deadend(void) {
     WriteFmt("Testing GraphNeighborAt out-of-bounds access (should abort)\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a = GraphAddNodeR(&graph, 10);
     GraphNodeId b = GraphAddNodeR(&graph, 20);
@@ -109,6 +124,7 @@ static bool test_graph_neighbor_access_oob_deadend(void) {
     (void)GraphNeighborAt(&graph, b, 0);
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 

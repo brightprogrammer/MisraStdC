@@ -4,61 +4,109 @@
 ///
 /// Page-granular allocator. Allocations come straight from the operating
 /// system via `mmap` on POSIX and `VirtualAlloc` on Windows, so this
-/// allocator does not touch libc heap functions.
+/// allocator does not touch libc heap functions. State is inline; the
+/// only "state" is a cached page size and the user's struct lives wherever
+/// the user declared it (typically the stack).
 
 #ifndef MISRA_STD_ALLOCATOR_PAGE_H
 #define MISRA_STD_ALLOCATOR_PAGE_H
 
 #include <Misra/Std/Allocator.h>
 
+///
+/// Per-type magic for `PageAllocator`. Stamped into
+/// `Allocator.base.__magic` by `PageAllocatorInit*`. The page
+/// implementation functions validate this exact value so a
+/// `HeapAllocator` / `ArenaAllocator` / `PoolAllocator` reinterpreted
+/// as a `PageAllocator *` is rejected at runtime as type-confusion.
+///
+#define MISRA_PAGE_ALLOCATOR_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("pageallc")
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
     ///
-    /// Create an allocator descriptor backed by direct OS page mapping.
-    /// All allocations are rounded up to a multiple of the system page size
-    /// and zeroed by the kernel before being handed back. No libc heap
-    /// functions are invoked.
+    /// Typed page-backed allocator. Carries `Allocator base` at offset 0 so
+    /// `(Allocator *)&page` is well-defined. The body of an allocation routes
+    /// through `mmap`/`VirtualAlloc` directly - no per-instance state needs
+    /// to be allocated.
     ///
-    /// SUCCESS: Returns a page-backed allocator descriptor.
-    /// FAILURE: Function cannot fail.
+    /// FIELDS:
+    /// - base             : Generic allocator base (function pointers, alignment, ...).
+    /// - cached_page_size : Lazily-cached system page size in bytes, 0 until first query.
     ///
-    /// TAGS: Allocator, Page, Initialization, Memory
+    /// TAGS: Allocator, Page, Memory
     ///
-    Allocator PageAllocator(void);
+    typedef struct PageAllocator {
+        Allocator base;
+        size      cached_page_size;
+    } PageAllocator;
+
+    void *page_allocator_allocate(Allocator *self, size bytes, bool zeroed);
+    void *page_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size);
+    void  page_allocator_deallocate(Allocator *self, void *ptr, size bytes);
 
     ///
-    /// Create a page-backed allocator with a custom alignment floor.
-    /// Allocations always honor at least page-size alignment - which is
-    /// what `mmap` / `VirtualAlloc` guarantee. Requests for alignment
-    /// stronger than the page size are not honored by this allocator: a
-    /// future allocator backend will offer that capability by over-mapping
-    /// and trimming.
+    /// Query the system page size in bytes through a `PageAllocator`. The
+    /// result is cached inside the allocator instance after the first call.
     ///
-    /// alignment[in] : Required minimum alignment in bytes.
+    /// self[in,out] : PageAllocator handle (may be NULL for a one-shot query).
     ///
-    /// SUCCESS: Returns a page-backed allocator descriptor with the requested
-    ///          minimum alignment.
-    /// FAILURE: Function cannot fail.
+    /// SUCCESS: Returns the OS page size in bytes (typically 4096 on x86_64).
+    /// FAILURE: Returns `4096` when the OS query fails.
     ///
-    /// TAGS: Allocator, Page, Aligned, Initialization
+    /// TAGS: Allocator, Page, Query
     ///
-    Allocator PageAllocatorAligned(size alignment);
-
-    ///
-    /// Query the system page size in bytes. Cached after first call so
-    /// repeated lookups are cheap.
-    ///
-    /// SUCCESS: Returns the OS page size (typically 4096 on x86_64).
-    /// FAILURE: Returns `4096` if the platform query fails.
-    ///
-    /// TAGS: Allocator, Page, Query, Memory
-    ///
-    size PageAllocatorPageSize(void);
+    size PageAllocatorPageSize(PageAllocator *self);
 
 #ifdef __cplusplus
 }
 #endif
+
+///
+/// Initialize a `PageAllocator` with default settings (alignment = 1, the
+/// natural page-grain alignment of `mmap`/`VirtualAlloc`). Use as a
+/// designated-initializer:
+///
+///     PageAllocator page = PageAllocatorInit();
+///     Vec(int) v = VecInit(&page);
+///
+#define PageAllocatorInit()                                                                                            \
+    ((PageAllocator) {                                                                                                 \
+        .base =                                                                                                        \
+            {.allocate    = page_allocator_allocate,                                                                   \
+                   .reallocate  = page_allocator_reallocate,                                                                 \
+                   .deallocate  = page_allocator_deallocate,                                                                 \
+                   .alignment   = 1,                                                                                         \
+                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
+                   .retry_limit = 0,                                                                                         \
+                   .__magic     = MISRA_PAGE_ALLOCATOR_MAGIC},                                                                   \
+        .cached_page_size = 0                                                                                          \
+    })
+
+///
+/// Initialize a `PageAllocator` with a custom alignment floor. Page-backed
+/// memory is naturally page-aligned, so requests below the page size are
+/// rounded up. Stronger-than-page alignment is best-effort.
+///
+#define PageAllocatorInitAligned(N)                                                                                    \
+    ((PageAllocator) {                                                                                                 \
+        .base =                                                                                                        \
+            {.allocate    = page_allocator_allocate,                                                                   \
+                   .reallocate  = page_allocator_reallocate,                                                                 \
+                   .deallocate  = page_allocator_deallocate,                                                                 \
+                   .alignment   = (N) ? (N) : 1,                                                                             \
+                   .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
+                   .retry_limit = 0,                                                                                         \
+                   .__magic     = MISRA_PAGE_ALLOCATOR_MAGIC},                                                                   \
+        .cached_page_size = 0                                                                                          \
+    })
+
+///
+/// Teardown for `PageAllocator`. Stateless; expands to a no-op. Provided for
+/// API symmetry with the stateful allocators.
+///
+#define PageAllocatorDeinit(self) ((void)(self))
 
 #endif // MISRA_STD_ALLOCATOR_PAGE_H

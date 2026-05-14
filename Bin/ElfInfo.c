@@ -1,4 +1,5 @@
 #include <Misra.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <stdio.h>
 
 typedef enum {
@@ -332,6 +333,9 @@ typedef struct {
     "{>2r}" /* shstrndx */
 
 int main(int argc, char **argv) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    LogInit(false, &alloc.base);
+
     if (argc < 2) {
         LOG_FATAL("USAGE: {} {}", argv[0], argv[1]);
     }
@@ -411,10 +415,15 @@ int main(int argc, char **argv) {
         eh.string_table_index
     );
 
-    Vec(int) vi = VecInit();
+    Vec(int) vi = VecInit(&alloc);
     VecForeachIdx(&vi, val, i) {
+        (void)i;
         WriteFmtLn("{}", val);
     }
+    VecDeinit(&vi);
 
+    fclose(elf);
+    LogDeinit();
+    DefaultAllocatorDeinit(&alloc);
     return 0;
 }

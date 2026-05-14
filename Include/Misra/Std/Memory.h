@@ -122,30 +122,31 @@ char *ZstrFindChar(const char *str, char ch);
 /// Creates a new null-terminated string by allocating memory and copying
 /// at most n characters from the source string.
 ///
-/// src[in] : Source string to duplicate.
-/// n[in]   : Maximum number of characters to copy.
+/// src[in]   : Source string to duplicate.
+/// n[in]     : Maximum number of characters to copy.
+/// alloc[in] : Allocator that owns the returned buffer.
 ///
 /// SUCCESS : Returns a pointer to the newly allocated duplicate string.
 /// FAILURE : Returns NULL if memory allocation fails.
 ///
 /// TAGS: String, Memory, Allocation
 ///
-char *ZstrDupN(const char *src, size n);
-char *ZstrDupNAlloc(const char *src, size n, Allocator alloc);
+char *ZstrDupN(const char *src, size n, Allocator *alloc);
 
 ///
 /// Duplicates a string.
 /// Creates a new null-terminated string by allocating memory and copying
-/// at most n characters from the source string.
+/// the source string in full.
 ///
-/// src[in] : Source string to duplicate.
+/// src[in]   : Source string to duplicate.
+/// alloc[in] : Allocator that owns the returned buffer.
 ///
 /// SUCCESS : Returns a pointer to the newly allocated duplicate string.
 /// FAILURE : Returns NULL if memory allocation fails or if src is NULL.
 ///
 /// TAGS: String, Memory, Allocation
 ///
-char *ZstrDup(const char *src);
+char *ZstrDup(const char *src, Allocator *alloc);
 
 ///
 /// Init clone method for zero-terminated strings.
@@ -153,14 +154,14 @@ char *ZstrDup(const char *src);
 /// NOTE: This is meant to be used as init method with `Zstrs` vector which is basically
 ///       a typedef of `Vec(const char*)`.
 ///
-/// dst[out] : Pointer to zero-terminated string to store cloned string pointer into.
-/// src[in]  : Pointer to zero-terminated string to make clone of.
+/// dst[out]  : Pointer to zero-terminated string to store cloned string pointer into.
+/// src[in]   : Pointer to zero-terminated string to make clone of.
+/// alloc[in] : Allocator that owns the cloned buffer.
 ///
 /// SUCCESS: Returns true
 /// FAILURE: May abort with a log message or may return false depending on severity of situation.
 ///
-bool ZstrInitClone(const char **dst, const char **src);
-bool ZstrInitCloneAlloc(void *dst, const void *src, const Allocator *alloc);
+bool zstr_init_clone(void *dst, const void *src, const Allocator *alloc);
 
 ///
 /// Deinit method for zero-terminated strings.
@@ -168,13 +169,13 @@ bool ZstrInitCloneAlloc(void *dst, const void *src, const Allocator *alloc);
 /// NOTE: This is meant to be used as deinit method with `Zstrs` vector which is basically
 ///       a typedef of `Vec(const char*)`.
 ///
-/// src[in]  : Pointer to zero-terminated string to be destroyed.
+/// zs[in]    : Pointer to zero-terminated string to be destroyed.
+/// alloc[in] : Allocator that originally owned the string buffer (same one passed to clone).
 ///
 /// SUCCESS: Returns.
 /// FAILURE: Does not return.
 ///
-void ZstrDeinit(const char **zs);
-void ZstrDeinitAlloc(void *zs, const Allocator *alloc);
+void zstr_deinit(void *zs, const Allocator *alloc);
 
 ///
 /// Find first occurrence of needle in haystack.

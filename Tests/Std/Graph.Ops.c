@@ -1,3 +1,4 @@
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Graph.h>
 #include <Misra/Std/Log.h>
 
@@ -6,8 +7,10 @@
 static bool test_graph_node_visit_scratch_state(void) {
     WriteFmt("Testing Graph node scratch visit state\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a    = GraphAddNodeR(&graph, 10);
     GraphNode   node = GraphGetNode(&graph, a);
@@ -23,14 +26,17 @@ static bool test_graph_node_visit_scratch_state(void) {
     result = result && !GraphNodeVisited(node) && (GraphNodeVisitCount(node) == 0);
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_mark_delete_commit_and_reuse(void) {
     WriteFmt("Testing GraphMarkNodeForDeletion and GraphCommitChanges\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a = GraphAddNodeR(&graph, 10);
     GraphNodeId b = GraphAddNodeR(&graph, 20);
@@ -67,14 +73,17 @@ static bool test_graph_mark_delete_commit_and_reuse(void) {
     result = result && !GraphNodeVisited(GraphGetNode(&graph, d));
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_query_and_unmark_node_deletion(void) {
     WriteFmt("Testing Graph node mark query and unmark\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a    = GraphAddNodeR(&graph, 10);
     GraphNode   node = GraphGetNode(&graph, a);
@@ -91,14 +100,17 @@ static bool test_graph_query_and_unmark_node_deletion(void) {
     result      = result && (GraphNodeCount(&graph) == 1);
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_mark_edge_for_removal(void) {
     WriteFmt("Testing GraphMarkEdgeForRemoval and deferred edge commit\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a = GraphAddNodeR(&graph, 10);
     GraphNodeId b = GraphAddNodeR(&graph, 20);
@@ -137,14 +149,17 @@ static bool test_graph_mark_edge_for_removal(void) {
     result = result && (GraphPredecessorAt(&graph, c, 0) == a);
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_query_and_unmark_edge_removal(void) {
     WriteFmt("Testing Graph edge mark query and unmark\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a = GraphAddNodeR(&graph, 10);
     GraphNodeId b = GraphAddNodeR(&graph, 20);
@@ -163,14 +178,17 @@ static bool test_graph_query_and_unmark_edge_removal(void) {
     result      = result && (GraphEdgeCount(&graph) == 1);
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_partial_unmark_of_multiple_edge_removals(void) {
     WriteFmt("Testing partial unmark of multiple pending edge removals\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a = GraphAddNodeR(&graph, 10);
     GraphNodeId b = GraphAddNodeR(&graph, 20);
@@ -194,14 +212,17 @@ static bool test_graph_partial_unmark_of_multiple_edge_removals(void) {
     result      = result && (GraphInDegree(&graph, c) == 0);
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_self_loop_edge_removal(void) {
     WriteFmt("Testing deferred removal of self-loop edge\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a = GraphAddNodeR(&graph, 10);
 
@@ -217,14 +238,17 @@ static bool test_graph_self_loop_edge_removal(void) {
     result      = result && (GraphInDegree(&graph, a) == 0);
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_edge_removal_and_node_deletion_overlap(void) {
     WriteFmt("Testing overlap between pending edge removal and node deletion\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a = GraphAddNodeR(&graph, 10);
     GraphNodeId b = GraphAddNodeR(&graph, 20);
@@ -250,14 +274,17 @@ static bool test_graph_edge_removal_and_node_deletion_overlap(void) {
     result      = result && (GraphInDegree(&graph, d) == 0);
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_external_indexed_state_requires_reset_on_reuse(void) {
     WriteFmt("Testing external slot-indexed state across delete and reuse\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a = GraphAddNodeR(&graph, 10);
     GraphNodeId b = GraphAddNodeR(&graph, 20);
@@ -282,14 +309,17 @@ static bool test_graph_external_indexed_state_requires_reset_on_reuse(void) {
     result = result && (GraphNodeAt(&graph, reused) == 99);
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_stale_node_handle_after_commit_deadend(void) {
     WriteFmt("Testing stale GraphNode handle after commit (should abort)\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId a    = GraphAddNodeR(&graph, 10);
     GraphNode   node = GraphGetNode(&graph, a);
@@ -299,6 +329,7 @@ static bool test_graph_stale_node_handle_after_commit_deadend(void) {
     (void)GraphNodeVisit(node);
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return false;
 }
 

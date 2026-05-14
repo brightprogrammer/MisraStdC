@@ -1,3 +1,5 @@
+#include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/Allocator/Heap.h>
 #include <Misra/Std/Container/Graph.h>
 #include <Misra/Std/Log.h>
 
@@ -6,8 +8,10 @@
 static bool test_graph_type_defaults(void) {
     WriteFmt("Testing Graph defaults\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit();
+    IntGraph graph = GraphInit(&alloc);
 
     ValidateGraph(&graph);
 
@@ -15,28 +19,32 @@ static bool test_graph_type_defaults(void) {
                   graph.slots.data == NULL && graph.free_indices.data == NULL &&
                   graph.pending_edge_removals.data == NULL && graph.copy_init == NULL && graph.copy_deinit == NULL &&
                   graph.live_count == 0 && graph.pending_delete_count == 0 && graph.mutation_epoch == 0 &&
-                  graph.allocator.alignment == 1;
+                  graph.allocator->alignment == 1;
 
     GraphDeinit(&graph);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_graph_aligned_init_and_id_layout(void) {
     WriteFmt("Testing Graph aligned init and node id layout\n");
 
+    HeapAllocator alloc = HeapAllocatorInitAligned(32);
+
     typedef Graph(int) IntGraph;
-    IntGraph graph = GraphInit(HeapAllocatorAligned(32));
+    IntGraph graph = GraphInit(&alloc);
 
     GraphNodeId node_id = GraphAddNodeR(&graph, 11);
     GraphNode   node    = GraphGetNode(&graph, node_id);
 
     bool result =
-        graph.allocator.alignment == 32 && GraphNodeIdIndex(node_id) == 0 && GraphNodeIdGeneration(node_id) == 1;
+        graph.allocator->alignment == 32 && GraphNodeIdIndex(node_id) == 0 && GraphNodeIdGeneration(node_id) == 1;
     result = result && GraphNodeGetId(node) == node_id;
     result = result && GraphNodeIndex(node) == 0;
     result = result && GraphContainsNode(&graph, node_id);
 
     GraphDeinit(&graph);
+    HeapAllocatorDeinit(&alloc);
     return result;
 }
 

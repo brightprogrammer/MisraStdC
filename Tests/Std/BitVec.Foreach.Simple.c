@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
 #include <Misra/Types.h>
@@ -33,9 +34,11 @@ bool test_bitvec_run_lengths_zero_max_runs(void);
 
 // Test BitVecForeachIdx macro
 bool test_bitvec_foreach_idx(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecForeachIdx macro\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Add test pattern: true, false, true, false
     BitVecPush(&bv, true);
@@ -61,14 +64,18 @@ bool test_bitvec_foreach_idx(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecForeach macro
 bool test_bitvec_foreach(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecForeach macro\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Add test pattern: true, false, true
     BitVecPush(&bv, true);
@@ -92,14 +99,18 @@ bool test_bitvec_foreach(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecForeachReverseIdx macro
 bool test_bitvec_foreach_reverse_idx(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecForeachReverseIdx macro\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Add test pattern: true, false, true, false
     BitVecPush(&bv, true);
@@ -123,14 +134,18 @@ bool test_bitvec_foreach_reverse_idx(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecForeachReverse macro
 bool test_bitvec_foreach_reverse(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecForeachReverse macro\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Add test pattern: true, false, true
     BitVecPush(&bv, true);
@@ -153,14 +168,18 @@ bool test_bitvec_foreach_reverse(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecForeachInRangeIdx macro
 bool test_bitvec_foreach_in_range_idx(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecForeachInRangeIdx macro\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Add test pattern: true, false, true, false, true
     BitVecPush(&bv, true);
@@ -189,14 +208,18 @@ bool test_bitvec_foreach_in_range_idx(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Test BitVecForeachInRange macro
 bool test_bitvec_foreach_in_range(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecForeachInRange macro\n");
 
-    BitVec bv = BitVecInit();
+    BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Add test pattern: false, true, true, false, true
     BitVecPush(&bv, false);
@@ -224,14 +247,18 @@ bool test_bitvec_foreach_in_range(void) {
     // Clean up
     BitVecDeinit(&bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // Edge case tests
 bool test_bitvec_foreach_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec foreach edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
     int    count  = 0;
 
@@ -265,13 +292,16 @@ bool test_bitvec_foreach_edge_cases(void) {
     result = result && (count == 1000);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_foreach_idx_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec foreach idx edge cases\n");
 
-    BitVec bv       = BitVecInit();
+    BitVec bv       = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result   = true;
     u64    last_idx = SIZE_MAX;
 
@@ -304,13 +334,16 @@ bool test_bitvec_foreach_idx_edge_cases(void) {
     }
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_foreach_reverse_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec foreach reverse edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test reverse foreach on empty bitvec
@@ -342,13 +375,16 @@ bool test_bitvec_foreach_reverse_edge_cases(void) {
     }
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_foreach_range_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec foreach range edge cases\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Setup test data
@@ -389,16 +425,19 @@ bool test_bitvec_foreach_range_edge_cases(void) {
     result = result && (count == 2); // Should iterate over indices 8,9
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_foreach_stress_test(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVec foreach stress test\n");
 
     bool result = true;
 
     for (int sz = 0; sz < 100; sz += 10) {
-        BitVec bv = BitVecInit();
+        BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
         // Create bitvec of varying sz
         for (int i = 0; i < sz; i++) {
@@ -433,15 +472,19 @@ bool test_bitvec_foreach_stress_test(void) {
         BitVecDeinit(&bv);
     }
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 // BitVecRunLengths test implementations
 
 bool test_bitvec_run_lengths_basic(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRunLengths basic functionality\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Test pattern: 11100101 (3 true, 2 false, 1 true, 1 false, 1 true)
@@ -471,16 +514,19 @@ bool test_bitvec_run_lengths_basic(void) {
     }
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_run_lengths_edge_cases(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRunLengths edge cases\n");
 
     bool result = true;
 
     // Test 1: Empty bitvector
-    BitVec empty_bv = BitVecInit();
+    BitVec empty_bv = BitVecInit(ALLOCATOR_OF(&alloc));
     u64    runs[5];
     bool   values[5];
     u64    count = BitVecRunLengths(&empty_bv, runs, values, 5);
@@ -488,7 +534,7 @@ bool test_bitvec_run_lengths_edge_cases(void) {
     BitVecDeinit(&empty_bv);
 
     // Test 2: Single bit (true)
-    BitVec single_bv = BitVecInit();
+    BitVec single_bv = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&single_bv, true);
     count  = BitVecRunLengths(&single_bv, runs, values, 5);
     result = result && (count == 1);
@@ -496,7 +542,7 @@ bool test_bitvec_run_lengths_edge_cases(void) {
     BitVecDeinit(&single_bv);
 
     // Test 3: Single bit (false)
-    BitVec single_false_bv = BitVecInit();
+    BitVec single_false_bv = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&single_false_bv, false);
     count  = BitVecRunLengths(&single_false_bv, runs, values, 5);
     result = result && (count == 1);
@@ -504,7 +550,7 @@ bool test_bitvec_run_lengths_edge_cases(void) {
     BitVecDeinit(&single_false_bv);
 
     // Test 4: All same bits (all true)
-    BitVec all_true_bv = BitVecInit();
+    BitVec all_true_bv = BitVecInit(ALLOCATOR_OF(&alloc));
     for (int i = 0; i < 10; i++) {
         BitVecPush(&all_true_bv, true);
     }
@@ -514,7 +560,7 @@ bool test_bitvec_run_lengths_edge_cases(void) {
     BitVecDeinit(&all_true_bv);
 
     // Test 5: Alternating bits (0101010)
-    BitVec alternating_bv = BitVecInit();
+    BitVec alternating_bv = BitVecInit(ALLOCATOR_OF(&alloc));
     for (int i = 0; i < 7; i++) {
         BitVecPush(&alternating_bv, i % 2 == 0);
     }
@@ -529,13 +575,17 @@ bool test_bitvec_run_lengths_edge_cases(void) {
     }
     BitVecDeinit(&alternating_bv);
 
+    DefaultAllocatorDeinit(&alloc);
+
     return result;
 }
 
 bool test_bitvec_run_lengths_boundary_conditions(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRunLengths boundary conditions\n");
 
-    BitVec bv     = BitVecInit();
+    BitVec bv     = BitVecInit(ALLOCATOR_OF(&alloc));
     bool   result = true;
 
     // Create pattern with many runs: 10101010 (8 runs)
@@ -566,16 +616,19 @@ bool test_bitvec_run_lengths_boundary_conditions(void) {
     result = result && (count == 8);
 
     BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 bool test_bitvec_run_lengths_stress_test(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     WriteFmt("Testing BitVecRunLengths stress test\n");
 
     bool result = true;
 
     // Test with large bitvector
-    BitVec large_bv = BitVecInit();
+    BitVec large_bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Create pattern that results in many runs
     // Pattern: blocks of 5 same bits, alternating true/false
@@ -628,6 +681,7 @@ bool test_bitvec_run_lengths_stress_test(void) {
     }
 
     BitVecDeinit(&large_bv);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
