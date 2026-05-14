@@ -219,8 +219,6 @@ The refactor will land in small commits in this order:
 
 7. **Tests, Bin, Fuzz harnesses.** Call sites converted from explicit-allocator forms (`VecInit(&a)`) to scoped forms (`Scope(a, DefaultAllocator) { VecInit(); }`). Tests that exercised the older fallback allocator path are removed or rewritten.
 
-8. **AGENTS.md update.** A short section documenting the three-tier layout and the `Scope` discipline, so contributors know which tier they are extending when they add new functionality.
-
 Each step builds green before the next one starts.
 
 ## What Is Not Changing

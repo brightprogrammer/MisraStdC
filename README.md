@@ -929,12 +929,9 @@ StrReadFmt(cursor, "Count: {}, Name: {}", count, user);
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-Before sending a change, please read [`AGENTS.md`](AGENTS.md) for the
-project's coding style, identifier conventions (PascalCase public, snake_case
-private, no `MISRA_` prefix on identifiers), error-handling policy (fallible
-plain forms + aborting `Must*` variants), pre-commit expectations (tests must
-pass, `clang-format` must run via `Scripts/clang-format.py`), and the
-documentation format expected by `Scripts/DocuGen.py`.
+Match the existing style in the files you touch. Tests under `Tests/` and
+`clang-format` (via `Scripts/clang-format.py`) must pass before sending a
+change.
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
