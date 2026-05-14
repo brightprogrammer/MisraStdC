@@ -11,17 +11,21 @@
 #include <Misra/Std/Container/BitVec/Init.h>
 
 ///
-/// Initialize an Int (numeric value 0) bound to an allocator. Argument
-/// may be a typed allocator pointer (`&heap`) or a raw `Allocator *` —
-/// the underlying `BitVecInit` macro routes through `ALLOCATOR_OF`.
+/// Initialize an Int (numeric value 0). Inside a `Scope` block the
+/// allocator argument may be omitted (`MisraScope` is used). Otherwise
+/// pass a typed allocator handle or a raw `Allocator *`.
 ///
 /// USAGE:
-///   DefaultAllocator a = DefaultAllocatorInit();
-///   Int value = IntInit(&a);
+///   Scope(alloc, DefaultAllocator) {
+///       Int value = IntInit();
+///       ...
+///   }
 ///
 /// TAGS: Int, Init, Zero, Construct
 ///
-#define IntInit(allocator_ptr) ((Int) {.bits = BitVecInit(allocator_ptr)})
+#define IntInit(...)             MISRA_OVERLOAD(IntInit, __VA_ARGS__)
+#define IntInit_0()              ((Int) {.bits = BitVecInit_1(MisraScope)})
+#define IntInit_1(allocator_ptr) ((Int) {.bits = BitVecInit_1(allocator_ptr)})
 
 ///
 /// Release all storage owned by an integer.

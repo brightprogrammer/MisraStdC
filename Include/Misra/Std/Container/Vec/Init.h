@@ -16,16 +16,26 @@
 /// `Allocator *` — `ALLOCATOR_OF` typechecks both at compile time and
 /// converts to `Allocator *` via a whole-pointer typecast.
 ///
+/// Inside a `Scope(...)` block the allocator argument may be omitted;
+/// the macro then binds to the internal `MisraScope` allocator the
+/// scope provides. Outside a `Scope`, calling `VecInit()` with no
+/// argument fails to compile because `MisraScope` is undeclared - the
+/// safety net the design relies on.
+///
 /// USAGE:
-///   DefaultAllocator heap = DefaultAllocatorInit();
-///   Vec(int) v = VecInit(&heap);
-///   ...
-///   VecDeinit(&v);
-///   DefaultAllocatorDeinit(&heap);
+///   Scope(alloc, DefaultAllocator) {
+///       Vec(int) v = VecInit();      // uses MisraScope
+///       Vec(int) w = VecInit(alloc); // uses the named user-pool
+///       ...
+///       VecDeinit(&v);
+///       VecDeinit(&w);
+///   }
 ///
 /// TAGS: Init, Vec, Length, Size
 ///
-#define VecInit(allocator_ptr)                                                                                         \
+#define VecInit(...) MISRA_OVERLOAD(VecInit, __VA_ARGS__)
+#define VecInit_0()  VecInit_1(MisraScope)
+#define VecInit_1(allocator_ptr)                                                                                       \
     {.length      = 0,                                                                                                 \
      .capacity    = 0,                                                                                                 \
      .copy_init   = NULL,                                                                                              \
@@ -38,19 +48,26 @@
 /// Typed-cast variant of `VecInit` for assigning into a typed Vec
 /// variable. The cast makes the macro usable both as an in-place
 /// initializer (`Vec(int) v = VecInitT(v, alloc);`) and as an
-/// assignment target.
+/// assignment target. The allocator argument is optional inside a
+/// `Scope` block.
 ///
+#define VecInitT(v, ...) MISRA_OVERLOAD(VecInitT, v, __VA_ARGS__)
 #ifdef __cplusplus
-#    define VecInitT(v, alloc_ptr) (TYPE_OF(v) VecInit(alloc_ptr))
+#    define VecInitT_1(v)            (TYPE_OF(v) VecInit_1(MisraScope))
+#    define VecInitT_2(v, alloc_ptr) (TYPE_OF(v) VecInit_1(alloc_ptr))
 #else
-#    define VecInitT(v, alloc_ptr) ((TYPE_OF(v))VecInit(alloc_ptr))
+#    define VecInitT_1(v)            ((TYPE_OF(v))VecInit_1(MisraScope))
+#    define VecInitT_2(v, alloc_ptr) ((TYPE_OF(v))VecInit_1(alloc_ptr))
 #endif
 
 ///
-/// Initialize a Vec with deep-copy callbacks. Allocator argument routed
-/// through `ALLOCATOR_OF` like `VecInit`.
+/// Initialize a Vec with deep-copy callbacks. The allocator argument
+/// is optional in the same way as `VecInit` - inside a `Scope` block
+/// you may omit it and `MisraScope` is used automatically.
 ///
-#define VecInitWithDeepCopy(ci, cd, allocator_ptr)                                                                     \
+#define VecInitWithDeepCopy(...)      MISRA_OVERLOAD(VecInitWithDeepCopy, __VA_ARGS__)
+#define VecInitWithDeepCopy_2(ci, cd) VecInitWithDeepCopy_3(ci, cd, MisraScope)
+#define VecInitWithDeepCopy_3(ci, cd, allocator_ptr)                                                                   \
     {.length      = 0,                                                                                                 \
      .capacity    = 0,                                                                                                 \
      .copy_init   = (GenericCopyInit)(ci),                                                                             \
@@ -59,12 +76,13 @@
      .allocator   = ALLOCATOR_OF(allocator_ptr),                                                                       \
      .__magic     = MISRA_VEC_MAGIC}
 
+#define VecInitWithDeepCopyT(v, ...) MISRA_OVERLOAD(VecInitWithDeepCopyT, v, __VA_ARGS__)
 #ifdef __cplusplus
-#    define VecInitWithDeepCopyT(v, ci, cd, alloc_ptr)                                                                 \
-        (TYPE_OF(v) VecInitWithDeepCopy(ci, cd, alloc_ptr))
+#    define VecInitWithDeepCopyT_3(v, ci, cd)            (TYPE_OF(v) VecInitWithDeepCopy_3(ci, cd, MisraScope))
+#    define VecInitWithDeepCopyT_4(v, ci, cd, alloc_ptr) (TYPE_OF(v) VecInitWithDeepCopy_3(ci, cd, alloc_ptr))
 #else
-#    define VecInitWithDeepCopyT(v, ci, cd, alloc_ptr)                                                                 \
-        ((TYPE_OF(v))VecInitWithDeepCopy(ci, cd, alloc_ptr))
+#    define VecInitWithDeepCopyT_3(v, ci, cd)            ((TYPE_OF(v))VecInitWithDeepCopy_3(ci, cd, MisraScope))
+#    define VecInitWithDeepCopyT_4(v, ci, cd, alloc_ptr) ((TYPE_OF(v))VecInitWithDeepCopy_3(ci, cd, alloc_ptr))
 #endif
 
 ///

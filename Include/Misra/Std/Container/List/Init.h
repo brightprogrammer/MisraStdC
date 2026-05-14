@@ -9,19 +9,28 @@
 #define MISRA_STD_CONTAINER_LIST_INIT_H
 
 ///
-/// Initialize a list with a user-owned allocator.
+/// Initialize a list. Inside a `Scope` block the allocator argument
+/// may be omitted (`MisraScope` is used). Otherwise pass a typed
+/// allocator handle or a raw `Allocator *`.
 ///
-#define ListInit(typed_alloc_ptr) ListInitWithDeepCopy(NULL, NULL, typed_alloc_ptr)
+#define ListInit(...)               MISRA_OVERLOAD(ListInit, __VA_ARGS__)
+#define ListInit_0()                ListInitWithDeepCopy_3(NULL, NULL, MisraScope)
+#define ListInit_1(typed_alloc_ptr) ListInitWithDeepCopy_3(NULL, NULL, typed_alloc_ptr)
 
 ///
-/// Initialize a list with the given typed allocator pointer (typed variant).
+/// Typed-cast variant of `ListInit`.
 ///
-#define ListInitT(l, typed_alloc_ptr) ListInitWithDeepCopyT(l, NULL, NULL, typed_alloc_ptr)
+#define ListInitT(l, ...)               MISRA_OVERLOAD(ListInitT, l, __VA_ARGS__)
+#define ListInitT_1(l)                  ListInitWithDeepCopyT_4(l, NULL, NULL, MisraScope)
+#define ListInitT_2(l, typed_alloc_ptr) ListInitWithDeepCopyT_4(l, NULL, NULL, typed_alloc_ptr)
 
 ///
-/// Initialize a list with copy init and deinit callbacks.
+/// Initialize a list with copy init and deinit callbacks. The
+/// allocator argument is optional inside a `Scope` block.
 ///
-#define ListInitWithDeepCopy(ci, cd, typed_alloc_ptr)                                                                  \
+#define ListInitWithDeepCopy(...)      MISRA_OVERLOAD(ListInitWithDeepCopy, __VA_ARGS__)
+#define ListInitWithDeepCopy_2(ci, cd) ListInitWithDeepCopy_3(ci, cd, MisraScope)
+#define ListInitWithDeepCopy_3(ci, cd, typed_alloc_ptr)                                                                \
     {.head        = NULL,                                                                                              \
      .tail        = NULL,                                                                                              \
      .copy_init   = (ci),                                                                                              \
@@ -30,11 +39,15 @@
      .allocator   = ALLOCATOR_OF(typed_alloc_ptr),                                                                     \
      .__magic     = MISRA_LIST_MAGIC}
 
+#define ListInitWithDeepCopyT(l, ...) MISRA_OVERLOAD(ListInitWithDeepCopyT, l, __VA_ARGS__)
 #ifdef __cplusplus
-#    define ListInitWithDeepCopyT(l, ci, cd, typed_alloc_ptr) (TYPE_OF(l) ListInitWithDeepCopy(ci, cd, typed_alloc_ptr))
+#    define ListInitWithDeepCopyT_3(l, ci, cd) (TYPE_OF(l) ListInitWithDeepCopy_3(ci, cd, MisraScope))
+#    define ListInitWithDeepCopyT_4(l, ci, cd, typed_alloc_ptr)                                                        \
+        (TYPE_OF(l) ListInitWithDeepCopy_3(ci, cd, typed_alloc_ptr))
 #else
-#    define ListInitWithDeepCopyT(l, ci, cd, typed_alloc_ptr)                                                          \
-        ((TYPE_OF(l))ListInitWithDeepCopy(ci, cd, typed_alloc_ptr))
+#    define ListInitWithDeepCopyT_3(l, ci, cd) ((TYPE_OF(l))ListInitWithDeepCopy_3(ci, cd, MisraScope))
+#    define ListInitWithDeepCopyT_4(l, ci, cd, typed_alloc_ptr)                                                        \
+        ((TYPE_OF(l))ListInitWithDeepCopy_3(ci, cd, typed_alloc_ptr))
 #endif
 
 #define ListDeinit(v) deinit_list(GENERIC_LIST(v), sizeof(LIST_DATA_TYPE(v)))

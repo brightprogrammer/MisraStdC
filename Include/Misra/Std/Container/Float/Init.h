@@ -11,19 +11,21 @@
 #include <Misra/Std/Container/Int/Init.h>
 
 ///
-/// Initialize a Float (numeric value 0) bound to an allocator. Argument
-/// may be a typed allocator pointer (`&heap`) or raw `Allocator *` —
-/// the underlying `IntInit` / `BitVecInit` macros route through
-/// `ALLOCATOR_OF`.
+/// Initialize a Float (numeric value 0). Inside a `Scope` block the
+/// allocator argument may be omitted (`MisraScope` is used). Otherwise
+/// pass a typed allocator handle or a raw `Allocator *`.
 ///
 /// USAGE:
-///   DefaultAllocator a = DefaultAllocatorInit();
-///   Float value = FloatInit(&a);
+///   Scope(alloc, DefaultAllocator) {
+///       Float value = FloatInit();
+///       ...
+///   }
 ///
 /// TAGS: Float, Init, Zero, Construct
 ///
-#define FloatInit(allocator_ptr)                                                                                       \
-    ((Float) {.negative = false, .significand = IntInit(allocator_ptr), .exponent = 0})
+#define FloatInit(...)             MISRA_OVERLOAD(FloatInit, __VA_ARGS__)
+#define FloatInit_0()              ((Float) {.negative = false, .significand = IntInit_1(MisraScope), .exponent = 0})
+#define FloatInit_1(allocator_ptr) ((Float) {.negative = false, .significand = IntInit_1(allocator_ptr), .exponent = 0})
 
 ///
 /// Release all storage owned by a floating-point value.

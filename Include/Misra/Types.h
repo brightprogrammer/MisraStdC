@@ -737,5 +737,35 @@ struct check_type_eq<true> {
 ///  Unique name per line
 #define UNPL(base) CONCAT(base, __LINE__)
 
+///
+/// Count the number of arguments in a variadic macro pack, 0 through 16.
+/// Requires `__VA_OPT__` (C23 / current GCC, clang, MSVC).
+///
+/// Usage: `MISRA_NARG(a, b, c)` -> `3`, `MISRA_NARG()` -> `0`.
+///
+#define MISRA_NARG(...)                                                                                                \
+    MISRA_NARG_IMPL(0 __VA_OPT__(, ) __VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define MISRA_NARG_IMPL(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, N, ...) N
+
+///
+/// Variadic macro overload by argument count. Dispatches a call
+/// `MISRA_OVERLOAD(Name, ...)` to `Name_<N>(...)` where N is the
+/// argument count returned by `MISRA_NARG`. The caller is responsible
+/// for defining each overload (`Name_0`, `Name_1`, ...) that they
+/// want to accept.
+///
+/// Usage:
+///
+///   #define MyInit(...)   MISRA_OVERLOAD(MyInit, __VA_ARGS__)
+///   #define MyInit_0()    MyInit_1(MisraScope)
+///   #define MyInit_1(p)   { ..., .allocator = ALLOCATOR_OF(p) }
+///
+/// Two indirections so `MISRA_NARG` fully expands before the `##`
+/// concatenation in `MISRA_OVERLOAD__`.
+///
+#define MISRA_OVERLOAD(name, ...)      MISRA_OVERLOAD_(name, MISRA_NARG(__VA_ARGS__), __VA_ARGS__)
+#define MISRA_OVERLOAD_(name, N, ...)  MISRA_OVERLOAD__(name, N, __VA_ARGS__)
+#define MISRA_OVERLOAD__(name, N, ...) CONCAT(name##_, N)(__VA_ARGS__)
+
 
 #endif // MISRA_TYPES_H

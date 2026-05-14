@@ -44,15 +44,17 @@ typedef Map(Str, Str) KvConfig;
 ///
 /// SUCCESS : Returns initialized config object.
 ///
-#define KvConfigInit(allocator_ptr)                                                                                    \
-    MapInitFull(                                                                                                       \
+#define KvConfigInit(...) MISRA_OVERLOAD(KvConfigInit, __VA_ARGS__)
+#define KvConfigInit_0()  KvConfigInit_1(MisraScope)
+#define KvConfigInit_1(allocator_ptr)                                                                                  \
+    MapInitFull_9(                                                                                                     \
         KvConfigHash,                                                                                                  \
         KvConfigCompare,                                                                                               \
         KvConfigCompare,                                                                                               \
-        str_init_copy,                                                                                              \
-        str_deinit,                                                                                                \
-        str_init_copy,                                                                                              \
-        str_deinit,                                                                                                \
+        str_init_copy,                                                                                                 \
+        str_deinit,                                                                                                    \
+        str_init_copy,                                                                                                 \
+        str_deinit,                                                                                                    \
         MisraMapPolicyLinear,                                                                                          \
         (allocator_ptr)                                                                                                \
     )

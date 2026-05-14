@@ -10,23 +10,33 @@
 #include "Private.h"
 #include "Type.h"
 
-#define GraphInit(typed_alloc_ptr)    GraphInitWithDeepCopy(NULL, NULL, typed_alloc_ptr)
-#define GraphInitT(g, typed_alloc_ptr) GraphInitWithDeepCopyT((g), NULL, NULL, typed_alloc_ptr)
+#define GraphInit(...)               MISRA_OVERLOAD(GraphInit, __VA_ARGS__)
+#define GraphInit_0()                GraphInitWithDeepCopy_3(NULL, NULL, MisraScope)
+#define GraphInit_1(typed_alloc_ptr) GraphInitWithDeepCopy_3(NULL, NULL, typed_alloc_ptr)
 
-#define GraphInitWithDeepCopy(ci, cd, typed_alloc_ptr) GRAPH_INIT_WITH_DEEP_COPY_VALUE((ci), (cd), typed_alloc_ptr)
+#define GraphInitT(g, ...)               MISRA_OVERLOAD(GraphInitT, g, __VA_ARGS__)
+#define GraphInitT_1(g)                  GraphInitWithDeepCopyT_4((g), NULL, NULL, MisraScope)
+#define GraphInitT_2(g, typed_alloc_ptr) GraphInitWithDeepCopyT_4((g), NULL, NULL, typed_alloc_ptr)
 
+#define GraphInitWithDeepCopy(...)                       MISRA_OVERLOAD(GraphInitWithDeepCopy, __VA_ARGS__)
+#define GraphInitWithDeepCopy_2(ci, cd)                  GRAPH_INIT_WITH_DEEP_COPY_VALUE((ci), (cd), MisraScope)
+#define GraphInitWithDeepCopy_3(ci, cd, typed_alloc_ptr) GRAPH_INIT_WITH_DEEP_COPY_VALUE((ci), (cd), typed_alloc_ptr)
+
+#define GraphInitWithDeepCopyT(g, ...) MISRA_OVERLOAD(GraphInitWithDeepCopyT, g, __VA_ARGS__)
 #ifdef __cplusplus
-#    define GraphInitWithDeepCopyT(g, ci, cd, typed_alloc_ptr)                                                         \
-        (TYPE_OF(g) GraphInitWithDeepCopy((ci), (cd), typed_alloc_ptr))
+#    define GraphInitWithDeepCopyT_3(g, ci, cd) (TYPE_OF(g) GRAPH_INIT_WITH_DEEP_COPY_VALUE((ci), (cd), MisraScope))
+#    define GraphInitWithDeepCopyT_4(g, ci, cd, typed_alloc_ptr)                                                       \
+        (TYPE_OF(g) GRAPH_INIT_WITH_DEEP_COPY_VALUE((ci), (cd), typed_alloc_ptr))
 #else
-#    define GraphInitWithDeepCopyT(g, ci, cd, typed_alloc_ptr)                                                         \
-        ((TYPE_OF(g))GraphInitWithDeepCopy((ci), (cd), typed_alloc_ptr))
+#    define GraphInitWithDeepCopyT_3(g, ci, cd) ((TYPE_OF(g))GRAPH_INIT_WITH_DEEP_COPY_VALUE((ci), (cd), MisraScope))
+#    define GraphInitWithDeepCopyT_4(g, ci, cd, typed_alloc_ptr)                                                       \
+        ((TYPE_OF(g))GRAPH_INIT_WITH_DEEP_COPY_VALUE((ci), (cd), typed_alloc_ptr))
 #endif
 
 #define GRAPH_INIT_WITH_DEEP_COPY_VALUE(ci, cd, typed_alloc_ptr)                                                       \
-    {.slots                 = VecInit(typed_alloc_ptr),                                                                \
-     .free_indices          = VecInit(typed_alloc_ptr),                                                                \
-     .pending_edge_removals = VecInit(typed_alloc_ptr),                                                                \
+    {.slots                 = VecInit_1(typed_alloc_ptr),                                                              \
+     .free_indices          = VecInit_1(typed_alloc_ptr),                                                              \
+     .pending_edge_removals = VecInit_1(typed_alloc_ptr),                                                              \
      .copy_init             = (GenericCopyInit)(ci),                                                                   \
      .copy_deinit           = (GenericCopyDeinit)(cd),                                                                 \
      .live_count            = 0,                                                                                       \

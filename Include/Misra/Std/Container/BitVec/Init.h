@@ -32,21 +32,25 @@ extern "C" {
 #endif
 
 ///
-/// Initialize an empty BitVec bound to an allocator. Argument may be a
-/// typed allocator pointer (`&heap`, `&arena`, ...) or a raw
-/// `Allocator *` — `ALLOCATOR_OF` typechecks and whole-pointer-casts at
-/// compile time.
+/// Initialize an empty BitVec. Inside a `Scope` block the allocator
+/// argument may be omitted; the internal `MisraScope` allocator is
+/// used. Otherwise pass a typed allocator handle or a raw
+/// `Allocator *`.
 ///
+#define BitVecInit(...) MISRA_OVERLOAD(BitVecInit, __VA_ARGS__)
+#define BitVecInit_0()  BitVecInit_1(MisraScope)
 #ifdef __cplusplus
-#    define BitVecInit(allocator_ptr)                                                                                  \
-        (BitVec {.length    = 0,                                                                                       \
-                 .capacity  = 0,                                                                                       \
-                 .data      = NULL,                                                                                    \
-                 .byte_size = 0,                                                                                       \
-                 .allocator = ALLOCATOR_OF(allocator_ptr),                                                             \
-                 .__magic   = MISRA_BITVEC_MAGIC})
+#    define BitVecInit_1(allocator_ptr)                                                                                \
+        (BitVec {                                                                                                      \
+            .length    = 0,                                                                                            \
+            .capacity  = 0,                                                                                            \
+            .data      = NULL,                                                                                         \
+            .byte_size = 0,                                                                                            \
+            .allocator = ALLOCATOR_OF(allocator_ptr),                                                                  \
+            .__magic   = MISRA_BITVEC_MAGIC                                                                            \
+        })
 #else
-#    define BitVecInit(allocator_ptr)                                                                                  \
+#    define BitVecInit_1(allocator_ptr)                                                                                \
         ((BitVec) {.length    = 0,                                                                                     \
                    .capacity  = 0,                                                                                     \
                    .data      = NULL,                                                                                  \
