@@ -27,6 +27,17 @@
      .allocator   = (alloc_ptr),                                                                                       \
      .__magic     = MISRA_VEC_MAGIC}
 
+///
+/// Typed-cast variant of `vec_init_alloc` for assigning into a typed
+/// Vec variable. Mirrors the public `VecInitT` macro but takes a raw
+/// `Allocator *` argument.
+///
+#ifdef __cplusplus
+#    define vec_init_alloc_t(v, alloc_ptr) (TYPE_OF(v) vec_init_alloc(alloc_ptr))
+#else
+#    define vec_init_alloc_t(v, alloc_ptr) ((TYPE_OF(v))vec_init_alloc(alloc_ptr))
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
