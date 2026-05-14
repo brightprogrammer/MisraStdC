@@ -96,7 +96,6 @@
      .pending_delete_count  = 0,                                                                                       \
      .mutation_epoch        = 0,                                                                                       \
      .allocator             = AllocatorBind((alloc)),                                                                  \
-     .type_anchor           = NULL,                                                                                    \
      .__magic               = MISRA_GRAPH_MAGIC}
 
 ///

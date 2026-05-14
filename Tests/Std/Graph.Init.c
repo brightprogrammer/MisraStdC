@@ -42,7 +42,9 @@ static bool test_graph_reserve_clear(void) {
     result = result && graph.pending_delete_count == 0 && graph.pending_edge_removals.length == 0;
 
     for (slot_index = 0; slot_index < graph.slots.length; slot_index++) {
-        GenericGraphSlot *slot = VecPtrAt(&graph.slots, slot_index);
+        // `graph.slots` is the typed `Vec(GraphSlot(int))`, so iterate via
+        // the runtime-shared layout to avoid an anonymous-struct annotation.
+        GenericGraphSlot *slot = (GenericGraphSlot *)VecPtrAt(&GENERIC_GRAPH(&graph)->slots, slot_index);
         result                 = result && (slot->data == NULL);
         result                 = result && (slot->visit_count == 0);
         result                 = result && (slot->flags == 0);

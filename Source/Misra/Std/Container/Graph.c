@@ -452,9 +452,8 @@ void deinit_graph(GenericGraph *graph, size item_size) {
     graph->pending_delete_count = 0;
     graph->mutation_epoch       = 0;
     AllocatorUnbind(&graph->allocator);
-    graph->allocator   = AllocatorBind(DefaultAllocator());
-    graph->type_anchor = NULL;
-    graph->__magic     = 0;
+    graph->allocator = AllocatorBind(DefaultAllocator());
+    graph->__magic   = 0;
 }
 
 void clear_graph(GenericGraph *graph, size item_size) {

@@ -75,6 +75,11 @@ typedef struct {
 ///
 typedef Vec(GraphNodeId) GraphNeighbors;
 
+///
+/// Type-erased slot layout used by the runtime helpers in `Source/Misra/Std/Container/Graph.c`.
+/// `GraphSlot(T)` below is the typed variant; both have identical layout
+/// (the `data` field is a pointer, and `void *` / `T *` share representation).
+///
 typedef struct {
     GraphNeighbors out_neighbors;
     GraphNeighbors in_neighbors;
@@ -86,6 +91,22 @@ typedef struct {
 
 typedef Vec(GenericGraphSlot) GraphSlots;
 typedef Vec(u32) GraphFreeIndices;
+
+///
+/// Typed slot layout used inside `Graph(T)`. Same field order and field sizes
+/// as `GenericGraphSlot`, but `data` is typed `T *` instead of `void *`. This
+/// lets `GRAPH_NODE_TYPE(g)` recover `T` from the slot itself without needing
+/// a separate sentinel field on the graph.
+///
+#define GraphSlot(T)                                                                                                   \
+    struct {                                                                                                           \
+        GraphNeighbors out_neighbors;                                                                                  \
+        GraphNeighbors in_neighbors;                                                                                   \
+        T             *data;                                                                                           \
+        u64            visit_count;                                                                                    \
+        u32            generation;                                                                                     \
+        u32            flags;                                                                                          \
+    }
 
 typedef struct {
     GraphNodeId from;
@@ -105,7 +126,6 @@ typedef struct {
     u64                      pending_delete_count;
     u64                      mutation_epoch;
     Allocator                allocator;
-    void                    *type_anchor;
     u64                      __magic;
 } GenericGraph;
 
@@ -143,13 +163,12 @@ typedef struct {
 /// - mutation_epoch        : Structural mutation counter used by traversal helpers.
 /// - allocator             : Allocator bound to this graph. Its `alignment` field
 ///                           governs node payload alignment.
-/// - type_anchor           : Type anchor for generic node payload macros.
 ///
 /// TAGS: Graph, Generic, Directed, Slot, Handle
 ///
 #define Graph(T)                                                                                                       \
     struct {                                                                                                           \
-        GraphSlots               slots;                                                                                \
+        Vec(GraphSlot(T)) slots;                                                                                       \
         GraphFreeIndices         free_indices;                                                                         \
         GraphPendingEdgeRemovals pending_edge_removals;                                                                \
         GenericCopyInit          copy_init;                                                                            \
@@ -159,11 +178,16 @@ typedef struct {
         u64                      pending_delete_count;                                                                 \
         u64                      mutation_epoch;                                                                       \
         Allocator                allocator;                                                                            \
-        T                       *type_anchor;                                                                          \
         u64                      __magic;                                                                              \
     }
 
-#define GRAPH_NODE_TYPE(g) TYPE_OF((g)->type_anchor[0])
+///
+/// Recover the node payload type from a `Graph(T)` handle. Walks
+/// `g -> slots -> (typed) slot -> data pointer -> T`. This relies on the
+/// `GraphSlot(T)` definition above, which carries `T *data` rather than
+/// `void *data`.
+///
+#define GRAPH_NODE_TYPE(g) TYPE_OF((g)->slots.data[0].data[0])
 
 #define MISRA_GRAPH_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("digrph01")
 
