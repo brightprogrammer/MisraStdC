@@ -39,6 +39,19 @@ extern "C" {
     size find_idx_vec(GenericVec *vec, const void *item_data, size item_size, GenericCompare comp);
     void validate_vec(const GenericVec *v);
 
+    bool vec_insert_one_l(
+        GenericVec *vec, const void *item_copy, void *source, size item_size, size idx, bool preserve_order
+    );
+    bool vec_insert_one_r(GenericVec *vec, const void *item_copy, size item_size, size idx, bool preserve_order);
+    bool vec_insert_range_l(
+        GenericVec *vec, void *items, size item_size, size idx, size count, bool preserve_order
+    );
+    bool vec_insert_range_r(
+        GenericVec *vec, const void *items, size item_size, size idx, size count, bool preserve_order
+    );
+    bool vec_merge_l(GenericVec *dst, GenericVec *src, size item_size);
+    bool vec_merge_r(GenericVec *dst, const GenericVec *src, size item_size);
+
     static inline bool vec_zero_source_on_success(GenericVec *vec, void *src, size bytes, bool success) {
         if (success && !vec->copy_init) {
             MemSet(src, 0, bytes);

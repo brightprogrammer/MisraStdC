@@ -540,3 +540,55 @@ void validate_vec(const GenericVec *v) {
         (void)(*(char *)(void *)((v)->data));
     }
 }
+
+bool vec_insert_one_l(GenericVec *vec, const void *item_copy, void *source, size item_size, size idx, bool preserve_order) {
+    bool success = preserve_order ? insert_range_into_vec(vec, item_copy, item_size, idx, 1)
+                                  : insert_range_fast_into_vec(vec, item_copy, item_size, idx, 1);
+
+    return vec_zero_source_on_success(vec, source, item_size, success);
+}
+
+bool vec_insert_one_r(GenericVec *vec, const void *item_copy, size item_size, size idx, bool preserve_order) {
+    return preserve_order ? insert_range_into_vec(vec, item_copy, item_size, idx, 1)
+                          : insert_range_fast_into_vec(vec, item_copy, item_size, idx, 1);
+}
+
+bool vec_insert_range_l(GenericVec *vec, void *items, size item_size, size idx, size count, bool preserve_order) {
+    bool success;
+
+    if (!items) {
+        LOG_FATAL("Expected a valid pointer");
+    }
+
+    success = preserve_order ? insert_range_into_vec(vec, items, item_size, idx, count)
+                             : insert_range_fast_into_vec(vec, items, item_size, idx, count);
+
+    return vec_zero_source_on_success(vec, items, count * item_size, success);
+}
+
+bool vec_insert_range_r(GenericVec *vec, const void *items, size item_size, size idx, size count, bool preserve_order) {
+    if (!items) {
+        LOG_FATAL("Expected a valid pointer");
+    }
+
+    return preserve_order ? insert_range_into_vec(vec, items, item_size, idx, count)
+                          : insert_range_fast_into_vec(vec, items, item_size, idx, count);
+}
+
+bool vec_merge_l(GenericVec *dst, GenericVec *src, size item_size) {
+    if (!src->data || !src->length) {
+        return true;
+    }
+
+    return vec_release_merged_source_on_success(
+        dst, src, item_size, vec_insert_range_l(dst, src->data, item_size, dst->length, src->length, true)
+    );
+}
+
+bool vec_merge_r(GenericVec *dst, const GenericVec *src, size item_size) {
+    if (!src->data || !src->length) {
+        return true;
+    }
+
+    return vec_insert_range_r(dst, src->data, item_size, dst->length, src->length, true);
+}

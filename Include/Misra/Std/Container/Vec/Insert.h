@@ -9,10 +9,6 @@
 
 #include "Private.h"
 
-#include <stdio.h>
-
-void SysAbort(void);
-
 #if defined(MISRA_ENFORCE_TYPE_SAFETY) && MISRA_ENFORCE_TYPE_SAFETY
 #    define VEC_TYPECHECK_L(v, lval) ((void)sizeof(char[_Generic(&(lval), VEC_DATATYPE(v) * : 1, default : -1)]))
 #    define VEC_TYPECHECK_R(v, rval) ((void)sizeof((VEC_DATATYPE(v)[]){(rval)}))
@@ -26,77 +22,10 @@ void SysAbort(void);
 #    define VEC_TYPECHECK_RANGE_R(v, ptr) ((void)0)
 #endif
 
-#define VEC_ABORT(message) vec_abort_insert_operation(__func__, __LINE__, (message))
-
-static inline void vec_abort_insert_operation(const char *function, int line, const char *message) {
-    fprintf(stderr, "FATAL [%s:%d] %s\n", function, line, message);
-    SysAbort();
-}
-
-static inline bool vec_insert_one_l_impl(
-    GenericVec *vec, const void *item_copy, void *source, size item_size, size idx, bool preserve_order
-) {
-    bool success = preserve_order ? insert_range_into_vec(vec, item_copy, item_size, idx, 1)
-                                  : insert_range_fast_into_vec(vec, item_copy, item_size, idx, 1);
-
-    return vec_zero_source_on_success(vec, source, item_size, success);
-}
-
-static inline bool vec_insert_one_r_impl(
-    GenericVec *vec, const void *item_copy, size item_size, size idx, bool preserve_order
-) {
-    return preserve_order ? insert_range_into_vec(vec, item_copy, item_size, idx, 1)
-                          : insert_range_fast_into_vec(vec, item_copy, item_size, idx, 1);
-}
-
-static inline bool vec_insert_range_l_impl(
-    GenericVec *vec, void *items, size item_size, size idx, size count, bool preserve_order
-) {
-    bool success;
-
-    if (!items) {
-        VEC_ABORT("Expected a valid pointer");
-    }
-
-    success = preserve_order ? insert_range_into_vec(vec, items, item_size, idx, count)
-                             : insert_range_fast_into_vec(vec, items, item_size, idx, count);
-
-    return vec_zero_source_on_success(vec, items, count * item_size, success);
-}
-
-static inline bool vec_insert_range_r_impl(
-    GenericVec *vec, const void *items, size item_size, size idx, size count, bool preserve_order
-) {
-    if (!items) {
-        VEC_ABORT("Expected a valid pointer");
-    }
-
-    return preserve_order ? insert_range_into_vec(vec, items, item_size, idx, count)
-                          : insert_range_fast_into_vec(vec, items, item_size, idx, count);
-}
-
-static inline bool vec_merge_l_impl(GenericVec *dst, GenericVec *src, size item_size) {
-    if (!src->data || !src->length) {
-        return true;
-    }
-
-    return vec_release_merged_source_on_success(
-        dst, src, item_size, vec_insert_range_l_impl(dst, src->data, item_size, dst->length, src->length, true)
-    );
-}
-
-static inline bool vec_merge_r_impl(GenericVec *dst, const GenericVec *src, size item_size) {
-    if (!src->data || !src->length) {
-        return true;
-    }
-
-    return vec_insert_range_r_impl(dst, src->data, item_size, dst->length, src->length, true);
-}
-
 #define VecInsertL(v, lval, idx)                                                                                       \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_L((v), (lval)),                                                                                     \
-     vec_insert_one_l_impl(                                                                                            \
+     vec_insert_one_l(                                                                                            \
          GENERIC_VEC(v),                                                                                               \
          &LVAL((VEC_DATATYPE(v))(lval)),                                                                               \
          &(lval),                                                                                                      \
@@ -108,14 +37,14 @@ static inline bool vec_merge_r_impl(GenericVec *dst, const GenericVec *src, size
 #define VecInsertR(v, rval, idx)                                                                                       \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_R((v), (rval)),                                                                                     \
-     vec_insert_one_r_impl(GENERIC_VEC(v), &LVAL((VEC_DATATYPE(v))(rval)), sizeof(VEC_DATATYPE(v)), (idx), true))
+     vec_insert_one_r(GENERIC_VEC(v), &LVAL((VEC_DATATYPE(v))(rval)), sizeof(VEC_DATATYPE(v)), (idx), true))
 
 #define VecInsert(v, lval, idx) VecInsertL((v), (lval), (idx))
 
 #define VecInsertFastL(v, lval, idx)                                                                                   \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_L((v), (lval)),                                                                                     \
-     vec_insert_one_l_impl(                                                                                            \
+     vec_insert_one_l(                                                                                            \
          GENERIC_VEC(v),                                                                                               \
          &LVAL((VEC_DATATYPE(v))(lval)),                                                                               \
          &(lval),                                                                                                      \
@@ -127,31 +56,31 @@ static inline bool vec_merge_r_impl(GenericVec *dst, const GenericVec *src, size
 #define VecInsertFastR(v, rval, idx)                                                                                   \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_R((v), (rval)),                                                                                     \
-     vec_insert_one_r_impl(GENERIC_VEC(v), &LVAL((VEC_DATATYPE(v))(rval)), sizeof(VEC_DATATYPE(v)), (idx), false))
+     vec_insert_one_r(GENERIC_VEC(v), &LVAL((VEC_DATATYPE(v))(rval)), sizeof(VEC_DATATYPE(v)), (idx), false))
 
 #define VecInsertFast(v, lval, idx) VecInsertFastL((v), (lval), (idx))
 
 #define VecInsertRangeL(v, varr, idx, count)                                                                           \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_RANGE_L((v), (varr)),                                                                               \
-     vec_insert_range_l_impl(GENERIC_VEC(v), (void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), true))
+     vec_insert_range_l(GENERIC_VEC(v), (void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), true))
 
 #define VecInsertRangeR(v, varr, idx, count)                                                                           \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_RANGE_R((v), (varr)),                                                                               \
-     vec_insert_range_r_impl(GENERIC_VEC(v), (const void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), true))
+     vec_insert_range_r(GENERIC_VEC(v), (const void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), true))
 
 #define VecInsertRange(v, varr, idx, count) VecInsertRangeL((v), (varr), (idx), (count))
 
 #define VecInsertRangeFastL(v, varr, idx, count)                                                                       \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_RANGE_L((v), (varr)),                                                                               \
-     vec_insert_range_l_impl(GENERIC_VEC(v), (void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), false))
+     vec_insert_range_l(GENERIC_VEC(v), (void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), false))
 
 #define VecInsertRangeFastR(v, varr, idx, count)                                                                       \
     (ValidateVec(v),                                                                                                   \
      VEC_TYPECHECK_RANGE_R((v), (varr)),                                                                               \
-     vec_insert_range_r_impl(GENERIC_VEC(v), (const void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), false))
+     vec_insert_range_r(GENERIC_VEC(v), (const void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), false))
 
 #define VecInsertRangeFast(v, varr, idx, count) VecInsertRangeFastL((v), (varr), (idx), (count))
 
@@ -168,10 +97,10 @@ static inline bool vec_merge_r_impl(GenericVec *dst, const GenericVec *src, size
 #define VecPushFrontArrFast(v, arr, count) VecPushFrontArrFastL((v), (arr), (count))
 
 #define VecMergeL(v, v2)                                                                                               \
-    (ValidateVec(v), ValidateVec(v2), vec_merge_l_impl(GENERIC_VEC(v), GENERIC_VEC(v2), sizeof(VEC_DATATYPE(v))))
+    (ValidateVec(v), ValidateVec(v2), vec_merge_l(GENERIC_VEC(v), GENERIC_VEC(v2), sizeof(VEC_DATATYPE(v))))
 
 #define VecMergeR(v, v2)                                                                                               \
-    (ValidateVec(v), ValidateVec(v2), vec_merge_r_impl(GENERIC_VEC(v), GENERIC_VEC(v2), sizeof(VEC_DATATYPE(v))))
+    (ValidateVec(v), ValidateVec(v2), vec_merge_r(GENERIC_VEC(v), GENERIC_VEC(v2), sizeof(VEC_DATATYPE(v))))
 
 #define VecMerge(v, v2) VecMergeL((v), (v2))
 
