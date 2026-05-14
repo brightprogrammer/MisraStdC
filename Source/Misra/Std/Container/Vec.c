@@ -23,7 +23,7 @@ static inline size vec_aligned_size(GenericVec *v, size item_size) {
     // Default allocator alignment of 1 leaves element stride at sizeof(T).
     // Stronger allocator alignment requests pad each element so that every
     // slot lies on the requested boundary.
-    return v->allocator.alignment > 1 ? ALIGN_UP_POW2(item_size, v->allocator.alignment) : item_size;
+    return v->allocator->alignment > 1 ? ALIGN_UP_POW2(item_size, v->allocator->alignment) : item_size;
 }
 
 static inline size vec_aligned_offset_at(GenericVec *v, size idx, size item_size) {
@@ -510,7 +510,7 @@ void validate_vec(const GenericVec *v) {
     if ((v)->length > (v)->capacity) {
         LOG_FATAL("Invalid vec object.");
     }
-    if (!(v)->allocator.allocate || !(v)->allocator.reallocate || !(v)->allocator.deallocate) {
+    if (!(v)->allocator->allocate || !(v)->allocator->reallocate || !(v)->allocator->deallocate) {
         LOG_FATAL("Invalid vec allocator.");
     }
     // if memory is invalid, system will segfault here

@@ -24,7 +24,7 @@ static bool graph_alignment_is_pow2(u64 alignment) {
 }
 
 static void graph_validate_alignment(const GenericGraph *graph) {
-    u64 alignment = graph->allocator.alignment;
+    u64 alignment = graph->allocator->alignment;
 
     if (!alignment) {
         LOG_FATAL("Invalid graph allocator alignment. Did you initialize the graph before use?");
@@ -315,7 +315,7 @@ void validate_graph(const GenericGraph *graph) {
         LOG_FATAL("Graph is uninitialized or corrupted");
     }
 
-    if (!graph->allocator.allocate || !graph->allocator.reallocate || !graph->allocator.deallocate) {
+    if (!graph->allocator->allocate || !graph->allocator->reallocate || !graph->allocator->deallocate) {
         LOG_FATAL("Graph allocator is not fully configured");
     }
 
