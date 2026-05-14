@@ -1,4 +1,5 @@
 #include <Misra/Parsers/JSON.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
@@ -9,11 +10,11 @@
 #include "../Util/TestRunner.h"
 
 // Helper function to compare JSON output (removes spaces for comparison)
-bool compare_json_output(const Str *output, const char *expected) {
+bool compare_json_output(const Str *output, const char *expected, DefaultAllocator *alloc) {
     // Create a copy of expected without spaces for comparison
-    Str expected_str   = StrInitFromZstr(expected);
-    Str output_clean   = StrInit();
-    Str expected_clean = StrInit();
+    Str expected_str   = StrInitFromZstr(expected, alloc);
+    Str output_clean   = StrInit(alloc);
+    Str expected_clean = StrInit(alloc);
 
     // Remove spaces and newlines from both strings for comparison
     for (size i = 0; i < output->length; i++) {
@@ -72,8 +73,10 @@ bool test_single_values_writing(void);
 bool test_empty_object_writing(void) {
     WriteFmtLn("Testing empty object writing");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
     // Write completely empty object
     JW_OBJ(
@@ -84,11 +87,12 @@ bool test_empty_object_writing(void) {
     );
 
     const char *expected = "{}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -96,11 +100,13 @@ bool test_empty_object_writing(void) {
 bool test_empty_array_writing(void) {
     WriteFmtLn("Testing empty array writing");
 
-    bool success = true;
-    Str  json    = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Vec(i32) empty_numbers = VecInit();
-    Vec(Str) empty_strings = VecInitWithDeepCopy(NULL, StrDeinit);
+    bool success = true;
+    Str  json    = StrInit(&alloc);
+
+    Vec(i32) empty_numbers = VecInit(&alloc);
+    Vec(Str) empty_strings = VecInitWithDeepCopy(NULL, StrDeinit, &alloc);
 
     JW_OBJ(json, {
         JW_ARR_KV(json, "numbers", empty_numbers, num, { JW_INT(json, num); });
@@ -108,13 +114,14 @@ bool test_empty_array_writing(void) {
     });
 
     const char *expected = "{\"numbers\":[],\"strings\":[]}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
     VecDeinit(&empty_numbers);
     VecDeinit(&empty_strings);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -122,11 +129,13 @@ bool test_empty_array_writing(void) {
 bool test_empty_string_writing(void) {
     WriteFmtLn("Testing empty string writing");
 
-    bool success = true;
-    Str  json    = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Str empty_name = StrInit();
-    Str empty_desc = StrInit();
+    bool success = true;
+    Str  json    = StrInit(&alloc);
+
+    Str empty_name = StrInit(&alloc);
+    Str empty_desc = StrInit(&alloc);
 
     JW_OBJ(json, {
         JW_STR_KV(json, "name", empty_name);
@@ -134,13 +143,14 @@ bool test_empty_string_writing(void) {
     });
 
     const char *expected = "{\"name\":\"\",\"description\":\"\"}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
     StrDeinit(&empty_name);
     StrDeinit(&empty_desc);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -148,8 +158,10 @@ bool test_empty_string_writing(void) {
 bool test_negative_numbers_writing(void) {
     WriteFmtLn("Testing negative numbers writing");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
     i32 temp    = -25;
     f64 balance = -1000.50;
@@ -162,11 +174,12 @@ bool test_negative_numbers_writing(void) {
     });
 
     const char *expected = "{\"temp\":-25,\"balance\":-1000.500000,\"delta\":-0.001000}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -174,8 +187,10 @@ bool test_negative_numbers_writing(void) {
 bool test_large_numbers_writing(void) {
     WriteFmtLn("Testing large numbers writing");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
     i64 big_int     = 9223372036854775807LL;
     f64 big_float   = 1.7976931348623157e+308;
@@ -198,6 +213,7 @@ bool test_large_numbers_writing(void) {
     WriteFmtLn("[DEBUG] Large numbers JSON: {}", json);
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -205,8 +221,10 @@ bool test_large_numbers_writing(void) {
 bool test_zero_values_writing(void) {
     WriteFmtLn("Testing zero values writing\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
     i32  int_zero   = 0;
     f64  float_zero = 0.0;
@@ -219,11 +237,12 @@ bool test_zero_values_writing(void) {
     });
 
     const char *expected = "{\"int_zero\":0,\"float_zero\":0.000000,\"bool_false\":false}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -231,13 +250,15 @@ bool test_zero_values_writing(void) {
 bool test_special_characters_writing(void) {
     WriteFmtLn("Testing special characters writing");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
     // Note: These are the actual characters, not escape sequences
-    Str path    = StrInitFromZstr("C:\\Program Files\\App");
-    Str message = StrInitFromZstr("Hello, \"World\"!");
-    Str data    = StrInitFromZstr("line1\nline2\ttab");
+    Str path    = StrInitFromZstr("C:\\Program Files\\App", &alloc);
+    Str message = StrInitFromZstr("Hello, \"World\"!", &alloc);
+    Str data    = StrInitFromZstr("line1\nline2\ttab", &alloc);
 
     JW_OBJ(json, {
         JW_STR_KV(json, "path", path);
@@ -259,6 +280,7 @@ bool test_special_characters_writing(void) {
     StrDeinit(&path);
     StrDeinit(&message);
     StrDeinit(&data);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -266,14 +288,16 @@ bool test_special_characters_writing(void) {
 bool test_escape_sequences_writing(void) {
     WriteFmtLn("Testing escape sequences writing");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
     // These contain actual special characters that should be escaped
-    Str quotes    = StrInitFromZstr("\"quotes\"");
-    Str backslash = StrInitFromZstr("\\");
-    Str newline   = StrInitFromZstr("\n");
-    Str tab       = StrInitFromZstr("\t");
+    Str quotes    = StrInitFromZstr("\"quotes\"", &alloc);
+    Str backslash = StrInitFromZstr("\\", &alloc);
+    Str newline   = StrInitFromZstr("\n", &alloc);
+    Str tab       = StrInitFromZstr("\t", &alloc);
 
     JW_OBJ(json, {
         JW_STR_KV(json, "quotes", quotes);
@@ -297,6 +321,7 @@ bool test_escape_sequences_writing(void) {
     StrDeinit(&backslash);
     StrDeinit(&newline);
     StrDeinit(&tab);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -304,10 +329,12 @@ bool test_escape_sequences_writing(void) {
 bool test_nested_empty_containers_writing(void) {
     WriteFmtLn("Testing nested empty containers writing");
 
-    bool success = true;
-    Str  json    = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Vec(i32) empty_list = VecInit();
+    bool success = true;
+    Str  json    = StrInit(&alloc);
+
+    Vec(i32) empty_list = VecInit(&alloc);
 
     JW_OBJ(json, {
         JW_OBJ_KV(
@@ -330,12 +357,13 @@ bool test_nested_empty_containers_writing(void) {
     });
 
     const char *expected = "{\"outer\":{},\"list\":[],\"deep\":{\"inner\":{}}}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
     VecDeinit(&empty_list);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -343,11 +371,13 @@ bool test_nested_empty_containers_writing(void) {
 bool test_mixed_empty_and_filled_writing(void) {
     WriteFmtLn("Testing mixed empty and filled containers writing");
 
-    bool success = true;
-    Str  json    = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Vec(i32) empty_arr  = VecInit();
-    Vec(i32) filled_arr = VecInit();
+    bool success = true;
+    Str  json    = StrInit(&alloc);
+
+    Vec(i32) empty_arr  = VecInit(&alloc);
+    Vec(i32) filled_arr = VecInit(&alloc);
     i32 val1 = 1, val2 = 2;
     VecPushBack(&filled_arr, val1);
     VecPushBack(&filled_arr, val2);
@@ -368,13 +398,14 @@ bool test_mixed_empty_and_filled_writing(void) {
     });
 
     const char *expected = "{\"empty_obj\":{},\"filled_obj\":{\"x\":1},\"empty_arr\":[],\"filled_arr\":[1,2]}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
     VecDeinit(&empty_arr);
     VecDeinit(&filled_arr);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -382,8 +413,10 @@ bool test_mixed_empty_and_filled_writing(void) {
 bool test_boundary_integers_writing(void) {
     WriteFmtLn("Testing boundary integers writing");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
     i64 max_int   = 2147483647LL;
     i64 min_int   = -2147483648LL;
@@ -398,11 +431,12 @@ bool test_boundary_integers_writing(void) {
     });
 
     const char *expected = "{\"max_int\":2147483647,\"min_int\":-2147483648,\"one\":1,\"minus_one\":-1}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -410,8 +444,10 @@ bool test_boundary_integers_writing(void) {
 bool test_boundary_floats_writing(void) {
     WriteFmtLn("Testing boundary floats writing");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
     f64 tiny          = 0.000001;
     f64 huge          = 999999.999999;
@@ -434,6 +470,7 @@ bool test_boundary_floats_writing(void) {
     }
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -441,18 +478,20 @@ bool test_boundary_floats_writing(void) {
 bool test_single_values_writing(void) {
     WriteFmtLn("Testing single values writing");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json1   = StrInit();
-    Str  json2   = StrInit();
-    Str  json3   = StrInit();
-    Str  json4   = StrInit();
+    Str  json1   = StrInit(&alloc);
+    Str  json2   = StrInit(&alloc);
+    Str  json3   = StrInit(&alloc);
+    Str  json4   = StrInit(&alloc);
 
     // Single integer
     i32 single_int = 42;
     JW_OBJ(json1, { JW_INT_KV(json1, "value", single_int); });
 
     // Single string
-    Str single_str = StrInitFromZstr("hello");
+    Str single_str = StrInitFromZstr("hello", &alloc);
     JW_OBJ(json2, { JW_STR_KV(json2, "text", single_str); });
 
     // Single boolean
@@ -468,13 +507,13 @@ bool test_single_values_writing(void) {
     const char *expected3 = "{\"flag\":true}";
     const char *expected4 = "{\"pi\":3.140000}";
 
-    if (!compare_json_output(&json1, expected1))
+    if (!compare_json_output(&json1, expected1, &alloc))
         success = false;
-    if (!compare_json_output(&json2, expected2))
+    if (!compare_json_output(&json2, expected2, &alloc))
         success = false;
-    if (!compare_json_output(&json3, expected3))
+    if (!compare_json_output(&json3, expected3, &alloc))
         success = false;
-    if (!compare_json_output(&json4, expected4))
+    if (!compare_json_output(&json4, expected4, &alloc))
         success = false;
 
     StrDeinit(&json1);
@@ -482,6 +521,7 @@ bool test_single_values_writing(void) {
     StrDeinit(&json3);
     StrDeinit(&json4);
     StrDeinit(&single_str);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 

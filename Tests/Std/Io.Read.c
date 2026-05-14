@@ -372,7 +372,7 @@ bool test_string_reading(void) {
         z = "\"Allocator-backed replacement\"";
         StrReadFmt(z, "{s}", ZstrIO(zs, alloc_base));
         success = success && (ZstrCompare(zs, "Allocator-backed replacement") == 0);
-        ZstrDeinitAlloc(&zs, alloc_base);
+        zstr_deinit(&zs, alloc_base);
     }
 
     StrDeinit(&s);

@@ -52,9 +52,9 @@ extern "C" {
 #define StrInitStack(str, alloc_ptr, ne, scoped_body) VecInitStack(str, alloc_ptr, ne, scoped_body)
 
     void StrDeinit(Str *str);
-    void StrDeinitAlloc(void *copy, const Allocator *alloc);
+    void str_deinit(void *copy, const Allocator *alloc);
     bool StrInitCopy(Str *dst, const Str *src);
-    bool StrInitCopyAlloc(void *dst, const void *src, const Allocator *alloc);
+    bool str_init_copy(void *dst, const void *src, const Allocator *alloc);
 
 #ifdef __cplusplus
 }

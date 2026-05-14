@@ -131,7 +131,7 @@ char *ZstrFindChar(const char *str, char ch);
 ///
 /// TAGS: String, Memory, Allocation
 ///
-char *ZstrDupNAlloc(const char *src, size n, Allocator *alloc);
+char *ZstrDupN(const char *src, size n, Allocator *alloc);
 
 ///
 /// Duplicates a string.
@@ -146,7 +146,7 @@ char *ZstrDupNAlloc(const char *src, size n, Allocator *alloc);
 ///
 /// TAGS: String, Memory, Allocation
 ///
-char *ZstrDupAlloc(const char *src, Allocator *alloc);
+char *ZstrDup(const char *src, Allocator *alloc);
 
 ///
 /// Init clone method for zero-terminated strings.
@@ -161,7 +161,7 @@ char *ZstrDupAlloc(const char *src, Allocator *alloc);
 /// SUCCESS: Returns true
 /// FAILURE: May abort with a log message or may return false depending on severity of situation.
 ///
-bool ZstrInitCloneAlloc(void *dst, const void *src, const Allocator *alloc);
+bool zstr_init_clone(void *dst, const void *src, const Allocator *alloc);
 
 ///
 /// Deinit method for zero-terminated strings.
@@ -175,7 +175,7 @@ bool ZstrInitCloneAlloc(void *dst, const void *src, const Allocator *alloc);
 /// SUCCESS: Returns.
 /// FAILURE: Does not return.
 ///
-void ZstrDeinitAlloc(void *zs, const Allocator *alloc);
+void zstr_deinit(void *zs, const Allocator *alloc);
 
 ///
 /// Find first occurrence of needle in haystack.

@@ -44,7 +44,7 @@ static bool test_map_deep_copy_zstrs(void) {
     typedef Map(const char *, const char *) ZstrMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
     ZstrMap map =
-        MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, ZstrInitCloneAlloc, ZstrDeinitAlloc, ZstrInitCloneAlloc, ZstrDeinitAlloc, &alloc);
+        MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, zstr_init_clone, zstr_deinit, zstr_init_clone, zstr_deinit, &alloc);
     char         key_buf[]          = "alpha";
     char         value_buf[]        = "first";
     char         second_value_buf[] = "second";
@@ -83,7 +83,7 @@ static bool test_map_policy_switch_preserves_entries(void) {
     typedef Map(const char *, const char *) ZstrMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
     ZstrMap map =
-        MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, ZstrInitCloneAlloc, ZstrDeinitAlloc, ZstrInitCloneAlloc, ZstrDeinitAlloc, &alloc);
+        MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, zstr_init_clone, zstr_deinit, zstr_init_clone, zstr_deinit, &alloc);
 
     int red_count = 0;
 

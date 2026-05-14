@@ -97,8 +97,8 @@ static bool test_graph_city_reachability(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    CityGraph graph = GraphInitWithDeepCopy(NULL, StrDeinitAlloc, &alloc);
-    CityIndex index = MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, ZstrInitCloneAlloc, ZstrDeinitAlloc, NULL, NULL, &alloc);
+    CityGraph graph = GraphInitWithDeepCopy(NULL, str_deinit, &alloc);
+    CityIndex index = MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, zstr_init_clone, zstr_deinit, NULL, NULL, &alloc);
 
     GraphNodeId alpha = city_add_intersection(&graph, &index, "Alpha", &alloc);
     GraphNodeId beta  = city_add_intersection(&graph, &index, "Beta", &alloc);

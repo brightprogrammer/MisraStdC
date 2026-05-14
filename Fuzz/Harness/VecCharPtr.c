@@ -20,7 +20,7 @@ static bool char_ptr_copy_init(void *dst_ptr, const void *src_ptr, const Allocat
     if (!dst || !src || !*src) {
         return false;
     }
-    *dst = ZstrDupAlloc(*src, (Allocator *)alloc);
+    *dst = ZstrDup(*src, (Allocator *)alloc);
     return *dst != NULL;
 }
 

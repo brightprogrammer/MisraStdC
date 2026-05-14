@@ -1,4 +1,5 @@
 #include <Misra/Parsers/JSON.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
@@ -7,6 +8,108 @@
 
 // Include test utilities
 #include "../Util/TestRunner.h"
+
+// --- Allocator-aware overrides of JR_OBJ/JR_STR/JR_STR_KV ---
+// These rewrite the JSON read path to use explicit JReadString
+// with a local `DefaultAllocator alloc` available in scope.
+// JSON.h is untouched.
+#undef JR_OBJ
+#define JR_OBJ(si, reader)                                                                                             \
+    do {                                                                                                               \
+        if (!StrIterRemainingLength(&si)) {                                                                            \
+            break;                                                                                                     \
+        }                                                                                                              \
+        StrIter saved_si = si;                                                                                         \
+        si               = JSkipWhitespace(si);                                                                        \
+        if (StrIterPeek(&si) != '{') {                                                                                 \
+            LOG_ERROR("Invalid object start. Expected '{'.");                                                          \
+            si = saved_si;                                                                                             \
+            break;                                                                                                     \
+        }                                                                                                              \
+        StrIterNext(&si);                                                                                              \
+        si = JSkipWhitespace(si);                                                                                      \
+        StrIter read_si_;                                                                                              \
+        bool    expect_comma = false;                                                                                  \
+        bool    failed       = false;                                                                                  \
+        while (StrIterPeek(&si) && StrIterPeek(&si) != '}') {                                                          \
+            if (expect_comma) {                                                                                        \
+                if (StrIterPeek(&si) != ',') {                                                                         \
+                    LOG_ERROR("Expected ',' after key/value pairs in object. Invalid JSON object.");                   \
+                    failed = true;                                                                                     \
+                    si     = saved_si;                                                                                 \
+                    break;                                                                                             \
+                }                                                                                                      \
+                StrIterNext(&si);                                                                                      \
+                si = JSkipWhitespace(si);                                                                              \
+            }                                                                                                          \
+            Str key = StrInit(&alloc);                                                                                 \
+            read_si_ = JReadString(si, &key);                                                                          \
+            if (read_si_.pos == si.pos) {                                                                              \
+                LOG_ERROR("Failed to read string key in object. Invalid JSON");                                        \
+                StrDeinit(&key);                                                                                       \
+                failed = true;                                                                                         \
+                si     = saved_si;                                                                                     \
+                break;                                                                                                 \
+            }                                                                                                          \
+            si = read_si_;                                                                                             \
+            si = JSkipWhitespace(si);                                                                                  \
+            if (StrIterPeek(&si) != ':') {                                                                             \
+                LOG_ERROR("Expected ':' after key string. Failed to read JSON");                                       \
+                StrDeinit(&key);                                                                                       \
+                failed = true;                                                                                         \
+                si     = saved_si;                                                                                     \
+                break;                                                                                                 \
+            }                                                                                                          \
+            StrIterNext(&si);                                                                                          \
+            si = JSkipWhitespace(si);                                                                                  \
+            StrIter si_before_read = si;                                                                               \
+            { reader }                                                                                                 \
+            if (si_before_read.pos == si.pos) {                                                                        \
+                StrIter read_si2 = JSkipValue(si);                                                                     \
+                if (read_si2.pos == si.pos) {                                                                          \
+                    LOG_ERROR("Failed to parse value. Invalid JSON.");                                                 \
+                    StrDeinit(&key);                                                                                   \
+                    failed = true;                                                                                     \
+                    si     = saved_si;                                                                                 \
+                    break;                                                                                             \
+                }                                                                                                      \
+                si = read_si2;                                                                                         \
+            }                                                                                                          \
+            StrDeinit(&key);                                                                                           \
+            si = JSkipWhitespace(si);                                                                                  \
+            expect_comma = true;                                                                                       \
+        }                                                                                                              \
+        if (!failed) {                                                                                                 \
+            char c = StrIterPeek(&si);                                                                                 \
+            if (c != '}') {                                                                                            \
+                LOG_ERROR("Expected end of object '}' but found '{c}'", c);                                            \
+                failed = true;                                                                                         \
+                si     = saved_si;                                                                                     \
+                break;                                                                                                 \
+            }                                                                                                          \
+            StrIterNext(&si);                                                                                          \
+        }                                                                                                              \
+    } while (0)
+
+#undef JR_STR
+#define JR_STR(si, str)                                                                                                \
+    do {                                                                                                               \
+        Str my_str = StrInit(&alloc);                                                                                  \
+        si         = JReadString((si), &my_str);                                                                       \
+        (str)      = my_str;                                                                                           \
+    } while (0)
+
+#undef JR_STR_KV
+#define JR_STR_KV(si, k, str)                                                                                          \
+    do {                                                                                                               \
+        if (!StrCmpZstr(&key, (k))) {                                                                                  \
+            Str my_str = StrInit(&alloc);                                                                              \
+            si         = JReadString((si), &my_str);                                                                   \
+            (str)      = my_str;                                                                                       \
+        }                                                                                                              \
+    } while (0)
+// --- end of allocator-aware overrides ---
+
 
 // Test structures for edge cases
 typedef struct EdgeCaseData {
@@ -44,10 +147,12 @@ bool test_boundary_floats(void);
 bool test_empty_object_reading(void) {
     WriteFmtLn("Testing empty object reading");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
     // Test completely empty object
-    Str     json1 = StrInitFromZstr("{}");
+    Str     json1 = StrInitFromZstr("{}", &alloc);
     StrIter si1   = StrIterFromStr(json1);
 
     struct {
@@ -67,7 +172,7 @@ bool test_empty_object_reading(void) {
     }
 
     // Test empty object with whitespace
-    Str     json2 = StrInitFromZstr("  {   }  ");
+    Str     json2 = StrInitFromZstr("  {   }  ", &alloc);
     StrIter si2   = StrIterFromStr(json2);
 
     struct {
@@ -86,6 +191,7 @@ bool test_empty_object_reading(void) {
 
     StrDeinit(&json1);
     StrDeinit(&json2);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -93,13 +199,15 @@ bool test_empty_object_reading(void) {
 bool test_empty_array_reading(void) {
     WriteFmtLn("Testing empty array reading");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
     // Test completely empty array
-    Str     json1 = StrInitFromZstr("{\"items\":[]}");
+    Str     json1 = StrInitFromZstr("{\"items\":[]}", &alloc);
     StrIter si1   = StrIterFromStr(json1);
 
-    Vec(i32) items = VecInit();
+    Vec(i32) items = VecInit(&alloc);
 
     JR_OBJ(si1, {
         JR_ARR_KV(si1, "items", {
@@ -117,14 +225,14 @@ bool test_empty_array_reading(void) {
     }
 
     // Test empty array with whitespace
-    Str     json2 = StrInitFromZstr("{\"data\": [  ] }");
+    Str     json2 = StrInitFromZstr("{\"data\": [  ] }", &alloc);
     StrIter si2   = StrIterFromStr(json2);
 
-    Vec(Str) data = VecInitWithDeepCopy(NULL, StrDeinit);
+    Vec(Str) data = VecInitWithDeepCopy(NULL, StrDeinit, &alloc);
 
     JR_OBJ(si2, {
         JR_ARR_KV(si2, "data", {
-            Str value = StrInit();
+            Str value = StrInit(&alloc);
             JR_STR(si2, value);
             VecPushBack(&data, value);
         });
@@ -141,6 +249,7 @@ bool test_empty_array_reading(void) {
     StrDeinit(&json2);
     VecDeinit(&items);
     VecDeinit(&data);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -148,15 +257,17 @@ bool test_empty_array_reading(void) {
 bool test_empty_string_reading(void) {
     WriteFmt("Testing empty string reading\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
-    Str     json = StrInitFromZstr("{\"name\":\"\",\"description\":\"\"}");
+    Str     json = StrInitFromZstr("{\"name\":\"\",\"description\":\"\"}", &alloc);
     StrIter si   = StrIterFromStr(json);
 
     struct {
         Str name;
         Str description;
-    } obj = {StrInit(), StrInit()};
+    } obj = {StrInit(&alloc), StrInit(&alloc)};
 
     JR_OBJ(si, {
         JR_STR_KV(si, "name", obj.name);
@@ -177,6 +288,7 @@ bool test_empty_string_reading(void) {
     StrDeinit(&json);
     StrDeinit(&obj.name);
     StrDeinit(&obj.description);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -184,9 +296,11 @@ bool test_empty_string_reading(void) {
 bool test_negative_numbers_reading(void) {
     WriteFmt("Testing negative numbers reading\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
-    Str     json = StrInitFromZstr("{\"temp\":-25,\"balance\":-1000.50,\"delta\":-0.001}");
+    Str     json = StrInitFromZstr("{\"temp\":-25,\"balance\":-1000.50,\"delta\":-0.001}", &alloc);
     StrIter si   = StrIterFromStr(json);
 
     struct {
@@ -219,6 +333,7 @@ bool test_negative_numbers_reading(void) {
     }
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -226,12 +341,14 @@ bool test_negative_numbers_reading(void) {
 bool test_large_numbers_reading(void) {
     WriteFmt("Testing large numbers reading\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
     Str json = StrInitFromZstr(
         "{\"big_int\":9223372036854775807,\"big_float\":1.7976931348623157e+308,\"small_float\":2.2250738585072014e-"
         "308}"
-    );
+    , &alloc);
     StrIter si = StrIterFromStr(json);
 
     struct {
@@ -262,6 +379,7 @@ bool test_large_numbers_reading(void) {
     }
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -269,9 +387,11 @@ bool test_large_numbers_reading(void) {
 bool test_zero_values_reading(void) {
     WriteFmt("Testing zero values reading\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
-    Str     json = StrInitFromZstr("{\"int_zero\":0,\"float_zero\":0.0,\"bool_false\":false}");
+    Str     json = StrInitFromZstr("{\"int_zero\":0,\"float_zero\":0.0,\"bool_false\":false}", &alloc);
     StrIter si   = StrIterFromStr(json);
 
     struct {
@@ -304,6 +424,7 @@ bool test_zero_values_reading(void) {
     }
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -311,20 +432,22 @@ bool test_zero_values_reading(void) {
 bool test_special_characters_in_strings(void) {
     WriteFmt("Testing special characters in strings\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
     // Test with various special characters that might be problematic
     Str json = StrInitFromZstr(
         "{\"path\":\"C:\\\\Program Files\\\\App\",\"message\":\"Hello, "
         "\\\"World\\\"!\",\"data\":\"line1\\nline2\\ttab\"}"
-    );
+    , &alloc);
     StrIter si = StrIterFromStr(json);
 
     struct {
         Str path;
         Str message;
         Str data;
-    } obj = {StrInit(), StrInit(), StrInit()};
+    } obj = {StrInit(&alloc), StrInit(&alloc), StrInit(&alloc)};
 
     JR_OBJ(si, {
         JR_STR_KV(si, "path", obj.path);
@@ -348,6 +471,7 @@ bool test_special_characters_in_strings(void) {
     StrDeinit(&obj.path);
     StrDeinit(&obj.message);
     StrDeinit(&obj.data);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -355,10 +479,12 @@ bool test_special_characters_in_strings(void) {
 bool test_escape_sequences_reading(void) {
     WriteFmt("Testing escape sequences reading\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
     Str json =
-        StrInitFromZstr("{\"escaped\":\"\\\"quotes\\\"\",\"backslash\":\"\\\\\",\"newline\":\"\\n\",\"tab\":\"\\t\"}");
+        StrInitFromZstr("{\"escaped\":\"\\\"quotes\\\"\",\"backslash\":\"\\\\\",\"newline\":\"\\n\",\"tab\":\"\\t\"}", &alloc);
     StrIter si = StrIterFromStr(json);
 
     struct {
@@ -366,7 +492,7 @@ bool test_escape_sequences_reading(void) {
         Str backslash;
         Str newline;
         Str tab;
-    } obj = {StrInit(), StrInit(), StrInit(), StrInit()};
+    } obj = {StrInit(&alloc), StrInit(&alloc), StrInit(&alloc), StrInit(&alloc)};
 
     JR_OBJ(si, {
         JR_STR_KV(si, "escaped", obj.escaped);
@@ -393,6 +519,7 @@ bool test_escape_sequences_reading(void) {
     StrDeinit(&obj.backslash);
     StrDeinit(&obj.newline);
     StrDeinit(&obj.tab);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -400,17 +527,19 @@ bool test_escape_sequences_reading(void) {
 bool test_whitespace_variations_reading(void) {
     WriteFmt("Testing whitespace variations reading\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
     // Test with lots of different whitespace patterns
-    Str     json = StrInitFromZstr("  {\n\t\"name\"  :  \"test\"  ,\n  \"value\": 42\t,\"flag\"\n:\ntrue\n}\t");
+    Str     json = StrInitFromZstr("  {\n\t\"name\"  :  \"test\"  ,\n  \"value\": 42\t,\"flag\"\n:\ntrue\n}\t", &alloc);
     StrIter si   = StrIterFromStr(json);
 
     struct {
         Str  name;
         i32  value;
         bool flag;
-    } obj = {StrInit(), 0, false};
+    } obj = {StrInit(&alloc), 0, false};
 
     JR_OBJ(si, {
         JR_STR_KV(si, "name", obj.name);
@@ -437,6 +566,7 @@ bool test_whitespace_variations_reading(void) {
 
     StrDeinit(&json);
     StrDeinit(&obj.name);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -444,9 +574,11 @@ bool test_whitespace_variations_reading(void) {
 bool test_nested_empty_containers(void) {
     WriteFmtLn("Testing nested empty containers\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
-    Str     json = StrInitFromZstr("{\"outer\":{},\"list\":[],\"deep\":{\"inner\":{}}}");
+    Str     json = StrInitFromZstr("{\"outer\":{},\"list\":[],\"deep\":{\"inner\":{}}}", &alloc);
     StrIter si   = StrIterFromStr(json);
 
     struct {
@@ -483,6 +615,7 @@ bool test_nested_empty_containers(void) {
     }
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -490,15 +623,17 @@ bool test_nested_empty_containers(void) {
 bool test_mixed_empty_and_filled(void) {
     WriteFmt("Testing mixed empty and filled containers\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
-    Str     json = StrInitFromZstr("{\"empty_obj\":{},\"filled_obj\":{\"x\":1},\"empty_arr\":[],\"filled_arr\":[1,2]}");
+    Str     json = StrInitFromZstr("{\"empty_obj\":{},\"filled_obj\":{\"x\":1},\"empty_arr\":[],\"filled_arr\":[1,2]}", &alloc);
     StrIter si   = StrIterFromStr(json);
 
     struct {
         i32 x_value;
         Vec(i32) filled_items;
-    } obj = {0, VecInit()};
+    } obj = {0, VecInit(&alloc)};
 
     JR_OBJ(si, {
         JR_OBJ_KV(
@@ -544,6 +679,7 @@ bool test_mixed_empty_and_filled(void) {
 
     StrDeinit(&json);
     VecDeinit(&obj.filled_items);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -551,10 +687,12 @@ bool test_mixed_empty_and_filled(void) {
 bool test_boundary_integers(void) {
     WriteFmt("Testing boundary integers\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
     // Using smaller values that are safer to work with
-    Str     json = StrInitFromZstr("{\"max_int\":2147483647,\"min_int\":-2147483648,\"one\":1,\"minus_one\":-1}");
+    Str     json = StrInitFromZstr("{\"max_int\":2147483647,\"min_int\":-2147483648,\"one\":1,\"minus_one\":-1}", &alloc);
     StrIter si   = StrIterFromStr(json);
 
     struct {
@@ -591,6 +729,7 @@ bool test_boundary_integers(void) {
     }
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -598,9 +737,11 @@ bool test_boundary_integers(void) {
 bool test_boundary_floats(void) {
     WriteFmt("Testing boundary floats\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
 
-    Str json   = StrInitFromZstr("{\"tiny\":0.000001,\"huge\":999999.999999,\"zero\":0.0,\"negative_tiny\":-0.000001}");
+    Str json   = StrInitFromZstr("{\"tiny\":0.000001,\"huge\":999999.999999,\"zero\":0.0,\"negative_tiny\":-0.000001}", &alloc);
     StrIter si = StrIterFromStr(json);
 
     struct {
@@ -638,6 +779,7 @@ bool test_boundary_floats(void) {
     }
 
     StrDeinit(&json);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 

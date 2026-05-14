@@ -1,14 +1,17 @@
 #include <Misra/Parsers/KvConfig.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Io.h>
 
 #include "../Util/TestRunner.h"
 
 static bool test_kvconfig_basic_parse(void) {
-    KvConfig cfg = KvConfigInit();
-    Str      src = StrInitFromZstr(
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    KvConfig         cfg   = KvConfigInit(&alloc);
+    Str              src   = StrInitFromZstr(
         "host = localhost\n"
-             "port = 8080\n"
-             "debug = true\n"
+                     "port = 8080\n"
+                     "debug = true\n",
+        &alloc
     );
     StrIter input  = StrIterFromStr(src);
     StrIter si     = KvConfigParse(input, &cfg);
@@ -26,19 +29,22 @@ static bool test_kvconfig_basic_parse(void) {
 
     StrDeinit(&src);
     KvConfigDeinit(&cfg);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_kvconfig_comments_quotes_and_duplicates(void) {
-    KvConfig cfg = KvConfigInit();
-    Str      src = StrInitFromZstr(
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    KvConfig         cfg   = KvConfigInit(&alloc);
+    Str              src   = StrInitFromZstr(
         "# comment line\n"
-             "path = \"/srv/my app\"   # keep spaces in quotes\n"
-             "user: admin\n"
-             "user = root\n"
-             "; another comment\n"
-             "greeting = hello world   ; inline comment\n"
-             "empty =\n"
+                     "path = \"/srv/my app\"   # keep spaces in quotes\n"
+                     "user: admin\n"
+                     "user = root\n"
+                     "; another comment\n"
+                     "greeting = hello world   ; inline comment\n"
+                     "empty =\n",
+        &alloc
     );
     StrIter input  = StrIterFromStr(src);
     StrIter si     = KvConfigParse(input, &cfg);
@@ -57,16 +63,18 @@ static bool test_kvconfig_comments_quotes_and_duplicates(void) {
 
     StrDeinit(&src);
     KvConfigDeinit(&cfg);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_kvconfig_get_returns_copy(void) {
-    KvConfig cfg         = KvConfigInit();
-    Str      src         = StrInitFromZstr("host = localhost\n");
-    StrIter  input       = StrIterFromStr(src);
-    Str      host_copy   = StrInit();
-    Str     *stored_host = NULL;
-    bool     result      = true;
+    DefaultAllocator alloc       = DefaultAllocatorInit();
+    KvConfig         cfg         = KvConfigInit(&alloc);
+    Str              src         = StrInitFromZstr("host = localhost\n", &alloc);
+    StrIter          input       = StrIterFromStr(src);
+    Str              host_copy   = StrInit(&alloc);
+    Str             *stored_host = NULL;
+    bool             result      = true;
 
     (void)KvConfigParse(input, &cfg);
 
@@ -88,17 +96,20 @@ static bool test_kvconfig_get_returns_copy(void) {
     StrDeinit(&host_copy);
     StrDeinit(&src);
     KvConfigDeinit(&cfg);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_kvconfig_numeric_and_bool_accessors(void) {
-    KvConfig cfg = KvConfigInit();
-    Str      src = StrInitFromZstr(
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    KvConfig         cfg   = KvConfigInit(&alloc);
+    Str              src   = StrInitFromZstr(
         "workers = 16\n"
-             "pi = 3.14159\n"
-             "enabled = On\n"
-             "disabled = off\n"
-             "invalid_bool = maybe\n"
+                     "pi = 3.14159\n"
+                     "enabled = On\n"
+                     "disabled = off\n"
+                     "invalid_bool = maybe\n",
+        &alloc
     );
     i64     workers  = 0;
     f64     pi       = 0.0;
@@ -119,15 +130,18 @@ static bool test_kvconfig_numeric_and_bool_accessors(void) {
 
     StrDeinit(&src);
     KvConfigDeinit(&cfg);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
 static bool test_kvconfig_invalid_line_fails(void) {
-    KvConfig cfg = KvConfigInit();
-    Str      src = StrInitFromZstr(
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    KvConfig         cfg   = KvConfigInit(&alloc);
+    Str              src   = StrInitFromZstr(
         "valid = yes\n"
-             "broken line\n"
-             "later = no\n"
+                     "broken line\n"
+                     "later = no\n",
+        &alloc
     );
     StrIter input   = StrIterFromStr(src);
     StrIter si      = KvConfigParse(input, &cfg);
@@ -140,6 +154,7 @@ static bool test_kvconfig_invalid_line_fails(void) {
 
     StrDeinit(&src);
     KvConfigDeinit(&cfg);
+    DefaultAllocatorDeinit(&alloc);
     return result;
 }
 

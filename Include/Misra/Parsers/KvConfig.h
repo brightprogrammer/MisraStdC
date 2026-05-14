@@ -49,10 +49,10 @@ typedef Map(Str, Str) KvConfig;
         KvConfigHash,                                                                                                  \
         KvConfigCompare,                                                                                               \
         KvConfigCompare,                                                                                               \
-        StrInitCopyAlloc,                                                                                              \
-        StrDeinitAlloc,                                                                                                \
-        StrInitCopyAlloc,                                                                                              \
-        StrDeinitAlloc,                                                                                                \
+        str_init_copy,                                                                                              \
+        str_deinit,                                                                                                \
+        str_init_copy,                                                                                              \
+        str_deinit,                                                                                                \
         MisraMapPolicyLinear,                                                                                          \
         (allocator_ptr)                                                                                                \
     )

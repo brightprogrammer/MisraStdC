@@ -106,10 +106,10 @@ bool StrInitCopy(Str *dst, const Str *src) {
         LOG_FATAL("Invalid arguments");
     }
 
-    return StrInitCopyAlloc(dst, src, src->allocator);
+    return str_init_copy(dst, src, src->allocator);
 }
 
-bool StrInitCopyAlloc(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
+bool str_init_copy(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
     Str       *dst             = (Str *)dst_ptr;
     const Str *src             = (const Str *)src_ptr;
     Allocator *clone_allocator = NULL;
@@ -138,7 +138,7 @@ void StrDeinit(Str *copy) {
     deinit_vec(GENERIC_VEC(copy), sizeof(char));
 }
 
-void StrDeinitAlloc(void *copy, const Allocator *alloc) {
+void str_deinit(void *copy, const Allocator *alloc) {
     (void)alloc;
     StrDeinit((Str *)copy);
 }
@@ -171,7 +171,7 @@ Strs StrSplit(Str *s, const char *key) {
     ValidateStr(s);
 
     Strs        sv     = (Strs)VecInit(s->allocator);
-    sv.copy_deinit     = (GenericCopyDeinit)StrDeinitAlloc;
+    sv.copy_deinit     = (GenericCopyDeinit)str_deinit;
     size        keylen = ZstrLen(key);
     const char *prev   = s->data;
 

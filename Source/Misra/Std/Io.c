@@ -2928,7 +2928,7 @@ const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg) {
         return i;
     }
 
-    result = ZstrDupNAlloc(temp.data, temp.length, allocator_ptr);
+    result = ZstrDupN(temp.data, temp.length, allocator_ptr);
     if (!result) {
         LOG_ERROR("Failed to allocate memory for string");
         StrDeinit(&temp);

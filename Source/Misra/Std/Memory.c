@@ -147,7 +147,7 @@ char *ZstrFindChar(const char *str, char ch) {
     return NULL;
 }
 
-char *ZstrDupNAlloc(const char *src, size n, Allocator *alloc) {
+char *ZstrDupN(const char *src, size n, Allocator *alloc) {
     if (!src || !alloc) {
         LOG_FATAL("Invalid arguments");
     }
@@ -167,14 +167,14 @@ char *ZstrDupNAlloc(const char *src, size n, Allocator *alloc) {
     return new_str;
 }
 
-char *ZstrDupAlloc(const char *src, Allocator *alloc) {
+char *ZstrDup(const char *src, Allocator *alloc) {
     if (!src) {
         LOG_FATAL("Invalid arguments");
     }
-    return ZstrDupNAlloc(src, ZstrLen(src), alloc);
+    return ZstrDupN(src, ZstrLen(src), alloc);
 }
 
-bool ZstrInitCloneAlloc(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
+bool zstr_init_clone(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
     const char       **dst = (const char **)dst_ptr;
     const char *const *src = (const char *const *)src_ptr;
 
@@ -182,11 +182,11 @@ bool ZstrInitCloneAlloc(void *dst_ptr, const void *src_ptr, const Allocator *all
         LOG_FATAL("Invalid arguments.");
     }
 
-    *dst = ZstrDupNAlloc(*src, ZstrLen(*src), (Allocator *)alloc);
+    *dst = ZstrDupN(*src, ZstrLen(*src), (Allocator *)alloc);
     return *dst != NULL;
 }
 
-void ZstrDeinitAlloc(void *zs_ptr, const Allocator *alloc) {
+void zstr_deinit(void *zs_ptr, const Allocator *alloc) {
     const char **zs = (const char **)zs_ptr;
 
     if (!zs || !alloc) {

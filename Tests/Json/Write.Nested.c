@@ -1,4 +1,5 @@
 #include <Misra/Parsers/JSON.h>
+#include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <stdio.h>
@@ -71,10 +72,10 @@ void SearchResultDeinit(SearchResult *result) {
 }
 
 // Helper function to compare JSON output (removes whitespace for comparison)
-bool compare_json_output(const Str *output, const char *expected) {
-    Str expected_str   = StrInitFromZstr(expected);
-    Str output_clean   = StrInit();
-    Str expected_clean = StrInit();
+bool compare_json_output(const Str *output, const char *expected, DefaultAllocator *alloc) {
+    Str expected_str   = StrInitFromZstr(expected, alloc);
+    Str output_clean   = StrInit(alloc);
+    Str expected_clean = StrInit(alloc);
 
     // Remove whitespace from both strings for comparison
     for (u64 i = 0; i < output->length; i++) {
@@ -127,8 +128,10 @@ bool test_mixed_array_types_writing(void);
 bool test_two_level_nesting_writing(void) {
     WriteFmt("Testing two-level nesting writing\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
     struct {
         struct {
@@ -140,8 +143,8 @@ bool test_two_level_nesting_writing(void) {
         } user;
         Str status;
     } data = {
-        {123, {StrInitFromZstr("Alice"), 30}},
-        StrInitFromZstr("active")
+        {123, {StrInitFromZstr("Alice", &alloc), 30}},
+        StrInitFromZstr("active", &alloc)
     };
 
     JW_OBJ(json, {
@@ -156,13 +159,14 @@ bool test_two_level_nesting_writing(void) {
     });
 
     const char *expected = "{\"user\":{\"id\":123,\"profile\":{\"name\":\"Alice\",\"age\":30}},\"status\":\"active\"}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
     StrDeinit(&data.user.profile.name);
     StrDeinit(&data.status);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -170,8 +174,10 @@ bool test_two_level_nesting_writing(void) {
 bool test_three_level_nesting_writing(void) {
     WriteFmt("Testing three-level nesting writing\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
     struct {
         struct {
@@ -185,7 +191,7 @@ bool test_three_level_nesting_writing(void) {
             Str name;
         } company;
     } data = {
-        {{{StrInitFromZstr("John"), 25, 150000.0}}, StrInitFromZstr("TechCorp")}
+        {{{StrInitFromZstr("John", &alloc), 25, 150000.0}}, StrInitFromZstr("TechCorp", &alloc)}
     };
 
     JW_OBJ(json, {
@@ -204,13 +210,14 @@ bool test_three_level_nesting_writing(void) {
     const char *expected =
         "{\"company\":{\"departments\":{\"engineering\":{\"head\":\"John\",\"count\":25,\"budget\":150000.000000}},"
         "\"name\":\"TechCorp\"}}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
     StrDeinit(&data.company.departments.engineering.head);
     StrDeinit(&data.company.name);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -218,17 +225,19 @@ bool test_three_level_nesting_writing(void) {
 bool test_complex_api_response_writing(void) {
     WriteFmt("Testing complex API response writing\n");
 
-    bool success = true;
-    Str  json    = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    ApiResponse response = {true, StrInitFromZstr("Success"), VecInitWithDeepCopy(NULL, AnnSymbolDeinit)};
+    bool success = true;
+    Str  json    = StrInit(&alloc);
+
+    ApiResponse response = {true, StrInitFromZstr("Success", &alloc), VecInitWithDeepCopy(NULL, AnnSymbolDeinit, &alloc)};
 
     // Add sample data
     AnnSymbol sym             = {0};
-    sym.analysis_name         = StrInitFromZstr("test_analysis");
-    sym.function_name         = StrInitFromZstr("main_func");
-    sym.sha256                = StrInitFromZstr("abc123");
-    sym.function_mangled_name = StrInitFromZstr("_Z4main");
+    sym.analysis_name         = StrInitFromZstr("test_analysis", &alloc);
+    sym.function_name         = StrInitFromZstr("main_func", &alloc);
+    sym.sha256                = StrInitFromZstr("abc123", &alloc);
+    sym.function_mangled_name = StrInitFromZstr("_Z4main", &alloc);
     sym.source_function_id    = 12345;
     sym.target_function_id    = 67890;
     sym.distance              = 0.85;
@@ -242,14 +251,14 @@ bool test_complex_api_response_writing(void) {
         JW_STR_KV(json, "message", response.message);
         JW_OBJ_KV(json, "data", {
             // Write dynamic key for source function ID
-            Str source_key = StrInit();
+            Str source_key = StrInit(&alloc);
             u64 source_id  = response.data.length > 0 ? VecAt(&response.data, 0).source_function_id : 0;
             StrWriteFmt(&source_key, "{}", source_id);
 
             JW_OBJ_KV(json, source_key.data, {
                 if (response.data.length > 0) {
                     AnnSymbol *s          = &VecAt(&response.data, 0);
-                    Str        target_key = StrInit();
+                    Str        target_key = StrInit(&alloc);
                     StrWriteFmt(&target_key, "{}", s->target_function_id);
 
                     JW_OBJ_KV(json, target_key.data, {
@@ -276,13 +285,14 @@ bool test_complex_api_response_writing(void) {
         "neighbor_analysis_id\":999,\"nearest_neighbor_binary_id\":888,\"nearest_neighbor_analysis_name\":\"test_"
         "analysis\",\"nearest_neighbor_function_name\":\"main_func\",\"nearest_neighbor_sha_256_hash\":\"abc123\","
         "\"nearest_neighbor_debug\":true,\"nearest_neighbor_function_name_mangled\":\"_Z4main\"}}}}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
     StrDeinit(&response.message);
     VecDeinit(&response.data);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -290,13 +300,15 @@ bool test_complex_api_response_writing(void) {
 bool test_function_info_array_writing(void) {
     WriteFmt("Testing function info array writing\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
-    Vec(FunctionInfo) functions = VecInitWithDeepCopy(NULL, FunctionInfoDeinit);
+    Vec(FunctionInfo) functions = VecInitWithDeepCopy(NULL, FunctionInfoDeinit, &alloc);
 
-    FunctionInfo func1 = {12345, StrInitFromZstr("test_func"), 1024, 4096};
-    FunctionInfo func2 = {54321, StrInitFromZstr("helper_func"), 512, 8192};
+    FunctionInfo func1 = {12345, StrInitFromZstr("test_func", &alloc), 1024, 4096};
+    FunctionInfo func2 = {54321, StrInitFromZstr("helper_func", &alloc), 512, 8192};
     VecPushBack(&functions, func1);
     VecPushBack(&functions, func2);
 
@@ -314,12 +326,13 @@ bool test_function_info_array_writing(void) {
     const char *expected =
         "{\"functions\":[{\"id\":12345,\"name\":\"test_func\",\"size\":1024,\"vaddr\":4096},{\"id\":54321,\"name\":"
         "\"helper_func\",\"size\":512,\"vaddr\":8192}]}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
     VecDeinit(&functions);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -327,27 +340,29 @@ bool test_function_info_array_writing(void) {
 bool test_search_results_with_tags_writing(void) {
     WriteFmt("Testing search results with tags writing\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
     SearchResult result = {0};
     result.binary_id    = 888;
-    result.binary_name  = StrInitFromZstr("test_binary");
+    result.binary_name  = StrInitFromZstr("test_binary", &alloc);
     result.analysis_id  = 999;
-    result.sha256       = StrInitFromZstr("abc123");
-    result.tags         = VecInitWithDeepCopyT(result.tags, NULL, StrDeinit);
+    result.sha256       = StrInitFromZstr("abc123", &alloc);
+    result.tags         = VecInitWithDeepCopyT(result.tags, NULL, StrDeinit, &alloc);
 
     // Create strings and push them properly
-    Str tag1 = StrInitFromZstr("malware");
-    Str tag2 = StrInitFromZstr("x86");
+    Str tag1 = StrInitFromZstr("malware", &alloc);
+    Str tag2 = StrInitFromZstr("x86", &alloc);
 
     VecPushBack(&result.tags, tag1);
     VecPushBack(&result.tags, tag2);
 
-    result.created_at = StrInitFromZstr("2024-04-01");
+    result.created_at = StrInitFromZstr("2024-04-01", &alloc);
     result.model_id   = 12345;
-    result.model_name = StrInitFromZstr("test_model");
-    result.owned_by   = StrInitFromZstr("user1");
+    result.model_name = StrInitFromZstr("test_model", &alloc);
+    result.owned_by   = StrInitFromZstr("user1", &alloc);
 
     JW_OBJ(json, {
         JW_INT_KV(json, "binary_id", result.binary_id);
@@ -365,12 +380,13 @@ bool test_search_results_with_tags_writing(void) {
         "{\"binary_id\":888,\"binary_name\":\"test_binary\",\"analysis_id\":999,\"sha256\":\"abc123\",\"tags\":["
         "\"malware\",\"x86\"],\"created_at\":\"2024-04-01\",\"model_id\":12345,\"model_name\":\"test_model\",\"owned_"
         "by\":\"user1\"}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
     SearchResultDeinit(&result);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -378,26 +394,28 @@ bool test_search_results_with_tags_writing(void) {
 bool test_dynamic_object_keys_writing(void) {
     WriteFmt("Testing dynamic object keys writing\n");
 
-    bool success = true;
-    Str  json    = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Vec(AnnSymbol) symbols = VecInitWithDeepCopy(NULL, AnnSymbolDeinit);
+    bool success = true;
+    Str  json    = StrInit(&alloc);
+
+    Vec(AnnSymbol) symbols = VecInitWithDeepCopy(NULL, AnnSymbolDeinit, &alloc);
 
     AnnSymbol sym1             = {0};
-    sym1.analysis_name         = StrInitFromZstr("analysis1");
-    sym1.function_name         = StrInitFromZstr("func1");
-    sym1.sha256                = StrInitFromZstr("hash1");
-    sym1.function_mangled_name = StrInitFromZstr("_Z5func1");
+    sym1.analysis_name         = StrInitFromZstr("analysis1", &alloc);
+    sym1.function_name         = StrInitFromZstr("func1", &alloc);
+    sym1.sha256                = StrInitFromZstr("hash1", &alloc);
+    sym1.function_mangled_name = StrInitFromZstr("_Z5func1", &alloc);
     sym1.source_function_id    = 111;
     sym1.target_function_id    = 222;
     sym1.distance              = 0.9;
     VecPushBack(&symbols, sym1);
 
     AnnSymbol sym2             = {0};
-    sym2.analysis_name         = StrInitFromZstr("analysis2");
-    sym2.function_name         = StrInitFromZstr("func2");
-    sym2.sha256                = StrInitFromZstr("hash2");
-    sym2.function_mangled_name = StrInitFromZstr("_Z5func2");
+    sym2.analysis_name         = StrInitFromZstr("analysis2", &alloc);
+    sym2.function_name         = StrInitFromZstr("func2", &alloc);
+    sym2.sha256                = StrInitFromZstr("hash2", &alloc);
+    sym2.function_mangled_name = StrInitFromZstr("_Z5func2", &alloc);
     sym2.source_function_id    = 333;
     sym2.target_function_id    = 444;
     sym2.distance              = 0.8;
@@ -406,11 +424,11 @@ bool test_dynamic_object_keys_writing(void) {
     JW_OBJ(json, {
         JW_OBJ_KV(json, "functions", {
             VecForeach(&symbols, symbol) {
-                Str source_key = StrInit();
+                Str source_key = StrInit(&alloc);
                 StrWriteFmt(&source_key, "{}", symbol.source_function_id);
 
                 JW_OBJ_KV(json, source_key.data, {
-            Str target_key = StrInit();
+            Str target_key = StrInit(&alloc);
             StrWriteFmt(&target_key, "{}", symbol.target_function_id);
 
             JW_OBJ_KV(json, target_key.data, {
@@ -429,7 +447,7 @@ bool test_dynamic_object_keys_writing(void) {
 const char *expected =
     "{\"functions\":{\"111\":{\"222\":{\"distance\":0.900000,\"name\":\"func1\"}},\"333\":{\"444\":{\"distance\":0."
     "800000,\"name\":\"func2\"}}}}";
-if (!compare_json_output(&json, expected)) {
+if (!compare_json_output(&json, expected, &alloc)) {
     success = false;
 }
 
@@ -442,12 +460,14 @@ return success;
 bool test_deeply_nested_structure_writing(void) {
     WriteFmt("Testing deeply nested structure writing\n");
 
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
     bool success = true;
-    Str  json    = StrInit();
+    Str  json    = StrInit(&alloc);
 
     // Create strings for the nested structure
-    Str deep_message = StrInitFromZstr("deep");
-    Str test_name    = StrInitFromZstr("test");
+    Str deep_message = StrInitFromZstr("deep", &alloc);
+    Str test_name    = StrInitFromZstr("test", &alloc);
 
     JW_OBJ(json, {
         JW_OBJ_KV(json, "level1", {
@@ -464,13 +484,14 @@ bool test_deeply_nested_structure_writing(void) {
 
     const char *expected =
         "{\"level1\":{\"level2\":{\"level3\":{\"message\":\"deep\",\"value\":42},\"flag\":true},\"name\":\"test\"}}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
     StrDeinit(&json);
     StrDeinit(&deep_message);
     StrDeinit(&test_name);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 
@@ -478,27 +499,29 @@ bool test_deeply_nested_structure_writing(void) {
 bool test_mixed_array_types_writing(void) {
     WriteFmt("Testing mixed array types writing\n");
 
-    bool success = true;
-    Str  json    = StrInit();
+    DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Vec(u32) numbers = VecInit();
+    bool success = true;
+    Str  json    = StrInit(&alloc);
+
+    Vec(u32) numbers = VecInit(&alloc);
     u32 num1 = 1, num2 = 2, num3 = 3;
     VecPushBack(&numbers, num1);
     VecPushBack(&numbers, num2);
     VecPushBack(&numbers, num3);
 
-    Vec(Str) strings = VecInitWithDeepCopy(NULL, StrDeinit);
+    Vec(Str) strings = VecInitWithDeepCopy(NULL, StrDeinit, &alloc);
 
     // Create strings and push them properly
-    Str str1 = StrInitFromZstr("a");
-    Str str2 = StrInitFromZstr("b");
-    Str str3 = StrInitFromZstr("c");
+    Str str1 = StrInitFromZstr("a", &alloc);
+    Str str2 = StrInitFromZstr("b", &alloc);
+    Str str3 = StrInitFromZstr("c", &alloc);
 
     VecPushBack(&strings, str1);
     VecPushBack(&strings, str2);
     VecPushBack(&strings, str3);
 
-    Vec(bool) booleans = VecInit();
+    Vec(bool) booleans = VecInit(&alloc);
     bool bool1 = true, bool2 = false, bool3 = true;
     VecPushBack(&booleans, bool1);
     VecPushBack(&booleans, bool2);
@@ -511,7 +534,7 @@ bool test_mixed_array_types_writing(void) {
     });
 
     const char *expected = "{\"numbers\":[1,2,3],\"strings\":[\"a\",\"b\",\"c\"],\"booleans\":[true,false,true]}";
-    if (!compare_json_output(&json, expected)) {
+    if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
 
@@ -519,6 +542,7 @@ bool test_mixed_array_types_writing(void) {
     VecDeinit(&numbers);
     VecDeinit(&strings);
     VecDeinit(&booleans);
+    DefaultAllocatorDeinit(&alloc);
     return success;
 }
 

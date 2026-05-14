@@ -71,7 +71,7 @@ static bool test_graph_node_deep_copy(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
     typedef Graph(Str) StrGraph;
-    StrGraph    graph = GraphInitWithDeepCopy(StrInitCopyAlloc, StrDeinitAlloc, &alloc);
+    StrGraph    graph = GraphInitWithDeepCopy(str_init_copy, str_deinit, &alloc);
     Str         name  = StrInitFromZstr("alpha", &alloc);
     GraphNodeId node_id;
     GraphNode   node;
@@ -96,7 +96,7 @@ static bool test_graph_node_owned_str_rvalue(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
     typedef Graph(Str) StrGraph;
-    StrGraph    graph = GraphInitWithDeepCopy(NULL, StrDeinitAlloc, &alloc);
+    StrGraph    graph = GraphInitWithDeepCopy(NULL, str_deinit, &alloc);
     GraphNodeId node_id;
     GraphNode   node;
     Str        *stored_name;
@@ -132,12 +132,12 @@ static bool test_graph_init_optional_allocator(void) {
 
     StrGraph graph_a = GraphInit(&alloc);
     StrGraph graph_b = GraphInitT(graph_b, &alloc);
-    StrGraph graph_c = GraphInitWithDeepCopy(StrInitCopyAlloc, StrDeinitAlloc, &alloc);
-    StrGraph graph_d = GraphInitWithDeepCopyT(graph_d, StrInitCopyAlloc, StrDeinitAlloc, &alloc);
+    StrGraph graph_c = GraphInitWithDeepCopy(str_init_copy, str_deinit, &alloc);
+    StrGraph graph_d = GraphInitWithDeepCopyT(graph_d, str_init_copy, str_deinit, &alloc);
     StrGraph graph_e = GraphInit(&aligned_8);
     StrGraph graph_f = GraphInitT(graph_f, &aligned_16);
-    StrGraph graph_g = GraphInitWithDeepCopy(StrInitCopyAlloc, StrDeinitAlloc, &aligned_32);
-    StrGraph graph_h = GraphInitWithDeepCopyT(graph_h, StrInitCopyAlloc, StrDeinitAlloc, &aligned_64);
+    StrGraph graph_g = GraphInitWithDeepCopy(str_init_copy, str_deinit, &aligned_32);
+    StrGraph graph_h = GraphInitWithDeepCopyT(graph_h, str_init_copy, str_deinit, &aligned_64);
 
     bool result = (graph_a.allocator->retry_limit == 31) && (graph_b.allocator->retry_limit == 31);
     result      = result && (graph_c.allocator->retry_limit == 31) && (graph_d.allocator->retry_limit == 31);
@@ -145,8 +145,8 @@ static bool test_graph_init_optional_allocator(void) {
     result      = result && (graph_g.allocator->retry_limit == 31) && (graph_h.allocator->retry_limit == 31);
     result      = result && (graph_e.allocator->alignment == 8) && (graph_f.allocator->alignment == 16);
     result      = result && (graph_g.allocator->alignment == 32) && (graph_h.allocator->alignment == 64);
-    result      = result && (graph_c.copy_init == (GenericCopyInit)StrInitCopyAlloc);
-    result      = result && (graph_d.copy_deinit == (GenericCopyDeinit)StrDeinitAlloc);
+    result      = result && (graph_c.copy_init == (GenericCopyInit)str_init_copy);
+    result      = result && (graph_d.copy_deinit == (GenericCopyDeinit)str_deinit);
     result      = result && (graph_h.slots.allocator->retry_limit == 31);
     result      = result && (graph_h.free_indices.allocator->retry_limit == 31);
     result      = result && (graph_h.pending_edge_removals.allocator->retry_limit == 31);

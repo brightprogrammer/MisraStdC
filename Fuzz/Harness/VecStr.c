@@ -41,9 +41,9 @@ static Str generate_str_from_input(
 }
 
 void init_str_vec(StrVec *vec, DefaultAllocator *alloc) {
-    // StrDeinitAlloc matches the GenericCopyDeinit signature required by
+    // str_deinit matches the GenericCopyDeinit signature required by
     // VecInitWithDeepCopy (void *, const Allocator *).
-    *vec = VecInitWithDeepCopyT(*vec, NULL, StrDeinitAlloc, alloc);
+    *vec = VecInitWithDeepCopyT(*vec, NULL, str_deinit, alloc);
 }
 
 void deinit_str_vec(StrVec *vec) {
@@ -362,7 +362,7 @@ void fuzz_str_vec(
         case VEC_STR_MERGE : {
             if (*offset + 4 <= size) {
                 // Create a temporary vector for merging
-                StrVec temp = VecInitWithDeepCopyT(temp, NULL, StrDeinitAlloc, alloc);
+                StrVec temp = VecInitWithDeepCopyT(temp, NULL, str_deinit, alloc);
 
                 // Add some strings to temp
                 size_t count = extract_u32(data, offset, size) % 5;
@@ -422,7 +422,7 @@ void fuzz_str_vec(
         case VEC_STR_INIT_CLONE : {
             if (*offset + 4 <= size) {
                 // Create a temporary vector for cloning
-                StrVec temp = VecInitWithDeepCopyT(temp, NULL, StrDeinitAlloc, alloc);
+                StrVec temp = VecInitWithDeepCopyT(temp, NULL, str_deinit, alloc);
 
                 // Add some strings to temp
                 size_t count = extract_u32(data, offset, size) % 5;
@@ -435,7 +435,7 @@ void fuzz_str_vec(
                 // (references missing VEC_INIT_WITH_DEEP_COPY_VALUE),
                 // so exercise the clone path manually via clone_vec.
                 VecDeinit(vec);
-                *vec = VecInitWithDeepCopyT(*vec, NULL, StrDeinitAlloc, alloc);
+                *vec = VecInitWithDeepCopyT(*vec, NULL, str_deinit, alloc);
                 clone_vec(GENERIC_VEC(vec), GENERIC_VEC(&temp), sizeof(Str));
 
                 VecDeinit(&temp);
