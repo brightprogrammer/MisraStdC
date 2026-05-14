@@ -10,21 +10,6 @@
 
 #include "Private.h"
 
-#if defined(MISRA_ENFORCE_TYPE_SAFETY) && MISRA_ENFORCE_TYPE_SAFETY
-#    define LIST_TYPECHECK_L(l, lval)      ((void)sizeof(char[_Generic(&(lval), LIST_DATA_TYPE(l) *: 1, default: -1)]))
-#    define LIST_TYPECHECK_R(l, rval)      ((void)sizeof((LIST_DATA_TYPE(l)[]) {(rval)}))
-#    define LIST_TYPECHECK_RANGE_L(l, ptr) ((void)sizeof(char[_Generic((ptr), LIST_DATA_TYPE(l) *: 1, default: -1)]))
-#    define LIST_TYPECHECK_RANGE_R(l, ptr)                                                                             \
-        ((void)sizeof(char[_Generic((ptr), LIST_DATA_TYPE(l) *: 1, const LIST_DATA_TYPE(l) *: 1, default: -1)]))
-#    define LIST_TYPECHECK_LIST(l, l2)                                                                                 \
-        ((void)sizeof(char[_Generic((l2)->head->data, LIST_DATA_TYPE(l) *: 1, default: -1)]))
-#else
-#    define LIST_TYPECHECK_L(l, lval)      ((void)0)
-#    define LIST_TYPECHECK_R(l, rval)      ((void)0)
-#    define LIST_TYPECHECK_RANGE_L(l, ptr) ((void)0)
-#    define LIST_TYPECHECK_RANGE_R(l, ptr) ((void)0)
-#    define LIST_TYPECHECK_LIST(l, l2)     ((void)0)
-#endif
 
 ///
 /// Insert a single element at the given index in the list, preserving order.
@@ -47,7 +32,7 @@
 ///
 #define ListInsertL(l, lval, idx)                                                                                      \
     (ValidateList(l),                                                                                                  \
-     LIST_TYPECHECK_L((l), (lval)),                                                                                    \
+     CHECK_TYPE_EQUIVALENCE(TYPE_OF(lval), LIST_DATA_TYPE(l)),                                                         \
      list_insert_one_l(GENERIC_LIST(l), &LVAL_AS(LIST_DATA_TYPE(l), lval), &(lval), sizeof(LIST_DATA_TYPE(l)), (idx)))
 
 ///
@@ -67,7 +52,7 @@
 ///
 #define ListInsertR(l, rval, idx)                                                                                      \
     (ValidateList(l),                                                                                                  \
-     LIST_TYPECHECK_R((l), (rval)),                                                                                    \
+     CHECK_TYPE_CONVERTIBLE(LIST_DATA_TYPE(l), rval),                                                                  \
      list_insert_one_r(GENERIC_LIST(l), &LVAL_AS(LIST_DATA_TYPE(l), rval), sizeof(LIST_DATA_TYPE(l)), (idx)))
 
 ///
@@ -155,7 +140,7 @@
 ///
 #define ListPushArrL(l, arr, count)                                                                                    \
     (ValidateList(l),                                                                                                  \
-     LIST_TYPECHECK_RANGE_L((l), (arr)),                                                                               \
+     CHECK_TYPE_EQUIVALENCE(TYPE_OF(*(arr)), LIST_DATA_TYPE(l)),                                                       \
      list_insert_range_l(GENERIC_LIST(l), (void *)(arr), sizeof(LIST_DATA_TYPE(l)), (count)))
 
 ///
@@ -171,7 +156,7 @@
 ///
 #define ListPushArrR(l, arr, count)                                                                                    \
     (ValidateList(l),                                                                                                  \
-     LIST_TYPECHECK_RANGE_R((l), (arr)),                                                                               \
+     CHECK_TYPE_CONVERTIBLE(const LIST_DATA_TYPE(l) *, arr),                                                           \
      list_insert_range_r(GENERIC_LIST(l), (const void *)(arr), sizeof(LIST_DATA_TYPE(l)), (count)))
 
 ///
@@ -200,7 +185,7 @@
 #define ListMergeL(l, l2)                                                                                              \
     (ValidateList(l),                                                                                                  \
      ValidateList(l2),                                                                                                 \
-     LIST_TYPECHECK_LIST((l), (l2)),                                                                                   \
+     CHECK_TYPE_EQUIVALENCE(LIST_DATA_TYPE(l2), LIST_DATA_TYPE(l)),                                                    \
      list_merge_l(GENERIC_LIST(l), GENERIC_LIST(l2), sizeof(LIST_DATA_TYPE(l))))
 
 ///
@@ -216,7 +201,7 @@
 #define ListMergeR(l, l2)                                                                                              \
     (ValidateList(l),                                                                                                  \
      ValidateList(l2),                                                                                                 \
-     LIST_TYPECHECK_LIST((l), (l2)),                                                                                   \
+     CHECK_TYPE_EQUIVALENCE(LIST_DATA_TYPE(l2), LIST_DATA_TYPE(l)),                                                    \
      list_merge_r(GENERIC_LIST(l), GENERIC_LIST(l2), sizeof(LIST_DATA_TYPE(l))))
 
 ///

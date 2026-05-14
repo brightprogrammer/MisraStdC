@@ -9,19 +9,6 @@
 
 #include "Private.h"
 
-#if defined(MISRA_ENFORCE_TYPE_SAFETY) && MISRA_ENFORCE_TYPE_SAFETY
-#    define VEC_TYPECHECK_L(v, lval)      ((void)sizeof(char[_Generic(&(lval), VEC_DATATYPE(v) *: 1, default: -1)]))
-#    define VEC_TYPECHECK_R(v, rval)      ((void)sizeof((VEC_DATATYPE(v)[]) {(rval)}))
-#    define VEC_TYPECHECK_RANGE_L(v, ptr) ((void)sizeof(char[_Generic((ptr), VEC_DATATYPE(v) *: 1, default: -1)]))
-#    define VEC_TYPECHECK_RANGE_R(v, ptr)                                                                              \
-        ((void)sizeof(char[_Generic((ptr), VEC_DATATYPE(v) *: 1, const VEC_DATATYPE(v) *: 1, default: -1)]))
-#else
-#    define VEC_TYPECHECK_L(v, lval)      ((void)0)
-#    define VEC_TYPECHECK_R(v, rval)      ((void)0)
-#    define VEC_TYPECHECK_RANGE_L(v, ptr) ((void)0)
-#    define VEC_TYPECHECK_RANGE_R(v, ptr) ((void)0)
-#endif
-
 ///
 /// Insert a single element at the given index, preserving order of trailing
 /// elements. L-value form: takes ownership of `lval` on success when the vector
@@ -51,7 +38,7 @@
 ///
 #define VecInsertL(v, lval, idx)                                                                                       \
     (ValidateVec(v),                                                                                                   \
-     VEC_TYPECHECK_L((v), (lval)),                                                                                     \
+     CHECK_TYPE_EQUIVALENCE(TYPE_OF(lval), VEC_DATATYPE(v)),                                                           \
      vec_insert_one_l(GENERIC_VEC(v), &LVAL_AS(VEC_DATATYPE(v), lval), &(lval), sizeof(VEC_DATATYPE(v)), (idx), true))
 
 ///
@@ -75,7 +62,7 @@
 ///
 #define VecInsertR(v, rval, idx)                                                                                       \
     (ValidateVec(v),                                                                                                   \
-     VEC_TYPECHECK_R((v), (rval)),                                                                                     \
+     CHECK_TYPE_CONVERTIBLE(VEC_DATATYPE(v), rval),                                                                    \
      vec_insert_one_r(GENERIC_VEC(v), &LVAL_AS(VEC_DATATYPE(v), rval), sizeof(VEC_DATATYPE(v)), (idx), true))
 
 ///
@@ -109,7 +96,7 @@
 ///
 #define VecInsertFastL(v, lval, idx)                                                                                   \
     (ValidateVec(v),                                                                                                   \
-     VEC_TYPECHECK_L((v), (lval)),                                                                                     \
+     CHECK_TYPE_EQUIVALENCE(TYPE_OF(lval), VEC_DATATYPE(v)),                                                           \
      vec_insert_one_l(                                                                                                 \
          GENERIC_VEC(v),                                                                                               \
          &LVAL_AS(VEC_DATATYPE(v), lval),                                                                              \
@@ -136,7 +123,7 @@
 ///
 #define VecInsertFastR(v, rval, idx)                                                                                   \
     (ValidateVec(v),                                                                                                   \
-     VEC_TYPECHECK_R((v), (rval)),                                                                                     \
+     CHECK_TYPE_CONVERTIBLE(VEC_DATATYPE(v), rval),                                                                    \
      vec_insert_one_r(GENERIC_VEC(v), &LVAL_AS(VEC_DATATYPE(v), rval), sizeof(VEC_DATATYPE(v)), (idx), false))
 
 ///
@@ -171,7 +158,7 @@
 ///
 #define VecInsertRangeL(v, varr, idx, count)                                                                           \
     (ValidateVec(v),                                                                                                   \
-     VEC_TYPECHECK_RANGE_L((v), (varr)),                                                                               \
+     CHECK_TYPE_EQUIVALENCE(TYPE_OF(*(varr)), VEC_DATATYPE(v)),                                                        \
      vec_insert_range_l(GENERIC_VEC(v), (void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), true))
 
 ///
@@ -194,7 +181,7 @@
 ///
 #define VecInsertRangeR(v, varr, idx, count)                                                                           \
     (ValidateVec(v),                                                                                                   \
-     VEC_TYPECHECK_RANGE_R((v), (varr)),                                                                               \
+     CHECK_TYPE_CONVERTIBLE(const VEC_DATATYPE(v) *, varr),                                                            \
      vec_insert_range_r(GENERIC_VEC(v), (const void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), true))
 
 ///
@@ -220,7 +207,7 @@
 ///
 #define VecInsertRangeFastL(v, varr, idx, count)                                                                       \
     (ValidateVec(v),                                                                                                   \
-     VEC_TYPECHECK_RANGE_L((v), (varr)),                                                                               \
+     CHECK_TYPE_EQUIVALENCE(TYPE_OF(*(varr)), VEC_DATATYPE(v)),                                                        \
      vec_insert_range_l(GENERIC_VEC(v), (void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), false))
 
 ///
@@ -234,7 +221,7 @@
 ///
 #define VecInsertRangeFastR(v, varr, idx, count)                                                                       \
     (ValidateVec(v),                                                                                                   \
-     VEC_TYPECHECK_RANGE_R((v), (varr)),                                                                               \
+     CHECK_TYPE_CONVERTIBLE(const VEC_DATATYPE(v) *, varr),                                                            \
      vec_insert_range_r(GENERIC_VEC(v), (const void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), false))
 
 ///

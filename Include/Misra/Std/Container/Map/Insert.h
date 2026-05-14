@@ -12,18 +12,6 @@
 
 #include <Misra/Std/Memory.h>
 
-#if defined(MISRA_ENFORCE_TYPE_SAFETY) && MISRA_ENFORCE_TYPE_SAFETY
-#    define MAP_TYPECHECK_KEY_L(m, key) ((void)sizeof(char[_Generic(&(key), MAP_KEY_TYPE(m) *: 1, default: -1)]))
-#    define MAP_TYPECHECK_KEY_R(m, key) ((void)sizeof((MAP_KEY_TYPE(m)[]) {(key)}))
-#    define MAP_TYPECHECK_VALUE_L(m, value)                                                                            \
-        ((void)sizeof(char[_Generic(&(value), MAP_VALUE_TYPE(m) *: 1, default: -1)]))
-#    define MAP_TYPECHECK_VALUE_R(m, value) ((void)sizeof((MAP_VALUE_TYPE(m)[]) {(value)}))
-#else
-#    define MAP_TYPECHECK_KEY_L(m, key)     ((void)0)
-#    define MAP_TYPECHECK_KEY_R(m, key)     ((void)0)
-#    define MAP_TYPECHECK_VALUE_L(m, value) ((void)0)
-#    define MAP_TYPECHECK_VALUE_R(m, value) ((void)0)
-#endif
 
 static inline bool map_zero_insert_sources_on_success(
     GenericMap *map,
@@ -204,8 +192,8 @@ static inline bool map_set_only_r_impl(
 ///
 #define MapInsertL(m, in_key, in_value)                                                                                \
     (ValidateMap(m),                                                                                                   \
-     MAP_TYPECHECK_KEY_L((m), (in_key)),                                                                               \
-     MAP_TYPECHECK_VALUE_L((m), (in_value)),                                                                           \
+     CHECK_TYPE_EQUIVALENCE(TYPE_OF(in_key), MAP_KEY_TYPE(m)),                                                         \
+     CHECK_TYPE_EQUIVALENCE(TYPE_OF(in_value), MAP_VALUE_TYPE(m)),                                                     \
      map_insert_l_impl(                                                                                                \
          GENERIC_MAP(m),                                                                                               \
          &(in_key),                                                                                                    \
@@ -236,8 +224,8 @@ static inline bool map_set_only_r_impl(
 ///
 #define MapInsertR(m, in_key, in_value)                                                                                \
     (ValidateMap(m),                                                                                                   \
-     MAP_TYPECHECK_KEY_R((m), (in_key)),                                                                               \
-     MAP_TYPECHECK_VALUE_R((m), (in_value)),                                                                           \
+     CHECK_TYPE_CONVERTIBLE(MAP_KEY_TYPE(m), in_key),                                                                  \
+     CHECK_TYPE_CONVERTIBLE(MAP_VALUE_TYPE(m), in_value),                                                              \
      map_insert_r_impl(                                                                                                \
          GENERIC_MAP(m),                                                                                               \
          &LVAL_AS(MAP_KEY_TYPE(m), in_key),                                                                            \
@@ -280,8 +268,8 @@ static inline bool map_set_only_r_impl(
 ///
 #define MapSetFirstL(m, in_key, in_value)                                                                              \
     (ValidateMap(m),                                                                                                   \
-     MAP_TYPECHECK_KEY_R((m), (in_key)),                                                                               \
-     MAP_TYPECHECK_VALUE_L((m), (in_value)),                                                                           \
+     CHECK_TYPE_CONVERTIBLE(MAP_KEY_TYPE(m), in_key),                                                                  \
+     CHECK_TYPE_EQUIVALENCE(TYPE_OF(in_value), MAP_VALUE_TYPE(m)),                                                     \
      map_set_first_l_impl(                                                                                             \
          GENERIC_MAP(m),                                                                                               \
          &LVAL_AS(MAP_KEY_TYPE(m), in_key),                                                                            \
@@ -307,8 +295,8 @@ static inline bool map_set_only_r_impl(
 ///
 #define MapSetFirstR(m, in_key, in_value)                                                                              \
     (ValidateMap(m),                                                                                                   \
-     MAP_TYPECHECK_KEY_R((m), (in_key)),                                                                               \
-     MAP_TYPECHECK_VALUE_R((m), (in_value)),                                                                           \
+     CHECK_TYPE_CONVERTIBLE(MAP_KEY_TYPE(m), in_key),                                                                  \
+     CHECK_TYPE_CONVERTIBLE(MAP_VALUE_TYPE(m), in_value),                                                              \
      map_set_first_r_impl(                                                                                             \
          GENERIC_MAP(m),                                                                                               \
          &LVAL_AS(MAP_KEY_TYPE(m), in_key),                                                                            \
@@ -344,8 +332,8 @@ static inline bool map_set_only_r_impl(
 ///
 #define MapSetOnlyL(m, in_key, in_value)                                                                               \
     (ValidateMap(m),                                                                                                   \
-     MAP_TYPECHECK_KEY_L((m), (in_key)),                                                                               \
-     MAP_TYPECHECK_VALUE_L((m), (in_value)),                                                                           \
+     CHECK_TYPE_EQUIVALENCE(TYPE_OF(in_key), MAP_KEY_TYPE(m)),                                                         \
+     CHECK_TYPE_EQUIVALENCE(TYPE_OF(in_value), MAP_VALUE_TYPE(m)),                                                     \
      map_set_only_l_impl(                                                                                              \
          GENERIC_MAP(m),                                                                                               \
          &(in_key),                                                                                                    \
@@ -369,8 +357,8 @@ static inline bool map_set_only_r_impl(
 ///
 #define MapSetOnlyR(m, in_key, in_value)                                                                               \
     (ValidateMap(m),                                                                                                   \
-     MAP_TYPECHECK_KEY_R((m), (in_key)),                                                                               \
-     MAP_TYPECHECK_VALUE_R((m), (in_value)),                                                                           \
+     CHECK_TYPE_CONVERTIBLE(MAP_KEY_TYPE(m), in_key),                                                                  \
+     CHECK_TYPE_CONVERTIBLE(MAP_VALUE_TYPE(m), in_value),                                                              \
      map_set_only_r_impl(                                                                                              \
          GENERIC_MAP(m),                                                                                               \
          &LVAL_AS(MAP_KEY_TYPE(m), in_key),                                                                            \
@@ -416,8 +404,8 @@ static inline bool map_set_only_r_impl(
 ///
 #define MapEnsurePtr(m, lookup_key, default_value)                                                                     \
     (ValidateMap(m),                                                                                                   \
-     MAP_TYPECHECK_KEY_R((m), (lookup_key)),                                                                           \
-     MAP_TYPECHECK_VALUE_R((m), (default_value)),                                                                      \
+     CHECK_TYPE_CONVERTIBLE(MAP_KEY_TYPE(m), lookup_key),                                                              \
+     CHECK_TYPE_CONVERTIBLE(MAP_VALUE_TYPE(m), default_value),                                                         \
      (MAP_VALUE_TYPE(m) *)map_ensure_value_ptr(                                                                        \
          GENERIC_MAP(m),                                                                                               \
          &LVAL_AS(MAP_KEY_TYPE(m), lookup_key),                                                                        \

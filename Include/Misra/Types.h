@@ -157,6 +157,63 @@ typedef union {
 /// TAGS: Type, Cast, Compound, Literal, Utility
 #define LVAL_AS(T, x) (((T[]) {(x)})[0])
 
+#ifdef __cplusplus
+namespace misra_priv {
+template <bool>
+struct check_type_eq;
+template <>
+struct check_type_eq<true> {
+    static const int value = 1;
+};
+} // namespace misra_priv
+#endif
+
+///
+/// Compile-time assertion that types `Ta` and `Tb` are strictly equivalent.
+/// Triggers a compile error when the types differ. Behaves the same way in
+/// C and C++: the underlying machinery differs (`_Generic` in C,
+/// `std::is_same` in C++) but the user-visible outcome is identical.
+///
+/// Ta[in] : First type name.
+/// Tb[in] : Second type name.
+///
+/// USAGE:
+///   CHECK_TYPE_EQUIVALENCE(TYPE_OF(node), GRAPH_NODE_TYPE(g));
+///
+/// SUCCESS: Expands to a void expression with no runtime effect.
+/// FAILURE: Compile error when `Ta` and `Tb` are not the same type.
+///
+/// TAGS: Type, Check, Compile, Assert, Utility
+#ifdef __cplusplus
+#    define CHECK_TYPE_EQUIVALENCE(Ta, Tb) ((void)(::misra_priv::check_type_eq<::std::is_same<Ta, Tb>::value>::value))
+#else
+#    define CHECK_TYPE_EQUIVALENCE(Ta, Tb) ((void)sizeof(char[_Generic((Ta *)0, Tb *: 1, default: -1)]))
+#endif
+
+///
+/// Compile-time assertion that expression `x` can initialize a `T`.
+/// Permits implicit conversions allowed by initialization rules (integer
+/// widen/narrow, scalar-to-pointer for null constants, etc.) so it is the
+/// right check for `R`-value (by-value) insertion paths where the caller
+/// may pass a literal of a slightly different type. Behaves the same way
+/// in C and C++.
+///
+/// T[in] : Target type.
+/// x[in] : Source expression.
+///
+/// USAGE:
+///   CHECK_TYPE_CONVERTIBLE(VEC_DATATYPE(v), rval);
+///
+/// SUCCESS: Expands to a void expression with no runtime effect.
+/// FAILURE: Compile error when `x` is not initialization-compatible with `T`.
+///
+/// TAGS: Type, Check, Compile, Assert, Convert, Utility
+#ifdef __cplusplus
+#    define CHECK_TYPE_CONVERTIBLE(T, x) ((void)sizeof(T {(x)}))
+#else
+#    define CHECK_TYPE_CONVERTIBLE(T, x) ((void)sizeof((T[]) {(x)}))
+#endif
+
 //
 /// Returns the smaller of two values `x` and `y`.
 ///

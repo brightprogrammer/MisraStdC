@@ -447,6 +447,49 @@ The broad order is:
 
 That order matters because the new allocator design is only useful if the container APIs can actually propagate failure.
 
+## Decisions Made During Implementation
+
+This section records concrete decisions that diverged from or refined the design notes above as the refactor moved from sketch to code. Each entry says *what* was decided and *why*, so the original plan and the landed shape can be read side by side.
+
+### `MISRA_ENFORCE_TYPE_SAFETY` is dropped
+
+The original plan introduced an opt-in feature flag (`MISRA_ENFORCE_TYPE_SAFETY`) so type-check macros could be compiled out in release builds for performance reasons.
+
+This flag is now removed. The reasoning is that the type-check macros are *compile-time only*: they expand to `(void)sizeof(...)` expressions that evaluate to zero at run time. They produce no instructions, no allocations, no extra copies. The performance argument in the original sketch was based on a misconception that the check materialized an LVAL temporary - it does not. The argument check and the `LVAL_AS` value materialization are two separate concerns in the macro chain.
+
+Since the cost is genuinely zero, gating the checks behind a flag only introduces two failure modes (works in debug, breaks in release) without buying anything. The checks are now unconditionally on.
+
+### Type-equivalence is one generic primitive
+
+The original plan called for per-family helpers like `VecTypeCheck`, `ListTypeCheck`, `MapTypeCheckKey`, `GraphTypeCheckNode`, etc. - each container had its own `_TYPECHECK_L`/`_TYPECHECK_R`/`_TYPECHECK_RANGE_L`/`_TYPECHECK_RANGE_R` macros that duplicated the same `_Generic` shape with a different element-type accessor.
+
+These are replaced by two generic primitives in `Misra/Types.h`:
+
+- `CHECK_TYPE_EQUIVALENCE(Ta, Tb)` - compile error unless `Ta` and `Tb` are strictly the same type. Used at L-form call sites by composing with `TYPE_OF(...)` to derive the type from an expression.
+- `CHECK_TYPE_CONVERTIBLE(T, x)` - compile error unless expression `x` can initialize a value of type `T`. Used at R-form call sites where the caller may pass a literal of a related type, and at range R-form call sites by checking that the source pointer can initialize `const T *` (which accepts both `T *` and `const T *`).
+
+Both primitives behave identically in C and C++. The C variant uses `_Generic`; the C++ variant uses `std::is_same` and brace-init. The macro user does not need to care about the implementation difference.
+
+The per-container `*_TYPECHECK_*` macros are all gone. Call sites embed the generic primitive directly. This deletes a lot of duplication and makes it obvious at the call site what is being checked.
+
+### `LVAL_AS(T, x)` separates value-materialization from cast
+
+The `LVAL((T)(x))` pattern - cast an expression to T, then materialize it as an addressable l-value through a compound literal - turned out to be silently non-portable. MSVC's C front-end rejects `(T)(expr)` when both sides are the same struct type (C2440), so the original macro chain compiled on GCC and Clang as a no-op cast but failed to build on Windows.
+
+`LVAL_AS(T, x)` lives in `Misra/Types.h` and uses compound-literal initialization (`((T[]){(x)})[0]`) rather than a cast. Initialization handles same-struct conversion uniformly across compilers and also covers the implicit conversions that were the original reason for the cast.
+
+All call sites that previously wrote `&LVAL((T)(expr))` now write `&LVAL_AS(T, expr)`.
+
+### `max_align_t` shim for MSVC C mode
+
+The container allocation helpers use `_Alignof(max_align_t)` to pick a "wide enough" alignment for arbitrary payload types. MSVC's `<stddef.h>` does not expose `max_align_t` in C mode, so the build broke on Windows.
+
+A small `typedef union { long long; long double; void *; void(*)(void); } max_align_t;` shim is now defined in `Misra/Types.h` when `_MSC_VER` is set and `__cplusplus` is not. Other compilers see the standard `<stddef.h>` definition.
+
+### `UNIQUE_NAME` is removed
+
+The `UNIQUE_NAME` macro in `Misra/Types.h` collided with the Windows SDK header `nb30.h` which defines its own `UNIQUE_NAME`. The Misra macro had no in-tree users, so it was removed outright rather than renamed. `UNPL` (unique-name-per-line) covers the remaining "I need a fresh local name inside a macro" use case.
+
 ## Closing View
 
 This refactor is not mainly about adding features. It is about tightening the shape of the library.

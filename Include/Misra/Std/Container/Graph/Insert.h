@@ -10,14 +10,6 @@
 #include "Type.h"
 #include "Private.h"
 
-#if defined(MISRA_ENFORCE_TYPE_SAFETY) && MISRA_ENFORCE_TYPE_SAFETY
-#    define GRAPH_TYPECHECK_NODE_L(g, node)                                                                            \
-        ((void)sizeof(char[_Generic(&(node), GRAPH_NODE_TYPE(g) *: 1, default: -1)]))
-#    define GRAPH_TYPECHECK_NODE_R(g, node) ((void)sizeof((GRAPH_NODE_TYPE(g)[]) {(node)}))
-#else
-#    define GRAPH_TYPECHECK_NODE_L(g, node) ((void)0)
-#    define GRAPH_TYPECHECK_NODE_R(g, node) ((void)0)
-#endif
 
 ///
 /// Add a new node to the graph, taking ownership of `lval`.
@@ -46,7 +38,7 @@
 ///
 #define GraphAddNodeL(g, lval)                                                                                         \
     (ValidateGraph(g),                                                                                                 \
-     GRAPH_TYPECHECK_NODE_L((g), (lval)),                                                                              \
+     CHECK_TYPE_EQUIVALENCE(TYPE_OF(lval), GRAPH_NODE_TYPE(g)),                                                        \
      graph_push_node_owned(GENERIC_GRAPH(g), &(lval), sizeof(GRAPH_NODE_TYPE(g))))
 
 ///
@@ -69,7 +61,7 @@
 ///
 #define GraphAddNodeR(g, rval)                                                                                         \
     (ValidateGraph(g),                                                                                                 \
-     GRAPH_TYPECHECK_NODE_R((g), (rval)),                                                                              \
+     CHECK_TYPE_CONVERTIBLE(GRAPH_NODE_TYPE(g), rval),                                                                 \
      graph_push_node(GENERIC_GRAPH(g), &LVAL_AS(GRAPH_NODE_TYPE(g), rval), sizeof(GRAPH_NODE_TYPE(g))))
 
 ///
