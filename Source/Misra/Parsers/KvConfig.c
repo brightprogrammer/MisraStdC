@@ -1,5 +1,6 @@
 #include <Misra/Parsers/KvConfig.h>
 #include <Misra/Std/Container/Map/Private.h>
+#include <Misra/Std/Container/Str/Private.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Log.h>
 
@@ -350,8 +351,8 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg) {
     ValidateMap(cfg);
 
     while (StrIterRemainingLength(&si)) {
-        Str     key   = StrInit();
-        Str     value = StrInit();
+        Str     key   = str_init_alloc(cfg->allocator);
+        Str     value = str_init_alloc(cfg->allocator);
         StrIter read_si;
 
         while (StrIterRemainingLength(&si)) {
@@ -406,7 +407,7 @@ Str *KvConfigGetPtr(KvConfig *cfg, const char *key) {
         return NULL;
     }
 
-    lookup = StrInitFromZstr(key);
+    lookup = StrInitFromCstrAlloc(key, ZstrLen(key), cfg->allocator);
     value  = map_get_value_ptr(
         GENERIC_MAP(cfg),
         &lookup,
@@ -424,10 +425,10 @@ Str KvConfigGet(KvConfig *cfg, const char *key) {
     Str *value = KvConfigGetPtr(cfg, key);
 
     if (!value) {
-        return StrInit();
+        return str_init_alloc(cfg->allocator);
     }
 
-    return StrInitFromStr(value);
+    return StrInitFromCstrAlloc(value->data, value->length, cfg->allocator);
 }
 
 bool KvConfigContains(KvConfig *cfg, const char *key) {
