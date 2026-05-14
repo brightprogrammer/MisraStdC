@@ -328,12 +328,12 @@ bool test_bitvec_null_pointer_failures(void) {
 bool test_bitvec_invalid_operations(void) {
     WriteFmt("Testing BitVec invalid operations\n");
 
-    // Test operation that should trigger validation failure
-    // Try to reserve an impossibly large amount that should fail
+    // BitVecReserve is now a fallible API that returns bool on allocation
+    // failure rather than aborting. The Must variant aborts, so use it here
+    // to validate the deadend abort path.
     BitVec bv = BitVecInit();
 
-    // This should trigger an abort if validation is working
-    BitVecReserve(&bv, SIZE_MAX);
+    BitVecMustReserve(&bv, SIZE_MAX);
 
     // If we reach here, validation didn't work as expected
     BitVecDeinit(&bv);
@@ -343,12 +343,12 @@ bool test_bitvec_invalid_operations(void) {
 bool test_bitvec_set_operations_failures(void) {
     WriteFmt("Testing BitVec set operations on invalid indices\n");
 
-    // Test operation that should trigger validation failure
-    // Try to reu64 to impossibly large size
+    // BitVecResize is now a fallible API that returns bool on allocation
+    // failure rather than aborting. The Must variant aborts, so use it here
+    // to validate the deadend abort path.
     BitVec bv = BitVecInit();
 
-    // This should trigger an abort if validation is working
-    BitVecResize(&bv, SIZE_MAX);
+    BitVecMustResize(&bv, SIZE_MAX);
 
     // If we reach here, validation didn't work as expected
     BitVecDeinit(&bv);
