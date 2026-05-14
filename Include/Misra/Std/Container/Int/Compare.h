@@ -29,7 +29,7 @@ extern "C" {
 int (IntCompare)(Int *lhs, Int *rhs);
 
 #ifndef __cplusplus
-#    define MISRA_INT_COMPARE_DISPATCH(rhs)                                                                            \
+#    define INT_COMPARE_DISPATCH(rhs)                                                                            \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Int *: IntCompare,                                                                                         \
@@ -59,7 +59,7 @@ int (IntCompare)(Int *lhs, Int *rhs);
 ///
 /// TAGS: Int, Compare, Ordering, Generic
 ///
-#    define IntCompare(lhs, rhs) MISRA_INT_COMPARE_DISPATCH(rhs)((lhs), (rhs))
+#    define IntCompare(lhs, rhs) INT_COMPARE_DISPATCH(rhs)((lhs), (rhs))
 
 ///
 /// Test whether two numeric values compare equal.
@@ -75,7 +75,7 @@ int (IntCompare)(Int *lhs, Int *rhs);
 ///
 /// TAGS: Int, Compare, Equal, Generic
 ///
-#    define IntEQ(lhs, rhs) (MISRA_INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) == 0)
+#    define IntEQ(lhs, rhs) (INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) == 0)
 ///
 /// Test whether `lhs` is strictly less than `rhs`.
 ///
@@ -89,7 +89,7 @@ int (IntCompare)(Int *lhs, Int *rhs);
 ///
 /// TAGS: Int, Compare, LessThan, Generic
 ///
-#    define IntLT(lhs, rhs) (MISRA_INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) < 0)
+#    define IntLT(lhs, rhs) (INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) < 0)
 ///
 /// Test whether `lhs` is less than or equal to `rhs`.
 ///
@@ -103,7 +103,7 @@ int (IntCompare)(Int *lhs, Int *rhs);
 ///
 /// TAGS: Int, Compare, LessEqual, Generic
 ///
-#    define IntLE(lhs, rhs) (MISRA_INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) <= 0)
+#    define IntLE(lhs, rhs) (INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) <= 0)
 ///
 /// Test whether `lhs` is strictly greater than `rhs`.
 ///
@@ -117,7 +117,7 @@ int (IntCompare)(Int *lhs, Int *rhs);
 ///
 /// TAGS: Int, Compare, GreaterThan, Generic
 ///
-#    define IntGT(lhs, rhs) (MISRA_INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) > 0)
+#    define IntGT(lhs, rhs) (INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) > 0)
 ///
 /// Test whether `lhs` is greater than or equal to `rhs`.
 ///
@@ -131,7 +131,7 @@ int (IntCompare)(Int *lhs, Int *rhs);
 ///
 /// TAGS: Int, Compare, GreaterEqual, Generic
 ///
-#    define IntGE(lhs, rhs) (MISRA_INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) >= 0)
+#    define IntGE(lhs, rhs) (INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) >= 0)
 ///
 /// Test whether two numeric values differ.
 ///
@@ -145,7 +145,7 @@ int (IntCompare)(Int *lhs, Int *rhs);
 ///
 /// TAGS: Int, Compare, NotEqual, Generic
 ///
-#    define IntNE(lhs, rhs) (MISRA_INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) != 0)
+#    define IntNE(lhs, rhs) (INT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) != 0)
 #endif
 
 #ifdef __cplusplus

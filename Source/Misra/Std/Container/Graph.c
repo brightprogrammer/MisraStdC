@@ -12,8 +12,8 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#define MISRA_GRAPH_SLOT_OCCUPIED ((u32)1u << 0)
-#define MISRA_GRAPH_SLOT_MARKED   ((u32)1u << 1)
+#define GRAPH_SLOT_OCCUPIED ((u32)1u << 0)
+#define GRAPH_SLOT_MARKED   ((u32)1u << 1)
 
 static GraphNodeId graph_make_node_id(u32 index, u32 generation) {
     return (((u64)generation) << 32) | (u64)index;
@@ -48,11 +48,11 @@ static void graph_validate_slot_limit(const GenericGraph *graph) {
 }
 
 static bool graph_slot_is_occupied(const GenericGraphSlot *slot) {
-    return (slot->flags & MISRA_GRAPH_SLOT_OCCUPIED) != 0;
+    return (slot->flags & GRAPH_SLOT_OCCUPIED) != 0;
 }
 
 static bool graph_slot_is_marked(const GenericGraphSlot *slot) {
-    return (slot->flags & MISRA_GRAPH_SLOT_MARKED) != 0;
+    return (slot->flags & GRAPH_SLOT_MARKED) != 0;
 }
 
 static void graph_validate_node_index_raw(const GenericGraph *graph, u32 index) {
@@ -536,7 +536,7 @@ GraphNodeId graph_push_node(GenericGraph *graph, const void *item_data, size ite
             return 0;
         }
         slot_ptr->visit_count   = 0;
-        slot_ptr->flags         = MISRA_GRAPH_SLOT_OCCUPIED;
+        slot_ptr->flags         = GRAPH_SLOT_OCCUPIED;
         if (!graph_copy_node_data(graph, slot_ptr->data, item_data, item_size)) {
             graph_free_node_data(graph, slot_ptr->data, item_size);
             slot_ptr->data = NULL;
@@ -568,7 +568,7 @@ GraphNodeId graph_push_node(GenericGraph *graph, const void *item_data, size ite
     }
     slot.visit_count   = 0;
     slot.generation    = 1;
-    slot.flags         = MISRA_GRAPH_SLOT_OCCUPIED;
+    slot.flags         = GRAPH_SLOT_OCCUPIED;
     if (!graph_copy_node_data(graph, slot.data, item_data, item_size)) {
         graph_free_node_data(graph, slot.data, item_size);
         return 0;
@@ -786,7 +786,7 @@ bool graph_mark_node_for_deletion(GraphNode node) {
         return false;
     }
 
-    slot->flags |= MISRA_GRAPH_SLOT_MARKED;
+    slot->flags |= GRAPH_SLOT_MARKED;
     graph->pending_delete_count += 1;
     return true;
 }
@@ -814,7 +814,7 @@ bool graph_unmark_node_for_deletion(GraphNode node) {
         return false;
     }
 
-    slot->flags &= ~MISRA_GRAPH_SLOT_MARKED;
+    slot->flags &= ~GRAPH_SLOT_MARKED;
     graph->pending_delete_count -= 1;
     return true;
 }

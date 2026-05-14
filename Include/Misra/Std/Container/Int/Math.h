@@ -430,16 +430,16 @@ bool IntIsProbablePrimeWithError(Int *value, bool *error);
 ///
 bool IntNextPrime(Int *result, Int *value);
 
-static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
+static inline bool IntIsProbablePrimeNoError(Int *value) {
     return IntIsProbablePrimeWithError(value, NULL);
 }
 
-#define MISRA_PRIV_INT_IS_PROBABLE_PRIME_SELECT(_1, _2, NAME, ...) NAME
+#define INT_IS_PROBABLE_PRIME_SELECT(_1, _2, NAME, ...) NAME
 #define IntIsProbablePrime(...)                                                                                       \
-    MISRA_PRIV_INT_IS_PROBABLE_PRIME_SELECT(__VA_ARGS__, IntIsProbablePrimeWithError, MISRA_PRIV_IntIsProbablePrimeNoError)(__VA_ARGS__)
+    INT_IS_PROBABLE_PRIME_SELECT(__VA_ARGS__, IntIsProbablePrimeWithError, IntIsProbablePrimeNoError)(__VA_ARGS__)
 
 #ifndef __cplusplus
-#    define MISRA_INT_ADD_DISPATCH(rhs)                                                                                \
+#    define INT_ADD_DISPATCH(rhs)                                                                                \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Int *: IntAdd,                                                                                             \
@@ -455,7 +455,7 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
             signed long long: IntAddI64                                                                                \
         )
 
-#    define MISRA_INT_SUB_DISPATCH(rhs)                                                                                \
+#    define INT_SUB_DISPATCH(rhs)                                                                                \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Int *: IntSub,                                                                                             \
@@ -471,7 +471,7 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
             signed long long: IntSubI64                                                                                \
         )
 
-#    define MISRA_INT_MUL_DISPATCH(rhs)                                                                                \
+#    define INT_MUL_DISPATCH(rhs)                                                                                \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Int *: IntMul,                                                                                             \
@@ -487,7 +487,7 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
             signed long long: IntMulI64                                                                                \
         )
 
-#    define MISRA_INT_POW_DISPATCH(exponent)                                                                           \
+#    define INT_POW_DISPATCH(exponent)                                                                           \
         _Generic(                                                                                                      \
             (exponent),                                                                                                \
             Int *: IntPow,                                                                                             \
@@ -503,7 +503,7 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
             signed long long: IntPowI64                                                                                \
         )
 
-#    define MISRA_INT_DIV_DISPATCH(divisor)                                                                            \
+#    define INT_DIV_DISPATCH(divisor)                                                                            \
         _Generic(                                                                                                      \
             (divisor),                                                                                                 \
             Int *: IntDiv,                                                                                             \
@@ -519,7 +519,7 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
             signed long long: IntDivI64                                                                                \
         )
 
-#    define MISRA_INT_DIV_EXACT_DISPATCH(divisor)                                                                      \
+#    define INT_DIV_EXACT_DISPATCH(divisor)                                                                      \
         _Generic(                                                                                                      \
             (divisor),                                                                                                 \
             Int *: IntDivExact,                                                                                        \
@@ -535,7 +535,7 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
             signed long long: IntDivExactI64                                                                           \
         )
 
-#    define MISRA_INT_MOD_DISPATCH(divisor)                                                                            \
+#    define INT_MOD_DISPATCH(divisor)                                                                            \
         _Generic(                                                                                                      \
             (divisor),                                                                                                 \
             Int *: IntMod,                                                                                             \
@@ -551,7 +551,7 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
             signed long long: IntModI64Into                                                                            \
         )
 
-#    define MISRA_INT_DIVMOD_DISPATCH(divisor)                                                                         \
+#    define INT_DIVMOD_DISPATCH(divisor)                                                                         \
         _Generic(                                                                                                      \
             (divisor),                                                                                                 \
             Int *: IntDivMod,                                                                                          \
@@ -567,7 +567,7 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
             signed long long: IntDivModI64                                                                             \
         )
 
-#    define MISRA_INT_POWMOD_DISPATCH(exponent)                                                                        \
+#    define INT_POWMOD_DISPATCH(exponent)                                                                        \
         _Generic(                                                                                                      \
             (exponent),                                                                                                \
             Int *: IntPowMod,                                                                                          \
@@ -596,7 +596,7 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
 ///
 /// TAGS: Int, Math, Add, Generic
 ///
-#    define IntAdd(result, a, b) MISRA_INT_ADD_DISPATCH(b)((result), (a), (b))
+#    define IntAdd(result, a, b) INT_ADD_DISPATCH(b)((result), (a), (b))
 ///
 /// Generic subtraction convenience macro.
 /// Dispatches on the type of `b` to the matching `IntSub*` overload.
@@ -612,7 +612,7 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
 ///
 /// TAGS: Int, Math, Subtract, Generic
 ///
-#    define IntSub(result, a, b) MISRA_INT_SUB_DISPATCH(b)((result), (a), (b))
+#    define IntSub(result, a, b) INT_SUB_DISPATCH(b)((result), (a), (b))
 ///
 /// Generic multiplication convenience macro.
 ///
@@ -625,7 +625,7 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
 ///
 /// TAGS: Int, Math, Multiply, Generic
 ///
-#    define IntMul(result, a, b) MISRA_INT_MUL_DISPATCH(b)((result), (a), (b))
+#    define IntMul(result, a, b) INT_MUL_DISPATCH(b)((result), (a), (b))
 ///
 /// Generic exponentiation convenience macro.
 ///
@@ -638,7 +638,7 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
 ///
 /// TAGS: Int, Math, Power, Generic
 ///
-#    define IntPow(result, base, exponent) MISRA_INT_POW_DISPATCH(exponent)((result), (base), (exponent))
+#    define IntPow(result, base, exponent) INT_POW_DISPATCH(exponent)((result), (base), (exponent))
 ///
 /// Generic division convenience macro.
 ///
@@ -651,7 +651,7 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
 ///
 /// TAGS: Int, Math, Divide, Generic
 ///
-#    define IntDiv(result, dividend, divisor) MISRA_INT_DIV_DISPATCH(divisor)((result), (dividend), (divisor))
+#    define IntDiv(result, dividend, divisor) INT_DIV_DISPATCH(divisor)((result), (dividend), (divisor))
 ///
 /// Generic exact-division convenience macro.
 ///
@@ -667,7 +667,7 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
 /// TAGS: Int, Math, DivideExact, Generic
 ///
 #    define IntDivExact(result, dividend, divisor)                                                                     \
-        MISRA_INT_DIV_EXACT_DISPATCH(divisor)((result), (dividend), (divisor))
+        INT_DIV_EXACT_DISPATCH(divisor)((result), (dividend), (divisor))
 ///
 /// Generic modulo convenience macro.
 ///
@@ -680,7 +680,7 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
 ///
 /// TAGS: Int, Math, Modulo, Generic
 ///
-#    define IntMod(result, dividend, divisor) MISRA_INT_MOD_DISPATCH(divisor)((result), (dividend), (divisor))
+#    define IntMod(result, dividend, divisor) INT_MOD_DISPATCH(divisor)((result), (dividend), (divisor))
 ///
 /// Generic quotient-and-remainder convenience macro.
 ///
@@ -695,7 +695,7 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
 /// TAGS: Int, Math, Divide, Modulo, Generic
 ///
 #    define IntDivMod(quotient, remainder, dividend, divisor)                                                         \
-        MISRA_INT_DIVMOD_DISPATCH(divisor)((quotient), (remainder), (dividend), (divisor))
+        INT_DIVMOD_DISPATCH(divisor)((quotient), (remainder), (dividend), (divisor))
 ///
 /// Generic modular exponentiation convenience macro.
 ///
@@ -710,16 +710,16 @@ static inline bool MISRA_PRIV_IntIsProbablePrimeNoError(Int *value) {
 /// TAGS: Int, Math, Modular, Power, Generic
 ///
 #    define IntPowMod(result, base, exponent, modulus)                                                                \
-        MISRA_INT_POWMOD_DISPATCH(exponent)((result), (base), (exponent), (modulus))
+        INT_POWMOD_DISPATCH(exponent)((result), (base), (exponent), (modulus))
 #endif
 
-static inline int MISRA_PRIV_IntJacobiNoError(Int *a, Int *n) {
+static inline int IntJacobiNoError(Int *a, Int *n) {
     return IntJacobiWithError(a, n, NULL);
 }
 
-#define MISRA_PRIV_INT_JACOBI_SELECT(_1, _2, _3, NAME, ...) NAME
+#define INT_JACOBI_SELECT(_1, _2, _3, NAME, ...) NAME
 #define IntJacobi(...)                                                                                                 \
-    MISRA_PRIV_INT_JACOBI_SELECT(__VA_ARGS__, IntJacobiWithError, MISRA_PRIV_IntJacobiNoError)(__VA_ARGS__)
+    INT_JACOBI_SELECT(__VA_ARGS__, IntJacobiWithError, IntJacobiNoError)(__VA_ARGS__)
 
 #ifdef __cplusplus
 }

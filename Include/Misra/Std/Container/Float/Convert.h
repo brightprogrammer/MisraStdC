@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #ifndef __cplusplus
-#    define MISRA_FLOAT_FROM_DISPATCH(value)                                                                           \
+#    define FLOAT_FROM_DISPATCH(value)                                                                           \
         _Generic(                                                                                                      \
             (value),                                                                                                   \
             Int *: FloatFromInt,                                                                                       \
@@ -46,7 +46,7 @@ extern "C" {
 ///
 /// TAGS: Float, Convert, Import, Generic
 ///
-#    define FloatFrom(value) MISRA_FLOAT_FROM_DISPATCH(value)(value)
+#    define FloatFrom(value) FLOAT_FROM_DISPATCH(value)(value)
 #endif
 
 bool FloatToInt(Int *result, Float *value);

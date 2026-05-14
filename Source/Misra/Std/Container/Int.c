@@ -717,7 +717,7 @@ bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Alloc
         Int quotient = IntInit();
         u64 digit    = 0;
 
-        digit = MISRA_PRIV_IntDivU64Rem(&quotient, &current, radix);
+        digit = IntDivU64Rem(&quotient, &current, radix);
         if (!StrPushBack(&result, int_radix_char((u8)digit, uppercase))) {
             IntDeinit(&quotient);
             IntDeinit(&current);
@@ -1445,7 +1445,7 @@ bool IntDivModI64(Int *quotient, Int *remainder, Int *dividend, i64 divisor) {
     return ok;
 }
 
-u64 MISRA_PRIV_IntDivU64Rem(Int *quotient, Int *dividend, u64 divisor) {
+u64 IntDivU64Rem(Int *quotient, Int *dividend, u64 divisor) {
     ValidateInt(quotient);
     ValidateInt(dividend);
 
@@ -1507,7 +1507,7 @@ bool IntModI64Into(Int *result, Int *dividend, i64 divisor) {
     return ok;
 }
 
-u64 MISRA_PRIV_IntModU64(Int *value, u64 modulus) {
+u64 IntModU64(Int *value, u64 modulus) {
     ValidateInt(value);
 
     if (modulus == 0) {
@@ -1516,7 +1516,7 @@ u64 MISRA_PRIV_IntModU64(Int *value, u64 modulus) {
     }
 
     Int quotient = IntInit();
-    u64 rem      = MISRA_PRIV_IntDivU64Rem(&quotient, value, modulus);
+    u64 rem      = IntDivU64Rem(&quotient, value, modulus);
 
     IntDeinit(&quotient);
     return rem;
@@ -1867,7 +1867,7 @@ bool IntTryJacobi(int *out, Int *a, Int *n) {
                 IntDeinit(&nn);
                 return false;
             }
-            n_mod_8 = MISRA_PRIV_IntModU64(&nn, 8);
+            n_mod_8 = IntModU64(&nn, 8);
             if (n_mod_8 == 3 || n_mod_8 == 5) {
                 result = -result;
             }
@@ -1875,7 +1875,7 @@ bool IntTryJacobi(int *out, Int *a, Int *n) {
 
         int_swap(&aa, &nn);
 
-        if (MISRA_PRIV_IntModU64(&aa, 4) == 3 && MISRA_PRIV_IntModU64(&nn, 4) == 3) {
+        if (IntModU64(&aa, 4) == 3 && IntModU64(&nn, 4) == 3) {
             result = -result;
         }
 
@@ -2373,7 +2373,7 @@ bool IntModSqrt(Int *result, Int *value, Int *modulus) {
             return false;
         }
     }
-    if (MISRA_PRIV_IntModU64(modulus, 4) == 3) {
+    if (IntModU64(modulus, 4) == 3) {
         Int exponent = IntInit(modulus->bits.allocator);
         Int root     = IntInit();
 
@@ -2666,7 +2666,7 @@ bool IntIsProbablePrimeWithError(Int *value, bool *error) {
         if (IntCompareU64(value, bases[i]) == 0) {
             return true;
         }
-        if (MISRA_PRIV_IntModU64(value, bases[i]) == 0) {
+        if (IntModU64(value, bases[i]) == 0) {
             return false;
         }
     }

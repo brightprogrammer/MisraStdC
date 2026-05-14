@@ -9,15 +9,15 @@
 
 #include "Type.h"
 
-#define MISRA_PRIV_MAP_SLOT_EMPTY     0u
-#define MISRA_PRIV_MAP_SLOT_OCCUPIED  1u
-#define MISRA_PRIV_MAP_SLOT_TOMBSTONE 2u
+#define MAP_SLOT_EMPTY     0u
+#define MAP_SLOT_OCCUPIED  1u
+#define MAP_SLOT_TOMBSTONE 2u
 
-#define MISRA_PRIV_MapSlotOccupied(m, idx) ((m)->states && (m)->states[(idx)] == MISRA_PRIV_MAP_SLOT_OCCUPIED)
-#define MISRA_PRIV_MapEntryPtrAt(m, idx)   (&((m)->entries[(idx)]))
-#define MISRA_PRIV_MapKeyPtrAt(m, idx)     (&((m)->entries[(idx)].key))
-#define MISRA_PRIV_MapValuePtrAt(m, idx)   (&((m)->entries[(idx)].value))
-#define MISRA_PRIV_MapHashAt(m, idx)       ((m)->entries[(idx)].hash)
+#define map_slot_occupied(m, idx) ((m)->states && (m)->states[(idx)] == MAP_SLOT_OCCUPIED)
+#define map_entry_ptr_at(m, idx)  (&((m)->entries[(idx)]))
+#define map_key_ptr_at(m, idx)    (&((m)->entries[(idx)].key))
+#define map_value_ptr_at(m, idx)  (&((m)->entries[(idx)].value))
+#define map_hash_at(m, idx)       ((m)->entries[(idx)].hash)
 
 void      validate_map_policy(const MapPolicy *policy);
 MapPolicy validate_map_policy_copy(MapPolicy policy);

@@ -45,11 +45,11 @@ bool IntIsPowerOfTwo(Int *value);
 }
 #endif
 
-static inline u64 MISRA_PRIV_IntLog2NoError(Int *value) {
+static inline u64 IntLog2NoError(Int *value) {
     return IntLog2WithError(value, NULL);
 }
 
-#define MISRA_PRIV_INT_LOG2_SELECT(_1, _2, NAME, ...) NAME
-#define IntLog2(...) MISRA_PRIV_INT_LOG2_SELECT(__VA_ARGS__, IntLog2WithError, MISRA_PRIV_IntLog2NoError)(__VA_ARGS__)
+#define INT_LOG2_SELECT(_1, _2, NAME, ...) NAME
+#define IntLog2(...) INT_LOG2_SELECT(__VA_ARGS__, IntLog2WithError, IntLog2NoError)(__VA_ARGS__)
 
 #endif // MISRA_STD_CONTAINER_INT_ACCESS_H

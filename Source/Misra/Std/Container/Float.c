@@ -210,10 +210,10 @@ static void float_normalize(Float *value) {
         return;
     }
 
-    while (MISRA_PRIV_IntModU64(&value->significand, 10) == 0) {
+    while (IntModU64(&value->significand, 10) == 0) {
         Int quotient = IntInit(value->significand.bits.allocator);
 
-        (void)MISRA_PRIV_IntDivU64Rem(&quotient, &value->significand, 10);
+        (void)IntDivU64Rem(&quotient, &value->significand, 10);
         IntDeinit(&value->significand);
         value->significand = quotient;
         value->exponent    = float_add_i64_checked(value->exponent, 1);

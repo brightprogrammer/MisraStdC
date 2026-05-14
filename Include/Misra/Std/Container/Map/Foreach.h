@@ -18,12 +18,12 @@
     for (TYPE_OF(m) UNPL(pm) = (m); UNPL(pm); UNPL(pm) = NULL)                                                         \
         if ((ValidateMap(UNPL(pm)), 1) && UNPL(pm)->length > 0)                                                        \
             for (size UNPL(slot) = 0; UNPL(slot) < UNPL(pm)->capacity; UNPL(slot)++)                                   \
-                if (MISRA_PRIV_MapSlotOccupied(UNPL(pm), UNPL(slot)))                                                  \
+                if (map_slot_occupied(UNPL(pm), UNPL(slot)))                                                  \
                     for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                    \
-                        for (MAP_KEY_TYPE(UNPL(pm)) *key_ptr = MISRA_PRIV_MapKeyPtrAt(UNPL(pm), UNPL(slot));           \
+                        for (MAP_KEY_TYPE(UNPL(pm)) *key_ptr = map_key_ptr_at(UNPL(pm), UNPL(slot));           \
                              UNPL(_once);                                                                              \
                              UNPL(_once) = false)                                                                      \
-                            for (MAP_VALUE_TYPE(UNPL(pm)) *value_ptr = MISRA_PRIV_MapValuePtrAt(UNPL(pm), UNPL(slot)); \
+                            for (MAP_VALUE_TYPE(UNPL(pm)) *value_ptr = map_value_ptr_at(UNPL(pm), UNPL(slot)); \
                                  value_ptr;                                                                            \
                                  value_ptr = NULL)
 
@@ -36,12 +36,12 @@
     for (TYPE_OF(m) UNPL(pm) = (m); UNPL(pm); UNPL(pm) = NULL)                                                         \
         if ((ValidateMap(UNPL(pm)), 1) && UNPL(pm)->length > 0)                                                        \
             for (size UNPL(slot) = 0; UNPL(slot) < UNPL(pm)->capacity; UNPL(slot)++)                                   \
-                if (MISRA_PRIV_MapSlotOccupied(UNPL(pm), UNPL(slot)))                                                  \
+                if (map_slot_occupied(UNPL(pm), UNPL(slot)))                                                  \
                     for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                    \
-                        for (MAP_KEY_TYPE(UNPL(pm)) key_var = *MISRA_PRIV_MapKeyPtrAt(UNPL(pm), UNPL(slot));           \
+                        for (MAP_KEY_TYPE(UNPL(pm)) key_var = *map_key_ptr_at(UNPL(pm), UNPL(slot));           \
                              UNPL(_once);                                                                              \
                              UNPL(_once) = false)                                                                      \
-                            for (MAP_VALUE_TYPE(UNPL(pm)) value_var = *MISRA_PRIV_MapValuePtrAt(UNPL(pm), UNPL(slot)); \
+                            for (MAP_VALUE_TYPE(UNPL(pm)) value_var = *map_value_ptr_at(UNPL(pm), UNPL(slot)); \
                                  UNPL(_once);                                                                          \
                                  UNPL(_once) = false)
 
@@ -54,17 +54,17 @@
     for (TYPE_OF(m) UNPL(pm) = (m); UNPL(pm); UNPL(pm) = NULL)                                                         \
         if ((ValidateMap(UNPL(pm)), 1) && UNPL(pm)->length > 0)                                                        \
             for (size UNPL(slot) = 0; UNPL(slot) < UNPL(pm)->capacity; UNPL(slot)++)                                   \
-                if (MISRA_PRIV_MapSlotOccupied(UNPL(pm), UNPL(slot)) &&                                                \
+                if (map_slot_occupied(UNPL(pm), UNPL(slot)) &&                                                \
                     (map_find_index(                                                                                   \
                          GENERIC_MAP(UNPL(pm)),                                                                        \
-                         MISRA_PRIV_MapKeyPtrAt(UNPL(pm), UNPL(slot)),                                                 \
+                         map_key_ptr_at(UNPL(pm), UNPL(slot)),                                                 \
                          sizeof(MAP_ENTRY_TYPE(UNPL(pm))),                                                             \
                          offsetof(MAP_ENTRY_TYPE(UNPL(pm)), key),                                                      \
                          sizeof(MAP_KEY_TYPE(UNPL(pm))),                                                               \
                          offsetof(MAP_ENTRY_TYPE(UNPL(pm)), hash)                                                      \
                      ) == UNPL(slot)))                                                                                 \
                     for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                    \
-                        for (MAP_KEY_TYPE(UNPL(pm)) key_var = *MISRA_PRIV_MapKeyPtrAt(UNPL(pm), UNPL(slot));           \
+                        for (MAP_KEY_TYPE(UNPL(pm)) key_var = *map_key_ptr_at(UNPL(pm), UNPL(slot));           \
                              UNPL(_once);                                                                              \
                              UNPL(_once) = false)
 
@@ -77,9 +77,9 @@
     for (TYPE_OF(m) UNPL(pm) = (m); UNPL(pm); UNPL(pm) = NULL)                                                         \
         if ((ValidateMap(UNPL(pm)), 1) && UNPL(pm)->length > 0)                                                        \
             for (size UNPL(slot) = 0; UNPL(slot) < UNPL(pm)->capacity; UNPL(slot)++)                                   \
-                if (MISRA_PRIV_MapSlotOccupied(UNPL(pm), UNPL(slot)))                                                  \
+                if (map_slot_occupied(UNPL(pm), UNPL(slot)))                                                  \
                     for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                    \
-                        for (MAP_VALUE_TYPE(UNPL(pm)) value_var = *MISRA_PRIV_MapValuePtrAt(UNPL(pm), UNPL(slot));     \
+                        for (MAP_VALUE_TYPE(UNPL(pm)) value_var = *map_value_ptr_at(UNPL(pm), UNPL(slot));     \
                              UNPL(_once);                                                                              \
                              UNPL(_once) = false)
 
@@ -92,9 +92,9 @@
     for (TYPE_OF(m) UNPL(pm) = (m); UNPL(pm); UNPL(pm) = NULL)                                                         \
         if ((ValidateMap(UNPL(pm)), 1) && UNPL(pm)->length > 0)                                                        \
             for (size UNPL(slot) = 0; UNPL(slot) < UNPL(pm)->capacity; UNPL(slot)++)                                   \
-                if (MISRA_PRIV_MapSlotOccupied(UNPL(pm), UNPL(slot)))                                                  \
+                if (map_slot_occupied(UNPL(pm), UNPL(slot)))                                                  \
                     for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                                    \
-                        for (MAP_VALUE_TYPE(UNPL(pm)) *value_ptr = MISRA_PRIV_MapValuePtrAt(UNPL(pm), UNPL(slot));     \
+                        for (MAP_VALUE_TYPE(UNPL(pm)) *value_ptr = map_value_ptr_at(UNPL(pm), UNPL(slot));     \
                              UNPL(_once);                                                                              \
                              UNPL(_once) = false)
 
@@ -109,12 +109,12 @@
             for (bool UNPL(_key_once) = true; UNPL(_key_once); UNPL(_key_once) = false)                                \
                 for (MAP_KEY_TYPE(UNPL(pm)) UNPL(find_key) = (lookup_key); UNPL(_key_once); UNPL(_key_once) = false)   \
                     for (size UNPL(slot) = 0; UNPL(slot) < UNPL(pm)->capacity; UNPL(slot)++)                           \
-                        if (MISRA_PRIV_MapSlotOccupied(UNPL(pm), UNPL(slot)) &&                                        \
-                            (UNPL(pm)->key_compare(MISRA_PRIV_MapKeyPtrAt(UNPL(pm), UNPL(slot)), &UNPL(find_key)) ==   \
+                        if (map_slot_occupied(UNPL(pm), UNPL(slot)) &&                                        \
+                            (UNPL(pm)->key_compare(map_key_ptr_at(UNPL(pm), UNPL(slot)), &UNPL(find_key)) ==   \
                              0))                                                                                       \
                             for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                            \
                                 for (MAP_VALUE_TYPE(UNPL(pm))                                                          \
-                                         value_var = *MISRA_PRIV_MapValuePtrAt(UNPL(pm), UNPL(slot));                  \
+                                         value_var = *map_value_ptr_at(UNPL(pm), UNPL(slot));                  \
                                      UNPL(_once);                                                                      \
                                      UNPL(_once) = false)
 
@@ -129,12 +129,12 @@
             for (bool UNPL(_key_once) = true; UNPL(_key_once); UNPL(_key_once) = false)                                \
                 for (MAP_KEY_TYPE(UNPL(pm)) UNPL(find_key) = (lookup_key); UNPL(_key_once); UNPL(_key_once) = false)   \
                     for (size UNPL(slot) = 0; UNPL(slot) < UNPL(pm)->capacity; UNPL(slot)++)                           \
-                        if (MISRA_PRIV_MapSlotOccupied(UNPL(pm), UNPL(slot)) &&                                        \
-                            (UNPL(pm)->key_compare(MISRA_PRIV_MapKeyPtrAt(UNPL(pm), UNPL(slot)), &UNPL(find_key)) ==   \
+                        if (map_slot_occupied(UNPL(pm), UNPL(slot)) &&                                        \
+                            (UNPL(pm)->key_compare(map_key_ptr_at(UNPL(pm), UNPL(slot)), &UNPL(find_key)) ==   \
                              0))                                                                                       \
                             for (bool UNPL(_once) = true; UNPL(_once); UNPL(_once) = false)                            \
                                 for (MAP_VALUE_TYPE(UNPL(pm)) *value_ptr =                                             \
-                                         MISRA_PRIV_MapValuePtrAt(UNPL(pm), UNPL(slot));                               \
+                                         map_value_ptr_at(UNPL(pm), UNPL(slot));                               \
                                      UNPL(_once);                                                                      \
                                      UNPL(_once) = false)
 

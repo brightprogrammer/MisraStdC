@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #ifndef __cplusplus
-#    define MISRA_INT_FROM_DISPATCH(value)                                                                             \
+#    define INT_FROM_DISPATCH(value)                                                                             \
         _Generic(                                                                                                      \
             (value),                                                                                                   \
             unsigned char: IntFromU64,                                                                                 \
@@ -45,7 +45,7 @@ extern "C" {
 ///
 /// TAGS: Int, Convert, Import, Generic
 ///
-#    define IntFrom(value) MISRA_INT_FROM_DISPATCH(value)(value)
+#    define IntFrom(value) INT_FROM_DISPATCH(value)(value)
 #endif
 
 ///
@@ -204,11 +204,11 @@ Str IntToHexStr(Int *value);
 }
 #endif
 
-static inline u64 MISRA_PRIV_IntToU64NoError(Int *value) {
+static inline u64 IntToU64NoError(Int *value) {
     return IntToU64WithError(value, NULL);
 }
 
-#define MISRA_PRIV_INT_TO_U64_SELECT(_1, _2, NAME, ...) NAME
-#define IntToU64(...) MISRA_PRIV_INT_TO_U64_SELECT(__VA_ARGS__, IntToU64WithError, MISRA_PRIV_IntToU64NoError)(__VA_ARGS__)
+#define INT_TO_U64_SELECT(_1, _2, NAME, ...) NAME
+#define IntToU64(...) INT_TO_U64_SELECT(__VA_ARGS__, IntToU64WithError, IntToU64NoError)(__VA_ARGS__)
 
 #endif // MISRA_STD_CONTAINER_INT_CONVERT_H

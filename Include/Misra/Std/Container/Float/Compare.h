@@ -29,7 +29,7 @@ extern "C" {
 int FloatCompareWithError(Float *lhs, Float *rhs, bool *error);
 int (FloatCompare)(Float *lhs, Float *rhs);
 #ifndef __cplusplus
-#    define MISRA_FLOAT_COMPARE_DISPATCH(rhs)                                                                          \
+#    define FLOAT_COMPARE_DISPATCH(rhs)                                                                          \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Float *: FloatCompare,                                                                                     \
@@ -47,7 +47,7 @@ int (FloatCompare)(Float *lhs, Float *rhs);
             float: FloatCompareF32,                                                                                    \
             double: FloatCompareF64                                                                                    \
         )
-#    define MISRA_FLOAT_COMPARE_WITH_ERROR_DISPATCH(rhs)                                                               \
+#    define FLOAT_COMPARE_WITH_ERROR_DISPATCH(rhs)                                                               \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Float *: FloatCompareWithError,                                                                            \
@@ -65,7 +65,7 @@ int (FloatCompare)(Float *lhs, Float *rhs);
             float: FloatCompareF32WithError,                                                                           \
             double: FloatCompareF64WithError                                                                           \
         )
-#    define MISRA_FLOAT_COMPARE_SELECT(_1, _2, _3, NAME, ...) NAME
+#    define FLOAT_COMPARE_SELECT(_1, _2, _3, NAME, ...) NAME
 
 ///
 /// Compare a float against another numeric value.
@@ -83,9 +83,9 @@ int (FloatCompare)(Float *lhs, Float *rhs);
 ///
 /// TAGS: Float, Compare, Ordering, Generic
 ///
-#    define FloatCompare(...) MISRA_FLOAT_COMPARE_SELECT(__VA_ARGS__, FloatCompare_3, FloatCompare_2)(__VA_ARGS__)
-#    define FloatCompare_2(lhs, rhs) MISRA_FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs))
-#    define FloatCompare_3(lhs, rhs, error) MISRA_FLOAT_COMPARE_WITH_ERROR_DISPATCH(rhs)((lhs), (rhs), (error))
+#    define FloatCompare(...) FLOAT_COMPARE_SELECT(__VA_ARGS__, FloatCompare_3, FloatCompare_2)(__VA_ARGS__)
+#    define FloatCompare_2(lhs, rhs) FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs))
+#    define FloatCompare_3(lhs, rhs, error) FLOAT_COMPARE_WITH_ERROR_DISPATCH(rhs)((lhs), (rhs), (error))
 
 ///
 /// Test whether two numeric values compare equal.
@@ -100,7 +100,7 @@ int (FloatCompare)(Float *lhs, Float *rhs);
 ///
 /// TAGS: Float, Compare, Equal, Generic
 ///
-#    define FloatEQ(lhs, rhs) (MISRA_FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) == 0)
+#    define FloatEQ(lhs, rhs) (FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) == 0)
 ///
 /// Test whether `lhs` is strictly less than `rhs`.
 ///
@@ -114,7 +114,7 @@ int (FloatCompare)(Float *lhs, Float *rhs);
 ///
 /// TAGS: Float, Compare, LessThan, Generic
 ///
-#    define FloatLT(lhs, rhs) (MISRA_FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) < 0)
+#    define FloatLT(lhs, rhs) (FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) < 0)
 ///
 /// Test whether `lhs` is less than or equal to `rhs`.
 ///
@@ -128,7 +128,7 @@ int (FloatCompare)(Float *lhs, Float *rhs);
 ///
 /// TAGS: Float, Compare, LessEqual, Generic
 ///
-#    define FloatLE(lhs, rhs) (MISRA_FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) <= 0)
+#    define FloatLE(lhs, rhs) (FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) <= 0)
 ///
 /// Test whether `lhs` is strictly greater than `rhs`.
 ///
@@ -142,7 +142,7 @@ int (FloatCompare)(Float *lhs, Float *rhs);
 ///
 /// TAGS: Float, Compare, GreaterThan, Generic
 ///
-#    define FloatGT(lhs, rhs) (MISRA_FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) > 0)
+#    define FloatGT(lhs, rhs) (FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) > 0)
 ///
 /// Test whether `lhs` is greater than or equal to `rhs`.
 ///
@@ -156,7 +156,7 @@ int (FloatCompare)(Float *lhs, Float *rhs);
 ///
 /// TAGS: Float, Compare, GreaterEqual, Generic
 ///
-#    define FloatGE(lhs, rhs) (MISRA_FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) >= 0)
+#    define FloatGE(lhs, rhs) (FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) >= 0)
 ///
 /// Test whether two numeric values differ.
 ///
@@ -170,7 +170,7 @@ int (FloatCompare)(Float *lhs, Float *rhs);
 ///
 /// TAGS: Float, Compare, NotEqual, Generic
 ///
-#    define FloatNE(lhs, rhs) (MISRA_FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) != 0)
+#    define FloatNE(lhs, rhs) (FLOAT_COMPARE_DISPATCH(rhs)((lhs), (rhs)) != 0)
 #endif
 
 #ifdef __cplusplus

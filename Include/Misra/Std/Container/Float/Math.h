@@ -94,7 +94,7 @@ bool (FloatMul)(Float *result, Float *a, Float *b);
 ///
 bool (FloatDiv)(Float *result, Float *a, Float *b, u64 precision);
 #ifndef __cplusplus
-#    define MISRA_FLOAT_ADD_DISPATCH(rhs)                                                                              \
+#    define FLOAT_ADD_DISPATCH(rhs)                                                                              \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Float *: FloatAdd,                                                                                         \
@@ -113,7 +113,7 @@ bool (FloatDiv)(Float *result, Float *a, Float *b, u64 precision);
             double: FloatAddF64                                                                                        \
         )
 
-#    define MISRA_FLOAT_SUB_DISPATCH(rhs)                                                                              \
+#    define FLOAT_SUB_DISPATCH(rhs)                                                                              \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Float *: FloatSub,                                                                                         \
@@ -132,7 +132,7 @@ bool (FloatDiv)(Float *result, Float *a, Float *b, u64 precision);
             double: FloatSubF64                                                                                        \
         )
 
-#    define MISRA_FLOAT_MUL_DISPATCH(rhs)                                                                              \
+#    define FLOAT_MUL_DISPATCH(rhs)                                                                              \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Float *: FloatMul,                                                                                         \
@@ -151,7 +151,7 @@ bool (FloatDiv)(Float *result, Float *a, Float *b, u64 precision);
             double: FloatMulF64                                                                                        \
         )
 
-#    define MISRA_FLOAT_DIV_DISPATCH(rhs)                                                                              \
+#    define FLOAT_DIV_DISPATCH(rhs)                                                                              \
         _Generic(                                                                                                      \
             (rhs),                                                                                                     \
             Float *: FloatDiv,                                                                                         \
@@ -182,7 +182,7 @@ bool (FloatDiv)(Float *result, Float *a, Float *b, u64 precision);
 ///
 /// TAGS: Float, Math, Add, Generic
 ///
-#    define FloatAdd(result, a, b) MISRA_FLOAT_ADD_DISPATCH(b)((result), (a), (b))
+#    define FloatAdd(result, a, b) FLOAT_ADD_DISPATCH(b)((result), (a), (b))
 ///
 /// Generic subtraction convenience macro for `Float`.
 ///
@@ -195,7 +195,7 @@ bool (FloatDiv)(Float *result, Float *a, Float *b, u64 precision);
 ///
 /// TAGS: Float, Math, Subtract, Generic
 ///
-#    define FloatSub(result, a, b) MISRA_FLOAT_SUB_DISPATCH(b)((result), (a), (b))
+#    define FloatSub(result, a, b) FLOAT_SUB_DISPATCH(b)((result), (a), (b))
 ///
 /// Generic multiplication convenience macro for `Float`.
 ///
@@ -208,7 +208,7 @@ bool (FloatDiv)(Float *result, Float *a, Float *b, u64 precision);
 ///
 /// TAGS: Float, Math, Multiply, Generic
 ///
-#    define FloatMul(result, a, b) MISRA_FLOAT_MUL_DISPATCH(b)((result), (a), (b))
+#    define FloatMul(result, a, b) FLOAT_MUL_DISPATCH(b)((result), (a), (b))
 ///
 /// Generic division convenience macro for `Float`.
 ///
@@ -222,7 +222,7 @@ bool (FloatDiv)(Float *result, Float *a, Float *b, u64 precision);
 ///
 /// TAGS: Float, Math, Divide, Generic
 ///
-#    define FloatDiv(result, a, b, precision) MISRA_FLOAT_DIV_DISPATCH(b)((result), (a), (b), (precision))
+#    define FloatDiv(result, a, b, precision) FLOAT_DIV_DISPATCH(b)((result), (a), (b), (precision))
 #endif
 
 #ifdef __cplusplus

@@ -45,8 +45,8 @@ extern "C" {
     bool IntModI64Into(Int *result, Int *dividend, i64 divisor);
     bool IntDivModU64(Int *quotient, Int *remainder, Int *dividend, u64 divisor);
     bool IntDivModI64(Int *quotient, Int *remainder, Int *dividend, i64 divisor);
-    u64  MISRA_PRIV_IntDivU64Rem(Int *quotient, Int *dividend, u64 divisor);
-    u64  MISRA_PRIV_IntModU64(Int *value, u64 modulus);
+    u64  IntDivU64Rem(Int *quotient, Int *dividend, u64 divisor);
+    u64  IntModU64(Int *value, u64 modulus);
 
 #ifdef __cplusplus
 }

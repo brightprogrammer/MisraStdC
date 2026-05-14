@@ -13,12 +13,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum {
-    MAP_SLOT_EMPTY     = 0,
-    MAP_SLOT_OCCUPIED  = 1,
-    MAP_SLOT_TOMBSTONE = 2,
-};
-
 static inline size map_storage_alignment(void) {
     return _Alignof(max_align_t);
 }
