@@ -17,7 +17,7 @@
 
 static Str *string_va_printf(Str *str, const char *fmt, va_list args);
 
-bool StrTryInitFromCstrAlloc(Str *out, const char *cstr, size len, Allocator *alloc) {
+bool StrTryInitFromCstr(Str *out, const char *cstr, size len, Allocator *alloc) {
     if (!out || !cstr) {
         LOG_FATAL("Invalid arguments");
     }
@@ -37,10 +37,10 @@ bool StrTryInitFromCstrAlloc(Str *out, const char *cstr, size len, Allocator *al
     return true;
 }
 
-Str StrInitFromCstrAlloc(const char *cstr, size len, Allocator *alloc) {
+Str StrInitFromCstr(const char *cstr, size len, Allocator *alloc) {
     Str result = StrInit(alloc);
 
-    if (!StrTryInitFromCstrAlloc(&result, cstr, len, alloc)) {
+    if (!StrTryInitFromCstr(&result, cstr, len, alloc)) {
         return result;
     }
 
@@ -180,12 +180,12 @@ Strs StrSplit(Str *s, const char *key) {
         while (prev <= end) {
             const char *next = ZstrFindSubstring(prev, key);
             if (next) {
-                Str tmp = StrInitFromCstrAlloc(prev, next - prev, s->allocator);
+                Str tmp = StrInitFromCstr(prev, next - prev, s->allocator);
                 VecPushBack(&sv, tmp);
                 prev = next + keylen;
             } else {
                 if (ZstrCompareN(prev, key, end - prev)) {
-                    Str tmp = StrInitFromCstrAlloc(prev, end - prev, s->allocator);
+                    Str tmp = StrInitFromCstr(prev, end - prev, s->allocator);
                     VecPushBack(&sv, tmp);
                 }
                 break;
@@ -301,7 +301,7 @@ Str strip_str(Str *s, const char *chars_to_strip, int split_direction) {
     }
 
     size new_len = end >= start ? (end - start + 1) : 0;
-    return StrInitFromCstrAlloc(start, new_len, s->allocator);
+    return StrInitFromCstr(start, new_len, s->allocator);
 }
 
 static inline bool starts_with(const char *data, size data_len, const char *prefix, size prefix_len) {

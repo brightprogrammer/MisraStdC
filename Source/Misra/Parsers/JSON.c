@@ -1,4 +1,5 @@
 #include <Misra/Parsers/JSON.h>
+#include <Misra/Std/Allocator/Default.h>
 
 // libc
 #include <stdlib.h>
@@ -22,6 +23,10 @@ static StrIter JSkipObject(StrIter si) {
     StrIter read_si;
     bool    expect_comma = false;
 
+    // scratch allocator for the per-iteration `key` Str. Lives across the
+    // whole loop; freed before every return below.
+    DefaultAllocator scratch = DefaultAllocatorInit();
+
     // while not at the end of object.
     while (StrIterPeek(&si) && StrIterPeek(&si) != '}') {
         if (expect_comma) {
@@ -30,19 +35,21 @@ static StrIter JSkipObject(StrIter si) {
                     "Expected ',' between key/value pairs in object. Invalid "
                     "JSON object."
                 );
+                DefaultAllocatorDeinit(&scratch);
                 return saved_si;
             }
             StrIterNext(&si); // skip comma
             si = JSkipWhitespace(si);
         }
 
-        Str key = StrInit();
+        Str key = StrInit(&scratch.base);
 
         // key start
         read_si = JReadString(si, &key);
         if (read_si.pos == si.pos) {
             LOG_ERROR("Failed to read string key in object. Invalid JSON");
             StrDeinit(&key);
+            DefaultAllocatorDeinit(&scratch);
             return saved_si;
         }
         si = read_si;
@@ -51,6 +58,7 @@ static StrIter JSkipObject(StrIter si) {
         if (StrIterPeek(&si) != ':') {
             LOG_ERROR("Expected ':' after key string. Failed to read JSON");
             StrDeinit(&key);
+            DefaultAllocatorDeinit(&scratch);
             return saved_si;
         }
         StrIterNext(&si);
@@ -63,6 +71,7 @@ static StrIter JSkipObject(StrIter si) {
         if (read_si.pos == si.pos) {
             LOG_ERROR("Failed to parse value. Invalid JSON.");
             StrDeinit(&key);
+            DefaultAllocatorDeinit(&scratch);
             return saved_si;
         }
 
@@ -79,10 +88,12 @@ static StrIter JSkipObject(StrIter si) {
     char c = StrIterPeek(&si);
     if (c != '}') {
         LOG_ERROR("Expected end of object '}' but found '{c}'", c);
+        DefaultAllocatorDeinit(&scratch);
         return saved_si;
     }
 
     StrIterNext(&si);
+    DefaultAllocatorDeinit(&scratch);
     return si;
 }
 
@@ -283,7 +294,9 @@ StrIter JReadNumber(StrIter si, Number *num) {
 
     StrIter saved_si = si;
     si               = JSkipWhitespace(si);
-    Str ns           = StrInit();
+    // scratch allocator for the digit-accumulator Str `ns`.
+    DefaultAllocator scratch = DefaultAllocatorInit();
+    Str ns                   = StrInit(&scratch.base);
 
     bool is_neg = false;
     if (StrIterPeek(&si) == '-') {
@@ -303,6 +316,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
                 if (has_exp) {
                     LOG_ERROR("Invalid number. Multiple exponent indicators.");
                     StrDeinit(&ns);
+                    DefaultAllocatorDeinit(&scratch);
                     return saved_si;
                 }
                 has_exp = true;
@@ -315,6 +329,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
                 if (is_flt) {
                     LOG_ERROR("Invalid number. Multiple decimal indicators.");
                     StrDeinit(&ns);
+                    DefaultAllocatorDeinit(&scratch);
                     return saved_si;
                 }
                 is_flt = true;
@@ -345,6 +360,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
                         "must appear after exponent 'E' or 'e' indicator."
                     );
                     StrDeinit(&ns);
+                    DefaultAllocatorDeinit(&scratch);
                     return saved_si;
                 }
                 if (has_exp_plus_minus) {
@@ -353,6 +369,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
                         "Expected only once after 'e' or 'E'."
                     );
                     StrDeinit(&ns);
+                    DefaultAllocatorDeinit(&scratch);
                     return saved_si;
                 }
                 has_exp_plus_minus = true;
@@ -369,6 +386,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
     if (!ns.length) {
         LOG_ERROR("Failed to parse number. '{.8}'", LVAL(saved_si.data + saved_si.pos));
         StrDeinit(&ns);
+        DefaultAllocatorDeinit(&scratch);
         return saved_si;
     }
 
@@ -382,6 +400,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
     if (end == ns.data) {
         LOG_ERROR("Failed to convert string to number.");
         StrDeinit(&ns);
+        DefaultAllocatorDeinit(&scratch);
         return saved_si;
     }
 
@@ -396,6 +415,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
     num->is_float = is_flt;
 
     StrDeinit(&ns);
+    DefaultAllocatorDeinit(&scratch);
     return si;
 }
 
@@ -586,10 +606,12 @@ StrIter JSkipValue(StrIter si) {
 
     // expecting a string
     if (StrIterPeek(&si) == '"') {
-        StrIter before_si = si;
-        Str     s         = StrInit();
-        si                = JReadString(si, &s);
+        StrIter          before_si = si;
+        DefaultAllocator scratch   = DefaultAllocatorInit();
+        Str              s         = StrInit(&scratch.base);
+        si                         = JReadString(si, &s);
         StrDeinit(&s);
+        DefaultAllocatorDeinit(&scratch);
 
         if (si.pos == before_si.pos) {
             LOG_ERROR("Failed to read string value. Expected string. Invalid JSON.");

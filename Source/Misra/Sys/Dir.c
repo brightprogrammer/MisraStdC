@@ -70,12 +70,12 @@ SysDirEntry *SysDirEntryDeinitCopy(SysDirEntry *copy) {
 
 #ifdef _WIN32
 // Windows-specific implementation using FindFirstFile/FindNextFile
-SysDirContents SysGetDirContents(const char *path) {
-    if (!path) {
+SysDirContents SysGetDirContents(const char *path, Allocator *alloc) {
+    if (!path || !alloc) {
         LOG_FATAL("Invalid argument");
     }
 
-    SysDirContents dc = VecInit();
+    SysDirContents dc = (SysDirContents)VecInit(alloc);
 
     // Construct the search path with a wildcard
     char search_path[MAX_PATH];
@@ -85,7 +85,7 @@ SysDirContents SysGetDirContents(const char *path) {
     HANDLE          hFind = FindFirstFile(search_path, &findFileData);
 
     if (hFind == INVALID_HANDLE_VALUE) {
-        return (SysDirContents) {0};
+        return dc;
     }
 
     do {
@@ -106,7 +106,7 @@ SysDirContents SysGetDirContents(const char *path) {
             direntry.type = SYS_DIR_ENTRY_TYPE_UNKNOWN;
         }
 
-        direntry.name = StrInitFromZstr(findFileData.cFileName); // Copy file name
+        direntry.name = StrInitFromCstr(findFileData.cFileName, ZstrLen(findFileData.cFileName), alloc);
         VecPushBack(&dc, direntry);
     } while (FindNextFile(hFind, &findFileData) != 0);
 
@@ -116,17 +116,17 @@ SysDirContents SysGetDirContents(const char *path) {
 }
 #else
 // APPLE or Unix based system implementation using opendir/readdir
-SysDirContents SysGetDirContents(const char *path) {
-    if (!path) {
+SysDirContents SysGetDirContents(const char *path, Allocator *alloc) {
+    if (!path || !alloc) {
         LOG_FATAL("invalid arguments.");
     }
 
-    SysDirContents dc = VecInit();
+    SysDirContents dc = (SysDirContents)VecInit(alloc);
 
     DIR *dir = opendir(path);
     if (NULL == dir) {
         LOG_SYS_ERROR("opendir(\"{}\") failed", path);
-        return (SysDirContents) {0};
+        return dc;
     }
 
     // Get value at specific index in name of directory entry
@@ -147,7 +147,7 @@ SysDirContents SysGetDirContents(const char *path) {
         } else if ('.' == DNAME_AT(0) && '.' == DNAME_AT(1) && 0 == DNAME_AT(2)) {
             continue;
         } else {
-            Str         entry_path = StrInit();
+            Str         entry_path = StrInit(alloc);
             const char *dir_name   = &entry->d_name[0];
             StrWriteFmt(&entry_path, "{}/{}", path, dir_name);
 
@@ -172,7 +172,7 @@ SysDirContents SysGetDirContents(const char *path) {
             } else {
                 direntry.type = SYS_DIR_ENTRY_TYPE_UNKNOWN;
             }
-            direntry.name = StrInitFromCstr(entry->d_name, NAMELEN(entry));
+            direntry.name = StrInitFromCstr(entry->d_name, NAMELEN(entry), alloc);
             VecPushBack(&dc, direntry);
         }
     }

@@ -406,7 +406,7 @@ Str *KvConfigGetPtr(KvConfig *cfg, const char *key) {
         return NULL;
     }
 
-    lookup = StrInitFromCstrAlloc(key, ZstrLen(key), cfg->allocator);
+    lookup = StrInitFromCstr(key, ZstrLen(key), cfg->allocator);
     value  = map_get_value_ptr(
         GENERIC_MAP(cfg),
         &lookup,
@@ -427,7 +427,7 @@ Str KvConfigGet(KvConfig *cfg, const char *key) {
         return StrInit(cfg->allocator);
     }
 
-    return StrInitFromCstrAlloc(value->data, value->length, cfg->allocator);
+    return StrInitFromCstr(value->data, value->length, cfg->allocator);
 }
 
 bool KvConfigContains(KvConfig *cfg, const char *key) {

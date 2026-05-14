@@ -45,7 +45,7 @@ void LogInit(bool redirect, Allocator *alloc) {
 #endif
         DefaultAllocator err_alloc = DefaultAllocatorInit();
         Str              syserr;
-        StrInitStack(syserr, &err_alloc, SYS_ERROR_STR_MAX_LENGTH, {
+        StrInitStack(syserr, &err_alloc.base, SYS_ERROR_STR_MAX_LENGTH, {
             SysStrError(errno, &syserr);
             LOG_ERROR("Failed to get localtime : {}", syserr);
         });
@@ -57,8 +57,8 @@ void LogInit(bool redirect, Allocator *alloc) {
     strftime(time_buffer, sizeof(time_buffer), "%Y-%m-%d-%H-%M-%S", &time_info);
 
     DefaultAllocator init_alloc = DefaultAllocatorInit();
-    Str              log_dir    = StrInit(&init_alloc);
-    Str              file_name  = StrInit(&init_alloc);
+    Str              log_dir    = StrInit(&init_alloc.base);
+    Str              file_name  = StrInit(&init_alloc.base);
     bool             redirected = false;
 
     if (SysGetEnv("TMP", &log_dir) || SysGetEnv("TEMP", &log_dir) || SysGetEnv("TMPDIR", &log_dir) ||

@@ -66,7 +66,10 @@ struct SysProc {
 #define READ_END  0
 #define WRITE_END 1
 
-SysProc *SysProcCreate(const char *filepath, char **argv, char **envp) {
+SysProc *SysProcCreate(const char *filepath, char **argv, char **envp, Allocator *alloc) {
+    if (!alloc) {
+        LOG_FATAL("SysProcCreate requires an allocator");
+    }
 #if defined(__APPLE__) || defined(__linux__)
     int stdin_pipe[2]  = {-1};
     int stdout_pipe[2] = {-1};
@@ -141,8 +144,7 @@ SysProc *SysProcCreate(const char *filepath, char **argv, char **envp) {
     close(stdout_pipe[WRITE_END]);
     close(stderr_pipe[WRITE_END]);
 
-    Allocator *allocator = DefaultAllocator();
-    SysProc  *proc      = (SysProc *)AllocatorAlloc(&allocator, sizeof(SysProc), true);
+    SysProc *proc = (SysProc *)AllocatorAlloc(alloc, sizeof(SysProc), true);
 
     if (!proc) {
         close(stdin_pipe[WRITE_END]);
@@ -198,7 +200,7 @@ SysProc *SysProcCreate(const char *filepath, char **argv, char **envp) {
     PROCESS_INFORMATION pi = {0};
 
     // Build command line
-    Str cmdline = StrInit();
+    Str cmdline = StrInit(alloc);
     StrPushBackZstr(&cmdline, filepath);
     for (char **arg = argv + 1; *arg; ++arg) {
         StrPushBack(&cmdline, ' ');
@@ -224,8 +226,7 @@ SysProc *SysProcCreate(const char *filepath, char **argv, char **envp) {
     CloseHandle(hStdoutWrite); // parent won't write to child's stdout, will read from it
     CloseHandle(hStderrWrite); // parent won't write to child's stderr, will read from it
 
-    Allocator *allocator = DefaultAllocator();
-    SysProc  *proc      = (SysProc *)AllocatorAlloc(&allocator, sizeof(SysProc), true);
+    SysProc *proc = (SysProc *)AllocatorAlloc(alloc, sizeof(SysProc), true);
 
     if (!proc) {
         CloseHandle(hStdinWrite);
@@ -415,11 +416,12 @@ void SysProcTerminate(SysProc *proc) {
 }
 
 
-void SysProcDestroy(SysProc *proc) {
-    Allocator *allocator = DefaultAllocator();
-
+void SysProcDestroy(SysProc *proc, Allocator *alloc) {
     if (!proc) {
         LOG_FATAL("Invalid argument");
+    }
+    if (!alloc) {
+        LOG_FATAL("SysProcDestroy requires the allocator that created the handle");
     }
     SysProcTerminate(proc);
 #if defined(__APPLE__) || defined(__linux__)
@@ -433,7 +435,7 @@ void SysProcDestroy(SysProc *proc) {
     CloseHandle(proc->pi.hThread);
     CloseHandle(proc->pi.hProcess);
 #endif
-    AllocatorFree(&allocator, proc, sizeof(SysProc));
+    AllocatorFree(alloc, proc, sizeof(SysProc));
 }
 
 i32 SysProcWriteToStdin(SysProc *proc, Str *buf) {
@@ -608,9 +610,8 @@ SysProcId SysGetCurrentProcessId(void) {
 }
 
 Str *SysGetCurrentExecutablePath(Str *exe_path) {
-    if (!exe_path) {
-        LOG_FATAL("Invalid arguments: exe_path is NULL");
-    }
+    ValidateStr(exe_path);
+    Allocator *alloc = exe_path->allocator;
 
 #ifdef _WIN32
     char  buffer[MAX_PATH];
@@ -619,7 +620,7 @@ Str *SysGetCurrentExecutablePath(Str *exe_path) {
         LOG_ERROR("Failed to get executable path or buffer too small");
         return NULL;
     }
-    *exe_path = StrInitFromZstr(buffer);
+    *exe_path = StrInitFromCstr(buffer, ZstrLen(buffer), alloc);
     return exe_path;
 #else
     char buffer[4096]; // Large buffer for Unix paths
@@ -628,7 +629,7 @@ Str *SysGetCurrentExecutablePath(Str *exe_path) {
     ssize_t len = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
     if (len != -1) {
         buffer[len] = '\0';
-        *exe_path   = StrInitFromZstr(buffer);
+        *exe_path   = StrInitFromCstr(buffer, ZstrLen(buffer), alloc);
         return exe_path;
     }
 
@@ -637,7 +638,7 @@ Str *SysGetCurrentExecutablePath(Str *exe_path) {
     // macOS specific method
     u32 bsize = sizeof(buffer);
     if (_NSGetExecutablePath(buffer, &bsize) == 0) {
-        *exe_path = StrInitFromZstr(buffer);
+        *exe_path = StrInitFromCstr(buffer, ZstrLen(buffer), alloc);
         return exe_path;
     }
 #    endif

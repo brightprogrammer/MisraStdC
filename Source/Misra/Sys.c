@@ -59,7 +59,7 @@ Str *SysGetEnv(const char *name, Str *value) {
 #else
     char *env_var = getenv(name);
     if (env_var) {
-        *value = StrInitFromCstrAlloc(env_var, ZstrLen(env_var), alloc);
+        *value = StrInitFromCstr(env_var, ZstrLen(env_var), alloc);
         return value;
     }
     return NULL;
@@ -75,7 +75,7 @@ Str *SysStrError(i32 eno, Str *err_str) {
 #else
     strerror_r(eno, buf, 1023);
 #endif
-    *err_str = StrInitFromCstrAlloc(buf, ZstrLen(buf), alloc);
+    *err_str = StrInitFromCstr(buf, ZstrLen(buf), alloc);
     return err_str;
 }
 
