@@ -14,6 +14,9 @@
 ///
 /// m[in] : Hash map.
 ///
+/// SUCCESS : Returns `true` when the map length is 0. The map is not modified.
+/// FAILURE : Returns `false` when the map contains at least one entry.
+///
 #define MapEmpty(m) (MapPairCount(m) == 0)
 
 ///
@@ -21,6 +24,12 @@
 ///
 /// lhs[in,out] : First map.
 /// rhs[in,out] : Second map.
+///
+/// SUCCESS : Returns to the caller. Storage, callbacks, policy, and
+///           allocator of `lhs` and `rhs` have been exchanged byte-for-byte;
+///           neither map's contents are touched.
+/// FAILURE : Function cannot fail. Validation of either argument is a
+///           caller bug and aborts via `LOG_FATAL`.
 ///
 #define MapSwap(lhs, rhs)                                                                                              \
     do {                                                                                                               \
@@ -36,9 +45,15 @@
 ///
 /// m[in,out]         : Map.
 /// predicate_fn[in]  : Callback returning `true` for entries to keep.
-/// ctx[in,out]       : Optional user context passed to the predicate.
+/// ctx_ptr[in,out]   : Optional user context passed to the predicate.
 ///
-/// SUCCESS : Number of removed pairs.
+/// SUCCESS : Returns the count of removed entries (may be 0). Every entry
+///           for which the predicate returned `false` has been removed,
+///           its slot turned into a tombstone, and `key_copy_deinit` /
+///           `value_copy_deinit` (if configured) invoked. Map length
+///           shrinks by the returned count.
+/// FAILURE : Function cannot fail. A NULL `predicate_fn` is a caller bug
+///           and aborts via `LOG_FATAL`.
 ///
 #define MapRetainIf(m, predicate_fn, ctx_ptr)                                                                          \
     map_retain_if(                                                                                                     \

@@ -335,6 +335,15 @@
 ///
 /// m[in,out] : Pointer to `Map` to deinitialize.
 ///
+/// SUCCESS : Returns to the caller. The entries table and states table
+///           have been freed back to the map's allocator. `key_copy_deinit`
+///           and `value_copy_deinit` (if configured) have been invoked on
+///           every previously-occupied slot. Length, capacity, and
+///           tombstone count are reset; allocator binding is unbound. The
+///           map object can be safely re-initialized or discarded.
+/// FAILURE : Function cannot fail. A NULL `m` or invalid magic is a
+///           caller bug and aborts via `LOG_FATAL`.
+///
 /// TAGS: Map, Deinit, Memory
 ///
 #define MapDeinit(m)                                                                                                   \

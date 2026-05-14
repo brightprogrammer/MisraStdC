@@ -13,11 +13,15 @@
 ///
 /// Remove and destroy the first entry matching a key.
 ///
-/// m[in,out] : Map.
-/// key[in]   : Key to remove.
+/// m[in,out]      : Map.
+/// lookup_key[in] : Key to remove.
 ///
-/// SUCCESS : `true` if a value for the key existed and was removed.
-/// FAILURE : Returns `false`.
+/// SUCCESS : Returns `true`. The first matching entry has been removed; its
+///           slot is now a tombstone, and `key_copy_deinit` /
+///           `value_copy_deinit` (if configured) have been invoked on the
+///           removed key and value. Map length shrinks by one.
+/// FAILURE : Returns `false` when no entry exists for the key. The map is
+///           not modified.
 ///
 #define MapRemoveFirst(m, lookup_key)                                                                                  \
     map_remove(                                                                                                        \
@@ -34,11 +38,17 @@
 ///
 /// Remove and destroy the first matching key/value pair.
 ///
-/// m[in,out]               : Map.
-/// key[in]                 : Key to remove.
-/// value[in]               : Value to remove.
-/// SUCCESS : `true` if the pair existed and was removed.
-/// FAILURE : Returns `false`.
+/// m[in,out]        : Map.
+/// lookup_key[in]   : Key to remove.
+/// lookup_value[in] : Value to remove. Uses `value_compare` for equality.
+///
+/// SUCCESS : Returns `true`. The first matching (key, value) entry has been
+///           removed; its slot is now a tombstone, and `key_copy_deinit` /
+///           `value_copy_deinit` (if configured) have been invoked. Map
+///           length shrinks by one.
+/// FAILURE : Returns `false` when no matching pair exists. The map is not
+///           modified. A NULL `value_compare` is a caller bug and aborts
+///           via `LOG_FATAL`.
 ///
 #define MapRemovePair(m, lookup_key, lookup_value)                                                                     \
     map_remove_pair(                                                                                                   \
@@ -56,11 +66,14 @@
 ///
 /// Remove all entries matching a key.
 ///
-/// m[in,out] : Map.
-/// key[in]   : Key to delete.
+/// m[in,out]      : Map.
+/// lookup_key[in] : Key to delete.
 ///
-/// SUCCESS : Number of removed values.
-/// FAILURE : Returns `0`.
+/// SUCCESS : Returns the count of removed entries (> 0). Every matching
+///           slot is now a tombstone; `key_copy_deinit` / `value_copy_deinit`
+///           (if configured) have been invoked on each removed entry.
+///           Map length shrinks by the returned count.
+/// FAILURE : Returns `0` when no entry matches. The map is not modified.
 ///
 #define MapRemoveAll(m, lookup_key)                                                                                    \
     map_remove_all(                                                                                                    \
@@ -79,9 +92,15 @@
 ///
 /// m[in,out]         : Map.
 /// predicate_fn[in]  : Callback returning `true` for entries to remove.
-/// ctx[in,out]       : Optional user context passed to the predicate.
+/// ctx_ptr[in,out]   : Optional user context passed to the predicate.
 ///
-/// SUCCESS : Number of removed pairs.
+/// SUCCESS : Returns the count of removed entries (may be 0). Every entry
+///           for which the predicate returned `true` has been removed,
+///           its slot turned into a tombstone, and `key_copy_deinit` /
+///           `value_copy_deinit` (if configured) invoked. Map length
+///           shrinks by the returned count.
+/// FAILURE : Function cannot fail. A NULL `predicate_fn` is a caller bug
+///           and aborts via `LOG_FATAL`.
 ///
 #define MapRemoveIf(m, predicate_fn, ctx_ptr)                                                                          \
     map_remove_if(                                                                                                     \

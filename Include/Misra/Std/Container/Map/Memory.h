@@ -17,6 +17,13 @@
 ///
 /// m[in,out] : Hash map.
 ///
+/// SUCCESS : Returns to the caller. Length is 0 and all probe slots are
+///           marked empty; the entries table and states table remain
+///           allocated at the same capacity. When `key_copy_deinit` /
+///           `value_copy_deinit` are configured they have been invoked on
+///           every previously-occupied slot.
+/// FAILURE : Function cannot fail.
+///
 /// TAGS: Map, Memory, Clear
 ///
 #define MapClear(m)                                                                                                    \
@@ -36,7 +43,10 @@
 /// m[in,out] : Hash map.
 /// n[in]     : Minimum number of entries expected.
 ///
-/// SUCCESS : Returns `true`.
+/// SUCCESS : Returns `true`. The probe table now has capacity for at least
+///           `n` entries without triggering a rehash. Existing entries are
+///           preserved (a rehash into the larger table is performed if
+///           growth was needed). Map length is unchanged.
 /// FAILURE : Returns `false` on allocation failure. The map is unchanged.
 ///
 /// TAGS: Map, Memory, Reserve
@@ -73,8 +83,12 @@
 ///
 /// m[in,out] : Map.
 ///
-/// SUCCESS : Returns `true`.
+/// SUCCESS : Returns `true`. Tombstones have been removed and every live
+///           entry has been re-hashed into a fresh probe table sized for
+///           the current length. Map length is preserved; probe distances
+///           may decrease.
 /// FAILURE : Returns `false` on allocation failure for the new probe table.
+///           The map and existing entries are unchanged.
 ///
 /// TAGS: Map, Memory, Rehash, Compact
 ///
@@ -112,8 +126,12 @@
 /// n[in]        : Minimum number of entries expected after rehash.
 /// policy_value : New probing policy copied into this map.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure during the new probe table build.
+/// SUCCESS : Returns `true`. The map is rebuilt with the new probing policy
+///           (copied into the map by value), sized to fit at least `n`
+///           entries plus the current length. Every live entry has been
+///           re-hashed under the new policy; tombstones are gone.
+/// FAILURE : Returns `false` on allocation failure during the new probe
+///           table build. The map and its existing policy are unchanged.
 ///
 /// TAGS: Map, Memory, Rehash, Policy
 ///

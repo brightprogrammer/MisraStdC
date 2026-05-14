@@ -34,11 +34,13 @@
 ///
 /// Check if the map stores at least one value for a key.
 ///
-/// m[in]   : Map.
-/// key[in] : Key to search for.
+/// m[in]          : Map.
+/// lookup_key[in] : Key to search for.
 ///
-/// SUCCESS : Returns `true` when the key exists.
-/// FAILURE : Returns `false`.
+/// SUCCESS : Returns `true` when at least one entry exists for the key.
+///           The map is not modified.
+/// FAILURE : Returns `false` when no entry exists for the key. The map is
+///           not modified.
 ///
 #define MapContainsKey(m, lookup_key)                                                                                  \
     map_contains(                                                                                                      \
@@ -53,11 +55,15 @@
 ///
 /// Check if the map stores a specific key/value pair.
 ///
-/// m[in]               : Map.
-/// key[in]             : Key to search for.
-/// value[in]           : Value to search for.
-/// SUCCESS : Returns `true` when the pair exists.
-/// FAILURE : Returns `false`.
+/// m[in]             : Map.
+/// lookup_key[in]    : Key to search for.
+/// lookup_value[in]  : Value to search for. Uses `value_compare` for equality.
+///
+/// SUCCESS : Returns `true` when at least one entry mapping `lookup_key` to
+///           `lookup_value` exists. The map is not modified.
+/// FAILURE : Returns `false` when no matching pair exists. The map is not
+///           modified. A NULL `value_compare` is a caller bug and aborts
+///           via `LOG_FATAL`.
 ///
 #define MapContainsPair(m, lookup_key, lookup_value)                                                                   \
     map_contains_pair(                                                                                                 \
@@ -74,11 +80,13 @@
 ///
 /// Count how many values are stored for a key.
 ///
-/// m[in]   : Map.
-/// key[in] : Key to search for.
+/// m[in]          : Map.
+/// lookup_key[in] : Key to search for.
 ///
-/// SUCCESS : Number of values stored for the key.
-/// FAILURE : `0` if key does not exist.
+/// SUCCESS : Returns the number of entries mapping `lookup_key` to any
+///           value. The map is not modified.
+/// FAILURE : Returns `0` when no entry exists for the key. The map is not
+///           modified.
 ///
 #define MapValueCountForKey(m, lookup_key)                                                                             \
     map_value_count(                                                                                                   \
@@ -93,11 +101,14 @@
 ///
 /// Get pointer to the first value stored for a key.
 ///
-/// m[in,out] : Map.
-/// key[in]   : Key to search for.
+/// m[in,out]      : Map.
+/// lookup_key[in] : Key to search for.
 ///
-/// SUCCESS : Pointer to the first value stored for the key.
-/// FAILURE : Returns `NULL`.
+/// SUCCESS : Returns a pointer of type `MAP_VALUE_TYPE(m) *` to the value
+///           slot of the first matching entry. The map is not modified.
+///           The pointer is valid until the next rehash.
+/// FAILURE : Returns `NULL` when no entry exists for the key. The map is
+///           not modified.
 ///
 #define MapGetFirstPtr(m, lookup_key)                                                                                  \
     ((MAP_VALUE_TYPE(m) *)map_get_value_ptr(                                                                           \
@@ -115,11 +126,12 @@
 ///
 /// This is an alias for `MapGetFirstPtr` with a more stdlib-style lookup name.
 ///
-/// m[in,out] : Map.
-/// key[in]   : Key to search for.
+/// m[in,out]      : Map.
+/// lookup_key[in] : Key to search for.
 ///
-/// SUCCESS : Pointer to the first value stored for the key.
-/// FAILURE : Returns `NULL`.
+/// SUCCESS : Returns a pointer of type `MAP_VALUE_TYPE(m) *` to the value
+///           slot of the first matching entry. The map is not modified.
+/// FAILURE : Returns `NULL` when no entry exists for the key.
 ///
 #define MapTryGetPtr(m, lookup_key) MapGetFirstPtr((m), (lookup_key))
 
@@ -133,8 +145,12 @@
 /// lookup_key[in]        : Key to search for.
 /// default_value[in]     : Value returned when key does not exist.
 ///
-/// SUCCESS : First stored value for key, or `default_value` when absent.
-/// FAILURE : Does not return on invalid arguments.
+/// SUCCESS : Returns a value of type `MAP_VALUE_TYPE(m)` - either a copy of
+///           the first stored value for the key, or a copy of
+///           `default_value` when the key is absent. The map is not
+///           modified; `default_value` is not inserted.
+/// FAILURE : Does not return on invalid arguments (caller bug); aborts via
+///           `LOG_FATAL`.
 ///
 #define MapGetOrDefault(m, lookup_key, default_value)                                                                  \
     (*(MAP_VALUE_TYPE(m) *)map_get_value_or_default(                                                                   \
@@ -165,11 +181,14 @@
 ///
 /// Find the first value stored for a key as a cursor.
 ///
-/// m[in]   : Map.
-/// key[in] : Key to search for.
+/// m[in]          : Map.
+/// lookup_key[in] : Key to search for.
 ///
-/// SUCCESS : Cursor positioned at the first value stored for the key.
-/// FAILURE : `MapValueCursorInvalid()` if the key does not exist.
+/// SUCCESS : Returns a `MapValueCursor` positioned at the first entry that
+///           matches the key. `MapValuePtrFromCursor` resolves it to a
+///           value pointer. The map is not modified.
+/// FAILURE : Returns `MapValueCursorInvalid()` when no entry exists for
+///           the key. The map is not modified.
 ///
 #define MapFindFirstForKey(m, lookup_key)                                                                              \
     map_find_first_cursor(                                                                                             \
@@ -184,12 +203,15 @@
 ///
 /// Advance a per-key cursor to the next value for the same key.
 ///
-/// m[in]      : Map.
-/// key[in]    : Key being queried.
-/// cursor[in] : Current cursor.
+/// m[in]          : Map.
+/// lookup_key[in] : Key being queried.
+/// cursor[in]     : Current cursor returned by `MapFindFirstForKey` or a
+///                  previous `MapFindNextForKey` call.
 ///
-/// SUCCESS : Cursor positioned at the next value for the same key.
-/// FAILURE : `MapValueCursorInvalid()` if there are no more values.
+/// SUCCESS : Returns a `MapValueCursor` positioned at the next entry for
+///           `lookup_key` (in iteration order). The map is not modified.
+/// FAILURE : Returns `MapValueCursorInvalid()` when no more entries match.
+///           The map is not modified.
 ///
 #define MapFindNextForKey(m, lookup_key, cursor)                                                                       \
     map_find_next_cursor(                                                                                              \
@@ -208,8 +230,12 @@
 /// m[in,out]      : Map.
 /// cursor[in,out] : Valid cursor for this map.
 ///
-/// SUCCESS : Pointer to the value referenced by the cursor.
-/// FAILURE : `NULL` if the cursor is invalid or no longer points to an occupied entry.
+/// SUCCESS : Returns a pointer of type `MAP_VALUE_TYPE(m) *` to the value
+///           slot referenced by the cursor. The map is not modified. The
+///           pointer is valid until the next rehash.
+/// FAILURE : Returns `NULL` if the cursor is invalid or no longer points to
+///           an occupied entry (e.g. after a rehash). The map is not
+///           modified.
 ///
 #define MapValuePtrFromCursor(m, cursor)                                                                               \
     ((MAP_VALUE_TYPE(m) *)map_value_ptr_from_cursor(                                                                   \

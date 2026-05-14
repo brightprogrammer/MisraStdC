@@ -190,8 +190,14 @@ static inline bool map_set_only_r_impl(
 /// in_key[in]   : Addressable key. Must match the map's key type.
 /// in_value[in] : Addressable value. Must match the map's value type.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure or policy violation. Map and
+/// SUCCESS : Returns `true`. A new (key, value) entry is stored in the map;
+///           length grows by one. When the map's `key_copy_init` is absent
+///           the `in_key` source has been zeroed; same for `value_copy_init`
+///           and `in_value`. With a deep-copy handler, the corresponding
+///           source is unchanged. A rehash may have grown the underlying
+///           probe table.
+/// FAILURE : Returns `false` on allocation failure (entry table grow or
+///           deep-copy callback) or policy violation. The map and both
 ///           sources are unchanged.
 ///
 /// TAGS: Map, Insert, LValue, Ownership
@@ -220,8 +226,11 @@ static inline bool map_set_only_r_impl(
 /// in_key[in]   : Key expression.
 /// in_value[in] : Value expression.
 ///
-/// SUCCESS : Returns `true`.
+/// SUCCESS : Returns `true`. A new (key, value) entry is stored in the map;
+///           length grows by one. Both source expressions are untouched.
+///           A rehash may have grown the underlying probe table.
 /// FAILURE : Returns `false` on allocation failure or policy violation.
+///           The map is unchanged.
 ///
 /// TAGS: Map, Insert, RValue
 ///
@@ -256,8 +265,16 @@ static inline bool map_set_only_r_impl(
 /// in_key[in]   : Lookup key (treated as r-value).
 /// in_value[in] : Addressable replacement value.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure during a new-entry insert path.
+/// SUCCESS : Returns `true`. If an entry for `in_key` already existed, the
+///           first such entry's value has been replaced with `in_value`
+///           (and the previous value torn down via `value_copy_deinit` if
+///           configured). If no entry existed, a new (key, value) entry is
+///           inserted and length grows by one. When `value_copy_init` is
+///           absent the `in_value` source has been zeroed; otherwise it is
+///           unchanged. The `in_key` source is never zeroed.
+/// FAILURE : Returns `false` on allocation failure during a new-entry
+///           insert path. Existing entries are unchanged and the source
+///           value is untouched.
 ///
 /// TAGS: Map, SetFirst, LValue, Update
 ///
@@ -280,6 +297,11 @@ static inline bool map_set_only_r_impl(
 ///
 /// Update the value of the first existing entry that matches `in_key`, or
 /// insert a new entry if no match exists. R-value form.
+///
+/// SUCCESS : Returns `true`. Same state effects as `MapSetFirstL` minus the
+///           value-source zeroing step; the value source is left untouched.
+/// FAILURE : Returns `false` on allocation failure during a new-entry
+///           insert path. Existing entries are unchanged.
 ///
 /// TAGS: Map, SetFirst, RValue, Update
 ///
@@ -309,8 +331,14 @@ static inline bool map_set_only_r_impl(
 /// in_key[in]   : Addressable key.
 /// in_value[in] : Addressable value.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// SUCCESS : Returns `true`. All previous entries for `in_key` have been
+///           removed (their values torn down via `value_copy_deinit` if
+///           configured), and exactly one entry mapping `in_key` to
+///           `in_value` now exists. Map length reflects the net change.
+///           When `key_copy_init` and/or `value_copy_init` are absent the
+///           respective sources have been zeroed; otherwise unchanged.
+/// FAILURE : Returns `false` on allocation failure during the entry-write
+///           or rehash step. The map and both sources are unchanged.
 ///
 /// TAGS: Map, Set, LValue, Replace
 ///
@@ -332,6 +360,10 @@ static inline bool map_set_only_r_impl(
 
 ///
 /// Set the value for `in_key`, replacing any existing entries. R-value form.
+///
+/// SUCCESS : Returns `true`. Same state effects as `MapSetOnlyL` minus
+///           the source-zeroing step; both sources are left untouched.
+/// FAILURE : Returns `false` on allocation failure. The map is unchanged.
 ///
 /// TAGS: Map, Set, RValue, Replace
 ///
@@ -365,8 +397,16 @@ static inline bool map_set_only_r_impl(
 /// lookup_key[in]    : Key to find or insert (r-value).
 /// default_value[in] : Initial value to install if no entry exists (r-value).
 ///
-/// SUCCESS : Returns a pointer to the value of type `MAP_VALUE_TYPE(m) *`.
+/// SUCCESS : Returns a pointer to the value slot of type `MAP_VALUE_TYPE(m) *`.
+///           If the key already existed the returned pointer references the
+///           existing value (no mutation of the map is performed). If the
+///           key was absent, a new (key, value) entry with `default_value`
+///           is inserted, length grows by one, and the returned pointer
+///           references that newly-installed slot. Subsequent in-place
+///           mutations through the pointer are valid until the next
+///           rehash.
 /// FAILURE : Returns `NULL` on allocation failure during the insert path.
+///           The map is unchanged.
 ///
 /// USAGE:
 ///   int *counter = MapEnsurePtr(&counts, key, 0);
