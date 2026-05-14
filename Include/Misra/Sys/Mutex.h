@@ -6,11 +6,12 @@
 typedef struct SysMutex SysMutex;
 
 ///
-/// Create a platform-independent mutex object. The mutex stores the
-/// supplied allocator internally and uses it again on `SysMutexDestroy`
-/// to release its own storage. The allocator must outlive the mutex.
+/// Create a platform-independent mutex object. The mutex itself does
+/// not own an allocator - the caller is responsible for remembering
+/// `alloc` and passing it back to `SysMutexDestroy` so the handle's
+/// one-shot allocation can be released through the same allocator.
 ///
-/// alloc[in] : Allocator that owns the mutex handle.
+/// alloc[in] : Allocator used to allocate the mutex handle.
 ///
 /// SUCCESS : Returns valid SysMutex object.
 /// FAILURE : Returns NULL if mutex creation fails.
@@ -20,18 +21,18 @@ typedef struct SysMutex SysMutex;
 SysMutex *SysMutexCreate(Allocator *alloc);
 
 ///
-/// Destroy the provided mutex object.
-/// Once a mutex is destroyed, all resources held by it will be freed.
-/// Using it after this cal is UB.
+/// Destroy the provided mutex object. Caller must pass the same
+/// allocator that was originally given to `SysMutexCreate`.
 ///
-/// m[in] : Mutex object to be destroyed.
+/// m[in]     : Mutex object to be destroyed.
+/// alloc[in] : Allocator that originally allocated the mutex handle.
 ///
 /// SUCCESS : Resources released.
-/// FAILURE : Function cannot fail - safe to call with NULL.
+/// FAILURE : Function cannot fail - safe to call with NULL mutex.
 ///
 /// TAGS: System, Threading, Memory
 ///
-void SysMutexDestroy(SysMutex *m);
+void SysMutexDestroy(SysMutex *m, Allocator *alloc);
 
 ///
 /// Acquire lock on provided mutex object.
