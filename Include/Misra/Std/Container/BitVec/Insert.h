@@ -31,24 +31,68 @@
             LOG_FATAL("BitVecMustInsertRange failed");                                                                 \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `BitVecInsertMultiple`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `BitVecInsertMultiple` call
+///           succeeded; see `BitVecInsertMultiple` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `BitVecInsertMultiple` call returns `false`.
+///
+/// TAGS: BitVec, Must, Abort
+///
 #define BitVecMustInsertMultiple(bv, idx, other)                                                                       \
     do {                                                                                                               \
         if (!BitVecInsertMultiple((bv), (idx), (other))) {                                                             \
             LOG_FATAL("BitVecMustInsertMultiple failed");                                                              \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `BitVecInsertPattern`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `BitVecInsertPattern` call
+///           succeeded; see `BitVecInsertPattern` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `BitVecInsertPattern` call returns `false`.
+///
+/// TAGS: BitVec, Must, Abort
+///
 #define BitVecMustInsertPattern(bv, idx, pattern, pattern_bits)                                                        \
     do {                                                                                                               \
         if (!BitVecInsertPattern((bv), (idx), (pattern), (pattern_bits))) {                                            \
             LOG_FATAL("BitVecMustInsertPattern failed");                                                               \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `BitVecPush`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `BitVecPush` call
+///           succeeded; see `BitVecPush` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `BitVecPush` call returns `false`.
+///
+/// TAGS: BitVec, Must, Abort
+///
 #define BitVecMustPush(bv, value)                                                                                      \
     do {                                                                                                               \
         if (!BitVecPush((bv), (value))) {                                                                              \
             LOG_FATAL("BitVecMustPush failed");                                                                        \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `BitVecInsert`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `BitVecInsert` call
+///           succeeded; see `BitVecInsert` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `BitVecInsert` call returns `false`.
+///
+/// TAGS: BitVec, Must, Abort
+///
 #define BitVecMustInsert(bv, idx, value)                                                                               \
     do {                                                                                                               \
         if (!BitVecInsert((bv), (idx), (value))) {                                                                     \

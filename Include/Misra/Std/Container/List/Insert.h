@@ -244,12 +244,34 @@
             LOG_FATAL("ListMustInsertL failed");                                                                       \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `ListInsertR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `ListInsertR` call
+///           succeeded; see `ListInsertR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `ListInsertR` call returns `false`.
+///
+/// TAGS: List, Must, Abort
+///
 #define ListMustInsertR(l, rval, idx)                                                                                  \
     do {                                                                                                               \
         if (!ListInsertR((l), (rval), (idx))) {                                                                        \
             LOG_FATAL("ListMustInsertR failed");                                                                       \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `ListInsert`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `ListInsert` call
+///           succeeded; see `ListInsert` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `ListInsert` call returns `false`.
+///
+/// TAGS: List, Must, Abort
+///
 #define ListMustInsert(l, lval, idx)                                                                                   \
     do {                                                                                                               \
         if (!ListInsert((l), (lval), (idx))) {                                                                         \
@@ -257,18 +279,51 @@
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `ListPushFrontL`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `ListPushFrontL` call
+///           succeeded; see `ListPushFrontL` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `ListPushFrontL` call returns `false`.
+///
+/// TAGS: List, Must, Abort
+///
 #define ListMustPushFrontL(l, lval)                                                                                    \
     do {                                                                                                               \
         if (!ListPushFrontL((l), (lval))) {                                                                            \
             LOG_FATAL("ListMustPushFrontL failed");                                                                    \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `ListPushFrontR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `ListPushFrontR` call
+///           succeeded; see `ListPushFrontR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `ListPushFrontR` call returns `false`.
+///
+/// TAGS: List, Must, Abort
+///
 #define ListMustPushFrontR(l, rval)                                                                                    \
     do {                                                                                                               \
         if (!ListPushFrontR((l), (rval))) {                                                                            \
             LOG_FATAL("ListMustPushFrontR failed");                                                                    \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `ListPushFront`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `ListPushFront` call
+///           succeeded; see `ListPushFront` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `ListPushFront` call returns `false`.
+///
+/// TAGS: List, Must, Abort
+///
 #define ListMustPushFront(l, lval)                                                                                     \
     do {                                                                                                               \
         if (!ListPushFront((l), (lval))) {                                                                             \
@@ -276,18 +331,51 @@
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `ListPushBackL`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `ListPushBackL` call
+///           succeeded; see `ListPushBackL` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `ListPushBackL` call returns `false`.
+///
+/// TAGS: List, Must, Abort
+///
 #define ListMustPushBackL(l, lval)                                                                                     \
     do {                                                                                                               \
         if (!ListPushBackL((l), (lval))) {                                                                             \
             LOG_FATAL("ListMustPushBackL failed");                                                                     \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `ListPushBackR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `ListPushBackR` call
+///           succeeded; see `ListPushBackR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `ListPushBackR` call returns `false`.
+///
+/// TAGS: List, Must, Abort
+///
 #define ListMustPushBackR(l, rval)                                                                                     \
     do {                                                                                                               \
         if (!ListPushBackR((l), (rval))) {                                                                             \
             LOG_FATAL("ListMustPushBackR failed");                                                                     \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `ListPushBack`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `ListPushBack` call
+///           succeeded; see `ListPushBack` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `ListPushBack` call returns `false`.
+///
+/// TAGS: List, Must, Abort
+///
 #define ListMustPushBack(l, lval)                                                                                      \
     do {                                                                                                               \
         if (!ListPushBack((l), (lval))) {                                                                              \
@@ -295,18 +383,51 @@
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `ListPushArrL`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `ListPushArrL` call
+///           succeeded; see `ListPushArrL` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `ListPushArrL` call returns `false`.
+///
+/// TAGS: List, Must, Abort
+///
 #define ListMustPushArrL(l, arr, count)                                                                                \
     do {                                                                                                               \
         if (!ListPushArrL((l), (arr), (count))) {                                                                      \
             LOG_FATAL("ListMustPushArrL failed");                                                                      \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `ListPushArrR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `ListPushArrR` call
+///           succeeded; see `ListPushArrR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `ListPushArrR` call returns `false`.
+///
+/// TAGS: List, Must, Abort
+///
 #define ListMustPushArrR(l, arr, count)                                                                                \
     do {                                                                                                               \
         if (!ListPushArrR((l), (arr), (count))) {                                                                      \
             LOG_FATAL("ListMustPushArrR failed");                                                                      \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `ListPushArr`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `ListPushArr` call
+///           succeeded; see `ListPushArr` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `ListPushArr` call returns `false`.
+///
+/// TAGS: List, Must, Abort
+///
 #define ListMustPushArr(l, arr, count)                                                                                 \
     do {                                                                                                               \
         if (!ListPushArr((l), (arr), (count))) {                                                                       \
@@ -314,18 +435,51 @@
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `ListMergeL`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `ListMergeL` call
+///           succeeded; see `ListMergeL` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `ListMergeL` call returns `false`.
+///
+/// TAGS: List, Must, Abort
+///
 #define ListMustMergeL(l, l2)                                                                                          \
     do {                                                                                                               \
         if (!ListMergeL((l), (l2))) {                                                                                  \
             LOG_FATAL("ListMustMergeL failed");                                                                        \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `ListMergeR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `ListMergeR` call
+///           succeeded; see `ListMergeR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `ListMergeR` call returns `false`.
+///
+/// TAGS: List, Must, Abort
+///
 #define ListMustMergeR(l, l2)                                                                                          \
     do {                                                                                                               \
         if (!ListMergeR((l), (l2))) {                                                                                  \
             LOG_FATAL("ListMustMergeR failed");                                                                        \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `ListMerge`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `ListMerge` call
+///           succeeded; see `ListMerge` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `ListMerge` call returns `false`.
+///
+/// TAGS: List, Must, Abort
+///
 #define ListMustMerge(l, l2)                                                                                           \
     do {                                                                                                               \
         if (!ListMerge((l), (l2))) {                                                                                   \

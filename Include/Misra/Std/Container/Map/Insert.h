@@ -456,12 +456,34 @@ static inline bool map_set_only_r_impl(
             LOG_FATAL("MapMustInsertL failed");                                                                        \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `MapInsertR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `MapInsertR` call
+///           succeeded; see `MapInsertR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `MapInsertR` call returns `false`.
+///
+/// TAGS: Map, Must, Abort
+///
 #define MapMustInsertR(m, in_key, in_value)                                                                            \
     do {                                                                                                               \
         if (!MapInsertR((m), (in_key), (in_value))) {                                                                  \
             LOG_FATAL("MapMustInsertR failed");                                                                        \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `MapInsert`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `MapInsert` call
+///           succeeded; see `MapInsert` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `MapInsert` call returns `false`.
+///
+/// TAGS: Map, Must, Abort
+///
 #define MapMustInsert(m, in_key, in_value)                                                                             \
     do {                                                                                                               \
         if (!MapInsert((m), (in_key), (in_value))) {                                                                   \
@@ -469,12 +491,34 @@ static inline bool map_set_only_r_impl(
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `MapSetFirstL`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `MapSetFirstL` call
+///           succeeded; see `MapSetFirstL` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `MapSetFirstL` call returns `false`.
+///
+/// TAGS: Map, Must, Abort
+///
 #define MapMustSetFirstL(m, in_key, in_value)                                                                          \
     do {                                                                                                               \
         if (!MapSetFirstL((m), (in_key), (in_value))) {                                                                \
             LOG_FATAL("MapMustSetFirstL failed");                                                                      \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `MapSetFirstR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `MapSetFirstR` call
+///           succeeded; see `MapSetFirstR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `MapSetFirstR` call returns `false`.
+///
+/// TAGS: Map, Must, Abort
+///
 #define MapMustSetFirstR(m, in_key, in_value)                                                                          \
     do {                                                                                                               \
         if (!MapSetFirstR((m), (in_key), (in_value))) {                                                                \
@@ -482,18 +526,51 @@ static inline bool map_set_only_r_impl(
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `MapSetOnlyL`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `MapSetOnlyL` call
+///           succeeded; see `MapSetOnlyL` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `MapSetOnlyL` call returns `false`.
+///
+/// TAGS: Map, Must, Abort
+///
 #define MapMustSetOnlyL(m, in_key, in_value)                                                                           \
     do {                                                                                                               \
         if (!MapSetOnlyL((m), (in_key), (in_value))) {                                                                 \
             LOG_FATAL("MapMustSetOnlyL failed");                                                                       \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `MapSetOnlyR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `MapSetOnlyR` call
+///           succeeded; see `MapSetOnlyR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `MapSetOnlyR` call returns `false`.
+///
+/// TAGS: Map, Must, Abort
+///
 #define MapMustSetOnlyR(m, in_key, in_value)                                                                           \
     do {                                                                                                               \
         if (!MapSetOnlyR((m), (in_key), (in_value))) {                                                                 \
             LOG_FATAL("MapMustSetOnlyR failed");                                                                       \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `MapSet`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `MapSet` call
+///           succeeded; see `MapSet` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `MapSet` call returns `false`.
+///
+/// TAGS: Map, Must, Abort
+///
 #define MapMustSet(m, in_key, in_value)                                                                                \
     do {                                                                                                               \
         if (!MapSet((m), (in_key), (in_value))) {                                                                      \

@@ -497,12 +497,34 @@
             LOG_FATAL("VecMustInsertL failed");                                                                        \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecInsertR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecInsertR` call
+///           succeeded; see `VecInsertR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecInsertR` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustInsertR(v, rval, idx)                                                                                   \
     do {                                                                                                               \
         if (!VecInsertR((v), (rval), (idx))) {                                                                         \
             LOG_FATAL("VecMustInsertR failed");                                                                        \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecInsert`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecInsert` call
+///           succeeded; see `VecInsert` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecInsert` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustInsert(v, lval, idx)                                                                                    \
     do {                                                                                                               \
         if (!VecInsert((v), (lval), (idx))) {                                                                          \
@@ -510,18 +532,51 @@
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `VecInsertFastL`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecInsertFastL` call
+///           succeeded; see `VecInsertFastL` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecInsertFastL` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustInsertFastL(v, lval, idx)                                                                               \
     do {                                                                                                               \
         if (!VecInsertFastL((v), (lval), (idx))) {                                                                     \
             LOG_FATAL("VecMustInsertFastL failed");                                                                    \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecInsertFastR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecInsertFastR` call
+///           succeeded; see `VecInsertFastR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecInsertFastR` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustInsertFastR(v, rval, idx)                                                                               \
     do {                                                                                                               \
         if (!VecInsertFastR((v), (rval), (idx))) {                                                                     \
             LOG_FATAL("VecMustInsertFastR failed");                                                                    \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecInsertFast`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecInsertFast` call
+///           succeeded; see `VecInsertFast` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecInsertFast` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustInsertFast(v, lval, idx)                                                                                \
     do {                                                                                                               \
         if (!VecInsertFast((v), (lval), (idx))) {                                                                      \
@@ -529,18 +584,51 @@
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `VecInsertRangeL`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecInsertRangeL` call
+///           succeeded; see `VecInsertRangeL` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecInsertRangeL` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustInsertRangeL(v, varr, idx, count)                                                                       \
     do {                                                                                                               \
         if (!VecInsertRangeL((v), (varr), (idx), (count))) {                                                           \
             LOG_FATAL("VecMustInsertRangeL failed");                                                                   \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecInsertRangeR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecInsertRangeR` call
+///           succeeded; see `VecInsertRangeR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecInsertRangeR` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustInsertRangeR(v, varr, idx, count)                                                                       \
     do {                                                                                                               \
         if (!VecInsertRangeR((v), (varr), (idx), (count))) {                                                           \
             LOG_FATAL("VecMustInsertRangeR failed");                                                                   \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecInsertRange`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecInsertRange` call
+///           succeeded; see `VecInsertRange` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecInsertRange` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustInsertRange(v, varr, idx, count)                                                                        \
     do {                                                                                                               \
         if (!VecInsertRange((v), (varr), (idx), (count))) {                                                            \
@@ -548,18 +636,51 @@
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `VecInsertRangeFastL`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecInsertRangeFastL` call
+///           succeeded; see `VecInsertRangeFastL` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecInsertRangeFastL` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustInsertRangeFastL(v, varr, idx, count)                                                                   \
     do {                                                                                                               \
         if (!VecInsertRangeFastL((v), (varr), (idx), (count))) {                                                       \
             LOG_FATAL("VecMustInsertRangeFastL failed");                                                               \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecInsertRangeFastR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecInsertRangeFastR` call
+///           succeeded; see `VecInsertRangeFastR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecInsertRangeFastR` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustInsertRangeFastR(v, varr, idx, count)                                                                   \
     do {                                                                                                               \
         if (!VecInsertRangeFastR((v), (varr), (idx), (count))) {                                                       \
             LOG_FATAL("VecMustInsertRangeFastR failed");                                                               \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecInsertRangeFast`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecInsertRangeFast` call
+///           succeeded; see `VecInsertRangeFast` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecInsertRangeFast` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustInsertRangeFast(v, varr, idx, count)                                                                    \
     do {                                                                                                               \
         if (!VecInsertRangeFast((v), (varr), (idx), (count))) {                                                        \
@@ -567,18 +688,51 @@
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `VecPushBackArrL`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecPushBackArrL` call
+///           succeeded; see `VecPushBackArrL` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecPushBackArrL` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustPushBackArrL(v, arr, count)                                                                             \
     do {                                                                                                               \
         if (!VecPushBackArrL((v), (arr), (count))) {                                                                   \
             LOG_FATAL("VecMustPushBackArrL failed");                                                                   \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecPushBackArrR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecPushBackArrR` call
+///           succeeded; see `VecPushBackArrR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecPushBackArrR` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustPushBackArrR(v, arr, count)                                                                             \
     do {                                                                                                               \
         if (!VecPushBackArrR((v), (arr), (count))) {                                                                   \
             LOG_FATAL("VecMustPushBackArrR failed");                                                                   \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecPushBackArr`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecPushBackArr` call
+///           succeeded; see `VecPushBackArr` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecPushBackArr` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustPushBackArr(v, arr, count)                                                                              \
     do {                                                                                                               \
         if (!VecPushBackArr((v), (arr), (count))) {                                                                    \
@@ -586,18 +740,51 @@
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `VecPushFrontArrL`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecPushFrontArrL` call
+///           succeeded; see `VecPushFrontArrL` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecPushFrontArrL` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustPushFrontArrL(v, arr, count)                                                                            \
     do {                                                                                                               \
         if (!VecPushFrontArrL((v), (arr), (count))) {                                                                  \
             LOG_FATAL("VecMustPushFrontArrL failed");                                                                  \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecPushFrontArrR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecPushFrontArrR` call
+///           succeeded; see `VecPushFrontArrR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecPushFrontArrR` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustPushFrontArrR(v, arr, count)                                                                            \
     do {                                                                                                               \
         if (!VecPushFrontArrR((v), (arr), (count))) {                                                                  \
             LOG_FATAL("VecMustPushFrontArrR failed");                                                                  \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecPushFrontArr`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecPushFrontArr` call
+///           succeeded; see `VecPushFrontArr` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecPushFrontArr` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustPushFrontArr(v, arr, count)                                                                             \
     do {                                                                                                               \
         if (!VecPushFrontArr((v), (arr), (count))) {                                                                   \
@@ -605,18 +792,51 @@
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `VecPushFrontArrFastL`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecPushFrontArrFastL` call
+///           succeeded; see `VecPushFrontArrFastL` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecPushFrontArrFastL` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustPushFrontArrFastL(v, arr, count)                                                                        \
     do {                                                                                                               \
         if (!VecPushFrontArrFastL((v), (arr), (count))) {                                                              \
             LOG_FATAL("VecMustPushFrontArrFastL failed");                                                              \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecPushFrontArrFastR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecPushFrontArrFastR` call
+///           succeeded; see `VecPushFrontArrFastR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecPushFrontArrFastR` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustPushFrontArrFastR(v, arr, count)                                                                        \
     do {                                                                                                               \
         if (!VecPushFrontArrFastR((v), (arr), (count))) {                                                              \
             LOG_FATAL("VecMustPushFrontArrFastR failed");                                                              \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecPushFrontArrFast`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecPushFrontArrFast` call
+///           succeeded; see `VecPushFrontArrFast` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecPushFrontArrFast` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustPushFrontArrFast(v, arr, count)                                                                         \
     do {                                                                                                               \
         if (!VecPushFrontArrFast((v), (arr), (count))) {                                                               \
@@ -624,18 +844,51 @@
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `VecMergeL`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecMergeL` call
+///           succeeded; see `VecMergeL` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecMergeL` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustMergeL(v, v2)                                                                                           \
     do {                                                                                                               \
         if (!VecMergeL((v), (v2))) {                                                                                   \
             LOG_FATAL("VecMustMergeL failed");                                                                         \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecMergeR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecMergeR` call
+///           succeeded; see `VecMergeR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecMergeR` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustMergeR(v, v2)                                                                                           \
     do {                                                                                                               \
         if (!VecMergeR((v), (v2))) {                                                                                   \
             LOG_FATAL("VecMustMergeR failed");                                                                         \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecMerge`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecMerge` call
+///           succeeded; see `VecMerge` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecMerge` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustMerge(v, v2)                                                                                            \
     do {                                                                                                               \
         if (!VecMerge((v), (v2))) {                                                                                    \
@@ -643,18 +896,51 @@
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `VecPushBackL`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecPushBackL` call
+///           succeeded; see `VecPushBackL` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecPushBackL` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustPushBackL(v, val)                                                                                       \
     do {                                                                                                               \
         if (!VecPushBackL((v), (val))) {                                                                               \
             LOG_FATAL("VecMustPushBackL failed");                                                                      \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecPushBackR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecPushBackR` call
+///           succeeded; see `VecPushBackR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecPushBackR` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustPushBackR(v, val)                                                                                       \
     do {                                                                                                               \
         if (!VecPushBackR((v), (val))) {                                                                               \
             LOG_FATAL("VecMustPushBackR failed");                                                                      \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecPushBack`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecPushBack` call
+///           succeeded; see `VecPushBack` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecPushBack` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustPushBack(v, val)                                                                                        \
     do {                                                                                                               \
         if (!VecPushBack((v), (val))) {                                                                                \
@@ -662,18 +948,51 @@
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `VecPushFrontL`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecPushFrontL` call
+///           succeeded; see `VecPushFrontL` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecPushFrontL` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustPushFrontL(v, val)                                                                                      \
     do {                                                                                                               \
         if (!VecPushFrontL((v), (val))) {                                                                              \
             LOG_FATAL("VecMustPushFrontL failed");                                                                     \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecPushFrontR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecPushFrontR` call
+///           succeeded; see `VecPushFrontR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecPushFrontR` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustPushFrontR(v, val)                                                                                      \
     do {                                                                                                               \
         if (!VecPushFrontR((v), (val))) {                                                                              \
             LOG_FATAL("VecMustPushFrontR failed");                                                                     \
         }                                                                                                              \
     } while (0)
+///
+/// Aborting variant of `VecPushFront`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecPushFront` call
+///           succeeded; see `VecPushFront` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecPushFront` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustPushFront(v, val)                                                                                       \
     do {                                                                                                               \
         if (!VecPushFront((v), (val))) {                                                                               \
@@ -681,6 +1000,17 @@
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `VecInitClone`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `VecInitClone` call
+///           succeeded; see `VecInitClone` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `VecInitClone` call returns `false`.
+///
+/// TAGS: Vec, Must, Abort
+///
 #define VecMustInitClone(vd, vs)                                                                                       \
     do {                                                                                                               \
         if (!VecInitClone((vd), (vs))) {                                                                               \

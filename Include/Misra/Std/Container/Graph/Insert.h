@@ -119,6 +119,17 @@
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `GraphAddNodeR`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `GraphAddNodeR` call
+///           succeeded; see `GraphAddNodeR` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `GraphAddNodeR` call returns `false`.
+///
+/// TAGS: Graph, Must, Abort
+///
 #define GraphMustAddNodeR(g, rval)                                                                                     \
     do {                                                                                                               \
         if (!GraphAddNodeR((g), (rval))) {                                                                             \
@@ -126,8 +137,30 @@
         }                                                                                                              \
     } while (0)
 
+///
+/// Aborting variant of `GraphAddNode`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `GraphAddNode` call
+///           succeeded; see `GraphAddNode` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `GraphAddNode` call returns `false`.
+///
+/// TAGS: Graph, Must, Abort
+///
 #define GraphMustAddNode(g, lval) GraphMustAddNodeL((g), (lval))
 
+///
+/// Aborting variant of `GraphAddEdge`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller. The underlying `GraphAddEdge` call
+///           succeeded; see `GraphAddEdge` for the post-state.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+///           the underlying `GraphAddEdge` call returns `false`.
+///
+/// TAGS: Graph, Must, Abort
+///
 #define GraphMustAddEdge(g, from, to)                                                                                  \
     do {                                                                                                               \
         if (!GraphAddEdge((g), (from), (to))) {                                                                        \
