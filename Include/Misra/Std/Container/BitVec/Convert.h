@@ -16,16 +16,16 @@ extern "C" {
 #endif
 
     ///
-    /// Return a copy of the allocator descriptor bound to the bitvector.
+    /// Return the allocator pointer bound to the bitvector.
     ///
     /// bv[in] : Bitvector whose allocator should be returned.
     ///
-    /// SUCCESS : Returns allocator config copied from `bv`.
+    /// SUCCESS : Returns the `Allocator *` stored on `bv`.
     /// FAILURE : Does not return if `bv` is invalid.
     ///
     /// TAGS: BitVec, Allocator, Access
     ///
-    Allocator BitVecGetAllocator(BitVec *bv);
+    Allocator *BitVecGetAllocator(BitVec *bv);
 
     ///
     /// Convert a bitvector to a string using an explicit allocator.
@@ -177,174 +177,32 @@ extern "C" {
 #endif
 
 ///
-/// Convert a bitvector to a string.
+/// Convert a bitvector to a string. The output string inherits the source
+/// bitvector's allocator. Callers who want a different allocator should
+/// call `BitVecTryToStrAlloc` directly.
 ///
-/// This public API supports both forms:
-///
-/// - `BitVecTryToStr(out, bv)`
-/// - `BitVecTryToStr(out, bv, alloc)`
-///
-/// Omitting the allocator makes the output string inherit the bitvector
-/// allocator configuration.
+/// out[out] : Destination string.
+/// bv[in]   : Bitvector to convert.
 ///
 /// SUCCESS : Returns true and initializes `out`.
 /// FAILURE : Returns false if allocation fails.
 ///
-/// TAGS: BitVec, Convert, String, Allocator, Macro
+/// TAGS: BitVec, Convert, String
 ///
-#define BITVEC_TRY_TO_STR_HAS_ARGS_IMPL(_1, _2, _3, count, ...) count
-#define BITVEC_TRY_TO_STR_HAS_ARGS(...)                         BITVEC_TRY_TO_STR_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
-#define BitVecTryToStr(...)                                     CONCAT(BitVecTryToStr_, BITVEC_TRY_TO_STR_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecTryToStr_2(out, bv)                               BitVecTryToStrAlloc((out), (bv), BitVecGetAllocator((bv)))
-#define BitVecTryToStr_3(out, bv, alloc)                        BitVecTryToStrAlloc((out), (bv), (alloc))
+#define BitVecTryToStr(out, bv) BitVecTryToStrAlloc((out), (bv), BitVecGetAllocator((bv)))
 
 ///
-/// Convert a bitvector to a string.
+/// Convert a bitvector to a string. The returned string inherits the source
+/// bitvector's allocator. Callers who want a different allocator should
+/// call `BitVecToStrAlloc` directly.
 ///
-/// This public API supports both forms:
-///
-/// - `BitVecToStr(bv)`
-/// - `BitVecToStr(bv, alloc)`
-///
-/// Omitting the allocator makes the output string inherit the bitvector
-/// allocator configuration.
+/// bv[in] : Bitvector to convert.
 ///
 /// SUCCESS : Returns a string containing bit characters.
 /// FAILURE : Returns an empty string if allocation fails.
 ///
-/// TAGS: BitVec, Convert, String, Allocator, Macro
+/// TAGS: BitVec, Convert, String
 ///
-#define BITVEC_TO_STR_HAS_ARGS_IMPL(_1, _2, count, ...) count
-#define BITVEC_TO_STR_HAS_ARGS(...)                     BITVEC_TO_STR_HAS_ARGS_IMPL(__VA_ARGS__, 2, 1, 0)
-#define BitVecToStr(...)                                CONCAT(BitVecToStr_, BITVEC_TO_STR_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecToStr_1(bv)                               BitVecToStrAlloc((bv), BitVecGetAllocator((bv)))
-#define BitVecToStr_2(bv, alloc)                        BitVecToStrAlloc((bv), (alloc))
-
-///
-/// Parse a bitvector from a null-terminated string.
-///
-/// This public API supports both forms:
-///
-/// - `BitVecTryFromStr(out, str)`
-/// - `BitVecTryFromStr(out, str, alloc)`
-///
-/// Omitting the allocator binds the destination to `DefaultAllocator()`.
-///
-/// SUCCESS : Returns true and initializes `out`.
-/// FAILURE : Returns false on invalid input or allocation failure.
-///
-/// TAGS: BitVec, Convert, String, Allocator, Macro
-///
-#define BITVEC_TRY_FROM_STR_HAS_ARGS_IMPL(_1, _2, _3, count, ...) count
-#define BITVEC_TRY_FROM_STR_HAS_ARGS(...)                         BITVEC_TRY_FROM_STR_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
-#define BitVecTryFromStr(...)                                     CONCAT(BitVecTryFromStr_, BITVEC_TRY_FROM_STR_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecTryFromStr_2(out, str)                              BitVecTryFromStrAlloc((out), (str), DefaultAllocator())
-#define BitVecTryFromStr_3(out, str, alloc)                       BitVecTryFromStrAlloc((out), (str), (alloc))
-
-///
-/// Parse a bitvector from a null-terminated string.
-///
-/// This public API supports both forms:
-///
-/// - `BitVecFromStr(str)`
-/// - `BitVecFromStr(str, alloc)`
-///
-/// Omitting the allocator binds the returned bitvector to `DefaultAllocator()`.
-///
-/// SUCCESS : Returns parsed bitvector.
-/// FAILURE : Returns an empty bitvector on invalid input or allocation failure.
-///
-/// TAGS: BitVec, Convert, String, Allocator, Macro
-///
-#define BITVEC_FROM_STR_HAS_ARGS_IMPL(_1, _2, count, ...) count
-#define BITVEC_FROM_STR_HAS_ARGS(...)                     BITVEC_FROM_STR_HAS_ARGS_IMPL(__VA_ARGS__, 2, 1, 0)
-#define BitVecFromStr(...)                                CONCAT(BitVecFromStr_, BITVEC_FROM_STR_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecFromStr_1(str)                              BitVecFromStrAlloc((str), DefaultAllocator())
-#define BitVecFromStr_2(str, alloc)                       BitVecFromStrAlloc((str), (alloc))
-
-///
-/// Build a bitvector from raw bytes.
-///
-/// This public API supports both forms:
-///
-/// - `BitVecTryFromBytes(out, bytes, bit_len)`
-/// - `BitVecTryFromBytes(out, bytes, bit_len, alloc)`
-///
-/// Omitting the allocator binds the destination to `DefaultAllocator()`.
-///
-/// SUCCESS : Returns true and initializes `out`.
-/// FAILURE : Returns false if allocation fails.
-///
-/// TAGS: BitVec, Convert, Bytes, Allocator, Macro
-///
-#define BITVEC_TRY_FROM_BYTES_HAS_ARGS_IMPL(_1, _2, _3, _4, count, ...) count
-#define BITVEC_TRY_FROM_BYTES_HAS_ARGS(...)                             BITVEC_TRY_FROM_BYTES_HAS_ARGS_IMPL(__VA_ARGS__, 4, 3, 2, 1, 0)
-#define BitVecTryFromBytes(...)                                         CONCAT(BitVecTryFromBytes_, BITVEC_TRY_FROM_BYTES_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecTryFromBytes_3(out, bytes, bit_len)                       BitVecTryFromBytesAlloc((out), (bytes), (bit_len), DefaultAllocator())
-#define BitVecTryFromBytes_4(out, bytes, bit_len, alloc)                BitVecTryFromBytesAlloc((out), (bytes), (bit_len), (alloc))
-
-///
-/// Build a bitvector from raw bytes.
-///
-/// This public API supports both forms:
-///
-/// - `BitVecFromBytes(bytes, bit_len)`
-/// - `BitVecFromBytes(bytes, bit_len, alloc)`
-///
-/// Omitting the allocator binds the returned bitvector to `DefaultAllocator()`.
-///
-/// SUCCESS : Returns initialized bitvector.
-/// FAILURE : Returns an empty bitvector if allocation fails.
-///
-/// TAGS: BitVec, Convert, Bytes, Allocator, Macro
-///
-#define BITVEC_FROM_BYTES_HAS_ARGS_IMPL(_1, _2, _3, count, ...) count
-#define BITVEC_FROM_BYTES_HAS_ARGS(...)                         BITVEC_FROM_BYTES_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
-#define BitVecFromBytes(...)                                    CONCAT(BitVecFromBytes_, BITVEC_FROM_BYTES_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecFromBytes_2(bytes, bit_len)                       BitVecFromBytesAlloc((bytes), (bit_len), DefaultAllocator())
-#define BitVecFromBytes_3(bytes, bit_len, alloc)                BitVecFromBytesAlloc((bytes), (bit_len), (alloc))
-
-///
-/// Build a bitvector from an integer.
-///
-/// This public API supports both forms:
-///
-/// - `BitVecTryFromInteger(out, value, bits)`
-/// - `BitVecTryFromInteger(out, value, bits, alloc)`
-///
-/// Omitting the allocator binds the destination to `DefaultAllocator()`.
-///
-/// SUCCESS : Returns true and initializes `out`.
-/// FAILURE : Returns false if allocation fails.
-///
-/// TAGS: BitVec, Convert, Integer, Allocator, Macro
-///
-#define BITVEC_TRY_FROM_INTEGER_HAS_ARGS_IMPL(_1, _2, _3, _4, count, ...) count
-#define BITVEC_TRY_FROM_INTEGER_HAS_ARGS(...)                             BITVEC_TRY_FROM_INTEGER_HAS_ARGS_IMPL(__VA_ARGS__, 4, 3, 2, 1, 0)
-#define BitVecTryFromInteger(...)                                                                                      \
-    CONCAT(BitVecTryFromInteger_, BITVEC_TRY_FROM_INTEGER_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecTryFromInteger_3(out, value, bits)        BitVecTryFromIntegerAlloc((out), (value), (bits), DefaultAllocator())
-#define BitVecTryFromInteger_4(out, value, bits, alloc) BitVecTryFromIntegerAlloc((out), (value), (bits), (alloc))
-
-///
-/// Build a bitvector from an integer.
-///
-/// This public API supports both forms:
-///
-/// - `BitVecFromInteger(value, bits)`
-/// - `BitVecFromInteger(value, bits, alloc)`
-///
-/// Omitting the allocator binds the returned bitvector to `DefaultAllocator()`.
-///
-/// SUCCESS : Returns initialized bitvector.
-/// FAILURE : Returns an empty bitvector if allocation fails.
-///
-/// TAGS: BitVec, Convert, Integer, Allocator, Macro
-///
-#define BITVEC_FROM_INTEGER_HAS_ARGS_IMPL(_1, _2, _3, count, ...) count
-#define BITVEC_FROM_INTEGER_HAS_ARGS(...)                         BITVEC_FROM_INTEGER_HAS_ARGS_IMPL(__VA_ARGS__, 3, 2, 1, 0)
-#define BitVecFromInteger(...)                                    CONCAT(BitVecFromInteger_, BITVEC_FROM_INTEGER_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define BitVecFromInteger_2(value, bits)                          BitVecFromIntegerAlloc((value), (bits), DefaultAllocator())
-#define BitVecFromInteger_3(value, bits, alloc)                   BitVecFromIntegerAlloc((value), (bits), (alloc))
+#define BitVecToStr(bv) BitVecToStrAlloc((bv), BitVecGetAllocator((bv)))
 
 #endif // MISRA_STD_CONTAINER_BITVEC_CONVERT_H

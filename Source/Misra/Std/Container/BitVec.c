@@ -786,7 +786,7 @@ bool BitVecIsSorted(BitVec *bv) {
 }
 
 // Conversion functions
-Allocator BitVecGetAllocator(BitVec *bv) {
+Allocator *BitVecGetAllocator(BitVec *bv) {
     ValidateBitVec(bv);
     return bv->allocator;
 }
