@@ -27,12 +27,6 @@ void SysAbort(void);
 #endif
 
 #define VEC_ABORT(message) vec_abort_insert_operation(__func__, __LINE__, (message))
-#define VEC_MUST(operation, message)                                                                                   \
-    do {                                                                                                               \
-        if (!(operation)) {                                                                                            \
-            VEC_ABORT(message);                                                                                        \
-        }                                                                                                              \
-    } while (0)
 
 static inline void vec_abort_insert_operation(const char *function, int line, const char *message) {
     fprintf(stderr, "FATAL [%s:%d] %s\n", function, line, message);
@@ -201,57 +195,201 @@ static inline bool vec_merge_r_impl(GenericVec *dst, const GenericVec *src, size
      ),                                                                                                                 \
      clone_vec(GENERIC_VEC(vd), GENERIC_VEC(vs), sizeof(VEC_DATATYPE(vd))))
 
-#define VecMustInsertL(v, lval, idx) VEC_MUST(VecInsertL((v), (lval), (idx)), "VecMustInsertL failed")
-#define VecMustInsertR(v, rval, idx) VEC_MUST(VecInsertR((v), (rval), (idx)), "VecMustInsertR failed")
-#define VecMustInsert(v, lval, idx) VEC_MUST(VecInsert((v), (lval), (idx)), "VecMustInsert failed")
+#define VecMustInsertL(v, lval, idx)                                                                                   \
+    do {                                                                                                               \
+        if (!VecInsertL((v), (lval), (idx))) {                                                                         \
+            LOG_FATAL("VecMustInsertL failed");                                                                        \
+        }                                                                                                              \
+    } while (0)
+#define VecMustInsertR(v, rval, idx)                                                                                   \
+    do {                                                                                                               \
+        if (!VecInsertR((v), (rval), (idx))) {                                                                         \
+            LOG_FATAL("VecMustInsertR failed");                                                                        \
+        }                                                                                                              \
+    } while (0)
+#define VecMustInsert(v, lval, idx)                                                                                    \
+    do {                                                                                                               \
+        if (!VecInsert((v), (lval), (idx))) {                                                                          \
+            LOG_FATAL("VecMustInsert failed");                                                                         \
+        }                                                                                                              \
+    } while (0)
 
-#define VecMustInsertFastL(v, lval, idx) VEC_MUST(VecInsertFastL((v), (lval), (idx)), "VecMustInsertFastL failed")
-#define VecMustInsertFastR(v, rval, idx) VEC_MUST(VecInsertFastR((v), (rval), (idx)), "VecMustInsertFastR failed")
-#define VecMustInsertFast(v, lval, idx) VEC_MUST(VecInsertFast((v), (lval), (idx)), "VecMustInsertFast failed")
+#define VecMustInsertFastL(v, lval, idx)                                                                               \
+    do {                                                                                                               \
+        if (!VecInsertFastL((v), (lval), (idx))) {                                                                     \
+            LOG_FATAL("VecMustInsertFastL failed");                                                                    \
+        }                                                                                                              \
+    } while (0)
+#define VecMustInsertFastR(v, rval, idx)                                                                               \
+    do {                                                                                                               \
+        if (!VecInsertFastR((v), (rval), (idx))) {                                                                     \
+            LOG_FATAL("VecMustInsertFastR failed");                                                                    \
+        }                                                                                                              \
+    } while (0)
+#define VecMustInsertFast(v, lval, idx)                                                                                \
+    do {                                                                                                               \
+        if (!VecInsertFast((v), (lval), (idx))) {                                                                      \
+            LOG_FATAL("VecMustInsertFast failed");                                                                     \
+        }                                                                                                              \
+    } while (0)
 
-#define VecMustInsertRangeL(v, varr, idx, count)                                                                      \
-    VEC_MUST(VecInsertRangeL((v), (varr), (idx), (count)), "VecMustInsertRangeL failed")
-#define VecMustInsertRangeR(v, varr, idx, count)                                                                      \
-    VEC_MUST(VecInsertRangeR((v), (varr), (idx), (count)), "VecMustInsertRangeR failed")
-#define VecMustInsertRange(v, varr, idx, count)                                                                       \
-    VEC_MUST(VecInsertRange((v), (varr), (idx), (count)), "VecMustInsertRange failed")
+#define VecMustInsertRangeL(v, varr, idx, count)                                                                       \
+    do {                                                                                                               \
+        if (!VecInsertRangeL((v), (varr), (idx), (count))) {                                                           \
+            LOG_FATAL("VecMustInsertRangeL failed");                                                                   \
+        }                                                                                                              \
+    } while (0)
+#define VecMustInsertRangeR(v, varr, idx, count)                                                                       \
+    do {                                                                                                               \
+        if (!VecInsertRangeR((v), (varr), (idx), (count))) {                                                           \
+            LOG_FATAL("VecMustInsertRangeR failed");                                                                   \
+        }                                                                                                              \
+    } while (0)
+#define VecMustInsertRange(v, varr, idx, count)                                                                        \
+    do {                                                                                                               \
+        if (!VecInsertRange((v), (varr), (idx), (count))) {                                                            \
+            LOG_FATAL("VecMustInsertRange failed");                                                                    \
+        }                                                                                                              \
+    } while (0)
 
-#define VecMustInsertRangeFastL(v, varr, idx, count)                                                                  \
-    VEC_MUST(VecInsertRangeFastL((v), (varr), (idx), (count)), "VecMustInsertRangeFastL failed")
-#define VecMustInsertRangeFastR(v, varr, idx, count)                                                                  \
-    VEC_MUST(VecInsertRangeFastR((v), (varr), (idx), (count)), "VecMustInsertRangeFastR failed")
-#define VecMustInsertRangeFast(v, varr, idx, count)                                                                   \
-    VEC_MUST(VecInsertRangeFast((v), (varr), (idx), (count)), "VecMustInsertRangeFast failed")
+#define VecMustInsertRangeFastL(v, varr, idx, count)                                                                   \
+    do {                                                                                                               \
+        if (!VecInsertRangeFastL((v), (varr), (idx), (count))) {                                                       \
+            LOG_FATAL("VecMustInsertRangeFastL failed");                                                               \
+        }                                                                                                              \
+    } while (0)
+#define VecMustInsertRangeFastR(v, varr, idx, count)                                                                   \
+    do {                                                                                                               \
+        if (!VecInsertRangeFastR((v), (varr), (idx), (count))) {                                                       \
+            LOG_FATAL("VecMustInsertRangeFastR failed");                                                               \
+        }                                                                                                              \
+    } while (0)
+#define VecMustInsertRangeFast(v, varr, idx, count)                                                                    \
+    do {                                                                                                               \
+        if (!VecInsertRangeFast((v), (varr), (idx), (count))) {                                                        \
+            LOG_FATAL("VecMustInsertRangeFast failed");                                                                \
+        }                                                                                                              \
+    } while (0)
 
-#define VecMustPushBackArrL(v, arr, count) VEC_MUST(VecPushBackArrL((v), (arr), (count)), "VecMustPushBackArrL failed")
-#define VecMustPushBackArrR(v, arr, count) VEC_MUST(VecPushBackArrR((v), (arr), (count)), "VecMustPushBackArrR failed")
-#define VecMustPushBackArr(v, arr, count) VEC_MUST(VecPushBackArr((v), (arr), (count)), "VecMustPushBackArr failed")
+#define VecMustPushBackArrL(v, arr, count)                                                                             \
+    do {                                                                                                               \
+        if (!VecPushBackArrL((v), (arr), (count))) {                                                                   \
+            LOG_FATAL("VecMustPushBackArrL failed");                                                                   \
+        }                                                                                                              \
+    } while (0)
+#define VecMustPushBackArrR(v, arr, count)                                                                             \
+    do {                                                                                                               \
+        if (!VecPushBackArrR((v), (arr), (count))) {                                                                   \
+            LOG_FATAL("VecMustPushBackArrR failed");                                                                   \
+        }                                                                                                              \
+    } while (0)
+#define VecMustPushBackArr(v, arr, count)                                                                              \
+    do {                                                                                                               \
+        if (!VecPushBackArr((v), (arr), (count))) {                                                                    \
+            LOG_FATAL("VecMustPushBackArr failed");                                                                    \
+        }                                                                                                              \
+    } while (0)
 
-#define VecMustPushFrontArrL(v, arr, count)                                                                           \
-    VEC_MUST(VecPushFrontArrL((v), (arr), (count)), "VecMustPushFrontArrL failed")
-#define VecMustPushFrontArrR(v, arr, count)                                                                           \
-    VEC_MUST(VecPushFrontArrR((v), (arr), (count)), "VecMustPushFrontArrR failed")
-#define VecMustPushFrontArr(v, arr, count) VEC_MUST(VecPushFrontArr((v), (arr), (count)), "VecMustPushFrontArr failed")
+#define VecMustPushFrontArrL(v, arr, count)                                                                            \
+    do {                                                                                                               \
+        if (!VecPushFrontArrL((v), (arr), (count))) {                                                                  \
+            LOG_FATAL("VecMustPushFrontArrL failed");                                                                  \
+        }                                                                                                              \
+    } while (0)
+#define VecMustPushFrontArrR(v, arr, count)                                                                            \
+    do {                                                                                                               \
+        if (!VecPushFrontArrR((v), (arr), (count))) {                                                                  \
+            LOG_FATAL("VecMustPushFrontArrR failed");                                                                  \
+        }                                                                                                              \
+    } while (0)
+#define VecMustPushFrontArr(v, arr, count)                                                                             \
+    do {                                                                                                               \
+        if (!VecPushFrontArr((v), (arr), (count))) {                                                                   \
+            LOG_FATAL("VecMustPushFrontArr failed");                                                                   \
+        }                                                                                                              \
+    } while (0)
 
-#define VecMustPushFrontArrFastL(v, arr, count)                                                                       \
-    VEC_MUST(VecPushFrontArrFastL((v), (arr), (count)), "VecMustPushFrontArrFastL failed")
-#define VecMustPushFrontArrFastR(v, arr, count)                                                                       \
-    VEC_MUST(VecPushFrontArrFastR((v), (arr), (count)), "VecMustPushFrontArrFastR failed")
-#define VecMustPushFrontArrFast(v, arr, count)                                                                        \
-    VEC_MUST(VecPushFrontArrFast((v), (arr), (count)), "VecMustPushFrontArrFast failed")
+#define VecMustPushFrontArrFastL(v, arr, count)                                                                        \
+    do {                                                                                                               \
+        if (!VecPushFrontArrFastL((v), (arr), (count))) {                                                              \
+            LOG_FATAL("VecMustPushFrontArrFastL failed");                                                              \
+        }                                                                                                              \
+    } while (0)
+#define VecMustPushFrontArrFastR(v, arr, count)                                                                        \
+    do {                                                                                                               \
+        if (!VecPushFrontArrFastR((v), (arr), (count))) {                                                              \
+            LOG_FATAL("VecMustPushFrontArrFastR failed");                                                              \
+        }                                                                                                              \
+    } while (0)
+#define VecMustPushFrontArrFast(v, arr, count)                                                                         \
+    do {                                                                                                               \
+        if (!VecPushFrontArrFast((v), (arr), (count))) {                                                               \
+            LOG_FATAL("VecMustPushFrontArrFast failed");                                                               \
+        }                                                                                                              \
+    } while (0)
 
-#define VecMustMergeL(v, v2) VEC_MUST(VecMergeL((v), (v2)), "VecMustMergeL failed")
-#define VecMustMergeR(v, v2) VEC_MUST(VecMergeR((v), (v2)), "VecMustMergeR failed")
-#define VecMustMerge(v, v2) VEC_MUST(VecMerge((v), (v2)), "VecMustMerge failed")
+#define VecMustMergeL(v, v2)                                                                                           \
+    do {                                                                                                               \
+        if (!VecMergeL((v), (v2))) {                                                                                   \
+            LOG_FATAL("VecMustMergeL failed");                                                                         \
+        }                                                                                                              \
+    } while (0)
+#define VecMustMergeR(v, v2)                                                                                           \
+    do {                                                                                                               \
+        if (!VecMergeR((v), (v2))) {                                                                                   \
+            LOG_FATAL("VecMustMergeR failed");                                                                         \
+        }                                                                                                              \
+    } while (0)
+#define VecMustMerge(v, v2)                                                                                            \
+    do {                                                                                                               \
+        if (!VecMerge((v), (v2))) {                                                                                    \
+            LOG_FATAL("VecMustMerge failed");                                                                          \
+        }                                                                                                              \
+    } while (0)
 
-#define VecMustPushBackL(v, val) VEC_MUST(VecPushBackL((v), (val)), "VecMustPushBackL failed")
-#define VecMustPushBackR(v, val) VEC_MUST(VecPushBackR((v), (val)), "VecMustPushBackR failed")
-#define VecMustPushBack(v, val) VEC_MUST(VecPushBack((v), (val)), "VecMustPushBack failed")
+#define VecMustPushBackL(v, val)                                                                                       \
+    do {                                                                                                               \
+        if (!VecPushBackL((v), (val))) {                                                                               \
+            LOG_FATAL("VecMustPushBackL failed");                                                                      \
+        }                                                                                                              \
+    } while (0)
+#define VecMustPushBackR(v, val)                                                                                       \
+    do {                                                                                                               \
+        if (!VecPushBackR((v), (val))) {                                                                               \
+            LOG_FATAL("VecMustPushBackR failed");                                                                      \
+        }                                                                                                              \
+    } while (0)
+#define VecMustPushBack(v, val)                                                                                        \
+    do {                                                                                                               \
+        if (!VecPushBack((v), (val))) {                                                                                \
+            LOG_FATAL("VecMustPushBack failed");                                                                       \
+        }                                                                                                              \
+    } while (0)
 
-#define VecMustPushFrontL(v, val) VEC_MUST(VecPushFrontL((v), (val)), "VecMustPushFrontL failed")
-#define VecMustPushFrontR(v, val) VEC_MUST(VecPushFrontR((v), (val)), "VecMustPushFrontR failed")
-#define VecMustPushFront(v, val) VEC_MUST(VecPushFront((v), (val)), "VecMustPushFront failed")
+#define VecMustPushFrontL(v, val)                                                                                      \
+    do {                                                                                                               \
+        if (!VecPushFrontL((v), (val))) {                                                                              \
+            LOG_FATAL("VecMustPushFrontL failed");                                                                     \
+        }                                                                                                              \
+    } while (0)
+#define VecMustPushFrontR(v, val)                                                                                      \
+    do {                                                                                                               \
+        if (!VecPushFrontR((v), (val))) {                                                                              \
+            LOG_FATAL("VecMustPushFrontR failed");                                                                     \
+        }                                                                                                              \
+    } while (0)
+#define VecMustPushFront(v, val)                                                                                       \
+    do {                                                                                                               \
+        if (!VecPushFront((v), (val))) {                                                                               \
+            LOG_FATAL("VecMustPushFront failed");                                                                      \
+        }                                                                                                              \
+    } while (0)
 
-#define VecMustInitClone(vd, vs) VEC_MUST(VecInitClone((vd), (vs)), "VecMustInitClone failed")
+#define VecMustInitClone(vd, vs)                                                                                       \
+    do {                                                                                                               \
+        if (!VecInitClone((vd), (vs))) {                                                                               \
+            LOG_FATAL("VecMustInitClone failed");                                                                      \
+        }                                                                                                              \
+    } while (0)
 
 #endif // MISRA_STD_CONTAINER_VEC_INSERT_H
