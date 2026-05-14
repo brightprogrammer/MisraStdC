@@ -10,6 +10,23 @@
 #include "Type.h"
 #include <Misra/Std/Memory.h>
 
+///
+/// Empty-Vec struct literal bound to a raw allocator pointer.
+/// Equivalent to the public `VecInit(typed_alloc_ptr)` macro but takes
+/// a raw `Allocator *` rather than a typed allocator handle. Used by
+/// library .c code that already holds an allocator pointer it wants
+/// to pass through (typically read from another container's embedded
+/// allocator field).
+///
+#define vec_init_alloc(alloc_ptr)                                                                                      \
+    {.length      = 0,                                                                                                 \
+     .capacity    = 0,                                                                                                 \
+     .copy_init   = NULL,                                                                                              \
+     .copy_deinit = NULL,                                                                                              \
+     .data        = NULL,                                                                                              \
+     .allocator   = (alloc_ptr),                                                                                       \
+     .__magic     = MISRA_VEC_MAGIC}
+
 #ifdef __cplusplus
 extern "C" {
 #endif

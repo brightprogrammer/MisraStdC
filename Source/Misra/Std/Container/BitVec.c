@@ -6,6 +6,7 @@
 
 #include <Misra/Std/Container/BitVec.h>
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Container/Str/Private.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Log.h>
 #include <string.h>
@@ -36,13 +37,13 @@
 #define BYTES_FOR_BITS(bits) (((bits) + BITS_PER_BYTE - 1) / BITS_PER_BYTE)
 
 BitVec BitVecInitWithCapacityAlloc(u64 cap, Allocator *alloc) {
-    BitVec result = BitVecInit(alloc);
+    BitVec result = bitvec_init_alloc(alloc);
 
     if (cap == 0) {
         return result;
     }
 
-    result.data = (u8 *)AllocatorAlloc(&result.allocator, BITVEC_BYTES_FOR_BITS(cap), true);
+    result.data = (u8 *)AllocatorAlloc(result.allocator, BITVEC_BYTES_FOR_BITS(cap), true);
     if (!result.data) {
         return result;
     }
@@ -190,7 +191,7 @@ bool BitVecTryClone(BitVec *out, BitVec *bv) {
         return false;
     }
 
-    *out = BitVecInit(bv->allocator);
+    *out = bitvec_init_alloc(bv->allocator);
     if (bv->length == 0) {
         return true;
     }
@@ -198,7 +199,7 @@ bool BitVecTryClone(BitVec *out, BitVec *bv) {
     // Reserve space for the clone
     if (!BitVecReserve(out, bv->length) || !BitVecResize(out, bv->length)) {
         BitVecDeinit(out);
-        *out = BitVecInit(bv->allocator);
+        *out = bitvec_init_alloc(bv->allocator);
         return false;
     }
 
@@ -215,7 +216,7 @@ BitVec BitVecClone(BitVec *bv) {
     BitVec clone;
 
     ValidateBitVec(bv);
-    clone = BitVecInit(bv->allocator);
+    clone = bitvec_init_alloc(bv->allocator);
     (void)BitVecTryClone(&clone, bv);
     return clone;
 }
@@ -797,7 +798,7 @@ bool BitVecTryToStrAlloc(Str *out, BitVec *bv, Allocator *alloc) {
         LOG_FATAL("out is NULL");
     }
 
-    *out = StrInit(alloc);
+    *out = str_init_alloc(alloc);
     if (bv->length == 0) {
         return true;
     }
@@ -812,7 +813,7 @@ bool BitVecTryToStrAlloc(Str *out, BitVec *bv, Allocator *alloc) {
         char bit_char = BitVecGet(bv, i) ? '1' : '0';
         if (!StrPushBack(out, bit_char)) {
             StrDeinit(out);
-            *out = StrInit(alloc);
+            *out = str_init_alloc(alloc);
             return false;
         }
     }
@@ -824,7 +825,7 @@ Str BitVecToStrAlloc(BitVec *bv, Allocator *alloc) {
     Str result;
 
     if (!BitVecTryToStrAlloc(&result, bv, alloc)) {
-        result = StrInit(alloc);
+        result = str_init_alloc(alloc);
     }
 
     return result;
@@ -838,7 +839,7 @@ bool BitVecTryFromStrAlloc(BitVec *out, const char *str, Allocator *alloc) {
         LOG_FATAL("out is NULL");
     }
 
-    *out = BitVecInit(alloc);
+    *out = bitvec_init_alloc(alloc);
 
     u64 str_len = ZstrLen(str);
     if (!BitVecReserve(out, str_len)) {
@@ -849,13 +850,13 @@ bool BitVecTryFromStrAlloc(BitVec *out, const char *str, Allocator *alloc) {
         if (str[i] == '1') {
             if (!BitVecPush(out, true)) {
                 BitVecDeinit(out);
-                *out = BitVecInit(alloc);
+                *out = bitvec_init_alloc(alloc);
                 return false;
             }
         } else if (str[i] == '0') {
             if (!BitVecPush(out, false)) {
                 BitVecDeinit(out);
-                *out = BitVecInit(alloc);
+                *out = bitvec_init_alloc(alloc);
                 return false;
             }
         }
@@ -869,7 +870,7 @@ BitVec BitVecFromStrAlloc(const char *str, Allocator *alloc) {
     BitVec result;
 
     if (!BitVecTryFromStrAlloc(&result, str, alloc)) {
-        result = BitVecInit(alloc);
+        result = bitvec_init_alloc(alloc);
     }
 
     return result;
@@ -913,7 +914,7 @@ bool BitVecTryFromBytesAlloc(BitVec *out, const u8 *bytes, u64 bit_len, Allocato
         LOG_FATAL("out is NULL");
     }
 
-    *out = BitVecInit(alloc);
+    *out = bitvec_init_alloc(alloc);
 
     // Handle empty bitvector case
     if (bit_len == 0) {
@@ -922,7 +923,7 @@ bool BitVecTryFromBytesAlloc(BitVec *out, const u8 *bytes, u64 bit_len, Allocato
 
     if (!BitVecReserve(out, bit_len) || !BitVecResize(out, bit_len)) {
         BitVecDeinit(out);
-        *out = BitVecInit(alloc);
+        *out = bitvec_init_alloc(alloc);
         return false;
     }
 
@@ -941,7 +942,7 @@ BitVec BitVecFromBytesAlloc(const u8 *bytes, u64 bit_len, Allocator *alloc) {
     BitVec result;
 
     if (!BitVecTryFromBytesAlloc(&result, bytes, bit_len, alloc)) {
-        result = BitVecInit(alloc);
+        result = bitvec_init_alloc(alloc);
     }
 
     return result;
@@ -971,7 +972,7 @@ bool BitVecTryFromIntegerAlloc(BitVec *out, u64 value, u64 bits, Allocator *allo
         LOG_FATAL("out is NULL");
     }
 
-    *out = BitVecInit(alloc);
+    *out = bitvec_init_alloc(alloc);
     if (bits == 0) {
         return true;
     }
@@ -983,7 +984,7 @@ bool BitVecTryFromIntegerAlloc(BitVec *out, u64 value, u64 bits, Allocator *allo
 
     if (!BitVecReserve(out, bits) || !BitVecResize(out, bits)) {
         BitVecDeinit(out);
-        *out = BitVecInit(alloc);
+        *out = bitvec_init_alloc(alloc);
         return false;
     }
 
@@ -1000,7 +1001,7 @@ BitVec BitVecFromIntegerAlloc(u64 value, u64 bits, Allocator *alloc) {
     BitVec result;
 
     if (!BitVecTryFromIntegerAlloc(&result, value, bits, alloc)) {
-        result = BitVecInit(alloc);
+        result = bitvec_init_alloc(alloc);
     }
 
     return result;
@@ -1394,7 +1395,6 @@ u64 BitVecDotProduct(BitVec *bv1, BitVec *bv2) {
 }
 
 bool BitVecTryEditDistance(BitVec *bv1, BitVec *bv2, u64 *out) {
-    Allocator *scratch;
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
     if (!out) {
@@ -1413,14 +1413,18 @@ bool BitVecTryEditDistance(BitVec *bv1, BitVec *bv2, u64 *out) {
         return true;
     }
 
+    // Scratch allocations borrow bv1's allocator. The function is
+    // pass-through - results live in `*out` (a u64) and no container
+    // escapes - so any allocator that outlives the function works.
+    Allocator *scratch = bv1->allocator;
 
     // Dynamic programming matrix
-    u64 *prev_row = AllocatorAlloc(&scratch, (len2 + 1) * sizeof(u64), false);
-    u64 *curr_row = AllocatorAlloc(&scratch, (len2 + 1) * sizeof(u64), false);
+    u64 *prev_row = AllocatorAlloc(scratch, (len2 + 1) * sizeof(u64), false);
+    u64 *curr_row = AllocatorAlloc(scratch, (len2 + 1) * sizeof(u64), false);
 
     if (!prev_row || !curr_row) {
-        AllocatorFree(&scratch, prev_row, (len2 + 1) * sizeof(u64));
-        AllocatorFree(&scratch, curr_row, (len2 + 1) * sizeof(u64));
+        AllocatorFree(scratch, prev_row, (len2 + 1) * sizeof(u64));
+        AllocatorFree(scratch, curr_row, (len2 + 1) * sizeof(u64));
         return false;
     }
 
@@ -1450,8 +1454,8 @@ bool BitVecTryEditDistance(BitVec *bv1, BitVec *bv2, u64 *out) {
     }
 
     *out = prev_row[len2];
-    AllocatorFree(&scratch, prev_row, (len2 + 1) * sizeof(u64));
-    AllocatorFree(&scratch, curr_row, (len2 + 1) * sizeof(u64));
+    AllocatorFree(scratch, prev_row, (len2 + 1) * sizeof(u64));
+    AllocatorFree(scratch, curr_row, (len2 + 1) * sizeof(u64));
 
     return true;
 }

@@ -7,6 +7,7 @@
 #ifndef MISRA_STD_CONTAINER_BITVEC_INIT_H
 #define MISRA_STD_CONTAINER_BITVEC_INIT_H
 
+#include "Private.h"
 #include "Type.h"
 #include <Misra/Std/Memory.h>
 
@@ -34,23 +35,7 @@ extern "C" {
 /// Initialize bitvector. The user-owned typed allocator pointer (e.g.
 /// `&heap` where `heap` is a `HeapAllocator`) is required.
 ///
-#ifdef __cplusplus
-#    define BitVecInit(typed_alloc_ptr)                                                                                \
-        (BitVec {.length    = 0,                                                                                       \
-                 .capacity  = 0,                                                                                       \
-                 .data      = NULL,                                                                                    \
-                 .byte_size = 0,                                                                                       \
-                 .allocator = ALLOCATOR_OF(typed_alloc_ptr),                                                           \
-                 .__magic   = MISRA_BITVEC_MAGIC})
-#else
-#    define BitVecInit(typed_alloc_ptr)                                                                                \
-        ((BitVec) {.length    = 0,                                                                                     \
-                   .capacity  = 0,                                                                                     \
-                   .data      = NULL,                                                                                  \
-                   .byte_size = 0,                                                                                     \
-                   .allocator = ALLOCATOR_OF(typed_alloc_ptr),                                                         \
-                   .__magic   = MISRA_BITVEC_MAGIC})
-#endif
+#define BitVecInit(typed_alloc_ptr) bitvec_init_alloc(ALLOCATOR_OF(typed_alloc_ptr))
 
     BitVec BitVecInitWithCapacityAlloc(u64 cap, Allocator *alloc);
 
