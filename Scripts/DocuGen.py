@@ -123,6 +123,12 @@ def internal_documentation_symbol_reason(symbol_name):
         return "plumbing"
     if symbol_name.endswith("Internal"):
         return "private"
+    # Project convention: snake_case identifiers are private/internal helpers.
+    # Public API names are PascalCase. A symbol whose first character is a
+    # lowercase ASCII letter is treated as a private name and skipped from
+    # the generated public documentation surface.
+    if symbol_name[0].islower() and symbol_name[0].isascii():
+        return "private"
     return None
 
 
