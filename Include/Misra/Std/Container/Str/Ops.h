@@ -63,7 +63,7 @@ extern "C" {
 /// key[in] : Str object to find in `str`
 ///
 /// SUCCESS : char* providing position of found string. Pointer is inside `str`
-/// FAILURE : NULL
+/// FAILURE : Returns `NULL`.
 ///
 #define StrFindStr(str, key) ZstrFindSubstring((str)->data, (key)->data)
 
@@ -74,7 +74,7 @@ extern "C" {
 /// key[in] : const char* string to look for
 ///
 /// SUCCESS : char* providing position of found string. Pointer is inside `str`.
-/// FAILURE : NULL
+/// FAILURE : Returns `NULL`.
 ///
 #define StrFindZstr(str, key) ZstrFindSubstring((str)->data, (key))
 
@@ -86,7 +86,7 @@ extern "C" {
 /// key_len[in] : Length of the substring to look for.
 ///
 /// SUCCESS : char* providing position of found string. Pointer is inside `str`.
-/// FAILURE : NULL
+/// FAILURE : Returns `NULL`.
 ///
 #define StrFindCstr(str, key, key_len) ZstrFindSubstringN((str)->data, (key), (key_len))
 
@@ -96,7 +96,7 @@ extern "C" {
     /// s[in]   : Str object to search in.
     /// key[in] : Str object to search for.
     ///
-    /// SUCCESS : `true` if a match exists.
+    /// SUCCESS : Returns `true` when a match exists.
     /// FAILURE : Returns `false`.
     ///
     /// TAGS: Str, Contains, Search
@@ -109,8 +109,8 @@ extern "C" {
     /// s[in]   : Str object to search in.
     /// key[in] : Null-terminated string to search for.
     ///
-    /// SUCCESS : Zero-based index of first match.
-    /// FAILURE : `SIZE_MAX` if no match is found.
+    /// SUCCESS : Returns the zero-based index of the first match. The string is not modified.
+    /// FAILURE : Returns `SIZE_MAX` when no match is found. The string is not modified.
     ///
     /// TAGS: Str, IndexOf, Search
     ///
@@ -123,8 +123,8 @@ extern "C" {
     /// key[in]     : String to search for.
     /// key_len[in] : Length of searched string.
     ///
-    /// SUCCESS : Zero-based index of first match.
-    /// FAILURE : `SIZE_MAX` if no match is found.
+    /// SUCCESS : Returns the zero-based index of the first match. The string is not modified.
+    /// FAILURE : Returns `SIZE_MAX` when no match is found. The string is not modified.
     ///
     /// TAGS: Str, IndexOf, Search
     ///
@@ -136,8 +136,8 @@ extern "C" {
     /// s[in]   : Str object to search in.
     /// key[in] : Str object to search for.
     ///
-    /// SUCCESS : Zero-based index of first match.
-    /// FAILURE : `SIZE_MAX` if no match is found.
+    /// SUCCESS : Returns the zero-based index of the first match. The string is not modified.
+    /// FAILURE : Returns `SIZE_MAX` when no match is found. The string is not modified.
     ///
     /// TAGS: Str, IndexOf, Search
     ///
@@ -149,7 +149,7 @@ extern "C" {
     /// s[in]   : Str object to search in.
     /// key[in] : Null-terminated string to search for.
     ///
-    /// SUCCESS : `true` if a match exists.
+    /// SUCCESS : Returns `true` when a match exists.
     /// FAILURE : Returns `false`.
     ///
     /// TAGS: Str, Contains, Search
@@ -163,7 +163,7 @@ extern "C" {
     /// key[in]     : String to search for.
     /// key_len[in] : Length of searched string.
     ///
-    /// SUCCESS : `true` if a match exists.
+    /// SUCCESS : Returns `true` when a match exists.
     /// FAILURE : Returns `false`.
     ///
     /// TAGS: Str, Contains, Search
@@ -180,8 +180,8 @@ extern "C" {
     /// s[in]     : Str to check.
     /// prefix[in]: Null-terminated prefix string.
     ///
-    /// SUCCESS : Returns true if `s` starts with `prefix`.
-    /// FAILURE : Returns false.
+    /// SUCCESS : Returns `true` when `s` starts with `prefix`.
+    /// FAILURE : Returns `false`. The string is not modified.
     ///
     bool StrStartsWithZstr(const Str *s, const char *prefix);
 
@@ -191,8 +191,8 @@ extern "C" {
     /// s[in]     : Str to check.
     /// suffix[in]: Null-terminated suffix string.
     ///
-    /// SUCCESS : Returns true if `s` ends with `suffix`.
-    /// FAILURE : Returns false.
+    /// SUCCESS : Returns `true` when `s` ends with `suffix`.
+    /// FAILURE : Returns `false`. The string is not modified.
     ///
     bool StrEndsWithZstr(const Str *s, const char *suffix);
 
@@ -203,8 +203,8 @@ extern "C" {
     /// prefix[in]    : Pointer to prefix character array.
     /// prefix_len[in]: Length of prefix.
     ///
-    /// SUCCESS : Returns true if `s` starts with `prefix`.
-    /// FAILURE : Returns false.
+    /// SUCCESS : Returns `true` when `s` starts with `prefix`.
+    /// FAILURE : Returns `false`. The string is not modified.
     ///
     bool StrStartsWithCstr(const Str *s, const char *prefix, size prefix_len);
 
@@ -215,8 +215,8 @@ extern "C" {
     /// suffix[in]    : Pointer to suffix character array.
     /// suffix_len[in]: Length of suffix.
     ///
-    /// SUCCESS : Returns true if `s` ends with `suffix`.
-    /// FAILURE : Returns false.
+    /// SUCCESS : Returns `true` when `s` ends with `suffix`.
+    /// FAILURE : Returns `false`. The string is not modified.
     ///
     bool StrEndsWithCstr(const Str *s, const char *suffix, size suffix_len);
 
@@ -226,8 +226,8 @@ extern "C" {
     /// s[in]     : Str to check.
     /// prefix[in]: Str to check as prefix.
     ///
-    /// SUCCESS : Returns true if `s` starts with `prefix`.
-    /// FAILURE : Returns false.
+    /// SUCCESS : Returns `true` when `s` starts with `prefix`.
+    /// FAILURE : Returns `false`. The string is not modified.
     ///
     bool StrStartsWith(const Str *s, const Str *prefix);
 
@@ -237,8 +237,8 @@ extern "C" {
     /// s[in]     : Str to check.
     /// suffix[in]: Str to check as suffix.
     ///
-    /// SUCCESS : Returns true if `s` ends with `suffix`.
-    /// FAILURE : Returns false.
+    /// SUCCESS : Returns `true` when `s` ends with `suffix`.
+    /// FAILURE : Returns `false`. The string is not modified.
     ///
     bool StrEndsWith(const Str *s, const Str *suffix);
 

@@ -50,8 +50,8 @@ extern "C" {
     /// value[in]   : Value to convert
     /// config[in]  : Formatting configuration (NULL for base 10, no prefix)
     ///
-    /// SUCCESS : Returns str
-    /// FAILURE : Returns NULL if config is invalid
+    /// SUCCESS : Returns `str`
+    /// FAILURE : Returns `NULL` when `config` is invalid; the destination string is untouched
     ///
     Str *StrFromU64(Str *str, u64 value, const StrIntFormat *config);
 
@@ -62,8 +62,8 @@ extern "C" {
     /// value[in]   : Value to convert
     /// config[in]  : Formatting configuration (NULL for base 10, no prefix)
     ///
-    /// SUCCESS : Returns str
-    /// FAILURE : Returns NULL if config is invalid
+    /// SUCCESS : Returns `str`
+    /// FAILURE : Returns `NULL` when `config` is invalid; the destination string is untouched
     ///
     Str *StrFromI64(Str *str, i64 value, const StrIntFormat *config);
 
@@ -74,8 +74,8 @@ extern "C" {
     /// value[in]    : Value to convert
     /// config[in]   : Formatting configuration (NULL for 6 decimal places)
     ///
-    /// SUCCESS : Returns str
-    /// FAILURE : Returns NULL if config is invalid
+    /// SUCCESS : Returns `str`
+    /// FAILURE : Returns `NULL` when `config` is invalid; the destination string is untouched
     ///
     Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config);
 
@@ -86,8 +86,8 @@ extern "C" {
     /// value[out]  : Where to store the result
     /// config[in]  : Parse configuration (NULL for auto-detect base)
     ///
-    /// SUCCESS : Returns true and stores result in value
-    /// FAILURE : Returns false if conversion fails
+    /// SUCCESS : Returns `true` and writes the parsed value into `*value`
+    /// FAILURE : Returns `false` when the input cannot be parsed; `*value` is left unchanged
     ///
     bool StrToU64(const Str *str, u64 *value, const StrParseConfig *config);
 
@@ -98,8 +98,8 @@ extern "C" {
     /// value[out]  : Where to store the result
     /// config[in]  : Parse configuration (NULL for auto-detect base)
     ///
-    /// SUCCESS : Returns true and stores result in value
-    /// FAILURE : Returns false if conversion fails
+    /// SUCCESS : Returns `true` and writes the parsed value into `*value`
+    /// FAILURE : Returns `false` when the input cannot be parsed; `*value` is left unchanged
     ///
     bool StrToI64(const Str *str, i64 *value, const StrParseConfig *config);
 
@@ -110,8 +110,8 @@ extern "C" {
     /// value[out]  : Where to store the result
     /// config[in]  : Parse configuration (NULL for default parsing)
     ///
-    /// SUCCESS : Returns true and stores result in value
-    /// FAILURE : Returns false if conversion fails
+    /// SUCCESS : Returns `true` and writes the parsed value into `*value`
+    /// FAILURE : Returns `false` when the input cannot be parsed; `*value` is left unchanged
     ///
     bool StrToF64(const Str *str, f64 *value, const StrParseConfig *config);
 
