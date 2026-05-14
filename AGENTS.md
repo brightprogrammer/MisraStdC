@@ -204,10 +204,14 @@ style:
 /// param2[in,out]  : What it is and how it changes.
 /// out_param[out]  : Where the result lands.
 ///
-/// SUCCESS : What success looks like.
-/// FAILURE : What failure looks like, including when it can happen.
-///
-/// RETURNS : Plain English description of the return value.
+/// SUCCESS : Full behaviour on the success path — control flow returns, return
+///           value or sentinel, and any state effects the caller should know
+///           about (out param populated, length bumped, source emptied on
+///           ownership transfer, etc.).
+/// FAILURE : Full behaviour on the failure path — whether control flow returns
+///           at all, return value or sentinel, and the state of the object on
+///           failure (unchanged, partially populated, source left intact,
+///           etc.).
 ///
 /// USAGE:
 ///   ExampleCall(&value, 10);
@@ -217,11 +221,32 @@ style:
 ReturnType ApiName(ArgType arg);
 ```
 
-Notes:
+Notes on `SUCCESS:` / `FAILURE:`:
 
-- The `SUCCESS:` / `FAILURE:` block is preferred for fallible APIs; older
-  entries use `RETURNS:` only — both are acceptable but new code should
-  include both when failure is possible.
+- These describe **the contract**, not just the literal return value.
+  "Returning" is the return of **control flow** to the caller. State that
+  explicitly when the function aborts or otherwise does not return.
+- Cover what the reader needs to know without opening the source:
+  - return value or sentinel (`true`, `false`, `NULL`, `GraphNodeId`, ...)
+  - whether control returns at all
+  - state changes the caller cares about (out param populated, source
+    emptied, vector unchanged on failure, length bumped, allocator bound,
+    internal rollback applied)
+- For a `Must*` variant, the `FAILURE:` line should say something like
+  "Does not return — aborts via `LOG_FATAL` / `SysAbort`."
+- For a fallible propagating form, give both the bool return AND the state
+  guarantee, e.g.:
+  ```
+  /// SUCCESS : Returns `true`. The vector contains the inserted element at `idx`.
+  /// FAILURE : Returns `false` on allocation failure. The vector and `lval` are unchanged.
+  ```
+- For a void-returning operation that cannot fail, write
+  `/// FAILURE : Function cannot fail.` rather than omitting the section.
+- Older doc blocks sometimes use `RETURNS:` instead of `SUCCESS:` /
+  `FAILURE:`. New code should use the SUCCESS/FAILURE pair.
+
+Other notes:
+
 - The `USAGE:` example should be a realistic snippet, not a placeholder.
 - `TAGS:` are free-form categorical labels used by the docs generator under
   `Docs/`.
