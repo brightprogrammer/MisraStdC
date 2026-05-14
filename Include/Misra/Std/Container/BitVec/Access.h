@@ -16,10 +16,13 @@ extern "C" {
     ///
     /// Get the value of bit at given index in bitvector.
     ///
-    /// bv[in]  : Bitvector to get bit from
-    /// idx[in] : Index of bit to get (0-based)
+    /// bv[in]  : Bitvector to get bit from.
+    /// idx[in] : Index of bit to get (0-based), in [0, length).
     ///
-    /// RETURNS : true if bit is set, false otherwise
+    /// SUCCESS : Returns `true` when the bit is set, `false` when it is
+    ///           clear. The bitvector is not modified.
+    /// FAILURE : Function cannot fail. An out-of-range `idx` is a caller
+    ///           bug and aborts via `LOG_FATAL`.
     ///
     /// USAGE:
     ///   bool flag = BitVecGet(&flags, 5);
@@ -31,9 +34,15 @@ extern "C" {
     ///
     /// Set the value of bit at given index in bitvector.
     ///
-    /// bv[in]    : Bitvector to set bit in
-    /// idx[in]   : Index of bit to set (0-based)
-    /// value[in] : Value to set (true/false)
+    /// bv[in,out] : Bitvector to set bit in.
+    /// idx[in]    : Index of bit to set (0-based), in [0, length).
+    /// value[in]  : Value to set (true/false).
+    ///
+    /// SUCCESS : Returns to the caller. The bit at `idx` is now `value`.
+    ///           Length and capacity are unchanged; all other bits are
+    ///           unchanged.
+    /// FAILURE : Function cannot fail. An out-of-range `idx` is a caller
+    ///           bug and aborts via `LOG_FATAL`.
     ///
     /// USAGE:
     ///   BitVecSet(&flags, 5, true);
@@ -47,8 +56,14 @@ extern "C" {
     /// Flip the value of bit at given index in bitvector.
     /// Changes 0 to 1 and 1 to 0.
     ///
-    /// bv[in]  : Bitvector to flip bit in
-    /// idx[in] : Index of bit to flip (0-based)
+    /// bv[in,out] : Bitvector to flip bit in.
+    /// idx[in]    : Index of bit to flip (0-based), in [0, length).
+    ///
+    /// SUCCESS : Returns to the caller. The bit at `idx` is now the
+    ///           logical inverse of its previous value. Length, capacity,
+    ///           and all other bits are unchanged.
+    /// FAILURE : Function cannot fail. An out-of-range `idx` is a caller
+    ///           bug and aborts via `LOG_FATAL`.
     ///
     /// USAGE:
     ///   BitVecFlip(&flags, 5);
