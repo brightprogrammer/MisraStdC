@@ -156,4 +156,81 @@ extern "C" {
 // The Container umbrella `<Misra/Std/Container.h>` does not transitively
 // pull these in either - including allocators is the caller's choice.
 
+///
+/// Reserved identifier used by Scope-aware public macros to find the
+/// "current" allocator. The `Scope` and `ScopeWith` macros introduce this
+/// name into the enclosing block; tier-1 public macros (`VecInit`, ...)
+/// expand to references to it. Outside any `Scope`/`ScopeWith` block the
+/// name is undeclared and the call site is a compile error.
+///
+/// Do not declare a local variable with this name in user code.
+///
+#define MisraScope __misra_scope_alloc
+
+///
+/// Open a fresh-allocator scope. Constructs an `AllocType` instance on
+/// the stack, exposes it as both `name` (an `Allocator *` for passing to
+/// helpers) and `MisraScope` (used implicitly by tier-1 macros), and
+/// destroys it automatically when the block ends.
+///
+/// Every object allocated through this scope is invalid memory after the
+/// block - reading from it is use-after-free.
+///
+/// USAGE:
+///   Scope(lifetimeA, DefaultAllocator) {
+///       Vec(int) v = VecInit();          // allocated through MisraScope
+///       my_helper(&v, lifetimeA);        // hand the named alias to a helper
+///   }
+///
+/// CONTROL FLOW: normal fall-through, `break` (or `ExitScope`), and
+/// `continue` at the scope's top level all run the auto-deinit cleanly.
+/// `return` and `goto` out of the scope skip deinit and leak the
+/// allocator - a C-level limitation that has no portable workaround.
+///
+/// TAGS: Allocator, Scope, Lifetime
+///
+#define Scope(name, AllocType)                                                                                         \
+    for (AllocType _scope_a_##name      = AllocType##Init(),                                                           \
+                  *_scope_loop_##name   = &_scope_a_##name;                                                            \
+         _scope_loop_##name;                                                                                            \
+         AllocType##Deinit(&_scope_a_##name), _scope_loop_##name = NULL)                                                \
+        for (Allocator *name             = &_scope_a_##name.base,                                                       \
+                      *MisraScope        = name,                                                                        \
+                      *_scope_done_##name = name;                                                                        \
+             _scope_done_##name;                                                                                         \
+             _scope_done_##name = NULL)
+
+///
+/// Open a scope that borrows an already-initialized allocator pointer.
+/// The pointer is exposed as `MisraScope` for the duration of the block.
+/// Nothing is destroyed on block exit - the caller still owns the
+/// allocator.
+///
+/// USAGE: typical helper pattern -
+///
+///   void my_helper(Vec(int) *v, Allocator *alloc) {
+///       ScopeWith(alloc) {
+///           Str scratch = StrInitFromCstr("hi", 2);
+///           StrDeinit(&scratch);
+///       }
+///   }
+///
+/// TAGS: Allocator, Scope, Lifetime
+///
+#define ScopeWith(alloc_ptr)                                                                                           \
+    for (Allocator *MisraScope = (alloc_ptr), *_scope_with_done = MisraScope;                                          \
+         _scope_with_done;                                                                                              \
+         _scope_with_done = NULL)
+
+///
+/// Early-exit the nearest enclosing `Scope` / `ScopeWith` block, running
+/// auto-deinit cleanly when used inside a `Scope`. Equivalent to a plain
+/// `break`. Like any C `break`, it escapes only the innermost enclosing
+/// loop - if you are inside a user `for`/`while` inside `Scope`, exit
+/// your loop first and then `ExitScope`.
+///
+/// TAGS: Allocator, Scope, Control-Flow
+///
+#define ExitScope break
+
 #endif // MISRA_STD_ALLOCATOR_H
