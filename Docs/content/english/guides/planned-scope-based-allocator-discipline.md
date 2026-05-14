@@ -179,6 +179,28 @@ The properties that fall out of the lexical design, that were the motivation for
 
 These four properties hold simultaneously. None of the rejected designs achieved all four.
 
+## Who Owns An Allocator
+
+Allocator ownership is intentionally narrow. The rule:
+
+- **Containers carry their allocator inline.** A `Vec`, `List`, `Map`, `Graph`, `BitVec`, `Str`, `Int`, or `Float` has an `Allocator *allocator` field as part of its struct. Tier-2 operations (`VecPushBack`, `StrDeinit`, `IntAdd`, ...) read this field to allocate and free, so the caller does not have to pass an allocator to every container method.
+
+- **Everything else does not carry an allocator.** Mutexes, process handles, file buffers, I/O scratch state, parser state, and other small one-shot objects do not have an `Allocator *` field. Their lifetime is tied to whatever owns them in the caller's code, and the caller supplies an allocator at every operation that allocates or frees.
+
+For non-container objects, the canonical shape is:
+
+```c
+SysMutex *SysMutexCreate(Allocator *alloc);
+void      SysMutexDestroy(SysMutex *m, Allocator *alloc);
+```
+
+Both `Create` and `Destroy` take the allocator. The caller remembers it across calls (typically by holding it in a `Scope` or a longer-lived owner). This avoids two anti-patterns:
+
+- *Embedding an allocator inside a one-shot handle.* Doubles the handle size for no operational benefit; the only operation the embedded allocator is used for is its own deallocation, which the caller could equally supply.
+- *Inferring the allocator from a global / TLS slot.* Reintroduces hidden state and defeats the explicit-lifetime goal of the `Scope` design.
+
+The rule simplifies code review: when you read a function signature and see no `Allocator *` parameter, you know the function does not allocate. When you see one, you know it does. Container methods are the only exception, because their first argument is the container itself which carries its own allocator.
+
 ## Migration Plan
 
 The refactor will land in small commits in this order:
