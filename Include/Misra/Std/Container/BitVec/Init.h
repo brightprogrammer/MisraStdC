@@ -13,12 +13,37 @@
 // Helper macro for bit operations
 #define BITVEC_BYTES_FOR_BITS(bits) (((bits) + 7) / 8)
 
+///
+/// Aborting variant of `BitVecReserve`. Calls `LOG_FATAL` on allocation
+/// failure.
+///
+/// bv[in,out] : Bitvector to grow.
+/// n[in]      : Number of bits to reserve space for.
+///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+///
+/// TAGS: BitVec, Reserve, Capacity, Must, Abort
+///
 #define BitVecMustReserve(bv, n)                                                                                       \
     do {                                                                                                               \
         if (!BitVecReserve((bv), (n))) {                                                                               \
             LOG_FATAL("BitVecMustReserve failed");                                                                     \
         }                                                                                                              \
     } while (0)
+
+///
+/// Aborting variant of `BitVecResize`. Calls `LOG_FATAL` on allocation
+/// failure.
+///
+/// bv[in,out] : Bitvector to resize.
+/// n[in]      : New length in bits.
+///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+///
+/// TAGS: BitVec, Resize, Length, Must, Abort
+///
 #define BitVecMustResize(bv, n)                                                                                        \
     do {                                                                                                               \
         if (!BitVecResize((bv), (n))) {                                                                                \
@@ -151,25 +176,33 @@ extern "C" {
     /// Reserve space for at least n bits in bitvector.
     /// Does not change the length, only ensures capacity.
     ///
-    /// bv[in] : Bitvector to reserve space in
-    /// n[in]  : Number of bits to reserve space for
+    /// bv[in,out] : Bitvector to reserve space in.
+    /// n[in]      : Number of bits to reserve space for.
+    ///
+    /// SUCCESS : `true`. The bitvector capacity is at least `n` bits.
+    /// FAILURE : `false` on allocation failure. The bitvector is unchanged.
     ///
     /// USAGE:
-    ///   BitVecReserve(&flags, 1000);
+    ///   if (!BitVecReserve(&flags, 1000)) { /* recover */ }
     ///
     /// TAGS: BitVec, Reserve, Capacity, Memory
     ///
     bool BitVecReserve(BitVec *bv, u64 n);
 
     ///
-    /// Reu64 bitvector to hold exactly n bits.
-    /// May grow or shrink the bitvector.
+    /// Resize bitvector to hold exactly `n` bits.
+    /// Grows or shrinks the bitvector. New bits (when growing) are initialized
+    /// to `false`.
     ///
-    /// bv[in] : Bitvector to resize
-    /// n[in]  : New u64 in bits
+    /// bv[in,out] : Bitvector to resize.
+    /// n[in]      : New length in bits.
+    ///
+    /// SUCCESS : `true`. The bitvector length is exactly `n`.
+    /// FAILURE : `false` on allocation failure when growth is needed. The
+    ///           bitvector is unchanged.
     ///
     /// USAGE:
-    ///   BitVecResize(&flags, 64);
+    ///   if (!BitVecResize(&flags, 64)) { /* recover */ }
     ///
     /// TAGS: BitVec, Resize, Length
     ///

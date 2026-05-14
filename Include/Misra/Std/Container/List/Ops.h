@@ -11,25 +11,41 @@
 #include "Private.h"
 
 ///
-/// Set list length to 0.
+/// Remove all entries from the list. Length becomes 0; node storage is released
+/// through the list's allocator. Element payloads are deinitialized via the
+/// configured `copy_deinit` handler when present.
 ///
-/// list[in,out] : List to be cleared.
+/// l[in,out] : List to be cleared.
 ///
-/// SUCCESS: `v`
-/// FAILURE: NULL
+/// TAGS: List, Ops, Clear
 ///
 #define ListClear(l) clear_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)))
 
 ///
-/// Sort given list with given comparator using quicksort algorithm.
+/// Sort the list using a quicksort over a temporary contiguous buffer of the
+/// element values, then write the sorted order back into the list nodes.
 ///
-/// l[in,out]  : List to be sorted.
-/// compare[in] : Compare function. Signature and behaviour must be similar to that of `strcmp`.
+/// l[in,out]   : List to be sorted.
+/// compare[in] : Compare function with `strcmp`-style return (negative, zero,
+///               positive).
 ///
-/// SUCCESS: Returns `v` on success.
-/// FAILURE: Returns NULL otherwise.
+/// SUCCESS : `true`.
+/// FAILURE : `false` if the scratch buffer allocation fails. The list order
+///           is unchanged in that case.
+///
+/// TAGS: List, Ops, Sort
 ///
 #define ListSort(l, compare) qsort_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (compare))
+
+///
+/// Aborting variant of `ListSort`. Calls `LOG_FATAL` if the scratch buffer
+/// cannot be allocated.
+///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+///
+/// TAGS: List, Ops, Sort, Must, Abort
+///
 #define ListMustSort(l, compare)                                                                                       \
     do {                                                                                                               \
         if (!ListSort((l), (compare))) {                                                                               \
@@ -38,12 +54,11 @@
     } while (0)
 
 ///
-/// Reverse contents of this list.
+/// Reverse the order of nodes in the list in place.
 ///
 /// l[in,out] : List to be reversed.
 ///
-/// SUCCESS: `v`
-/// FAILURE: NULL
+/// TAGS: List, Ops, Reverse
 ///
 #define ListReverse(l) reverse_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)))
 

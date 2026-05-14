@@ -12,8 +12,12 @@
 
 ///
 /// Clear all entries but retain allocated storage.
+/// Entries are deinitialized via the configured `key_copy_deinit` and
+/// `value_copy_deinit` handlers when present.
 ///
 /// m[in,out] : Hash map.
+///
+/// TAGS: Map, Memory, Clear
 ///
 #define MapClear(m)                                                                                                    \
     clear_map(                                                                                                         \
@@ -32,6 +36,11 @@
 /// m[in,out] : Hash map.
 /// n[in]     : Minimum number of entries expected.
 ///
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure. The map is unchanged.
+///
+/// TAGS: Map, Memory, Reserve
+///
 #define MapReserve(m, n)                                                                                               \
     reserve_map(                                                                                                       \
         GENERIC_MAP(m),                                                                                                \
@@ -43,6 +52,14 @@
         offsetof(MAP_ENTRY_TYPE(m), hash),                                                                             \
         (n)                                                                                                            \
     )
+///
+/// Aborting variant of `MapReserve`. Calls `LOG_FATAL` on allocation failure.
+///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+///
+/// TAGS: Map, Memory, Reserve, Must, Abort
+///
 #define MapMustReserve(m, n)                                                                                           \
     do {                                                                                                               \
         if (!MapReserve((m), (n))) {                                                                                   \
@@ -56,6 +73,11 @@
 ///
 /// m[in,out] : Map.
 ///
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure for the new probe table.
+///
+/// TAGS: Map, Memory, Rehash, Compact
+///
 #define MapCompact(m)                                                                                                  \
     rehash_map(                                                                                                        \
         GENERIC_MAP(m),                                                                                                \
@@ -68,6 +90,14 @@
         (size)((m)->length),                                                                                           \
         (m)->policy                                                                                                    \
     )
+///
+/// Aborting variant of `MapCompact`. Calls `LOG_FATAL` on allocation failure.
+///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+///
+/// TAGS: Map, Memory, Rehash, Compact, Must, Abort
+///
 #define MapMustCompact(m)                                                                                              \
     do {                                                                                                               \
         if (!MapCompact((m))) {                                                                                        \
@@ -75,11 +105,17 @@
         }                                                                                                              \
     } while (0)
 
+///
 /// Remap using a specific probing policy.
 ///
-/// m[in,out] : Hash map.
-/// n[in]     : Minimum number of entries expected after rehash.
-/// policy[in]: New probing policy copied into this map.
+/// m[in,out]    : Hash map.
+/// n[in]        : Minimum number of entries expected after rehash.
+/// policy_value : New probing policy copied into this map.
+///
+/// SUCCESS : `true`.
+/// FAILURE : `false` on allocation failure during the new probe table build.
+///
+/// TAGS: Map, Memory, Rehash, Policy
 ///
 #define MapRehashWithPolicy(m, n, policy_value)                                                                        \
     rehash_map(                                                                                                        \
@@ -93,6 +129,15 @@
         (n),                                                                                                           \
         (policy_value)                                                                                                 \
     )
+///
+/// Aborting variant of `MapRehashWithPolicy`. Calls `LOG_FATAL` on allocation
+/// failure.
+///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+///
+/// TAGS: Map, Memory, Rehash, Policy, Must, Abort
+///
 #define MapMustRehashWithPolicy(m, n, policy_value)                                                                    \
     do {                                                                                                               \
         if (!MapRehashWithPolicy((m), (n), (policy_value))) {                                                          \

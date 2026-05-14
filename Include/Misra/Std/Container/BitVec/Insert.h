@@ -10,6 +10,21 @@
 #include "Type.h"
 #include <Misra/Types.h>
 
+///
+/// Aborting (`Must*`) variants of the fallible bitvector insertion functions
+/// declared below.
+///
+/// Each `BitVecMustXxx(...)` is a statement-style do-while wrapper around the
+/// matching `BitVecXxx(...)` function: it calls the underlying fallible form
+/// and triggers `LOG_FATAL(...)` if the call returns `false`. Use these at
+/// API boundaries where allocation failure is not recoverable. Otherwise
+/// prefer the propagating forms.
+///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+///
+/// TAGS: BitVec, Insert, Must, Abort
+///
 #define BitVecMustInsertRange(bv, idx, count, value)                                                                   \
     do {                                                                                                               \
         if (!BitVecInsertRange((bv), (idx), (count), (value))) {                                                       \
