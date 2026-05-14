@@ -145,9 +145,15 @@ extern "C" {
 #define ALLOCATOR_OF(typed_alloc_ptr)                                                                                  \
     (CHECK_TYPE_EQUIVALENCE(TYPE_OF((typed_alloc_ptr)->base), Allocator), &(typed_alloc_ptr)->base)
 
-#include <Misra/Std/Allocator/Arena.h>
-#include <Misra/Std/Allocator/Heap.h>
-#include <Misra/Std/Allocator/Page.h>
-#include <Misra/Std/Allocator/Pool.h>
+// Typed allocator headers (PageAllocator, HeapAllocator, ArenaAllocator,
+// PoolAllocator) are NOT included here to avoid include-guard cycles:
+// each typed header includes this one to get the `Allocator` base, and
+// some embed `PageAllocator`. Users / library .c files must include the
+// specific typed allocator they need:
+//
+//   #include <Misra/Std/Allocator/Heap.h>
+//
+// The Container umbrella `<Misra/Std/Container.h>` does not transitively
+// pull these in either - including allocators is the caller's choice.
 
 #endif // MISRA_STD_ALLOCATOR_H

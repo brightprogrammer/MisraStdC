@@ -39,7 +39,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, String, Allocator
     ///
-    bool BitVecTryToStrAlloc(Str *out, BitVec *bv, Allocator alloc);
+    bool BitVecTryToStrAlloc(Str *out, BitVec *bv, Allocator *alloc);
 
     ///
     /// Convert a bitvector to a string using an explicit allocator.
@@ -52,7 +52,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, String, Allocator
     ///
-    Str BitVecToStrAlloc(BitVec *bv, Allocator alloc);
+    Str BitVecToStrAlloc(BitVec *bv, Allocator *alloc);
 
     ///
     /// Parse a bitvector from a null-terminated string using an explicit allocator.
@@ -66,7 +66,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, String, Allocator
     ///
-    bool BitVecTryFromStrAlloc(BitVec *out, const char *str, Allocator alloc);
+    bool BitVecTryFromStrAlloc(BitVec *out, const char *str, Allocator *alloc);
 
     ///
     /// Parse a bitvector from a null-terminated string using an explicit allocator.
@@ -79,7 +79,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, String, Allocator
     ///
-    BitVec BitVecFromStrAlloc(const char *str, Allocator alloc);
+    BitVec BitVecFromStrAlloc(const char *str, Allocator *alloc);
 
     ///
     /// Export bitvector to byte array.
@@ -112,7 +112,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, Bytes, Allocator
     ///
-    bool BitVecTryFromBytesAlloc(BitVec *out, const u8 *bytes, u64 bit_len, Allocator alloc);
+    bool BitVecTryFromBytesAlloc(BitVec *out, const u8 *bytes, u64 bit_len, Allocator *alloc);
 
     ///
     /// Build a bitvector from raw bytes using an explicit allocator.
@@ -126,7 +126,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, Bytes, Allocator
     ///
-    BitVec BitVecFromBytesAlloc(const u8 *bytes, u64 bit_len, Allocator alloc);
+    BitVec BitVecFromBytesAlloc(const u8 *bytes, u64 bit_len, Allocator *alloc);
 
     ///
     /// Convert bitvector to integer (up to 64 bits).
@@ -156,7 +156,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, Integer, Allocator
     ///
-    bool BitVecTryFromIntegerAlloc(BitVec *out, u64 value, u64 bits, Allocator alloc);
+    bool BitVecTryFromIntegerAlloc(BitVec *out, u64 value, u64 bits, Allocator *alloc);
 
     ///
     /// Build a bitvector from an integer using an explicit allocator.
@@ -170,7 +170,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, Integer, Allocator
     ///
-    BitVec BitVecFromIntegerAlloc(u64 value, u64 bits, Allocator alloc);
+    BitVec BitVecFromIntegerAlloc(u64 value, u64 bits, Allocator *alloc);
 
 #ifdef __cplusplus
 }

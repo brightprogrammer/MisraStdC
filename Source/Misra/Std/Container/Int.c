@@ -19,9 +19,9 @@ typedef struct {
 static void int_normalize(Int *value);
 static bool int_validate_radix(u8 radix);
 static bool int_try_from_str_radix_impl(Int *out, const char *digits, u64 start, u8 radix, bool allow_underscores);
-static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator alloc);
-static bool int_try_from_u64_with_allocator(Int *out, u64 value, Allocator alloc);
-static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator alloc);
+static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator *alloc);
+static bool int_try_from_u64_with_allocator(Int *out, u64 value, Allocator *alloc);
+static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator *alloc);
 static bool int_try_clone_value(Int *out, Int *value);
 static u64  int_u64_bits(u64 value);
 
@@ -32,7 +32,7 @@ static Int int_wrap(BitVec bits) {
     return value;
 }
 
-static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator alloc) {
+static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator *alloc) {
     if (!out) {
         LOG_ERROR("Invalid arguments");
         return false;
@@ -48,7 +48,7 @@ static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator alloc) 
     return true;
 }
 
-static bool int_try_from_u64_with_allocator(Int *out, u64 value, Allocator alloc) {
+static bool int_try_from_u64_with_allocator(Int *out, u64 value, Allocator *alloc) {
     u64 bits = int_u64_bits(value);
 
     if (!out) {
@@ -70,7 +70,7 @@ static bool int_try_from_u64_with_allocator(Int *out, u64 value, Allocator alloc
     return true;
 }
 
-static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator alloc) {
+static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator *alloc) {
     if (value < 0) {
         LOG_ERROR("Int cannot represent negative values");
         return false;
@@ -644,7 +644,7 @@ Int IntFromStr(const char *decimal) {
     return out;
 }
 
-bool IntTryToStrAlloc(Str *out, Int *value, Allocator alloc) {
+bool IntTryToStrAlloc(Str *out, Int *value, Allocator *alloc) {
     return IntTryToStrRadixAlloc(out, value, 10, false, alloc);
 }
 
@@ -686,7 +686,7 @@ Int IntFromStrRadix(const char *digits, u8 radix) {
     return out;
 }
 
-bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Allocator alloc) {
+bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Allocator *alloc) {
     Int current;
     Str result;
 

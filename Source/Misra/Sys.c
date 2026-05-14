@@ -37,7 +37,7 @@ Str *SysGetEnv(const char *name, Str *value) {
 #ifdef _WIN32
     char     *env_var;
     size_t    requiredSize;
-    Allocator allocator = DefaultAllocator();
+    Allocator *allocator = DefaultAllocator();
 
     getenv_s(&requiredSize, NULL, 0, name);
     if (requiredSize == 0) {

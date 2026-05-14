@@ -93,7 +93,7 @@ extern "C" {
     ///
     /// TAGS: Float, Convert, String, Allocator
     ///
-    bool FloatTryToStrAlloc(Str *out, Float *value, Allocator alloc);
+    bool FloatTryToStrAlloc(Str *out, Float *value, Allocator *alloc);
 
     ///
     /// Convert a float to a decimal string using the default allocator.

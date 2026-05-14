@@ -28,7 +28,7 @@ struct SysMutex {
 };
 
 SysMutex *SysMutexCreate(void) {
-    Allocator allocator = DefaultAllocator();
+    Allocator *allocator = DefaultAllocator();
     SysMutex *m         = (SysMutex *)AllocatorAlloc(&allocator, sizeof(SysMutex), true);
 
     if (!m) {
@@ -44,7 +44,7 @@ SysMutex *SysMutexCreate(void) {
 }
 
 void SysMutexDestroy(SysMutex *m) {
-    Allocator allocator = DefaultAllocator();
+    Allocator *allocator = DefaultAllocator();
 
 #ifdef _WIN32
     DeleteCriticalSection(&m->lock);

@@ -141,7 +141,7 @@ SysProc *SysProcCreate(const char *filepath, char **argv, char **envp) {
     close(stdout_pipe[WRITE_END]);
     close(stderr_pipe[WRITE_END]);
 
-    Allocator allocator = DefaultAllocator();
+    Allocator *allocator = DefaultAllocator();
     SysProc  *proc      = (SysProc *)AllocatorAlloc(&allocator, sizeof(SysProc), true);
 
     if (!proc) {
@@ -224,7 +224,7 @@ SysProc *SysProcCreate(const char *filepath, char **argv, char **envp) {
     CloseHandle(hStdoutWrite); // parent won't write to child's stdout, will read from it
     CloseHandle(hStderrWrite); // parent won't write to child's stderr, will read from it
 
-    Allocator allocator = DefaultAllocator();
+    Allocator *allocator = DefaultAllocator();
     SysProc  *proc      = (SysProc *)AllocatorAlloc(&allocator, sizeof(SysProc), true);
 
     if (!proc) {
@@ -416,7 +416,7 @@ void SysProcTerminate(SysProc *proc) {
 
 
 void SysProcDestroy(SysProc *proc) {
-    Allocator allocator = DefaultAllocator();
+    Allocator *allocator = DefaultAllocator();
 
     if (!proc) {
         LOG_FATAL("Invalid argument");

@@ -14,7 +14,7 @@
 #include <Misra/Types.h>
 
 bool ReadCompleteFileEx(const char *filename, char **data, u64 *file_size, u64 *capacity, Allocator *allocator) {
-    Allocator  default_allocator;
+    Allocator *default_allocator;
     Allocator *active_allocator = allocator;
 
     if (!filename || !data || !file_size || !capacity) {

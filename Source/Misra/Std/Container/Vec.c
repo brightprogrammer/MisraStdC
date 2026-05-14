@@ -43,25 +43,6 @@ static inline const char *vec_const_ptr_at(const GenericVec *v, size idx, size i
     return v->data + vec_aligned_offset_at((GenericVec *)v, idx, item_size);
 }
 
-void init_vec(
-    GenericVec       *vec,
-    size              item_size,
-    GenericCopyInit   copy_init,
-    GenericCopyDeinit copy_deinit,
-    Allocator         allocator
-) {
-    if (!vec || !item_size) {
-        LOG_FATAL("Invalid arguments.");
-    }
-
-    vec->length      = 0;
-    vec->capacity    = 0;
-    vec->copy_init   = copy_init;
-    vec->copy_deinit = copy_deinit;
-    vec->data        = NULL;
-    vec->__magic     = MISRA_VEC_MAGIC;
-}
-
 void deinit_vec(GenericVec *vec, size item_size) {
     size aligned_size;
 

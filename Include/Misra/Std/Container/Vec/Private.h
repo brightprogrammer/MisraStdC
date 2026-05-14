@@ -14,13 +14,6 @@
 extern "C" {
 #endif
 
-    void init_vec(
-        GenericVec       *vec,
-        size              item_size,
-        GenericCopyInit   copy_init,
-        GenericCopyDeinit copy_deinit,
-        Allocator         allocator
-    );
     void deinit_vec(GenericVec *vec, size item_size);
     void clear_vec(GenericVec *vec, size item_size);
     bool resize_vec(GenericVec *vec, size item_size, size new_size);
@@ -76,8 +69,8 @@ extern "C" {
         }
 
         if (!dst->copy_init && src->data) {
-            aligned_item_size = ALIGN_UP_POW2(item_size, src->allocator.alignment);
-            AllocatorFree(&src->allocator, src->data, (src->capacity + 1) * aligned_item_size);
+            aligned_item_size = ALIGN_UP_POW2(item_size, src->allocator->alignment);
+            AllocatorFree(src->allocator, src->data, (src->capacity + 1) * aligned_item_size);
             src->data     = NULL;
             src->length   = 0;
             src->capacity = 0;

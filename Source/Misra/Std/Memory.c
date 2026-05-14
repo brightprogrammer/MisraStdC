@@ -147,7 +147,7 @@ char *ZstrFindChar(const char *str, char ch) {
     return NULL;
 }
 
-char *ZstrDupNAlloc(const char *src, size n, Allocator alloc) {
+char *ZstrDupNAlloc(const char *src, size n, Allocator *alloc) {
     if (!src) {
         LOG_FATAL("Invalid arguments");
     }
@@ -202,7 +202,7 @@ void ZstrDeinit(const char **zs) {
     }
 
     if (*zs) {
-        Allocator alloc = DefaultAllocator();
+        Allocator *alloc = DefaultAllocator();
         AllocatorFree(&alloc, (void *)*zs, ZstrLen(*zs) + 1);
         *zs = NULL;
     }
@@ -216,7 +216,7 @@ void ZstrDeinitAlloc(void *zs_ptr, const Allocator *alloc) {
     }
 
     if (*zs) {
-        Allocator allocator = alloc ? *alloc : DefaultAllocator();
+        Allocator *allocator = alloc ? *alloc : DefaultAllocator();
         AllocatorFree(&allocator, (void *)*zs, ZstrLen(*zs) + 1);
         *zs = NULL;
     }

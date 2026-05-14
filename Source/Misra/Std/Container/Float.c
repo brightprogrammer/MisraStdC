@@ -16,13 +16,13 @@
 
 static void float_normalize(Float *value);
 static void float_replace(Float *dst, Float *src);
-static bool float_try_int_from_u64(Int *out, u64 value, Allocator alloc);
-static bool float_try_from_u64_value(Float *out, u64 value, Allocator alloc);
-static bool float_try_from_i64_value(Float *out, i64 value, Allocator alloc);
+static bool float_try_int_from_u64(Int *out, u64 value, Allocator *alloc);
+static bool float_try_from_u64_value(Float *out, u64 value, Allocator *alloc);
+static bool float_try_from_i64_value(Float *out, i64 value, Allocator *alloc);
 static bool float_try_from_int_value(Float *out, Int *value);
-static bool float_try_from_f32_value(Float *out, float value, Allocator alloc);
-static bool float_try_from_f64_value(Float *out, double value, Allocator alloc);
-static bool float_pow10(Int *out, u64 power, Allocator alloc);
+static bool float_try_from_f32_value(Float *out, float value, Allocator *alloc);
+static bool float_try_from_f64_value(Float *out, double value, Allocator *alloc);
+static bool float_pow10(Int *out, u64 power, Allocator *alloc);
 static bool float_scale_to_exponent(Float *value, i64 target_exponent);
 static bool float_try_abs_compare(int *out, Float *lhs, Float *rhs);
 static i64  float_add_i64_checked(i64 a, i64 b);
@@ -44,7 +44,7 @@ static i64 float_sub_i64_checked(i64 a, i64 b) {
     return a - b;
 }
 
-static bool float_try_from_f32_value(Float *out, float value, Allocator alloc) {
+static bool float_try_from_f32_value(Float *out, float value, Allocator *alloc) {
     char text[32] = {0};
     int  len      = snprintf(text, sizeof(text), "%.9g", (double)value);
 
@@ -61,7 +61,7 @@ static bool float_try_from_f32_value(Float *out, float value, Allocator alloc) {
     return FloatTryFromStr(out, text);
 }
 
-static bool float_try_from_f64_value(Float *out, double value, Allocator alloc) {
+static bool float_try_from_f64_value(Float *out, double value, Allocator *alloc) {
     char text[48] = {0};
     int  len      = snprintf(text, sizeof(text), "%.17g", value);
 
@@ -83,7 +83,7 @@ static void float_replace(Float *dst, Float *src) {
     *dst = *src;
 }
 
-static bool float_try_int_from_u64(Int *out, u64 value, Allocator alloc) {
+static bool float_try_int_from_u64(Int *out, u64 value, Allocator *alloc) {
     u64 bits = 0;
 
     if (!out) {
@@ -109,7 +109,7 @@ static bool float_try_int_from_u64(Int *out, u64 value, Allocator alloc) {
     return true;
 }
 
-static bool float_pow10(Int *out, u64 power, Allocator alloc) {
+static bool float_pow10(Int *out, u64 power, Allocator *alloc) {
     Int base;
     Int result;
 
@@ -263,7 +263,7 @@ bool FloatTryClone(Float *out, Float *value) {
     return true;
 }
 
-static bool float_try_from_u64_value(Float *out, u64 value, Allocator alloc) {
+static bool float_try_from_u64_value(Float *out, u64 value, Allocator *alloc) {
     if (!out) {
         LOG_ERROR("Invalid arguments");
         return false;
@@ -279,7 +279,7 @@ static bool float_try_from_u64_value(Float *out, u64 value, Allocator alloc) {
     return true;
 }
 
-static bool float_try_from_i64_value(Float *out, i64 value, Allocator alloc) {
+static bool float_try_from_i64_value(Float *out, i64 value, Allocator *alloc) {
     u64 magnitude = 0;
 
     if (!out) {
@@ -529,7 +529,7 @@ Float FloatFromStr(const char *text) {
     return result;
 }
 
-bool FloatTryToStrAlloc(Str *out, Float *value, Allocator alloc) {
+bool FloatTryToStrAlloc(Str *out, Float *value, Allocator *alloc) {
     Str digits;
     Str result;
 

@@ -14,6 +14,7 @@
 
 // Misra
 #include <Misra/Std/Allocator.h>
+#include <Misra/Std/Allocator/Heap.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Types.h>
 

@@ -16,7 +16,7 @@
 
 static Str *string_va_printf(Str *str, const char *fmt, va_list args);
 
-bool StrTryInitFromCstrAlloc(Str *out, const char *cstr, size len, Allocator alloc) {
+bool StrTryInitFromCstrAlloc(Str *out, const char *cstr, size len, Allocator *alloc) {
     if (!out || !cstr) {
         LOG_FATAL("Invalid arguments");
     }
@@ -36,7 +36,7 @@ bool StrTryInitFromCstrAlloc(Str *out, const char *cstr, size len, Allocator all
     return true;
 }
 
-Str StrInitFromCstrAlloc(const char *cstr, size len, Allocator alloc) {
+Str StrInitFromCstrAlloc(const char *cstr, size len, Allocator *alloc) {
     Str result = StrInit(alloc);
 
     if (!StrTryInitFromCstrAlloc(&result, cstr, len, alloc)) {

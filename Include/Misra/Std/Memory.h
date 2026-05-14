@@ -131,7 +131,7 @@ char *ZstrFindChar(const char *str, char ch);
 /// TAGS: String, Memory, Allocation
 ///
 char *ZstrDupN(const char *src, size n);
-char *ZstrDupNAlloc(const char *src, size n, Allocator alloc);
+char *ZstrDupNAlloc(const char *src, size n, Allocator *alloc);
 
 ///
 /// Duplicates a string.

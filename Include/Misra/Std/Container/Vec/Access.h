@@ -19,8 +19,8 @@
 /// TAGS: Vec, Access, Alignment
 ///
 #define VecAlignedOffsetAt(v, idx)                                                                                     \
-    ((idx) * ((v)->allocator.alignment > 1 ? ALIGN_UP_POW2(sizeof(VEC_DATATYPE(v)), (v)->allocator.alignment) :        \
-                                             sizeof(VEC_DATATYPE(v))))
+    ((idx) * ((v)->allocator->alignment > 1 ? ALIGN_UP_POW2(sizeof(VEC_DATATYPE(v)), (v)->allocator->alignment) :      \
+                                              sizeof(VEC_DATATYPE(v))))
 
 ///
 /// Element at `idx` accessed by value. Use this rather than indexing `data`

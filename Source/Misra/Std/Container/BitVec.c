@@ -35,7 +35,7 @@
 #define BIT_OFFSET(idx)      ((idx) % BITS_PER_BYTE)
 #define BYTES_FOR_BITS(bits) (((bits) + BITS_PER_BYTE - 1) / BITS_PER_BYTE)
 
-BitVec BitVecInitWithCapacityAlloc(u64 cap, Allocator alloc) {
+BitVec BitVecInitWithCapacityAlloc(u64 cap, Allocator *alloc) {
     BitVec result = BitVecInit(alloc);
 
     if (cap == 0) {
@@ -791,7 +791,7 @@ Allocator BitVecGetAllocator(BitVec *bv) {
     return bv->allocator;
 }
 
-bool BitVecTryToStrAlloc(Str *out, BitVec *bv, Allocator alloc) {
+bool BitVecTryToStrAlloc(Str *out, BitVec *bv, Allocator *alloc) {
     ValidateBitVec(bv);
     if (!out) {
         LOG_FATAL("out is NULL");
@@ -820,7 +820,7 @@ bool BitVecTryToStrAlloc(Str *out, BitVec *bv, Allocator alloc) {
     return true;
 }
 
-Str BitVecToStrAlloc(BitVec *bv, Allocator alloc) {
+Str BitVecToStrAlloc(BitVec *bv, Allocator *alloc) {
     Str result;
 
     if (!BitVecTryToStrAlloc(&result, bv, alloc)) {
@@ -830,7 +830,7 @@ Str BitVecToStrAlloc(BitVec *bv, Allocator alloc) {
     return result;
 }
 
-bool BitVecTryFromStrAlloc(BitVec *out, const char *str, Allocator alloc) {
+bool BitVecTryFromStrAlloc(BitVec *out, const char *str, Allocator *alloc) {
     if (!str) {
         LOG_FATAL("str is NULL");
     }
@@ -865,7 +865,7 @@ bool BitVecTryFromStrAlloc(BitVec *out, const char *str, Allocator alloc) {
     return true;
 }
 
-BitVec BitVecFromStrAlloc(const char *str, Allocator alloc) {
+BitVec BitVecFromStrAlloc(const char *str, Allocator *alloc) {
     BitVec result;
 
     if (!BitVecTryFromStrAlloc(&result, str, alloc)) {
@@ -905,7 +905,7 @@ u64 BitVecToBytes(BitVec *bv, u8 *bytes, u64 max_len) {
     return bytes_to_copy;
 }
 
-bool BitVecTryFromBytesAlloc(BitVec *out, const u8 *bytes, u64 bit_len, Allocator alloc) {
+bool BitVecTryFromBytesAlloc(BitVec *out, const u8 *bytes, u64 bit_len, Allocator *alloc) {
     if (!bytes) {
         LOG_FATAL("bytes is NULL");
     }
@@ -937,7 +937,7 @@ bool BitVecTryFromBytesAlloc(BitVec *out, const u8 *bytes, u64 bit_len, Allocato
     return true;
 }
 
-BitVec BitVecFromBytesAlloc(const u8 *bytes, u64 bit_len, Allocator alloc) {
+BitVec BitVecFromBytesAlloc(const u8 *bytes, u64 bit_len, Allocator *alloc) {
     BitVec result;
 
     if (!BitVecTryFromBytesAlloc(&result, bytes, bit_len, alloc)) {
@@ -966,7 +966,7 @@ u64 BitVecToInteger(BitVec *bv) {
     return result;
 }
 
-bool BitVecTryFromIntegerAlloc(BitVec *out, u64 value, u64 bits, Allocator alloc) {
+bool BitVecTryFromIntegerAlloc(BitVec *out, u64 value, u64 bits, Allocator *alloc) {
     if (!out) {
         LOG_FATAL("out is NULL");
     }
@@ -996,7 +996,7 @@ bool BitVecTryFromIntegerAlloc(BitVec *out, u64 value, u64 bits, Allocator alloc
     return true;
 }
 
-BitVec BitVecFromIntegerAlloc(u64 value, u64 bits, Allocator alloc) {
+BitVec BitVecFromIntegerAlloc(u64 value, u64 bits, Allocator *alloc) {
     BitVec result;
 
     if (!BitVecTryFromIntegerAlloc(&result, value, bits, alloc)) {
@@ -1394,7 +1394,7 @@ u64 BitVecDotProduct(BitVec *bv1, BitVec *bv2) {
 }
 
 bool BitVecTryEditDistance(BitVec *bv1, BitVec *bv2, u64 *out) {
-    Allocator scratch;
+    Allocator *scratch;
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);
     if (!out) {

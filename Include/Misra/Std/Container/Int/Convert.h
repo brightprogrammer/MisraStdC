@@ -117,7 +117,7 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, String, Radix, Allocator
     ///
-    bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Allocator alloc);
+    bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Allocator *alloc);
 
     ///
     /// Convert an integer to text in the given radix using the default allocator.
@@ -177,7 +177,7 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, String, Decimal, Allocator
     ///
-    bool IntTryToStrAlloc(Str *out, Int *value, Allocator alloc);
+    bool IntTryToStrAlloc(Str *out, Int *value, Allocator *alloc);
 
     ///
     /// Convert an integer to a decimal string using the default allocator.

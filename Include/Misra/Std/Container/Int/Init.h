@@ -18,39 +18,12 @@
 ///
 /// TAGS: Int, Init, Zero, Construct
 ///
-static inline Int IntInitAlloc(Allocator alloc) {
-    Int value;
-
-    value.bits = BitVecInit(alloc);
-    return value;
-}
-
-#define INT_INIT_HAS_ARGS_IMPL(_0, _1, count, ...) count
-#define INT_INIT_HAS_ARGS(...)                     INT_INIT_HAS_ARGS_IMPL(__VA_OPT__(, ) __VA_ARGS__, 1, 0, 0)
-
 ///
 /// Create an empty integer with value `0`.
 ///
-/// This public macro supports both forms:
+/// `IntInit(&heap)` where `heap` is a typed allocator like `HeapAllocator`.
 ///
-/// - `IntInit()`          - uses `DefaultAllocator()`.
-/// - `IntInit(alloc)`     - binds the supplied allocator.
-///
-/// alloc[in] : Optional allocator override.
-///
-/// SUCCESS : Returns a fresh empty `Int` representing zero, with the
-///           chosen allocator bound to its internal `BitVec` storage. No
-///           heap allocation happens until the integer is mutated.
-/// FAILURE : Function cannot fail.
-///
-/// USAGE:
-///   Int value = IntInit();
-///
-/// TAGS: Int, Init, Zero, Construct
-///
-#define IntInit(...)     CONCAT(IntInit_, INT_INIT_HAS_ARGS(__VA_ARGS__))(__VA_ARGS__)
-#define IntInit_0()      IntInitAlloc(DefaultAllocator())
-#define IntInit_1(alloc) IntInitAlloc((alloc))
+#define IntInit(typed_alloc_ptr) ((Int) {.bits = BitVecInit(typed_alloc_ptr)})
 
 ///
 /// Release all storage owned by an integer.

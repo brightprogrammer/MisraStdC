@@ -920,7 +920,7 @@ static bool FloatFmtAppendExponent(Str *out, i64 exponent, bool uppercase) {
     return true;
 }
 
-static bool FloatFmtTryToDecimalStr(Str *out, Float *value, u32 precision, bool has_precision, Allocator alloc) {
+static bool FloatFmtTryToDecimalStr(Str *out, Float *value, u32 precision, bool has_precision, Allocator *alloc) {
     Str canonical;
     Str result;
 
@@ -1012,8 +1012,7 @@ static bool FloatFmtTryToScientificStr(
     Float    *value,
     u32       precision,
     bool      has_precision,
-    bool      uppercase,
-    Allocator alloc
+    bool      uppercase, Allocator *alloc
 ) {
     Str digits;
     Str result;
@@ -2783,7 +2782,7 @@ const char *_read_i64(const char *i, FmtInfo *fmt_info, i64 *v) {
 const char *_read_Zstr(const char *i, FmtInfo *fmt_info, const char **out) {
     char       *result    = NULL;
     const char *next      = NULL;
-    Allocator   allocator = DefaultAllocator();
+    Allocator *allocator = DefaultAllocator();
 
     if (!i || !out)
         LOG_FATAL("Invalid arguments");
@@ -2834,7 +2833,7 @@ const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg) {
     char       *result        = NULL;
     const char *next          = NULL;
     Allocator  *allocator_ptr = NULL;
-    Allocator   default_allocator;
+    Allocator *default_allocator;
     Str         temp = StrInit();
     FmtInfo     default_fmt;
 
