@@ -9,72 +9,78 @@
 #define MISRA_STD_CONTAINER_LIST_REMOVE_H
 
 ///
-/// Remove item from list at given index and store in given pointer.
-/// Order of elements is guaranteed to be preserved.
+/// Remove the element at `idx` and optionally move its value out to `val`.
 ///
-/// l[in,out] : List to remove item from.
-/// val[out]  : Where removed item will be stored. If not provided then it's equivalent to
-///             deleting the item at specified index.
-/// idx[in]   : Index in list to remove item from.
+/// l[in,out] : List handle.
+/// val[out]  : Optional destination for the removed element. Pass `NULL` to
+///             discard it.
+/// idx[in]   : Position in [0, length).
 ///
-/// SUCCESS : Returns `v` on success.
-/// FAILURE : Returns NULL otherwise.
+/// TAGS: List, Remove
 ///
-#define ListRemove(l, val, idx)                                                                                        \
-    remove_range_list(GENERIC_LIST(l), (val), sizeof(LIST_DATA_TYPE(l)), (idx), 1)
+#define ListRemove(l, val, idx) remove_range_list(GENERIC_LIST(l), (val), sizeof(LIST_DATA_TYPE(l)), (idx), 1)
 
 ///
-/// Remove item from the very beginning of list.
+/// Remove the first element of the list and optionally store its value.
 ///
-/// l[in]   : List to push item into
-/// val[in] : Pointer to value to be prepended
+/// l[in,out] : List handle.
+/// val[out]  : Optional destination for the popped element.
 ///
-/// SUCCESS : Returns `v` the list itself on success.
-/// FAILURE : Returns `NULL` otherwise.
+/// TAGS: List, Remove, Pop, Front
 ///
 #define ListPopFront(l, val) ListRemove((l), (val), 0);
 
 ///
-/// Pop item from list back.
+/// Remove the last element of the list and optionally store its value.
 ///
-/// l[in,out]  : List to pop item from.
-/// val[out]   : Popped item will be stored here. Make sure this has sufficient memory
-///              to store memcopied data. If no pointer is provided, then it's equivalent
-///              to deleting item from last position.
+/// l[in,out] : List handle.
+/// val[out]  : Optional destination for the popped element.
 ///
-/// SUCCESS : Returns `v` on success
-/// FAILURE : Returns NULL otherwise.
+/// TAGS: List, Remove, Pop, Back
 ///
 #define ListPopBack(l, val) ListRemove((l), (val), (l)->length - 1)
 
 ///
-/// Remove data from list in given range [start, start + count)
-/// Order of elements is guaranteed to be preserved.
+/// Remove `count` elements starting at `start` and optionally copy them out.
 ///
-/// l[in,out] : List to remove item from.
-/// rd[out]   : Where removed data will be stored. If not provided then it's equivalent to
-///             deleting the items in specified range.
-/// start[in] : Index in list to removing items from.
-/// count[in] : Number of items from starting index.
+/// l[in,out] : List handle.
+/// rd[out]   : Optional destination buffer of at least `count` slots. Pass
+///             `NULL` to discard the removed elements.
+/// start[in] : First removed index.
+/// count[in] : Number of elements to remove.
 ///
-/// SUCCESS : Returns `v` on success.
-/// FAILURE : Returns NULL otherwise.
+/// TAGS: List, Remove, Range
 ///
 #define ListRemoveRange(l, rd, start, count)                                                                           \
     remove_range_list(GENERIC_LIST(l), (rd), sizeof(LIST_DATA_TYPE(l)), (start), (count))
 
 ///
-/// Delete last item from list
+/// Delete the last element of the list.
+///
+/// l[in,out] : List handle.
+///
+/// TAGS: List, Delete, Back
 ///
 #define ListDeleteLast(l) ListPopBack((l), NULL)
 
 ///
-/// Delete item at given index
+/// Delete the element at `idx`.
+///
+/// l[in,out] : List handle.
+/// idx[in]   : Position in [0, length).
+///
+/// TAGS: List, Delete
 ///
 #define ListDelete(l, idx) ListRemove((l), NULL, (idx))
 
 ///
-/// Delete items in given range [start, start + count)
+/// Delete `count` elements starting at `start`.
+///
+/// l[in,out] : List handle.
+/// start[in] : First deleted index.
+/// count[in] : Number of elements to delete.
+///
+/// TAGS: List, Delete, Range
 ///
 #define ListDeleteRange(l, start, count) ListRemoveRange((l), NULL, (start), (count))
 

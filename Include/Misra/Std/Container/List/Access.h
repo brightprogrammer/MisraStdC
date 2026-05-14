@@ -33,14 +33,13 @@
 #define ListEmpty(l) (ListLen(l) == 0)
 
 ///
-/// Swap items at given indices.
+/// Swap the elements at two given indices in place.
 ///
-/// l[in,out] : List to swap items in.
-/// idx1[in]  : Index/Position of first item.
-/// idx1[in]  : Index/Position of second item.
+/// l[in,out] : List handle.
+/// idx1[in]  : First index in [0, length).
+/// idx2[in]  : Second index in [0, length).
 ///
-/// SUCCESS: `v` on success
-/// FAILURE: NULL
+/// TAGS: List, Access, Swap
 ///
 #define ListSwapItems(l, idx1, idx2) swap_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (idx1), (idx2))
 
