@@ -9,46 +9,37 @@
 
 #include "Type.h"
 #include <Misra/Types.h>
-#include <stdio.h>
 
-void SysAbort(void);
-
-#define BITVEC_INSERT_ABORT(message) bitvec_abort_insert_operation(__func__, __LINE__, (message))
 #define BitVecMustInsertRange(bv, idx, count, value)                                                                   \
     do {                                                                                                               \
         if (!BitVecInsertRange((bv), (idx), (count), (value))) {                                                       \
-            BITVEC_INSERT_ABORT("BitVecMustInsertRange failed");                                                       \
+            LOG_FATAL("BitVecMustInsertRange failed");                                                                 \
         }                                                                                                              \
     } while (0)
 #define BitVecMustInsertMultiple(bv, idx, other)                                                                       \
     do {                                                                                                               \
         if (!BitVecInsertMultiple((bv), (idx), (other))) {                                                             \
-            BITVEC_INSERT_ABORT("BitVecMustInsertMultiple failed");                                                    \
+            LOG_FATAL("BitVecMustInsertMultiple failed");                                                              \
         }                                                                                                              \
     } while (0)
 #define BitVecMustInsertPattern(bv, idx, pattern, pattern_bits)                                                        \
     do {                                                                                                               \
         if (!BitVecInsertPattern((bv), (idx), (pattern), (pattern_bits))) {                                            \
-            BITVEC_INSERT_ABORT("BitVecMustInsertPattern failed");                                                     \
+            LOG_FATAL("BitVecMustInsertPattern failed");                                                               \
         }                                                                                                              \
     } while (0)
 #define BitVecMustPush(bv, value)                                                                                      \
     do {                                                                                                               \
         if (!BitVecPush((bv), (value))) {                                                                              \
-            BITVEC_INSERT_ABORT("BitVecMustPush failed");                                                              \
+            LOG_FATAL("BitVecMustPush failed");                                                                        \
         }                                                                                                              \
     } while (0)
 #define BitVecMustInsert(bv, idx, value)                                                                               \
     do {                                                                                                               \
         if (!BitVecInsert((bv), (idx), (value))) {                                                                     \
-            BITVEC_INSERT_ABORT("BitVecMustInsert failed");                                                            \
+            LOG_FATAL("BitVecMustInsert failed");                                                                      \
         }                                                                                                              \
     } while (0)
-
-static inline void bitvec_abort_insert_operation(const char *function, int line, const char *message) {
-    fprintf(stderr, "FATAL [%s:%d] %s\n", function, line, message);
-    SysAbort();
-}
 
 #ifdef __cplusplus
 extern "C" {
