@@ -3,11 +3,11 @@
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Allocator base type and dispatch API. Concrete allocator types
-/// (`HeapAllocator`, `PageAllocator`, `ArenaAllocator`, `PoolAllocator`)
+/// (`HeapAllocator`, `PageAllocator`, `ArenaAllocator`, `SlabAllocator`)
 /// embed an `Allocator base` at offset 0 and carry their state inline so
 /// the library never owns mutable global state. Users construct typed
 /// allocators with their `*Init` macros and pass `&heap` / `&arena` /
-/// `&page` / `&pool` to container constructors - the container macros
+/// `&page` / `&slab` to container constructors - the container macros
 /// compile-check that the argument has an `Allocator base` and store a
 /// pointer to it.
 
@@ -30,7 +30,7 @@ extern "C" {
     typedef struct HeapAllocator  HeapAllocator;
     typedef struct PageAllocator  PageAllocator;
     typedef struct ArenaAllocator ArenaAllocator;
-    typedef struct PoolAllocator  PoolAllocator;
+    typedef struct SlabAllocator  SlabAllocator;
 
     typedef void *(*AllocatorAllocateFn)(Allocator *self, size bytes, bool zeroed);
     typedef void *(*AllocatorReallocateFn)(Allocator *self, void *ptr, size old_size, size new_size);
@@ -137,7 +137,7 @@ extern "C" {
 /// Convert any allocator pointer to `Allocator *`. The argument may be:
 ///
 ///   - a typed allocator pointer (`HeapAllocator *`, `PageAllocator *`,
-///     `ArenaAllocator *`, `PoolAllocator *`), in which case the macro
+///     `ArenaAllocator *`, `SlabAllocator *`), in which case the macro
 ///     typecasts the whole pointer to `Allocator *`. The cast is safe
 ///     because every typed allocator carries `Allocator base` at offset
 ///     zero — the C-style inheritance contract.
@@ -170,11 +170,11 @@ extern "C" {
         HeapAllocator *: (Allocator *)(allocator_ptr),                                                                 \
         PageAllocator *: (Allocator *)(allocator_ptr),                                                                 \
         ArenaAllocator *: (Allocator *)(allocator_ptr),                                                                \
-        PoolAllocator *: (Allocator *)(allocator_ptr)                                                                  \
+        SlabAllocator *: (Allocator *)(allocator_ptr)                                                                  \
     )
 
 // Typed allocator headers (PageAllocator, HeapAllocator, ArenaAllocator,
-// PoolAllocator) are NOT included here to avoid include-guard cycles:
+// SlabAllocator) are NOT included here to avoid include-guard cycles:
 // each typed header includes this one to get the `Allocator` base, and
 // some embed `PageAllocator`. Users / library .c files must include the
 // specific typed allocator they need:
