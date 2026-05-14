@@ -106,8 +106,8 @@
 ///
 /// v[in] : Vector to query.
 ///
-/// SUCCESS : `true` when vector length is 0.
-/// FAILURE : `false`
+/// SUCCESS : Returns `true` when vector length is 0.
+/// FAILURE : Returns `false`
 ///
 /// TAGS: Vec, Empty, Query
 ///
@@ -140,8 +140,8 @@
 /// item_ptr[in] : Pointer to searched value.
 /// compare[in]  : Comparator returning `0` for equality.
 ///
-/// SUCCESS : `true` when a matching element exists.
-/// FAILURE : `false`
+/// SUCCESS : Returns `true` when a matching element exists.
+/// FAILURE : Returns `false`
 ///
 /// TAGS: Vec, Contains, Search, Compare
 ///

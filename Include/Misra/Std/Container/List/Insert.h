@@ -36,8 +36,8 @@
 /// lval[in]  : Addressable element to insert. Must match the list's element type.
 /// idx[in]   : Position in [0, length].
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure. The list and `lval` are unchanged.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure. The list and `lval` are unchanged.
 ///
 /// TAGS: List, Insert, LValue, Ownership
 ///
@@ -54,8 +54,8 @@
 /// rval[in]  : Value to insert.
 /// idx[in]   : Position in [0, length].
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: List, Insert, RValue
 ///
@@ -116,8 +116,8 @@
 /// arr[in]   : Pointer to source array. Must be non-NULL when `count > 0`.
 /// count[in] : Number of elements to append.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: List, PushBack, Range, LValue
 ///
@@ -149,8 +149,8 @@
 /// l[in,out]  : Destination list.
 /// l2[in,out] : Source list. May be emptied on success.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure. Both lists are unchanged.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure. Both lists are unchanged.
 ///
 /// TAGS: List, Merge, LValue, Ownership
 ///

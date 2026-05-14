@@ -29,8 +29,8 @@
 /// compare[in] : Compare function with `strcmp`-style return (negative, zero,
 ///               positive).
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` if the scratch buffer allocation fails. The list order
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` if the scratch buffer allocation fails. The list order
 ///           is unchanged in that case.
 ///
 /// TAGS: List, Ops, Sort

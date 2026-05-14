@@ -33,8 +33,8 @@
 /// idx[in]   : Position in [0, length]. Existing elements at and after this index
 ///             shift one slot to the right.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure. The vector and `lval` are unchanged.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure. The vector and `lval` are unchanged.
 ///
 /// USAGE:
 ///   typedef Vec(int) IntVec;
@@ -58,8 +58,8 @@
 /// rval[in]  : Value to insert. Must be convertible to the vector's element type.
 /// idx[in]   : Position in [0, length].
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure. The vector is unchanged.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure. The vector is unchanged.
 ///
 /// USAGE:
 ///   if (!VecInsertR(&v, 42, 0)) { /* recover */ }
@@ -90,8 +90,8 @@
 /// lval[in]  : Addressable element to insert.
 /// idx[in]   : Position in [0, length].
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Vec, Insert, LValue, Fast, Unordered
 ///
@@ -108,8 +108,8 @@
 /// rval[in]  : Value to insert.
 /// idx[in]   : Position in [0, length].
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Vec, Insert, RValue, Fast, Unordered
 ///
@@ -134,8 +134,8 @@
 /// idx[in]   : Position in [0, length].
 /// count[in] : Number of elements to insert.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure. Vector and source are unchanged.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure. Vector and source are unchanged.
 ///
 /// USAGE:
 ///   int items[] = { 1, 2, 3 };
@@ -158,8 +158,8 @@
 /// idx[in]   : Position in [0, length].
 /// count[in] : Number of elements to insert.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Vec, Insert, Range, RValue
 ///
@@ -207,8 +207,8 @@
 /// arr[in]   : Pointer to the source array.
 /// count[in] : Number of elements to append.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Vec, PushBack, Range, LValue
 ///
@@ -235,8 +235,8 @@
 /// arr[in]   : Pointer to the source array.
 /// count[in] : Number of elements to prepend.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Vec, PushFront, Range, LValue
 ///
@@ -284,8 +284,8 @@
 /// v[in,out]  : Destination vector.
 /// v2[in,out] : Source vector. May be emptied on success.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure. Both vectors are unchanged.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure. Both vectors are unchanged.
 ///
 /// TAGS: Vec, Merge, LValue, Ownership
 ///
@@ -299,8 +299,8 @@
 /// v[in,out] : Destination vector.
 /// v2[in]    : Source vector.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Vec, Merge, RValue
 ///
@@ -315,8 +315,8 @@
 ///
 /// Append a single element to the end of the vector. L-value ownership form.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Vec, PushBack, LValue
 ///
@@ -363,8 +363,8 @@
 ///           released before cloning.
 /// vs[in]  : Source vector.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure during the clone. `vd` is left in a
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure during the clone. `vd` is left in a
 ///           valid but partially-populated state — callers should treat it as
 ///           opaque on failure and deinitialize.
 ///

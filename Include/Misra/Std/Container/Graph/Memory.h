@@ -28,8 +28,8 @@
 /// g[in,out] : Graph handle.
 /// n[in]     : Minimum number of nodes the graph should accommodate.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure. The graph is unchanged.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure. The graph is unchanged.
 ///
 /// TAGS: Graph, Memory, Reserve
 ///

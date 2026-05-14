@@ -97,7 +97,7 @@ extern "C" {
     /// key[in] : Str object to search for.
     ///
     /// SUCCESS : `true` if a match exists.
-    /// FAILURE : `false`
+    /// FAILURE : Returns `false`.
     ///
     /// TAGS: Str, Contains, Search
     ///
@@ -150,7 +150,7 @@ extern "C" {
     /// key[in] : Null-terminated string to search for.
     ///
     /// SUCCESS : `true` if a match exists.
-    /// FAILURE : `false`
+    /// FAILURE : Returns `false`.
     ///
     /// TAGS: Str, Contains, Search
     ///
@@ -164,7 +164,7 @@ extern "C" {
     /// key_len[in] : Length of searched string.
     ///
     /// SUCCESS : `true` if a match exists.
-    /// FAILURE : `false`
+    /// FAILURE : Returns `false`.
     ///
     /// TAGS: Str, Contains, Search
     ///

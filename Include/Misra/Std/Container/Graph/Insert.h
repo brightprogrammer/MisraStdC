@@ -76,8 +76,8 @@
 /// from[in]  : Source `GraphNodeId`.
 /// to[in]    : Destination `GraphNodeId`.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure for the edge entry.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure for the edge entry.
 ///
 /// TAGS: Graph, AddEdge, Directed
 ///

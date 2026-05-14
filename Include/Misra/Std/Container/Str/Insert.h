@@ -20,8 +20,8 @@ extern "C" {
 /// chr[in]     : Character to insert.
 /// idx[in]     : Position in [0, length].
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure. The string is unchanged.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure. The string is unchanged.
 ///
 /// TAGS: Str, Insert, Char
 ///
@@ -43,8 +43,8 @@ extern "C" {
 /// idx[in]     : Position in [0, length].
 /// len[in]     : Number of bytes to insert.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Str, Insert, Cstr, Range
 ///
@@ -65,8 +65,8 @@ extern "C" {
 /// zstr[in]    : Null-terminated source string.
 /// idx[in]     : Position in [0, length].
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Str, Insert, Zstr
 ///
@@ -86,8 +86,8 @@ extern "C" {
 /// str2[in]    : Source Str (read-only).
 /// idx[in]     : Position in [0, length].
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Str, Insert, Str
 ///
@@ -105,8 +105,8 @@ extern "C" {
 /// Equivalent to `StrInsertCstr` with the argument order suited for streaming
 /// emitters that keep `(cstr, len, pos)` triples around.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Str, Push, Cstr, Range
 ///
@@ -122,8 +122,8 @@ extern "C" {
 ///
 /// Push a null-terminated string into the Str at the given position.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Str, Push, Zstr
 ///
@@ -139,8 +139,8 @@ extern "C" {
 ///
 /// Append a counted byte range to the end of the Str.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Str, PushBack, Cstr, Range
 ///
@@ -156,8 +156,8 @@ extern "C" {
 ///
 /// Append a null-terminated string to the end of the Str.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Str, PushBack, Zstr
 ///
@@ -173,8 +173,8 @@ extern "C" {
 ///
 /// Prepend a counted byte range at the front of the Str.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Str, PushFront, Cstr, Range
 ///
@@ -190,8 +190,8 @@ extern "C" {
 ///
 /// Prepend a null-terminated string at the front of the Str.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Str, PushFront, Zstr
 ///
@@ -207,8 +207,8 @@ extern "C" {
 ///
 /// Append a single character to the end of the Str.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Str, PushBack, Char
 ///
@@ -224,8 +224,8 @@ extern "C" {
 ///
 /// Prepend a single character at the front of the Str.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Str, PushFront, Char
 ///
@@ -246,8 +246,8 @@ extern "C" {
 /// str[in,out]  : Destination Str.
 /// str2[in,out] : Source Str. May be emptied on success.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure. Both strings are unchanged.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure. Both strings are unchanged.
 ///
 /// TAGS: Str, Merge, LValue, Ownership
 ///
@@ -264,8 +264,8 @@ extern "C" {
 /// Merge a copy of `str2` into the end of `str` with R-value (read-only-source)
 /// semantics. The source is never emptied.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Str, Merge, RValue
 ///

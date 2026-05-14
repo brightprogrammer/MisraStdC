@@ -19,8 +19,8 @@ extern "C" {
 ///
 /// str[in,out] : Str handle.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure during the shrink reallocation.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure during the shrink reallocation.
 ///           The string is unchanged.
 ///
 /// TAGS: Str, Memory, ReduceSpace
@@ -52,8 +52,8 @@ extern "C" {
 /// str[in,out] : Str handle.
 /// len[in]     : New length.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure when growth is needed. The string
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure when growth is needed. The string
 ///           is unchanged.
 ///
 /// TAGS: Str, Memory, Resize
@@ -74,8 +74,8 @@ extern "C" {
 /// str[in,out] : Str handle.
 /// n[in]       : Minimum capacity in characters.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure. The string is unchanged.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure. The string is unchanged.
 ///
 /// TAGS: Str, Memory, Reserve
 ///

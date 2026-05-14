@@ -37,8 +37,8 @@
 /// m[in]   : Map.
 /// key[in] : Key to search for.
 ///
-/// SUCCESS : `true` when the key exists.
-/// FAILURE : `false`
+/// SUCCESS : Returns `true` when the key exists.
+/// FAILURE : Returns `false`.
 ///
 #define MapContainsKey(m, lookup_key)                                                                                  \
     map_contains(                                                                                                      \
@@ -56,8 +56,8 @@
 /// m[in]               : Map.
 /// key[in]             : Key to search for.
 /// value[in]           : Value to search for.
-/// SUCCESS : `true` when the pair exists.
-/// FAILURE : `false`
+/// SUCCESS : Returns `true` when the pair exists.
+/// FAILURE : Returns `false`.
 ///
 #define MapContainsPair(m, lookup_key, lookup_value)                                                                   \
     map_contains_pair(                                                                                                 \
@@ -97,7 +97,7 @@
 /// key[in]   : Key to search for.
 ///
 /// SUCCESS : Pointer to the first value stored for the key.
-/// FAILURE : `NULL`
+/// FAILURE : Returns `NULL`.
 ///
 #define MapGetFirstPtr(m, lookup_key)                                                                                  \
     ((MAP_VALUE_TYPE(m) *)map_get_value_ptr(                                                                           \
@@ -119,7 +119,7 @@
 /// key[in]   : Key to search for.
 ///
 /// SUCCESS : Pointer to the first value stored for the key.
-/// FAILURE : `NULL`
+/// FAILURE : Returns `NULL`.
 ///
 #define MapTryGetPtr(m, lookup_key) MapGetFirstPtr((m), (lookup_key))
 

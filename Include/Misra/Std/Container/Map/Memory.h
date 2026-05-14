@@ -36,8 +36,8 @@
 /// m[in,out] : Hash map.
 /// n[in]     : Minimum number of entries expected.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure. The map is unchanged.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure. The map is unchanged.
 ///
 /// TAGS: Map, Memory, Reserve
 ///
@@ -73,8 +73,8 @@
 ///
 /// m[in,out] : Map.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure for the new probe table.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure for the new probe table.
 ///
 /// TAGS: Map, Memory, Rehash, Compact
 ///
@@ -112,8 +112,8 @@
 /// n[in]        : Minimum number of entries expected after rehash.
 /// policy_value : New probing policy copied into this map.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure during the new probe table build.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure during the new probe table build.
 ///
 /// TAGS: Map, Memory, Rehash, Policy
 ///

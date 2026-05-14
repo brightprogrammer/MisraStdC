@@ -16,8 +16,8 @@
 ///
 /// v[in,out] : Vector handle.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure during the shrink reallocation.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure during the shrink reallocation.
 ///           The vector is unchanged.
 ///
 /// TAGS: Vec, Memory, ReduceSpace
@@ -46,8 +46,8 @@
 /// v[in,out] : Vector handle.
 /// len[in]   : New length.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure when growth is needed. The vector
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure when growth is needed. The vector
 ///           is unchanged.
 ///
 /// TAGS: Vec, Memory, Resize
@@ -76,8 +76,8 @@
 /// v[in,out] : Vector handle.
 /// n[in]     : Minimum capacity in elements.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure. The vector is unchanged.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure. The vector is unchanged.
 ///
 /// TAGS: Vec, Memory, Reserve
 ///

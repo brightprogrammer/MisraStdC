@@ -30,8 +30,8 @@ extern "C" {
 ///
 /// str[in] : String to query.
 ///
-/// SUCCESS : `true` when string length is 0.
-/// FAILURE : `false`
+/// SUCCESS : Returns `true` when string length is 0.
+/// FAILURE : Returns `false`
 ///
 /// TAGS: Str, Empty, Query
 ///

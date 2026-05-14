@@ -17,7 +17,7 @@
 /// key[in]   : Key to remove.
 ///
 /// SUCCESS : `true` if a value for the key existed and was removed.
-/// FAILURE : `false`
+/// FAILURE : Returns `false`.
 ///
 #define MapRemoveFirst(m, lookup_key)                                                                                  \
     map_remove(                                                                                                        \
@@ -38,7 +38,7 @@
 /// key[in]                 : Key to remove.
 /// value[in]               : Value to remove.
 /// SUCCESS : `true` if the pair existed and was removed.
-/// FAILURE : `false`
+/// FAILURE : Returns `false`.
 ///
 #define MapRemovePair(m, lookup_key, lookup_value)                                                                     \
     map_remove_pair(                                                                                                   \
@@ -60,7 +60,7 @@
 /// key[in]   : Key to delete.
 ///
 /// SUCCESS : Number of removed values.
-/// FAILURE : `0`
+/// FAILURE : Returns `0`.
 ///
 #define MapRemoveAll(m, lookup_key)                                                                                    \
     map_remove_all(                                                                                                    \

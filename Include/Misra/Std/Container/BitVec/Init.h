@@ -180,7 +180,7 @@ extern "C" {
     /// n[in]      : Number of bits to reserve space for.
     ///
     /// SUCCESS : `true`. The bitvector capacity is at least `n` bits.
-    /// FAILURE : `false` on allocation failure. The bitvector is unchanged.
+    /// FAILURE : Returns `false` on allocation failure. The bitvector is unchanged.
     ///
     /// USAGE:
     ///   if (!BitVecReserve(&flags, 1000)) { /* recover */ }
@@ -198,7 +198,7 @@ extern "C" {
     /// n[in]      : New length in bits.
     ///
     /// SUCCESS : `true`. The bitvector length is exactly `n`.
-    /// FAILURE : `false` on allocation failure when growth is needed. The
+    /// FAILURE : Returns `false` on allocation failure when growth is needed. The
     ///           bitvector is unchanged.
     ///
     /// USAGE:

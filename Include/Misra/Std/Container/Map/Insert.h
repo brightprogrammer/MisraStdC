@@ -190,8 +190,8 @@ static inline bool map_set_only_r_impl(
 /// in_key[in]   : Addressable key. Must match the map's key type.
 /// in_value[in] : Addressable value. Must match the map's value type.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure or policy violation. Map and
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure or policy violation. Map and
 ///           sources are unchanged.
 ///
 /// TAGS: Map, Insert, LValue, Ownership
@@ -220,8 +220,8 @@ static inline bool map_set_only_r_impl(
 /// in_key[in]   : Key expression.
 /// in_value[in] : Value expression.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure or policy violation.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure or policy violation.
 ///
 /// TAGS: Map, Insert, RValue
 ///
@@ -256,8 +256,8 @@ static inline bool map_set_only_r_impl(
 /// in_key[in]   : Lookup key (treated as r-value).
 /// in_value[in] : Addressable replacement value.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure during a new-entry insert path.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure during a new-entry insert path.
 ///
 /// TAGS: Map, SetFirst, LValue, Update
 ///
@@ -309,8 +309,8 @@ static inline bool map_set_only_r_impl(
 /// in_key[in]   : Addressable key.
 /// in_value[in] : Addressable value.
 ///
-/// SUCCESS : `true`.
-/// FAILURE : `false` on allocation failure.
+/// SUCCESS : Returns `true`.
+/// FAILURE : Returns `false` on allocation failure.
 ///
 /// TAGS: Map, Set, LValue, Replace
 ///
