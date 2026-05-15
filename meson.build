@@ -37,6 +37,12 @@ opt_iter           = get_option('iter')
 opt_sys_dir        = get_option('sys_dir')
 opt_sys_proc       = get_option('sys_proc')
 opt_sys_socket     = get_option('sys_socket')
+opt_sys_procmaps   = get_option('sys_procmaps')
+
+# /proc/self/maps is Linux-only. Auto-disable elsewhere.
+if host_machine.system() != 'linux'
+    opt_sys_procmaps = false
+endif
 
 # Sys/Socket is POSIX-only at present (Source/Misra/Sys/Socket.c
 # guards with #error on _WIN32). Auto-disable on Windows so the
@@ -66,6 +72,8 @@ opt_map    = opt_map_user    or opt_parser_kvconf               # kvconfig -> ma
 
 # parser_elf uses ReadCompleteFile; force `file` on when it's enabled.
 opt_file = opt_file_user or opt_parser_elf
+
+# sys_procmaps is Linux-only; verified above.
 
 # ---------------------------------------------------------------------------
 # Build source list. Foundation first, optional features appended.
@@ -130,6 +138,9 @@ endif
 if opt_sys_socket
     misra_std_sources += files('Source/Misra/Sys/Socket.c')
 endif
+if opt_sys_procmaps
+    misra_std_sources += files('Source/Misra/Sys/ProcMaps.c')
+endif
 
 if opt_parser_json
     misra_std_sources += files('Source/Misra/Parsers/JSON.c')
@@ -166,6 +177,7 @@ config_data.set10('MISRA_HAVE_ITER',            opt_iter)
 config_data.set10('MISRA_HAVE_SYS_DIR',         opt_sys_dir)
 config_data.set10('MISRA_HAVE_SYS_PROC',        opt_sys_proc)
 config_data.set10('MISRA_HAVE_SYS_SOCKET',      opt_sys_socket)
+config_data.set10('MISRA_HAVE_SYS_PROCMAPS',    opt_sys_procmaps)
 config_data.set10('MISRA_HAVE_PARSER_JSON',     opt_parser_json)
 config_data.set10('MISRA_HAVE_PARSER_KVCONFIG', opt_parser_kvconf)
 config_data.set10('MISRA_HAVE_PARSER_HTTP',     opt_parser_http)
@@ -185,8 +197,8 @@ message('  alloc_arena=@0@  alloc_slab=@1@  alloc_budget=@2@  alloc_stats=@3@'.f
     opt_alloc_arena, opt_alloc_slab, opt_alloc_budget, opt_alloc_stats))
 message('  bitvec=@0@  list=@1@  map=@2@  graph=@3@  int=@4@  float=@5@'.format(
     opt_bitvec, opt_list, opt_map, opt_graph, opt_int, opt_float))
-message('  file=@0@  iter=@1@  sys_dir=@2@  sys_proc=@3@  sys_socket=@4@'.format(
-    opt_file, opt_iter, opt_sys_dir, opt_sys_proc, opt_sys_socket))
+message('  file=@0@  iter=@1@  sys_dir=@2@  sys_proc=@3@  sys_socket=@4@  sys_procmaps=@5@'.format(
+    opt_file, opt_iter, opt_sys_dir, opt_sys_proc, opt_sys_socket, opt_sys_procmaps))
 message('  parser_json=@0@  parser_kvconfig=@1@  parser_http=@2@  parser_elf=@3@'.format(
     opt_parser_json, opt_parser_kvconf, opt_parser_http, opt_parser_elf))
 
@@ -372,6 +384,9 @@ if not opt_sys_proc
 endif
 if not opt_sys_socket
     install_subdir_excludes_files += 'Sys/Socket.h'
+endif
+if not opt_sys_procmaps
+    install_subdir_excludes_files += 'Sys/ProcMaps.h'
 endif
 
 if not opt_parser_json

@@ -1,0 +1,241 @@
+/// file      : ProcMaps.c
+/// author    : Siddharth Mishra (admin@brightprogrammer.in)
+/// This is free and unencumbered software released into the public domain.
+///
+/// Linux `/proc/self/maps` parser. The line format (kernel doc:
+/// `Documentation/filesystems/proc.rst`) is:
+///
+///   start-end perms offset dev_major:dev_minor inode path
+///
+/// where:
+///   start, end : hex addresses
+///   perms      : 4 chars - rwx and (p|s)
+///   offset     : hex file offset
+///   dev_*      : hex device numbers (we ignore)
+///   inode      : decimal (we ignore)
+///   path       : optional; anonymous mappings have no path field
+///
+/// Paths can contain spaces — we treat everything after the inode
+/// field's trailing whitespace as the path, up to the line terminator.
+
+#define _DEFAULT_SOURCE
+#define _POSIX_C_SOURCE 200809L
+
+#include <Misra/Sys/ProcMaps.h>
+
+#include <Misra/Std.h>
+#include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
+
+#include <stdio.h>
+
+// ---------------------------------------------------------------------------
+// Field parsers
+// ---------------------------------------------------------------------------
+
+static int hex_digit_value(char c) {
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    if (c >= 'a' && c <= 'f')
+        return 10 + (c - 'a');
+    if (c >= 'A' && c <= 'F')
+        return 10 + (c - 'A');
+    return -1;
+}
+
+// Parse a hex run starting at `*p`. Advances `*p` past the digits.
+// Returns false if no digits are consumed.
+static bool parse_hex_u64(const char **p, const char *end, u64 *out) {
+    const char *s = *p;
+    if (s >= end)
+        return false;
+    u64 v        = 0;
+    int consumed = 0;
+    while (s < end) {
+        int d = hex_digit_value(*s);
+        if (d < 0)
+            break;
+        v = (v << 4) | (u64)d;
+        ++s;
+        ++consumed;
+    }
+    if (!consumed)
+        return false;
+    *p   = s;
+    *out = v;
+    return true;
+}
+
+static bool expect_char(const char **p, const char *end, char c) {
+    if (*p >= end || **p != c)
+        return false;
+    *p += 1;
+    return true;
+}
+
+static void skip_ws(const char **p, const char *end) {
+    while (*p < end && (**p == ' ' || **p == '\t'))
+        ++(*p);
+}
+
+// Read one "non-whitespace blob" (the dev/inode tokens). Just skip it.
+static void skip_token(const char **p, const char *end) {
+    while (*p < end && **p != ' ' && **p != '\t' && **p != '\n')
+        ++(*p);
+}
+
+// ---------------------------------------------------------------------------
+// Line decode
+// ---------------------------------------------------------------------------
+
+static bool parse_one_line(char **cursor_inout, char *end, ProcMapEntry *out) {
+    const char *p          = *cursor_inout;
+    const char *line_start = p;
+
+    u64 start = 0, ende = 0, offset = 0;
+    if (!parse_hex_u64(&p, end, &start))
+        return false;
+    if (!expect_char(&p, end, '-'))
+        return false;
+    if (!parse_hex_u64(&p, end, &ende))
+        return false;
+    skip_ws(&p, end);
+
+    // perms: 4 chars
+    if (end - p < 4)
+        return false;
+    u32 perms = 0;
+    if (p[0] == 'r')
+        perms |= PROC_MAP_PERM_READ;
+    if (p[1] == 'w')
+        perms |= PROC_MAP_PERM_WRITE;
+    if (p[2] == 'x')
+        perms |= PROC_MAP_PERM_EXEC;
+    if (p[3] == 'p')
+        perms |= PROC_MAP_PERM_PRIVATE;
+    p += 4;
+    skip_ws(&p, end);
+
+    if (!parse_hex_u64(&p, end, &offset))
+        return false;
+    skip_ws(&p, end);
+
+    // dev_major:dev_minor — we don't care, but the field must be there.
+    skip_token(&p, end);
+    skip_ws(&p, end);
+
+    // inode — skip.
+    skip_token(&p, end);
+    skip_ws(&p, end);
+
+    // path — optional, runs to end-of-line. We replace the newline
+    // with \0 in place so the path is a usable C string.
+    const char *path_start = p;
+    while (p < end && *p != '\n')
+        ++p;
+    char *line_terminator = (char *)p;
+
+    out->start       = start;
+    out->end         = ende;
+    out->perms       = perms;
+    out->file_offset = offset;
+    out->path        = path_start; // may be empty if anonymous
+
+    if (line_terminator < end && *line_terminator == '\n') {
+        *line_terminator = '\0';
+        p                = line_terminator + 1;
+    }
+    *cursor_inout = (char *)p;
+    (void)line_start;
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+bool ProcMapsLoad(ProcMaps *out, Allocator *alloc) {
+    if (!out || !alloc) {
+        LOG_ERROR("ProcMapsLoad: NULL argument");
+        return false;
+    }
+    MemSet(out, 0, sizeof(*out));
+    out->allocator = alloc;
+    out->raw       = StrInit(alloc);
+    out->entries   = VecInitT(out->entries, alloc);
+
+    // `/proc/self/maps` reports stat-size 0 because it's generated by
+    // the kernel on read. ReadCompleteFile relies on stat for the
+    // buffer size and short-circuits to empty — we have to loop-read
+    // into a growing buffer ourselves.
+    FILE *f = fopen("/proc/self/maps", "rb");
+    if (!f) {
+        LOG_SYS_ERROR("ProcMapsLoad: fopen(/proc/self/maps) failed");
+        ProcMapsDeinit(out);
+        return false;
+    }
+
+    enum {
+        CHUNK = 4096
+    };
+    while (true) {
+        u64 grown_to = out->raw.length + CHUNK + 1;
+        if (!StrReserve(&out->raw, grown_to)) {
+            LOG_ERROR("ProcMapsLoad: failed to grow buffer");
+            fclose(f);
+            ProcMapsDeinit(out);
+            return false;
+        }
+        size n           = fread(out->raw.data + out->raw.length, 1, CHUNK, f);
+        out->raw.length += (u64)n;
+        if (n < CHUNK)
+            break; // EOF or error
+    }
+    fclose(f);
+    if (out->raw.length == 0) {
+        LOG_ERROR("ProcMapsLoad: /proc/self/maps was empty");
+        ProcMapsDeinit(out);
+        return false;
+    }
+    out->raw.data[out->raw.length] = '\0';
+
+    char *cursor = out->raw.data;
+    char *end    = out->raw.data + out->raw.length;
+    while (cursor < end) {
+        ProcMapEntry e = {0};
+        if (!parse_one_line(&cursor, end, &e)) {
+            // Skip past whatever line we couldn't parse.
+            while (cursor < end && *cursor != '\n')
+                ++cursor;
+            if (cursor < end)
+                ++cursor;
+            continue;
+        }
+        if (!VecPushBackR(&out->entries, e)) {
+            ProcMapsDeinit(out);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void ProcMapsDeinit(ProcMaps *self) {
+    if (!self)
+        return;
+    StrDeinit(&self->raw);
+    VecDeinit(&self->entries);
+    MemSet(self, 0, sizeof(*self));
+}
+
+const ProcMapEntry *ProcMapsFindByAddr(const ProcMaps *self, u64 addr) {
+    if (!self)
+        return NULL;
+    for (u64 i = 0; i < self->entries.length; ++i) {
+        const ProcMapEntry *e = &self->entries.data[i];
+        if (addr >= e->start && addr < e->end) {
+            return e;
+        }
+    }
+    return NULL;
+}
