@@ -117,6 +117,17 @@ bool test_dwarf_cfi_finds_fde_for_self(void) {
         const DwarfFde *fde = DwarfCfiFindFde(&cfi, file_relative);
         ok                  = fde != NULL && fde->pc_range > 0 && file_relative >= fde->pc_begin &&
              file_relative < fde->pc_begin + fde->pc_range;
+
+        // Run the CFI VM and verify we get a usable row: on x86-64 the
+        // CFA is always `register + offset` (typically RSP + N), and the
+        // return-address pseudo-register (DWARF reg 16) has a saved
+        // location at some offset from CFA.
+        if (ok) {
+            DwarfUnwindRow row;
+            ok = DwarfCfiBuildRow(&cfi, fde, file_relative, &row);
+            ok = ok && row.cfa.kind == DWARF_CFA_RULE_REG_OFFSET;
+            ok = ok && row.regs[row.return_address_register].kind == DWARF_REG_RULE_OFFSET;
+        }
         DwarfCfiDeinit(&cfi);
     }
 

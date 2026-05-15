@@ -548,3 +548,377 @@ void DwarfCfiDeinit(DwarfCfi *self) {
     VecDeinit(&self->fdes);
     MemSet(self, 0, sizeof(*self));
 }
+
+// ---------------------------------------------------------------------------
+// CFI bytecode interpreter
+// ---------------------------------------------------------------------------
+//
+// Opcode classes (high 2 bits of the byte):
+//   0b00 - extended opcode (low 6 bits = opcode number)
+//   0b01 - DW_CFA_advance_loc        (operand: delta in low 6 bits)
+//   0b10 - DW_CFA_offset             (register in low 6 bits, ULEB offset operand)
+//   0b11 - DW_CFA_restore            (register in low 6 bits)
+
+enum {
+    DW_CFA_NOP                = 0x00,
+    DW_CFA_SET_LOC            = 0x01,
+    DW_CFA_ADVANCE_LOC1       = 0x02,
+    DW_CFA_ADVANCE_LOC2       = 0x03,
+    DW_CFA_ADVANCE_LOC4       = 0x04,
+    DW_CFA_OFFSET_EXTENDED    = 0x05,
+    DW_CFA_RESTORE_EXTENDED   = 0x06,
+    DW_CFA_UNDEFINED          = 0x07,
+    DW_CFA_SAME_VALUE         = 0x08,
+    DW_CFA_REGISTER           = 0x09,
+    DW_CFA_REMEMBER_STATE     = 0x0a,
+    DW_CFA_RESTORE_STATE      = 0x0b,
+    DW_CFA_DEF_CFA            = 0x0c,
+    DW_CFA_DEF_CFA_REGISTER   = 0x0d,
+    DW_CFA_DEF_CFA_OFFSET     = 0x0e,
+    DW_CFA_DEF_CFA_EXPRESSION = 0x0f,
+    DW_CFA_EXPRESSION         = 0x10,
+    DW_CFA_OFFSET_EXTENDED_SF = 0x11,
+    DW_CFA_DEF_CFA_SF         = 0x12,
+    DW_CFA_DEF_CFA_OFFSET_SF  = 0x13,
+    DW_CFA_VAL_OFFSET         = 0x14,
+    DW_CFA_VAL_OFFSET_SF      = 0x15,
+    DW_CFA_VAL_EXPRESSION     = 0x16,
+};
+
+#define CFI_STATE_STACK 4
+
+typedef struct CfiVm {
+    DwarfUnwindRow row;
+    DwarfUnwindRow initial;  // snapshot after running the CIE's instructions
+    DwarfUnwindRow saved_state_stack[CFI_STATE_STACK];
+    u8             saved_state_top;
+    u64            location; // current PC inside the FDE's range
+    i64            code_align;
+    i64            data_align;
+} CfiVm;
+
+static void cfi_vm_init(CfiVm *vm, const DwarfCie *cie, u64 fde_pc_begin, u8 ra_reg) {
+    MemSet(vm, 0, sizeof(*vm));
+    vm->row.return_address_register = ra_reg;
+    vm->location                    = fde_pc_begin;
+    vm->code_align                  = cie->code_alignment_factor ? cie->code_alignment_factor : 1;
+    vm->data_align                  = cie->data_alignment_factor ? cie->data_alignment_factor : 1;
+}
+
+// One instruction. `stop_at` lets the caller bail mid-stream once an
+// advance_loc has covered the requested target PC.
+static bool cfi_vm_step(CfiVm *vm, DwUCursor *cur, u64 stop_at, bool *stop_now) {
+    u8 op = 0;
+    if (!dwc_take_u8(cur, &op))
+        return false;
+
+    u8 high = op & 0xc0;
+    u8 low  = op & 0x3f;
+
+    if (high == 0x40) {
+        // DW_CFA_advance_loc
+        u64 delta   = (u64)low * (u64)vm->code_align;
+        u64 next_pc = vm->location + delta;
+        if (vm->location <= stop_at && stop_at < next_pc) {
+            *stop_now = true;
+            return true;
+        }
+        vm->location = next_pc;
+        return true;
+    }
+    if (high == 0x80) {
+        // DW_CFA_offset (register in low bits, operand ULEB offset, scaled by data_align)
+        u64 raw = 0;
+        if (!dwc_take_uleb128(cur, &raw))
+            return false;
+        if (low < DWARF_UNWIND_MAX_REGS) {
+            vm->row.regs[low].kind   = DWARF_REG_RULE_OFFSET;
+            vm->row.regs[low].offset = (i64)raw * vm->data_align;
+        }
+        return true;
+    }
+    if (high == 0xc0) {
+        // DW_CFA_restore
+        if (low < DWARF_UNWIND_MAX_REGS) {
+            vm->row.regs[low] = vm->initial.regs[low];
+        }
+        return true;
+    }
+
+    switch (op) {
+        case DW_CFA_NOP :
+            return true;
+
+        case DW_CFA_SET_LOC : {
+            u64 abs_pc = 0;
+            if (!dwc_take_u64_le(cur, &abs_pc))
+                return false;
+            if (vm->location <= stop_at && stop_at < abs_pc) {
+                *stop_now = true;
+                return true;
+            }
+            vm->location = abs_pc;
+            return true;
+        }
+        case DW_CFA_ADVANCE_LOC1 : {
+            u8 d = 0;
+            if (!dwc_take_u8(cur, &d))
+                return false;
+            u64 next = vm->location + (u64)d * (u64)vm->code_align;
+            if (vm->location <= stop_at && stop_at < next) {
+                *stop_now = true;
+                return true;
+            }
+            vm->location = next;
+            return true;
+        }
+        case DW_CFA_ADVANCE_LOC2 : {
+            u16 d = 0;
+            if (!dwc_take_u16_le(cur, &d))
+                return false;
+            u64 next = vm->location + (u64)d * (u64)vm->code_align;
+            if (vm->location <= stop_at && stop_at < next) {
+                *stop_now = true;
+                return true;
+            }
+            vm->location = next;
+            return true;
+        }
+        case DW_CFA_ADVANCE_LOC4 : {
+            u32 d = 0;
+            if (!dwc_take_u32_le(cur, &d))
+                return false;
+            u64 next = vm->location + (u64)d * (u64)vm->code_align;
+            if (vm->location <= stop_at && stop_at < next) {
+                *stop_now = true;
+                return true;
+            }
+            vm->location = next;
+            return true;
+        }
+
+        case DW_CFA_OFFSET_EXTENDED : {
+            u64 reg = 0, off = 0;
+            if (!dwc_take_uleb128(cur, &reg))
+                return false;
+            if (!dwc_take_uleb128(cur, &off))
+                return false;
+            if (reg < DWARF_UNWIND_MAX_REGS) {
+                vm->row.regs[reg].kind   = DWARF_REG_RULE_OFFSET;
+                vm->row.regs[reg].offset = (i64)off * vm->data_align;
+            }
+            return true;
+        }
+        case DW_CFA_OFFSET_EXTENDED_SF : {
+            u64 reg = 0;
+            i64 off = 0;
+            if (!dwc_take_uleb128(cur, &reg))
+                return false;
+            if (!dwc_take_sleb128(cur, &off))
+                return false;
+            if (reg < DWARF_UNWIND_MAX_REGS) {
+                vm->row.regs[reg].kind   = DWARF_REG_RULE_OFFSET;
+                vm->row.regs[reg].offset = off * vm->data_align;
+            }
+            return true;
+        }
+        case DW_CFA_RESTORE_EXTENDED : {
+            u64 reg = 0;
+            if (!dwc_take_uleb128(cur, &reg))
+                return false;
+            if (reg < DWARF_UNWIND_MAX_REGS) {
+                vm->row.regs[reg] = vm->initial.regs[reg];
+            }
+            return true;
+        }
+        case DW_CFA_UNDEFINED : {
+            u64 reg = 0;
+            if (!dwc_take_uleb128(cur, &reg))
+                return false;
+            if (reg < DWARF_UNWIND_MAX_REGS) {
+                vm->row.regs[reg].kind = DWARF_REG_RULE_UNDEFINED;
+            }
+            return true;
+        }
+        case DW_CFA_SAME_VALUE : {
+            u64 reg = 0;
+            if (!dwc_take_uleb128(cur, &reg))
+                return false;
+            if (reg < DWARF_UNWIND_MAX_REGS) {
+                vm->row.regs[reg].kind = DWARF_REG_RULE_SAME_VALUE;
+            }
+            return true;
+        }
+        case DW_CFA_REGISTER : {
+            u64 reg = 0, src = 0;
+            if (!dwc_take_uleb128(cur, &reg))
+                return false;
+            if (!dwc_take_uleb128(cur, &src))
+                return false;
+            if (reg < DWARF_UNWIND_MAX_REGS) {
+                vm->row.regs[reg].kind = DWARF_REG_RULE_REGISTER;
+                vm->row.regs[reg].reg  = (u8)src;
+            }
+            return true;
+        }
+        case DW_CFA_REMEMBER_STATE : {
+            if (vm->saved_state_top >= CFI_STATE_STACK)
+                return false;
+            vm->saved_state_stack[vm->saved_state_top++] = vm->row;
+            return true;
+        }
+        case DW_CFA_RESTORE_STATE : {
+            if (vm->saved_state_top == 0)
+                return false;
+            DwarfUnwindRow snapshot          = vm->saved_state_stack[--vm->saved_state_top];
+            snapshot.return_address_register = vm->row.return_address_register;
+            vm->row                          = snapshot;
+            return true;
+        }
+        case DW_CFA_DEF_CFA : {
+            u64 reg = 0, off = 0;
+            if (!dwc_take_uleb128(cur, &reg))
+                return false;
+            if (!dwc_take_uleb128(cur, &off))
+                return false;
+            vm->row.cfa.kind   = DWARF_CFA_RULE_REG_OFFSET;
+            vm->row.cfa.reg    = (u8)reg;
+            vm->row.cfa.offset = (i64)off;
+            return true;
+        }
+        case DW_CFA_DEF_CFA_SF : {
+            u64 reg = 0;
+            i64 off = 0;
+            if (!dwc_take_uleb128(cur, &reg))
+                return false;
+            if (!dwc_take_sleb128(cur, &off))
+                return false;
+            vm->row.cfa.kind   = DWARF_CFA_RULE_REG_OFFSET;
+            vm->row.cfa.reg    = (u8)reg;
+            vm->row.cfa.offset = off * vm->data_align;
+            return true;
+        }
+        case DW_CFA_DEF_CFA_REGISTER : {
+            u64 reg = 0;
+            if (!dwc_take_uleb128(cur, &reg))
+                return false;
+            if (vm->row.cfa.kind != DWARF_CFA_RULE_REG_OFFSET) {
+                vm->row.cfa.kind = DWARF_CFA_RULE_REG_OFFSET;
+            }
+            vm->row.cfa.reg = (u8)reg;
+            return true;
+        }
+        case DW_CFA_DEF_CFA_OFFSET : {
+            u64 off = 0;
+            if (!dwc_take_uleb128(cur, &off))
+                return false;
+            if (vm->row.cfa.kind != DWARF_CFA_RULE_REG_OFFSET) {
+                vm->row.cfa.kind = DWARF_CFA_RULE_REG_OFFSET;
+            }
+            vm->row.cfa.offset = (i64)off;
+            return true;
+        }
+        case DW_CFA_DEF_CFA_OFFSET_SF : {
+            i64 off = 0;
+            if (!dwc_take_sleb128(cur, &off))
+                return false;
+            if (vm->row.cfa.kind != DWARF_CFA_RULE_REG_OFFSET) {
+                vm->row.cfa.kind = DWARF_CFA_RULE_REG_OFFSET;
+            }
+            vm->row.cfa.offset = off * vm->data_align;
+            return true;
+        }
+
+        case DW_CFA_DEF_CFA_EXPRESSION :
+        case DW_CFA_EXPRESSION :
+        case DW_CFA_VAL_EXPRESSION : {
+            // Skip the embedded expression. v1 of the unwinder bails
+            // when an active register's rule is EXPRESSION because we
+            // don't evaluate DWARF expressions yet.
+            if (op != DW_CFA_DEF_CFA_EXPRESSION) {
+                u64 reg = 0;
+                if (!dwc_take_uleb128(cur, &reg))
+                    return false;
+                if (reg < DWARF_UNWIND_MAX_REGS) {
+                    vm->row.regs[reg].kind = DWARF_REG_RULE_EXPRESSION;
+                }
+            } else {
+                vm->row.cfa.kind = DWARF_CFA_RULE_EXPRESSION;
+            }
+            u64 expr_len = 0;
+            if (!dwc_take_uleb128(cur, &expr_len))
+                return false;
+            if (cur->p + expr_len > cur->end)
+                return false;
+            cur->p += expr_len;
+            return true;
+        }
+
+        case DW_CFA_VAL_OFFSET : {
+            u64 reg = 0, off = 0;
+            if (!dwc_take_uleb128(cur, &reg))
+                return false;
+            if (!dwc_take_uleb128(cur, &off))
+                return false;
+            if (reg < DWARF_UNWIND_MAX_REGS) {
+                vm->row.regs[reg].kind   = DWARF_REG_RULE_VAL_OFFSET;
+                vm->row.regs[reg].offset = (i64)off * vm->data_align;
+            }
+            return true;
+        }
+        case DW_CFA_VAL_OFFSET_SF : {
+            u64 reg = 0;
+            i64 off = 0;
+            if (!dwc_take_uleb128(cur, &reg))
+                return false;
+            if (!dwc_take_sleb128(cur, &off))
+                return false;
+            if (reg < DWARF_UNWIND_MAX_REGS) {
+                vm->row.regs[reg].kind   = DWARF_REG_RULE_VAL_OFFSET;
+                vm->row.regs[reg].offset = off * vm->data_align;
+            }
+            return true;
+        }
+
+        default :
+            return false; // Unknown opcode — bail rather than misinterpret.
+    }
+}
+
+static bool cfi_vm_run(CfiVm *vm, const u8 *insns, u64 insns_size, u64 stop_at) {
+    DwUCursor cur      = {.p = insns, .end = insns + insns_size};
+    bool      stop_now = false;
+    while (cur.p < cur.end) {
+        if (!cfi_vm_step(vm, &cur, stop_at, &stop_now))
+            return false;
+        if (stop_now)
+            break;
+    }
+    return true;
+}
+
+bool DwarfCfiBuildRow(const DwarfCfi *cfi, const DwarfFde *fde, u64 target_pc, DwarfUnwindRow *out) {
+    if (!cfi || !fde || !out)
+        return false;
+    if (target_pc < fde->pc_begin || target_pc >= fde->pc_begin + fde->pc_range) {
+        return false;
+    }
+    const DwarfCie *cie = DwarfCfiFindCie(cfi, fde->cie_offset);
+    if (!cie)
+        return false;
+
+    CfiVm vm;
+    cfi_vm_init(&vm, cie, fde->pc_begin, cie->return_address_register);
+
+    if (!cfi_vm_run(&vm, cie->initial_instructions, cie->initial_instructions_size, (u64)-1)) {
+        return false;
+    }
+    vm.initial = vm.row;
+
+    if (!cfi_vm_run(&vm, fde->instructions, fde->instructions_size, target_pc)) {
+        return false;
+    }
+
+    *out = vm.row;
+    return true;
+}

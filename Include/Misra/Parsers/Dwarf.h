@@ -203,4 +203,75 @@ const DwarfCie *DwarfCfiFindCie(const DwarfCfi *self, u64 cie_offset);
 
 void DwarfCfiDeinit(DwarfCfi *self);
 
+// ---------------------------------------------------------------------------
+// CFI bytecode interpreter — turns an FDE + target PC into an unwind row.
+// ---------------------------------------------------------------------------
+//
+// We model only the rules needed to recover the previous frame's
+// return address (and, on most ABIs, its stack pointer). For x86-64
+// SysV that's the CFA rule and the rule for DWARF register 16 (the
+// return-address pseudo-register).
+
+typedef enum DwarfCfaRuleKind {
+    DWARF_CFA_RULE_UNDEFINED = 0,
+    DWARF_CFA_RULE_REG_OFFSET, // CFA = registers[reg] + offset
+    DWARF_CFA_RULE_EXPRESSION, // CFA = result of a DWARF expression (not run in v1)
+} DwarfCfaRuleKind;
+
+typedef struct DwarfCfaRule {
+    DwarfCfaRuleKind kind;
+    u8               reg;    // valid when kind == REG_OFFSET
+    i64              offset; // valid when kind == REG_OFFSET
+} DwarfCfaRule;
+
+typedef enum DwarfRegRuleKind {
+    DWARF_REG_RULE_UNDEFINED = 0,
+    DWARF_REG_RULE_SAME_VALUE,
+    DWARF_REG_RULE_OFFSET,     // value at *(CFA + offset)
+    DWARF_REG_RULE_VAL_OFFSET, // value = CFA + offset
+    DWARF_REG_RULE_REGISTER,   // value in register `reg`
+    DWARF_REG_RULE_EXPRESSION, // skipped in v1
+} DwarfRegRuleKind;
+
+typedef struct DwarfRegRule {
+    DwarfRegRuleKind kind;
+    i64              offset; // for OFFSET / VAL_OFFSET
+    u8               reg;    // for REGISTER
+} DwarfRegRule;
+
+// Enough register slots for x86-64 (17 mainline DWARF registers + the
+// return-address pseudo-register at index 16). aarch64 uses 31 GPRs
+// plus a few specials; sized to 32 to cover both.
+#define DWARF_UNWIND_MAX_REGS 32
+
+typedef struct DwarfUnwindRow {
+    DwarfCfaRule cfa;
+    DwarfRegRule regs[DWARF_UNWIND_MAX_REGS];
+    u8           return_address_register;
+} DwarfUnwindRow;
+
+///
+/// Run the CIE's initial instructions plus the FDE's instructions up
+/// to (but not past) `target_pc`, producing the unwind row that
+/// applies at that PC.
+///
+/// cfi[in]       : Parsed `.eh_frame` index.
+/// fde[in]       : FDE covering `target_pc` (caller obtained via
+///                 `DwarfCfiFindFde`).
+/// target_pc[in] : File-relative virtual address inside the FDE's
+///                 [pc_begin, pc_begin+pc_range) range.
+/// out[out]      : Populated on success.
+///
+/// SUCCESS : Returns true. `out->cfa.kind` is set to a usable rule
+///           (typically REG_OFFSET on x86-64). `out->regs[ra]` tells
+///           the caller where to find the previous frame's return
+///           address.
+/// FAILURE : Returns false on malformed CFI bytecode, unsupported
+///           DW_CFA_*_expression instructions, or `target_pc`
+///           outside the FDE. `out` is left zeroed.
+///
+/// TAGS: Parser, DWARF, CFI, Unwind
+///
+bool DwarfCfiBuildRow(const DwarfCfi *cfi, const DwarfFde *fde, u64 target_pc, DwarfUnwindRow *out);
+
 #endif // MISRA_PARSERS_DWARF_H
