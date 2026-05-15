@@ -276,6 +276,10 @@ if opt_parser_elf and tests_need_posix_exe
         test_name = test_info[0]
         test_src = test_info[1]
 
+        # Force a build-id note so the build_id-parsing test path
+        # exercises the parser. Most distros' linkers default to
+        # emitting one but not all; the explicit flag makes the test
+        # portable across configurations.
         test_exe = executable(
             test_name,
             files(test_src),
@@ -283,6 +287,7 @@ if opt_parser_elf and tests_need_posix_exe
             dependencies: [test_util_dep],
             c_args: test_args,
             include_directories: inc_misra,
+            link_args: ['-Wl,--build-id=sha1'],
             install: false
         )
 

@@ -50,6 +50,23 @@ bool test_elf_find_text_section(void) {
 // We can find at least one named function symbol pointing at the .text
 // section. Don't pin to a specific name — the test binary's main is
 // the most likely candidate but a static helper would also do.
+// GCC and clang both emit `.note.gnu.build-id` by default. Confirm
+// we surface the bytes — this is what lets SymbolResolver look up
+// /usr/lib/debug/.build-id/aa/bbbb...debug sidecars for stripped
+// production binaries.
+bool test_elf_build_id_present(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    ElfFile          elf;
+    if (!ElfFileOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc))) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+    bool ok = elf.build_id != NULL && elf.build_id_size > 0 && elf.build_id_size <= 64;
+    ElfFileDeinit(&elf);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 bool test_elf_some_function_symbol(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     ElfFile          elf;
@@ -79,6 +96,7 @@ int main(void) {
     TestFunction tests[] = {
         test_elf_self_exe_parse,
         test_elf_find_text_section,
+        test_elf_build_id_present,
         test_elf_some_function_symbol,
     };
 

@@ -74,10 +74,20 @@ typedef struct ResolverCacheEntry {
     const char *path; // borrowed from ProcMaps.raw
     u64         load_base;
     ElfFile     elf;
+    // Sidecar debug file found via .gnu_debuglink or .note.gnu.build-id.
+    // Populated lazily for stripped binaries that have an installed
+    // -dbg package or a debug file alongside them. When `has_sidecar`
+    // is true, the sidecar's symbol tables (and DWARF lines, below)
+    // are searched after the main file's.
+    ElfFile sidecar;
+    bool    has_sidecar;
 #if MISRA_HAVE_PARSER_DWARF
     DwarfLines dwarf;
     bool       dwarf_built;
     bool       dwarf_ok;
+    DwarfLines sidecar_dwarf;
+    bool       sidecar_dwarf_built;
+    bool       sidecar_dwarf_ok;
 #endif
 } ResolverCacheEntry;
 
