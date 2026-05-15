@@ -64,6 +64,7 @@ opt_parser_json    = get_option('parser_json')
 opt_parser_kvconf  = get_option('parser_kvconfig')
 opt_parser_http    = get_option('parser_http')
 opt_parser_elf     = get_option('parser_elf')
+opt_parser_dwarf   = get_option('parser_dwarf')
 
 # Vec, Str, Io are part of the mandatory foundation: `LOG_FATAL` formats
 # its message through `Str` and emits via the `Io` formatted path, so
@@ -83,6 +84,11 @@ opt_map    = opt_map_user    or opt_parser_kvconf               # kvconfig -> ma
 if opt_sys_symresolve
     opt_sys_procmaps = true
     opt_parser_elf   = true
+endif
+
+# parser_dwarf depends on parser_elf for section discovery.
+if opt_parser_dwarf
+    opt_parser_elf = true
 endif
 
 # parser_elf uses ReadCompleteFile; force `file` on when it's enabled.
@@ -175,6 +181,9 @@ endif
 if opt_parser_elf
     misra_std_sources += files('Source/Misra/Parsers/Elf.c')
 endif
+if opt_parser_dwarf
+    misra_std_sources += files('Source/Misra/Parsers/Dwarf.c')
+endif
 
 # Compile-time discovery: each enabled feature exposes
 # `MISRA_HAVE_<NAME> == 1` via a generated `Misra/Config.h`. Every
@@ -205,6 +214,7 @@ config_data.set10('MISRA_HAVE_PARSER_JSON',     opt_parser_json)
 config_data.set10('MISRA_HAVE_PARSER_KVCONFIG', opt_parser_kvconf)
 config_data.set10('MISRA_HAVE_PARSER_HTTP',     opt_parser_http)
 config_data.set10('MISRA_HAVE_PARSER_ELF',      opt_parser_elf)
+config_data.set10('MISRA_HAVE_PARSER_DWARF',    opt_parser_dwarf)
 
 # `subdir(...)` runs the inner meson.build, where `configure_file`
 # emits `build/Include/Misra/Config.h`. The top-level
@@ -224,8 +234,8 @@ message('  file=@0@  iter=@1@  sys_dir=@2@  sys_proc=@3@  sys_socket=@4@'.format
     opt_file, opt_iter, opt_sys_dir, opt_sys_proc, opt_sys_socket))
 message('  sys_procmaps=@0@  sys_symresolve=@1@  sys_backtrace=@2@'.format(
     opt_sys_procmaps, opt_sys_symresolve, opt_sys_backtrace))
-message('  parser_json=@0@  parser_kvconfig=@1@  parser_http=@2@  parser_elf=@3@'.format(
-    opt_parser_json, opt_parser_kvconf, opt_parser_http, opt_parser_elf))
+message('  parser_json=@0@  parser_kvconfig=@1@  parser_http=@2@  parser_elf=@3@  parser_dwarf=@4@'.format(
+    opt_parser_json, opt_parser_kvconf, opt_parser_http, opt_parser_elf, opt_parser_dwarf))
 
 # Regular library with sanitizers for normal tests and executables
 misra_std = static_library(
@@ -431,6 +441,9 @@ if not opt_parser_http
 endif
 if not opt_parser_elf
     install_subdir_excludes_files += 'Parsers/Elf.h'
+endif
+if not opt_parser_dwarf
+    install_subdir_excludes_files += 'Parsers/Dwarf.h'
 endif
 
 install_subdir(

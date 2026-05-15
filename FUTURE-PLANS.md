@@ -35,6 +35,10 @@ Parking lot for items we've identified during real implementation work but defer
 ## Parsers
 - Port `Bin/ElfInfo.c` onto `Parsers/Elf` so its local enum definitions are removed and `Parsers/Elf.h` can rejoin the `Misra.h` umbrella.
 - Extend `Parsers/Elf` to ELF32 + big-endian (v1 is ELF64-LSB only).
+- Add DWARF 5 support to `Parsers/Dwarf` (`.debug_line` header changed to entry-format records; current parser silently skips v5 CUs).
+- Add DWARF 64-bit length form to `Parsers/Dwarf` (`0xffffffff`-prefixed initial length; rare on Linux but used on macOS / large binaries).
+- `Parsers/Dwarf` v2: `.debug_info` + `.debug_abbrev` for function-name attribution beyond ELF symbols, including inlined-frame expansion.
+- Wire `DwarfLines` into `Sys/Backtrace::FormatStackTraceWith` so rendered traces append `(file:line)`.
 
 ## Naming / Platform
 - `FileGetSize` / `ProcGetCurrentId` carry namespace prefixes only to avoid WINAPI macro collisions (`GetFileSize`, `GetCurrentProcessId`). Consider `#undef`'ing the WINAPI macros inside the `Sys/*` translation units and reverting to the cleaner bare names.

@@ -35,6 +35,10 @@ elf_tests = [
     ['Elf', 'Std/Elf.c'],
 ]
 
+dwarf_tests = [
+    ['Dwarf', 'Std/Dwarf.c'],
+]
+
 procmaps_tests = [
     ['ProcMaps', 'Std/ProcMaps.c'],
 ]
@@ -265,6 +269,29 @@ if opt_parser_elf
             dependencies: [test_util_dep],
             c_args: test_args,
             include_directories: inc_misra,
+            install: false
+        )
+
+        test(test_name, test_exe)
+    endforeach
+endif
+
+if opt_parser_dwarf
+    foreach test_info : dwarf_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        # The dwarf parser is DWARF 4 only in v1; modern GCC defaults
+        # to DWARF 5, so force the test binary to emit v4 debug info.
+        # DWARF 5 support is in FUTURE-PLANS.md.
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args + ['-gdwarf-4'],
+            include_directories: inc_misra,
+            link_args: ['-rdynamic'],
             install: false
         )
 
