@@ -196,7 +196,7 @@ misra_std_no_sanitizers = static_library(
 # Bin/* executables are built only when the features they depend on are
 # enabled. Each call site reads `ReadCompleteFile`, `SysProc*`,
 # `SysDirContents`, etc., so we gate them on the corresponding flag.
-if opt_file
+if opt_file and opt_parser_json
     executable(
         'MisraEnum',
         files('Bin/MisraEnum.c'),
@@ -218,7 +218,7 @@ if opt_sys_proc
     )
 endif
 
-if opt_file and opt_sys_dir
+if opt_file and opt_sys_dir and opt_parser_json
     executable(
         'MisraDoc',
         files('Bin/MisraDoc.c'),

@@ -200,6 +200,35 @@ Heap = `DefaultAllocator`), `Std/Container/Vec`, `Std/Container/Str`,
 `Std/Io`. `LOG_FATAL` formats its message through `Str` + `Io`, so those
 two are foundation by transitive necessity.
 
+### What it actually costs
+
+The feature-flag system is not theatre — disabled features really do leave
+the static library. Measured with `meson setup --buildtype=minsize
+-Db_sanitize=none` (gcc 15.2, x86_64, Linux):
+
+| Configuration                                                       | `libmisra_std.a` |
+|---------------------------------------------------------------------|------------------|
+| Foundation only                                                     | **491 KB**       |
+| `+ bitvec`, `+ int`, `+ float`                                      | 967 KB           |
+| `+ list`, `+ map`, `+ graph`, `+ iter`                              | 1 264 KB         |
+| `+ file`, `+ sys_dir`, `+ sys_proc`, `+ alloc_arena/slab/budget`    | 1 415 KB         |
+| `+ parser_json`                                                     | 1 481 KB         |
+| Default (everything; `+ parser_kvconfig`)                           | **1 529 KB**     |
+
+The smallest viable build is **roughly a third** of the full build. The
+foundation alone covers a meaningful amount of work — `Vec`, `Str`, formatted
+I/O, the default heap allocator, `Scope`, the magic-validated dispatch
+machinery, and the OS abstractions for files, mutexes, and process
+introspection. Everything past that is opt-in: bring in `bitvec/int/float`
+when you need arbitrary precision, `list/map/graph` when you need richer
+containers, parsers when you need to read external input, the optional
+allocator backends when you have an unusual lifetime story to model.
+
+These are static-archive sizes, larger than what actually lands in your final
+binary — the linker pulls in only the `.o` files your code references. The
+archive itself is what gets compiled and installed; the cost to your
+executable is bounded above by the archive size and usually a lot smaller.
+
 ---
 
 ## Six Core Ideas
