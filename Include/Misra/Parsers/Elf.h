@@ -153,6 +153,17 @@ typedef Vec(ElfSymbol) ElfSymbols;
 /// - symbols         : Entries from `.symtab` (may be empty if stripped).
 /// - dynamic_symbols : Entries from `.dynsym` (always present for
 ///                     dynamic objects).
+/// - build_id        : Bytes of the GNU build-ID (from
+///                     `.note.gnu.build-id`); used to find a
+///                     stripped binary's sidecar `.debug` file under
+///                     `/usr/lib/debug/.build-id/...`. NULL when the
+///                     binary has no build-ID note.
+/// - build_id_size   : Length of `build_id` in bytes (typically 20).
+/// - debuglink_name  : Filename portion stored in `.gnu_debuglink`,
+///                     identifying a sidecar debug file. NULL when
+///                     the binary lacks the section.
+/// - debuglink_crc   : CRC32 of the expected sidecar contents
+///                     (validated by the resolver before use).
 ///
 typedef struct ElfFile {
     Allocator  *allocator;
@@ -163,6 +174,10 @@ typedef struct ElfFile {
     ElfSections sections;
     ElfSymbols  symbols;
     ElfSymbols  dynamic_symbols;
+    const u8   *build_id;
+    u32         build_id_size;
+    const char *debuglink_name;
+    u32         debuglink_crc;
 } ElfFile;
 
 ///

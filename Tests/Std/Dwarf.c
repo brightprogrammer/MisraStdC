@@ -81,12 +81,114 @@ bool test_dwarf_resolves_helper_to_source_file(void) {
     return ok;
 }
 
+// Walk /proc/self/exe's .eh_frame, then look up an FDE for the
+// address of a known function in this binary. GCC and clang emit
+// .eh_frame for every function unless explicitly told not to, so
+// we expect a hit.
+bool test_dwarf_cfi_finds_fde_for_self(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    SymbolResolver res;
+    if (!SymbolResolverInit(&res, base)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    ResolvedSymbol r;
+    if (!SymbolResolverResolve(&res, (void *)&dwarf_marker_helper, &r)) {
+        SymbolResolverDeinit(&res);
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+    u64 file_relative = (u64)(uintptr_t)&dwarf_marker_helper - r.module_base;
+
+    ElfFile elf;
+    if (!ElfFileOpen(&elf, r.module_path, base)) {
+        SymbolResolverDeinit(&res);
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    DwarfCfi cfi;
+    bool     built = DwarfCfiBuildFromElf(&cfi, &elf, base);
+    bool     ok    = false;
+    if (built) {
+        const DwarfFde *fde = DwarfCfiFindFde(&cfi, file_relative);
+        ok                  = fde != NULL && fde->pc_range > 0 && file_relative >= fde->pc_begin &&
+             file_relative < fde->pc_begin + fde->pc_range;
+
+        // Run the CFI VM and verify we get a usable row: on x86-64 the
+        // CFA is always `register + offset` (typically RSP + N), and the
+        // return-address pseudo-register (DWARF reg 16) has a saved
+        // location at some offset from CFA.
+        if (ok) {
+            DwarfUnwindRow row;
+            ok = DwarfCfiBuildRow(&cfi, fde, file_relative, &row);
+            ok = ok && row.cfa.kind == DWARF_CFA_RULE_REG_OFFSET;
+            ok = ok && row.regs[row.return_address_register].kind == DWARF_REG_RULE_OFFSET;
+        }
+        DwarfCfiDeinit(&cfi);
+    }
+
+    ElfFileDeinit(&elf);
+    SymbolResolverDeinit(&res);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Build DwarfFunctions for /proc/self/exe and verify our marker
+// helper resolves back to its name from .debug_info alone. The test
+// binary isn't stripped, so .symtab works too; the point here is the
+// .debug_info-only path.
+bool test_dwarf_functions_resolves_helper_to_name(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    SymbolResolver res;
+    if (!SymbolResolverInit(&res, base)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    ResolvedSymbol r;
+    if (!SymbolResolverResolve(&res, (void *)&dwarf_marker_helper, &r)) {
+        SymbolResolverDeinit(&res);
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+    u64 file_relative = (u64)(uintptr_t)&dwarf_marker_helper - r.module_base;
+
+    ElfFile elf;
+    if (!ElfFileOpen(&elf, r.module_path, base)) {
+        SymbolResolverDeinit(&res);
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    DwarfFunctions fns;
+    bool           built = DwarfFunctionsBuildFromElf(&fns, &elf, base);
+    bool           ok    = false;
+    if (built && fns.entries.length > 0) {
+        const DwarfFunction *f = DwarfFunctionsResolve(&fns, file_relative);
+        ok = f != NULL && f->name != NULL && ZstrFindSubstring(f->name, "dwarf_marker_helper") != NULL;
+        DwarfFunctionsDeinit(&fns);
+    }
+
+    ElfFileDeinit(&elf);
+    SymbolResolverDeinit(&res);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting Dwarf tests\n\n");
 
     TestFunction tests[] = {
         test_dwarf_lines_load_self,
         test_dwarf_resolves_helper_to_source_file,
+        test_dwarf_cfi_finds_fde_for_self,
+        test_dwarf_functions_resolves_helper_to_name,
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "Dwarf");

@@ -74,10 +74,33 @@ typedef struct ResolverCacheEntry {
     const char *path; // borrowed from ProcMaps.raw
     u64         load_base;
     ElfFile     elf;
+    // Sidecar debug file found via .gnu_debuglink or .note.gnu.build-id.
+    // Populated lazily for stripped binaries that have an installed
+    // -dbg package or a debug file alongside them. When `has_sidecar`
+    // is true, the sidecar's symbol tables (and DWARF lines, below)
+    // are searched after the main file's.
+    ElfFile sidecar;
+    bool    has_sidecar;
 #if MISRA_HAVE_PARSER_DWARF
     DwarfLines dwarf;
     bool       dwarf_built;
     bool       dwarf_ok;
+    DwarfLines sidecar_dwarf;
+    bool       sidecar_dwarf_built;
+    bool       sidecar_dwarf_ok;
+    // Lazily-parsed .eh_frame for the CFI-based unwinder.
+    DwarfCfi cfi;
+    bool     cfi_built;
+    bool     cfi_ok;
+    // Lazily-parsed .debug_info function-name table, used as a fallback
+    // when .symtab and .dynsym yield no name. Built for both main and
+    // sidecar if either lookup misses.
+    DwarfFunctions functions;
+    bool           functions_built;
+    bool           functions_ok;
+    DwarfFunctions sidecar_functions;
+    bool           sidecar_functions_built;
+    bool           sidecar_functions_ok;
 #endif
 } ResolverCacheEntry;
 
@@ -128,5 +151,29 @@ void SymbolResolverDeinit(SymbolResolver *self);
 /// TAGS: Sys, Symbol, Resolver
 ///
 bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSymbol *out);
+
+#if MISRA_HAVE_PARSER_DWARF
+///
+/// Look up the .eh_frame FDE that describes how to unwind through the
+/// function at `runtime_addr`. Populates `*out_cfi`, `*out_fde`, and
+/// the module's runtime load base so the caller can run the CFI VM
+/// (via `DwarfCfiBuildRow`) and compute a CFA in the runtime address
+/// space.
+///
+/// SUCCESS : Returns true; all three output parameters set.
+/// FAILURE : Returns false when `runtime_addr` falls outside any
+///           loaded module, the module has no `.eh_frame`, or no FDE
+///           covers the address.
+///
+/// TAGS: Sys, Symbol, Unwind
+///
+bool SymbolResolverFindFde(
+    SymbolResolver  *self,
+    void            *runtime_addr,
+    const DwarfCfi **out_cfi,
+    const DwarfFde **out_fde,
+    u64             *out_module_base
+);
+#endif
 
 #endif // MISRA_SYS_SYMBOL_RESOLVER_H

@@ -39,6 +39,26 @@ dwarf_tests = [
     ['Dwarf', 'Std/Dwarf.c'],
 ]
 
+pe_tests = [
+    ['Pe', 'Std/Pe.c'],
+]
+
+pdb_tests = [
+    ['Pdb', 'Std/Pdb.c'],
+]
+
+pdb_cache_tests = [
+    ['PdbCache', 'Std/PdbCache.c'],
+]
+
+macho_tests = [
+    ['MachO', 'Std/MachO.c'],
+]
+
+macho_cache_tests = [
+    ['MachoCache', 'Std/MachoCache.c'],
+]
+
 procmaps_tests = [
     ['ProcMaps', 'Std/ProcMaps.c'],
 ]
@@ -265,6 +285,102 @@ if opt_parser_http
     endforeach
 endif
 
+# The PE parser test builds a synthetic PE blob in memory, so it
+# doesn't need a real Windows host -- it runs on every platform.
+if opt_parser_pe
+    foreach test_info : pe_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
+
+        test(test_name, test_exe)
+    endforeach
+endif
+
+# Same story for the PDB parser: synthetic MSF blob, no real Windows
+# toolchain needed.
+if opt_parser_pdb
+    foreach test_info : pdb_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
+
+        test(test_name, test_exe)
+    endforeach
+
+    foreach test_info : pdb_cache_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
+
+        test(test_name, test_exe)
+    endforeach
+endif
+
+# Same model: synthetic Mach-O blob, no actual macOS host needed.
+if opt_parser_macho
+    foreach test_info : macho_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
+
+        test(test_name, test_exe)
+    endforeach
+
+    foreach test_info : macho_cache_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
+
+        test(test_name, test_exe)
+    endforeach
+endif
+
 # Parser/Elf, Parser/Dwarf, and the Sys/* resolve / backtrace tests
 # all open /proc/self/exe at runtime and use GCC-specific attributes
 # (__attribute__((noinline)), __asm__ __volatile__). The library code
@@ -276,6 +392,10 @@ if opt_parser_elf and tests_need_posix_exe
         test_name = test_info[0]
         test_src = test_info[1]
 
+        # Force a build-id note so the build_id-parsing test path
+        # exercises the parser. Most distros' linkers default to
+        # emitting one but not all; the explicit flag makes the test
+        # portable across configurations.
         test_exe = executable(
             test_name,
             files(test_src),
@@ -283,6 +403,7 @@ if opt_parser_elf and tests_need_posix_exe
             dependencies: [test_util_dep],
             c_args: test_args,
             include_directories: inc_misra,
+            link_args: ['-Wl,--build-id=sha1'],
             install: false
         )
 
@@ -311,6 +432,47 @@ if opt_parser_dwarf and tests_need_posix_exe
 
         test(test_name, test_exe)
     endforeach
+
+    # Stripped-binary integration test. The same source produces both
+    # the test driver (unstripped, so it can reflect on its own symbols)
+    # and a stripped copy (with .symtab + .strtab removed but
+    # .debug_info kept). The driver opens both and verifies the
+    # stripped copy still names the marker via .debug_info alone.
+    objcopy = find_program('objcopy', required: false)
+    if objcopy.found()
+        stripped_driver = executable(
+            'Dwarf.Stripped',
+            files('Std/StrippedResolve.c'),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args + ['-gdwarf-4'],
+            include_directories: inc_misra,
+            link_args: ['-rdynamic'],
+            install: false
+        )
+
+        stripped_target = custom_target(
+            'Dwarf.Stripped.stripped',
+            input: stripped_driver,
+            output: 'Dwarf.Stripped.stripped',
+            # `-N name` removes that single symbol from .symtab while
+            # leaving the rest of the file (including .debug_info)
+            # intact. That's exactly the failure mode we want to
+            # simulate: a symbol present in DWARF but missing from the
+            # ELF symbol tables. (`-R .symtab` would be cleaner but
+            # current binutils silently refuses to drop the section.)
+            command: [
+                objcopy,
+                '-N', 'marker_alpha',
+                '-N', 'marker_beta',
+                '@INPUT@',
+                '@OUTPUT@',
+            ],
+            build_by_default: true
+        )
+
+        test('Dwarf.Stripped', stripped_driver, args: [stripped_target.full_path()])
+    endif
 endif
 
 if opt_sys_procmaps and tests_need_posix_exe
@@ -352,24 +514,35 @@ if opt_sys_symresolve and tests_need_posix_exe
     endforeach
 endif
 
-if opt_sys_backtrace and tests_need_posix_exe
+# Backtrace tests run wherever Sys/Backtrace itself is supported:
+# Linux (FP walk + ELF/DWARF) or Darwin (FP walk + dyld + Mach-O).
+# Windows is skipped here -- we have no test host and the
+# CaptureStackBackTrace + dbghelp path is its own beast.
+backtrace_test_platforms = (host_machine.system() == 'linux' or host_machine.system() == 'darwin')
+if opt_sys_backtrace and backtrace_test_platforms
+    backtrace_test_c_args   = test_args + ['-fno-omit-frame-pointer', '-gdwarf-4']
+    backtrace_test_link_args = []
+    if host_machine.system() == 'linux'
+        # `-rdynamic` keeps helper symbols visible to .dynsym so
+        # SymbolResolver (ELF-based) can find them via dlopen-style
+        # lookups. On Darwin there's no `.dynsym`; LC_SYMTAB already
+        # carries static-function names by default, and `ld64` doesn't
+        # accept `-rdynamic`.
+        backtrace_test_link_args += '-rdynamic'
+    endif
+
     foreach test_info : backtrace_tests
         test_name = test_info[0]
         test_src = test_info[1]
 
-        # -fno-omit-frame-pointer guarantees the saved-FP chain our
-        # unwinder walks. -rdynamic keeps helper symbols visible to
-        # .symtab resolution. -gdwarf-4 produces .debug_line in a
-        # form our DWARF parser understands (v5 support is in
-        # FUTURE-PLANS).
         test_exe = executable(
             test_name,
             files(test_src),
             link_with: [misra_std],
             dependencies: [test_util_dep],
-            c_args: test_args + ['-fno-omit-frame-pointer', '-gdwarf-4'],
+            c_args: backtrace_test_c_args,
             include_directories: inc_misra,
-            link_args: ['-rdynamic'],
+            link_args: backtrace_test_link_args,
             install: false
         )
 

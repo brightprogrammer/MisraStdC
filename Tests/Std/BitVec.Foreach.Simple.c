@@ -23,6 +23,7 @@ bool test_bitvec_foreach_invalid_usage(void);
 
 // BitVecRunLengths test prototypes
 bool test_bitvec_run_lengths_basic(void);
+bool test_bitvec_run_lengths_vec(void);
 bool test_bitvec_run_lengths_edge_cases(void);
 bool test_bitvec_run_lengths_boundary_conditions(void);
 bool test_bitvec_run_lengths_stress_test(void);
@@ -518,6 +519,41 @@ bool test_bitvec_run_lengths_basic(void) {
     return result;
 }
 
+// Vec form: same pattern as the raw test, but writes BitVecRun records
+// into a Vec so we cover the new overload's full path.
+bool test_bitvec_run_lengths_vec(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    WriteFmt("Testing BitVecRunLengths Vec form\n");
+
+    BitVec bv = BitVecInit(base);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false);
+    BitVecPush(&bv, false);
+    BitVecPush(&bv, true);
+    BitVecPush(&bv, false);
+    BitVecPush(&bv, true);
+
+    BitVecRuns runs   = VecInitT(runs, base);
+    bool       result = BitVecRunLengths(&bv, &runs);
+    result            = result && runs.length == 5;
+    if (result) {
+        result = result && runs.data[0].length == 3 && runs.data[0].value == true;
+        result = result && runs.data[1].length == 2 && runs.data[1].value == false;
+        result = result && runs.data[2].length == 1 && runs.data[2].value == true;
+        result = result && runs.data[3].length == 1 && runs.data[3].value == false;
+        result = result && runs.data[4].length == 1 && runs.data[4].value == true;
+    }
+
+    VecDeinit(&runs);
+    BitVecDeinit(&bv);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 bool test_bitvec_run_lengths_edge_cases(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
@@ -703,6 +739,7 @@ int main(void) {
         test_bitvec_foreach_range_edge_cases,
         test_bitvec_foreach_stress_test,
         test_bitvec_run_lengths_basic,
+        test_bitvec_run_lengths_vec,
         test_bitvec_run_lengths_edge_cases,
         test_bitvec_run_lengths_boundary_conditions,
         test_bitvec_run_lengths_stress_test

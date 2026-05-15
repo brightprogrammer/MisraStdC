@@ -62,7 +62,8 @@ opt_sys_backtrace  = get_option('sys_backtrace')
 # Platform availability matrix:
 #   sys_procmaps:    Linux only (reads /proc/self/maps)
 #   sys_symresolve:  Linux only (builds on procmaps + ELF parsing)
-#   sys_backtrace:   Linux (in-tree via SymbolResolver) or Windows (dbghelp)
+#   sys_backtrace:   Linux (in-tree via SymbolResolver), Windows (dbghelp +
+#                    in-tree PE/PDB), or Darwin (in-tree Mach-O + dSYM)
 #   alloc_debug:     wherever sys_backtrace is
 #   sys_socket:      POSIX (currently #error on _WIN32)
 sys_kernel = host_machine.system()
@@ -70,7 +71,7 @@ if sys_kernel != 'linux'
     opt_sys_procmaps   = false
     opt_sys_symresolve = false
 endif
-if sys_kernel != 'linux' and sys_kernel != 'windows'
+if sys_kernel != 'linux' and sys_kernel != 'windows' and sys_kernel != 'darwin'
     opt_sys_backtrace = false
 endif
 if sys_kernel == 'windows'
@@ -82,6 +83,9 @@ opt_parser_kvconf  = get_option('parser_kvconfig')
 opt_parser_http    = get_option('parser_http')
 opt_parser_elf     = get_option('parser_elf')
 opt_parser_dwarf   = get_option('parser_dwarf')
+opt_parser_pe      = get_option('parser_pe')
+opt_parser_pdb     = get_option('parser_pdb')
+opt_parser_macho   = get_option('parser_macho')
 
 # Vec, Str, Io are part of the mandatory foundation: `LOG_FATAL` formats
 # its message through `Str` and emits via the `Io` formatted path, so
@@ -120,8 +124,13 @@ if opt_parser_dwarf
     opt_parser_elf = true
 endif
 
-# parser_elf uses ReadCompleteFile; force `file` on when it's enabled.
-opt_file = opt_file_user or opt_parser_elf
+# parser_pdb hard-requires parser_pe to locate the PDB reference.
+if opt_parser_pdb
+    opt_parser_pe = true
+endif
+
+# parser_elf / parser_pe / parser_macho all use ReadCompleteFile.
+opt_file = opt_file_user or opt_parser_elf or opt_parser_pe or opt_parser_macho
 
 # sys_procmaps is Linux-only; verified above.
 
@@ -214,7 +223,26 @@ if opt_parser_elf
     misra_std_sources += files('Source/Misra/Parsers/Elf.c')
 endif
 if opt_parser_dwarf
-    misra_std_sources += files('Source/Misra/Parsers/Dwarf.c')
+    misra_std_sources += files(
+        'Source/Misra/Parsers/Dwarf.c',
+        'Source/Misra/Parsers/DwarfUnwind.c',
+        'Source/Misra/Parsers/DwarfInfo.c',
+    )
+endif
+if opt_parser_pe
+    misra_std_sources += files('Source/Misra/Parsers/Pe.c')
+endif
+if opt_parser_pdb
+    misra_std_sources += files(
+        'Source/Misra/Parsers/Pdb.c',
+        'Source/Misra/Sys/PdbCache.c',
+    )
+endif
+if opt_parser_macho
+    misra_std_sources += files(
+        'Source/Misra/Parsers/MachO.c',
+        'Source/Misra/Sys/MachoCache.c',
+    )
 endif
 
 # Compile-time discovery: each enabled feature exposes
@@ -248,6 +276,9 @@ config_data.set10('MISRA_HAVE_PARSER_KVCONFIG', opt_parser_kvconf)
 config_data.set10('MISRA_HAVE_PARSER_HTTP',     opt_parser_http)
 config_data.set10('MISRA_HAVE_PARSER_ELF',      opt_parser_elf)
 config_data.set10('MISRA_HAVE_PARSER_DWARF',    opt_parser_dwarf)
+config_data.set10('MISRA_HAVE_PARSER_PE',       opt_parser_pe)
+config_data.set10('MISRA_HAVE_PARSER_PDB',      opt_parser_pdb)
+config_data.set10('MISRA_HAVE_PARSER_MACHO',    opt_parser_macho)
 
 # `subdir(...)` runs the inner meson.build, where `configure_file`
 # emits `build/Include/Misra/Config.h`. The top-level
@@ -269,6 +300,7 @@ message('  sys_procmaps=@0@  sys_symresolve=@1@  sys_backtrace=@2@'.format(
     opt_sys_procmaps, opt_sys_symresolve, opt_sys_backtrace))
 message('  parser_json=@0@  parser_kvconfig=@1@  parser_http=@2@  parser_elf=@3@  parser_dwarf=@4@'.format(
     opt_parser_json, opt_parser_kvconf, opt_parser_http, opt_parser_elf, opt_parser_dwarf))
+message('  parser_pe=@0@  parser_pdb=@1@  parser_macho=@2@'.format(opt_parser_pe, opt_parser_pdb, opt_parser_macho))
 
 # Build-time platform deps. The Windows Sys/Backtrace backend links
 # against dbghelp for SymFromAddr / SymGetLineFromAddr64.

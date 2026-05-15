@@ -52,4 +52,7 @@ option('parser_json',     type: 'boolean', value: true, description: 'Build JSON
 option('parser_kvconfig', type: 'boolean', value: true, description: 'Build key-value config parser. Requires map, str.')
 option('parser_http',     type: 'boolean', value: true, description: 'Build HTTP/1.1 request + response parser/serializer.')
 option('parser_elf',      type: 'boolean', value: true, description: 'Build ELF64 parser (header, sections, symbol tables). Used by the in-tree dladdr replacement.')
-option('parser_dwarf',    type: 'boolean', value: true, description: 'Build DWARF .debug_line parser (IP → file:line mapping). Requires parser_elf.')
+option('parser_dwarf',    type: 'boolean', value: true, description: 'Build DWARF parsers: .debug_line (IP → file:line) and .eh_frame CFI (frame-pointer-less stack unwinding). Requires parser_elf.')
+option('parser_pe',       type: 'boolean', value: true, description: 'Build PE/COFF parser. Used by the Windows backtrace path to locate the CodeView (PDB) reference in a PE binary.')
+option('parser_pdb',      type: 'boolean', value: true, description: 'Build PDB reader (MSF container + DBI/Publics streams). Used by the Windows backtrace path to resolve symbols without dbghelp. Requires parser_pe.')
+option('parser_macho',    type: 'boolean', value: true, description: 'Build Mach-O parser. Used by the macOS backtrace path to walk loaded images.')

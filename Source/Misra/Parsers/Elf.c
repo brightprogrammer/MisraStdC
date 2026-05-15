@@ -307,6 +307,88 @@ static bool elf_decode_symbols(ElfFile *self) {
 }
 
 // ---------------------------------------------------------------------------
+// Stripped-binary metadata: .note.gnu.build-id and .gnu_debuglink
+// ---------------------------------------------------------------------------
+//
+// `.note.gnu.build-id` payload layout (single ELF note record):
+//   u32 namesz       (=4)
+//   u32 descsz       (=build-id length, typically 20 for SHA-1)
+//   u32 type         (=NT_GNU_BUILD_ID = 3)
+//   char name[]      ("GNU\0", 4-byte padded)
+//   u8 desc[]        (descsz bytes, 4-byte padded)
+//
+// `.gnu_debuglink` payload layout:
+//   char filename[]  (NUL-terminated, 4-byte aligned with NUL padding)
+//   u32  crc32       (CRC32 of the expected sidecar file's contents)
+
+enum {
+    NT_GNU_BUILD_ID = 3
+};
+
+static void elf_decode_build_id(ElfFile *self, const ElfSection *note) {
+    if (!elf_range_ok(self, note->offset, note->size) || note->size < 16) {
+        return;
+    }
+    const u8 *p   = self->data + note->offset;
+    const u8 *end = p + note->size;
+    if ((u64)(end - p) < 12)
+        return;
+
+    u32 namesz  = (u32)p[0] | ((u32)p[1] << 8) | ((u32)p[2] << 16) | ((u32)p[3] << 24);
+    u32 descsz  = (u32)p[4] | ((u32)p[5] << 8) | ((u32)p[6] << 16) | ((u32)p[7] << 24);
+    u32 type    = (u32)p[8] | ((u32)p[9] << 8) | ((u32)p[10] << 16) | ((u32)p[11] << 24);
+    p          += 12;
+
+    if (type != NT_GNU_BUILD_ID)
+        return;
+
+    // name + (round up to 4)
+    u64 name_padded = ((u64)namesz + 3u) & ~(u64)3u;
+    if ((u64)(end - p) < name_padded + descsz)
+        return;
+    p += name_padded;
+    if ((u64)(end - p) < descsz)
+        return;
+
+    self->build_id      = p;
+    self->build_id_size = descsz;
+}
+
+static void elf_decode_debug_link(ElfFile *self, const ElfSection *dl) {
+    if (!elf_range_ok(self, dl->offset, dl->size) || dl->size < 5) {
+        return;
+    }
+    const char *base = (const char *)(self->data + dl->offset);
+    // filename runs up to (and including) the NUL; CRC follows in the
+    // last 4 bytes of the section, after alignment padding.
+    u64 max_name = dl->size > 4 ? dl->size - 4 : 0;
+    u64 name_len = 0;
+    while (name_len < max_name && base[name_len] != '\0') {
+        ++name_len;
+    }
+    if (name_len == 0 || name_len >= max_name) {
+        return; // unterminated or empty
+    }
+    // CRC is in the last 4 bytes.
+    const u8 *crc_bytes = self->data + dl->offset + dl->size - 4;
+    u32 crc = (u32)crc_bytes[0] | ((u32)crc_bytes[1] << 8) | ((u32)crc_bytes[2] << 16) | ((u32)crc_bytes[3] << 24);
+
+    self->debuglink_name = base;
+    self->debuglink_crc  = crc;
+}
+
+static void elf_decode_debug_metadata(ElfFile *self) {
+    const ElfSection *note = ElfFileFindSection(self, ".note.gnu.build-id");
+    if (note) {
+        elf_decode_build_id(self, note);
+    }
+    const ElfSection *dl = ElfFileFindSection(self, ".gnu_debuglink");
+    if (dl) {
+        elf_decode_debug_link(self, dl);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Open / close
 // ---------------------------------------------------------------------------
 
@@ -330,6 +412,7 @@ bool ElfFileOpenFromMemory(ElfFile *out, u8 *data, size data_size, Allocator *al
         goto fail;
     if (!elf_decode_symbols(out))
         goto fail;
+    elf_decode_debug_metadata(out);
     return true;
 
 fail:

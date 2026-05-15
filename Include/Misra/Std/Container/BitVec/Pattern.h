@@ -92,23 +92,38 @@ extern "C" {
     u64 BitVecFindLastPattern(BitVec *bv, BitVec *pattern);
 
     ///
-    /// Find all occurrences of a bit pattern in the bitvector.
-    /// Results array must be pre-allocated with sufficient space.
+    /// Find all occurrences of a bit pattern in the bitvector. Two
+    /// call shapes, dispatched by argument count.
     ///
-    /// bv[in]       : Bitvector to search in
-    /// pattern[in]  : Pattern to search for
-    /// results[out] : Array to store found indices
-    /// max_results[in]: Maximum number of results to store
-    ///
-    /// SUCCESS : Number of occurrences found
-    ///
-    /// USAGE:
+    /// Raw form (caller-sized buffer):
     ///   u64 indices[10];
     ///   u64 count = BitVecFindAllPattern(&flags, &pattern, indices, 10);
+    ///   // Returns count of matches written; silently truncates if
+    ///   // there are more matches than `max_results`.
+    ///
+    /// Vec form (grows as matches are found):
+    ///   BitVecMatchIndices matches = VecInitT(matches, alloc);
+    ///   bool ok = BitVecFindAllPattern(&flags, &pattern, &matches);
+    ///   // `matches.length` is the total count; no truncation.
+    ///
+    /// bv[in]              : Bitvector to search in
+    /// pattern[in]         : Pattern to search for
+    /// results[out]        : (raw) Array to store found indices
+    /// max_results[in]     : (raw) Maximum number of results to store
+    /// out[out]            : (vec) Vec to push indices into
+    ///
+    /// SUCCESS : (raw) Number of occurrences written into `results`.
+    ///           (vec) `true`; `out` holds every match.
+    /// FAILURE : (vec) `false` on allocator OOM during the walk.
     ///
     /// TAGS: BitVec, Pattern, FindAll, Search
     ///
-    u64 BitVecFindAllPattern(BitVec *bv, BitVec *pattern, size *results, u64 max_results);
+    u64  bitvec_find_all_pattern_raw(BitVec *bv, BitVec *pattern, size *results, u64 max_results);
+    bool bitvec_find_all_pattern_vec(BitVec *bv, BitVec *pattern, BitVecMatchIndices *out);
+
+#define BitVecFindAllPattern(...)                         MISRA_OVERLOAD(BitVecFindAllPattern, __VA_ARGS__)
+#define BitVecFindAllPattern_4(bv, pattern, results, max) bitvec_find_all_pattern_raw((bv), (pattern), (results), (max))
+#define BitVecFindAllPattern_3(bv, pattern, out_vec)      bitvec_find_all_pattern_vec((bv), (pattern), (out_vec))
 
     ///
     /// Count total occurrences of a bit pattern in the bitvector.
