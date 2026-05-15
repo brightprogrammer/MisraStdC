@@ -66,16 +66,220 @@ Str *GetEnv(const char *name, Str *value) {
 #endif
 }
 
+// In-tree errno -> short description table. Covers the POSIX errnos
+// we actually surface in Sys / Std / Parsers; anything else falls
+// through to a generic "Unknown error" with the numeric value.
+//
+// Values are POSIX-standardized for the common cases (EPERM=1,
+// ENOENT=2, ...) and identical across Linux / macOS / *BSD. Windows
+// (UCRT) maps most of them to the same values; the ones it diverges
+// on don't matter for our call sites today.
+static const char *errno_description(i32 eno) {
+    switch (eno) {
+#ifdef EPERM
+        case EPERM :
+            return "Operation not permitted";
+#endif
+#ifdef ENOENT
+        case ENOENT :
+            return "No such file or directory";
+#endif
+#ifdef ESRCH
+        case ESRCH :
+            return "No such process";
+#endif
+#ifdef EINTR
+        case EINTR :
+            return "Interrupted system call";
+#endif
+#ifdef EIO
+        case EIO :
+            return "I/O error";
+#endif
+#ifdef ENXIO
+        case ENXIO :
+            return "No such device or address";
+#endif
+#ifdef E2BIG
+        case E2BIG :
+            return "Argument list too long";
+#endif
+#ifdef ENOEXEC
+        case ENOEXEC :
+            return "Exec format error";
+#endif
+#ifdef EBADF
+        case EBADF :
+            return "Bad file descriptor";
+#endif
+#ifdef ECHILD
+        case ECHILD :
+            return "No child processes";
+#endif
+#ifdef EAGAIN
+        case EAGAIN :
+            return "Resource temporarily unavailable";
+#endif
+#ifdef ENOMEM
+        case ENOMEM :
+            return "Cannot allocate memory";
+#endif
+#ifdef EACCES
+        case EACCES :
+            return "Permission denied";
+#endif
+#ifdef EFAULT
+        case EFAULT :
+            return "Bad address";
+#endif
+#ifdef EBUSY
+        case EBUSY :
+            return "Device or resource busy";
+#endif
+#ifdef EEXIST
+        case EEXIST :
+            return "File exists";
+#endif
+#ifdef EXDEV
+        case EXDEV :
+            return "Invalid cross-device link";
+#endif
+#ifdef ENODEV
+        case ENODEV :
+            return "No such device";
+#endif
+#ifdef ENOTDIR
+        case ENOTDIR :
+            return "Not a directory";
+#endif
+#ifdef EISDIR
+        case EISDIR :
+            return "Is a directory";
+#endif
+#ifdef EINVAL
+        case EINVAL :
+            return "Invalid argument";
+#endif
+#ifdef ENFILE
+        case ENFILE :
+            return "Too many open files in system";
+#endif
+#ifdef EMFILE
+        case EMFILE :
+            return "Too many open files";
+#endif
+#ifdef ENOTTY
+        case ENOTTY :
+            return "Inappropriate ioctl for device";
+#endif
+#ifdef EFBIG
+        case EFBIG :
+            return "File too large";
+#endif
+#ifdef ENOSPC
+        case ENOSPC :
+            return "No space left on device";
+#endif
+#ifdef ESPIPE
+        case ESPIPE :
+            return "Illegal seek";
+#endif
+#ifdef EROFS
+        case EROFS :
+            return "Read-only file system";
+#endif
+#ifdef EMLINK
+        case EMLINK :
+            return "Too many links";
+#endif
+#ifdef EPIPE
+        case EPIPE :
+            return "Broken pipe";
+#endif
+#ifdef EDOM
+        case EDOM :
+            return "Numerical argument out of domain";
+#endif
+#ifdef ERANGE
+        case ERANGE :
+            return "Numerical result out of range";
+#endif
+#ifdef ENAMETOOLONG
+        case ENAMETOOLONG :
+            return "File name too long";
+#endif
+#ifdef ENOTEMPTY
+        case ENOTEMPTY :
+            return "Directory not empty";
+#endif
+#ifdef ELOOP
+        case ELOOP :
+            return "Too many levels of symbolic links";
+#endif
+#ifdef EOVERFLOW
+        case EOVERFLOW :
+            return "Value too large for defined data type";
+#endif
+#ifdef ECONNREFUSED
+        case ECONNREFUSED :
+            return "Connection refused";
+#endif
+#ifdef ECONNRESET
+        case ECONNRESET :
+            return "Connection reset by peer";
+#endif
+#ifdef ECONNABORTED
+        case ECONNABORTED :
+            return "Software caused connection abort";
+#endif
+#ifdef EISCONN
+        case EISCONN :
+            return "Transport endpoint is already connected";
+#endif
+#ifdef ENOTCONN
+        case ENOTCONN :
+            return "Transport endpoint is not connected";
+#endif
+#ifdef ENETUNREACH
+        case ENETUNREACH :
+            return "Network is unreachable";
+#endif
+#ifdef EHOSTUNREACH
+        case EHOSTUNREACH :
+            return "No route to host";
+#endif
+#ifdef ETIMEDOUT
+        case ETIMEDOUT :
+            return "Connection timed out";
+#endif
+#ifdef EADDRINUSE
+        case EADDRINUSE :
+            return "Address already in use";
+#endif
+#ifdef EADDRNOTAVAIL
+        case EADDRNOTAVAIL :
+            return "Cannot assign requested address";
+#endif
+#ifdef EAFNOSUPPORT
+        case EAFNOSUPPORT :
+            return "Address family not supported";
+#endif
+#ifdef EPROTONOSUPPORT
+        case EPROTONOSUPPORT :
+            return "Protocol not supported";
+#endif
+        default :
+            return "Unknown error";
+    }
+}
+
 Str *StrError(i32 eno, Str *err_str) {
     ValidateStr(err_str);
-    Allocator *alloc     = err_str->allocator;
-    char       buf[1024] = {0};
-#if _WIN32
-    strerror_s(buf, 1023, eno);
-#else
-    strerror_r(eno, buf, 1023);
-#endif
-    *err_str = StrInitFromCstr(buf, ZstrLen(buf), alloc);
+    Allocator *alloc = err_str->allocator;
+    Str        out   = StrInit(alloc);
+    StrWriteFmt(&out, "{} (errno {})", errno_description(eno), eno);
+    StrDeinit(err_str);
+    *err_str = out;
     return err_str;
 }
 
