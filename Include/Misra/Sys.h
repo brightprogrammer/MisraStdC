@@ -27,6 +27,10 @@ typedef u64 ProcId;
 #    include <Misra/Sys/Proc.h>
 #endif
 
+#if MISRA_HAVE_SYS_SOCKET
+#    include <Misra/Sys/Socket.h>
+#endif
+
 #ifndef SYS_ERROR_STR_MAX_LENGTH
 #    define SYS_ERROR_STR_MAX_LENGTH 128
 #endif

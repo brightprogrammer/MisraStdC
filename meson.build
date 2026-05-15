@@ -36,6 +36,7 @@ opt_iter           = get_option('iter')
 
 opt_sys_dir        = get_option('sys_dir')
 opt_sys_proc       = get_option('sys_proc')
+opt_sys_socket     = get_option('sys_socket')
 
 opt_parser_json    = get_option('parser_json')
 opt_parser_kvconf  = get_option('parser_kvconfig')
@@ -114,6 +115,9 @@ endif
 if opt_sys_proc
     misra_std_sources += files('Source/Misra/Sys/Proc.c')
 endif
+if opt_sys_socket
+    misra_std_sources += files('Source/Misra/Sys/Socket.c')
+endif
 
 if opt_parser_json
     misra_std_sources += files('Source/Misra/Parsers/JSON.c')
@@ -143,6 +147,7 @@ config_data.set10('MISRA_HAVE_FILE',            opt_file)
 config_data.set10('MISRA_HAVE_ITER',            opt_iter)
 config_data.set10('MISRA_HAVE_SYS_DIR',         opt_sys_dir)
 config_data.set10('MISRA_HAVE_SYS_PROC',        opt_sys_proc)
+config_data.set10('MISRA_HAVE_SYS_SOCKET',      opt_sys_socket)
 config_data.set10('MISRA_HAVE_PARSER_JSON',     opt_parser_json)
 config_data.set10('MISRA_HAVE_PARSER_KVCONFIG', opt_parser_kvconf)
 
@@ -160,8 +165,8 @@ message('  alloc_arena=@0@  alloc_slab=@1@  alloc_budget=@2@  alloc_stats=@3@'.f
     opt_alloc_arena, opt_alloc_slab, opt_alloc_budget, opt_alloc_stats))
 message('  bitvec=@0@  list=@1@  map=@2@  graph=@3@  int=@4@  float=@5@'.format(
     opt_bitvec, opt_list, opt_map, opt_graph, opt_int, opt_float))
-message('  file=@0@  iter=@1@  sys_dir=@2@  sys_proc=@3@'.format(
-    opt_file, opt_iter, opt_sys_dir, opt_sys_proc))
+message('  file=@0@  iter=@1@  sys_dir=@2@  sys_proc=@3@  sys_socket=@4@'.format(
+    opt_file, opt_iter, opt_sys_dir, opt_sys_proc, opt_sys_socket))
 message('  parser_json=@0@  parser_kvconfig=@1@'.format(
     opt_parser_json, opt_parser_kvconf))
 
@@ -333,6 +338,9 @@ if not opt_sys_dir
 endif
 if not opt_sys_proc
     install_subdir_excludes_files += 'Sys/Proc.h'
+endif
+if not opt_sys_socket
+    install_subdir_excludes_files += 'Sys/Socket.h'
 endif
 
 if not opt_parser_json
