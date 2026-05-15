@@ -23,8 +23,12 @@
 /// is identical, so existing call sites work unchanged -- they just
 /// get leak / double-free / canary-overflow / stack-trace tracking
 /// for free. With `DEBUG_ALLOCATOR_DEFAULTS` baseline; pair with
-/// `MISRA_DEFAULT_ALLOC_DEBUG_PAGE_BACKED` if you also want UAF
-/// detection (much higher memory cost, see DebugAllocator docs).
+/// `MISRA_DEFAULT_ALLOC_DEBUG_PAGE_BACKED=true` (separate meson
+/// option, requires `default_alloc_debug=true`) to additionally
+/// route every allocation through whole pages and PROT_NONE the
+/// region on free -- any UAF read/write then traps with SIGSEGV at
+/// the moment of the bug. Much higher memory cost (freed pages are
+/// never reclaimed), see DebugAllocator docs.
 
 #ifndef MISRA_STD_ALLOCATOR_DEFAULT_H
 #define MISRA_STD_ALLOCATOR_DEFAULT_H
@@ -51,7 +55,20 @@ typedef HeapAllocator DefaultAllocator;
 #endif
 
 #if MISRA_DEFAULT_ALLOC_DEBUG
-#    define DefaultAllocatorInit()      DebugAllocatorInit()
+#    if MISRA_DEFAULT_ALLOC_DEBUG_PAGE_BACKED
+// Layer page-backed UAF detection on top of the default-debug config:
+// every alloc consumes whole pages, every free PROT_NONE's the region.
+// Compound-literal form so each DefaultAllocator gets its own config copy.
+#        define DefaultAllocatorInit()                                                                                 \
+            DebugAllocatorInitWith(((DebugAllocatorConfig) {.capture_traces     = true,                                \
+                                                            .detect_overflow    = true,                                \
+                                                            .retain_metadata    = true,                                \
+                                                            .force_page_backing = true,                                \
+                                                            .trace_depth        = 8,                                   \
+                                                            .canary_bytes       = 16}))
+#    else
+#        define DefaultAllocatorInit() DebugAllocatorInit()
+#    endif
 #    define DefaultAllocatorDeinit(ptr) DebugAllocatorDeinit(ptr)
 #else
 #    define DefaultAllocatorInit()      HeapAllocatorInit()

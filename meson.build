@@ -42,6 +42,7 @@ opt_alloc_budget   = get_option('alloc_budget')
 opt_alloc_stats    = get_option('alloc_stats')
 opt_alloc_debug    = get_option('alloc_debug')
 opt_default_alloc_debug = get_option('default_alloc_debug')
+opt_default_alloc_debug_page_backed = get_option('default_alloc_debug_page_backed')
 
 opt_bitvec_user    = get_option('bitvec')
 opt_list           = get_option('list')
@@ -109,8 +110,10 @@ opt_map    = opt_map_user    or opt_parser_kvconf or opt_alloc_debug  # kvconfig
 # backtrace disabled above also lose alloc_debug.
 opt_alloc_debug = opt_alloc_debug and opt_sys_backtrace
 # default_alloc_debug hard-requires alloc_debug (it's a thin proxy in
-# front of a DebugAllocator).
+# front of a DebugAllocator). And the page-backed UAF variant
+# hard-requires default_alloc_debug itself.
 opt_default_alloc_debug = opt_default_alloc_debug and opt_alloc_debug
+opt_default_alloc_debug_page_backed = opt_default_alloc_debug_page_backed and opt_default_alloc_debug
 
 # Linux-only dependency: in-tree Sys/Backtrace pulls in SymbolResolver,
 # which pulls in ProcMaps + Parsers/Elf. The Windows backend uses
@@ -262,6 +265,7 @@ config_data.set10('MISRA_HAVE_ALLOC_BUDGET',    opt_alloc_budget)
 config_data.set10('MISRA_HAVE_ALLOC_STATS',     opt_alloc_stats)
 config_data.set10('MISRA_HAVE_ALLOC_DEBUG',     opt_alloc_debug)
 config_data.set10('MISRA_DEFAULT_ALLOC_DEBUG',  opt_default_alloc_debug)
+config_data.set10('MISRA_DEFAULT_ALLOC_DEBUG_PAGE_BACKED', opt_default_alloc_debug_page_backed)
 config_data.set10('MISRA_HAVE_BITVEC',          opt_bitvec)
 config_data.set10('MISRA_HAVE_LIST',            opt_list)
 config_data.set10('MISRA_HAVE_MAP',             opt_map)
@@ -297,6 +301,8 @@ subdir('Include/Misra')
 message('MisraStdC features enabled (host system: @0@):'.format(sys_kernel))
 message('  alloc_arena=@0@  alloc_slab=@1@  alloc_budget=@2@  alloc_stats=@3@  alloc_debug=@4@'.format(
     opt_alloc_arena, opt_alloc_slab, opt_alloc_budget, opt_alloc_stats, opt_alloc_debug))
+message('  default_alloc_debug=@0@  default_alloc_debug_page_backed=@1@'.format(
+    opt_default_alloc_debug, opt_default_alloc_debug_page_backed))
 message('  bitvec=@0@  list=@1@  map=@2@  graph=@3@  int=@4@  float=@5@'.format(
     opt_bitvec, opt_list, opt_map, opt_graph, opt_int, opt_float))
 message('  file=@0@  iter=@1@  sys_dir=@2@  sys_proc=@3@  sys_socket=@4@'.format(
