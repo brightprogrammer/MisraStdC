@@ -25,4 +25,9 @@
 #    include <Misra/Parsers/Http.h>
 #endif
 
+// Note: Parsers/Elf.h is intentionally NOT pulled through the umbrella.
+// `Bin/ElfInfo.c` still has its own local copy of the ELF constants
+// and the names collide. Include `Misra/Parsers/Elf.h` directly when
+// you want the parser. Tracked in FUTURE-PLANS.md.
+
 #endif // MISRA_H

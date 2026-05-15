@@ -31,7 +31,7 @@ opt_graph          = get_option('graph')
 opt_int_user       = get_option('int')
 opt_float          = get_option('float')
 
-opt_file           = get_option('file')
+opt_file_user      = get_option('file')
 opt_iter           = get_option('iter')
 
 opt_sys_dir        = get_option('sys_dir')
@@ -48,6 +48,7 @@ endif
 opt_parser_json    = get_option('parser_json')
 opt_parser_kvconf  = get_option('parser_kvconfig')
 opt_parser_http    = get_option('parser_http')
+opt_parser_elf     = get_option('parser_elf')
 
 # Vec, Str, Io are part of the mandatory foundation: `LOG_FATAL` formats
 # its message through `Str` and emits via the `Io` formatted path, so
@@ -62,6 +63,9 @@ opt_parser_http    = get_option('parser_http')
 opt_int    = opt_int_user    or opt_float                       # float -> int
 opt_bitvec = opt_bitvec_user or opt_int                         # int -> bitvec
 opt_map    = opt_map_user    or opt_parser_kvconf               # kvconfig -> map
+
+# parser_elf uses ReadCompleteFile; force `file` on when it's enabled.
+opt_file = opt_file_user or opt_parser_elf
 
 # ---------------------------------------------------------------------------
 # Build source list. Foundation first, optional features appended.
@@ -136,6 +140,9 @@ endif
 if opt_parser_http
     misra_std_sources += files('Source/Misra/Parsers/Http.c')
 endif
+if opt_parser_elf
+    misra_std_sources += files('Source/Misra/Parsers/Elf.c')
+endif
 
 # Compile-time discovery: each enabled feature exposes
 # `MISRA_HAVE_<NAME> == 1` via a generated `Misra/Config.h`. Every
@@ -162,6 +169,7 @@ config_data.set10('MISRA_HAVE_SYS_SOCKET',      opt_sys_socket)
 config_data.set10('MISRA_HAVE_PARSER_JSON',     opt_parser_json)
 config_data.set10('MISRA_HAVE_PARSER_KVCONFIG', opt_parser_kvconf)
 config_data.set10('MISRA_HAVE_PARSER_HTTP',     opt_parser_http)
+config_data.set10('MISRA_HAVE_PARSER_ELF',      opt_parser_elf)
 
 # `subdir(...)` runs the inner meson.build, where `configure_file`
 # emits `build/Include/Misra/Config.h`. The top-level
@@ -179,8 +187,8 @@ message('  bitvec=@0@  list=@1@  map=@2@  graph=@3@  int=@4@  float=@5@'.format(
     opt_bitvec, opt_list, opt_map, opt_graph, opt_int, opt_float))
 message('  file=@0@  iter=@1@  sys_dir=@2@  sys_proc=@3@  sys_socket=@4@'.format(
     opt_file, opt_iter, opt_sys_dir, opt_sys_proc, opt_sys_socket))
-message('  parser_json=@0@  parser_kvconfig=@1@  parser_http=@2@'.format(
-    opt_parser_json, opt_parser_kvconf, opt_parser_http))
+message('  parser_json=@0@  parser_kvconfig=@1@  parser_http=@2@  parser_elf=@3@'.format(
+    opt_parser_json, opt_parser_kvconf, opt_parser_http, opt_parser_elf))
 
 # Regular library with sanitizers for normal tests and executables
 misra_std = static_library(
@@ -374,6 +382,9 @@ if not opt_parser_kvconf
 endif
 if not opt_parser_http
     install_subdir_excludes_files += 'Parsers/Http.h'
+endif
+if not opt_parser_elf
+    install_subdir_excludes_files += 'Parsers/Elf.h'
 endif
 
 install_subdir(

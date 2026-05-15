@@ -32,5 +32,9 @@ Parking lot for items we've identified during real implementation work but defer
 ## Language / Macros
 - `Scope`: `ScopeReturn` / `ScopeGoto` via `setjmp` / `longjmp` for clean early-return from inside a `Scope` block.
 
+## Parsers
+- Port `Bin/ElfInfo.c` onto `Parsers/Elf` so its local enum definitions are removed and `Parsers/Elf.h` can rejoin the `Misra.h` umbrella.
+- Extend `Parsers/Elf` to ELF32 + big-endian (v1 is ELF64-LSB only).
+
 ## Naming / Platform
 - `FileGetSize` / `ProcGetCurrentId` carry namespace prefixes only to avoid WINAPI macro collisions (`GetFileSize`, `GetCurrentProcessId`). Consider `#undef`'ing the WINAPI macros inside the `Sys/*` translation units and reverting to the cleaner bare names.
