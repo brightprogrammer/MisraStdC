@@ -62,7 +62,7 @@ static bool int_try_from_u64_with_allocator(Int *out, u64 value, Allocator *allo
         return true;
     }
 
-    if (!BitVecTryFromIntegerAlloc(INT_BITS(out), value, bits, alloc)) {
+    if (!BitVecTryFromInteger(INT_BITS(out), value, bits, alloc)) {
         IntDeinit(out);
         *out = IntInit(alloc);
         return false;
@@ -525,7 +525,7 @@ Int IntFromBytesLE(const u8 *bytes, u64 len, Allocator *alloc) {
         return result;
     }
 
-    if (!BitVecTryFromBytesAlloc(INT_BITS(&result), bytes, len * 8, alloc)) {
+    if (!BitVecTryFromBytes(INT_BITS(&result), bytes, len * 8, alloc)) {
         return result;
     }
 
@@ -645,22 +645,17 @@ Int IntFromStr(const char *decimal, Allocator *alloc) {
     return out;
 }
 
-bool IntTryToStrAlloc(Str *out, Int *value, Allocator *alloc) {
-    return IntTryToStrRadixAlloc(out, value, 10, false, alloc);
+bool int_try_to_str(Str *out, Int *value, Allocator *alloc) {
+    return int_try_to_str_radix(out, value, 10, false, alloc);
 }
 
-bool IntTryToStr(Str *out, Int *value) {
-    ValidateInt(value);
-    return IntTryToStrAlloc(out, value, INT_BITS(value)->allocator);
-}
-
-Str IntToStr(Int *value) {
+Str int_to_str(Int *value, Allocator *alloc) {
     Str result;
 
     ValidateInt(value);
 
-    if (!IntTryToStr(&result, value)) {
-        result = StrInit(INT_BITS(value)->allocator);
+    if (!int_try_to_str(&result, value, alloc)) {
+        result = StrInit(alloc);
     }
 
     return result;
@@ -687,7 +682,7 @@ Int IntFromStrRadix(const char *digits, u8 radix, Allocator *alloc) {
     return out;
 }
 
-bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Allocator *alloc) {
+bool int_try_to_str_radix(Str *out, Int *value, u8 radix, bool uppercase, Allocator *alloc) {
     Int current;
     Str result;
 
@@ -741,18 +736,13 @@ bool IntTryToStrRadixAlloc(Str *out, Int *value, u8 radix, bool uppercase, Alloc
     return true;
 }
 
-bool IntTryToStrRadix(Str *out, Int *value, u8 radix, bool uppercase) {
-    ValidateInt(value);
-    return IntTryToStrRadixAlloc(out, value, radix, uppercase, INT_BITS(value)->allocator);
-}
-
-Str IntToStrRadix(Int *value, u8 radix, bool uppercase) {
+Str int_to_str_radix(Int *value, u8 radix, bool uppercase, Allocator *alloc) {
     Str result;
 
     ValidateInt(value);
 
-    if (!IntTryToStrRadix(&result, value, radix, uppercase)) {
-        result = StrInit(INT_BITS(value)->allocator);
+    if (!int_try_to_str_radix(&result, value, radix, uppercase, alloc)) {
+        result = StrInit(alloc);
     }
 
     return result;

@@ -183,15 +183,36 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
         })
 #endif
 
+// `_Generic` case for each feature-gated bigint/bitvec type. When the
+// feature is disabled, the case expands to nothing so the type name
+// (which would otherwise have to be visible) is never mentioned.
+#if MISRA_HAVE_BITVEC
+#    define IOFMT_BITVEC_CASE_(x, addr) BitVec: TO_TYPE_SPECIFIC_IO(BitVec, addr),
+#else
+#    define IOFMT_BITVEC_CASE_(x, addr)
+#endif
+
+#if MISRA_HAVE_INT
+#    define IOFMT_INT_CASE_(x, addr) Int: TO_TYPE_SPECIFIC_IO(Int, addr),
+#else
+#    define IOFMT_INT_CASE_(x, addr)
+#endif
+
+#if MISRA_HAVE_FLOAT
+#    define IOFMT_FLOAT_CASE_(x, addr) Float: TO_TYPE_SPECIFIC_IO(Float, addr),
+#else
+#    define IOFMT_FLOAT_CASE_(x, addr)
+#endif
+
 #if defined(_MSC_VER) || defined(__MSC_VER)
 #    define IOFMT(x)                                                                                                   \
         _Generic(                                                                                                      \
             (x),                                                                                                       \
             TypeSpecificIO: (x),                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                       \
-            Float: TO_TYPE_SPECIFIC_IO(Float, &(x)),                                                                   \
-            Int: TO_TYPE_SPECIFIC_IO(Int, &(x)),                                                                       \
-            BitVec: TO_TYPE_SPECIFIC_IO(BitVec, &(x)),                                                                 \
+            IOFMT_FLOAT_CASE_(x, &(x))                                                                                 \
+            IOFMT_INT_CASE_(x, &(x))                                                                                   \
+            IOFMT_BITVEC_CASE_(x, &(x))                                                                                \
             const char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                             \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                   \
             unsigned char: TO_TYPE_SPECIFIC_IO(u8, &(x)),                                                              \
@@ -225,9 +246,9 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
             (x),                                                                                                       \
             TypeSpecificIO: (x),                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, (void *)&(x)),                                                               \
-            Float: TO_TYPE_SPECIFIC_IO(Float, (void *)&(x)),                                                           \
-            Int: TO_TYPE_SPECIFIC_IO(Int, (void *)&(x)),                                                               \
-            BitVec: TO_TYPE_SPECIFIC_IO(BitVec, (void *)&(x)),                                                         \
+            IOFMT_FLOAT_CASE_(x, (void *)&(x))                                                                         \
+            IOFMT_INT_CASE_(x, (void *)&(x))                                                                           \
+            IOFMT_BITVEC_CASE_(x, (void *)&(x))                                                                        \
             const char *: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                     \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                           \
             unsigned char: TO_TYPE_SPECIFIC_IO(u8, (void *)&(x)),                                                      \
@@ -514,9 +535,15 @@ bool _write_ZstrAlloc(Str *o, FmtInfo *fmt_info, ZstrIOArg *arg);
 bool _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s);
 bool _write_f32(Str *o, FmtInfo *fmt_info, f32 *v);
 bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v);
+#if MISRA_HAVE_FLOAT
 bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value);
+#endif
+#if MISRA_HAVE_BITVEC
 bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv);
+#endif
+#if MISRA_HAVE_INT
 bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value);
+#endif
 
 const char *_read_Str(const char *i, FmtInfo *fmt_info, Str *s);
 const char *_read_u8(const char *i, FmtInfo *fmt_info, u8 *v);
@@ -532,8 +559,14 @@ const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg);
 const char *_read_UnsupportedType(const char *i, FmtInfo *fmt_info, const char **s);
 const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v);
 const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v);
+#if MISRA_HAVE_FLOAT
 const char *_read_Float(const char *i, FmtInfo *fmt_info, Float *value);
+#endif
+#if MISRA_HAVE_BITVEC
 const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv);
+#endif
+#if MISRA_HAVE_INT
 const char *_read_Int(const char *i, FmtInfo *fmt_info, Int *value);
+#endif
 
 #endif // MISRA_STD_IO

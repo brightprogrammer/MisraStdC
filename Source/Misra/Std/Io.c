@@ -35,6 +35,16 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Types.h>
 
+#if MISRA_HAVE_BITVEC
+#    include <Misra/Std/Container/BitVec.h>
+#endif
+#if MISRA_HAVE_INT
+#    include <Misra/Std/Container/Int.h>
+#endif
+#if MISRA_HAVE_FLOAT
+#    include <Misra/Std/Container/Float.h>
+#endif
+
 // stdc
 #include <ctype.h>
 #include <math.h>
@@ -851,6 +861,7 @@ static inline bool write_char_internal(Str *o, FormatFlags flags, const char *vs
     return true;
 }
 
+#if MISRA_HAVE_INT
 static int IntFmtDigitValue(char c) {
     if (c >= '0' && c <= '9') {
         return c - '0';
@@ -884,7 +895,9 @@ static u8 IntFmtRadixFromFlags(FmtInfo *fmt_info) {
 
     return 10;
 }
+#endif // MISRA_HAVE_INT
 
+#if MISRA_HAVE_FLOAT
 static bool FloatFmtUsesUnsupportedFlags(FmtInfo *fmt_info) {
     return fmt_info && (fmt_info->flags & (FMT_FLAG_CHAR | FMT_FLAG_HEX | FMT_FLAG_BINARY | FMT_FLAG_OCTAL |
                                            FMT_FLAG_RAW | FMT_FLAG_STRING)) != 0;
@@ -938,7 +951,7 @@ static bool FloatFmtTryToDecimalStr(Str *out, Float *value, u32 precision, bool 
 
     *out = StrInit(alloc);
 
-    if (!FloatTryToStrAlloc(&canonical, value, alloc)) {
+    if (!float_try_to_str(&canonical, value, alloc)) {
         return false;
     }
 
@@ -1034,7 +1047,7 @@ static bool FloatFmtTryToScientificStr(
 
     *out = StrInit(alloc);
 
-    if (!IntTryToStrAlloc(&digits, &value->significand, alloc)) {
+    if (!int_try_to_str(&digits, &value->significand, alloc)) {
         return false;
     }
 
@@ -1162,6 +1175,7 @@ static size FloatFmtTokenLength(const char *input) {
 
     return pos;
 }
+#endif // MISRA_HAVE_FLOAT
 
 ///
 /// Helper function to read characters into a buffer, handling hex escape sequences
@@ -1712,6 +1726,7 @@ bool _write_f32(Str *o, FmtInfo *fmt_info, f32 *v) {
     return _write_f64(o, fmt_info, &val);
 }
 
+#if MISRA_HAVE_FLOAT
 bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
     size start_len = 0;
     Str  temp;
@@ -1767,6 +1782,7 @@ bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
 
     return true;
 }
+#endif // MISRA_HAVE_FLOAT
 
 // Helper function to handle escape sequences
 static char ProcessEscape(const char **str) {
@@ -2944,6 +2960,7 @@ const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg) {
     return next;
 }
 
+#if MISRA_HAVE_BITVEC
 bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
     if (!o || !fmt_info || !bv) {
         LOG_FATAL("Invalid arguments");
@@ -2990,7 +3007,7 @@ bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
         } else {
             Str bit_str;
 
-            if (!BitVecTryToStrAlloc(&bit_str, bv, o->allocator)) {
+            if (!bitvec_try_to_str(&bit_str, bv, o->allocator)) {
                 return false;
             }
             if (!StrMerge(o, &bit_str)) {
@@ -3011,7 +3028,9 @@ bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
 
     return true;
 }
+#endif // MISRA_HAVE_BITVEC
 
+#if MISRA_HAVE_INT
 bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
     if (!o || !fmt_info || !value) {
         LOG_FATAL("Invalid arguments");
@@ -3049,11 +3068,11 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
     u8   radix = IntFmtRadixFromFlags(fmt_info);
 
     if (radix == 10) {
-        if (!IntTryToStrAlloc(&temp, value, o->allocator)) {
+        if (!int_try_to_str(&temp, value, o->allocator)) {
             return false;
         }
     } else {
-        if (!IntTryToStrRadixAlloc(&temp, value, radix, (fmt_info->flags & FMT_FLAG_CAPS) != 0, o->allocator)) {
+        if (!int_try_to_str_radix(&temp, value, radix, (fmt_info->flags & FMT_FLAG_CAPS) != 0, o->allocator)) {
             return false;
         }
     }
@@ -3073,6 +3092,7 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
 
     return true;
 }
+#endif // MISRA_HAVE_INT
 
 bool _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s) {
     (void)o;
@@ -3082,6 +3102,7 @@ bool _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s) {
     return false;
 }
 
+#if MISRA_HAVE_BITVEC
 const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
     (void)fmt_info; // Unused parameter
     if (!i || !bv) {
@@ -3134,7 +3155,7 @@ const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
         if (bit_len < 4)
             bit_len = 4; // Minimum 4 bits for hex display
 
-        *bv = BitVecFromIntegerAlloc(value, bit_len, bv->allocator);
+        *bv = BitVecFromInteger(value, bit_len, bv->allocator);
         StrDeinit(&hex_str);
         return i;
     }
@@ -3170,7 +3191,7 @@ const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
         if (bit_len < 3)
             bit_len = 3; // Minimum 3 bits for octal display
 
-        *bv = BitVecFromIntegerAlloc(value, bit_len, bv->allocator);
+        *bv = BitVecFromInteger(value, bit_len, bv->allocator);
         StrDeinit(&oct_str);
         return i;
     }
@@ -3192,12 +3213,14 @@ const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
     Str bin_str = StrInitFromCstr(bin_start, i - bin_start, bv->allocator);
 
     // Convert to BitVec using the null-terminated string
-    *bv = BitVecFromStrAlloc(bin_str.data, bv->allocator);
+    *bv = BitVecFromStr(bin_str.data, bv->allocator);
 
     StrDeinit(&bin_str);
     return i;
 }
+#endif // MISRA_HAVE_BITVEC
 
+#if MISRA_HAVE_INT
 const char *_read_Int(const char *i, FmtInfo *fmt_info, Int *value) {
     if (!i || !value) {
         LOG_FATAL("Invalid arguments");
@@ -3270,7 +3293,9 @@ const char *_read_Int(const char *i, FmtInfo *fmt_info, Int *value) {
     StrDeinit(&temp);
     return i;
 }
+#endif // MISRA_HAVE_INT
 
+#if MISRA_HAVE_FLOAT
 const char *_read_Float(const char *i, FmtInfo *fmt_info, Float *value) {
     size        token_len = 0;
     const char *start     = NULL;
@@ -3328,6 +3353,7 @@ const char *_read_Float(const char *i, FmtInfo *fmt_info, Float *value) {
     StrDeinit(&temp);
     return start + token_len;
 }
+#endif // MISRA_HAVE_FLOAT
 
 const char *_read_UnsupportedType(const char *i, FmtInfo *fmt_info, const char **s) {
     (void)fmt_info; // Unused parameter

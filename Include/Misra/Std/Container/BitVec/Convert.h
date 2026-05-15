@@ -39,7 +39,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, String, Allocator
     ///
-    bool BitVecTryToStrAlloc(Str *out, BitVec *bv, Allocator *alloc);
+    bool bitvec_try_to_str(Str *out, BitVec *bv, Allocator *alloc);
 
     ///
     /// Convert a bitvector to a string using an explicit allocator.
@@ -52,7 +52,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, String, Allocator
     ///
-    Str BitVecToStrAlloc(BitVec *bv, Allocator *alloc);
+    Str bitvec_to_str(BitVec *bv, Allocator *alloc);
 
     ///
     /// Parse a bitvector from a null-terminated string using an explicit allocator.
@@ -66,7 +66,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, String, Allocator
     ///
-    bool BitVecTryFromStrAlloc(BitVec *out, const char *str, Allocator *alloc);
+    bool BitVecTryFromStr(BitVec *out, const char *str, Allocator *alloc);
 
     ///
     /// Parse a bitvector from a null-terminated string using an explicit allocator.
@@ -79,7 +79,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, String, Allocator
     ///
-    BitVec BitVecFromStrAlloc(const char *str, Allocator *alloc);
+    BitVec BitVecFromStr(const char *str, Allocator *alloc);
 
     ///
     /// Export bitvector to byte array.
@@ -112,7 +112,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, Bytes, Allocator
     ///
-    bool BitVecTryFromBytesAlloc(BitVec *out, const u8 *bytes, u64 bit_len, Allocator *alloc);
+    bool BitVecTryFromBytes(BitVec *out, const u8 *bytes, u64 bit_len, Allocator *alloc);
 
     ///
     /// Build a bitvector from raw bytes using an explicit allocator.
@@ -126,7 +126,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, Bytes, Allocator
     ///
-    BitVec BitVecFromBytesAlloc(const u8 *bytes, u64 bit_len, Allocator *alloc);
+    BitVec BitVecFromBytes(const u8 *bytes, u64 bit_len, Allocator *alloc);
 
     ///
     /// Convert bitvector to integer (up to 64 bits).
@@ -156,7 +156,7 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, Integer, Allocator
     ///
-    bool BitVecTryFromIntegerAlloc(BitVec *out, u64 value, u64 bits, Allocator *alloc);
+    bool BitVecTryFromInteger(BitVec *out, u64 value, u64 bits, Allocator *alloc);
 
     ///
     /// Build a bitvector from an integer using an explicit allocator.
@@ -170,39 +170,40 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, Integer, Allocator
     ///
-    BitVec BitVecFromIntegerAlloc(u64 value, u64 bits, Allocator *alloc);
+    BitVec BitVecFromInteger(u64 value, u64 bits, Allocator *alloc);
 
 #ifdef __cplusplus
 }
 #endif
 
 ///
-/// Convert a bitvector to a string. The output string inherits the source
-/// bitvector's allocator. Callers who want a different allocator should
-/// call `BitVecTryToStrAlloc` directly.
+/// Convert a bitvector to a string. Two forms via argument count:
 ///
-/// out[out] : Destination string.
-/// bv[in]   : Bitvector to convert.
+/// - `BitVecTryToStr(out, bv)`        - uses `bv`'s allocator.
+/// - `BitVecTryToStr(out, bv, alloc)` - uses the explicit allocator.
 ///
 /// SUCCESS : Returns true and initializes `out`.
 /// FAILURE : Returns false if allocation fails.
 ///
 /// TAGS: BitVec, Convert, String
 ///
-#define BitVecTryToStr(out, bv) BitVecTryToStrAlloc((out), (bv), BitVecGetAllocator((bv)))
+#define BitVecTryToStr(...)              MISRA_OVERLOAD(BitVecTryToStr, __VA_ARGS__)
+#define BitVecTryToStr_2(out, bv)        bitvec_try_to_str((out), (bv), BitVecGetAllocator((bv)))
+#define BitVecTryToStr_3(out, bv, alloc) bitvec_try_to_str((out), (bv), (alloc))
 
 ///
-/// Convert a bitvector to a string. The returned string inherits the source
-/// bitvector's allocator. Callers who want a different allocator should
-/// call `BitVecToStrAlloc` directly.
+/// Convert a bitvector to a string. Two forms via argument count:
 ///
-/// bv[in] : Bitvector to convert.
+/// - `BitVecToStr(bv)`        - uses `bv`'s allocator.
+/// - `BitVecToStr(bv, alloc)` - uses the explicit allocator.
 ///
 /// SUCCESS : Returns a string containing bit characters.
 /// FAILURE : Returns an empty string if allocation fails.
 ///
 /// TAGS: BitVec, Convert, String
 ///
-#define BitVecToStr(bv) BitVecToStrAlloc((bv), BitVecGetAllocator((bv)))
+#define BitVecToStr(...)         MISRA_OVERLOAD(BitVecToStr, __VA_ARGS__)
+#define BitVecToStr_1(bv)        bitvec_to_str((bv), BitVecGetAllocator((bv)))
+#define BitVecToStr_2(bv, alloc) bitvec_to_str((bv), (alloc))
 
 #endif // MISRA_STD_CONTAINER_BITVEC_CONVERT_H

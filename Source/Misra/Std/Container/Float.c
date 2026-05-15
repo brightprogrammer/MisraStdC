@@ -101,7 +101,7 @@ static bool float_try_int_from_u64(Int *out, u64 value, Allocator *alloc) {
         bits++;
     }
 
-    if (!BitVecTryFromIntegerAlloc(&out->bits, value, bits, alloc)) {
+    if (!BitVecTryFromInteger(&out->bits, value, bits, alloc)) {
         IntDeinit(out);
         *out = IntInit(alloc);
         return false;
@@ -531,7 +531,7 @@ Float FloatFromStr(const char *text, Allocator *alloc) {
     return result;
 }
 
-bool FloatTryToStrAlloc(Str *out, Float *value, Allocator *alloc) {
+bool float_try_to_str(Str *out, Float *value, Allocator *alloc) {
     Str digits;
     Str result;
 
@@ -547,7 +547,7 @@ bool FloatTryToStrAlloc(Str *out, Float *value, Allocator *alloc) {
         return StrPushBack(out, '0');
     }
 
-    if (!IntTryToStrAlloc(&digits, &value->significand, alloc)) {
+    if (!int_try_to_str(&digits, &value->significand, alloc)) {
         return false;
     }
 
@@ -615,18 +615,13 @@ fail:
     return false;
 }
 
-bool FloatTryToStr(Str *out, Float *value) {
-    ValidateFloat(value);
-    return FloatTryToStrAlloc(out, value, value->significand.bits.allocator);
-}
-
-Str FloatToStr(Float *value) {
+Str float_to_str(Float *value, Allocator *alloc) {
     Str result;
 
     ValidateFloat(value);
 
-    if (!FloatTryToStr(&result, value)) {
-        result = StrInit(value->significand.bits.allocator);
+    if (!float_try_to_str(&result, value, alloc)) {
+        result = StrInit(alloc);
     }
 
     return result;

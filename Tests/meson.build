@@ -113,8 +113,12 @@ bitvec_deadend_tests = [
     ['BitVec.Access.Deadend', 'Std/BitVec.Access.Deadend.c'],
     ['BitVec.BitWise.Deadend', 'Std/BitVec.BitWise.Deadend.c'],
     ['BitVec.Pattern.Deadend', 'Std/BitVec.Pattern.Deadend.c'],
-    ['BitVec.Foreach.Deadend', 'Std/BitVec.Foreach.Deadend.c'],
 ]
+if opt_list
+    # Foreach.Deadend touches List runtime helpers to assert iterator
+    # type mismatches, so it needs the optional `list` feature.
+    bitvec_deadend_tests += [['BitVec.Foreach.Deadend', 'Std/BitVec.Foreach.Deadend.c']]
+endif
 
 json_tests = [
     ['Json.Read.Simple', 'Json/Read.Simple.c'],
@@ -132,47 +136,60 @@ kvconfig_tests = [
 ]
 
 allocator_tests = [
+    # Page and Heap are foundation.
     ['Allocator.Page', 'Std/Allocator.Page.c'],
     ['Allocator.Heap', 'Std/Allocator.Heap.c'],
-    ['Allocator.Arena', 'Std/Allocator.Arena.c'],
-    ['Allocator.Slab', 'Std/Allocator.Slab.c'],
-    ['Allocator.Budget', 'Std/Allocator.Budget.c'],
 ]
+if opt_alloc_arena
+    allocator_tests += [['Allocator.Arena', 'Std/Allocator.Arena.c']]
+endif
+if opt_alloc_slab
+    allocator_tests += [['Allocator.Slab', 'Std/Allocator.Slab.c']]
+endif
+if opt_alloc_budget
+    allocator_tests += [['Allocator.Budget', 'Std/Allocator.Budget.c']]
+endif
 
-#Build and register all normal tests with full sanitizer support
-foreach test_info : io_tests
-    test_name = test_info[0]
-    test_src = test_info[1]
-    
-    test_exe = executable(
-        test_name,
-        files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
-        c_args: test_args,
-        include_directories: inc_misra,
-        install: false
-    )
-    
-    test(test_name, test_exe)
-endforeach
+#Io tests exercise format specifiers for every supported type
+#(Int, Float, BitVec included). Skip when any of those features
+#are disabled.
+if opt_bitvec and opt_int and opt_float
+    foreach test_info : io_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
 
-foreach test_info : file_tests
-    test_name = test_info[0]
-    test_src = test_info[1]
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
 
-    test_exe = executable(
-        test_name,
-        files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
-        c_args: test_args,
-        include_directories: inc_misra,
-        install: false
-    )
+        test(test_name, test_exe)
+    endforeach
+endif
 
-    test(test_name, test_exe)
-endforeach
+if opt_file
+    foreach test_info : file_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
+
+        test(test_name, test_exe)
+    endforeach
+endif
 
 foreach test_info : str_tests
     test_name = test_info[0]
@@ -208,90 +225,100 @@ foreach test_info : vec_tests
     test(test_name, test_exe)
 endforeach 
 
-foreach test_info : graph_tests
-    test_name = test_info[0]
-    test_src = test_info[1]
+if opt_graph
+    foreach test_info : graph_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
 
-    test_exe = executable(
-        test_name,
-        files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
-        c_args: test_args,
-        include_directories: inc_misra,
-        install: false
-    )
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
 
-    test(test_name, test_exe)
-endforeach
+        test(test_name, test_exe)
+    endforeach
+endif
 
-foreach test_info : list_tests
-    test_name = test_info[0]
-    test_src = test_info[1]
+if opt_list
+    foreach test_info : list_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
 
-    test_exe = executable(
-        test_name,
-        files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
-        c_args: test_args,
-        include_directories: inc_misra,
-        install: false
-    )
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
 
-    test(test_name, test_exe)
-endforeach
+        test(test_name, test_exe)
+    endforeach
+endif
 
-foreach test_info : map_tests
-    test_name = test_info[0]
-    test_src = test_info[1]
+if opt_map
+    foreach test_info : map_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
 
-    test_exe = executable(
-        test_name,
-        files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
-        c_args: test_args,
-        include_directories: inc_misra,
-        install: false
-    )
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
 
-    test(test_name, test_exe)
-endforeach
+        test(test_name, test_exe)
+    endforeach
+endif
 
-foreach test_info : json_tests
-    test_name = test_info[0]
-    test_src = test_info[1]
-    
-    test_exe = executable(
-        test_name,
-        files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
-        c_args: test_args,
-        include_directories: inc_misra,
-        install: false
-    )
-    
-    test(test_name, test_exe)
-endforeach
+if opt_parser_json
+    foreach test_info : json_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
 
-foreach test_info : kvconfig_tests
-    test_name = test_info[0]
-    test_src = test_info[1]
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
 
-    test_exe = executable(
-        test_name,
-        files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
-        c_args: test_args,
-        include_directories: inc_misra,
-        install: false
-    )
+        test(test_name, test_exe)
+    endforeach
+endif
 
-    test(test_name, test_exe)
-endforeach
+if opt_parser_kvconf
+    foreach test_info : kvconfig_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
+
+        test(test_name, test_exe)
+    endforeach
+endif
 
 foreach test_info : allocator_tests
     test_name = test_info[0]
@@ -310,75 +337,83 @@ foreach test_info : allocator_tests
     test(test_name, test_exe)
 endforeach
 
-foreach test_info : bitvec_tests
-    test_name = test_info[0]
-    test_src = test_info[1]
-    
-    test_exe = executable(
-        test_name,
-        files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
-        c_args: test_args,
-        include_directories: inc_misra,
-        install: false
-    )
-    
-    test(test_name, test_exe)
-endforeach
+if opt_bitvec
+    foreach test_info : bitvec_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
 
-foreach test_info : int_tests
-    test_name = test_info[0]
-    test_src = test_info[1]
-    
-    test_exe = executable(
-        test_name,
-        files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
-        c_args: test_args,
-        include_directories: inc_misra,
-        install: false
-    )
-    
-    test(test_name, test_exe)
-endforeach
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
 
-foreach test_info : float_tests
-    test_name = test_info[0]
-    test_src = test_info[1]
+        test(test_name, test_exe)
+    endforeach
+endif
 
-    test_exe = executable(
-        test_name,
-        files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
-        c_args: test_args,
-        include_directories: inc_misra,
-        install: false
-    )
+if opt_int
+    foreach test_info : int_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
 
-    # Float tests exercise BitVec / Int / Float chains heavily; under
-    # sanitizer + per-call allocator magic validation they run for
-    # well over the meson default 30s. Give them generous headroom so
-    # CI doesn't flake on slow runners.
-    test(test_name, test_exe, timeout: 120)
-endforeach
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
 
-foreach test_info : bitvec_deadend_tests
-    test_name = test_info[0]
-    test_src = test_info[1]
-    
-    test_exe = executable(
-        test_name,
-        files(test_src),
-        link_with: [misra_std_no_sanitizers],  # Use the non-sanitized library
-        dependencies: [test_util_dep_no_sanitizers],  # Use non-sanitized test utils
-        c_args: test_args,
-        include_directories: inc_misra,
-        install: false,
-        override_options: ['b_sanitize=none']  # Disable all sanitizers for deadend tests
-    )
-    
-    test(test_name, test_exe)
-endforeach
+        test(test_name, test_exe)
+    endforeach
+endif
+
+if opt_float
+    foreach test_info : float_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
+
+        # Float tests exercise BitVec / Int / Float chains heavily; under
+        # sanitizer + per-call allocator magic validation they run for
+        # well over the meson default 30s. Give them generous headroom so
+        # CI doesn't flake on slow runners.
+        test(test_name, test_exe, timeout: 120)
+    endforeach
+endif
+
+if opt_bitvec
+    foreach test_info : bitvec_deadend_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std_no_sanitizers],
+            dependencies: [test_util_dep_no_sanitizers],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false,
+            override_options: ['b_sanitize=none']
+        )
+
+        test(test_name, test_exe)
+    endforeach
+endif

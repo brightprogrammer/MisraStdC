@@ -144,16 +144,6 @@ i32 SysProcGetId(SysProc *proc);
 SysProcStatus SysProcGetStatus(SysProc *proc);
 
 ///
-/// Platform independent method to get current process Id.
-///
-/// SUCCESS : Returns current process ID.
-/// FAILURE : Function cannot fail - always returns valid ID.
-///
-/// TAGS: System, Process
-///
-SysProcId SysGetCurrentProcessId(void);
-
-///
 /// Get the path to the current executable.
 ///
 /// exe_path[out] : Str object to store the executable path.

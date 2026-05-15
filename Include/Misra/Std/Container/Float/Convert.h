@@ -82,53 +82,46 @@ extern "C" {
     ///
     Float FloatFromStr(const char *text, Allocator *alloc);
 
-    ///
-    /// Convert a float to a decimal string using an explicit allocator.
-    ///
-    /// out[out]  : Destination string.
-    /// value[in] : Float to convert.
-    /// alloc[in] : Allocator to bind to the produced string.
-    ///
-    /// SUCCESS : Returns `true`. The result has been computed and the
-    ///           destination object updated.
-    /// FAILURE : Returns `false` on allocation failure. The destination is left
-    ///           in a valid but unspecified state on partial failure.
-    ///
-    /// TAGS: Float, Convert, String, Allocator
-    ///
-    bool FloatTryToStrAlloc(Str *out, Float *value, Allocator *alloc);
-
-    ///
-    /// Convert a float to a decimal string using the default allocator.
-    ///
-    /// out[out]  : Destination string.
-    /// value[in] : Float to convert.
-    ///
-    /// SUCCESS : Returns `true`. `*out` holds the decimal representation of
-    ///           `value` (sign, integer part, fractional part).
-    /// FAILURE : Returns `false` on allocation failure. `*out` is left in
-    ///           a valid but unspecified state.
-    ///
-    /// TAGS: Float, Convert, String, Decimal
-    ///
-    bool FloatTryToStr(Str *out, Float *value);
-
-    ///
-    /// Convert a float to a decimal string using the default allocator.
-    ///
-    /// value[in] : Float to convert.
-    ///
-    /// SUCCESS : Returns a freshly allocated `Str` holding the decimal
-    ///           representation of `value`.
-    /// FAILURE : Returns an empty `Str` on allocation failure. Use
-    ///           `FloatTryToStr` if you need explicit failure propagation.
-    ///
-    /// TAGS: Float, Convert, String, Decimal
-    ///
-    Str FloatToStr(Float *value);
+    /// Snake_case runtime helpers. User code calls the PascalCase macros
+    /// below, which dispatch to these via MISRA_OVERLOAD.
+    bool float_try_to_str(Str *out, Float *value, Allocator *alloc);
+    Str  float_to_str(Float *value, Allocator *alloc);
 
 #ifdef __cplusplus
 }
 #endif
+
+///
+/// Convert a float to a decimal string. Two forms via argument count:
+///
+/// - `FloatTryToStr(out, value)`        - uses `value`'s allocator.
+/// - `FloatTryToStr(out, value, alloc)` - uses the explicit allocator.
+///
+/// SUCCESS : Returns `true`. `*out` holds the decimal representation.
+/// FAILURE : Returns `false` on allocation failure. `*out` is left in a
+///           valid but unspecified state.
+///
+/// TAGS: Float, Convert, String, Decimal
+///
+#define FloatTryToStr(...)                 MISRA_OVERLOAD(FloatTryToStr, __VA_ARGS__)
+#define FloatTryToStr_2(out, value)        float_try_to_str((out), (value), (value)->significand.bits.allocator)
+#define FloatTryToStr_3(out, value, alloc) float_try_to_str((out), (value), (alloc))
+
+///
+/// Convert a float to a decimal string. Two forms via argument count:
+///
+/// - `FloatToStr(value)`        - uses `value`'s allocator.
+/// - `FloatToStr(value, alloc)` - uses the explicit allocator.
+///
+/// SUCCESS : Returns the freshly built `Str`.
+/// FAILURE : Returns an empty `Str` on allocation failure. Use the
+///           `FloatTryToStr` form when you need explicit failure
+///           propagation.
+///
+/// TAGS: Float, Convert, String, Decimal
+///
+#define FloatToStr(...)            MISRA_OVERLOAD(FloatToStr, __VA_ARGS__)
+#define FloatToStr_1(value)        float_to_str((value), (value)->significand.bits.allocator)
+#define FloatToStr_2(value, alloc) float_to_str((value), (alloc))
 
 #endif // MISRA_STD_CONTAINER_FLOAT_CONVERT_H

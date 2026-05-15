@@ -10,13 +10,39 @@
 #include <Misra/Std/Container/Str.h>
 #include <errno.h>
 
-#include <Misra/Sys/Dir.h>
 #include <Misra/Sys/Mutex.h>
-#include <Misra/Sys/Proc.h>
+
+// `SysProcId` is part of the foundation because `LOG_FATAL` formats it
+// into the log message. `SysGetCurrentProcessId` (declared below) lives
+// in `Sys.c`, also foundation. The full process-spawning API in
+// `Sys/Proc.h` is the optional `sys_proc` feature - C11 lets the
+// typedef appear in both files.
+typedef u64 SysProcId;
+
+#if MISRA_HAVE_SYS_DIR
+#    include <Misra/Sys/Dir.h>
+#endif
+
+#if MISRA_HAVE_SYS_PROC
+#    include <Misra/Sys/Proc.h>
+#endif
 
 #ifndef SYS_ERROR_STR_MAX_LENGTH
 #    define SYS_ERROR_STR_MAX_LENGTH 128
 #endif
+
+///
+/// Platform-independent method to get current process Id. Foundation
+/// API: provided by `Sys.c` (always built), unlike the rest of the
+/// process-spawning functions in `Sys/Proc.h` which live in the optional
+/// `sys_proc` feature.
+///
+/// SUCCESS : Returns current process ID.
+/// FAILURE : Function cannot fail - always returns valid ID.
+///
+/// TAGS: System, Process
+///
+SysProcId SysGetCurrentProcessId(void);
 
 ///
 /// Get environment value value in a `Str` object.

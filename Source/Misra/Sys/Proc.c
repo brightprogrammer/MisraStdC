@@ -601,14 +601,6 @@ i32 SysProcGetExitCode(SysProc *proc) {
 #endif
 }
 
-SysProcId SysGetCurrentProcessId(void) {
-#ifdef _WIN32
-    return (SysProcId)GetCurrentProcessId(); // Windows API
-#else
-    return (SysProcId)getpid(); // POSIX API (Linux/macOS)
-#endif
-}
-
 Str *SysGetCurrentExecutablePath(Str *exe_path) {
     ValidateStr(exe_path);
     Allocator *alloc = exe_path->allocator;

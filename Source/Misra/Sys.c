@@ -93,3 +93,11 @@ void SysAbort(void) {
         abort();
     }
 }
+
+SysProcId SysGetCurrentProcessId(void) {
+#ifdef _WIN32
+    return (SysProcId)GetCurrentProcessId();
+#else
+    return (SysProcId)getpid();
+#endif
+}
