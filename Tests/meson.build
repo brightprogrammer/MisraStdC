@@ -316,6 +316,47 @@ if opt_parser_dwarf and tests_need_posix_exe
 
         test(test_name, test_exe)
     endforeach
+
+    # Stripped-binary integration test. The same source produces both
+    # the test driver (unstripped, so it can reflect on its own symbols)
+    # and a stripped copy (with .symtab + .strtab removed but
+    # .debug_info kept). The driver opens both and verifies the
+    # stripped copy still names the marker via .debug_info alone.
+    objcopy = find_program('objcopy', required: false)
+    if objcopy.found()
+        stripped_driver = executable(
+            'Dwarf.Stripped',
+            files('Std/StrippedResolve.c'),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args + ['-gdwarf-4'],
+            include_directories: inc_misra,
+            link_args: ['-rdynamic'],
+            install: false
+        )
+
+        stripped_target = custom_target(
+            'Dwarf.Stripped.stripped',
+            input: stripped_driver,
+            output: 'Dwarf.Stripped.stripped',
+            # `-N name` removes that single symbol from .symtab while
+            # leaving the rest of the file (including .debug_info)
+            # intact. That's exactly the failure mode we want to
+            # simulate: a symbol present in DWARF but missing from the
+            # ELF symbol tables. (`-R .symtab` would be cleaner but
+            # current binutils silently refuses to drop the section.)
+            command: [
+                objcopy,
+                '-N', 'marker_alpha',
+                '-N', 'marker_beta',
+                '@INPUT@',
+                '@OUTPUT@',
+            ],
+            build_by_default: true
+        )
+
+        test('Dwarf.Stripped', stripped_driver, args: [stripped_target.full_path()])
+    endif
 endif
 
 if opt_sys_procmaps and tests_need_posix_exe
