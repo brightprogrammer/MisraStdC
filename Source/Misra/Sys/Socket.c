@@ -198,7 +198,7 @@ Str SocketAddrFormat(const SocketAddr *addr, Allocator *alloc) {
             LOG_SYS_ERROR("SocketAddrFormat: inet_ntop(AF_INET) failed");
             return out;
         }
-        port = ntohs(sa->sin_port);
+        port = FROM_BIG_ENDIAN2(sa->sin_port);
         StrWriteFmt(&out, "{}:{}", host_p, (u32)port);
     } else if (addr->family == SOCKET_FAMILY_INET6) {
         const struct sockaddr_in6 *sa = (const struct sockaddr_in6 *)addr->raw;
@@ -206,7 +206,7 @@ Str SocketAddrFormat(const SocketAddr *addr, Allocator *alloc) {
             LOG_SYS_ERROR("SocketAddrFormat: inet_ntop(AF_INET6) failed");
             return out;
         }
-        port = ntohs(sa->sin6_port);
+        port = FROM_BIG_ENDIAN2(sa->sin6_port);
         StrWriteFmt(&out, "[{}]:{}", host_p, (u32)port);
     } else {
         LOG_ERROR("SocketAddrFormat: unknown family {}", (u32)addr->family);
