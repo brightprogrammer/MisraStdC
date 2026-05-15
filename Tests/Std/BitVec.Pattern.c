@@ -13,6 +13,7 @@ bool test_bitvec_basic_pattern_functions(void);
 bool test_bitvec_find_pattern(void);
 bool test_bitvec_find_last_pattern(void);
 bool test_bitvec_find_all_pattern(void);
+bool test_bitvec_find_all_pattern_vec(void);
 bool test_bitvec_pattern_edge_cases(void);
 bool test_bitvec_pattern_stress_tests(void);
 bool test_bitvec_find_pattern_null_source(void);
@@ -245,6 +246,45 @@ bool test_bitvec_find_all_pattern(void) {
     count  = BitVecFindAllPattern(&source, &pattern, results, 10);
     result = result && (count == 3); // Should find at 0, 3, 6
 
+    BitVecDeinit(&source);
+    BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Vec form: same dataset as the raw test, but writes into a
+// BitVecMatchIndices and checks the full match list. The Vec form
+// never truncates -- proves we get all 5 hits without pre-sizing.
+bool test_bitvec_find_all_pattern_vec(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    WriteFmt("Testing BitVecFindAllPattern Vec form\n");
+
+    BitVec source  = BitVecInit(base);
+    BitVec pattern = BitVecInit(base);
+    bool   result  = true;
+
+    // Source: 10101010101 (11 bits)
+    for (int i = 0; i < 11; i++)
+        BitVecPush(&source, i % 2 == 0);
+    // Pattern: 101
+    BitVecPush(&pattern, true);
+    BitVecPush(&pattern, false);
+    BitVecPush(&pattern, true);
+
+    BitVecMatchIndices matches = VecInitT(matches, base);
+    result                     = result && BitVecFindAllPattern(&source, &pattern, &matches);
+    result                     = result && matches.length == 5;
+    if (result) {
+        result = result && matches.data[0] == 0;
+        result = result && matches.data[1] == 2;
+        result = result && matches.data[2] == 4;
+        result = result && matches.data[3] == 6;
+        result = result && matches.data[4] == 8;
+    }
+
+    VecDeinit(&matches);
     BitVecDeinit(&source);
     BitVecDeinit(&pattern);
     DefaultAllocatorDeinit(&alloc);
@@ -1280,6 +1320,7 @@ int main(void) {
         test_bitvec_find_pattern,
         test_bitvec_find_last_pattern,
         test_bitvec_find_all_pattern,
+        test_bitvec_find_all_pattern_vec,
         test_bitvec_pattern_edge_cases,
         test_bitvec_pattern_stress_tests,
         // New Pattern function tests

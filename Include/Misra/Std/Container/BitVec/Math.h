@@ -180,25 +180,39 @@ extern "C" {
     u64 BitVecBestAlignment(BitVec *bv1, BitVec *bv2);
 
     ///
-    /// Analyze run lengths in a bitvector.
-    /// A run is a sequence of consecutive identical bits.
-    /// Results array must be pre-allocated with sufficient space.
+    /// Analyze run lengths in a bitvector. A run is a sequence of
+    /// consecutive identical bits. Two call shapes, dispatched by
+    /// argument count.
     ///
-    /// bv[in]         : Bitvector to analyze
-    /// runs[out]      : Array to store run lengths
-    /// values[out]    : Array to store run values (true/false)
-    /// max_runs[in]   : Maximum number of runs to store
+    /// Raw form (caller-sized parallel buffers):
+    ///   u64 lengths[50]; bool values[50];
+    ///   u64 count = BitVecRunLengths(&flags, lengths, values, 50);
+    ///   // Returns count of runs written; silently truncates if
+    ///   // there are more than `max_runs`.
     ///
-    /// SUCCESS : Number of runs found
+    /// Vec form (grows; emits `BitVecRun{length, value}` items):
+    ///   BitVecRuns runs = VecInitT(runs, alloc);
+    ///   bool ok = BitVecRunLengths(&flags, &runs);
+    ///   // `runs.length` is the total count; no truncation.
     ///
-    /// USAGE:
-    ///   u64 run_lengths[50];
-    ///   bool run_values[50];
-    ///   u64 count = BitVecRunLengths(&flags, run_lengths, run_values, 50);
+    /// bv[in]              : Bitvector to analyze
+    /// runs[out]           : (raw) Array to store run lengths
+    /// values[out]         : (raw) Array to store run values
+    /// max_runs[in]        : (raw) Maximum number of runs to store
+    /// out[out]            : (vec) Vec to push `BitVecRun` records into
+    ///
+    /// SUCCESS : (raw) Number of runs written.
+    ///           (vec) `true`; `out` holds every run.
+    /// FAILURE : (vec) `false` on allocator OOM during the walk.
     ///
     /// TAGS: BitVec, RunLength, Analysis, Pattern
     ///
-    u64 BitVecRunLengths(BitVec *bv, u64 *runs, bool *values, u64 max_runs);
+    u64  bitvec_run_lengths_raw(BitVec *bv, u64 *runs, bool *values, u64 max_runs);
+    bool bitvec_run_lengths_vec(BitVec *bv, BitVecRuns *out);
+
+#define BitVecRunLengths(...)                     MISRA_OVERLOAD(BitVecRunLengths, __VA_ARGS__)
+#define BitVecRunLengths_4(bv, runs, values, max) bitvec_run_lengths_raw((bv), (runs), (values), (max))
+#define BitVecRunLengths_2(bv, out_vec)           bitvec_run_lengths_vec((bv), (out_vec))
 
 #ifdef __cplusplus
 }

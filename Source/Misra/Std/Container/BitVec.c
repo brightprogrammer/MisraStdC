@@ -1235,7 +1235,7 @@ u64 BitVecFindLastPattern(BitVec *bv, BitVec *pattern) {
     return SIZE_MAX; // Not found
 }
 
-u64 BitVecFindAllPattern(BitVec *bv, BitVec *pattern, size *results, u64 max_results) {
+u64 bitvec_find_all_pattern_raw(BitVec *bv, BitVec *pattern, size *results, u64 max_results) {
     ValidateBitVec(bv);
     ValidateBitVec(pattern);
 
@@ -1259,9 +1259,30 @@ u64 BitVecFindAllPattern(BitVec *bv, BitVec *pattern, size *results, u64 max_res
     return found_count;
 }
 
+bool bitvec_find_all_pattern_vec(BitVec *bv, BitVec *pattern, BitVecMatchIndices *out) {
+    ValidateBitVec(bv);
+    ValidateBitVec(pattern);
+
+    if (!out || !out->allocator) {
+        LOG_FATAL("output BitVecMatchIndices is NULL or uninitialized");
+    }
+
+    if (pattern->length == 0 || pattern->length > bv->length)
+        return true;
+
+    for (u64 i = 0; i <= bv->length - pattern->length; i++) {
+        if (BitVecContainsAt(bv, pattern, i)) {
+            size idx = (size)i;
+            if (!VecPushBackR(out, idx))
+                return false;
+        }
+    }
+    return true;
+}
+
 // Foreach functions
 
-u64 BitVecRunLengths(BitVec *bv, u64 *runs, bool *values, u64 max_runs) {
+u64 bitvec_run_lengths_raw(BitVec *bv, u64 *runs, bool *values, u64 max_runs) {
     ValidateBitVec(bv);
     if (!runs || !values || max_runs == 0) {
         LOG_FATAL("invalid arguments");
@@ -1304,6 +1325,36 @@ u64 BitVecRunLengths(BitVec *bv, u64 *runs, bool *values, u64 max_runs) {
     }
 
     return run_count;
+}
+
+bool bitvec_run_lengths_vec(BitVec *bv, BitVecRuns *out) {
+    ValidateBitVec(bv);
+    if (!out || !out->allocator) {
+        LOG_FATAL("output BitVecRuns is NULL or uninitialized");
+    }
+
+    if (bv->length == 0)
+        return true;
+
+    u64  current_run_length = 1;
+    bool current_value      = BitVecGet(bv, 0);
+
+    for (u64 i = 1; i < bv->length; i++) {
+        bool bit = BitVecGet(bv, i);
+        if (bit == current_value) {
+            current_run_length++;
+        } else {
+            BitVecRun r = {.length = current_run_length, .value = current_value};
+            if (!VecPushBackR(out, r))
+                return false;
+            current_value      = bit;
+            current_run_length = 1;
+        }
+    }
+    BitVecRun r = {.length = current_run_length, .value = current_value};
+    if (!VecPushBackR(out, r))
+        return false;
+    return true;
 }
 
 // Math functions implementation

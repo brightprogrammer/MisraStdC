@@ -30,15 +30,36 @@
 /// TAGS: BitVec, Bits, Boolean, Packed, Memory
 ///
 typedef struct {
-    u64       length;    // Number of bits currently in bitvector
-    u64       capacity;  // Max number of bits this bitvector can hold (in bits)
-    u8       *data;      // Bit data stored as bytes
-    u64       byte_size; // Size of data array in bytes
-    Allocator        *allocator;
-    u64       __magic;   // private, must not be modified
+    u64        length;    // Number of bits currently in bitvector
+    u64        capacity;  // Max number of bits this bitvector can hold (in bits)
+    u8        *data;      // Bit data stored as bytes
+    u64        byte_size; // Size of data array in bytes
+    Allocator *allocator;
+    u64        __magic;   // private, must not be modified
 } BitVec;
 
 typedef Vec(BitVec) BitVecs;
+
+///
+/// Vec-flavoured handle for a sequence of bit-pattern match indices.
+/// Consumed by the Vec form of `BitVecFindAllPattern`.
+///
+typedef Vec(size) BitVecMatchIndices;
+
+///
+/// One run from a run-length encoding of a BitVec: `length` consecutive
+/// bits, all equal to `value`. Pair produced by `BitVecRunLengths`.
+///
+typedef struct BitVecRun {
+    u64  length;
+    bool value;
+} BitVecRun;
+
+///
+/// Vec-flavoured handle for a sequence of `BitVecRun`s. Consumed by
+/// the Vec form of `BitVecRunLengths`.
+///
+typedef Vec(BitVecRun) BitVecRuns;
 
 #define MISRA_BITVEC_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("bitvectr")
 
