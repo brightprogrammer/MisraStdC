@@ -2,7 +2,7 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Stack-trace capture + formatting. Two platform backends:
+/// Stack-trace capture + formatting. Three platform backends:
 ///
 ///   - **Linux / GCC + Clang**: pure-Misra implementation. Capture
 ///     walks saved-FP chain via `__builtin_frame_address`. Format
@@ -10,23 +10,36 @@
 ///     own `/proc/self/maps` parser and our own ELF + DWARF parsers.
 ///     No libc `backtrace()`, no libgcc unwinder, no `dladdr`.
 ///
-///   - **Windows / MSVC**: wraps `CaptureStackBackTrace` (kernel32)
-///     and dbghelp's `SymFromAddr` / `SymGetLineFromAddr64`. Same
-///     API surface; behind the scenes it uses the platform's system
-///     libraries because there is no `/proc/self/maps` and PE+PDB
-///     parsing is a separate effort tracked in FUTURE-PLANS.
+///   - **macOS / Darwin**: pure-Misra. Same FP walk for capture;
+///     formatting routes per-IP through `Sys/MachoCache`, which uses
+///     dyld to locate the loaded image, then the in-tree Mach-O +
+///     dSYM + DWARF chain for symbol resolution.
 ///
-/// The Linux capture path needs frame pointers, i.e. the program
-/// (and any code we unwind through) must be built with
-/// `-fno-omit-frame-pointer`. The Windows path uses SEH-based
-/// unwinding from `CaptureStackBackTrace` and has no such
-/// requirement.
+///   - **Windows / MSVC**: wraps `CaptureStackBackTrace` (kernel32)
+///     for capture. Format tries the in-tree PE + PDB chain first
+///     (`Sys/PdbCache`), falling back to dbghelp's `SymFromAddr` /
+///     `SymGetLineFromAddr64` when the PDB can't be located.
+///
+/// Each capture / format function has two callable shapes via
+/// `MISRA_OVERLOAD`:
+///
+///   - **Raw**: caller passes a fixed `StackFrame *` buffer (typically
+///     stack-allocated). No allocations happen anywhere in the walk
+///     itself, so this form is safe from crash handlers and is what
+///     the debug allocator uses to record allocation sites without
+///     recursing back into itself.
+///
+///   - **Vec**: caller passes a `StackFrames *` (a `Vec(StackFrame)`),
+///     which grows through its own allocator as the walk emits frames.
+///     Convenient for application code that doesn't have a crash-path
+///     constraint.
 
 #ifndef MISRA_SYS_BACKTRACE_H
 #define MISRA_SYS_BACKTRACE_H
 
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Container/Vec.h>
 #include <Misra/Types.h>
 
 // SymbolResolver only exists on the in-tree (Linux) path.
@@ -35,7 +48,7 @@
 #endif
 
 ///
-/// A single captured stack frame. Just the IP — symbol resolution
+/// A single captured stack frame. Just the IP -- symbol resolution
 /// happens later in `FormatStackTrace`.
 ///
 typedef struct StackFrame {
@@ -43,90 +56,136 @@ typedef struct StackFrame {
 } StackFrame;
 
 ///
-/// Capture up to `max_frames` frames of the caller's stack via the
-/// saved-FP chain. `skip_frames` discards the topmost frames (caller's
-/// own wrappers). `CaptureStackTrace`'s own frame is *always* skipped.
+/// Vec-flavoured handle for stack frames. The Vec form of every
+/// public capture / format function consumes this.
 ///
-/// out[out]         : Frame array to populate.
-/// max_frames[in]   : Capacity of `out`.
-/// skip_frames[in]  : Number of caller-side wrappers to discard.
-///
-/// SUCCESS : Returns number of frames written (<= max_frames).
-/// FAILURE : Returns 0 if frame pointers are unavailable (build with
-///           `-fomit-frame-pointer`) or the stack is structurally
-///           invalid. `out` is left untouched on failure.
-///
-/// TAGS: Sys, Backtrace, Unwind
-///
-size CaptureStackTrace(StackFrame *out, size max_frames, size skip_frames);
+typedef Vec(StackFrame) StackFrames;
+
+// ---------------------------------------------------------------------------
+// Implementation functions (snake_case). The PascalCase macros below
+// are the supported entry points; these signatures exist as the actual
+// linkable symbols so the macros can resolve.
+// ---------------------------------------------------------------------------
 
 ///
-/// Resolve each frame to `module!symbol+offset` and append a multi-
-/// line trace to `out`. A fresh `SymbolResolver` is created internally
-/// for each call — convenient for one-off uses, but if you format many
-/// traces in a loop, share a resolver via `FormatStackTraceWith`.
+/// Raw capture: fixed buffer, no allocation. Safe inside crash
+/// handlers and inside the debug allocator itself.
 ///
-/// out[out]    : Str to append to.
-/// frames[in]  : Frames captured by `CaptureStackTrace`.
-/// count[in]   : Number of valid frames.
-/// alloc[in]   : Allocator backing the resolver and any scratch.
+/// out[out]         : Buffer (caller-owned, usually stack).
+/// max_frames[in]   : Capacity of `out`.
+/// skip_frames[in]  : Caller-side wrappers to discard.
 ///
-/// SUCCESS : Output appended.
-/// FAILURE : Function does not fail; unresolved frames emit as
-///           `#N 0x<ip>`.
+/// SUCCESS : Returns number of frames written (<= max_frames).
+/// FAILURE : Returns 0 if FPs are unavailable (e.g. `-fomit-frame-pointer`
+///           builds on the FP-walking backends) or the stack is invalid.
 ///
-/// TAGS: Sys, Backtrace, Format
+size capture_stack_trace_raw(StackFrame *out, size max_frames, size skip_frames);
+
 ///
-void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator *alloc);
+/// Vec capture: grows `out` through its own allocator. Convenient but
+/// allocates; do not use from the debug allocator or a crash handler.
+///
+/// SUCCESS : Returns true; `out` contains the captured frames.
+/// FAILURE : Returns false on allocator OOM during the walk.
+///
+bool capture_stack_trace_vec(StackFrames *out, size skip_frames);
 
 #if MISRA_HAVE_SYS_SYMRESOLVE && MISRA_HAVE_PARSER_DWARF
 ///
-/// CFI-based stack unwinder. Walks the stack by looking up each
-/// frame's FDE in the caller-supplied `resolver` and applying the
-/// DWARF Call Frame Information rules to recover the previous frame's
-/// stack pointer and return address. Works on binaries built with
-/// `-fomit-frame-pointer`, where the FP-walk-based `CaptureStackTrace`
-/// returns nothing useful.
+/// CFI-based capture (Linux x86-64). Same shape as the FP-walk
+/// variants but routes through DWARF `.eh_frame` rules, so it works
+/// on `-fomit-frame-pointer` builds.
 ///
-/// On x86-64 only in v1; on other architectures or when CFI lookup
-/// fails for a given frame, the walker stops there (it does **not**
-/// silently fall back to FP-walk — call `CaptureStackTrace` separately
-/// if you want the cascade).
+size capture_stack_trace_cfi_raw(StackFrame *out, size max_frames, size skip_frames, SymbolResolver *resolver);
+bool capture_stack_trace_cfi_vec(StackFrames *out, size skip_frames, SymbolResolver *resolver);
+#endif
+
 ///
-/// out[out]         : Frame array to populate.
-/// max_frames[in]   : Capacity of `out`.
-/// skip_frames[in]  : Caller's own wrappers to discard.
-/// resolver[in,out] : Resolver. Cache may grow (per-module DwarfCfi
-///                    is built lazily).
+/// Raw formatter: walks `(frames, count)`, appends one line per frame
+/// to `out`. Creates a fresh `SymbolResolver` internally per call.
 ///
-/// SUCCESS : Returns number of frames written.
-/// FAILURE : Returns 0 if the platform isn't supported or the first
-///           FDE lookup fails.
+void format_stack_trace_raw(Str *out, const StackFrame *frames, size count, Allocator *alloc);
+
+///
+/// Vec formatter: same as raw but consumes a `StackFrames *`.
+///
+void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *alloc);
+
+#if MISRA_HAVE_SYS_SYMRESOLVE
+///
+/// Resolver-sharing variants -- cheaper when formatting many traces in
+/// a loop. Linux only (only platform with an in-tree SymbolResolver).
+///
+void format_stack_trace_with_raw(Str *out, const StackFrame *frames, size count, SymbolResolver *resolver);
+void format_stack_trace_with_vec(Str *out, const StackFrames *frames, SymbolResolver *resolver);
+#endif
+
+// ---------------------------------------------------------------------------
+// Public macros: dispatch by arg count. The 3-arg / 4-arg forms call
+// the raw implementations; the 2-arg / 3-arg forms call the vec ones.
+//
+// NOTE: the two forms have different return types -- raw capture
+// returns `size`, vec capture returns `bool`. The macro is just a
+// name dispatcher, so use the return type matching the form you call.
+// ---------------------------------------------------------------------------
+
+///
+/// Capture up to `max_frames` stack frames into `out`. Two shapes:
+///
+///   `CaptureStackTrace(out, max, skip)`  -- raw, returns `size`
+///   `CaptureStackTrace(out_vec, skip)`   -- vec, returns `bool`
+///
+/// `CaptureStackTrace`'s own frame is *always* skipped on top of
+/// whatever `skip` discards.
+///
+/// TAGS: Sys, Backtrace, Unwind
+///
+#define CaptureStackTrace(...)              MISRA_OVERLOAD(CaptureStackTrace, __VA_ARGS__)
+#define CaptureStackTrace_3(out, max, skip) capture_stack_trace_raw((out), (max), (skip))
+#define CaptureStackTrace_2(out, skip)      capture_stack_trace_vec((out), (skip))
+
+#if MISRA_HAVE_SYS_SYMRESOLVE && MISRA_HAVE_PARSER_DWARF
+///
+/// CFI-based capture. Two shapes:
+///
+///   `CaptureStackTraceCfi(out, max, skip, resolver)` -- raw, returns `size`
+///   `CaptureStackTraceCfi(out_vec, skip, resolver)`  -- vec, returns `bool`
 ///
 /// TAGS: Sys, Backtrace, CFI, Unwind
 ///
-size CaptureStackTraceCfi(StackFrame *out, size max_frames, size skip_frames, SymbolResolver *resolver);
+#    define CaptureStackTraceCfi(...)                   MISRA_OVERLOAD(CaptureStackTraceCfi, __VA_ARGS__)
+#    define CaptureStackTraceCfi_4(out, max, skip, res) capture_stack_trace_cfi_raw((out), (max), (skip), (res))
+#    define CaptureStackTraceCfi_3(out, skip, res)      capture_stack_trace_cfi_vec((out), (skip), (res))
 #endif
+
+///
+/// Format a captured trace. Two shapes:
+///
+///   `FormatStackTrace(out_str, frames, count, alloc)` -- raw
+///   `FormatStackTrace(out_str, frames_vec, alloc)`    -- vec
+///
+/// Output is appended; never fails -- unresolved frames emit as
+/// `#N 0x<ip>`.
+///
+/// TAGS: Sys, Backtrace, Format
+///
+#define FormatStackTrace(...)                         MISRA_OVERLOAD(FormatStackTrace, __VA_ARGS__)
+#define FormatStackTrace_4(out, frames, count, alloc) format_stack_trace_raw((out), (frames), (count), (alloc))
+#define FormatStackTrace_3(out, frames, alloc)        format_stack_trace_vec((out), (frames), (alloc))
 
 #if MISRA_HAVE_SYS_SYMRESOLVE
 ///
 /// Same as `FormatStackTrace` but reuses a caller-owned resolver.
-/// Cheaper when formatting many traces. Available only when the
-/// in-tree `SymbolResolver` is compiled in (Linux today). On Windows
-/// dbghelp does its own caching internally, so this variant is
-/// neither offered nor needed.
+/// Two shapes:
 ///
-/// out[out]       : Str to append to.
-/// frames[in]     : Frames captured by `CaptureStackTrace`.
-/// count[in]      : Number of valid frames.
-/// resolver[in,out] : Resolver to use. Cache may grow.
-///
-/// SUCCESS : Output appended.
-/// FAILURE : Function does not fail.
+///   `FormatStackTraceWith(out_str, frames, count, resolver)` -- raw
+///   `FormatStackTraceWith(out_str, frames_vec, resolver)`    -- vec
 ///
 /// TAGS: Sys, Backtrace, Format
 ///
-void FormatStackTraceWith(Str *out, const StackFrame *frames, size count, SymbolResolver *resolver);
+#    define FormatStackTraceWith(...)                       MISRA_OVERLOAD(FormatStackTraceWith, __VA_ARGS__)
+#    define FormatStackTraceWith_4(out, frames, count, res) format_stack_trace_with_raw((out), (frames), (count), (res))
+#    define FormatStackTraceWith_3(out, frames, res)        format_stack_trace_with_vec((out), (frames), (res))
 #endif
 
 #endif // MISRA_SYS_BACKTRACE_H

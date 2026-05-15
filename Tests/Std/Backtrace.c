@@ -43,6 +43,40 @@ bool test_backtrace_format_resolves_helper(void) {
     return ok;
 }
 
+// Vec-form versions of the capture helpers; same call shape as the
+// raw helpers above, just routed through the StackFrames overload.
+static __attribute__((noinline)) bool bt_vec_capture_with_helper(StackFrames *out) {
+    return CaptureStackTrace(out, 0);
+}
+
+static __attribute__((noinline)) bool bt_vec_capture_outer(StackFrames *out) {
+    return bt_vec_capture_with_helper(out);
+}
+
+// Vec-form capture + format end to end: same nested-helper shape as
+// the raw test, so the rendered output should contain
+// bt_vec_capture_with_helper + bt_vec_capture_outer.
+bool test_backtrace_vec_form_resolves_helper(void) {
+    DefaultAllocator alloc      = DefaultAllocatorInit();
+    Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
+
+    StackFrames frames = VecInitT(frames, alloc_base);
+    bool        ok     = bt_vec_capture_outer(&frames);
+    ok                 = ok && frames.length >= 2;
+
+    Str rendered = StrInit(alloc_base);
+    FormatStackTrace(&rendered, &frames, alloc_base);
+
+    ok = ok && rendered.length > 0;
+    ok = ok && ZstrFindSubstring(rendered.data, "bt_vec_capture_with_helper") != NULL;
+    ok = ok && ZstrFindSubstring(rendered.data, "bt_vec_capture_outer") != NULL;
+
+    StrDeinit(&rendered);
+    VecDeinit(&frames);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 bool test_backtrace_format_with_shared_resolver(void) {
     DefaultAllocator alloc      = DefaultAllocatorInit();
     Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
@@ -177,6 +211,7 @@ int main(void) {
     TestFunction tests[] = {
         test_backtrace_capture_non_empty,
         test_backtrace_format_resolves_helper,
+        test_backtrace_vec_form_resolves_helper,
         test_backtrace_format_with_shared_resolver,
 #if MISRA_HAVE_PARSER_DWARF && defined(__x86_64__)
         test_backtrace_cfi_walks_multi_frame,

@@ -2,16 +2,22 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Dual-platform stack-trace capture + formatter.
+/// Stack-trace capture + formatter, three platform backends, each
+/// offering raw and Vec shapes via the PascalCase macros in
+/// Backtrace.h.
 ///
-/// Linux path: pure-Misra. Walks `__builtin_frame_address(0)` for
-/// capture; routes each IP through `Sys/SymbolResolver` (`/proc/self/maps`
-/// + our ELF + DWARF parsers) for formatting. No libc backtrace, no
-/// dladdr.
-///
-/// Windows path: wraps `CaptureStackBackTrace` and dbghelp's
-/// `SymFromAddr` / `SymGetLineFromAddr64`. The in-tree PE+PDB
-/// equivalents are deferred (FUTURE-PLANS).
+/// Shape design:
+///   - Capture walks emit each frame through a sink callback. The
+///     walker itself never allocates; only the sink decides what to do
+///     with each frame. Raw form's sink writes into a fixed buffer;
+///     Vec form's sink pushes into a `StackFrames` and reports OOM
+///     back through the sink's return value.
+///   - The FP-based walkers (Linux + macOS) are `always_inline`
+///     helpers so `__builtin_frame_address(0)` evaluates relative to
+///     the public function it's inlined into, not the helper itself.
+///   - Format walks are straight loops over `(frames, count)`; the
+///     raw form takes those directly, the Vec form unpacks `.data` /
+///     `.length` and forwards.
 
 #include <Misra/Sys/Backtrace.h>
 
@@ -21,7 +27,42 @@
 #include <stdint.h>
 
 // ---------------------------------------------------------------------------
-// Helpers used by both backends
+// Sink callback shared across all backends.
+// ---------------------------------------------------------------------------
+
+typedef bool (*StackFrameSinkFn)(void *user, void *ip);
+
+typedef struct RawSinkCtx {
+    StackFrame *out;
+    size        max;
+    size        n;
+} RawSinkCtx;
+
+typedef struct VecSinkCtx {
+    StackFrames *vec;
+    bool         oom;
+} VecSinkCtx;
+
+static bool raw_sink(void *user, void *ip) {
+    RawSinkCtx *s = (RawSinkCtx *)user;
+    if (s->n >= s->max)
+        return false;
+    s->out[s->n++].ip = ip;
+    return true;
+}
+
+static bool vec_sink(void *user, void *ip) {
+    VecSinkCtx *s = (VecSinkCtx *)user;
+    StackFrame  f = {.ip = ip};
+    if (!VecPushBackR(s->vec, f)) {
+        s->oom = true;
+        return false;
+    }
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers used by formatters
 // ---------------------------------------------------------------------------
 
 static const char *basename_of(const char *path) {
@@ -44,13 +85,8 @@ static const char *basename_of(const char *path) {
 #    include <windows.h>
 #    include <dbghelp.h>
 #    if MISRA_HAVE_PARSER_PDB
-#        include <Misra/Std/Allocator/Default.h>
 #        include <Misra/Sys/PdbCache.h>
 #    endif
-
-// dbghelp.lib must be on the link line; meson.build adds it. We use
-// dbghelp as a fallback when the in-tree PE+PDB chain can't satisfy a
-// resolve (PDB missing from disk, GUID mismatch, etc.).
 
 static bool g_dbghelp_initialized = false;
 
@@ -58,14 +94,13 @@ static void ensure_dbghelp(void) {
     if (g_dbghelp_initialized)
         return;
     SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME);
-    if (SymInitialize(GetCurrentProcess(), NULL, TRUE)) {
+    if (SymInitialize(GetCurrentProcess(), NULL, TRUE))
         g_dbghelp_initialized = true;
-    }
 }
 
 #    if MISRA_HAVE_PARSER_PDB
-// Given a runtime IP, find the loaded module's HMODULE and a usable
-// path-on-disk for it. Both come straight from the Windows loader.
+// Find the loaded module for `ip` via the Windows loader. No
+// allocation inside.
 static bool win_module_for_ip(void *ip, char *out_path, size out_path_size, u64 *out_base) {
     HMODULE mod = NULL;
     if (!GetModuleHandleExA(
@@ -83,38 +118,49 @@ static bool win_module_for_ip(void *ip, char *out_path, size out_path_size, u64 
 }
 #    endif
 
-size CaptureStackTrace(StackFrame *out, size max_frames, size skip_frames) {
-    if (!out || max_frames == 0)
-        return 0;
-
+// Sink-driven capture wrapper around CaptureStackBackTrace. The
+// kernel32 call gives us a raw array of IPs; we hand each off to the
+// sink, stopping early if it returns false.
+static size win_capture_walk(size skip_frames, StackFrameSinkFn sink, void *user) {
     enum {
         SCRATCH_MAX = 256
     };
     void *raw[SCRATCH_MAX];
-    ULONG cap = (ULONG)max_frames;
-    if (cap > SCRATCH_MAX)
-        cap = SCRATCH_MAX;
-    // The +1 accounts for this function's own frame.
-    ULONG n = CaptureStackBackTrace((DWORD)(skip_frames + 1), cap, raw, NULL);
+    // Add 1 to skip win_capture_walk's own frame.
+    ULONG n       = CaptureStackBackTrace((DWORD)(skip_frames + 1), SCRATCH_MAX, raw, NULL);
+    size  emitted = 0;
     for (ULONG i = 0; i < n; ++i) {
-        out[i].ip = raw[i];
+        if (!sink(user, raw[i]))
+            break;
+        ++emitted;
     }
-    return (size)n;
+    return emitted;
 }
 
-void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator *alloc) {
-    if (!out || !frames)
-        return;
+size capture_stack_trace_raw(StackFrame *out, size max_frames, size skip_frames) {
+    if (!out || max_frames == 0)
+        return 0;
+    RawSinkCtx s = {out, max_frames, 0};
+    win_capture_walk(skip_frames + 1, raw_sink, &s);
+    return s.n;
+}
+
+bool capture_stack_trace_vec(StackFrames *out, size skip_frames) {
+    if (!out || !out->allocator)
+        return false;
+    VecSinkCtx s = {out, false};
+    win_capture_walk(skip_frames + 1, vec_sink, &s);
+    return !s.oom;
+}
+
+// Shared formatter body (raw view: pointer + length).
+static void format_walk_win(Str *out, const StackFrame *frames, size count, Allocator *alloc) {
     ensure_dbghelp();
     HANDLE proc = GetCurrentProcess();
 
     enum {
         MAX_NAME = 512
     };
-    // SYMBOL_INFO contains ULONG64 fields, so its backing storage
-    // needs 8-byte alignment. A plain `char[]` on the stack is not
-    // guaranteed that — the resulting misaligned access trips a
-    // Windows 0xC0000005. Back it with a ULONG64 array instead.
     ULONG64      sym_buf[(sizeof(SYMBOL_INFO) + MAX_NAME + sizeof(ULONG64) - 1) / sizeof(ULONG64)];
     SYMBOL_INFO *sym = (SYMBOL_INFO *)sym_buf;
     MemSet(sym, 0, sizeof(*sym));
@@ -139,10 +185,6 @@ void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator 
         u32         sym_off  = 0;
 
 #    if MISRA_HAVE_PARSER_PDB
-        // First-class path: locate the PE on disk via the Windows
-        // loader, then route through the in-tree PE+PDB chain. If any
-        // step fails we cascade to dbghelp below -- never silently
-        // drop a frame.
         if (pdb_cache_ok) {
             char module_path[MAX_PATH];
             u64  module_base = 0;
@@ -157,9 +199,6 @@ void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator 
         if (!named && g_dbghelp_initialized) {
             DWORD64 d_off = 0;
             if (SymFromAddr(proc, ip, &d_off, sym)) {
-                // Cast the trailing flexible-array `CHAR Name[1]` to a
-                // proper `const char *` so our `_Generic`-based IOFMT
-                // picks the Zstr case instead of a fallback single-char.
                 sym_name = (const char *)sym->Name;
                 sym_off  = (u32)d_off;
                 named    = true;
@@ -186,17 +225,23 @@ void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator 
 #    endif
 }
 
-#elif defined(__APPLE__)
+void format_stack_trace_raw(Str *out, const StackFrame *frames, size count, Allocator *alloc) {
+    if (!out || !frames)
+        return;
+    format_walk_win(out, frames, count, alloc);
+}
+
+void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *alloc) {
+    if (!out || !frames)
+        return;
+    format_walk_win(out, frames->data, frames->length, alloc);
+}
 
 // ---------------------------------------------------------------------------
 // macOS / Darwin backend
 // ---------------------------------------------------------------------------
-//
-// Capture path: same saved-FP walk as the Linux backend below
-// (frame pointers are the norm on x86_64 / arm64 Darwin builds).
-// Format path: per-IP we ask dyld for the loaded image's path + slide
-// and route through the in-tree MachoCache, which handles the binary
-// + dSYM + DWARF chain.
+
+#elif defined(__APPLE__)
 
 #    include <mach-o/dyld.h>
 #    include <mach-o/loader.h>
@@ -209,13 +254,12 @@ enum {
     BACKTRACE_MAX_WALK = 256,
 };
 
-size CaptureStackTrace(StackFrame *out, size max_frames, size skip_frames) {
-    if (!out || max_frames == 0)
-        return 0;
+// always_inline so __builtin_frame_address(0) resolves to the wrapping
+// public function's frame pointer rather than this helper's.
+static __attribute__((always_inline)) inline size fp_walk(size skip_frames, StackFrameSinkFn sink, void *user) {
     void **fp = (void **)__builtin_frame_address(0);
     if (!fp)
         return 0;
-
     size   captured = 0;
     size   depth    = 0;
     void **prev_fp  = NULL;
@@ -229,24 +273,34 @@ size CaptureStackTrace(StackFrame *out, size max_frames, size skip_frames) {
         if (!ret_addr)
             break;
         if (depth >= skip_frames) {
-            if (captured >= max_frames)
+            if (!sink(user, ret_addr))
                 break;
-            out[captured].ip  = ret_addr;
-            captured         += 1;
+            ++captured;
         }
-        prev_fp  = fp;
-        fp       = (void **)saved_fp;
-        depth   += 1;
+        prev_fp = fp;
+        fp      = (void **)saved_fp;
+        ++depth;
     }
     return captured;
 }
 
+size capture_stack_trace_raw(StackFrame *out, size max_frames, size skip_frames) {
+    if (!out || max_frames == 0)
+        return 0;
+    RawSinkCtx s = {out, max_frames, 0};
+    fp_walk(skip_frames, raw_sink, &s);
+    return s.n;
+}
+
+bool capture_stack_trace_vec(StackFrames *out, size skip_frames) {
+    if (!out || !out->allocator)
+        return false;
+    VecSinkCtx s = {out, false};
+    fp_walk(skip_frames, vec_sink, &s);
+    return !s.oom;
+}
+
 #    if MISRA_HAVE_PARSER_MACHO
-// Find the loaded image whose runtime address range contains `ip`.
-// Returns the image's path + slide (offset added by dyld to its
-// on-disk vmaddrs). Walks `_dyld_image_count` images; for each, walks
-// the mach-header load commands looking for an LC_SEGMENT_64 whose
-// slid range covers `ip`.
 static bool dyld_image_for_ip(void *ip, const char **out_path, u64 *out_slide) {
     uintptr_t ipx = (uintptr_t)ip;
     uint32_t  n   = _dyld_image_count();
@@ -275,13 +329,12 @@ static bool dyld_image_for_ip(void *ip, const char **out_path, u64 *out_slide) {
 }
 #    endif
 
-void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator *alloc) {
-    if (!out || !frames || !alloc)
-        return;
-
+static void format_walk_mac(Str *out, const StackFrame *frames, size count, Allocator *alloc) {
 #    if MISRA_HAVE_PARSER_MACHO
     MachoCache cache;
-    bool       cache_ok = MachoCacheInit(&cache, alloc);
+    bool       cache_ok = alloc && MachoCacheInit(&cache, alloc);
+#    else
+    (void)alloc;
 #    endif
 
     for (size i = 0; i < count; ++i) {
@@ -317,59 +370,72 @@ void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator 
 #    endif
 }
 
-#elif defined(__GNUC__) || defined(__clang__)
+void format_stack_trace_raw(Str *out, const StackFrame *frames, size count, Allocator *alloc) {
+    if (!out || !frames || !alloc)
+        return;
+    format_walk_mac(out, frames, count, alloc);
+}
+
+void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *alloc) {
+    if (!out || !frames || !alloc)
+        return;
+    format_walk_mac(out, frames->data, frames->length, alloc);
+}
 
 // ---------------------------------------------------------------------------
 // Linux / GCC + Clang backend
 // ---------------------------------------------------------------------------
 
+#elif defined(__GNUC__) || defined(__clang__)
+
 enum {
-    BACKTRACE_MAX_WALK = 256, // hard cap on walk depth to guard against loops
+    BACKTRACE_MAX_WALK = 256,
 };
 
-size CaptureStackTrace(StackFrame *out, size max_frames, size skip_frames) {
-    if (!out || max_frames == 0) {
-        return 0;
-    }
-
+// always_inline so __builtin_frame_address(0) inside this helper
+// resolves to the public function's frame pointer after inlining.
+static __attribute__((always_inline)) inline size fp_walk(size skip_frames, StackFrameSinkFn sink, void *user) {
     void **fp = (void **)__builtin_frame_address(0);
-    if (!fp) {
+    if (!fp)
         return 0;
-    }
-
     size   captured = 0;
     size   depth    = 0;
     void **prev_fp  = NULL;
     while (fp && depth < BACKTRACE_MAX_WALK) {
-        // Sanity: fp must be 8-byte aligned and strictly above the
-        // previous fp (stack grows downward).
         if ((uintptr_t)fp & 0x7u)
             break;
         if (prev_fp && (uintptr_t)fp <= (uintptr_t)prev_fp)
             break;
-
         void *saved_fp = fp[0];
         void *ret_addr = fp[1];
-        if (!ret_addr) {
+        if (!ret_addr)
             break;
-        }
-
-        // `fp[1]` is the return address into our *caller*, so depth 0
-        // already represents the caller (not us). Skip only what the
-        // caller asked for.
         if (depth >= skip_frames) {
-            if (captured >= max_frames)
+            if (!sink(user, ret_addr))
                 break;
-            out[captured].ip  = ret_addr;
-            captured         += 1;
+            ++captured;
         }
-
-        prev_fp  = fp;
-        fp       = (void **)saved_fp;
-        depth   += 1;
+        prev_fp = fp;
+        fp      = (void **)saved_fp;
+        ++depth;
     }
-
     return captured;
+}
+
+size capture_stack_trace_raw(StackFrame *out, size max_frames, size skip_frames) {
+    if (!out || max_frames == 0)
+        return 0;
+    RawSinkCtx s = {out, max_frames, 0};
+    fp_walk(skip_frames, raw_sink, &s);
+    return s.n;
+}
+
+bool capture_stack_trace_vec(StackFrames *out, size skip_frames) {
+    if (!out || !out->allocator)
+        return false;
+    VecSinkCtx s = {out, false};
+    fp_walk(skip_frames, vec_sink, &s);
+    return !s.oom;
 }
 
 static void emit_resolved_line(Str *out, u32 idx, const ResolvedSymbol *r, void *ip) {
@@ -382,7 +448,6 @@ static void emit_resolved_line(Str *out, u32 idx, const ResolvedSymbol *r, void 
     } else {
         StrWriteFmt(out, "  #{} {x}", idx, (u64)(uintptr_t)ip);
     }
-
     if (r->source_file) {
         const char *file = basename_of(r->source_file);
         if (r->source_line > 0) {
@@ -394,9 +459,7 @@ static void emit_resolved_line(Str *out, u32 idx, const ResolvedSymbol *r, void 
     StrPushBack(out, '\n');
 }
 
-void FormatStackTraceWith(Str *out, const StackFrame *frames, size count, SymbolResolver *resolver) {
-    if (!out || !frames || !resolver)
-        return;
+static void format_walk_with(Str *out, const StackFrame *frames, size count, SymbolResolver *resolver) {
     for (size i = 0; i < count; ++i) {
         ResolvedSymbol r;
         if (SymbolResolverResolve(resolver, frames[i].ip, &r)) {
@@ -407,19 +470,40 @@ void FormatStackTraceWith(Str *out, const StackFrame *frames, size count, Symbol
     }
 }
 
-void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator *alloc) {
-    if (!out || !frames || !alloc)
-        return;
+static void format_walk_alloc(Str *out, const StackFrame *frames, size count, Allocator *alloc) {
     SymbolResolver res;
     if (!SymbolResolverInit(&res, alloc)) {
-        // Fall back to plain IP dump.
         for (size i = 0; i < count; ++i) {
             StrWriteFmt(out, "  #{} {x}\n", (u32)i, (u64)(uintptr_t)frames[i].ip);
         }
         return;
     }
-    FormatStackTraceWith(out, frames, count, &res);
+    format_walk_with(out, frames, count, &res);
     SymbolResolverDeinit(&res);
+}
+
+void format_stack_trace_with_raw(Str *out, const StackFrame *frames, size count, SymbolResolver *resolver) {
+    if (!out || !frames || !resolver)
+        return;
+    format_walk_with(out, frames, count, resolver);
+}
+
+void format_stack_trace_with_vec(Str *out, const StackFrames *frames, SymbolResolver *resolver) {
+    if (!out || !frames || !resolver)
+        return;
+    format_walk_with(out, frames->data, frames->length, resolver);
+}
+
+void format_stack_trace_raw(Str *out, const StackFrame *frames, size count, Allocator *alloc) {
+    if (!out || !frames || !alloc)
+        return;
+    format_walk_alloc(out, frames, count, alloc);
+}
+
+void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *alloc) {
+    if (!out || !frames || !alloc)
+        return;
+    format_walk_alloc(out, frames->data, frames->length, alloc);
 }
 
 // ---------------------------------------------------------------------------
@@ -437,10 +521,6 @@ enum {
     DWARF_REG_RSP = 7,
 };
 
-// Read u64 from a runtime address. Returns false if `addr` looks
-// bogus (we can't probe page-mappings inline; this stays a NULL +
-// alignment check). A wild address can still crash; see FUTURE-PLANS
-// for a sigsetjmp-guarded read.
 static bool read_u64_at(u64 addr, u64 *out) {
     if (addr == 0)
         return false;
@@ -462,15 +542,12 @@ static bool apply_cfa(const DwarfCfaRule *cfa, u64 rsp, u64 rbp, u64 *out_cfa) {
             base = rbp;
             break;
         default :
-            return false; // other CFA bases not tracked in v1
+            return false;
     }
     *out_cfa = base + (u64)cfa->offset;
     return true;
 }
 
-// Apply a single register's rule to find its previous-frame value.
-// `cfa` is the already-computed CFA. `cur_reg_value` is the register's
-// value in the current frame (for SAME_VALUE and as a fallback).
 static bool apply_reg_rule(const DwarfRegRule *r, u64 cfa, u64 cur_reg_value, u64 *out) {
     switch (r->kind) {
         case DWARF_REG_RULE_OFFSET :
@@ -482,23 +559,19 @@ static bool apply_reg_rule(const DwarfRegRule *r, u64 cfa, u64 cur_reg_value, u6
             *out = cur_reg_value;
             return true;
         case DWARF_REG_RULE_UNDEFINED :
-        case DWARF_REG_RULE_REGISTER :   // would need to track all regs to honour this
-        case DWARF_REG_RULE_EXPRESSION : // expression evaluator deferred
+        case DWARF_REG_RULE_REGISTER :
+        case DWARF_REG_RULE_EXPRESSION :
         default :
             return false;
     }
 }
 
-size CaptureStackTraceCfi(StackFrame *out, size max_frames, size skip_frames, SymbolResolver *resolver) {
-    if (!out || max_frames == 0 || !resolver)
-        return 0;
-
-    // Snapshot RSP / RBP at the very top of this function. RIP is
-    // the return-into-caller address obtained via the compiler
-    // intrinsic. RSP at our entry points just past the return-address
-    // slot the CALL pushed; the caller's CFA is therefore (our RSP) +
-    // 8 — i.e. their original SP before the CALL adjusted nothing
-    // else.
+// CFI walk wrapped to use the same sink pattern as fp_walk. Inlined
+// for the same reason: the inline-asm RSP/RBP reads + the
+// __builtin_return_address(0) call need to evaluate in the wrapping
+// public function's frame.
+static __attribute__((always_inline)) inline size
+    cfi_walk(size skip_frames, SymbolResolver *resolver, StackFrameSinkFn sink, void *user) {
     u64 rsp, rbp;
     __asm__ volatile("movq %%rsp, %0"
                      : "=r"(rsp));
@@ -518,18 +591,17 @@ size CaptureStackTraceCfi(StackFrame *out, size max_frames, size skip_frames, Sy
             break;
 
         if (emitted >= skip_frames) {
-            if (captured >= max_frames)
+            if (!sink(user, (void *)(uintptr_t)rip))
                 break;
-            out[captured++].ip = (void *)(uintptr_t)rip;
+            ++captured;
         }
         ++emitted;
 
         const DwarfCfi *cfi         = NULL;
         const DwarfFde *fde         = NULL;
         u64             module_base = 0;
-        if (!SymbolResolverFindFde(resolver, (void *)(uintptr_t)rip, &cfi, &fde, &module_base)) {
+        if (!SymbolResolverFindFde(resolver, (void *)(uintptr_t)rip, &cfi, &fde, &module_base))
             break;
-        }
         u64 file_relative = rip - module_base;
 
         DwarfUnwindRow row;
@@ -540,42 +612,59 @@ size CaptureStackTraceCfi(StackFrame *out, size max_frames, size skip_frames, Sy
         if (!apply_cfa(&row.cfa, rsp, rbp, &cfa))
             break;
 
-        // Saved RIP at the return-address-register's offset off CFA.
         u64                 saved_rip = 0;
         const DwarfRegRule *ra_rule   = &row.regs[row.return_address_register];
         if (!apply_reg_rule(ra_rule, cfa, rip, &saved_rip))
             break;
 
-        // Saved RBP may or may not be tracked; we only need it if a
-        // later frame's CFA is RBP-based. Update opportunistically.
         u64                 saved_rbp = rbp;
         const DwarfRegRule *rbp_rule  = &row.regs[DWARF_REG_RBP];
         if (rbp_rule->kind == DWARF_REG_RULE_OFFSET) {
             (void)read_u64_at(cfa + (u64)rbp_rule->offset, &saved_rbp);
         }
 
-        // Advance: the previous frame's SP is the CFA we just used.
         rip = saved_rip;
         rsp = cfa;
         rbp = saved_rbp;
     }
-
     return captured;
 }
 
+size capture_stack_trace_cfi_raw(StackFrame *out, size max_frames, size skip_frames, SymbolResolver *resolver) {
+    if (!out || max_frames == 0 || !resolver)
+        return 0;
+    RawSinkCtx s = {out, max_frames, 0};
+    cfi_walk(skip_frames, resolver, raw_sink, &s);
+    return s.n;
+}
+
+bool capture_stack_trace_cfi_vec(StackFrames *out, size skip_frames, SymbolResolver *resolver) {
+    if (!out || !out->allocator || !resolver)
+        return false;
+    VecSinkCtx s = {out, false};
+    cfi_walk(skip_frames, resolver, vec_sink, &s);
+    return !s.oom;
+}
+
 #    elif MISRA_HAVE_SYS_SYMRESOLVE && MISRA_HAVE_PARSER_DWARF
-size CaptureStackTraceCfi(StackFrame *out, size max_frames, size skip_frames, SymbolResolver *resolver) {
-    // CFI walker not yet implemented for this architecture (only x86-64
-    // in v1). aarch64 follows a very similar pattern and is in
-    // FUTURE-PLANS.
+// CFI walker not yet implemented for this architecture (only x86-64
+// in v1). aarch64 follows a very similar pattern and is in
+// FUTURE-PLANS.
+size capture_stack_trace_cfi_raw(StackFrame *out, size max_frames, size skip_frames, SymbolResolver *resolver) {
     (void)out;
     (void)max_frames;
     (void)skip_frames;
     (void)resolver;
     return 0;
 }
+bool capture_stack_trace_cfi_vec(StackFrames *out, size skip_frames, SymbolResolver *resolver) {
+    (void)out;
+    (void)skip_frames;
+    (void)resolver;
+    return false;
+}
 #    endif
 
 #else
-#    error "Sys/Backtrace requires Windows or GCC/Clang frame-pointer builtins"
+#    error "Sys/Backtrace requires Windows, macOS, or GCC/Clang frame-pointer builtins"
 #endif
