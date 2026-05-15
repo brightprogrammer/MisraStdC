@@ -189,6 +189,82 @@ bool test_macho_rejects_fat_binary(void) {
     return ok;
 }
 
+#if defined(__APPLE__)
+
+// Forward-declare instead of `#include <mach-o/dyld.h>` to keep
+// Misra's `bool = i8` invariant intact (system stdbool.h would
+// otherwise `#define bool _Bool`).
+extern int _NSGetExecutablePath(char *buf, unsigned int *bufsize);
+
+// Open the currently running test binary as a Mach-O and verify its
+// structure -- the Darwin counterpart of the Linux `Elf` test, which
+// opens /proc/self/exe and round-trips through Parsers/Elf. Sanity
+// checks: MH_MAGIC_64 (executable filetype), at least one segment,
+// `__TEXT,__text` section present, LC_UUID present, LC_SYMTAB
+// non-empty (debug builds aren't stripped).
+bool test_macho_parses_running_binary(void) {
+    char         path[4096];
+    unsigned int pathsize = sizeof(path);
+    if (_NSGetExecutablePath(path, &pathsize) != 0)
+        return false;
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    MachoFile m;
+    if (!MachoFileOpen(&m, path, base)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    bool ok = m.filetype == MACHO_FILE_TYPE_EXECUTE;
+    ok      = ok && m.has_uuid;
+    ok      = ok && m.segments.length > 0;
+    ok      = ok && MachoFileFindSection(&m, "__TEXT", "__text") != NULL;
+    ok      = ok && m.symbols.length > 0;
+
+    MachoFileDeinit(&m);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// Resolve a known function (this test function itself) by its runtime
+// address. Validates that:
+//   (a) the symbol table contains exported globals,
+//   (b) `MachoFileResolveAddress` returns the correct entry after we
+//       de-slide the runtime IP.
+extern intptr_t _dyld_get_image_vmaddr_slide(uint32_t image_index);
+
+bool test_macho_resolves_running_binary_symbol(void) {
+    char         path[4096];
+    unsigned int pathsize = sizeof(path);
+    if (_NSGetExecutablePath(path, &pathsize) != 0)
+        return false;
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    MachoFile m;
+    if (!MachoFileOpen(&m, path, base)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    u64 slide        = (u64)_dyld_get_image_vmaddr_slide(0);
+    u64 runtime_addr = (u64)(uintptr_t)&test_macho_resolves_running_binary_symbol;
+    u64 vaddr        = runtime_addr - slide;
+
+    const MachoSymbol *sym = MachoFileResolveAddress(&m, vaddr);
+    bool               ok  = sym != NULL && sym->name != NULL &&
+              ZstrFindSubstring(sym->name, "test_macho_resolves_running_binary_symbol") != NULL;
+
+    MachoFileDeinit(&m);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+#endif // __APPLE__
+
 int main(void) {
     WriteFmt("[INFO] Starting MachO tests\n\n");
 
@@ -196,6 +272,10 @@ int main(void) {
         test_macho_parses_synthetic_blob,
         test_macho_resolves_address,
         test_macho_rejects_fat_binary,
+#if defined(__APPLE__)
+        test_macho_parses_running_binary,
+        test_macho_resolves_running_binary_symbol,
+#endif
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "MachO");
