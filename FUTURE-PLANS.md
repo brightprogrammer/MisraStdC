@@ -3,8 +3,6 @@
 Parking lot for items we've identified during real implementation work but deferred to avoid going down rabbit holes. One line per item — if it grows past a line, it deserves its own doc or a real ticket. Append, don't refactor.
 
 ## Allocators
-- DebugAllocator: wire `PageProtect(PROT_NONE)` UAF mode behind a `force_page_backing` config; routes through `PageAllocator` instead of the user-supplied parent.
-- DebugAllocator: optional mutex field for thread safety (single-threaded only today).
 - Allocator vtable: per-call alignment parameter on `AllocatorAlloc` / `AllocatorRealloc` (currently fixed at allocator init).
 - Allocator vtable: split `resize` (in-place, returns bool) vs `remap` (may move, returns ptr-or-NULL); keep `reallocate` as the convenience that cascades.
 - `StackFallbackAllocator`: composition wrapper that tries a fixed stack buffer first then falls back to a parent allocator.
@@ -70,3 +68,10 @@ Items below have landed; kept here as a history of what each branch closed out.
 - `Std/Allocator/Debug`: backtrace + symbol resolution now goes through the in-tree chain end-to-end; no libc `backtrace()` or `dladdr` dependency. Static functions resolve through `.symtab` or `.debug_info`.
 - `Parsers/MachO`: `N_STAB` filter fix -- per the Mach-O spec any high bit of `n_type` (mask `0xE0`) flags an entry as a debug stab; the original check required all three bits set so common stab types (`N_SO`, `N_FUN`, `N_OSO`, `N_BNSYM`) were polluting symbol lookups. Caught when explicit Backtrace tests ran on the macOS host.
 - `Tests/Std/MachO`: Darwin-only round-trip against the running test binary via `_NSGetExecutablePath` + `MachoFileOpen` + `MachoFileResolveAddress`; structural parallel of the Linux `Tests/Std/Elf` `/proc/self/exe` smoke tests.
+
+### debug-allocator (May 2026)
+- `Std/Allocator/Debug`: init-by-value refactor -- struct literal you assign to a stack variable, no Create/Destroy, no globals. Each instance owns inline `heap` / `meta` / `page` allocators; the live-map's allocator pointer is lazily rebound on first use against the now-stable `self`. Thread affinity enforced via TLS-marker-address creator-TID check (no mutex, no globals).
+- `Std/Allocator/Debug`: `force_page_backing` config (UAF detection mode) -- routes every alloc through the internal `PageAllocator`, `PageProtect(PROT_NONE)`'s the region on free so any dangling-pointer dereference traps with SIGSEGV at the bug site. Reserved for tests / fuzz harnesses (freed pages are never reclaimed).
+- `Std/Allocator/Default`: `default_alloc_debug` meson option aliases `DefaultAllocator` to `DebugAllocator` (per-instance, no globals); drop-in ASan/MSan-style leak + double-free + canary-overflow tracking with no call-site changes. Pairs with `default_alloc_debug_page_backed` to also flip on the UAF mode.
+- `Sys/Backtrace`: forward-declares `SymbolResolver` so transitively pulling `Parsers/Elf.h` into every TU stops happening; needed once `Default.h` started pulling `Debug.h` through `default_alloc_debug=true`.
+- `Std/Container/Map`: probe-budget exhaustion now forces capacity growth instead of rehashing at the same size. Linear / quadratic probing limited to `max_probe_count=128` could otherwise loop forever when a hash cluster exceeded the budget (rehash at same size -> same first_index -> same cluster). Surfaced under DebugAllocator churn; regression test added.
