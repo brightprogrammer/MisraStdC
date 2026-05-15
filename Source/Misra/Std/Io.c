@@ -46,10 +46,30 @@
 #endif
 
 // stdc
-#include <ctype.h>
 #include <math.h>
 #include <stdio.h>
 
+
+// Tiny in-tree hex helpers so Io doesn't need libc isxdigit/strtol.
+// Returns -1 on a non-hex digit, otherwise 0..15.
+static inline int hex_nibble(char c) {
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    if (c >= 'a' && c <= 'f')
+        return 10 + (c - 'a');
+    if (c >= 'A' && c <= 'F')
+        return 10 + (c - 'A');
+    return -1;
+}
+
+// Parses two hex chars into a byte; returns -1 if either is not hex.
+static inline int hex_byte(char hi, char lo) {
+    int h = hex_nibble(hi);
+    int l = hex_nibble(lo);
+    if (h < 0 || l < 0)
+        return -1;
+    return (h << 4) | l;
+}
 
 static bool _write_r8(Str *o, FmtInfo *fmt_info, u8 *v);
 static bool _write_r16(Str *o, FmtInfo *fmt_info, u16 *v);
@@ -1203,22 +1223,12 @@ static inline const char *read_chars_internal(const char *i, u8 *buffer, size bu
 
         if (current[0] == '\\' && current[1] == 'x') {
             // Handle hex escape sequence \xNN
-            if (isxdigit(current[2]) && isxdigit(current[3])) {
-                // Parse two hex digits
-                char  hex_str[3] = {current[2], current[3], '\0'};
-                char *endptr;
-                long  hex_val = strtol(hex_str, &endptr, 16);
-
-                if (endptr == hex_str + 2) { // Successfully parsed 2 hex digits
-                    char_to_store  = (u8)hex_val;
-                    current       += 4;      // Skip \xNN
-                } else {
-                    // Invalid hex sequence, treat as regular character
-                    char_to_store = (u8)*current;
-                    current++;
-                }
+            int hex_val = hex_byte(current[2], current[3]);
+            if (hex_val >= 0) {
+                char_to_store  = (u8)hex_val;
+                current       += 4; // Skip \xNN
             } else {
-                // Not a valid hex sequence, treat as regular character
+                // Invalid hex sequence, treat as regular character
                 char_to_store = (u8)*current;
                 current++;
             }
@@ -1834,12 +1844,12 @@ static char ProcessEscape(const char **str) {
             break;
         case 'x' : { // Hex escape
             s++;
-            if (!isxdigit(s[0]) || !isxdigit(s[1])) {
+            int hex_val = hex_byte(s[0], s[1]);
+            if (hex_val < 0) {
                 LOG_ERROR("Invalid hex escape sequence");
                 return 0;
             }
-            char hex[3] = {s[0], s[1], '\0'};
-            result      = (char)strtol(hex, NULL, 16);
+            result = (char)hex_val;
             s++; // Point to second hex digit
             break;
         }
@@ -3353,7 +3363,7 @@ const char *_read_Float(const char *i, FmtInfo *fmt_info, Float *value) {
     StrDeinit(&temp);
     return start + token_len;
 }
-#endif // MISRA_HAVE_FLOAT
+#endif              // MISRA_HAVE_FLOAT
 
 const char *_read_UnsupportedType(const char *i, FmtInfo *fmt_info, const char **s) {
     (void)fmt_info; // Unused parameter
