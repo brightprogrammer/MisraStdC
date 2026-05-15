@@ -51,6 +51,10 @@ backtrace_tests = [
     ['Backtrace', 'Std/Backtrace.c'],
 ]
 
+page_protect_tests = [
+    ['PageProtect', 'Std/PageProtect.c'],
+]
+
 str_tests = [
     ['Str.Type', 'Std/Str.Type.c'],
     ['Str.Init', 'Std/Str.Init.c'],
@@ -362,6 +366,23 @@ if opt_sys_backtrace
         test(test_name, test_exe)
     endforeach
 endif
+
+foreach test_info : page_protect_tests
+    test_name = test_info[0]
+    test_src = test_info[1]
+
+    test_exe = executable(
+        test_name,
+        files(test_src),
+        link_with: [misra_std],
+        dependencies: [test_util_dep],
+        c_args: test_args,
+        include_directories: inc_misra,
+        install: false
+    )
+
+    test(test_name, test_exe)
+endforeach
 
 foreach test_info : str_tests
     test_name = test_info[0]

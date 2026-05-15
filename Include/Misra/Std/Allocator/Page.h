@@ -48,6 +48,48 @@ extern "C" {
     void  page_allocator_deallocate(Allocator *self, void *ptr, size bytes);
 
     ///
+    /// Page-level memory protection bits. The actual OS permissions are
+    /// platform-mapped: POSIX uses `mprotect` with `PROT_*` combinations;
+    /// Windows uses `VirtualProtect` with `PAGE_*`.
+    ///
+    /// FIELDS:
+    /// - PAGE_PROT_NONE       : Reads, writes, and executes all trap.
+    ///                          Use for guard pages or to make a freed
+    ///                          region trap on any dangling-pointer access.
+    /// - PAGE_PROT_READ       : Reads allowed, writes/executes trap.
+    ///                          Use for after-init read-only tables.
+    /// - PAGE_PROT_READ_WRITE : Reads and writes allowed. The default
+    ///                          state for freshly-allocated memory.
+    ///
+    /// TAGS: Allocator, Page, Memory-Protection
+    ///
+    typedef enum PageProtection {
+        PAGE_PROT_NONE       = 0,
+        PAGE_PROT_READ       = 1,
+        PAGE_PROT_READ_WRITE = 2,
+    } PageProtection;
+
+    ///
+    /// Change the protection of a range of pages. `ptr` and `bytes` must
+    /// be page-aligned and page-sized respectively; the typical pattern
+    /// is to apply this to a region returned by
+    /// `page_allocator_allocate` (which is always page-grain).
+    ///
+    /// ptr[in,out] : First byte of the region; must be page-aligned.
+    /// bytes[in]   : Region size; must be a multiple of the OS page size.
+    /// prot[in]    : New protection bits.
+    ///
+    /// SUCCESS : Returns true. The new protection is in effect for the
+    ///           entire `[ptr, ptr+bytes)` range.
+    /// FAILURE : Returns false and logs the failing syscall (`mprotect`
+    ///           / `VirtualProtect`). The region's protection is
+    ///           unchanged in the failure case.
+    ///
+    /// TAGS: Allocator, Page, Memory-Protection
+    ///
+    bool PageProtect(void *ptr, size bytes, PageProtection prot);
+
+    ///
     /// Query the system page size in bytes through a `PageAllocator`. The
     /// result is cached inside the allocator instance after the first call.
     ///

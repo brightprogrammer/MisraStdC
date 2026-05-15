@@ -10,6 +10,7 @@
 #include <Misra/Std/Allocator/Page.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
+#include <Misra/Sys.h>
 
 #include <stddef.h>
 
@@ -150,4 +151,55 @@ void page_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
     page_validate_self(self);
     PageAllocator *page = (PageAllocator *)self;
     page_unmap(ptr, page_rounded_size(page, bytes));
+}
+
+bool PageProtect(void *ptr, size bytes, PageProtection prot) {
+    if (!ptr || !bytes) {
+        return false;
+    }
+
+#if defined(MISRA_PAGE_ALLOCATOR_WINDOWS)
+    DWORD win_prot = 0;
+    switch (prot) {
+        case PAGE_PROT_NONE :
+            win_prot = PAGE_NOACCESS;
+            break;
+        case PAGE_PROT_READ :
+            win_prot = PAGE_READONLY;
+            break;
+        case PAGE_PROT_READ_WRITE :
+            win_prot = PAGE_READWRITE;
+            break;
+        default :
+            LOG_ERROR("PageProtect: unknown protection bit {}", (u32)prot);
+            return false;
+    }
+    DWORD old_prot = 0;
+    if (!VirtualProtect(ptr, (SIZE_T)bytes, win_prot, &old_prot)) {
+        LOG_ERROR("PageProtect: VirtualProtect failed (error {})", (u32)GetLastError());
+        return false;
+    }
+    return true;
+#else
+    int posix_prot = 0;
+    switch (prot) {
+        case PAGE_PROT_NONE :
+            posix_prot = PROT_NONE;
+            break;
+        case PAGE_PROT_READ :
+            posix_prot = PROT_READ;
+            break;
+        case PAGE_PROT_READ_WRITE :
+            posix_prot = PROT_READ | PROT_WRITE;
+            break;
+        default :
+            LOG_ERROR("PageProtect: unknown protection bit {}", (u32)prot);
+            return false;
+    }
+    if (mprotect(ptr, (size_t)bytes, posix_prot) != 0) {
+        LOG_SYS_ERROR("PageProtect: mprotect failed");
+        return false;
+    }
+    return true;
+#endif
 }
