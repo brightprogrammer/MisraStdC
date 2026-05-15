@@ -77,7 +77,13 @@ void SymbolResolverDeinit(SymbolResolver *self) {
     if (!self)
         return;
     for (u64 i = 0; i < self->cache.length; ++i) {
-        ElfFileDeinit(&self->cache.data[i].elf);
+        ResolverCacheEntry *e = &self->cache.data[i];
+#if MISRA_HAVE_PARSER_DWARF
+        if (e->dwarf_built && e->dwarf_ok) {
+            DwarfLinesDeinit(&e->dwarf);
+        }
+#endif
+        ElfFileDeinit(&e->elf);
     }
     VecDeinit(&self->cache);
     ProcMapsDeinit(&self->maps);
@@ -125,5 +131,22 @@ bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSym
     } else {
         out->offset = file_relative;
     }
+
+#if MISRA_HAVE_PARSER_DWARF
+    if (!cache_entry->dwarf_built) {
+        cache_entry->dwarf_built = true;
+        cache_entry->dwarf_ok    = DwarfLinesBuildFromElf(&cache_entry->dwarf, &cache_entry->elf, self->allocator);
+    }
+    if (cache_entry->dwarf_ok) {
+        const DwarfLineEntry *de = DwarfLinesResolve(&cache_entry->dwarf, file_relative);
+        if (de) {
+            out->source_file   = de->file;
+            out->source_dir    = de->dir;
+            out->source_line   = de->line;
+            out->source_column = de->column;
+        }
+    }
+#endif
+
     return true;
 }

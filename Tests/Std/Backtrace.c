@@ -36,6 +36,9 @@ bool test_backtrace_format_resolves_helper(void) {
     bool ok = rendered.length > 0 && strstr(rendered.data, "bt_capture_with_helper") != NULL &&
               strstr(rendered.data, "bt_capture_outer") != NULL;
 
+    // With -gdwarf-4 the source location should be in there too.
+    ok = ok && strstr(rendered.data, "Backtrace.c") != NULL;
+
     StrDeinit(&rendered);
     DefaultAllocatorDeinit(&alloc);
     return ok;

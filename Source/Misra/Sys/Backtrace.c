@@ -79,34 +79,37 @@ size CaptureStackTrace(StackFrame *out, size max_frames, size skip_frames) {
 // Format
 // ---------------------------------------------------------------------------
 
+static const char *basename_of(const char *path) {
+    if (!path)
+        return "?";
+    const char *slash = path;
+    for (const char *p = path; *p; ++p) {
+        if (*p == '/')
+            slash = p + 1;
+    }
+    return slash;
+}
+
 static void emit_resolved_line(Str *out, u32 idx, const ResolvedSymbol *r, void *ip) {
     if (r->symbol_name) {
-        // Strip a leading module path down to its basename, just for
-        // readability. Keep the full path if there's no '/'.
-        const char *mod = r->module_path;
-        if (mod) {
-            const char *slash = mod;
-            for (const char *p = mod; *p; ++p) {
-                if (*p == '/')
-                    slash = p + 1;
-            }
-            mod = slash;
-        } else {
-            mod = "?";
-        }
-        StrWriteFmt(out, "  #{} {}!{}+{x} [{x}]\n", idx, mod, r->symbol_name, r->offset, (u64)(uintptr_t)ip);
+        const char *mod = basename_of(r->module_path);
+        StrWriteFmt(out, "  #{} {}!{}+{x} [{x}]", idx, mod, r->symbol_name, r->offset, (u64)(uintptr_t)ip);
     } else if (r->module_path) {
-        const char *mod   = r->module_path;
-        const char *slash = mod;
-        for (const char *p = mod; *p; ++p) {
-            if (*p == '/')
-                slash = p + 1;
-        }
-        mod = slash;
-        StrWriteFmt(out, "  #{} {}+{x} [{x}]\n", idx, mod, r->offset, (u64)(uintptr_t)ip);
+        const char *mod = basename_of(r->module_path);
+        StrWriteFmt(out, "  #{} {}+{x} [{x}]", idx, mod, r->offset, (u64)(uintptr_t)ip);
     } else {
-        StrWriteFmt(out, "  #{} {x}\n", idx, (u64)(uintptr_t)ip);
+        StrWriteFmt(out, "  #{} {x}", idx, (u64)(uintptr_t)ip);
     }
+
+    if (r->source_file) {
+        const char *file = basename_of(r->source_file);
+        if (r->source_line > 0) {
+            StrWriteFmt(out, " ({}:{})", file, r->source_line);
+        } else {
+            StrWriteFmt(out, " ({})", file);
+        }
+    }
+    StrPushBack(out, '\n');
 }
 
 void FormatStackTraceWith(Str *out, const StackFrame *frames, size count, SymbolResolver *resolver) {

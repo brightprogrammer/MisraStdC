@@ -343,17 +343,18 @@ if opt_sys_backtrace
         test_name = test_info[0]
         test_src = test_info[1]
 
+        # -fno-omit-frame-pointer guarantees the saved-FP chain our
+        # unwinder walks. -rdynamic keeps helper symbols visible to
+        # .symtab resolution. -gdwarf-4 produces .debug_line in a
+        # form our DWARF parser understands (v5 support is in
+        # FUTURE-PLANS).
         test_exe = executable(
             test_name,
             files(test_src),
             link_with: [misra_std],
             dependencies: [test_util_dep],
-            c_args: test_args,
+            c_args: test_args + ['-fno-omit-frame-pointer', '-gdwarf-4'],
             include_directories: inc_misra,
-            # -fno-omit-frame-pointer guarantees the saved-FP chain
-            # our unwinder walks.  -rdynamic keeps helper symbols
-            # visible to .symtab resolution.
-            c_args: test_args + ['-fno-omit-frame-pointer'],
             link_args: ['-rdynamic'],
             install: false
         )

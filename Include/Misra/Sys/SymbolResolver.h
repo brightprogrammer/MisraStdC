@@ -24,6 +24,9 @@
 #define MISRA_SYS_SYMBOL_RESOLVER_H
 
 #include <Misra/Parsers/Elf.h>
+#if MISRA_HAVE_PARSER_DWARF
+#    include <Misra/Parsers/Dwarf.h>
+#endif
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Sys/ProcMaps.h>
@@ -45,6 +48,14 @@
 /// - symbol_size  : `st_size` of the matching symbol.
 /// - offset       : `addr` minus the start of the matching symbol. If
 ///                  no symbol matched, the offset from `module_base`.
+/// - source_file  : When `MISRA_HAVE_PARSER_DWARF` is on and the
+///                  module ships `.debug_line` data we understand,
+///                  this is the source file containing `addr`.
+///                  NULL otherwise.
+/// - source_dir   : Compilation directory hint paired with
+///                  `source_file`. May be NULL.
+/// - source_line  : 1-based source line, or 0 if unknown.
+/// - source_column: 1-based source column, or 0 if unknown.
 ///
 typedef struct ResolvedSymbol {
     const char *module_path;
@@ -53,12 +64,21 @@ typedef struct ResolvedSymbol {
     u64         symbol_value;
     u64         symbol_size;
     u64         offset;
+    const char *source_file;
+    const char *source_dir;
+    u32         source_line;
+    u32         source_column;
 } ResolvedSymbol;
 
 typedef struct ResolverCacheEntry {
     const char *path; // borrowed from ProcMaps.raw
     u64         load_base;
     ElfFile     elf;
+#if MISRA_HAVE_PARSER_DWARF
+    DwarfLines dwarf;
+    bool       dwarf_built;
+    bool       dwarf_ok;
+#endif
 } ResolverCacheEntry;
 
 typedef Vec(ResolverCacheEntry) ResolverCache;
