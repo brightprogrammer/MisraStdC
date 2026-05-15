@@ -203,31 +203,30 @@ two are foundation by transitive necessity.
 ### What it actually costs
 
 The feature-flag system is not theatre — disabled features really do leave
-the static library. Measured with `meson setup --buildtype=minsize
--Db_sanitize=none` (gcc 15.2, x86_64, Linux):
+the static library. Three measurements per configuration, all gcc 15.2,
+x86_64, Linux, `meson setup --buildtype=minsize -Db_sanitize=none`:
 
-| Configuration                                                       | `libmisra_std.a` |
-|---------------------------------------------------------------------|------------------|
-| Foundation only                                                     | **491 KB**       |
-| `+ bitvec`, `+ int`, `+ float`                                      | 967 KB           |
-| `+ list`, `+ map`, `+ graph`, `+ iter`                              | 1 264 KB         |
-| `+ file`, `+ sys_dir`, `+ sys_proc`, `+ alloc_arena/slab/budget`    | 1 415 KB         |
-| `+ parser_json`                                                     | 1 481 KB         |
-| Default (everything; `+ parser_kvconfig`)                           | **1 529 KB**     |
+1. **Archive raw** — `libmisra_std.a` straight out of the build, including
+   debug section metadata, relocation tables, and unresolved-symbol entries.
+2. **Archive stripped** — same archive after `strip --strip-unneeded`.
+3. **Consumer stripped** — a tiny program that uses `Vec`, `Scope`, and
+   `WriteFmtLn` linked against the archive and stripped. This is the
+   realistic number for "how much of the library actually ends up in my
+   binary."
 
-The smallest viable build is **roughly a third** of the full build. The
-foundation alone covers a meaningful amount of work — `Vec`, `Str`, formatted
-I/O, the default heap allocator, `Scope`, the magic-validated dispatch
-machinery, and the OS abstractions for files, mutexes, and process
-introspection. Everything past that is opt-in: bring in `bitvec/int/float`
-when you need arbitrary precision, `list/map/graph` when you need richer
-containers, parsers when you need to read external input, the optional
-allocator backends when you have an unusual lifetime story to model.
+| Configuration                                                       | Archive raw | Archive stripped | Consumer stripped |
+|---------------------------------------------------------------------|------------:|-----------------:|------------------:|
+| Foundation only                                                     |     491 KB  |       **218 KB** |        **127 KB** |
+| `+ bitvec`, `+ int`, `+ float`                                      |     967 KB  |          418 KB  |                 - |
+| `+ list`, `+ map`, `+ graph`, `+ iter`                              |   1 264 KB  |          542 KB  |                 - |
+| `+ file`, `+ sys_dir`, `+ sys_proc`, `+ alloc_arena/slab/budget`    |   1 415 KB  |          596 KB  |                 - |
+| `+ parser_json`                                                     |   1 481 KB  |          626 KB  |                 - |
+| Default (everything; `+ parser_kvconfig`)                           |   1 529 KB  |       **654 KB** |        **243 KB** |
 
-These are static-archive sizes, larger than what actually lands in your final
-binary — the linker pulls in only the `.o` files your code references. The
-archive itself is what gets compiled and installed; the cost to your
-executable is bounded above by the archive size and usually a lot smaller.
+A `Vec`-using consumer ends up at **127 KB** against the foundation-only
+build, **243 KB** against the full build — the linker pulls in only the `.o`
+files your code references, regardless of how big the archive gets. Disabling
+a feature you don't need really does keep its code out of your binary.
 
 ---
 
