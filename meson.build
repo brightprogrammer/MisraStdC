@@ -39,11 +39,18 @@ opt_sys_proc       = get_option('sys_proc')
 opt_sys_socket     = get_option('sys_socket')
 opt_sys_procmaps   = get_option('sys_procmaps')
 opt_sys_symresolve = get_option('sys_symresolve')
+opt_sys_backtrace  = get_option('sys_backtrace')
 
 # /proc/self/maps is Linux-only. Auto-disable elsewhere.
 if host_machine.system() != 'linux'
     opt_sys_procmaps   = false
     opt_sys_symresolve = false
+    opt_sys_backtrace  = false
+endif
+
+# Sys/Backtrace needs SymbolResolver. Force it on if Backtrace is on.
+if opt_sys_backtrace
+    opt_sys_symresolve = true
 endif
 
 # Sys/Socket is POSIX-only at present (Source/Misra/Sys/Socket.c
@@ -152,6 +159,9 @@ endif
 if opt_sys_symresolve
     misra_std_sources += files('Source/Misra/Sys/SymbolResolver.c')
 endif
+if opt_sys_backtrace
+    misra_std_sources += files('Source/Misra/Sys/Backtrace.c')
+endif
 
 if opt_parser_json
     misra_std_sources += files('Source/Misra/Parsers/JSON.c')
@@ -190,6 +200,7 @@ config_data.set10('MISRA_HAVE_SYS_PROC',        opt_sys_proc)
 config_data.set10('MISRA_HAVE_SYS_SOCKET',      opt_sys_socket)
 config_data.set10('MISRA_HAVE_SYS_PROCMAPS',    opt_sys_procmaps)
 config_data.set10('MISRA_HAVE_SYS_SYMRESOLVE',  opt_sys_symresolve)
+config_data.set10('MISRA_HAVE_SYS_BACKTRACE',   opt_sys_backtrace)
 config_data.set10('MISRA_HAVE_PARSER_JSON',     opt_parser_json)
 config_data.set10('MISRA_HAVE_PARSER_KVCONFIG', opt_parser_kvconf)
 config_data.set10('MISRA_HAVE_PARSER_HTTP',     opt_parser_http)
@@ -209,8 +220,10 @@ message('  alloc_arena=@0@  alloc_slab=@1@  alloc_budget=@2@  alloc_stats=@3@'.f
     opt_alloc_arena, opt_alloc_slab, opt_alloc_budget, opt_alloc_stats))
 message('  bitvec=@0@  list=@1@  map=@2@  graph=@3@  int=@4@  float=@5@'.format(
     opt_bitvec, opt_list, opt_map, opt_graph, opt_int, opt_float))
-message('  file=@0@  iter=@1@  sys_dir=@2@  sys_proc=@3@  sys_socket=@4@  sys_procmaps=@5@  sys_symresolve=@6@'.format(
-    opt_file, opt_iter, opt_sys_dir, opt_sys_proc, opt_sys_socket, opt_sys_procmaps, opt_sys_symresolve))
+message('  file=@0@  iter=@1@  sys_dir=@2@  sys_proc=@3@  sys_socket=@4@'.format(
+    opt_file, opt_iter, opt_sys_dir, opt_sys_proc, opt_sys_socket))
+message('  sys_procmaps=@0@  sys_symresolve=@1@  sys_backtrace=@2@'.format(
+    opt_sys_procmaps, opt_sys_symresolve, opt_sys_backtrace))
 message('  parser_json=@0@  parser_kvconfig=@1@  parser_http=@2@  parser_elf=@3@'.format(
     opt_parser_json, opt_parser_kvconf, opt_parser_http, opt_parser_elf))
 
@@ -402,6 +415,9 @@ if not opt_sys_procmaps
 endif
 if not opt_sys_symresolve
     install_subdir_excludes_files += 'Sys/SymbolResolver.h'
+endif
+if not opt_sys_backtrace
+    install_subdir_excludes_files += 'Sys/Backtrace.h'
 endif
 
 if not opt_parser_json

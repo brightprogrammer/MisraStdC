@@ -43,6 +43,10 @@ symresolve_tests = [
     ['SymbolResolver', 'Std/SymbolResolver.c'],
 ]
 
+backtrace_tests = [
+    ['Backtrace', 'Std/Backtrace.c'],
+]
+
 str_tests = [
     ['Str.Type', 'Std/Str.Type.c'],
     ['Str.Init', 'Std/Str.Init.c'],
@@ -299,9 +303,30 @@ if opt_sys_symresolve
             dependencies: [test_util_dep],
             c_args: test_args,
             include_directories: inc_misra,
-            # The static-symbol test needs `symres_marker_helper` to
-            # actually appear in the binary; -rdynamic helps for
-            # potential future linker symbol stripping.
+            link_args: ['-rdynamic'],
+            install: false
+        )
+
+        test(test_name, test_exe)
+    endforeach
+endif
+
+if opt_sys_backtrace
+    foreach test_info : backtrace_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            # -fno-omit-frame-pointer guarantees the saved-FP chain
+            # our unwinder walks.  -rdynamic keeps helper symbols
+            # visible to .symtab resolution.
+            c_args: test_args + ['-fno-omit-frame-pointer'],
             link_args: ['-rdynamic'],
             install: false
         )
