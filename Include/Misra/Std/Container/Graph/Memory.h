@@ -51,7 +51,7 @@
 /// Aborting variant of `GraphReserve`. Calls `LOG_FATAL` on allocation failure.
 ///
 /// SUCCESS : Returns to the caller.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort`.
 ///
 /// TAGS: Graph, Memory, Reserve, Must, Abort
 ///

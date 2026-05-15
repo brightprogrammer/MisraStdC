@@ -23,7 +23,7 @@
 #include <Misra/Sys.h>
 
 
-const char *SysDirEntryTypeToZstr(SysDirEntryType type) {
+const char *DirEntryTypeToZstr(DirEntryType type) {
     switch (type) {
         case SYS_DIR_ENTRY_TYPE_UNKNOWN :
             return "Unknown";
@@ -45,7 +45,7 @@ const char *SysDirEntryTypeToZstr(SysDirEntryType type) {
 }
 
 
-SysDirEntry *SysDirEntryInitCopy(SysDirEntry *dst, SysDirEntry *src) {
+DirEntry *DirEntryInitCopy(DirEntry *dst, DirEntry *src) {
     if (!dst || !src) {
         LOG_FATAL("invalid arguments.");
     }
@@ -57,7 +57,7 @@ SysDirEntry *SysDirEntryInitCopy(SysDirEntry *dst, SysDirEntry *src) {
 }
 
 
-SysDirEntry *SysDirEntryDeinitCopy(SysDirEntry *copy) {
+DirEntry *DirEntryDeinitCopy(DirEntry *copy) {
     if (!copy) {
         LOG_FATAL("invalid arguments.");
     }
@@ -70,12 +70,12 @@ SysDirEntry *SysDirEntryDeinitCopy(SysDirEntry *copy) {
 
 #ifdef _WIN32
 // Windows-specific implementation using FindFirstFile/FindNextFile
-SysDirContents SysGetDirContents(const char *path, Allocator *alloc) {
+DirContents DirGetContents(const char *path, Allocator *alloc) {
     if (!path || !alloc) {
         LOG_FATAL("Invalid argument");
     }
 
-    SysDirContents dc = (SysDirContents)VecInit(alloc);
+    DirContents dc = (DirContents)VecInit(alloc);
 
     // Construct the search path with a wildcard
     char search_path[MAX_PATH];
@@ -94,7 +94,7 @@ SysDirContents SysGetDirContents(const char *path, Allocator *alloc) {
             continue;
         }
 
-        SysDirEntry direntry = {0};
+        DirEntry direntry = {0};
         // Determine file type based on attributes
         if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             direntry.type = SYS_DIR_ENTRY_TYPE_DIRECTORY;
@@ -116,12 +116,12 @@ SysDirContents SysGetDirContents(const char *path, Allocator *alloc) {
 }
 #else
 // APPLE or Unix based system implementation using opendir/readdir
-SysDirContents SysGetDirContents(const char *path, Allocator *alloc) {
+DirContents DirGetContents(const char *path, Allocator *alloc) {
     if (!path || !alloc) {
         LOG_FATAL("invalid arguments.");
     }
 
-    SysDirContents dc = (SysDirContents)VecInit(alloc);
+    DirContents dc = (DirContents)VecInit(alloc);
 
     DIR *dir = opendir(path);
     if (NULL == dir) {
@@ -156,7 +156,7 @@ SysDirContents SysGetDirContents(const char *path, Allocator *alloc) {
 
             StrDeinit(&entry_path);
 
-            SysDirEntry direntry = {0};
+            DirEntry direntry = {0};
             if (S_ISREG(path_stat.st_mode)) {
                 direntry.type = SYS_DIR_ENTRY_TYPE_REGULAR_FILE;
             } else if (S_ISDIR(path_stat.st_mode)) {
@@ -187,7 +187,7 @@ SysDirContents SysGetDirContents(const char *path, Allocator *alloc) {
 #endif
 
 // Cross-platform function to get file size
-i64 SysGetFileSize(const char *filename) {
+i64 FileGetSize(const char *filename) {
 #ifdef _WIN32
     // Windows-specific code using GetFileSizeEx
     HANDLE file = CreateFileA(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);

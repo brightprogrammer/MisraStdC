@@ -93,7 +93,7 @@ extern "C" {
         u32                   retry_limit;
         u64                   __magic;
 #if MISRA_HAVE_ALLOC_STATS
-        AllocatorStats        stats;
+        AllocatorStats stats;
 #endif
     };
 
@@ -177,7 +177,7 @@ extern "C" {
     /// self[in] : Allocator base to validate.
     ///
     /// SUCCESS: Function returns. The allocator is structurally valid.
-    /// FAILURE: Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+    /// FAILURE: Does not return - aborts via `LOG_FATAL` / `Abort`.
     ///
     /// TAGS: Allocator, Validation, Contract
     ///

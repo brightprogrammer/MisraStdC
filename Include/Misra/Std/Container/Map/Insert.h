@@ -434,7 +434,7 @@ static inline bool map_set_only_r_impl(
 /// Otherwise prefer the propagating forms.
 ///
 /// SUCCESS : Returns to the caller.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort`.
 ///
 /// TAGS: Map, Insert, Must, Abort
 ///
@@ -450,7 +450,7 @@ static inline bool map_set_only_r_impl(
 ///
 /// SUCCESS : Returns to the caller. The underlying `MapInsertR` call
 ///           succeeded; see `MapInsertR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `MapInsertR` call returns `false`.
 ///
 /// TAGS: Map, Must, Abort
@@ -467,7 +467,7 @@ static inline bool map_set_only_r_impl(
 ///
 /// SUCCESS : Returns to the caller. The underlying `MapInsert` call
 ///           succeeded; see `MapInsert` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `MapInsert` call returns `false`.
 ///
 /// TAGS: Map, Must, Abort
@@ -485,7 +485,7 @@ static inline bool map_set_only_r_impl(
 ///
 /// SUCCESS : Returns to the caller. The underlying `MapSetFirstL` call
 ///           succeeded; see `MapSetFirstL` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `MapSetFirstL` call returns `false`.
 ///
 /// TAGS: Map, Must, Abort
@@ -502,7 +502,7 @@ static inline bool map_set_only_r_impl(
 ///
 /// SUCCESS : Returns to the caller. The underlying `MapSetFirstR` call
 ///           succeeded; see `MapSetFirstR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `MapSetFirstR` call returns `false`.
 ///
 /// TAGS: Map, Must, Abort
@@ -520,7 +520,7 @@ static inline bool map_set_only_r_impl(
 ///
 /// SUCCESS : Returns to the caller. The underlying `MapSetOnlyL` call
 ///           succeeded; see `MapSetOnlyL` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `MapSetOnlyL` call returns `false`.
 ///
 /// TAGS: Map, Must, Abort
@@ -537,7 +537,7 @@ static inline bool map_set_only_r_impl(
 ///
 /// SUCCESS : Returns to the caller. The underlying `MapSetOnlyR` call
 ///           succeeded; see `MapSetOnlyR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `MapSetOnlyR` call returns `false`.
 ///
 /// TAGS: Map, Must, Abort
@@ -554,7 +554,7 @@ static inline bool map_set_only_r_impl(
 ///
 /// SUCCESS : Returns to the caller. The underlying `MapSet` call
 ///           succeeded; see `MapSet` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `MapSet` call returns `false`.
 ///
 /// TAGS: Map, Must, Abort

@@ -33,7 +33,7 @@
 #include <stdio.h>
 #include <string.h>
 
-Str *SysGetEnv(const char *name, Str *value) {
+Str *GetEnv(const char *name, Str *value) {
     ValidateStr(value);
     Allocator *alloc = value->allocator;
 #ifdef _WIN32
@@ -66,10 +66,10 @@ Str *SysGetEnv(const char *name, Str *value) {
 #endif
 }
 
-Str *SysStrError(i32 eno, Str *err_str) {
+Str *StrError(i32 eno, Str *err_str) {
     ValidateStr(err_str);
-    Allocator *alloc      = err_str->allocator;
-    char       buf[1024]  = {0};
+    Allocator *alloc     = err_str->allocator;
+    char       buf[1024] = {0};
 #if _WIN32
     strerror_s(buf, 1023, eno);
 #else
@@ -79,14 +79,14 @@ Str *SysStrError(i32 eno, Str *err_str) {
     return err_str;
 }
 
-// Global callback for SysAbort - NULL means use default abort()
-static SysAbortCallback g_abort_callback = NULL;
+// Global callback for Abort - NULL means use default abort()
+static AbortCallback g_abort_callback = NULL;
 
-void SysSetAbortCallback(SysAbortCallback callback) {
+void SetAbortCallback(AbortCallback callback) {
     g_abort_callback = callback;
 }
 
-void SysAbort(void) {
+void Abort(void) {
     if (g_abort_callback) {
         g_abort_callback();
     } else {
@@ -94,10 +94,10 @@ void SysAbort(void) {
     }
 }
 
-SysProcId SysGetCurrentProcessId(void) {
+ProcId ProcGetCurrentId(void) {
 #ifdef _WIN32
-    return (SysProcId)GetCurrentProcessId();
+    return (ProcId)GetCurrentProcessId();
 #else
-    return (SysProcId)getpid();
+    return (ProcId)getpid();
 #endif
 }

@@ -21,7 +21,7 @@ bool read_complete_file(const char *filename, char **data, u64 *file_size, u64 *
         LOG_FATAL("read_complete_file requires an allocator");
     }
 
-    i64 fsize = SysGetFileSize(filename);
+    i64 fsize = FileGetSize(filename);
     if (-1 == fsize) {
         LOG_ERROR("failed to get file size");
         return false;

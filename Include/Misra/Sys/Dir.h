@@ -3,7 +3,7 @@
 
 #include <Misra/Std/Container/Str.h>
 
-typedef enum SysDirEntryType {
+typedef enum DirEntryType {
     SYS_DIR_ENTRY_TYPE_UNKNOWN,
     SYS_DIR_ENTRY_TYPE_REGULAR_FILE,
     SYS_DIR_ENTRY_TYPE_DIRECTORY,
@@ -11,7 +11,7 @@ typedef enum SysDirEntryType {
     SYS_DIR_ENTRY_TYPE_CHARACTER_DEVICE,
     SYS_DIR_ENTRY_TYPE_BLOCK_DEVICE,
     SYS_DIR_ENTRY_TYPE_SYMBOLIC_LINK
-} SysDirEntryType;
+} DirEntryType;
 
 ///
 /// Convert given entry type to a NULL terminated string.
@@ -24,17 +24,17 @@ typedef enum SysDirEntryType {
 ///
 /// TAGS: System, Conversion, String, Utility
 ///
-const char *SysDirEntryTypeToZStr(SysDirEntryType type);
+const char *DirEntryTypeToZstr(DirEntryType type);
 
 ///
 /// Directory entry structure containing type and name.
 ///
 /// TAGS: System, Directory, Structure
 ///
-typedef struct SysDirEntry {
-    SysDirEntryType type;
-    Str             name;
-} SysDirEntry;
+typedef struct DirEntry {
+    DirEntryType type;
+    Str          name;
+} DirEntry;
 
 ///
 /// Initialize a copy of directory entry.
@@ -47,7 +47,7 @@ typedef struct SysDirEntry {
 ///
 /// TAGS: Memory, Management, System
 ///
-SysDirEntry *SysDirEntryInitCopy(SysDirEntry *dst, SysDirEntry *src);
+DirEntry *DirEntryInitCopy(DirEntry *dst, DirEntry *src);
 
 ///
 /// Deinitialize a copied directory entry.
@@ -59,14 +59,14 @@ SysDirEntry *SysDirEntryInitCopy(SysDirEntry *dst, SysDirEntry *src);
 ///
 /// TAGS: Memory, Management, System
 ///
-SysDirEntry *SysDirEntryDeinitCopy(SysDirEntry *copy);
+DirEntry *DirEntryDeinitCopy(DirEntry *copy);
 
 ///
 /// Vector type for directory contents.
 ///
 /// TAGS: System, Directory, Container
 ///
-typedef Vec(SysDirEntry) SysDirContents;
+typedef Vec(DirEntry) DirContents;
 
 ///
 /// Read directory contents into a vector.
@@ -75,12 +75,12 @@ typedef Vec(SysDirEntry) SysDirContents;
 /// path[in]   : Path of directory get content of.
 /// alloc[in]  : Allocator used to back the returned vector and entry names.
 ///
-/// SUCCESS : SysDirContents vector filled with directory contents data.
+/// SUCCESS : DirContents vector filled with directory contents data.
 /// FAILURE : Returns empty vector on read error.
 ///
 /// TAGS: System, FileSystem, Directory
 ///
-SysDirContents SysGetDirContents(const char *path, Allocator *alloc);
+DirContents DirGetContents(const char *path, Allocator *alloc);
 
 ///
 /// Get size of file without opening it.
@@ -92,6 +92,6 @@ SysDirContents SysGetDirContents(const char *path, Allocator *alloc);
 ///
 /// TAGS: System, File, Metadata
 ///
-i64 SysGetFileSize(const char *filename);
+i64 FileGetSize(const char *filename);
 
 #endif // MISRA_SYS_DIR_H

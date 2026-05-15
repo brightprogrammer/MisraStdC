@@ -19,7 +19,7 @@
 #include <Misra/Types.h>
 
 // Forward declaration to avoid circular includes
-void SysAbort(void);
+void Abort(void);
 
 ///
 /// Each LOG_* macro builds its message string through a stack-local
@@ -46,7 +46,7 @@ void SysAbort(void);
         LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, m_.data);                                                 \
         StrDeinit(&m_);                                                                                                \
         HeapAllocatorDeinit(&log_alloc_);                                                                              \
-        SysAbort();                                                                                                    \
+        Abort();                                                                                                       \
     } while (0)
 
 ///
@@ -86,13 +86,13 @@ void SysAbort(void);
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         Str syserr_;                                                                                                   \
         StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
-            SysStrError(errno, &syserr_);                                                                              \
+            StrError(errno, &syserr_);                                                                                 \
             StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
         LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, m_.data);                                                 \
         StrDeinit(&m_);                                                                                                \
         HeapAllocatorDeinit(&log_alloc_);                                                                              \
-        SysAbort();                                                                                                    \
+        Abort();                                                                                                       \
     } while (0)
 
 ///
@@ -105,7 +105,7 @@ void SysAbort(void);
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         Str syserr_;                                                                                                   \
         StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
-            SysStrError(errno, &syserr_);                                                                              \
+            StrError(errno, &syserr_);                                                                                 \
             StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
         LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, m_.data);                                                 \
@@ -123,7 +123,7 @@ void SysAbort(void);
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         Str syserr_;                                                                                                   \
         StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
-            SysStrError(errno, &syserr_);                                                                              \
+            StrError(errno, &syserr_);                                                                                 \
             StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
         LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, m_.data);                                                  \

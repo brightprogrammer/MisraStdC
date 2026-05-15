@@ -11,24 +11,24 @@ int main(int argc, char **argv, char **envp) {
     LogInit(false, &alloc.base);
 
     // create a new child process
-    SysProc *proc = SysProcCreate(argv[1], argv + 1, envp, &alloc.base);
+    Proc *proc = ProcCreate(argv[1], argv + 1, envp, &alloc.base);
 
     // write something to it's stdout
-    // (inlined SysProcWriteToStdinFmtLn because its header macro calls StrInit() without an allocator)
+    // (inlined ProcWriteToStdinFmtLn because its header macro calls StrInit() without an allocator)
     {
         Str buf = StrInit(&alloc);
         StrWriteFmt(&buf, "value = {}", 42);
         StrPushBack(&buf, '\n');
-        SysProcWriteToStdin(proc, &buf);
+        ProcWriteToStdin(proc, &buf);
         StrDeinit(&buf);
     }
 
     // retrieve back the value
     i32 val = 0;
-    // (inlined SysProcReadFromStdoutFmt for the same reason)
+    // (inlined ProcReadFromStdoutFmt for the same reason)
     {
         Str buf = StrInit(&alloc);
-        SysProcReadFromStdout(proc, &buf);
+        ProcReadFromStdout(proc, &buf);
         const char *in_ = buf.data;
         StrReadFmt(in_, "value = {}", val);
         StrDeinit(&buf);
@@ -38,10 +38,10 @@ int main(int argc, char **argv, char **envp) {
     WriteFmtLn("got value = {}", val);
 
     // wait for program to exit for 1 second
-    SysProcWaitFor(proc, 1000);
+    ProcWaitFor(proc, 1000);
 
     // finally terminate
-    SysProcDestroy(proc, &alloc.base);
+    ProcDestroy(proc, &alloc.base);
 
     LogDeinit();
     DefaultAllocatorDeinit(&alloc);

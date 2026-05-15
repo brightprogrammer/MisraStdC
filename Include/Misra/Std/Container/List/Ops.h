@@ -50,7 +50,7 @@
 /// cannot be allocated.
 ///
 /// SUCCESS : Returns to the caller.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort`.
 ///
 /// TAGS: List, Ops, Sort, Must, Abort
 ///

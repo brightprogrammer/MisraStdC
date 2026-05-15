@@ -100,7 +100,7 @@
 /// not recoverable for the caller. Otherwise prefer the propagating forms.
 ///
 /// SUCCESS : Returns to the caller.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort`.
 ///
 /// TAGS: Graph, Add, Must, Abort
 ///
@@ -117,7 +117,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `GraphAddNodeR` call
 ///           succeeded; see `GraphAddNodeR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `GraphAddNodeR` call returns `false`.
 ///
 /// TAGS: Graph, Must, Abort
@@ -135,7 +135,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `GraphAddNode` call
 ///           succeeded; see `GraphAddNode` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `GraphAddNode` call returns `false`.
 ///
 /// TAGS: Graph, Must, Abort
@@ -148,7 +148,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `GraphAddEdge` call
 ///           succeeded; see `GraphAddEdge` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `GraphAddEdge` call returns `false`.
 ///
 /// TAGS: Graph, Must, Abort

@@ -21,7 +21,7 @@
 /// prefer the propagating forms.
 ///
 /// SUCCESS : Returns to the caller.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort`.
 ///
 /// TAGS: BitVec, Insert, Must, Abort
 ///
@@ -37,7 +37,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `BitVecInsertMultiple` call
 ///           succeeded; see `BitVecInsertMultiple` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `BitVecInsertMultiple` call returns `false`.
 ///
 /// TAGS: BitVec, Must, Abort
@@ -54,7 +54,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `BitVecInsertPattern` call
 ///           succeeded; see `BitVecInsertPattern` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `BitVecInsertPattern` call returns `false`.
 ///
 /// TAGS: BitVec, Must, Abort
@@ -71,7 +71,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `BitVecPush` call
 ///           succeeded; see `BitVecPush` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `BitVecPush` call returns `false`.
 ///
 /// TAGS: BitVec, Must, Abort
@@ -88,7 +88,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `BitVecInsert` call
 ///           succeeded; see `BitVecInsert` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `BitVecInsert` call returns `false`.
 ///
 /// TAGS: BitVec, Must, Abort

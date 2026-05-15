@@ -219,7 +219,7 @@
 /// Otherwise prefer the propagating forms.
 ///
 /// SUCCESS : Returns to the caller.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort`.
 ///
 /// TAGS: List, Insert, Must, Abort
 ///
@@ -235,7 +235,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `ListInsertR` call
 ///           succeeded; see `ListInsertR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `ListInsertR` call returns `false`.
 ///
 /// TAGS: List, Must, Abort
@@ -252,7 +252,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `ListInsert` call
 ///           succeeded; see `ListInsert` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `ListInsert` call returns `false`.
 ///
 /// TAGS: List, Must, Abort
@@ -270,7 +270,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `ListPushFrontL` call
 ///           succeeded; see `ListPushFrontL` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `ListPushFrontL` call returns `false`.
 ///
 /// TAGS: List, Must, Abort
@@ -287,7 +287,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `ListPushFrontR` call
 ///           succeeded; see `ListPushFrontR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `ListPushFrontR` call returns `false`.
 ///
 /// TAGS: List, Must, Abort
@@ -304,7 +304,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `ListPushFront` call
 ///           succeeded; see `ListPushFront` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `ListPushFront` call returns `false`.
 ///
 /// TAGS: List, Must, Abort
@@ -322,7 +322,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `ListPushBackL` call
 ///           succeeded; see `ListPushBackL` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `ListPushBackL` call returns `false`.
 ///
 /// TAGS: List, Must, Abort
@@ -339,7 +339,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `ListPushBackR` call
 ///           succeeded; see `ListPushBackR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `ListPushBackR` call returns `false`.
 ///
 /// TAGS: List, Must, Abort
@@ -356,7 +356,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `ListPushBack` call
 ///           succeeded; see `ListPushBack` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `ListPushBack` call returns `false`.
 ///
 /// TAGS: List, Must, Abort
@@ -374,7 +374,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `ListPushArrL` call
 ///           succeeded; see `ListPushArrL` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `ListPushArrL` call returns `false`.
 ///
 /// TAGS: List, Must, Abort
@@ -391,7 +391,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `ListPushArrR` call
 ///           succeeded; see `ListPushArrR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `ListPushArrR` call returns `false`.
 ///
 /// TAGS: List, Must, Abort
@@ -408,7 +408,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `ListPushArr` call
 ///           succeeded; see `ListPushArr` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `ListPushArr` call returns `false`.
 ///
 /// TAGS: List, Must, Abort
@@ -426,7 +426,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `ListMergeL` call
 ///           succeeded; see `ListMergeL` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `ListMergeL` call returns `false`.
 ///
 /// TAGS: List, Must, Abort
@@ -443,7 +443,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `ListMergeR` call
 ///           succeeded; see `ListMergeR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `ListMergeR` call returns `false`.
 ///
 /// TAGS: List, Must, Abort
@@ -460,7 +460,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `ListMerge` call
 ///           succeeded; see `ListMerge` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `ListMerge` call returns `false`.
 ///
 /// TAGS: List, Must, Abort

@@ -480,7 +480,7 @@
 /// for the caller. Otherwise prefer the propagating forms.
 ///
 /// SUCCESS : Returns to the caller.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort`.
 ///
 /// TAGS: Vec, Insert, Must, Abort
 ///
@@ -496,7 +496,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecInsertR` call
 ///           succeeded; see `VecInsertR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecInsertR` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -513,7 +513,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecInsert` call
 ///           succeeded; see `VecInsert` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecInsert` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -531,7 +531,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecInsertFastL` call
 ///           succeeded; see `VecInsertFastL` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecInsertFastL` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -548,7 +548,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecInsertFastR` call
 ///           succeeded; see `VecInsertFastR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecInsertFastR` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -565,7 +565,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecInsertFast` call
 ///           succeeded; see `VecInsertFast` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecInsertFast` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -583,7 +583,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecInsertRangeL` call
 ///           succeeded; see `VecInsertRangeL` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecInsertRangeL` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -600,7 +600,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecInsertRangeR` call
 ///           succeeded; see `VecInsertRangeR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecInsertRangeR` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -617,7 +617,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecInsertRange` call
 ///           succeeded; see `VecInsertRange` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecInsertRange` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -635,7 +635,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecInsertRangeFastL` call
 ///           succeeded; see `VecInsertRangeFastL` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecInsertRangeFastL` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -652,7 +652,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecInsertRangeFastR` call
 ///           succeeded; see `VecInsertRangeFastR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecInsertRangeFastR` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -669,7 +669,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecInsertRangeFast` call
 ///           succeeded; see `VecInsertRangeFast` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecInsertRangeFast` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -687,7 +687,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecPushBackArrL` call
 ///           succeeded; see `VecPushBackArrL` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecPushBackArrL` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -704,7 +704,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecPushBackArrR` call
 ///           succeeded; see `VecPushBackArrR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecPushBackArrR` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -721,7 +721,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecPushBackArr` call
 ///           succeeded; see `VecPushBackArr` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecPushBackArr` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -739,7 +739,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecPushFrontArrL` call
 ///           succeeded; see `VecPushFrontArrL` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecPushFrontArrL` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -756,7 +756,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecPushFrontArrR` call
 ///           succeeded; see `VecPushFrontArrR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecPushFrontArrR` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -773,7 +773,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecPushFrontArr` call
 ///           succeeded; see `VecPushFrontArr` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecPushFrontArr` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -791,7 +791,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecPushFrontArrFastL` call
 ///           succeeded; see `VecPushFrontArrFastL` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecPushFrontArrFastL` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -808,7 +808,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecPushFrontArrFastR` call
 ///           succeeded; see `VecPushFrontArrFastR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecPushFrontArrFastR` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -825,7 +825,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecPushFrontArrFast` call
 ///           succeeded; see `VecPushFrontArrFast` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecPushFrontArrFast` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -843,7 +843,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecMergeL` call
 ///           succeeded; see `VecMergeL` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecMergeL` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -860,7 +860,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecMergeR` call
 ///           succeeded; see `VecMergeR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecMergeR` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -877,7 +877,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecMerge` call
 ///           succeeded; see `VecMerge` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecMerge` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -895,7 +895,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecPushBackL` call
 ///           succeeded; see `VecPushBackL` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecPushBackL` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -912,7 +912,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecPushBackR` call
 ///           succeeded; see `VecPushBackR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecPushBackR` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -929,7 +929,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecPushBack` call
 ///           succeeded; see `VecPushBack` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecPushBack` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -947,7 +947,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecPushFrontL` call
 ///           succeeded; see `VecPushFrontL` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecPushFrontL` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -964,7 +964,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecPushFrontR` call
 ///           succeeded; see `VecPushFrontR` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecPushFrontR` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -981,7 +981,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecPushFront` call
 ///           succeeded; see `VecPushFront` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecPushFront` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort
@@ -999,7 +999,7 @@
 ///
 /// SUCCESS : Returns to the caller. The underlying `VecInitClone` call
 ///           succeeded; see `VecInitClone` for the post-state.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort` when
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort` when
 ///           the underlying `VecInitClone` call returns `false`.
 ///
 /// TAGS: Vec, Must, Abort

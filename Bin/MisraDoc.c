@@ -31,14 +31,19 @@ static void project_deinit(Project *p) {
         abort();
     }
     StrDeinit(&p->build_dir);
-    VecForeach(&p->source_directories, s) { StrDeinit(&s); };
-    VecForeach(&p->test_directories, s) { StrDeinit(&s); };
+    VecForeach(&p->source_directories, s) {
+        StrDeinit(&s);
+    };
+    VecForeach(&p->test_directories, s) {
+        StrDeinit(&s);
+    };
     VecDeinit(&p->source_directories);
     VecDeinit(&p->test_directories);
 }
 
 // Walk a JSON object; for each key invoke on_key(key, &value_si, ctx).
-static StrIter parse_object_keys(StrIter si, Allocator *alloc, void (*on_key)(Str *key, StrIter *value_si, void *ctx), void *ctx) {
+static StrIter
+    parse_object_keys(StrIter si, Allocator *alloc, void (*on_key)(Str *key, StrIter *value_si, void *ctx), void *ctx) {
     if (!StrIterRemainingLength(&si)) {
         return si;
     }
@@ -117,8 +122,8 @@ static StrIter parse_string_array(StrIter si, Strs *out, Allocator *alloc) {
             StrIterNext(&si);
             si = JSkipWhitespace(si);
         }
-        Str     s        = StrInit(alloc);
-        StrIter rs       = JReadString(si, &s);
+        Str     s  = StrInit(alloc);
+        StrIter rs = JReadString(si, &s);
         if (rs.pos == si.pos) {
             StrDeinit(&s);
             si = JSkipValue(si);
@@ -172,7 +177,7 @@ int main(int argc, char **argv) {
 
     const char *config_path = argv[1];
 
-    Project project = {0};
+    Project project            = {0};
     project.build_dir          = StrInit(&alloc);
     project.source_directories = VecInitT(project.source_directories, &alloc);
     project.test_directories   = VecInitT(project.test_directories, &alloc);
@@ -206,7 +211,7 @@ int main(int argc, char **argv) {
     for (u64 i = 0; i < dir_paths.length; ++i) {
         Str *dir_name = &dir_paths.data[i];
 
-        SysDirContents dir_contents = SysGetDirContents(dir_name->data, &alloc.base);
+        DirContents dir_contents = DirGetContents(dir_name->data, &alloc.base);
         VecForeach(&dir_contents, dir_entry) {
             if (dir_entry.type == SYS_DIR_ENTRY_TYPE_DIRECTORY) {
                 Str path = StrInit(&alloc);
@@ -292,9 +297,13 @@ int main(int argc, char **argv) {
         StrDeinit(&file_contents);
     };
 
-    VecForeach(&file_paths, p) { StrDeinit(&p); };
+    VecForeach(&file_paths, p) {
+        StrDeinit(&p);
+    };
     VecDeinit(&file_paths);
-    VecForeach(&dir_paths, p) { StrDeinit(&p); };
+    VecForeach(&dir_paths, p) {
+        StrDeinit(&p);
+    };
     VecDeinit(&dir_paths);
 
     project_deinit(&project);

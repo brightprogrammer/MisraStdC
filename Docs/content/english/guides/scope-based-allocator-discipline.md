@@ -56,7 +56,7 @@ Calling these macros outside any `Scope` is a compile error. The compiler diagno
 
 ### Tier 2: Operations on existing objects
 
-Operations that act on already-constructed objects do not need `Scope`. They use the allocator that the object already carries internally. Examples include `VecPushBack`, `StrDeinit`, `BitVecSet`, `IntAdd`, `SysMutexLock`, `SysProcDestroy`. These work anywhere - inside a `Scope`, outside a `Scope`, in helper functions, in test bodies.
+Operations that act on already-constructed objects do not need `Scope`. They use the allocator that the object already carries internally. Examples include `VecPushBack`, `StrDeinit`, `BitVecSet`, `IntAdd`, `MutexLock`, `ProcDestroy`. These work anywhere - inside a `Scope`, outside a `Scope`, in helper functions, in test bodies.
 
 The cleaner phrasing for the split between tier 1 and tier 2 is: **`Scope` governs birth. The object governs life and death.**
 
@@ -184,8 +184,8 @@ Allocator ownership is intentionally narrow. The rule:
 For non-container objects, the canonical shape is:
 
 ```c
-SysMutex *SysMutexCreate(Allocator *alloc);
-void      SysMutexDestroy(SysMutex *m, Allocator *alloc);
+Mutex *MutexCreate(Allocator *alloc);
+void      MutexDestroy(Mutex *m, Allocator *alloc);
 ```
 
 Both `Create` and `Destroy` take the allocator. The caller remembers it across calls (typically by holding it in a `Scope` or a longer-lived owner). This avoids two anti-patterns:

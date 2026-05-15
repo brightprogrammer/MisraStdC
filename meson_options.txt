@@ -39,8 +39,8 @@ option('file', type: 'boolean', value: true, description: 'Build File helpers (R
 option('iter', type: 'boolean', value: true, description: 'Build Iter utility helpers.')
 
 # --- Sys subsystems ---------------------------------------------------------
-option('sys_dir',  type: 'boolean', value: true, description: 'Build directory-handling syscalls (SysDirContents, ...).')
-option('sys_proc', type: 'boolean', value: true, description: 'Build process-spawning syscalls (SysProcCreate, ...).')
+option('sys_dir',  type: 'boolean', value: true, description: 'Build directory-handling syscalls (DirContents, ...).')
+option('sys_proc', type: 'boolean', value: true, description: 'Build process-spawning syscalls (ProcCreate, ...).')
 
 # --- Parsers ----------------------------------------------------------------
 option('parser_json',     type: 'boolean', value: true, description: 'Build JSON reader/writer.')

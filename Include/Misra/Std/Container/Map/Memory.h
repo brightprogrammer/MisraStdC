@@ -66,7 +66,7 @@
 /// Aborting variant of `MapReserve`. Calls `LOG_FATAL` on allocation failure.
 ///
 /// SUCCESS : Returns to the caller.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort`.
 ///
 /// TAGS: Map, Memory, Reserve, Must, Abort
 ///
@@ -108,7 +108,7 @@
 /// Aborting variant of `MapCompact`. Calls `LOG_FATAL` on allocation failure.
 ///
 /// SUCCESS : Returns to the caller.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort`.
 ///
 /// TAGS: Map, Memory, Rehash, Compact, Must, Abort
 ///
@@ -152,7 +152,7 @@
 /// failure.
 ///
 /// SUCCESS : Returns to the caller.
-/// FAILURE : Does not return - aborts via `LOG_FATAL` / `SysAbort`.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` / `Abort`.
 ///
 /// TAGS: Map, Memory, Rehash, Policy, Must, Abort
 ///

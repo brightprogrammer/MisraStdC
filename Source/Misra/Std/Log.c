@@ -13,7 +13,7 @@
 #include <Misra/Sys.h>
 
 static FILE      *stderror             = NULL;
-static SysMutex  *log_mutex            = NULL;
+static Mutex     *log_mutex            = NULL;
 static Allocator *log_persistent_alloc = NULL;
 
 void close_log_file(void) {
@@ -46,7 +46,7 @@ void LogInit(bool redirect, Allocator *alloc) {
         DefaultAllocator err_alloc = DefaultAllocatorInit();
         Str              syserr;
         StrInitStack(syserr, &err_alloc, SYS_ERROR_STR_MAX_LENGTH, {
-            SysStrError(errno, &syserr);
+            StrError(errno, &syserr);
             LOG_ERROR("Failed to get localtime : {}", syserr);
         });
         DefaultAllocatorDeinit(&err_alloc);
@@ -61,9 +61,9 @@ void LogInit(bool redirect, Allocator *alloc) {
     Str              file_name  = StrInit(&init_alloc);
     bool             redirected = false;
 
-    if (SysGetEnv("TMP", &log_dir) || SysGetEnv("TEMP", &log_dir) || SysGetEnv("TMPDIR", &log_dir) ||
-        SysGetEnv("TEMPDIR", &log_dir) || SysGetEnv("PWD", &log_dir)) {
-        StrWriteFmt(&file_name, "{}/misra-{}-{}", log_dir, SysGetCurrentProcessId(), &time_buffer[0]);
+    if (GetEnv("TMP", &log_dir) || GetEnv("TEMP", &log_dir) || GetEnv("TMPDIR", &log_dir) ||
+        GetEnv("TEMPDIR", &log_dir) || GetEnv("PWD", &log_dir)) {
+        StrWriteFmt(&file_name, "{}/misra-{}-{}", log_dir, ProcGetCurrentId(), &time_buffer[0]);
         FWriteFmtLn(stderr, "storing logs in {}", file_name.data);
 
         i32 e = 0;
@@ -94,7 +94,7 @@ void LogInit(bool redirect, Allocator *alloc) {
 
 static void free_log_mutex(void) {
     if (log_mutex && log_persistent_alloc) {
-        SysMutexDestroy(log_mutex, log_persistent_alloc);
+        MutexDestroy(log_mutex, log_persistent_alloc);
         log_mutex = NULL;
     }
 }
@@ -119,7 +119,7 @@ void LogWrite(LogMessageType type, const char *tag, u64 line, const char *msg) {
     }
 
     if (!log_mutex && log_persistent_alloc) {
-        log_mutex = SysMutexCreate(log_persistent_alloc);
+        log_mutex = MutexCreate(log_persistent_alloc);
         if (log_mutex) {
             atexit(free_log_mutex);
         }
@@ -142,7 +142,7 @@ void LogWrite(LogMessageType type, const char *tag, u64 line, const char *msg) {
     }
 
     if (log_mutex) {
-        SysMutexLock(log_mutex);
+        MutexLock(log_mutex);
     }
 
     FWriteFmt(stderror, "[{}] [{}:{}] ", msg_type, tag, line);
@@ -150,6 +150,6 @@ void LogWrite(LogMessageType type, const char *tag, u64 line, const char *msg) {
     fputc('\n', stderror);
 
     if (log_mutex) {
-        SysMutexUnlock(log_mutex);
+        MutexUnlock(log_mutex);
     }
 }

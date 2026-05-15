@@ -24,7 +24,7 @@ typedef bool (*TestFunction)(void);
 /// This is used for deadend tests that are expected to call LOG_FATAL.
 ///
 /// test_func[in]     : Test function to execute.
-/// expect_failure[in]: If true, expects the test to call SysAbort().
+/// expect_failure[in]: If true, expects the test to call Abort().
 ///
 /// SUCCESS : Returns true if test behaved as expected.
 /// FAILURE : Returns false if test did not behave as expected.

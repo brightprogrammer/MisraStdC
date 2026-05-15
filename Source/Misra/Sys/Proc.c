@@ -45,7 +45,7 @@
 #    define STDERR_FILENO FILENO(stderr)
 #endif
 
-struct SysProc {
+struct Proc {
     int  exit_code;
     bool completed;
 #if defined(__APPLE__) || defined(__linux__)
@@ -59,16 +59,16 @@ struct SysProc {
     HANDLE              hStdoutRead;
     HANDLE              hStderrRead;
 #else
-#    error "Unsupported OS for SysProc"
+#    error "Unsupported OS for Proc"
 #endif
 };
 
 #define READ_END  0
 #define WRITE_END 1
 
-SysProc *SysProcCreate(const char *filepath, char **argv, char **envp, Allocator *alloc) {
+Proc *ProcCreate(const char *filepath, char **argv, char **envp, Allocator *alloc) {
     if (!alloc) {
-        LOG_FATAL("SysProcCreate requires an allocator");
+        LOG_FATAL("ProcCreate requires an allocator");
     }
 #if defined(__APPLE__) || defined(__linux__)
     int stdin_pipe[2]  = {-1};
@@ -144,7 +144,7 @@ SysProc *SysProcCreate(const char *filepath, char **argv, char **envp, Allocator
     close(stdout_pipe[WRITE_END]);
     close(stderr_pipe[WRITE_END]);
 
-    SysProc *proc = (SysProc *)AllocatorAlloc(alloc, sizeof(SysProc), true);
+    Proc *proc = (Proc *)AllocatorAlloc(alloc, sizeof(Proc), true);
 
     if (!proc) {
         close(stdin_pipe[WRITE_END]);
@@ -226,7 +226,7 @@ SysProc *SysProcCreate(const char *filepath, char **argv, char **envp, Allocator
     CloseHandle(hStdoutWrite); // parent won't write to child's stdout, will read from it
     CloseHandle(hStderrWrite); // parent won't write to child's stderr, will read from it
 
-    SysProc *proc = (SysProc *)AllocatorAlloc(alloc, sizeof(SysProc), true);
+    Proc *proc = (Proc *)AllocatorAlloc(alloc, sizeof(Proc), true);
 
     if (!proc) {
         CloseHandle(hStdinWrite);
@@ -246,7 +246,7 @@ SysProc *SysProcCreate(const char *filepath, char **argv, char **envp, Allocator
 #endif
 }
 
-SysProcStatus SysProcWait(SysProc *proc) {
+ProcStatus ProcWait(Proc *proc) {
     if (!proc) {
         LOG_FATAL("Invalid argument");
     }
@@ -290,7 +290,7 @@ SysProcStatus SysProcWait(SysProc *proc) {
 #endif
 }
 
-SysProcStatus SysProcWaitFor(SysProc *proc, u64 timeout_ms) {
+ProcStatus ProcWaitFor(Proc *proc, u64 timeout_ms) {
     if (!proc) {
         LOG_FATAL("Invalid arguments");
     }
@@ -361,7 +361,7 @@ SysProcStatus SysProcWaitFor(SysProc *proc, u64 timeout_ms) {
 #endif
 }
 
-void SysProcTerminate(SysProc *proc) {
+void ProcTerminate(Proc *proc) {
     if (!proc) {
         LOG_FATAL("Invalid argument");
     }
@@ -416,14 +416,14 @@ void SysProcTerminate(SysProc *proc) {
 }
 
 
-void SysProcDestroy(SysProc *proc, Allocator *alloc) {
+void ProcDestroy(Proc *proc, Allocator *alloc) {
     if (!proc) {
         LOG_FATAL("Invalid argument");
     }
     if (!alloc) {
-        LOG_FATAL("SysProcDestroy requires the allocator that created the handle");
+        LOG_FATAL("ProcDestroy requires the allocator that created the handle");
     }
-    SysProcTerminate(proc);
+    ProcTerminate(proc);
 #if defined(__APPLE__) || defined(__linux__)
     close(proc->stdin_fd);
     close(proc->stdout_fd);
@@ -435,10 +435,10 @@ void SysProcDestroy(SysProc *proc, Allocator *alloc) {
     CloseHandle(proc->pi.hThread);
     CloseHandle(proc->pi.hProcess);
 #endif
-    AllocatorFree(alloc, proc, sizeof(SysProc));
+    AllocatorFree(alloc, proc, sizeof(Proc));
 }
 
-i32 SysProcWriteToStdin(SysProc *proc, Str *buf) {
+i32 ProcWriteToStdin(Proc *proc, Str *buf) {
     if (!proc || !buf) {
         LOG_FATAL("Invalid arguments");
     }
@@ -453,7 +453,7 @@ i32 SysProcWriteToStdin(SysProc *proc, Str *buf) {
 #endif
 }
 
-i32 sys_proc_read_internal(SysProc *proc, Str *buf, bool is_stdout) {
+i32 sys_proc_read_internal(Proc *proc, Str *buf, bool is_stdout) {
     if (!proc || !buf) {
         LOG_FATAL("Invalid argument");
     }
@@ -537,15 +537,15 @@ i32 sys_proc_read_internal(SysProc *proc, Str *buf, bool is_stdout) {
     return (i32)total_read;
 }
 
-i32 SysProcReadFromStdout(SysProc *proc, Str *buf) {
+i32 ProcReadFromStdout(Proc *proc, Str *buf) {
     return sys_proc_read_internal(proc, buf, /* is stdout*/ true);
 }
 
-i32 SysProcReadFromStderr(SysProc *proc, Str *buf) {
+i32 ProcReadFromStderr(Proc *proc, Str *buf) {
     return sys_proc_read_internal(proc, buf, /* is stdout*/ false);
 }
 
-i32 SysProcGetId(SysProc *proc) {
+i32 ProcGetId(Proc *proc) {
     if (!proc) {
         LOG_FATAL("Invalid argument");
     }
@@ -557,7 +557,7 @@ i32 SysProcGetId(SysProc *proc) {
 #endif
 }
 
-i32 SysProcIsRunning(SysProc *proc) {
+i32 ProcIsRunning(Proc *proc) {
     if (!proc) {
         LOG_FATAL("Invalid argument");
     }
@@ -581,7 +581,7 @@ i32 SysProcIsRunning(SysProc *proc) {
 #endif
 }
 
-i32 SysProcGetExitCode(SysProc *proc) {
+i32 ProcGetExitCode(Proc *proc) {
     if (!proc) {
         LOG_FATAL("Invalid argument");
     }
@@ -601,7 +601,7 @@ i32 SysProcGetExitCode(SysProc *proc) {
 #endif
 }
 
-Str *SysGetCurrentExecutablePath(Str *exe_path) {
+Str *GetCurrentExecutablePath(Str *exe_path) {
     ValidateStr(exe_path);
     Allocator *alloc = exe_path->allocator;
 

@@ -186,8 +186,8 @@ the default build. Adding `int` automatically pulls in `bitvec`; adding
 | `float`               | Arbitrary-precision decimal `Float`                      | `int → bitvec`   |
 | `file`                | `ReadCompleteFile(...)` and file helpers                 | —                |
 | `iter`                | Generic `Iter(T)` iteration helpers                      | —                |
-| `sys_dir`             | `SysGetDirContents(...)` and friends                     | —                |
-| `sys_proc`            | `SysProcCreate(...)` / spawn / wait                      | —                |
+| `sys_dir`             | `DirGetContents(...)` and friends                     | —                |
+| `sys_proc`            | `ProcCreate(...)` / spawn / wait                      | —                |
 | `parser_json`         | JSON read/write                                          | —                |
 | `parser_kvconfig`     | Key-value config parser                                  | `map`            |
 
@@ -760,8 +760,8 @@ Scope(alloc, DefaultAllocator) {
 
 Cross-platform wrappers for subprocesses, directories, mutexes, environment
 access. The subprocess example demonstrates the explicit-allocator-handoff
-pattern: the caller passes the same allocator to `SysProcCreate` and
-`SysProcDestroy`.
+pattern: the caller passes the same allocator to `ProcCreate` and
+`ProcDestroy`.
 
 ```c
 // Verified with /bin/head: writes a value to the child, expects the same
@@ -769,15 +769,15 @@ pattern: the caller passes the same allocator to `SysProcCreate` and
 int main(int argc, char **argv, char **envp) {
     (void)argc;
     Scope(alloc, DefaultAllocator) {
-        SysProc *proc = SysProcCreate(argv[1], argv + 1, envp, alloc);
-        SysProcWriteToStdinFmtLn(proc, "value = {}", 42);
+        Proc *proc = ProcCreate(argv[1], argv + 1, envp, alloc);
+        ProcWriteToStdinFmtLn(proc, "value = {}", 42);
 
         i32 val = 0;
-        SysProcReadFromStdoutFmt(proc, "value = {}", val);
+        ProcReadFromStdoutFmt(proc, "value = {}", val);
         WriteFmtLn("got value = {}", val);
 
-        SysProcWaitFor(proc, 1000);
-        SysProcDestroy(proc, alloc);
+        ProcWaitFor(proc, 1000);
+        ProcDestroy(proc, alloc);
     }
 }
 ```

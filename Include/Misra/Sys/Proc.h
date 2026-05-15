@@ -15,16 +15,16 @@
 ///
 /// Opaque platform-dependent handle storing process information.
 ///
-typedef struct SysProc SysProc;
+typedef struct Proc Proc;
 
-typedef u64 SysProcId;
+typedef u64 ProcId;
 
-typedef enum SysProcStatus {
+typedef enum ProcStatus {
     SYS_PROC_STATUS_RUNNING,    // Process is still running
     SYS_PROC_STATUS_COMPLETED,  // Process completed normally
     SYS_PROC_STATUS_TERMINATED, // Process was terminated/killed
     SYS_PROC_STATUS_ERROR       // Error occurred while checking status
-} SysProcStatus;
+} ProcStatus;
 
 ///
 /// Create a new process
@@ -32,13 +32,13 @@ typedef enum SysProcStatus {
 /// path[in]  : Path to executable to be executed.
 /// argv[in]  : NULL terminated array containing zero-terminated strings.
 /// envp[in]  : NULL terminated array containing zero-terminated strings.
-/// alloc[in] : Allocator used to allocate the returned `SysProc` handle.
-///             The same allocator must be passed to `SysProcDestroy`.
+/// alloc[in] : Allocator used to allocate the returned `Proc` handle.
+///             The same allocator must be passed to `ProcDestroy`.
 ///
-/// SUCCESS: New created `SysProc` object opaque handle.
+/// SUCCESS: New created `Proc` object opaque handle.
 /// FAILURE: NULL.
 ///
-SysProc *SysProcCreate(const char *path, char **argv, char **envp, Allocator *alloc);
+Proc *ProcCreate(const char *path, char **argv, char **envp, Allocator *alloc);
 
 ///
 /// Block the parent process and wait for provided child process to finish execution.
@@ -48,7 +48,7 @@ SysProc *SysProcCreate(const char *path, char **argv, char **envp, Allocator *al
 /// RETURNS: `SYS_PROC_STATUS_COMPLETED`, `SYS_PROC_STATUS_TERMINATED`, or
 /// `SYS_PROC_STATUS_ERROR`.
 ///
-SysProcStatus SysProcWait(SysProc *proc);
+ProcStatus ProcWait(Proc *proc);
 
 ///
 /// Block the parent process and wait for provided child process to finish execution.
@@ -61,7 +61,7 @@ SysProcStatus SysProcWait(SysProc *proc);
 /// RETURNS: Current process status, including `SYS_PROC_STATUS_ERROR` when
 /// waiting fails.
 ///
-SysProcStatus SysProcWaitFor(SysProc *proc, u64 timeout);
+ProcStatus ProcWaitFor(Proc *proc, u64 timeout);
 
 ///
 /// Terminate the child process
@@ -71,19 +71,19 @@ SysProcStatus SysProcWaitFor(SysProc *proc, u64 timeout);
 /// SUCCESS: Return
 /// FAILURE: Abort with log message.
 ///
-void SysProcTerminate(SysProc *proc);
+void ProcTerminate(Proc *proc);
 
 ///
-/// Terminate the child process and then destroy given `SysProc` structure.
+/// Terminate the child process and then destroy given `Proc` structure.
 ///
 /// proc[in]  : Child process handle to terminate and destroy.
-/// alloc[in] : Allocator originally passed to `SysProcCreate`. Used to free
+/// alloc[in] : Allocator originally passed to `ProcCreate`. Used to free
 ///             the handle. Must match the create-time allocator.
 ///
 /// SUCCESS: Return
 /// FAILURE: Abort with log message.
 ///
-void SysProcDestroy(SysProc *proc, Allocator *alloc);
+void ProcDestroy(Proc *proc, Allocator *alloc);
 
 ///
 /// Write given raw data to `stdin` of child process.
@@ -94,7 +94,7 @@ void SysProcDestroy(SysProc *proc, Allocator *alloc);
 /// SUCCESS: Return number of bytes written.
 /// FAILURE: Return -1
 ///
-i32 SysProcWriteToStdin(SysProc *proc, Str *buf);
+i32 ProcWriteToStdin(Proc *proc, Str *buf);
 
 ///
 /// Get exit code of given child process.
@@ -102,7 +102,7 @@ i32 SysProcWriteToStdin(SysProc *proc, Str *buf);
 /// SUCCESS: Exit code of given child process.
 /// FAILURE: Abort with a log message.
 ///
-i32 SysProcGetExitCode(SysProc *proc);
+i32 ProcGetExitCode(Proc *proc);
 
 ///
 /// Perform a blocking read from `stdout` of child process to provided buffer.
@@ -113,7 +113,7 @@ i32 SysProcGetExitCode(SysProc *proc);
 /// SUCCESS: Return number of bytes read.
 /// FAILURE: Return -1
 ///
-i32 SysProcReadFromStdout(SysProc *proc, Str *buf);
+i32 ProcReadFromStdout(Proc *proc, Str *buf);
 
 ///
 /// Perform a blocking read from `stderr` of child process to provided buffer.
@@ -124,7 +124,7 @@ i32 SysProcReadFromStdout(SysProc *proc, Str *buf);
 /// SUCCESS: Return number of bytes read.
 /// FAILURE: Return -1
 ///
-i32 SysProcReadFromStderr(SysProc *proc, Str *buf);
+i32 ProcReadFromStderr(Proc *proc, Str *buf);
 
 ///
 /// Get the OS-specific process ID of a child process.
@@ -134,14 +134,14 @@ i32 SysProcReadFromStderr(SysProc *proc, Str *buf);
 /// SUCCESS: Returns the process ID of the child process.
 /// FAILURE: Returns -1
 ///
-i32 SysProcGetId(SysProc *proc);
+i32 ProcGetId(Proc *proc);
 
 ///
 /// Check if a child process is still running.
 ///
 /// proc[in] : Child process handle.
 ///
-SysProcStatus SysProcGetStatus(SysProc *proc);
+ProcStatus ProcGetStatus(Proc *proc);
 
 ///
 /// Get the path to the current executable.
@@ -153,40 +153,40 @@ SysProcStatus SysProcGetStatus(SysProc *proc);
 ///
 /// TAGS: System, Process, Path
 ///
-Str *SysGetCurrentExecutablePath(Str *exe_path);
+Str *GetCurrentExecutablePath(Str *exe_path);
 
-#define SysProcReadFromStdoutFmt(p, ...)                                                                               \
+#define ProcReadFromStdoutFmt(p, ...)                                                                                  \
     do {                                                                                                               \
         Str b_ = StrInit();                                                                                            \
-        SysProcReadFromStdout((p), &b_);                                                                               \
+        ProcReadFromStdout((p), &b_);                                                                                  \
         const char *in_ = b_.data;                                                                                     \
         StrReadFmt(in_, __VA_ARGS__);                                                                                  \
         StrDeinit(&b_);                                                                                                \
     } while (0)
 
-#define SysProcReadFromStderrFmt(p, ...)                                                                               \
+#define ProcReadFromStderrFmt(p, ...)                                                                                  \
     do {                                                                                                               \
         Str b_ = StrInit();                                                                                            \
-        SysProcReadFromStderr((p), &b_);                                                                               \
+        ProcReadFromStderr((p), &b_);                                                                                  \
         const char *in_ = b_.data;                                                                                     \
         StrReadFmt(in_, __VA_ARGS__);                                                                                  \
         StrDeinit(&b_);                                                                                                \
     } while (0)
 
-#define SysProcWriteToStdinFmt(p, ...)                                                                                 \
+#define ProcWriteToStdinFmt(p, ...)                                                                                    \
     do {                                                                                                               \
         Str b_ = StrInit();                                                                                            \
         StrWriteFmt(&b_, __VA_ARGS__);                                                                                 \
-        SysProcWriteToStdin((p), &b_);                                                                                 \
+        ProcWriteToStdin((p), &b_);                                                                                    \
         StrDeinit(&b_);                                                                                                \
     } while (0)
 
-#define SysProcWriteToStdinFmtLn(p, ...)                                                                               \
+#define ProcWriteToStdinFmtLn(p, ...)                                                                                  \
     do {                                                                                                               \
         Str b_ = StrInit();                                                                                            \
         StrWriteFmt(&b_, __VA_ARGS__);                                                                                 \
         StrPushBack(&b_, '\n');                                                                                        \
-        SysProcWriteToStdin((p), &b_);                                                                                 \
+        ProcWriteToStdin((p), &b_);                                                                                    \
         StrDeinit(&b_);                                                                                                \
     } while (0)
 

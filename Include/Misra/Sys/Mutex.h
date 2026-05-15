@@ -3,26 +3,26 @@
 
 #include <Misra/Std/Allocator.h>
 
-typedef struct SysMutex SysMutex;
+typedef struct Mutex Mutex;
 
 ///
 /// Create a platform-independent mutex object. The mutex itself does
 /// not own an allocator - the caller is responsible for remembering
-/// `alloc` and passing it back to `SysMutexDestroy` so the handle's
+/// `alloc` and passing it back to `MutexDestroy` so the handle's
 /// one-shot allocation can be released through the same allocator.
 ///
 /// alloc[in] : Allocator used to allocate the mutex handle.
 ///
-/// SUCCESS : Returns valid SysMutex object.
+/// SUCCESS : Returns valid Mutex object.
 /// FAILURE : Returns NULL if mutex creation fails.
 ///
 /// TAGS: System, Threading, Synchronization
 ///
-SysMutex *SysMutexCreate(Allocator *alloc);
+Mutex *MutexCreate(Allocator *alloc);
 
 ///
 /// Destroy the provided mutex object. Caller must pass the same
-/// allocator that was originally given to `SysMutexCreate`.
+/// allocator that was originally given to `MutexCreate`.
 ///
 /// m[in]     : Mutex object to be destroyed.
 /// alloc[in] : Allocator that originally allocated the mutex handle.
@@ -32,7 +32,7 @@ SysMutex *SysMutexCreate(Allocator *alloc);
 ///
 /// TAGS: System, Threading, Memory
 ///
-void SysMutexDestroy(SysMutex *m, Allocator *alloc);
+void MutexDestroy(Mutex *m, Allocator *alloc);
 
 ///
 /// Acquire lock on provided mutex object.
@@ -44,7 +44,7 @@ void SysMutexDestroy(SysMutex *m, Allocator *alloc);
 ///
 /// TAGS: System, Threading, Synchronization
 ///
-SysMutex *SysMutexLock(SysMutex *m);
+Mutex *MutexLock(Mutex *m);
 
 ///
 /// Release lock on provided mutex object.
@@ -56,6 +56,6 @@ SysMutex *SysMutexLock(SysMutex *m);
 ///
 /// TAGS: System, Threading, Synchronization
 ///
-SysMutex *SysMutexUnlock(SysMutex *m);
+Mutex *MutexUnlock(Mutex *m);
 
 #endif // MISRA_SYS_MUTEX_H

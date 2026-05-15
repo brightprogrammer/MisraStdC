@@ -19,7 +19,7 @@
 #include <Misra/Std.h>
 #include <Misra/Std/Log.h>
 
-struct SysMutex {
+struct Mutex {
 #ifdef _WIN32
     CRITICAL_SECTION lock;
 #else
@@ -27,11 +27,11 @@ struct SysMutex {
 #endif
 };
 
-SysMutex *SysMutexCreate(Allocator *alloc) {
+Mutex *MutexCreate(Allocator *alloc) {
     if (!alloc) {
-        LOG_FATAL("SysMutexCreate requires an allocator");
+        LOG_FATAL("MutexCreate requires an allocator");
     }
-    SysMutex *m = (SysMutex *)AllocatorAlloc(alloc, sizeof(SysMutex), true);
+    Mutex *m = (Mutex *)AllocatorAlloc(alloc, sizeof(Mutex), true);
 
     if (!m) {
         LOG_ERROR("Failed to allocate mutex");
@@ -45,23 +45,23 @@ SysMutex *SysMutexCreate(Allocator *alloc) {
     return m;
 }
 
-void SysMutexDestroy(SysMutex *m, Allocator *alloc) {
+void MutexDestroy(Mutex *m, Allocator *alloc) {
     if (!m) {
         return;
     }
     if (!alloc) {
-        LOG_FATAL("SysMutexDestroy requires the allocator that created the mutex");
+        LOG_FATAL("MutexDestroy requires the allocator that created the mutex");
     }
 #ifdef _WIN32
     DeleteCriticalSection(&m->lock);
 #else
     pthread_mutex_destroy(&m->lock);
 #endif
-    MemSet(m, 0, sizeof(SysMutex));
-    AllocatorFree(alloc, m, sizeof(SysMutex));
+    MemSet(m, 0, sizeof(Mutex));
+    AllocatorFree(alloc, m, sizeof(Mutex));
 }
 
-SysMutex *SysMutexLock(SysMutex *m) {
+Mutex *MutexLock(Mutex *m) {
 #ifdef _WIN32
     EnterCriticalSection(&m->lock);
 #else
@@ -70,7 +70,7 @@ SysMutex *SysMutexLock(SysMutex *m) {
     return m;
 }
 
-SysMutex *SysMutexUnlock(SysMutex *m) {
+Mutex *MutexUnlock(Mutex *m) {
 #ifdef _WIN32
     LeaveCriticalSection(&m->lock);
 #else

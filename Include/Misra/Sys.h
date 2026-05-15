@@ -12,12 +12,12 @@
 
 #include <Misra/Sys/Mutex.h>
 
-// `SysProcId` is part of the foundation because `LOG_FATAL` formats it
-// into the log message. `SysGetCurrentProcessId` (declared below) lives
+// `ProcId` is part of the foundation because `LOG_FATAL` formats it
+// into the log message. `ProcGetCurrentId` (declared below) lives
 // in `Sys.c`, also foundation. The full process-spawning API in
 // `Sys/Proc.h` is the optional `sys_proc` feature - C11 lets the
 // typedef appear in both files.
-typedef u64 SysProcId;
+typedef u64 ProcId;
 
 #if MISRA_HAVE_SYS_DIR
 #    include <Misra/Sys/Dir.h>
@@ -42,7 +42,7 @@ typedef u64 SysProcId;
 ///
 /// TAGS: System, Process
 ///
-SysProcId SysGetCurrentProcessId(void);
+ProcId ProcGetCurrentId(void);
 
 ///
 /// Get environment value value in a `Str` object.
@@ -56,7 +56,7 @@ SysProcId SysGetCurrentProcessId(void);
 ///
 /// TAGS: System, Environment, Memory
 ///
-Str *SysGetEnv(const char *name, Str *value);
+Str *GetEnv(const char *name, Str *value);
 
 ///
 /// Get last error using an error number.
@@ -69,37 +69,37 @@ Str *SysGetEnv(const char *name, Str *value);
 ///
 /// TAGS: System, Error, String
 ///
-Str *SysStrError(i32 eno, Str *err_str);
+Str *StrError(i32 eno, Str *err_str);
 
 ///
-/// Function pointer type for SysAbort callback.
+/// Function pointer type for Abort callback.
 /// This allows custom handling of abort situations (e.g., for testing).
 ///
-typedef void (*SysAbortCallback)(void);
+typedef void (*AbortCallback)(void);
 
 ///
-/// Set a custom callback function for SysAbort.
-/// If no callback is set, SysAbort will call the standard abort() function.
+/// Set a custom callback function for Abort.
+/// If no callback is set, Abort will call the standard abort() function.
 ///
-/// callback[in] : Function to call when SysAbort is invoked, or NULL to reset to default.
+/// callback[in] : Function to call when Abort is invoked, or NULL to reset to default.
 ///
 /// SUCCESS : Callback is set.
 /// FAILURE : Function cannot fail.
 ///
 /// TAGS: System, Testing, Callback
 ///
-void SysSetAbortCallback(SysAbortCallback callback);
+void SetAbortCallback(AbortCallback callback);
 
 ///
 /// Custom abort function that can be redirected for testing purposes.
 /// By default, this calls the standard abort() function.
-/// If a callback is set via SysSetAbortCallback, it calls the callback instead.
+/// If a callback is set via SetAbortCallback, it calls the callback instead.
 ///
 /// SUCCESS : Function does not return (either aborts or calls callback).
 /// FAILURE : Function cannot fail.
 ///
 /// TAGS: System, Testing, Control
 ///
-void SysAbort(void);
+void Abort(void);
 
 #endif // MISRA_SYS_H
