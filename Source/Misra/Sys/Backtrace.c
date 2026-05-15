@@ -240,11 +240,62 @@ void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *allo
 // ---------------------------------------------------------------------------
 // macOS / Darwin backend
 // ---------------------------------------------------------------------------
+//
+// Capture path: same saved-FP walk as the Linux backend below
+// (frame pointers are the norm on x86_64 / arm64 Darwin builds).
+// Format path: per-IP we ask dyld for the loaded image's path + slide
+// and route through the in-tree MachoCache, which handles the binary
+// + dSYM + DWARF chain.
+//
+// We deliberately do NOT `#include <mach-o/dyld.h>` / `<mach-o/loader.h>`
+// here -- they transitively pull in `<stdbool.h>`, which `#define bool
+// _Bool` and breaks Misra's "bool comes from Types.h, always means i8"
+// invariant. Following the `Parsers/Elf` pattern, we restate the
+// handful of dyld / Mach-O declarations we actually need.
 
 #elif defined(__APPLE__)
 
-#    include <mach-o/dyld.h>
-#    include <mach-o/loader.h>
+// dyld public API surface (libdyld.dylib, ABI-stable).
+extern uint32_t    _dyld_image_count(void);
+extern const void *_dyld_get_image_header(uint32_t image_index);
+extern const char *_dyld_get_image_name(uint32_t image_index);
+extern intptr_t    _dyld_get_image_vmaddr_slide(uint32_t image_index);
+
+// Mach-O constants we look at.
+enum {
+    MACHO_MH_MAGIC_64   = 0xFEEDFACFu,
+    MACHO_LC_SEGMENT_64 = 0x19,
+};
+
+// Mach-O 64-bit header layout (mirrors `struct mach_header_64`).
+typedef struct MachoHeader64 {
+    u32 magic;
+    u32 cputype;
+    u32 cpusubtype;
+    u32 filetype;
+    u32 ncmds;
+    u32 sizeofcmds;
+    u32 flags;
+    u32 reserved;
+} MachoHeader64;
+
+// Load command head: every LC_* record starts with this 8-byte tuple.
+typedef struct MachoLoadCommandHdr {
+    u32 cmd;
+    u32 cmdsize;
+} MachoLoadCommandHdr;
+
+// `segment_command_64` prefix -- we only read fields up through vmsize.
+typedef struct MachoSegmentCommand64 {
+    u32  cmd;
+    u32  cmdsize;
+    char segname[16];
+    u64  vmaddr;
+    u64  vmsize;
+    u64  fileoff;
+    u64  filesize;
+    // trailing maxprot/initprot/nsects/flags not read
+} MachoSegmentCommand64;
 
 #    if MISRA_HAVE_PARSER_MACHO
 #        include <Misra/Sys/MachoCache.h>
@@ -303,19 +354,19 @@ bool capture_stack_trace_vec(StackFrames *out, size skip_frames) {
 #    if MISRA_HAVE_PARSER_MACHO
 static bool dyld_image_for_ip(void *ip, const char **out_path, u64 *out_slide) {
     uintptr_t ipx = (uintptr_t)ip;
-    uint32_t  n   = _dyld_image_count();
-    for (uint32_t i = 0; i < n; ++i) {
-        const struct mach_header_64 *h = (const struct mach_header_64 *)_dyld_get_image_header(i);
-        if (!h || h->magic != MH_MAGIC_64)
+    u32       n   = _dyld_image_count();
+    for (u32 i = 0; i < n; ++i) {
+        const MachoHeader64 *h = (const MachoHeader64 *)_dyld_get_image_header(i);
+        if (!h || h->magic != MACHO_MH_MAGIC_64)
             continue;
-        intptr_t       slide = _dyld_get_image_vmaddr_slide(i);
-        const uint8_t *cmd_p = (const uint8_t *)h + sizeof(struct mach_header_64);
-        for (uint32_t c = 0; c < h->ncmds; ++c) {
-            const struct load_command *lc = (const struct load_command *)cmd_p;
-            if (lc->cmd == LC_SEGMENT_64) {
-                const struct segment_command_64 *seg = (const struct segment_command_64 *)cmd_p;
-                uintptr_t                        lo  = (uintptr_t)(seg->vmaddr + slide);
-                uintptr_t                        hi  = lo + (uintptr_t)seg->vmsize;
+        intptr_t  slide = _dyld_get_image_vmaddr_slide(i);
+        const u8 *cmd_p = (const u8 *)h + sizeof(MachoHeader64);
+        for (u32 c = 0; c < h->ncmds; ++c) {
+            const MachoLoadCommandHdr *lc = (const MachoLoadCommandHdr *)cmd_p;
+            if (lc->cmd == MACHO_LC_SEGMENT_64) {
+                const MachoSegmentCommand64 *seg = (const MachoSegmentCommand64 *)cmd_p;
+                uintptr_t                    lo  = (uintptr_t)(seg->vmaddr + (u64)slide);
+                uintptr_t                    hi  = lo + (uintptr_t)seg->vmsize;
                 if (ipx >= lo && ipx < hi) {
                     *out_path  = _dyld_get_image_name(i);
                     *out_slide = (u64)slide;
