@@ -5,7 +5,6 @@ Parking lot for items we've identified during real implementation work but defer
 ## Allocators
 - DebugAllocator: wire `PageProtect(PROT_NONE)` UAF mode behind a `force_page_backing` config; routes through `PageAllocator` instead of the user-supplied parent.
 - DebugAllocator: optional mutex field for thread safety (single-threaded only today).
-- DebugAllocator: replace libc `backtrace()` + `dladdr` with a DWARF unwinder so static functions resolve in leak reports.
 - Allocator vtable: per-call alignment parameter on `AllocatorAlloc` / `AllocatorRealloc` (currently fixed at allocator init).
 - Allocator vtable: split `resize` (in-place, returns bool) vs `remap` (may move, returns ptr-or-NULL); keep `reallocate` as the convenience that cascades.
 - `StackFallbackAllocator`: composition wrapper that tries a fixed stack buffer first then falls back to a parent allocator.
@@ -18,6 +17,8 @@ Parking lot for items we've identified during real implementation work but defer
 - `Sys/Socket`: Windows port — currently `#error` on `_WIN32` (needs `SOCKET` vs `int` reconciliation, `WSAStartup`, `closesocket`, `WSAPoll`).
 - `Sys/Socket`: move `SocketPoll` from `poll()` to `epoll` / `kqueue` for >1000-fd scale.
 - `Sys/Backtrace`: consider symbolize-once cache so repeated `FormatStackTrace` calls don't redo `dladdr` work.
+- `Sys/Backtrace` (Linux/macOS x86-64): sigsetjmp-guarded `read_u64_at` so a wild RIP during CFI / FP walking aborts the walk instead of crashing the whole process.
+- `Sys/Backtrace`: aarch64 CFI walker — same shape as the x86-64 path but reads x29 / x30 / sp registers; deferred until we have an arm64 host to test on.
 
 ## Beam (reverse proxy)
 - Multi-connection concurrency — currently one connection serviced at a time.
@@ -41,9 +42,29 @@ Parking lot for items we've identified during real implementation work but defer
 - Add an integration test that strips a binary and reattaches a separate-debug-file via `objcopy --add-gnu-debuglink`, then asserts that SymbolResolver still resolves symbols + source lines through the sidecar.
 - `Parsers/Dwarf`: walk `DW_AT_ranges` for discontiguous subprograms (currently they're skipped — only contiguous `low_pc`/`high_pc` functions land in `DwarfFunctions`).
 - `Parsers/Dwarf`: follow `DW_AT_specification` / `DW_AT_abstract_origin` to attach a name to defining subprogram DIEs that themselves carry no `DW_AT_name` (e.g. some C++ out-of-line method definitions).
-- `Parsers/Pe`: in-tree PE/COFF parser. Read DOS + NT headers, section table, and the debug directory's CodeView entry so we can extract `(pdb_path, guid, age)`. Lets us locate the PDB without relying on dbghelp's `SymGetModuleInfo`.
-- `Parsers/Pdb`: in-tree PDB reader. Needs an MSF (Multi-Stream File) container layer first — superblock + free page map + stream directory + per-stream page chain. On top of that, parse the PDB Info stream (#1, validates GUID/age), the DBI stream (#3, gives module list + section contributions), and the Globals/Publics streams (S_PUB32 records map function names to RVA). Goal is `SymbolResolverResolve` parity with dbghelp's `SymFromAddr` for stripped binaries that ship a `.pdb`. Defer line-number resolution (`.symtab+0x...:line`) to a v2 of the parser since it needs the modi stream walker.
-- `Sys/Backtrace`: replace dbghelp `SymFromAddr` / `SymGetLineFromAddr64` on Windows with the in-tree PE+PDB chain once both parsers exist. `CaptureStackBackTrace` (kernel32) stays — it's not a dbghelp dependency, and the alternative is reimplementing SEH-table-driven unwinding from RtlLookupFunctionEntry, which is its own multi-week effort.
+- `Parsers/Pdb`: support PDBs whose directory block-map spills past a single MSF page (currently v1 caps at one block-map page, ~4 MB of directory bytes).
+- `Parsers/Pdb`: line-number resolution via the per-module symbol stream (current v1 only resolves names; `file:line` for stack frames is a v2 task).
+- `Parsers/Pdb`: also walk `S_LPROC32` / `S_GPROC32` records in module symbol streams so private (non-public) function names appear in stack traces.
+- `Parsers/MachO`: fat / universal binary support — pick the slice matching the host CPU instead of rejecting outright.
+- `Sys/MachoCache`: also check `~/Library/Developer/Xcode/DerivedData/.../dSYM` for the dSYM when no sibling `<binary>.dSYM` bundle exists alongside the loaded image.
 
 ## Naming / Platform
 - `FileGetSize` / `ProcGetCurrentId` carry namespace prefixes only to avoid WINAPI macro collisions (`GetFileSize`, `GetCurrentProcessId`). Consider `#undef`'ing the WINAPI macros inside the `Sys/*` translation units and reverting to the cleaner bare names.
+
+## Completed
+Items below have landed; kept here as a history of what each branch closed out.
+
+### backtrace-hardening (May 2026)
+- `Parsers/Elf`: `.note.gnu.build-id` + `.gnu_debuglink` parsing so the resolver can find a stripped binary's sidecar `.debug` file.
+- `Parsers/Dwarf`: `.eh_frame` CIE/FDE parser + CFA bytecode interpreter + walker driver (`CaptureStackTraceCfi`) so unwinding works on `-fomit-frame-pointer` builds.
+- `Parsers/Dwarf`: `.debug_info` function-name index (`DwarfFunctions`) for stripped binaries whose debug info kept the names.
+- `SymbolResolver` cascade extended: main `.symtab` → sidecar `.symtab` → main `.debug_info` → sidecar `.debug_info`, with build-ID and (best-effort) debuglink pairing.
+- `Parsers/Pe`: PE/COFF parser with DOS / NT / optional-header walk and CodeView (RSDS) record extraction.
+- `Parsers/Pdb`: MSF container reader + PDB Info stream + DBI / SymRecord / SectionHdr walker for public function names.
+- `Sys/PdbCache`: portable PE → PDB resolver with GUID/age validation; wired as the primary symbolizer in the Windows `Sys/Backtrace` path (dbghelp kept as fallback).
+- `Parsers/MachO`: 64-bit Mach-O parser (LC_SEGMENT_64 + LC_SYMTAB + LC_UUID).
+- `Sys/MachoCache`: dSYM-aware resolver (main symtab → dSYM symtab → dSYM DWARF) with UUID-match enforcement.
+- `Sys/Backtrace`: macOS / Darwin backend (FP walk + dyld image lookup + MachoCache); brings the in-tree symbolizer to all three desktop platforms.
+- `Sys/Backtrace`: raw + Vec shapes for `CaptureStackTrace` / `CaptureStackTraceCfi` / `FormatStackTrace` / `FormatStackTraceWith` via `MISRA_OVERLOAD`; preserves the alloc-free path the DebugAllocator depends on.
+- `Std/Container/BitVec`: raw + Vec shapes for `BitVecFindAllPattern` (Vec of indices) and `BitVecRunLengths` (Vec of `{length, value}` records); same `MISRA_OVERLOAD` dispatch.
+- `Std/Allocator/Debug`: backtrace + symbol resolution now goes through the in-tree chain end-to-end; no libc `backtrace()` or `dladdr` dependency. Static functions resolve through `.symtab` or `.debug_info`.
