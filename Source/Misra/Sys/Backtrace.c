@@ -2,17 +2,16 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Frame-pointer-based stack walker + SymbolResolver-driven formatter.
+/// Dual-platform stack-trace capture + formatter.
 ///
-/// On x86-64 and aarch64 the ABI guarantees (with -fno-omit-frame-pointer)
-/// that at every active call site:
+/// Linux path: pure-Misra. Walks `__builtin_frame_address(0)` for
+/// capture; routes each IP through `Sys/SymbolResolver` (`/proc/self/maps`
+/// + our ELF + DWARF parsers) for formatting. No libc backtrace, no
+/// dladdr.
 ///
-///   [fp + 0] = saved FP of caller
-///   [fp + 8] = saved return address (the IP in the caller)
-///
-/// We walk the chain by chasing `[fp + 0]` until it stops increasing
-/// monotonically (the stack grows down, so each saved FP must live at
-/// a higher address than the previous one).
+/// Windows path: wraps `CaptureStackBackTrace` and dbghelp's
+/// `SymFromAddr` / `SymGetLineFromAddr64`. The in-tree PE+PDB
+/// equivalents are deferred (FUTURE-PLANS).
 
 #include <Misra/Sys/Backtrace.h>
 
@@ -21,17 +20,106 @@
 
 #include <stdint.h>
 
-// Sys/Backtrace uses __builtin_frame_address(0), the GCC/Clang
-// frame-pointer intrinsic. MSVC doesn't have it (the equivalent is
-// `_AddressOfReturnAddress()` plus inline asm), and meson already
-// auto-disables sys_backtrace outside of Linux. This guard catches
-// anyone who flips the flag back on by hand.
-#if !defined(__GNUC__) && !defined(__clang__)
-#    error "Sys/Backtrace requires GCC or Clang frame-pointer builtins; set sys_backtrace=false"
-#endif
+// ---------------------------------------------------------------------------
+// Helpers used by both backends
+// ---------------------------------------------------------------------------
+
+static const char *basename_of(const char *path) {
+    if (!path)
+        return "?";
+    const char *slash = path;
+    for (const char *p = path; *p; ++p) {
+        if (*p == '/' || *p == '\\')
+            slash = p + 1;
+    }
+    return slash;
+}
 
 // ---------------------------------------------------------------------------
-// Capture
+// Windows backend
+// ---------------------------------------------------------------------------
+
+#ifdef _WIN32
+
+#    include <windows.h>
+#    include <dbghelp.h>
+
+// dbghelp.lib must be on the link line; meson.build adds it.
+
+static bool g_dbghelp_initialized = false;
+
+static void ensure_dbghelp(void) {
+    if (g_dbghelp_initialized)
+        return;
+    SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME);
+    if (SymInitialize(GetCurrentProcess(), NULL, TRUE)) {
+        g_dbghelp_initialized = true;
+    }
+}
+
+size CaptureStackTrace(StackFrame *out, size max_frames, size skip_frames) {
+    if (!out || max_frames == 0)
+        return 0;
+
+    enum {
+        SCRATCH_MAX = 256
+    };
+    void *raw[SCRATCH_MAX];
+    ULONG cap = (ULONG)max_frames;
+    if (cap > SCRATCH_MAX)
+        cap = SCRATCH_MAX;
+    // The +1 accounts for this function's own frame.
+    ULONG n = CaptureStackBackTrace((DWORD)(skip_frames + 1), cap, raw, NULL);
+    for (ULONG i = 0; i < n; ++i) {
+        out[i].ip = raw[i];
+    }
+    return (size)n;
+}
+
+void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator *alloc) {
+    (void)alloc;
+    if (!out || !frames)
+        return;
+    ensure_dbghelp();
+    HANDLE proc = GetCurrentProcess();
+
+    enum {
+        MAX_NAME = 512
+    };
+    char         buf[sizeof(SYMBOL_INFO) + MAX_NAME];
+    SYMBOL_INFO *sym = (SYMBOL_INFO *)buf;
+    MemSet(sym, 0, sizeof(*sym));
+    sym->SizeOfStruct = sizeof(SYMBOL_INFO);
+    sym->MaxNameLen   = MAX_NAME;
+
+    IMAGEHLP_LINE64 line;
+    MemSet(&line, 0, sizeof(line));
+    line.SizeOfStruct = sizeof(line);
+
+    for (size i = 0; i < count; ++i) {
+        DWORD64 ip      = (DWORD64)(uintptr_t)frames[i].ip;
+        DWORD64 sym_off = 0;
+        bool    has_sym = g_dbghelp_initialized && SymFromAddr(proc, ip, &sym_off, sym);
+
+        if (has_sym) {
+            StrWriteFmt(out, "  #{} {}+{x} [{x}]", (u32)i, sym->Name, (u64)sym_off, (u64)ip);
+        } else {
+            StrWriteFmt(out, "  #{} {x}", (u32)i, (u64)ip);
+        }
+
+        DWORD line_disp = 0;
+        if (g_dbghelp_initialized && SymGetLineFromAddr64(proc, ip, &line_disp, &line) && line.FileName) {
+            const char *fname = basename_of(line.FileName);
+            StrWriteFmt(out, " ({}:{})", fname, (u32)line.LineNumber);
+        }
+        StrPushBack(out, '\n');
+    }
+}
+
+#elif defined(__GNUC__) || defined(__clang__)
+
+// ---------------------------------------------------------------------------
+// Linux / GCC + Clang backend
 // ---------------------------------------------------------------------------
 
 enum {
@@ -43,7 +131,6 @@ size CaptureStackTrace(StackFrame *out, size max_frames, size skip_frames) {
         return 0;
     }
 
-    // Start one frame up so we don't include our own.
     void **fp = (void **)__builtin_frame_address(0);
     if (!fp) {
         return 0;
@@ -82,21 +169,6 @@ size CaptureStackTrace(StackFrame *out, size max_frames, size skip_frames) {
     }
 
     return captured;
-}
-
-// ---------------------------------------------------------------------------
-// Format
-// ---------------------------------------------------------------------------
-
-static const char *basename_of(const char *path) {
-    if (!path)
-        return "?";
-    const char *slash = path;
-    for (const char *p = path; *p; ++p) {
-        if (*p == '/')
-            slash = p + 1;
-    }
-    return slash;
 }
 
 static void emit_resolved_line(Str *out, u32 idx, const ResolvedSymbol *r, void *ip) {
@@ -148,3 +220,7 @@ void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator 
     FormatStackTraceWith(out, frames, count, &res);
     SymbolResolverDeinit(&res);
 }
+
+#else
+#    error "Sys/Backtrace requires Windows or GCC/Clang frame-pointer builtins"
+#endif

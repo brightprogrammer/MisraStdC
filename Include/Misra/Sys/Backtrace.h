@@ -2,32 +2,37 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Stack-trace capture + formatting, built on top of `Sys/SymbolResolver`
-/// (the in-tree dladdr replacement) and a frame-pointer-based walker.
-/// Does **not** depend on libc `backtrace()`, libgcc unwinder, or
-/// `dladdr` — both phases are pure-Misra code reading ELF + procmaps.
+/// Stack-trace capture + formatting. Two platform backends:
 ///
-/// Two stages, as before:
+///   - **Linux / GCC + Clang**: pure-Misra implementation. Capture
+///     walks saved-FP chain via `__builtin_frame_address`. Format
+///     pumps each IP through `Sys/SymbolResolver`, which reads our
+///     own `/proc/self/maps` parser and our own ELF + DWARF parsers.
+///     No libc `backtrace()`, no libgcc unwinder, no `dladdr`.
 ///
-///   `CaptureStackTrace(out, max, skip)` — fast: walks saved-FP chain,
-///       writes raw instruction pointers. Constant-time per frame.
+///   - **Windows / MSVC**: wraps `CaptureStackBackTrace` (kernel32)
+///     and dbghelp's `SymFromAddr` / `SymGetLineFromAddr64`. Same
+///     API surface; behind the scenes it uses the platform's system
+///     libraries because there is no `/proc/self/maps` and PE+PDB
+///     parsing is a separate effort tracked in FUTURE-PLANS.
 ///
-///   `FormatStackTrace(...)` — slow: resolves each IP to
-///       `module!symbol+offset` via a `SymbolResolver` and renders the
-///       result into a `Str`.
-///
-/// The capture path needs frame pointers, i.e. the program (and any
-/// code we unwind through) must be built with `-fno-omit-frame-pointer`.
-/// DWARF CFI unwinding for `-fomit-frame-pointer` builds is in
-/// FUTURE-PLANS.md.
+/// The Linux capture path needs frame pointers, i.e. the program
+/// (and any code we unwind through) must be built with
+/// `-fno-omit-frame-pointer`. The Windows path uses SEH-based
+/// unwinding from `CaptureStackBackTrace` and has no such
+/// requirement.
 
 #ifndef MISRA_SYS_BACKTRACE_H
 #define MISRA_SYS_BACKTRACE_H
 
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Str.h>
-#include <Misra/Sys/SymbolResolver.h>
 #include <Misra/Types.h>
+
+// SymbolResolver only exists on the in-tree (Linux) path.
+#if MISRA_HAVE_SYS_SYMRESOLVE
+#    include <Misra/Sys/SymbolResolver.h>
+#endif
 
 ///
 /// A single captured stack frame. Just the IP — symbol resolution
@@ -74,9 +79,13 @@ size CaptureStackTrace(StackFrame *out, size max_frames, size skip_frames);
 ///
 void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator *alloc);
 
+#if MISRA_HAVE_SYS_SYMRESOLVE
 ///
 /// Same as `FormatStackTrace` but reuses a caller-owned resolver.
-/// Cheaper when formatting many traces.
+/// Cheaper when formatting many traces. Available only when the
+/// in-tree `SymbolResolver` is compiled in (Linux today). On Windows
+/// dbghelp does its own caching internally, so this variant is
+/// neither offered nor needed.
 ///
 /// out[out]       : Str to append to.
 /// frames[in]     : Frames captured by `CaptureStackTrace`.
@@ -89,5 +98,6 @@ void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator 
 /// TAGS: Sys, Backtrace, Format
 ///
 void FormatStackTraceWith(Str *out, const StackFrame *frames, size count, SymbolResolver *resolver);
+#endif
 
 #endif // MISRA_SYS_BACKTRACE_H

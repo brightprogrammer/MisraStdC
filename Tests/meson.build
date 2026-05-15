@@ -352,7 +352,7 @@ if opt_sys_symresolve
     endforeach
 endif
 
-if opt_sys_backtrace
+if opt_sys_backtrace and tests_need_posix_exe
     foreach test_info : backtrace_tests
         test_name = test_info[0]
         test_src = test_info[1]

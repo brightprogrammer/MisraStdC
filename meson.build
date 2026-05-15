@@ -42,14 +42,13 @@ opt_sys_procmaps   = get_option('sys_procmaps')
 opt_sys_symresolve = get_option('sys_symresolve')
 opt_sys_backtrace  = get_option('sys_backtrace')
 
-# /proc/self/maps is Linux-only. Auto-disable elsewhere — and the
-# whole chain that builds on top of it: SymbolResolver, Backtrace,
-# and DebugAllocator (which forces sys_backtrace on as a dependency).
+# /proc/self/maps is Linux-only. Auto-disable it (and SymbolResolver,
+# which builds on top of it) elsewhere. Sys/Backtrace has a Windows
+# backend that uses CaptureStackBackTrace + dbghelp directly, so it
+# stays enabled there — and DebugAllocator can follow.
 if host_machine.system() != 'linux'
     opt_sys_procmaps   = false
     opt_sys_symresolve = false
-    opt_sys_backtrace  = false
-    opt_alloc_debug    = false
 endif
 
 # Sys/Backtrace needs SymbolResolver. Force it on if Backtrace is on.
@@ -250,12 +249,19 @@ message('  sys_procmaps=@0@  sys_symresolve=@1@  sys_backtrace=@2@'.format(
 message('  parser_json=@0@  parser_kvconfig=@1@  parser_http=@2@  parser_elf=@3@  parser_dwarf=@4@'.format(
     opt_parser_json, opt_parser_kvconf, opt_parser_http, opt_parser_elf, opt_parser_dwarf))
 
+# Build-time platform deps. The Windows Sys/Backtrace backend links
+# against dbghelp for SymFromAddr / SymGetLineFromAddr64.
+misra_std_platform_deps = [math_dep]
+if opt_sys_backtrace and host_machine.system() == 'windows'
+    misra_std_platform_deps += cc.find_library('dbghelp', required: true)
+endif
+
 # Regular library with sanitizers for normal tests and executables
 misra_std = static_library(
     'misra_std',
     misra_std_sources,
     c_args: common_c_args,
-    dependencies: math_dep,
+    dependencies: misra_std_platform_deps,
     include_directories: inc_misra,
     install: true
 )
@@ -264,7 +270,7 @@ misra_std = static_library(
 misra_std_dep = declare_dependency(
     include_directories : inc_misra,
     link_with: misra_std,
-    dependencies: [math_dep],
+    dependencies: misra_std_platform_deps,
 )
 
 # Non-sanitized library specifically for deadend tests to avoid memory leak reports
@@ -272,7 +278,7 @@ misra_std_no_sanitizers = static_library(
     'misra_std_no_sanitizers',
     misra_std_sources,
     c_args: common_c_args,
-    dependencies: math_dep,
+    dependencies: misra_std_platform_deps,
     include_directories: inc_misra,
     install: false,
     override_options: ['b_sanitize=none']
