@@ -5,652 +5,686 @@
 [![Windows Build](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows-msvc.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows-msvc.yml)
 [![Fuzzing](https://github.com/brightprogrammer/MisraStdC/actions/workflows/fuzz.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/fuzz.yml)
 
-> ~~While this was really fun to do, I realize there will always be some limitations of this library. If you just wanna have some fun with macros, go ahead and try this library, otherwise I think maintaining it is a real PITA. There will always exist a use-case that's just too covoluted to handle. Ciao Ciao!~~ Let's give it another shot!
+A modern C11 library that borrows the parts of Rust, Zig, C++, and Python that
+actually pay off, and stitches them into plain C without bringing along a
+runtime, code generator, or template compiler. Generic containers, formatted
+I/O, arbitrary-precision arithmetic, JSON and key-value parsing, cross-platform
+system utilities — all opt-out via build-time feature flags so you compile only
+what you use.
 
-A modern C11 library designed to make programming in C less painful and more productive, written in pure C. MisraStdC provides generic containers, string handling, and formatted I/O inspired by higher-level languages while maintaining C's performance and control.
+> **Disclaimer:** This library is **not** related to the MISRA C standard or
+> guidelines. The name comes from the author's surname, Siddharth Mishra,
+> nicknamed "Misra" among friends.
 
-> **Disclaimer:** This library is **not** related to the MISRA C standard or guidelines. The name "MisraStdC" comes from the author's name, Siddharth Mishra, who is commonly known as "Misra" among friends.
+---
 
 ## Table of Contents
 
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Documentation](#documentation)
-- [Concepts](#concepts)
-- [Examples](#examples)
-  - [Vector Container (Vec)](#vector-container-vec)
-  - [String Operations (Str)](#string-operations-str)
-  - [Directed Graph Container (Graph)](#directed-graph-container-graph)
-  - [Formatted I/O](#formatted-io)
-  - [JSON Parsing and Writing](#json-parsing-and-writing)
-  - [Working with Complex Types](#working-with-complex-types)
-  - [Parent Child Process](#parent-child-process)
-- [Format Specifiers](#format-specifiers)
+- [The Perspective](#the-perspective)
+- [A Quick Taste](#a-quick-taste)
+- [What You Get](#what-you-get)
+- [Build and Install](#build-and-install)
+- [Feature Flags](#feature-flags)
+- [Six Core Ideas](#six-core-ideas)
+  - [1. Allocators are user-owned values, never global state](#1-allocators-are-user-owned-values-never-global-state)
+  - [2. `Scope` is lexical RAII, in plain C](#2-scope-is-lexical-raii-in-plain-c)
+  - [3. Every object carries a magic; type-confusion dies at the dispatch](#3-every-object-carries-a-magic-type-confusion-dies-at-the-dispatch)
+  - [4. Macros + `_Generic` give you generics without a template compiler](#4-macros--_generic-give-you-generics-without-a-template-compiler)
+  - [5. Fallible by default, `Must`-variants for the unrecoverable](#5-fallible-by-default-must-variants-for-the-unrecoverable)
+  - [6. One header, configured at build time](#6-one-header-configured-at-build-time)
+- [Container Tour](#container-tour)
+  - [Vec](#vec)
+  - [Str](#str)
+  - [List, Graph](#list-graph)
+  - [BitVec, Int, Float](#bitvec-int-float)
+- [Formatted I/O](#formatted-io)
+- [Parsers](#parsers)
+- [System Utilities](#system-utilities)
 - [Contributing](#contributing)
 - [License](#license)
 
-## Features
+---
 
-- **Cross-platform compatibility**: Supports MSVC, GCC, and Clang
-- **Macro-based generic containers and utilities**:
-  - `Vec(T)`: Generic vector backed by shared `GenericVec` runtime helpers
-  - `List(T)`: Generic doubly linked list backed by shared `GenericList` runtime helpers
-  - `Graph(T)`: Generic directed graph with stable node ids, predecessor/successor traversal, and deferred destructive mutation
-  - `Str` / `Strs`: Predefined `typedef`s for `Vec(char)` and `Vec(Str)`
-  - `BitVec`: Packed bit container for boolean-style storage
-  - `Int`: Arbitrary-precision unsigned integer API backed by `BitVec`, with byte and radix-string conversion, arithmetic, roots, gcd/lcm, primality helpers, and modular arithmetic
-  - `Float`: Arbitrary-precision decimal floating-point API backed by `Int`, with string conversion and exact add/sub/mul plus precision-based division
-  - `Iter(T)` and `Pair(xT, yT)`: Generic utility macros
-- **Rust-style formatted I/O**:
-  - `WriteFmt`, `ReadFmt`: Type-safe formatted standard I/O
-  - `StrWriteFmt`, `StrReadFmt`: Type-safe formatted string operations
-- **JSON parsing and serialization**
-- **Memory safety** with proper initialization and cleanup functions
+## The Perspective
 
-## Requirements
+C is the language closest to the hardware, but its standard library shows its
+age. The library APIs have hidden globals, mute allocator failures, throw away
+length information, and expect the programmer to keep track of every lifetime
+by hand. The ergonomic answers other languages settled on — borrow checkers,
+scope-bound destructors, generics, explicit allocators, fallible-by-default
+APIs — got there for a reason.
 
-- **C11 compatible compiler**:
-  - **GCC**: Version 4.9 or newer
-  - **Clang**: Version 3.4 or newer
-  - **MSVC**: Visual Studio 2019 or newer
-  
-- **Build System**:
-  - [Meson](https://mesonbuild.com/) build system (version 0.60.0 or newer)
-  - [Ninja](https://ninja-build.org/) build tool
+MisraStdC takes those ideas and asks: how much of each works in C11 without
+adding a runtime? It turns out a lot.
 
-## Installation
+- **From Rust:** explicit allocators threaded through every constructor, lexical
+  scope-bound lifetimes, fallible-by-default APIs, structured format strings.
+- **From Zig:** allocators as plain values, comptime-style type dispatch
+  (`_Generic`), feature flags that flip whole subsystems on and off.
+- **From C++:** RAII patterns — adapted to C's preprocessor, with one honest
+  C-level caveat about `return` / `goto`.
+- **From Python:** a single import (`#include <Misra.h>`) is enough.
 
-### Building from Source
+Nothing in this library hides at runtime. Every macro expands to inlined struct
+literals or named runtime helpers you can step through. Every allocator is a
+plain stack-allocated struct, no `void *state` indirection, no hidden globals.
+If the compiler can't see the allocator it's about to use, that's a compile
+error. If a type lookup goes wrong, that's a `LOG_FATAL` from a magic check at
+the dispatch boundary, not a corrupted heap three function calls later.
 
-```bash
-# Clone the repository with submodules
-git clone --recursive https://github.com/brightprogrammer/MisraStdC.git
-cd MisraStdC
+---
 
-# Configure the build
-meson setup builddir
+## A Quick Taste
 
-# Build the library
-ninja -C builddir
+```c
+#include <Misra.h>
 
-# Run tests
-ninja -C builddir test
+int main(void) {
+    Scope(alloc, DefaultAllocator) {
+        typedef Vec(int) IntVec;
+
+        IntVec primes = VecInit();           // bound to MisraScope
+        int    values[] = {2, 3, 5, 7, 11, 13};
+        VecMustInsertRangeR(&primes, values, 0, 6);
+
+        VecForeachIdx(&primes, p, idx) {
+            WriteFmtLn("primes[{}] = {}", idx, p);
+        }
+
+        VecDeinit(&primes);
+    }   // allocator destroyed automatically
+}
 ```
 
-### Build Options
+That snippet uses one allocator (`DefaultAllocator` = a binned per-descriptor
+heap built on top of `PageAllocator`), one generic container, type-safe
+formatted I/O, and an iteration macro. No `malloc`, no `printf`, no global
+state. Every object is on the stack except `primes.data`, which is reclaimed
+when the `Scope` ends.
 
-For development with sanitizers (recommended for debugging):
+---
+
+## What You Get
+
+- **Five concrete allocators**, all user-owned, all per-descriptor:
+  `HeapAllocator` (binned), `PageAllocator` (raw OS pages), `ArenaAllocator`
+  (bump), `SlabAllocator` (growable fixed-slot pool), and `BudgetAllocator`
+  (caller-buffer, fixed-budget, no-growth).
+- **Generic containers** built on a shared runtime: `Vec(T)`, `List(T)`,
+  `Map(K,V)`, `Graph(T)`, `BitVec`, `Str` (= `Vec(char)`), `Strs` (= `Vec(Str)`).
+- **Arbitrary-precision arithmetic:** `Int` on top of `BitVec`, `Float` on top
+  of `Int`, with radix-string conversion, modular arithmetic, primality,
+  decimal-exact add/sub/mul/div.
+- **Type-aware formatted I/O** with Rust-style `{}` placeholders; one
+  `WriteFmt(...)` works for `int`, `f64`, `Str`, `Int`, `Float`, `BitVec`,
+  C strings — all dispatched at compile time via `_Generic`.
+- **JSON and key-value config parsers** as opt-in features.
+- **Cross-platform system utilities:** subprocess control, directory listings,
+  mutexes, environment access, current-process info, current-executable path.
+- **Feature flags** that drop whole subsystems from the static library and
+  from the installed header set. Disabling `bitvec`, `list`, `map`, `graph`,
+  `int`, `float`, `parser_json`, etc. removes their `.c` files from
+  `libmisra_std.a` and their `.h` files from the install prefix.
+
+---
+
+## Build and Install
+
+```bash
+git clone --recursive https://github.com/brightprogrammer/MisraStdC.git
+cd MisraStdC
+meson setup builddir
+ninja -C builddir
+ninja -C builddir test         # run the test suite
+ninja -C builddir install      # install to the configured prefix
+```
+
+For development with sanitizers (the default test build):
 
 ```bash
 meson setup builddir -Db_sanitize=address,undefined -Db_lundef=false
 ```
 
-## Documentation
+### A minimal build
 
-Comprehensive API documentation is available at [docs.brightprogrammer.in](https://docs.brightprogrammer.in).
+If you only need `Vec`, `Str`, `Io`, and the default heap allocator, turn the
+rest off:
 
-The prose guides include a dedicated graph guide covering node handles, predecessor traversal, deferred deletion, and analysis-oriented usage patterns.
-
-## Concepts
-
-### How Generic Templating Works
-
-MisraStdC uses the C preprocessor plus a shared runtime layer rather than code generation. The template-style APIs are
-macros:
-
-- `Vec(T)`, `List(T)`, `Graph(T)`, `Iter(T)`, and `Pair(xT, yT)` expand to anonymous structs.
-- Macros like `VecInsertR`, `VecAt`, `VecDeinit`, and `ListDeinit` infer the element type and `sizeof(...)` at the
-  call site, then forward to generic runtime helpers in `Source/`.
-- `Str` and `Strs` are ordinary `typedef`s built on top of `Vec(char)` and `Vec(Str)`.
-- `BitVec` is a dedicated concrete type, not `Vec(bool)`.
-- `Int` is a concrete bigint type with `BitVec` storage inside it, but its public API is intentionally
-  integer-oriented: initialization, radix and byte conversion, comparison, arithmetic, roots, power-of-two
-  inspection, and modular number-theory helpers are exposed directly, while raw bitvector operations remain on
-  `BitVec`.
-- `Float` is a concrete decimal floating-point type built on top of `Int`, storing a sign, an integer significand,
-  and a base-10 exponent for exact decimal arithmetic.
-
-That model has a few practical consequences:
-
-- Each `Vec(T)` or `List(T)` expansion is a distinct anonymous type. If you need a reusable type across declarations,
-  create a `typedef` first.
-- `VecInsertL` and similar `...L` forms expect an l-value expression, not a pointer. They can transfer ownership by
-  zeroing the source object when no deep-copy callback is configured.
-- If a nested macro type contains commas, wrap it in `T(...)` so the outer macro sees it as a single argument.
-
-```c
-typedef Vec(int) IntVec;
-typedef Vec(T(Pair(i32, Str))) PairVec;
-typedef List(Str) StrList;
+```bash
+meson setup builddir-min \
+    -Dalloc_arena=false -Dalloc_slab=false -Dalloc_budget=false \
+    -Dbitvec=false -Dlist=false -Dmap=false -Dgraph=false \
+    -Dint=false -Dfloat=false \
+    -Dfile=false -Diter=false \
+    -Dsys_dir=false -Dsys_proc=false \
+    -Dparser_json=false -Dparser_kvconfig=false
+ninja -C builddir-min
+ninja -C builddir-min install
 ```
 
-### Initialization
+The resulting `libmisra_std.a` contains only the ten foundation translation
+units, and the install prefix contains only forty headers — about a third of
+the default build. Adding `int` automatically pulls in `bitvec`; adding
+`graph` pulls in `vec` (already foundation); adding `parser_kvconfig` pulls in
+`map`. Dependencies between features resolve transitively at configure time.
 
-If an object type provides an `Init` method or macro, that must be used. Containers
-stamp a magic value into a hidden field and validate it on every call, which catches
-use of an uninitialized or corrupted object at low runtime cost.
+---
 
-Every object must also be deinitialized at the end of its life cycle (`VecDeinit`,
-`StrDeinit`, `GraphDeinit`, ...).
+## Feature Flags
 
-### Allocators and Lifetime
+| Flag                  | Adds                                                     | Auto-pulls       |
+|-----------------------|----------------------------------------------------------|------------------|
+| `alloc_arena`         | `ArenaAllocator`                                         | —                |
+| `alloc_slab`          | `SlabAllocator` (growable fixed-slot pool)               | —                |
+| `alloc_budget`        | `BudgetAllocator` (caller-buffer, fixed-budget)          | —                |
+| `bitvec`              | `BitVec` packed bit container                            | —                |
+| `list`                | `List(T)` doubly-linked list                             | —                |
+| `map`                 | `Map(K,V)` hash map                                      | —                |
+| `graph`               | `Graph(T)` directed graph (uses `Vec` runtime helpers)   | —                |
+| `int`                 | Arbitrary-precision integer `Int`                        | `bitvec`         |
+| `float`               | Arbitrary-precision decimal `Float`                      | `int → bitvec`   |
+| `file`                | `ReadCompleteFile(...)` and file helpers                 | —                |
+| `iter`                | Generic `Iter(T)` iteration helpers                      | —                |
+| `sys_dir`             | `SysGetDirContents(...)` and friends                     | —                |
+| `sys_proc`            | `SysProcCreate(...)` / spawn / wait                      | —                |
+| `parser_json`         | JSON read/write                                          | —                |
+| `parser_kvconfig`     | Key-value config parser                                  | `map`            |
 
-Containers, strings, and other dynamically-sized objects no longer reach into a hidden
-global heap. They take an `Allocator *` at init time and use it for every subsequent
-allocation. The allocator must outlive every object that points at it.
+Every enabled feature also defines `MISRA_HAVE_<NAME>` (= 1) in the
+generated `Misra/Config.h`. User code can `#if MISRA_HAVE_BITVEC` to compile
+against a partial install.
 
-The library ships five concrete allocator types - `HeapAllocator` (the default,
-per-descriptor binned heap on top of OS pages), `PageAllocator` (raw `mmap` /
-`VirtualAlloc`), `ArenaAllocator` (bump allocator, free is a no-op), `SlabAllocator`
-(growable fixed-size slabs), and `BudgetAllocator` (caller-buffer, fixed-budget pool
-that fails when empty). `DefaultAllocator` is a typedef for `HeapAllocator`.
+The foundation — always built, can't be opted out — is:
+`Sys`, `Sys/Mutex`, `Std/Log`, `Std/Memory`, `Std/Allocator` (core + Page +
+Heap = `DefaultAllocator`), `Std/Container/Vec`, `Std/Container/Str`,
+`Std/Io`. `LOG_FATAL` formats its message through `Str` + `Io`, so those
+two are foundation by transitive necessity.
 
-Manual pairing of `*AllocatorInit` and `*AllocatorDeinit` works, but the recommended
-pattern is the `Scope` macro from `Misra/Std/Allocator.h`:
+---
+
+## Six Core Ideas
+
+### 1. Allocators are user-owned values, never global state
+
+Every dynamically-sized object in MisraStdC takes an `Allocator *` at init
+time and uses it for every subsequent allocation. The library owns no
+process-wide heap, no thread-local fallback, no shared "default" instance.
+
+A typed allocator is a struct with state inline:
 
 ```c
-#include <Misra/Std/Allocator/Default.h>
+DefaultAllocator alloc = DefaultAllocatorInit();   // entirely on the stack
+Vec(int) v = VecInit(&alloc);
+...
+VecDeinit(&v);
+DefaultAllocatorDeinit(&alloc);
+```
 
+The library ships five backends:
+
+- **`PageAllocator`** — raw `mmap` / `VirtualAlloc`. The foundation under every
+  other allocator, no libc heap.
+- **`HeapAllocator`** — power-of-two size-class bins (16–2048 B) plus a
+  page-passthrough for large allocations. Each `HeapAllocator` value carries
+  its own bins; two of them on the stack never share memory. `DefaultAllocator`
+  is a typedef for this.
+- **`ArenaAllocator`** — bump cursor over page-backed chunks. `AllocatorFree`
+  is a no-op; everything is released together on `ArenaAllocatorDeinit`. Best
+  fit for parsers and per-request scratch.
+- **`SlabAllocator`** — fixed-size slots with an intrusive free list, grows by
+  pulling more page-backed slabs on demand.
+- **`BudgetAllocator`** — caller hands in a fixed memory region at init; slots
+  are carved out of it and never replenished. Suitable for embedded and
+  freestanding contexts.
+
+The library defines a small `_Generic` whitelist (`ALLOCATOR_OF`) so any of
+these can pass anywhere an `Allocator *` is expected.
+
+### 2. `Scope` is lexical RAII, in plain C
+
+Manually pairing `*AllocatorInit()` and `*AllocatorDeinit(&...)` at every
+exit point is the kind of bookkeeping nobody enjoys. `Scope` is a macro
+that turns a block of code into an allocator lifetime:
+
+```c
 Scope(alloc, DefaultAllocator) {
-    Vec(int) v = VecInit();          // zero-arg form binds to the
-                                     // internal MisraScope allocator
-    VecPushBackR(&v, 42);
+    Vec(int) v = VecInit();        // bound to MisraScope (the internal pool)
+    Vec(int) w = VecInit(alloc);   // bound to the named user pool
+    Str line = StrInitFromZstr("hello");
+    ...
     VecDeinit(&v);
-
-    Vec(int) w = VecInit();     // explicit form uses the named
-    VecDeinit(&w);                   // user-visible pool
+    VecDeinit(&w);
+    StrDeinit(&line);
 }   // both allocators destroyed automatically
 ```
 
-`Scope(name, AllocType)` constructs **two** typed allocators on the stack:
-- `name` - exposed by the caller-chosen identifier for explicit hand-off.
-- `MisraScope` - an internal pool that every `*Init()` macro picks up implicitly
-  when no allocator argument is passed. Outside a `Scope`, the zero-arg form
-  fails to compile because `MisraScope` is undeclared - the safety net.
+`Scope(name, AllocType)` introduces two stack-resident typed allocators:
 
-`ScopeWith(alloc)` borrows an already-existing allocator pointer (typical for
-helpers that take an `Allocator *` parameter). `ExitScope` is the same as `break`
-and runs the cleanup; **`return` / `goto` out of a `Scope` skips cleanup and
-leaks the allocator** - a C-level limitation with no portable workaround.
+- `name` — the user-visible pool. Pass it to helpers explicitly when you want
+  allocations to land in your named slot.
+- `MisraScope` — an internal pool that every zero-argument `*Init()` macro
+  picks up implicitly. Library scratch and your named allocations stay
+  separate by default.
 
-All examples below use `Scope(alloc, DefaultAllocator) { ... }` and call
-`VecInit()` / `StrInit()` / `...` in zero-arg form to keep the snippets tight.
-The named `alloc` is still available for cases where you want to route through
-the user-visible pool explicitly. In production code the allocator type and
-lifetime are yours to choose.
+When control leaves the block, both pools are destroyed.
 
-### Copy/Move Semantics
+`ScopeWith(alloc)` is the helper-side counterpart: borrow a caller-owned
+`Allocator *` and expose it as `MisraScope` inside the block, without taking
+ownership. `ExitScope` is an alias for `break` and runs the cleanup.
 
-There are two types of insertion methods into a container.
+**The one C-level caveat:** `return` and `goto` that leave a `Scope` skip the
+cleanup. There's no portable workaround in C (GCC/Clang's
+`__attribute__((cleanup))` works but MSVC has nothing equivalent). Use
+`ExitScope` to break out cleanly before returning.
 
-- Insertion of l-value
-- Insertion of r-value
+### 3. Every object carries a magic; type-confusion dies at the dispatch
 
-While the naming is a bit ambiguous, this is what I came up at the time of need. By default
-all unmarked functions/macros follow l-value semantics.
+Every container (`Vec`, `Str`, `BitVec`, `List`, `Map`, `Graph`, `Int`,
+`Float`) and every typed allocator carries an 8-byte magic value stamped at
+init time. Each runtime helper validates the magic on entry. The cost is a
+single 64-bit comparison; the upside is that:
 
-#### L-Value Insertion
+- Passing an uninitialized object (`Vec v = {0}; VecPush(&v, 1);`) aborts
+  with a clear `LOG_FATAL` rather than walking through garbage pointers.
+- Reinterpreting one typed allocator as another (`HeapAllocator *` → `ArenaAllocator *`)
+  aborts at the first dispatch instead of corrupting bins.
+- Heap-spray and use-after-free patterns trip the validator long before they
+  reach `mmap`-mapped pages.
 
-Functions/macros marked with ___L___ suffix follow this behavior. Functions/macros marked with ___L___
-will make sure that there will always exist only one copy of data being inserted. If the container you're
-inserting an item to, makes it's own copy of items, the inserted l-value remains as it is, because
-unique ownership is maintained. If however the container does not create it's own copies, because `copy_init`
-method is not set, then it'll take ownership by zeroing the source l-value after insertion (effectively
-`memset(&lval, 0, sizeof(lval))`).
+Each allocator type has its own magic constant
+(`MISRA_HEAP_ALLOCATOR_MAGIC`, `MISRA_PAGE_ALLOCATOR_MAGIC`, ...). Adding a
+new typed allocator means defining its magic and adding it to the
+`ALLOCATOR_OF` `_Generic` whitelist.
 
-This is to explicitly state that the object must always have single ownership.
+### 4. Macros + `_Generic` give you generics without a template compiler
 
-#### R-Value Insertion
+There is no separate code-generation step. The generic shape comes from C11
+macros:
 
-Unlike l-value insertion, here the functions/macros don't care about who owns what. You just insert
-and forget about ownership. There can be multiple owners, there can be a single one, we believe the user
-knows what they're doing.
+- `Vec(T)`, `List(T)`, `Graph(T)`, `Map(K, V)`, `Pair(xT, yT)`, `Iter(T)`
+  expand to anonymous structs. Distinct expansions are distinct types — wrap
+  with a `typedef` if you want to reuse the type.
+- Operations like `VecInsertR`, `VecAt`, `MapGet`, `GraphAddNodeR`, `IntAdd`,
+  `FloatFrom` dispatch on the source value's type at the macro layer
+  (`_Generic`) and forward to shared runtime helpers in `Source/`. Type
+  information that can't be inferred is carried through `sizeof(T)` and
+  `__typeof__`.
+- The macros are designed to be expression-shaped where they return values
+  (so you can branch on `VecInsertL(...)`) and statement-shaped where they
+  encode flow control (`VecForeach`).
 
-#### Example use case(s)
+This means `Vec(int)` and `Vec(struct Point)` share the same runtime code
+but get distinct compile-time types. No header explosion, no separately
+compiled template instantiations.
 
-This strict set of functions/macros to declare ownership transfers in code is to
-better annotate the transfer locations. Usually these are not very clear when reading code.
-One example use case of l-value semantics is when you're creating objects in a for-loop in
-a temporary variable (for eg: receivng from a stream) and then inserting those directly into a
-container for storage.
+### 5. Fallible by default, `Must`-variants for the unrecoverable
 
-NOTE: The container will take ownership only if no `copy_init` is set!!
+The library splits its public API into two parallel forms so each caller
+decides where to draw the abort boundary:
 
-### Fallible API and `Must` Variants
-
-Most container operations that allocate memory can fail. The library splits its
-public API into two parallel forms so callers decide where to draw the abort
-boundary:
-
-- **Plain operation name** — propagates failure. Returns `bool` (or a sentinel
-  such as `GraphNodeId == 0`, `Str` with `data == NULL`, `MAP_VALUE_TYPE * ==
-  NULL`). The container is left unchanged on failure so the caller can retry
-  or bubble the failure up.
-
+- **Plain form** — propagating fallible API. Returns `bool` (or a sentinel
+  like `GraphNodeId == 0`). The container is left unchanged on failure so
+  the caller can retry or bubble the error up.
   ```c
   if (!VecInsertL(&v, item, 0)) {
-      // recover or propagate
+      // recover, retry, or bubble up
   }
   ```
-
-- **`Must` variant** (e.g. `VecMustInsertL`, `MapMustReserve`,
-  `GraphMustAddEdge`, `BitVecMustResize`) — statement-style do-while macro
-  that calls the propagating form and aborts via `LOG_FATAL` / `SysAbort()` on
-  failure. Use these at API boundaries where allocation failure is not
-  recoverable for the caller.
-
+- **`Must` variant** — statement-style `do { ... } while (0)` wrapper that
+  calls `LOG_FATAL` on failure. Use these at API boundaries where allocation
+  failure isn't recoverable.
   ```c
-  VecMustInsertL(&v, item, 0);   // never returns false; aborts on failure
+  VecMustInsertL(&v, item, 0);   // aborts via LOG_FATAL on failure
   ```
 
-This is a two-axis design. The allocator decides *how hard* it tries before
-giving up; the API name decides whether the failure propagates or terminates
-the program. Caller bugs (invalid handles, out-of-range indices, uninitialized
-objects) always abort via `LOG_FATAL` regardless of which form you use.
+Programmer errors — NULL where a pointer is required, out-of-range indices,
+use of an uninitialized container — always abort, regardless of which form
+you call. That's the magic check from idea #3 doing its job.
 
-The `Must` forms are statements, not expressions — they don't yield a value
-and can't be embedded inside another expression. Use the plain form when you
-need both a return value and the safety of an explicit abort:
-
-```c
-GraphNodeId id = GraphAddNodeL(&g, payload);
-if (!id) { /* recover */ }
-```
-
-The deeper rationale, including how allocators interact with this split, is in
-[`Docs/content/english/guides/planned-fallible-apis-and-allocators.md`](Docs/content/english/guides/planned-fallible-apis-and-allocators.md).
-
-## Examples
-
-### Vector Container (Vec)
+### 6. One header, configured at build time
 
 ```c
 #include <Misra.h>
-#include <Misra/Std/Allocator/Default.h>
+```
 
+is enough. `Misra.h` is an umbrella that recursively pulls in every module
+the current build enabled, via `#if MISRA_HAVE_<NAME>` checks against the
+generated `Misra/Config.h`. If you disabled `parser_json` at configure time,
+`<Misra/Parsers/JSON.h>` is neither installed nor pulled in by `Misra.h` —
+but everything else is reachable through that one include.
+
+You can still include sub-umbrellas (`<Misra/Std/Container.h>`,
+`<Misra/Sys.h>`) when you want a narrower preprocessor cost, but you never
+have to.
+
+---
+
+## Container Tour
+
+All examples below assume you have already included `<Misra.h>`.
+
+### Vec
+
+```c
 typedef Vec(int) IntVec;
 
-int compare_ints(const void* a, const void* b) {
-    return *(const int*)a - *(const int*)b;
+int compare_ints(const void *a, const void *b) {
+    return *(const int *)a - *(const int *)b;
 }
 
-int main(void) {
-    Scope(alloc, DefaultAllocator) {
-        // Initialize a reusable vector typedef
-        IntVec numbers = VecInit();
+Scope(alloc, DefaultAllocator) {
+    IntVec numbers = VecInit();
+    VecMustReserve(&numbers, 10);
 
-        // Pre-allocate space for better performance. Must variants abort
-        // on allocation failure; use VecReserve(...) (returns bool) when
-        // the caller wants to handle failure.
-        VecMustReserve(&numbers, 10);
+    // Insert by R-value (copy) and L-value (ownership transfer).
+    int val = 42;
+    VecMustInsertL(&numbers, val, 0);    // `val` is now owned by `numbers`
+    VecMustInsertR(&numbers, 10, 0);     // copy semantics, insert at front
+    VecMustInsertR(&numbers, 30, 1);
 
-        // Insert elements (ownership transfer for l-values). Must
-        // variants abort on allocation failure; plain VecInsertL/R
-        // return bool.
-        int val = 42;
-        VecMustInsertL(&numbers, val, 0);   // val is now owned by vector
-        VecMustInsertR(&numbers, 10, 0);    // Insert at front
-        VecMustInsertR(&numbers, 30, 1);    // Insert in middle
+    int items[] = {15, 25, 35};
+    VecMustInsertRangeR(&numbers, items, VecLen(&numbers), 3);
+    VecSort(&numbers, compare_ints);
 
-        // Access elements safely
-        int  first     = VecAt(&numbers, 0);     // Get by value
-        int *first_ptr = VecPtrAt(&numbers, 0);  // Get by pointer
-        int  last      = VecLast(&numbers);      // Last element
-
-        // Batch operations
-        int items[] = {15, 25, 35};
-        VecMustInsertRangeR(&numbers, items, VecLen(&numbers), 3);
-
-        // Sort the vector
-        VecSort(&numbers, compare_ints);
-
-        // Different iteration patterns
-        VecForeachIdx(&numbers, current, idx) {
-            WriteFmtLn("[{}] = {}", idx, current);
-        }
-
-        // Modify elements in-place
-        VecForeachPtr(&numbers, current) {
-            *current *= 2;
-        }
-
-        // Memory management
-        VecTryReduceSpace(&numbers);  // Optimize memory usage
-        u64 size = VecSize(&numbers); // Size in bytes
-
-        // Batch removal
-        VecDeleteRange(&numbers, 1, 2);
-
-        // Clear all elements but keep capacity
-        VecClear(&numbers);
-
-        // Container cleanup. The allocator itself is destroyed at the
-        // end of the Scope block.
-        VecDeinit(&numbers);
+    VecForeachIdx(&numbers, current, idx) {
+        WriteFmtLn("[{}] = {}", idx, current);
     }
+    VecForeachPtr(&numbers, p) {
+        *p *= 2;
+    }
+
+    VecTryReduceSpace(&numbers);
+    VecDeleteRange(&numbers, 1, 2);
+    VecDeinit(&numbers);
 }
 ```
 
-### String Operations (Str)
+Two insertion styles, intentional:
+
+- **`...L` (l-value):** transfers ownership. If the container doesn't have a
+  deep-copy callback, the source l-value is zeroed after insertion. Use for
+  values built in a temporary that the container should now own.
+- **`...R` (r-value):** plain by-value insertion. No ownership claim, no
+  zeroing.
+
+The split makes ownership transfers visible at call sites instead of buried
+in convention.
+
+### Str
+
+`Str` is a typedef for `Vec(char)` with a null terminator maintained at
+`data[length]`. Same runtime, but a richer set of macros for text:
 
 ```c
-#include <Misra.h>
-#include <Misra/Std/Allocator/Default.h>
+Scope(alloc, DefaultAllocator) {
+    Str text  = StrInit();
+    Str hello = StrInitFromZstr("Hello");
+    Str world = StrInitFromCstr(", World!", 8);
 
-int main(void) {
-    Scope(alloc, DefaultAllocator) {
-        // Str is a typedef specialization of Vec(char)
-        Str text = StrInit();
+    StrWriteFmt(&text, "{}{}\n", hello, world);
 
-        // String creation
-        Str hello = StrInitFromZstr("Hello");
-        Str world = StrInitFromCstr(", World!", 8);
+    bool starts = StrStartsWithZstr(&text, "Hello");
+    bool ends   = StrEndsWithZstr(&text, "!\n");
 
-        // Formatted append
-        StrWriteFmt(&text, "{}{}\n", hello, world);
-
-        // String operations
-        bool starts = StrStartsWithZstr(&text, "Hello");
-        bool ends   = StrEndsWithZstr(&text, "!\n");
-
-        // Split into vector of strings
-        Str  csv   = StrInitFromZstr("one,two,three");
-        Strs parts = StrSplit(&csv, ",");
-
-        // Process split results
-        VecForeach(&parts, part) {
-            WriteFmtLn("Part: {}", part);
-        }
-
-        // Container cleanup. The allocator is destroyed at Scope exit.
-        StrDeinit(&text);
-        StrDeinit(&hello);
-        StrDeinit(&world);
-        StrDeinit(&csv);
-
-        VecForeachPtr(&parts, part) {
-            StrDeinit(part);
-        }
-        VecDeinit(&parts);
+    Str  csv   = StrInitFromZstr("one,two,three");
+    Strs parts = StrSplit(&csv, ",");
+    VecForeach(&parts, part) {
+        WriteFmtLn("part: {}", part);
     }
+
+    StrDeinit(&text); StrDeinit(&hello); StrDeinit(&world); StrDeinit(&csv);
+    VecForeachPtr(&parts, part) { StrDeinit(part); }
+    VecDeinit(&parts);
 }
 ```
 
-### Directed Graph Container (Graph)
+### List, Graph
 
 ```c
-#include <Misra.h>
-#include <Misra/Std/Allocator/Default.h>
-
+typedef List(int)  IntList;
 typedef Graph(Str) NameGraph;
 
-int main(void) {
-    Scope(alloc, DefaultAllocator) {
-        NameGraph graph = GraphInitWithDeepCopy(NULL, StrDeinit);
-
-        GraphNodeId alpha = GraphAddNodeR(&graph, StrZ("Alpha"));
-        GraphNodeId beta  = GraphAddNodeR(&graph, StrZ("Beta"));
-        GraphNodeId gamma = GraphAddNodeR(&graph, StrZ("Gamma"));
-        /* alpha/beta/gamma are zero on allocation failure - in production
-         * code, check each id and unwind, or use GraphMustAddNodeR for
-         * abort-on-failure. */
-
-        GraphAddEdge(&graph, alpha, beta);
-        GraphAddEdge(&graph, beta,  gamma);
-
-        GraphForeachNode(&graph, node) {
-            WriteFmtLn("{}: out={}, in={}",
-                       GraphNodeData(&graph, node),
-                       GraphOutDegree(&graph, GraphNodeGetId(node)),
-                       GraphInDegree(&graph, GraphNodeGetId(node)));
-        }
-
-        GraphDeinit(&graph);
+Scope(alloc, DefaultAllocator) {
+    IntList ll = ListInit();
+    ListMustPushBack(&ll, 10);
+    ListMustPushBack(&ll, 20);
+    ListMustPushFront(&ll, 5);
+    ListForeach(&ll, n, i) {
+        WriteFmtLn("ll[{}] = {}", i, n);
     }
+    ListDeinit(&ll);
+
+    // Graph with owned string node names.
+    NameGraph graph = GraphInitWithDeepCopy(NULL, StrDeinit);
+    GraphNodeId alpha = GraphAddNodeR(&graph, StrZ("Alpha"));
+    GraphNodeId beta  = GraphAddNodeR(&graph, StrZ("Beta"));
+    GraphAddEdge(&graph, alpha, beta);
+
+    GraphForeachNode(&graph, node) {
+        WriteFmtLn("{}: out={}, in={}",
+                   GraphNodeData(&graph, node),
+                   GraphOutDegree(&graph, GraphNodeGetId(node)),
+                   GraphInDegree(&graph, GraphNodeGetId(node)));
+    }
+    GraphDeinit(&graph);
 }
 ```
 
-`Graph(T)` is meant for analysis-heavy work such as reachability, control-flow, and dependency traversal. For graph-owned names, prefer `Graph(Str)` plus `GraphInitWithDeepCopy(NULL, StrDeinit)` and insert inline owned strings with `GraphAddNodeR(..., StrZ("..."))` as shown above.
+`Graph(T)` is built for analysis workloads: reachability, control flow,
+dependency traversal. For graph-owned strings, prefer `Graph(Str)` plus
+`GraphInitWithDeepCopy(NULL, StrDeinit)` and insert with
+`GraphAddNodeR(..., StrZ("..."))` so the graph deep-copies and reclaims on
+deinit. `Graph(const char *)` works too, but only when every stored pointer
+outlives the graph (string literals, interned names).
 
-`Graph(const char *)` is still valid, but only when every stored pointer refers to memory that outlives the graph, such as string literals, interned names, or externally owned stable storage. It is a borrowed-pointer graph, not a copying string graph.
+`Map(K, V)` follows the same pattern; the user supplies a key hash
+function and a key compare function at init time, see
+`Misra/Std/Container/Map/Init.h` for the available constructors.
 
-This is separate from the formatted-I/O caveat later in this README: `WriteFmtLn("{}", GraphNodeData(&graph, node))` is fine here because `GraphNodeData(...)` yields a `Str` or `const char *` value. What does not work is passing a raw string-literal or `char[]` array expression directly to the formatter.
-
-In real named-node workloads you usually pair the graph with a side `Map(name -> node_id)`. The in-depth guide on the docs site covers that full model: node ids and handles, predecessor traversal, deferred deletion, and side-state patterns.
-
-### Formatted I/O
+### BitVec, Int, Float
 
 ```c
-#include <Misra.h>
-#include <Misra/Std/Allocator/Default.h>
+Scope(alloc, DefaultAllocator) {
+    // BitVec
+    BitVec flags = BitVecFromStr("10110", alloc);
+    BitVecPush(&flags, true);
+    Str bin = BitVecToStr(&flags);
+    WriteFmtLn("flags = 0b{}", bin);
+    StrDeinit(&bin);
+    BitVecDeinit(&flags);
 
-int main(void) {
-    Scope(alloc, DefaultAllocator) {
-        // String formatting
-        Str output = StrInit();
+    // Int — arbitrary precision.
+    Int big     = IntFromHexStr("deadbeefcafe", alloc);
+    Int squared = IntInit();
+    IntMul(&squared, &big, &big);
+    WriteFmtLn("big = 0x{x}, big^2 = 0x{x}", big, squared);
+    IntDeinit(&big);
+    IntDeinit(&squared);
 
-        // Basic formatting with direct values
-        int         count = 42;
-        const char *name  = "Test";
-        StrWriteFmt(&output, "Count: {}, Name: {}\n", count, name);
-
-        // Format with alignment and hex
-        u32 hex_val = 0xDEADBEEF;
-        StrWriteFmt(&output, "Hex: {X}\n", hex_val);
-
-        // Read formatted input
-        const char *cursor    = "Count: 42, Name: Test";
-        int         read_count = 0;
-        Str         read_name  = StrInit();
-
-        // StrReadFmt advances the input cursor on success
-        StrReadFmt(cursor, "Count: {}, Name: {}", read_count, read_name);
-
-        // Multiple value types
-        float pi       = 3.14159f;
-        u64   big_num  = 123456789ULL;
-        StrWriteFmt(&output, "Float: {.2}, Integer: {}, Hex: {x}\n",
-                    pi, big_num, big_num);
-
-        // String formatting with a Str argument
-        Str hello = StrInitFromZstr("Hello");
-        StrWriteFmt(&output, "String: {}\n", hello);
-
-        StrDeinit(&output);
-        StrDeinit(&read_name);
-        StrDeinit(&hello);
-    }
+    // Float — arbitrary precision, exact decimal.
+    Float pi = FloatFromStr("3.14159265358979323846", alloc);
+    WriteFmtLn("pi = {}", pi);
+    WriteFmtLn("pi (10dp) = {.10}", pi);
+    FloatDeinit(&pi);
 }
 ```
 
-### JSON Parsing and Writing
+Construction APIs that pull data in from outside the library (parse a
+string, copy a byte buffer, build from a primitive) take an explicit
+`Allocator *` parameter. The container has no existing allocator to inherit
+from at that moment, so passing one is the only sensible contract.
+
+`Int` operations include `IntAdd`, `IntSub`, `IntMul`, `IntDivMod`, `IntPow`,
+`IntGcd`, `IntLcm`, `IntIsPrime`, `IntModPow`, base-2/8/10/16 string
+conversion, byte import/export (LE and BE), and bit-level access through the
+underlying `BitVec`. `Float` adds sign, decimal exponent, and a precision
+parameter for division.
+
+---
+
+## Formatted I/O
+
+The placeholder syntax is `{}` or `{[alignment][width][.precision][flags]}`.
+Type dispatch is compile-time via `_Generic`, so one call works for every
+supported argument type.
 
 ```c
-#include <Misra.h>
-#include <Misra/Std/Allocator/Default.h>
+WriteFmtLn("Hello, {}! count={}, pi={.4}", name, 42, 3.14159);
+```
 
-typedef struct Point {
-    float x;
-    float y;
-} Point;
+### What types work
 
-typedef Vec(Point) PointVec;
+The macros dispatch through `IOFMT(...)` which has `_Generic` cases for
+`Str`, `Int`, `Float`, `BitVec`, `const char *`, `char *`, primitive integer
+and floating-point types, and `char`. Anything else falls through to an
+unsupported-type handler.
 
-typedef struct Shape {
-    Str      name;
-    Point    position;
-    PointVec vertices;
-    bool     filled;
-} Shape;
+The catch: array types (`char[6]`, `const char[10]`) are distinct from
+pointer types under `_Generic`. Bind string literals to a pointer variable
+first.
 
-int main(void) {
-    Scope(alloc, DefaultAllocator) {
-        // Example JSON string
-        Str json = StrInitFromZstr(
-            "{"
-            "  \"name\": \"polygon\","
-            "  \"position\": {\"x\": 10.5, \"y\": 20.0},"
-            "  \"vertices\": ["
-            "    {\"x\": 0.0, \"y\": 0.0},"
-            "    {\"x\": 10.0, \"y\": 0.0},"
-            "    {\"x\": 5.0, \"y\": 10.0}"
-            "  ],"
-            "  \"filled\": true"
-            "}",
-            alloc
-        );
+```c
+const char *title = "Mr.";        // good
+char        name[] = "Alice";     // bad — array type
+StrWriteFmt(&buf, "{}", title);
+```
 
-        Shape shape = {
-            .name     = StrInit(),
-            .vertices = VecInit(),
-        };
+### Format Specifier Options
 
-        // Parse JSON into our structure
-        StrIter si = StrIterFromStr(&json);
-        JR_OBJ(si, {
-            JR_STR_KV(si, "name", shape.name);
+**Alignment** (in a field width):
 
-            JR_OBJ_KV(si, "position", {
-                JR_FLT_KV(si, "x", shape.position.x);
-                JR_FLT_KV(si, "y", shape.position.y);
-            });
+| Specifier | Description                            |
+|-----------|----------------------------------------|
+| `<`       | Left-aligned (pad on right)            |
+| `>`       | Right-aligned (pad on left, default)   |
+| `^`       | Center-aligned (pad on both sides)     |
 
-            JR_ARR_KV(si, "vertices", {
-                Point vertex = {0};
-                JR_OBJ(si, {
-                    JR_FLT_KV(si, "x", vertex.x);
-                    JR_FLT_KV(si, "y", vertex.y);
-                });
-                VecMustInsertR(&shape.vertices, vertex, VecLen(&shape.vertices));
-            });
+**Endianness** (when paired with raw I/O flag `r`):
 
-            JR_BOOL_KV(si, "filled", shape.filled);
-        });
+| Specifier | Description                            |
+|-----------|----------------------------------------|
+| `<`       | Little Endian                          |
+| `>`       | Big Endian (default)                   |
+| `^`       | Native Endian                          |
 
-        // Modify some values
-        shape.position.x += 5.0;
-        VecForeachPtr(&shape.vertices, vertex) {
-            vertex->y += 1.0;
-        }
+**Type flags:**
 
-        // Write back to JSON
-        StrClear(&json);
-        JW_OBJ(json, {
-            JW_STR_KV(json, "name", shape.name);
+| Flag | Description                                  | Example output      |
+|------|----------------------------------------------|---------------------|
+| `x`  | Hexadecimal lowercase                        | `0xdeadbeef`        |
+| `X`  | Hexadecimal uppercase                        | `0xDEADBEEF`        |
+| `b`  | Binary                                       | `0b10100101`        |
+| `o`  | Octal                                        | `0o777`             |
+| `c`  | Character formatting, preserve case          | raw character bytes |
+| `a`  | Character formatting, force lowercase        | lowercased          |
+| `A`  | Character formatting, force uppercase        | uppercased          |
+| `r`  | Raw byte read/write                          | raw bytes           |
+| `e`  | Scientific notation lowercase                | `1.235e+02`         |
+| `E`  | Scientific notation uppercase                | `1.235E+02`         |
+| `s`  | Read a quoted string or single word          | `"hello world"`     |
 
-            JW_OBJ_KV(json, "position", {
-                JW_FLT_KV(json, "x", shape.position.x);
-                JW_FLT_KV(json, "y", shape.position.y);
-            });
+**Precision** (floating-point):
 
-            JW_ARR_KV(json, "vertices", shape.vertices, vertex, {
-                JW_OBJ(json, {
-                    JW_FLT_KV(json, "x", vertex.x);
-                    JW_FLT_KV(json, "y", vertex.y);
-                });
-            });
+```c
+{.2}    // two decimal places
+{.0}    // no decimal places
+{.10}   // ten decimal places
+```
 
-            JW_BOOL_KV(json, "filled", shape.filled);
-        });
+### Reading values
 
-        WriteFmtLn("Modified JSON: {}", json);
+`StrReadFmt` / `FReadFmt` / `ReadFmt` parse the input cursor and advance it
+on success. Pass the cursor as an assignable variable, not a literal:
 
-        StrDeinit(&shape.name);
-        VecDeinit(&shape.vertices);
-        StrDeinit(&json);
-    }
+```c
+const char *cursor = "Count: 42, Name: Alice";
+i32 count = 0;
+Scope(alloc, DefaultAllocator) {
+    Str user = StrInit();
+    StrReadFmt(cursor, "Count: {}, Name: {}", count, user);
+    WriteFmtLn("count = {}, user = {}", count, user);
+    StrDeinit(&user);
 }
 ```
 
-### Working with Complex Types
+### Available entry points
+
+- `StrWriteFmt(&str, fmt, ...)` / `StrReadFmt(cursor, fmt, ...)`
+- `FWriteFmt(file, fmt, ...)` / `FWriteFmtLn(...)` / `FReadFmt(file, fmt, ...)`
+- `WriteFmt(fmt, ...)` / `WriteFmtLn(fmt, ...)` / `ReadFmt(fmt, ...)`
+  (stdout / stdin)
+
+---
+
+## Parsers
+
+JSON read/write is available when `parser_json` is enabled:
 
 ```c
-#include <Misra.h>
-#include <Misra/Std/Allocator/Default.h>
+typedef struct { float x, y; } Point;
 
-typedef Vec(int) IntVec;
+Scope(alloc, DefaultAllocator) {
+    Str json = StrInitFromZstr("{\"x\": 10.5, \"y\": 20.0}");
+    Point p = {0};
 
-// Complex type with owned resources
-typedef struct {
-    int    id;
-    IntVec data;
-} ComplexType;
+    StrIter si = StrIterFromStr(&json);
+    JR_OBJ(si, {
+        JR_FLT_KV(si, "x", p.x);
+        JR_FLT_KV(si, "y", p.y);
+    });
 
-typedef Vec(ComplexType) ComplexVec;
-
-// Deep-copy callback. `dst` and `src` are erased pointers; `alloc` is
-// the allocator the destination container owns. Returns false to fail
-// the insert without leaking partial state.
-bool ComplexTypeCopyInit(void *dst_, const void *src_, const Allocator *alloc) {
-    ComplexType       *dst = (ComplexType *)dst_;
-    const ComplexType *src = (const ComplexType *)src_;
-
-    dst->id   = src->id;
-    dst->data = VecInit((Allocator *)alloc);
-
-    VecForeachIdx(&src->data, val, idx) {
-        if (!VecInsertR(&dst->data, val, idx)) {
-            VecDeinit(&dst->data);
-            return false;
-        }
-    }
-    return true;
-}
-
-void ComplexTypeDeinit(void *self, const Allocator *alloc) {
-    (void)alloc;
-    ComplexType *ct = (ComplexType *)self;
-    VecDeinit(&ct->data);
-}
-
-int main(void) {
-    Scope(alloc, DefaultAllocator) {
-        ComplexVec objects = VecInitWithDeepCopy(
-            ComplexTypeCopyInit, ComplexTypeDeinit);
-
-        ComplexType item = {
-            .id   = 1,
-            .data = VecInit(),
-        };
-        VecMustInsertR(&item.data, 42, 0);
-        VecMustInsertR(&item.data, 43, 1);
-
-        // Insert with ownership transfer
-        VecMustInsertL(&objects, item, 0);
-
-        // The vector calls ComplexTypeDeinit on the removed slot.
-        VecDelete(&objects, 0);
-
-        VecDeinit(&objects);
-    }
+    WriteFmtLn("point = ({}, {})", p.x, p.y);
+    StrDeinit(&json);
 }
 ```
 
-### Parent Child Process
-
-The library also provides a way to create child processes in a cross-platform manner. I've
-also added a method to write to `stdin` and read from `stdout` and `stderr` for each child process.
-Refer to the following example, also present in `Bin/SubProcComm.c`.
+KvConfig is a simple `key = value` / `key: value` parser with `#` and `;`
+comment support, quoted values, and last-write-wins semantics, available
+when `parser_kvconfig` is enabled:
 
 ```c
-#include <Misra.h>
-#include <Misra/Std/Allocator/Default.h>
+Scope(alloc, DefaultAllocator) {
+    Str text = StrInitFromZstr(
+        "host = localhost\n"
+        "port = 8080\n"
+        "debug = true\n"
+    );
+    KvConfig cfg = KvConfigInit();
+    KvConfigParse(StrIterFromStr(&text), &cfg);
 
-// Verified to work when executed with /bin/head:
-//   Build/SubProcComm /bin/head -n 1
-// The parent writes a value to the child's stdin, expects the same
-// thing echoed back on stdout, and verifies that it round-tripped.
+    Str host  = KvConfigGet(&cfg, "host");
+    i64 port  = 0;
+    bool dbg  = false;
+    KvConfigGetI64(&cfg, "port", &port);
+    KvConfigGetBool(&cfg, "debug", &dbg);
+    WriteFmtLn("host={}, port={}, debug={}", host, port, dbg);
+
+    StrDeinit(&host);
+    KvConfigDeinit(&cfg);
+    StrDeinit(&text);
+}
+```
+
+---
+
+## System Utilities
+
+Cross-platform wrappers for subprocesses, directories, mutexes, environment
+access. The subprocess example demonstrates the explicit-allocator-handoff
+pattern: the caller passes the same allocator to `SysProcCreate` and
+`SysProcDestroy`.
+
+```c
+// Verified with /bin/head: writes a value to the child, expects the same
+// echoed back, prints the round-trip result.
 int main(int argc, char **argv, char **envp) {
     (void)argc;
     Scope(alloc, DefaultAllocator) {
         SysProc *proc = SysProcCreate(argv[1], argv + 1, envp, alloc);
-
         SysProcWriteToStdinFmtLn(proc, "value = {}", 42);
 
         i32 val = 0;
         SysProcReadFromStdoutFmt(proc, "value = {}", val);
-
         WriteFmtLn("got value = {}", val);
 
         SysProcWaitFor(proc, 1000);
@@ -659,344 +693,28 @@ int main(int argc, char **argv, char **envp) {
 }
 ```
 
-## Format Specifiers
-
-The library supports placeholders of the form `{}` or `{[alignment][width][.precision][flags]}`.
-
-### Important: Supported Argument Types
-
-The formatting macros use `_Generic` for compile-time dispatch through `IOFMT(...)`, so the exact C type matters.
-
-#### What Doesn't Work
-
-```c
-// String literals are arrays, not pointers
-StrWriteFmt(&output, "Hello, {}!", "world");
-
-// Plain char arrays are also distinct array types
-char buffer[20] = "Hello";
-StrWriteFmt(&output, "Message: {}", buffer);
-
-const char name[] = "Alice";
-StrWriteFmt(&output, "Name: {}", name);
-```
-
-#### What Works
-
-```c
-const char* title = "Mr.";
-const char* surname = "Smith";
-StrWriteFmt(&output, "{} {}", title, surname);
-
-char* dynamic_str = malloc(50);
-strcpy(dynamic_str, "Dynamic");
-StrWriteFmt(&output, "Value: {}", dynamic_str);
-
-Str greeting = StrInitFromZstr("Welcome");
-StrWriteFmt(&output, "Message: {}", greeting);
-
-int number = 42;
-float pi = 3.14f;
-StrWriteFmt(&output, "Number: {}, Pi: {.2}", number, pi);
-```
-
-#### Best Practices
-
-```c
-// Bind string constants to pointer variables
-const char* program_name = "MyApp";
-const char* version = "1.0.0";
-
-// StrReadFmt expects the input itself to be an assignable cursor variable
-const char* input_line = "Name: Alice";
-Str user_input = StrInit();
-StrReadFmt(input_line, "Name: {}", user_input);
-
-char* allocated = malloc(100);
-strcpy(allocated, "Dynamic content");
-StrWriteFmt(&message, "Content: {}", allocated);
-
-void log_message(const char* msg) {
-    StrWriteFmt(&log_output, "[LOG] {}", msg);
-}
-
-void process_buffer(char* buffer) {
-    StrWriteFmt(&output, "Processing: {}", buffer);
-}
-```
-
-#### Technical Explanation
-
-`_Generic` currently has cases for:
-
-- `const char*`
-- `char*`
-- `Str`
-- `Float`
-- `Int`
-- `BitVec`
-- primitive integer and floating-point types
-- `char`
-
-It does not automatically treat array types as pointer cases, so `char[6]`, `char[20]`, `const char[10]`, and similar
-types must be bound to `char*` or `const char*` variables first.
-
-That typing rule is separate from pointer lifetime. Once a value has pointer type, formatting it is fine only if the pointed-to storage is still valid for the duration of the call.
-
-### Basic Usage
-
-If no specifier is provided, default formatting is used.
-
-### Format Specifier Options
-
-#### Alignment
-
-Controls text alignment within a field width:
-
-| Specifier | Description |
-|-----------|-------------|
-| `<` | Left-aligned (pad on the right) |
-| `>` | Right-aligned (pad on the left, default) |
-| `^` | Center-aligned (pad on both sides) |
-
-#### Width
-
-Specifies the minimum field width for text formatting:
-
-```c
-{5}    // Minimum width of 5 characters, right-aligned
-{<5}   // Minimum width of 5 characters, left-aligned
-{^5}   // Minimum width of 5 characters, center-aligned
-```
-
-#### Endianness and Raw I/O
-
-When the `r` flag is present, alignment controls endianness and width controls raw byte count:
-
-| Specifier | Description |
-|-----------|-------------|
-| `<` | Little Endian |
-| `>` | Big Endian (default) |
-| `^` | Native Endian |
-
-```c
-{4r}    // Read or write 4 bytes in big-endian order
-{>4r}   // Same as above
-{<2r}   // Read or write 2 bytes in little-endian order
-{^8r}   // Read or write 8 bytes in native-endian order
-```
-
-#### Type Flags
-
-| Flag | Description | Example Output |
-|------|-------------|----------------|
-| `x` | Hexadecimal format (lowercase) | `0xdeadbeef` |
-| `X` | Hexadecimal format (uppercase) | `0xDEADBEEF` |
-| `b` | Binary format | `0b10100101` |
-| `o` | Octal format | `0o777` |
-| `c` | Character formatting, preserve case | Raw character bytes |
-| `a` | Character formatting, force lowercase | Lowercased text |
-| `A` | Character formatting, force uppercase | Uppercased text |
-| `r` | Raw data read or write | raw bytes |
-| `e` | Scientific notation (lowercase) | `1.235e+02` |
-| `E` | Scientific notation (uppercase) | `1.235E+02` |
-| `s` | Read a quoted string or a single word | `"hello world"` |
-
-#### Precision
-
-For floating-point values, precision controls decimal places:
-
-```c
-{.2}   // Two decimal places
-{.0}   // No decimal places
-{.10}  // Ten decimal places
-```
-
-Precision is ignored for raw I/O.
-
-### Format Examples
-
-#### Basic Formatting
-
-```c
-const char* greeting = "Hello";
-const char* subject = "world";
-StrWriteFmt(&output, "{}, {}!", greeting, subject);  // "Hello, world!"
-
-StrWriteFmt(&output, "{{Hello}}");  // "{Hello}"
-```
-
-#### String Formatting
-
-```c
-const char* str = "Hello";
-
-StrWriteFmt(&output, "{}", str);       // "Hello"
-StrWriteFmt(&output, "{>10}", str);    // "     Hello"
-StrWriteFmt(&output, "{<10}", str);    // "Hello     "
-StrWriteFmt(&output, "{^10}", str);    // "  Hello   "
-```
-
-#### Integer Formatting
-
-```c
-i32 val = 42;
-u32 hex_val = 0xDEADBEEF;
-u8 bin_val = 0xA5;
-u16 oct_val = 0777;
-
-StrWriteFmt(&output, "{}", val);       // "42"
-StrWriteFmt(&output, "{x}", hex_val);  // "0xdeadbeef"
-StrWriteFmt(&output, "{X}", hex_val);  // "0xDEADBEEF"
-StrWriteFmt(&output, "{b}", bin_val);  // "0b10100101"
-StrWriteFmt(&output, "{o}", oct_val);  // "0o777"
-
-StrWriteFmt(&output, "{5}", val);      // "   42"
-StrWriteFmt(&output, "{<5}", val);     // "42   "
-StrWriteFmt(&output, "{^5}", val);     // " 42  "
-
-Int big = IntFromHexStr("deadbeef");
-StrWriteFmt(&output, "{x}", big);      // "deadbeef"
-StrWriteFmt(&output, "{b}", big);      // "11011110101011011011111011101111"
-```
-
-#### Character and Case Formatting
-
-```c
-u8 upper_char = 'M';
-u8 lower_char = 'm';
-
-StrWriteFmt(&output, "{c}", upper_char);  // "M"
-StrWriteFmt(&output, "{a}", upper_char);  // "m"
-StrWriteFmt(&output, "{A}", lower_char);  // "M"
-
-u16 u16_value = ('A' << 8) | 'B';
-StrWriteFmt(&output, "{c}", u16_value);   // "AB"
-StrWriteFmt(&output, "{a}", u16_value);   // "ab"
-StrWriteFmt(&output, "{A}", u16_value);   // "AB"
-
-const char* mixed_case = "MiXeD CaSe";
-StrWriteFmt(&output, "{c}", mixed_case);  // "MiXeD CaSe"
-StrWriteFmt(&output, "{a}", mixed_case);  // "mixed case"
-StrWriteFmt(&output, "{A}", mixed_case);  // "MIXED CASE"
-
-Str s = StrInitFromZstr("Hello World");
-StrWriteFmt(&output, "{a}", s);           // "hello world"
-StrWriteFmt(&output, "{A}", s);           // "HELLO WORLD"
-```
-
-#### Floating-Point Formatting
-
-```c
-f64 pi = 3.14159265359;
-
-StrWriteFmt(&output, "{}", pi);         // "3.141593"
-StrWriteFmt(&output, "{.2}", pi);       // "3.14"
-StrWriteFmt(&output, "{.0}", pi);       // "3"
-StrWriteFmt(&output, "{.10}", pi);      // "3.1415926536"
-
-StrWriteFmt(&output, "{e}", 123.456);   // "1.235e+02"
-StrWriteFmt(&output, "{E}", 123.456);   // "1.235E+02"
-StrWriteFmt(&output, "{.3e}", 123.456); // "1.235e+02"
-
-f64 pos_inf = INFINITY;
-f64 neg_inf = -INFINITY;
-f64 nan_val = NAN;
-StrWriteFmt(&output, "{}", pos_inf);    // "inf"
-StrWriteFmt(&output, "{}", neg_inf);    // "-inf"
-StrWriteFmt(&output, "{}", nan_val);    // "nan"
-
-Float big_float = FloatFromStr("12345.67");
-StrWriteFmt(&output, "{}", big_float);   // "12345.67"
-StrWriteFmt(&output, "{e}", big_float);  // "1.234567e+04"
-StrWriteFmt(&output, "{.3}", big_float); // "12345.670"
-```
-
-### Reading Values
-
-`StrReadFmt` updates the input cursor variable on success, so pass an assignable pointer variable rather than a string
-literal expression.
-
-```c
-const char* cursor = "42";
-i32 num = 0;
-StrReadFmt(cursor, "{}", num);  // num = 42
-
-cursor = "0xdeadbeef";
-u32 hex_val = 0;
-StrReadFmt(cursor, "{}", hex_val);  // hex_val = 0xdeadbeef
-
-cursor = "0b101010";
-i8 bin_val = 0;
-StrReadFmt(cursor, "{}", bin_val);  // bin_val = 42
-
-cursor = "0o755";
-i32 oct_val = 0;
-StrReadFmt(cursor, "{}", oct_val);  // oct_val = 493
-
-cursor = "3.14159";
-f64 value = 0.0;
-StrReadFmt(cursor, "{}", value);  // value = 3.14159
-
-cursor = "deadbeef";
-Int big = IntInit();
-StrReadFmt(cursor, "{x}", big);   // big = 0xdeadbeef
-
-cursor = "1.23e4";
-StrReadFmt(cursor, "{}", value);  // value = 12300.0
-
-cursor = "1.234567e+04";
-Float big_float = FloatInit();
-StrReadFmt(cursor, "{e}", big_float);  // big_float = 12345.67
-
-cursor = "Alice";
-Str name = StrInit();
-StrReadFmt(cursor, "{}", name);  // name = "Alice"
-
-cursor = "\"Hello, World!\"";
-StrReadFmt(cursor, "{s}", name);  // name = "Hello, World!"
-
-cursor = "Count: 42, Name: Alice";
-i32 count = 0;
-Str user = StrInit();
-StrReadFmt(cursor, "Count: {}, Name: {}", count, user);
-// count = 42, user = "Alice"
-```
-
-### Available I/O Functions
-
-- `StrWriteFmt(&str, format, ...)`: Append formatted output to a string
-- `StrReadFmt(input, format, ...)`: Parse values from a cursor variable and advance it on success
-- `FWriteFmt(file, format, ...)`: Write formatted output to a file
-- `FWriteFmtLn(file, format, ...)`: Write formatted output to a file with a newline
-- `FReadFmt(file, format, ...)`: Read formatted input from a file
-- `WriteFmt(format, ...)`: Write formatted output to stdout
-- `WriteFmtLn(format, ...)`: Write formatted output to stdout with a newline
-- `ReadFmt(format, ...)`: Read formatted input from stdin
+---
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome.
 
-Match the existing style in the files you touch. Tests under `Tests/` and
-`clang-format` (via `Scripts/clang-format.py`) must pass before sending a
-change.
+Match the existing style in the files you touch. Run the test suite
+(`ninja -C builddir test`) and `python Scripts/clang-format.py` before
+sending a change. The default build (all features on) is what CI runs;
+verify your change works there before opening a PR.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. Fork the repository.
+2. Create a feature branch: `git checkout -b feature/<name>`.
+3. Commit with a short imperative subject and a body explaining the *why*.
+4. Push: `git push origin feature/<name>`.
+5. Open a Pull Request.
+
+---
 
 ## License
 
-This project is dedicated to the public domain under the [Unlicense](LICENSE.md).
-
-This means you are free to:
-- Use the code for any purpose
-- Change the code in any way
-- Share the code with anyone
-- Distribute the code
-- Sell the code or derivative works
-
-No attribution is required. See the [LICENSE.md](LICENSE.md) file for details.
+This project is dedicated to the public domain under the
+[Unlicense](LICENSE.md). You may use it, modify it, redistribute it, and
+sell it without attribution. See [LICENSE.md](LICENSE.md) for the full
+text.
