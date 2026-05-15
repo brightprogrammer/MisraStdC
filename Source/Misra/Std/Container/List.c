@@ -202,7 +202,7 @@ bool qsort_list(GenericList *list, u64 item_size, GenericCompare comp) {
         node = node->next;
     }
 
-    qsort(data, item_count, item_size, comp);
+    MemSort(data, item_count, item_size, comp);
 
     node = list->head;
     for (index = 0; node && index < item_count; index++) {

@@ -8,8 +8,9 @@
 #ifndef MISRA_STD_MEMORY_H
 #define MISRA_STD_MEMORY_H
 
-#include <Misra/Types.h>
+#include <Misra/Std/Container/Common.h>
 #include <Misra/Std/Container/Vec/Type.h>
+#include <Misra/Types.h>
 
 typedef Vec(const char *) Zstrs;
 
@@ -68,6 +69,26 @@ void *MemMove(void *dst, const void *src, size n);
 ///
 /// TAGS: Memory, Set, Safety
 void *MemSet(void *dst, i32 val, size n);
+
+///
+/// Generic in-place sort over a flat array of fixed-size items.
+/// Quicksort with median-of-three pivot, insertion-sort fallback for
+/// small partitions, tail-iteration on the larger side to bound stack
+/// depth at O(log n). Stable across compilers / platforms because we
+/// don't depend on libc's `qsort`.
+///
+/// base[in,out] : Pointer to the first element of the array.
+/// n_items[in]  : Number of items in the array.
+/// item_size[in]: Size of each item in bytes.
+/// cmp[in]      : Comparator returning <0, 0, >0 like `strcmp`.
+///
+/// SUCCESS: Returns; the array is sorted in ascending order per `cmp`.
+/// FAILURE: No failure mode. If `n_items < 2` or `cmp` is NULL the
+///          call is a no-op.
+///
+/// TAGS: Memory, Sort, Generic
+///
+void MemSort(void *base, size n_items, size item_size, GenericCompare cmp);
 
 ///
 /// Get length of a null-terminated string.

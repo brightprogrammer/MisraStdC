@@ -12,7 +12,6 @@
 #include <Misra/Sys.h>
 
 // libc
-#include <stdlib.h>
 
 // NOTE: Because Str derives of Vec, the vector implementation is designed to always have actual capacity
 // one more than length and set the space just after length to 0 (memset to 0)
@@ -406,7 +405,7 @@ void qsort_vec(GenericVec *vec, size item_size, GenericCompare comp) {
         );
     }
 
-    qsort(vec->data, vec->length, item_size, comp);
+    MemSort(vec->data, vec->length, item_size, comp);
 }
 
 
