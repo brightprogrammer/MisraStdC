@@ -86,8 +86,12 @@ void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator 
     enum {
         MAX_NAME = 512
     };
-    char         buf[sizeof(SYMBOL_INFO) + MAX_NAME];
-    SYMBOL_INFO *sym = (SYMBOL_INFO *)buf;
+    // SYMBOL_INFO contains ULONG64 fields, so its backing storage
+    // needs 8-byte alignment. A plain `char[]` on the stack is not
+    // guaranteed that — the resulting misaligned access trips a
+    // Windows 0xC0000005. Back it with a ULONG64 array instead.
+    ULONG64      sym_buf[(sizeof(SYMBOL_INFO) + MAX_NAME + sizeof(ULONG64) - 1) / sizeof(ULONG64)];
+    SYMBOL_INFO *sym = (SYMBOL_INFO *)sym_buf;
     MemSet(sym, 0, sizeof(*sym));
     sym->SizeOfStruct = sizeof(SYMBOL_INFO);
     sym->MaxNameLen   = MAX_NAME;
@@ -102,7 +106,11 @@ void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator 
         bool    has_sym = g_dbghelp_initialized && SymFromAddr(proc, ip, &sym_off, sym);
 
         if (has_sym) {
-            StrWriteFmt(out, "  #{} {}+{x} [{x}]", (u32)i, sym->Name, (u64)sym_off, (u64)ip);
+            // Cast the trailing flexible-array `CHAR Name[1]` to a
+            // proper `const char *` so our `_Generic`-based IOFMT
+            // picks the Zstr case instead of a fallback single-char.
+            StrWriteFmt(
+                out, "  #{} {}+{x} [{x}]", (u32)i, (const char *)sym->Name, (u64)sym_off, (u64)ip);
         } else {
             StrWriteFmt(out, "  #{} {x}", (u32)i, (u64)ip);
         }
