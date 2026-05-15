@@ -35,6 +35,11 @@ typedef u64 ProcId;
 #    include <Misra/Sys/ProcMaps.h>
 #endif
 
+// Sys/SymbolResolver.h is NOT pulled through the umbrella because it
+// transits Parsers/Elf.h, which collides with Bin/ElfInfo.c's local
+// ELF constants. Include `Misra/Sys/SymbolResolver.h` directly when
+// you want the resolver. Tracked in FUTURE-PLANS.md.
+
 #ifndef SYS_ERROR_STR_MAX_LENGTH
 #    define SYS_ERROR_STR_MAX_LENGTH 128
 #endif
