@@ -13,8 +13,14 @@
 #ifndef MISRA_STD_UILITY_H
 #define MISRA_STD_UILITY_H
 
-#include <Misra/Std/Utility/Iter.h>
+#include <Misra/Types.h>
+
+// Foundation: header-only utilities.
 #include <Misra/Std/Utility/Pair.h>
 #include <Misra/Std/Utility/StrIter.h>
+
+#if MISRA_HAVE_ITER
+#    include <Misra/Std/Utility/Iter.h>
+#endif
 
 #endif // MISRA_STD_UILITY_H

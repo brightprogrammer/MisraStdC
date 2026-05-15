@@ -2,11 +2,23 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Includes all Misra modules
-///
+/// Single-include umbrella. Pulls in every Misra module that the current
+/// build was configured with. Disabled features are skipped via the
+/// `MISRA_HAVE_*` macros defined in the generated `Misra/Config.h`.
 
-#include <Misra/Parsers/JSON.h>
-#include <Misra/Parsers/KvConfig.h>
-#include <Misra/Std.h>
-#include <Misra/Sys.h>
+#ifndef MISRA_H
+#define MISRA_H
+
 #include <Misra/Types.h>
+#include <Misra/Sys.h>
+#include <Misra/Std.h>
+
+#if MISRA_HAVE_PARSER_JSON
+#    include <Misra/Parsers/JSON.h>
+#endif
+
+#if MISRA_HAVE_PARSER_KVCONFIG
+#    include <Misra/Parsers/KvConfig.h>
+#endif
+
+#endif // MISRA_H

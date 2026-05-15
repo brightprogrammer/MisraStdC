@@ -121,56 +121,36 @@ if opt_parser_kvconf
     misra_std_sources += files('Source/Misra/Parsers/KvConfig.c')
 endif
 
-# Compile-time discovery: each enabled feature exposes MISRA_HAVE_<NAME>=1
-# so downstream code can `#ifdef` against a partial build.
-feature_defines = []
-if opt_alloc_arena
-    feature_defines += '-DMISRA_HAVE_ALLOC_ARENA=1'
-endif
-if opt_alloc_slab
-    feature_defines += '-DMISRA_HAVE_ALLOC_SLAB=1'
-endif
-if opt_alloc_budget
-    feature_defines += '-DMISRA_HAVE_ALLOC_BUDGET=1'
-endif
-if opt_bitvec
-    feature_defines += '-DMISRA_HAVE_BITVEC=1'
-endif
-if opt_list
-    feature_defines += '-DMISRA_HAVE_LIST=1'
-endif
-if opt_map
-    feature_defines += '-DMISRA_HAVE_MAP=1'
-endif
-if opt_graph
-    feature_defines += '-DMISRA_HAVE_GRAPH=1'
-endif
-if opt_int
-    feature_defines += '-DMISRA_HAVE_INT=1'
-endif
-if opt_float
-    feature_defines += '-DMISRA_HAVE_FLOAT=1'
-endif
-if opt_file
-    feature_defines += '-DMISRA_HAVE_FILE=1'
-endif
-if opt_iter
-    feature_defines += '-DMISRA_HAVE_ITER=1'
-endif
-if opt_sys_dir
-    feature_defines += '-DMISRA_HAVE_SYS_DIR=1'
-endif
-if opt_sys_proc
-    feature_defines += '-DMISRA_HAVE_SYS_PROC=1'
-endif
-if opt_parser_json
-    feature_defines += '-DMISRA_HAVE_PARSER_JSON=1'
-endif
-if opt_parser_kvconf
-    feature_defines += '-DMISRA_HAVE_PARSER_KVCONFIG=1'
-endif
+# Compile-time discovery: each enabled feature exposes
+# `MISRA_HAVE_<NAME> == 1` via a generated `Misra/Config.h`. Every
+# library and consumer translation unit picks this up transitively
+# through `Misra/Types.h`, so `#if MISRA_HAVE_BITVEC` works whether
+# you build against the in-tree library or against the installed
+# headers.
+config_data = configuration_data()
+config_data.set10('MISRA_HAVE_ALLOC_ARENA',     opt_alloc_arena)
+config_data.set10('MISRA_HAVE_ALLOC_SLAB',      opt_alloc_slab)
+config_data.set10('MISRA_HAVE_ALLOC_BUDGET',    opt_alloc_budget)
+config_data.set10('MISRA_HAVE_BITVEC',          opt_bitvec)
+config_data.set10('MISRA_HAVE_LIST',            opt_list)
+config_data.set10('MISRA_HAVE_MAP',             opt_map)
+config_data.set10('MISRA_HAVE_GRAPH',           opt_graph)
+config_data.set10('MISRA_HAVE_INT',             opt_int)
+config_data.set10('MISRA_HAVE_FLOAT',           opt_float)
+config_data.set10('MISRA_HAVE_FILE',            opt_file)
+config_data.set10('MISRA_HAVE_ITER',            opt_iter)
+config_data.set10('MISRA_HAVE_SYS_DIR',         opt_sys_dir)
+config_data.set10('MISRA_HAVE_SYS_PROC',        opt_sys_proc)
+config_data.set10('MISRA_HAVE_PARSER_JSON',     opt_parser_json)
+config_data.set10('MISRA_HAVE_PARSER_KVCONFIG', opt_parser_kvconf)
 
-common_c_args += feature_defines
+# `subdir(...)` runs the inner meson.build, where `configure_file`
+# emits `build/Include/Misra/Config.h`. The top-level
+# `include_directories('Include')` already covers both the source
+# `Include/` and its build-tree mirror, so `<Misra/Config.h>` resolves
+# correctly in-tree, and the installed copy at
+# `<prefix>/include/Misra/Config.h` covers downstream consumers.
+subdir('Include/Misra')
 
 # Print which optional features are enabled so the configure log is honest.
 message('MisraStdC features enabled:')
@@ -293,7 +273,79 @@ endif
 subdir('Tests')
 
 # Install library headers
-install_subdir('Include/Misra', install_dir: 'include')
+# Header install gating. Only headers for enabled features land in the
+# install prefix. Disabled features have their `Container/<Name>/`,
+# `Allocator/<Name>.h`, `Sys/<Name>.h`, or `Parsers/<Name>.h` excluded.
+# The umbrella headers themselves (`Misra.h`, `Misra/Std.h`, ...)
+# already use `#if MISRA_HAVE_*` so a downstream consumer picking up
+# only the installed subset still gets a clean include graph.
+
+install_subdir_excludes_dirs = []
+install_subdir_excludes_files = []
+
+if not opt_alloc_arena
+    install_subdir_excludes_files += 'Std/Allocator/Arena.h'
+endif
+if not opt_alloc_slab
+    install_subdir_excludes_files += 'Std/Allocator/Slab.h'
+endif
+if not opt_alloc_budget
+    install_subdir_excludes_files += 'Std/Allocator/Budget.h'
+endif
+
+if not opt_bitvec
+    install_subdir_excludes_dirs  += 'Std/Container/BitVec'
+    install_subdir_excludes_files += 'Std/Container/BitVec.h'
+endif
+if not opt_list
+    install_subdir_excludes_dirs  += 'Std/Container/List'
+    install_subdir_excludes_files += 'Std/Container/List.h'
+endif
+if not opt_map
+    install_subdir_excludes_dirs  += 'Std/Container/Map'
+    install_subdir_excludes_files += 'Std/Container/Map.h'
+endif
+if not opt_graph
+    install_subdir_excludes_dirs  += 'Std/Container/Graph'
+    install_subdir_excludes_files += 'Std/Container/Graph.h'
+endif
+if not opt_int
+    install_subdir_excludes_dirs  += 'Std/Container/Int'
+    install_subdir_excludes_files += 'Std/Container/Int.h'
+endif
+if not opt_float
+    install_subdir_excludes_dirs  += 'Std/Container/Float'
+    install_subdir_excludes_files += 'Std/Container/Float.h'
+endif
+
+if not opt_file
+    install_subdir_excludes_files += 'Std/File.h'
+endif
+if not opt_iter
+    install_subdir_excludes_dirs  += 'Std/Utility/Iter'
+    install_subdir_excludes_files += 'Std/Utility/Iter.h'
+endif
+
+if not opt_sys_dir
+    install_subdir_excludes_files += 'Sys/Dir.h'
+endif
+if not opt_sys_proc
+    install_subdir_excludes_files += 'Sys/Proc.h'
+endif
+
+if not opt_parser_json
+    install_subdir_excludes_files += 'Parsers/JSON.h'
+endif
+if not opt_parser_kvconf
+    install_subdir_excludes_files += 'Parsers/KvConfig.h'
+endif
+
+install_subdir(
+    'Include/Misra',
+    install_dir: 'include',
+    exclude_directories: install_subdir_excludes_dirs,
+    exclude_files: install_subdir_excludes_files,
+)
 install_headers('Include/Misra.h')
 
 # Generate pkg-config for user linkage
