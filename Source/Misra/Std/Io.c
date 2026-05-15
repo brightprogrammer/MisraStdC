@@ -10,13 +10,48 @@
 
 #if defined(_WIN32)
 #    include <io.h>
-#    define ISATTY _isatty
 #    define FILENO _fileno
 #else
 #    include <unistd.h>
-#    define ISATTY isatty
 #    define FILENO fileno
 #endif
+
+#include <stdint.h>
+
+// Returns 1 if `fd` is a TTY, 0 otherwise. On Linux/x86_64+aarch64 we
+// issue ioctl(TCGETS) directly so we don't pull libc's `isatty`.
+// macOS/BSD keeps libSystem's isatty (Apple disallows direct user
+// syscalls). Windows uses _isatty from the CRT.
+static inline int misra_is_tty(int fd) {
+#if defined(_WIN32)
+    return _isatty(fd);
+#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    // termios is < 64 bytes on every Linux ABI; 128 is safe overkill.
+    char buf[128];
+    long ret;
+#    if defined(__x86_64__)
+    __asm__ volatile("syscall"
+                     : "=a"(ret)
+                     : "0"(16), "D"((long)fd), "S"(0x5401UL), "d"(buf) // SYS_ioctl, TCGETS=0x5401
+                     : "rcx", "r11", "memory");
+#    else
+    register long x8 __asm__("x8") = 29;     // SYS_ioctl
+    register long x0 __asm__("x0") = (long)fd;
+    register long x1 __asm__("x1") = 0x5401; // TCGETS
+    register long x2 __asm__("x2") = (long)(uintptr_t)buf;
+    __asm__ volatile("svc #0"
+                     : "+r"(x0)
+                     : "r"(x8), "r"(x1), "r"(x2)
+                     : "memory");
+    ret = x0;
+#    endif
+    return ret == 0 ? 1 : 0;
+#else
+    return isatty(fd);
+#endif
+}
+
+#define ISATTY misra_is_tty
 
 #ifndef STDIN_FILENO
 #    define STDIN_FILENO FILENO(stdin)
