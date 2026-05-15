@@ -1,15 +1,15 @@
 // Integration test for the .debug_info function-name fallback.
 //
 // This source builds twice via meson: once as the unstripped test
-// driver (Dwarf.Stripped) and once as a stripped copy of that same
-// binary (Dwarf.Stripped.stripped). The driver receives the stripped
-// copy's path as argv[1].
+// driver (Dwarf.Stripped) and once as a copy with the marker symbols
+// stripped via `objcopy -N marker_alpha -N marker_beta`. The driver
+// receives the stripped copy's path as argv[1].
 //
-// `objcopy -R .symtab -R .strtab` removes both ELF symbol tables but
-// leaves `.dynsym`, `.text`, and the `.debug_*` sections. Static
-// functions don't appear in `.dynsym`, so an ELF symbol lookup for our
-// `marker_*` helpers necessarily misses on the stripped copy. The
-// DwarfFunctions cascade must therefore be doing the resolution.
+// `-N name` deletes a named symbol from .symtab while leaving the
+// rest of the binary (including .debug_info) intact. Combined with
+// `static` linkage (which keeps the markers out of .dynsym), it
+// reproduces the failure mode the cascade exists to handle: a
+// function present in DWARF but absent from both ELF symbol tables.
 
 #include <Misra.h>
 #include <Misra/Parsers/Dwarf.h>
