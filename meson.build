@@ -214,7 +214,10 @@ if opt_parser_elf
     misra_std_sources += files('Source/Misra/Parsers/Elf.c')
 endif
 if opt_parser_dwarf
-    misra_std_sources += files('Source/Misra/Parsers/Dwarf.c')
+    misra_std_sources += files(
+        'Source/Misra/Parsers/Dwarf.c',
+        'Source/Misra/Parsers/DwarfUnwind.c',
+    )
 endif
 
 # Compile-time discovery: each enabled feature exposes

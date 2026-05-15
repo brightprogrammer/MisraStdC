@@ -114,4 +114,93 @@ const DwarfLineEntry *DwarfLinesResolve(const DwarfLines *self, u64 vaddr);
 ///
 void DwarfLinesDeinit(DwarfLines *self);
 
+// ===========================================================================
+// .eh_frame CFI (Call Frame Information) — used by the frame-pointer-less
+// stack unwinder.
+// ===========================================================================
+//
+// CIE = Common Information Entry. One per "augmentation profile". Holds
+//       per-FDE-set settings: code/data alignment factors, return-address
+//       register number, pointer-encoding scheme, default initial
+//       instructions (which we replay before any FDE-specific ones).
+// FDE = Frame Description Entry. One per function range. Holds the
+//       address range it covers plus a stream of CFI instructions
+//       describing how saved registers can be recovered at each IP.
+
+///
+/// Decoded CIE record (the parts we care about). Strings point into
+/// the section bytes and are valid for the parsed `DwarfCfi`'s lifetime.
+///
+typedef struct DwarfCie {
+    u64       offset;                  // offset of this CIE inside .eh_frame
+    u8        version;
+    u8        return_address_register; // DWARF register number for the return PC
+    u8        fde_pointer_encoding;    // DW_EH_PE_* used for FDE pc_begin / pc_range
+    u8        has_augmentation;        // bool: augmentation string starts with 'z'
+    i64       code_alignment_factor;   // ULEB128
+    i64       data_alignment_factor;   // SLEB128
+    const u8 *initial_instructions;
+    u64       initial_instructions_size;
+} DwarfCie;
+
+///
+/// Decoded FDE record. `pc_begin` and `pc_range` are file-relative
+/// virtual addresses (the same address-space `ElfSymbol.value` uses).
+/// `instructions` is the per-FDE CFI bytecode that runs after the
+/// CIE's initial instructions.
+///
+typedef struct DwarfFde {
+    u64       offset;     // offset of this FDE inside .eh_frame
+    u64       cie_offset; // offset of the CIE this FDE references
+    u64       pc_begin;
+    u64       pc_range;
+    const u8 *instructions;
+    u64       instructions_size;
+} DwarfFde;
+
+typedef Vec(DwarfCie) DwarfCies;
+typedef Vec(DwarfFde) DwarfFdes;
+
+///
+/// Parsed `.eh_frame` index. CIEs are de-duplicated; FDEs each point at
+/// their CIE by offset. `eh_frame_base` is the runtime address that
+/// pc-relative encodings in `.eh_frame` are relative to (= the section's
+/// load address); we record the file-relative form, so DwarfCfi-consuming
+/// callers should pass already-file-relative PCs.
+///
+typedef struct DwarfCfi {
+    Allocator *allocator;
+    DwarfCies  cies;
+    DwarfFdes  fdes;
+    u64        eh_frame_addr;
+} DwarfCfi;
+
+///
+/// Parse the `.eh_frame` section of an already-opened ElfFile.
+///
+/// out[out]   : Populated on success.
+/// elf[in]    : ELF file to read from. Borrowed.
+/// alloc[in]  : Allocator backing the CIE / FDE vectors.
+///
+/// SUCCESS : Returns true. `out->fdes.length` may be 0 if the binary
+///           lacks a `.eh_frame` section (very unusual on modern Linux).
+/// FAILURE : Returns false; logs the failing step. `out` is left zeroed.
+///
+/// TAGS: Parser, DWARF, CFI
+///
+bool DwarfCfiBuildFromElf(DwarfCfi *out, const ElfFile *elf, Allocator *alloc);
+
+///
+/// Find the FDE whose `[pc_begin, pc_begin + pc_range)` range contains
+/// `vaddr` (file-relative). Returns NULL if no FDE covers the address.
+///
+const DwarfFde *DwarfCfiFindFde(const DwarfCfi *self, u64 vaddr);
+
+///
+/// Find a CIE by its `.eh_frame` offset (used to link FDE -> CIE).
+///
+const DwarfCie *DwarfCfiFindCie(const DwarfCfi *self, u64 cie_offset);
+
+void DwarfCfiDeinit(DwarfCfi *self);
+
 #endif // MISRA_PARSERS_DWARF_H

@@ -81,12 +81,58 @@ bool test_dwarf_resolves_helper_to_source_file(void) {
     return ok;
 }
 
+// Walk /proc/self/exe's .eh_frame, then look up an FDE for the
+// address of a known function in this binary. GCC and clang emit
+// .eh_frame for every function unless explicitly told not to, so
+// we expect a hit.
+bool test_dwarf_cfi_finds_fde_for_self(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    SymbolResolver res;
+    if (!SymbolResolverInit(&res, base)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    ResolvedSymbol r;
+    if (!SymbolResolverResolve(&res, (void *)&dwarf_marker_helper, &r)) {
+        SymbolResolverDeinit(&res);
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+    u64 file_relative = (u64)(uintptr_t)&dwarf_marker_helper - r.module_base;
+
+    ElfFile elf;
+    if (!ElfFileOpen(&elf, r.module_path, base)) {
+        SymbolResolverDeinit(&res);
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    DwarfCfi cfi;
+    bool     built = DwarfCfiBuildFromElf(&cfi, &elf, base);
+    bool     ok    = false;
+    if (built) {
+        const DwarfFde *fde = DwarfCfiFindFde(&cfi, file_relative);
+        ok                  = fde != NULL && fde->pc_range > 0 && file_relative >= fde->pc_begin &&
+             file_relative < fde->pc_begin + fde->pc_range;
+        DwarfCfiDeinit(&cfi);
+    }
+
+    ElfFileDeinit(&elf);
+    SymbolResolverDeinit(&res);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting Dwarf tests\n\n");
 
     TestFunction tests[] = {
         test_dwarf_lines_load_self,
         test_dwarf_resolves_helper_to_source_file,
+        test_dwarf_cfi_finds_fde_for_self,
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "Dwarf");
