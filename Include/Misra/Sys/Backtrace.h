@@ -79,6 +79,35 @@ size CaptureStackTrace(StackFrame *out, size max_frames, size skip_frames);
 ///
 void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator *alloc);
 
+#if MISRA_HAVE_SYS_SYMRESOLVE && MISRA_HAVE_PARSER_DWARF
+///
+/// CFI-based stack unwinder. Walks the stack by looking up each
+/// frame's FDE in the caller-supplied `resolver` and applying the
+/// DWARF Call Frame Information rules to recover the previous frame's
+/// stack pointer and return address. Works on binaries built with
+/// `-fomit-frame-pointer`, where the FP-walk-based `CaptureStackTrace`
+/// returns nothing useful.
+///
+/// On x86-64 only in v1; on other architectures or when CFI lookup
+/// fails for a given frame, the walker stops there (it does **not**
+/// silently fall back to FP-walk — call `CaptureStackTrace` separately
+/// if you want the cascade).
+///
+/// out[out]         : Frame array to populate.
+/// max_frames[in]   : Capacity of `out`.
+/// skip_frames[in]  : Caller's own wrappers to discard.
+/// resolver[in,out] : Resolver. Cache may grow (per-module DwarfCfi
+///                    is built lazily).
+///
+/// SUCCESS : Returns number of frames written.
+/// FAILURE : Returns 0 if the platform isn't supported or the first
+///           FDE lookup fails.
+///
+/// TAGS: Sys, Backtrace, CFI, Unwind
+///
+size CaptureStackTraceCfi(StackFrame *out, size max_frames, size skip_frames, SymbolResolver *resolver);
+#endif
+
 #if MISRA_HAVE_SYS_SYMRESOLVE
 ///
 /// Same as `FormatStackTrace` but reuses a caller-owned resolver.

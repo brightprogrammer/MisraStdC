@@ -68,6 +68,109 @@ bool test_backtrace_format_with_shared_resolver(void) {
     return ok;
 }
 
+#if MISRA_HAVE_PARSER_DWARF && defined(__x86_64__)
+
+// Same nested-call shape as the FP-walk tests, but routes through the
+// CFI walker. The walker does not depend on -fno-omit-frame-pointer;
+// here we still get FP frames (test build flag), but the unwinder is
+// driven by .eh_frame rules in either case.
+static __attribute__((noinline)) size cfi_capture_inner(SymbolResolver *r, StackFrame *frames, size max) {
+    return CaptureStackTraceCfi(frames, max, 0, r);
+}
+
+static __attribute__((noinline)) size cfi_capture_outer(SymbolResolver *r, StackFrame *frames, size max) {
+    return cfi_capture_inner(r, frames, max);
+}
+
+bool test_backtrace_cfi_walks_multi_frame(void) {
+    DefaultAllocator alloc      = DefaultAllocatorInit();
+    Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
+
+    SymbolResolver res;
+    if (!SymbolResolverInit(&res, alloc_base)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    StackFrame frames[32];
+    size       n = cfi_capture_outer(&res, frames, 32);
+
+    Str rendered = StrInit(alloc_base);
+    FormatStackTraceWith(&rendered, frames, n, &res);
+
+    // The two named helpers must show up: the CFI walker successfully
+    // unwound across at least two real-code frames.
+    bool ok = n >= 2;
+    ok      = ok && rendered.length > 0;
+    ok      = ok && ZstrFindSubstring(rendered.data, "cfi_capture_inner") != NULL;
+    ok      = ok && ZstrFindSubstring(rendered.data, "cfi_capture_outer") != NULL;
+
+    StrDeinit(&rendered);
+    SymbolResolverDeinit(&res);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// FP-walk and CFI-walk should agree on a healthy fraction of IPs. The
+// two captures happen at almost-identical PCs (one line apart in the
+// same function), so the deeper frames — anything outside the leaf —
+// must match exactly. We accept the leaf differing: each capture path
+// snapshots at a slightly different PC inside its respective capture
+// function.
+static __attribute__((noinline)) size fp_capture_inner(StackFrame *frames, size max) {
+    return CaptureStackTrace(frames, max, 0);
+}
+
+static __attribute__((noinline)) void cfi_vs_fp_inner(
+    SymbolResolver *r,
+    StackFrame     *fp_frames,
+    size           *fp_n,
+    StackFrame     *cfi_frames,
+    size           *cfi_n,
+    size            max
+) {
+    *fp_n  = fp_capture_inner(fp_frames, max);
+    *cfi_n = CaptureStackTraceCfi(cfi_frames, max, 0, r);
+}
+
+bool test_backtrace_cfi_agrees_with_fp(void) {
+    DefaultAllocator alloc      = DefaultAllocatorInit();
+    Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
+
+    SymbolResolver res;
+    if (!SymbolResolverInit(&res, alloc_base)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    StackFrame fp[32], cfi[32];
+    size       fp_n = 0, cfi_n = 0;
+    cfi_vs_fp_inner(&res, fp, &fp_n, cfi, &cfi_n, 32);
+
+    // Both must capture at least the leaf + test_* + run_test_suite.
+    bool ok = fp_n >= 3 && cfi_n >= 3;
+
+    // Skip frame 0 in each (different capture functions); compare the
+    // shorter of the remaining tails. They should match exactly for at
+    // least two frames (the rest may differ at the bottom where the
+    // test runner unwinds into libc or __libc_start_main differently).
+    if (ok) {
+        size matches = 0;
+        size tail    = (fp_n < cfi_n ? fp_n : cfi_n) - 1;
+        for (size i = 1; i <= tail; ++i) {
+            if (fp[i].ip == cfi[i].ip)
+                ++matches;
+        }
+        ok = matches >= 2;
+    }
+
+    SymbolResolverDeinit(&res);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+#endif // MISRA_HAVE_PARSER_DWARF && __x86_64__
+
 int main(void) {
     WriteFmt("[INFO] Starting Backtrace tests\n\n");
 
@@ -75,6 +178,10 @@ int main(void) {
         test_backtrace_capture_non_empty,
         test_backtrace_format_resolves_helper,
         test_backtrace_format_with_shared_resolver,
+#if MISRA_HAVE_PARSER_DWARF && defined(__x86_64__)
+        test_backtrace_cfi_walks_multi_frame,
+        test_backtrace_cfi_agrees_with_fp,
+#endif
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "Backtrace");

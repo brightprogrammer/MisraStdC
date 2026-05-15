@@ -233,6 +233,9 @@ void SymbolResolverDeinit(SymbolResolver *self) {
         if (e->sidecar_dwarf_built && e->sidecar_dwarf_ok) {
             DwarfLinesDeinit(&e->sidecar_dwarf);
         }
+        if (e->cfi_built && e->cfi_ok) {
+            DwarfCfiDeinit(&e->cfi);
+        }
 #endif
         if (e->has_sidecar) {
             ElfFileDeinit(&e->sidecar);
@@ -243,6 +246,41 @@ void SymbolResolverDeinit(SymbolResolver *self) {
     ProcMapsDeinit(&self->maps);
     MemSet(self, 0, sizeof(*self));
 }
+
+#if MISRA_HAVE_PARSER_DWARF
+bool SymbolResolverFindFde(SymbolResolver  *self,
+                           void            *runtime_addr,
+                           const DwarfCfi **out_cfi,
+                           const DwarfFde **out_fde,
+                           u64             *out_module_base) {
+    if (!self || !out_cfi || !out_fde || !out_module_base) return false;
+
+    u64                 addr  = (u64)(uintptr_t)runtime_addr;
+    const ProcMapEntry *entry = ProcMapsFindByAddr(&self->maps, addr);
+    if (!entry || !entry->path || entry->path[0] == '\0') return false;
+
+    u64 load_base = entry->start - entry->file_offset;
+
+    ResolverCacheEntry *cache_entry = resolver_cache_find_or_open(self, entry->path, load_base);
+    if (!cache_entry) return false;
+    cache_entry->load_base = load_base;
+
+    if (!cache_entry->cfi_built) {
+        cache_entry->cfi_built = true;
+        cache_entry->cfi_ok    = DwarfCfiBuildFromElf(&cache_entry->cfi, &cache_entry->elf, self->allocator);
+    }
+    if (!cache_entry->cfi_ok) return false;
+
+    u64             file_relative = addr - load_base;
+    const DwarfFde *fde           = DwarfCfiFindFde(&cache_entry->cfi, file_relative);
+    if (!fde) return false;
+
+    *out_cfi         = &cache_entry->cfi;
+    *out_fde         = fde;
+    *out_module_base = load_base;
+    return true;
+}
+#endif
 
 // ---------------------------------------------------------------------------
 // Resolve

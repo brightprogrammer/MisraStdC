@@ -109,8 +109,7 @@ void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator 
             // Cast the trailing flexible-array `CHAR Name[1]` to a
             // proper `const char *` so our `_Generic`-based IOFMT
             // picks the Zstr case instead of a fallback single-char.
-            StrWriteFmt(
-                out, "  #{} {}+{x} [{x}]", (u32)i, (const char *)sym->Name, (u64)sym_off, (u64)ip);
+            StrWriteFmt(out, "  #{} {}+{x} [{x}]", (u32)i, (const char *)sym->Name, (u64)sym_off, (u64)ip);
         } else {
             StrWriteFmt(out, "  #{} {x}", (u32)i, (u64)ip);
         }
@@ -228,6 +227,160 @@ void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator 
     FormatStackTraceWith(out, frames, count, &res);
     SymbolResolverDeinit(&res);
 }
+
+// ---------------------------------------------------------------------------
+// CFI-based unwinder (Linux x86-64 only in v1)
+// ---------------------------------------------------------------------------
+//
+// x86-64 SysV ABI: DWARF register numbering puts RSP at 7, RBP at 6,
+// and the return-address pseudo-register at 16. We track RSP and RBP
+// across frames; other GPRs aren't needed to walk the call stack.
+
+#    if MISRA_HAVE_SYS_SYMRESOLVE && MISRA_HAVE_PARSER_DWARF && defined(__x86_64__)
+
+enum {
+    DWARF_REG_RBP = 6,
+    DWARF_REG_RSP = 7,
+};
+
+// Read u64 from a runtime address. Returns false if `addr` looks
+// bogus (we can't probe page-mappings inline; this stays a NULL +
+// alignment check). A wild address can still crash; see FUTURE-PLANS
+// for a sigsetjmp-guarded read.
+static bool read_u64_at(u64 addr, u64 *out) {
+    if (addr == 0)
+        return false;
+    if (addr & 0x7)
+        return false;
+    *out = *(volatile u64 *)(uintptr_t)addr;
+    return true;
+}
+
+static bool apply_cfa(const DwarfCfaRule *cfa, u64 rsp, u64 rbp, u64 *out_cfa) {
+    if (cfa->kind != DWARF_CFA_RULE_REG_OFFSET)
+        return false;
+    u64 base;
+    switch (cfa->reg) {
+        case DWARF_REG_RSP :
+            base = rsp;
+            break;
+        case DWARF_REG_RBP :
+            base = rbp;
+            break;
+        default :
+            return false; // other CFA bases not tracked in v1
+    }
+    *out_cfa = base + (u64)cfa->offset;
+    return true;
+}
+
+// Apply a single register's rule to find its previous-frame value.
+// `cfa` is the already-computed CFA. `cur_reg_value` is the register's
+// value in the current frame (for SAME_VALUE and as a fallback).
+static bool apply_reg_rule(const DwarfRegRule *r, u64 cfa, u64 cur_reg_value, u64 *out) {
+    switch (r->kind) {
+        case DWARF_REG_RULE_OFFSET :
+            return read_u64_at(cfa + (u64)r->offset, out);
+        case DWARF_REG_RULE_VAL_OFFSET :
+            *out = cfa + (u64)r->offset;
+            return true;
+        case DWARF_REG_RULE_SAME_VALUE :
+            *out = cur_reg_value;
+            return true;
+        case DWARF_REG_RULE_UNDEFINED :
+        case DWARF_REG_RULE_REGISTER :   // would need to track all regs to honour this
+        case DWARF_REG_RULE_EXPRESSION : // expression evaluator deferred
+        default :
+            return false;
+    }
+}
+
+size CaptureStackTraceCfi(StackFrame *out, size max_frames, size skip_frames, SymbolResolver *resolver) {
+    if (!out || max_frames == 0 || !resolver)
+        return 0;
+
+    // Snapshot RSP / RBP at the very top of this function. RIP is
+    // the return-into-caller address obtained via the compiler
+    // intrinsic. RSP at our entry points just past the return-address
+    // slot the CALL pushed; the caller's CFA is therefore (our RSP) +
+    // 8 — i.e. their original SP before the CALL adjusted nothing
+    // else.
+    u64 rsp, rbp;
+    __asm__ volatile("movq %%rsp, %0"
+                     : "=r"(rsp));
+    __asm__ volatile("movq %%rbp, %0"
+                     : "=r"(rbp));
+    u64 rip  = (u64)(uintptr_t)__builtin_return_address(0);
+    rsp     += 8;
+
+    enum {
+        HARD_CAP = 256
+    };
+    size captured = 0;
+    size emitted  = 0;
+
+    for (size depth = 0; depth < HARD_CAP; ++depth) {
+        if (rip == 0)
+            break;
+
+        if (emitted >= skip_frames) {
+            if (captured >= max_frames)
+                break;
+            out[captured++].ip = (void *)(uintptr_t)rip;
+        }
+        ++emitted;
+
+        const DwarfCfi *cfi         = NULL;
+        const DwarfFde *fde         = NULL;
+        u64             module_base = 0;
+        if (!SymbolResolverFindFde(resolver, (void *)(uintptr_t)rip, &cfi, &fde, &module_base)) {
+            break;
+        }
+        u64 file_relative = rip - module_base;
+
+        DwarfUnwindRow row;
+        if (!DwarfCfiBuildRow(cfi, fde, file_relative, &row))
+            break;
+
+        u64 cfa = 0;
+        if (!apply_cfa(&row.cfa, rsp, rbp, &cfa))
+            break;
+
+        // Saved RIP at the return-address-register's offset off CFA.
+        u64                 saved_rip = 0;
+        const DwarfRegRule *ra_rule   = &row.regs[row.return_address_register];
+        if (!apply_reg_rule(ra_rule, cfa, rip, &saved_rip))
+            break;
+
+        // Saved RBP may or may not be tracked; we only need it if a
+        // later frame's CFA is RBP-based. Update opportunistically.
+        u64                 saved_rbp = rbp;
+        const DwarfRegRule *rbp_rule  = &row.regs[DWARF_REG_RBP];
+        if (rbp_rule->kind == DWARF_REG_RULE_OFFSET) {
+            (void)read_u64_at(cfa + (u64)rbp_rule->offset, &saved_rbp);
+        }
+
+        // Advance: the previous frame's SP is the CFA we just used.
+        rip = saved_rip;
+        rsp = cfa;
+        rbp = saved_rbp;
+    }
+
+    return captured;
+}
+
+#    elif MISRA_HAVE_SYS_SYMRESOLVE && MISRA_HAVE_PARSER_DWARF
+size CaptureStackTraceCfi(StackFrame *out, size max_frames, size skip_frames, SymbolResolver *resolver) {
+    // CFI walker not yet implemented for this architecture (only x86-64
+    // in v1). aarch64 follows a very similar pattern and is in
+    // FUTURE-PLANS.
+    (void)out;
+    (void)max_frames;
+    (void)skip_frames;
+    (void)resolver;
+    return 0;
+}
+#    endif
 
 #else
 #    error "Sys/Backtrace requires Windows or GCC/Clang frame-pointer builtins"

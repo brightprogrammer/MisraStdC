@@ -88,6 +88,10 @@ typedef struct ResolverCacheEntry {
     DwarfLines sidecar_dwarf;
     bool       sidecar_dwarf_built;
     bool       sidecar_dwarf_ok;
+    // Lazily-parsed .eh_frame for the CFI-based unwinder.
+    DwarfCfi cfi;
+    bool     cfi_built;
+    bool     cfi_ok;
 #endif
 } ResolverCacheEntry;
 
@@ -138,5 +142,29 @@ void SymbolResolverDeinit(SymbolResolver *self);
 /// TAGS: Sys, Symbol, Resolver
 ///
 bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSymbol *out);
+
+#if MISRA_HAVE_PARSER_DWARF
+///
+/// Look up the .eh_frame FDE that describes how to unwind through the
+/// function at `runtime_addr`. Populates `*out_cfi`, `*out_fde`, and
+/// the module's runtime load base so the caller can run the CFI VM
+/// (via `DwarfCfiBuildRow`) and compute a CFA in the runtime address
+/// space.
+///
+/// SUCCESS : Returns true; all three output parameters set.
+/// FAILURE : Returns false when `runtime_addr` falls outside any
+///           loaded module, the module has no `.eh_frame`, or no FDE
+///           covers the address.
+///
+/// TAGS: Sys, Symbol, Unwind
+///
+bool SymbolResolverFindFde(
+    SymbolResolver  *self,
+    void            *runtime_addr,
+    const DwarfCfi **out_cfi,
+    const DwarfFde **out_fde,
+    u64             *out_module_base
+);
+#endif
 
 #endif // MISRA_SYS_SYMBOL_RESOLVER_H
