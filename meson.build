@@ -82,6 +82,8 @@ opt_parser_kvconf  = get_option('parser_kvconfig')
 opt_parser_http    = get_option('parser_http')
 opt_parser_elf     = get_option('parser_elf')
 opt_parser_dwarf   = get_option('parser_dwarf')
+opt_parser_pe      = get_option('parser_pe')
+opt_parser_pdb     = get_option('parser_pdb')
 
 # Vec, Str, Io are part of the mandatory foundation: `LOG_FATAL` formats
 # its message through `Str` and emits via the `Io` formatted path, so
@@ -120,8 +122,13 @@ if opt_parser_dwarf
     opt_parser_elf = true
 endif
 
-# parser_elf uses ReadCompleteFile; force `file` on when it's enabled.
-opt_file = opt_file_user or opt_parser_elf
+# parser_pdb hard-requires parser_pe to locate the PDB reference.
+if opt_parser_pdb
+    opt_parser_pe = true
+endif
+
+# parser_elf / parser_pe both use ReadCompleteFile.
+opt_file = opt_file_user or opt_parser_elf or opt_parser_pe
 
 # sys_procmaps is Linux-only; verified above.
 
@@ -220,6 +227,9 @@ if opt_parser_dwarf
         'Source/Misra/Parsers/DwarfInfo.c',
     )
 endif
+if opt_parser_pe
+    misra_std_sources += files('Source/Misra/Parsers/Pe.c')
+endif
 
 # Compile-time discovery: each enabled feature exposes
 # `MISRA_HAVE_<NAME> == 1` via a generated `Misra/Config.h`. Every
@@ -252,6 +262,8 @@ config_data.set10('MISRA_HAVE_PARSER_KVCONFIG', opt_parser_kvconf)
 config_data.set10('MISRA_HAVE_PARSER_HTTP',     opt_parser_http)
 config_data.set10('MISRA_HAVE_PARSER_ELF',      opt_parser_elf)
 config_data.set10('MISRA_HAVE_PARSER_DWARF',    opt_parser_dwarf)
+config_data.set10('MISRA_HAVE_PARSER_PE',       opt_parser_pe)
+config_data.set10('MISRA_HAVE_PARSER_PDB',      opt_parser_pdb)
 
 # `subdir(...)` runs the inner meson.build, where `configure_file`
 # emits `build/Include/Misra/Config.h`. The top-level
@@ -273,6 +285,7 @@ message('  sys_procmaps=@0@  sys_symresolve=@1@  sys_backtrace=@2@'.format(
     opt_sys_procmaps, opt_sys_symresolve, opt_sys_backtrace))
 message('  parser_json=@0@  parser_kvconfig=@1@  parser_http=@2@  parser_elf=@3@  parser_dwarf=@4@'.format(
     opt_parser_json, opt_parser_kvconf, opt_parser_http, opt_parser_elf, opt_parser_dwarf))
+message('  parser_pe=@0@  parser_pdb=@1@'.format(opt_parser_pe, opt_parser_pdb))
 
 # Build-time platform deps. The Windows Sys/Backtrace backend links
 # against dbghelp for SymFromAddr / SymGetLineFromAddr64.

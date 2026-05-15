@@ -39,6 +39,10 @@ dwarf_tests = [
     ['Dwarf', 'Std/Dwarf.c'],
 ]
 
+pe_tests = [
+    ['Pe', 'Std/Pe.c'],
+]
+
 procmaps_tests = [
     ['ProcMaps', 'Std/ProcMaps.c'],
 ]
@@ -248,6 +252,27 @@ endif
 
 if opt_parser_http
     foreach test_info : http_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
+
+        test(test_name, test_exe)
+    endforeach
+endif
+
+# The PE parser test builds a synthetic PE blob in memory, so it
+# doesn't need a real Windows host -- it runs on every platform.
+if opt_parser_pe
+    foreach test_info : pe_tests
         test_name = test_info[0]
         test_src = test_info[1]
 
