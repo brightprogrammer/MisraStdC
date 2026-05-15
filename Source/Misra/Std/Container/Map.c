@@ -13,10 +13,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static inline size map_storage_alignment(void) {
-    return _Alignof(max_align_t);
-}
-
 static size quadratic_probe_index(u64 hash, size probe_count, size capacity) {
     (void)capacity;
     return (size)(hash + ((probe_count * (probe_count + 1)) / 2));

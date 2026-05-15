@@ -2,10 +2,27 @@ project('misra', 'c',
     default_options: ['buildtype=debug', 'optimization=0', 'b_lto=false', 'c_std=c11']
 )
 
-# Custom compile args
-common_c_args = []
-
 cc = meson.get_compiler('c')
+
+# Custom compile args. The Io/IOFMT macro layer casts `(void *)&x` for
+# every formatted argument; for `const`-typed inputs this drops the
+# const qualifier. clang / gcc / msvc all flag it under different names.
+# It's a structural property of the macro design, not a per-callsite
+# bug, so we silence the specific warning everywhere it's recognized
+# rather than chasing hundreds of individual call sites.
+common_c_args = []
+foreach arg : [
+    '-Wno-incompatible-pointer-types-discards-qualifiers',  # clang
+    '-Wno-discarded-qualifiers',                            # gcc
+]
+    if cc.has_argument(arg)
+        common_c_args += arg
+    endif
+endforeach
+if cc.get_id() == 'msvc' or cc.get_id() == 'clang-cl'
+    common_c_args += '/wd4090'
+endif
+
 math_dep = cc.find_library('m', required: false)
 
 inc_misra = include_directories('Source', 'Include')
