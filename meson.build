@@ -42,24 +42,21 @@ opt_sys_procmaps   = get_option('sys_procmaps')
 opt_sys_symresolve = get_option('sys_symresolve')
 opt_sys_backtrace  = get_option('sys_backtrace')
 
-# /proc/self/maps is Linux-only. Auto-disable it (and SymbolResolver,
-# which builds on top of it) elsewhere. Sys/Backtrace has a Windows
-# backend that uses CaptureStackBackTrace + dbghelp directly, so it
-# stays enabled there — and DebugAllocator can follow.
-if host_machine.system() != 'linux'
+# Platform availability matrix:
+#   sys_procmaps:    Linux only (reads /proc/self/maps)
+#   sys_symresolve:  Linux only (builds on procmaps + ELF parsing)
+#   sys_backtrace:   Linux (in-tree via SymbolResolver) or Windows (dbghelp)
+#   alloc_debug:     wherever sys_backtrace is
+#   sys_socket:      POSIX (currently #error on _WIN32)
+sys_kernel = host_machine.system()
+if sys_kernel != 'linux'
     opt_sys_procmaps   = false
     opt_sys_symresolve = false
 endif
-
-# Sys/Backtrace needs SymbolResolver. Force it on if Backtrace is on.
-if opt_sys_backtrace
-    opt_sys_symresolve = true
+if sys_kernel != 'linux' and sys_kernel != 'windows'
+    opt_sys_backtrace = false
 endif
-
-# Sys/Socket is POSIX-only at present (Source/Misra/Sys/Socket.c
-# guards with #error on _WIN32). Auto-disable on Windows so the
-# default of `true` doesn't break a fresh Windows configure.
-if host_machine.system() == 'windows'
+if sys_kernel == 'windows'
     opt_sys_socket = false
 endif
 
@@ -83,12 +80,19 @@ opt_int    = opt_int_user    or opt_float                       # float -> int
 opt_bitvec = opt_bitvec_user or opt_int                         # int -> bitvec
 opt_map    = opt_map_user    or opt_parser_kvconf or opt_alloc_debug  # kvconfig|alloc_debug -> map
 
-# DebugAllocator needs the backtrace primitive too.
-if opt_alloc_debug
-    opt_sys_backtrace = true
-endif
+# DebugAllocator hard-requires sys_backtrace. Rather than letting
+# alloc_debug force backtrace on (which can re-enable an explicitly-
+# disabled platform-unavailable feature), we go the other direction:
+# alloc_debug can only be on if backtrace is. macOS / BSD / etc. with
+# backtrace disabled above also lose alloc_debug.
+opt_alloc_debug = opt_alloc_debug and opt_sys_backtrace
 
-# SymbolResolver needs ProcMaps + parser_elf. Force them on if it's enabled.
+# Linux-only dependency: in-tree Sys/Backtrace pulls in SymbolResolver,
+# which pulls in ProcMaps + Parsers/Elf. The Windows backend uses
+# dbghelp directly and skips this chain.
+if sys_kernel == 'linux' and opt_sys_backtrace
+    opt_sys_symresolve = true
+endif
 if opt_sys_symresolve
     opt_sys_procmaps = true
     opt_parser_elf   = true
@@ -237,7 +241,7 @@ config_data.set10('MISRA_HAVE_PARSER_DWARF',    opt_parser_dwarf)
 subdir('Include/Misra')
 
 # Print which optional features are enabled so the configure log is honest.
-message('MisraStdC features enabled:')
+message('MisraStdC features enabled (host system: @0@):'.format(sys_kernel))
 message('  alloc_arena=@0@  alloc_slab=@1@  alloc_budget=@2@  alloc_stats=@3@  alloc_debug=@4@'.format(
     opt_alloc_arena, opt_alloc_slab, opt_alloc_budget, opt_alloc_stats, opt_alloc_debug))
 message('  bitvec=@0@  list=@1@  map=@2@  graph=@3@  int=@4@  float=@5@'.format(

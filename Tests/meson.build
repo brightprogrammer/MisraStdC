@@ -313,7 +313,7 @@ if opt_parser_dwarf and tests_need_posix_exe
     endforeach
 endif
 
-if opt_sys_procmaps
+if opt_sys_procmaps and tests_need_posix_exe
     foreach test_info : procmaps_tests
         test_name = test_info[0]
         test_src = test_info[1]
@@ -332,7 +332,7 @@ if opt_sys_procmaps
     endforeach
 endif
 
-if opt_sys_symresolve
+if opt_sys_symresolve and tests_need_posix_exe
     foreach test_info : symresolve_tests
         test_name = test_info[0]
         test_src = test_info[1]
