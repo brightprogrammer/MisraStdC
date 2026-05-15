@@ -41,6 +41,38 @@ extern "C" {
     typedef void *(*AllocatorReallocateFn)(Allocator *self, void *ptr, size old_size, size new_size);
     typedef void (*AllocatorDeallocateFn)(Allocator *self, void *ptr, size bytes);
 
+#if MISRA_HAVE_ALLOC_STATS
+    ///
+    /// Per-allocator memory-pressure counters. Updated by the dispatch
+    /// wrappers (`AllocatorAlloc` / `AllocatorRealloc` / `AllocatorFree`)
+    /// so every typed allocator gets accounting for free. Reset with
+    /// `AllocatorResetStats(...)`, read with `AllocatorGetStats(...)`.
+    ///
+    /// FIELDS:
+    /// - bytes_requested     : cumulative bytes ever requested via
+    ///                         allocate (does not decrease on free).
+    /// - bytes_in_use        : currently outstanding bytes
+    ///                         (allocate + realloc-grow - realloc-shrink - deallocate).
+    /// - peak_bytes_in_use   : historical max of bytes_in_use.
+    /// - allocations         : count of successful allocate calls.
+    /// - reallocations       : count of successful reallocate calls.
+    /// - deallocations       : count of deallocate calls.
+    /// - failed_allocations  : count of allocate / reallocate calls that
+    ///                         returned NULL.
+    ///
+    /// TAGS: Allocator, Stats, Observability
+    ///
+    typedef struct AllocatorStats {
+        u64 bytes_requested;
+        u64 bytes_in_use;
+        u64 peak_bytes_in_use;
+        u64 allocations;
+        u64 reallocations;
+        u64 deallocations;
+        u64 failed_allocations;
+    } AllocatorStats;
+#endif
+
     ///
     /// Generic allocator base. Every typed allocator carries this struct as
     /// its first member (named `base`). Pointers downcast cleanly between
@@ -60,7 +92,25 @@ extern "C" {
         AllocatorEffort       effort;
         u32                   retry_limit;
         u64                   __magic;
+#if MISRA_HAVE_ALLOC_STATS
+        AllocatorStats        stats;
+#endif
     };
+
+#if MISRA_HAVE_ALLOC_STATS
+    ///
+    /// Snapshot the current stats off `self`. Returns the struct by
+    /// value; reading does not perturb the counters.
+    ///
+    AllocatorStats AllocatorGetStats(const Allocator *self);
+
+    ///
+    /// Zero every counter on `self`. `peak_bytes_in_use` is reset to
+    /// the current `bytes_in_use` so subsequent peak tracking is
+    /// monotonically correct from this point forward.
+    ///
+    void AllocatorResetStats(Allocator *self);
+#endif
 
     ///
     /// Magic sentinel used to identify a properly-initialized allocator

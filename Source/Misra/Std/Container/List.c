@@ -33,11 +33,7 @@ void deinit_list(GenericList *list, u64 item_size) {
 
     clear_list(list, item_size);
 
-    list->head        = NULL;
-    list->tail        = NULL;
-    list->copy_init   = NULL;
-    list->copy_deinit = NULL;
-    list->length      = 0;
+    MemSet(list, 0, sizeof(*list));
 }
 
 

@@ -440,25 +440,7 @@ void deinit_map(
     AllocatorFree(map->allocator, map->entries, map->capacity * entry_size);
     AllocatorFree(map->allocator, map->states, map->capacity * sizeof(u8));
 
-    map->entries                = NULL;
-    map->states                 = NULL;
-    map->length                 = 0;
-    map->capacity               = 0;
-    map->tombstones             = 0;
-    map->key_copy_init          = NULL;
-    map->key_copy_deinit        = NULL;
-    map->value_copy_init        = NULL;
-    map->value_copy_deinit      = NULL;
-    map->key_compare            = NULL;
-    map->value_compare          = NULL;
-    map->key_hash               = NULL;
-    map->policy.name            = NULL;
-    map->policy.should_rehash   = NULL;
-    map->policy.next_capacity   = NULL;
-    map->policy.first_index     = NULL;
-    map->policy.next_index      = NULL;
-    map->policy.max_probe_count = 0;
-    map->__magic                = 0;
+    MemSet(map, 0, sizeof(*map));
 }
 
 void clear_map(

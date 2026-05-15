@@ -181,8 +181,5 @@ void ArenaAllocatorDeinit(ArenaAllocator *self) {
         AllocatorFree(&self->page.base, (void *)chunk, chunk->raw_size);
         chunk = next;
     }
-    self->head      = NULL;
-    self->tail      = NULL;
-    self->last_ptr  = NULL;
-    self->last_size = 0;
+    MemSet(self, 0, sizeof(*self));
 }

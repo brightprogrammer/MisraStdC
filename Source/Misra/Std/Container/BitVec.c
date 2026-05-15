@@ -56,11 +56,8 @@ void BitVecDeinit(BitVec *bitvec) {
     ValidateBitVec(bitvec);
     if (bitvec->data) {
         AllocatorFree(bitvec->allocator, bitvec->data, bitvec->byte_size);
-        bitvec->data = NULL;
     }
-    bitvec->length    = 0;
-    bitvec->capacity  = 0;
-    bitvec->byte_size = 0;
+    MemSet(bitvec, 0, sizeof(*bitvec));
 }
 
 void BitVecClear(BitVec *bitvec) {
