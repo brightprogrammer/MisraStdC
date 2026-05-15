@@ -27,6 +27,10 @@ socket_tests = [
     ['Socket', 'Std/Socket.c'],
 ]
 
+http_tests = [
+    ['Http', 'Std/Http.c'],
+]
+
 str_tests = [
     ['Str.Type', 'Std/Str.Type.c'],
     ['Str.Init', 'Std/Str.Init.c'],
@@ -197,6 +201,25 @@ endif
 
 if opt_sys_socket
     foreach test_info : socket_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
+
+        test(test_name, test_exe)
+    endforeach
+endif
+
+if opt_parser_http
+    foreach test_info : http_tests
         test_name = test_info[0]
         test_src = test_info[1]
 

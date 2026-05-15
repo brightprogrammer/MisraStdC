@@ -40,6 +40,7 @@ opt_sys_socket     = get_option('sys_socket')
 
 opt_parser_json    = get_option('parser_json')
 opt_parser_kvconf  = get_option('parser_kvconfig')
+opt_parser_http    = get_option('parser_http')
 
 # Vec, Str, Io are part of the mandatory foundation: `LOG_FATAL` formats
 # its message through `Str` and emits via the `Io` formatted path, so
@@ -125,6 +126,9 @@ endif
 if opt_parser_kvconf
     misra_std_sources += files('Source/Misra/Parsers/KvConfig.c')
 endif
+if opt_parser_http
+    misra_std_sources += files('Source/Misra/Parsers/Http.c')
+endif
 
 # Compile-time discovery: each enabled feature exposes
 # `MISRA_HAVE_<NAME> == 1` via a generated `Misra/Config.h`. Every
@@ -150,6 +154,7 @@ config_data.set10('MISRA_HAVE_SYS_PROC',        opt_sys_proc)
 config_data.set10('MISRA_HAVE_SYS_SOCKET',      opt_sys_socket)
 config_data.set10('MISRA_HAVE_PARSER_JSON',     opt_parser_json)
 config_data.set10('MISRA_HAVE_PARSER_KVCONFIG', opt_parser_kvconf)
+config_data.set10('MISRA_HAVE_PARSER_HTTP',     opt_parser_http)
 
 # `subdir(...)` runs the inner meson.build, where `configure_file`
 # emits `build/Include/Misra/Config.h`. The top-level
@@ -167,8 +172,8 @@ message('  bitvec=@0@  list=@1@  map=@2@  graph=@3@  int=@4@  float=@5@'.format(
     opt_bitvec, opt_list, opt_map, opt_graph, opt_int, opt_float))
 message('  file=@0@  iter=@1@  sys_dir=@2@  sys_proc=@3@  sys_socket=@4@'.format(
     opt_file, opt_iter, opt_sys_dir, opt_sys_proc, opt_sys_socket))
-message('  parser_json=@0@  parser_kvconfig=@1@'.format(
-    opt_parser_json, opt_parser_kvconf))
+message('  parser_json=@0@  parser_kvconfig=@1@  parser_http=@2@'.format(
+    opt_parser_json, opt_parser_kvconf, opt_parser_http))
 
 # Regular library with sanitizers for normal tests and executables
 misra_std = static_library(
@@ -348,6 +353,9 @@ if not opt_parser_json
 endif
 if not opt_parser_kvconf
     install_subdir_excludes_files += 'Parsers/KvConfig.h'
+endif
+if not opt_parser_http
+    install_subdir_excludes_files += 'Parsers/Http.h'
 endif
 
 install_subdir(

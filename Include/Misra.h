@@ -21,4 +21,8 @@
 #    include <Misra/Parsers/KvConfig.h>
 #endif
 
+#if MISRA_HAVE_PARSER_HTTP
+#    include <Misra/Parsers/Http.h>
+#endif
+
 #endif // MISRA_H

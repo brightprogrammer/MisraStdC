@@ -46,3 +46,4 @@ option('sys_socket', type: 'boolean', value: true, description: 'Build TCP/UDP s
 # --- Parsers ----------------------------------------------------------------
 option('parser_json',     type: 'boolean', value: true, description: 'Build JSON reader/writer.')
 option('parser_kvconfig', type: 'boolean', value: true, description: 'Build key-value config parser. Requires map, str.')
+option('parser_http',     type: 'boolean', value: true, description: 'Build HTTP/1.1 request + response parser/serializer.')
