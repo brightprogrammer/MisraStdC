@@ -13,8 +13,50 @@
 #include <Misra/Sys/PdbCache.h>
 
 #include <stdio.h>
+#include <stdlib.h> // getenv
 
 #include "../Util/TestRunner.h"
+
+// Resolve the system temp directory. Windows ships TEMP / TMP env
+// vars; POSIX uses TMPDIR with a /tmp fallback. Returned string is
+// borrowed (env-var lifetime) or a static literal -- caller must not
+// free.
+static const char *tmp_dir_path(void) {
+#ifdef _WIN32
+    const char *p = getenv("TEMP");
+    if (p && *p)
+        return p;
+    p = getenv("TMP");
+    if (p && *p)
+        return p;
+    return "C:/Windows/Temp";
+#else
+    const char *p = getenv("TMPDIR");
+    if (p && *p)
+        return p;
+    return "/tmp";
+#endif
+}
+
+// Compose `<tmp_dir>/<name>` into `out`. Forward slash works on both
+// POSIX and Win32 (CRT + kernel APIs accept either separator).
+static void tmp_path_join(char *out, size out_size, const char *name) {
+    const char *base    = tmp_dir_path();
+    size        baselen = 0;
+    while (base[baselen])
+        ++baselen;
+    size namelen = 0;
+    while (name[namelen])
+        ++namelen;
+    if (baselen + 1 + namelen + 1 > out_size) {
+        out[0] = '\0';
+        return;
+    }
+    MemCopy(out, base, baselen);
+    out[baselen] = '/';
+    MemCopy(out + baselen + 1, name, namelen);
+    out[baselen + 1 + namelen] = '\0';
+}
 
 // -----------------------------------------------------------------------------
 // Common helpers
@@ -224,8 +266,10 @@ bool test_pdb_cache_resolves_via_codeview(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Allocator       *base  = ALLOCATOR_OF(&alloc);
 
-    const char *pe_path  = "/tmp/misra_pdbcache_test.exe";
-    const char *pdb_path = "/tmp/misra_pdbcache_test.pdb";
+    char pe_path[1024];
+    char pdb_path[1024];
+    tmp_path_join(pe_path, sizeof(pe_path), "misra_pdbcache_test.exe");
+    tmp_path_join(pdb_path, sizeof(pdb_path), "misra_pdbcache_test.pdb");
 
     build_pe_blob(pdb_path);
     build_pdb_blob("winproc", 0x1100);
@@ -274,10 +318,13 @@ bool test_pdb_cache_rejects_unknown_module(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Allocator       *base  = ALLOCATOR_OF(&alloc);
 
+    char missing[1024];
+    tmp_path_join(missing, sizeof(missing), "misra_pdbcache_missing_xyz.exe");
+
     PdbCache cache;
     PdbCacheInit(&cache, base);
     const char *name = NULL;
-    bool        ok   = !PdbCacheResolve(&cache, "/tmp/missing_module_xyz.exe", 0, 0x1000, &name, NULL);
+    bool        ok   = !PdbCacheResolve(&cache, missing, 0, 0x1000, &name, NULL);
     PdbCacheDeinit(&cache);
     DefaultAllocatorDeinit(&alloc);
     return ok;

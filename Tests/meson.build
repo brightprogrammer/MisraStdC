@@ -363,22 +363,30 @@ if opt_parser_macho
         test(test_name, test_exe)
     endforeach
 
-    foreach test_info : macho_cache_tests
-        test_name = test_info[0]
-        test_src = test_info[1]
+    # MachoCache test builds a dSYM bundle directory tree via
+    # `system("mkdir -p ...")` / `rm -rf ...`. Those are POSIX shell
+    # idioms; cmd.exe on Windows doesn't speak them. Gate the test
+    # to non-Windows -- the MachoCache code itself is portable C99,
+    # but the dSYM concept is macOS-only, so Windows coverage adds
+    # little.
+    if host_machine.system() != 'windows'
+        foreach test_info : macho_cache_tests
+            test_name = test_info[0]
+            test_src = test_info[1]
 
-        test_exe = executable(
-            test_name,
-            files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
-            c_args: test_args,
-            include_directories: inc_misra,
-            install: false
-        )
+            test_exe = executable(
+                test_name,
+                files(test_src),
+                link_with: [misra_std],
+                dependencies: [test_util_dep],
+                c_args: test_args,
+                include_directories: inc_misra,
+                install: false
+            )
 
-        test(test_name, test_exe)
-    endforeach
+            test(test_name, test_exe)
+        endforeach
+    endif
 endif
 
 # Parser/Elf, Parser/Dwarf, and the Sys/* resolve / backtrace tests
