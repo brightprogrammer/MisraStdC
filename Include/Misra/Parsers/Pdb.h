@@ -99,6 +99,12 @@ typedef struct PdbFile {
     u32        *stream_sizes;  // length = num_streams
     const u32 **stream_blocks; // length = num_streams; each entry points into stream_dir bytes
     u32        *stream_block_counts;
+    // Owned name pool for function-name strings. `functions[i].name`
+    // is a borrowed pointer into here; pool and entries are freed
+    // together in `PdbFileDeinit`.
+    char *name_pool;
+    size  name_pool_size;
+    size  name_pool_used;
 } PdbFile;
 
 ///
