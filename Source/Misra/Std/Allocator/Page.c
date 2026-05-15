@@ -26,26 +26,31 @@ static void page_validate_self(const Allocator *self) {
 #else
 #    define MISRA_PAGE_ALLOCATOR_POSIX 1
 #    include <sys/mman.h>
-#    include <unistd.h>
 #    if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
 #        define MAP_ANONYMOUS MAP_ANON
 #    endif
 #endif
 
+// Linux/macOS guarantee these page sizes on the arches we support, so
+// we can answer the query without a libc call (`sysconf(_SC_PAGESIZE)`
+// or `getpagesize()`). Apple Silicon (arm64 darwin) uses 16 KiB
+// pages; everything else on our matrix uses 4 KiB.
 static size page_query_page_size(void) {
 #if defined(MISRA_PAGE_ALLOCATOR_WINDOWS)
+    // kernel32 -- not libc.
     SYSTEM_INFO info;
     GetSystemInfo(&info);
     if (!info.dwPageSize) {
         return 4096;
     }
     return (size)info.dwPageSize;
+#elif defined(__APPLE__) && defined(__aarch64__)
+    return 16384;
 #else
-    long ps = sysconf(_SC_PAGESIZE);
-    if (ps <= 0) {
-        return 4096;
-    }
-    return (size)ps;
+    // Linux/macOS-x86_64/arm64-linux all use 4 KiB. If a future port
+    // lands on a kernel that disagrees, this assumption needs to move
+    // to a runtime query.
+    return 4096;
 #endif
 }
 
