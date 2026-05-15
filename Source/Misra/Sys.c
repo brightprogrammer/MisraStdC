@@ -33,9 +33,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+// POSIX exposes the environment as a NULL-terminated array of
+// "NAME=value" zstrings at this symbol. Declaring it ourselves means
+// we don't need <stdlib.h>'s getenv -- the symbol is provided by the
+// dynamic loader (it points into argv-adjacent memory set up at
+// process start) and resolves against libSystem on macOS the same way.
+#ifndef _WIN32
+extern char **environ;
+#endif
+
 Str *GetEnv(const char *name, Str *value) {
     ValidateStr(value);
     Allocator *alloc = value->allocator;
+    if (!name) {
+        return NULL;
+    }
 #ifdef _WIN32
     char  *env_var;
     size_t requiredSize;
@@ -57,10 +69,21 @@ Str *GetEnv(const char *name, Str *value) {
     value->capacity = requiredSize - 1;
     return value;
 #else
-    char *env_var = getenv(name);
-    if (env_var) {
-        *value = StrInitFromCstr(env_var, ZstrLen(env_var), alloc);
-        return value;
+    // Walk `environ` looking for "name=...". No libc call needed --
+    // this is just a pointer chase plus byte compares.
+    size name_len = ZstrLen(name);
+    for (char **e = environ; e && *e; ++e) {
+        const char *entry = *e;
+        // Match name then '='.
+        size i = 0;
+        while (i < name_len && entry[i] && entry[i] == name[i]) {
+            ++i;
+        }
+        if (i == name_len && entry[i] == '=') {
+            const char *val = entry + name_len + 1;
+            *value          = StrInitFromCstr(val, ZstrLen(val), alloc);
+            return value;
+        }
     }
     return NULL;
 #endif
@@ -324,9 +347,34 @@ void Abort(void) {
 }
 
 ProcId ProcGetCurrentId(void) {
-#ifdef _WIN32
+#if defined(_WIN32)
+    // kernel32.dll, not libc.
     return (ProcId)GetCurrentProcessId();
+#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    // Direct Linux syscall: getpid is nr 39 on x86_64, nr 172 on
+    // aarch64. The kernel guarantees it never fails, so no errno
+    // check. This drops the libc `getpid` undefined symbol entirely
+    // on Linux/x86_64/arm64 builds.
+    long ret;
+#    if defined(__x86_64__)
+    __asm__ volatile("syscall"
+                     : "=a"(ret)
+                     : "0"(39)
+                     : "rcx", "r11", "memory");
+#    else // __aarch64__
+    register long x8 __asm__("x8") = 172;
+    register long x0 __asm__("x0");
+    __asm__ volatile("svc #0"
+                     : "=r"(x0)
+                     : "r"(x8)
+                     : "memory");
+    ret = x0;
+#    endif
+    return (ProcId)ret;
 #else
+    // macOS / BSD: getpid is provided by libSystem, the OS-sanctioned
+    // ABI on those platforms (libc.dylib is just a stub forwarding to
+    // libSystem). Apple disallows direct user-mode syscalls.
     return (ProcId)getpid();
 #endif
 }
