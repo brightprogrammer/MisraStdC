@@ -195,6 +195,9 @@ bool insert_range_into_vec(GenericVec *vec, const char *item_data, size item_siz
     }
 
     aligned_size = vec_aligned_size(vec, item_size);
+    if (count != 0 && aligned_size > SIZE_MAX / count) {
+        return false;
+    }
     if (vec->length + count >= vec->capacity) {
         if (!reserve_pow2_vec(vec, item_size, vec->capacity + count)) {
             return false;
@@ -257,6 +260,9 @@ bool insert_range_fast_into_vec(GenericVec *vec, const char *item_data, size ite
     }
 
     aligned_size = vec_aligned_size(vec, item_size);
+    if (count != 0 && aligned_size > SIZE_MAX / count) {
+        return false;
+    }
     if (vec->length + count >= vec->capacity) {
         if (!reserve_pow2_vec(vec, item_size, vec->length + count)) {
             return false;
@@ -323,6 +329,9 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size 
         }
     }
 
+    if ((vec->length - start - count) != 0 && vec_aligned_size(vec, item_size) > SIZE_MAX / (vec->length - start - count)) {
+        LOG_FATAL("integer overflow in remove_range_vec: aligned_size * move_count would overflow");
+    }
     // all elements to new created space
     MemMove(
         // move to freed up space
@@ -374,6 +383,9 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
     }
 
     if (elements_to_move > 0) {
+        if (vec_aligned_size(vec, item_size) > SIZE_MAX / elements_to_move) {
+            LOG_FATAL("integer overflow in fast_remove_range_vec: aligned_size * elements_to_move would overflow");
+        }
         // Move the last 'elements_to_move' elements to the gap
         MemMove(
             // Move to freed up space
