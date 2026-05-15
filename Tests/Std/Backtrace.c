@@ -32,11 +32,17 @@ bool test_backtrace_format_resolves_helper(void) {
     FormatStackTrace(&rendered, frames, n, alloc_base);
 
     // We expect both helper names to appear in the rendered trace.
+    // (Apple's C mangling prepends `_`; substring search matches both
+    // "bt_capture_with_helper" and "_bt_capture_with_helper".)
     bool ok = rendered.length > 0 && ZstrFindSubstring(rendered.data, "bt_capture_with_helper") != NULL &&
               ZstrFindSubstring(rendered.data, "bt_capture_outer") != NULL;
 
-    // With -gdwarf-4 the source location should be in there too.
+#if MISRA_HAVE_SYS_SYMRESOLVE
+    // With -gdwarf-4 the source location should be in there too. Only
+    // the Linux backend emits source filenames today (via DwarfLines);
+    // macOS / Windows only emit names + offsets.
     ok = ok && ZstrFindSubstring(rendered.data, "Backtrace.c") != NULL;
+#endif
 
     StrDeinit(&rendered);
     DefaultAllocatorDeinit(&alloc);
@@ -77,6 +83,10 @@ bool test_backtrace_vec_form_resolves_helper(void) {
     return ok;
 }
 
+#if MISRA_HAVE_SYS_SYMRESOLVE
+// FormatStackTraceWith (the resolver-sharing variant) is Linux-only --
+// the Windows + macOS backends create their own per-call symbol cache
+// instead.
 bool test_backtrace_format_with_shared_resolver(void) {
     DefaultAllocator alloc      = DefaultAllocatorInit();
     Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
@@ -101,8 +111,9 @@ bool test_backtrace_format_with_shared_resolver(void) {
     DefaultAllocatorDeinit(&alloc);
     return ok;
 }
+#endif
 
-#if MISRA_HAVE_PARSER_DWARF && defined(__x86_64__)
+#if MISRA_HAVE_PARSER_DWARF && MISRA_HAVE_SYS_SYMRESOLVE && defined(__x86_64__)
 
 // Same nested-call shape as the FP-walk tests, but routes through the
 // CFI walker. The walker does not depend on -fno-omit-frame-pointer;
@@ -203,7 +214,7 @@ bool test_backtrace_cfi_agrees_with_fp(void) {
     return ok;
 }
 
-#endif // MISRA_HAVE_PARSER_DWARF && __x86_64__
+#endif // MISRA_HAVE_PARSER_DWARF && MISRA_HAVE_SYS_SYMRESOLVE && __x86_64__
 
 int main(void) {
     WriteFmt("[INFO] Starting Backtrace tests\n\n");
@@ -212,8 +223,10 @@ int main(void) {
         test_backtrace_capture_non_empty,
         test_backtrace_format_resolves_helper,
         test_backtrace_vec_form_resolves_helper,
+#if MISRA_HAVE_SYS_SYMRESOLVE
         test_backtrace_format_with_shared_resolver,
-#if MISRA_HAVE_PARSER_DWARF && defined(__x86_64__)
+#endif
+#if MISRA_HAVE_PARSER_DWARF && MISRA_HAVE_SYS_SYMRESOLVE && defined(__x86_64__)
         test_backtrace_cfi_walks_multi_frame,
         test_backtrace_cfi_agrees_with_fp,
 #endif

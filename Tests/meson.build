@@ -514,24 +514,35 @@ if opt_sys_symresolve and tests_need_posix_exe
     endforeach
 endif
 
-if opt_sys_backtrace and tests_need_posix_exe
+# Backtrace tests run wherever Sys/Backtrace itself is supported:
+# Linux (FP walk + ELF/DWARF) or Darwin (FP walk + dyld + Mach-O).
+# Windows is skipped here -- we have no test host and the
+# CaptureStackBackTrace + dbghelp path is its own beast.
+backtrace_test_platforms = (host_machine.system() == 'linux' or host_machine.system() == 'darwin')
+if opt_sys_backtrace and backtrace_test_platforms
+    backtrace_test_c_args   = test_args + ['-fno-omit-frame-pointer', '-gdwarf-4']
+    backtrace_test_link_args = []
+    if host_machine.system() == 'linux'
+        # `-rdynamic` keeps helper symbols visible to .dynsym so
+        # SymbolResolver (ELF-based) can find them via dlopen-style
+        # lookups. On Darwin there's no `.dynsym`; LC_SYMTAB already
+        # carries static-function names by default, and `ld64` doesn't
+        # accept `-rdynamic`.
+        backtrace_test_link_args += '-rdynamic'
+    endif
+
     foreach test_info : backtrace_tests
         test_name = test_info[0]
         test_src = test_info[1]
 
-        # -fno-omit-frame-pointer guarantees the saved-FP chain our
-        # unwinder walks. -rdynamic keeps helper symbols visible to
-        # .symtab resolution. -gdwarf-4 produces .debug_line in a
-        # form our DWARF parser understands (v5 support is in
-        # FUTURE-PLANS).
         test_exe = executable(
             test_name,
             files(test_src),
             link_with: [misra_std],
             dependencies: [test_util_dep],
-            c_args: test_args + ['-fno-omit-frame-pointer', '-gdwarf-4'],
+            c_args: backtrace_test_c_args,
             include_directories: inc_misra,
-            link_args: ['-rdynamic'],
+            link_args: backtrace_test_link_args,
             install: false
         )
 
