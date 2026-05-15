@@ -43,8 +43,14 @@ static const char *basename_of(const char *path) {
 
 #    include <windows.h>
 #    include <dbghelp.h>
+#    if MISRA_HAVE_PARSER_PDB
+#        include <Misra/Std/Allocator/Default.h>
+#        include <Misra/Sys/PdbCache.h>
+#    endif
 
-// dbghelp.lib must be on the link line; meson.build adds it.
+// dbghelp.lib must be on the link line; meson.build adds it. We use
+// dbghelp as a fallback when the in-tree PE+PDB chain can't satisfy a
+// resolve (PDB missing from disk, GUID mismatch, etc.).
 
 static bool g_dbghelp_initialized = false;
 
@@ -56,6 +62,26 @@ static void ensure_dbghelp(void) {
         g_dbghelp_initialized = true;
     }
 }
+
+#    if MISRA_HAVE_PARSER_PDB
+// Given a runtime IP, find the loaded module's HMODULE and a usable
+// path-on-disk for it. Both come straight from the Windows loader.
+static bool win_module_for_ip(void *ip, char *out_path, size out_path_size, u64 *out_base) {
+    HMODULE mod = NULL;
+    if (!GetModuleHandleExA(
+            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            (LPCSTR)ip,
+            &mod
+        )) {
+        return false;
+    }
+    DWORD n = GetModuleFileNameA(mod, out_path, (DWORD)out_path_size);
+    if (n == 0 || n >= out_path_size)
+        return false;
+    *out_base = (u64)(uintptr_t)mod;
+    return true;
+}
+#    endif
 
 size CaptureStackTrace(StackFrame *out, size max_frames, size skip_frames) {
     if (!out || max_frames == 0)
@@ -77,7 +103,6 @@ size CaptureStackTrace(StackFrame *out, size max_frames, size skip_frames) {
 }
 
 void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator *alloc) {
-    (void)alloc;
     if (!out || !frames)
         return;
     ensure_dbghelp();
@@ -100,16 +125,49 @@ void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator 
     MemSet(&line, 0, sizeof(line));
     line.SizeOfStruct = sizeof(line);
 
-    for (size i = 0; i < count; ++i) {
-        DWORD64 ip      = (DWORD64)(uintptr_t)frames[i].ip;
-        DWORD64 sym_off = 0;
-        bool    has_sym = g_dbghelp_initialized && SymFromAddr(proc, ip, &sym_off, sym);
+#    if MISRA_HAVE_PARSER_PDB
+    PdbCache pdb_cache;
+    bool     pdb_cache_ok = alloc && PdbCacheInit(&pdb_cache, alloc);
+#    else
+    (void)alloc;
+#    endif
 
-        if (has_sym) {
-            // Cast the trailing flexible-array `CHAR Name[1]` to a
-            // proper `const char *` so our `_Generic`-based IOFMT
-            // picks the Zstr case instead of a fallback single-char.
-            StrWriteFmt(out, "  #{} {}+{x} [{x}]", (u32)i, (const char *)sym->Name, (u64)sym_off, (u64)ip);
+    for (size i = 0; i < count; ++i) {
+        DWORD64     ip       = (DWORD64)(uintptr_t)frames[i].ip;
+        bool        named    = false;
+        const char *sym_name = NULL;
+        u32         sym_off  = 0;
+
+#    if MISRA_HAVE_PARSER_PDB
+        // First-class path: locate the PE on disk via the Windows
+        // loader, then route through the in-tree PE+PDB chain. If any
+        // step fails we cascade to dbghelp below -- never silently
+        // drop a frame.
+        if (pdb_cache_ok) {
+            char module_path[MAX_PATH];
+            u64  module_base = 0;
+            if (win_module_for_ip(frames[i].ip, module_path, sizeof(module_path), &module_base)) {
+                if (PdbCacheResolve(&pdb_cache, module_path, module_base, (u64)ip, &sym_name, &sym_off)) {
+                    named = true;
+                }
+            }
+        }
+#    endif
+
+        if (!named && g_dbghelp_initialized) {
+            DWORD64 d_off = 0;
+            if (SymFromAddr(proc, ip, &d_off, sym)) {
+                // Cast the trailing flexible-array `CHAR Name[1]` to a
+                // proper `const char *` so our `_Generic`-based IOFMT
+                // picks the Zstr case instead of a fallback single-char.
+                sym_name = (const char *)sym->Name;
+                sym_off  = (u32)d_off;
+                named    = true;
+            }
+        }
+
+        if (named) {
+            StrWriteFmt(out, "  #{} {}+{x} [{x}]", (u32)i, sym_name, (u64)sym_off, (u64)ip);
         } else {
             StrWriteFmt(out, "  #{} {x}", (u32)i, (u64)ip);
         }
@@ -121,6 +179,11 @@ void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator 
         }
         StrPushBack(out, '\n');
     }
+
+#    if MISRA_HAVE_PARSER_PDB
+    if (pdb_cache_ok)
+        PdbCacheDeinit(&pdb_cache);
+#    endif
 }
 
 #elif defined(__GNUC__) || defined(__clang__)

@@ -47,6 +47,10 @@ pdb_tests = [
     ['Pdb', 'Std/Pdb.c'],
 ]
 
+pdb_cache_tests = [
+    ['PdbCache', 'Std/PdbCache.c'],
+]
+
 procmaps_tests = [
     ['ProcMaps', 'Std/ProcMaps.c'],
 ]
@@ -298,6 +302,23 @@ endif
 # toolchain needed.
 if opt_parser_pdb
     foreach test_info : pdb_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
+
+        test(test_name, test_exe)
+    endforeach
+
+    foreach test_info : pdb_cache_tests
         test_name = test_info[0]
         test_src = test_info[1]
 

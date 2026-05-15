@@ -231,7 +231,10 @@ if opt_parser_pe
     misra_std_sources += files('Source/Misra/Parsers/Pe.c')
 endif
 if opt_parser_pdb
-    misra_std_sources += files('Source/Misra/Parsers/Pdb.c')
+    misra_std_sources += files(
+        'Source/Misra/Parsers/Pdb.c',
+        'Source/Misra/Sys/PdbCache.c',
+    )
 endif
 
 # Compile-time discovery: each enabled feature exposes
