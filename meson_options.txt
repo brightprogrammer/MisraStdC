@@ -22,6 +22,7 @@ option('alloc_slab',   type: 'boolean', value: true,  description: 'Build SlabAl
 option('alloc_budget', type: 'boolean', value: true,  description: 'Build BudgetAllocator (caller-buffer bounded pool, no growth).')
 option('alloc_stats',  type: 'boolean', value: true,  description: 'Track per-Allocator memory-pressure stats (byte counts, alloc/realloc/free counters, peak usage).')
 option('alloc_debug',  type: 'boolean', value: true,  description: 'Build DebugAllocator wrapper (GPA-style leak / double-free / overflow / stack-trace tracking). Requires map and sys_backtrace.')
+option('default_alloc_debug', type: 'boolean', value: false, description: 'Alias DefaultAllocator to DebugAllocator (per-instance, no globals). Drop-in ASan/MSan-style leak + double-free + overflow detection without changing call sites. Requires alloc_debug.')
 
 # Note: Vec, Str, Io are part of the mandatory foundation because
 # `LOG_FATAL` formats its message through them. They are not exposed as

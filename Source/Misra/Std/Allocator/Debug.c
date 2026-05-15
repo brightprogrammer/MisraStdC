@@ -2,62 +2,47 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// DebugAllocator implementation. Per-allocation records are kept in
-/// `Map(void*, DebugRecord)` instances backed by a separate "meta"
-/// allocator so that the bookkeeping does not perturb the parent
-/// allocator being audited. Each record carries the requested size,
-/// alloc/free stack traces, and (optionally) a copy of the alloc-site
-/// canary pattern for verification on free.
+/// DebugAllocator implementation. The struct is init-by-value -- it
+/// owns its `heap` / `meta` / `page` allocators inline and lazily
+/// binds the internal Map's allocator pointer to `&self->meta.base`
+/// on first use (the compound literal doesn't know the struct's
+/// final address yet).
 
 #include <Misra/Std/Allocator/Debug.h>
 
 #include <Misra/Std.h>
 #include <Misra/Std/Container/Map.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
 #include <Misra/Sys/Backtrace.h>
 
 #include <stdint.h>
 
 // ---------------------------------------------------------------------------
-// Per-allocation record
+// Per-thread unique ID via TLS variable address. Each thread gets its
+// own copy of `g_thread_marker`, so `&g_thread_marker` is unique
+// per-thread and stable for the thread's lifetime.
 // ---------------------------------------------------------------------------
 
-typedef struct DebugRecord {
-    size       requested_size;
-    size       padded_size; // requested + canary_bytes
-    u32        alloc_trace_n;
-    u32        free_trace_n;
-    bool       freed;
-    StackFrame alloc_trace[DEBUG_ALLOCATOR_MAX_TRACE];
-    StackFrame free_trace[DEBUG_ALLOCATOR_MAX_TRACE];
-} DebugRecord;
+#if defined(_MSC_VER)
+#    define MISRA_TLS __declspec(thread)
+#else
+#    define MISRA_TLS __thread
+#endif
 
-typedef Map(void *, DebugRecord) DebugRecordMap;
+static MISRA_TLS u8 g_thread_marker;
 
-// ---------------------------------------------------------------------------
-// DebugAllocator state
-// ---------------------------------------------------------------------------
-
-struct DebugAllocator {
-    Allocator            base;
-    Allocator           *parent;
-    Allocator           *meta;
-    DebugAllocatorConfig config;
-    DebugRecordMap       live;
-    DebugRecordMap       freed;
-    bool                 freed_map_initialized;
-    u64                  double_frees;
-    u64                  overflows;
-    u64                  bytes_in_use;
-};
+u64 debug_current_tid(void) {
+    return (u64)(uintptr_t)&g_thread_marker;
+}
 
 // ---------------------------------------------------------------------------
-// Hash / compare for void* keys
+// Hash / compare for void* keys (extern: the Init macro stamps these
+// into the embedded Map's compound literal).
 // ---------------------------------------------------------------------------
 
-static u64 debug_ptr_hash(const void *data, u32 size) {
+u64 debug_ptr_hash(const void *data, u32 size) {
     (void)size;
-    // splitmix-style scramble on the pointer's integer representation.
     u64 x  = (u64)(uintptr_t)(*(void *const *)data);
     x     ^= x >> 30;
     x     *= 0xbf58476d1ce4e5b9ULL;
@@ -67,7 +52,7 @@ static u64 debug_ptr_hash(const void *data, u32 size) {
     return x;
 }
 
-static i32 debug_ptr_compare(const void *lhs, const void *rhs) {
+i32 debug_ptr_compare(const void *lhs, const void *rhs) {
     void *a = *(void *const *)lhs;
     void *b = *(void *const *)rhs;
     if ((uintptr_t)a < (uintptr_t)b)
@@ -91,22 +76,37 @@ static void debug_write_canary(u8 *trail, size n) {
 
 static bool debug_check_canary(const u8 *trail, size n) {
     for (size i = 0; i < n; ++i) {
-        if (trail[i] != DEBUG_CANARY_PATTERN[i & 3]) {
+        if (trail[i] != DEBUG_CANARY_PATTERN[i & 3])
             return false;
-        }
     }
     return true;
 }
 
 // ---------------------------------------------------------------------------
-// Validation
+// Validation + lazy Map allocator-pointer rebind. The Map's
+// `.allocator` field is NULL inside the compound literal because the
+// final struct address isn't known yet. We fix it up here on every
+// entry, against the now-stable `self`.
 // ---------------------------------------------------------------------------
 
 static DebugAllocator *debug_validate_self(const Allocator *self) {
     if (!self || self->__magic != MISRA_DEBUG_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to debug_allocator_* is not a DebugAllocator");
     }
-    return (DebugAllocator *)self;
+    DebugAllocator *dbg     = (DebugAllocator *)self;
+    u64             cur_tid = debug_current_tid();
+    if (dbg->creator_tid != cur_tid) {
+        LOG_FATAL(
+            "DebugAllocator: cross-thread use detected (created on {x}, called from {x}). "
+            "Each thread must use its own DebugAllocator instance.",
+            dbg->creator_tid,
+            cur_tid
+        );
+    }
+    if (!dbg->live.allocator) {
+        dbg->live.allocator = ALLOCATOR_OF(&dbg->meta);
+    }
+    return dbg;
 }
 
 // ---------------------------------------------------------------------------
@@ -115,20 +115,21 @@ static DebugAllocator *debug_validate_self(const Allocator *self) {
 
 void *debug_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     DebugAllocator *dbg = debug_validate_self(self);
-    if (!bytes) {
+    if (!bytes)
         return NULL;
-    }
 
-    size  canary = dbg->config.detect_overflow ? dbg->config.canary_bytes : 0;
-    size  padded = bytes + canary;
-    void *user_p = AllocatorAlloc(dbg->parent, padded, zeroed);
-    if (!user_p) {
+    size canary = dbg->config.detect_overflow ? dbg->config.canary_bytes : 0;
+    size padded = bytes + canary;
+    // force_page_backing routes through the internal PageAllocator;
+    // normal mode through the internal HeapAllocator. Either way the
+    // backing storage is owned by `self`.
+    Allocator *src    = dbg->config.force_page_backing ? ALLOCATOR_OF(&dbg->page) : ALLOCATOR_OF(&dbg->heap);
+    void      *user_p = AllocatorAlloc(src, padded, zeroed);
+    if (!user_p)
         return NULL;
-    }
 
-    if (canary) {
+    if (canary)
         debug_write_canary((u8 *)user_p + bytes, canary);
-    }
 
     DebugRecord rec;
     MemSet(&rec, 0, sizeof(rec));
@@ -142,11 +143,10 @@ void *debug_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     }
 
     if (!MapInsertR(&dbg->live, user_p, rec)) {
-        AllocatorFree(dbg->parent, user_p, padded);
+        AllocatorFree(src, user_p, padded);
         LOG_ERROR("DebugAllocator: failed to record allocation in live map");
         return NULL;
     }
-
     dbg->bytes_in_use += (u64)bytes;
     return user_p;
 }
@@ -174,9 +174,8 @@ static void debug_record_free_trace(DebugAllocator *dbg, DebugRecord *rec) {
 
 void debug_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
     DebugAllocator *dbg = debug_validate_self(self);
-    if (!ptr) {
+    if (!ptr)
         return;
-    }
 
     DebugRecord *live_rec = MapGetFirstPtr(&dbg->live, ptr);
     if (!live_rec) {
@@ -189,8 +188,13 @@ void debug_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
                     (u64)(uintptr_t)ptr,
                     (u64)freed_rec->requested_size
                 );
-                debug_emit_trace(freed_rec->alloc_trace, freed_rec->alloc_trace_n, "alloc", dbg->meta);
-                debug_emit_trace(freed_rec->free_trace, freed_rec->free_trace_n, "first-free", dbg->meta);
+                debug_emit_trace(freed_rec->alloc_trace, freed_rec->alloc_trace_n, "alloc", ALLOCATOR_OF(&dbg->meta));
+                debug_emit_trace(
+                    freed_rec->free_trace,
+                    freed_rec->free_trace_n,
+                    "first-free",
+                    ALLOCATOR_OF(&dbg->meta)
+                );
                 return;
             }
         }
@@ -200,8 +204,7 @@ void debug_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
 
     if (bytes && bytes != live_rec->requested_size) {
         LOG_ERROR(
-            "DebugAllocator: size mismatch on free of {x} (claimed {} bytes, "
-            "tracked {} bytes)",
+            "DebugAllocator: size mismatch on free of {x} (claimed {} bytes, tracked {} bytes)",
             (u64)(uintptr_t)ptr,
             (u64)bytes,
             (u64)live_rec->requested_size
@@ -213,18 +216,16 @@ void debug_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
         if (!debug_check_canary(trail, dbg->config.canary_bytes)) {
             dbg->overflows += 1;
             LOG_ERROR(
-                "DebugAllocator: BUFFER OVERFLOW past {x} ({} bytes "
-                "requested)",
+                "DebugAllocator: BUFFER OVERFLOW past {x} ({} bytes requested)",
                 (u64)(uintptr_t)ptr,
                 (u64)live_rec->requested_size
             );
-            debug_emit_trace(live_rec->alloc_trace, live_rec->alloc_trace_n, "alloc", dbg->meta);
+            debug_emit_trace(live_rec->alloc_trace, live_rec->alloc_trace_n, "alloc", ALLOCATOR_OF(&dbg->meta));
         }
     }
 
     DebugRecord record = *live_rec;
     debug_record_free_trace(dbg, &record);
-
     dbg->bytes_in_use -= (u64)live_rec->requested_size;
 
     size padded = live_rec->padded_size;
@@ -232,19 +233,28 @@ void debug_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
 
     if (dbg->config.retain_metadata) {
         if (!dbg->freed_map_initialized) {
-            DebugRecordMap fresh       = MapInit(debug_ptr_hash, debug_ptr_compare, dbg->meta);
+            DebugRecordMap fresh       = MapInit(debug_ptr_hash, debug_ptr_compare, &dbg->meta);
             dbg->freed                 = fresh;
             dbg->freed_map_initialized = true;
         }
         MapInsertR(&dbg->freed, ptr, record);
     }
 
-    AllocatorFree(dbg->parent, ptr, padded);
+    if (dbg->config.force_page_backing) {
+        // Don't release the page. mprotect it PROT_NONE so any UAF
+        // read/write traps with SIGSEGV at the moment of the bug.
+        size page_size = PageAllocatorPageSize(&dbg->page);
+        size rounded   = (padded + page_size - 1) & ~(page_size - 1);
+        if (!PageProtect(ptr, rounded, PAGE_PROT_NONE)) {
+            LOG_ERROR("DebugAllocator: PageProtect(PROT_NONE) failed on {x}", (u64)(uintptr_t)ptr);
+        }
+    } else {
+        AllocatorFree(ALLOCATOR_OF(&dbg->heap), ptr, padded);
+    }
 }
 
 void *debug_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size) {
     DebugAllocator *dbg = debug_validate_self(self);
-
     if (new_size == 0) {
         debug_allocator_deallocate(self, ptr, old_size);
         return NULL;
@@ -252,14 +262,11 @@ void *debug_allocator_reallocate(Allocator *self, void *ptr, size old_size, size
     if (!ptr) {
         return debug_allocator_allocate(self, new_size, false);
     }
-
-    // We always alloc fresh + copy + free, even when the parent could
-    // realloc in place — keeping the canary and metadata invariants
-    // straightforward is worth the cost in debug mode.
+    // alloc-fresh + memcpy + free, keeping canary + record invariants
+    // simple. The cost in debug mode is fine.
     void *fresh = debug_allocator_allocate(self, new_size, false);
-    if (!fresh) {
+    if (!fresh)
         return NULL;
-    }
     size copy = old_size < new_size ? old_size : new_size;
     MemCopy(fresh, ptr, copy);
     debug_allocator_deallocate(self, ptr, old_size);
@@ -268,81 +275,54 @@ void *debug_allocator_reallocate(Allocator *self, void *ptr, size old_size, size
 }
 
 // ---------------------------------------------------------------------------
-// Create / Destroy
+// Deinit
 // ---------------------------------------------------------------------------
 
-DebugAllocator *DebugAllocatorCreateWith(Allocator *parent, Allocator *meta_alloc, DebugAllocatorConfig config) {
-    if (!parent || !meta_alloc) {
-        LOG_ERROR("DebugAllocatorCreate: parent and meta_alloc are required");
-        return NULL;
-    }
-
-    DebugAllocator *dbg = (DebugAllocator *)AllocatorAlloc(meta_alloc, sizeof(DebugAllocator), true);
-    if (!dbg) {
-        LOG_ERROR("DebugAllocatorCreate: handle allocation failed");
-        return NULL;
-    }
-
-    dbg->base = (Allocator) {
-        .allocate    = debug_allocator_allocate,
-        .reallocate  = debug_allocator_reallocate,
-        .deallocate  = debug_allocator_deallocate,
-        .alignment   = parent->alignment,
-        .effort      = parent->effort,
-        .retry_limit = parent->retry_limit,
-        .__magic     = MISRA_DEBUG_ALLOCATOR_MAGIC,
-    };
-    dbg->parent                = parent;
-    dbg->meta                  = meta_alloc;
-    dbg->config                = config;
-    dbg->freed_map_initialized = false;
-    dbg->double_frees          = 0;
-    dbg->overflows             = 0;
-    dbg->bytes_in_use          = 0;
-    {
-        DebugRecordMap fresh = MapInit(debug_ptr_hash, debug_ptr_compare, meta_alloc);
-        dbg->live            = fresh;
-    }
-
-    if (config.trace_depth > DEBUG_ALLOCATOR_MAX_TRACE) {
-        dbg->config.trace_depth = DEBUG_ALLOCATOR_MAX_TRACE;
-    }
-
-    return dbg;
-}
-
-DebugAllocator *DebugAllocatorCreate(Allocator *parent, Allocator *meta_alloc) {
-    return DebugAllocatorCreateWith(parent, meta_alloc, DEBUG_ALLOCATOR_DEFAULTS);
-}
-
-void DebugAllocatorDestroy(DebugAllocator *self, Allocator *meta_alloc) {
-    if (!self) {
+void DebugAllocatorDeinit(DebugAllocator *self) {
+    if (!self || self->base.__magic != MISRA_DEBUG_ALLOCATOR_MAGIC)
         return;
+
+    u64 cur_tid = debug_current_tid();
+    if (self->creator_tid != cur_tid) {
+        LOG_FATAL(
+            "DebugAllocator: Deinit called from a different thread (created on {x}, called from {x}).",
+            self->creator_tid,
+            cur_tid
+        );
     }
 
-    // Report any leaks before tearing down.
-    size live_n = (size)self->live.length;
-    if (live_n) {
-        LOG_ERROR("DebugAllocator: {} live allocation(s) at destroy time:", (u64)live_n);
-        MapForeachPairPtr(&self->live, k_ptr, v_ptr) {
-            void              *user_p = *k_ptr;
-            const DebugRecord *rec    = v_ptr;
-            LOG_ERROR("  leaked {x} ({} bytes)", (u64)(uintptr_t)user_p, (u64)rec->requested_size);
-            debug_emit_trace(rec->alloc_trace, rec->alloc_trace_n, "alloc", self->meta);
+    // Report leaks for anything still in `live`.
+    if (self->live.allocator && self->live.length > 0) {
+        LOG_ERROR("DebugAllocator: {} live allocation(s) at deinit time:", (u64)self->live.length);
+        MapForeachPairPtr(&self->live, key_ptr, val_ptr) {
+            LOG_ERROR("  leaked {x} ({} bytes)", (u64)(uintptr_t)*key_ptr, (u64)val_ptr->requested_size);
+            debug_emit_trace(val_ptr->alloc_trace, val_ptr->alloc_trace_n, "alloc", ALLOCATOR_OF(&self->meta));
         }
     }
 
-    MapDeinit(&self->live);
-    if (self->freed_map_initialized) {
+    // Tear down maps. MapDeinit frees any bucket storage they took
+    // from `&self->meta`. force_page_backing'd allocations are NOT
+    // released here (they remain mprotected to keep UAF detection
+    // honest beyond the allocator's lifetime is wrong though -- the
+    // pages get unmapped when meta is destroyed... no, the page
+    // backing went through `self->page`, not `self->meta`; those
+    // pages stay mapped until the OS reclaims them at process exit.
+    // Acceptable: force_page_backing is an opt-in for short-running
+    // tests / fuzz, the memory cost is the documented trade-off).
+    if (self->live.allocator)
+        MapDeinit(&self->live);
+    if (self->freed_map_initialized)
         MapDeinit(&self->freed);
-    }
+
+    HeapAllocatorDeinit(&self->meta);
+    HeapAllocatorDeinit(&self->heap);
+    // PageAllocator has no per-instance state; nothing to deinit.
 
     MemSet(self, 0, sizeof(*self));
-    AllocatorFree(meta_alloc, self, sizeof(DebugAllocator));
 }
 
 // ---------------------------------------------------------------------------
-// Read-side helpers
+// Public query / report API
 // ---------------------------------------------------------------------------
 
 size DebugAllocatorLiveCount(const DebugAllocator *self) {
@@ -370,15 +350,16 @@ size DebugAllocatorOverflows(const DebugAllocator *self) {
 }
 
 void DebugAllocatorReportLeaks(DebugAllocator *self, Str *out) {
-    if (!self || !out) {
+    if (!self || !out)
         return;
-    }
-    MapForeachPairPtr(&self->live, k_ptr, v_ptr) {
-        void              *user_p = *k_ptr;
-        const DebugRecord *rec    = v_ptr;
-        StrWriteFmt(out, "leaked {x} ({} bytes)\n", (u64)(uintptr_t)user_p, (u64)rec->requested_size);
-        if (rec->alloc_trace_n) {
-            FormatStackTrace(out, rec->alloc_trace, rec->alloc_trace_n, self->meta);
+    if (self->live.length == 0)
+        return;
+
+    StrWriteFmt(out, "DebugAllocator: {} live allocation(s):\n", (u64)self->live.length);
+    MapForeachPairPtr(&self->live, key_ptr, val_ptr) {
+        StrWriteFmt(out, "  leak: {x} ({} bytes)\n", (u64)(uintptr_t)*key_ptr, (u64)val_ptr->requested_size);
+        if (val_ptr->alloc_trace_n > 0) {
+            FormatStackTrace(out, val_ptr->alloc_trace, val_ptr->alloc_trace_n, ALLOCATOR_OF(&self->meta));
         }
     }
 }

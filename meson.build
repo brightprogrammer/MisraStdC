@@ -41,6 +41,7 @@ opt_alloc_slab     = get_option('alloc_slab')
 opt_alloc_budget   = get_option('alloc_budget')
 opt_alloc_stats    = get_option('alloc_stats')
 opt_alloc_debug    = get_option('alloc_debug')
+opt_default_alloc_debug = get_option('default_alloc_debug')
 
 opt_bitvec_user    = get_option('bitvec')
 opt_list           = get_option('list')
@@ -107,6 +108,9 @@ opt_map    = opt_map_user    or opt_parser_kvconf or opt_alloc_debug  # kvconfig
 # alloc_debug can only be on if backtrace is. macOS / BSD / etc. with
 # backtrace disabled above also lose alloc_debug.
 opt_alloc_debug = opt_alloc_debug and opt_sys_backtrace
+# default_alloc_debug hard-requires alloc_debug (it's a thin proxy in
+# front of a DebugAllocator).
+opt_default_alloc_debug = opt_default_alloc_debug and opt_alloc_debug
 
 # Linux-only dependency: in-tree Sys/Backtrace pulls in SymbolResolver,
 # which pulls in ProcMaps + Parsers/Elf. The Windows backend uses
@@ -257,6 +261,7 @@ config_data.set10('MISRA_HAVE_ALLOC_SLAB',      opt_alloc_slab)
 config_data.set10('MISRA_HAVE_ALLOC_BUDGET',    opt_alloc_budget)
 config_data.set10('MISRA_HAVE_ALLOC_STATS',     opt_alloc_stats)
 config_data.set10('MISRA_HAVE_ALLOC_DEBUG',     opt_alloc_debug)
+config_data.set10('MISRA_DEFAULT_ALLOC_DEBUG',  opt_default_alloc_debug)
 config_data.set10('MISRA_HAVE_BITVEC',          opt_bitvec)
 config_data.set10('MISRA_HAVE_LIST',            opt_list)
 config_data.set10('MISRA_HAVE_MAP',             opt_map)
