@@ -23,6 +23,13 @@
 
 #include <Misra/Std.h>
 #include <Misra/Std/Log.h>
+// Backtrace.h forward-declares SymbolResolver to keep the include
+// footprint small (so files like Bin/ElfInfo.c that maintain their
+// own ELF enum vocabulary aren't poisoned by Parsers/Elf.h transitively).
+// The implementation needs the full definition.
+#if MISRA_HAVE_SYS_SYMRESOLVE
+#    include <Misra/Sys/SymbolResolver.h>
+#endif
 
 #include <stdint.h>
 

@@ -42,9 +42,15 @@
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Types.h>
 
-// SymbolResolver only exists on the in-tree (Linux) path.
+// SymbolResolver only exists on the in-tree (Linux) path. Forward-
+// declare here -- the FormatStackTraceWith APIs only take a pointer,
+// so including the full header would pull `<Misra/Parsers/Elf.h>`
+// (and its enum names) transitively into every TU that uses
+// Backtrace, including files like `Bin/ElfInfo.c` that maintain
+// their own ELF enum vocabulary. Callers who actually construct a
+// SymbolResolver should include the full header themselves.
 #if MISRA_HAVE_SYS_SYMRESOLVE
-#    include <Misra/Sys/SymbolResolver.h>
+typedef struct SymbolResolver SymbolResolver;
 #endif
 
 ///

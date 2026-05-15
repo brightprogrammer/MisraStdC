@@ -1,6 +1,9 @@
 #include <Misra.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Sys/Backtrace.h>
+#if MISRA_HAVE_SYS_SYMRESOLVE
+#    include <Misra/Sys/SymbolResolver.h>
+#endif
 
 
 #include "../Util/TestRunner.h"
