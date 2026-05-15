@@ -38,6 +38,13 @@ opt_sys_dir        = get_option('sys_dir')
 opt_sys_proc       = get_option('sys_proc')
 opt_sys_socket     = get_option('sys_socket')
 
+# Sys/Socket is POSIX-only at present (Source/Misra/Sys/Socket.c
+# guards with #error on _WIN32). Auto-disable on Windows so the
+# default of `true` doesn't break a fresh Windows configure.
+if host_machine.system() == 'windows'
+    opt_sys_socket = false
+endif
+
 opt_parser_json    = get_option('parser_json')
 opt_parser_kvconf  = get_option('parser_kvconfig')
 opt_parser_http    = get_option('parser_http')
