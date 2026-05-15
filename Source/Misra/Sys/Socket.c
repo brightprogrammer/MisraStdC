@@ -29,6 +29,187 @@
 #include <Misra/Std.h>
 #include <Misra/Std/Log.h>
 
+// getaddrinfo() returns one of the EAI_* codes; libc gai_strerror
+// maps them to a description. Doing it in-tree avoids a libc symbol
+// and keeps the description consistent with how StrError formats
+// errno values elsewhere.
+static const char *gai_description(i32 gai) {
+    switch (gai) {
+#ifdef EAI_BADFLAGS
+        case EAI_BADFLAGS :
+            return "Bad value for ai_flags";
+#endif
+#ifdef EAI_NONAME
+        case EAI_NONAME :
+            return "Name or service not known";
+#endif
+#ifdef EAI_AGAIN
+        case EAI_AGAIN :
+            return "Temporary failure in name resolution";
+#endif
+#ifdef EAI_FAIL
+        case EAI_FAIL :
+            return "Non-recoverable failure in name resolution";
+#endif
+#ifdef EAI_FAMILY
+        case EAI_FAMILY :
+            return "ai_family not supported";
+#endif
+#ifdef EAI_SOCKTYPE
+        case EAI_SOCKTYPE :
+            return "ai_socktype not supported";
+#endif
+#ifdef EAI_SERVICE
+        case EAI_SERVICE :
+            return "Servname not supported for ai_socktype";
+#endif
+#ifdef EAI_MEMORY
+        case EAI_MEMORY :
+            return "Memory allocation failure";
+#endif
+#ifdef EAI_SYSTEM
+        case EAI_SYSTEM :
+            return "System error (see errno)";
+#endif
+#ifdef EAI_OVERFLOW
+        case EAI_OVERFLOW :
+            return "Argument buffer overflow";
+#endif
+#ifdef EAI_NODATA
+        case EAI_NODATA :
+            return "No address associated with hostname";
+#endif
+#ifdef EAI_ADDRFAMILY
+        case EAI_ADDRFAMILY :
+            return "Address family for hostname not supported";
+#endif
+        default :
+            return "Unknown getaddrinfo error";
+    }
+}
+
+// Format an IPv4 dotted-quad ("a.b.c.d") into `dst`. `dst_size` must
+// be at least 16 to hold the longest "255.255.255.255\0".
+static bool format_ipv4(const u8 octets[4], char *dst, size dst_size) {
+    if (!dst || dst_size < 16)
+        return false;
+    size pos = 0;
+    for (i32 i = 0; i < 4; ++i) {
+        u32  v = octets[i];
+        char tmp[4];
+        i32  n = 0;
+        if (v == 0) {
+            tmp[n++] = '0';
+        } else {
+            while (v) {
+                tmp[n++]  = (char)('0' + (v % 10));
+                v        /= 10;
+            }
+        }
+        while (n--) {
+            if (pos + 1 >= dst_size)
+                return false;
+            dst[pos++] = tmp[n];
+        }
+        if (i < 3) {
+            if (pos + 1 >= dst_size)
+                return false;
+            dst[pos++] = '.';
+        }
+    }
+    dst[pos] = '\0';
+    return true;
+}
+
+// Append one hextet (0..0xFFFF) in lowercase hex, no leading zeros.
+static bool append_hextet(char *dst, size dst_size, size *pos, u16 v) {
+    char tmp[4];
+    i32  n = 0;
+    if (v == 0) {
+        tmp[n++] = '0';
+    } else {
+        while (v) {
+            u8 nib     = v & 0xF;
+            tmp[n++]   = nib < 10 ? (char)('0' + nib) : (char)('a' + nib - 10);
+            v        >>= 4;
+        }
+    }
+    while (n--) {
+        if (*pos + 1 >= dst_size)
+            return false;
+        dst[(*pos)++] = tmp[n];
+    }
+    return true;
+}
+
+// Format an IPv6 address into `dst`. Implements the RFC 5952 "::"
+// compression: the longest run of >= 2 zero hextets is collapsed,
+// ties go to the leftmost run. `dst_size` must be at least 40
+// (8 hextets * 4 hex + 7 colons + 1 NUL = 40).
+static bool format_ipv6(const u8 bytes[16], char *dst, size dst_size) {
+    if (!dst || dst_size < 40)
+        return false;
+    u16 h[8];
+    for (i32 i = 0; i < 8; ++i) {
+        h[i] = (u16)((bytes[i * 2] << 8) | bytes[i * 2 + 1]);
+    }
+    // Find longest zero run of length >= 2.
+    i32 best_start = -1;
+    i32 best_len   = 0;
+    i32 cur_start  = -1;
+    i32 cur_len    = 0;
+    for (i32 i = 0; i < 8; ++i) {
+        if (h[i] == 0) {
+            if (cur_start < 0)
+                cur_start = i;
+            cur_len++;
+            if (cur_len > best_len) {
+                best_len   = cur_len;
+                best_start = cur_start;
+            }
+        } else {
+            cur_start = -1;
+            cur_len   = 0;
+        }
+    }
+    if (best_len < 2) {
+        best_start = -1;
+    }
+
+    size pos            = 0;
+    i32  i              = 0;
+    bool just_after_run = false;
+    while (i < 8) {
+        if (i == best_start) {
+            // Emit the "::" marker. Its two colons subsume both the
+            // colon before the run (if there was a preceding hextet)
+            // and the colon after the run (if there is a following
+            // hextet). We mark `just_after_run` so the next iteration
+            // doesn't add another ':' on top.
+            if (pos + 2 >= dst_size)
+                return false;
+            dst[pos++]      = ':';
+            dst[pos++]      = ':';
+            i              += best_len;
+            just_after_run  = true;
+            continue;
+        }
+        if (i > 0 && !just_after_run) {
+            if (pos + 1 >= dst_size)
+                return false;
+            dst[pos++] = ':';
+        }
+        just_after_run = false;
+        if (!append_hextet(dst, dst_size, &pos, h[i]))
+            return false;
+        ++i;
+    }
+    if (pos >= dst_size)
+        return false;
+    dst[pos] = '\0';
+    return true;
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -169,7 +350,7 @@ bool SocketAddrParse(SocketAddr *out, const char *spec, SocketKind kind) {
     struct addrinfo *res    = NULL;
     i32              gairet = getaddrinfo(host, port, &hints, &res);
     if (gairet != 0) {
-        LOG_ERROR("SocketAddrParse: getaddrinfo(\"{}\") failed: {}", spec, gai_strerror(gairet));
+        LOG_ERROR("SocketAddrParse: getaddrinfo(\"{}\") failed: {}", spec, gai_description(gairet));
         return false;
     }
     if (!res) {
@@ -188,22 +369,22 @@ Str SocketAddrFormat(const SocketAddr *addr, Allocator *alloc) {
         return out;
     }
 
-    char host[INET6_ADDRSTRLEN];
+    char host[48]; // longest IPv6 (39) + scope id slack
     u16  port = 0;
 
     const char *host_p = host;
     if (addr->family == SOCKET_FAMILY_INET) {
         const struct sockaddr_in *sa = (const struct sockaddr_in *)addr->raw;
-        if (!inet_ntop(AF_INET, &sa->sin_addr, host, sizeof(host))) {
-            LOG_SYS_ERROR("SocketAddrFormat: inet_ntop(AF_INET) failed");
+        if (!format_ipv4((const u8 *)&sa->sin_addr.s_addr, host, sizeof(host))) {
+            LOG_ERROR("SocketAddrFormat: format_ipv4 failed");
             return out;
         }
         port = FROM_BIG_ENDIAN2(sa->sin_port);
         StrWriteFmt(&out, "{}:{}", host_p, (u32)port);
     } else if (addr->family == SOCKET_FAMILY_INET6) {
         const struct sockaddr_in6 *sa = (const struct sockaddr_in6 *)addr->raw;
-        if (!inet_ntop(AF_INET6, &sa->sin6_addr, host, sizeof(host))) {
-            LOG_SYS_ERROR("SocketAddrFormat: inet_ntop(AF_INET6) failed");
+        if (!format_ipv6(sa->sin6_addr.s6_addr, host, sizeof(host))) {
+            LOG_ERROR("SocketAddrFormat: format_ipv6 failed");
             return out;
         }
         port = FROM_BIG_ENDIAN2(sa->sin6_port);
