@@ -76,7 +76,10 @@ void LogInit(bool redirect, Allocator *alloc) {
         }
 #endif
         if (!e && stderror) {
-            setvbuf(stderror, NULL, _IONBF, 0);
+            // No setvbuf -- we explicitly fflush after every log line
+            // (see emit_log_msg). That keeps the libc dep surface
+            // smaller and avoids buffering surprises when the log file
+            // is on a redirected fd that ignores _IONBF.
             atexit(close_log_file);
             redirected = true;
         }
@@ -148,6 +151,7 @@ void LogWrite(LogMessageType type, const char *tag, u64 line, const char *msg) {
     FWriteFmt(stderror, "[{}] [{}:{}] ", msg_type, tag, line);
     fputs(msg, stderror);
     fputc('\n', stderror);
+    fflush(stderror);
 
     if (log_mutex) {
         MutexUnlock(log_mutex);
