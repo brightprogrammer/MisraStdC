@@ -898,8 +898,15 @@ bool map_insert(
     map_scan_slots(map, key, entry_size, key_offset, key_size, hash_offset, hash, NULL, &insert_idx, &probe_pressure);
 
     if (insert_idx >= map->capacity) {
+        // Probe budget exhausted on a cluster wider than max_probe_count.
+        // Pass n=capacity+1 so next_capacity grows the table; rehashing
+        // at the same size would re-probe the same cluster and loop.
         (void)map->policy.should_rehash(map->length, map->capacity, map->tombstones, 1, probe_pressure);
 
+        size forced_n = map->capacity + 1;
+        if (forced_n < map->length + 1) {
+            forced_n = map->length + 1;
+        }
         if (!rehash_map(
                 map,
                 entry_size,
@@ -908,7 +915,7 @@ bool map_insert(
                 value_offset,
                 value_size,
                 hash_offset,
-                map->length + 1,
+                forced_n,
                 map->policy
             )) {
             return false;

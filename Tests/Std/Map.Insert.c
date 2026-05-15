@@ -21,7 +21,7 @@ static i32 i32_compare(const void *lhs, const void *rhs) {
 static bool test_map_insert_and_set(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
     MapInsertR(&map, 1, 10);
     MapInsertR(&map, 1, 11);
@@ -45,7 +45,7 @@ static bool test_map_insert_and_set(void) {
 static bool test_map_set_first(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
+    IntIntMap        map   = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
 
     MapInsertR(&map, 1, 10);
     MapInsertR(&map, 1, 11);
@@ -67,9 +67,9 @@ static bool test_map_set_first(void) {
 static bool test_map_lvalue_zeroing(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map   = MapInit(i32_hash, i32_compare, &alloc);
-    int       key   = 42;
-    int       value = 84;
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+    int              key   = 42;
+    int              value = 84;
 
     MapInsertL(&map, key, value);
 
@@ -82,12 +82,44 @@ static bool test_map_lvalue_zeroing(void) {
     return result;
 }
 
+// Heavy insert+remove churn at near-threshold load. With linear probing
+// limited to `max_probe_count` slots, a long collision cluster can force
+// scan_slots to fail even though empty slots exist; the prior fix was to
+// force `next_capacity` to grow on that path (rehashing at the same size
+// would re-probe the same cluster and loop forever).
+static bool test_map_churn_does_not_loop(void) {
+    typedef Map(int, int) IntIntMap;
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    IntIntMap        map    = MapInit(i32_hash, i32_compare, &alloc);
+    bool             result = true;
+
+    // Phase 1: fill past the first few growth thresholds.
+    for (int i = 0; i < 600; ++i) {
+        MapInsertR(&map, i, i * 10);
+    }
+    result = result && (MapPairCount(&map) == 600);
+
+    // Phase 2: alternating remove+insert at the same churn point. Each
+    // cycle exercises rehash + scan with tombstones present, which is
+    // what previously triggered the runaway recursion.
+    for (int i = 0; i < 4000; ++i) {
+        int key = 600 + (i & 0x3f); // small cycling window
+        MapRemoveAll(&map, key);
+        MapInsertR(&map, key, i);
+    }
+    result = result && (MapPairCount(&map) >= 600);
+
+    MapDeinit(&map);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 static bool test_map_ensure_ptr(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
-    int      *value_ptr;
-    bool      result;
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+    int             *value_ptr;
+    bool             result;
 
     value_ptr = MapEnsurePtr(&map, 8, 80);
     result    = value_ptr && (*value_ptr == 80);
@@ -110,6 +142,7 @@ int main(void) {
         test_map_set_first,
         test_map_lvalue_zeroing,
         test_map_ensure_ptr,
+        test_map_churn_does_not_loop,
     };
 
     WriteFmt("[INFO] Starting Map.Insert tests\n\n");
