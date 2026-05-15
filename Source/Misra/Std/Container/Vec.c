@@ -195,7 +195,7 @@ bool insert_range_into_vec(GenericVec *vec, const char *item_data, size item_siz
     }
 
     aligned_size = vec_aligned_size(vec, item_size);
-    if (count != 0 && aligned_size > SIZE_MAX / count) {
+    if (aligned_size > SIZE_MAX / count) {
         return false;
     }
     if (vec->length + count >= vec->capacity) {
@@ -260,7 +260,7 @@ bool insert_range_fast_into_vec(GenericVec *vec, const char *item_data, size ite
     }
 
     aligned_size = vec_aligned_size(vec, item_size);
-    if (count != 0 && aligned_size > SIZE_MAX / count) {
+    if (aligned_size > SIZE_MAX / count) {
         return false;
     }
     if (vec->length + count >= vec->capacity) {
