@@ -13,6 +13,7 @@
 #include <Misra/Sys.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Log.h>
+#include "../_Syscall.h"
 #include <stdint.h>
 
 #ifdef _WIN32
@@ -36,39 +37,20 @@
 #    define FILENO fileno
 #endif
 
-// Sleep for `us` microseconds. Linux: direct nanosleep syscall (nr 35
-// on x86_64, 101 on aarch64). macOS / BSD: nanosleep from libSystem
-// (Apple disallows direct user-mode syscalls). Windows: kernel32 Sleep.
-// Drops the libc `usleep` undefined symbol on Linux/x86_64+arm64.
+// Sleep for `us` microseconds. Linux: direct nanosleep syscall.
+// macOS / BSD: nanosleep from libSystem. Windows: kernel32 Sleep.
 static inline void proc_sleep_us(u64 us) {
 #if defined(_WIN32)
     Sleep((DWORD)(us / 1000));
-#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
-    // struct __kernel_timespec is { i64 tv_sec; i64 tv_nsec }; on
-    // 64-bit Linux this matches `long; long;` so we can declare it
-    // locally and pass to the syscall.
+#elif MISRA_HAVE_DIRECT_SYSCALL
+    // struct __kernel_timespec is `long sec; long nsec;` on 64-bit Linux.
     struct {
         long sec;
         long nsec;
     } ts;
     ts.sec  = (long)(us / 1000000);
     ts.nsec = (long)((us % 1000000) * 1000);
-#    if defined(__x86_64__)
-    long ret;
-    __asm__ volatile("syscall"
-                     : "=a"(ret)
-                     : "0"(35), "D"(&ts), "S"(0L)
-                     : "rcx", "r11", "memory");
-    (void)ret;
-#    else // __aarch64__
-    register long x8 __asm__("x8") = 101;
-    register long x0 __asm__("x0") = (long)(uintptr_t)&ts;
-    register long x1 __asm__("x1") = 0;
-    __asm__ volatile("svc #0"
-                     : "+r"(x0)
-                     : "r"(x8), "r"(x1)
-                     : "memory");
-#    endif
+    (void)misra_sys2(MISRA_SYS_nanosleep, (long)(uintptr_t)&ts, 0);
 #else
     struct timespec ts = {(time_t)(us / 1000000), (long)((us % 1000000) * 1000)};
     nanosleep(&ts, NULL);

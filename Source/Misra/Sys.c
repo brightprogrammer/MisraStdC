@@ -29,6 +29,7 @@
 #include <Misra/Std.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Sys.h>
+#include "_Syscall.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -350,27 +351,9 @@ ProcId ProcGetCurrentId(void) {
 #if defined(_WIN32)
     // kernel32.dll, not libc.
     return (ProcId)GetCurrentProcessId();
-#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
-    // Direct Linux syscall: getpid is nr 39 on x86_64, nr 172 on
-    // aarch64. The kernel guarantees it never fails, so no errno
-    // check. This drops the libc `getpid` undefined symbol entirely
-    // on Linux/x86_64/arm64 builds.
-    long ret;
-#    if defined(__x86_64__)
-    __asm__ volatile("syscall"
-                     : "=a"(ret)
-                     : "0"(39)
-                     : "rcx", "r11", "memory");
-#    else // __aarch64__
-    register long x8 __asm__("x8") = 172;
-    register long x0 __asm__("x0");
-    __asm__ volatile("svc #0"
-                     : "=r"(x0)
-                     : "r"(x8)
-                     : "memory");
-    ret = x0;
-#    endif
-    return (ProcId)ret;
+#elif MISRA_HAVE_DIRECT_SYSCALL
+    // Linux: direct syscall. Kernel guarantees getpid never fails.
+    return (ProcId)misra_sys0(MISRA_SYS_getpid);
 #else
     // macOS / BSD: getpid is provided by libSystem, the OS-sanctioned
     // ABI on those platforms (libc.dylib is just a stub forwarding to
