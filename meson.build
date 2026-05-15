@@ -230,6 +230,17 @@ if opt_sys_proc
     )
 endif
 
+if opt_sys_socket and opt_parser_http
+    executable(
+        'beam',
+        files('Bin/Beam.c'),
+        link_with: [misra_std],
+        c_args: common_c_args,
+        include_directories: inc_misra,
+        install: true
+    )
+endif
+
 if opt_file and opt_sys_dir and opt_parser_json
     executable(
         'MisraDoc',
