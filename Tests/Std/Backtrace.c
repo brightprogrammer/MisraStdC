@@ -2,7 +2,6 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Sys/Backtrace.h>
 
-#include <string.h>
 
 #include "../Util/TestRunner.h"
 
@@ -33,11 +32,11 @@ bool test_backtrace_format_resolves_helper(void) {
     FormatStackTrace(&rendered, frames, n, alloc_base);
 
     // We expect both helper names to appear in the rendered trace.
-    bool ok = rendered.length > 0 && strstr(rendered.data, "bt_capture_with_helper") != NULL &&
-              strstr(rendered.data, "bt_capture_outer") != NULL;
+    bool ok = rendered.length > 0 && ZstrFindSubstring(rendered.data, "bt_capture_with_helper") != NULL &&
+              ZstrFindSubstring(rendered.data, "bt_capture_outer") != NULL;
 
     // With -gdwarf-4 the source location should be in there too.
-    ok = ok && strstr(rendered.data, "Backtrace.c") != NULL;
+    ok = ok && ZstrFindSubstring(rendered.data, "Backtrace.c") != NULL;
 
     StrDeinit(&rendered);
     DefaultAllocatorDeinit(&alloc);
@@ -61,7 +60,7 @@ bool test_backtrace_format_with_shared_resolver(void) {
     FormatStackTraceWith(&out, frames, n, &res);
 
     // Should also contain the helper name through the shared resolver.
-    bool ok = out.length > 0 && strstr(out.data, "bt_capture_with_helper") != NULL;
+    bool ok = out.length > 0 && ZstrFindSubstring(out.data, "bt_capture_with_helper") != NULL;
 
     StrDeinit(&out);
     SymbolResolverDeinit(&res);

@@ -200,28 +200,15 @@ void zstr_deinit(void *zs_ptr, const Allocator *alloc) {
 }
 
 char *ZstrFindSubstring(const char *haystack, const char *needle) {
-    if (!haystack || !needle) {
+    // The earlier hand-rolled loop had an off-by-one in the outer
+    // termination guard that made it return NULL whenever
+    // `strlen(needle) == strlen(haystack)`, i.e. exact matches at
+    // position 0 of a same-length haystack. Delegate to the explicit-
+    // length variant, which is correct.
+    if (!needle) {
         LOG_FATAL("Invalid arguments");
     }
-
-    const char *p2;
-    const char *p1_advance = haystack;
-    for (p2 = needle; *p2; p2++) {
-        p1_advance++;     // increment ahead of time
-    }
-    p2 = needle;
-    while (*p1_advance) { // test the end of pattern
-        p1_advance = haystack;
-        while (1) {
-            if (!*p2)
-                return (char *)haystack;
-            if (*p1_advance++ != *p2++)
-                break;
-        }
-        p2 = needle;
-        haystack++;
-    }
-    return NULL;
+    return ZstrFindSubstringN(haystack, needle, ZstrLen(needle));
 }
 
 char *ZstrFindSubstringN(const char *haystack, const char *needle, size needle_len) {

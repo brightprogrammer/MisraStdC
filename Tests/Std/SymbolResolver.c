@@ -2,7 +2,6 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Sys/SymbolResolver.h>
 
-#include <string.h>
 
 #include "../Util/TestRunner.h"
 
@@ -51,7 +50,7 @@ bool test_symres_static_symbol_resolves(void) {
     // .symtab. libc dladdr would fail to name this; we should not.
     ResolvedSymbol r;
     bool           ok = SymbolResolverResolve(&res, (void *)&symres_marker_helper, &r);
-    ok                = ok && r.symbol_name != NULL && strstr(r.symbol_name, "symres_marker_helper") != NULL;
+    ok                = ok && r.symbol_name != NULL && ZstrFindSubstring(r.symbol_name, "symres_marker_helper") != NULL;
 
     SymbolResolverDeinit(&res);
     DefaultAllocatorDeinit(&alloc);

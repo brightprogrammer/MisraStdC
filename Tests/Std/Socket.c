@@ -8,7 +8,6 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>
-#include <string.h>
 #include <sys/socket.h>
 
 #include "../Util/TestRunner.h"
@@ -58,7 +57,7 @@ bool test_socket_loopback_round_trip(void) {
     }
 
     const char *payload = "hello from socket test";
-    size        n       = (size)strlen(payload);
+    size        n       = (size)ZstrLen(payload);
     if (SocketSend(&client, payload, n) != (i64)n) {
         SocketClose(&server);
         SocketClose(&client);
@@ -68,7 +67,7 @@ bool test_socket_loopback_round_trip(void) {
 
     char buf[64];
     i64  got = SocketRecv(&server, buf, sizeof(buf));
-    bool ok  = got == (i64)n && memcmp(buf, payload, n) == 0;
+    bool ok  = got == (i64)n && MemCompare(buf, payload, n) == 0;
 
     SocketClose(&server);
     SocketClose(&client);
@@ -89,7 +88,7 @@ bool test_socket_addr_format_round_trip(void) {
             return false;
         }
         Str rendered = SocketAddrFormat(&addr, alloc_base);
-        ok           = ok && rendered.length > 0 && strcmp(rendered.data, "127.0.0.1:8080") == 0;
+        ok           = ok && rendered.length > 0 && ZstrCompare(rendered.data, "127.0.0.1:8080") == 0;
         StrDeinit(&rendered);
     }
 
@@ -100,7 +99,7 @@ bool test_socket_addr_format_round_trip(void) {
             return false;
         }
         Str rendered = SocketAddrFormat(&addr, alloc_base);
-        ok           = ok && rendered.length > 0 && strcmp(rendered.data, "[::1]:8080") == 0;
+        ok           = ok && rendered.length > 0 && ZstrCompare(rendered.data, "[::1]:8080") == 0;
         StrDeinit(&rendered);
     }
 

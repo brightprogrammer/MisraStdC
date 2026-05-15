@@ -5,7 +5,6 @@
 #include <Misra/Sys/SymbolResolver.h>
 
 #include <stdint.h>
-#include <string.h>
 
 #include "../Util/TestRunner.h"
 
@@ -70,7 +69,7 @@ bool test_dwarf_resolves_helper_to_source_file(void) {
     bool       ok    = false;
     if (built) {
         const DwarfLineEntry *e = DwarfLinesResolve(&lines, file_relative);
-        if (e && e->file && strstr(e->file, "Dwarf.c") != NULL && e->line > 0) {
+        if (e && e->file && ZstrFindSubstring(e->file, "Dwarf.c") != NULL && e->line > 0) {
             ok = true;
         }
         DwarfLinesDeinit(&lines);

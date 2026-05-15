@@ -2,7 +2,6 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 
-#include <string.h>
 
 #include "../Util/TestRunner.h"
 
@@ -21,11 +20,11 @@ bool test_http_request_parse_get_with_headers(void) {
     const char *next = HttpRequestParse(&req, raw);
 
     bool ok = (next != raw) && (req.method == HTTP_REQUEST_METHOD_GET) && (req.url.length == 11) &&
-              (strcmp(req.url.data, "/index.html") == 0) && (req.headers.length == 2) &&
-              (strcmp(next, "body-bytes") == 0);
+              (ZstrCompare(req.url.data, "/index.html") == 0) && (req.headers.length == 2) &&
+              (ZstrCompare(next, "body-bytes") == 0);
 
     HttpHeader *host = HttpHeadersFind(&req.headers, "Host");
-    ok               = ok && host && strcmp(host->value.data, "example.com") == 0;
+    ok               = ok && host && ZstrCompare(host->value.data, "example.com") == 0;
 
     HttpRequestDeinit(&req);
     DefaultAllocatorDeinit(&alloc);
@@ -49,9 +48,10 @@ bool test_http_response_serialize_html(void) {
     //   - includes a Content-Type: text/html
     //   - includes a Content-Length: 11 (length of "<h1>hi</h1>")
     //   - ends with the body
-    bool ok = wire.length > 0 && strstr(wire.data, "HTTP/1.1 200 OK\r\n") == wire.data &&
-              strstr(wire.data, "Content-Type: text/html\r\n") != NULL &&
-              strstr(wire.data, "Content-Length: 11\r\n") != NULL && strstr(wire.data, "\r\n\r\n<h1>hi</h1>") != NULL;
+    bool ok = wire.length > 0 && ZstrFindSubstring(wire.data, "HTTP/1.1 200 OK\r\n") == wire.data &&
+              ZstrFindSubstring(wire.data, "Content-Type: text/html\r\n") != NULL &&
+              ZstrFindSubstring(wire.data, "Content-Length: 11\r\n") != NULL &&
+              ZstrFindSubstring(wire.data, "\r\n\r\n<h1>hi</h1>") != NULL;
 
     StrDeinit(&wire);
     HttpResponseDeinit(&response);
