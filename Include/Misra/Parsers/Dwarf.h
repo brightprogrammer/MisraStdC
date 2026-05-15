@@ -274,4 +274,73 @@ typedef struct DwarfUnwindRow {
 ///
 bool DwarfCfiBuildRow(const DwarfCfi *cfi, const DwarfFde *fde, u64 target_pc, DwarfUnwindRow *out);
 
+// ===========================================================================
+// .debug_info — function-name fallback when `.symtab` is stripped.
+// ===========================================================================
+//
+// `.debug_info` is the full DWARF DIE (Debugging Information Entry) tree
+// — types, variables, scopes, the lot. v1 of this parser narrows it
+// hard: we walk only DW_TAG_subprogram DIEs and pull out (name, low_pc,
+// high_pc). That's exactly the information a stripped binary lacks
+// when its sidecar debug file kept `.debug_info` but not `.symtab`,
+// which happens with some build pipelines (objcopy --only-keep-debug
+// preserves the lot, but some homemade strip flows are less generous).
+
+typedef struct DwarfFunction {
+    u64         low_pc;  // file-relative virtual address (same space as ElfSymbol.value)
+    u64         high_pc; // exclusive end
+    const char *name;    // borrowed from `string_pool`
+} DwarfFunction;
+
+typedef Vec(DwarfFunction) DwarfFunctionEntries;
+
+///
+/// Function-name index built from `.debug_info` + `.debug_abbrev` (+
+/// `.debug_str` for indirect names). Entries are sorted by `low_pc`
+/// to allow a binary-search lookup.
+///
+/// FIELDS:
+/// - allocator   : Allocator backing entries + string_pool.
+/// - entries     : Sorted-by-low_pc list of `DwarfFunction` rows.
+/// - string_pool : Owned buffer holding function-name strings that
+///                 `entries.name` borrows from. We copy because DWARF
+///                 strings can come from either inline byte-strings or
+///                 the separately-located `.debug_str` section.
+///
+typedef struct DwarfFunctions {
+    Allocator           *allocator;
+    DwarfFunctionEntries entries;
+    Str                  string_pool;
+} DwarfFunctions;
+
+///
+/// Parse `.debug_info` and build the function-name index.
+///
+/// out[out]   : Populated on success.
+/// elf[in]    : ELF file to read from. Borrowed; not retained.
+/// alloc[in]  : Allocator for the table + string pool.
+///
+/// SUCCESS : Returns true. `out->entries.length` is 0 if the binary
+///           has no `.debug_info` (stripped + no sidecar) — still success.
+/// FAILURE : Returns false on malformed DWARF or unsupported version
+///           / 64-bit length form. `out` is left zeroed.
+///
+/// TAGS: Parser, DWARF, Info
+///
+bool DwarfFunctionsBuildFromElf(DwarfFunctions *out, const ElfFile *elf, Allocator *alloc);
+
+///
+/// Find the function whose `[low_pc, high_pc)` range contains `vaddr`
+/// (file-relative).
+///
+/// SUCCESS : Returns a pointer to the matching entry. Valid until
+///           `DwarfFunctionsDeinit`.
+/// FAILURE : Returns NULL when no entry covers `vaddr`.
+///
+/// TAGS: Parser, DWARF, Lookup
+///
+const DwarfFunction *DwarfFunctionsResolve(const DwarfFunctions *self, u64 vaddr);
+
+void DwarfFunctionsDeinit(DwarfFunctions *self);
+
 #endif // MISRA_PARSERS_DWARF_H

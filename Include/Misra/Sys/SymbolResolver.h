@@ -92,6 +92,15 @@ typedef struct ResolverCacheEntry {
     DwarfCfi cfi;
     bool     cfi_built;
     bool     cfi_ok;
+    // Lazily-parsed .debug_info function-name table, used as a fallback
+    // when .symtab and .dynsym yield no name. Built for both main and
+    // sidecar if either lookup misses.
+    DwarfFunctions functions;
+    bool           functions_built;
+    bool           functions_ok;
+    DwarfFunctions sidecar_functions;
+    bool           sidecar_functions_built;
+    bool           sidecar_functions_ok;
 #endif
 } ResolverCacheEntry;
 

@@ -236,6 +236,12 @@ void SymbolResolverDeinit(SymbolResolver *self) {
         if (e->cfi_built && e->cfi_ok) {
             DwarfCfiDeinit(&e->cfi);
         }
+        if (e->functions_built && e->functions_ok) {
+            DwarfFunctionsDeinit(&e->functions);
+        }
+        if (e->sidecar_functions_built && e->sidecar_functions_ok) {
+            DwarfFunctionsDeinit(&e->sidecar_functions);
+        }
 #endif
         if (e->has_sidecar) {
             ElfFileDeinit(&e->sidecar);
@@ -248,32 +254,39 @@ void SymbolResolverDeinit(SymbolResolver *self) {
 }
 
 #if MISRA_HAVE_PARSER_DWARF
-bool SymbolResolverFindFde(SymbolResolver  *self,
-                           void            *runtime_addr,
-                           const DwarfCfi **out_cfi,
-                           const DwarfFde **out_fde,
-                           u64             *out_module_base) {
-    if (!self || !out_cfi || !out_fde || !out_module_base) return false;
+bool SymbolResolverFindFde(
+    SymbolResolver  *self,
+    void            *runtime_addr,
+    const DwarfCfi **out_cfi,
+    const DwarfFde **out_fde,
+    u64             *out_module_base
+) {
+    if (!self || !out_cfi || !out_fde || !out_module_base)
+        return false;
 
     u64                 addr  = (u64)(uintptr_t)runtime_addr;
     const ProcMapEntry *entry = ProcMapsFindByAddr(&self->maps, addr);
-    if (!entry || !entry->path || entry->path[0] == '\0') return false;
+    if (!entry || !entry->path || entry->path[0] == '\0')
+        return false;
 
     u64 load_base = entry->start - entry->file_offset;
 
     ResolverCacheEntry *cache_entry = resolver_cache_find_or_open(self, entry->path, load_base);
-    if (!cache_entry) return false;
+    if (!cache_entry)
+        return false;
     cache_entry->load_base = load_base;
 
     if (!cache_entry->cfi_built) {
         cache_entry->cfi_built = true;
         cache_entry->cfi_ok    = DwarfCfiBuildFromElf(&cache_entry->cfi, &cache_entry->elf, self->allocator);
     }
-    if (!cache_entry->cfi_ok) return false;
+    if (!cache_entry->cfi_ok)
+        return false;
 
     u64             file_relative = addr - load_base;
     const DwarfFde *fde           = DwarfCfiFindFde(&cache_entry->cfi, file_relative);
-    if (!fde) return false;
+    if (!fde)
+        return false;
 
     *out_cfi         = &cache_entry->cfi;
     *out_fde         = fde;
@@ -330,6 +343,40 @@ bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSym
     } else {
         out->offset = file_relative;
     }
+
+#if MISRA_HAVE_PARSER_DWARF
+    // .debug_info function-name fallback. Only consulted when neither
+    // .symtab nor .dynsym (main + sidecar) produced a name. DWARF
+    // subprogram DIEs cover stripped binaries' function bodies even
+    // when no ELF symbol exists.
+    if (!out->symbol_name) {
+        if (!cache_entry->functions_built) {
+            cache_entry->functions_built = true;
+            cache_entry->functions_ok =
+                DwarfFunctionsBuildFromElf(&cache_entry->functions, &cache_entry->elf, self->allocator);
+        }
+        const DwarfFunction *f = NULL;
+        if (cache_entry->functions_ok) {
+            f = DwarfFunctionsResolve(&cache_entry->functions, file_relative);
+        }
+        if (!f && cache_entry->has_sidecar) {
+            if (!cache_entry->sidecar_functions_built) {
+                cache_entry->sidecar_functions_built = true;
+                cache_entry->sidecar_functions_ok =
+                    DwarfFunctionsBuildFromElf(&cache_entry->sidecar_functions, &cache_entry->sidecar, self->allocator);
+            }
+            if (cache_entry->sidecar_functions_ok) {
+                f = DwarfFunctionsResolve(&cache_entry->sidecar_functions, file_relative);
+            }
+        }
+        if (f) {
+            out->symbol_name  = f->name;
+            out->symbol_value = f->low_pc;
+            out->symbol_size  = f->high_pc - f->low_pc;
+            out->offset       = file_relative - f->low_pc;
+        }
+    }
+#endif
 
 #if MISRA_HAVE_PARSER_DWARF
     if (!cache_entry->dwarf_built) {

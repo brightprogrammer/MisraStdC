@@ -217,6 +217,7 @@ if opt_parser_dwarf
     misra_std_sources += files(
         'Source/Misra/Parsers/Dwarf.c',
         'Source/Misra/Parsers/DwarfUnwind.c',
+        'Source/Misra/Parsers/DwarfInfo.c',
     )
 endif
 

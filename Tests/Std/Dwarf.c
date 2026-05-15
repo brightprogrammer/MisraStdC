@@ -137,6 +137,50 @@ bool test_dwarf_cfi_finds_fde_for_self(void) {
     return ok;
 }
 
+// Build DwarfFunctions for /proc/self/exe and verify our marker
+// helper resolves back to its name from .debug_info alone. The test
+// binary isn't stripped, so .symtab works too; the point here is the
+// .debug_info-only path.
+bool test_dwarf_functions_resolves_helper_to_name(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    SymbolResolver res;
+    if (!SymbolResolverInit(&res, base)) {
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    ResolvedSymbol r;
+    if (!SymbolResolverResolve(&res, (void *)&dwarf_marker_helper, &r)) {
+        SymbolResolverDeinit(&res);
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+    u64 file_relative = (u64)(uintptr_t)&dwarf_marker_helper - r.module_base;
+
+    ElfFile elf;
+    if (!ElfFileOpen(&elf, r.module_path, base)) {
+        SymbolResolverDeinit(&res);
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
+
+    DwarfFunctions fns;
+    bool           built = DwarfFunctionsBuildFromElf(&fns, &elf, base);
+    bool           ok    = false;
+    if (built && fns.entries.length > 0) {
+        const DwarfFunction *f = DwarfFunctionsResolve(&fns, file_relative);
+        ok = f != NULL && f->name != NULL && ZstrFindSubstring(f->name, "dwarf_marker_helper") != NULL;
+        DwarfFunctionsDeinit(&fns);
+    }
+
+    ElfFileDeinit(&elf);
+    SymbolResolverDeinit(&res);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting Dwarf tests\n\n");
 
@@ -144,6 +188,7 @@ int main(void) {
         test_dwarf_lines_load_self,
         test_dwarf_resolves_helper_to_source_file,
         test_dwarf_cfi_finds_fde_for_self,
+        test_dwarf_functions_resolves_helper_to_name,
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "Dwarf");
