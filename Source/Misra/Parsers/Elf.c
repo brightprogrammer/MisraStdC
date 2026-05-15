@@ -5,20 +5,22 @@
 /// ELF64 little-endian parser. Reads the ELF header, section headers,
 /// `.symtab` / `.dynsym` / their string tables, and resolves addresses
 /// to enclosing symbols.
+///
+/// Binary decode goes through `StrReadFmt` with raw-byte format
+/// specifiers (`{<Nr}` for little-endian N-byte reads), so we never
+/// need packed-struct typedefs or manual byteswaps. Adding big-endian
+/// or ELF32 later is mostly a matter of swapping the format strings.
 
 #include <Misra/Parsers/Elf.h>
 
 #include <Misra/Std.h>
 #include <Misra/Std/File.h>
+#include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 
-#include <stdint.h>
-
 // ---------------------------------------------------------------------------
-// On-disk record layouts. Defined locally so we don't depend on the
-// system `<elf.h>` (it isn't on every platform we want to build on,
-// and the spec is fixed anyway).
+// Spec constants
 // ---------------------------------------------------------------------------
 
 enum {
@@ -34,46 +36,54 @@ enum {
     ELF_MAG1 = 'E',
     ELF_MAG2 = 'L',
     ELF_MAG3 = 'F',
+
+    // Sizes of the on-disk records we read.
+    EHDR64_SIZE_AFTER_IDENT = 48,
+    SHDR64_SIZE             = 64,
+    SYM64_SIZE              = 24,
 };
 
-typedef struct __attribute__((packed)) RawEhdr64 {
-    u8  e_ident[EI_NIDENT];
-    u16 e_type;
-    u16 e_machine;
-    u32 e_version;
-    u64 e_entry;
-    u64 e_phoff;
-    u64 e_shoff;
-    u32 e_flags;
-    u16 e_ehsize;
-    u16 e_phentsize;
-    u16 e_phnum;
-    u16 e_shentsize;
-    u16 e_shnum;
-    u16 e_shstrndx;
-} RawEhdr64;
+// Little-endian field layouts for the records we read. The byte
+// totals in the comment must match {EHDR64_SIZE_AFTER_IDENT,
+// SHDR64_SIZE, SYM64_SIZE}.
+//
+// EHDR64 (post-e_ident): 48 bytes.
+#define FMT_EHDR64_LE                                                                                                  \
+    "{<2r}" /* e_type      */                                                                                          \
+    "{<2r}" /* e_machine   */                                                                                          \
+    "{<4r}" /* e_version   */                                                                                          \
+    "{<8r}" /* e_entry     */                                                                                          \
+    "{<8r}" /* e_phoff     */                                                                                          \
+    "{<8r}" /* e_shoff     */                                                                                          \
+    "{<4r}" /* e_flags     */                                                                                          \
+    "{<2r}" /* e_ehsize    */                                                                                          \
+    "{<2r}" /* e_phentsize */                                                                                          \
+    "{<2r}" /* e_phnum     */                                                                                          \
+    "{<2r}" /* e_shentsize */                                                                                          \
+    "{<2r}" /* e_shnum     */                                                                                          \
+    "{<2r}" /* e_shstrndx  */
 
-typedef struct __attribute__((packed)) RawShdr64 {
-    u32 sh_name;
-    u32 sh_type;
-    u64 sh_flags;
-    u64 sh_addr;
-    u64 sh_offset;
-    u64 sh_size;
-    u32 sh_link;
-    u32 sh_info;
-    u64 sh_addralign;
-    u64 sh_entsize;
-} RawShdr64;
+// SHDR64: 64 bytes.
+#define FMT_SHDR64_LE                                                                                                  \
+    "{<4r}" /* sh_name      */                                                                                         \
+    "{<4r}" /* sh_type      */                                                                                         \
+    "{<8r}" /* sh_flags     */                                                                                         \
+    "{<8r}" /* sh_addr      */                                                                                         \
+    "{<8r}" /* sh_offset    */                                                                                         \
+    "{<8r}" /* sh_size      */                                                                                         \
+    "{<4r}" /* sh_link      */                                                                                         \
+    "{<4r}" /* sh_info      */                                                                                         \
+    "{<8r}" /* sh_addralign */                                                                                         \
+    "{<8r}" /* sh_entsize   */
 
-typedef struct __attribute__((packed)) RawSym64 {
-    u32 st_name;
-    u8  st_info;
-    u8  st_other;
-    u16 st_shndx;
-    u64 st_value;
-    u64 st_size;
-} RawSym64;
+// SYM64: 24 bytes.
+#define FMT_SYM64_LE                                                                                                   \
+    "{<4r}" /* st_name  */                                                                                             \
+    "{<1r}" /* st_info  */                                                                                             \
+    "{<1r}" /* st_other */                                                                                             \
+    "{<2r}" /* st_shndx */                                                                                             \
+    "{<8r}" /* st_value */                                                                                             \
+    "{<8r}" /* st_size  */
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -101,7 +111,7 @@ static bool elf_range_ok(const ElfFile *self, u64 offset, u64 size) {
 // ---------------------------------------------------------------------------
 
 static bool elf_decode_header(ElfFile *self) {
-    if (self->data_size < sizeof(RawEhdr64)) {
+    if (self->data_size < EI_NIDENT + EHDR64_SIZE_AFTER_IDENT) {
         LOG_ERROR("ElfFile: file too small for ELF64 header ({} bytes)", (u64)self->data_size);
         return false;
     }
@@ -121,20 +131,44 @@ static bool elf_decode_header(ElfFile *self) {
         return false;
     }
 
-    const RawEhdr64 *raw  = (const RawEhdr64 *)self->data;
-    self->header.class    = ELF_CLASS_64;
-    self->header.data     = ELF_DATA_LSB;
-    self->header.type     = (ElfType)raw->e_type;
-    self->header.machine  = raw->e_machine;
-    self->header.entry    = raw->e_entry;
-    self->header.phoff    = raw->e_phoff;
-    self->header.shoff    = raw->e_shoff;
-    self->header.phnum    = raw->e_phnum;
-    self->header.shnum    = raw->e_shnum;
-    self->header.shstrndx = raw->e_shstrndx;
+    self->header.class = ELF_CLASS_64;
+    self->header.data  = ELF_DATA_LSB;
 
-    if (raw->e_shentsize != sizeof(RawShdr64) && raw->e_shnum > 0) {
-        LOG_ERROR("ElfFile: unexpected e_shentsize ({} vs {})", (u32)raw->e_shentsize, (u64)sizeof(RawShdr64));
+    const char *cursor = (const char *)self->data + EI_NIDENT;
+
+    u16 type = 0, machine = 0, ehsize = 0, phentsize = 0, phnum = 0, shentsize = 0, shnum = 0, shstrndx = 0;
+    u32 version = 0, flags = 0;
+    u64 entry = 0, phoff = 0, shoff = 0;
+
+    StrReadFmt(
+        cursor,
+        FMT_EHDR64_LE,
+        type,
+        machine,
+        version,
+        entry,
+        phoff,
+        shoff,
+        flags,
+        ehsize,
+        phentsize,
+        phnum,
+        shentsize,
+        shnum,
+        shstrndx
+    );
+
+    self->header.type     = (ElfType)type;
+    self->header.machine  = machine;
+    self->header.entry    = entry;
+    self->header.phoff    = phoff;
+    self->header.shoff    = shoff;
+    self->header.phnum    = phnum;
+    self->header.shnum    = shnum;
+    self->header.shstrndx = shstrndx;
+
+    if (shentsize != SHDR64_SIZE && shnum > 0) {
+        LOG_ERROR("ElfFile: unexpected e_shentsize ({} vs {})", (u32)shentsize, (u32)SHDR64_SIZE);
         return false;
     }
 
@@ -144,7 +178,7 @@ static bool elf_decode_header(ElfFile *self) {
 static bool elf_decode_sections(ElfFile *self) {
     u16 n      = self->header.shnum;
     u64 shoff  = self->header.shoff;
-    u64 needed = (u64)n * sizeof(RawShdr64);
+    u64 needed = (u64)n * SHDR64_SIZE;
     if (!elf_range_ok(self, shoff, needed)) {
         LOG_ERROR("ElfFile: section header table out of range");
         return false;
@@ -155,27 +189,39 @@ static bool elf_decode_sections(ElfFile *self) {
         return false;
     }
 
-    const RawShdr64 *raws       = (const RawShdr64 *)(self->data + shoff);
-    const RawShdr64 *shstr_raw  = &raws[self->header.shstrndx];
-    u64              shstr_off  = shstr_raw->sh_offset;
-    u64              shstr_size = shstr_raw->sh_size;
+    // Decode the shstrtab header first so we can resolve section names.
+    u64 shstr_off  = 0;
+    u64 shstr_size = 0;
+    {
+        const char *cursor = (const char *)self->data + shoff + (u64)self->header.shstrndx * SHDR64_SIZE;
+        u32         name = 0, type = 0, link = 0, info = 0;
+        u64         flags = 0, addr = 0, offset = 0, size_ = 0, addralign = 0, entsize = 0;
+        StrReadFmt(cursor, FMT_SHDR64_LE, name, type, flags, addr, offset, size_, link, info, addralign, entsize);
+        shstr_off  = offset;
+        shstr_size = size_;
+    }
     if (!elf_range_ok(self, shstr_off, shstr_size)) {
         LOG_ERROR("ElfFile: shstrtab out of range");
         return false;
     }
 
+    const char *cursor = (const char *)self->data + shoff;
     for (u16 i = 0; i < n; ++i) {
-        const RawShdr64 *r = &raws[i];
-        ElfSection       s;
-        s.name       = elf_str_at(self, shstr_off, shstr_size, r->sh_name);
-        s.type       = r->sh_type;
-        s.flags      = r->sh_flags;
-        s.addr       = r->sh_addr;
-        s.offset     = r->sh_offset;
-        s.size       = r->sh_size;
-        s.link       = r->sh_link;
-        s.info       = r->sh_info;
-        s.entry_size = r->sh_entsize;
+        u32 name = 0, type = 0, link = 0, info = 0;
+        u64 flags = 0, addr = 0, offset = 0, size_ = 0, addralign = 0, entsize = 0;
+
+        StrReadFmt(cursor, FMT_SHDR64_LE, name, type, flags, addr, offset, size_, link, info, addralign, entsize);
+
+        ElfSection s;
+        s.name       = elf_str_at(self, shstr_off, shstr_size, name);
+        s.type       = type;
+        s.flags      = flags;
+        s.addr       = addr;
+        s.offset     = offset;
+        s.size       = size_;
+        s.link       = link;
+        s.info       = info;
+        s.entry_size = entsize;
         if (!VecPushBackR(&self->sections, s)) {
             return false;
         }
@@ -191,7 +237,7 @@ static bool elf_decode_symbol_table(ElfFile *self, const ElfSection *symtab, Elf
     if (!symtab || symtab->size == 0) {
         return true;
     }
-    if (symtab->entry_size != sizeof(RawSym64)) {
+    if (symtab->entry_size != SYM64_SIZE) {
         LOG_ERROR("ElfFile: unexpected symbol entry size {}", (u64)symtab->entry_size);
         return false;
     }
@@ -213,18 +259,24 @@ static bool elf_decode_symbol_table(ElfFile *self, const ElfSection *symtab, Elf
         return false;
     }
 
-    const RawSym64 *raws  = (const RawSym64 *)(self->data + symtab->offset);
-    u64             count = symtab->size / sizeof(RawSym64);
+    u64 count = symtab->size / SYM64_SIZE;
 
+    const char *cursor = (const char *)self->data + symtab->offset;
     for (u64 i = 0; i < count; ++i) {
-        const RawSym64 *r = &raws[i];
-        ElfSymbol       s;
-        s.name          = elf_str_at(self, strtab->offset, strtab->size, r->st_name);
-        s.bind          = (ElfSymbolBind)(r->st_info >> 4);
-        s.type          = (ElfSymbolType)(r->st_info & 0xf);
-        s.section_index = r->st_shndx;
-        s.value         = r->st_value;
-        s.size          = r->st_size;
+        u32 name = 0;
+        u8  info = 0, other = 0;
+        u16 shndx = 0;
+        u64 value = 0, size_ = 0;
+
+        StrReadFmt(cursor, FMT_SYM64_LE, name, info, other, shndx, value, size_);
+
+        ElfSymbol s;
+        s.name          = elf_str_at(self, strtab->offset, strtab->size, name);
+        s.bind          = (ElfSymbolBind)(info >> 4);
+        s.type          = (ElfSymbolType)(info & 0xf);
+        s.section_index = shndx;
+        s.value         = value;
+        s.size          = size_;
         if (!VecPushBackR(out, s)) {
             return false;
         }
@@ -304,13 +356,7 @@ bool ElfFileOpen(ElfFile *out, const char *path, Allocator *alloc) {
     }
     // Take ownership of the buffer so Deinit frees it.
     out->owns_data = true;
-    out->data_size = (size)capacity; // remember the real allocation so free returns the right size
     out->data      = (u8 *)buf;
-    // Re-point the parser at the actual data length (capacity may be
-    // larger than bytes when ReadCompleteFile reused an existing
-    // buffer). We already validated against `bytes` inside
-    // ElfFileOpenFromMemory; restore data_size to the file length so
-    // range checks remain correct.
     out->data_size = (size)bytes;
     (void)capacity;
     return true;
