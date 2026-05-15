@@ -20,6 +20,7 @@
 option('alloc_arena',  type: 'boolean', value: true,  description: 'Build ArenaAllocator (bump allocator).')
 option('alloc_slab',   type: 'boolean', value: true,  description: 'Build SlabAllocator (growable fixed-slot pool).')
 option('alloc_budget', type: 'boolean', value: true,  description: 'Build BudgetAllocator (caller-buffer bounded pool, no growth).')
+option('alloc_stats',  type: 'boolean', value: true,  description: 'Track per-Allocator memory-pressure stats (byte counts, alloc/realloc/free counters, peak usage).')
 
 # Note: Vec, Str, Io are part of the mandatory foundation because
 # `LOG_FATAL` formats its message through them. They are not exposed as

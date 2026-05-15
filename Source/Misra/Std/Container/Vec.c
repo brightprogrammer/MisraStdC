@@ -61,9 +61,10 @@ void deinit_vec(GenericVec *vec, size item_size) {
         AllocatorFree(vec->allocator, vec->data, aligned_size * (vec->capacity + 1));
     }
 
-    vec->data     = NULL;
-    vec->length   = 0;
-    vec->capacity = 0;
+    // Zero the whole header so any use-after-deinit hits a zeroed
+    // __magic at the next validate call instead of silently dispatching
+    // into freed pointers.
+    MemSet(vec, 0, sizeof(*vec));
 }
 
 

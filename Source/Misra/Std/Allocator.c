@@ -44,6 +44,26 @@ void ValidateAllocator(const Allocator *self) {
     }
 }
 
+#if MISRA_HAVE_ALLOC_STATS
+static void allocator_stats_on_alloc(Allocator *self, size bytes) {
+    self->stats.allocations    += 1;
+    self->stats.bytes_requested += (u64)bytes;
+    self->stats.bytes_in_use    += (u64)bytes;
+    if (self->stats.bytes_in_use > self->stats.peak_bytes_in_use) {
+        self->stats.peak_bytes_in_use = self->stats.bytes_in_use;
+    }
+}
+
+static void allocator_stats_on_free(Allocator *self, size bytes) {
+    self->stats.deallocations += 1;
+    if ((u64)bytes <= self->stats.bytes_in_use) {
+        self->stats.bytes_in_use -= (u64)bytes;
+    } else {
+        self->stats.bytes_in_use = 0;
+    }
+}
+#endif
+
 void *AllocatorAlloc(Allocator *self, size bytes, i8 zeroed) {
     ValidateAllocator(self);
 
@@ -52,10 +72,17 @@ void *AllocatorAlloc(Allocator *self, size bytes, i8 zeroed) {
     for (size try_idx = 0; try_idx < attempts; try_idx++) {
         ptr = self->allocate(self, bytes, zeroed);
         if (ptr) {
-            return ptr;
+            break;
         }
     }
-    return NULL;
+#if MISRA_HAVE_ALLOC_STATS
+    if (ptr) {
+        allocator_stats_on_alloc(self, bytes);
+    } else {
+        self->stats.failed_allocations += 1;
+    }
+#endif
+    return ptr;
 }
 
 void *AllocatorRealloc(Allocator *self, void *ptr, size old_size, size new_size) {
@@ -66,10 +93,37 @@ void *AllocatorRealloc(Allocator *self, void *ptr, size old_size, size new_size)
     for (size try_idx = 0; try_idx < attempts; try_idx++) {
         new_ptr = self->reallocate(self, ptr, old_size, new_size);
         if (new_ptr || new_size == 0) {
-            return new_ptr;
+            break;
         }
     }
-    return NULL;
+#if MISRA_HAVE_ALLOC_STATS
+    if (new_size == 0) {
+        // realloc(ptr, 0) is a free of `old_size` bytes.
+        if (ptr) {
+            allocator_stats_on_free(self, old_size);
+        }
+    } else if (new_ptr) {
+        self->stats.reallocations    += 1;
+        self->stats.bytes_requested  += (u64)new_size;
+        if ((u64)new_size > (u64)old_size) {
+            u64 delta = (u64)new_size - (u64)old_size;
+            self->stats.bytes_in_use += delta;
+            if (self->stats.bytes_in_use > self->stats.peak_bytes_in_use) {
+                self->stats.peak_bytes_in_use = self->stats.bytes_in_use;
+            }
+        } else {
+            u64 delta = (u64)old_size - (u64)new_size;
+            if (delta <= self->stats.bytes_in_use) {
+                self->stats.bytes_in_use -= delta;
+            } else {
+                self->stats.bytes_in_use = 0;
+            }
+        }
+    } else {
+        self->stats.failed_allocations += 1;
+    }
+#endif
+    return new_ptr;
 }
 
 void AllocatorFree(Allocator *self, void *ptr, size bytes) {
@@ -78,4 +132,24 @@ void AllocatorFree(Allocator *self, void *ptr, size bytes) {
     }
     ValidateAllocator(self);
     self->deallocate(self, ptr, bytes);
+#if MISRA_HAVE_ALLOC_STATS
+    allocator_stats_on_free(self, bytes);
+#endif
 }
+
+#if MISRA_HAVE_ALLOC_STATS
+AllocatorStats AllocatorGetStats(const Allocator *self) {
+    ValidateAllocator(self);
+    return self->stats;
+}
+
+void AllocatorResetStats(Allocator *self) {
+    ValidateAllocator(self);
+    u64 in_use                  = self->stats.bytes_in_use;
+    self->stats                 = (AllocatorStats) {0};
+    // Preserve outstanding-allocation accounting so subsequent peak
+    // tracking starts from current usage, not zero.
+    self->stats.bytes_in_use      = in_use;
+    self->stats.peak_bytes_in_use = in_use;
+}
+#endif

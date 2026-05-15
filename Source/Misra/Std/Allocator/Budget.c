@@ -144,10 +144,7 @@ void BudgetAllocatorDeinit(BudgetAllocator *self) {
     if (!self) {
         return;
     }
-    self->buf          = NULL;
-    self->buf_bytes    = 0;
-    self->slot_size    = 0;
-    self->slot_count   = 0;
-    self->free_head    = NULL;
-    self->base.__magic = 0u;
+    // The caller still owns `buf`; just wipe our header so any
+    // post-deinit dispatch trips ValidateAllocator on zero __magic.
+    MemSet(self, 0, sizeof(*self));
 }

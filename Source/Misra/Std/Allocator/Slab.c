@@ -142,7 +142,5 @@ void SlabAllocatorDeinit(SlabAllocator *self) {
         AllocatorFree(&self->page.base, (void *)chunk, chunk->raw_size);
         chunk = next;
     }
-    self->head      = NULL;
-    self->tail      = NULL;
-    self->free_head = NULL;
+    MemSet(self, 0, sizeof(*self));
 }

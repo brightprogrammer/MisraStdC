@@ -172,8 +172,8 @@ void HeapAllocatorDeinit(HeapAllocator *self) {
         chunk = next;
     }
 
-    self->chunks_head = NULL;
-    for (u32 i = 0; i < HEAP_NUM_BINS; i++) {
-        self->bins[i] = NULL;
-    }
+    // Zero the whole allocator so any post-deinit dispatch trips
+    // ValidateAllocator on a zero __magic instead of silently
+    // re-using a stale function-pointer table.
+    MemSet(self, 0, sizeof(*self));
 }

@@ -177,6 +177,7 @@ the default build. Adding `int` automatically pulls in `bitvec`; adding
 | `alloc_arena`         | `ArenaAllocator`                                         | —                |
 | `alloc_slab`          | `SlabAllocator` (growable fixed-slot pool)               | —                |
 | `alloc_budget`        | `BudgetAllocator` (caller-buffer, fixed-budget)          | —                |
+| `alloc_stats`         | Per-`Allocator` byte / call / peak counters              | —                |
 | `bitvec`              | `BitVec` packed bit container                            | —                |
 | `list`                | `List(T)` doubly-linked list                             | —                |
 | `map`                 | `Map(K,V)` hash map                                      | —                |
@@ -216,12 +217,8 @@ x86_64, Linux, `meson setup --buildtype=minsize -Db_sanitize=none`:
 
 | Configuration                                                       | Archive raw | Archive stripped | Consumer stripped |
 |---------------------------------------------------------------------|------------:|-----------------:|------------------:|
-| Foundation only                                                     |     491 KB  |       **218 KB** |        **127 KB** |
-| `+ bitvec`, `+ int`, `+ float`                                      |     967 KB  |          418 KB  |                 - |
-| `+ list`, `+ map`, `+ graph`, `+ iter`                              |   1 264 KB  |          542 KB  |                 - |
-| `+ file`, `+ sys_dir`, `+ sys_proc`, `+ alloc_arena/slab/budget`    |   1 415 KB  |          596 KB  |                 - |
-| `+ parser_json`                                                     |   1 481 KB  |          626 KB  |                 - |
-| Default (everything; `+ parser_kvconfig`)                           |   1 529 KB  |       **654 KB** |        **243 KB** |
+| Foundation only                                                     |     501 KB  |       **222 KB** |        **131 KB** |
+| Default (everything, `alloc_stats` on)                              |   1 549 KB  |       **662 KB** |        **247 KB** |
 
 A `Vec`-using consumer ends up at **127 KB** against the foundation-only
 build, **243 KB** against the full build — the linker pulls in only the `.o`
@@ -232,41 +229,105 @@ a feature you don't need really does keep its code out of your binary.
 
 ## Six Core Ideas
 
-### 1. Allocators are user-owned values, never global state
+### 1. Allocators define shared lifetimes, not per-object state
 
-Every dynamically-sized object in MisraStdC takes an `Allocator *` at init
-time and uses it for every subsequent allocation. The library owns no
-process-wide heap, no thread-local fallback, no shared "default" instance.
+Every dynamically-sized object in MisraStdC stores a single `Allocator *`
+— a pointer to a **shared** allocator, not a private one. The library
+owns no process-wide heap, no thread-local fallback, no implicit "default"
+instance; the caller picks the allocator and decides who shares it.
 
-A typed allocator is a struct with state inline:
+A typed allocator is a struct with state inline on the stack:
 
 ```c
-DefaultAllocator alloc = DefaultAllocatorInit();   // entirely on the stack
-Vec(int) v = VecInit(&alloc);
+DefaultAllocator alloc = DefaultAllocatorInit();   // ~160 B on the stack
+Vec(int) a = VecInit(&alloc);
+Vec(int) b = VecInit(&alloc);                       // shares the same pool
+Vec(int) c = VecInit(&alloc);
 ...
-VecDeinit(&v);
+VecDeinit(&a); VecDeinit(&b); VecDeinit(&c);
 DefaultAllocatorDeinit(&alloc);
 ```
+
+What that pointer says is two things, and **both are about the allocator,
+not the object**:
+
+1. **Where memory comes from.** Every allocation / realloc / free routes
+   through this allocator. Objects sharing one allocator share its backing
+   pool — page reuse, slot reuse, free-list locality for free.
+2. **When the memory becomes invalid.** When the allocator dies (or its
+   `Scope` ends), every object still pointing at it has dangling `data`.
+   The allocator must outlive every object that uses it.
+
+So the natural mental model: **one allocator per logical lifetime.** Per
+request, per file parse, per game tick, per session. Everything created in
+that work-unit shares an allocator and dies with it. This is not a small
+optimisation — it is the deliberate substitute for tracking per-object
+lifetimes by hand.
 
 The library ships five backends:
 
 - **`PageAllocator`** — raw `mmap` / `VirtualAlloc`. The foundation under every
-  other allocator, no libc heap.
+  growing allocator, no libc heap.
 - **`HeapAllocator`** — power-of-two size-class bins (16–2048 B) plus a
-  page-passthrough for large allocations. Each `HeapAllocator` value carries
-  its own bins; two of them on the stack never share memory. `DefaultAllocator`
-  is a typedef for this.
+  page-passthrough for large allocations. `DefaultAllocator` is a typedef
+  for this. Best fit when you need per-object `free` (long-lived caches,
+  arbitrary delete patterns).
 - **`ArenaAllocator`** — bump cursor over page-backed chunks. `AllocatorFree`
-  is a no-op; everything is released together on `ArenaAllocatorDeinit`. Best
-  fit for parsers and per-request scratch.
-- **`SlabAllocator`** — fixed-size slots with an intrusive free list, grows by
-  pulling more page-backed slabs on demand.
-- **`BudgetAllocator`** — caller hands in a fixed memory region at init; slots
-  are carved out of it and never replenished. Suitable for embedded and
-  freestanding contexts.
+  is a no-op; everything is released together on `ArenaAllocatorDeinit`.
+  Best fit when "everything dies together" — parsers, per-request work,
+  per-frame scratch.
+- **`SlabAllocator`** — fixed-size slots with an intrusive free list, grows
+  by pulling more page-backed slabs on demand. Best fit for homogeneous
+  workloads (e.g. a list of fixed-size nodes).
+- **`BudgetAllocator`** — caller hands in a fixed memory region at init;
+  slots are carved out of it and never replenished. Best fit for
+  freestanding contexts or hard caps.
 
 The library defines a small `_Generic` whitelist (`ALLOCATOR_OF`) so any of
 these can pass anywhere an `Allocator *` is expected.
+
+**Pointer-escape pitfall.** Because containers only hold an `Allocator *`,
+they trivially survive being copied or returned, but their backing pages
+do not. The rule is:
+
+> **Never return or store a container whose backing allocator lives on
+> your stack frame.** The container header is fine, but its `data` will
+> dangle the moment the allocator's stack frame is reclaimed. If a value
+> needs to outlive the caller, allocate it through an allocator that
+> outlives the caller too — usually one passed in by the caller, or a
+> longer-lived per-subsystem allocator.
+
+A common variant: putting a `Vec` into a `Map` by ownership transfer
+across a `Scope` boundary. The `Map` lives longer than the `Scope`, so
+the inserted `Vec`'s `data` points at pages that are about to be unmapped.
+Deep-copy-on-insert (`VecInitWithDeepCopy(...)`, `MapInitFull(...)` with
+copy callbacks) avoids this — the destination container rebuilds the
+storage through its own allocator.
+
+### Memory pressure: every allocator carries its own stats
+
+Each `Allocator` base carries an `AllocatorStats` struct that the dispatch
+layer updates on every `allocate` / `reallocate` / `deallocate`:
+
+```c
+DefaultAllocator alloc = DefaultAllocatorInit();
+Allocator       *a     = ALLOCATOR_OF(&alloc);
+
+Vec(int) v = VecInit(a);
+for (int i = 0; i < 10000; i++) VecMustPushBackR(&v, i);
+
+AllocatorStats s = AllocatorGetStats(a);
+WriteFmtLn("allocs={}, frees={}, in_use={} B, peak={} B",
+           s.allocations, s.deallocations, s.bytes_in_use, s.peak_bytes_in_use);
+```
+
+The seven fields are `bytes_requested`, `bytes_in_use`, `peak_bytes_in_use`,
+`allocations`, `reallocations`, `deallocations`, and `failed_allocations`.
+Counters live on the `Allocator` base, so every typed backend gets
+accounting for free — no per-allocator implementation cost. The whole
+machinery is gated by the `alloc_stats` feature flag (default on); when
+disabled the struct shrinks and the dispatch path drops the counter
+updates entirely.
 
 ### 2. `Scope` is lexical RAII, in plain C
 

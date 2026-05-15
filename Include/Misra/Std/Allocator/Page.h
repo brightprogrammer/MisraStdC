@@ -104,9 +104,12 @@ extern "C" {
     })
 
 ///
-/// Teardown for `PageAllocator`. Stateless; expands to a no-op. Provided for
-/// API symmetry with the stateful allocators.
+/// Teardown for `PageAllocator`. The allocator owns no per-instance
+/// pages (each `allocate` is matched by a `deallocate` `munmap`), so
+/// teardown just zeroes the struct - post-deinit dispatch then trips
+/// `ValidateAllocator` on the zeroed `__magic` instead of silently
+/// re-using the function-pointer table.
 ///
-#define PageAllocatorDeinit(self) ((void)(self))
+#define PageAllocatorDeinit(self) MemSet((self), 0, sizeof(*(self)))
 
 #endif // MISRA_STD_ALLOCATOR_PAGE_H

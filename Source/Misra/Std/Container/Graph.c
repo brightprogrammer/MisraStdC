@@ -445,13 +445,7 @@ void deinit_graph(GenericGraph *graph, size item_size) {
     deinit_vec(GENERIC_VEC(&graph->free_indices), sizeof(u32));
     deinit_vec(GENERIC_VEC(&graph->pending_edge_removals), sizeof(GraphPendingEdgeRemoval));
 
-    graph->copy_init            = NULL;
-    graph->copy_deinit          = NULL;
-    graph->live_count           = 0;
-    graph->edge_count           = 0;
-    graph->pending_delete_count = 0;
-    graph->mutation_epoch       = 0;
-    graph->__magic   = 0;
+    MemSet(graph, 0, sizeof(*graph));
 }
 
 void clear_graph(GenericGraph *graph, size item_size) {
