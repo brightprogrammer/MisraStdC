@@ -51,8 +51,7 @@ static const char *flag_value(int argc, char **argv, const char *flag) {
     return NULL;
 }
 
-static void log_request_summary(Allocator *alloc, const char *client_addr, const char *prefix_bytes,
-                                size prefix_len) {
+static void log_request_summary(Allocator *alloc, const char *client_addr, const char *prefix_bytes, size prefix_len) {
     Scope(scope, DefaultAllocator) {
         (void)alloc;
         Str raw = StrInit(scope);
@@ -65,16 +64,36 @@ static void log_request_summary(Allocator *alloc, const char *client_addr, const
         } else {
             const char *method = "?";
             switch (req.method) {
-                case HTTP_REQUEST_METHOD_GET: method = "GET"; break;
-                case HTTP_REQUEST_METHOD_POST: method = "POST"; break;
-                case HTTP_REQUEST_METHOD_DELETE: method = "DELETE"; break;
-                case HTTP_REQUEST_METHOD_PUT: method = "PUT"; break;
-                case HTTP_REQUEST_METHOD_PATCH: method = "PATCH"; break;
-                case HTTP_REQUEST_METHOD_HEAD: method = "HEAD"; break;
-                case HTTP_REQUEST_METHOD_OPTIONS: method = "OPTIONS"; break;
-                case HTTP_REQUEST_METHOD_CONNECT: method = "CONNECT"; break;
-                case HTTP_REQUEST_METHOD_TRACE: method = "TRACE"; break;
-                default: method = "UNKNOWN"; break;
+                case HTTP_REQUEST_METHOD_GET :
+                    method = "GET";
+                    break;
+                case HTTP_REQUEST_METHOD_POST :
+                    method = "POST";
+                    break;
+                case HTTP_REQUEST_METHOD_DELETE :
+                    method = "DELETE";
+                    break;
+                case HTTP_REQUEST_METHOD_PUT :
+                    method = "PUT";
+                    break;
+                case HTTP_REQUEST_METHOD_PATCH :
+                    method = "PATCH";
+                    break;
+                case HTTP_REQUEST_METHOD_HEAD :
+                    method = "HEAD";
+                    break;
+                case HTTP_REQUEST_METHOD_OPTIONS :
+                    method = "OPTIONS";
+                    break;
+                case HTTP_REQUEST_METHOD_CONNECT :
+                    method = "CONNECT";
+                    break;
+                case HTTP_REQUEST_METHOD_TRACE :
+                    method = "TRACE";
+                    break;
+                default :
+                    method = "UNKNOWN";
+                    break;
             }
             LOG_INFO("[{}] {} {}", client_addr, method, req.url);
         }
@@ -96,8 +115,8 @@ static void proxy_pump(Socket *a, Socket *b, const char *first_chunk, size first
     SocketPollItem items[2];
     char           buf[8192];
     while (!g_stop) {
-        items[0] = (SocketPollItem){.fd = a->fd, .events_requested = SOCKET_POLL_READ};
-        items[1] = (SocketPollItem){.fd = b->fd, .events_requested = SOCKET_POLL_READ};
+        items[0] = (SocketPollItem) {.fd = a->fd, .events_requested = SOCKET_POLL_READ};
+        items[1] = (SocketPollItem) {.fd = b->fd, .events_requested = SOCKET_POLL_READ};
 
         i32 ready = SocketPoll(items, 2, 1000);
         if (ready < 0) {
@@ -207,9 +226,21 @@ int main(int argc, char **argv) {
         LOG_INFO("beam listening on {} → upstream {}", listen_spec, upstream_spec);
 
         while (!g_stop) {
+            // Wait for an incoming connection with a 1s timeout so the
+            // signal handler gets a chance to flip g_stop without
+            // accept() blocking forever (and without the EINTR error
+            // log noise when it does).
+            SocketPollItem listen_item = {.fd = listener.fd, .events_requested = SOCKET_POLL_READ};
+            i32            ready       = SocketPoll(&listen_item, 1, 1000);
+            if (ready <= 0) {
+                continue;
+            }
+            if (!(listen_item.events_ready & SOCKET_POLL_READ)) {
+                continue;
+            }
+
             Socket client;
             if (!ListenerAccept(&listener, &client)) {
-                if (g_stop) break;
                 continue;
             }
             handle_connection(alloc, &client, &upstream_addr);
