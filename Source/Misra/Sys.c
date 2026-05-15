@@ -29,8 +29,8 @@
 #include <Misra/Std.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Sys.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 Str *GetEnv(const char *name, Str *value) {
@@ -89,9 +89,34 @@ void SetAbortCallback(AbortCallback callback) {
 void Abort(void) {
     if (g_abort_callback) {
         g_abort_callback();
-    } else {
-        abort();
+        // Fall through if the callback returned -- a callback that
+        // wants to short-circuit Abort should longjmp / exit itself.
     }
+    // Emit the architecture's native trap instruction directly. No libc
+    // (`abort`, `raise`), no compiler intrinsic that isn't universal
+    // (`__builtin_trap` is GCC/Clang only). The hardware fault is
+    // handled by the OS the same way it would handle abort()'s SIGABRT:
+    //   - Linux / macOS: kernel delivers SIGILL/SIGTRAP, default
+    //     handler terminates the process and writes a core file.
+    //   - Windows: structured-exception EXCEPTION_ILLEGAL_INSTRUCTION /
+    //     EXCEPTION_BREAKPOINT, default top-level handler terminates.
+#if defined(_MSC_VER)
+    // MSVC and clang-cl. __debugbreak is recognized as a compiler
+    // intrinsic without needing <intrin.h>; emits `int 3` on x86 and
+    // `brk` on ARM/ARM64. EXCEPTION_BREAKPOINT terminates the process
+    // when no debugger is attached.
+    __debugbreak();
+#elif defined(__x86_64__) || defined(__i386__)
+    __asm__ volatile("ud2");
+#elif defined(__aarch64__)
+    __asm__ volatile("brk #0");
+#elif defined(__arm__)
+    __asm__ volatile("udf #0");
+#else
+    // Last-resort for unknown arches: NULL deref. Generates SIGSEGV
+    // on POSIX, EXCEPTION_ACCESS_VIOLATION on Windows.
+    *(volatile int *)0 = 0;
+#endif
 }
 
 ProcId ProcGetCurrentId(void) {
