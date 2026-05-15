@@ -569,9 +569,18 @@ static int cmp_dwarf_function(const void *a, const void *b) {
 // Public API
 // ---------------------------------------------------------------------------
 
-bool DwarfFunctionsBuildFromElf(DwarfFunctions *out, const ElfFile *elf, Allocator *alloc) {
-    if (!out || !elf || !alloc) {
-        LOG_ERROR("DwarfFunctionsBuildFromElf: NULL argument");
+bool DwarfFunctionsBuildFromSlices(
+    DwarfFunctions *out,
+    const u8       *info_bytes,
+    u64             info_size,
+    const u8       *abbrev_bytes,
+    u64             abbrev_size,
+    const u8       *str_bytes,
+    u64             str_size,
+    Allocator      *alloc
+) {
+    if (!out || !alloc) {
+        LOG_ERROR("DwarfFunctionsBuildFromSlices: NULL argument");
         return false;
     }
     MemSet(out, 0, sizeof(*out));
@@ -579,23 +588,17 @@ bool DwarfFunctionsBuildFromElf(DwarfFunctions *out, const ElfFile *elf, Allocat
     out->entries     = VecInitT(out->entries, alloc);
     out->string_pool = StrInit(alloc);
 
-    const ElfSection *info_sec = ElfFileFindSection(elf, ".debug_info");
-    if (!info_sec || info_sec->size == 0)
+    if (!info_bytes || info_size == 0)
         return true; // no debug info -> empty success
 
-    const ElfSection *abbrev_sec = ElfFileFindSection(elf, ".debug_abbrev");
-    if (!abbrev_sec || abbrev_sec->size == 0) {
+    if (!abbrev_bytes || abbrev_size == 0) {
         LOG_ERROR("DWARF info: .debug_info present but .debug_abbrev missing");
         return false;
     }
 
-    const ElfSection *str_sec        = ElfFileFindSection(elf, ".debug_str");
-    const u8         *debug_str      = str_sec ? elf->data + str_sec->offset : NULL;
-    u64               debug_str_size = str_sec ? str_sec->size : 0;
-
     ByteCursor info_cur = {
-        .p   = elf->data + info_sec->offset,
-        .end = elf->data + info_sec->offset + info_sec->size,
+        .p   = info_bytes,
+        .end = info_bytes + info_size,
     };
 
     PendingFns pending = VecInitT(pending, alloc);
@@ -637,7 +640,7 @@ bool DwarfFunctionsBuildFromElf(DwarfFunctions *out, const ElfFile *elf, Allocat
             continue;
         }
 
-        if (abbrev_offset >= abbrev_sec->size) {
+        if (abbrev_offset >= abbrev_size) {
             LOG_ERROR("DWARF info: abbrev_offset past .debug_abbrev end");
             ok = false;
             break;
@@ -645,8 +648,8 @@ bool DwarfFunctionsBuildFromElf(DwarfFunctions *out, const ElfFile *elf, Allocat
 
         AbbrevTable abbrevs;
         ByteCursor  abbrev_cur = {
-             .p   = elf->data + abbrev_sec->offset + abbrev_offset,
-             .end = elf->data + abbrev_sec->offset + abbrev_sec->size,
+             .p   = abbrev_bytes + abbrev_offset,
+             .end = abbrev_bytes + abbrev_size,
         };
         if (!parse_abbrev_table(abbrev_cur, &abbrevs, alloc)) {
             ok = false;
@@ -654,7 +657,7 @@ bool DwarfFunctionsBuildFromElf(DwarfFunctions *out, const ElfFile *elf, Allocat
         }
 
         ByteCursor die_cur = {.p = info_cur.p, .end = unit_end};
-        if (!walk_cu_dies(die_cur, &abbrevs, addr_size, debug_str, debug_str_size, &out->string_pool, &pending)) {
+        if (!walk_cu_dies(die_cur, &abbrevs, addr_size, str_bytes, str_size, &out->string_pool, &pending)) {
             abbrev_table_deinit(&abbrevs);
             ok = false;
             break;
@@ -697,6 +700,24 @@ bool DwarfFunctionsBuildFromElf(DwarfFunctions *out, const ElfFile *elf, Allocat
     }
 
     return ok;
+}
+
+bool DwarfFunctionsBuildFromElf(DwarfFunctions *out, const ElfFile *elf, Allocator *alloc) {
+    if (!out || !elf || !alloc) {
+        LOG_ERROR("DwarfFunctionsBuildFromElf: NULL argument");
+        return false;
+    }
+    const ElfSection *info_sec   = ElfFileFindSection(elf, ".debug_info");
+    const ElfSection *abbrev_sec = ElfFileFindSection(elf, ".debug_abbrev");
+    const ElfSection *str_sec    = ElfFileFindSection(elf, ".debug_str");
+
+    const u8 *info_b   = info_sec ? elf->data + info_sec->offset : NULL;
+    u64       info_n   = info_sec ? info_sec->size : 0;
+    const u8 *abbrev_b = abbrev_sec ? elf->data + abbrev_sec->offset : NULL;
+    u64       abbrev_n = abbrev_sec ? abbrev_sec->size : 0;
+    const u8 *str_b    = str_sec ? elf->data + str_sec->offset : NULL;
+    u64       str_n    = str_sec ? str_sec->size : 0;
+    return DwarfFunctionsBuildFromSlices(out, info_b, info_n, abbrev_b, abbrev_n, str_b, str_n, alloc);
 }
 
 const DwarfFunction *DwarfFunctionsResolve(const DwarfFunctions *self, u64 vaddr) {

@@ -55,6 +55,10 @@ macho_tests = [
     ['MachO', 'Std/MachO.c'],
 ]
 
+macho_cache_tests = [
+    ['MachoCache', 'Std/MachoCache.c'],
+]
+
 procmaps_tests = [
     ['ProcMaps', 'Std/ProcMaps.c'],
 ]
@@ -343,6 +347,23 @@ endif
 # Same model: synthetic Mach-O blob, no actual macOS host needed.
 if opt_parser_macho
     foreach test_info : macho_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
+
+        test(test_name, test_exe)
+    endforeach
+
+    foreach test_info : macho_cache_tests
         test_name = test_info[0]
         test_src = test_info[1]
 

@@ -330,6 +330,28 @@ typedef struct DwarfFunctions {
 bool DwarfFunctionsBuildFromElf(DwarfFunctions *out, const ElfFile *elf, Allocator *alloc);
 
 ///
+/// Container-agnostic builder. Same parser, but takes the three
+/// section payloads directly. The Mach-O backtrace path uses this to
+/// feed bytes from `__DWARF,__debug_*` sections inside a dSYM bundle.
+///
+/// Any of `info_bytes` / `abbrev_bytes` / `str_bytes` may be NULL when
+/// the corresponding section is absent; an empty `info_bytes` is
+/// treated as "no debug info" (success with empty table).
+///
+/// TAGS: Parser, DWARF, Info, Bytes
+///
+bool DwarfFunctionsBuildFromSlices(
+    DwarfFunctions *out,
+    const u8       *info_bytes,
+    u64             info_size,
+    const u8       *abbrev_bytes,
+    u64             abbrev_size,
+    const u8       *str_bytes,
+    u64             str_size,
+    Allocator      *alloc
+);
+
+///
 /// Find the function whose `[low_pc, high_pc)` range contains `vaddr`
 /// (file-relative).
 ///

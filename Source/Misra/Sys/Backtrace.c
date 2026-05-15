@@ -186,6 +186,137 @@ void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator 
 #    endif
 }
 
+#elif defined(__APPLE__)
+
+// ---------------------------------------------------------------------------
+// macOS / Darwin backend
+// ---------------------------------------------------------------------------
+//
+// Capture path: same saved-FP walk as the Linux backend below
+// (frame pointers are the norm on x86_64 / arm64 Darwin builds).
+// Format path: per-IP we ask dyld for the loaded image's path + slide
+// and route through the in-tree MachoCache, which handles the binary
+// + dSYM + DWARF chain.
+
+#    include <mach-o/dyld.h>
+#    include <mach-o/loader.h>
+
+#    if MISRA_HAVE_PARSER_MACHO
+#        include <Misra/Sys/MachoCache.h>
+#    endif
+
+enum {
+    BACKTRACE_MAX_WALK = 256,
+};
+
+size CaptureStackTrace(StackFrame *out, size max_frames, size skip_frames) {
+    if (!out || max_frames == 0)
+        return 0;
+    void **fp = (void **)__builtin_frame_address(0);
+    if (!fp)
+        return 0;
+
+    size   captured = 0;
+    size   depth    = 0;
+    void **prev_fp  = NULL;
+    while (fp && depth < BACKTRACE_MAX_WALK) {
+        if ((uintptr_t)fp & 0x7u)
+            break;
+        if (prev_fp && (uintptr_t)fp <= (uintptr_t)prev_fp)
+            break;
+        void *saved_fp = fp[0];
+        void *ret_addr = fp[1];
+        if (!ret_addr)
+            break;
+        if (depth >= skip_frames) {
+            if (captured >= max_frames)
+                break;
+            out[captured].ip  = ret_addr;
+            captured         += 1;
+        }
+        prev_fp  = fp;
+        fp       = (void **)saved_fp;
+        depth   += 1;
+    }
+    return captured;
+}
+
+#    if MISRA_HAVE_PARSER_MACHO
+// Find the loaded image whose runtime address range contains `ip`.
+// Returns the image's path + slide (offset added by dyld to its
+// on-disk vmaddrs). Walks `_dyld_image_count` images; for each, walks
+// the mach-header load commands looking for an LC_SEGMENT_64 whose
+// slid range covers `ip`.
+static bool dyld_image_for_ip(void *ip, const char **out_path, u64 *out_slide) {
+    uintptr_t ipx = (uintptr_t)ip;
+    uint32_t  n   = _dyld_image_count();
+    for (uint32_t i = 0; i < n; ++i) {
+        const struct mach_header_64 *h = (const struct mach_header_64 *)_dyld_get_image_header(i);
+        if (!h || h->magic != MH_MAGIC_64)
+            continue;
+        intptr_t       slide = _dyld_get_image_vmaddr_slide(i);
+        const uint8_t *cmd_p = (const uint8_t *)h + sizeof(struct mach_header_64);
+        for (uint32_t c = 0; c < h->ncmds; ++c) {
+            const struct load_command *lc = (const struct load_command *)cmd_p;
+            if (lc->cmd == LC_SEGMENT_64) {
+                const struct segment_command_64 *seg = (const struct segment_command_64 *)cmd_p;
+                uintptr_t                        lo  = (uintptr_t)(seg->vmaddr + slide);
+                uintptr_t                        hi  = lo + (uintptr_t)seg->vmsize;
+                if (ipx >= lo && ipx < hi) {
+                    *out_path  = _dyld_get_image_name(i);
+                    *out_slide = (u64)slide;
+                    return true;
+                }
+            }
+            cmd_p += lc->cmdsize;
+        }
+    }
+    return false;
+}
+#    endif
+
+void FormatStackTrace(Str *out, const StackFrame *frames, size count, Allocator *alloc) {
+    if (!out || !frames || !alloc)
+        return;
+
+#    if MISRA_HAVE_PARSER_MACHO
+    MachoCache cache;
+    bool       cache_ok = MachoCacheInit(&cache, alloc);
+#    endif
+
+    for (size i = 0; i < count; ++i) {
+        u64         ip       = (u64)(uintptr_t)frames[i].ip;
+        const char *sym_name = NULL;
+        u32         sym_off  = 0;
+        const char *mod_path = NULL;
+        bool        named    = false;
+
+#    if MISRA_HAVE_PARSER_MACHO
+        u64 slide = 0;
+        if (cache_ok && dyld_image_for_ip(frames[i].ip, &mod_path, &slide)) {
+            if (MachoCacheResolve(&cache, mod_path, slide, ip, &sym_name, &sym_off)) {
+                named = true;
+            }
+        }
+#    endif
+
+        if (named) {
+            const char *mod = basename_of(mod_path);
+            StrWriteFmt(out, "  #{} {}!{}+{x} [{x}]\n", (u32)i, mod, sym_name, (u64)sym_off, ip);
+        } else if (mod_path) {
+            const char *mod = basename_of(mod_path);
+            StrWriteFmt(out, "  #{} {}+? [{x}]\n", (u32)i, mod, ip);
+        } else {
+            StrWriteFmt(out, "  #{} {x}\n", (u32)i, ip);
+        }
+    }
+
+#    if MISRA_HAVE_PARSER_MACHO
+    if (cache_ok)
+        MachoCacheDeinit(&cache);
+#    endif
+}
+
 #elif defined(__GNUC__) || defined(__clang__)
 
 // ---------------------------------------------------------------------------

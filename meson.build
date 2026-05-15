@@ -62,7 +62,8 @@ opt_sys_backtrace  = get_option('sys_backtrace')
 # Platform availability matrix:
 #   sys_procmaps:    Linux only (reads /proc/self/maps)
 #   sys_symresolve:  Linux only (builds on procmaps + ELF parsing)
-#   sys_backtrace:   Linux (in-tree via SymbolResolver) or Windows (dbghelp)
+#   sys_backtrace:   Linux (in-tree via SymbolResolver), Windows (dbghelp +
+#                    in-tree PE/PDB), or Darwin (in-tree Mach-O + dSYM)
 #   alloc_debug:     wherever sys_backtrace is
 #   sys_socket:      POSIX (currently #error on _WIN32)
 sys_kernel = host_machine.system()
@@ -70,7 +71,7 @@ if sys_kernel != 'linux'
     opt_sys_procmaps   = false
     opt_sys_symresolve = false
 endif
-if sys_kernel != 'linux' and sys_kernel != 'windows'
+if sys_kernel != 'linux' and sys_kernel != 'windows' and sys_kernel != 'darwin'
     opt_sys_backtrace = false
 endif
 if sys_kernel == 'windows'
@@ -238,7 +239,10 @@ if opt_parser_pdb
     )
 endif
 if opt_parser_macho
-    misra_std_sources += files('Source/Misra/Parsers/MachO.c')
+    misra_std_sources += files(
+        'Source/Misra/Parsers/MachO.c',
+        'Source/Misra/Sys/MachoCache.c',
+    )
 endif
 
 # Compile-time discovery: each enabled feature exposes
