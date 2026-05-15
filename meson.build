@@ -84,6 +84,7 @@ opt_parser_elf     = get_option('parser_elf')
 opt_parser_dwarf   = get_option('parser_dwarf')
 opt_parser_pe      = get_option('parser_pe')
 opt_parser_pdb     = get_option('parser_pdb')
+opt_parser_macho   = get_option('parser_macho')
 
 # Vec, Str, Io are part of the mandatory foundation: `LOG_FATAL` formats
 # its message through `Str` and emits via the `Io` formatted path, so
@@ -127,8 +128,8 @@ if opt_parser_pdb
     opt_parser_pe = true
 endif
 
-# parser_elf / parser_pe both use ReadCompleteFile.
-opt_file = opt_file_user or opt_parser_elf or opt_parser_pe
+# parser_elf / parser_pe / parser_macho all use ReadCompleteFile.
+opt_file = opt_file_user or opt_parser_elf or opt_parser_pe or opt_parser_macho
 
 # sys_procmaps is Linux-only; verified above.
 
@@ -236,6 +237,9 @@ if opt_parser_pdb
         'Source/Misra/Sys/PdbCache.c',
     )
 endif
+if opt_parser_macho
+    misra_std_sources += files('Source/Misra/Parsers/MachO.c')
+endif
 
 # Compile-time discovery: each enabled feature exposes
 # `MISRA_HAVE_<NAME> == 1` via a generated `Misra/Config.h`. Every
@@ -270,6 +274,7 @@ config_data.set10('MISRA_HAVE_PARSER_ELF',      opt_parser_elf)
 config_data.set10('MISRA_HAVE_PARSER_DWARF',    opt_parser_dwarf)
 config_data.set10('MISRA_HAVE_PARSER_PE',       opt_parser_pe)
 config_data.set10('MISRA_HAVE_PARSER_PDB',      opt_parser_pdb)
+config_data.set10('MISRA_HAVE_PARSER_MACHO',    opt_parser_macho)
 
 # `subdir(...)` runs the inner meson.build, where `configure_file`
 # emits `build/Include/Misra/Config.h`. The top-level
@@ -291,7 +296,7 @@ message('  sys_procmaps=@0@  sys_symresolve=@1@  sys_backtrace=@2@'.format(
     opt_sys_procmaps, opt_sys_symresolve, opt_sys_backtrace))
 message('  parser_json=@0@  parser_kvconfig=@1@  parser_http=@2@  parser_elf=@3@  parser_dwarf=@4@'.format(
     opt_parser_json, opt_parser_kvconf, opt_parser_http, opt_parser_elf, opt_parser_dwarf))
-message('  parser_pe=@0@  parser_pdb=@1@'.format(opt_parser_pe, opt_parser_pdb))
+message('  parser_pe=@0@  parser_pdb=@1@  parser_macho=@2@'.format(opt_parser_pe, opt_parser_pdb, opt_parser_macho))
 
 # Build-time platform deps. The Windows Sys/Backtrace backend links
 # against dbghelp for SymFromAddr / SymGetLineFromAddr64.
