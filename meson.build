@@ -23,6 +23,7 @@ opt_alloc_arena    = get_option('alloc_arena')
 opt_alloc_slab     = get_option('alloc_slab')
 opt_alloc_budget   = get_option('alloc_budget')
 opt_alloc_stats    = get_option('alloc_stats')
+opt_alloc_debug    = get_option('alloc_debug')
 
 opt_bitvec_user    = get_option('bitvec')
 opt_list           = get_option('list')
@@ -78,7 +79,12 @@ opt_parser_dwarf   = get_option('parser_dwarf')
 # Transitively resolve dependencies among the optional features.
 opt_int    = opt_int_user    or opt_float                       # float -> int
 opt_bitvec = opt_bitvec_user or opt_int                         # int -> bitvec
-opt_map    = opt_map_user    or opt_parser_kvconf               # kvconfig -> map
+opt_map    = opt_map_user    or opt_parser_kvconf or opt_alloc_debug  # kvconfig|alloc_debug -> map
+
+# DebugAllocator needs the backtrace primitive too.
+if opt_alloc_debug
+    opt_sys_backtrace = true
+endif
 
 # SymbolResolver needs ProcMaps + parser_elf. Force them on if it's enabled.
 if opt_sys_symresolve
@@ -122,6 +128,9 @@ if opt_alloc_slab
 endif
 if opt_alloc_budget
     misra_std_sources += files('Source/Misra/Std/Allocator/Budget.c')
+endif
+if opt_alloc_debug
+    misra_std_sources += files('Source/Misra/Std/Allocator/Debug.c')
 endif
 
 if opt_bitvec
@@ -196,6 +205,7 @@ config_data.set10('MISRA_HAVE_ALLOC_ARENA',     opt_alloc_arena)
 config_data.set10('MISRA_HAVE_ALLOC_SLAB',      opt_alloc_slab)
 config_data.set10('MISRA_HAVE_ALLOC_BUDGET',    opt_alloc_budget)
 config_data.set10('MISRA_HAVE_ALLOC_STATS',     opt_alloc_stats)
+config_data.set10('MISRA_HAVE_ALLOC_DEBUG',     opt_alloc_debug)
 config_data.set10('MISRA_HAVE_BITVEC',          opt_bitvec)
 config_data.set10('MISRA_HAVE_LIST',            opt_list)
 config_data.set10('MISRA_HAVE_MAP',             opt_map)
@@ -226,8 +236,8 @@ subdir('Include/Misra')
 
 # Print which optional features are enabled so the configure log is honest.
 message('MisraStdC features enabled:')
-message('  alloc_arena=@0@  alloc_slab=@1@  alloc_budget=@2@  alloc_stats=@3@'.format(
-    opt_alloc_arena, opt_alloc_slab, opt_alloc_budget, opt_alloc_stats))
+message('  alloc_arena=@0@  alloc_slab=@1@  alloc_budget=@2@  alloc_stats=@3@  alloc_debug=@4@'.format(
+    opt_alloc_arena, opt_alloc_slab, opt_alloc_budget, opt_alloc_stats, opt_alloc_debug))
 message('  bitvec=@0@  list=@1@  map=@2@  graph=@3@  int=@4@  float=@5@'.format(
     opt_bitvec, opt_list, opt_map, opt_graph, opt_int, opt_float))
 message('  file=@0@  iter=@1@  sys_dir=@2@  sys_proc=@3@  sys_socket=@4@'.format(
@@ -376,6 +386,9 @@ if not opt_alloc_slab
 endif
 if not opt_alloc_budget
     install_subdir_excludes_files += 'Std/Allocator/Budget.h'
+endif
+if not opt_alloc_debug
+    install_subdir_excludes_files += 'Std/Allocator/Debug.h'
 endif
 
 if not opt_bitvec

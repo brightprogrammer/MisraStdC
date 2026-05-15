@@ -12,3 +12,5 @@ Docs/public
 fuzz-outputs
 Fuzz/outputs/
 .refactor-todo.md
+core
+core.*

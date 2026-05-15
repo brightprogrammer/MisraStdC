@@ -32,6 +32,7 @@ extern "C" {
     typedef struct ArenaAllocator  ArenaAllocator;
     typedef struct SlabAllocator   SlabAllocator;
     typedef struct BudgetAllocator BudgetAllocator;
+    typedef struct DebugAllocator  DebugAllocator;
 
     // `zeroed` uses `i8` (signed char) directly instead of `bool` to
     // sidestep TU-to-TU `bool` ambiguity on platforms that transitively
@@ -226,7 +227,8 @@ extern "C" {
         PageAllocator *: (Allocator *)(allocator_ptr),                                                                 \
         ArenaAllocator *: (Allocator *)(allocator_ptr),                                                                \
         SlabAllocator *: (Allocator *)(allocator_ptr),                                                                 \
-        BudgetAllocator *: (Allocator *)(allocator_ptr)                                                                \
+        BudgetAllocator *: (Allocator *)(allocator_ptr),                                                               \
+        DebugAllocator *: (Allocator *)(allocator_ptr)                                                                 \
     )
 
 // Typed allocator headers (PageAllocator, HeapAllocator, ArenaAllocator,
