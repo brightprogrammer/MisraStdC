@@ -21,6 +21,15 @@
 
 #include <stdint.h>
 
+// Sys/Backtrace uses __builtin_frame_address(0), the GCC/Clang
+// frame-pointer intrinsic. MSVC doesn't have it (the equivalent is
+// `_AddressOfReturnAddress()` plus inline asm), and meson already
+// auto-disables sys_backtrace outside of Linux. This guard catches
+// anyone who flips the flag back on by hand.
+#if !defined(__GNUC__) && !defined(__clang__)
+#    error "Sys/Backtrace requires GCC or Clang frame-pointer builtins; set sys_backtrace=false"
+#endif
+
 // ---------------------------------------------------------------------------
 // Capture
 // ---------------------------------------------------------------------------

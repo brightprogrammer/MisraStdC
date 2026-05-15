@@ -265,7 +265,13 @@ if opt_parser_http
     endforeach
 endif
 
-if opt_parser_elf
+# Parser/Elf, Parser/Dwarf, and the Sys/* resolve / backtrace tests
+# all open /proc/self/exe at runtime and use GCC-specific attributes
+# (__attribute__((noinline)), __asm__ __volatile__). The library code
+# itself is portable; only the tests are Linux + GCC/Clang-only.
+tests_need_posix_exe = host_machine.system() == 'linux'
+
+if opt_parser_elf and tests_need_posix_exe
     foreach test_info : elf_tests
         test_name = test_info[0]
         test_src = test_info[1]
@@ -284,7 +290,7 @@ if opt_parser_elf
     endforeach
 endif
 
-if opt_parser_dwarf
+if opt_parser_dwarf and tests_need_posix_exe
     foreach test_info : dwarf_tests
         test_name = test_info[0]
         test_src = test_info[1]

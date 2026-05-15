@@ -42,11 +42,14 @@ opt_sys_procmaps   = get_option('sys_procmaps')
 opt_sys_symresolve = get_option('sys_symresolve')
 opt_sys_backtrace  = get_option('sys_backtrace')
 
-# /proc/self/maps is Linux-only. Auto-disable elsewhere.
+# /proc/self/maps is Linux-only. Auto-disable elsewhere — and the
+# whole chain that builds on top of it: SymbolResolver, Backtrace,
+# and DebugAllocator (which forces sys_backtrace on as a dependency).
 if host_machine.system() != 'linux'
     opt_sys_procmaps   = false
     opt_sys_symresolve = false
     opt_sys_backtrace  = false
+    opt_alloc_debug    = false
 endif
 
 # Sys/Backtrace needs SymbolResolver. Force it on if Backtrace is on.
