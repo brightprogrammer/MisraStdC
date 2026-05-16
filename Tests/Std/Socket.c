@@ -1,58 +1,66 @@
-#define _DEFAULT_SOURCE
-#define _POSIX_C_SOURCE 200809L
+#if !defined(_WIN32)
+#    define _DEFAULT_SOURCE
+#    define _POSIX_C_SOURCE 200809L
+#endif
 
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Sys/Socket.h>
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <sys/socket.h>
-
 #include "../Util/TestRunner.h"
 
 // Bind on 127.0.0.1:0 (let the kernel pick a free port), connect a
 // client socket, send/recv a byte string, verify it round-trips.
+// Uses only the portable Sys/Socket API -- no direct sockaddr poking,
+// so it builds identically on POSIX and Windows.
 bool test_socket_loopback_round_trip(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *a     = ALLOCATOR_OF(&alloc);
+
     Listener listener;
     Socket   client = {0};
     Socket   server = {0};
 
     SocketAddr bind_addr;
     if (!SocketAddrParse(&bind_addr, "127.0.0.1:0", SOCKET_KIND_TCP)) {
+        DefaultAllocatorDeinit(&alloc);
         return false;
     }
 
     if (!ListenerOpen(&listener, SOCKET_KIND_TCP, &bind_addr, 16)) {
+        DefaultAllocatorDeinit(&alloc);
         return false;
     }
 
-    // Read back the actual bound port the kernel assigned.
-    struct sockaddr_in bound;
-    socklen_t          bound_len = sizeof(bound);
-    if (getsockname(listener.fd, (struct sockaddr *)&bound, &bound_len) != 0) {
+    // Ask the kernel which port it actually picked. Format back to a
+    // host:port string and re-parse so the test only ever talks to the
+    // public API.
+    SocketAddr local;
+    if (!ListenerLocalAddr(&listener, &local)) {
         ListenerClose(&listener);
+        DefaultAllocatorDeinit(&alloc);
         return false;
     }
-    u16 port = ntohs(bound.sin_port);
-
-    char spec[64];
-    snprintf(spec, sizeof(spec), "127.0.0.1:%u", (unsigned)port);
+    Str        local_str = SocketAddrFormat(&local, a);
     SocketAddr connect_addr;
-    if (!SocketAddrParse(&connect_addr, spec, SOCKET_KIND_TCP)) {
+    bool       parsed = SocketAddrParse(&connect_addr, local_str.data, SOCKET_KIND_TCP);
+    StrDeinit(&local_str);
+    if (!parsed) {
         ListenerClose(&listener);
+        DefaultAllocatorDeinit(&alloc);
         return false;
     }
 
     if (!SocketConnect(&client, SOCKET_KIND_TCP, &connect_addr)) {
         ListenerClose(&listener);
+        DefaultAllocatorDeinit(&alloc);
         return false;
     }
 
     if (!ListenerAccept(&listener, &server)) {
         SocketClose(&client);
         ListenerClose(&listener);
+        DefaultAllocatorDeinit(&alloc);
         return false;
     }
 
@@ -62,6 +70,7 @@ bool test_socket_loopback_round_trip(void) {
         SocketClose(&server);
         SocketClose(&client);
         ListenerClose(&listener);
+        DefaultAllocatorDeinit(&alloc);
         return false;
     }
 
@@ -72,6 +81,7 @@ bool test_socket_loopback_round_trip(void) {
     SocketClose(&server);
     SocketClose(&client);
     ListenerClose(&listener);
+    DefaultAllocatorDeinit(&alloc);
     return ok;
 }
 

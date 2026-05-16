@@ -9,9 +9,16 @@
 ///                side) or `SocketConnect` (client side). Carries the
 ///                peer's `SocketAddr` for logging / routing.
 ///
-/// Addresses are resolved through `SocketAddrParse`, which accepts
-/// `"host:port"`, `"[::1]:port"`, and DNS names (currently via libc
-/// `getaddrinfo`; expected to be replaced by an in-tree resolver later).
+/// Addresses are resolved through `SocketAddrParse` (numeric only) or
+/// the `Sys/Dns` resolver (numeric + name).
+///
+/// **Platform note on `SockFd`.** POSIX socket descriptors are `int`.
+/// Winsock's `SOCKET` is `UINT_PTR` (unsigned, pointer-sized). The
+/// `SockFd` typedef below resolves to whichever the platform needs;
+/// the rest of the API stays identical. The `MISRA_SOCK_FD_INVALID`
+/// constant is the equivalent of POSIX `-1` / Winsock `INVALID_SOCKET`
+/// for portable invalid-checks. Do *not* compare a `SockFd` with `< 0`
+/// — on Windows it's unsigned.
 
 #ifndef MISRA_SYS_SOCKET_H
 #define MISRA_SYS_SOCKET_H
@@ -23,6 +30,19 @@
 // `sockaddr_storage` is 128 bytes on every major platform. Lift the
 // size inline so the public header does not drag in `<sys/socket.h>`.
 #define SOCKET_ADDR_MAX_SIZE 128
+
+///
+/// Portable socket-descriptor type. `u64` on Windows so it can carry a
+/// real Winsock `SOCKET` (UINT_PTR), `i32` everywhere else so it stays
+/// printf-friendly and matches the POSIX `int` fd.
+///
+#ifdef _WIN32
+typedef u64 SockFd;
+#    define MISRA_SOCK_FD_INVALID ((SockFd) ~(u64)0) // == INVALID_SOCKET
+#else
+typedef i32 SockFd;
+#    define MISRA_SOCK_FD_INVALID ((SockFd) - 1)
+#endif
 
 typedef enum SocketKind {
     SOCKET_KIND_INVALID = 0,
@@ -39,7 +59,9 @@ typedef enum SocketFamily {
 ///
 /// Wraps `struct sockaddr_storage`. `raw[0..length]` carries the actual
 /// address bytes; `family` records the address family so callers do not
-/// have to peek into `raw`.
+/// have to peek into `raw`. The byte layout of `sockaddr_in` /
+/// `sockaddr_in6` is identical on Linux, macOS, and Windows, so
+/// `SocketAddr` is platform-portable as a value.
 ///
 typedef struct SocketAddr {
     u8           raw[SOCKET_ADDR_MAX_SIZE];
@@ -50,10 +72,12 @@ typedef struct SocketAddr {
 ///
 /// A bound + listening socket. `kind` records whether stream (TCP) or
 /// datagram (UDP) semantics apply. `bound` is the address that was
-/// passed to `ListenerOpen` (mostly for logging).
+/// passed to `ListenerOpen` (mostly for logging); see
+/// `ListenerLocalAddr` for the actually-bound address when the caller
+/// asked the kernel to pick the port.
 ///
 typedef struct Listener {
-    i32        fd;
+    SockFd     fd;
     SocketKind kind;
     SocketAddr bound;
 } Listener;
@@ -63,7 +87,7 @@ typedef struct Listener {
 /// or by `SocketConnect` (client side). `peer` is the remote endpoint.
 ///
 typedef struct Socket {
-    i32        fd;
+    SockFd     fd;
     SocketKind kind;
     SocketAddr peer;
 } Socket;
@@ -80,30 +104,31 @@ typedef enum SocketPollFlags {
 /// `events_ready` back.
 ///
 typedef struct SocketPollItem {
-    i32 fd;
-    u32 events_requested;
-    u32 events_ready;
+    SockFd fd;
+    u32    events_requested;
+    u32    events_ready;
 } SocketPollItem;
 
 // --- Addressing -------------------------------------------------------------
 
 ///
-/// Parse a host:port string into a `SocketAddr`.
+/// Parse a host:port string into a `SocketAddr`. Numeric host only --
+/// for hostname resolution use `Sys/Dns`'s `DnsResolve`.
 ///
 /// Accepted forms:
 ///   "127.0.0.1:8080"
 ///   "[::1]:8080"
-///   "example.com:80"   (DNS resolved via libc `getaddrinfo`)
 ///
 /// out[out]  : Result address. Left zeroed on failure.
 /// spec[in]  : Host:port specifier.
-/// kind[in]  : `SOCKET_KIND_TCP` or `SOCKET_KIND_UDP`. Influences
-///             which protocol `getaddrinfo` is asked for.
+/// kind[in]  : `SOCKET_KIND_TCP` or `SOCKET_KIND_UDP`. Currently informational.
 ///
 /// SUCCESS : returns true; `out` populated.
-/// FAILURE : returns false; logs the resolver error; `out` zeroed.
+/// FAILURE : returns false; `out` zeroed. Failure is silent so the
+///           caller can chain into DNS for the hostname case without
+///           log noise.
 ///
-/// TAGS: Socket, Address, DNS
+/// TAGS: Socket, Address
 ///
 bool SocketAddrParse(SocketAddr *out, const char *spec, SocketKind kind);
 
@@ -142,6 +167,21 @@ Str SocketAddrFormat(const SocketAddr *addr, Allocator *alloc);
 /// TAGS: Socket, Listener, Bind
 ///
 bool ListenerOpen(Listener *out, SocketKind kind, const SocketAddr *addr, i32 backlog);
+
+///
+/// Query the actually-bound local address of a listener. Useful after
+/// `ListenerOpen` with port 0, where the kernel picks the port.
+/// Wraps `getsockname` on POSIX / Winsock identically.
+///
+/// self[in]   : Open listener.
+/// out[out]   : Filled with the bound address. Zeroed on failure.
+///
+/// SUCCESS : returns true; `out` populated.
+/// FAILURE : returns false; logs the failing syscall.
+///
+/// TAGS: Socket, Listener, Address
+///
+bool ListenerLocalAddr(const Listener *self, SocketAddr *out);
 
 ///
 /// Accept the next pending connection on a listener.
@@ -230,20 +270,27 @@ void SocketClose(Socket *self);
 // caller can apply them to either a `Socket` or a `Listener` without an
 // extra wrapper. All return true on success / false on syscall failure
 // (logged).
+//
+// Note: `SocketSetReuseAddr` maps to `SO_REUSEADDR` on POSIX but to
+// `SO_EXCLUSIVEADDRUSE` on Windows — Windows's `SO_REUSEADDR` lets
+// other processes hijack the port, which is the opposite of what
+// callers want. The shim normalises both to "let me restart the
+// server quickly without ADDRINUSE from TIME_WAIT" semantics.
 
-bool SocketSetNonBlocking(i32 fd, bool nonblock);
-bool SocketSetNoDelay(i32 fd, bool nodelay);     // TCP_NODELAY (Nagle off)
-bool SocketSetKeepAlive(i32 fd, bool keepalive); // SO_KEEPALIVE
-bool SocketSetReuseAddr(i32 fd, bool reuse);     // SO_REUSEADDR
-bool SocketSetRecvTimeoutMs(i32 fd, u32 ms);
-bool SocketSetSendTimeoutMs(i32 fd, u32 ms);
+bool SocketSetNonBlocking(SockFd fd, bool nonblock);
+bool SocketSetNoDelay(SockFd fd, bool nodelay);     // TCP_NODELAY (Nagle off)
+bool SocketSetKeepAlive(SockFd fd, bool keepalive); // SO_KEEPALIVE
+bool SocketSetReuseAddr(SockFd fd, bool reuse);     // POSIX SO_REUSEADDR / Win SO_EXCLUSIVEADDRUSE
+bool SocketSetRecvTimeoutMs(SockFd fd, u32 ms);
+bool SocketSetSendTimeoutMs(SockFd fd, u32 ms);
 
 // --- Multiplexing -----------------------------------------------------------
 
 ///
-/// Wait until any item is ready. Backed by `poll()` for now; the
-/// signature is intentionally event-driven so an `epoll`/`kqueue`
-/// implementation can swap in later without breaking callers.
+/// Wait until any item is ready. Backed by `poll()` on POSIX and
+/// `WSAPoll()` on Windows. Signatures match closely enough that a
+/// single shim works; the WSAPoll failed-connect bug from older
+/// Windows builds was fixed in Windows 10 2004 (2020).
 ///
 /// items[in,out] : Array of items. Caller fills `fd` +
 ///                 `events_requested`; `events_ready` is the output.

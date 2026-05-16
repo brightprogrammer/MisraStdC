@@ -68,7 +68,10 @@ opt_sys_dns        = get_option('sys_dns')
 #   sys_backtrace:   Linux (in-tree via SymbolResolver), Windows (dbghelp +
 #                    in-tree PE/PDB), or Darwin (in-tree Mach-O + dSYM)
 #   alloc_debug:     wherever sys_backtrace is
-#   sys_socket:      POSIX (currently #error on _WIN32)
+#   sys_socket:      Linux + macOS via BSD sockets; Windows via Winsock2
+#   sys_dns:         rides on sys_socket; reads /etc/hosts and
+#                    /etc/resolv.conf on POSIX, the Win32 equivalents
+#                    on Windows.
 sys_kernel = host_machine.system()
 if sys_kernel != 'linux'
     opt_sys_procmaps   = false
@@ -77,12 +80,18 @@ endif
 if sys_kernel != 'linux' and sys_kernel != 'windows' and sys_kernel != 'darwin'
     opt_sys_backtrace = false
 endif
-if sys_kernel == 'windows'
-    opt_sys_socket = false
-endif
 # sys_dns rides on top of sys_socket + parser_dns.
 if not opt_sys_socket
     opt_sys_dns = false
+endif
+
+# Winsock dependency for sys_socket on Windows. cc.find_library finds
+# Ws2_32 via the platform SDK; the link arg is appended to the static
+# library's dependencies so every executable that uses libmisra_std
+# gets it transitively.
+ws2_32_dep = []
+if sys_kernel == 'windows' and opt_sys_socket
+    ws2_32_dep = [cc.find_library('Ws2_32', required: true)]
 endif
 
 opt_parser_json    = get_option('parser_json')
@@ -333,10 +342,14 @@ message('  parser_json=@0@  parser_kvconfig=@1@  parser_http=@2@  parser_elf=@3@
 message('  parser_pe=@0@  parser_pdb=@1@  parser_macho=@2@  parser_dns=@3@'.format(opt_parser_pe, opt_parser_pdb, opt_parser_macho, opt_parser_dns))
 
 # Build-time platform deps. The Windows Sys/Backtrace backend links
-# against dbghelp for SymFromAddr / SymGetLineFromAddr64.
+# against dbghelp for SymFromAddr / SymGetLineFromAddr64. Sys/Socket
+# on Windows pulls in Ws2_32 for Winsock2.
 misra_std_platform_deps = [math_dep]
 if opt_sys_backtrace and host_machine.system() == 'windows'
     misra_std_platform_deps += cc.find_library('dbghelp', required: true)
+endif
+if opt_sys_socket and host_machine.system() == 'windows'
+    misra_std_platform_deps += ws2_32_dep
 endif
 
 # Regular library with sanitizers for normal tests and executables

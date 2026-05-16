@@ -2,42 +2,99 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// POSIX implementation of the `Sys/Socket` module. Windows is not
-/// supported yet; building with `sys_socket=true` on Windows is a
-/// compile-time error.
+/// Cross-platform implementation of the `Sys/Socket` module. POSIX
+/// (Linux + macOS) goes through direct syscalls on Linux and libSystem
+/// on macOS; Windows goes through Winsock2 (Ws2_32.dll). The two halves
+/// share the pure-C IP parsers/formatters at the top of the file -- the
+/// `host:port` string layer is platform-neutral. Only the syscall-shaped
+/// bits differ.
+///
+/// The Windows port targets Win10 2004+ (May 2020): WSAPoll is correct
+/// from that build onward, so we use it without the `select()`
+/// fallback that older ports needed. Building against Win7 would
+/// require adding that fallback for failed `connect()` detection.
 
-#define _DEFAULT_SOURCE
-#define _POSIX_C_SOURCE 200809L
-
-#include <Misra/Sys/Socket.h>
-
-#ifdef _WIN32
-#    error "Sys/Socket on Windows is not implemented yet; set sys_socket=false"
+#if !defined(_WIN32)
+#    define _DEFAULT_SOURCE
+#    define _POSIX_C_SOURCE 200809L
 #endif
 
-#include <arpa/inet.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <poll.h>
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <unistd.h>
+#include <Misra/Sys/Socket.h>
 
 #include <Misra/Std.h>
 #include <Misra/Std/Log.h>
 
-#include "../_Syscall.h"
-
 #include <stdint.h>
 
-#if MISRA_HAVE_DIRECT_SYSCALL
+#ifdef _WIN32
+// Order matters: winsock2.h must come before windows.h. Defining the
+// guard suppresses the legacy winsock.h that windows.h would otherwise
+// drag in via mistake.
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#    endif
+#    include <winsock2.h>
+#    include <ws2tcpip.h>
+#    include <windows.h>
+#    pragma comment(lib, "Ws2_32.lib")
+
+// Winsock's `SOCKET` is unsigned UINT_PTR. The public `SockFd` typedef
+// is `u64` on Windows, which holds it losslessly on both Win32 and
+// Win64. Cast helpers move between the two without truncation.
+static inline SOCKET sf_to_socket(SockFd s) {
+    return (SOCKET)s;
+}
+static inline SockFd socket_to_sf(SOCKET s) {
+    return (SockFd)s;
+}
+
+// Lazy one-shot WSAStartup. `Sys/Socket` is the only Misra module that
+// needs Winsock; doing it here keeps the dependency local. The
+// `InitOnceExecuteOnce` API is the documented Win-7+ way to run a
+// thread-safe one-shot.
+static INIT_ONCE     g_winsock_init_once = INIT_ONCE_STATIC_INIT;
+static int           g_winsock_init_rc   = 0;
+static BOOL CALLBACK winsock_init_cb(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *Context) {
+    (void)InitOnce;
+    (void)Parameter;
+    (void)Context;
+    WSADATA wsa;
+    g_winsock_init_rc = WSAStartup(MAKEWORD(2, 2), &wsa);
+    return TRUE;
+}
+static bool ensure_winsock(void) {
+    InitOnceExecuteOnce(&g_winsock_init_once, winsock_init_cb, NULL, NULL);
+    if (g_winsock_init_rc != 0) {
+        LOG_ERROR("ensure_winsock: WSAStartup failed: {}", (i32)g_winsock_init_rc);
+        return false;
+    }
+    return true;
+}
+
+// Windows-only: report the last Winsock error. The CRT errno is not
+// populated by Winsock calls -- WSAGetLastError is authoritative.
+#    define LOG_SOCK_ERROR(msg) LOG_ERROR(msg " (WSAGetLastError={})", (i32)WSAGetLastError())
+
+#else // !_WIN32 (POSIX)
+
+#    include <arpa/inet.h>
+#    include <errno.h>
+#    include <fcntl.h>
+#    include <netinet/in.h>
+#    include <netinet/tcp.h>
+#    include <poll.h>
+#    include <sys/socket.h>
+#    include <sys/time.h>
+#    include <unistd.h>
+
+#    include "../_Syscall.h"
+
+#    if MISRA_HAVE_DIRECT_SYSCALL
 // Linux: direct-syscall wrappers for the BSD-sockets primitives used
 // below. `recv` / `send` are mapped onto `recvfrom` / `sendto` with
 // the addr arguments cleared since the kernel offers no separate
-// syscall for them. macOS / BSD keep libSystem; Windows takes a
-// completely different code path (Winsock isn't ported yet anyway).
+// syscall for them. macOS / BSD keep libSystem; Windows is in the
+// other half of this file.
 
 static inline long misra_sock_socket(int domain, int type, int protocol) {
     return misra_sys3(MISRA_SYS_socket, (long)domain, (long)type, (long)protocol);
@@ -55,11 +112,9 @@ static inline long misra_sock_accept(int fd, void *addr, void *addrlen) {
     return misra_sys3(MISRA_SYS_accept, (long)fd, (long)(uintptr_t)addr, (long)(uintptr_t)addrlen);
 }
 static inline long misra_sock_recv(int fd, void *buf, unsigned long n, int flags) {
-    // recvfrom(fd, buf, n, flags, src_addr=NULL, addrlen=NULL).
     return misra_sys6(MISRA_SYS_recvfrom, (long)fd, (long)(uintptr_t)buf, (long)n, (long)flags, 0, 0);
 }
 static inline long misra_sock_send(int fd, const void *buf, unsigned long n, int flags) {
-    // sendto(fd, buf, n, flags, dest_addr=NULL, addrlen=0).
     return misra_sys6(MISRA_SYS_sendto, (long)fd, (long)(uintptr_t)buf, (long)n, (long)flags, 0, 0);
 }
 static inline long misra_sock_setsockopt(int fd, int level, int optname, const void *optval, unsigned optlen) {
@@ -72,6 +127,9 @@ static inline long misra_sock_setsockopt(int fd, int level, int optname, const v
         (long)optlen
     );
 }
+static inline long misra_sock_getsockname(int fd, void *addr, void *addrlen) {
+    return misra_sys3(MISRA_SYS_getsockname, (long)fd, (long)(uintptr_t)addr, (long)(uintptr_t)addrlen);
+}
 static inline long misra_sock_close(int fd) {
     return misra_sys1(MISRA_SYS_close, (long)fd);
 }
@@ -79,9 +137,9 @@ static inline long misra_sock_fcntl(int fd, int cmd, long arg) {
     return misra_sys3(MISRA_SYS_fcntl, (long)fd, (long)cmd, arg);
 }
 static inline long misra_sock_poll(void *pfds, unsigned long nfds, int timeout_ms) {
-#    if defined(__x86_64__)
+#        if defined(__x86_64__)
     return misra_sys3(MISRA_SYS_poll, (long)(uintptr_t)pfds, (long)nfds, (long)timeout_ms);
-#    else
+#        else
     // aarch64 dropped poll for ppoll(fds, nfds, ts, sigmask, sizeof(sigmask)).
     struct {
         long sec;
@@ -94,21 +152,37 @@ static inline long misra_sock_poll(void *pfds, unsigned long nfds, int timeout_m
         ts_ptr  = &ts;
     }
     return misra_sys5(MISRA_SYS_ppoll, (long)(uintptr_t)pfds, (long)nfds, (long)(uintptr_t)ts_ptr, 0, 0);
-#    endif
+#        endif
 }
 
-#    define socket(d, t, p)              ((i32)misra_sock_socket((d), (t), (p)))
-#    define bind(fd, a, l)               ((int)misra_sock_bind((fd), (a), (unsigned)(l)))
-#    define connect(fd, a, l)            ((int)misra_sock_connect((fd), (a), (unsigned)(l)))
-#    define listen(fd, b)                ((int)misra_sock_listen((fd), (b)))
-#    define accept(fd, a, l)             ((i32)misra_sock_accept((fd), (a), (l)))
-#    define recv(fd, b, n, f)            ((long)misra_sock_recv((fd), (b), (unsigned long)(n), (f)))
-#    define send(fd, b, n, f)            ((long)misra_sock_send((fd), (b), (unsigned long)(n), (f)))
-#    define setsockopt(fd, lv, on, v, l) ((int)misra_sock_setsockopt((fd), (lv), (on), (v), (unsigned)(l)))
-#    define close(fd)                    ((int)misra_sock_close(fd))
-#    define fcntl(fd, cmd, arg)          ((int)misra_sock_fcntl((fd), (cmd), (long)(arg)))
-#    define poll(pfds, n, t)             ((int)misra_sock_poll((pfds), (unsigned long)(n), (t)))
-#endif
+#        define socket(d, t, p)              ((i32)misra_sock_socket((d), (t), (p)))
+#        define bind(fd, a, l)               ((int)misra_sock_bind((fd), (a), (unsigned)(l)))
+#        define connect(fd, a, l)            ((int)misra_sock_connect((fd), (a), (unsigned)(l)))
+#        define listen(fd, b)                ((int)misra_sock_listen((fd), (b)))
+#        define accept(fd, a, l)             ((i32)misra_sock_accept((fd), (a), (l)))
+#        define recv(fd, b, n, f)            ((long)misra_sock_recv((fd), (b), (unsigned long)(n), (f)))
+#        define send(fd, b, n, f)            ((long)misra_sock_send((fd), (b), (unsigned long)(n), (f)))
+#        define setsockopt(fd, lv, on, v, l) ((int)misra_sock_setsockopt((fd), (lv), (on), (v), (unsigned)(l)))
+#        define getsockname(fd, a, l)        ((int)misra_sock_getsockname((fd), (a), (l)))
+#        define close(fd)                    ((int)misra_sock_close(fd))
+#        define fcntl(fd, cmd, arg)          ((int)misra_sock_fcntl((fd), (cmd), (long)(arg)))
+#        define poll(pfds, n, t)             ((int)misra_sock_poll((pfds), (unsigned long)(n), (t)))
+#    endif
+
+// POSIX side: SockFd is a thin alias for `int`. No conversion needed.
+static inline int sf_to_int(SockFd s) {
+    return (int)s;
+}
+static inline SockFd int_to_sf(int s) {
+    return (SockFd)s;
+}
+
+#    define LOG_SOCK_ERROR(msg) LOG_SYS_ERROR(msg)
+#endif // _WIN32
+
+// ---------------------------------------------------------------------------
+// Pure-C parsers / formatters. No platform dependencies -- shared.
+// ---------------------------------------------------------------------------
 
 // Hex-nibble helper used by the IPv6 parser. Returns 0..15 on a valid
 // digit, -1 otherwise.
@@ -140,8 +214,6 @@ static bool parse_port(const char *s, u16 *out) {
 }
 
 // Parse an IPv4 dotted-quad ("a.b.c.d") into 4 bytes.
-// Each octet must be 0..255 and decimal-only. Trailing chars after the
-// 4th octet are rejected.
 static bool parse_ipv4(const char *s, u8 octets[4]) {
     if (!s)
         return false;
@@ -165,10 +237,8 @@ static bool parse_ipv4(const char *s, u8 octets[4]) {
     return *s == '\0';
 }
 
-// Parse an IPv6 textual form into 16 bytes. Handles the RFC 5952 "::"
-// compression in either lead, middle, or trail position. Does not
-// handle zone IDs (`%eth0`) or embedded IPv4 (`::ffff:192.0.2.1`) --
-// callers needing those today don't exist; add when they do.
+// Parse an IPv6 textual form into 16 bytes. Handles RFC 5952 "::"
+// compression. Does not handle zone IDs or embedded IPv4.
 static bool parse_ipv6(const char *s, u8 bytes[16]) {
     if (!s)
         return false;
@@ -176,18 +246,16 @@ static bool parse_ipv6(const char *s, u8 bytes[16]) {
     u16  after_cc[8];
     i32  before_n = 0;
     i32  after_n  = 0;
-    bool seen_cc  = false; // saw "::"
+    bool seen_cc  = false;
     u16 *slot     = before_cc;
     i32 *slot_n   = &before_n;
 
-    // Leading "::"
     if (s[0] == ':' && s[1] == ':') {
         seen_cc  = true;
         slot     = after_cc;
         slot_n   = &after_n;
         s       += 2;
         if (*s == '\0') {
-            // The "all zeros" address "::".
             for (i32 i = 0; i < 16; ++i)
                 bytes[i] = 0;
             return true;
@@ -195,7 +263,6 @@ static bool parse_ipv6(const char *s, u8 bytes[16]) {
     }
 
     for (;;) {
-        // Read a hextet: 1..4 hex chars.
         if (*slot_n >= 8)
             return false;
         i32 v        = 0;
@@ -219,18 +286,17 @@ static bool parse_ipv6(const char *s, u8 bytes[16]) {
         ++s;
         if (*s == ':') {
             if (seen_cc)
-                return false; // two "::"s in one address
+                return false;
             seen_cc = true;
             slot    = after_cc;
             slot_n  = &after_n;
             ++s;
             if (*s == '\0')
-                break; // trailing "::"
+                break;
         }
     }
 
     if (!seen_cc) {
-        // No compression: must have exactly 8 hextets.
         if (before_n != 8)
             return false;
         for (i32 i = 0; i < 8; ++i) {
@@ -240,7 +306,6 @@ static bool parse_ipv6(const char *s, u8 bytes[16]) {
         return true;
     }
 
-    // Compression in play: before_cc + zeros + after_cc must total 8 hextets.
     if (before_n + after_n > 7)
         return false;
     i32 mid_zeros = 8 - before_n - after_n;
@@ -260,8 +325,6 @@ static bool parse_ipv6(const char *s, u8 bytes[16]) {
     return true;
 }
 
-// Format an IPv4 dotted-quad ("a.b.c.d") into `dst`. `dst_size` must
-// be at least 16 to hold the longest "255.255.255.255\0".
 static bool format_ipv4(const u8 octets[4], char *dst, size dst_size) {
     if (!dst || dst_size < 16)
         return false;
@@ -293,7 +356,6 @@ static bool format_ipv4(const u8 octets[4], char *dst, size dst_size) {
     return true;
 }
 
-// Append one hextet (0..0xFFFF) in lowercase hex, no leading zeros.
 static bool append_hextet(char *dst, size dst_size, size *pos, u16 v) {
     char tmp[4];
     i32  n = 0;
@@ -314,10 +376,6 @@ static bool append_hextet(char *dst, size dst_size, size *pos, u16 v) {
     return true;
 }
 
-// Format an IPv6 address into `dst`. Implements the RFC 5952 "::"
-// compression: the longest run of >= 2 zero hextets is collapsed,
-// ties go to the leftmost run. `dst_size` must be at least 40
-// (8 hextets * 4 hex + 7 colons + 1 NUL = 40).
 static bool format_ipv6(const u8 bytes[16], char *dst, size dst_size) {
     if (!dst || dst_size < 40)
         return false;
@@ -325,7 +383,6 @@ static bool format_ipv6(const u8 bytes[16], char *dst, size dst_size) {
     for (i32 i = 0; i < 8; ++i) {
         h[i] = (u16)((bytes[i * 2] << 8) | bytes[i * 2 + 1]);
     }
-    // Find longest zero run of length >= 2.
     i32 best_start = -1;
     i32 best_len   = 0;
     i32 cur_start  = -1;
@@ -353,11 +410,6 @@ static bool format_ipv6(const u8 bytes[16], char *dst, size dst_size) {
     bool just_after_run = false;
     while (i < 8) {
         if (i == best_start) {
-            // Emit the "::" marker. Its two colons subsume both the
-            // colon before the run (if there was a preceding hextet)
-            // and the colon after the run (if there is a following
-            // hextet). We mark `just_after_run` so the next iteration
-            // doesn't add another ':' on top.
             if (pos + 2 >= dst_size)
                 return false;
             dst[pos++]      = ':';
@@ -383,7 +435,7 @@ static bool format_ipv6(const u8 bytes[16], char *dst, size dst_size) {
 }
 
 // ---------------------------------------------------------------------------
-// Internal helpers
+// Family / kind mappings -- same constants on POSIX & Winsock.
 // ---------------------------------------------------------------------------
 
 static i32 sock_kind_to_socktype(SocketKind kind) {
@@ -430,9 +482,6 @@ static i32 socket_family_to_af(SocketFamily f) {
     }
 }
 
-// Split `spec` into host + port. Handles bracketed IPv6 form
-// `[host]:port` so addresses containing ':' do not confuse the parse.
-// Returns false if no port separator is found.
 static bool split_host_port(const char *spec, char *host_out, size host_cap, const char **port_out) {
     if (!spec || !host_out || !port_out) {
         return false;
@@ -479,14 +528,19 @@ static bool split_host_port(const char *spec, char *host_out, size host_cap, con
     return true;
 }
 
-static void fill_socket_addr_from_sockaddr(SocketAddr *out, const struct sockaddr *sa, socklen_t len) {
+// Both POSIX and Winsock use the same on-the-wire `sockaddr_in` /
+// `sockaddr_in6` layout. We can copy raw bytes either way.
+static void fill_socket_addr_from_sockaddr(SocketAddr *out, const void *sa, u32 len) {
     MemSet(out, 0, sizeof(*out));
-    if (len > (socklen_t)SOCKET_ADDR_MAX_SIZE) {
-        len = (socklen_t)SOCKET_ADDR_MAX_SIZE;
+    if (len > (u32)SOCKET_ADDR_MAX_SIZE) {
+        len = (u32)SOCKET_ADDR_MAX_SIZE;
     }
     MemCopy(out->raw, sa, (size)len);
-    out->length = (u32)len;
-    out->family = af_to_socket_family(sa->sa_family);
+    out->length = len;
+    // First 2 bytes of sockaddr are sa_family (u16 host-order).
+    u16 fam = 0;
+    MemCopy(&fam, sa, sizeof(fam));
+    out->family = af_to_socket_family((i32)fam);
 }
 
 // ---------------------------------------------------------------------------
@@ -501,7 +555,6 @@ bool SocketAddrParse(SocketAddr *out, const char *spec, SocketKind kind) {
     MemSet(out, 0, sizeof(*out));
 
     if (!spec) {
-        LOG_ERROR("SocketAddrParse: spec is NULL");
         return false;
     }
 
@@ -510,28 +563,21 @@ bool SocketAddrParse(SocketAddr *out, const char *spec, SocketKind kind) {
     char        host[256];
     const char *port_str = NULL;
     if (!split_host_port(spec, host, sizeof(host), &port_str)) {
-        LOG_ERROR("SocketAddrParse: cannot split host:port in \"{}\"", spec);
         return false;
     }
 
     u16 port = 0;
     if (!parse_port(port_str, &port)) {
-        LOG_ERROR("SocketAddrParse: invalid port \"{}\" in \"{}\"", (const char *)port_str, spec);
         return false;
     }
 
-    // Try IPv4 dotted-quad first; if that fails try IPv6. Hostname
-    // resolution (real DNS) is not provided -- pass numeric IPs only.
-    // The FUTURE-PLANS file tracks the in-tree DNS resolver as a
-    // separate piece of work; until that lands, callers that need
-    // name resolution should resolve externally and pass the result.
     u8 v4[4];
     u8 v6[16];
     if (parse_ipv4(host, v4)) {
         struct sockaddr_in *sa = (struct sockaddr_in *)out->raw;
         MemSet(out, 0, sizeof(*out));
         sa->sin_family = AF_INET;
-        sa->sin_port   = FROM_BIG_ENDIAN2(port); // host -> network order is the same swap
+        sa->sin_port   = FROM_BIG_ENDIAN2(port);
         MemCopy(&sa->sin_addr.s_addr, v4, 4);
         out->length = (u32)sizeof(struct sockaddr_in);
         out->family = SOCKET_FAMILY_INET;
@@ -542,16 +588,14 @@ bool SocketAddrParse(SocketAddr *out, const char *spec, SocketKind kind) {
         MemSet(out, 0, sizeof(*out));
         sa->sin6_family = AF_INET6;
         sa->sin6_port   = FROM_BIG_ENDIAN2(port);
+        // Windows' IN6_ADDR defines `#define s6_addr u.Byte`, so this
+        // works the same on both platforms.
         MemCopy(sa->sin6_addr.s6_addr, v6, 16);
         out->length = (u32)sizeof(struct sockaddr_in6);
         out->family = SOCKET_FAMILY_INET6;
         return true;
     }
 
-    // Not a numeric IP. Don't log here -- callers that want hostname
-    // resolution should try `Sys/Dns` next, and the failed-parse case
-    // is fine. Callers that want strict numeric-only get false + can
-    // log their own context.
     return false;
 }
 
@@ -561,7 +605,7 @@ Str SocketAddrFormat(const SocketAddr *addr, Allocator *alloc) {
         return out;
     }
 
-    char host[48]; // longest IPv6 (39) + scope id slack
+    char host[48];
     u16  port = 0;
 
     const char *host_p = host;
@@ -575,7 +619,9 @@ Str SocketAddrFormat(const SocketAddr *addr, Allocator *alloc) {
         StrWriteFmt(&out, "{}:{}", host_p, (u32)port);
     } else if (addr->family == SOCKET_FAMILY_INET6) {
         const struct sockaddr_in6 *sa = (const struct sockaddr_in6 *)addr->raw;
-        if (!format_ipv6(sa->sin6_addr.s6_addr, host, sizeof(host))) {
+        // Windows' IN6_ADDR aliases `s6_addr` via macro.
+        const u8 *v6 = sa->sin6_addr.s6_addr;
+        if (!format_ipv6(v6, host, sizeof(host))) {
             LOG_ERROR("SocketAddrFormat: format_ipv6 failed");
             return out;
         }
@@ -589,6 +635,226 @@ Str SocketAddrFormat(const SocketAddr *addr, Allocator *alloc) {
 }
 
 // ---------------------------------------------------------------------------
+// Platform-specific syscall shims used by Listener / Socket below.
+// Wrapping at this level lets the high-level functions share code.
+// ---------------------------------------------------------------------------
+
+#ifdef _WIN32
+
+// Returns MISRA_SOCK_FD_INVALID on failure.
+static SockFd plat_socket(int af, int type, int proto) {
+    if (!ensure_winsock())
+        return MISRA_SOCK_FD_INVALID;
+    SOCKET s = socket(af, type, proto);
+    if (s == INVALID_SOCKET) {
+        LOG_SOCK_ERROR("socket() failed");
+        return MISRA_SOCK_FD_INVALID;
+    }
+    return socket_to_sf(s);
+}
+
+static bool plat_bind(SockFd s, const void *addr, u32 len) {
+    if (bind(sf_to_socket(s), (const struct sockaddr *)addr, (int)len) == SOCKET_ERROR) {
+        LOG_SOCK_ERROR("bind() failed");
+        return false;
+    }
+    return true;
+}
+
+static bool plat_listen(SockFd s, int backlog) {
+    if (listen(sf_to_socket(s), backlog) == SOCKET_ERROR) {
+        LOG_SOCK_ERROR("listen() failed");
+        return false;
+    }
+    return true;
+}
+
+static SockFd plat_accept(SockFd s, void *addr, u32 *len_io) {
+    int    sl = (int)*len_io;
+    SOCKET c  = accept(sf_to_socket(s), (struct sockaddr *)addr, &sl);
+    if (c == INVALID_SOCKET) {
+        LOG_SOCK_ERROR("accept() failed");
+        return MISRA_SOCK_FD_INVALID;
+    }
+    *len_io = (u32)sl;
+    return socket_to_sf(c);
+}
+
+static bool plat_connect(SockFd s, const void *addr, u32 len) {
+    if (connect(sf_to_socket(s), (const struct sockaddr *)addr, (int)len) == SOCKET_ERROR) {
+        LOG_SOCK_ERROR("connect() failed");
+        return false;
+    }
+    return true;
+}
+
+static i64 plat_recv(SockFd s, void *buf, size n) {
+    int len = (int)((n > (size)0x7FFFFFFF) ? (size)0x7FFFFFFF : n);
+    int r   = recv(sf_to_socket(s), (char *)buf, len, 0);
+    if (r == SOCKET_ERROR) {
+        LOG_SOCK_ERROR("recv() failed");
+        return -1;
+    }
+    return (i64)r;
+}
+
+static i64 plat_send(SockFd s, const void *buf, size n) {
+    int len = (int)((n > (size)0x7FFFFFFF) ? (size)0x7FFFFFFF : n);
+    // No MSG_NOSIGNAL needed -- Winsock doesn't raise SIGPIPE.
+    int r = send(sf_to_socket(s), (const char *)buf, len, 0);
+    if (r == SOCKET_ERROR) {
+        LOG_SOCK_ERROR("send() failed");
+        return -1;
+    }
+    return (i64)r;
+}
+
+static bool plat_setsockopt(SockFd s, int level, int optname, const void *optval, u32 optlen) {
+    if (setsockopt(sf_to_socket(s), level, optname, (const char *)optval, (int)optlen) == SOCKET_ERROR) {
+        LOG_SOCK_ERROR("setsockopt() failed");
+        return false;
+    }
+    return true;
+}
+
+static bool plat_getsockname(SockFd s, void *addr, u32 *len_io) {
+    int sl = (int)*len_io;
+    if (getsockname(sf_to_socket(s), (struct sockaddr *)addr, &sl) == SOCKET_ERROR) {
+        LOG_SOCK_ERROR("getsockname() failed");
+        return false;
+    }
+    *len_io = (u32)sl;
+    return true;
+}
+
+static void plat_close(SockFd s) {
+    if (s == MISRA_SOCK_FD_INVALID)
+        return;
+    if (closesocket(sf_to_socket(s)) == SOCKET_ERROR) {
+        LOG_SOCK_ERROR("closesocket() failed");
+    }
+}
+
+static bool plat_set_nonblocking(SockFd s, bool nonblock) {
+    u_long mode = nonblock ? 1u : 0u;
+    if (ioctlsocket(sf_to_socket(s), FIONBIO, &mode) == SOCKET_ERROR) {
+        LOG_SOCK_ERROR("ioctlsocket(FIONBIO) failed");
+        return false;
+    }
+    return true;
+}
+
+#else  // POSIX
+
+static SockFd plat_socket(int af, int type, int proto) {
+    int fd = socket(af, type, proto);
+    if (fd < 0) {
+        LOG_SOCK_ERROR("socket() failed");
+        return MISRA_SOCK_FD_INVALID;
+    }
+    return int_to_sf(fd);
+}
+
+static bool plat_bind(SockFd s, const void *addr, u32 len) {
+    if (bind(sf_to_int(s), (const struct sockaddr *)addr, (socklen_t)len) < 0) {
+        LOG_SOCK_ERROR("bind() failed");
+        return false;
+    }
+    return true;
+}
+
+static bool plat_listen(SockFd s, int backlog) {
+    if (listen(sf_to_int(s), backlog) < 0) {
+        LOG_SOCK_ERROR("listen() failed");
+        return false;
+    }
+    return true;
+}
+
+static SockFd plat_accept(SockFd s, void *addr, u32 *len_io) {
+    socklen_t sl = (socklen_t)*len_io;
+    int       c  = accept(sf_to_int(s), (struct sockaddr *)addr, &sl);
+    if (c < 0) {
+        LOG_SOCK_ERROR("accept() failed");
+        return MISRA_SOCK_FD_INVALID;
+    }
+    *len_io = (u32)sl;
+    return int_to_sf(c);
+}
+
+static bool plat_connect(SockFd s, const void *addr, u32 len) {
+    if (connect(sf_to_int(s), (const struct sockaddr *)addr, (socklen_t)len) < 0) {
+        LOG_SOCK_ERROR("connect() failed");
+        return false;
+    }
+    return true;
+}
+
+static i64 plat_recv(SockFd s, void *buf, size n) {
+    ssize_t r = recv(sf_to_int(s), buf, (size_t)n, 0);
+    if (r < 0) {
+        LOG_SOCK_ERROR("recv() failed");
+        return -1;
+    }
+    return (i64)r;
+}
+
+static i64 plat_send(SockFd s, const void *buf, size n) {
+    ssize_t r = send(sf_to_int(s), buf, (size_t)n, MSG_NOSIGNAL);
+    if (r < 0) {
+        LOG_SOCK_ERROR("send() failed");
+        return -1;
+    }
+    return (i64)r;
+}
+
+static bool plat_setsockopt(SockFd s, int level, int optname, const void *optval, u32 optlen) {
+    if (setsockopt(sf_to_int(s), level, optname, optval, (socklen_t)optlen) < 0) {
+        LOG_SOCK_ERROR("setsockopt() failed");
+        return false;
+    }
+    return true;
+}
+
+static bool plat_getsockname(SockFd s, void *addr, u32 *len_io) {
+    socklen_t sl = (socklen_t)*len_io;
+    if (getsockname(sf_to_int(s), (struct sockaddr *)addr, &sl) < 0) {
+        LOG_SOCK_ERROR("getsockname() failed");
+        return false;
+    }
+    *len_io = (u32)sl;
+    return true;
+}
+
+static void plat_close(SockFd s) {
+    if (s == MISRA_SOCK_FD_INVALID)
+        return;
+    if (close(sf_to_int(s)) < 0) {
+        LOG_SOCK_ERROR("close() failed");
+    }
+}
+
+static bool plat_set_nonblocking(SockFd s, bool nonblock) {
+    int flags = fcntl(sf_to_int(s), F_GETFL, 0);
+    if (flags < 0) {
+        LOG_SOCK_ERROR("fcntl(F_GETFL) failed");
+        return false;
+    }
+    if (nonblock) {
+        flags |= O_NONBLOCK;
+    } else {
+        flags &= ~O_NONBLOCK;
+    }
+    if (fcntl(sf_to_int(s), F_SETFL, flags) < 0) {
+        LOG_SOCK_ERROR("fcntl(F_SETFL) failed");
+        return false;
+    }
+    return true;
+}
+
+#endif // _WIN32
+
+// ---------------------------------------------------------------------------
 // Listener
 // ---------------------------------------------------------------------------
 
@@ -598,6 +864,7 @@ bool ListenerOpen(Listener *out, SocketKind kind, const SocketAddr *addr, i32 ba
         return false;
     }
     MemSet(out, 0, sizeof(*out));
+    out->fd = MISRA_SOCK_FD_INVALID;
 
     i32 af       = socket_family_to_af(addr->family);
     i32 socktype = sock_kind_to_socktype(kind);
@@ -607,29 +874,38 @@ bool ListenerOpen(Listener *out, SocketKind kind, const SocketAddr *addr, i32 ba
         return false;
     }
 
-    i32 fd = socket(af, socktype, proto);
-    if (fd < 0) {
-        LOG_SYS_ERROR("ListenerOpen: socket() failed");
+    SockFd fd = plat_socket(af, socktype, proto);
+    if (fd == MISRA_SOCK_FD_INVALID) {
         return false;
     }
 
+    // "Let me restart my server without TIME_WAIT pain" semantics:
+    //   - POSIX: SO_REUSEADDR (rebinding allowed; another *process* still
+    //     gets EADDRINUSE -- safe).
+    //   - Windows: SO_EXCLUSIVEADDRUSE (locks the port to us; SO_REUSEADDR
+    //     on Windows lets other processes hijack -- never use it on a
+    //     server).
     i32 yes = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) < 0) {
-        LOG_SYS_ERROR("ListenerOpen: setsockopt(SO_REUSEADDR) failed");
-        close(fd);
+#ifdef _WIN32
+    if (!plat_setsockopt(fd, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, &yes, sizeof(yes))) {
+        plat_close(fd);
         return false;
     }
+#else
+    if (!plat_setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes))) {
+        plat_close(fd);
+        return false;
+    }
+#endif
 
-    if (bind(fd, (const struct sockaddr *)addr->raw, (socklen_t)addr->length) < 0) {
-        LOG_SYS_ERROR("ListenerOpen: bind() failed");
-        close(fd);
+    if (!plat_bind(fd, addr->raw, addr->length)) {
+        plat_close(fd);
         return false;
     }
 
     if (kind == SOCKET_KIND_TCP) {
-        if (listen(fd, backlog > 0 ? backlog : 128) < 0) {
-            LOG_SYS_ERROR("ListenerOpen: listen() failed");
-            close(fd);
+        if (!plat_listen(fd, backlog > 0 ? backlog : 128)) {
+            plat_close(fd);
             return false;
         }
     }
@@ -640,24 +916,39 @@ bool ListenerOpen(Listener *out, SocketKind kind, const SocketAddr *addr, i32 ba
     return true;
 }
 
+bool ListenerLocalAddr(const Listener *self, SocketAddr *out) {
+    if (!self || !out) {
+        LOG_ERROR("ListenerLocalAddr: NULL argument");
+        return false;
+    }
+    MemSet(out, 0, sizeof(*out));
+    u8  buf[SOCKET_ADDR_MAX_SIZE];
+    u32 len = (u32)sizeof(buf);
+    if (!plat_getsockname(self->fd, buf, &len)) {
+        return false;
+    }
+    fill_socket_addr_from_sockaddr(out, buf, len);
+    return true;
+}
+
 bool ListenerAccept(Listener *self, Socket *out_conn) {
     if (!self || !out_conn) {
         LOG_ERROR("ListenerAccept: NULL argument");
         return false;
     }
     MemSet(out_conn, 0, sizeof(*out_conn));
+    out_conn->fd = MISRA_SOCK_FD_INVALID;
 
-    struct sockaddr_storage peer;
-    socklen_t               peer_len = sizeof(peer);
-    i32                     cfd      = accept(self->fd, (struct sockaddr *)&peer, &peer_len);
-    if (cfd < 0) {
-        LOG_SYS_ERROR("ListenerAccept: accept() failed");
+    u8     peer[SOCKET_ADDR_MAX_SIZE];
+    u32    peer_len = (u32)sizeof(peer);
+    SockFd cfd      = plat_accept(self->fd, peer, &peer_len);
+    if (cfd == MISRA_SOCK_FD_INVALID) {
         return false;
     }
 
     out_conn->fd   = cfd;
     out_conn->kind = self->kind;
-    fill_socket_addr_from_sockaddr(&out_conn->peer, (const struct sockaddr *)&peer, peer_len);
+    fill_socket_addr_from_sockaddr(&out_conn->peer, peer, peer_len);
     return true;
 }
 
@@ -665,12 +956,11 @@ void ListenerClose(Listener *self) {
     if (!self) {
         return;
     }
-    if (self->fd > 0) {
-        if (close(self->fd) < 0) {
-            LOG_SYS_ERROR("ListenerClose: close() failed");
-        }
+    if (self->fd != MISRA_SOCK_FD_INVALID) {
+        plat_close(self->fd);
     }
     MemSet(self, 0, sizeof(*self));
+    self->fd = MISRA_SOCK_FD_INVALID;
 }
 
 // ---------------------------------------------------------------------------
@@ -683,6 +973,7 @@ bool SocketConnect(Socket *out, SocketKind kind, const SocketAddr *target) {
         return false;
     }
     MemSet(out, 0, sizeof(*out));
+    out->fd = MISRA_SOCK_FD_INVALID;
 
     i32 af       = socket_family_to_af(target->family);
     i32 socktype = sock_kind_to_socktype(kind);
@@ -692,15 +983,13 @@ bool SocketConnect(Socket *out, SocketKind kind, const SocketAddr *target) {
         return false;
     }
 
-    i32 fd = socket(af, socktype, proto);
-    if (fd < 0) {
-        LOG_SYS_ERROR("SocketConnect: socket() failed");
+    SockFd fd = plat_socket(af, socktype, proto);
+    if (fd == MISRA_SOCK_FD_INVALID) {
         return false;
     }
 
-    if (connect(fd, (const struct sockaddr *)target->raw, (socklen_t)target->length) < 0) {
-        LOG_SYS_ERROR("SocketConnect: connect() failed");
-        close(fd);
+    if (!plat_connect(fd, target->raw, target->length)) {
+        plat_close(fd);
         return false;
     }
 
@@ -715,12 +1004,7 @@ i64 SocketRecv(Socket *self, void *buf, size n) {
         LOG_ERROR("SocketRecv: NULL argument");
         return -1;
     }
-    ssize_t ret = recv(self->fd, buf, (size_t)n, 0);
-    if (ret < 0) {
-        LOG_SYS_ERROR("SocketRecv: recv() failed");
-        return -1;
-    }
-    return (i64)ret;
+    return plat_recv(self->fd, buf, n);
 }
 
 i64 SocketSend(Socket *self, const void *buf, size n) {
@@ -728,100 +1012,80 @@ i64 SocketSend(Socket *self, const void *buf, size n) {
         LOG_ERROR("SocketSend: NULL argument");
         return -1;
     }
-    ssize_t ret = send(self->fd, buf, (size_t)n, MSG_NOSIGNAL);
-    if (ret < 0) {
-        LOG_SYS_ERROR("SocketSend: send() failed");
-        return -1;
-    }
-    return (i64)ret;
+    return plat_send(self->fd, buf, n);
 }
 
 void SocketClose(Socket *self) {
     if (!self) {
         return;
     }
-    if (self->fd > 0) {
-        if (close(self->fd) < 0) {
-            LOG_SYS_ERROR("SocketClose: close() failed");
-        }
+    if (self->fd != MISRA_SOCK_FD_INVALID) {
+        plat_close(self->fd);
     }
     MemSet(self, 0, sizeof(*self));
+    self->fd = MISRA_SOCK_FD_INVALID;
 }
 
 // ---------------------------------------------------------------------------
 // Options
 // ---------------------------------------------------------------------------
 
-bool SocketSetNonBlocking(i32 fd, bool nonblock) {
-    i32 flags = fcntl(fd, F_GETFL, 0);
-    if (flags < 0) {
-        LOG_SYS_ERROR("SocketSetNonBlocking: fcntl(F_GETFL) failed");
-        return false;
-    }
-    if (nonblock) {
-        flags |= O_NONBLOCK;
-    } else {
-        flags &= ~O_NONBLOCK;
-    }
-    if (fcntl(fd, F_SETFL, flags) < 0) {
-        LOG_SYS_ERROR("SocketSetNonBlocking: fcntl(F_SETFL) failed");
-        return false;
-    }
-    return true;
+bool SocketSetNonBlocking(SockFd fd, bool nonblock) {
+    return plat_set_nonblocking(fd, nonblock);
 }
 
-bool SocketSetNoDelay(i32 fd, bool nodelay) {
+bool SocketSetNoDelay(SockFd fd, bool nodelay) {
     i32 v = nodelay ? 1 : 0;
-    if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v)) < 0) {
-        LOG_SYS_ERROR("SocketSetNoDelay: setsockopt(TCP_NODELAY) failed");
-        return false;
-    }
-    return true;
+    return plat_setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, sizeof(v));
 }
 
-bool SocketSetKeepAlive(i32 fd, bool keepalive) {
+bool SocketSetKeepAlive(SockFd fd, bool keepalive) {
     i32 v = keepalive ? 1 : 0;
-    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &v, sizeof(v)) < 0) {
-        LOG_SYS_ERROR("SocketSetKeepAlive: setsockopt(SO_KEEPALIVE) failed");
-        return false;
-    }
-    return true;
+    return plat_setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &v, sizeof(v));
 }
 
-bool SocketSetReuseAddr(i32 fd, bool reuse) {
+bool SocketSetReuseAddr(SockFd fd, bool reuse) {
     i32 v = reuse ? 1 : 0;
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(v)) < 0) {
-        LOG_SYS_ERROR("SocketSetReuseAddr: setsockopt(SO_REUSEADDR) failed");
-        return false;
-    }
-    return true;
+#ifdef _WIN32
+    return plat_setsockopt(fd, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, &v, sizeof(v));
+#else
+    return plat_setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(v));
+#endif
 }
 
-bool SocketSetRecvTimeoutMs(i32 fd, u32 ms) {
+bool SocketSetRecvTimeoutMs(SockFd fd, u32 ms) {
+#ifdef _WIN32
+    DWORD tv = (DWORD)ms;
+    return plat_setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+#else
     struct timeval tv;
     tv.tv_sec  = (long)(ms / 1000);
     tv.tv_usec = (long)((ms % 1000) * 1000);
-    if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-        LOG_SYS_ERROR("SocketSetRecvTimeoutMs: setsockopt(SO_RCVTIMEO) failed");
-        return false;
-    }
-    return true;
+    return plat_setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+#endif
 }
 
-bool SocketSetSendTimeoutMs(i32 fd, u32 ms) {
+bool SocketSetSendTimeoutMs(SockFd fd, u32 ms) {
+#ifdef _WIN32
+    DWORD tv = (DWORD)ms;
+    return plat_setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+#else
     struct timeval tv;
     tv.tv_sec  = (long)(ms / 1000);
     tv.tv_usec = (long)((ms % 1000) * 1000);
-    if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) < 0) {
-        LOG_SYS_ERROR("SocketSetSendTimeoutMs: setsockopt(SO_SNDTIMEO) failed");
-        return false;
-    }
-    return true;
+    return plat_setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+#endif
 }
 
 // ---------------------------------------------------------------------------
 // Multiplexing
 // ---------------------------------------------------------------------------
+
+#ifdef _WIN32
+typedef WSAPOLLFD plat_pollfd_t;
+#else
+typedef struct pollfd plat_pollfd_t;
+#endif
 
 i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
     if (!items && count > 0) {
@@ -829,18 +1093,16 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
         return -1;
     }
 
-    // Stack array for small counts, heap fallback for large ones. The
-    // crossover is a guess; tune if it matters.
     enum {
         STACK_MAX = 64
     };
-    struct pollfd  stack_pfds[STACK_MAX];
-    struct pollfd *pfds = stack_pfds;
+    plat_pollfd_t  stack_pfds[STACK_MAX];
+    plat_pollfd_t *pfds = stack_pfds;
     HeapAllocator  halloc;
     bool           used_heap = false;
     if (count > STACK_MAX) {
         halloc = HeapAllocatorInit();
-        pfds   = (struct pollfd *)AllocatorAlloc(ALLOCATOR_OF(&halloc), sizeof(struct pollfd) * count, true);
+        pfds   = (plat_pollfd_t *)AllocatorAlloc(ALLOCATOR_OF(&halloc), sizeof(plat_pollfd_t) * count, true);
         if (!pfds) {
             HeapAllocatorDeinit(&halloc);
             LOG_ERROR("SocketPoll: heap allocation for pollfd array failed");
@@ -850,7 +1112,11 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
     }
 
     for (u32 i = 0; i < count; ++i) {
-        pfds[i].fd     = items[i].fd;
+#ifdef _WIN32
+        pfds[i].fd = sf_to_socket(items[i].fd);
+#else
+        pfds[i].fd = sf_to_int(items[i].fd);
+#endif
         pfds[i].events = 0;
         if (items[i].events_requested & SOCKET_POLL_READ) {
             pfds[i].events |= POLLIN;
@@ -862,13 +1128,25 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
     }
 
     i32 ret;
+#ifdef _WIN32
+    // WSAPoll on Win10 2004+ is correct; older Windows had a bug on
+    // failed connect that we'd need a select() fallback for. We accept
+    // the modern-Windows-only constraint.
+    ret = (i32)WSAPoll(pfds, (ULONG)count, timeout_ms);
+    if (ret == SOCKET_ERROR) {
+        LOG_SOCK_ERROR("WSAPoll() failed");
+        ret = -1;
+    }
+#else
     do {
         ret = poll(pfds, (nfds_t)count, timeout_ms);
     } while (ret < 0 && errno == EINTR);
-
     if (ret < 0) {
-        LOG_SYS_ERROR("SocketPoll: poll() failed");
-    } else {
+        LOG_SOCK_ERROR("poll() failed");
+    }
+#endif
+
+    if (ret >= 0) {
         for (u32 i = 0; i < count; ++i) {
             u32 ready = 0;
             if (pfds[i].revents & POLLIN) {
@@ -885,7 +1163,7 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
     }
 
     if (used_heap) {
-        AllocatorFree(ALLOCATOR_OF(&halloc), pfds, sizeof(struct pollfd) * count);
+        AllocatorFree(ALLOCATOR_OF(&halloc), pfds, sizeof(plat_pollfd_t) * count);
         HeapAllocatorDeinit(&halloc);
     }
     return ret;

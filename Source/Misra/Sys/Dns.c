@@ -18,9 +18,35 @@
 
 #include "../_Syscall.h"
 
-#include <netinet/in.h>
 #include <stdint.h>
-#include <sys/socket.h>
+
+// Platform default paths for the two config files we read. POSIX
+// (Linux + macOS): the well-known /etc paths. Windows: the same files
+// live under `%SystemRoot%\System32\drivers\etc`, which historically
+// resolves to `C:\Windows\System32\drivers\etc`. Windows machines
+// configured via DHCP usually leave `hosts` and `resolv.conf` empty
+// (real nameservers live in the registry / iphlpapi), so the DNS
+// path will often have an empty nameserver table on Windows -- users
+// who need lookups should populate `resolver->nameservers` directly
+// or wait for the iphlpapi-backed reader in a follow-up.
+#ifdef _WIN32
+#    define HOSTS_FILE_PATH       "C:\\Windows\\System32\\drivers\\etc\\hosts"
+#    define RESOLV_CONF_FILE_PATH "C:\\Windows\\System32\\drivers\\etc\\resolv.conf"
+// Pull in Winsock's `sockaddr_in` / `sockaddr_in6` so the sockaddr_v4 /
+// sockaddr_v6 builders below compile. The same headers are used inside
+// Sys/Socket.c -- order (winsock2.h before windows.h) is the documented
+// requirement.
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#    endif
+#    include <winsock2.h>
+#    include <ws2tcpip.h>
+#else
+#    define HOSTS_FILE_PATH       "/etc/hosts"
+#    define RESOLV_CONF_FILE_PATH "/etc/resolv.conf"
+#    include <netinet/in.h>
+#    include <sys/socket.h>
+#endif
 
 // ---------------------------------------------------------------------------
 // IP literal parsers (duplicated from Sys/Socket -- the parsers are
@@ -227,7 +253,7 @@ static bool slurp_file(const char *path, Str *out) {
 
 static void parse_hosts_table(HostsTable *table, Allocator *alloc) {
     Str buf = StrInit(alloc);
-    if (!slurp_file("/etc/hosts", &buf)) {
+    if (!slurp_file(HOSTS_FILE_PATH, &buf)) {
         StrDeinit(&buf);
         return;
     }
@@ -321,7 +347,7 @@ static void parse_hosts_table(HostsTable *table, Allocator *alloc) {
 
 static void parse_resolv_conf(DnsAddrs *out, Allocator *alloc) {
     Str buf = StrInit(alloc);
-    if (!slurp_file("/etc/resolv.conf", &buf)) {
+    if (!slurp_file(RESOLV_CONF_FILE_PATH, &buf)) {
         StrDeinit(&buf);
         return;
     }
