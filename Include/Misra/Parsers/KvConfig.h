@@ -55,7 +55,7 @@ typedef Map(Str, Str) KvConfig;
         str_deinit,                                                                                                    \
         str_init_copy,                                                                                                 \
         str_deinit,                                                                                                    \
-        MisraMapPolicyLinear,                                                                                          \
+        MapPolicyLinear,                                                                                          \
         (allocator_ptr)                                                                                                \
     )
 

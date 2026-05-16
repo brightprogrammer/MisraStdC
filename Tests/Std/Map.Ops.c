@@ -91,12 +91,12 @@ static bool test_map_policy_switch_preserves_entries(void) {
     MapInsertR(&map, "red", "cherry");
     MapSetOnlyR(&map, "yellow", "banana");
     MapSetOnlyR(&map, "green", "pear");
-    MapRehashWithPolicy(&map, MapPairCount(&map), MisraMapPolicyQuadratic);
+    MapRehashWithPolicy(&map, MapPairCount(&map), MapPolicyQuadratic);
 
-    bool result = (map.policy.first_index == MisraMapPolicyQuadratic.first_index) &&
-                  (map.policy.next_index == MisraMapPolicyQuadratic.next_index) &&
-                  (map.policy.next_capacity == MisraMapPolicyQuadratic.next_capacity) &&
-                  (map.policy.should_rehash == MisraMapPolicyQuadratic.should_rehash);
+    bool result = (map.policy.first_index == MapPolicyQuadratic.first_index) &&
+                  (map.policy.next_index == MapPolicyQuadratic.next_index) &&
+                  (map.policy.next_capacity == MapPolicyQuadratic.next_capacity) &&
+                  (map.policy.should_rehash == MapPolicyQuadratic.should_rehash);
     result = result && (MapValueCountForKey(&map, "red") == 2);
     result = result && MapGetFirstPtr(&map, "red") && (ZstrCompare(*MapGetFirstPtr(&map, "red"), "apple") == 0);
     result = result && MapGetFirstPtr(&map, "yellow") && (ZstrCompare(*MapGetFirstPtr(&map, "yellow"), "banana") == 0);

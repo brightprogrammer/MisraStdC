@@ -59,11 +59,11 @@ static bool test_map_type_defaults(void) {
     bool result =
         map.length == 0 && map.capacity == 0 && map.tombstones == 0 && map.entries == NULL && map.states == NULL &&
         map.key_compare == i32_compare && map.value_compare == NULL && map.key_hash == i32_hash &&
-        map.policy.should_rehash == MisraMapPolicyLinear.should_rehash &&
-        map.policy.next_capacity == MisraMapPolicyLinear.next_capacity &&
-        map.policy.first_index == MisraMapPolicyLinear.first_index &&
-        map.policy.next_index == MisraMapPolicyLinear.next_index &&
-        map.policy.max_probe_count == MisraMapPolicyLinear.max_probe_count;
+        map.policy.should_rehash == MapPolicyLinear.should_rehash &&
+        map.policy.next_capacity == MapPolicyLinear.next_capacity &&
+        map.policy.first_index == MapPolicyLinear.first_index &&
+        map.policy.next_index == MapPolicyLinear.next_index &&
+        map.policy.max_probe_count == MapPolicyLinear.max_probe_count;
 
     MapDeinit(&map);
     DefaultAllocatorDeinit(&alloc);

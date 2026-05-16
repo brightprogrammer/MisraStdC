@@ -86,12 +86,12 @@ static bool test_map_rehash_policy_switch(void) {
         MapSetOnlyR(&map, i, i * 10);
     }
 
-    MapRehashWithPolicy(&map, MapPairCount(&map), MisraMapPolicyQuadratic);
+    MapRehashWithPolicy(&map, MapPairCount(&map), MapPolicyQuadratic);
 
-    bool result = (map.policy.first_index == MisraMapPolicyQuadratic.first_index) &&
-                  (map.policy.next_index == MisraMapPolicyQuadratic.next_index) &&
-                  (map.policy.next_capacity == MisraMapPolicyQuadratic.next_capacity) &&
-                  (map.policy.should_rehash == MisraMapPolicyQuadratic.should_rehash);
+    bool result = (map.policy.first_index == MapPolicyQuadratic.first_index) &&
+                  (map.policy.next_index == MapPolicyQuadratic.next_index) &&
+                  (map.policy.next_capacity == MapPolicyQuadratic.next_capacity) &&
+                  (map.policy.should_rehash == MapPolicyQuadratic.should_rehash);
 
     for (int i = 0; i < 24; i++) {
         int *value = MapGetFirstPtr(&map, i);

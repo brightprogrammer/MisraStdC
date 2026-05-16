@@ -155,7 +155,7 @@ MapPolicy validate_map_policy_copy(MapPolicy policy) {
     return policy;
 }
 
-const MapPolicy MisraMapPolicyLinear = {
+const MapPolicy MapPolicyLinear = {
     .name            = "linear",
     .should_rehash   = default_should_rehash,
     .next_capacity   = default_next_capacity,
@@ -164,7 +164,7 @@ const MapPolicy MisraMapPolicyLinear = {
     .max_probe_count = 128,
 };
 
-const MapPolicy MisraMapPolicyQuadratic = {
+const MapPolicy MapPolicyQuadratic = {
     .name            = "quadratic",
     .should_rehash   = default_should_rehash,
     .next_capacity   = default_next_capacity,

@@ -84,14 +84,14 @@ typedef struct {
 ///
 /// INFO: This is the best general-purpose starting point when you do not have a workload-specific reason to choose something else.
 ///
-extern const MapPolicy MisraMapPolicyLinear;
+extern const MapPolicy MapPolicyLinear;
 
 ///
 /// Built-in quadratic probing policy.
 ///
 /// INFO: This is useful when you want to reduce clustering pressure while keeping the same `Map` API and runtime ownership model.
 ///
-extern const MapPolicy MisraMapPolicyQuadratic;
+extern const MapPolicy MapPolicyQuadratic;
 
 typedef struct {
     size __index;

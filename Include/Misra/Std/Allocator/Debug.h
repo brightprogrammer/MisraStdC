@@ -185,7 +185,7 @@ extern "C" {
      .key_hash          = (GenericHash)debug_ptr_hash,                                                                 \
      .entries           = NULL,                                                                                        \
      .states            = NULL,                                                                                        \
-     .policy            = MisraMapPolicyLinear,                                                                        \
+     .policy            = MapPolicyLinear,                                                                        \
      .allocator         = NULL,                                                                                        \
      .__magic           = MISRA_MAP_MAGIC}
 

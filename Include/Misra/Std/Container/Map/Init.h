@@ -54,7 +54,7 @@
 #define MapInit(...)                   MISRA_OVERLOAD(MapInit, __VA_ARGS__)
 #define MapInit_2(hash_fn, compare_fn) MapInit_3(hash_fn, compare_fn, MisraScope)
 #define MapInit_3(hash_fn, compare_fn, typed_alloc_ptr)                                                                \
-    MapInitFull_9((hash_fn), (compare_fn), NULL, NULL, NULL, NULL, NULL, MisraMapPolicyLinear, typed_alloc_ptr)
+    MapInitFull_9((hash_fn), (compare_fn), NULL, NULL, NULL, NULL, NULL, MapPolicyLinear, typed_alloc_ptr)
 
 ///
 /// Initialize a map with key/value comparators.
@@ -71,7 +71,7 @@
         NULL,                                                                                                          \
         NULL,                                                                                                          \
         NULL,                                                                                                          \
-        MisraMapPolicyLinear,                                                                                          \
+        MapPolicyLinear,                                                                                          \
         typed_alloc_ptr                                                                                                \
     )
 
@@ -108,7 +108,7 @@
         (key_cd),                                                                                                      \
         (value_ci),                                                                                                    \
         (value_cd),                                                                                                    \
-        MisraMapPolicyLinear,                                                                                          \
+        MapPolicyLinear,                                                                                          \
         typed_alloc_ptr                                                                                                \
     )
 
