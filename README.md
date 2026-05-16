@@ -106,10 +106,12 @@ when the `Scope` ends.
 
 ## What You Get
 
-- **Five concrete allocators**, all user-owned, all per-descriptor:
+- **Six concrete allocators**, all user-owned, all per-descriptor:
   `HeapAllocator` (binned), `PageAllocator` (raw OS pages), `ArenaAllocator`
-  (bump), `SlabAllocator` (growable fixed-slot pool), and `BudgetAllocator`
-  (caller-buffer, fixed-budget, no-growth).
+  (bump), `SlabAllocator` (growable fixed-slot pool), `BudgetAllocator`
+  (caller-buffer, fixed-budget, no-growth), and `DebugAllocator` (ASan-style
+  leak / double-free / canary-overflow / use-after-free detection — opt-in
+  process-wide via the `default_alloc_debug` build flag).
 - **Generic containers** built on a shared runtime: `Vec(T)`, `List(T)`,
   `Map(K,V)`, `Graph(T)`, `BitVec`, `Str` (= `Vec(char)`), `Strs` (= `Vec(Str)`).
 - **Arbitrary-precision arithmetic:** `Int` on top of `BitVec`, `Float` on top
@@ -172,24 +174,29 @@ the default build. Adding `int` automatically pulls in `bitvec`; adding
 
 ## Feature Flags
 
-| Flag                  | Adds                                                     | Auto-pulls       |
-|-----------------------|----------------------------------------------------------|------------------|
-| `alloc_arena`         | `ArenaAllocator`                                         | —                |
-| `alloc_slab`          | `SlabAllocator` (growable fixed-slot pool)               | —                |
-| `alloc_budget`        | `BudgetAllocator` (caller-buffer, fixed-budget)          | —                |
-| `alloc_stats`         | Per-`Allocator` byte / call / peak counters              | —                |
-| `bitvec`              | `BitVec` packed bit container                            | —                |
-| `list`                | `List(T)` doubly-linked list                             | —                |
-| `map`                 | `Map(K,V)` hash map                                      | —                |
-| `graph`               | `Graph(T)` directed graph (uses `Vec` runtime helpers)   | —                |
-| `int`                 | Arbitrary-precision integer `Int`                        | `bitvec`         |
-| `float`               | Arbitrary-precision decimal `Float`                      | `int → bitvec`   |
-| `file`                | `ReadCompleteFile(...)` and file helpers                 | —                |
-| `iter`                | Generic `Iter(T)` iteration helpers                      | —                |
-| `sys_dir`             | `DirGetContents(...)` and friends                     | —                |
-| `sys_proc`            | `ProcCreate(...)` / spawn / wait                      | —                |
-| `parser_json`         | JSON read/write                                          | —                |
-| `parser_kvconfig`     | Key-value config parser                                  | `map`            |
+| Flag                              | Adds                                                                                                                | Auto-pulls                       |
+|-----------------------------------|---------------------------------------------------------------------------------------------------------------------|----------------------------------|
+| `alloc_arena`                     | `ArenaAllocator`                                                                                                    | —                                |
+| `alloc_slab`                      | `SlabAllocator` (growable fixed-slot pool)                                                                          | —                                |
+| `alloc_budget`                    | `BudgetAllocator` (caller-buffer, fixed-budget)                                                                     | —                                |
+| `alloc_stats`                     | Per-`Allocator` byte / call / peak counters                                                                         | —                                |
+| `alloc_debug`                     | `DebugAllocator` (leak / double-free / canary-overflow / stack-trace tracking)                                      | `map`, `sys_backtrace`           |
+| `default_alloc_debug`             | Alias `DefaultAllocator` to `DebugAllocator` everywhere — drop-in ASan/MSan-style with no call-site changes         | `alloc_debug`                    |
+| `default_alloc_debug_page_backed` | Layer page-backed UAF detection on top: every alloc consumes whole pages, free `PROT_NONE`s the region              | `default_alloc_debug`            |
+| `bitvec`                          | `BitVec` packed bit container                                                                                       | —                                |
+| `list`                            | `List(T)` doubly-linked list                                                                                        | —                                |
+| `map`                             | `Map(K,V)` hash map                                                                                                 | —                                |
+| `graph`                           | `Graph(T)` directed graph (uses `Vec` runtime helpers)                                                              | —                                |
+| `int`                             | Arbitrary-precision integer `Int`                                                                                   | `bitvec`                         |
+| `float`                           | Arbitrary-precision decimal `Float`                                                                                 | `int → bitvec`                   |
+| `file`                            | `File` cross-platform handle + `ReadCompleteFile(...)`                                                              | —                                |
+| `iter`                            | Generic `Iter(T)` iteration helpers                                                                                 | —                                |
+| `sys_dir`                         | `DirGetContents(...)` and friends                                                                                   | —                                |
+| `sys_proc`                        | `ProcCreate(...)` / spawn / wait                                                                                    | —                                |
+| `sys_socket`                      | BSD-sockets API (`Listener`, `Socket`, `SocketPoll`)                                                                | —                                |
+| `sys_backtrace`                   | `CaptureStackTrace` / `FormatStackTrace`, plus the in-tree symbolizer chain on Linux                                | `parser_elf`, `parser_dwarf` (Linux); `parser_macho` (macOS); `parser_pdb`, `parser_pe` (Windows) |
+| `parser_json`                     | JSON read/write                                                                                                     | —                                |
+| `parser_kvconfig`                 | Key-value config parser                                                                                             | `map`                            |
 
 Every enabled feature also defines `MISRA_HAVE_<NAME>` (= 1) in the
 generated `Misra/Config.h`. User code can `#if MISRA_HAVE_BITVEC` to compile
@@ -282,6 +289,17 @@ The library ships five backends:
 - **`BudgetAllocator`** — caller hands in a fixed memory region at init;
   slots are carved out of it and never replenished. Best fit for
   freestanding contexts or hard caps.
+- **`DebugAllocator`** — wraps an internally-owned `HeapAllocator` and a
+  per-thread tracking map so every live allocation is bookkept. Catches
+  leaks (reported with the captured allocation stack trace at
+  `DebugAllocatorDeinit` time), double-frees, and canary-pattern overflow
+  past the user region. Optional `force_page_backing` config routes every
+  allocation through `mmap` and `PageProtect(PROT_NONE)`s the region on
+  free so use-after-free traps with SIGSEGV at the moment of the bug. Set
+  the `default_alloc_debug` meson option to make `DefaultAllocator`
+  silently become a `DebugAllocator` everywhere — drop-in ASan/MSan-style
+  detection with no call-site changes, no globals, init-by-value like the
+  other backends.
 
 The library defines a small `_Generic` whitelist (`ALLOCATOR_OF`) so any of
 these can pass anywhere an `Allocator *` is expected.
@@ -701,7 +719,8 @@ Scope(alloc, DefaultAllocator) {
 - `StrWriteFmt(&str, fmt, ...)` / `StrReadFmt(cursor, fmt, ...)`
 - `FWriteFmt(file, fmt, ...)` / `FWriteFmtLn(...)` / `FReadFmt(file, fmt, ...)`
 - `WriteFmt(fmt, ...)` / `WriteFmtLn(fmt, ...)` / `ReadFmt(fmt, ...)`
-  (stdout / stdin)
+  (normal output / standard input channel — `FileFromFd(1)` / `FileFromFd(0)`
+  on POSIX, the corresponding `GetStdHandle` on Windows)
 
 ---
 
