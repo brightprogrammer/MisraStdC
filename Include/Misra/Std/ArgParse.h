@@ -140,10 +140,19 @@ extern "C" {
     /// `name` and `about` pointers are borrowed -- they must outlive
     /// the parser (string literals are the typical case).
     ///
+    /// Two call shapes, like `StrInit` / `VecInitT`:
+    ///   `ArgParseInit(name, about)`        -- uses the surrounding
+    ///                                          `Scope`'s allocator.
+    ///   `ArgParseInit(name, about, alloc)` -- explicit allocator.
+    ///
     /// SUCCESS: Returns an initialized parser.
     /// FAILURE: Aborts via `LOG_FATAL` on allocator OOM.
     ///
-    ArgParse ArgParseInit(const char *name, const char *about, Allocator *alloc);
+    ArgParse arg_parse_init(const char *name, const char *about, Allocator *alloc);
+
+#define ArgParseInit(...)                      MISRA_OVERLOAD(ArgParseInit, __VA_ARGS__)
+#define ArgParseInit_2(name, about)            arg_parse_init((name), (about), MisraScope)
+#define ArgParseInit_3(name, about, alloc_ptr) arg_parse_init((name), (about), (alloc_ptr))
 
     ///
     /// Release the spec Vec. Safe on a fully-initialised parser; not

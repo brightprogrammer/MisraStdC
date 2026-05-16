@@ -528,7 +528,7 @@ static bool try_one_query(
     return found;
 }
 
-bool DnsResolve(DnsResolver *self, const char *hostname, u16 port, SocketKind kind, DnsAddrs *out) {
+bool DnsResolve_5(DnsResolver *self, const char *hostname, u16 port, SocketKind kind, DnsAddrs *out) {
     (void)kind; // protocol byte doesn't affect resolution
     if (!self || !hostname || !out) {
         return false;
@@ -589,4 +589,80 @@ next_qtype:;
         LOG_ERROR("DnsResolve: no A/AAAA records found for \"{}\"", (const char *)hostname);
     }
     return found;
+}
+
+bool DnsResolve_4_vec(DnsResolver *self, const char *spec, SocketKind kind, DnsAddrs *out) {
+    if (!self || !spec || !out) {
+        return false;
+    }
+
+    // Numeric short-circuit -- SocketAddrParse handles both IPv4
+    // (`a.b.c.d:port`) and bracketed IPv6 (`[::1]:port`) without
+    // touching DNS or /etc/hosts. Most callers paying the cost of
+    // setting up a DnsResolver still expect numeric addresses to skip
+    // the network.
+    SocketAddr direct;
+    if (SocketAddrParse(&direct, spec, kind)) {
+        VecPushBackR(out, direct);
+        return true;
+    }
+
+    // Otherwise it's hostname:port. Split on the last ':'; hostnames
+    // never contain colons and the IPv6 case was eliminated by the
+    // SocketAddrParse attempt above.
+    u64 spec_len = ZstrLen(spec);
+    u64 colon_at = spec_len;
+    for (u64 i = spec_len; i > 0; --i) {
+        if (spec[i - 1] == ':') {
+            colon_at = i - 1;
+            break;
+        }
+    }
+    if (colon_at >= spec_len) {
+        LOG_ERROR("DnsResolve: spec \"{}\" has no \":port\"", (const char *)spec);
+        return false;
+    }
+    char host[256];
+    if (colon_at >= sizeof(host)) {
+        LOG_ERROR("DnsResolve: host portion of \"{}\" exceeds 255 bytes", (const char *)spec);
+        return false;
+    }
+    MemCopy(host, spec, colon_at);
+    host[colon_at] = '\0';
+
+    u16 port = 0;
+    for (u64 i = colon_at + 1; i < spec_len; ++i) {
+        char c = spec[i];
+        if (c < '0' || c > '9') {
+            LOG_ERROR("DnsResolve: non-numeric port in \"{}\"", (const char *)spec);
+            return false;
+        }
+        u32 next = (u32)port * 10u + (u32)(c - '0');
+        if (next > 0xFFFFu) {
+            LOG_ERROR("DnsResolve: port in \"{}\" out of range", (const char *)spec);
+            return false;
+        }
+        port = (u16)next;
+    }
+    // A bare "host:" with no digits after the colon is malformed.
+    if (colon_at + 1 == spec_len) {
+        LOG_ERROR("DnsResolve: empty port in \"{}\"", (const char *)spec);
+        return false;
+    }
+
+    return DnsResolve_5(self, host, port, kind, out);
+}
+
+bool DnsResolve_4_one(DnsResolver *self, const char *spec, SocketKind kind, SocketAddr *out) {
+    if (!self || !spec || !out) {
+        return false;
+    }
+    DnsAddrs addrs    = VecInitT(addrs, self->alloc);
+    bool     ok       = DnsResolve_4_vec(self, spec, kind, &addrs);
+    bool     have_one = ok && addrs.length > 0;
+    if (have_one) {
+        *out = addrs.data[0];
+    }
+    VecDeinit(&addrs);
+    return have_one;
 }

@@ -74,6 +74,149 @@ static bool test_dns_resolve_hosts_trailing_dot(void) {
     return got;
 }
 
+// 4-arg overload (vec): numeric IPv4 spec must short-circuit through
+// SocketAddrParse. Verify via SocketAddrFormat round-trip rather than
+// poking at SocketAddr's opaque `raw[]` bytes.
+static bool test_dns_resolve_spec_numeric_v4(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *a     = ALLOCATOR_OF(&alloc);
+
+    DnsResolver r;
+    DnsResolverInit(&r, a);
+
+    DnsAddrs out = VecInitT(out, a);
+    bool     got = DnsResolve(&r, "203.0.113.7:9999", SOCKET_KIND_TCP, &out);
+
+    bool ok = got && out.length == 1 && out.data[0].family == SOCKET_FAMILY_INET;
+    if (ok) {
+        Str s = SocketAddrFormat(&out.data[0], a);
+        ok    = (s.length > 0) && ZstrCompare(s.data, "203.0.113.7:9999") == 0;
+        StrDeinit(&s);
+    }
+
+    VecDeinit(&out);
+    DnsResolverDeinit(&r);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 4-arg overload (vec): bracketed IPv6 spec short-circuits the same way.
+static bool test_dns_resolve_spec_numeric_v6(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *a     = ALLOCATOR_OF(&alloc);
+
+    DnsResolver r;
+    DnsResolverInit(&r, a);
+
+    DnsAddrs out = VecInitT(out, a);
+    bool     got = DnsResolve(&r, "[::1]:443", SOCKET_KIND_TCP, &out);
+
+    bool ok = got && out.length == 1 && out.data[0].family == SOCKET_FAMILY_INET6;
+    if (ok) {
+        Str s = SocketAddrFormat(&out.data[0], a);
+        // SocketAddrFormat emits the bracketed form for IPv6.
+        ok = (s.length > 0) && ZstrCompare(s.data, "[::1]:443") == 0;
+        StrDeinit(&s);
+    }
+
+    VecDeinit(&out);
+    DnsResolverDeinit(&r);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 4-arg overload (vec): hostname spec falls through to /etc/hosts.
+static bool test_dns_resolve_spec_hostname(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *a     = ALLOCATOR_OF(&alloc);
+
+    DnsResolver r;
+    DnsResolverInit(&r, a);
+
+    DnsAddrs out = VecInitT(out, a);
+    bool     got = DnsResolve(&r, "localhost:53", SOCKET_KIND_TCP, &out);
+
+    // Sanity: each returned address should format with ":53" suffix.
+    bool ok = got && out.length > 0;
+    if (ok) {
+        VecForeachPtr(&out, ad) {
+            Str s = SocketAddrFormat(ad, a);
+            u64 L = s.length;
+            if (L < 3 || s.data[L - 1] != '3' || s.data[L - 2] != '5' || s.data[L - 3] != ':') {
+                ok = false;
+            }
+            StrDeinit(&s);
+        }
+    }
+
+    VecDeinit(&out);
+    DnsResolverDeinit(&r);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 4-arg overload (single-addr form): pass `SocketAddr *` instead of
+// `DnsAddrs *` and the macro routes to DnsResolve_4_one.
+static bool test_dns_resolve_spec_single_addr(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *a     = ALLOCATOR_OF(&alloc);
+
+    DnsResolver r;
+    DnsResolverInit(&r, a);
+
+    SocketAddr one;
+    bool       got = DnsResolve(&r, "127.0.0.1:80", SOCKET_KIND_TCP, &one);
+
+    bool ok = got && one.family == SOCKET_FAMILY_INET;
+    if (ok) {
+        Str s = SocketAddrFormat(&one, a);
+        ok    = (s.length > 0) && ZstrCompare(s.data, "127.0.0.1:80") == 0;
+        StrDeinit(&s);
+    }
+
+    DnsResolverDeinit(&r);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 4-arg overload: missing ":port" is rejected.
+static bool test_dns_resolve_spec_no_port(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *a     = ALLOCATOR_OF(&alloc);
+
+    DnsResolver r;
+    DnsResolverInit(&r, a);
+
+    DnsAddrs out = VecInitT(out, a);
+    bool     got = DnsResolve(&r, "localhost", SOCKET_KIND_TCP, &out);
+
+    bool ok = !got && out.length == 0;
+
+    VecDeinit(&out);
+    DnsResolverDeinit(&r);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// 4-arg overload: non-numeric port is rejected.
+static bool test_dns_resolve_spec_bad_port(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *a     = ALLOCATOR_OF(&alloc);
+
+    DnsResolver r;
+    DnsResolverInit(&r, a);
+
+    DnsAddrs out = VecInitT(out, a);
+    bool     got = DnsResolve(&r, "localhost:abc", SOCKET_KIND_TCP, &out);
+
+    bool ok = !got;
+
+    VecDeinit(&out);
+    DnsResolverDeinit(&r);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting SysDns tests\n\n");
 
@@ -81,6 +224,12 @@ int main(void) {
         test_dns_resolve_localhost_from_hosts,
         test_dns_resolve_hosts_case_insensitive,
         test_dns_resolve_hosts_trailing_dot,
+        test_dns_resolve_spec_numeric_v4,
+        test_dns_resolve_spec_numeric_v6,
+        test_dns_resolve_spec_hostname,
+        test_dns_resolve_spec_single_addr,
+        test_dns_resolve_spec_no_port,
+        test_dns_resolve_spec_bad_port,
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "SysDns");

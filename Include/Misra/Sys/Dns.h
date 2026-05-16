@@ -106,7 +106,43 @@ extern "C" {
     ///           configured, no answer from any nameserver, NXDOMAIN,
     ///           transport error, response with no A/AAAA).
     ///
-    bool DnsResolve(DnsResolver *self, const char *hostname, u16 port, SocketKind kind, DnsAddrs *out);
+    bool DnsResolve_5(DnsResolver *self, const char *hostname, u16 port, SocketKind kind, DnsAddrs *out);
+
+    ///
+    /// Spec-based overload (vec form). Accepts a single `"host:port"`
+    /// string and appends every matching `SocketAddr` to `out`.
+    ///
+    /// Tries `SocketAddrParse` first (numeric IPv4 `127.0.0.1:8080` and
+    /// bracketed IPv6 `[::1]:8080` short-circuit here with no network
+    /// I/O). Otherwise splits `spec` on the last `:` to get host + port
+    /// and dispatches to `DnsResolve_5`.
+    ///
+    /// SUCCESS : Returns true. `out` has at least one new entry.
+    /// FAILURE : Returns false. Logs the failure cause.
+    ///
+    bool DnsResolve_4_vec(DnsResolver *self, const char *spec, SocketKind kind, DnsAddrs *out);
+
+    ///
+    /// Spec-based overload (single-addr form). Same parse path as the
+    /// vec form, but only the first matching `SocketAddr` is written
+    /// back -- the "getaddrinfo + pick first" idiom in one call so
+    /// callers needing exactly one address (typical for `SocketConnect`
+    /// / `ListenerOpen`) don't have to manage a throwaway Vec.
+    ///
+    /// SUCCESS : Returns true; `out` populated.
+    /// FAILURE : Returns false; `out` untouched.
+    ///
+    bool DnsResolve_4_one(DnsResolver *self, const char *spec, SocketKind kind, SocketAddr *out);
+
+    ///
+    /// `DnsResolve` dispatches by argument count. The 4-arg form
+    /// additionally dispatches on the `out` parameter type:
+    /// `DnsAddrs *` selects the vec form, `SocketAddr *` selects the
+    /// single-addr form.
+    ///
+#define DnsResolve(...) MISRA_OVERLOAD(DnsResolve, __VA_ARGS__)
+#define DnsResolve_4(self, spec, kind, out)                                                                            \
+    _Generic((out), DnsAddrs *: DnsResolve_4_vec, SocketAddr *: DnsResolve_4_one)((self), (spec), (kind), (out))
 
 #ifdef __cplusplus
 }

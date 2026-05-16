@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
     Scope(alloc, DefaultAllocator) {
         const char *hostname = NULL;
 
-        ArgParse ap = ArgParseInit("resolve", "look up a hostname via /etc/hosts and DNS", alloc);
+        ArgParse ap = ArgParseInit("resolve", "look up a hostname via /etc/hosts and DNS");
         ArgPositional(&ap, "hostname", &hostname, "name to resolve");
 
         ArgRun rc = ArgParseRun(&ap, argc, argv);
