@@ -5,7 +5,6 @@
 /// Str implementation
 
 #include <errno.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <Misra/Std/Container/Str.h>
@@ -14,6 +13,76 @@
 #include <Misra/Types.h>
 
 #include "Misra/Std/Utility/StrIter.h"
+
+// In-tree replacements for the handful of libm bits Str.c historically
+// pulled in for float formatting / parsing. All bounded-domain: the
+// inputs come from f64-formatting context where precision <= 18 and
+// exponents fit in int. IEEE-754 f64 is assumed (true on every Misra
+// target).
+
+// IEEE-754 f64 +Inf and quiet NaN constructed from their bit patterns.
+// Done via a memcpy-style union so we don't depend on the compiler
+// folding 1.0/0.0 to a constant.
+static f64 inf_f64(void) {
+    union {
+        u64 i;
+        f64 d;
+    } u = {0x7FF0000000000000ULL};
+    return u.d;
+}
+
+static f64 nan_f64(void) {
+    union {
+        u64 i;
+        f64 d;
+    } u = {0x7FF8000000000000ULL};
+    return u.d;
+}
+
+// `isnan` / `isinf` without <math.h>. NaN is uniquely the value not
+// equal to itself; +/-Inf has the all-ones exponent and zero mantissa.
+static bool isnan_f64(f64 x) {
+    return x != x;
+}
+
+static bool isinf_f64(f64 x) {
+    union {
+        u64 i;
+        f64 d;
+    } u;
+    u.d = x;
+    return (u.i & 0x7FFFFFFFFFFFFFFFULL) == 0x7FF0000000000000ULL;
+}
+
+// Round-half-away-from-zero. Safe for |x| < 2^53, which covers every
+// `value * 10^precision` product we form during formatting (precision
+// is `u8` in practice <= 18; products beyond 2^53 can't preserve
+// fractional precision anyway).
+static f64 round_f64(f64 x) {
+    if (x >= 0.0) {
+        return (f64)(i64)(x + 0.5);
+    }
+    return (f64)(i64)(x - 0.5);
+}
+
+// 10^exp for arbitrary signed integer exp. Used to apply the decimal
+// exponent when parsing scientific notation (`1.5e10`). Exp is bounded
+// by the f64 dynamic range (~[-323, 308]); outside that the result
+// saturates to 0 or +Inf via repeated multiplication, matching libm's
+// behaviour without the lookup-table machinery.
+static f64 pow10_f64(int exp) {
+    f64 r = 1.0;
+    if (exp >= 0) {
+        while (exp-- > 0) {
+            r *= 10.0;
+        }
+    } else {
+        while (exp++ < 0) {
+            r *= 0.1;
+        }
+    }
+    return r;
+}
 
 bool str_try_init_from_cstr(Str *out, const char *cstr, size len, Allocator *alloc) {
     if (!out || !cstr) {
@@ -503,7 +572,7 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
     StrClear(str);
 
     // Handle special cases
-    if (isnan(value)) {
+    if (isnan_f64(value)) {
         const char *nan_str = config->uppercase ? "NAN" : "nan";
         for (size_t i = 0; i < 3; i++) {
             if (!StrPushBack(str, nan_str[i])) {
@@ -513,7 +582,7 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
         return str;
     }
 
-    if (isinf(value)) {
+    if (isinf_f64(value)) {
         if (value < 0) {
             if (!StrPushBack(str, '-')) {
                 return NULL;
@@ -658,7 +727,7 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
             for (u8 i = 0; i < config->precision; i++) {
                 scale *= 10.0;
             }
-            f64 rounded_value = round(value * scale) / scale;
+            f64 rounded_value = round_f64(value * scale) / scale;
             f64 frac_part     = rounded_value - (i64)rounded_value;
 
             for (u8 i = 0; i < config->precision; i++) {
@@ -863,13 +932,13 @@ bool StrToF64(const Str *str, f64 *value, const StrParseConfig *config) {
 
         if (c1 == 'n' && c2 == 'a' && c3 == 'n') {
             if (str->length - pos == 3 || IS_SPACE(str->data[pos + 3])) {
-                *value = NAN;
+                *value = nan_f64();
                 return true;
             }
         }
         if (c1 == 'i' && c2 == 'n' && c3 == 'f') {
             if (str->length - pos == 3 || IS_SPACE(str->data[pos + 3])) {
-                *value = INFINITY;
+                *value = inf_f64();
                 return true;
             }
         }
@@ -889,7 +958,7 @@ bool StrToF64(const Str *str, f64 *value, const StrParseConfig *config) {
 
             if (c1 == 'i' && c2 == 'n' && c3 == 'f') {
                 if (str->length - pos == 3 || IS_SPACE(str->data[pos + 3])) {
-                    *value = -INFINITY;
+                    *value = -inf_f64();
                     return true;
                 }
             }
@@ -952,7 +1021,7 @@ bool StrToF64(const Str *str, f64 *value, const StrParseConfig *config) {
 
         if (exp_negative)
             exponent = -exponent;
-        result *= pow(10.0, exponent);
+        result *= pow10_f64(exponent);
     }
 
     // Skip trailing whitespace
