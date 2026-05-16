@@ -15,6 +15,7 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Allocator/Heap.h>
 #include <Misra/Std/Allocator/Page.h>
+#include <Misra/Std/ArgParse.h>
 #include <Misra/Std/Container.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/Vec.h>

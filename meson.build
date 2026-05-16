@@ -163,6 +163,7 @@ misra_std_sources = files(
     'Source/Misra/Std/Container/Vec.c',
     'Source/Misra/Std/Container/Str.c',
     'Source/Misra/Std/Io.c',
+    'Source/Misra/Std/ArgParse.c',
 )
 
 if opt_alloc_arena

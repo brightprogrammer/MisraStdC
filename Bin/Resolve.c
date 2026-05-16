@@ -12,17 +12,23 @@
 
 #include <Misra.h>
 #include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/ArgParse.h>
 #include <Misra/Sys/Dns.h>
 #include <Misra/Sys/Socket.h>
 
 int main(int argc, char **argv) {
-    if (argc != 2) {
-        File err = FileStderr();
-        FWriteFmtLn(&err, "usage: {} <hostname>", (const char *)(argc > 0 ? argv[0] : "resolve"));
-        return 1;
-    }
-
     Scope(alloc, DefaultAllocator) {
+        const char *hostname = NULL;
+
+        ArgParse ap = ArgParseInit("resolve", "look up a hostname via /etc/hosts and DNS", alloc);
+        ArgPositional(&ap, "hostname", &hostname, "name to resolve");
+
+        ArgRun rc = ArgParseRun(&ap, argc, argv);
+        ArgParseDeinit(&ap);
+        if (rc != ARG_RUN_OK) {
+            return rc == ARG_RUN_HELP ? 0 : 1;
+        }
+
         DnsResolver r;
         if (!DnsResolverInit(&r, alloc)) {
             LOG_ERROR("failed to init resolver");
@@ -30,7 +36,7 @@ int main(int argc, char **argv) {
         }
 
         DnsAddrs addrs = VecInitT(addrs, alloc);
-        if (!DnsResolve(&r, argv[1], 0, SOCKET_KIND_TCP, &addrs)) {
+        if (!DnsResolve(&r, hostname, 0, SOCKET_KIND_TCP, &addrs)) {
             DnsResolverDeinit(&r);
             return 1;
         }

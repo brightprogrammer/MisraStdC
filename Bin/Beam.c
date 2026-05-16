@@ -19,6 +19,7 @@
 #include <Misra.h>
 #include <Misra/Parsers/Http.h>
 #include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/ArgParse.h>
 #include <Misra/Sys/Dns.h>
 #include <Misra/Sys/Socket.h>
 
@@ -99,15 +100,6 @@ static void install_signal_handlers(void) {
     // SIGPIPE on a hung-up peer would terminate us; mask it and rely on
     // send() returning EPIPE instead.
     signal(SIGPIPE, SIG_IGN);
-}
-
-static const char *flag_value(int argc, char **argv, const char *flag) {
-    for (int i = 1; i + 1 < argc; ++i) {
-        if (ZstrCompare(argv[i], flag) == 0) {
-            return argv[i + 1];
-        }
-    }
-    return NULL;
 }
 
 static void log_request_summary(Allocator *alloc, const char *client_addr, const char *prefix_bytes, size prefix_len) {
@@ -247,18 +239,22 @@ static void handle_connection(Allocator *alloc, Socket *client, const SocketAddr
 }
 
 int main(int argc, char **argv) {
-    const char *listen_spec   = flag_value(argc, argv, "--listen");
-    const char *upstream_spec = flag_value(argc, argv, "--upstream");
-
-    if (!listen_spec || !upstream_spec) {
-        WriteFmt("usage: {} --listen <host:port> --upstream <host:port>\n", argv[0]);
-        WriteFmt("example: {} --listen 127.0.0.1:8080 --upstream 127.0.0.1:3000\n", argv[0]);
-        return 1;
-    }
-
     install_signal_handlers();
 
     Scope(alloc, DefaultAllocator) {
+        const char *listen_spec   = NULL;
+        const char *upstream_spec = NULL;
+
+        ArgParse ap = ArgParseInit("beam", "small reverse-proxy", alloc);
+        ArgRequired(&ap, "-l", "--listen", &listen_spec, "host:port to listen on");
+        ArgRequired(&ap, "-u", "--upstream", &upstream_spec, "upstream host:port");
+
+        ArgRun rc = ArgParseRun(&ap, argc, argv);
+        ArgParseDeinit(&ap);
+        if (rc != ARG_RUN_OK) {
+            return rc == ARG_RUN_HELP ? 0 : 1;
+        }
+
         DnsResolver resolver;
         if (!DnsResolverInit(&resolver, alloc)) {
             LOG_ERROR("failed to init DNS resolver");
