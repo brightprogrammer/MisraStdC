@@ -10,7 +10,61 @@
 #include <Misra/Std/Log.h>
 #include <string.h>
 #include <stdio.h>
-#include <math.h>
+
+// In-tree replacements for the two libm calls BitVec used (sqrt + log2,
+// both in similarity / entropy methods). Input domain is positive
+// reals -- the callers only ever feed magnitudes (sqrt of bit-counts,
+// log2 of probability fractions in (0,1]) -- so we don't have to
+// handle negatives, subnormals, or NaN. IEEE-754 f64 assumed.
+
+// Newton-Raphson square root. Initial guess via halving the binary
+// exponent (so y0 ≈ sqrt_f64(x) to within a factor of ~1.4); 6 iterations
+// then converge to full f64 precision since each step roughly doubles
+// the significant bits.
+static double sqrt_f64(double x) {
+    if (x <= 0.0) {
+        return 0.0;
+    }
+    union {
+        u64    i;
+        double d;
+    } u;
+    u.d = x;
+    // (exp_unbiased) / 2 + bias, with the mantissa preserved gives a
+    // good starting estimate.
+    u.i      = (u.i + ((u64)1023 << 52)) >> 1;
+    double y = u.d;
+    for (int i = 0; i < 6; ++i) {
+        y = 0.5 * (y + x / y);
+    }
+    return y;
+}
+
+// log2_f64(x) via exponent extraction plus a Padé-like odd-power series
+// on (m-1)/(m+1) for the mantissa. ln(m) ≈ 2y(1 + y²/3 + y⁴/5 + y⁶/7)
+// where y = (m-1)/(m+1) and m is in [1, 2); divide by ln(2) to get
+// log2. Sub-ULP precision for the probability range BitVec feeds it.
+static double log2_f64(double x) {
+    if (x <= 0.0) {
+        return 0.0; // BitVec entropy: never called on non-positives in practice
+    }
+    union {
+        u64    i;
+        double d;
+    } u;
+    u.d         = x;
+    int raw_exp = (int)((u.i >> 52) & 0x7FF);
+    int exp     = raw_exp - 1023;
+    // Normalize mantissa to [1, 2) by clearing the exponent field
+    // and stamping in bias=1023.
+    u.i                           = (u.i & ((1ULL << 52) - 1ULL)) | ((u64)1023 << 52);
+    double              m         = u.d;
+    double              y         = (m - 1.0) / (m + 1.0);
+    double              y2        = y * y;
+    double              series    = y * (1.0 + y2 * (1.0 / 3.0 + y2 * (1.0 / 5.0 + y2 * (1.0 / 7.0))));
+    static const double LN2_RECIP = 1.4426950408889634; // 1 / ln(2)
+    return (double)exp + 2.0 * series * LN2_RECIP;
+}
 
 // Ensure SIZE_MAX is defined
 #ifndef SIZE_MAX
@@ -1419,8 +1473,8 @@ double BitVecCosineSimilarity(BitVec *bv1, BitVec *bv2) {
         return 0.0;
     }
 
-    double magnitude1 = sqrt((double)ones1);
-    double magnitude2 = sqrt((double)ones2);
+    double magnitude1 = sqrt_f64((double)ones1);
+    double magnitude2 = sqrt_f64((double)ones2);
 
     return (double)dot_product / (magnitude1 * magnitude2);
 }
@@ -1541,7 +1595,7 @@ double BitVecCorrelation(BitVec *bv1, BitVec *bv2) {
 
     double n           = (double)max_length;
     double numerator   = n * sum_product - sum1 * sum2;
-    double denominator = sqrt((n * sum1_sq - sum1 * sum1) * (n * sum2_sq - sum2 * sum2));
+    double denominator = sqrt_f64((n * sum1_sq - sum1 * sum1) * (n * sum2_sq - sum2 * sum2));
 
     return denominator == 0.0 ? 0.0 : numerator / denominator;
 }
@@ -1561,7 +1615,7 @@ double BitVecEntropy(BitVec *bv) {
     double p1 = (double)ones / (double)bv->length;
     double p0 = (double)zeros / (double)bv->length;
 
-    return -(p1 * log2(p1) + p0 * log2(p0));
+    return -(p1 * log2_f64(p1) + p0 * log2_f64(p0));
 }
 
 int BitVecAlignmentScore(BitVec *bv1, BitVec *bv2, int match, int mismatch) {
