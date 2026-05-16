@@ -15,7 +15,7 @@
 /// **Platform note on `SockFd`.** POSIX socket descriptors are `int`.
 /// Winsock's `SOCKET` is `UINT_PTR` (unsigned, pointer-sized). The
 /// `SockFd` typedef below resolves to whichever the platform needs;
-/// the rest of the API stays identical. The `MISRA_SOCK_FD_INVALID`
+/// the rest of the API stays identical. The `SOCKET_FD_INVALID`
 /// constant is the equivalent of POSIX `-1` / Winsock `INVALID_SOCKET`
 /// for portable invalid-checks. Do *not* compare a `SockFd` with `< 0`
 /// — on Windows it's unsigned.
@@ -38,10 +38,10 @@
 ///
 #ifdef _WIN32
 typedef u64 SockFd;
-#    define MISRA_SOCK_FD_INVALID ((SockFd) ~(u64)0) // == INVALID_SOCKET
+#    define SOCKET_FD_INVALID ((SockFd) ~(u64)0) // == INVALID_SOCKET
 #else
 typedef i32 SockFd;
-#    define MISRA_SOCK_FD_INVALID ((SockFd) - 1)
+#    define SOCKET_FD_INVALID ((SockFd) - 1)
 #endif
 
 typedef enum SocketKind {

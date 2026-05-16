@@ -642,14 +642,14 @@ Str SocketAddrFormat(const SocketAddr *addr, Allocator *alloc) {
 
 #ifdef _WIN32
 
-// Returns MISRA_SOCK_FD_INVALID on failure.
+// Returns SOCKET_FD_INVALID on failure.
 static SockFd plat_socket(int af, int type, int proto) {
     if (!ensure_winsock())
-        return MISRA_SOCK_FD_INVALID;
+        return SOCKET_FD_INVALID;
     SOCKET s = socket(af, type, proto);
     if (s == INVALID_SOCKET) {
         LOG_SOCK_ERROR("socket() failed");
-        return MISRA_SOCK_FD_INVALID;
+        return SOCKET_FD_INVALID;
     }
     return socket_to_sf(s);
 }
@@ -675,7 +675,7 @@ static SockFd plat_accept(SockFd s, void *addr, u32 *len_io) {
     SOCKET c  = accept(sf_to_socket(s), (struct sockaddr *)addr, &sl);
     if (c == INVALID_SOCKET) {
         LOG_SOCK_ERROR("accept() failed");
-        return MISRA_SOCK_FD_INVALID;
+        return SOCKET_FD_INVALID;
     }
     *len_io = (u32)sl;
     return socket_to_sf(c);
@@ -729,7 +729,7 @@ static bool plat_getsockname(SockFd s, void *addr, u32 *len_io) {
 }
 
 static void plat_close(SockFd s) {
-    if (s == MISRA_SOCK_FD_INVALID)
+    if (s == SOCKET_FD_INVALID)
         return;
     if (closesocket(sf_to_socket(s)) == SOCKET_ERROR) {
         LOG_SOCK_ERROR("closesocket() failed");
@@ -751,7 +751,7 @@ static SockFd plat_socket(int af, int type, int proto) {
     int fd = socket(af, type, proto);
     if (fd < 0) {
         LOG_SOCK_ERROR("socket() failed");
-        return MISRA_SOCK_FD_INVALID;
+        return SOCKET_FD_INVALID;
     }
     return int_to_sf(fd);
 }
@@ -777,7 +777,7 @@ static SockFd plat_accept(SockFd s, void *addr, u32 *len_io) {
     int       c  = accept(sf_to_int(s), (struct sockaddr *)addr, &sl);
     if (c < 0) {
         LOG_SOCK_ERROR("accept() failed");
-        return MISRA_SOCK_FD_INVALID;
+        return SOCKET_FD_INVALID;
     }
     *len_io = (u32)sl;
     return int_to_sf(c);
@@ -828,7 +828,7 @@ static bool plat_getsockname(SockFd s, void *addr, u32 *len_io) {
 }
 
 static void plat_close(SockFd s) {
-    if (s == MISRA_SOCK_FD_INVALID)
+    if (s == SOCKET_FD_INVALID)
         return;
     if (close(sf_to_int(s)) < 0) {
         LOG_SOCK_ERROR("close() failed");
@@ -865,7 +865,7 @@ bool ListenerOpen(Listener *out, SocketKind kind, const SocketAddr *addr, i32 ba
         return false;
     }
     MemSet(out, 0, sizeof(*out));
-    out->fd = MISRA_SOCK_FD_INVALID;
+    out->fd = SOCKET_FD_INVALID;
 
     i32 af       = socket_family_to_af(addr->family);
     i32 socktype = sock_kind_to_socktype(kind);
@@ -876,7 +876,7 @@ bool ListenerOpen(Listener *out, SocketKind kind, const SocketAddr *addr, i32 ba
     }
 
     SockFd fd = plat_socket(af, socktype, proto);
-    if (fd == MISRA_SOCK_FD_INVALID) {
+    if (fd == SOCKET_FD_INVALID) {
         return false;
     }
 
@@ -938,12 +938,12 @@ bool ListenerAccept(Listener *self, Socket *out_conn) {
         return false;
     }
     MemSet(out_conn, 0, sizeof(*out_conn));
-    out_conn->fd = MISRA_SOCK_FD_INVALID;
+    out_conn->fd = SOCKET_FD_INVALID;
 
     u8     peer[SOCKET_ADDR_MAX_SIZE];
     u32    peer_len = (u32)sizeof(peer);
     SockFd cfd      = plat_accept(self->fd, peer, &peer_len);
-    if (cfd == MISRA_SOCK_FD_INVALID) {
+    if (cfd == SOCKET_FD_INVALID) {
         return false;
     }
 
@@ -957,11 +957,11 @@ void ListenerClose(Listener *self) {
     if (!self) {
         return;
     }
-    if (self->fd != MISRA_SOCK_FD_INVALID) {
+    if (self->fd != SOCKET_FD_INVALID) {
         plat_close(self->fd);
     }
     MemSet(self, 0, sizeof(*self));
-    self->fd = MISRA_SOCK_FD_INVALID;
+    self->fd = SOCKET_FD_INVALID;
 }
 
 // ---------------------------------------------------------------------------
@@ -974,7 +974,7 @@ bool SocketConnect(Socket *out, SocketKind kind, const SocketAddr *target) {
         return false;
     }
     MemSet(out, 0, sizeof(*out));
-    out->fd = MISRA_SOCK_FD_INVALID;
+    out->fd = SOCKET_FD_INVALID;
 
     i32 af       = socket_family_to_af(target->family);
     i32 socktype = sock_kind_to_socktype(kind);
@@ -985,7 +985,7 @@ bool SocketConnect(Socket *out, SocketKind kind, const SocketAddr *target) {
     }
 
     SockFd fd = plat_socket(af, socktype, proto);
-    if (fd == MISRA_SOCK_FD_INVALID) {
+    if (fd == SOCKET_FD_INVALID) {
         return false;
     }
 
@@ -1020,11 +1020,11 @@ void SocketClose(Socket *self) {
     if (!self) {
         return;
     }
-    if (self->fd != MISRA_SOCK_FD_INVALID) {
+    if (self->fd != SOCKET_FD_INVALID) {
         plat_close(self->fd);
     }
     MemSet(self, 0, sizeof(*self));
-    self->fd = MISRA_SOCK_FD_INVALID;
+    self->fd = SOCKET_FD_INVALID;
 }
 
 // ---------------------------------------------------------------------------
