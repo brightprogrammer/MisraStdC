@@ -38,20 +38,27 @@ jobs:
         
     - name: Configure with MSVC
       run: |
-        meson setup build
+        # Match the Linux / macOS workflows: warning_level=2 plus
+        # AddressSanitizer (MSVC has supported ASan since VS 16.9). UBSan
+        # isn't available on MSVC so we leave it out for this matrix
+        # entry; the LLVM-clang matrix entry covers UBSan.
+        meson setup build -Dwarning_level=2 -Db_sanitize=address -Db_lundef=false
       shell: pwsh
-      
+
     - name: Build
       run: |
         meson compile -C build
-                
+
     - name: Test
       run: |
-        ninja -C build test
-        
-    - name: Upload test logs if failure
+        meson test -C build --print-errorlogs
+
+    - name: Upload test logs
+      # Always upload so we can audit which tests actually ran. Without
+      # the artifact we have no way to tell a green run with N tests
+      # from a green run with 0 tests.
+      if: always()
       uses: actions/upload-artifact@v4
-      if: failure()
       with:
-        name: test-logs-windows
-        path: build/meson-logs/testlog.txt 
+        name: test-logs-windows-msvc
+        path: build/meson-logs/testlog.txt

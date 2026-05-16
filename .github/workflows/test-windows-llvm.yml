@@ -62,22 +62,31 @@ jobs:
         $env:CXX = "clang++"
         $env:AR = "llvm-ar"
         $env:RANLIB = "llvm-ranlib"
-        
-        # Configure with Clang and force use of lld linker
-        meson setup build --backend ninja -Dc_args="-fuse-ld=lld" -Dcpp_args="-fuse-ld=lld" -Dc_link_args="-fuse-ld=lld" -Dcpp_link_args="-fuse-ld=lld"
+
+        # Match the Linux / macOS workflows: warning_level=2 plus
+        # AddressSanitizer + UndefinedBehaviorSanitizer (LLVM-clang on
+        # Windows supports both). lld is forced via -fuse-ld=lld so the
+        # MSVC link.exe isn't picked up.
+        meson setup build --backend ninja `
+          -Dwarning_level=2 -Db_sanitize=address,undefined -Db_lundef=false `
+          -Dc_args="-fuse-ld=lld" -Dcpp_args="-fuse-ld=lld" `
+          -Dc_link_args="-fuse-ld=lld" -Dcpp_link_args="-fuse-ld=lld"
       shell: pwsh
-      
+
     - name: Build
       run: |
         meson compile -C build
-                
+
     - name: Test
       run: |
-        ninja -C build test
-        
-    - name: Upload test logs if failure
+        meson test -C build --print-errorlogs
+
+    - name: Upload test logs
+      # Always upload so we can audit which tests actually ran. Without
+      # the artifact we have no way to tell a green run with N tests
+      # from a green run with 0 tests.
+      if: always()
       uses: actions/upload-artifact@v4
-      if: failure()
       with:
         name: test-logs-windows-llvm
         path: build/meson-logs/testlog.txt
