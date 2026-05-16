@@ -89,7 +89,7 @@ static bool ensure_winsock(void) {
 
 #    include "../_Syscall.h"
 
-#    if MISRA_HAVE_DIRECT_SYSCALL
+#    if FEATURE_DIRECT_SYSCALL
 // Linux: direct-syscall wrappers for the BSD-sockets primitives used
 // below. `recv` / `send` are mapped onto `recvfrom` / `sendto` with
 // the addr arguments cleared since the kernel offers no separate

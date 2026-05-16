@@ -227,7 +227,7 @@ void SymbolResolverDeinit(SymbolResolver *self) {
         return;
     for (u64 i = 0; i < self->cache.length; ++i) {
         ResolverCacheEntry *e = &self->cache.data[i];
-#if MISRA_HAVE_PARSER_DWARF
+#if FEATURE_PARSER_DWARF
         if (e->dwarf_built && e->dwarf_ok) {
             DwarfLinesDeinit(&e->dwarf);
         }
@@ -254,7 +254,7 @@ void SymbolResolverDeinit(SymbolResolver *self) {
     MemSet(self, 0, sizeof(*self));
 }
 
-#if MISRA_HAVE_PARSER_DWARF
+#if FEATURE_PARSER_DWARF
 bool SymbolResolverFindFde(
     SymbolResolver  *self,
     void            *runtime_addr,
@@ -345,7 +345,7 @@ bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSym
         out->offset = file_relative;
     }
 
-#if MISRA_HAVE_PARSER_DWARF
+#if FEATURE_PARSER_DWARF
     // .debug_info function-name fallback. Only consulted when neither
     // .symtab nor .dynsym (main + sidecar) produced a name. DWARF
     // subprogram DIEs cover stripped binaries' function bodies even
@@ -379,7 +379,7 @@ bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSym
     }
 #endif
 
-#if MISRA_HAVE_PARSER_DWARF
+#if FEATURE_PARSER_DWARF
     if (!cache_entry->dwarf_built) {
         cache_entry->dwarf_built = true;
         cache_entry->dwarf_ok    = DwarfLinesBuildFromElf(&cache_entry->dwarf, &cache_entry->elf, self->allocator);

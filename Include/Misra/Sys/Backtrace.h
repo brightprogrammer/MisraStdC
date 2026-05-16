@@ -49,7 +49,7 @@
 // Backtrace, including files like `Bin/ElfInfo.c` that maintain
 // their own ELF enum vocabulary. Callers who actually construct a
 // SymbolResolver should include the full header themselves.
-#if MISRA_HAVE_SYS_SYMRESOLVE
+#if FEATURE_SYS_SYMRESOLVE
 typedef struct SymbolResolver SymbolResolver;
 #endif
 
@@ -96,7 +96,7 @@ size capture_stack_trace_raw(StackFrame *out, size max_frames, size skip_frames)
 ///
 bool capture_stack_trace_vec(StackFrames *out, size skip_frames);
 
-#if MISRA_HAVE_SYS_SYMRESOLVE && MISRA_HAVE_PARSER_DWARF
+#if FEATURE_SYS_SYMRESOLVE && FEATURE_PARSER_DWARF
 ///
 /// CFI-based capture (Linux x86-64). Same shape as the FP-walk
 /// variants but routes through DWARF `.eh_frame` rules, so it works
@@ -117,7 +117,7 @@ void format_stack_trace_raw(Str *out, const StackFrame *frames, size count, Allo
 ///
 void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *alloc);
 
-#if MISRA_HAVE_SYS_SYMRESOLVE
+#if FEATURE_SYS_SYMRESOLVE
 ///
 /// Resolver-sharing variants -- cheaper when formatting many traces in
 /// a loop. Linux only (only platform with an in-tree SymbolResolver).
@@ -150,7 +150,7 @@ void format_stack_trace_with_vec(Str *out, const StackFrames *frames, SymbolReso
 #define CaptureStackTrace_3(out, max, skip) capture_stack_trace_raw((out), (max), (skip))
 #define CaptureStackTrace_2(out, skip)      capture_stack_trace_vec((out), (skip))
 
-#if MISRA_HAVE_SYS_SYMRESOLVE && MISRA_HAVE_PARSER_DWARF
+#if FEATURE_SYS_SYMRESOLVE && FEATURE_PARSER_DWARF
 ///
 /// CFI-based capture. Two shapes:
 ///
@@ -179,7 +179,7 @@ void format_stack_trace_with_vec(Str *out, const StackFrames *frames, SymbolReso
 #define FormatStackTrace_4(out, frames, count, alloc) format_stack_trace_raw((out), (frames), (count), (alloc))
 #define FormatStackTrace_3(out, frames, alloc)        format_stack_trace_vec((out), (frames), (alloc))
 
-#if MISRA_HAVE_SYS_SYMRESOLVE
+#if FEATURE_SYS_SYMRESOLVE
 ///
 /// Same as `FormatStackTrace` but reuses a caller-owned resolver.
 /// Two shapes:

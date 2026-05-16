@@ -121,7 +121,7 @@ File FileOpen(const char *path, const char *mode) {
     }
     flags |= 0x80000; // O_CLOEXEC -- close on exec
     long fd;
-#    if MISRA_HAVE_DIRECT_SYSCALL
+#    if FEATURE_DIRECT_SYSCALL
 #        if defined(__x86_64__)
     fd = misra_sys3(MISRA_SYS_open, (long)(uintptr_t)path, (long)flags, 0644L);
 #        else
@@ -195,7 +195,7 @@ bool FileClose(File *f) {
 #else
     bool ok = true;
     if (f->owns && f->fd >= 0) {
-#    if MISRA_HAVE_DIRECT_SYSCALL
+#    if FEATURE_DIRECT_SYSCALL
         long r = misra_sys1(MISRA_SYS_close, (long)f->fd);
         ok     = r == 0;
 #    else
@@ -239,7 +239,7 @@ i64 FileRead(File *f, void *buf, u64 n) {
         f->at_eof = true;
     }
     return (i64)got;
-#elif MISRA_HAVE_DIRECT_SYSCALL
+#elif FEATURE_DIRECT_SYSCALL
     long r = misra_sys3(MISRA_SYS_read, (long)f->fd, (long)(uintptr_t)buf, (long)n);
     if (r < 0) {
         return -1;
@@ -273,7 +273,7 @@ i64 FileWrite(File *f, const void *buf, u64 n) {
         return -1;
     }
     return (i64)put;
-#elif MISRA_HAVE_DIRECT_SYSCALL
+#elif FEATURE_DIRECT_SYSCALL
     long r = misra_sys3(MISRA_SYS_write, (long)f->fd, (long)(uintptr_t)buf, (long)n);
     if (r < 0) {
         return -1;
@@ -302,7 +302,7 @@ i64 FileSeek(File *f, i64 offset, FileWhence whence) {
         return -1;
     }
     return (i64)newpos.QuadPart;
-#elif MISRA_HAVE_DIRECT_SYSCALL
+#elif FEATURE_DIRECT_SYSCALL
     long r = misra_sys3(MISRA_SYS_lseek, (long)f->fd, (long)offset, (long)whence);
     if (r < 0) {
         return -1;

@@ -463,7 +463,7 @@ static void normalize_hostname(const char *name, Str *out) {
 // cryptographic; the goal is to make off-path response injection
 // require guessing 16 bits.
 static u16 random_query_id(void) {
-#if MISRA_HAVE_DIRECT_SYSCALL
+#if FEATURE_DIRECT_SYSCALL
     struct {
         long sec;
         long nsec;

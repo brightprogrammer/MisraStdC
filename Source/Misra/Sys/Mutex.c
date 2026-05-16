@@ -25,7 +25,7 @@
 #    include <windows.h>
 #elif defined(__APPLE__)
 #    include <os/lock.h>
-#elif MISRA_HAVE_DIRECT_SYSCALL
+#elif FEATURE_DIRECT_SYSCALL
 #    include <stdatomic.h>
 #    include <stdint.h>
 #    define FUTEX_WAIT_PRIVATE 128 // FUTEX_WAIT | FUTEX_PRIVATE_FLAG
@@ -39,7 +39,7 @@ struct Mutex {
     SRWLOCK lock;
 #elif defined(__APPLE__)
     os_unfair_lock lock;
-#elif MISRA_HAVE_DIRECT_SYSCALL
+#elif FEATURE_DIRECT_SYSCALL
     _Atomic int state; // 0 unlocked, 1 locked, 2 locked+waiters
 #else
     pthread_mutex_t lock;
@@ -59,7 +59,7 @@ Mutex *MutexCreate(Allocator *alloc) {
     InitializeSRWLock(&m->lock);
 #elif defined(__APPLE__)
     m->lock = (os_unfair_lock)OS_UNFAIR_LOCK_INIT;
-#elif MISRA_HAVE_DIRECT_SYSCALL
+#elif FEATURE_DIRECT_SYSCALL
     atomic_store_explicit(&m->state, 0, memory_order_relaxed);
 #else
     MemSet(&m->lock, 0, sizeof(m->lock));
@@ -78,7 +78,7 @@ void MutexDestroy(Mutex *m, Allocator *alloc) {
     // SRWLOCK has no destroy call.
 #elif defined(__APPLE__)
     // os_unfair_lock has no destroy call.
-#elif MISRA_HAVE_DIRECT_SYSCALL
+#elif FEATURE_DIRECT_SYSCALL
     // futex int has no destroy call; zeroing happens below.
 #else
     pthread_mutex_destroy(&m->lock);
@@ -92,7 +92,7 @@ Mutex *MutexLock(Mutex *m) {
     AcquireSRWLockExclusive(&m->lock);
 #elif defined(__APPLE__)
     os_unfair_lock_lock(&m->lock);
-#elif MISRA_HAVE_DIRECT_SYSCALL
+#elif FEATURE_DIRECT_SYSCALL
     // Fast path: 0 -> 1 (uncontended acquire).
     int expected = 0;
     if (atomic_compare_exchange_strong_explicit(&m->state, &expected, 1, memory_order_acquire, memory_order_relaxed)) {
@@ -128,7 +128,7 @@ Mutex *MutexUnlock(Mutex *m) {
     ReleaseSRWLockExclusive(&m->lock);
 #elif defined(__APPLE__)
     os_unfair_lock_unlock(&m->lock);
-#elif MISRA_HAVE_DIRECT_SYSCALL
+#elif FEATURE_DIRECT_SYSCALL
     // Fast path: if state was 1 (no waiters), atomic dec brings it to
     // 0 and we're done. Otherwise it was 2 (had waiters), zero it
     // and wake one.

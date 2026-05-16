@@ -42,7 +42,7 @@
 static inline void proc_sleep_us(u64 us) {
 #if defined(_WIN32)
     Sleep((DWORD)(us / 1000));
-#elif MISRA_HAVE_DIRECT_SYSCALL
+#elif FEATURE_DIRECT_SYSCALL
     // struct __kernel_timespec is `long sec; long nsec;` on 64-bit Linux.
     struct {
         long sec;
@@ -57,7 +57,7 @@ static inline void proc_sleep_us(u64 us) {
 #endif
 }
 
-#if MISRA_HAVE_DIRECT_SYSCALL
+#if FEATURE_DIRECT_SYSCALL
 // Linux: thin direct-syscall wrappers for the POSIX I/O / process
 // primitives used below. macOS / BSD keep libSystem (Apple disallows
 // direct user syscalls); Windows takes a different code path entirely.

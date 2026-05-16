@@ -17,13 +17,13 @@
 ///   VecDeinit(&v);
 ///   DefaultAllocatorDeinit(&alloc);
 ///
-/// **MSan / ASan-style mode (`MISRA_DEFAULT_ALLOC_DEBUG`)**: when the
+/// **MSan / ASan-style mode (`FEATURE_DEFAULT_ALLOC_DEBUG`)**: when the
 /// build flag is set, `DefaultAllocator` becomes a `DebugAllocator`
 /// instead. The struct shape (init-by-value, ALLOCATOR_OF, deinit)
 /// is identical, so existing call sites work unchanged -- they just
 /// get leak / double-free / canary-overflow / stack-trace tracking
 /// for free. With `DEBUG_ALLOCATOR_DEFAULTS` baseline; pair with
-/// `MISRA_DEFAULT_ALLOC_DEBUG_PAGE_BACKED=true` (separate meson
+/// `FEATURE_DEFAULT_ALLOC_DEBUG_PAGE_BACKED=true` (separate meson
 /// option, requires `default_alloc_debug=true`) to additionally
 /// route every allocation through whole pages and PROT_NONE the
 /// region on free -- any UAF read/write then traps with SIGSEGV at
@@ -36,7 +36,7 @@
 #include <Misra/Std/Allocator/Heap.h>
 #include <Misra/Types.h>
 
-#if MISRA_DEFAULT_ALLOC_DEBUG
+#if FEATURE_DEFAULT_ALLOC_DEBUG
 #    include <Misra/Std/Allocator/Debug.h>
 #endif
 
@@ -44,7 +44,7 @@
 extern "C" {
 #endif
 
-#if MISRA_DEFAULT_ALLOC_DEBUG
+#if FEATURE_DEFAULT_ALLOC_DEBUG
     typedef DebugAllocator DefaultAllocator;
 #else
 typedef HeapAllocator DefaultAllocator;
@@ -54,8 +54,8 @@ typedef HeapAllocator DefaultAllocator;
 }
 #endif
 
-#if MISRA_DEFAULT_ALLOC_DEBUG
-#    if MISRA_DEFAULT_ALLOC_DEBUG_PAGE_BACKED
+#if FEATURE_DEFAULT_ALLOC_DEBUG
+#    if FEATURE_DEFAULT_ALLOC_DEBUG_PAGE_BACKED
 // Layer page-backed UAF detection on top of the default-debug config:
 // every alloc consumes whole pages, every free PROT_NONE's the region.
 // Compound-literal form so each DefaultAllocator gets its own config copy.

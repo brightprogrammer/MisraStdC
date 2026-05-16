@@ -4,7 +4,7 @@
 ///
 /// Single-include umbrella. Pulls in every Misra module that the current
 /// build was configured with. Disabled features are skipped via the
-/// `MISRA_HAVE_*` macros defined in the generated `Misra/Config.h`.
+/// `FEATURE_*` macros defined in the generated `Misra/Config.h`.
 
 #ifndef MISRA_H
 #define MISRA_H
@@ -13,15 +13,15 @@
 #include <Misra/Sys.h>
 #include <Misra/Std.h>
 
-#if MISRA_HAVE_PARSER_JSON
+#if FEATURE_PARSER_JSON
 #    include <Misra/Parsers/JSON.h>
 #endif
 
-#if MISRA_HAVE_PARSER_KVCONFIG
+#if FEATURE_PARSER_KVCONFIG
 #    include <Misra/Parsers/KvConfig.h>
 #endif
 
-#if MISRA_HAVE_PARSER_HTTP
+#if FEATURE_PARSER_HTTP
 #    include <Misra/Parsers/Http.h>
 #endif
 

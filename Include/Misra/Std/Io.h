@@ -184,7 +184,7 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 // `_Generic` case for each feature-gated bigint/bitvec type. When the
 // feature is disabled, the case expands to nothing so the type name
 // (which would otherwise have to be visible) is never mentioned.
-#if MISRA_HAVE_BITVEC
+#if FEATURE_BITVEC
 #    define IOFMT_BITVEC_CASE_(x, addr)                                                                                \
 BitVec:                                                                                                                \
         TO_TYPE_SPECIFIC_IO(BitVec, addr),
@@ -192,7 +192,7 @@ BitVec:                                                                         
 #    define IOFMT_BITVEC_CASE_(x, addr)
 #endif
 
-#if MISRA_HAVE_INT
+#if FEATURE_INT
 #    define IOFMT_INT_CASE_(x, addr)                                                                                   \
 Int:                                                                                                                   \
         TO_TYPE_SPECIFIC_IO(Int, addr),
@@ -200,7 +200,7 @@ Int:                                                                            
 #    define IOFMT_INT_CASE_(x, addr)
 #endif
 
-#if MISRA_HAVE_FLOAT
+#if FEATURE_FLOAT
 #    define IOFMT_FLOAT_CASE_(x, addr)                                                                                 \
 Float:                                                                                                                 \
         TO_TYPE_SPECIFIC_IO(Float, addr),
@@ -547,13 +547,13 @@ bool _write_ZstrAlloc(Str *o, FmtInfo *fmt_info, ZstrIOArg *arg);
 bool _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s);
 bool _write_f32(Str *o, FmtInfo *fmt_info, f32 *v);
 bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v);
-#if MISRA_HAVE_FLOAT
+#if FEATURE_FLOAT
 bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value);
 #endif
-#if MISRA_HAVE_BITVEC
+#if FEATURE_BITVEC
 bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv);
 #endif
-#if MISRA_HAVE_INT
+#if FEATURE_INT
 bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value);
 #endif
 
@@ -571,13 +571,13 @@ const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg);
 const char *_read_UnsupportedType(const char *i, FmtInfo *fmt_info, const char **s);
 const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v);
 const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v);
-#if MISRA_HAVE_FLOAT
+#if FEATURE_FLOAT
 const char *_read_Float(const char *i, FmtInfo *fmt_info, Float *value);
 #endif
-#if MISRA_HAVE_BITVEC
+#if FEATURE_BITVEC
 const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv);
 #endif
-#if MISRA_HAVE_INT
+#if FEATURE_INT
 const char *_read_Int(const char *i, FmtInfo *fmt_info, Int *value);
 #endif
 

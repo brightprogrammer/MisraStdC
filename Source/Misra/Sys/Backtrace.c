@@ -27,7 +27,7 @@
 // footprint small (so files like Bin/ElfInfo.c that maintain their
 // own ELF enum vocabulary aren't poisoned by Parsers/Elf.h transitively).
 // The implementation needs the full definition.
-#if MISRA_HAVE_SYS_SYMRESOLVE
+#if FEATURE_SYS_SYMRESOLVE
 #    include <Misra/Sys/SymbolResolver.h>
 #endif
 
@@ -91,7 +91,7 @@ static const char *basename_of(const char *path) {
 
 #    include <windows.h>
 #    include <dbghelp.h>
-#    if MISRA_HAVE_PARSER_PDB
+#    if FEATURE_PARSER_PDB
 #        include <Misra/Sys/PdbCache.h>
 #    endif
 
@@ -105,7 +105,7 @@ static void ensure_dbghelp(void) {
         g_dbghelp_initialized = true;
 }
 
-#    if MISRA_HAVE_PARSER_PDB
+#    if FEATURE_PARSER_PDB
 // Find the loaded module for `ip` via the Windows loader. No
 // allocation inside.
 static bool win_module_for_ip(void *ip, char *out_path, size out_path_size, u64 *out_base) {
@@ -178,7 +178,7 @@ static void format_walk_win(Str *out, const StackFrame *frames, size count, Allo
     MemSet(&line, 0, sizeof(line));
     line.SizeOfStruct = sizeof(line);
 
-#    if MISRA_HAVE_PARSER_PDB
+#    if FEATURE_PARSER_PDB
     PdbCache pdb_cache;
     bool     pdb_cache_ok = alloc && PdbCacheInit(&pdb_cache, alloc);
 #    else
@@ -191,7 +191,7 @@ static void format_walk_win(Str *out, const StackFrame *frames, size count, Allo
         const char *sym_name = NULL;
         u32         sym_off  = 0;
 
-#    if MISRA_HAVE_PARSER_PDB
+#    if FEATURE_PARSER_PDB
         if (pdb_cache_ok) {
             char module_path[MAX_PATH];
             u64  module_base = 0;
@@ -226,7 +226,7 @@ static void format_walk_win(Str *out, const StackFrame *frames, size count, Allo
         StrPushBack(out, '\n');
     }
 
-#    if MISRA_HAVE_PARSER_PDB
+#    if FEATURE_PARSER_PDB
     if (pdb_cache_ok)
         PdbCacheDeinit(&pdb_cache);
 #    endif
@@ -304,7 +304,7 @@ typedef struct MachoSegmentCommand64 {
     // trailing maxprot/initprot/nsects/flags not read
 } MachoSegmentCommand64;
 
-#    if MISRA_HAVE_PARSER_MACHO
+#    if FEATURE_PARSER_MACHO
 #        include <Misra/Sys/MachoCache.h>
 #    endif
 
@@ -358,7 +358,7 @@ bool capture_stack_trace_vec(StackFrames *out, size skip_frames) {
     return !s.oom;
 }
 
-#    if MISRA_HAVE_PARSER_MACHO
+#    if FEATURE_PARSER_MACHO
 static bool dyld_image_for_ip(void *ip, const char **out_path, u64 *out_slide) {
     uintptr_t ipx = (uintptr_t)ip;
     u32       n   = _dyld_image_count();
@@ -388,7 +388,7 @@ static bool dyld_image_for_ip(void *ip, const char **out_path, u64 *out_slide) {
 #    endif
 
 static void format_walk_mac(Str *out, const StackFrame *frames, size count, Allocator *alloc) {
-#    if MISRA_HAVE_PARSER_MACHO
+#    if FEATURE_PARSER_MACHO
     MachoCache cache;
     bool       cache_ok = alloc && MachoCacheInit(&cache, alloc);
 #    else
@@ -402,7 +402,7 @@ static void format_walk_mac(Str *out, const StackFrame *frames, size count, Allo
         const char *mod_path = NULL;
         bool        named    = false;
 
-#    if MISRA_HAVE_PARSER_MACHO
+#    if FEATURE_PARSER_MACHO
         u64 slide = 0;
         if (cache_ok && dyld_image_for_ip(frames[i].ip, &mod_path, &slide)) {
             if (MachoCacheResolve(&cache, mod_path, slide, ip, &sym_name, &sym_off)) {
@@ -422,7 +422,7 @@ static void format_walk_mac(Str *out, const StackFrame *frames, size count, Allo
         }
     }
 
-#    if MISRA_HAVE_PARSER_MACHO
+#    if FEATURE_PARSER_MACHO
     if (cache_ok)
         MachoCacheDeinit(&cache);
 #    endif
@@ -572,7 +572,7 @@ void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *allo
 // and the return-address pseudo-register at 16. We track RSP and RBP
 // across frames; other GPRs aren't needed to walk the call stack.
 
-#    if MISRA_HAVE_SYS_SYMRESOLVE && MISRA_HAVE_PARSER_DWARF && defined(__x86_64__)
+#    if FEATURE_SYS_SYMRESOLVE && FEATURE_PARSER_DWARF && defined(__x86_64__)
 
 enum {
     DWARF_REG_RBP = 6,
@@ -704,7 +704,7 @@ bool capture_stack_trace_cfi_vec(StackFrames *out, size skip_frames, SymbolResol
     return !s.oom;
 }
 
-#    elif MISRA_HAVE_SYS_SYMRESOLVE && MISRA_HAVE_PARSER_DWARF
+#    elif FEATURE_SYS_SYMRESOLVE && FEATURE_PARSER_DWARF
 // CFI walker not yet implemented for this architecture (only x86-64
 // in v1). aarch64 follows a very similar pattern and is in
 // FUTURE-PLANS.

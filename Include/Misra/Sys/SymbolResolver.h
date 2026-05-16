@@ -24,7 +24,7 @@
 #define MISRA_SYS_SYMBOL_RESOLVER_H
 
 #include <Misra/Parsers/Elf.h>
-#if MISRA_HAVE_PARSER_DWARF
+#if FEATURE_PARSER_DWARF
 #    include <Misra/Parsers/Dwarf.h>
 #endif
 #include <Misra/Std/Allocator.h>
@@ -48,7 +48,7 @@
 /// - symbol_size  : `st_size` of the matching symbol.
 /// - offset       : `addr` minus the start of the matching symbol. If
 ///                  no symbol matched, the offset from `module_base`.
-/// - source_file  : When `MISRA_HAVE_PARSER_DWARF` is on and the
+/// - source_file  : When `FEATURE_PARSER_DWARF` is on and the
 ///                  module ships `.debug_line` data we understand,
 ///                  this is the source file containing `addr`.
 ///                  NULL otherwise.
@@ -81,7 +81,7 @@ typedef struct ResolverCacheEntry {
     // are searched after the main file's.
     ElfFile sidecar;
     bool    has_sidecar;
-#if MISRA_HAVE_PARSER_DWARF
+#if FEATURE_PARSER_DWARF
     DwarfLines dwarf;
     bool       dwarf_built;
     bool       dwarf_ok;
@@ -152,7 +152,7 @@ void SymbolResolverDeinit(SymbolResolver *self);
 ///
 bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSymbol *out);
 
-#if MISRA_HAVE_PARSER_DWARF
+#if FEATURE_PARSER_DWARF
 ///
 /// Look up the .eh_frame FDE that describes how to unwind through the
 /// function at `runtime_addr`. Populates `*out_cfi`, `*out_fde`, and

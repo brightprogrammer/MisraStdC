@@ -97,7 +97,7 @@ static size page_round_up(size bytes, size align) {
 static void *page_map(size bytes) {
 #if defined(PAGE_ALLOCATOR_WINDOWS)
     return VirtualAlloc(NULL, (SIZE_T)bytes, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-#elif MISRA_HAVE_DIRECT_SYSCALL
+#elif FEATURE_DIRECT_SYSCALL
     long ret = misra_sys6(MISRA_SYS_mmap, 0, (long)bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if ((unsigned long)ret >= (unsigned long)-4095) {
         return NULL;
@@ -119,7 +119,7 @@ static void page_unmap(void *ptr, size bytes) {
 #if defined(PAGE_ALLOCATOR_WINDOWS)
     (void)bytes;
     VirtualFree(ptr, 0, MEM_RELEASE);
-#elif MISRA_HAVE_DIRECT_SYSCALL
+#elif FEATURE_DIRECT_SYSCALL
     (void)misra_sys2(MISRA_SYS_munmap, (long)(uintptr_t)ptr, (long)bytes);
 #else
     munmap(ptr, (size_t)bytes);
@@ -215,7 +215,7 @@ bool PageProtect(void *ptr, size bytes, PageProtection prot) {
             LOG_ERROR("PageProtect: unknown protection bit {}", (u32)prot);
             return false;
     }
-#    if MISRA_HAVE_DIRECT_SYSCALL
+#    if FEATURE_DIRECT_SYSCALL
     long ret = misra_sys3(MISRA_SYS_mprotect, (long)(uintptr_t)ptr, (long)bytes, (long)posix_prot);
     if (ret != 0) {
         LOG_ERROR("PageProtect: mprotect failed (errno {})", (i32)-ret);

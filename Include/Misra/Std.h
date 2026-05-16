@@ -24,17 +24,17 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Utility.h>
 
-#if MISRA_HAVE_ALLOC_ARENA
+#if FEATURE_ALLOC_ARENA
 #    include <Misra/Std/Allocator/Arena.h>
 #endif
-#if MISRA_HAVE_ALLOC_SLAB
+#if FEATURE_ALLOC_SLAB
 #    include <Misra/Std/Allocator/Slab.h>
 #endif
-#if MISRA_HAVE_ALLOC_BUDGET
+#if FEATURE_ALLOC_BUDGET
 #    include <Misra/Std/Allocator/Budget.h>
 #endif
 
-#if MISRA_HAVE_FILE
+#if FEATURE_FILE
 #    include <Misra/Std/File.h>
 #endif
 

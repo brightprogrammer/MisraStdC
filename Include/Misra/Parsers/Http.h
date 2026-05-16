@@ -271,7 +271,7 @@ const char *HttpContentTypeToZstr(HttpContentType content_type);
 ///
 HttpResponse *HttpRespondWithHtml(HttpResponse *response, HttpResponseCode status, const Str *html);
 
-#if MISRA_HAVE_FILE
+#if FEATURE_FILE
 ///
 /// Populate `response` from a file on disk. The file's bytes are read
 /// through `response->allocator`. Only available when the `file`

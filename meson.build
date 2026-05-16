@@ -286,43 +286,43 @@ if opt_sys_dns
 endif
 
 # Compile-time discovery: each enabled feature exposes
-# `MISRA_HAVE_<NAME> == 1` via a generated `Misra/Config.h`. Every
+# `FEATURE_<NAME> == 1` via a generated `Misra/Config.h`. Every
 # library and consumer translation unit picks this up transitively
-# through `Misra/Types.h`, so `#if MISRA_HAVE_BITVEC` works whether
+# through `Misra/Types.h`, so `#if FEATURE_BITVEC` works whether
 # you build against the in-tree library or against the installed
 # headers.
 config_data = configuration_data()
-config_data.set10('MISRA_HAVE_ALLOC_ARENA',     opt_alloc_arena)
-config_data.set10('MISRA_HAVE_ALLOC_SLAB',      opt_alloc_slab)
-config_data.set10('MISRA_HAVE_ALLOC_BUDGET',    opt_alloc_budget)
-config_data.set10('MISRA_HAVE_ALLOC_STATS',     opt_alloc_stats)
-config_data.set10('MISRA_HAVE_ALLOC_DEBUG',     opt_alloc_debug)
-config_data.set10('MISRA_DEFAULT_ALLOC_DEBUG',  opt_default_alloc_debug)
-config_data.set10('MISRA_DEFAULT_ALLOC_DEBUG_PAGE_BACKED', opt_default_alloc_debug_page_backed)
-config_data.set10('MISRA_HAVE_BITVEC',          opt_bitvec)
-config_data.set10('MISRA_HAVE_LIST',            opt_list)
-config_data.set10('MISRA_HAVE_MAP',             opt_map)
-config_data.set10('MISRA_HAVE_GRAPH',           opt_graph)
-config_data.set10('MISRA_HAVE_INT',             opt_int)
-config_data.set10('MISRA_HAVE_FLOAT',           opt_float)
-config_data.set10('MISRA_HAVE_FILE',            opt_file)
-config_data.set10('MISRA_HAVE_ITER',            opt_iter)
-config_data.set10('MISRA_HAVE_SYS_DIR',         opt_sys_dir)
-config_data.set10('MISRA_HAVE_SYS_PROC',        opt_sys_proc)
-config_data.set10('MISRA_HAVE_SYS_SOCKET',      opt_sys_socket)
-config_data.set10('MISRA_HAVE_SYS_PROCMAPS',    opt_sys_procmaps)
-config_data.set10('MISRA_HAVE_SYS_SYMRESOLVE',  opt_sys_symresolve)
-config_data.set10('MISRA_HAVE_SYS_BACKTRACE',   opt_sys_backtrace)
-config_data.set10('MISRA_HAVE_PARSER_JSON',     opt_parser_json)
-config_data.set10('MISRA_HAVE_PARSER_KVCONFIG', opt_parser_kvconf)
-config_data.set10('MISRA_HAVE_PARSER_HTTP',     opt_parser_http)
-config_data.set10('MISRA_HAVE_PARSER_ELF',      opt_parser_elf)
-config_data.set10('MISRA_HAVE_PARSER_DWARF',    opt_parser_dwarf)
-config_data.set10('MISRA_HAVE_PARSER_PE',       opt_parser_pe)
-config_data.set10('MISRA_HAVE_PARSER_PDB',      opt_parser_pdb)
-config_data.set10('MISRA_HAVE_PARSER_MACHO',    opt_parser_macho)
-config_data.set10('MISRA_HAVE_PARSER_DNS',      opt_parser_dns)
-config_data.set10('MISRA_HAVE_SYS_DNS',         opt_sys_dns)
+config_data.set10('FEATURE_ALLOC_ARENA',     opt_alloc_arena)
+config_data.set10('FEATURE_ALLOC_SLAB',      opt_alloc_slab)
+config_data.set10('FEATURE_ALLOC_BUDGET',    opt_alloc_budget)
+config_data.set10('FEATURE_ALLOC_STATS',     opt_alloc_stats)
+config_data.set10('FEATURE_ALLOC_DEBUG',     opt_alloc_debug)
+config_data.set10('FEATURE_DEFAULT_ALLOC_DEBUG',  opt_default_alloc_debug)
+config_data.set10('FEATURE_DEFAULT_ALLOC_DEBUG_PAGE_BACKED', opt_default_alloc_debug_page_backed)
+config_data.set10('FEATURE_BITVEC',          opt_bitvec)
+config_data.set10('FEATURE_LIST',            opt_list)
+config_data.set10('FEATURE_MAP',             opt_map)
+config_data.set10('FEATURE_GRAPH',           opt_graph)
+config_data.set10('FEATURE_INT',             opt_int)
+config_data.set10('FEATURE_FLOAT',           opt_float)
+config_data.set10('FEATURE_FILE',            opt_file)
+config_data.set10('FEATURE_ITER',            opt_iter)
+config_data.set10('FEATURE_SYS_DIR',         opt_sys_dir)
+config_data.set10('FEATURE_SYS_PROC',        opt_sys_proc)
+config_data.set10('FEATURE_SYS_SOCKET',      opt_sys_socket)
+config_data.set10('FEATURE_SYS_PROCMAPS',    opt_sys_procmaps)
+config_data.set10('FEATURE_SYS_SYMRESOLVE',  opt_sys_symresolve)
+config_data.set10('FEATURE_SYS_BACKTRACE',   opt_sys_backtrace)
+config_data.set10('FEATURE_PARSER_JSON',     opt_parser_json)
+config_data.set10('FEATURE_PARSER_KVCONFIG', opt_parser_kvconf)
+config_data.set10('FEATURE_PARSER_HTTP',     opt_parser_http)
+config_data.set10('FEATURE_PARSER_ELF',      opt_parser_elf)
+config_data.set10('FEATURE_PARSER_DWARF',    opt_parser_dwarf)
+config_data.set10('FEATURE_PARSER_PE',       opt_parser_pe)
+config_data.set10('FEATURE_PARSER_PDB',      opt_parser_pdb)
+config_data.set10('FEATURE_PARSER_MACHO',    opt_parser_macho)
+config_data.set10('FEATURE_PARSER_DNS',      opt_parser_dns)
+config_data.set10('FEATURE_SYS_DNS',         opt_sys_dns)
 
 # `subdir(...)` runs the inner meson.build, where `configure_file`
 # emits `build/Include/Misra/Config.h`. The top-level
@@ -496,7 +496,7 @@ subdir('Tests')
 # install prefix. Disabled features have their `Container/<Name>/`,
 # `Allocator/<Name>.h`, `Sys/<Name>.h`, or `Parsers/<Name>.h` excluded.
 # The umbrella headers themselves (`Misra.h`, `Misra/Std.h`, ...)
-# already use `#if MISRA_HAVE_*` so a downstream consumer picking up
+# already use `#if FEATURE_*` so a downstream consumer picking up
 # only the installed subset still gets a clean include graph.
 
 install_subdir_excludes_dirs = []

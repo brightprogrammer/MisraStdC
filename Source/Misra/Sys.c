@@ -351,7 +351,7 @@ ProcId ProcGetCurrentId(void) {
 #if defined(_WIN32)
     // kernel32.dll, not libc.
     return (ProcId)GetCurrentProcessId();
-#elif MISRA_HAVE_DIRECT_SYSCALL
+#elif FEATURE_DIRECT_SYSCALL
     // Linux: direct syscall. Kernel guarantees getpid never fails.
     return (ProcId)misra_sys0(MISRA_SYS_getpid);
 #else

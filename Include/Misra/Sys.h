@@ -19,19 +19,19 @@
 // typedef appear in both files.
 typedef u64 ProcId;
 
-#if MISRA_HAVE_SYS_DIR
+#if FEATURE_SYS_DIR
 #    include <Misra/Sys/Dir.h>
 #endif
 
-#if MISRA_HAVE_SYS_PROC
+#if FEATURE_SYS_PROC
 #    include <Misra/Sys/Proc.h>
 #endif
 
-#if MISRA_HAVE_SYS_SOCKET
+#if FEATURE_SYS_SOCKET
 #    include <Misra/Sys/Socket.h>
 #endif
 
-#if MISRA_HAVE_SYS_PROCMAPS
+#if FEATURE_SYS_PROCMAPS
 #    include <Misra/Sys/ProcMaps.h>
 #endif
 

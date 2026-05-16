@@ -7,7 +7,7 @@
 
 #include <Misra/Parsers/Http.h>
 
-#if MISRA_HAVE_FILE
+#if FEATURE_FILE
 #    include <Misra/Std/File.h>
 #endif
 
@@ -390,7 +390,7 @@ HttpResponse *HttpRespondWithHtml(HttpResponse *response, HttpResponseCode statu
     return response;
 }
 
-#if MISRA_HAVE_FILE
+#if FEATURE_FILE
 HttpResponse *HttpRespondWithFile(
     HttpResponse    *response,
     HttpResponseCode status,

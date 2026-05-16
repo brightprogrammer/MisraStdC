@@ -118,7 +118,7 @@ DirContents DirGetContents(const char *path, Allocator *alloc) {
 
     return dc;
 }
-#elif MISRA_HAVE_DIRECT_SYSCALL
+#elif FEATURE_DIRECT_SYSCALL
 // Linux: open + getdents64 syscalls, parse `struct linux_dirent64`
 // records out of the kernel's buffer ourselves. dirent.d_type tells
 // us the entry kind (regular file / dir / symlink / ...), so we
@@ -298,7 +298,7 @@ i64 FileGetSize(const char *filename) {
 
     CloseHandle(file);
     return (i64)file_size.QuadPart;
-#elif MISRA_HAVE_DIRECT_SYSCALL
+#elif FEATURE_DIRECT_SYSCALL
     // Open + lseek(SEEK_END) + close. Avoids needing the kernel's
     // arch-specific `struct stat` layout: lseek returns the offset
     // value the kernel computes, which equals file size at SEEK_END.

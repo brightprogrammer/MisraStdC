@@ -42,7 +42,7 @@ extern "C" {
     typedef void *(*AllocatorReallocateFn)(Allocator *self, void *ptr, size old_size, size new_size);
     typedef void (*AllocatorDeallocateFn)(Allocator *self, void *ptr, size bytes);
 
-#if MISRA_HAVE_ALLOC_STATS
+#if FEATURE_ALLOC_STATS
     ///
     /// Per-allocator memory-pressure counters. Updated by the dispatch
     /// wrappers (`AllocatorAlloc` / `AllocatorRealloc` / `AllocatorFree`)
@@ -93,12 +93,12 @@ extern "C" {
         AllocatorEffort       effort;
         u32                   retry_limit;
         u64                   __magic;
-#if MISRA_HAVE_ALLOC_STATS
+#if FEATURE_ALLOC_STATS
         AllocatorStats stats;
 #endif
     };
 
-#if MISRA_HAVE_ALLOC_STATS
+#if FEATURE_ALLOC_STATS
     ///
     /// Snapshot the current stats off `self`. Returns the struct by
     /// value; reading does not perturb the counters.

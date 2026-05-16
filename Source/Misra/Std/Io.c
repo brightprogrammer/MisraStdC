@@ -23,7 +23,7 @@
 static inline int misra_is_tty(int fd) {
 #if defined(_WIN32)
     return _isatty(fd);
-#elif MISRA_HAVE_DIRECT_SYSCALL
+#elif FEATURE_DIRECT_SYSCALL
     char buf[128]; // termios is < 64 bytes; 128 is safe overkill.
     long ret = misra_sys3(MISRA_SYS_ioctl, (long)fd, 0x5401L, (long)(uintptr_t)buf);
     return ret == 0 ? 1 : 0;
@@ -52,13 +52,13 @@ static inline int misra_is_tty(int fd) {
 #include <Misra/Std/Memory.h>
 #include <Misra/Types.h>
 
-#if MISRA_HAVE_BITVEC
+#if FEATURE_BITVEC
 #    include <Misra/Std/Container/BitVec.h>
 #endif
-#if MISRA_HAVE_INT
+#if FEATURE_INT
 #    include <Misra/Std/Container/Int.h>
 #endif
-#if MISRA_HAVE_FLOAT
+#if FEATURE_FLOAT
 #    include <Misra/Std/Container/Float.h>
 #endif
 
@@ -903,7 +903,7 @@ static inline bool write_char_internal(Str *o, FormatFlags flags, const char *vs
     return true;
 }
 
-#if MISRA_HAVE_INT
+#if FEATURE_INT
 static int IntFmtDigitValue(char c) {
     if (c >= '0' && c <= '9') {
         return c - '0';
@@ -937,9 +937,9 @@ static u8 IntFmtRadixFromFlags(FmtInfo *fmt_info) {
 
     return 10;
 }
-#endif // MISRA_HAVE_INT
+#endif // FEATURE_INT
 
-#if MISRA_HAVE_FLOAT
+#if FEATURE_FLOAT
 static bool FloatFmtUsesUnsupportedFlags(FmtInfo *fmt_info) {
     return fmt_info && (fmt_info->flags & (FMT_FLAG_CHAR | FMT_FLAG_HEX | FMT_FLAG_BINARY | FMT_FLAG_OCTAL |
                                            FMT_FLAG_RAW | FMT_FLAG_STRING)) != 0;
@@ -1217,7 +1217,7 @@ static size FloatFmtTokenLength(const char *input) {
 
     return pos;
 }
-#endif // MISRA_HAVE_FLOAT
+#endif // FEATURE_FLOAT
 
 ///
 /// Helper function to read characters into a buffer, handling hex escape sequences
@@ -1758,7 +1758,7 @@ bool _write_f32(Str *o, FmtInfo *fmt_info, f32 *v) {
     return _write_f64(o, fmt_info, &val);
 }
 
-#if MISRA_HAVE_FLOAT
+#if FEATURE_FLOAT
 bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
     size start_len = 0;
     Str  temp;
@@ -1814,7 +1814,7 @@ bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
 
     return true;
 }
-#endif // MISRA_HAVE_FLOAT
+#endif // FEATURE_FLOAT
 
 // Helper function to handle escape sequences
 static char ProcessEscape(const char **str) {
@@ -2992,7 +2992,7 @@ const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg) {
     return next;
 }
 
-#if MISRA_HAVE_BITVEC
+#if FEATURE_BITVEC
 bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
     if (!o || !fmt_info || !bv) {
         LOG_FATAL("Invalid arguments");
@@ -3060,9 +3060,9 @@ bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
 
     return true;
 }
-#endif // MISRA_HAVE_BITVEC
+#endif // FEATURE_BITVEC
 
-#if MISRA_HAVE_INT
+#if FEATURE_INT
 bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
     if (!o || !fmt_info || !value) {
         LOG_FATAL("Invalid arguments");
@@ -3124,7 +3124,7 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
 
     return true;
 }
-#endif // MISRA_HAVE_INT
+#endif // FEATURE_INT
 
 bool _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s) {
     (void)o;
@@ -3134,7 +3134,7 @@ bool _write_UnsupportedType(Str *o, FmtInfo *fmt_info, const char **s) {
     return false;
 }
 
-#if MISRA_HAVE_BITVEC
+#if FEATURE_BITVEC
 const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
     (void)fmt_info; // Unused parameter
     if (!i || !bv) {
@@ -3250,9 +3250,9 @@ const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv) {
     StrDeinit(&bin_str);
     return i;
 }
-#endif // MISRA_HAVE_BITVEC
+#endif // FEATURE_BITVEC
 
-#if MISRA_HAVE_INT
+#if FEATURE_INT
 const char *_read_Int(const char *i, FmtInfo *fmt_info, Int *value) {
     if (!i || !value) {
         LOG_FATAL("Invalid arguments");
@@ -3325,9 +3325,9 @@ const char *_read_Int(const char *i, FmtInfo *fmt_info, Int *value) {
     StrDeinit(&temp);
     return i;
 }
-#endif // MISRA_HAVE_INT
+#endif // FEATURE_INT
 
-#if MISRA_HAVE_FLOAT
+#if FEATURE_FLOAT
 const char *_read_Float(const char *i, FmtInfo *fmt_info, Float *value) {
     size        token_len = 0;
     const char *start     = NULL;
@@ -3385,7 +3385,7 @@ const char *_read_Float(const char *i, FmtInfo *fmt_info, Float *value) {
     StrDeinit(&temp);
     return start + token_len;
 }
-#endif              // MISRA_HAVE_FLOAT
+#endif              // FEATURE_FLOAT
 
 const char *_read_UnsupportedType(const char *i, FmtInfo *fmt_info, const char **s) {
     (void)fmt_info; // Unused parameter

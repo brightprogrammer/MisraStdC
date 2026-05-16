@@ -27,7 +27,7 @@
 
 #if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
 
-#    define MISRA_HAVE_DIRECT_SYSCALL 1
+#    define FEATURE_DIRECT_SYSCALL 1
 
 static inline long misra_sys0(long nr) {
     long ret;
@@ -270,7 +270,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 
 #else
 
-#    define MISRA_HAVE_DIRECT_SYSCALL 0
+#    define FEATURE_DIRECT_SYSCALL 0
 
 #endif // __linux__ && (__x86_64__ || __aarch64__)
 

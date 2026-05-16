@@ -19,7 +19,7 @@
 #include <Misra/Std/Utility/Pair.h>
 #include <Misra/Std/Utility/StrIter.h>
 
-#if MISRA_HAVE_ITER
+#if FEATURE_ITER
 #    include <Misra/Std/Utility/Iter.h>
 #endif
 

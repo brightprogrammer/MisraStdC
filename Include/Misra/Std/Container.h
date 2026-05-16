@@ -14,22 +14,22 @@
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/Vec.h>
 
-#if MISRA_HAVE_BITVEC
+#if FEATURE_BITVEC
 #    include <Misra/Std/Container/BitVec.h>
 #endif
-#if MISRA_HAVE_LIST
+#if FEATURE_LIST
 #    include <Misra/Std/Container/List.h>
 #endif
-#if MISRA_HAVE_MAP
+#if FEATURE_MAP
 #    include <Misra/Std/Container/Map.h>
 #endif
-#if MISRA_HAVE_GRAPH
+#if FEATURE_GRAPH
 #    include <Misra/Std/Container/Graph.h>
 #endif
-#if MISRA_HAVE_INT
+#if FEATURE_INT
 #    include <Misra/Std/Container/Int.h>
 #endif
-#if MISRA_HAVE_FLOAT
+#if FEATURE_FLOAT
 #    include <Misra/Std/Container/Float.h>
 #endif
 
