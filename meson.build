@@ -14,6 +14,14 @@ common_c_args = []
 foreach arg : [
     '-Wno-incompatible-pointer-types-discards-qualifiers',  # clang
     '-Wno-discarded-qualifiers',                            # gcc
+    # Uninitialized-variable checks. The project's convention is
+    # "initialise at declaration"; `-Wuninitialized` (clang+gcc) plus
+    # `-Wmaybe-uninitialized` (gcc only) catches the slips. -Werror
+    # on these so it fails the build and we don't accumulate drift.
+    '-Wuninitialized',
+    '-Wmaybe-uninitialized',
+    '-Werror=uninitialized',
+    '-Werror=maybe-uninitialized',
 ]
     if cc.has_argument(arg)
         common_c_args += arg

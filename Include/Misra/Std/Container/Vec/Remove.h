@@ -34,10 +34,6 @@
 ///
 #define VecRemove(v, ptr, idx)                                                                                         \
     do {                                                                                                               \
-        if ((ptr) != NULL) {                                                                                           \
-            const VEC_DATATYPE(v) __x = *(ptr);                                                                        \
-            (void)__x;                                                                                                 \
-        }                                                                                                              \
         VEC_DATATYPE(v) *p = (ptr);                                                                                    \
         remove_range_vec(GENERIC_VEC(v), (char *)p, sizeof(VEC_DATATYPE(v)), (idx), 1);                                \
     } while (0)
@@ -65,10 +61,6 @@
 ///
 #define VecRemoveFast(v, ptr, idx)                                                                                     \
     do {                                                                                                               \
-        if ((ptr) != NULL) {                                                                                           \
-            const VEC_DATATYPE(v) __x = *(ptr);                                                                        \
-            (void)__x;                                                                                                 \
-        }                                                                                                              \
         VEC_DATATYPE(v) *p = (ptr);                                                                                    \
         fast_remove_range_vec(GENERIC_VEC(v), (char *)(p), sizeof(VEC_DATATYPE(v)), (idx), 1);                         \
     } while (0)
@@ -98,10 +90,6 @@
 ///
 #define VecRemoveRange(v, ptr, start, count)                                                                           \
     do {                                                                                                               \
-        if ((ptr) != NULL) {                                                                                           \
-            const VEC_DATATYPE(v) __x = *(ptr);                                                                        \
-            (void)__x;                                                                                                 \
-        }                                                                                                              \
         VEC_DATATYPE(v) *p = (ptr);                                                                                    \
         remove_range_vec(GENERIC_VEC(v), (char *)p, sizeof(VEC_DATATYPE(v)), (start), (count));                        \
     } while (0)
@@ -130,10 +118,6 @@
 ///
 #define VecRemoveRangeFast(v, ptr, start, count)                                                                       \
     do {                                                                                                               \
-        if ((ptr) != NULL) {                                                                                           \
-            const VEC_DATATYPE(v) __x = *(ptr);                                                                        \
-            (void)__x;                                                                                                 \
-        }                                                                                                              \
         VEC_DATATYPE(v) *p = (ptr);                                                                                    \
         fast_remove_range_vec(GENERIC_VEC(v), (char *)p, sizeof(VEC_DATATYPE(v)), (start), (count));                   \
     } while (0)
