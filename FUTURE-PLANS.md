@@ -11,7 +11,7 @@ Parking lot for items we've identified during real implementation work but defer
 - `GuardPageAllocator`: per-allocation `mmap` + `mprotect(PROT_NONE)` flanking guard pages for overflow-traps-instantly testing.
 
 ## Sys / Networking
-- `Sys/Socket`: replace libc `getaddrinfo` with an in-tree DNS resolver (eliminate libc dependency).
+- `Sys/Socket`: in-tree DNS resolver — currently `SocketAddrParse` rejects hostnames with a clear error and accepts numeric IPv4 / IPv6 only. A real resolver needs UDP/TCP query to `/etc/resolv.conf` nameservers, `A` + `AAAA` walk, `CNAME` chain follow, `/etc/hosts` override, optional caching.
 - `Sys/Socket`: Windows port — currently `#error` on `_WIN32` (needs `SOCKET` vs `int` reconciliation, `WSAStartup`, `closesocket`, `WSAPoll`).
 - `Sys/Socket`: move `SocketPoll` from `poll()` to `epoll` / `kqueue` for >1000-fd scale.
 - `Sys/Backtrace`: consider symbolize-once cache so repeated `FormatStackTrace` calls don't redo `dladdr` work.
@@ -70,7 +70,8 @@ Items below have landed; kept here as a history of what each branch closed out.
 - `Tests/Std/MachO`: Darwin-only round-trip against the running test binary via `_NSGetExecutablePath` + `MachoFileOpen` + `MachoFileResolveAddress`; structural parallel of the Linux `Tests/Std/Elf` `/proc/self/exe` smoke tests.
 
 ### libc-diet (May 2026)
-- Project-wide: dropped 63 of 67 imported libc symbols from `libmisra_std.a`. The remaining 4 are 2 compiler-emitted (`__errno_location`, `__stack_chk_fail`) and the 2 DNS funcs (`getaddrinfo`, `freeaddrinfo`) — those need an in-tree DNS resolver and are tracked separately above.
+- Project-wide: dropped 65 of 67 imported libc symbols from `libmisra_std.a`. The remaining 2 are compiler-emitted (`__errno_location`, `__stack_chk_fail`) and would need different build flags to drop.
+- `Sys/Socket`: `SocketAddrParse` now uses in-tree `parse_ipv4` / `parse_ipv6` / `parse_port` instead of libc `getaddrinfo`. RFC 5952 "::" compression on the v6 side. Hostname resolution returns a clear error pointing at the future-plans DNS resolver entry. `freeaddrinfo` also gone; `<netdb.h>` no longer included.
 - `Source/Misra/_Syscall.h`: private internal header with `misra_sys0..misra_sys6` inline-asm wrappers and a `MISRA_SYS_*` syscall-number table for Linux x86_64 and aarch64. Single shared plumbing for every direct-syscall site; macOS / Windows fall through to libSystem / kernel32.
 - `Sys.c`: `abort()` -> per-arch inline-asm trap (`ud2`/`brk #0`/`udf #0`/`__debugbreak`); `getpid` -> direct syscall; `getenv` -> walk `extern char **environ`; `strerror_r` -> in-tree errno description table covering ~45 POSIX values.
 - `Sys/Mutex.c`: pthread -> futex (Linux) / `os_unfair_lock` (macOS) / `SRWLOCK` (Windows). Sizeof(Mutex) shrinks from ~40 bytes to 4-pointer-sized. Drepper-style 3-state futex; lock fast-path is one CAS.

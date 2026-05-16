@@ -18,7 +18,6 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <poll.h>
@@ -111,63 +110,154 @@ static inline long misra_sock_poll(void *pfds, unsigned long nfds, int timeout_m
 #    define poll(pfds, n, t)             ((int)misra_sock_poll((pfds), (unsigned long)(n), (t)))
 #endif
 
-// getaddrinfo() returns one of the EAI_* codes; libc gai_strerror
-// maps them to a description. Doing it in-tree avoids a libc symbol
-// and keeps the description consistent with how StrError formats
-// errno values elsewhere.
-static const char *gai_description(i32 gai) {
-    switch (gai) {
-#ifdef EAI_BADFLAGS
-        case EAI_BADFLAGS :
-            return "Bad value for ai_flags";
-#endif
-#ifdef EAI_NONAME
-        case EAI_NONAME :
-            return "Name or service not known";
-#endif
-#ifdef EAI_AGAIN
-        case EAI_AGAIN :
-            return "Temporary failure in name resolution";
-#endif
-#ifdef EAI_FAIL
-        case EAI_FAIL :
-            return "Non-recoverable failure in name resolution";
-#endif
-#ifdef EAI_FAMILY
-        case EAI_FAMILY :
-            return "ai_family not supported";
-#endif
-#ifdef EAI_SOCKTYPE
-        case EAI_SOCKTYPE :
-            return "ai_socktype not supported";
-#endif
-#ifdef EAI_SERVICE
-        case EAI_SERVICE :
-            return "Servname not supported for ai_socktype";
-#endif
-#ifdef EAI_MEMORY
-        case EAI_MEMORY :
-            return "Memory allocation failure";
-#endif
-#ifdef EAI_SYSTEM
-        case EAI_SYSTEM :
-            return "System error (see errno)";
-#endif
-#ifdef EAI_OVERFLOW
-        case EAI_OVERFLOW :
-            return "Argument buffer overflow";
-#endif
-#ifdef EAI_NODATA
-        case EAI_NODATA :
-            return "No address associated with hostname";
-#endif
-#ifdef EAI_ADDRFAMILY
-        case EAI_ADDRFAMILY :
-            return "Address family for hostname not supported";
-#endif
-        default :
-            return "Unknown getaddrinfo error";
+// Hex-nibble helper used by the IPv6 parser. Returns 0..15 on a valid
+// digit, -1 otherwise.
+static i32 hex_nibble_value(char c) {
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    if (c >= 'a' && c <= 'f')
+        return 10 + (c - 'a');
+    if (c >= 'A' && c <= 'F')
+        return 10 + (c - 'A');
+    return -1;
+}
+
+// Parse a decimal port number (0..65535) from a NUL-terminated string.
+// Empty / non-numeric input -> false. Out-of-range -> false.
+static bool parse_port(const char *s, u16 *out) {
+    if (!s || !*s)
+        return false;
+    u32 v = 0;
+    for (const char *p = s; *p; ++p) {
+        if (*p < '0' || *p > '9')
+            return false;
+        v = v * 10 + (u32)(*p - '0');
+        if (v > 0xFFFFu)
+            return false;
     }
+    *out = (u16)v;
+    return true;
+}
+
+// Parse an IPv4 dotted-quad ("a.b.c.d") into 4 bytes.
+// Each octet must be 0..255 and decimal-only. Trailing chars after the
+// 4th octet are rejected.
+static bool parse_ipv4(const char *s, u8 octets[4]) {
+    if (!s)
+        return false;
+    for (i32 i = 0; i < 4; ++i) {
+        if (*s < '0' || *s > '9')
+            return false;
+        u32 v = 0;
+        while (*s >= '0' && *s <= '9') {
+            v = v * 10 + (u32)(*s - '0');
+            if (v > 255)
+                return false;
+            ++s;
+        }
+        octets[i] = (u8)v;
+        if (i < 3) {
+            if (*s != '.')
+                return false;
+            ++s;
+        }
+    }
+    return *s == '\0';
+}
+
+// Parse an IPv6 textual form into 16 bytes. Handles the RFC 5952 "::"
+// compression in either lead, middle, or trail position. Does not
+// handle zone IDs (`%eth0`) or embedded IPv4 (`::ffff:192.0.2.1`) --
+// callers needing those today don't exist; add when they do.
+static bool parse_ipv6(const char *s, u8 bytes[16]) {
+    if (!s)
+        return false;
+    u16  before_cc[8];
+    u16  after_cc[8];
+    i32  before_n = 0;
+    i32  after_n  = 0;
+    bool seen_cc  = false; // saw "::"
+    u16 *slot     = before_cc;
+    i32 *slot_n   = &before_n;
+
+    // Leading "::"
+    if (s[0] == ':' && s[1] == ':') {
+        seen_cc  = true;
+        slot     = after_cc;
+        slot_n   = &after_n;
+        s       += 2;
+        if (*s == '\0') {
+            // The "all zeros" address "::".
+            for (i32 i = 0; i < 16; ++i)
+                bytes[i] = 0;
+            return true;
+        }
+    }
+
+    for (;;) {
+        // Read a hextet: 1..4 hex chars.
+        if (*slot_n >= 8)
+            return false;
+        i32 v        = 0;
+        i32 n_digits = 0;
+        while (n_digits < 4) {
+            i32 nib = hex_nibble_value(*s);
+            if (nib < 0)
+                break;
+            v = (v << 4) | nib;
+            ++s;
+            ++n_digits;
+        }
+        if (n_digits == 0)
+            return false;
+        slot[(*slot_n)++] = (u16)v;
+
+        if (*s == '\0')
+            break;
+        if (*s != ':')
+            return false;
+        ++s;
+        if (*s == ':') {
+            if (seen_cc)
+                return false; // two "::"s in one address
+            seen_cc = true;
+            slot    = after_cc;
+            slot_n  = &after_n;
+            ++s;
+            if (*s == '\0')
+                break; // trailing "::"
+        }
+    }
+
+    if (!seen_cc) {
+        // No compression: must have exactly 8 hextets.
+        if (before_n != 8)
+            return false;
+        for (i32 i = 0; i < 8; ++i) {
+            bytes[i * 2]     = (u8)(before_cc[i] >> 8);
+            bytes[i * 2 + 1] = (u8)(before_cc[i] & 0xFFu);
+        }
+        return true;
+    }
+
+    // Compression in play: before_cc + zeros + after_cc must total 8 hextets.
+    if (before_n + after_n > 7)
+        return false;
+    i32 mid_zeros = 8 - before_n - after_n;
+    i32 idx       = 0;
+    for (i32 i = 0; i < before_n; ++i, ++idx) {
+        bytes[idx * 2]     = (u8)(before_cc[i] >> 8);
+        bytes[idx * 2 + 1] = (u8)(before_cc[i] & 0xFFu);
+    }
+    for (i32 i = 0; i < mid_zeros; ++i, ++idx) {
+        bytes[idx * 2]     = 0;
+        bytes[idx * 2 + 1] = 0;
+    }
+    for (i32 i = 0; i < after_n; ++i, ++idx) {
+        bytes[idx * 2]     = (u8)(after_cc[i] >> 8);
+        bytes[idx * 2 + 1] = (u8)(after_cc[i] & 0xFFu);
+    }
+    return true;
 }
 
 // Format an IPv4 dotted-quad ("a.b.c.d") into `dst`. `dst_size` must
@@ -415,34 +505,54 @@ bool SocketAddrParse(SocketAddr *out, const char *spec, SocketKind kind) {
         return false;
     }
 
+    (void)kind;
+
     char        host[256];
-    const char *port = NULL;
-    if (!split_host_port(spec, host, sizeof(host), &port)) {
+    const char *port_str = NULL;
+    if (!split_host_port(spec, host, sizeof(host), &port_str)) {
         LOG_ERROR("SocketAddrParse: cannot split host:port in \"{}\"", spec);
         return false;
     }
 
-    struct addrinfo hints;
-    MemSet(&hints, 0, sizeof(hints));
-    hints.ai_family   = AF_UNSPEC;
-    hints.ai_socktype = sock_kind_to_socktype(kind);
-    hints.ai_protocol = sock_kind_to_protocol(kind);
-    hints.ai_flags    = AI_ADDRCONFIG;
-
-    struct addrinfo *res    = NULL;
-    i32              gairet = getaddrinfo(host, port, &hints, &res);
-    if (gairet != 0) {
-        LOG_ERROR("SocketAddrParse: getaddrinfo(\"{}\") failed: {}", spec, gai_description(gairet));
-        return false;
-    }
-    if (!res) {
-        LOG_ERROR("SocketAddrParse: getaddrinfo(\"{}\") returned no results", spec);
+    u16 port = 0;
+    if (!parse_port(port_str, &port)) {
+        LOG_ERROR("SocketAddrParse: invalid port \"{}\" in \"{}\"", (const char *)port_str, spec);
         return false;
     }
 
-    fill_socket_addr_from_sockaddr(out, res->ai_addr, res->ai_addrlen);
-    freeaddrinfo(res);
-    return true;
+    // Try IPv4 dotted-quad first; if that fails try IPv6. Hostname
+    // resolution (real DNS) is not provided -- pass numeric IPs only.
+    // The FUTURE-PLANS file tracks the in-tree DNS resolver as a
+    // separate piece of work; until that lands, callers that need
+    // name resolution should resolve externally and pass the result.
+    u8 v4[4];
+    u8 v6[16];
+    if (parse_ipv4(host, v4)) {
+        struct sockaddr_in *sa = (struct sockaddr_in *)out->raw;
+        MemSet(out, 0, sizeof(*out));
+        sa->sin_family = AF_INET;
+        sa->sin_port   = FROM_BIG_ENDIAN2(port); // host -> network order is the same swap
+        MemCopy(&sa->sin_addr.s_addr, v4, 4);
+        out->length = (u32)sizeof(struct sockaddr_in);
+        out->family = SOCKET_FAMILY_INET;
+        return true;
+    }
+    if (parse_ipv6(host, v6)) {
+        struct sockaddr_in6 *sa = (struct sockaddr_in6 *)out->raw;
+        MemSet(out, 0, sizeof(*out));
+        sa->sin6_family = AF_INET6;
+        sa->sin6_port   = FROM_BIG_ENDIAN2(port);
+        MemCopy(sa->sin6_addr.s6_addr, v6, 16);
+        out->length = (u32)sizeof(struct sockaddr_in6);
+        out->family = SOCKET_FAMILY_INET6;
+        return true;
+    }
+
+    LOG_ERROR(
+        "SocketAddrParse: host \"{}\" is not a numeric IPv4 or IPv6 address; hostname resolution is not implemented",
+        (const char *)host
+    );
+    return false;
 }
 
 Str SocketAddrFormat(const SocketAddr *addr, Allocator *alloc) {
