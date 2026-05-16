@@ -45,38 +45,121 @@ static i64 float_sub_i64_checked(i64 a, i64 b) {
     return a - b;
 }
 
-static bool float_try_from_f32_value(Float *out, float value, Allocator *alloc) {
-    char text[32] = {0};
-    int  len      = snprintf(text, sizeof(text), "%.9g", (double)value);
-
+// Exact IEEE-754 -> Float construction. Avoids the libc `snprintf`
+// round-trip the old implementation used.
+//
+// Given a finite IEEE binary value `(-1)^neg * mantissa * 2^binexp`,
+// we express it in base-10 as `(-1)^neg * sig * 10^dexp`:
+//   - binexp >= 0: sig = mantissa << binexp,             dexp = 0
+//   - binexp <  0: sig = mantissa * 5^|binexp|,          dexp = binexp
+//                  (because value * 10^|binexp|
+//                  = mantissa * 5^|binexp|.)
+//
+// The resulting representation is exact -- f32/f64 -> Float -> back
+// is bit-perfect, where the libc %g / %.17g path was shortest-form
+// (could lose information).
+static bool float_try_from_ieee_bits(Float *out, u64 mantissa, int binexp, bool negative, Allocator *alloc) {
     if (!out) {
         LOG_ERROR("Invalid arguments");
         return false;
     }
+    *out          = FloatInit(alloc);
+    out->negative = negative;
 
-    if (len < 0 || len >= (int)sizeof(text)) {
-        LOG_FATAL("Failed to convert f32 to Float");
+    if (mantissa == 0) {
+        return true; // signed zero
     }
 
-    *out = FloatInit(alloc);
-    return FloatTryFromStr(out, text);
+    if (!float_try_int_from_u64(&out->significand, mantissa, alloc)) {
+        return false;
+    }
+
+    if (binexp > 0) {
+        if (!IntShiftLeft(&out->significand, (u64)binexp)) {
+            return false;
+        }
+        out->exponent = 0;
+    } else if (binexp < 0) {
+        u64 n    = (u64)(-(i64)binexp);
+        Int five = IntInit(alloc);
+        Int pow5 = IntInit(alloc);
+        Int sig  = IntInit(alloc);
+        if (!float_try_int_from_u64(&five, 5u, alloc) || !IntPow(&pow5, &five, n) ||
+            !int_mul(&sig, &out->significand, &pow5)) {
+            IntDeinit(&five);
+            IntDeinit(&pow5);
+            IntDeinit(&sig);
+            return false;
+        }
+        IntDeinit(&five);
+        IntDeinit(&pow5);
+        IntDeinit(&out->significand);
+        out->significand = sig;
+        out->exponent    = (i64)binexp;
+    } else {
+        out->exponent = 0;
+    }
+
+    float_normalize(out);
+    return true;
+}
+
+static bool float_try_from_f32_value(Float *out, float value, Allocator *alloc) {
+    if (!out) {
+        LOG_ERROR("Invalid arguments");
+        return false;
+    }
+    union {
+        f32 f;
+        u32 b;
+    } u       = {.f = value};
+    u32  bits = u.b;
+    bool neg  = ((bits >> 31) & 1u) != 0;
+    u32  e    = (bits >> 23) & 0xFFu;
+    u32  m    = bits & 0x7FFFFFu;
+    if (e == 0xFFu) {
+        LOG_FATAL("Float from f32 does not represent finite values (Inf/NaN)");
+    }
+    u64 mantissa;
+    int binexp;
+    if (e == 0) {
+        // Denormal: value = m * 2^(-126 - 23)
+        mantissa = (u64)m;
+        binexp   = -126 - 23;
+    } else {
+        // Normal: implicit leading 1
+        mantissa = (u64)m | (1ULL << 23);
+        binexp   = (int)e - 127 - 23;
+    }
+    return float_try_from_ieee_bits(out, mantissa, binexp, neg, alloc);
 }
 
 static bool float_try_from_f64_value(Float *out, double value, Allocator *alloc) {
-    char text[48] = {0};
-    int  len      = snprintf(text, sizeof(text), "%.17g", value);
-
     if (!out) {
         LOG_ERROR("Invalid arguments");
         return false;
     }
-
-    if (len < 0 || len >= (int)sizeof(text)) {
-        LOG_FATAL("Failed to convert f64 to Float");
+    union {
+        f64 f;
+        u64 b;
+    } u       = {.f = value};
+    u64  bits = u.b;
+    bool neg  = ((bits >> 63) & 1ull) != 0;
+    u64  e    = (bits >> 52) & 0x7FFull;
+    u64  m    = bits & 0xFFFFFFFFFFFFFull;
+    if (e == 0x7FFull) {
+        LOG_FATAL("Float from f64 does not represent finite values (Inf/NaN)");
     }
-
-    *out = FloatInit(alloc);
-    return FloatTryFromStr(out, text);
+    u64 mantissa;
+    int binexp;
+    if (e == 0) {
+        mantissa = m;
+        binexp   = -1022 - 52;
+    } else {
+        mantissa = m | (1ULL << 52);
+        binexp   = (int)e - 1023 - 52;
+    }
+    return float_try_from_ieee_bits(out, mantissa, binexp, neg, alloc);
 }
 
 static void float_replace(Float *dst, Float *src) {
