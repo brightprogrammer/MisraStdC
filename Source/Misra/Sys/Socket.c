@@ -29,6 +29,88 @@
 #include <Misra/Std.h>
 #include <Misra/Std/Log.h>
 
+#include "../_Syscall.h"
+
+#include <stdint.h>
+
+#if MISRA_HAVE_DIRECT_SYSCALL
+// Linux: direct-syscall wrappers for the BSD-sockets primitives used
+// below. `recv` / `send` are mapped onto `recvfrom` / `sendto` with
+// the addr arguments cleared since the kernel offers no separate
+// syscall for them. macOS / BSD keep libSystem; Windows takes a
+// completely different code path (Winsock isn't ported yet anyway).
+
+static inline long misra_sock_socket(int domain, int type, int protocol) {
+    return misra_sys3(MISRA_SYS_socket, (long)domain, (long)type, (long)protocol);
+}
+static inline long misra_sock_bind(int fd, const void *addr, unsigned addrlen) {
+    return misra_sys3(MISRA_SYS_bind, (long)fd, (long)(uintptr_t)addr, (long)addrlen);
+}
+static inline long misra_sock_connect(int fd, const void *addr, unsigned addrlen) {
+    return misra_sys3(MISRA_SYS_connect, (long)fd, (long)(uintptr_t)addr, (long)addrlen);
+}
+static inline long misra_sock_listen(int fd, int backlog) {
+    return misra_sys2(MISRA_SYS_listen, (long)fd, (long)backlog);
+}
+static inline long misra_sock_accept(int fd, void *addr, void *addrlen) {
+    return misra_sys3(MISRA_SYS_accept, (long)fd, (long)(uintptr_t)addr, (long)(uintptr_t)addrlen);
+}
+static inline long misra_sock_recv(int fd, void *buf, unsigned long n, int flags) {
+    // recvfrom(fd, buf, n, flags, src_addr=NULL, addrlen=NULL).
+    return misra_sys6(MISRA_SYS_recvfrom, (long)fd, (long)(uintptr_t)buf, (long)n, (long)flags, 0, 0);
+}
+static inline long misra_sock_send(int fd, const void *buf, unsigned long n, int flags) {
+    // sendto(fd, buf, n, flags, dest_addr=NULL, addrlen=0).
+    return misra_sys6(MISRA_SYS_sendto, (long)fd, (long)(uintptr_t)buf, (long)n, (long)flags, 0, 0);
+}
+static inline long misra_sock_setsockopt(int fd, int level, int optname, const void *optval, unsigned optlen) {
+    return misra_sys5(
+        MISRA_SYS_setsockopt,
+        (long)fd,
+        (long)level,
+        (long)optname,
+        (long)(uintptr_t)optval,
+        (long)optlen
+    );
+}
+static inline long misra_sock_close(int fd) {
+    return misra_sys1(MISRA_SYS_close, (long)fd);
+}
+static inline long misra_sock_fcntl(int fd, int cmd, long arg) {
+    return misra_sys3(MISRA_SYS_fcntl, (long)fd, (long)cmd, arg);
+}
+static inline long misra_sock_poll(void *pfds, unsigned long nfds, int timeout_ms) {
+#    if defined(__x86_64__)
+    return misra_sys3(MISRA_SYS_poll, (long)(uintptr_t)pfds, (long)nfds, (long)timeout_ms);
+#    else
+    // aarch64 dropped poll for ppoll(fds, nfds, ts, sigmask, sizeof(sigmask)).
+    struct {
+        long sec;
+        long nsec;
+    } ts;
+    void *ts_ptr = NULL;
+    if (timeout_ms >= 0) {
+        ts.sec  = timeout_ms / 1000;
+        ts.nsec = (long)(timeout_ms % 1000) * 1000000L;
+        ts_ptr  = &ts;
+    }
+    return misra_sys5(MISRA_SYS_ppoll, (long)(uintptr_t)pfds, (long)nfds, (long)(uintptr_t)ts_ptr, 0, 0);
+#    endif
+}
+
+#    define socket(d, t, p)              ((i32)misra_sock_socket((d), (t), (p)))
+#    define bind(fd, a, l)               ((int)misra_sock_bind((fd), (a), (unsigned)(l)))
+#    define connect(fd, a, l)            ((int)misra_sock_connect((fd), (a), (unsigned)(l)))
+#    define listen(fd, b)                ((int)misra_sock_listen((fd), (b)))
+#    define accept(fd, a, l)             ((i32)misra_sock_accept((fd), (a), (l)))
+#    define recv(fd, b, n, f)            ((long)misra_sock_recv((fd), (b), (unsigned long)(n), (f)))
+#    define send(fd, b, n, f)            ((long)misra_sock_send((fd), (b), (unsigned long)(n), (f)))
+#    define setsockopt(fd, lv, on, v, l) ((int)misra_sock_setsockopt((fd), (lv), (on), (v), (unsigned)(l)))
+#    define close(fd)                    ((int)misra_sock_close(fd))
+#    define fcntl(fd, cmd, arg)          ((int)misra_sock_fcntl((fd), (cmd), (long)(arg)))
+#    define poll(pfds, n, t)             ((int)misra_sock_poll((pfds), (unsigned long)(n), (t)))
+#endif
+
 // getaddrinfo() returns one of the EAI_* codes; libc gai_strerror
 // maps them to a description. Doing it in-tree avoids a libc symbol
 // and keeps the description consistent with how StrError formats
