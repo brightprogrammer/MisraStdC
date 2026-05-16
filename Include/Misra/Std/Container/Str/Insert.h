@@ -293,20 +293,6 @@ extern "C" {
 ///
 #define StrMustMerge(str, str2) StrMustMergeR((str), (str2))
 
-    ///
-    /// Format and append the result to `str` using printf-style placeholders.
-    ///
-    /// str[in,out] : Destination Str.
-    /// fmt[in]     : printf-style format string, followed by the variadic
-    ///               arguments matching it.
-    ///
-    /// SUCCESS : Returns `str` (the same pointer).
-    /// FAILURE : Returns `NULL` on allocation failure during the append.
-    ///
-    /// TAGS: Str, Append, Format
-    ///
-    Str *StrAppendf(Str *str, const char *fmt, ...) FORMAT_STRING(2, 3);
-
 #ifdef __cplusplus
 }
 #endif

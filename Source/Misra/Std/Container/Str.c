@@ -15,8 +15,6 @@
 
 #include "Misra/Std/Utility/StrIter.h"
 
-static Str *string_va_printf(Str *str, const char *fmt, va_list args);
-
 bool str_try_init_from_cstr(Str *out, const char *cstr, size len, Allocator *alloc) {
     if (!out || !cstr) {
         LOG_FATAL("Invalid arguments");
@@ -45,60 +43,6 @@ Str str_init_from_cstr(const char *cstr, size len, Allocator *alloc) {
     }
 
     return result;
-}
-
-Str *StrPrintf(Str *str, const char *fmt, ...) {
-    ValidateStr(str);
-
-    StrClear(str);
-
-    va_list args;
-    va_start(args, fmt);
-    str = string_va_printf(str, fmt, args);
-    va_end(args);
-
-    return str;
-}
-
-Str *StrAppendf(Str *str, const char *fmt, ...) {
-    ValidateStr(str);
-
-    va_list args;
-    va_start(args, fmt);
-    str = string_va_printf(str, fmt, args);
-    va_end(args);
-
-    return str;
-}
-
-static Str *string_va_printf(Str *str, const char *fmt, va_list args) {
-    ValidateStr(str);
-
-    va_list args_copy;
-    va_copy(args_copy, args);
-
-    // Get size of new string to be added to "str" object.
-    size n = vsnprintf(NULL, 0, fmt, args);
-    if (!n) {
-        LOG_ERROR("invalid size of final string.");
-        return NULL;
-    }
-
-    // Make more space if required
-    if (!StrReserve(str, str->length + n + 1)) {
-        va_end(args_copy);
-        return NULL;
-    }
-
-    // do formatted print at end of string
-    vsnprintf(str->data + str->length, n + 1, fmt, args_copy);
-
-    str->length            += n;
-    str->data[str->length]  = 0; // null terminate
-
-    va_end(args_copy);
-
-    return str;
 }
 
 bool StrInitCopy(Str *dst, const Str *src) {
@@ -170,7 +114,7 @@ StrIters StrSplitToIters(Str *s, const char *key) {
 Strs StrSplit(Str *s, const char *key) {
     ValidateStr(s);
 
-    Strs        sv     = (Strs)VecInit(s->allocator);
+    Strs sv            = (Strs)VecInit(s->allocator);
     sv.copy_deinit     = (GenericCopyDeinit)str_deinit;
     size        keylen = ZstrLen(key);
     const char *prev   = s->data;

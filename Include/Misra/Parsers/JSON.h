@@ -702,7 +702,7 @@ StrIter JSkipValue(StrIter si);
         } else {                                                                                                       \
             StrPushBack(&(j), ',');                                                                                    \
         }                                                                                                              \
-        StrAppendf(&(j), "\"%s\":", k);                                                                                \
+        StrWriteFmt(&(j), "\"{}\":", (const char *)(k));                                                               \
         JW_OBJ(j, writer);                                                                                             \
     } while (0)
 
@@ -768,7 +768,7 @@ StrIter JSkipValue(StrIter si);
         } else {                                                                                                       \
             StrPushBack(&(j), ',');                                                                                    \
         }                                                                                                              \
-        StrAppendf(&(j), "\"%s\":", k);                                                                                \
+        StrWriteFmt(&(j), "\"{}\":", (const char *)(k));                                                               \
         JW_ARR(j, arr, item, writer);                                                                                  \
     } while (0)
 
@@ -789,7 +789,7 @@ StrIter JSkipValue(StrIter si);
 #define JW_INT(j, i)                                                                                                   \
     do {                                                                                                               \
         i64 my_int = (i);                                                                                              \
-        StrAppendf(&(j), "%lld", my_int);                                                                              \
+        StrWriteFmt(&(j), "{}", my_int);                                                                               \
     } while (0)
 
 ///
@@ -814,7 +814,7 @@ StrIter JSkipValue(StrIter si);
         } else {                                                                                                       \
             StrPushBack(&(j), ',');                                                                                    \
         }                                                                                                              \
-        StrAppendf(&(j), "\"%s\":", k);                                                                                \
+        StrWriteFmt(&(j), "\"{}\":", (const char *)(k));                                                               \
         JW_INT(j, i);                                                                                                  \
     } while (0)
 
@@ -835,7 +835,7 @@ StrIter JSkipValue(StrIter si);
 #define JW_FLT(j, f)                                                                                                   \
     do {                                                                                                               \
         f64 my_flt = (f);                                                                                              \
-        StrAppendf(&(j), "%f", my_flt);                                                                                \
+        StrWriteFmt(&(j), "{}", my_flt);                                                                               \
     } while (0)
 
 ///
@@ -860,7 +860,7 @@ StrIter JSkipValue(StrIter si);
         } else {                                                                                                       \
             StrPushBack(&(j), ',');                                                                                    \
         }                                                                                                              \
-        StrAppendf(&(j), "\"%s\":", k);                                                                                \
+        StrWriteFmt(&(j), "\"{}\":", (const char *)(k));                                                               \
         JW_FLT(j, f);                                                                                                  \
     } while (0)
 
@@ -880,7 +880,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JW_STR(j, s)                                                                                                   \
     do {                                                                                                               \
-        StrAppendf(&(j), "\"%s\"", (s).length ? (s).data : "");                                                        \
+        StrWriteFmt(&(j), "\"{}\"", (const char *)((s).length ? (s).data : ""));                                       \
     } while (0)
 
 ///
@@ -905,7 +905,7 @@ StrIter JSkipValue(StrIter si);
         } else {                                                                                                       \
             StrPushBack(&(j), ',');                                                                                    \
         }                                                                                                              \
-        StrAppendf(&(j), "\"%s\":", k);                                                                                \
+        StrWriteFmt(&(j), "\"{}\":", (const char *)(k));                                                               \
         JW_STR(j, s);                                                                                                  \
     } while (0)
 
@@ -925,7 +925,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JW_BOOL(j, b)                                                                                                  \
     do {                                                                                                               \
-        StrAppendf(&(j), "%s", (b) ? "true" : "false");                                                                \
+        StrWriteFmt(&(j), "{}", (const char *)((b) ? "true" : "false"));                                               \
     } while (0)
 
 ///
@@ -950,7 +950,7 @@ StrIter JSkipValue(StrIter si);
         } else {                                                                                                       \
             StrPushBack(&(j), ',');                                                                                    \
         }                                                                                                              \
-        StrAppendf(&(j), "\"%s\":", k);                                                                                \
+        StrWriteFmt(&(j), "\"{}\":", (const char *)(k));                                                               \
         JW_BOOL(j, b);                                                                                                 \
     } while (0)
 

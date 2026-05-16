@@ -24,7 +24,7 @@ bool test_str_push_front(void);
 bool test_str_merge_l(void);
 bool test_str_merge_r(void);
 bool test_str_merge(void);
-bool test_str_appendf(void);
+bool test_str_write_fmt_append(void);
 
 // Test StrInsertCharAt function
 bool test_str_insert_char_at(void) {
@@ -354,16 +354,17 @@ bool test_str_merge(void) {
     return result;
 }
 
-// Test StrAppendf function
-bool test_str_appendf(void) {
-    WriteFmt("Testing StrAppendf\n");
+// Test StrWriteFmt as the in-tree replacement for the now-removed
+// StrAppendf printf-style formatter.
+bool test_str_write_fmt_append(void) {
+    WriteFmt("Testing StrWriteFmt append\n");
     DefaultAllocator alloc = DefaultAllocatorInit();
 
 
     Str s = StrInitFromZstr("Hello", &alloc);
 
-    // Append formatted string
-    StrAppendf(&s, " %s %d", "World", 2023);
+    // Append formatted suffix.
+    StrWriteFmt(&s, " {} {}", (const char *)"World", (u32)2023);
 
     // Check that the string was appended correctly
     bool result = (ZstrCompare(s.data, "Hello World 2023") == 0);
@@ -394,7 +395,7 @@ int main(void) {
         test_str_merge_l,
         test_str_merge_r,
         test_str_merge,
-        test_str_appendf
+        test_str_write_fmt_append
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);

@@ -41,8 +41,6 @@ extern "C" {
 #define StrDup_1(str)    StrInitFromStr_1((str))
 #define StrDup_2(str, a) StrInitFromStr_2((str), (a))
 
-    Str *StrPrintf(Str *str, const char *fmt, ...) FORMAT_STRING(2, 3);
-
 ///
 /// Initialize a Str. Inside a `Scope` block the allocator argument may
 /// be omitted; the internal `MisraScope` allocator is used. Otherwise
