@@ -60,6 +60,7 @@ opt_sys_socket     = get_option('sys_socket')
 opt_sys_procmaps   = get_option('sys_procmaps')
 opt_sys_symresolve = get_option('sys_symresolve')
 opt_sys_backtrace  = get_option('sys_backtrace')
+opt_sys_dns        = get_option('sys_dns')
 
 # Platform availability matrix:
 #   sys_procmaps:    Linux only (reads /proc/self/maps)
@@ -78,6 +79,10 @@ if sys_kernel != 'linux' and sys_kernel != 'windows' and sys_kernel != 'darwin'
 endif
 if sys_kernel == 'windows'
     opt_sys_socket = false
+endif
+# sys_dns rides on top of sys_socket + parser_dns.
+if not opt_sys_socket
+    opt_sys_dns = false
 endif
 
 opt_parser_json    = get_option('parser_json')
@@ -255,6 +260,12 @@ endif
 if opt_parser_dns
     misra_std_sources += files('Source/Misra/Parsers/Dns.c')
 endif
+if opt_sys_dns
+    misra_std_sources += files('Source/Misra/Sys/Dns.c')
+    # sys_dns hard-requires the wire parser + the socket layer.
+    opt_parser_dns = true
+    opt_sys_socket = true
+endif
 
 # Compile-time discovery: each enabled feature exposes
 # `MISRA_HAVE_<NAME> == 1` via a generated `Misra/Config.h`. Every
@@ -293,6 +304,7 @@ config_data.set10('MISRA_HAVE_PARSER_PE',       opt_parser_pe)
 config_data.set10('MISRA_HAVE_PARSER_PDB',      opt_parser_pdb)
 config_data.set10('MISRA_HAVE_PARSER_MACHO',    opt_parser_macho)
 config_data.set10('MISRA_HAVE_PARSER_DNS',      opt_parser_dns)
+config_data.set10('MISRA_HAVE_SYS_DNS',         opt_sys_dns)
 
 # `subdir(...)` runs the inner meson.build, where `configure_file`
 # emits `build/Include/Misra/Config.h`. The top-level
@@ -312,6 +324,7 @@ message('  bitvec=@0@  list=@1@  map=@2@  graph=@3@  int=@4@  float=@5@'.format(
     opt_bitvec, opt_list, opt_map, opt_graph, opt_int, opt_float))
 message('  file=@0@  iter=@1@  sys_dir=@2@  sys_proc=@3@  sys_socket=@4@'.format(
     opt_file, opt_iter, opt_sys_dir, opt_sys_proc, opt_sys_socket))
+message('  sys_dns=@0@'.format(opt_sys_dns))
 message('  sys_procmaps=@0@  sys_symresolve=@1@  sys_backtrace=@2@'.format(
     opt_sys_procmaps, opt_sys_symresolve, opt_sys_backtrace))
 message('  parser_json=@0@  parser_kvconfig=@1@  parser_http=@2@  parser_elf=@3@  parser_dwarf=@4@'.format(
@@ -421,6 +434,17 @@ if opt_file
         c_args: common_c_args,
         include_directories: inc_misra,
         install: false
+    )
+endif
+
+if opt_sys_dns
+    executable(
+        'resolve',
+        files('Bin/Resolve.c'),
+        link_with: [misra_std],
+        c_args: common_c_args,
+        include_directories: inc_misra,
+        install: true
     )
 endif
 

@@ -59,6 +59,10 @@ dns_tests = [
     ['Dns', 'Std/Dns.c'],
 ]
 
+sys_dns_tests = [
+    ['SysDns', 'Std/SysDns.c'],
+]
+
 macho_cache_tests = [
     ['MachoCache', 'Std/MachoCache.c'],
 ]
@@ -397,6 +401,28 @@ endif
 # dependency -- builds on every platform that has the parser enabled.
 if opt_parser_dns
     foreach test_info : dns_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
+
+        test(test_name, test_exe)
+    endforeach
+endif
+
+# Sys/Dns: integration test using /etc/hosts only (no network calls).
+# Requires Sys/Socket so we can build the SocketAddr results -- gated
+# accordingly.
+if opt_sys_dns
+    foreach test_info : sys_dns_tests
         test_name = test_info[0]
         test_src = test_info[1]
 

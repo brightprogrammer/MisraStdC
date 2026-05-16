@@ -48,6 +48,7 @@ option('sys_socket',    type: 'boolean', value: true, description: 'Build TCP/UD
 option('sys_procmaps',  type: 'boolean', value: true, description: 'Build /proc/self/maps parser (Linux only). Used by the in-tree dladdr replacement.')
 option('sys_symresolve',type: 'boolean', value: true, description: 'Build SymbolResolver (in-tree dladdr replacement). Requires parser_elf + sys_procmaps.')
 option('sys_backtrace', type: 'boolean', value: true, description: 'Build Sys/Backtrace (in-tree frame-pointer unwinder + symbol-resolving formatter). Requires sys_symresolve.')
+option('sys_dns',       type: 'boolean', value: true, description: 'Build Sys/Dns (in-tree DNS resolver: /etc/hosts + /etc/resolv.conf + UDP query/response). Requires parser_dns + sys_socket.')
 
 # --- Parsers ----------------------------------------------------------------
 option('parser_json',     type: 'boolean', value: true, description: 'Build JSON reader/writer.')

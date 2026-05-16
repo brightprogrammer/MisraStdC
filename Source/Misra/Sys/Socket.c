@@ -548,10 +548,10 @@ bool SocketAddrParse(SocketAddr *out, const char *spec, SocketKind kind) {
         return true;
     }
 
-    LOG_ERROR(
-        "SocketAddrParse: host \"{}\" is not a numeric IPv4 or IPv6 address; hostname resolution is not implemented",
-        (const char *)host
-    );
+    // Not a numeric IP. Don't log here -- callers that want hostname
+    // resolution should try `Sys/Dns` next, and the failed-parse case
+    // is fine. Callers that want strict numeric-only get false + can
+    // log their own context.
     return false;
 }
 

@@ -18,6 +18,8 @@
 
 #include <Misra.h>
 #include <Misra/Parsers/Http.h>
+#include <Misra/Std/Allocator/Default.h>
+#include <Misra/Sys/Dns.h>
 #include <Misra/Sys/Socket.h>
 
 #include <signal.h>
@@ -28,6 +30,63 @@ static volatile sig_atomic_t g_stop = 0;
 static void on_signal(int signum) {
     (void)signum;
     g_stop = 1;
+}
+
+// Resolve a "host:port" spec into a SocketAddr. Tries SocketAddrParse
+// first (covers numeric IPv4 / bracketed IPv6 with no network); falls
+// back to DnsResolve through `r` for hostnames. Takes the first address
+// the resolver returns when multiple are available.
+static bool resolve_spec(DnsResolver *r, const char *spec, SocketKind kind, SocketAddr *out, Allocator *scratch) {
+    if (SocketAddrParse(out, spec, kind)) {
+        return true;
+    }
+    // SocketAddrParse rejected -- spec is either a hostname:port or
+    // bare hostname. Split on the last ':' for port; hostnames don't
+    // contain colons, IPv6 has been ruled out by SocketAddrParse failing.
+    u64 spec_len = ZstrLen(spec);
+    u64 colon_at = spec_len;
+    for (u64 i = spec_len; i > 0; --i) {
+        if (spec[i - 1] == ':') {
+            colon_at = i - 1;
+            break;
+        }
+    }
+    if (colon_at >= spec_len) {
+        LOG_ERROR("resolve: no \":port\" in spec \"{}\"", (const char *)spec);
+        return false;
+    }
+    char host[256];
+    if (colon_at >= sizeof(host)) {
+        LOG_ERROR("resolve: host portion of \"{}\" exceeds 255 bytes", (const char *)spec);
+        return false;
+    }
+    MemCopy(host, spec, colon_at);
+    host[colon_at] = '\0';
+
+    u16 port = 0;
+    for (u64 i = colon_at + 1; i < spec_len; ++i) {
+        char c = spec[i];
+        if (c < '0' || c > '9') {
+            LOG_ERROR("resolve: non-numeric port in \"{}\"", (const char *)spec);
+            return false;
+        }
+        u32 next = (u32)port * 10 + (u32)(c - '0');
+        if (next > 0xFFFFu) {
+            LOG_ERROR("resolve: port in \"{}\" out of range", (const char *)spec);
+            return false;
+        }
+        port = (u16)next;
+    }
+
+    DnsAddrs addrs = VecInitT(addrs, scratch);
+    bool     ok    = DnsResolve(r, host, port, kind, &addrs);
+    if (ok && addrs.length > 0) {
+        *out = addrs.data[0];
+        VecDeinit(&addrs);
+        return true;
+    }
+    VecDeinit(&addrs);
+    return false;
 }
 
 static void install_signal_handlers(void) {
@@ -200,17 +259,26 @@ int main(int argc, char **argv) {
     install_signal_handlers();
 
     Scope(alloc, DefaultAllocator) {
+        DnsResolver resolver;
+        if (!DnsResolverInit(&resolver, alloc)) {
+            LOG_ERROR("failed to init DNS resolver");
+            return 1;
+        }
+
         SocketAddr listen_addr;
-        if (!SocketAddrParse(&listen_addr, listen_spec, SOCKET_KIND_TCP)) {
+        if (!resolve_spec(&resolver, listen_spec, SOCKET_KIND_TCP, &listen_addr, alloc)) {
             LOG_ERROR("invalid --listen address: {}", listen_spec);
+            DnsResolverDeinit(&resolver);
             return 1;
         }
 
         SocketAddr upstream_addr;
-        if (!SocketAddrParse(&upstream_addr, upstream_spec, SOCKET_KIND_TCP)) {
+        if (!resolve_spec(&resolver, upstream_spec, SOCKET_KIND_TCP, &upstream_addr, alloc)) {
             LOG_ERROR("invalid --upstream address: {}", upstream_spec);
+            DnsResolverDeinit(&resolver);
             return 1;
         }
+        DnsResolverDeinit(&resolver);
 
         Listener listener;
         if (!ListenerOpen(&listener, SOCKET_KIND_TCP, &listen_addr, 128)) {
