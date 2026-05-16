@@ -199,6 +199,112 @@ void zstr_deinit(void *zs_ptr, const Allocator *alloc) {
     }
 }
 
+static inline bool zstr_is_ws(char c) {
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f';
+}
+
+i64 ZstrToI64(const char *s, char **endptr) {
+    if (!s) {
+        if (endptr)
+            *endptr = NULL;
+        return 0;
+    }
+    while (zstr_is_ws(*s))
+        s++;
+    bool neg = false;
+    if (*s == '+') {
+        s++;
+    } else if (*s == '-') {
+        neg = true;
+        s++;
+    }
+    const char *digit_start = s;
+    u64         val         = 0;
+    while (*s >= '0' && *s <= '9') {
+        val = val * 10 + (u64)(*s - '0');
+        s++;
+    }
+    if (endptr) {
+        *endptr = (char *)(s == digit_start ? digit_start - (neg || *digit_start ? 1 : 0) : s);
+        // If no digits, return endptr at original start; matches strtol shape.
+        if (s == digit_start) {
+            *endptr = (char *)digit_start;
+        }
+    }
+    if (s == digit_start) {
+        return 0;
+    }
+    return neg ? -(i64)val : (i64)val;
+}
+
+f64 ZstrToF64(const char *s, char **endptr) {
+    if (!s) {
+        if (endptr)
+            *endptr = NULL;
+        return 0.0;
+    }
+    while (zstr_is_ws(*s))
+        s++;
+    bool neg = false;
+    if (*s == '+') {
+        s++;
+    } else if (*s == '-') {
+        neg = true;
+        s++;
+    }
+    const char *digit_start = s;
+    f64         val         = 0.0;
+    while (*s >= '0' && *s <= '9') {
+        val = val * 10.0 + (f64)(*s - '0');
+        s++;
+    }
+    if (*s == '.') {
+        s++;
+        f64 divisor = 10.0;
+        while (*s >= '0' && *s <= '9') {
+            val     += (f64)(*s - '0') / divisor;
+            divisor *= 10.0;
+            s++;
+        }
+    }
+    if (s == digit_start && (s[-1] != '.' || (digit_start == s))) {
+        // No digits at all (and no leading dot consumed). Same shape
+        // as strtod: endptr unchanged from start, value 0.
+        if (endptr) {
+            *endptr = (char *)digit_start;
+        }
+        return 0.0;
+    }
+    if (*s == 'e' || *s == 'E') {
+        s++;
+        bool eneg = false;
+        if (*s == '+') {
+            s++;
+        } else if (*s == '-') {
+            eneg = true;
+            s++;
+        }
+        int exp = 0;
+        while (*s >= '0' && *s <= '9') {
+            exp = exp * 10 + (*s - '0');
+            s++;
+        }
+        f64 mul = 1.0;
+        for (int i = 0; i < exp; ++i) {
+            mul *= 10.0;
+        }
+        if (eneg) {
+            val /= mul;
+        } else {
+            val *= mul;
+        }
+    }
+    if (endptr) {
+        *endptr = (char *)s;
+    }
+    return neg ? -val : val;
+}
+
 char *ZstrFindSubstring(const char *haystack, const char *needle) {
     // The earlier hand-rolled loop had an off-by-one in the outer
     // termination guard that made it return NULL whenever

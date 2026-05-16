@@ -199,6 +199,43 @@ bool zstr_init_clone(void *dst, const void *src, const Allocator *alloc);
 void zstr_deinit(void *zs, const Allocator *alloc);
 
 ///
+/// Parse a signed decimal integer from a null-terminated string.
+/// Skips ASCII whitespace, accepts an optional leading sign, then
+/// consumes the longest run of `0..9`. Drops the libc `strtoll` /
+/// `strtol` dependency for callers that only need base-10.
+///
+/// s[in]       : Source string.
+/// endptr[out] : If non-NULL, set to the first byte past the last
+///               digit consumed (or to `s` if no digits were found).
+///
+/// SUCCESS: Returns the parsed value as i64. Overflow wraps in the
+///          unsigned accumulator before sign application; callers
+///          that care should validate the value externally.
+/// FAILURE: Returns 0 when no digits are present.
+///
+/// TAGS: String, Parse, Integer
+///
+i64 ZstrToI64(const char *s, char **endptr);
+
+///
+/// Parse a decimal floating-point value from a null-terminated
+/// string. Accepts `[+-]?digits(.digits)?([eE][+-]?digits)?`. Skips
+/// ASCII whitespace before the sign. Not bit-exact: precision-loss
+/// is possible on long mantissas. Adequate for JSON / KvConfig
+/// numeric values; replaces libc `strtod`.
+///
+/// s[in]       : Source string.
+/// endptr[out] : If non-NULL, set to the first byte past the last
+///               character consumed (matches strtod's contract).
+///
+/// SUCCESS: Returns the parsed value as f64.
+/// FAILURE: Returns 0.0 when no digits are present.
+///
+/// TAGS: String, Parse, Float
+///
+f64 ZstrToF64(const char *s, char **endptr);
+
+///
 /// Find first occurrence of needle in haystack.
 ///
 /// haystack[in] : String to search in.

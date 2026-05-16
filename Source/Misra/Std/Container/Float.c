@@ -479,9 +479,8 @@ bool FloatTryFromStr(Float *out, const char *text) {
                 goto fail;
             }
 
-            errno  = 0;
-            parsed = strtoll(text + pos, &endptr, 10);
-            if (errno == ERANGE || endptr == text + pos || *endptr != '\0') {
+            parsed = ZstrToI64(text + pos, &endptr);
+            if (endptr == text + pos || *endptr != '\0') {
                 LOG_ERROR("Invalid Float exponent");
                 goto fail;
             }

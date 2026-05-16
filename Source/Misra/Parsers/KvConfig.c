@@ -67,10 +67,9 @@ static bool kvconfig_parse_i64_value(const Str *value, i64 *out) {
         return false;
     }
 
-    errno  = 0;
-    parsed = strtoll(value->data, &endptr, 10);
+    parsed = ZstrToI64(value->data, &endptr);
 
-    if (errno != 0 || !endptr || *endptr != '\0') {
+    if (!endptr || endptr == value->data || *endptr != '\0') {
         return false;
     }
 
@@ -87,10 +86,9 @@ static bool kvconfig_parse_f64_value(const Str *value, f64 *out) {
         return false;
     }
 
-    errno  = 0;
-    parsed = strtod(value->data, &endptr);
+    parsed = ZstrToF64(value->data, &endptr);
 
-    if (errno != 0 || !endptr || *endptr != '\0') {
+    if (!endptr || endptr == value->data || *endptr != '\0') {
         return false;
     }
 

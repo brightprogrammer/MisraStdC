@@ -296,7 +296,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
     si               = JSkipWhitespace(si);
     // scratch allocator for the digit-accumulator Str `ns`.
     DefaultAllocator scratch = DefaultAllocatorInit();
-    Str ns                   = StrInit(&scratch);
+    Str              ns      = StrInit(&scratch);
 
     bool is_neg = false;
     if (StrIterPeek(&si) == '-') {
@@ -393,9 +393,9 @@ StrIter JReadNumber(StrIter si, Number *num) {
     // convert to number
     char *end = NULL;
     if (is_flt) {
-        num->f = strtod(ns.data, &end);
+        num->f = ZstrToF64(ns.data, &end);
     } else {
-        num->i = strtoll(ns.data, &end, 10);
+        num->i = ZstrToI64(ns.data, &end);
     }
     if (end == ns.data) {
         LOG_ERROR("Failed to convert string to number.");
