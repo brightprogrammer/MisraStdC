@@ -88,6 +88,7 @@ opt_parser_dwarf   = get_option('parser_dwarf')
 opt_parser_pe      = get_option('parser_pe')
 opt_parser_pdb     = get_option('parser_pdb')
 opt_parser_macho   = get_option('parser_macho')
+opt_parser_dns     = get_option('parser_dns')
 
 # Vec, Str, Io are part of the mandatory foundation: `LOG_FATAL` formats
 # its message through `Str` and emits via the `Io` formatted path, so
@@ -251,6 +252,9 @@ if opt_parser_macho
         'Source/Misra/Sys/MachoCache.c',
     )
 endif
+if opt_parser_dns
+    misra_std_sources += files('Source/Misra/Parsers/Dns.c')
+endif
 
 # Compile-time discovery: each enabled feature exposes
 # `MISRA_HAVE_<NAME> == 1` via a generated `Misra/Config.h`. Every
@@ -288,6 +292,7 @@ config_data.set10('MISRA_HAVE_PARSER_DWARF',    opt_parser_dwarf)
 config_data.set10('MISRA_HAVE_PARSER_PE',       opt_parser_pe)
 config_data.set10('MISRA_HAVE_PARSER_PDB',      opt_parser_pdb)
 config_data.set10('MISRA_HAVE_PARSER_MACHO',    opt_parser_macho)
+config_data.set10('MISRA_HAVE_PARSER_DNS',      opt_parser_dns)
 
 # `subdir(...)` runs the inner meson.build, where `configure_file`
 # emits `build/Include/Misra/Config.h`. The top-level
@@ -311,7 +316,7 @@ message('  sys_procmaps=@0@  sys_symresolve=@1@  sys_backtrace=@2@'.format(
     opt_sys_procmaps, opt_sys_symresolve, opt_sys_backtrace))
 message('  parser_json=@0@  parser_kvconfig=@1@  parser_http=@2@  parser_elf=@3@  parser_dwarf=@4@'.format(
     opt_parser_json, opt_parser_kvconf, opt_parser_http, opt_parser_elf, opt_parser_dwarf))
-message('  parser_pe=@0@  parser_pdb=@1@  parser_macho=@2@'.format(opt_parser_pe, opt_parser_pdb, opt_parser_macho))
+message('  parser_pe=@0@  parser_pdb=@1@  parser_macho=@2@  parser_dns=@3@'.format(opt_parser_pe, opt_parser_pdb, opt_parser_macho, opt_parser_dns))
 
 # Build-time platform deps. The Windows Sys/Backtrace backend links
 # against dbghelp for SymFromAddr / SymGetLineFromAddr64.

@@ -58,3 +58,4 @@ option('parser_dwarf',    type: 'boolean', value: true, description: 'Build DWAR
 option('parser_pe',       type: 'boolean', value: true, description: 'Build PE/COFF parser. Used by the Windows backtrace path to locate the CodeView (PDB) reference in a PE binary.')
 option('parser_pdb',      type: 'boolean', value: true, description: 'Build PDB reader (MSF container + DBI/Publics streams). Used by the Windows backtrace path to resolve symbols without dbghelp. Requires parser_pe.')
 option('parser_macho',    type: 'boolean', value: true, description: 'Build Mach-O parser. Used by the macOS backtrace path to walk loaded images.')
+option('parser_dns',      type: 'boolean', value: true, description: 'Build DNS wire-format encoder + decoder (RFC 1035). Pure data manipulation; sys_dns is the I/O consumer.')

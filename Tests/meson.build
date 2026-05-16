@@ -55,6 +55,10 @@ macho_tests = [
     ['MachO', 'Std/MachO.c'],
 ]
 
+dns_tests = [
+    ['Dns', 'Std/Dns.c'],
+]
+
 macho_cache_tests = [
     ['MachoCache', 'Std/MachoCache.c'],
 ]
@@ -387,6 +391,27 @@ if opt_parser_macho
             test(test_name, test_exe)
         endforeach
     endif
+endif
+
+# Parser/Dns: pure wire-format codec test. No network, no host
+# dependency -- builds on every platform that has the parser enabled.
+if opt_parser_dns
+    foreach test_info : dns_tests
+        test_name = test_info[0]
+        test_src = test_info[1]
+
+        test_exe = executable(
+            test_name,
+            files(test_src),
+            link_with: [misra_std],
+            dependencies: [test_util_dep],
+            c_args: test_args,
+            include_directories: inc_misra,
+            install: false
+        )
+
+        test(test_name, test_exe)
+    endforeach
 endif
 
 # Parser/Elf, Parser/Dwarf, and the Sys/* resolve / backtrace tests
