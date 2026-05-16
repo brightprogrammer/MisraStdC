@@ -58,14 +58,10 @@ jobs:
     - name: Configure with Clang
       run: |
         # Set environment variables for Meson to use Clang with lld linker.
-        # `CC_LD` is meson's first-class way to pick a non-default linker
-        # (see https://mesonbuild.com/howtox.html). Earlier revisions of
-        # this workflow forced lld via -Dc_link_args="-fuse-ld=lld", but
-        # that triggered meson bug #14640: setting `c_link_args` makes
-        # meson stop appending the `-fsanitize=...` flag that
-        # `b_sanitize` would normally inject, so the clang driver never
-        # links the sanitizer runtime and lld bails with thousands of
-        # undefined __asan_*/__ubsan_* references.
+        # `CC_LD` is meson's first-class way to pick a non-default
+        # linker (https://mesonbuild.com/howtox.html). Doing this via
+        # env vars (not -Dc_link_args=...) avoids meson bug #14640
+        # where setting c_link_args suppresses b_sanitize injection.
         $env:CC = "clang"
         $env:CXX = "clang++"
         $env:CC_LD = "lld"
@@ -73,15 +69,30 @@ jobs:
         $env:AR = "llvm-ar"
         $env:RANLIB = "llvm-ranlib"
 
-        # UBSan only on Windows-LLVM. AddressSanitizer + clang on
-        # Windows + meson is a known-flaky combination (the bundled
-        # VS2022 clang's asan runtime doesn't always link; meson's
-        # MSVC-style link line confuses the driver). libuv's
-        # sanitizer.yml is the de-facto industry reference and runs
-        # UBSan-only on Windows-clang for the same reason. ASan
-        # coverage on Windows is owned by the MSVC matrix entry.
+        # Sanitizers are intentionally NOT enabled on this matrix
+        # entry. Two distinct things conspire against them:
+        #
+        #   1. AddressSanitizer + clang on Windows + meson is known to
+        #      misbehave at link time (the bundled VS2022 clang's asan
+        #      runtime ABIs don't match upstream).
+        #
+        #   2. UndefinedBehaviorSanitizer fails the link because the
+        #      `windows-latest` runner has VS2022 on PATH, so
+        #      lld-link's LIB-env-var search picks up Microsoft's
+        #      modified `clang_rt.ubsan_standalone-x86_64.lib` (with
+        #      __coe_win::ContinueOnError / __coe_win::RawWrite
+        #      references that only MS's proprietary "Continue On
+        #      Error" stubs provide) instead of our installed LLVM
+        #      18.1.8's clang_rt. Pointing LIB at our LLVM's
+        #      lib\windows directory before VS's is possible but
+        #      fragile; not worth the complexity.
+        #
+        # Result: this matrix entry runs as a clean "does it compile,
+        # link, and test on Windows-clang?" check with warning_level=2
+        # and -Werror=uninitialized from common_c_args. ASan coverage
+        # on Windows lives in the MSVC matrix entry.
         meson setup build --backend ninja `
-          -Dwarning_level=2 -Db_sanitize=undefined -Db_lundef=false
+          -Dwarning_level=2 -Db_lundef=false
       shell: pwsh
 
     - name: Build
