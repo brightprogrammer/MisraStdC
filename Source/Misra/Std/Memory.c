@@ -158,7 +158,10 @@ char *ZstrDupN(const char *src, size n, Allocator *alloc) {
 
     char *new_str = (char *)AllocatorAlloc(alloc, len + 1, false);
     if (!new_str) {
-        LOG_SYS_ERROR("allocator allocate failed");
+        // Not LOG_SYS_ERROR: allocator failures don't set errno
+        // (allocators are caller-supplied, libc-independent), so the
+        // "errno" suffix would be misleading.
+        LOG_ERROR("allocator allocate failed");
         return NULL;
     }
 

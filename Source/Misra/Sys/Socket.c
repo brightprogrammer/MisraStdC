@@ -1139,9 +1139,17 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
         ret = -1;
     }
 #else
+    // Linux direct-syscall path returns -errno directly; macOS / BSD
+    // libSystem poll() returns -1 and sets errno. Both branches walk
+    // through here, so check whichever signal is meaningful for the
+    // platform without going through `errno` if we don't have to.
     do {
         ret = poll(pfds, (nfds_t)count, timeout_ms);
+#    if FEATURE_DIRECT_SYSCALL
+    } while (ret == -EINTR);
+#    else
     } while (ret < 0 && errno == EINTR);
+#    endif
     if (ret < 0) {
         LOG_SOCK_ERROR("poll() failed");
     }
