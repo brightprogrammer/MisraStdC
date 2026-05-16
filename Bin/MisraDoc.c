@@ -168,7 +168,8 @@ static void top_on_key(Str *key, StrIter *value_si, void *vctx) {
 
 int main(int argc, char **argv) {
     if (argc != 2) {
-        FWriteFmtLn(stderr, "USAGE : {} config.json", argc == 0 ? "MisraDoc" : argv[0]);
+        File err_ = FileStderr();
+        FWriteFmtLn(&err_, "USAGE : {} config.json", argc == 0 ? "MisraDoc" : argv[0]);
         return 1;
     }
 

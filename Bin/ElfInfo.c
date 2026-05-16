@@ -339,17 +339,17 @@ int main(int argc, char **argv) {
         LOG_FATAL("USAGE: {} {}", argv[0], argv[1]);
     }
 
-    FILE *elf = fopen(argv[1], "rb");
-    if (!elf) {
+    File elf = FileOpen(argv[1], "rb");
+    if (!FileIsValid(&elf)) {
         LOG_ERROR("Failed to open file for reading.");
         return 1;
     }
 
     ElfHeader64 eh = {0};
-    FReadFmt(elf, FMT_ELF_META, eh.meta.class, eh.meta.encoding, eh.meta.version, eh.meta.os_abi, eh.meta.abi_version);
+    FReadFmt(&elf, FMT_ELF_META, eh.meta.class, eh.meta.encoding, eh.meta.version, eh.meta.os_abi, eh.meta.abi_version);
 
     // technically padding here but we can skip it
-    fseek(elf, 7, SEEK_CUR);
+    FileSeek(&elf, 7, FILE_SEEK_CUR);
 
     // XXX: For now we only support x86_64 binaries
     // this will also indirectly decide if elf magic is valid
@@ -359,7 +359,7 @@ int main(int argc, char **argv) {
     }
 
     FReadFmt(
-        elf,
+        &elf,
         eh.meta.encoding == ELF_ENCODING_LSB ? FMT_ELF_HEADER_64_LE : FMT_ELF_HEADER_64_BE,
         eh.type,
         eh.machine,
@@ -421,7 +421,7 @@ int main(int argc, char **argv) {
     }
     VecDeinit(&vi);
 
-    fclose(elf);
+    FileClose(&elf);
     DefaultAllocatorDeinit(&alloc);
     return 0;
 }

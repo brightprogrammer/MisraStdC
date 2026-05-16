@@ -45,6 +45,7 @@ static inline int misra_is_tty(int fd) {
 #endif
 
 #include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/File.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Sys.h>
@@ -490,7 +491,7 @@ bool str_write_fmt(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc) {
     return true;
 }
 
-bool f_write_fmt(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u64 argc, bool append_newline) {
+bool f_write_fmt(File *stream, const char *fmtstr, TypeSpecificIO *argv, u64 argc, bool append_newline) {
     Str              out;
     bool             ok      = true;
     DefaultAllocator scratch = DefaultAllocatorInit();
@@ -504,18 +505,21 @@ bool f_write_fmt(FILE *stream, const char *fmtstr, TypeSpecificIO *argv, u64 arg
     out = StrInit(&scratch);
     ok  = str_write_fmt(&out, fmtstr, argv, argc);
 
-    if (ok && out.length > 0 && fwrite(out.data, 1, out.length, stream) != out.length) {
-        LOG_SYS_ERROR("Failed to write formatted output");
+    // Build the whole line first, including any trailing newline, then
+    // emit in a single FileWrite. Single-syscall writes under PIPE_BUF
+    // (4096) are atomic on POSIX, so concurrent threads don't shred
+    // each other's output.
+    if (ok && append_newline) {
+        StrPushBack(&out, '\n');
+    }
+
+    if (ok && out.length > 0 && FileWrite(stream, out.data, out.length) != (i64)out.length) {
+        LOG_ERROR("Failed to write formatted output");
         ok = false;
     }
 
-    if (ok && append_newline && fputc('\n', stream) == EOF) {
-        LOG_SYS_ERROR("Failed to append newline after formatted output");
-        ok = false;
-    }
-
-    if (ok && fflush(stream) != 0) {
-        LOG_SYS_ERROR("Failed to flush formatted output");
+    if (ok && !FileFlush(stream)) {
+        LOG_ERROR("Failed to flush formatted output");
         ok = false;
     }
 
@@ -749,7 +753,7 @@ const char *str_read_fmt(const char *input, const char *fmtstr, TypeSpecificIO *
     return in;
 }
 
-void f_read_fmt(FILE *file, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
+void f_read_fmt(File *file, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
     DefaultAllocator scratch = DefaultAllocatorInit();
 
     if (!file || !fmtstr) {
@@ -758,54 +762,56 @@ void f_read_fmt(FILE *file, const char *fmtstr, TypeSpecificIO *argv, u64 argc) 
     }
 
     Str buffer = StrInit(&scratch);
-    int fd     = FILENO(file);
+    i32 fd     = FileFd(file);
 
-    if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO) {
-        LOG_INFO("Reading from non-seekable stream (stdin/stdout/stderr).");
-        char  in            = 0;
-        FILE *source_stream = fd == STDIN_FILENO ? stdin : fd == STDOUT_FILENO ? stdout : stderr;
-        while (!feof(source_stream) && fread(&in, 1, 1, source_stream)) {
-            StrPushBack(&buffer, in);
+    // Probe seekability: if FileSeek(0, CUR) succeeds, the underlying
+    // channel is positionable; if it returns -1 (ESPIPE / Windows
+    // equivalent) treat the input as a stream and pull bytes until EOF.
+    i64 probe = FileSeek(file, 0, FILE_SEEK_CUR);
+    if (probe < 0 || fd == 0 || fd == 1 || fd == 2) {
+        LOG_INFO("Reading from non-seekable channel.");
+        char buf_byte = 0;
+        while (FileRead(file, &buf_byte, 1) == 1) {
+            StrPushBack(&buffer, buf_byte);
         }
         str_read_fmt(buffer.data, fmtstr, argv, argc);
     } else {
-        fpos_t start_pos;
-        bool   can_rollback = false;
+        // Remember the start position so we can rewind after a parse
+        // failure, and so we can advance to "after the bytes we
+        // actually consumed".
+        i64 cur_pos = probe;
+        i64 end_pos = FileSeek(file, 0, FILE_SEEK_END);
+        if (end_pos < 0) {
+            LOG_ERROR("FileSeek(END) failed during f_read_fmt");
+            StrDeinit(&buffer);
+            DefaultAllocatorDeinit(&scratch);
+            return;
+        }
+        i64 file_len = end_pos - cur_pos;
+        (void)FileSeek(file, cur_pos, FILE_SEEK_SET);
 
-        // store the position we start reading with
-        u64 cur_pos = ftell(file);
-
-        // get complete file size and read after current reading position
-        fseek(file, 0, SEEK_END);
-        u64 file_len = ftell(file) - cur_pos;
-        fseek(file, cur_pos, SEEK_SET);
-        StrReserve(&buffer, file_len);
-        fread(buffer.data, 1, file_len, file);
-
-        // Try to check if the file is seekable
-        if (!ISATTY(fd)) {
-            if (fgetpos(file, &start_pos) == 0) {
-                can_rollback = true;
-            } else {
-                LOG_SYS_ERROR("Could not save file position for rollback");
+        if (file_len > 0) {
+            StrReserve(&buffer, (u64)file_len);
+            i64 got = FileRead(file, buffer.data, (u64)file_len);
+            if (got < 0) {
+                LOG_ERROR("FileRead failed during f_read_fmt");
+                StrDeinit(&buffer);
+                DefaultAllocatorDeinit(&scratch);
+                return;
             }
+            buffer.length = (u64)got;
         }
 
-        buffer.length = buffer.capacity;
         if (buffer.length) {
-            const char *new_pos = NULL;
-            if (!(new_pos = str_read_fmt(buffer.data, fmtstr, argv, argc))) {
-                if (can_rollback) {
-                    LOG_ERROR("Parse failed, rolling back...");
-                    fsetpos(file, &start_pos);
-                } else {
-                    LOG_ERROR("Parse failed, and rollback not possible on non-seekable input");
-                }
+            const char *new_pos = str_read_fmt(buffer.data, fmtstr, argv, argc);
+            if (!new_pos) {
+                LOG_ERROR("Parse failed, rolling back...");
+                (void)FileSeek(file, cur_pos, FILE_SEEK_SET);
+            } else {
+                // Advance the channel position past the bytes we consumed.
+                i64 consumed = (i64)(new_pos - buffer.data);
+                (void)FileSeek(file, cur_pos + consumed, FILE_SEEK_SET);
             }
-
-            // seek to position after number of bytes read
-            u64 numb = cur_pos + new_pos - buffer.data;
-            fseek(file, numb, SEEK_SET);
         }
     }
 

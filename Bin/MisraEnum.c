@@ -250,7 +250,8 @@ int main(int argc, char **argv) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
     if (argc < 2 || argc > 3) {
-        FWriteFmtLn(stderr, "USAGE : {} <enum-json-spec> [output-file-name]", argc == 0 ? "MisraEnum" : argv[0]);
+        File err_ = FileStderr();
+        FWriteFmtLn(&err_, "USAGE : {} <enum-json-spec> [output-file-name]", argc == 0 ? "MisraEnum" : argv[0]);
         return 1;
     }
 

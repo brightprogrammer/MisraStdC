@@ -8,10 +8,8 @@
 #define MISRA_STD_IO
 
 #include <Misra/Std/Container.h>
+#include <Misra/Std/File.h>
 #include <Misra/Types.h>
-
-// c
-#include <stdio.h>
 
 #include "Io/Private.h"
 
@@ -187,19 +185,25 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 // feature is disabled, the case expands to nothing so the type name
 // (which would otherwise have to be visible) is never mentioned.
 #if MISRA_HAVE_BITVEC
-#    define IOFMT_BITVEC_CASE_(x, addr) BitVec: TO_TYPE_SPECIFIC_IO(BitVec, addr),
+#    define IOFMT_BITVEC_CASE_(x, addr)                                                                                \
+BitVec:                                                                                                                \
+        TO_TYPE_SPECIFIC_IO(BitVec, addr),
 #else
 #    define IOFMT_BITVEC_CASE_(x, addr)
 #endif
 
 #if MISRA_HAVE_INT
-#    define IOFMT_INT_CASE_(x, addr) Int: TO_TYPE_SPECIFIC_IO(Int, addr),
+#    define IOFMT_INT_CASE_(x, addr)                                                                                   \
+Int:                                                                                                                   \
+        TO_TYPE_SPECIFIC_IO(Int, addr),
 #else
 #    define IOFMT_INT_CASE_(x, addr)
 #endif
 
 #if MISRA_HAVE_FLOAT
-#    define IOFMT_FLOAT_CASE_(x, addr) Float: TO_TYPE_SPECIFIC_IO(Float, addr),
+#    define IOFMT_FLOAT_CASE_(x, addr)                                                                                 \
+Float:                                                                                                                 \
+        TO_TYPE_SPECIFIC_IO(Float, addr),
 #else
 #    define IOFMT_FLOAT_CASE_(x, addr)
 #endif
@@ -210,10 +214,8 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
             (x),                                                                                                       \
             TypeSpecificIO: (x),                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, &(x)),                                                                       \
-            IOFMT_FLOAT_CASE_(x, &(x))                                                                                 \
-            IOFMT_INT_CASE_(x, &(x))                                                                                   \
-            IOFMT_BITVEC_CASE_(x, &(x))                                                                                \
-            const char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                             \
+            IOFMT_FLOAT_CASE_(x, &(x)) IOFMT_INT_CASE_(x, &(x)) IOFMT_BITVEC_CASE_(x, &(x))                            \
+                const char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                         \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, &(x)),                                                                   \
             unsigned char: TO_TYPE_SPECIFIC_IO(u8, &(x)),                                                              \
             unsigned short: TO_TYPE_SPECIFIC_IO(u16, &(x)),                                                            \
@@ -246,10 +248,8 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
             (x),                                                                                                       \
             TypeSpecificIO: (x),                                                                                       \
             Str: TO_TYPE_SPECIFIC_IO(Str, (void *)&(x)),                                                               \
-            IOFMT_FLOAT_CASE_(x, (void *)&(x))                                                                         \
-            IOFMT_INT_CASE_(x, (void *)&(x))                                                                           \
-            IOFMT_BITVEC_CASE_(x, (void *)&(x))                                                                        \
-            const char *: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                     \
+            IOFMT_FLOAT_CASE_(x, (void *)&(x)) IOFMT_INT_CASE_(x, (void *)&(x)) IOFMT_BITVEC_CASE_(x, (void *)&(x))    \
+                const char *: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                 \
             char *: TO_TYPE_SPECIFIC_IO(Zstr, (void *)&(x)),                                                           \
             unsigned char: TO_TYPE_SPECIFIC_IO(u8, (void *)&(x)),                                                      \
             unsigned short: TO_TYPE_SPECIFIC_IO(u16, (void *)&(x)),                                                    \
@@ -481,7 +481,11 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 ///
 /// TAGS: Macro, Convenience, Stdout, I/O
 ///
-#define WriteFmt(...) FWriteFmt(stdout, __VA_ARGS__)
+#define WriteFmt(...)                                                                                                  \
+    do {                                                                                                               \
+        File __misra_out__ = FileStdout();                                                                             \
+        FWriteFmt(&__misra_out__, __VA_ARGS__);                                                                        \
+    } while (0)
 
 ///
 /// Write formatted output to the standard output stream (`stdout`) followed by a newline.
@@ -499,7 +503,11 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 ///
 /// TAGS: Macro, Convenience, Stdout, I/O
 ///
-#define WriteFmtLn(...) FWriteFmtLn(stdout, __VA_ARGS__)
+#define WriteFmtLn(...)                                                                                                \
+    do {                                                                                                               \
+        File __misra_out__ = FileStdout();                                                                             \
+        FWriteFmtLn(&__misra_out__, __VA_ARGS__);                                                                      \
+    } while (0)
 
 ///
 /// Read formatted input from the standard input stream (`stdin`).
@@ -518,7 +526,11 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 ///
 /// TAGS: Macro, Convenience, Stdin, I/O
 ///
-#define ReadFmt(...) FReadFmt(stdin, __VA_ARGS__)
+#define ReadFmt(...)                                                                                                   \
+    do {                                                                                                               \
+        File __misra_in__ = FileStdin();                                                                               \
+        FReadFmt(&__misra_in__, __VA_ARGS__);                                                                          \
+    } while (0)
 
 // not for direct use
 bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s);
