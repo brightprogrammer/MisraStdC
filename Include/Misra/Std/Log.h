@@ -141,32 +141,19 @@ typedef enum LogMessageType {
 } LogMessageType;
 
 ///
-/// Initialize the logging subsystem.
+/// Direct log message writer. Stateless: no setup, no teardown, no
+/// globals. INFO lines go to the normal output channel (fd 1 on
+/// POSIX); ERROR and FATAL go to the diagnostic channel (fd 2). FATAL
+/// additionally appends a captured stack trace before returning to
+/// the caller -- the LOG_FATAL macro then calls Abort().
 ///
-/// The `alloc` pointer is stored as module state and used for the
-/// internal mutex's create/destroy. It is borrowed, not owned - the
-/// caller must keep it alive for as long as any `LogWrite` /
-/// `LogDeinit` call may run (typically: until end of `main`).
+/// type[in] : Severity selector.
+/// tag[in]  : Caller identifier; defaulted to "misra" if NULL. The
+///            LOG_* macros pass `__func__` here.
+/// line[in] : Source line; the LOG_* macros pass `__LINE__`.
+/// msg[in]  : Pre-formatted message string (no trailing newline; the
+///            implementation adds one). NULL-safe (no-op).
 ///
-/// Calling `LogInit` is optional. If the application never calls it,
-/// `LogWrite` falls back to writing directly to `stderr` without a
-/// mutex, which is fine for single-threaded callers.
-///
-/// redirect[in] : When true, redirects log output to a timestamped
-///                file under the system temp directory.
-/// alloc[in]    : Allocator used for the internal mutex handle. Must
-///                outlive any subsequent log call.
-///
-void LogInit(bool redirect, Allocator *alloc);
-
-///
-/// Deinitialize logging subsystem
-///
-void LogDeinit(void);
-
-///
-/// Direct log message writer
-///
-void LogWrite(LogMessageType type, const char *func, u64 line, const char *msg);
+void LogWrite(LogMessageType type, const char *tag, u64 line, const char *msg);
 
 #endif // MISRA_STD_LOG_H

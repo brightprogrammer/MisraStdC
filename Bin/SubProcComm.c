@@ -8,7 +8,6 @@
 int main(int argc, char **argv, char **envp) {
     (void)argc;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    LogInit(false, &alloc.base);
 
     // create a new child process
     Proc *proc = ProcCreate(argv[1], argv + 1, envp, &alloc.base);
@@ -43,7 +42,6 @@ int main(int argc, char **argv, char **envp) {
     // finally terminate
     ProcDestroy(proc, &alloc.base);
 
-    LogDeinit();
     DefaultAllocatorDeinit(&alloc);
     return 0;
 }

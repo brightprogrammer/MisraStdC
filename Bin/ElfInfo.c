@@ -42,7 +42,7 @@ typedef enum {
 } ElfOsAbi;
 
 typedef struct {
-    ElfClass    class;
+    ElfClass class;
     ElfEncoding encoding;
     ElfVersion  version;
     ElfOsAbi    os_abi;
@@ -334,7 +334,6 @@ typedef struct {
 
 int main(int argc, char **argv) {
     DefaultAllocator alloc = DefaultAllocatorInit();
-    LogInit(false, &alloc.base);
 
     if (argc < 2) {
         LOG_FATAL("USAGE: {} {}", argv[0], argv[1]);
@@ -423,7 +422,6 @@ int main(int argc, char **argv) {
     VecDeinit(&vi);
 
     fclose(elf);
-    LogDeinit();
     DefaultAllocatorDeinit(&alloc);
     return 0;
 }

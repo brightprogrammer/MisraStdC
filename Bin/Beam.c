@@ -200,26 +200,21 @@ int main(int argc, char **argv) {
     install_signal_handlers();
 
     Scope(alloc, DefaultAllocator) {
-        LogInit(false, alloc);
-
         SocketAddr listen_addr;
         if (!SocketAddrParse(&listen_addr, listen_spec, SOCKET_KIND_TCP)) {
             LOG_ERROR("invalid --listen address: {}", listen_spec);
-            LogDeinit();
             return 1;
         }
 
         SocketAddr upstream_addr;
         if (!SocketAddrParse(&upstream_addr, upstream_spec, SOCKET_KIND_TCP)) {
             LOG_ERROR("invalid --upstream address: {}", upstream_spec);
-            LogDeinit();
             return 1;
         }
 
         Listener listener;
         if (!ListenerOpen(&listener, SOCKET_KIND_TCP, &listen_addr, 128)) {
             LOG_ERROR("failed to open listener on {}", listen_spec);
-            LogDeinit();
             return 1;
         }
 
@@ -248,7 +243,6 @@ int main(int argc, char **argv) {
 
         LOG_INFO("beam shutting down");
         ListenerClose(&listener);
-        LogDeinit();
     }
 
     return 0;

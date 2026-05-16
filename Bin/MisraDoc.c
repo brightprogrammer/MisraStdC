@@ -173,7 +173,6 @@ int main(int argc, char **argv) {
     }
 
     DefaultAllocator alloc = DefaultAllocatorInit();
-    LogInit(false, &alloc.base);
 
     const char *config_path = argv[1];
 
@@ -308,7 +307,6 @@ int main(int argc, char **argv) {
 
     project_deinit(&project);
 
-    LogDeinit();
     DefaultAllocatorDeinit(&alloc);
     return 0;
 }

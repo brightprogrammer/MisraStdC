@@ -3,7 +3,6 @@
 
 int main(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
-    LogInit(false, &alloc.base);
 
     Str file = StrInit(&alloc);
     if (ReadCompleteFile(
@@ -34,7 +33,6 @@ int main(void) {
         LOG_ERROR("Failed to read file");
     }
 
-    LogDeinit();
     DefaultAllocatorDeinit(&alloc);
     return 0;
 }

@@ -37,7 +37,8 @@ typedef Vec(EnumEntry) EnumEntries;
 // `value_si` (StrIter*) bound. `si` is advanced past the closing `}`.
 // We unroll the JR_OBJ macro here because the header version uses StrInit() with
 // no allocator and we cannot modify the header.
-static StrIter parse_object_keys(StrIter si, Allocator *alloc, void (*on_key)(Str *key, StrIter *value_si, void *ctx), void *ctx) {
+static StrIter
+    parse_object_keys(StrIter si, Allocator *alloc, void (*on_key)(Str *key, StrIter *value_si, void *ctx), void *ctx) {
     if (!StrIterRemainingLength(&si)) {
         return si;
     }
@@ -61,7 +62,7 @@ static StrIter parse_object_keys(StrIter si, Allocator *alloc, void (*on_key)(St
             si = JSkipWhitespace(si);
         }
 
-        Str key = StrInit(alloc);
+        Str     key     = StrInit(alloc);
         StrIter read_si = JReadString(si, &key);
         if (read_si.pos == si.pos) {
             LOG_ERROR("Failed to read key.");
@@ -85,7 +86,7 @@ static StrIter parse_object_keys(StrIter si, Allocator *alloc, void (*on_key)(St
             si = JSkipValue(si);
         }
         StrDeinit(&key);
-        si = JSkipWhitespace(si);
+        si           = JSkipWhitespace(si);
         expect_comma = true;
     }
     if (StrIterPeek(&si) == '}') {
@@ -123,7 +124,7 @@ static StrIter parse_array_values(StrIter si, void (*on_value)(StrIter *value_si
         if (si.pos == si_before.pos) {
             si = JSkipValue(si);
         }
-        si = JSkipWhitespace(si);
+        si           = JSkipWhitespace(si);
         expect_comma = true;
     }
     if (StrIterPeek(&si) == ']') {
@@ -140,16 +141,16 @@ typedef struct InvalidEnumCtx {
 static void invalid_enum_on_key(Str *key, StrIter *value_si, void *vctx) {
     InvalidEnumCtx *ctx = (InvalidEnumCtx *)vctx;
     if (!StrCmpZstr(key, "name")) {
-        Str s = StrInit(ctx->alloc);
+        Str s     = StrInit(ctx->alloc);
         *value_si = JReadString(*value_si, &s);
         StrDeinit(&ctx->e->name);
         ctx->e->name = s;
     } else if (!StrCmpZstr(key, "value")) {
-        i64 v = 0;
-        *value_si = JReadInteger(*value_si, &v);
+        i64 v         = 0;
+        *value_si     = JReadInteger(*value_si, &v);
         ctx->e->value = v;
     } else if (!StrCmpZstr(key, "str")) {
-        Str s = StrInit(ctx->alloc);
+        Str s     = StrInit(ctx->alloc);
         *value_si = JReadString(*value_si, &s);
         StrDeinit(&ctx->e->str);
         ctx->e->str = s;
@@ -166,16 +167,16 @@ typedef struct EntryCtx {
 static void entry_on_key(Str *key, StrIter *value_si, void *vctx) {
     EnumEntry *e = (EnumEntry *)vctx;
     if (!StrCmpZstr(key, "name")) {
-        Str s = StrInit(e->name.allocator);
+        Str s     = StrInit(e->name.allocator);
         *value_si = JReadString(*value_si, &s);
         StrDeinit(&e->name);
         e->name = s;
     } else if (!StrCmpZstr(key, "value")) {
-        i64 v = 0;
+        i64 v     = 0;
         *value_si = JReadInteger(*value_si, &v);
-        e->value = v;
+        e->value  = v;
     } else if (!StrCmpZstr(key, "str")) {
-        Str s = StrInit(e->str.allocator);
+        Str s     = StrInit(e->str.allocator);
         *value_si = JReadString(*value_si, &s);
         StrDeinit(&e->str);
         e->str = s;
@@ -209,40 +210,44 @@ static void entries_on_value(StrIter *value_si, void *vctx) {
 }
 
 typedef struct TopCtx {
-    Allocator  *alloc;
-    Str        *enum_name;
-    bool       *to_from_str;
-    EnumEntry  *invalid_enum;
+    Allocator   *alloc;
+    Str         *enum_name;
+    bool        *to_from_str;
+    EnumEntry   *invalid_enum;
     EnumEntries *entries;
-    i64        *last_value;
+    i64         *last_value;
 } TopCtx;
 
 static void top_on_key(Str *key, StrIter *value_si, void *vctx) {
     TopCtx *ctx = (TopCtx *)vctx;
     if (!StrCmpZstr(key, "name")) {
-        Str s = StrInit(ctx->alloc);
+        Str s     = StrInit(ctx->alloc);
         *value_si = JReadString(*value_si, &s);
         StrDeinit(ctx->enum_name);
         *ctx->enum_name = s;
     } else if (!StrCmpZstr(key, "to_from_str")) {
-        bool b = false;
-        *value_si = JReadBool(*value_si, &b);
+        bool b            = false;
+        *value_si         = JReadBool(*value_si, &b);
         *ctx->to_from_str = b;
     } else if (!StrCmpZstr(key, "invalid_enum")) {
         InvalidEnumCtx ic = {.e = ctx->invalid_enum, .alloc = ctx->alloc};
-        *value_si = parse_object_keys(*value_si, ctx->alloc, invalid_enum_on_key, &ic);
+        *value_si         = parse_object_keys(*value_si, ctx->alloc, invalid_enum_on_key, &ic);
         if (ctx->invalid_enum->name.length) {
             *ctx->last_value = ctx->invalid_enum->value;
         }
     } else if (!StrCmpZstr(key, "entries")) {
-        EntryCtx ec = {.entries = ctx->entries, .alloc = ctx->alloc, .to_from_str = *ctx->to_from_str, .last_value = ctx->last_value};
+        EntryCtx ec = {
+            .entries     = ctx->entries,
+            .alloc       = ctx->alloc,
+            .to_from_str = *ctx->to_from_str,
+            .last_value  = ctx->last_value
+        };
         *value_si = parse_array_values(*value_si, entries_on_value, &ec);
     }
 }
 
 int main(int argc, char **argv) {
     DefaultAllocator alloc = DefaultAllocatorInit();
-    LogInit(false, &alloc.base);
 
     if (argc < 2 || argc > 3) {
         FWriteFmtLn(stderr, "USAGE : {} <enum-json-spec> [output-file-name]", argc == 0 ? "MisraEnum" : argv[0]);
@@ -394,7 +399,6 @@ int main(int argc, char **argv) {
     };
     VecDeinit(&entries);
 
-    LogDeinit();
     DefaultAllocatorDeinit(&alloc);
     return 0;
 }
