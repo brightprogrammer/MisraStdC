@@ -1,4 +1,4 @@
-/// file      : bin/misraenum.c
+/// file      : Bin/EnumGen.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
@@ -251,7 +251,7 @@ int main(int argc, char **argv) {
 
     if (argc < 2 || argc > 3) {
         File err_ = FileStderr();
-        FWriteFmtLn(&err_, "USAGE : {} <enum-json-spec> [output-file-name]", argc == 0 ? "MisraEnum" : argv[0]);
+        FWriteFmtLn(&err_, "USAGE : {} <enum-json-spec> [output-file-name]", argc == 0 ? "enumgen" : argv[0]);
         return 1;
     }
 

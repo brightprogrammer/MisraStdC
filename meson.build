@@ -387,8 +387,8 @@ misra_std_no_sanitizers = static_library(
 # `SysDirContents`, etc., so we gate them on the corresponding flag.
 if opt_file and opt_parser_json
     executable(
-        'MisraEnum',
-        files('Bin/MisraEnum.c'),
+        'enumgen',
+        files('Bin/EnumGen.c'),
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,
@@ -420,8 +420,8 @@ endif
 
 if opt_file and opt_sys_dir and opt_parser_json
     executable(
-        'MisraDoc',
-        files('Bin/MisraDoc.c'),
+        'docgen',
+        files('Bin/DocGen.c'),
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,
