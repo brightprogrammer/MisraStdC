@@ -34,15 +34,24 @@ static void on_signal(int signum) {
 }
 
 static void install_signal_handlers(void) {
+#ifdef _WIN32
+    // Windows has signal() but not sigaction/sigemptyset, and there's
+    // no SIGPIPE on Windows -- send() to a closed peer returns
+    // WSAECONNRESET (mapped to -1 by SocketSend) so the proxy loop
+    // exits cleanly on its own.
+    signal(SIGINT, on_signal);
+    signal(SIGTERM, on_signal);
+#else
     struct sigaction sa;
     MemSet(&sa, 0, sizeof(sa));
     sa.sa_handler = on_signal;
     sigemptyset(&sa.sa_mask);
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
-    // SIGPIPE on a hung-up peer would terminate us; mask it and rely on
-    // send() returning EPIPE instead.
+    // SIGPIPE on a hung-up peer would terminate us; mask it and rely
+    // on send() returning EPIPE instead.
     signal(SIGPIPE, SIG_IGN);
+#endif
 }
 
 static void log_request_summary(Allocator *alloc, const char *client_addr, const char *prefix_bytes, size prefix_len) {

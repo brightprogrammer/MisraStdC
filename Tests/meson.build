@@ -441,9 +441,13 @@ if opt_parser_dns
 endif
 
 # Sys/Dns: integration test using /etc/hosts only (no network calls).
-# Requires Sys/Socket so we can build the SocketAddr results -- gated
-# accordingly.
-if opt_sys_dns
+# Requires Sys/Socket so we can build the SocketAddr results. Gated to
+# POSIX hosts because Windows's default hosts file is comment-only
+# (Windows uses kernel DNS via iphlpapi for `localhost`), so the
+# `localhost`-from-hosts assertions would fail there. Re-enable on
+# Windows once the iphlpapi-backed nameserver discovery is wired in
+# (tracked in FUTURE-PLANS).
+if opt_sys_dns and host_machine.system() != 'windows'
     foreach test_info : sys_dns_tests
         test_name = test_info[0]
         test_src = test_info[1]
