@@ -21,7 +21,7 @@
 #include <Misra/Std/Memory.h>
 
 #include <stdint.h>
-#include <stdio.h>
+#include <Misra/Std/File.h>
 
 // ---------------------------------------------------------------------------
 // Sidecar debug file discovery
@@ -62,10 +62,11 @@ static void append_dirname(Str *out, const char *path) {
 
 // Check whether `path` exists and is non-empty.
 static bool path_exists(const char *path) {
-    FILE *f = fopen(path, "rb");
-    if (!f)
+    File f = FileOpen(path, "rb");
+    if (!FileIsValid(&f)) {
         return false;
-    fclose(f);
+    }
+    FileClose(&f);
     return true;
 }
 

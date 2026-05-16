@@ -12,19 +12,19 @@
 #include <Misra/Std.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/File.h>
 #include <Misra/Std/Memory.h>
-
-#include <stdio.h>
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 static bool path_exists(const char *path) {
-    FILE *f = fopen(path, "rb");
-    if (!f)
+    File f = FileOpen(path, "rb");
+    if (!FileIsValid(&f)) {
         return false;
-    fclose(f);
+    }
+    FileClose(&f);
     return true;
 }
 

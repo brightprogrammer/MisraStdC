@@ -27,7 +27,7 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 
-#include <stdio.h>
+#include <Misra/Std/File.h>
 
 // ---------------------------------------------------------------------------
 // Field parsers
@@ -168,9 +168,9 @@ bool ProcMapsLoad(ProcMaps *out, Allocator *alloc) {
     // the kernel on read. ReadCompleteFile relies on stat for the
     // buffer size and short-circuits to empty — we have to loop-read
     // into a growing buffer ourselves.
-    FILE *f = fopen("/proc/self/maps", "rb");
-    if (!f) {
-        LOG_SYS_ERROR("ProcMapsLoad: fopen(/proc/self/maps) failed");
+    File f = FileOpen("/proc/self/maps", "rb");
+    if (!FileIsValid(&f)) {
+        LOG_ERROR("ProcMapsLoad: FileOpen(/proc/self/maps) failed");
         ProcMapsDeinit(out);
         return false;
     }
@@ -182,16 +182,22 @@ bool ProcMapsLoad(ProcMaps *out, Allocator *alloc) {
         u64 grown_to = out->raw.length + CHUNK + 1;
         if (!StrReserve(&out->raw, grown_to)) {
             LOG_ERROR("ProcMapsLoad: failed to grow buffer");
-            fclose(f);
+            FileClose(&f);
             ProcMapsDeinit(out);
             return false;
         }
-        size n           = fread(out->raw.data + out->raw.length, 1, CHUNK, f);
+        i64 n = FileRead(&f, out->raw.data + out->raw.length, CHUNK);
+        if (n < 0) {
+            LOG_ERROR("ProcMapsLoad: FileRead failed");
+            FileClose(&f);
+            ProcMapsDeinit(out);
+            return false;
+        }
         out->raw.length += (u64)n;
-        if (n < CHUNK)
-            break; // EOF or error
+        if (n < (i64)CHUNK)
+            break; // EOF
     }
-    fclose(f);
+    FileClose(&f);
     if (out->raw.length == 0) {
         LOG_ERROR("ProcMapsLoad: /proc/self/maps was empty");
         ProcMapsDeinit(out);
