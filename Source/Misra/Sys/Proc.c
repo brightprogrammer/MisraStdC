@@ -57,6 +57,81 @@ static inline void proc_sleep_us(u64 us) {
 #endif
 }
 
+#if MISRA_HAVE_DIRECT_SYSCALL
+// Linux: thin direct-syscall wrappers for the POSIX I/O / process
+// primitives used below. macOS / BSD keep libSystem (Apple disallows
+// direct user syscalls); Windows takes a different code path entirely.
+//
+// The aarch64 syscall table dropped the "legacy" variants (open,
+// stat, fork, pipe, dup2, readlink, ...) so each wrapper handles
+// the x86_64 vs aarch64 ABI divergence inline.
+
+static inline long misra_proc_close(int fd) {
+    return misra_sys1(MISRA_SYS_close, (long)fd);
+}
+static inline long misra_proc_read(int fd, void *buf, unsigned long n) {
+    return misra_sys3(MISRA_SYS_read, (long)fd, (long)(uintptr_t)buf, (long)n);
+}
+static inline long misra_proc_write(int fd, const void *buf, unsigned long n) {
+    return misra_sys3(MISRA_SYS_write, (long)fd, (long)(uintptr_t)buf, (long)n);
+}
+static inline long misra_proc_pipe(int fds[2]) {
+#    if defined(__x86_64__)
+    return misra_sys1(MISRA_SYS_pipe, (long)(uintptr_t)fds);
+#    else
+    return misra_sys2(MISRA_SYS_pipe2, (long)(uintptr_t)fds, 0);
+#    endif
+}
+static inline long misra_proc_dup2(int oldfd, int newfd) {
+#    if defined(__x86_64__)
+    return misra_sys2(MISRA_SYS_dup2, (long)oldfd, (long)newfd);
+#    else
+    return misra_sys3(MISRA_SYS_dup3, (long)oldfd, (long)newfd, 0);
+#    endif
+}
+static inline long misra_proc_fork(void) {
+#    if defined(__x86_64__)
+    return misra_sys0(MISRA_SYS_fork);
+#    else
+    // aarch64: no SYS_fork. clone(SIGCHLD, NULL, NULL, NULL, NULL).
+    // SIGCHLD = 17 on Linux.
+    return misra_sys5(MISRA_SYS_clone, 17, 0, 0, 0, 0);
+#    endif
+}
+static inline long misra_proc_execve(const char *path, char *const *argv, char *const *envp) {
+    return misra_sys3(MISRA_SYS_execve, (long)(uintptr_t)path, (long)(uintptr_t)argv, (long)(uintptr_t)envp);
+}
+static inline long misra_proc_kill(int pid, int sig) {
+    return misra_sys2(MISRA_SYS_kill, (long)pid, (long)sig);
+}
+static inline long misra_proc_readlink(const char *path, char *buf, unsigned long sz) {
+#    if defined(__x86_64__)
+    return misra_sys3(MISRA_SYS_readlink, (long)(uintptr_t)path, (long)(uintptr_t)buf, (long)sz);
+#    else
+    // aarch64: no SYS_readlink. AT_FDCWD = -100.
+    return misra_sys4(MISRA_SYS_readlinkat, -100L, (long)(uintptr_t)path, (long)(uintptr_t)buf, (long)sz);
+#    endif
+}
+static inline long misra_proc_waitpid(int pid, int *status, int options) {
+    return misra_sys4(MISRA_SYS_wait4, (long)pid, (long)(uintptr_t)status, (long)options, 0);
+}
+
+// Macro shims so the existing POSIX call sites use our direct-syscall
+// wrappers without per-line edits. Each returns the kernel's value
+// (negative = -errno, otherwise success), and the callers already
+// handle the "< 0" failure shape that POSIX wrappers expose.
+#    define close(fd)                  ((int)misra_proc_close(fd))
+#    define read(fd, buf, n)           ((long)misra_proc_read((fd), (buf), (n)))
+#    define write(fd, buf, n)          ((long)misra_proc_write((fd), (buf), (n)))
+#    define pipe(fds)                  ((int)misra_proc_pipe(fds))
+#    define dup2(oldfd, newfd)         ((int)misra_proc_dup2((oldfd), (newfd)))
+#    define fork()                     ((pid_t)misra_proc_fork())
+#    define execve(p, a, e)            ((int)misra_proc_execve((p), (a), (e)))
+#    define kill(pid, sig)             ((int)misra_proc_kill((pid), (sig)))
+#    define readlink(p, b, n)          ((long)misra_proc_readlink((p), (b), (n)))
+#    define waitpid(pid, status, opts) ((pid_t)misra_proc_waitpid((pid), (status), (opts)))
+#endif
+
 #ifndef STDIN_FILENO
 #    define STDIN_FILENO FILENO(stdin)
 #endif
