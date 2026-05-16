@@ -22,6 +22,10 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Sys.h>
 
+#include "../_Syscall.h"
+
+#include <stdint.h>
+
 
 const char *DirEntryTypeToZstr(DirEntryType type) {
     switch (type) {
@@ -114,8 +118,106 @@ DirContents DirGetContents(const char *path, Allocator *alloc) {
 
     return dc;
 }
+#elif MISRA_HAVE_DIRECT_SYSCALL
+// Linux: open + getdents64 syscalls, parse `struct linux_dirent64`
+// records out of the kernel's buffer ourselves. dirent.d_type tells
+// us the entry kind (regular file / dir / symlink / ...), so we
+// don't need a separate stat() call per entry. DT_UNKNOWN entries
+// stay as SYS_DIR_ENTRY_TYPE_UNKNOWN (some filesystems don't fill
+// d_type).
+
+// File-type bits from POSIX dirent.h (also the values the kernel
+// returns in d_type via getdents64).
+#    define MISRA_DT_UNKNOWN 0
+#    define MISRA_DT_FIFO    1
+#    define MISRA_DT_CHR     2
+#    define MISRA_DT_DIR     4
+#    define MISRA_DT_BLK     6
+#    define MISRA_DT_REG     8
+#    define MISRA_DT_LNK     10
+
+// Layout the kernel writes into the getdents64 buffer. The trailing
+// d_name is null-terminated; the next record starts d_reclen bytes
+// from the start of this one.
+struct misra_linux_dirent64 {
+    u64  d_ino;
+    i64  d_off;
+    u16  d_reclen;
+    u8   d_type;
+    char d_name[]; // flexible
+};
+
+// Map kernel/dirent d_type values to our enum.
+static DirEntryType dirent_type_to_misra(u8 dt) {
+    switch (dt) {
+        case MISRA_DT_REG :
+            return SYS_DIR_ENTRY_TYPE_REGULAR_FILE;
+        case MISRA_DT_DIR :
+            return SYS_DIR_ENTRY_TYPE_DIRECTORY;
+        case MISRA_DT_FIFO :
+            return SYS_DIR_ENTRY_TYPE_PIPE;
+        case MISRA_DT_CHR :
+            return SYS_DIR_ENTRY_TYPE_CHARACTER_DEVICE;
+        case MISRA_DT_BLK :
+            return SYS_DIR_ENTRY_TYPE_BLOCK_DEVICE;
+        case MISRA_DT_LNK :
+            return SYS_DIR_ENTRY_TYPE_SYMBOLIC_LINK;
+        default :
+            return SYS_DIR_ENTRY_TYPE_UNKNOWN;
+    }
+}
+
+DirContents DirGetContents(const char *path, Allocator *alloc) {
+    if (!path || !alloc) {
+        LOG_FATAL("invalid arguments.");
+    }
+
+    DirContents dc = (DirContents)VecInit(alloc);
+
+    // O_RDONLY | O_DIRECTORY | O_CLOEXEC = 0 | 0x10000 | 0x80000 on Linux.
+    const long O_RDONLY    = 0;
+    const long O_DIRECTORY = 0x10000;
+    const long O_CLOEXEC   = 0x80000;
+#    if defined(__x86_64__)
+    long fd = misra_sys3(MISRA_SYS_open, (long)(uintptr_t)path, O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0);
+#    else
+    // aarch64: openat(AT_FDCWD=-100, path, flags, mode)
+    long fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(uintptr_t)path, O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0);
+#    endif
+    if (fd < 0) {
+        LOG_ERROR("DirGetContents: open(\"{}\") failed (errno {})", path, (i32)-fd);
+        return dc;
+    }
+
+    char buf[8192];
+    for (;;) {
+        long n = misra_sys3(MISRA_SYS_getdents64, fd, (long)(uintptr_t)buf, (long)sizeof(buf));
+        if (n == 0) {
+            break; // end of stream
+        }
+        if (n < 0) {
+            LOG_ERROR("DirGetContents: getdents64 failed (errno {})", (i32)-n);
+            break;
+        }
+        for (long off = 0; off < n;) {
+            struct misra_linux_dirent64 *de = (struct misra_linux_dirent64 *)(void *)(buf + off);
+            const char                  *nm = de->d_name;
+            // Skip "." and "..".
+            if (!(nm[0] == '.' && (nm[1] == '\0' || (nm[1] == '.' && nm[2] == '\0')))) {
+                DirEntry direntry = {0};
+                direntry.type     = dirent_type_to_misra(de->d_type);
+                direntry.name     = StrInitFromCstr(nm, ZstrLen(nm), alloc);
+                VecPushBack(&dc, direntry);
+            }
+            off += de->d_reclen;
+        }
+    }
+
+    (void)misra_sys1(MISRA_SYS_close, fd);
+    return dc;
+}
 #else
-// APPLE or Unix based system implementation using opendir/readdir
+// APPLE or other Unix-based system implementation using opendir/readdir.
 DirContents DirGetContents(const char *path, Allocator *alloc) {
     if (!path || !alloc) {
         LOG_FATAL("invalid arguments.");
@@ -129,22 +231,12 @@ DirContents DirGetContents(const char *path, Allocator *alloc) {
         return dc;
     }
 
-    // Get value at specific index in name of directory entry
-#    define DNAME_AT(idx) entry->d_name[idx]
-
-    // Get length of name of directory entry
-#    if __APPLE__
-#        define NAMELEN(entry) (entry)->d_namlen
-#    elif __linux__
-#        define NAMELEN(entry) (entry)->d_reclen
-#    endif
-
     // Go through each directory entry
     struct dirent *entry = NULL;
     while (NULL != (entry = readdir(dir))) {
-        if ('.' == DNAME_AT(0) && 0 == DNAME_AT(1)) {
+        if ('.' == entry->d_name[0] && 0 == entry->d_name[1]) {
             continue;
-        } else if ('.' == DNAME_AT(0) && '.' == DNAME_AT(1) && 0 == DNAME_AT(2)) {
+        } else if ('.' == entry->d_name[0] && '.' == entry->d_name[1] && 0 == entry->d_name[2]) {
             continue;
         } else {
             Str         entry_path = StrInit(alloc);
@@ -172,13 +264,14 @@ DirContents DirGetContents(const char *path, Allocator *alloc) {
             } else {
                 direntry.type = SYS_DIR_ENTRY_TYPE_UNKNOWN;
             }
-            direntry.name = StrInitFromCstr(entry->d_name, NAMELEN(entry), alloc);
+#    if defined(__APPLE__)
+            direntry.name = StrInitFromCstr(entry->d_name, entry->d_namlen, alloc);
+#    else
+            direntry.name = StrInitFromCstr(entry->d_name, ZstrLen(entry->d_name), alloc);
+#    endif
             VecPushBack(&dc, direntry);
         }
     }
-
-#    undef DNAME_AT
-#    undef NAMELEN
 
     closedir(dir);
 
@@ -205,6 +298,29 @@ i64 FileGetSize(const char *filename) {
 
     CloseHandle(file);
     return (i64)file_size.QuadPart;
+#elif MISRA_HAVE_DIRECT_SYSCALL
+    // Open + lseek(SEEK_END) + close. Avoids needing the kernel's
+    // arch-specific `struct stat` layout: lseek returns the offset
+    // value the kernel computes, which equals file size at SEEK_END.
+    const long O_RDONLY  = 0;
+    const long O_CLOEXEC = 0x80000;
+    const long SEEK_END_ = 2;
+#    if defined(__x86_64__)
+    long fd = misra_sys3(MISRA_SYS_open, (long)(uintptr_t)filename, O_RDONLY | O_CLOEXEC, 0);
+#    else
+    long fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(uintptr_t)filename, O_RDONLY | O_CLOEXEC, 0);
+#    endif
+    if (fd < 0) {
+        LOG_ERROR("FileGetSize: open(\"{}\") failed (errno {})", filename, (i32)-fd);
+        return -1;
+    }
+    long sz = misra_sys3(MISRA_SYS_lseek, fd, 0, SEEK_END_);
+    (void)misra_sys1(MISRA_SYS_close, fd);
+    if (sz < 0) {
+        LOG_ERROR("FileGetSize: lseek failed on \"{}\" (errno {})", filename, (i32)-sz);
+        return -1;
+    }
+    return (i64)sz;
 #else
     // Unix-like systems (Linux/macOS) code using stat
     struct stat file_stat;
