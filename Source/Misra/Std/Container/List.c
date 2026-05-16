@@ -397,7 +397,7 @@ void validate_list(const GenericList *l) {
     if (!(l)) {
         LOG_FATAL("List pointer is NULL.");
     }
-    if ((l)->__magic != MISRA_LIST_MAGIC) {
+    if ((l)->__magic != LIST_MAGIC) {
         LOG_FATAL("Invalid list. Either not initialized or corrupted!");
     }
     if (!(l)->allocator->allocate || !(l)->allocator->reallocate || !(l)->allocator->deallocate) {

@@ -17,7 +17,7 @@ struct BudgetFreeSlot {
 };
 
 static void budget_validate_self(const Allocator *self) {
-    if (!self || self->__magic != MISRA_BUDGET_ALLOCATOR_MAGIC) {
+    if (!self || self->__magic != BUDGET_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to budget_allocator_* is not a BudgetAllocator");
     }
 }
@@ -114,7 +114,7 @@ static BudgetAllocator budget_build(void *buf, size buf_bytes, size slot_size, s
                    .alignment   = alignment,
                    .effort      = ALLOCATOR_EFFORT_ONCE,
                    .retry_limit = 0,
-                   .__magic     = MISRA_BUDGET_ALLOCATOR_MAGIC},
+                   .__magic     = BUDGET_ALLOCATOR_MAGIC},
         .buf        = (char *)buf,
         .buf_bytes  = buf_bytes,
         .slot_size  = padded_slot,

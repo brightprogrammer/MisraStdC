@@ -97,7 +97,7 @@ typedef struct {
 // magic bytes to give only 1 in a 2^64 chance for un-initialized or curropted list objects to be considered valid
 // if the magic bytes of a list does not match this value then it's considered corrupted or un-initialized.
 // this will mean that there's a bug in application and ValidateList will immediately abort!
-#define MISRA_LIST_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("listimpl")
+#define LIST_MAGIC MAKE_NEW_MAGIC_VALUE("listimpl")
 
 ///
 /// Validate whether a given `List` object is valid.

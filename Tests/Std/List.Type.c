@@ -15,7 +15,7 @@ static bool test_list_type_defaults(void) {
     ValidateList(&list);
 
     bool result = (list.head == NULL) && (list.tail == NULL) && (list.copy_init == NULL) &&
-                  (list.copy_deinit == NULL) && (list.length == 0) && (list.__magic == MISRA_LIST_MAGIC);
+                  (list.copy_deinit == NULL) && (list.length == 0) && (list.__magic == LIST_MAGIC);
 
     ListDeinit(&list);
     DefaultAllocatorDeinit(&alloc);

@@ -62,15 +62,15 @@ static bool write_test_file(char *path, const char *text) {
 // the relative path lands in the build dir's filesystem - good enough for a
 // scratch file.
 #ifdef _WIN32
-#    define MISRA_FILE_TEST_PATH_DEFAULT "misra-file-test-XXXXXX"
-#    define MISRA_FILE_TEST_PATH_GROW    "misra-file-grow-test-XXXXXX"
+#    define FILE_TEST_PATH_DEFAULT "misra-file-test-XXXXXX"
+#    define FILE_TEST_PATH_GROW    "misra-file-grow-test-XXXXXX"
 #else
-#    define MISRA_FILE_TEST_PATH_DEFAULT "/tmp/misra-file-test-XXXXXX"
-#    define MISRA_FILE_TEST_PATH_GROW    "/tmp/misra-file-grow-test-XXXXXX"
+#    define FILE_TEST_PATH_DEFAULT "/tmp/misra-file-test-XXXXXX"
+#    define FILE_TEST_PATH_GROW    "/tmp/misra-file-grow-test-XXXXXX"
 #endif
 
 bool test_read_complete_file_default_allocator(void) {
-    char  path[]    = MISRA_FILE_TEST_PATH_DEFAULT;
+    char  path[]    = FILE_TEST_PATH_DEFAULT;
     char *buffer    = NULL;
     u64   file_size = 0;
     u64   capacity  = 0;
@@ -97,7 +97,7 @@ bool test_read_complete_file_default_allocator(void) {
 }
 
 bool test_read_complete_file_expands_existing_buffer(void) {
-    char  path[]    = MISRA_FILE_TEST_PATH_GROW;
+    char  path[]    = FILE_TEST_PATH_GROW;
     char *buffer    = NULL;
     u64   file_size = 0;
     u64   capacity  = 0;

@@ -40,7 +40,7 @@
      .states            = NULL,                                                                                        \
      .policy            = validate_map_policy_copy((policy_value)),                                                    \
      .allocator         = ALLOCATOR_OF(typed_alloc_ptr),                                                               \
-     .__magic           = MISRA_MAP_MAGIC}
+     .__magic           = MAP_MAGIC}
 
 #define MapInitFull(...) MISRA_OVERLOAD(MapInitFull, __VA_ARGS__)
 #define MapInitFull_8(hash_fn, compare_fn, vcmp, kci, kcd, vci, vcd, policy_value)                                     \
@@ -63,17 +63,7 @@
 #define MapInitWithValueCompare_3(hash_fn, compare_fn, value_compare_fn)                                               \
     MapInitWithValueCompare_4(hash_fn, compare_fn, value_compare_fn, MisraScope)
 #define MapInitWithValueCompare_4(hash_fn, compare_fn, value_compare_fn, typed_alloc_ptr)                              \
-    MapInitFull_9(                                                                                                     \
-        (hash_fn),                                                                                                     \
-        (compare_fn),                                                                                                  \
-        (value_compare_fn),                                                                                            \
-        NULL,                                                                                                          \
-        NULL,                                                                                                          \
-        NULL,                                                                                                          \
-        NULL,                                                                                                          \
-        MapPolicyLinear,                                                                                          \
-        typed_alloc_ptr                                                                                                \
-    )
+    MapInitFull_9((hash_fn), (compare_fn), (value_compare_fn), NULL, NULL, NULL, NULL, MapPolicyLinear, typed_alloc_ptr)
 
 ///
 /// Initialize a map with key callbacks and an explicit probing policy.
@@ -108,7 +98,7 @@
         (key_cd),                                                                                                      \
         (value_ci),                                                                                                    \
         (value_cd),                                                                                                    \
-        MapPolicyLinear,                                                                                          \
+        MapPolicyLinear,                                                                                               \
         typed_alloc_ptr                                                                                                \
     )
 

@@ -44,7 +44,7 @@
      .pending_delete_count  = 0,                                                                                       \
      .mutation_epoch        = 0,                                                                                       \
      .allocator             = ALLOCATOR_OF(typed_alloc_ptr),                                                           \
-     .__magic               = MISRA_GRAPH_MAGIC}
+     .__magic               = GRAPH_MAGIC}
 
 #define GraphDeinit(g) deinit_graph(GENERIC_GRAPH(g), sizeof(GRAPH_NODE_TYPE(g)))
 

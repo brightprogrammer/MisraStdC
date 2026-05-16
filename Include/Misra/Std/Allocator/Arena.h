@@ -20,7 +20,7 @@
 /// allocator instances reinterpreted as an `ArenaAllocator *` are
 /// rejected at runtime as type-confusion.
 ///
-#define MISRA_ARENA_ALLOCATOR_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("arenaalc")
+#define ARENA_ALLOCATOR_MAGIC MAKE_NEW_MAGIC_VALUE("arenaalc")
 
 #ifdef __cplusplus
 extern "C" {
@@ -67,7 +67,7 @@ extern "C" {
                    .alignment   = 1,                                                                                         \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
-                   .__magic     = MISRA_ARENA_ALLOCATOR_MAGIC},                                                                  \
+                   .__magic     = ARENA_ALLOCATOR_MAGIC},                                                                        \
         .head      = NULL,                                                                                             \
         .tail      = NULL,                                                                                             \
         .last_ptr  = NULL,                                                                                             \
@@ -84,7 +84,7 @@ extern "C" {
                    .alignment   = (N) ? (N) : 1,                                                                             \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
-                   .__magic     = MISRA_ARENA_ALLOCATOR_MAGIC},                                                                  \
+                   .__magic     = ARENA_ALLOCATOR_MAGIC},                                                                        \
         .head      = NULL,                                                                                             \
         .tail      = NULL,                                                                                             \
         .last_ptr  = NULL,                                                                                             \

@@ -90,7 +90,7 @@ static bool debug_check_canary(const u8 *trail, size n) {
 // ---------------------------------------------------------------------------
 
 static DebugAllocator *debug_validate_self(const Allocator *self) {
-    if (!self || self->__magic != MISRA_DEBUG_ALLOCATOR_MAGIC) {
+    if (!self || self->__magic != DEBUG_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to debug_allocator_* is not a DebugAllocator");
     }
     DebugAllocator *dbg     = (DebugAllocator *)self;
@@ -279,7 +279,7 @@ void *debug_allocator_reallocate(Allocator *self, void *ptr, size old_size, size
 // ---------------------------------------------------------------------------
 
 void DebugAllocatorDeinit(DebugAllocator *self) {
-    if (!self || self->base.__magic != MISRA_DEBUG_ALLOCATOR_MAGIC)
+    if (!self || self->base.__magic != DEBUG_ALLOCATOR_MAGIC)
         return;
 
     u64 cur_tid = debug_current_tid();

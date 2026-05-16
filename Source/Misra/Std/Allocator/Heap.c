@@ -13,7 +13,7 @@
 #include <Misra/Std/Memory.h>
 
 static void heap_validate_self(const Allocator *self) {
-    if (!self || self->__magic != MISRA_HEAP_ALLOCATOR_MAGIC) {
+    if (!self || self->__magic != HEAP_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to heap_allocator_* is not a HeapAllocator");
     }
 }

@@ -128,13 +128,13 @@ DirContents DirGetContents(const char *path, Allocator *alloc) {
 
 // File-type bits from POSIX dirent.h (also the values the kernel
 // returns in d_type via getdents64).
-#    define MISRA_DT_UNKNOWN 0
-#    define MISRA_DT_FIFO    1
-#    define MISRA_DT_CHR     2
-#    define MISRA_DT_DIR     4
-#    define MISRA_DT_BLK     6
-#    define MISRA_DT_REG     8
-#    define MISRA_DT_LNK     10
+#    define DIRENT_TYPE_UNKNOWN 0
+#    define DIRENT_TYPE_FIFO    1
+#    define DIRENT_TYPE_CHR     2
+#    define DIRENT_TYPE_DIR     4
+#    define DIRENT_TYPE_BLK     6
+#    define DIRENT_TYPE_REG     8
+#    define DIRENT_TYPE_LNK     10
 
 // Layout the kernel writes into the getdents64 buffer. The trailing
 // d_name is null-terminated; the next record starts d_reclen bytes
@@ -150,17 +150,17 @@ struct misra_linux_dirent64 {
 // Map kernel/dirent d_type values to our enum.
 static DirEntryType dirent_type_to_misra(u8 dt) {
     switch (dt) {
-        case MISRA_DT_REG :
+        case DIRENT_TYPE_REG :
             return SYS_DIR_ENTRY_TYPE_REGULAR_FILE;
-        case MISRA_DT_DIR :
+        case DIRENT_TYPE_DIR :
             return SYS_DIR_ENTRY_TYPE_DIRECTORY;
-        case MISRA_DT_FIFO :
+        case DIRENT_TYPE_FIFO :
             return SYS_DIR_ENTRY_TYPE_PIPE;
-        case MISRA_DT_CHR :
+        case DIRENT_TYPE_CHR :
             return SYS_DIR_ENTRY_TYPE_CHARACTER_DEVICE;
-        case MISRA_DT_BLK :
+        case DIRENT_TYPE_BLK :
             return SYS_DIR_ENTRY_TYPE_BLOCK_DEVICE;
-        case MISRA_DT_LNK :
+        case DIRENT_TYPE_LNK :
             return SYS_DIR_ENTRY_TYPE_SYMBOLIC_LINK;
         default :
             return SYS_DIR_ENTRY_TYPE_UNKNOWN;

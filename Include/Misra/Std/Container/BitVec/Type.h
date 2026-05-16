@@ -61,7 +61,7 @@ typedef struct BitVecRun {
 ///
 typedef Vec(BitVecRun) BitVecRuns;
 
-#define MISRA_BITVEC_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("bitvectr")
+#define BITVEC_MAGIC MAKE_NEW_MAGIC_VALUE("bitvectr")
 
 ///
 /// Validate whether a given `BitVec` object is valid.

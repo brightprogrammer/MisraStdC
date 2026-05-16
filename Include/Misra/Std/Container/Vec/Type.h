@@ -65,7 +65,7 @@ typedef struct {
 
 #define VEC_DATATYPE(v) TYPE_OF((v)->data[0])
 
-#define MISRA_VEC_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("vectorty")
+#define VEC_MAGIC MAKE_NEW_MAGIC_VALUE("vectorty")
 
 ///
 /// Validate whether a given `Vec` object is valid.

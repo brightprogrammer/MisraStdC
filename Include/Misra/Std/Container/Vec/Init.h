@@ -42,7 +42,7 @@
      .copy_deinit = NULL,                                                                                              \
      .data        = NULL,                                                                                              \
      .allocator   = ALLOCATOR_OF(allocator_ptr),                                                                       \
-     .__magic     = MISRA_VEC_MAGIC}
+     .__magic     = VEC_MAGIC}
 
 ///
 /// Typed-cast variant of `VecInit` for assigning into a typed Vec
@@ -74,7 +74,7 @@
      .copy_deinit = (GenericCopyDeinit)(cd),                                                                           \
      .data        = NULL,                                                                                              \
      .allocator   = ALLOCATOR_OF(allocator_ptr),                                                                       \
-     .__magic     = MISRA_VEC_MAGIC}
+     .__magic     = VEC_MAGIC}
 
 #define VecInitWithDeepCopyT(v, ...) MISRA_OVERLOAD(VecInitWithDeepCopyT, v, __VA_ARGS__)
 #ifdef __cplusplus

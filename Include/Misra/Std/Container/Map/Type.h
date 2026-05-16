@@ -173,17 +173,17 @@ struct GenericMap {
         GenericCompare    value_compare;                                                                               \
         GenericHash       key_hash;                                                                                    \
         MapEntry(K, V) * entries;                                                                                      \
-        u8       *states;                                                                                              \
-        MapPolicy policy;                                                                                              \
-        Allocator        *allocator;                                                                                           \
-        u64       __magic;                                                                                             \
+        u8        *states;                                                                                             \
+        MapPolicy  policy;                                                                                             \
+        Allocator *allocator;                                                                                          \
+        u64        __magic;                                                                                            \
     }
 
 #define MAP_ENTRY_TYPE(m) TYPE_OF((m)->entries[0])
 #define MAP_KEY_TYPE(m)   TYPE_OF((m)->entries[0].key)
 #define MAP_VALUE_TYPE(m) TYPE_OF((m)->entries[0].value)
 
-#define MISRA_MAP_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("map00000")
+#define MAP_MAGIC MAKE_NEW_MAGIC_VALUE("map00000")
 
 ///
 /// Validate whether a given `MapPolicy` object is valid.

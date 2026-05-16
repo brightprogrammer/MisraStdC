@@ -12,12 +12,12 @@
 #include <stdint.h>
 
 static void arena_validate_self(const Allocator *self) {
-    if (!self || self->__magic != MISRA_ARENA_ALLOCATOR_MAGIC) {
+    if (!self || self->__magic != ARENA_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to arena_allocator_* is not an ArenaAllocator");
     }
 }
 
-#define MISRA_ARENA_DEFAULT_CHUNK_SIZE (size)(64 * 1024)
+#define ARENA_DEFAULT_CHUNK_SIZE (size)(64 * 1024)
 
 struct ArenaChunk {
     struct ArenaChunk *next;
@@ -37,7 +37,7 @@ static size arena_effective_alignment(const Allocator *self) {
 
 static size arena_chunk_size_for(ArenaAllocator *arena, size need_bytes) {
     size page    = PageAllocatorPageSize(&arena->page);
-    size minimum = MISRA_ARENA_DEFAULT_CHUNK_SIZE;
+    size minimum = ARENA_DEFAULT_CHUNK_SIZE;
     size wanted  = need_bytes > minimum ? need_bytes : minimum;
     if (page > 1) {
         wanted = arena_round_up(wanted, page);

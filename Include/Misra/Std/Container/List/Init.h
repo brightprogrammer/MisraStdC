@@ -37,7 +37,7 @@
      .copy_deinit = (cd),                                                                                              \
      .length      = 0,                                                                                                 \
      .allocator   = ALLOCATOR_OF(typed_alloc_ptr),                                                                     \
-     .__magic     = MISRA_LIST_MAGIC}
+     .__magic     = LIST_MAGIC}
 
 #define ListInitWithDeepCopyT(l, ...) MISRA_OVERLOAD(ListInitWithDeepCopyT, l, __VA_ARGS__)
 #ifdef __cplusplus

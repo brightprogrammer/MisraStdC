@@ -19,7 +19,7 @@
 /// allocator instances reinterpreted as a `SlabAllocator *` are
 /// rejected at runtime as type-confusion.
 ///
-#define MISRA_SLAB_ALLOCATOR_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("slaballc")
+#define SLAB_ALLOCATOR_MAGIC MAKE_NEW_MAGIC_VALUE("slaballc")
 
 #ifdef __cplusplus
 extern "C" {
@@ -63,7 +63,7 @@ extern "C" {
                    .alignment   = 1,                                                                                         \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
-                   .__magic     = MISRA_SLAB_ALLOCATOR_MAGIC},                                                                   \
+                   .__magic     = SLAB_ALLOCATOR_MAGIC},                                                                         \
         .head            = NULL,                                                                                       \
         .tail            = NULL,                                                                                       \
         .free_head       = NULL,                                                                                       \
@@ -84,7 +84,7 @@ extern "C" {
                    .alignment   = (alignment_value) ? (alignment_value) : 1,                                                 \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
-                   .__magic     = MISRA_SLAB_ALLOCATOR_MAGIC},                                                                   \
+                   .__magic     = SLAB_ALLOCATOR_MAGIC},                                                                         \
         .head            = NULL,                                                                                       \
         .tail            = NULL,                                                                                       \
         .free_head       = NULL,                                                                                       \

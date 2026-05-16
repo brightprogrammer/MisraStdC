@@ -20,7 +20,7 @@
 /// `HeapAllocator` / `ArenaAllocator` / `PoolAllocator` reinterpreted
 /// as a `PageAllocator *` is rejected at runtime as type-confusion.
 ///
-#define MISRA_PAGE_ALLOCATOR_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("pageallc")
+#define PAGE_ALLOCATOR_MAGIC MAKE_NEW_MAGIC_VALUE("pageallc")
 
 #ifdef __cplusplus
 extern "C" {
@@ -123,7 +123,7 @@ extern "C" {
                    .alignment   = 1,                                                                                         \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
-                   .__magic     = MISRA_PAGE_ALLOCATOR_MAGIC},                                                                   \
+                   .__magic     = PAGE_ALLOCATOR_MAGIC},                                                                         \
         .cached_page_size = 0                                                                                          \
     })
 
@@ -141,7 +141,7 @@ extern "C" {
                    .alignment   = (N) ? (N) : 1,                                                                             \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
-                   .__magic     = MISRA_PAGE_ALLOCATOR_MAGIC},                                                                   \
+                   .__magic     = PAGE_ALLOCATOR_MAGIC},                                                                         \
         .cached_page_size = 0                                                                                          \
     })
 

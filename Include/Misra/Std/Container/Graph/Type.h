@@ -125,7 +125,7 @@ typedef struct {
     u64                      edge_count;
     u64                      pending_delete_count;
     u64                      mutation_epoch;
-    Allocator        *allocator;
+    Allocator               *allocator;
     u64                      __magic;
 } GenericGraph;
 
@@ -177,7 +177,7 @@ typedef struct {
         u64                      edge_count;                                                                           \
         u64                      pending_delete_count;                                                                 \
         u64                      mutation_epoch;                                                                       \
-        Allocator        *allocator;                                                                            \
+        Allocator               *allocator;                                                                            \
         u64                      __magic;                                                                              \
     }
 
@@ -189,7 +189,7 @@ typedef struct {
 ///
 #define GRAPH_NODE_TYPE(g) TYPE_OF((g)->slots.data[0].data[0])
 
-#define MISRA_GRAPH_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("digrph01")
+#define GRAPH_MAGIC MAKE_NEW_MAGIC_VALUE("digrph01")
 
 ///
 /// Validate whether a given `Graph` object is valid.

@@ -15,16 +15,16 @@
 #include <stddef.h>
 
 static void page_validate_self(const Allocator *self) {
-    if (!self || self->__magic != MISRA_PAGE_ALLOCATOR_MAGIC) {
+    if (!self || self->__magic != PAGE_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to page_allocator_* is not a PageAllocator");
     }
 }
 
 #ifdef _WIN32
-#    define MISRA_PAGE_ALLOCATOR_WINDOWS 1
+#    define PAGE_ALLOCATOR_WINDOWS 1
 #    include <windows.h>
 #else
-#    define MISRA_PAGE_ALLOCATOR_POSIX 1
+#    define PAGE_ALLOCATOR_POSIX 1
 #    include <sys/mman.h>
 #    if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
 #        define MAP_ANONYMOUS MAP_ANON
@@ -36,7 +36,7 @@ static void page_validate_self(const Allocator *self) {
 // or `getpagesize()`). Apple Silicon (arm64 darwin) uses 16 KiB
 // pages; everything else on our matrix uses 4 KiB.
 static size page_query_page_size(void) {
-#if defined(MISRA_PAGE_ALLOCATOR_WINDOWS)
+#if defined(PAGE_ALLOCATOR_WINDOWS)
     // kernel32 -- not libc.
     SYSTEM_INFO info;
     GetSystemInfo(&info);
@@ -95,7 +95,7 @@ static size page_round_up(size bytes, size align) {
 // value). macOS / BSD: libSystem wrappers. Windows: kernel32.
 
 static void *page_map(size bytes) {
-#if defined(MISRA_PAGE_ALLOCATOR_WINDOWS)
+#if defined(PAGE_ALLOCATOR_WINDOWS)
     return VirtualAlloc(NULL, (SIZE_T)bytes, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 #elif MISRA_HAVE_DIRECT_SYSCALL
     long ret = misra_sys6(MISRA_SYS_mmap, 0, (long)bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -116,7 +116,7 @@ static void page_unmap(void *ptr, size bytes) {
     if (!ptr || !bytes) {
         return;
     }
-#if defined(MISRA_PAGE_ALLOCATOR_WINDOWS)
+#if defined(PAGE_ALLOCATOR_WINDOWS)
     (void)bytes;
     VirtualFree(ptr, 0, MEM_RELEASE);
 #elif MISRA_HAVE_DIRECT_SYSCALL
@@ -177,7 +177,7 @@ bool PageProtect(void *ptr, size bytes, PageProtection prot) {
         return false;
     }
 
-#if defined(MISRA_PAGE_ALLOCATOR_WINDOWS)
+#if defined(PAGE_ALLOCATOR_WINDOWS)
     DWORD win_prot = 0;
     switch (prot) {
         case PAGE_PROT_NONE :

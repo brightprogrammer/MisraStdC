@@ -28,8 +28,8 @@
 #elif MISRA_HAVE_DIRECT_SYSCALL
 #    include <stdatomic.h>
 #    include <stdint.h>
-#    define MISRA_FUTEX_WAIT_PRIVATE 128 // FUTEX_WAIT | FUTEX_PRIVATE_FLAG
-#    define MISRA_FUTEX_WAKE_PRIVATE 129 // FUTEX_WAKE | FUTEX_PRIVATE_FLAG
+#    define FUTEX_WAIT_PRIVATE 128 // FUTEX_WAIT | FUTEX_PRIVATE_FLAG
+#    define FUTEX_WAKE_PRIVATE 129 // FUTEX_WAKE | FUTEX_PRIVATE_FLAG
 #else
 #    include <pthread.h>
 #endif
@@ -107,7 +107,7 @@ Mutex *MutexLock(Mutex *m) {
         int one = 1;
         if (c == 2 ||
             atomic_compare_exchange_strong_explicit(&m->state, &one, 2, memory_order_relaxed, memory_order_relaxed)) {
-            (void)misra_sys4(MISRA_SYS_futex, (long)(uintptr_t)&m->state, MISRA_FUTEX_WAIT_PRIVATE, 2, 0);
+            (void)misra_sys4(MISRA_SYS_futex, (long)(uintptr_t)&m->state, FUTEX_WAIT_PRIVATE, 2, 0);
         }
         // Try to take the lock (and keep the contended marker so the
         // next unlocker will wake remaining waiters).
@@ -134,7 +134,7 @@ Mutex *MutexUnlock(Mutex *m) {
     // and wake one.
     if (atomic_fetch_sub_explicit(&m->state, 1, memory_order_release) != 1) {
         atomic_store_explicit(&m->state, 0, memory_order_release);
-        (void)misra_sys3(MISRA_SYS_futex, (long)(uintptr_t)&m->state, MISRA_FUTEX_WAKE_PRIVATE, 1);
+        (void)misra_sys3(MISRA_SYS_futex, (long)(uintptr_t)&m->state, FUTEX_WAKE_PRIVATE, 1);
     }
 #else
     pthread_mutex_unlock(&m->lock);

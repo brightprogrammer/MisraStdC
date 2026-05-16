@@ -40,7 +40,7 @@
 /// allocator instances reinterpreted as a `BudgetAllocator *` are
 /// rejected at runtime as type-confusion.
 ///
-#define MISRA_BUDGET_ALLOCATOR_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("budgetal")
+#define BUDGET_ALLOCATOR_MAGIC MAKE_NEW_MAGIC_VALUE("budgetal")
 
 #ifdef __cplusplus
 extern "C" {

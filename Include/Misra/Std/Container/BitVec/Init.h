@@ -47,7 +47,7 @@ extern "C" {
             .data      = NULL,                                                                                         \
             .byte_size = 0,                                                                                            \
             .allocator = ALLOCATOR_OF(allocator_ptr),                                                                  \
-            .__magic   = MISRA_BITVEC_MAGIC                                                                            \
+            .__magic   = BITVEC_MAGIC                                                                                  \
         })
 #else
 #    define BitVecInit_1(allocator_ptr)                                                                                \
@@ -56,7 +56,7 @@ extern "C" {
                    .data      = NULL,                                                                                  \
                    .byte_size = 0,                                                                                     \
                    .allocator = ALLOCATOR_OF(allocator_ptr),                                                           \
-                   .__magic   = MISRA_BITVEC_MAGIC})
+                   .__magic   = BITVEC_MAGIC})
 #endif
 
     BitVec BitVecInitWithCapacity(u64 cap, Allocator *alloc);

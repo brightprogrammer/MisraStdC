@@ -311,7 +311,7 @@ void validate_graph(const GenericGraph *graph) {
         LOG_FATAL("Expected a valid Graph pointer");
     }
 
-    if (graph->__magic != MISRA_GRAPH_MAGIC) {
+    if (graph->__magic != GRAPH_MAGIC) {
         LOG_FATAL("Graph is uninitialized or corrupted");
     }
 

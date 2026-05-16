@@ -26,7 +26,7 @@
 /// is caught at runtime as type-confusion instead of silently corrupting
 /// memory.
 ///
-#define MISRA_HEAP_ALLOCATOR_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("heapallc")
+#define HEAP_ALLOCATOR_MAGIC MAKE_NEW_MAGIC_VALUE("heapallc")
 
 #ifdef __cplusplus
 extern "C" {
@@ -90,7 +90,7 @@ extern "C" {
                    .alignment   = 1,                                                                                         \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
-                   .__magic     = MISRA_HEAP_ALLOCATOR_MAGIC},                                                                   \
+                   .__magic     = HEAP_ALLOCATOR_MAGIC},                                                                         \
         .bins        = {0},                                                                                            \
         .chunks_head = NULL,                                                                                           \
         .page        = PageAllocatorInit()                                                                             \
@@ -110,7 +110,7 @@ extern "C" {
                    .alignment   = (N) ? (N) : 1,                                                                             \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
-                   .__magic     = MISRA_HEAP_ALLOCATOR_MAGIC},                                                                   \
+                   .__magic     = HEAP_ALLOCATOR_MAGIC},                                                                         \
         .bins        = {0},                                                                                            \
         .chunks_head = NULL,                                                                                           \
         .page        = PageAllocatorInit()                                                                             \

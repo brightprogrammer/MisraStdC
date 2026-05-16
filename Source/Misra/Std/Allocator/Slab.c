@@ -12,7 +12,7 @@
 #include <stdint.h>
 
 static void slab_validate_self(const Allocator *self) {
-    if (!self || self->__magic != MISRA_SLAB_ALLOCATOR_MAGIC) {
+    if (!self || self->__magic != SLAB_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to slab_allocator_* is not a SlabAllocator");
     }
 }

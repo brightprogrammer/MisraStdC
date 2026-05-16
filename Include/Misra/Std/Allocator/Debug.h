@@ -48,7 +48,7 @@
 ///
 /// Per-type magic for `DebugAllocator`.
 ///
-#define MISRA_DEBUG_ALLOCATOR_MAGIC MISRA_MAKE_NEW_MAGIC_VALUE("dbgallc!")
+#define DEBUG_ALLOCATOR_MAGIC MAKE_NEW_MAGIC_VALUE("dbgallc!")
 
 #ifdef __cplusplus
 extern "C" {
@@ -172,7 +172,7 @@ extern "C" {
 // literal doesn't know the struct's final address yet.
 // ---------------------------------------------------------------------------
 
-#define MISRA_DEBUG_LIVE_LIT                                                                                           \
+#define DEBUG_LIVE_LIT                                                                                                 \
     {.length            = 0,                                                                                           \
      .capacity          = 0,                                                                                           \
      .tombstones        = 0,                                                                                           \
@@ -185,9 +185,9 @@ extern "C" {
      .key_hash          = (GenericHash)debug_ptr_hash,                                                                 \
      .entries           = NULL,                                                                                        \
      .states            = NULL,                                                                                        \
-     .policy            = MapPolicyLinear,                                                                        \
+     .policy            = MapPolicyLinear,                                                                             \
      .allocator         = NULL,                                                                                        \
-     .__magic           = MISRA_MAP_MAGIC}
+     .__magic           = MAP_MAGIC}
 
 #define DebugAllocatorInitWith(_cfg)                                                                                   \
     ((DebugAllocator) {                                                                                                \
@@ -198,12 +198,12 @@ extern "C" {
                    .alignment   = 1,                                                                                         \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
-                   .__magic     = MISRA_DEBUG_ALLOCATOR_MAGIC},                                                                  \
+                   .__magic     = DEBUG_ALLOCATOR_MAGIC},                                                                        \
         .heap                  = HeapAllocatorInit(),                                                                  \
         .meta                  = HeapAllocatorInit(),                                                                  \
         .page                  = PageAllocatorInit(),                                                                  \
         .config                = (_cfg),                                                                               \
-        .live                  = MISRA_DEBUG_LIVE_LIT,                                                                 \
+        .live                  = DEBUG_LIVE_LIT,                                                                       \
         .freed                 = {0},                                                                                  \
         .freed_map_initialized = false,                                                                                \
         .double_frees          = 0,                                                                                    \

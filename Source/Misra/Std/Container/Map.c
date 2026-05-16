@@ -386,7 +386,7 @@ void validate_map(const GenericMap *map) {
         LOG_FATAL("Expected a valid Map pointer");
     }
 
-    if (map->__magic != MISRA_MAP_MAGIC) {
+    if (map->__magic != MAP_MAGIC) {
         LOG_FATAL("Map is uninitialized or corrupted");
     }
 
