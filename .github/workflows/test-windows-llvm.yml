@@ -57,26 +57,31 @@ jobs:
       
     - name: Configure with Clang
       run: |
-        # Set environment variables for Meson to use Clang with lld linker
+        # Set environment variables for Meson to use Clang with lld linker.
+        # `CC_LD` is meson's first-class way to pick a non-default linker
+        # (see https://mesonbuild.com/howtox.html). Earlier revisions of
+        # this workflow forced lld via -Dc_link_args="-fuse-ld=lld", but
+        # that triggered meson bug #14640: setting `c_link_args` makes
+        # meson stop appending the `-fsanitize=...` flag that
+        # `b_sanitize` would normally inject, so the clang driver never
+        # links the sanitizer runtime and lld bails with thousands of
+        # undefined __asan_*/__ubsan_* references.
         $env:CC = "clang"
         $env:CXX = "clang++"
+        $env:CC_LD = "lld"
+        $env:CXX_LD = "lld"
         $env:AR = "llvm-ar"
         $env:RANLIB = "llvm-ranlib"
 
-        # Match the Linux / macOS workflows: warning_level=2 plus
-        # AddressSanitizer + UndefinedBehaviorSanitizer (LLVM-clang on
-        # Windows supports both). lld is forced via -fuse-ld=lld so the
-        # MSVC link.exe isn't picked up.
-        #
-        # The "-Db_sanitize=address,undefined" token must be quoted in
-        # pwsh: bare commas are interpreted as PowerShell's array
-        # operator and the parser bails with "Missing argument in
-        # parameter list" (same root cause as the well-known
-        # `gcc -Wl,--kill-at` quoting issue in pwsh).
+        # UBSan only on Windows-LLVM. AddressSanitizer + clang on
+        # Windows + meson is a known-flaky combination (the bundled
+        # VS2022 clang's asan runtime doesn't always link; meson's
+        # MSVC-style link line confuses the driver). libuv's
+        # sanitizer.yml is the de-facto industry reference and runs
+        # UBSan-only on Windows-clang for the same reason. ASan
+        # coverage on Windows is owned by the MSVC matrix entry.
         meson setup build --backend ninja `
-          -Dwarning_level=2 "-Db_sanitize=address,undefined" -Db_lundef=false `
-          -Dc_args="-fuse-ld=lld" -Dcpp_args="-fuse-ld=lld" `
-          -Dc_link_args="-fuse-ld=lld" -Dcpp_link_args="-fuse-ld=lld"
+          -Dwarning_level=2 -Db_sanitize=undefined -Db_lundef=false
       shell: pwsh
 
     - name: Build
