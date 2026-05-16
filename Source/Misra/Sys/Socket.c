@@ -528,19 +528,20 @@ static bool split_host_port(const char *spec, char *host_out, size host_cap, con
     return true;
 }
 
-// Both POSIX and Winsock use the same on-the-wire `sockaddr_in` /
-// `sockaddr_in6` layout. We can copy raw bytes either way.
-static void fill_socket_addr_from_sockaddr(SocketAddr *out, const void *sa, u32 len) {
+// On-the-wire `sockaddr_in` / `sockaddr_in6` bytes are wire-compatible
+// across POSIX and Winsock, but the *struct layout* differs: Darwin /
+// BSD prepend a 1-byte `sin_len`, putting `sa_family` (u8) at offset 1.
+// Linux and Windows put `sin_family` (u16, host order) at offset 0.
+// Reading through `struct sockaddr->sa_family` lets the compiler pick
+// the right field for each platform.
+static void fill_socket_addr_from_sockaddr(SocketAddr *out, const struct sockaddr *sa, u32 len) {
     MemSet(out, 0, sizeof(*out));
     if (len > (u32)SOCKET_ADDR_MAX_SIZE) {
         len = (u32)SOCKET_ADDR_MAX_SIZE;
     }
     MemCopy(out->raw, sa, (size)len);
     out->length = len;
-    // First 2 bytes of sockaddr are sa_family (u16 host-order).
-    u16 fam = 0;
-    MemCopy(&fam, sa, sizeof(fam));
-    out->family = af_to_socket_family((i32)fam);
+    out->family = af_to_socket_family((i32)sa->sa_family);
 }
 
 // ---------------------------------------------------------------------------
@@ -927,7 +928,7 @@ bool ListenerLocalAddr(const Listener *self, SocketAddr *out) {
     if (!plat_getsockname(self->fd, buf, &len)) {
         return false;
     }
-    fill_socket_addr_from_sockaddr(out, buf, len);
+    fill_socket_addr_from_sockaddr(out, (const struct sockaddr *)buf, len);
     return true;
 }
 
@@ -948,7 +949,7 @@ bool ListenerAccept(Listener *self, Socket *out_conn) {
 
     out_conn->fd   = cfd;
     out_conn->kind = self->kind;
-    fill_socket_addr_from_sockaddr(&out_conn->peer, peer, peer_len);
+    fill_socket_addr_from_sockaddr(&out_conn->peer, (const struct sockaddr *)peer, peer_len);
     return true;
 }
 
