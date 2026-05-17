@@ -577,18 +577,6 @@ if opt_file and opt_parser_json
     )
 endif
 
-if opt_sys_proc
-    executable(
-        'SubProcComm',
-        files('Bin/SubProcComm.c') + freestanding_extra_sources,
-        link_with: [misra_std],
-        c_args: common_c_args,
-        include_directories: inc_misra,
-        install: false,
-        link_args: freestanding_link_args
-    )
-endif
-
 if opt_sys_socket and opt_parser_http
     executable(
         'beam',
@@ -605,18 +593,6 @@ if opt_file and opt_sys_dir and opt_parser_json
     executable(
         'docgen',
         files('Bin/DocGen.c') + freestanding_extra_sources,
-        link_with: [misra_std],
-        c_args: common_c_args,
-        include_directories: inc_misra,
-        install: false,
-        link_args: freestanding_link_args
-    )
-endif
-
-if opt_file
-    executable(
-        'Demangler',
-        files('Bin/Demangler/Main.c') + freestanding_extra_sources,
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,

@@ -74,7 +74,7 @@ jobs:
         set -e
         FAILED=0
         for bin in build/beam build/resolve build/docgen build/enumgen \
-                   build/Demangler build/ElfInfo build/SubProcComm; do
+                   build/ElfInfo; do
           if [ ! -f "$bin" ]; then
             echo "::warning::$bin not built, skipping libc-diet check"
             continue
