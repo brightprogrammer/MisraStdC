@@ -19,18 +19,26 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Standard pass: full UCRT, no sanitizers (see note in the
-          # Configure step about why ASan/UBSan are skipped on Windows
-          # LLVM). Verifies the build works with default CRT linkage.
+          # Standard pass: clang (GCC-style driver) + lld. Full UCRT,
+          # no sanitizers (see Configure step for why). Verifies the
+          # build works with default CRT linkage. This is the
+          # historically-proven config for this workflow.
           - flavour: standard
+            cc: clang
+            cc_ld: lld
             setup_extra: ''
             verify_libc_diet: 'no'
-          # Freestanding pass: meson's enable_libc_diet picks up
-          # b_sanitize=none, plus have_misra_start_win (clang-cl on
-          # x86_64) flips /NODEFAULTLIB:libucrt + /ENTRY:misra_start on.
-          # Bin/ tools end up with zero UCRT / vcruntime imports;
-          # only kernel32 + ws2_32 + dbghelp (Win32 platform DLLs).
+          # Freestanding pass: clang-cl (MSVC driver) + lld-link.
+          # Needed because the freestanding link args in meson.build
+          # are MSVC syntax (/NODEFAULTLIB:..., /ENTRY:misra_start,
+          # /SUBSYSTEM:CONSOLE) and only clang-cl forwards them to
+          # the linker. MSVC syntax also requires lld in MSVC mode
+          # (lld-link), not the generic lld dispatcher. Both
+          # conditions come together at have_misra_start_win in
+          # meson.build (clang-cl + x86_64).
           - flavour: freestanding
+            cc: clang-cl
+            cc_ld: lld-link
             setup_extra: ''
             verify_libc_diet: 'yes'
 
@@ -80,10 +88,10 @@ jobs:
         # linker (https://mesonbuild.com/howtox.html). Doing this via
         # env vars (not -Dc_link_args=...) avoids meson bug #14640
         # where setting c_link_args suppresses b_sanitize injection.
-        $env:CC = "clang-cl"
-        $env:CXX = "clang-cl"
-        $env:CC_LD = "lld"
-        $env:CXX_LD = "lld"
+        $env:CC = "${{ matrix.cc }}"
+        $env:CXX = "${{ matrix.cc }}"
+        $env:CC_LD = "${{ matrix.cc_ld }}"
+        $env:CXX_LD = "${{ matrix.cc_ld }}"
         $env:AR = "llvm-ar"
         $env:RANLIB = "llvm-ranlib"
 
