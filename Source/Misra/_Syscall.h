@@ -580,6 +580,13 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #    define MISRA_SYS_readlink        MISRA_DARWIN_SC(58)
 #    define MISRA_SYS_readlinkat      MISRA_DARWIN_SC(473)
 #    define MISRA_SYS_gettimeofday    MISRA_DARWIN_SC(116)
+// Darwin __ulock syscalls (XNU's analogue of Linux's futex). #515 is
+// the wait side, #516 the wake side -- both 4-arg / 3-arg shape with
+// op-bitfield as first arg. Use UL_COMPARE_AND_WAIT (=1) for 32-bit
+// futex-like compare-and-wait semantics, ULF_NO_ERRNO (=0x1000000)
+// in the op to get -errno return instead of libSystem errno-set.
+#    define MISRA_SYS___ulock_wait    MISRA_DARWIN_SC(515)
+#    define MISRA_SYS___ulock_wake    MISRA_DARWIN_SC(516)
 // Aliases so files written for the Linux name still compile on Darwin.
 #    define MISRA_SYS_exit_group      MISRA_SYS_exit // Darwin has no exit_group; plain exit terminates the whole task
 #    define MISRA_SYS_gettid          MISRA_SYS_thread_selfid

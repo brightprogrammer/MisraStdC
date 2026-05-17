@@ -4,13 +4,17 @@
 ///
 /// Cross-platform Mutex implementation that bypasses libc:
 ///
-///   - **Linux** (x86_64 / aarch64): a Drepper-style 3-state futex
+///   - **Linux** (x86_64 / aarch64): Drepper-style 3-state futex
 ///     mutex (`0` unlocked, `1` locked uncontended, `2` locked with
-///     waiters). Lock fast-path is a single atomic CAS. The slow
-///     path drops into the FUTEX_WAIT syscall; unlock issues
-///     FUTEX_WAKE only when there were waiters. No pthread, no libc.
-///   - **macOS / BSD**: `os_unfair_lock` (`<os/lock.h>`). Apple's
-///     sanctioned primitive; lives in libSystem, not libc.
+///     waiters). Lock fast-path is a single atomic CAS. Slow path
+///     drops into FUTEX_WAIT; unlock issues FUTEX_WAKE only when
+///     there were waiters.
+///   - **macOS** (x86_64 / aarch64): same 3-state algorithm, but
+///     the kernel primitive is XNU's `__ulock_wait` (#515) /
+///     `__ulock_wake` (#516) with op = `UL_COMPARE_AND_WAIT`. That's
+///     the same primitive Apple's own `os_unfair_lock` is built on
+///     top of inside libSystem -- but going to it directly drops
+///     the libSystem dependency. Same code path as Linux otherwise.
 ///   - **Windows**: `SRWLOCK` in exclusive mode. Slim Reader-Writer
 ///     lock, kernel32, no init call needed (just zero-init).
 
@@ -23,13 +27,22 @@
 
 #ifdef _WIN32
 #    include <windows.h>
-#elif defined(__APPLE__)
-#    include <os/lock.h>
 #elif FEATURE_DIRECT_SYSCALL
 #    include <stdatomic.h>
 #    include <stdint.h>
-#    define FUTEX_WAIT_PRIVATE 128 // FUTEX_WAIT | FUTEX_PRIVATE_FLAG
-#    define FUTEX_WAKE_PRIVATE 129 // FUTEX_WAKE | FUTEX_PRIVATE_FLAG
+#    if defined(__APPLE__)
+// XNU __ulock op codes. We want plain 32-bit compare-and-wait,
+// process-local. ULF_NO_ERRNO would make the kernel return -errno
+// instead of setting libSystem's errno -- not strictly necessary
+// here because we ignore the return value, but flipping it on
+// keeps any future code that checks the return free of libSystem
+// errno reads.
+#        define MISRA_UL_COMPARE_AND_WAIT 1
+#        define MISRA_ULF_NO_ERRNO        0x1000000
+#    else
+#        define FUTEX_WAIT_PRIVATE 128 // FUTEX_WAIT | FUTEX_PRIVATE_FLAG
+#        define FUTEX_WAKE_PRIVATE 129 // FUTEX_WAKE | FUTEX_PRIVATE_FLAG
+#    endif
 #else
 #    include <pthread.h>
 #endif
@@ -37,14 +50,50 @@
 struct Mutex {
 #ifdef _WIN32
     SRWLOCK lock;
-#elif defined(__APPLE__)
-    os_unfair_lock lock;
 #elif FEATURE_DIRECT_SYSCALL
     _Atomic int state; // 0 unlocked, 1 locked, 2 locked+waiters
 #else
     pthread_mutex_t lock;
 #endif
 };
+
+#if FEATURE_DIRECT_SYSCALL
+// Per-OS wrappers around the underlying compare-and-wait / wake
+// primitive. Same semantics: wait sleeps iff *addr == expected;
+// wake_one releases at most one waiter.
+static inline void mutex_wait(_Atomic int *addr, int expected) {
+#    if defined(__APPLE__)
+    // __ulock_wait(op_and_flags, addr, value, timeout_us=0=infinite)
+    (void)misra_sys4(
+        MISRA_SYS___ulock_wait,
+        (long)(MISRA_UL_COMPARE_AND_WAIT | MISRA_ULF_NO_ERRNO),
+        (long)(uintptr_t)addr,
+        (long)expected,
+        0
+    );
+#    else
+    // futex(addr, FUTEX_WAIT_PRIVATE, val=expected, timeout=NULL)
+    (void)misra_sys4(MISRA_SYS_futex, (long)(uintptr_t)addr, FUTEX_WAIT_PRIVATE, expected, 0);
+#    endif
+}
+
+static inline void mutex_wake_one(_Atomic int *addr) {
+#    if defined(__APPLE__)
+    // __ulock_wake(op_and_flags, addr, wake_value=0) -- with
+    // UL_COMPARE_AND_WAIT alone (no ULF_WAKE_ALL) the kernel wakes
+    // exactly one waiter, same as FUTEX_WAKE with val=1.
+    (void)misra_sys3(
+        MISRA_SYS___ulock_wake,
+        (long)(MISRA_UL_COMPARE_AND_WAIT | MISRA_ULF_NO_ERRNO),
+        (long)(uintptr_t)addr,
+        0
+    );
+#    else
+    // futex(addr, FUTEX_WAKE_PRIVATE, val=1) -- wake at most one.
+    (void)misra_sys3(MISRA_SYS_futex, (long)(uintptr_t)addr, FUTEX_WAKE_PRIVATE, 1);
+#    endif
+}
+#endif
 
 Mutex *MutexCreate(Allocator *alloc) {
     if (!alloc) {
@@ -57,8 +106,6 @@ Mutex *MutexCreate(Allocator *alloc) {
     }
 #ifdef _WIN32
     InitializeSRWLock(&m->lock);
-#elif defined(__APPLE__)
-    m->lock = (os_unfair_lock)OS_UNFAIR_LOCK_INIT;
 #elif FEATURE_DIRECT_SYSCALL
     atomic_store_explicit(&m->state, 0, memory_order_relaxed);
 #else
@@ -76,10 +123,8 @@ void MutexDestroy(Mutex *m, Allocator *alloc) {
     }
 #ifdef _WIN32
     // SRWLOCK has no destroy call.
-#elif defined(__APPLE__)
-    // os_unfair_lock has no destroy call.
 #elif FEATURE_DIRECT_SYSCALL
-    // futex int has no destroy call; zeroing happens below.
+    // futex/ulock int has no destroy call; zeroing happens below.
 #else
     pthread_mutex_destroy(&m->lock);
 #endif
@@ -90,29 +135,45 @@ void MutexDestroy(Mutex *m, Allocator *alloc) {
 Mutex *MutexLock(Mutex *m) {
 #ifdef _WIN32
     AcquireSRWLockExclusive(&m->lock);
-#elif defined(__APPLE__)
-    os_unfair_lock_lock(&m->lock);
 #elif FEATURE_DIRECT_SYSCALL
     // Fast path: 0 -> 1 (uncontended acquire).
     int expected = 0;
-    if (atomic_compare_exchange_strong_explicit(&m->state, &expected, 1, memory_order_acquire, memory_order_relaxed)) {
+    if (atomic_compare_exchange_strong_explicit(
+            &m->state,
+            &expected,
+            1,
+            memory_order_acquire,
+            memory_order_relaxed
+        )) {
         return m;
     }
     // Slow path: lock is held. Mark as contended (state = 2) and
-    // block in FUTEX_WAIT until someone releases.
+    // block in the kernel until someone releases.
     int c = expected;
     for (;;) {
         // If state is already 2, or we successfully bumped 1 -> 2,
         // sleep until the holder releases.
         int one = 1;
         if (c == 2 ||
-            atomic_compare_exchange_strong_explicit(&m->state, &one, 2, memory_order_relaxed, memory_order_relaxed)) {
-            (void)misra_sys4(MISRA_SYS_futex, (long)(uintptr_t)&m->state, FUTEX_WAIT_PRIVATE, 2, 0);
+            atomic_compare_exchange_strong_explicit(
+                &m->state,
+                &one,
+                2,
+                memory_order_relaxed,
+                memory_order_relaxed
+            )) {
+            mutex_wait(&m->state, 2);
         }
         // Try to take the lock (and keep the contended marker so the
         // next unlocker will wake remaining waiters).
         int zero = 0;
-        if (atomic_compare_exchange_strong_explicit(&m->state, &zero, 2, memory_order_acquire, memory_order_relaxed)) {
+        if (atomic_compare_exchange_strong_explicit(
+                &m->state,
+                &zero,
+                2,
+                memory_order_acquire,
+                memory_order_relaxed
+            )) {
             return m;
         }
         c = atomic_load_explicit(&m->state, memory_order_relaxed);
@@ -126,15 +187,13 @@ Mutex *MutexLock(Mutex *m) {
 Mutex *MutexUnlock(Mutex *m) {
 #ifdef _WIN32
     ReleaseSRWLockExclusive(&m->lock);
-#elif defined(__APPLE__)
-    os_unfair_lock_unlock(&m->lock);
 #elif FEATURE_DIRECT_SYSCALL
     // Fast path: if state was 1 (no waiters), atomic dec brings it to
     // 0 and we're done. Otherwise it was 2 (had waiters), zero it
     // and wake one.
     if (atomic_fetch_sub_explicit(&m->state, 1, memory_order_release) != 1) {
         atomic_store_explicit(&m->state, 0, memory_order_release);
-        (void)misra_sys3(MISRA_SYS_futex, (long)(uintptr_t)&m->state, FUTEX_WAKE_PRIVATE, 1);
+        mutex_wake_one(&m->state);
     }
 #else
     pthread_mutex_unlock(&m->lock);
