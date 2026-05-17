@@ -148,8 +148,7 @@ jobs:
         )
         $forbidden_pattern = '^(ucrtbase|ucrtbased|vcruntime\d+|vcruntime\d+d|msvcp\d+|msvcp\d+d|msvcr\d+|msvcr\d+d|api-ms-win-crt-)'
         $failed = 0
-        $bins = @('beam.exe', 'resolve.exe', 'docgen.exe', 'enumgen.exe',
-                  'ElfInfo.exe')
+        $bins = @('beam.exe', 'resolve.exe')
         foreach ($bn in $bins) {
             $path = "build\$bn"
             if (-not (Test-Path $path)) {

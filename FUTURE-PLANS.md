@@ -11,12 +11,13 @@ Parking lot for items we've identified during real implementation work but defer
 - `GuardPageAllocator`: per-allocation `mmap` + `mprotect(PROT_NONE)` flanking guard pages for overflow-traps-instantly testing.
 
 ## Sys / Networking
-- `Sys/Socket`: in-tree DNS resolver — currently `SocketAddrParse` rejects hostnames with a clear error and accepts numeric IPv4 / IPv6 only. A real resolver needs UDP/TCP query to `/etc/resolv.conf` nameservers, `A` + `AAAA` walk, `CNAME` chain follow, `/etc/hosts` override, optional caching.
-- `Sys/Socket`: Windows port — currently `#error` on `_WIN32` (needs `SOCKET` vs `int` reconciliation, `WSAStartup`, `closesocket`, `WSAPoll`).
 - `Sys/Socket`: move `SocketPoll` from `poll()` to `epoll` / `kqueue` for >1000-fd scale.
 - `Sys/Backtrace`: consider symbolize-once cache so repeated `FormatStackTrace` calls don't redo `dladdr` work.
 - `Sys/Backtrace` (Linux/macOS x86-64): sigsetjmp-guarded `read_u64_at` so a wild RIP during CFI / FP walking aborts the walk instead of crashing the whole process.
 - `Sys/Backtrace`: aarch64 CFI walker — same shape as the x86-64 path but reads x29 / x30 / sp registers; deferred until we have an arm64 host to test on.
+- `Sys/Mutex` (macOS): still uses libSystem `os_unfair_lock`. Migrate to direct `__ulock_wait` / `__ulock_wake` syscalls so the freestanding Bin/ tools have zero libSystem coupling even after we pull a TU that uses Mutex into the link.
+- `Sys/Dns`: DNS-over-TLS / DNS-over-HTTPS — currently plain UDP/TCP only.
+- `Sys/Dns`: response caching (TTL-aware), currently every resolve hits the wire.
 
 ## Beam (reverse proxy)
 - Multi-connection concurrency — currently one connection serviced at a time.
@@ -32,7 +33,6 @@ Parking lot for items we've identified during real implementation work but defer
 - `Scope`: `ScopeReturn` / `ScopeGoto` via `setjmp` / `longjmp` for clean early-return from inside a `Scope` block.
 
 ## Parsers
-- Port `Bin/ElfInfo.c` onto `Parsers/Elf` so its local enum definitions are removed and `Parsers/Elf.h` can rejoin the `Misra.h` umbrella.
 - Extend `Parsers/Elf` to ELF32 + big-endian (v1 is ELF64-LSB only).
 - Add DWARF 5 support to `Parsers/Dwarf` (`.debug_line` header changed to entry-format records; current parser silently skips v5 CUs).
 - Add DWARF 64-bit length form to `Parsers/Dwarf` (`0xffffffff`-prefixed initial length; rare on Linux but used on macOS / large binaries).
@@ -51,6 +51,25 @@ Parking lot for items we've identified during real implementation work but defer
 
 ## Completed
 Items below have landed; kept here as a history of what each branch closed out.
+
+### libc-diet phase 2: macOS + Windows freestanding (May 2026)
+- `Source/Misra/_Syscall.h`: extended the Linux x86_64/aarch64 plumbing with Darwin x86_64/aarch64. `MISRA_DARWIN_SC(n)` macro stamps BSD-class prefix on syscall numbers. asm wrappers translate XNU's carry-flag-on-error contract to Linux-style `-errno` so every TU sees the same shape. `misra_darwin_pipe()` helper handles Darwin's pipe-returns-fds-in-registers ABI quirk.
+- macOS direct XNU syscalls landed across `Sys/Socket.c` (poll), `Sys/Proc.c` (pipe / fork / dup2 / readlink), `Sys/Dir.c` (`getdirentries64` with the Darwin `struct dirent` layout — d_seekoff / d_namlen — vs Linux's `linux_dirent64`), `Sys/Dns.c` (`SYS_gettimeofday` since `clock_gettime` is libSystem-only on Mac), and `Std/File.c` (Darwin O_CLOEXEC=0x1000000 vs Linux 0x80000).
+- `Bin/Beam.c` Darwin sigaction: hand-rolled `sa_tramp` per arch (aarch64 + x86_64). Darwin won't call user signal handlers directly — kernel invokes `sa_tramp(handler, sigstyle, sig, sinfo, uctx)` which must call handler then issue `SYS_sigreturn` (#184). Verified end-to-end: beam takes SIGINT and SIGTERM cleanly on Apple Silicon, exits 0.
+- `Bin/Beam.c` Windows: replaced libc `signal()` with `SetConsoleCtrlHandler` (kernel32). Same Ctrl-C/Ctrl-Break/close/logoff/shutdown coverage; no UCRT dep.
+- `Source/Misra/_Freestanding.c`: cross-platform compiler-emitted intrinsic forwarders. `memcpy` / `memmove` / `memset` / `memcmp` use `__SIZE_TYPE__` so the signatures match `size_t` on LP64 (Linux/Mac) and LLVM (Windows) alike. `bzero` on Linux+Mac (Darwin clang emits direct calls). `__chkstk_darwin` stubbed on Mac. `setjmp` / `longjmp` naked-asm Linux-only (test harness still uses libSystem/UCRT on Mac/Windows).
+- `Source/Misra/_StartLinux.c`: in-tree `_start` asm trampoline. Reads argc/argv/envp from stack as the Linux ELF kernel hands them, calls `main`, then `SYS_exit_group`. Wired in via `-nostartfiles` so crt1.o never ships.
+- `Source/Misra/_StartWin.c`: custom `misra_start` Windows entry point. Calls `kernel32!GetCommandLineA`, tokenises into argv (basic whitespace + double-quote support), calls `main`, then `ExitProcess`. Wired in via `/ENTRY:misra_start`.
+- `Source/Misra/_WinStubs.c`: Windows UCRT/compiler-runtime stubs that get linked per-Bin-target (not into libmisra_std.a, to avoid `duplicate symbol` clash with msvcrtd in test binaries). Stubs: `__security_cookie`, `__security_check_cookie`, `__chkstk`, `_fltused`, `__imp___stdio_common_vsprintf`.
+- meson: project-wide `-fno-stack-protector` + `-U_FORTIFY_SOURCE` on GCC/clang to drop libc-resident canary helpers. On clang-cl freestanding: `/GS-` + `-mno-stack-arg-probe` to stop emission of `__security_cookie` / `__chkstk` refs in the first place.
+- meson `enable_libc_diet` master switch: gates the entire freestanding machinery off when any sanitizer is active (`b_sanitize != 'none'`). Sanitizer runtimes live in libsanitizer which is libc-side; the two are mutually exclusive. Bin/ tools take the full libc path on sanitizer builds.
+- `Sys/Dir.c` + `Sys/Proc.c` per-OS gate cleanups: paths previously gated on `__aarch64__` (assumed Linux) now gate on `__APPLE__ || __x86_64__` so Darwin aarch64 takes the BSD-style branches (where Darwin has SYS_open / SYS_unlink / SYS_rmdir on both arches, unlike Linux aarch64 which went openat/unlinkat-only).
+- `Sys/Proc.c` `GetCurrentExecutablePath` on Mac: replaced libSystem `_NSGetExecutablePath` with `_dyld_get_image_name(0)`. Stays inside the four allowed `__dyld_*` symbols (already pulled by Sys/Backtrace).
+- `Std/Str.c` `round_f64`: returns x unchanged for |x| >= 2^53 to dodge UB on the i64 cast. Pre-existing latent bug from the libm drop; UBSan caught it once Mac CI got sanitizers running.
+- CI matrix: each of `test-linux.yml`, `test-macos.yml`, `test-windows-llvm.yml` now runs both `sanitized` (full libc + ASan + UBSan) and `freestanding` (libc-diet on, asserts on `nm -u` / `dumpbin`-equivalent allowlist) flavours. Linux freestanding asserts every Bin/ tool has empty `nm -u` + `ldd` reports `statically linked`. Mac freestanding asserts only the four `__dyld_*` entries remain. Windows LLVM freestanding asserts the IAT lists only platform DLLs (kernel32 / ws2_32 / dbghelp / advapi32 / user32 / gdi32 / etc.) — `ucrtbase*`, `vcruntime*`, `msvcp*`, `api-ms-win-crt-*` explicitly forbidden.
+- Per-Bin Bin/ tool surface: trimmed to two complete tools (`beam`, `resolve`). Removed `DocGen` (incomplete), `EnumGen` (no longer needed), `ElfInfo` (incomplete), `SubProcComm` (demo scaffolding), `Demangler` (skeleton with no actual demangler).
+- `Std/ArgParse`: new module — clap-style argument parser with `ArgRequired` / `ArgOptional` / `ArgFlag` and `ArgParseRun` returning a typed result. Used by beam + resolve. Replaces the per-binary hand-rolled argv-walking that existed in DocGen / EnumGen / ElfInfo.
+- `Sys/Dir`: added `FileRemove(path)` + `DirRemove(path)`. Direct syscall on Linux (SYS_unlink / SYS_rmdir on Linux x86_64 + Darwin both arches; SYS_unlinkat on Linux aarch64). Win32 `DeleteFileA` / `RemoveDirectoryA` on Windows. Returns `i8` (not `bool`) because Darwin's `<pthread.h>` transitively defines `bool` as `_Bool` and our project typedef is `i8`, so the cross-TU clash would be a compile error otherwise.
 
 ### backtrace-hardening (May 2026)
 - `Parsers/Elf`: `.note.gnu.build-id` + `.gnu_debuglink` parsing so the resolver can find a stripped binary's sidecar `.debug` file.

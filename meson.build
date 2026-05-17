@@ -562,21 +562,8 @@ misra_std_no_sanitizers = static_library(
 
 # Main.c and misra executable have been removed
 
-# Bin/* executables are built only when the features they depend on are
-# enabled. Each call site reads `ReadCompleteFile`, `SysProc*`,
-# `SysDirContents`, etc., so we gate them on the corresponding flag.
-if opt_file and opt_parser_json
-    executable(
-        'enumgen',
-        files('Bin/EnumGen.c') + freestanding_extra_sources,
-        link_with: [misra_std],
-        c_args: common_c_args,
-        include_directories: inc_misra,
-        install: false,
-        link_args: freestanding_link_args
-    )
-endif
-
+# Bin/* executables. The shipping set is two tools: beam (reverse proxy)
+# and resolve (DNS CLI). Both are gated on the features they exercise.
 if opt_sys_socket and opt_parser_http
     executable(
         'beam',
@@ -585,30 +572,6 @@ if opt_sys_socket and opt_parser_http
         c_args: common_c_args,
         include_directories: inc_misra,
         install: true,
-        link_args: freestanding_link_args
-    )
-endif
-
-if opt_file and opt_sys_dir and opt_parser_json
-    executable(
-        'docgen',
-        files('Bin/DocGen.c') + freestanding_extra_sources,
-        link_with: [misra_std],
-        c_args: common_c_args,
-        include_directories: inc_misra,
-        install: false,
-        link_args: freestanding_link_args
-    )
-endif
-
-if opt_file
-    executable(
-        'ElfInfo',
-        files('Bin/ElfInfo.c') + freestanding_extra_sources,
-        link_with: [misra_std],
-        c_args: common_c_args,
-        include_directories: inc_misra,
-        install: false,
         link_args: freestanding_link_args
     )
 endif

@@ -130,8 +130,8 @@ when the `Scope` ends.
   `int`, `float`, `parser_json`, etc. removes their `.c` files from
   `libmisra_std.a` and their `.h` files from the install prefix.
 - **Libc-free shipping binaries** on Linux, macOS, and Windows. The Bin/
-  tools (`beam`, `resolve`, `docgen`, `enumgen`, `ElfInfo`) link against
-  zero libc by default: direct syscalls on
+  tools (`beam`, `resolve`) link against zero libc by default: direct
+  syscalls on
   Linux + macOS (XNU BSD subset on Mac, custom `_start`, in-tree mem* and
   setjmp), `/NODEFAULTLIB` + custom `mainCRTStartup` on Windows. CI
   asserts the import table per OS — see [Libc-Diet](#libc-diet-freestanding-build).
