@@ -748,12 +748,20 @@ Str *GetCurrentExecutablePath(Str *exe_path) {
         return exe_path;
     }
 
-// Fallback for macOS and other Unix systems
+// Fallback for macOS.
+//
+// Apple's dlsym-style API for "what's my exe path" is
+// _NSGetExecutablePath (libSystem). Replacement that fits in the
+// allowed __dyld_* set: _dyld_get_image_name(0). Image index 0 is
+// always the main executable Mach-O; the returned pointer lives in
+// dyld's internal tables (don't free, don't outlive the process,
+// which is fine for our copy-into-Str use here). Same call as
+// Sys/Backtrace already makes per-frame.
 #    ifdef __APPLE__
-    // macOS specific method
-    u32 bsize = sizeof(buffer);
-    if (_NSGetExecutablePath(buffer, &bsize) == 0) {
-        *exe_path = StrInitFromCstr(buffer, ZstrLen(buffer), alloc);
+    extern const char *_dyld_get_image_name(uint32_t image_index);
+    const char        *exe = _dyld_get_image_name(0);
+    if (exe) {
+        *exe_path = StrInitFromCstr(exe, ZstrLen(exe), alloc);
         return exe_path;
     }
 #    endif
