@@ -51,7 +51,10 @@ typedef struct PdbCache {
 /// SUCCESS : Returns true; `out` is zeroed and ready for `Resolve`.
 /// FAILURE : Returns false on NULL arg.
 ///
-bool PdbCacheInit(PdbCache *out, Allocator *alloc);
+bool pdb_cache_init(PdbCache *out, Allocator *alloc);
+#define PdbCacheInit(...)         MISRA_OVERLOAD(PdbCacheInit, __VA_ARGS__)
+#define PdbCacheInit_1(out)       pdb_cache_init((out), MisraScope)
+#define PdbCacheInit_2(out, alloc) pdb_cache_init((out), ALLOCATOR_OF(alloc))
 
 ///
 /// Tear down the cache, releasing every cached `PeFile` and `PdbFile`.

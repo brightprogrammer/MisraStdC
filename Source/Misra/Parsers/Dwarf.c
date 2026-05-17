@@ -583,7 +583,7 @@ static bool run_line_program(
 // Public API
 // ---------------------------------------------------------------------------
 
-bool DwarfLinesBuildFromElf(DwarfLines *out, const ElfFile *elf, Allocator *alloc) {
+bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *alloc) {
     if (!out || !elf || !alloc) {
         LOG_ERROR("DwarfLinesBuildFromElf: NULL argument");
         return false;

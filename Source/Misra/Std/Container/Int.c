@@ -514,7 +514,7 @@ u64 IntToU64WithError(Int *value, bool *error) {
     return out;
 }
 
-Int IntFromBytesLE(const u8 *bytes, u64 len, Allocator *alloc) {
+Int int_from_bytes_le(const u8 *bytes, u64 len, Allocator *alloc) {
     if (!bytes && len != 0) {
         LOG_FATAL("bytes is NULL");
     }
@@ -569,7 +569,7 @@ u64 IntToBytesLE(Int *value, u8 *bytes, u64 max_len) {
     return bytes_to_copy;
 }
 
-Int IntFromBytesBE(const u8 *bytes, u64 len, Allocator *alloc) {
+Int int_from_bytes_be(const u8 *bytes, u64 len, Allocator *alloc) {
     if (!bytes && len != 0) {
         LOG_FATAL("bytes is NULL");
     }
@@ -638,7 +638,7 @@ bool IntTryFromStr(Int *out, const char *decimal) {
     return int_try_from_str_radix_impl(out, decimal, start, 10, true);
 }
 
-Int IntFromStr(const char *decimal, Allocator *alloc) {
+Int int_from_str(const char *decimal, Allocator *alloc) {
     Int out = IntInit(alloc);
 
     (void)IntTryFromStr(&out, decimal);
@@ -675,7 +675,7 @@ bool IntTryFromStrRadix(Int *out, const char *digits, u8 radix) {
     return int_try_from_str_radix_impl(out, digits, start, radix, true);
 }
 
-Int IntFromStrRadix(const char *digits, u8 radix, Allocator *alloc) {
+Int int_from_str_radix(const char *digits, u8 radix, Allocator *alloc) {
     Int out = IntInit(alloc);
 
     (void)IntTryFromStrRadix(&out, digits, radix);
@@ -765,7 +765,7 @@ bool IntTryFromBinary(Int *out, const char *binary) {
     return int_try_from_str_radix_impl(out, binary, start, 2, true);
 }
 
-Int IntFromBinary(const char *binary, Allocator *alloc) {
+Int int_from_binary(const char *binary, Allocator *alloc) {
     Int out = IntInit(alloc);
 
     (void)IntTryFromBinary(&out, binary);
@@ -793,7 +793,7 @@ bool IntTryFromOctStr(Int *out, const char *octal) {
     return int_try_from_str_radix_impl(out, octal, start, 8, true);
 }
 
-Int IntFromOctStr(const char *octal, Allocator *alloc) {
+Int int_from_oct_str(const char *octal, Allocator *alloc) {
     Int out = IntInit(alloc);
 
     (void)IntTryFromOctStr(&out, octal);
@@ -813,7 +813,7 @@ bool IntTryFromHexStr(Int *out, const char *hex) {
     return int_try_from_str_radix_impl(out, hex, 0, 16, false);
 }
 
-Int IntFromHexStr(const char *hex, Allocator *alloc) {
+Int int_from_hex_str(const char *hex, Allocator *alloc) {
     Int out = IntInit(alloc);
 
     (void)IntTryFromHexStr(&out, hex);

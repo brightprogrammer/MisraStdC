@@ -143,31 +143,41 @@ char *ZstrFindChar(const char *str, char ch);
 /// Creates a new null-terminated string by allocating memory and copying
 /// at most n characters from the source string.
 ///
+/// `alloc` is optional inside a `Scope` block (defaults to `MisraScope`).
+///
 /// src[in]   : Source string to duplicate.
 /// n[in]     : Maximum number of characters to copy.
-/// alloc[in] : Allocator that owns the returned buffer.
+/// alloc[in] : Allocator that owns the returned buffer (optional).
 ///
 /// SUCCESS : Returns a pointer to the newly allocated duplicate string.
 /// FAILURE : Returns NULL if memory allocation fails.
 ///
 /// TAGS: String, Memory, Allocation
 ///
-char *ZstrDupN(const char *src, size n, Allocator *alloc);
+char *zstr_dup_n(const char *src, size n, Allocator *alloc);
+#define ZstrDupN(...)              MISRA_OVERLOAD(ZstrDupN, __VA_ARGS__)
+#define ZstrDupN_2(src, n)         zstr_dup_n((src), (n), MisraScope)
+#define ZstrDupN_3(src, n, alloc)  zstr_dup_n((src), (n), ALLOCATOR_OF(alloc))
 
 ///
 /// Duplicates a string.
 /// Creates a new null-terminated string by allocating memory and copying
 /// the source string in full.
 ///
+/// `alloc` is optional inside a `Scope` block (defaults to `MisraScope`).
+///
 /// src[in]   : Source string to duplicate.
-/// alloc[in] : Allocator that owns the returned buffer.
+/// alloc[in] : Allocator that owns the returned buffer (optional).
 ///
 /// SUCCESS : Returns a pointer to the newly allocated duplicate string.
 /// FAILURE : Returns NULL if memory allocation fails or if src is NULL.
 ///
 /// TAGS: String, Memory, Allocation
 ///
-char *ZstrDup(const char *src, Allocator *alloc);
+char *zstr_dup(const char *src, Allocator *alloc);
+#define ZstrDup(...)           MISRA_OVERLOAD(ZstrDup, __VA_ARGS__)
+#define ZstrDup_1(src)         zstr_dup((src), MisraScope)
+#define ZstrDup_2(src, alloc)  zstr_dup((src), ALLOCATOR_OF(alloc))
 
 ///
 /// Init clone method for zero-terminated strings.

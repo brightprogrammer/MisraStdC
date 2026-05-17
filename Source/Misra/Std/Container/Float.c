@@ -606,7 +606,7 @@ fail:
     return false;
 }
 
-Float FloatFromStr(const char *text, Allocator *alloc) {
+Float float_from_str(const char *text, Allocator *alloc) {
     Float result = FloatInit(alloc);
 
     (void)FloatTryFromStr(&result, text);

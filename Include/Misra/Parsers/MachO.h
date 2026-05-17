@@ -119,7 +119,10 @@ typedef struct MachoFile {
 ///
 /// TAGS: Parser, MachO, File
 ///
-bool MachoFileOpen(MachoFile *out, const char *path, Allocator *alloc);
+bool macho_file_open(MachoFile *out, const char *path, Allocator *alloc);
+#define MachoFileOpen(...)                MISRA_OVERLOAD(MachoFileOpen, __VA_ARGS__)
+#define MachoFileOpen_2(out, path)        macho_file_open((out), (path), MisraScope)
+#define MachoFileOpen_3(out, path, alloc) macho_file_open((out), (path), ALLOCATOR_OF(alloc))
 
 ///
 /// Parse a Mach-O image from an in-memory byte range. `data` is
@@ -131,7 +134,10 @@ bool MachoFileOpen(MachoFile *out, const char *path, Allocator *alloc);
 ///
 /// TAGS: Parser, MachO, Memory
 ///
-bool MachoFileOpenFromMemory(MachoFile *out, u8 *data, size data_size, Allocator *alloc);
+bool macho_file_open_from_memory(MachoFile *out, u8 *data, size data_size, Allocator *alloc);
+#define MachoFileOpenFromMemory(...)                          MISRA_OVERLOAD(MachoFileOpenFromMemory, __VA_ARGS__)
+#define MachoFileOpenFromMemory_3(out, data, data_size)        macho_file_open_from_memory((out), (data), (data_size), MisraScope)
+#define MachoFileOpenFromMemory_4(out, data, data_size, alloc) macho_file_open_from_memory((out), (data), (data_size), ALLOCATOR_OF(alloc))
 
 ///
 /// Release storage owned by a `MachoFile`. Safe on a zeroed struct.

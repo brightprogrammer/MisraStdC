@@ -378,7 +378,7 @@ static void pe_decode_codeview(PeContext *ctx) {
 // Public API
 // ---------------------------------------------------------------------------
 
-bool PeFileOpenFromMemory(PeFile *out, u8 *data, size data_size, Allocator *alloc) {
+bool pe_file_open_from_memory(PeFile *out, u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
         LOG_ERROR("PeFileOpenFromMemory: NULL argument");
         return false;
@@ -414,7 +414,7 @@ fail:
     return false;
 }
 
-bool PeFileOpen(PeFile *out, const char *path, Allocator *alloc) {
+bool pe_file_open(PeFile *out, const char *path, Allocator *alloc) {
     if (!out || !path || !alloc) {
         LOG_ERROR("PeFileOpen: NULL argument");
         return false;

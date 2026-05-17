@@ -441,7 +441,7 @@ static bool parse_fde(
 // Public API
 // ---------------------------------------------------------------------------
 
-bool DwarfCfiBuildFromElf(DwarfCfi *out, const ElfFile *elf, Allocator *alloc) {
+bool dwarf_cfi_build_from_elf(DwarfCfi *out, const ElfFile *elf, Allocator *alloc) {
     if (!out || !elf || !alloc) {
         LOG_ERROR("DwarfCfiBuildFromElf: NULL argument");
         return false;

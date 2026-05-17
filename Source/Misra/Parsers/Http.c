@@ -418,7 +418,7 @@ HttpResponse *HttpRespondWithFile(
 }
 #endif
 
-Str HttpResponseSerialize(const HttpResponse *response, Allocator *alloc) {
+Str http_response_serialize(const HttpResponse *response, Allocator *alloc) {
     Str out = StrInit(alloc);
 
     if (!response) {

@@ -156,7 +156,7 @@ static bool entry_build_dwarf(MachoCacheEntry *e, Allocator *alloc) {
 // Public API
 // ---------------------------------------------------------------------------
 
-bool MachoCacheInit(MachoCache *out, Allocator *alloc) {
+bool macho_cache_init(MachoCache *out, Allocator *alloc) {
     if (!out || !alloc)
         return false;
     MemSet(out, 0, sizeof(*out));

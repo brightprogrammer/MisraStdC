@@ -80,7 +80,10 @@ typedef Vec(DirEntry) DirContents;
 ///
 /// TAGS: System, FileSystem, Directory
 ///
-DirContents DirGetContents(const char *path, Allocator *alloc);
+DirContents dir_get_contents(const char *path, Allocator *alloc);
+#define DirGetContents(...)         MISRA_OVERLOAD(DirGetContents, __VA_ARGS__)
+#define DirGetContents_1(path)       dir_get_contents((path), MisraScope)
+#define DirGetContents_2(path, alloc) dir_get_contents((path), ALLOCATOR_OF(alloc))
 
 ///
 /// Get size of file without opening it.

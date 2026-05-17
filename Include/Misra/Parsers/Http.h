@@ -298,7 +298,10 @@ HttpResponse *HttpRespondWithFile(
 /// FAILURE : Returns an empty `Str` and logs the failing condition
 ///           (unknown response code, unknown content type, etc.).
 ///
-Str HttpResponseSerialize(const HttpResponse *response, Allocator *alloc);
+Str http_response_serialize(const HttpResponse *response, Allocator *alloc);
+#define HttpResponseSerialize(...)             MISRA_OVERLOAD(HttpResponseSerialize, __VA_ARGS__)
+#define HttpResponseSerialize_1(response)        http_response_serialize((response), MisraScope)
+#define HttpResponseSerialize_2(response, alloc) http_response_serialize((response), ALLOCATOR_OF(alloc))
 
 ///
 /// Release storage owned by `response` and zero the struct.

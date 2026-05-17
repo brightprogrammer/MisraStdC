@@ -46,7 +46,10 @@ typedef struct MachoCache {
     MachoCacheEntries entries;
 } MachoCache;
 
-bool MachoCacheInit(MachoCache *out, Allocator *alloc);
+bool macho_cache_init(MachoCache *out, Allocator *alloc);
+#define MachoCacheInit(...)         MISRA_OVERLOAD(MachoCacheInit, __VA_ARGS__)
+#define MachoCacheInit_1(out)       macho_cache_init((out), MisraScope)
+#define MachoCacheInit_2(out, alloc) macho_cache_init((out), ALLOCATOR_OF(alloc))
 void MachoCacheDeinit(MachoCache *self);
 
 ///

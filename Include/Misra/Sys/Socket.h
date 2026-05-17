@@ -147,7 +147,10 @@ bool SocketAddrParse(SocketAddr *out, const char *spec, SocketKind kind);
 ///
 /// TAGS: Socket, Address, Format
 ///
-Str SocketAddrFormat(const SocketAddr *addr, Allocator *alloc);
+Str socket_addr_format(const SocketAddr *addr, Allocator *alloc);
+#define SocketAddrFormat(...)         MISRA_OVERLOAD(SocketAddrFormat, __VA_ARGS__)
+#define SocketAddrFormat_1(addr)        socket_addr_format((addr), MisraScope)
+#define SocketAddrFormat_2(addr, alloc) socket_addr_format((addr), ALLOCATOR_OF(alloc))
 
 // --- Listener (server side) -------------------------------------------------
 

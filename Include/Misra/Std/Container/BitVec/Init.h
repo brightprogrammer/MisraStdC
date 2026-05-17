@@ -59,9 +59,12 @@ extern "C" {
                    .__magic   = BITVEC_MAGIC})
 #endif
 
-    BitVec BitVecInitWithCapacity(u64 cap, Allocator *alloc);
-
-#define BitVecInitWithCapacityMacro(cap, allocator_ptr) BitVecInitWithCapacity((cap), ALLOCATOR_OF(allocator_ptr))
+    BitVec bitvec_init_with_capacity(u64 cap, Allocator *alloc);
+#define BitVecInitWithCapacity(...)         MISRA_OVERLOAD(BitVecInitWithCapacity, __VA_ARGS__)
+#define BitVecInitWithCapacity_1(cap)         bitvec_init_with_capacity((cap), MisraScope)
+#define BitVecInitWithCapacity_2(cap, alloc)  bitvec_init_with_capacity((cap), ALLOCATOR_OF(alloc))
+// Backwards-compat shim for the old explicit-allocator-only call shape.
+#define BitVecInitWithCapacityMacro(cap, allocator_ptr) bitvec_init_with_capacity((cap), ALLOCATOR_OF(allocator_ptr))
 
     void BitVecDeinit(BitVec *bv);
     void BitVecClear(BitVec *bv);

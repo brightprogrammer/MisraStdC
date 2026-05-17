@@ -89,7 +89,7 @@ static double log2_f64(double x) {
 #define BIT_OFFSET(idx)      ((idx) % BITS_PER_BYTE)
 #define BYTES_FOR_BITS(bits) (((bits) + BITS_PER_BYTE - 1) / BITS_PER_BYTE)
 
-BitVec BitVecInitWithCapacity(u64 cap, Allocator *alloc) {
+BitVec bitvec_init_with_capacity(u64 cap, Allocator *alloc) {
     BitVec result = BitVecInit(alloc);
 
     if (cap == 0) {
@@ -881,7 +881,7 @@ Str bitvec_to_str(BitVec *bv, Allocator *alloc) {
     return result;
 }
 
-bool BitVecTryFromStr(BitVec *out, const char *str, Allocator *alloc) {
+bool bitvec_try_from_str(BitVec *out, const char *str, Allocator *alloc) {
     if (!str) {
         LOG_FATAL("str is NULL");
     }
@@ -916,10 +916,10 @@ bool BitVecTryFromStr(BitVec *out, const char *str, Allocator *alloc) {
     return true;
 }
 
-BitVec BitVecFromStr(const char *str, Allocator *alloc) {
+BitVec bitvec_from_str(const char *str, Allocator *alloc) {
     BitVec result;
 
-    if (!BitVecTryFromStr(&result, str, alloc)) {
+    if (!bitvec_try_from_str(&result, str, alloc)) {
         result = BitVecInit(alloc);
     }
 
@@ -956,7 +956,7 @@ u64 BitVecToBytes(BitVec *bv, u8 *bytes, u64 max_len) {
     return bytes_to_copy;
 }
 
-bool BitVecTryFromBytes(BitVec *out, const u8 *bytes, u64 bit_len, Allocator *alloc) {
+bool bitvec_try_from_bytes(BitVec *out, const u8 *bytes, u64 bit_len, Allocator *alloc) {
     if (!bytes) {
         LOG_FATAL("bytes is NULL");
     }
@@ -988,10 +988,10 @@ bool BitVecTryFromBytes(BitVec *out, const u8 *bytes, u64 bit_len, Allocator *al
     return true;
 }
 
-BitVec BitVecFromBytes(const u8 *bytes, u64 bit_len, Allocator *alloc) {
+BitVec bitvec_from_bytes(const u8 *bytes, u64 bit_len, Allocator *alloc) {
     BitVec result;
 
-    if (!BitVecTryFromBytes(&result, bytes, bit_len, alloc)) {
+    if (!bitvec_try_from_bytes(&result, bytes, bit_len, alloc)) {
         result = BitVecInit(alloc);
     }
 
@@ -1017,7 +1017,7 @@ u64 BitVecToInteger(BitVec *bv) {
     return result;
 }
 
-bool BitVecTryFromInteger(BitVec *out, u64 value, u64 bits, Allocator *alloc) {
+bool bitvec_try_from_integer(BitVec *out, u64 value, u64 bits, Allocator *alloc) {
     if (!out) {
         LOG_FATAL("out is NULL");
     }
@@ -1047,10 +1047,10 @@ bool BitVecTryFromInteger(BitVec *out, u64 value, u64 bits, Allocator *alloc) {
     return true;
 }
 
-BitVec BitVecFromInteger(u64 value, u64 bits, Allocator *alloc) {
+BitVec bitvec_from_integer(u64 value, u64 bits, Allocator *alloc) {
     BitVec result;
 
-    if (!BitVecTryFromInteger(&result, value, bits, alloc)) {
+    if (!bitvec_try_from_integer(&result, value, bits, alloc)) {
         result = BitVecInit(alloc);
     }
 

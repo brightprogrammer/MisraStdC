@@ -127,7 +127,10 @@ typedef struct SymbolResolver {
 ///
 /// TAGS: Sys, Symbol, Resolver
 ///
-bool SymbolResolverInit(SymbolResolver *out, Allocator *alloc);
+bool symbol_resolver_init(SymbolResolver *out, Allocator *alloc);
+#define SymbolResolverInit(...)         MISRA_OVERLOAD(SymbolResolverInit, __VA_ARGS__)
+#define SymbolResolverInit_1(out)       symbol_resolver_init((out), MisraScope)
+#define SymbolResolverInit_2(out, alloc) symbol_resolver_init((out), ALLOCATOR_OF(alloc))
 
 ///
 /// Tear down the resolver, closing every cached `ElfFile` and freeing

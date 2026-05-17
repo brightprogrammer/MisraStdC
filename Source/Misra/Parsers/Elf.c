@@ -392,7 +392,7 @@ static void elf_decode_debug_metadata(ElfFile *self) {
 // Open / close
 // ---------------------------------------------------------------------------
 
-bool ElfFileOpenFromMemory(ElfFile *out, u8 *data, size data_size, Allocator *alloc) {
+bool elf_file_open_from_memory(ElfFile *out, u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
         LOG_ERROR("ElfFileOpenFromMemory: NULL argument");
         return false;
@@ -420,7 +420,7 @@ fail:
     return false;
 }
 
-bool ElfFileOpen(ElfFile *out, const char *path, Allocator *alloc) {
+bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc) {
     if (!out || !path || !alloc) {
         LOG_ERROR("ElfFileOpen: NULL argument");
         return false;

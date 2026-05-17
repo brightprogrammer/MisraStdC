@@ -74,7 +74,10 @@ extern "C" {
     ///
     /// Create an integer from little-endian bytes.
     ///
-    Int IntFromBytesLE(const u8 *bytes, u64 len, Allocator *alloc);
+    Int int_from_bytes_le(const u8 *bytes, u64 len, Allocator *alloc);
+#define IntFromBytesLE(...)                MISRA_OVERLOAD(IntFromBytesLE, __VA_ARGS__)
+#define IntFromBytesLE_2(bytes, len)       int_from_bytes_le((bytes), (len), MisraScope)
+#define IntFromBytesLE_3(bytes, len, alloc) int_from_bytes_le((bytes), (len), ALLOCATOR_OF(alloc))
 
     ///
     /// Export an integer into little-endian bytes.
@@ -84,7 +87,10 @@ extern "C" {
     ///
     /// Create an integer from big-endian bytes.
     ///
-    Int IntFromBytesBE(const u8 *bytes, u64 len, Allocator *alloc);
+    Int int_from_bytes_be(const u8 *bytes, u64 len, Allocator *alloc);
+#define IntFromBytesBE(...)                 MISRA_OVERLOAD(IntFromBytesBE, __VA_ARGS__)
+#define IntFromBytesBE_2(bytes, len)        int_from_bytes_be((bytes), (len), MisraScope)
+#define IntFromBytesBE_3(bytes, len, alloc) int_from_bytes_be((bytes), (len), ALLOCATOR_OF(alloc))
 
     ///
     /// Export an integer into big-endian bytes.
@@ -102,7 +108,10 @@ extern "C" {
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int IntFromStrRadix(const char *digits, u8 radix, Allocator *alloc);
+    Int int_from_str_radix(const char *digits, u8 radix, Allocator *alloc);
+#define IntFromStrRadix(...)                  MISRA_OVERLOAD(IntFromStrRadix, __VA_ARGS__)
+#define IntFromStrRadix_2(digits, radix)        int_from_str_radix((digits), (radix), MisraScope)
+#define IntFromStrRadix_3(digits, radix, alloc) int_from_str_radix((digits), (radix), ALLOCATOR_OF(alloc))
 
     ///
     /// Convert an integer to text in the given radix using an explicit allocator.
@@ -131,7 +140,10 @@ extern "C" {
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int IntFromStr(const char *decimal, Allocator *alloc);
+    Int int_from_str(const char *decimal, Allocator *alloc);
+#define IntFromStr(...)             MISRA_OVERLOAD(IntFromStr, __VA_ARGS__)
+#define IntFromStr_1(decimal)       int_from_str((decimal), MisraScope)
+#define IntFromStr_2(decimal, alloc) int_from_str((decimal), ALLOCATOR_OF(alloc))
 
     ///
     /// Convert an integer to a decimal string using an explicit allocator.
@@ -158,7 +170,10 @@ extern "C" {
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int IntFromBinary(const char *binary, Allocator *alloc);
+    Int int_from_binary(const char *binary, Allocator *alloc);
+#define IntFromBinary(...)            MISRA_OVERLOAD(IntFromBinary, __VA_ARGS__)
+#define IntFromBinary_1(binary)       int_from_binary((binary), MisraScope)
+#define IntFromBinary_2(binary, alloc) int_from_binary((binary), ALLOCATOR_OF(alloc))
 
     ///
     /// Convert an integer to a binary string.
@@ -176,7 +191,10 @@ extern "C" {
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int IntFromOctStr(const char *octal, Allocator *alloc);
+    Int int_from_oct_str(const char *octal, Allocator *alloc);
+#define IntFromOctStr(...)           MISRA_OVERLOAD(IntFromOctStr, __VA_ARGS__)
+#define IntFromOctStr_1(octal)       int_from_oct_str((octal), MisraScope)
+#define IntFromOctStr_2(octal, alloc) int_from_oct_str((octal), ALLOCATOR_OF(alloc))
 
     ///
     /// Convert an integer to an octal string.
@@ -194,7 +212,10 @@ extern "C" {
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int IntFromHexStr(const char *hex, Allocator *alloc);
+    Int int_from_hex_str(const char *hex, Allocator *alloc);
+#define IntFromHexStr(...)         MISRA_OVERLOAD(IntFromHexStr, __VA_ARGS__)
+#define IntFromHexStr_1(hex)       int_from_hex_str((hex), MisraScope)
+#define IntFromHexStr_2(hex, alloc) int_from_hex_str((hex), ALLOCATOR_OF(alloc))
 
     ///
     /// Convert an integer to a hexadecimal string.

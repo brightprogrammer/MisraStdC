@@ -159,7 +159,7 @@ static PdbCacheEntry *cache_find_or_open(PdbCache *self, const char *module_path
 // Public API
 // ---------------------------------------------------------------------------
 
-bool PdbCacheInit(PdbCache *out, Allocator *alloc) {
+bool pdb_cache_init(PdbCache *out, Allocator *alloc) {
     if (!out || !alloc)
         return false;
     MemSet(out, 0, sizeof(*out));

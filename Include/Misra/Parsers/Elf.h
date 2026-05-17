@@ -195,7 +195,10 @@ typedef struct ElfFile {
 ///
 /// TAGS: Parser, ELF, File
 ///
-bool ElfFileOpen(ElfFile *out, const char *path, Allocator *alloc);
+bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc);
+#define ElfFileOpen(...)                MISRA_OVERLOAD(ElfFileOpen, __VA_ARGS__)
+#define ElfFileOpen_2(out, path)        elf_file_open((out), (path), MisraScope)
+#define ElfFileOpen_3(out, path, alloc) elf_file_open((out), (path), ALLOCATOR_OF(alloc))
 
 ///
 /// Parse an ELF object from an in-memory byte range. The `data` buffer
@@ -212,7 +215,10 @@ bool ElfFileOpen(ElfFile *out, const char *path, Allocator *alloc);
 ///
 /// TAGS: Parser, ELF, Memory
 ///
-bool ElfFileOpenFromMemory(ElfFile *out, u8 *data, size data_size, Allocator *alloc);
+bool elf_file_open_from_memory(ElfFile *out, u8 *data, size data_size, Allocator *alloc);
+#define ElfFileOpenFromMemory(...)                          MISRA_OVERLOAD(ElfFileOpenFromMemory, __VA_ARGS__)
+#define ElfFileOpenFromMemory_3(out, data, data_size)        elf_file_open_from_memory((out), (data), (data_size), MisraScope)
+#define ElfFileOpenFromMemory_4(out, data, data_size, alloc) elf_file_open_from_memory((out), (data), (data_size), ALLOCATOR_OF(alloc))
 
 ///
 /// Release storage owned by an `ElfFile`. Frees the byte buffer if

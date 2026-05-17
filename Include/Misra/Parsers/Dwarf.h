@@ -93,7 +93,10 @@ typedef struct DwarfLines {
 ///
 /// TAGS: Parser, DWARF, Lines
 ///
-bool DwarfLinesBuildFromElf(DwarfLines *out, const ElfFile *elf, Allocator *alloc);
+bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *alloc);
+#define DwarfLinesBuildFromElf(...)               MISRA_OVERLOAD(DwarfLinesBuildFromElf, __VA_ARGS__)
+#define DwarfLinesBuildFromElf_2(out, elf)        dwarf_lines_build_from_elf((out), (elf), MisraScope)
+#define DwarfLinesBuildFromElf_3(out, elf, alloc) dwarf_lines_build_from_elf((out), (elf), ALLOCATOR_OF(alloc))
 
 ///
 /// Find the entry covering `vaddr` (file-relative virtual address).
@@ -188,7 +191,10 @@ typedef struct DwarfCfi {
 ///
 /// TAGS: Parser, DWARF, CFI
 ///
-bool DwarfCfiBuildFromElf(DwarfCfi *out, const ElfFile *elf, Allocator *alloc);
+bool dwarf_cfi_build_from_elf(DwarfCfi *out, const ElfFile *elf, Allocator *alloc);
+#define DwarfCfiBuildFromElf(...)               MISRA_OVERLOAD(DwarfCfiBuildFromElf, __VA_ARGS__)
+#define DwarfCfiBuildFromElf_2(out, elf)        dwarf_cfi_build_from_elf((out), (elf), MisraScope)
+#define DwarfCfiBuildFromElf_3(out, elf, alloc) dwarf_cfi_build_from_elf((out), (elf), ALLOCATOR_OF(alloc))
 
 ///
 /// Find the FDE whose `[pc_begin, pc_begin + pc_range)` range contains
@@ -327,7 +333,10 @@ typedef struct DwarfFunctions {
 ///
 /// TAGS: Parser, DWARF, Info
 ///
-bool DwarfFunctionsBuildFromElf(DwarfFunctions *out, const ElfFile *elf, Allocator *alloc);
+bool dwarf_functions_build_from_elf(DwarfFunctions *out, const ElfFile *elf, Allocator *alloc);
+#define DwarfFunctionsBuildFromElf(...)               MISRA_OVERLOAD(DwarfFunctionsBuildFromElf, __VA_ARGS__)
+#define DwarfFunctionsBuildFromElf_2(out, elf)        dwarf_functions_build_from_elf((out), (elf), MisraScope)
+#define DwarfFunctionsBuildFromElf_3(out, elf, alloc) dwarf_functions_build_from_elf((out), (elf), ALLOCATOR_OF(alloc))
 
 ///
 /// Container-agnostic builder. Same parser, but takes the three

@@ -74,7 +74,7 @@ DirEntry *DirEntryDeinitCopy(DirEntry *copy) {
 
 #ifdef _WIN32
 // Windows-specific implementation using FindFirstFile/FindNextFile
-DirContents DirGetContents(const char *path, Allocator *alloc) {
+DirContents dir_get_contents(const char *path, Allocator *alloc) {
     if (!path || !alloc) {
         LOG_FATAL("Invalid argument");
     }
@@ -186,7 +186,7 @@ static DirEntryType dirent_type_to_misra(u8 dt) {
     }
 }
 
-DirContents DirGetContents(const char *path, Allocator *alloc) {
+DirContents dir_get_contents(const char *path, Allocator *alloc) {
     if (!path || !alloc) {
         LOG_FATAL("invalid arguments.");
     }
@@ -278,7 +278,7 @@ DirContents DirGetContents(const char *path, Allocator *alloc) {
 }
 #else
 // APPLE or other Unix-based system implementation using opendir/readdir.
-DirContents DirGetContents(const char *path, Allocator *alloc) {
+DirContents dir_get_contents(const char *path, Allocator *alloc) {
     if (!path || !alloc) {
         LOG_FATAL("invalid arguments.");
     }

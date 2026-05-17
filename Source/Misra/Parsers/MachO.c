@@ -249,7 +249,7 @@ static bool decode_symbols(MachoContext *ctx) {
 // Public API
 // ---------------------------------------------------------------------------
 
-bool MachoFileOpenFromMemory(MachoFile *out, u8 *data, size data_size, Allocator *alloc) {
+bool macho_file_open_from_memory(MachoFile *out, u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
         LOG_ERROR("MachoFileOpenFromMemory: NULL argument");
         return false;
@@ -277,7 +277,7 @@ fail:
     return false;
 }
 
-bool MachoFileOpen(MachoFile *out, const char *path, Allocator *alloc) {
+bool macho_file_open(MachoFile *out, const char *path, Allocator *alloc) {
     if (!out || !path || !alloc) {
         LOG_ERROR("MachoFileOpen: NULL argument");
         return false;

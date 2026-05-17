@@ -206,7 +206,7 @@ static ResolverCacheEntry *resolver_cache_find_or_open(SymbolResolver *self, con
 // Lifecycle
 // ---------------------------------------------------------------------------
 
-bool SymbolResolverInit(SymbolResolver *out, Allocator *alloc) {
+bool symbol_resolver_init(SymbolResolver *out, Allocator *alloc) {
     if (!out || !alloc) {
         LOG_ERROR("SymbolResolverInit: NULL argument");
         return false;

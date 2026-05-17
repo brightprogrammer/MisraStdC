@@ -702,7 +702,7 @@ bool DwarfFunctionsBuildFromSlices(
     return ok;
 }
 
-bool DwarfFunctionsBuildFromElf(DwarfFunctions *out, const ElfFile *elf, Allocator *alloc) {
+bool dwarf_functions_build_from_elf(DwarfFunctions *out, const ElfFile *elf, Allocator *alloc) {
     if (!out || !elf || !alloc) {
         LOG_ERROR("DwarfFunctionsBuildFromElf: NULL argument");
         return false;

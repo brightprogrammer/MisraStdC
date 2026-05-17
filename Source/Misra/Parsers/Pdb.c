@@ -588,7 +588,7 @@ static bool parse_pdb_functions(PdbFile *self) {
 // Lifecycle
 // ---------------------------------------------------------------------------
 
-bool PdbFileOpenFromMemory(PdbFile *out, u8 *data, size data_size, Allocator *alloc) {
+bool pdb_file_open_from_memory(PdbFile *out, u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
         LOG_ERROR("PdbFileOpenFromMemory: NULL argument");
         return false;
@@ -620,7 +620,7 @@ fail:
     return false;
 }
 
-bool PdbFileOpen(PdbFile *out, const char *path, Allocator *alloc) {
+bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc) {
     if (!out || !path || !alloc) {
         LOG_ERROR("PdbFileOpen: NULL argument");
         return false;

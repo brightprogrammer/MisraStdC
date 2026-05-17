@@ -610,7 +610,7 @@ bool SocketAddrParse(SocketAddr *out, const char *spec, SocketKind kind) {
     return false;
 }
 
-Str SocketAddrFormat(const SocketAddr *addr, Allocator *alloc) {
+Str socket_addr_format(const SocketAddr *addr, Allocator *alloc) {
     Str out = StrInit(alloc);
     if (!addr || addr->length == 0) {
         return out;
