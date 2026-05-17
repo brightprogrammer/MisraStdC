@@ -23,10 +23,65 @@
 #include <Misra/Sys/Dns.h>
 #include <Misra/Sys/Socket.h>
 
-#include <signal.h>
-#include <string.h>
+#if defined(_WIN32)
+#    include <signal.h>
+#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+// Linux direct-syscall path: hand-roll rt_sigaction so Beam doesn't
+// drag libc's sigaction/sigemptyset/signal into the link. POSIX
+// sigaction is just a thin wrapper around the rt_sigaction syscall,
+// but the kernel sigaction ABI differs from glibc's (different field
+// order; x86_64 requires the caller to supply a SA_RESTORER trampoline
+// because the kernel doesn't synthesize one for unwinding back to
+// userspace).
+#    include "../Source/Misra/_Syscall.h"
 
-static volatile sig_atomic_t g_stop = 0;
+#    define MISRA_SIGINT          2
+#    define MISRA_SIGPIPE         13
+#    define MISRA_SIGTERM         15
+#    define MISRA_SA_RESTORER     0x04000000UL
+#    define MISRA_SIG_IGN_HANDLER ((void (*)(int))1) // SIG_IGN
+
+struct misra_kernel_sigaction {
+    void (*sa_handler)(int);
+    unsigned long sa_flags;
+    void (*sa_restorer)(void);
+    unsigned long sa_mask; // single-word: covers all 64 standard signals
+};
+
+#    if defined(__x86_64__)
+// x86_64 kernel jumps to this on signal return. We must issue
+// rt_sigreturn ourselves; the kernel doesn't restore for us. `naked`
+// keeps the compiler from emitting a prologue that'd clobber the
+// kernel-built signal frame on the stack.
+__attribute__((naked)) static void misra_sigreturn_restorer(void) {
+    __asm__(
+        "movq $"
+        "15"
+        ", %rax\n"
+        "syscall\n"
+    );
+}
+#    endif
+
+static void install_signal(int signum, void (*handler)(int)) {
+    struct misra_kernel_sigaction sa = {0};
+    sa.sa_handler                    = handler;
+#    if defined(__x86_64__)
+    sa.sa_flags    = MISRA_SA_RESTORER;
+    sa.sa_restorer = misra_sigreturn_restorer;
+#    endif
+    // 4th arg = sigsetsize in bytes (Linux ABI requires 8 for the
+    // standard signal set).
+    misra_sys4(MISRA_SYS_rt_sigaction, (long)signum, (long)(uintptr_t)&sa, 0, 8);
+}
+#else
+#    include <signal.h>
+#endif
+
+// `sig_atomic_t` is `int` on every Linux ABI we target; using `int`
+// directly avoids having to include <signal.h> on the Linux direct-
+// syscall path (which is otherwise libc-free).
+static volatile int g_stop = 0;
 
 static void on_signal(int signum) {
     (void)signum;
@@ -34,22 +89,27 @@ static void on_signal(int signum) {
 }
 
 static void install_signal_handlers(void) {
-#ifdef _WIN32
+#if defined(_WIN32)
     // Windows has signal() but not sigaction/sigemptyset, and there's
     // no SIGPIPE on Windows -- send() to a closed peer returns
     // WSAECONNRESET (mapped to -1 by SocketSend) so the proxy loop
     // exits cleanly on its own.
     signal(SIGINT, on_signal);
     signal(SIGTERM, on_signal);
+#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    install_signal(MISRA_SIGINT, on_signal);
+    install_signal(MISRA_SIGTERM, on_signal);
+    // SIGPIPE on a hung-up peer would terminate us; mask it and rely
+    // on send() returning EPIPE instead.
+    install_signal(MISRA_SIGPIPE, MISRA_SIG_IGN_HANDLER);
 #else
+    // Other POSIX (macOS, BSD): fall back to libc sigaction.
     struct sigaction sa;
     MemSet(&sa, 0, sizeof(sa));
     sa.sa_handler = on_signal;
     sigemptyset(&sa.sa_mask);
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
-    // SIGPIPE on a hung-up peer would terminate us; mask it and rely
-    // on send() returning EPIPE instead.
     signal(SIGPIPE, SIG_IGN);
 #endif
 }
