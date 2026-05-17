@@ -134,8 +134,10 @@ jobs:
     # Allowed: kernel32 + ws2_32 (Sockets) + dbghelp (Backtrace) +
     # advapi32 (some Win32 calls pull it). The meson auto-injected
     # user32/gdi32/etc. show up in the link line but typically don't
-    # end up in IAT unless we actually call them -- they'll only
-    # appear if a Bin tool uses something from them.
+    # end up in IAT unless we actually call them.
+    #
+    # Uses llvm-readobj (already on PATH from the LLVM install step).
+    # dumpbin would require VS dev-prompt to be sourced first.
     - name: Verify libc-diet (Bin/ tools import only platform DLLs)
       if: matrix.verify_libc_diet == 'yes'
       run: |
@@ -154,9 +156,11 @@ jobs:
                 Write-Host "::warning::$path not built, skipping libc-diet check"
                 continue
             }
-            $imports = & dumpbin /imports $path 2>$null `
-                | Select-String -Pattern '^\s*[A-Za-z0-9_-]+\.[A-Za-z]{3}\s*$' `
-                | ForEach-Object { $_.Line.Trim() }
+            # llvm-readobj --coff-imports prints one block per imported
+            # DLL with a 'Name: <dll>' line at the top of each.
+            $imports = & llvm-readobj --coff-imports $path 2>$null `
+                | Select-String -Pattern '^\s*Name:\s*(\S+)' `
+                | ForEach-Object { $_.Matches[0].Groups[1].Value }
             $bad = @()
             foreach ($imp in $imports) {
                 if ($imp -match $forbidden_pattern) {
