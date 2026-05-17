@@ -464,12 +464,25 @@ static void normalize_hostname(const char *name, Str *out) {
 // require guessing 16 bits.
 static u16 random_query_id(void) {
 #if FEATURE_DIRECT_SYSCALL
+    // Time + pid entropy. Linux has clock_gettime as a direct syscall;
+    // Darwin's clock_gettime is libSystem-only, so use gettimeofday
+    // (BSD #116) -- microsecond resolution is enough for query-id
+    // randomization.
+#    if defined(__APPLE__)
+    struct {
+        long sec;
+        long usec;
+    } tv = {0, 0};
+    (void)misra_sys2(MISRA_SYS_gettimeofday, (long)(uintptr_t)&tv, 0);
+    u64 mix = (u64)tv.sec ^ ((u64)tv.usec << 21) ^ (u64)misra_sys0(MISRA_SYS_getpid);
+#    else
     struct {
         long sec;
         long nsec;
     } ts = {0, 0};
     (void)misra_sys2(MISRA_SYS_clock_gettime, 0L, (long)(uintptr_t)&ts);
     u64 mix = (u64)ts.sec ^ ((u64)ts.nsec << 21) ^ (u64)misra_sys0(MISRA_SYS_getpid);
+#    endif
     return (u16)(mix ^ (mix >> 16) ^ (mix >> 32));
 #else
     // Non-Linux: weak fallback. macOS/Windows ports can swap in

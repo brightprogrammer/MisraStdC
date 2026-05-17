@@ -576,6 +576,10 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #    define MISRA_SYS_openat          MISRA_DARWIN_SC(463)
 #    define MISRA_SYS_fstatat64       MISRA_DARWIN_SC(470)
 #    define MISRA_SYS_unlinkat        MISRA_DARWIN_SC(472)
+#    define MISRA_SYS_nanosleep       MISRA_DARWIN_SC(240)
+#    define MISRA_SYS_readlink        MISRA_DARWIN_SC(58)
+#    define MISRA_SYS_readlinkat      MISRA_DARWIN_SC(473)
+#    define MISRA_SYS_gettimeofday    MISRA_DARWIN_SC(116)
 // Aliases so files written for the Linux name still compile on Darwin.
 #    define MISRA_SYS_exit_group      MISRA_SYS_exit // Darwin has no exit_group; plain exit terminates the whole task
 #    define MISRA_SYS_gettid          MISRA_SYS_thread_selfid
@@ -583,6 +587,44 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #    define MISRA_SYS_stat            MISRA_SYS_stat64
 #    define MISRA_SYS_newfstatat      MISRA_SYS_fstatat64
 #    define MISRA_SYS_getdents64      MISRA_SYS_getdirentries64
+
+// Darwin's `pipe` syscall ignores the int[2] argument and returns
+// the two fds in registers (rax = read fd, rdx = write fd on x86_64;
+// x0 = read fd, x1 = write fd on aarch64). Wrap so callers can use
+// the Linux-style fds[] buffer convention.
+static inline long misra_darwin_pipe(int fds[2]) {
+#    if defined(__x86_64__)
+    long fd0, fd1;
+    __asm__ volatile("syscall\n\t"
+                     "jnc 1f\n\t"
+                     "negq %%rax\n"
+                     "1:"
+                     : "=a"(fd0), "=d"(fd1)
+                     : "0"((long)MISRA_SYS_pipe)
+                     : "rcx", "r11", "cc", "memory");
+    if (fd0 < 0)
+        return fd0;
+    fds[0] = (int)fd0;
+    fds[1] = (int)fd1;
+    return 0;
+#    else
+    register long x16_ __asm__("x16") = (long)MISRA_SYS_pipe;
+    register long x0_ __asm__("x0");
+    register long x1_ __asm__("x1");
+    __asm__ volatile("svc #0x80\n\t"
+                     "b.cc 1f\n\t"
+                     "neg x0, x0\n"
+                     "1:"
+                     : "=r"(x0_), "=r"(x1_)
+                     : "r"(x16_)
+                     : "cc", "memory");
+    if (x0_ < 0)
+        return x0_;
+    fds[0] = (int)x0_;
+    fds[1] = (int)x1_;
+    return 0;
+#    endif
+}
 
 #else
 

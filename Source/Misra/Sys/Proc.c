@@ -76,24 +76,29 @@ static inline long misra_proc_write(int fd, const void *buf, unsigned long n) {
     return misra_sys3(MISRA_SYS_write, (long)fd, (long)(uintptr_t)buf, (long)n);
 }
 static inline long misra_proc_pipe(int fds[2]) {
-#    if defined(__x86_64__)
+#    if defined(__APPLE__)
+    // Darwin pipe ignores its arg and returns fds in registers.
+    return misra_darwin_pipe(fds);
+#    elif defined(__x86_64__)
     return misra_sys1(MISRA_SYS_pipe, (long)(uintptr_t)fds);
 #    else
     return misra_sys2(MISRA_SYS_pipe2, (long)(uintptr_t)fds, 0);
 #    endif
 }
 static inline long misra_proc_dup2(int oldfd, int newfd) {
-#    if defined(__x86_64__)
+#    if defined(__APPLE__) || defined(__x86_64__)
     return misra_sys2(MISRA_SYS_dup2, (long)oldfd, (long)newfd);
 #    else
     return misra_sys3(MISRA_SYS_dup3, (long)oldfd, (long)newfd, 0);
 #    endif
 }
 static inline long misra_proc_fork(void) {
-#    if defined(__x86_64__)
+#    if defined(__APPLE__) || defined(__x86_64__)
+    // Darwin has fork (#2); Linux x86_64 has fork (#57). Same shape:
+    // returns 0 in child, pid in parent.
     return misra_sys0(MISRA_SYS_fork);
 #    else
-    // aarch64: no SYS_fork. clone(SIGCHLD, NULL, NULL, NULL, NULL).
+    // Linux aarch64: no SYS_fork. clone(SIGCHLD, NULL, NULL, NULL, NULL).
     // SIGCHLD = 17 on Linux.
     return misra_sys5(MISRA_SYS_clone, 17, 0, 0, 0, 0);
 #    endif
@@ -105,10 +110,10 @@ static inline long misra_proc_kill(int pid, int sig) {
     return misra_sys2(MISRA_SYS_kill, (long)pid, (long)sig);
 }
 static inline long misra_proc_readlink(const char *path, char *buf, unsigned long sz) {
-#    if defined(__x86_64__)
+#    if defined(__APPLE__) || defined(__x86_64__)
     return misra_sys3(MISRA_SYS_readlink, (long)(uintptr_t)path, (long)(uintptr_t)buf, (long)sz);
 #    else
-    // aarch64: no SYS_readlink. AT_FDCWD = -100.
+    // Linux aarch64: no SYS_readlink. AT_FDCWD = -100.
     return misra_sys4(MISRA_SYS_readlinkat, -100L, (long)(uintptr_t)path, (long)(uintptr_t)buf, (long)sz);
 #    endif
 }

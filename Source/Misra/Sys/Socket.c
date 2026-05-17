@@ -143,10 +143,11 @@ static inline long misra_sock_fcntl(int fd, int cmd, long arg) {
     return misra_sys3(MISRA_SYS_fcntl, (long)fd, (long)cmd, arg);
 }
 static inline long misra_sock_poll(void *pfds, unsigned long nfds, int timeout_ms) {
-#        if defined(__x86_64__)
+#        if defined(__APPLE__) || defined(__x86_64__)
+    // Darwin has SYS_poll (#230); Linux x86_64 has SYS_poll (#7). Same shape.
     return misra_sys3(MISRA_SYS_poll, (long)(uintptr_t)pfds, (long)nfds, (long)timeout_ms);
 #        else
-    // aarch64 dropped poll for ppoll(fds, nfds, ts, sigmask, sizeof(sigmask)).
+    // Linux aarch64 dropped poll for ppoll(fds, nfds, ts, sigmask, sizeof(sigmask)).
     struct {
         long sec;
         long nsec;
