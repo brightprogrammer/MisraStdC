@@ -1,21 +1,29 @@
-/// file      : Proc.h
+/// file      : Misra/Sys/Proc.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// System functions for cross-platform process creation and interaction
-///
+/// Cross-platform child-process spawn and I/O. Stack-declared by value
+/// via the `ProcInit(...)` macro; backend struct (POSIX fds vs Win32
+/// PROCESS_INFORMATION + HANDLEs) is platform-conditional but the API
+/// is uniform.
 
 #ifndef MISRA_SYS_PROC_H
 #define MISRA_SYS_PROC_H
 
-#include <Misra/Types.h>
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Types.h>
 
-///
-/// Opaque platform-dependent handle storing process information.
-///
-typedef struct Proc Proc;
+#ifdef _WIN32
+#    define _WIN32_LEAN_AND_MEAN
+#    include <windows.h>
+#else
+#    include <sys/types.h> // pid_t
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef u64 ProcId;
 
@@ -27,131 +35,131 @@ typedef enum ProcStatus {
 } ProcStatus;
 
 ///
-/// Create a new process
+/// Process handle. Layout is platform-conditional. Stack-declare with
+/// `ProcInit(path, argv, envp)`; don't poke fields directly. The
+/// `_pid` (POSIX) or `_pi.hProcess` (Windows) being zero / NULL means
+/// the init failed -- check with `ProcOk(&p)`.
 ///
-/// path[in]  : Path to executable to be executed.
-/// argv[in]  : NULL terminated array containing zero-terminated strings.
-/// envp[in]  : NULL terminated array containing zero-terminated strings.
-/// alloc[in] : Allocator used to allocate the returned `Proc` handle.
-///             The same allocator must be passed to `ProcDestroy`.
-///
-/// SUCCESS: New created `Proc` object opaque handle.
-/// FAILURE: NULL.
-///
-Proc *ProcCreate(const char *path, char **argv, char **envp, Allocator *alloc);
+typedef struct Proc {
+    int  _exit_code;
+    bool _completed;
+#ifdef _WIN32
+    PROCESS_INFORMATION _pi;
+    HANDLE              _hStdinWrite;
+    HANDLE              _hStdoutRead;
+    HANDLE              _hStderrRead;
+#else
+    pid_t _pid;
+    int   _stdin_fd;  // write here to send to child stdin
+    int   _stdout_fd; // read here from child stdout
+    int   _stderr_fd; // read here from child error output
+#endif
+} Proc;
 
 ///
-/// Block the parent process and wait for provided child process to finish execution.
+/// Spawn a child process. Returns a fully-formed `Proc` by value on
+/// success, or a zeroed-out `Proc` on failure (check with `ProcOk`).
 ///
-/// proc[in] : Child process handle to wait for.
+/// `alloc` is only used on Windows (for the command-line `Str` we
+/// pass to `CreateProcessA`); POSIX ignores it. Optional inside a
+/// `Scope` block.
 ///
-/// RETURNS: `SYS_PROC_STATUS_COMPLETED`, `SYS_PROC_STATUS_TERMINATED`, or
-/// `SYS_PROC_STATUS_ERROR`.
+/// path[in]  : Path to the executable.
+/// argv[in]  : NULL-terminated argv array.
+/// envp[in]  : NULL-terminated envp array, or NULL to inherit parent's.
+/// alloc[in] : Allocator for the Windows cmdline buffer (optional).
+///
+/// SUCCESS: Returns a `Proc` with pid/PROCESS_INFORMATION populated.
+/// FAILURE: Returns a zeroed `Proc` (`ProcOk(&p)` returns false).
+///
+/// TAGS: Sys, Proc, Spawn
+///
+Proc proc_init(const char *path, char **argv, char **envp, Allocator *alloc);
+
+#define ProcInit(...)                          MISRA_OVERLOAD(ProcInit, __VA_ARGS__)
+#define ProcInit_3(path, argv, envp)           proc_init((path), (argv), (envp), MisraScope)
+#define ProcInit_4(path, argv, envp, alloc)    proc_init((path), (argv), (envp), ALLOCATOR_OF(alloc))
+
+///
+/// Tear down a `Proc`. Closes any open fds / HANDLEs the parent held
+/// open for the child's stdin/stdout/stderr pipes. Does NOT terminate
+/// the child -- call `ProcTerminate` first if you want that. Safe on
+/// a zeroed (never-spawned) `Proc`.
+///
+/// TAGS: Sys, Proc, Deinit
+///
+void ProcDeinit(Proc *p);
+
+///
+/// Returns true if `p` represents a successfully-spawned child.
+/// Returns false if `proc_init` failed (or `p` is NULL).
+///
+static inline bool ProcOk(const Proc *p) {
+    if (!p) {
+        return false;
+    }
+#ifdef _WIN32
+    return p->_pi.hProcess != NULL;
+#else
+    return p->_pid > 0;
+#endif
+}
+
+///
+/// Block until the child exits.
+///
+/// RETURNS: `SYS_PROC_STATUS_COMPLETED`, `SYS_PROC_STATUS_TERMINATED`,
+///          or `SYS_PROC_STATUS_ERROR`.
 ///
 ProcStatus ProcWait(Proc *proc);
 
 ///
-/// Block the parent process and wait for provided child process to finish execution.
-/// This will wait for given time, otherwise will continue execution to parent without
-/// closing the child process. Parent may then call terminate if they need the process to end.
+/// Block for up to `timeout_ms` milliseconds waiting for the child.
+/// Pass 0 for infinite wait. Returns current status; if the child is
+/// still running after the timeout, returns `SYS_PROC_STATUS_RUNNING`.
 ///
-/// proc[in]    : Child process handle to wait for.
-/// timeout[in] : Timeout in milliseconds, 0 for infinite wait.
-///
-/// RETURNS: Current process status, including `SYS_PROC_STATUS_ERROR` when
-/// waiting fails.
-///
-ProcStatus ProcWaitFor(Proc *proc, u64 timeout);
+ProcStatus ProcWaitFor(Proc *proc, u64 timeout_ms);
 
 ///
-/// Terminate the child process
-///
-/// proc[in] : Child process handle to terminate.
-///
-/// SUCCESS: Return
-/// FAILURE: Abort with log message.
+/// Terminate the child process.
 ///
 void ProcTerminate(Proc *proc);
 
 ///
-/// Terminate the child process and then destroy given `Proc` structure.
+/// Write raw data to the child's stdin pipe.
 ///
-/// proc[in]  : Child process handle to terminate and destroy.
-/// alloc[in] : Allocator originally passed to `ProcCreate`. Used to free
-///             the handle. Must match the create-time allocator.
-///
-/// SUCCESS: Return
-/// FAILURE: Abort with log message.
-///
-void ProcDestroy(Proc *proc, Allocator *alloc);
-
-///
-/// Write given raw data to `stdin` of child process.
-///
-/// proc[in] : Child process handle to write to.
-/// buf[in]  : Pointer to `Str` object containing data to be written.
-///
-/// SUCCESS: Return number of bytes written.
-/// FAILURE: Return -1
+/// SUCCESS: Returns number of bytes written.
+/// FAILURE: Returns -1.
 ///
 i32 ProcWriteToStdin(Proc *proc, Str *buf);
 
 ///
-/// Get exit code of given child process.
-///
-/// SUCCESS: Exit code of given child process.
-/// FAILURE: Abort with a log message.
+/// Exit code of the child. Only meaningful after `ProcWait`.
 ///
 i32 ProcGetExitCode(Proc *proc);
 
 ///
-/// Perform a blocking read from `stdout` of child process to provided buffer.
-///
-/// proc[in] : Child process handle to read from.
-/// buf[out] : Pointer to `Str` object where the read data will be appended.
-///
-/// SUCCESS: Return number of bytes read.
-/// FAILURE: Return -1
+/// Blocking read from child's stdout into `buf` (appended).
 ///
 i32 ProcReadFromStdout(Proc *proc, Str *buf);
 
 ///
-/// Perform a blocking read from `stderr` of child process to provided buffer.
-///
-/// proc[in] : Child process handle to read from.
-/// buf[out] : Pointer to `Str` object where the read data will be appended.
-///
-/// SUCCESS: Return number of bytes read.
-/// FAILURE: Return -1
+/// Blocking read from child's stderr into `buf` (appended).
 ///
 i32 ProcReadFromStderr(Proc *proc, Str *buf);
 
 ///
-/// Get the OS-specific process ID of a child process.
-///
-/// proc[in] : Child process handle.
-///
-/// SUCCESS: Returns the process ID of the child process.
-/// FAILURE: Returns -1
+/// Returns the OS process ID of the child, or -1 if `proc` is invalid.
 ///
 i32 ProcGetId(Proc *proc);
 
 ///
-/// Check if a child process is still running.
-///
-/// proc[in] : Child process handle.
+/// Returns the current status of the child.
 ///
 ProcStatus ProcGetStatus(Proc *proc);
 
 ///
 /// Get the path to the current executable.
-///
-/// exe_path[out] : Str object to store the executable path.
-///
-/// SUCCESS : Returns initialized Str object with executable path.
-/// FAILURE : Returns NULL if path cannot be determined.
-///
-/// TAGS: System, Process, Path
 ///
 Str *GetCurrentExecutablePath(Str *exe_path);
 
@@ -189,5 +197,9 @@ Str *GetCurrentExecutablePath(Str *exe_path);
         ProcWriteToStdin((p), &b_);                                                                                    \
         StrDeinit(&b_);                                                                                                \
     } while (0)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // MISRA_SYS_PROC_H

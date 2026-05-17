@@ -47,15 +47,9 @@
 #    include <pthread.h>
 #endif
 
-struct Mutex {
-#ifdef _WIN32
-    SRWLOCK lock;
-#elif FEATURE_DIRECT_SYSCALL
-    _Atomic int state; // 0 unlocked, 1 locked, 2 locked+waiters
-#else
-    pthread_mutex_t lock;
-#endif
-};
+// struct Mutex lives in <Misra/Sys/Mutex.h> -- exposed so callers can
+// stack-declare and initialise via the MutexInit() macro. Header field
+// names are prefixed with `_` to flag them as implementation detail.
 
 #if FEATURE_DIRECT_SYSCALL
 // Per-OS wrappers around the underlying compare-and-wait / wake
@@ -95,51 +89,28 @@ static inline void mutex_wake_one(_Atomic int *addr) {
 }
 #endif
 
-Mutex *MutexCreate(Allocator *alloc) {
-    if (!alloc) {
-        LOG_FATAL("MutexCreate requires an allocator");
-    }
-    Mutex *m = (Mutex *)AllocatorAlloc(alloc, sizeof(Mutex), true);
-    if (!m) {
-        LOG_ERROR("Failed to allocate mutex");
-        return NULL;
-    }
-#ifdef _WIN32
-    InitializeSRWLock(&m->lock);
-#elif FEATURE_DIRECT_SYSCALL
-    atomic_store_explicit(&m->state, 0, memory_order_relaxed);
-#else
-    MemSet(&m->lock, 0, sizeof(m->lock));
-#endif
-    return m;
-}
-
-void MutexDestroy(Mutex *m, Allocator *alloc) {
+void MutexDeinit(Mutex *m) {
     if (!m) {
         return;
-    }
-    if (!alloc) {
-        LOG_FATAL("MutexDestroy requires the allocator that created the mutex");
     }
 #ifdef _WIN32
     // SRWLOCK has no destroy call.
 #elif FEATURE_DIRECT_SYSCALL
     // futex/ulock int has no destroy call; zeroing happens below.
 #else
-    pthread_mutex_destroy(&m->lock);
+    pthread_mutex_destroy(&m->_lock);
 #endif
     MemSet(m, 0, sizeof(Mutex));
-    AllocatorFree(alloc, m, sizeof(Mutex));
 }
 
 Mutex *MutexLock(Mutex *m) {
 #ifdef _WIN32
-    AcquireSRWLockExclusive(&m->lock);
+    AcquireSRWLockExclusive(&m->_lock);
 #elif FEATURE_DIRECT_SYSCALL
     // Fast path: 0 -> 1 (uncontended acquire).
     int expected = 0;
     if (atomic_compare_exchange_strong_explicit(
-            &m->state,
+            &m->_state,
             &expected,
             1,
             memory_order_acquire,
@@ -156,19 +127,19 @@ Mutex *MutexLock(Mutex *m) {
         int one = 1;
         if (c == 2 ||
             atomic_compare_exchange_strong_explicit(
-                &m->state,
+                &m->_state,
                 &one,
                 2,
                 memory_order_relaxed,
                 memory_order_relaxed
             )) {
-            mutex_wait(&m->state, 2);
+            mutex_wait(&m->_state, 2);
         }
         // Try to take the lock (and keep the contended marker so the
         // next unlocker will wake remaining waiters).
         int zero = 0;
         if (atomic_compare_exchange_strong_explicit(
-                &m->state,
+                &m->_state,
                 &zero,
                 2,
                 memory_order_acquire,
@@ -176,27 +147,27 @@ Mutex *MutexLock(Mutex *m) {
             )) {
             return m;
         }
-        c = atomic_load_explicit(&m->state, memory_order_relaxed);
+        c = atomic_load_explicit(&m->_state, memory_order_relaxed);
     }
 #else
-    pthread_mutex_lock(&m->lock);
+    pthread_mutex_lock(&m->_lock);
 #endif
     return m;
 }
 
 Mutex *MutexUnlock(Mutex *m) {
 #ifdef _WIN32
-    ReleaseSRWLockExclusive(&m->lock);
+    ReleaseSRWLockExclusive(&m->_lock);
 #elif FEATURE_DIRECT_SYSCALL
     // Fast path: if state was 1 (no waiters), atomic dec brings it to
     // 0 and we're done. Otherwise it was 2 (had waiters), zero it
     // and wake one.
-    if (atomic_fetch_sub_explicit(&m->state, 1, memory_order_release) != 1) {
-        atomic_store_explicit(&m->state, 0, memory_order_release);
-        mutex_wake_one(&m->state);
+    if (atomic_fetch_sub_explicit(&m->_state, 1, memory_order_release) != 1) {
+        atomic_store_explicit(&m->_state, 0, memory_order_release);
+        mutex_wake_one(&m->_state);
     }
 #else
-    pthread_mutex_unlock(&m->lock);
+    pthread_mutex_unlock(&m->_lock);
 #endif
     return m;
 }
