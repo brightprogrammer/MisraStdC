@@ -221,7 +221,7 @@ bool test_bitvec_clone_inherits_allocator_config(void) {
     // configuration fields on the base allocator.
     bool result = clone.length == original.length && clone.capacity >= original.length &&
                   clone.allocator == original.allocator && clone.allocator->allocate == original.allocator->allocate &&
-                  clone.allocator->reallocate == original.allocator->reallocate &&
+                  clone.allocator->remap == original.allocator->remap &&
                   clone.allocator->deallocate == original.allocator->deallocate &&
                   clone.allocator->effort == original.allocator->effort &&
                   clone.allocator->retry_limit == original.allocator->retry_limit && BitVecGet(&clone, 0) == true &&

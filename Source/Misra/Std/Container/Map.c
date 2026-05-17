@@ -394,7 +394,7 @@ void validate_map(const GenericMap *map) {
         LOG_FATAL("Map must have valid key compare and key hash callbacks");
     }
 
-    if (!map->allocator->allocate || !map->allocator->reallocate || !map->allocator->deallocate) {
+    if (!map->allocator->allocate || !map->allocator->resize || !map->allocator->remap || !map->allocator->deallocate) {
         LOG_FATAL("Map allocator is invalid");
     }
 

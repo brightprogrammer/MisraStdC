@@ -38,7 +38,8 @@ extern "C" {
     } ArenaAllocator;
 
     void *arena_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
-    void *arena_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size);
+    i8    arena_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size);
+    void *arena_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size);
     void  arena_allocator_deallocate(Allocator *self, void *ptr, size bytes);
 
     ///
@@ -62,7 +63,8 @@ extern "C" {
     ((ArenaAllocator) {                                                                                                \
         .base =                                                                                                        \
             {.allocate    = arena_allocator_allocate,                                                                  \
-                   .reallocate  = arena_allocator_reallocate,                                                                \
+                   .resize      = arena_allocator_resize,                                                                    \
+                   .remap       = arena_allocator_remap,                                                                     \
                    .deallocate  = arena_allocator_deallocate,                                                                \
                    .alignment   = 1,                                                                                         \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
@@ -79,7 +81,8 @@ extern "C" {
     ((ArenaAllocator) {                                                                                                \
         .base =                                                                                                        \
             {.allocate    = arena_allocator_allocate,                                                                  \
-                   .reallocate  = arena_allocator_reallocate,                                                                \
+                   .resize      = arena_allocator_resize,                                                                    \
+                   .remap       = arena_allocator_remap,                                                                     \
                    .deallocate  = arena_allocator_deallocate,                                                                \
                    .alignment   = (N) ? (N) : 1,                                                                             \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \

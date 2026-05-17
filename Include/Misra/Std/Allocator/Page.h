@@ -44,7 +44,8 @@ extern "C" {
     } PageAllocator;
 
     void *page_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
-    void *page_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size);
+    i8    page_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size);
+    void *page_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size);
     void  page_allocator_deallocate(Allocator *self, void *ptr, size bytes);
 
     ///
@@ -118,7 +119,8 @@ extern "C" {
     ((PageAllocator) {                                                                                                 \
         .base =                                                                                                        \
             {.allocate    = page_allocator_allocate,                                                                   \
-                   .reallocate  = page_allocator_reallocate,                                                                 \
+                   .resize      = page_allocator_resize,                                                                     \
+                   .remap       = page_allocator_remap,                                                                      \
                    .deallocate  = page_allocator_deallocate,                                                                 \
                    .alignment   = 1,                                                                                         \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
@@ -136,7 +138,8 @@ extern "C" {
     ((PageAllocator) {                                                                                                 \
         .base =                                                                                                        \
             {.allocate    = page_allocator_allocate,                                                                   \
-                   .reallocate  = page_allocator_reallocate,                                                                 \
+                   .resize      = page_allocator_resize,                                                                     \
+                   .remap       = page_allocator_remap,                                                                      \
                    .deallocate  = page_allocator_deallocate,                                                                 \
                    .alignment   = (N) ? (N) : 1,                                                                             \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \

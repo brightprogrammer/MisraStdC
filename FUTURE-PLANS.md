@@ -4,7 +4,6 @@ Parking lot for items we've identified during real implementation work but defer
 
 ## Allocators
 - Allocator vtable: per-call alignment parameter on `AllocatorAlloc` / `AllocatorRealloc` (currently fixed at allocator init).
-- Allocator vtable: split `resize` (in-place, returns bool) vs `remap` (may move, returns ptr-or-NULL); keep `reallocate` as the convenience that cascades.
 - `StackFallbackAllocator`: composition wrapper that tries a fixed stack buffer first then falls back to a parent allocator.
 - `LoggingAllocator`: composition wrapper that logs every alloc/realloc/free on a parent.
 - `ThreadSafeAllocator`: composition wrapper that adds a mutex around any parent.
@@ -50,6 +49,18 @@ Parking lot for items we've identified during real implementation work but defer
 
 ## Completed
 Items below have landed; kept here as a history of what each branch closed out.
+
+### Allocator vtable split: resize + remap (May 2026)
+- Allocator vtable gains a `resize(self, ptr, old, new) -> i8` slot alongside the renamed `remap(self, ptr, old, new) -> void *` (was `reallocate`). `AllocatorRealloc` stays as the realloc-shaped public API but is now a thin cascade: tries `AllocatorResize` first (no copy, pointer stays valid), falls back to `AllocatorRemap` (may move). All existing callers (`Vec`, `BitVec`, `Str`, `File`, JSON, etc.) keep using `AllocatorRealloc` and auto-benefit from the in-place fast path with zero source changes.
+- Per-allocator semantics:
+  - `HeapAllocator`: resize succeeds when old + new sizes round to the same bin (no slot change needed).
+  - `PageAllocator`: resize succeeds when old + new round to the same page count (no kernel work).
+  - `ArenaAllocator`: resize succeeds when `ptr` is the last bump (bump the high-water mark forward / backward); refused otherwise (earlier allocations have stuff after them).
+  - `SlabAllocator`: resize succeeds when `new <= slot_size` (slot is already big enough); refused otherwise (slabs are fixed-size).
+  - `BudgetAllocator`: same shape as SlabAllocator.
+  - `DebugAllocator`: resize always refused (forces every realloc through alloc-fresh + copy + free so canary + live-map invariants stay simple).
+- New public APIs `AllocatorResize(...) -> i8` and `AllocatorRemap(...) -> void *` for callers that need to know whether the pointer moved (any data structure that holds external pointers into its buffer can ask `Resize` and bail on failure instead of silently corrupting). None of those callers exist in-tree yet -- the immediate win is the no-copy fast path for the existing `Realloc`-using callers.
+- `ValidateAllocator` now checks all four vtable slots (`allocate`, `resize`, `remap`, `deallocate`). Container validators (`Vec`, `List`, `Map`, `Graph`) updated the same way.
 
 ### macOS Mutex direct `__ulock` (May 2026)
 - `Sys/Mutex` on macOS migrated from libSystem `os_unfair_lock` to direct XNU `__ulock_wait` (#515) / `__ulock_wake` (#516) syscalls with op = `UL_COMPARE_AND_WAIT` + `ULF_NO_ERRNO`. Collapses the Mac path into the same Drepper 3-state futex algorithm the Linux path already uses; only the wait/wake primitive differs (futex on Linux, __ulock on Mac). Wrapped in shared `mutex_wait` / `mutex_wake_one` static-inline helpers so the lock/unlock paths are OS-agnostic. Verified: `Mutex.c.o` on Mac has zero `_os_unfair_lock_*` references; all test binaries' `nm -u` still lists only the four allowed `__dyld_*` entries. This was the last libSystem dep that survived once anything in a build pulled Sys/Mutex into the link line.

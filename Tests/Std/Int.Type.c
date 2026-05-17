@@ -83,7 +83,7 @@ bool test_int_clone_inherits_allocator_config(void) {
 
     bool result = clone.bits.length == original.bits.length && clone.bits.allocator == original.bits.allocator &&
                   clone.bits.allocator->allocate == original.bits.allocator->allocate &&
-                  clone.bits.allocator->reallocate == original.bits.allocator->reallocate &&
+                  clone.bits.allocator->remap == original.bits.allocator->remap &&
                   clone.bits.allocator->deallocate == original.bits.allocator->deallocate &&
                   clone.bits.allocator->effort == original.bits.allocator->effort &&
                   clone.bits.allocator->retry_limit == original.bits.allocator->retry_limit &&

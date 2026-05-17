@@ -90,7 +90,7 @@ bool test_float_clone_inherits_allocator_config(void) {
                   clone.significand.bits.length == original.significand.bits.length &&
                   clone.significand.bits.allocator == original.significand.bits.allocator &&
                   clone.significand.bits.allocator->allocate == original.significand.bits.allocator->allocate &&
-                  clone.significand.bits.allocator->reallocate == original.significand.bits.allocator->reallocate &&
+                  clone.significand.bits.allocator->remap == original.significand.bits.allocator->remap &&
                   clone.significand.bits.allocator->deallocate == original.significand.bits.allocator->deallocate &&
                   clone.significand.bits.allocator->effort == original.significand.bits.allocator->effort &&
                   clone.significand.bits.allocator->retry_limit == original.significand.bits.allocator->retry_limit &&

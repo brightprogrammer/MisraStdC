@@ -302,7 +302,23 @@ void debug_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
     }
 }
 
-void *debug_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size) {
+// In-place resize: always refused. The debug allocator keeps a
+// canary on every allocation + a live-map keyed by pointer; trying
+// to resize in place would mean re-stamping the canary, updating
+// the live-map entry's recorded size, and (in page-backed mode)
+// potentially remapping pages -- none of that is "in place" in any
+// useful sense. Refuse and force the caller through remap, which
+// does the clean alloc-fresh + copy + free dance with full canary +
+// live-map maintenance.
+i8 debug_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size) {
+    (void)debug_validate_self(self);
+    (void)ptr;
+    (void)old_size;
+    (void)new_size;
+    return 0;
+}
+
+void *debug_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size) {
     DebugAllocator *dbg = debug_validate_self(self);
     if (new_size == 0) {
         debug_allocator_deallocate(self, ptr, old_size);

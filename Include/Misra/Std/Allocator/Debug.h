@@ -127,7 +127,8 @@ extern "C" {
     // into `base`. Direct calls aren't recommended; use the
     // `Allocator *` returned by `ALLOCATOR_OF` instead.
     void *debug_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
-    void *debug_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size);
+    i8    debug_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size);
+    void *debug_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size);
     void  debug_allocator_deallocate(Allocator *self, void *ptr, size bytes);
 
     // Hash / compare callbacks for the embedded void*->DebugRecord
@@ -193,7 +194,8 @@ extern "C" {
     ((DebugAllocator) {                                                                                                \
         .base =                                                                                                        \
             {.allocate    = debug_allocator_allocate,                                                                  \
-                   .reallocate  = debug_allocator_reallocate,                                                                \
+                   .resize      = debug_allocator_resize,                                                                    \
+                   .remap       = debug_allocator_remap,                                                                     \
                    .deallocate  = debug_allocator_deallocate,                                                                \
                    .alignment   = 1,                                                                                         \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \

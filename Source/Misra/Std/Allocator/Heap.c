@@ -130,7 +130,24 @@ void heap_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
     heap->bins[bin]    = slot;
 }
 
-void *heap_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size) {
+// In-place resize: succeeds only when old + new sizes round to the
+// same bin. The binned heap's allocations are bucketed at allocation
+// time; a size change that stays inside the same bucket needs zero
+// work (the slot is already that big). A size change that crosses
+// bins requires picking a slot from a different bucket -- that's a
+// remap, not a resize.
+i8 heap_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size) {
+    heap_validate_self(self);
+    (void)ptr;
+    if (heap_alignment_demands_passthrough(self)) {
+        return 0;
+    }
+    int old_bin = heap_bin_for_size(old_size);
+    int new_bin = heap_bin_for_size(new_size);
+    return (old_bin >= 0 && old_bin == new_bin) ? 1 : 0;
+}
+
+void *heap_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size) {
     heap_validate_self(self);
     if (new_size == 0) {
         if (ptr) {
@@ -141,14 +158,10 @@ void *heap_allocator_reallocate(Allocator *self, void *ptr, size old_size, size 
     if (!ptr) {
         return heap_allocator_allocate(self, new_size, false);
     }
-
-    // Same bin (or both large with identical page rounding): keep in place.
-    if (!heap_alignment_demands_passthrough(self)) {
-        int old_bin = heap_bin_for_size(old_size);
-        int new_bin = heap_bin_for_size(new_size);
-        if (old_bin >= 0 && old_bin == new_bin) {
-            return ptr;
-        }
+    // Same bin: keep in place. (Repeat of the resize check so a
+    // direct remap caller still gets the no-copy fast path.)
+    if (heap_allocator_resize(self, ptr, old_size, new_size)) {
+        return ptr;
     }
 
     void *fresh = heap_allocator_allocate(self, new_size, false);

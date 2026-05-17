@@ -315,7 +315,7 @@ void validate_graph(const GenericGraph *graph) {
         LOG_FATAL("Graph is uninitialized or corrupted");
     }
 
-    if (!graph->allocator->allocate || !graph->allocator->reallocate || !graph->allocator->deallocate) {
+    if (!graph->allocator->allocate || !graph->allocator->resize || !graph->allocator->remap || !graph->allocator->deallocate) {
         LOG_FATAL("Graph allocator is not fully configured");
     }
 

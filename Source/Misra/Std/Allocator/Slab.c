@@ -97,7 +97,22 @@ void *slab_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     return slot;
 }
 
-void *slab_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size) {
+i8 slab_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size) {
+    slab_validate_self(self);
+    SlabAllocator *slab   = (SlabAllocator *)self;
+    size           align  = self->alignment > 1 ? self->alignment : sizeof(void *);
+    size           padded = slab_padded_slot_size(slab->slot_size, align);
+    (void)ptr;
+    (void)old_size;
+    // Slab slots are fixed-size. Anything that still fits in the
+    // pre-allocated slot trivially "resizes" in place because nothing
+    // physically changes; anything bigger forces a move (which the
+    // slab can't even satisfy -- caller would have to allocate a
+    // separately-sized slot somewhere else).
+    return new_size <= padded ? 1 : 0;
+}
+
+void *slab_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size) {
     slab_validate_self(self);
     SlabAllocator *slab   = (SlabAllocator *)self;
     size           align  = self->alignment > 1 ? self->alignment : sizeof(void *);

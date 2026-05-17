@@ -106,10 +106,36 @@ void *arena_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     return result;
 }
 
-void *arena_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size) {
+// Try to grow/shrink in place. The arena can only do this when `ptr`
+// is the most recent allocation (its end coincides with the chunk's
+// high-water mark), because earlier allocations have stuff after
+// them that we can't disturb. Shrinks of older allocations: refused
+// too -- they'd leave a hole the arena can't reclaim and the caller
+// could just keep the over-large slot. Same answer either way.
+i8 arena_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size) {
     arena_validate_self(self);
     ArenaAllocator *arena = (ArenaAllocator *)self;
     size            align = arena_effective_alignment(self);
+    (void)old_size;
+
+    if (arena->last_ptr != ptr || !arena->tail) {
+        return 0;
+    }
+    ArenaChunk *chunk      = arena->tail;
+    size        padded_new = arena_round_up(new_size, align);
+    size        last_off   = (size)((char *)ptr - chunk->base);
+    if (last_off + padded_new > chunk->capacity) {
+        return 0; // grow doesn't fit in this chunk
+    }
+    chunk->used      = last_off + padded_new;
+    arena->last_size = padded_new;
+    return 1;
+}
+
+void *arena_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size) {
+    arena_validate_self(self);
+    ArenaAllocator *arena = (ArenaAllocator *)self;
+    (void)arena;
 
     if (new_size == 0) {
         (void)ptr;
@@ -120,16 +146,11 @@ void *arena_allocator_reallocate(Allocator *self, void *ptr, size old_size, size
         return arena_allocator_allocate(self, new_size, true);
     }
 
-    // Grow in place when `ptr` is the last bump.
-    if (arena->last_ptr == ptr && arena->tail) {
-        ArenaChunk *chunk      = arena->tail;
-        size        padded_new = arena_round_up(new_size, align);
-        size        last_off   = (size)((char *)ptr - chunk->base);
-        if (last_off + padded_new <= chunk->capacity) {
-            chunk->used      = last_off + padded_new;
-            arena->last_size = padded_new;
-            return ptr;
-        }
+    // Grow in place when `ptr` is the last bump (still a fast path
+    // for remap callers that come straight here without trying
+    // resize first).
+    if (arena_allocator_resize(self, ptr, old_size, new_size)) {
+        return ptr;
     }
 
     void *fresh = arena_allocator_allocate(self, new_size, true);

@@ -39,7 +39,8 @@ extern "C" {
     } SlabAllocator;
 
     void *slab_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
-    void *slab_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size);
+    i8    slab_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size);
+    void *slab_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size);
     void  slab_allocator_deallocate(Allocator *self, void *ptr, size bytes);
 
     void SlabAllocatorDeinit(SlabAllocator *self);
@@ -58,7 +59,8 @@ extern "C" {
     ((SlabAllocator) {                                                                                                 \
         .base =                                                                                                        \
             {.allocate    = slab_allocator_allocate,                                                                   \
-                   .reallocate  = slab_allocator_reallocate,                                                                 \
+                   .resize      = slab_allocator_resize,                                                                     \
+                   .remap       = slab_allocator_remap,                                                                      \
                    .deallocate  = slab_allocator_deallocate,                                                                 \
                    .alignment   = 1,                                                                                         \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
@@ -79,7 +81,8 @@ extern "C" {
     ((SlabAllocator) {                                                                                                 \
         .base =                                                                                                        \
             {.allocate    = slab_allocator_allocate,                                                                   \
-                   .reallocate  = slab_allocator_reallocate,                                                                 \
+                   .resize      = slab_allocator_resize,                                                                     \
+                   .remap       = slab_allocator_remap,                                                                      \
                    .deallocate  = slab_allocator_deallocate,                                                                 \
                    .alignment   = (alignment_value) ? (alignment_value) : 1,                                                 \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \

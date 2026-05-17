@@ -145,7 +145,22 @@ void *page_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     return page_map(page_rounded_size(page, bytes));
 }
 
-void *page_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size) {
+// In-place resize: succeeds only when old + new sizes round to the
+// same number of pages (the kernel mapping is already that big, no
+// kernel work needed). Growing past the rounded boundary would need
+// mremap(); on macOS we don't have it, on Linux it can fail anyway
+// if a neighbouring VMA blocks growth. Either way, we don't attempt
+// it -- the caller can fall back to remap, which alloc+copy+frees.
+i8 page_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size) {
+    page_validate_self(self);
+    PageAllocator *page = (PageAllocator *)self;
+    (void)ptr;
+    size old_rounded = page_rounded_size(page, old_size);
+    size new_rounded = page_rounded_size(page, new_size);
+    return old_rounded == new_rounded ? 1 : 0;
+}
+
+void *page_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size) {
     page_validate_self(self);
     PageAllocator *page = (PageAllocator *)self;
 

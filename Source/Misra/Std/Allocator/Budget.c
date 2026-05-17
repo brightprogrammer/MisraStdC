@@ -47,7 +47,19 @@ void *budget_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     return slot;
 }
 
-void *budget_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size) {
+i8 budget_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size) {
+    budget_validate_self(self);
+    BudgetAllocator *bp = (BudgetAllocator *)self;
+    (void)ptr;
+    (void)old_size;
+    // Fixed-size slots: anything <= slot_size resizes in place
+    // trivially (the slot is already that big), anything larger
+    // can't be satisfied at all since this allocator owns one slot
+    // per allocation and doesn't relocate.
+    return new_size <= bp->slot_size ? 1 : 0;
+}
+
+void *budget_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size) {
     budget_validate_self(self);
     BudgetAllocator *bp = (BudgetAllocator *)self;
     (void)old_size;
@@ -109,7 +121,8 @@ static BudgetAllocator budget_build(void *buf, size buf_bytes, size slot_size, s
     BudgetAllocator bp = {
         .base =
             {.allocate    = budget_allocator_allocate,
-                   .reallocate  = budget_allocator_reallocate,
+                   .resize      = budget_allocator_resize,
+                   .remap       = budget_allocator_remap,
                    .deallocate  = budget_allocator_deallocate,
                    .alignment   = alignment,
                    .effort      = ALLOCATOR_EFFORT_ONCE,

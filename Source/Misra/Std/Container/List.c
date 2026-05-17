@@ -400,7 +400,7 @@ void validate_list(const GenericList *l) {
     if ((l)->__magic != LIST_MAGIC) {
         LOG_FATAL("Invalid list. Either not initialized or corrupted!");
     }
-    if (!(l)->allocator->allocate || !(l)->allocator->reallocate || !(l)->allocator->deallocate) {
+    if (!(l)->allocator->allocate || !(l)->allocator->resize || !(l)->allocator->remap || !(l)->allocator->deallocate) {
         LOG_FATAL("Invalid list allocator.");
     }
     if ((l)->length == 0) {

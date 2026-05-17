@@ -493,7 +493,7 @@ void validate_vec(const GenericVec *v) {
     if ((v)->length > (v)->capacity) {
         LOG_FATAL("Invalid vec object.");
     }
-    if (!(v)->allocator->allocate || !(v)->allocator->reallocate || !(v)->allocator->deallocate) {
+    if (!(v)->allocator->allocate || !(v)->allocator->resize || !(v)->allocator->remap || !(v)->allocator->deallocate) {
         LOG_FATAL("Invalid vec allocator.");
     }
     // if memory is invalid, system will segfault here

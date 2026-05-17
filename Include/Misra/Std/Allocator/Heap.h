@@ -49,7 +49,8 @@ extern "C" {
     } HeapAllocator;
 
     void *heap_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
-    void *heap_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size);
+    i8    heap_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size);
+    void *heap_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size);
     void  heap_allocator_deallocate(Allocator *self, void *ptr, size bytes);
 
     ///
@@ -85,7 +86,8 @@ extern "C" {
     ((HeapAllocator) {                                                                                                 \
         .base =                                                                                                        \
             {.allocate    = heap_allocator_allocate,                                                                   \
-                   .reallocate  = heap_allocator_reallocate,                                                                 \
+                   .resize      = heap_allocator_resize,                                                                     \
+                   .remap       = heap_allocator_remap,                                                                      \
                    .deallocate  = heap_allocator_deallocate,                                                                 \
                    .alignment   = 1,                                                                                         \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
@@ -105,7 +107,8 @@ extern "C" {
     ((HeapAllocator) {                                                                                                 \
         .base =                                                                                                        \
             {.allocate    = heap_allocator_allocate,                                                                   \
-                   .reallocate  = heap_allocator_reallocate,                                                                 \
+                   .resize      = heap_allocator_resize,                                                                     \
+                   .remap       = heap_allocator_remap,                                                                      \
                    .deallocate  = heap_allocator_deallocate,                                                                 \
                    .alignment   = (N) ? (N) : 1,                                                                             \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \

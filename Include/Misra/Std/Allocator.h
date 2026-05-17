@@ -37,9 +37,11 @@ extern "C" {
     // `zeroed` uses `i8` (signed char) directly instead of `bool` to
     // sidestep TU-to-TU `bool` ambiguity on platforms that transitively
     // pull in `<stdbool.h>` from system headers. See the comment block
-    // around the `bool` typedef in `Misra/Types.h`.
+    // around the `bool` typedef in `Misra/Types.h`. Same reason
+    // `resize` returns `i8` (1 = succeeded in-place, 0 = could not).
     typedef void *(*AllocatorAllocateFn)(Allocator *self, size bytes, i8 zeroed);
-    typedef void *(*AllocatorReallocateFn)(Allocator *self, void *ptr, size old_size, size new_size);
+    typedef i8 (*AllocatorResizeFn)(Allocator *self, void *ptr, size old_size, size new_size);
+    typedef void *(*AllocatorRemapFn)(Allocator *self, void *ptr, size old_size, size new_size);
     typedef void (*AllocatorDeallocateFn)(Allocator *self, void *ptr, size bytes);
 
 #if FEATURE_ALLOC_STATS
@@ -87,7 +89,17 @@ extern "C" {
     ///
     struct Allocator {
         AllocatorAllocateFn   allocate;
-        AllocatorReallocateFn reallocate;
+        // `resize` tries to grow / shrink the existing allocation in
+        // place. The pointer never moves. Returns 1 on success, 0 if
+        // the allocator can't satisfy the request without relocating
+        // (in which case the caller can decide whether to fall back
+        // to `remap` or give up).
+        AllocatorResizeFn     resize;
+        // `remap` may move the allocation. Returns the new pointer
+        // (possibly equal to `ptr` if the allocator could grow in
+        // place anyway), or NULL on failure. Equivalent to the
+        // realloc-shaped convenience that's been here since v1.
+        AllocatorRemapFn      remap;
         AllocatorDeallocateFn deallocate;
         size                  alignment;
         AllocatorEffort       effort;
@@ -140,15 +152,57 @@ extern "C" {
     void *AllocatorAlloc(Allocator *self, size bytes, i8 zeroed);
 
     ///
-    /// Reallocate memory through an allocator. Preserves the allocator's
-    /// configured alignment across the resize.
+    /// Try to grow / shrink an allocation in place. The pointer never
+    /// moves. Use this when the caller can NOT tolerate a relocation
+    /// (e.g. external code holds pointers into the buffer). Returns 1
+    /// when the allocator could satisfy the new size without moving;
+    /// returns 0 when the caller should either fall back to
+    /// `AllocatorRemap` (accepting a possible move) or give up.
     ///
-    /// self[in,out]  : Allocator base used for the reallocation.
-    /// ptr[in]       : Existing allocation pointer, or NULL.
+    /// self[in,out] : Allocator base.
+    /// ptr[in]      : Existing allocation pointer (must be non-NULL --
+    ///                resize of nothing is meaningless).
+    /// old_size[in] : Previous allocation size in bytes.
+    /// new_size[in] : Requested new allocation size in bytes (must be
+    ///                non-zero -- shrink-to-zero is a free, not a resize).
+    ///
+    /// SUCCESS: Returns 1. `ptr` remains valid for `new_size` bytes; if
+    ///          growing, new bytes are uninitialised.
+    /// FAILURE: Returns 0. `ptr` and `old_size` are unchanged.
+    ///
+    /// TAGS: Allocator, Memory, InPlace
+    ///
+    i8 AllocatorResize(Allocator *self, void *ptr, size old_size, size new_size);
+
+    ///
+    /// Resize an allocation, allowing relocation. May return a new
+    /// pointer that differs from `ptr`. Equivalent to C's realloc
+    /// minus the C99-style NULL-on-shrink-failure convention: if
+    /// `new_size == 0` the allocation is freed and NULL returned.
+    ///
+    /// self[in,out]  : Allocator base.
+    /// ptr[in]       : Existing allocation pointer, or NULL (then this
+    ///                 behaves like AllocatorAlloc(self, new_size, 0)).
     /// old_size[in]  : Previous allocation size in bytes.
     /// new_size[in]  : Requested new allocation size in bytes.
     ///
-    /// SUCCESS: Returns a pointer to the resized allocation, or NULL when
+    /// SUCCESS: Returns the (possibly moved) pointer, or NULL when
+    ///          `new_size` is zero.
+    /// FAILURE: Returns NULL when the underlying allocator can't
+    ///          satisfy the request.
+    ///
+    /// TAGS: Allocator, Memory, Reallocation
+    ///
+    void *AllocatorRemap(Allocator *self, void *ptr, size old_size, size new_size);
+
+    ///
+    /// Convenience cascade: tries `AllocatorResize` first; on failure
+    /// falls back to `AllocatorRemap`. The realloc-shaped entry point
+    /// that's been in the API since v1 -- semantics unchanged, but
+    /// callers that need the in-place guarantee should now use
+    /// `AllocatorResize` directly.
+    ///
+    /// SUCCESS: Returns the (possibly moved) pointer, or NULL when
     ///          `new_size` is zero.
     /// FAILURE: Returns NULL when reallocation fails.
     ///
