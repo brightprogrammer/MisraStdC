@@ -107,6 +107,43 @@ __attribute__((used)) void bzero(void *dst, unsigned long n) {
 
 #endif // mem* gate
 
+// ---------------------------------------------------------------------------
+// __chkstk_darwin -- Mac-only large-frame stack probe shim.
+//
+// Clang on Darwin emits an implicit call to ___chkstk_darwin in the
+// prologue of any function whose stack frame exceeds ~4 KiB. The real
+// libSystem implementation walks the frame in 4-KiB chunks, touching
+// each page so the kernel demand-faults it in before the function
+// actually uses it -- a safeguard for OS-default 8 MiB stacks where
+// the guard page sits right below the live SP.
+//
+// For a libc-diet Mac build we'd otherwise have to drag libSystem in
+// just for this probe. The Misra runtime never allocates the kind of
+// gigantic-on-stack buffers where the probe matters (large allocations
+// go through Allocator); and even when it did, the kernel's standard
+// stack handling tolerates an unprobed grow as long as we're not
+// jumping over the guard page. Replace with a do-nothing trampoline.
+//
+// Important: this is a STUB -- functions with > stack-size frames
+// would still fault. Acceptable here because no in-tree code goes
+// near that limit; if it ever did the right answer is to refactor
+// that frame, not to re-add the probe.
+//
+// Mach-O symbol mangling: the C name we want to export is
+// "___chkstk_darwin" (three underscores) which is the Mach-O encoding
+// of "__chkstk_darwin" (two underscores) at C level. asm() rename
+// pins the symbol.
+#if defined(__APPLE__) && (defined(__x86_64__) || defined(__aarch64__))
+__attribute__((naked, used)) void __chkstk_darwin(void) __asm__("___chkstk_darwin");
+__attribute__((naked, used)) void __chkstk_darwin(void) {
+#    if defined(__x86_64__)
+    __asm__("ret\n");
+#    else // __aarch64__
+    __asm__("ret\n");
+#    endif
+}
+#endif
+
 #if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
 
 #    if defined(__x86_64__)
