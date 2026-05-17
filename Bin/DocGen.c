@@ -27,8 +27,7 @@ typedef struct Project {
 
 static void project_deinit(Project *p) {
     if (!p) {
-        LOG_ERROR("Invalid project object. Invalid arguments");
-        abort();
+        LOG_FATAL("Invalid project object. Invalid arguments");
     }
     StrDeinit(&p->build_dir);
     VecForeach(&p->source_directories, s) {
@@ -286,10 +285,10 @@ int main(int argc, char **argv) {
         LOG_INFO("{}\n\n", output_path);
 
         // dump code to output path
-        FILE *f = fopen(output_path.data, "w");
-        if (f) {
-            fwrite(md_code.data, 1, md_code.length, f);
-            fclose(f);
+        File f = FileOpen(output_path.data, "w");
+        if (FileIsValid(&f)) {
+            FileWrite(&f, md_code.data, md_code.length);
+            FileClose(&f);
         }
 
         StrDeinit(&md_code);

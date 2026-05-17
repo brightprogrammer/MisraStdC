@@ -191,8 +191,7 @@ static void entries_on_value(StrIter *value_si, void *vctx) {
     *value_si     = parse_object_keys(*value_si, ctx->alloc, entry_on_key, &e);
 
     if (!e.name.length) {
-        LOG_ERROR("Invalid enum entry in 'entries' array. Entry without name.");
-        abort();
+        LOG_FATAL("Invalid enum entry in 'entries' array. Entry without name.");
     }
 
     if (!e.value) {
@@ -202,8 +201,7 @@ static void entries_on_value(StrIter *value_si, void *vctx) {
     }
 
     if (ctx->to_from_str && !e.str.length) {
-        LOG_ERROR("to_from_str is set to true but str value not provided for enum {}", e.name);
-        abort();
+        LOG_FATAL("to_from_str is set to true but str value not provided for enum {}", e.name);
     }
 
     VecPushBack(ctx->entries, e);
@@ -382,11 +380,13 @@ int main(int argc, char **argv) {
     }
 
     if (output_filename) {
-        FILE *f = fopen(output_filename, "w");
-        fwrite(code.data, 1, code.length, f);
-        fclose(f);
+        File f = FileOpen(output_filename, "w");
+        if (FileIsValid(&f)) {
+            FileWrite(&f, code.data, code.length);
+            FileClose(&f);
+        }
     } else {
-        puts(code.data);
+        WriteFmtLn("{}", code.data);
     }
 
     StrDeinit(&invalid_enum.name);

@@ -82,11 +82,13 @@ static const u8 kGuid[16] =
 static const u32 kAge = 7;
 
 static bool write_file(const char *path, const u8 *data, u64 size) {
-    FILE *f = fopen(path, "wb");
-    if (!f)
+    // Use Misra's File API so this test runs under -nostdlib too
+    // (no libc fopen/fwrite/fclose).
+    File f = FileOpen(path, "w");
+    if (!FileIsValid(&f))
         return false;
-    bool ok = fwrite(data, 1, size, f) == size;
-    fclose(f);
+    bool ok = (u64)FileWrite(&f, data, size) == size;
+    FileClose(&f);
     return ok;
 }
 
@@ -309,8 +311,10 @@ bool test_pdb_cache_resolves_via_codeview(void) {
     PdbCacheDeinit(&cache);
     DefaultAllocatorDeinit(&alloc);
 
-    remove(pe_path);
-    remove(pdb_path);
+    // Leave the scratch files behind -- Misra doesn't have a portable
+    // FileRemove API yet (would need SYS_unlink / SYS_unlinkat). The
+    // files are mkstemp-named under TMP, so the OS reaps them on
+    // reboot. Tracked in FUTURE-PLANS.
     return ok;
 }
 

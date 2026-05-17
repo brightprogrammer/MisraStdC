@@ -192,11 +192,32 @@ sys_cpu = host_machine.cpu_family()
 have_misra_start = sys_kernel == 'linux' and (sys_cpu == 'x86_64' or sys_cpu == 'aarch64')
 if have_misra_start
     misra_std_sources += files('Source/Misra/_StartLinux.c')
-    # `-nostartfiles` drops crt1.o (and its __libc_start_main reference)
-    # from the link line of every executable in this project, leaving
-    # libc itself linked. add_project_link_arguments propagates to
-    # every executable() target meson sees.
+    # Also bring in _FreestandingLinux.c: provides memcpy / memset /
+    # memcmp / memmove (compiler-emitted intrinsics for struct copies
+    # and array fills) plus setjmp / longjmp (test harness only) as
+    # in-tree symbols. Pair with `-nostdlib` below.
+    misra_std_sources += files('Source/Misra/_FreestandingLinux.c')
+
+    # `-nostartfiles` drops crt1.o (our _start replaces it) from every
+    # link line in the project. Keeps libc.so.6 around for test
+    # scaffolding (mkstemp, fopen, remove) and for the few libc-bound
+    # paths that don't go through direct syscall.
     add_project_link_arguments('-nostartfiles', language: 'c')
+
+    # `freestanding_link_args` is the stronger flag set we apply only
+    # to the shipping Bin/ tools. `-nostdlib` removes the entire libc
+    # dependency; we add `-lgcc` back for compiler-runtime helpers
+    # (128-bit divide, soft-float, etc.) the compiler emits implicit
+    # calls to. mem*/setjmp come from _FreestandingLinux.c.
+    #
+    # Result: shipped binaries (beam, resolve, etc.) report `ldd ...
+    # => statically linked`. Test binaries keep their libc-bound
+    # scaffolding (tests use mkstemp / fopen / remove for temp-file
+    # setup; rewriting all of them is out of scope for the libc-diet
+    # effort).
+    freestanding_link_args = ['-nostdlib', '-lgcc']
+else
+    freestanding_link_args = []
 endif
 
 if opt_alloc_arena
@@ -423,7 +444,8 @@ if opt_file and opt_parser_json
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,
-        install: false
+        install: false,
+        link_args: freestanding_link_args
     )
 endif
 
@@ -434,7 +456,8 @@ if opt_sys_proc
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,
-        install: false
+        install: false,
+        link_args: freestanding_link_args
     )
 endif
 
@@ -445,7 +468,8 @@ if opt_sys_socket and opt_parser_http
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,
-        install: true
+        install: true,
+        link_args: freestanding_link_args
     )
 endif
 
@@ -456,7 +480,8 @@ if opt_file and opt_sys_dir and opt_parser_json
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,
-        install: false
+        install: false,
+        link_args: freestanding_link_args
     )
 endif
 
@@ -467,7 +492,8 @@ if opt_file
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,
-        install: false
+        install: false,
+        link_args: freestanding_link_args
     )
 endif
 
@@ -478,7 +504,8 @@ if opt_file
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,
-        install: false
+        install: false,
+        link_args: freestanding_link_args
     )
 endif
 
@@ -489,7 +516,8 @@ if opt_sys_dns
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,
-        install: true
+        install: true,
+        link_args: freestanding_link_args
     )
 endif
 
@@ -508,6 +536,8 @@ if opt_list
         c_args: common_c_args,
         include_directories: inc_misra,
         install: false
+        # FuzzHarness is libFuzzer-integrated; keep libc-bound
+        # malloc/fopen/etc., so don't apply freestanding_link_args.
     )
 endif
 
