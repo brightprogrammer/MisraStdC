@@ -61,7 +61,10 @@ typedef struct ProcMaps {
 ///
 /// TAGS: Sys, Linux, ProcMaps
 ///
-bool ProcMapsLoad(ProcMaps *out, Allocator *alloc);
+bool proc_maps_load(ProcMaps *out, Allocator *alloc);
+#define ProcMapsLoad(...)         MISRA_OVERLOAD(ProcMapsLoad, __VA_ARGS__)
+#define ProcMapsLoad_1(out)       proc_maps_load((out), MisraScope)
+#define ProcMapsLoad_2(out, alloc) proc_maps_load((out), ALLOCATOR_OF(alloc))
 
 ///
 /// Release storage owned by a ProcMaps. Safe on a zeroed struct.

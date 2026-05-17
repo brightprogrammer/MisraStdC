@@ -154,7 +154,7 @@ static bool parse_one_line(char **cursor_inout, char *end, ProcMapEntry *out) {
 // Public API
 // ---------------------------------------------------------------------------
 
-bool ProcMapsLoad(ProcMaps *out, Allocator *alloc) {
+bool proc_maps_load(ProcMaps *out, Allocator *alloc) {
     if (!out || !alloc) {
         LOG_ERROR("ProcMapsLoad: NULL argument");
         return false;
