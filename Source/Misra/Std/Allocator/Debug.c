@@ -16,31 +16,59 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Sys/Backtrace.h>
 
-#include "../../_Syscall.h"
-
 #include <stdint.h>
 
 // ---------------------------------------------------------------------------
-// Per-thread unique ID. On Linux the kernel gives us one for free via
-// the `gettid` syscall (returns the LWP id, unique per thread, stable
-// for the thread's lifetime). Older code took the address of a
-// `__thread`-qualified variable, which dragged `__tls_get_addr` into
-// every Linux binary that used the DebugAllocator -- not strictly
-// libc, but a glibc-dynamic-loader symbol nonetheless. The syscall
-// path drops it.
+// Per-thread unique ID. The DebugAllocator wants a value that's
+// (a) unique per thread, (b) stable for the thread's lifetime,
+// (c) cheap to read on the hot allocation path.
 //
-// Non-direct-syscall platforms (macOS, Windows, any future port that
-// doesn't provide the syscall plumbing) fall back to the TLS-marker
-// trick. macOS could use `pthread_threadid_np` and Windows
+// On x86_64 / aarch64 the kernel already maintains a per-thread
+// pointer in a CPU register (FS base on x86_64, TPIDR_EL0 on aarch64)
+// for TLS. Reading it is a single instruction, requires no syscall,
+// no libc, no `__tls_get_addr` helper -- the kernel sets it during
+// thread creation and the scheduler preserves it across context
+// switches.
+//
+// Two earlier implementations of this function got it wrong in
+// different directions:
+//   v1: `static __thread u8 g_marker; return &g_marker;` -- correct
+//       and fast, but the compiler emitted `__tls_get_addr` calls
+//       under the General Dynamic TLS model, pulling in glibc's
+//       dynamic loader as a runtime dependency.
+//   v2: `return gettid_syscall()` -- no `__tls_get_addr`, but ~50x
+//       slower per call (~50-100ns vs ~1ns).
+//
+// This version reads the thread-pointer register directly via inline
+// asm. Same speed as v1, no libc dependency. The returned value is
+// the TCB self-pointer the kernel/loader stashed there -- conceptually
+// the same kind of unique-per-thread address as `&g_marker` was.
+//
+// Non-x86_64/aarch64 platforms fall back to the TLS-marker trick.
+// macOS could use `pthread_threadid_np` and Windows
 // `GetCurrentThreadId`, but the TLS fallback works everywhere a C
-// compiler does and is purely a one-line static, so it stays as the
-// portable default.
+// compiler does and stays as the portable default.
 // ---------------------------------------------------------------------------
 
-#if FEATURE_DIRECT_SYSCALL
+#if defined(__x86_64__) || defined(__aarch64__)
 
 u64 debug_current_tid(void) {
-    return (u64)misra_sys0(MISRA_SYS_gettid);
+    u64 tp;
+#    if defined(__x86_64__)
+    // fs:0 holds the TCB self-pointer on x86_64 Linux/glibc; on macOS
+    // the same convention applies (libSystem sets up FS), though the
+    // file-level gate above keeps this Linux/x86_64-only via
+    // _Syscall.h's FEATURE_DIRECT_SYSCALL guard chain. Single mov;
+    // no syscall, no helper symbol.
+    __asm__ volatile("mov %%fs:0, %0"
+                     : "=r"(tp));
+#    else // __aarch64__
+    // TPIDR_EL0 is the user-accessible thread-pointer register on
+    // AArch64. mrs reads it directly; no syscall.
+    __asm__ volatile("mrs %0, tpidr_el0"
+                     : "=r"(tp));
+#    endif
+    return tp;
 }
 
 #else
