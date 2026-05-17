@@ -13,40 +13,94 @@ concurrency:
 
 jobs:
   build-and-test:
-    name: Build and Test on Ubuntu
+    name: ${{ matrix.flavour }} on Ubuntu
     runs-on: ubuntu-latest
-    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Correctness pass: sanitizers on, libc-diet off (the gate in
+          # meson.build flips libc-diet off when b_sanitize != none, so
+          # this links against the full libc + libasan/libubsan and
+          # catches UB, leaks, OOB).
+          - flavour: sanitized
+            setup_args: '-Dwarning_level=2 -Db_sanitize=address,undefined -Db_lundef=false'
+            verify_libc_diet: 'no'
+          # Libc-diet pass: no sanitizers, so the meson gate keeps the
+          # freestanding machinery on. Builds with -nostdlib on Bin/
+          # tools, then asserts the shipping binaries have zero libc
+          # undefined references.
+          - flavour: freestanding
+            setup_args: '-Dwarning_level=2'
+            verify_libc_diet: 'yes'
+
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
-        
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.x'
-        
+
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y ninja-build python3-pip
+        sudo apt-get install -y ninja-build python3-pip binutils
         sudo pip3 install meson
-        
+
     - name: Configure
       run: |
-        meson setup build -Dwarning_level=2 -Db_sanitize=address,undefined -Db_lundef=false
-      
+        meson setup build ${{ matrix.setup_args }}
+
     - name: Build
       run: |
         ninja -C build
-        
+
     - name: Test
       run: |
         meson test -C build --print-errorlogs
+
+    # Libc-diet assertion: every shipping Bin/ tool must come out of
+    # the link with zero libc-resident undefined references. If anyone
+    # accidentally calls strlen / malloc / fopen / etc., 'nm -u' on
+    # the binary will surface it. Compiler-runtime calls live in
+    # libgcc which we link explicitly, so those show up as defined
+    # symbols not undef.
+    - name: Verify libc-diet (Bin/ tools have no libc undef refs)
+      if: matrix.verify_libc_diet == 'yes'
+      run: |
+        set -e
+        FAILED=0
+        for bin in build/beam build/resolve build/docgen build/enumgen \
+                   build/Demangler build/ElfInfo build/SubProcComm; do
+          if [ ! -f "$bin" ]; then
+            echo "::warning::$bin not built, skipping libc-diet check"
+            continue
+          fi
+          undef=$(nm -u "$bin" 2>/dev/null || true)
+          if [ -n "$undef" ]; then
+            echo "::error::$bin has undefined references (libc-diet broken):"
+            echo "$undef" | sed 's/^/  /'
+            FAILED=1
+          else
+            echo "OK: $bin has zero undefined references"
+          fi
+          # Belt-and-braces: confirm ldd reports statically linked
+          # (nm could miss weak refs that ldd would catch).
+          ldd_out=$(ldd "$bin" 2>&1 || true)
+          if ! echo "$ldd_out" | grep -q 'statically linked\|not a dynamic executable'; then
+            echo "::error::$bin is not statically linked:"
+            echo "$ldd_out" | sed 's/^/  /'
+            FAILED=1
+          fi
+        done
+        exit $FAILED
 
     - name: Upload test logs
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-logs-linux
+        name: test-logs-linux-${{ matrix.flavour }}
         path: build/meson-logs/testlog.txt

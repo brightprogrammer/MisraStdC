@@ -13,38 +13,92 @@ concurrency:
 
 jobs:
   build-and-test:
-    name: Build and Test on macOS
+    name: ${{ matrix.flavour }} on macOS
     runs-on: macos-latest
-    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Correctness pass under ASan+UBSan. Mac CI sees the
+          # sanitizer flag and flips libc-diet off, so this links
+          # against the full libSystem + libsanitizer.
+          - flavour: sanitized
+            setup_args: '-Dwarning_level=2 -Db_sanitize=address,undefined -Db_lundef=false'
+            verify_libc_diet: 'no'
+          # Libc-diet pass: no sanitizers, freestanding machinery on.
+          # Asserts the shipping binaries have only the documented
+          # 'allowed' undefined references (the __dyld_* family used
+          # by Sys/Backtrace for Mach-O image enumeration -- the
+          # documented stable Mac ABI for finding loaded images,
+          # equivalent to /proc/self/maps on Linux). Anything else
+          # (errno, mem*, open/close/read/write, sigaction, etc.) is
+          # a regression.
+          - flavour: freestanding
+            setup_args: '-Dwarning_level=2'
+            verify_libc_diet: 'yes'
+
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
-        
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.x'
-        
+
     - name: Install dependencies
       run: |
         brew install ninja meson
-        
+
     - name: Configure
       run: |
-        meson setup build -Dwarning_level=2 -Db_sanitize=address,undefined -Db_lundef=false
-      
+        meson setup build ${{ matrix.setup_args }}
+
     - name: Build
       run: |
         ninja -C build
-        
+
     - name: Test
       run: |
         meson test -C build --print-errorlogs
+
+    # Libc-diet assertion: Mac binaries are allowed exactly the
+    # __dyld_* image-enumeration calls. Anything else means the
+    # libSystem diet regressed. Allowed set:
+    #   __dyld_get_image_header
+    #   __dyld_get_image_name
+    #   __dyld_get_image_vmaddr_slide
+    #   __dyld_image_count
+    - name: Verify libc-diet (Bin/ tools have only allowed undef refs)
+      if: matrix.verify_libc_diet == 'yes'
+      run: |
+        set -e
+        FAILED=0
+        for bin in build/beam build/resolve build/docgen build/enumgen \
+                   build/Demangler build/ElfInfo build/SubProcComm; do
+          if [ ! -f "$bin" ]; then
+            echo "::warning::$bin not built, skipping libc-diet check"
+            continue
+          fi
+          # Filter out the allowed dyld family. Anything that remains
+          # is a regression.
+          unexpected=$(nm -u "$bin" 2>/dev/null \
+            | grep -vE '^__dyld_(get_image_header|get_image_name|get_image_vmaddr_slide|image_count)$' \
+            || true)
+          if [ -n "$unexpected" ]; then
+            echo "::error::$bin has unexpected libSystem refs (libc-diet broken):"
+            echo "$unexpected" | sed 's/^/  /'
+            FAILED=1
+          else
+            echo "OK: $bin has only allowed dyld refs"
+          fi
+        done
+        exit $FAILED
 
     - name: Upload test logs
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-logs-macos
+        name: test-logs-macos-${{ matrix.flavour }}
         path: build/meson-logs/testlog.txt
