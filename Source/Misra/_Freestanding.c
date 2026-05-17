@@ -36,6 +36,26 @@
 #if (defined(__linux__) || defined(__APPLE__)) && \
     (defined(__x86_64__) || defined(__aarch64__))
 
+// Darwin's <string.h> macro-expands memcpy/memmove/memset to
+// __builtin___memcpy_chk(...) under FORTIFY_SOURCE -- which is on by
+// default on Mac regardless of -U_FORTIFY_SOURCE, because the macros
+// gate on _USE_FORTIFY_LEVEL which is set elsewhere in <sys/cdefs.h>.
+// <strings.h> does the same to bzero. Misra/Types.h pulls <string.h>
+// in transitively, so by the time the preprocessor reaches these
+// definitions the names we want to define have been textually replaced
+// by builtin invocations.
+//
+// Undef them right before the defs. The macros only mattered for
+// callers (where they added size-check wrappers); our linkable symbols
+// (_memcpy/_memmove/_memset/_bzero) are resolved by symbol name at link
+// time, not by macro state at the call site. Compiler-emitted intrinsic
+// calls bind to our symbols regardless of which header callers saw.
+#undef memcpy
+#undef memmove
+#undef memset
+#undef memcmp
+#undef bzero
+
 // ---------------------------------------------------------------------------
 // mem* family -- thin forwarders to the in-tree byte-loop implementations
 // in Std/Memory.c. Plain extern (not static) so the linker can resolve
