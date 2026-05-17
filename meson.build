@@ -337,6 +337,13 @@ config_data.set10('FEATURE_PARSER_DWARF',    opt_parser_dwarf)
 config_data.set10('FEATURE_PARSER_PE',       opt_parser_pe)
 config_data.set10('FEATURE_PARSER_PDB',      opt_parser_pdb)
 config_data.set10('FEATURE_PARSER_MACHO',    opt_parser_macho)
+# DIRECT_SYSCALL is not user-configurable; it's purely a function of
+# (kernel, cpu_family) and tracks whether _Syscall.h's inline-asm
+# wrappers are available. Setting it here means SYS_ERRNO + friends in
+# the public Sys.h can be specialised correctly the moment any Misra
+# header is included, without having to depend on _Syscall.h being
+# pre-included.
+config_data.set10('FEATURE_DIRECT_SYSCALL',  have_misra_start)
 config_data.set10('FEATURE_PARSER_DNS',      opt_parser_dns)
 config_data.set10('FEATURE_SYS_DNS',         opt_sys_dns)
 

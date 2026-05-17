@@ -227,7 +227,10 @@ DirContents DirGetContents(const char *path, Allocator *alloc) {
 
     DIR *dir = opendir(path);
     if (NULL == dir) {
-        LOG_SYS_ERROR("opendir(\"{}\") failed", path);
+        // macOS-only path -- opendir is libc and sets errno on failure.
+        // SYS_ERRNO routes to errno here since FEATURE_DIRECT_SYSCALL
+        // is off on macOS.
+        LOG_SYS_ERROR(SYS_ERRNO(-1), "opendir(\"{}\") failed", path);
         return dc;
     }
 
@@ -285,13 +288,14 @@ i64 FileGetSize(const char *filename) {
     // Windows-specific code using GetFileSizeEx
     HANDLE file = CreateFileA(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
     if (file == INVALID_HANDLE_VALUE) {
-        LOG_SYS_ERROR("CreateFileA() failed");
+        // Win32 sets GetLastError, not errno. Log it explicitly.
+        LOG_ERROR("CreateFileA() failed (GetLastError={})", (i32)GetLastError());
         return -1;
     }
 
     LARGE_INTEGER file_size;
     if (!GetFileSizeEx(file, &file_size)) {
-        LOG_SYS_ERROR("GetFileSizeEx() failed");
+        LOG_ERROR("GetFileSizeEx() failed (GetLastError={})", (i32)GetLastError());
         CloseHandle(file);
         return -1;
     }
@@ -322,12 +326,14 @@ i64 FileGetSize(const char *filename) {
     }
     return (i64)sz;
 #else
-    // Unix-like systems (Linux/macOS) code using stat
+    // Unix-like systems (Linux/macOS) code using stat. Only reached
+    // when FEATURE_DIRECT_SYSCALL is off (i.e., macOS); SYS_ERRNO
+    // collapses to reading errno on that path.
     struct stat file_stat;
     if (stat(filename, &file_stat) == 0) {
         return (i64)file_stat.st_size;
     } else {
-        LOG_SYS_ERROR("stat() failed");
+        LOG_SYS_ERROR(SYS_ERRNO(-1), "stat() failed");
         return -1;
     }
 #endif

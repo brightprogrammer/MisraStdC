@@ -45,6 +45,35 @@ typedef u64 ProcId;
 #endif
 
 ///
+/// Convert the return value of a system call into an errno-style i32.
+///
+/// On the Linux direct-syscall path the kernel returns `-errno`
+/// directly in the return register, so `SYS_ERRNO(ret)` is just
+/// `-ret`. On libc-bound platforms (macOS, Windows fallback, any
+/// older arch without direct-syscall support) the failing libc
+/// wrapper returns -1 and stores the code in the thread-local
+/// `errno`; `SYS_ERRNO(ret)` ignores the return value and reads
+/// errno.
+///
+/// Use this everywhere you'd previously have read `errno` after a
+/// system call. Lets `LOG_SYS_ERROR(SYS_ERRNO(ret), "...")` work
+/// uniformly across platforms and -- critically -- drops the
+/// `__errno_location` reference from Linux binaries that don't
+/// otherwise need libc errno.
+///
+/// USAGE:
+///   pid_t pid = fork();
+///   if (pid < 0) {
+///       LOG_SYS_ERROR(SYS_ERRNO(pid), "fork failed");
+///   }
+///
+#if FEATURE_DIRECT_SYSCALL
+#    define SYS_ERRNO(ret) ((i32)(-(long)(ret)))
+#else
+#    define SYS_ERRNO(ret) ((void)(ret), (i32)errno)
+#endif
+
+///
 /// Platform-independent method to get current process Id. Foundation
 /// API: provided by `Sys.c` (always built), unlike the rest of the
 /// process-spawning functions in `Sys/Proc.h` which live in the optional

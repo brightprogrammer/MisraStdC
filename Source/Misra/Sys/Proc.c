@@ -172,8 +172,17 @@ Proc *ProcCreate(const char *filepath, char **argv, char **envp, Allocator *allo
     int stdout_pipe[2] = {-1};
     int stderr_pipe[2] = {-1};
 
-    if (pipe(stdin_pipe) == -1 || pipe(stdout_pipe) == -1 || pipe(stderr_pipe) == -1) {
-        LOG_SYS_ERROR("pipe() failed");
+    // Capture the failing-call return so the error log can name the
+    // errno without having to read libc's `errno` TLS slot. On
+    // Linux+direct-syscall this is the kernel's -errno; on macOS
+    // libSystem it's just -1 and SYS_ERRNO falls back to errno.
+    long pipe_ret = pipe(stdin_pipe);
+    if (pipe_ret == 0)
+        pipe_ret = pipe(stdout_pipe);
+    if (pipe_ret == 0)
+        pipe_ret = pipe(stderr_pipe);
+    if (pipe_ret < 0) {
+        LOG_SYS_ERROR(SYS_ERRNO(pipe_ret), "pipe() failed");
         if (stdin_pipe[READ_END])
             close(stdin_pipe[READ_END]);
         if (stdout_pipe[READ_END])
@@ -191,7 +200,7 @@ Proc *ProcCreate(const char *filepath, char **argv, char **envp, Allocator *allo
 
     pid_t pid = fork();
     if (pid < 0) {
-        LOG_SYS_ERROR("fork");
+        LOG_SYS_ERROR(SYS_ERRNO(pid), "fork");
 
         close(stdin_pipe[READ_END]);
         close(stdout_pipe[READ_END]);
@@ -219,10 +228,10 @@ Proc *ProcCreate(const char *filepath, char **argv, char **envp, Allocator *allo
         close(stderr_pipe[READ_END]);
 
         // execute child process
-        execve(filepath, argv, envp);
+        long exec_ret = execve(filepath, argv, envp);
 
         // if continues then this is bad, execve failed
-        LOG_SYS_ERROR("execve() failed");
+        LOG_SYS_ERROR(SYS_ERRNO(exec_ret), "execve() failed");
 
         close(stdin_pipe[READ_END]);
         close(stdout_pipe[READ_END]);
@@ -265,7 +274,8 @@ Proc *ProcCreate(const char *filepath, char **argv, char **envp, Allocator *allo
     // Create pipes
     if (!CreatePipe(&hStdinRead, &hStdinWrite, &sa, 0) || !CreatePipe(&hStdoutRead, &hStdoutWrite, &sa, 0) ||
         !CreatePipe(&hStderrRead, &hStderrWrite, &sa, 0)) {
-        LOG_SYS_ERROR("CreatePipe failed");
+        // Win32 sets GetLastError, not errno.
+        LOG_ERROR("CreatePipe failed (GetLastError={})", (i32)GetLastError());
 
         // Clean up only those handles that were successfully created
         if (hStdinRead)
@@ -305,7 +315,7 @@ Proc *ProcCreate(const char *filepath, char **argv, char **envp, Allocator *allo
     }
 
     if (!CreateProcessA(NULL, cmdline.data, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
-        LOG_SYS_ERROR("CreateProcessA() failed");
+        LOG_ERROR("CreateProcessA() failed (GetLastError={})", (i32)GetLastError());
 
         StrDeinit(&cmdline);
         CloseHandle(hStdinRead);
@@ -349,9 +359,10 @@ ProcStatus ProcWait(Proc *proc) {
     }
 
 #if defined(__APPLE__) || defined(__linux__)
-    int status;
-    if (-1 == waitpid(proc->pid, &status, 0)) {
-        LOG_SYS_ERROR("Failed to wait for child process");
+    int  status;
+    long wait_ret = waitpid(proc->pid, &status, 0);
+    if (wait_ret < 0) {
+        LOG_SYS_ERROR(SYS_ERRNO(wait_ret), "Failed to wait for child process");
         return SYS_PROC_STATUS_ERROR;
     }
 
@@ -370,7 +381,9 @@ ProcStatus ProcWait(Proc *proc) {
 
 #else
     if (WAIT_FAILED == WaitForSingleObject(proc->pi.hProcess, INFINITE)) {
-        LOG_SYS_ERROR("Failed to wait for child process");
+        // Win32: WaitForSingleObject uses GetLastError, not errno. Log
+        // explicitly; LOG_SYS_ERROR's first arg is unused on Windows.
+        LOG_ERROR("Failed to wait for child process (GetLastError={})", (i32)GetLastError());
         return SYS_PROC_STATUS_ERROR;
     }
 
@@ -468,14 +481,16 @@ void ProcTerminate(Proc *proc) {
     }
 
 #if defined(__APPLE__) || defined(__linux__)
-    if (-1 == kill(proc->pid, SIGTERM)) {
-        LOG_SYS_ERROR("kill(pid, SIGTERM) failed");
+    long kill_ret = kill(proc->pid, SIGTERM);
+    if (kill_ret < 0) {
+        LOG_SYS_ERROR(SYS_ERRNO(kill_ret), "kill(pid, SIGTERM) failed");
     }
 
     // Now wait for it to exit and capture the exit code
-    int status;
-    if (-1 == waitpid(proc->pid, &status, 0)) {
-        LOG_SYS_ERROR("waitpid after SIGTERM failed");
+    int  status;
+    long wait_ret = waitpid(proc->pid, &status, 0);
+    if (wait_ret < 0) {
+        LOG_SYS_ERROR(SYS_ERRNO(wait_ret), "waitpid after SIGTERM failed");
         return;
     }
 
@@ -491,13 +506,13 @@ void ProcTerminate(Proc *proc) {
 
 #else
     if (!TerminateProcess(proc->pi.hProcess, 1)) {
-        LOG_SYS_ERROR("TerminateProcess failed");
+        LOG_ERROR("TerminateProcess failed (GetLastError={})", (i32)GetLastError());
         return;
     }
 
     // Wait for it to actually exit
     if (WAIT_FAILED == WaitForSingleObject(proc->pi.hProcess, INFINITE)) {
-        LOG_SYS_ERROR("WaitForSingleObject after TerminateProcess failed");
+        LOG_ERROR("WaitForSingleObject after TerminateProcess failed (GetLastError={})", (i32)GetLastError());
         return;
     }
 
@@ -585,9 +600,15 @@ i32 sys_proc_read_internal(Proc *proc, Str *buf, bool is_stdout) {
             // EOF
             break;
         } else {
+            // Direct-syscall path returns -EINTR; libc returns -1 + sets errno.
+#    if FEATURE_DIRECT_SYSCALL
+            if (n == -EINTR)
+                continue;
+#    else
             if (errno == EINTR)
-                continue; // retry on signal
-            LOG_SYS_ERROR("read failed");
+                continue;
+#    endif
+            LOG_SYS_ERROR(SYS_ERRNO(n), "read failed");
             total_read = -1;
             break;
         }
@@ -606,7 +627,7 @@ i32 sys_proc_read_internal(Proc *proc, Str *buf, bool is_stdout) {
         HANDLE rhandle   = is_stdout ? proc->hStdoutRead : proc->hStderrRead;
 
         if (!PeekNamedPipe(rhandle, NULL, 0, NULL, &available, NULL)) {
-            LOG_SYS_ERROR("PeekNamedPipe failed");
+            LOG_ERROR("PeekNamedPipe failed (GetLastError={})", (i32)GetLastError());
             return -1;
         }
 
@@ -618,7 +639,7 @@ i32 sys_proc_read_internal(Proc *proc, Str *buf, bool is_stdout) {
         DWORD bytes_read = 0;
 
         if (!ReadFile(rhandle, tmpbuf, 1023, &bytes_read, NULL)) {
-            LOG_SYS_ERROR("ReadFile failed");
+            LOG_ERROR("ReadFile failed (GetLastError={})", (i32)GetLastError());
             return -1;
         }
 

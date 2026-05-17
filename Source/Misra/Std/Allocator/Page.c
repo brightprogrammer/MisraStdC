@@ -223,7 +223,9 @@ bool PageProtect(void *ptr, size bytes, PageProtection prot) {
     }
 #    else
     if (mprotect(ptr, (size_t)bytes, posix_prot) != 0) {
-        LOG_SYS_ERROR("PageProtect: mprotect failed");
+        // libc path (macOS / non-direct-syscall): mprotect returns -1
+        // and sets errno; SYS_ERRNO falls through to reading it here.
+        LOG_SYS_ERROR(SYS_ERRNO(-1), "PageProtect: mprotect failed");
         return false;
     }
 #    endif

@@ -76,17 +76,26 @@ void Abort(void);
     } while (0)
 
 ///
-/// Writes a fatal log message and aborts the program, with `errno`
-/// explanation appended.
+/// Writes a fatal log message and aborts the program, with the
+/// caller-supplied system error code explained.
 ///
-#define LOG_SYS_FATAL(...)                                                                                             \
+/// First arg is the error number (usually an `errno` value, or a
+/// `-syscall_return` value when the syscall ABI returns -errno
+/// directly). Caller passes it explicitly so we don't have to read
+/// the libc `errno` TLS slot here -- pulling `__errno_location` into
+/// every binary that uses LOG_SYS_* defeats the libc-diet effort.
+/// Use `SYS_ERRNO(ret)` from `<Misra/Sys.h>` to convert a syscall
+/// return value to an errno code in a platform-portable way.
+///
+#define LOG_SYS_FATAL(eno, ...)                                                                                        \
     do {                                                                                                               \
+        i32           sys_eno_   = (i32)(eno);                                                                         \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
         Str           m_         = StrInit(&log_alloc_);                                                               \
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         Str syserr_;                                                                                                   \
         StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
-            StrError(errno, &syserr_);                                                                                 \
+            StrError(sys_eno_, &syserr_);                                                                              \
             StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
         LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, m_.data);                                                 \
@@ -96,16 +105,19 @@ void Abort(void);
     } while (0)
 
 ///
-/// Writes an error-level log message with `errno` explanation appended.
+/// Writes an error-level log message with the caller-supplied system
+/// error code explained. See `LOG_SYS_FATAL` for the errno-passing
+/// rationale.
 ///
-#define LOG_SYS_ERROR(...)                                                                                             \
+#define LOG_SYS_ERROR(eno, ...)                                                                                        \
     do {                                                                                                               \
+        i32           sys_eno_   = (i32)(eno);                                                                         \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
         Str           m_         = StrInit(&log_alloc_);                                                               \
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         Str syserr_;                                                                                                   \
         StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
-            StrError(errno, &syserr_);                                                                                 \
+            StrError(sys_eno_, &syserr_);                                                                              \
             StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
         LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, m_.data);                                                 \
@@ -114,16 +126,18 @@ void Abort(void);
     } while (0)
 
 ///
-/// Writes an informational log message with errno explanation appended.
+/// Writes an informational log message with the caller-supplied system
+/// error code explained.
 ///
-#define LOG_SYS_INFO(...)                                                                                              \
+#define LOG_SYS_INFO(eno, ...)                                                                                         \
     do {                                                                                                               \
+        i32           sys_eno_   = (i32)(eno);                                                                         \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
         Str           m_         = StrInit(&log_alloc_);                                                               \
         StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
         Str syserr_;                                                                                                   \
         StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
-            StrError(errno, &syserr_);                                                                                 \
+            StrError(sys_eno_, &syserr_);                                                                              \
             StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
         LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, m_.data);                                                  \

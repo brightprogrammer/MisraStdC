@@ -72,8 +72,14 @@ static bool ensure_winsock(void) {
 }
 
 // Windows-only: report the last Winsock error. The CRT errno is not
-// populated by Winsock calls -- WSAGetLastError is authoritative.
-#    define LOG_SOCK_ERROR(msg) LOG_ERROR(msg " (WSAGetLastError={})", (i32)WSAGetLastError())
+// populated by Winsock calls -- WSAGetLastError is authoritative. The
+// `ret` arg is ignored on this side; we keep the signature unified
+// with the POSIX version so call sites are platform-independent.
+#    define LOG_SOCK_ERROR(ret, msg)                                                                                   \
+        do {                                                                                                           \
+            (void)(ret);                                                                                               \
+            LOG_ERROR(msg " (WSAGetLastError={})", (i32)WSAGetLastError());                                            \
+        } while (0)
 
 #else // !_WIN32 (POSIX)
 
@@ -177,7 +183,10 @@ static inline SockFd int_to_sf(int s) {
     return (SockFd)s;
 }
 
-#    define LOG_SOCK_ERROR(msg) LOG_SYS_ERROR(msg)
+// POSIX: ret is the failing syscall's return value. On Linux direct-
+// syscall it carries -errno directly; on libSystem (macOS) the value
+// is -1 and errno is set. SYS_ERRNO papers over the difference.
+#    define LOG_SOCK_ERROR(ret, msg) LOG_SYS_ERROR(SYS_ERRNO(ret), msg)
 #endif // _WIN32
 
 // ---------------------------------------------------------------------------
@@ -642,13 +651,15 @@ Str SocketAddrFormat(const SocketAddr *addr, Allocator *alloc) {
 
 #ifdef _WIN32
 
-// Returns SOCKET_FD_INVALID on failure.
+// Returns SOCKET_FD_INVALID on failure. `ret`-passing to LOG_SOCK_ERROR
+// is a no-op on Windows (the macro reads WSAGetLastError instead) but
+// keeps the signature unified with the POSIX path.
 static SockFd plat_socket(int af, int type, int proto) {
     if (!ensure_winsock())
         return SOCKET_FD_INVALID;
     SOCKET s = socket(af, type, proto);
     if (s == INVALID_SOCKET) {
-        LOG_SOCK_ERROR("socket() failed");
+        LOG_SOCK_ERROR(0, "socket() failed");
         return SOCKET_FD_INVALID;
     }
     return socket_to_sf(s);
@@ -656,7 +667,7 @@ static SockFd plat_socket(int af, int type, int proto) {
 
 static bool plat_bind(SockFd s, const void *addr, u32 len) {
     if (bind(sf_to_socket(s), (const struct sockaddr *)addr, (int)len) == SOCKET_ERROR) {
-        LOG_SOCK_ERROR("bind() failed");
+        LOG_SOCK_ERROR(0, "bind() failed");
         return false;
     }
     return true;
@@ -664,7 +675,7 @@ static bool plat_bind(SockFd s, const void *addr, u32 len) {
 
 static bool plat_listen(SockFd s, int backlog) {
     if (listen(sf_to_socket(s), backlog) == SOCKET_ERROR) {
-        LOG_SOCK_ERROR("listen() failed");
+        LOG_SOCK_ERROR(0, "listen() failed");
         return false;
     }
     return true;
@@ -674,7 +685,7 @@ static SockFd plat_accept(SockFd s, void *addr, u32 *len_io) {
     int    sl = (int)*len_io;
     SOCKET c  = accept(sf_to_socket(s), (struct sockaddr *)addr, &sl);
     if (c == INVALID_SOCKET) {
-        LOG_SOCK_ERROR("accept() failed");
+        LOG_SOCK_ERROR(0, "accept() failed");
         return SOCKET_FD_INVALID;
     }
     *len_io = (u32)sl;
@@ -683,7 +694,7 @@ static SockFd plat_accept(SockFd s, void *addr, u32 *len_io) {
 
 static bool plat_connect(SockFd s, const void *addr, u32 len) {
     if (connect(sf_to_socket(s), (const struct sockaddr *)addr, (int)len) == SOCKET_ERROR) {
-        LOG_SOCK_ERROR("connect() failed");
+        LOG_SOCK_ERROR(0, "connect() failed");
         return false;
     }
     return true;
@@ -693,7 +704,7 @@ static i64 plat_recv(SockFd s, void *buf, size n) {
     int len = (int)((n > (size)0x7FFFFFFF) ? (size)0x7FFFFFFF : n);
     int r   = recv(sf_to_socket(s), (char *)buf, len, 0);
     if (r == SOCKET_ERROR) {
-        LOG_SOCK_ERROR("recv() failed");
+        LOG_SOCK_ERROR(0, "recv() failed");
         return -1;
     }
     return (i64)r;
@@ -704,7 +715,7 @@ static i64 plat_send(SockFd s, const void *buf, size n) {
     // No MSG_NOSIGNAL needed -- Winsock doesn't raise SIGPIPE.
     int r = send(sf_to_socket(s), (const char *)buf, len, 0);
     if (r == SOCKET_ERROR) {
-        LOG_SOCK_ERROR("send() failed");
+        LOG_SOCK_ERROR(0, "send() failed");
         return -1;
     }
     return (i64)r;
@@ -712,7 +723,7 @@ static i64 plat_send(SockFd s, const void *buf, size n) {
 
 static bool plat_setsockopt(SockFd s, int level, int optname, const void *optval, u32 optlen) {
     if (setsockopt(sf_to_socket(s), level, optname, (const char *)optval, (int)optlen) == SOCKET_ERROR) {
-        LOG_SOCK_ERROR("setsockopt() failed");
+        LOG_SOCK_ERROR(0, "setsockopt() failed");
         return false;
     }
     return true;
@@ -721,7 +732,7 @@ static bool plat_setsockopt(SockFd s, int level, int optname, const void *optval
 static bool plat_getsockname(SockFd s, void *addr, u32 *len_io) {
     int sl = (int)*len_io;
     if (getsockname(sf_to_socket(s), (struct sockaddr *)addr, &sl) == SOCKET_ERROR) {
-        LOG_SOCK_ERROR("getsockname() failed");
+        LOG_SOCK_ERROR(0, "getsockname() failed");
         return false;
     }
     *len_io = (u32)sl;
@@ -732,14 +743,14 @@ static void plat_close(SockFd s) {
     if (s == SOCKET_FD_INVALID)
         return;
     if (closesocket(sf_to_socket(s)) == SOCKET_ERROR) {
-        LOG_SOCK_ERROR("closesocket() failed");
+        LOG_SOCK_ERROR(0, "closesocket() failed");
     }
 }
 
 static bool plat_set_nonblocking(SockFd s, bool nonblock) {
     u_long mode = nonblock ? 1u : 0u;
     if (ioctlsocket(sf_to_socket(s), FIONBIO, &mode) == SOCKET_ERROR) {
-        LOG_SOCK_ERROR("ioctlsocket(FIONBIO) failed");
+        LOG_SOCK_ERROR(0, "ioctlsocket(FIONBIO) failed");
         return false;
     }
     return true;
@@ -747,80 +758,91 @@ static bool plat_set_nonblocking(SockFd s, bool nonblock) {
 
 #else  // POSIX
 
+// Each wrapper captures the syscall's return value into `ret` so we
+// can hand it to LOG_SOCK_ERROR -- on the Linux direct-syscall path
+// the kernel returns -errno in that value, and SYS_ERRNO unpacks it
+// without going through the libc errno TLS slot. On macOS / non-
+// direct-syscall the value is just -1 and SYS_ERRNO falls back to
+// reading errno; both paths land at the same log shape.
 static SockFd plat_socket(int af, int type, int proto) {
-    int fd = socket(af, type, proto);
-    if (fd < 0) {
-        LOG_SOCK_ERROR("socket() failed");
+    long ret = socket(af, type, proto);
+    if (ret < 0) {
+        LOG_SOCK_ERROR(ret, "socket() failed");
         return SOCKET_FD_INVALID;
     }
-    return int_to_sf(fd);
+    return int_to_sf((int)ret);
 }
 
 static bool plat_bind(SockFd s, const void *addr, u32 len) {
-    if (bind(sf_to_int(s), (const struct sockaddr *)addr, (socklen_t)len) < 0) {
-        LOG_SOCK_ERROR("bind() failed");
+    long ret = bind(sf_to_int(s), (const struct sockaddr *)addr, (socklen_t)len);
+    if (ret < 0) {
+        LOG_SOCK_ERROR(ret, "bind() failed");
         return false;
     }
     return true;
 }
 
 static bool plat_listen(SockFd s, int backlog) {
-    if (listen(sf_to_int(s), backlog) < 0) {
-        LOG_SOCK_ERROR("listen() failed");
+    long ret = listen(sf_to_int(s), backlog);
+    if (ret < 0) {
+        LOG_SOCK_ERROR(ret, "listen() failed");
         return false;
     }
     return true;
 }
 
 static SockFd plat_accept(SockFd s, void *addr, u32 *len_io) {
-    socklen_t sl = (socklen_t)*len_io;
-    int       c  = accept(sf_to_int(s), (struct sockaddr *)addr, &sl);
-    if (c < 0) {
-        LOG_SOCK_ERROR("accept() failed");
+    socklen_t sl  = (socklen_t)*len_io;
+    long      ret = accept(sf_to_int(s), (struct sockaddr *)addr, &sl);
+    if (ret < 0) {
+        LOG_SOCK_ERROR(ret, "accept() failed");
         return SOCKET_FD_INVALID;
     }
     *len_io = (u32)sl;
-    return int_to_sf(c);
+    return int_to_sf((int)ret);
 }
 
 static bool plat_connect(SockFd s, const void *addr, u32 len) {
-    if (connect(sf_to_int(s), (const struct sockaddr *)addr, (socklen_t)len) < 0) {
-        LOG_SOCK_ERROR("connect() failed");
+    long ret = connect(sf_to_int(s), (const struct sockaddr *)addr, (socklen_t)len);
+    if (ret < 0) {
+        LOG_SOCK_ERROR(ret, "connect() failed");
         return false;
     }
     return true;
 }
 
 static i64 plat_recv(SockFd s, void *buf, size n) {
-    ssize_t r = recv(sf_to_int(s), buf, (size_t)n, 0);
-    if (r < 0) {
-        LOG_SOCK_ERROR("recv() failed");
+    long ret = recv(sf_to_int(s), buf, (size_t)n, 0);
+    if (ret < 0) {
+        LOG_SOCK_ERROR(ret, "recv() failed");
         return -1;
     }
-    return (i64)r;
+    return (i64)ret;
 }
 
 static i64 plat_send(SockFd s, const void *buf, size n) {
-    ssize_t r = send(sf_to_int(s), buf, (size_t)n, MSG_NOSIGNAL);
-    if (r < 0) {
-        LOG_SOCK_ERROR("send() failed");
+    long ret = send(sf_to_int(s), buf, (size_t)n, MSG_NOSIGNAL);
+    if (ret < 0) {
+        LOG_SOCK_ERROR(ret, "send() failed");
         return -1;
     }
-    return (i64)r;
+    return (i64)ret;
 }
 
 static bool plat_setsockopt(SockFd s, int level, int optname, const void *optval, u32 optlen) {
-    if (setsockopt(sf_to_int(s), level, optname, optval, (socklen_t)optlen) < 0) {
-        LOG_SOCK_ERROR("setsockopt() failed");
+    long ret = setsockopt(sf_to_int(s), level, optname, optval, (socklen_t)optlen);
+    if (ret < 0) {
+        LOG_SOCK_ERROR(ret, "setsockopt() failed");
         return false;
     }
     return true;
 }
 
 static bool plat_getsockname(SockFd s, void *addr, u32 *len_io) {
-    socklen_t sl = (socklen_t)*len_io;
-    if (getsockname(sf_to_int(s), (struct sockaddr *)addr, &sl) < 0) {
-        LOG_SOCK_ERROR("getsockname() failed");
+    socklen_t sl  = (socklen_t)*len_io;
+    long      ret = getsockname(sf_to_int(s), (struct sockaddr *)addr, &sl);
+    if (ret < 0) {
+        LOG_SOCK_ERROR(ret, "getsockname() failed");
         return false;
     }
     *len_io = (u32)sl;
@@ -830,15 +852,16 @@ static bool plat_getsockname(SockFd s, void *addr, u32 *len_io) {
 static void plat_close(SockFd s) {
     if (s == SOCKET_FD_INVALID)
         return;
-    if (close(sf_to_int(s)) < 0) {
-        LOG_SOCK_ERROR("close() failed");
+    long ret = close(sf_to_int(s));
+    if (ret < 0) {
+        LOG_SOCK_ERROR(ret, "close() failed");
     }
 }
 
 static bool plat_set_nonblocking(SockFd s, bool nonblock) {
-    int flags = fcntl(sf_to_int(s), F_GETFL, 0);
+    long flags = fcntl(sf_to_int(s), F_GETFL, 0);
     if (flags < 0) {
-        LOG_SOCK_ERROR("fcntl(F_GETFL) failed");
+        LOG_SOCK_ERROR(flags, "fcntl(F_GETFL) failed");
         return false;
     }
     if (nonblock) {
@@ -846,8 +869,9 @@ static bool plat_set_nonblocking(SockFd s, bool nonblock) {
     } else {
         flags &= ~O_NONBLOCK;
     }
-    if (fcntl(sf_to_int(s), F_SETFL, flags) < 0) {
-        LOG_SOCK_ERROR("fcntl(F_SETFL) failed");
+    long ret = fcntl(sf_to_int(s), F_SETFL, flags);
+    if (ret < 0) {
+        LOG_SOCK_ERROR(ret, "fcntl(F_SETFL) failed");
         return false;
     }
     return true;
@@ -1135,7 +1159,7 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
     // the modern-Windows-only constraint.
     ret = (i32)WSAPoll(pfds, (ULONG)count, timeout_ms);
     if (ret == SOCKET_ERROR) {
-        LOG_SOCK_ERROR("WSAPoll() failed");
+        LOG_SOCK_ERROR(0, "WSAPoll() failed");
         ret = -1;
     }
 #else
@@ -1151,7 +1175,7 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
     } while (ret < 0 && errno == EINTR);
 #    endif
     if (ret < 0) {
-        LOG_SOCK_ERROR("poll() failed");
+        LOG_SOCK_ERROR(ret, "poll() failed");
     }
 #endif
 
