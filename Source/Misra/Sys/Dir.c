@@ -119,15 +119,19 @@ DirContents DirGetContents(const char *path, Allocator *alloc) {
     return dc;
 }
 #elif FEATURE_DIRECT_SYSCALL
-// Linux: open + getdents64 syscalls, parse `struct linux_dirent64`
-// records out of the kernel's buffer ourselves. dirent.d_type tells
-// us the entry kind (regular file / dir / symlink / ...), so we
-// don't need a separate stat() call per entry. DT_UNKNOWN entries
-// stay as SYS_DIR_ENTRY_TYPE_UNKNOWN (some filesystems don't fill
-// d_type).
+// Direct-syscall path. Two flavours under the same hood:
+//   - Linux: open + getdents64 syscall; parses `struct linux_dirent64`
+//     records out of the kernel's buffer.
+//   - Darwin: open + getdirentries64 syscall (#344) which has the
+//     same shape but writes Darwin's own `struct dirent` layout
+//     (different field order + sizes) and takes an extra in/out
+//     `basep` (file position) pointer arg.
+// Both kernels fill d_type so we don't need a separate stat() per
+// entry; DT_UNKNOWN entries stay as SYS_DIR_ENTRY_TYPE_UNKNOWN (some
+// filesystems don't populate d_type and force the caller to stat).
 
-// File-type bits from POSIX dirent.h (also the values the kernel
-// returns in d_type via getdents64).
+// File-type bits. POSIX dirent.h constants -- shared between Linux
+// (d_type in linux_dirent64) and Darwin (d_type in struct dirent).
 #    define DIRENT_TYPE_UNKNOWN 0
 #    define DIRENT_TYPE_FIFO    1
 #    define DIRENT_TYPE_CHR     2
@@ -136,16 +140,31 @@ DirContents DirGetContents(const char *path, Allocator *alloc) {
 #    define DIRENT_TYPE_REG     8
 #    define DIRENT_TYPE_LNK     10
 
-// Layout the kernel writes into the getdents64 buffer. The trailing
-// d_name is null-terminated; the next record starts d_reclen bytes
-// from the start of this one.
-struct misra_linux_dirent64 {
+#    if defined(__APPLE__)
+// Darwin's struct dirent (per sys/dirent.h, the __DARWIN_64_BIT_INO_T
+// variant the kernel emits via getdirentries64). Field order is
+// d_ino / d_seekoff / d_reclen / d_namlen / d_type / d_name. d_name
+// is fixed-size in the system header but in the kernel-emitted
+// records only the first d_namlen bytes are valid.
+struct misra_kernel_dirent {
+    u64  d_ino;
+    u64  d_seekoff;
+    u16  d_reclen;
+    u16  d_namlen;
+    u8   d_type;
+    char d_name[]; // variable; valid for d_namlen bytes
+};
+#    else
+// Linux's struct linux_dirent64. d_name is null-terminated; the next
+// record starts d_reclen bytes from the start of this one.
+struct misra_kernel_dirent {
     u64  d_ino;
     i64  d_off;
     u16  d_reclen;
     u8   d_type;
-    char d_name[]; // flexible
+    char d_name[]; // null-terminated
 };
+#    endif
 
 // Map kernel/dirent d_type values to our enum.
 static DirEntryType dirent_type_to_misra(u8 dt) {
@@ -174,15 +193,31 @@ DirContents DirGetContents(const char *path, Allocator *alloc) {
 
     DirContents dc = (DirContents)VecInit(alloc);
 
-    // O_RDONLY | O_DIRECTORY | O_CLOEXEC = 0 | 0x10000 | 0x80000 on Linux.
+    // O_RDONLY | O_DIRECTORY | O_CLOEXEC. Values match between Linux
+    // and Darwin for O_RDONLY (0) but DIFFER for the others. Use the
+    // per-OS values.
+#    if defined(__APPLE__)
+    //   Darwin: O_RDONLY=0, O_DIRECTORY=0x100000, O_CLOEXEC=0x1000000.
+    const long O_RDONLY    = 0;
+    const long O_DIRECTORY = 0x100000;
+    const long O_CLOEXEC   = 0x1000000;
+#    else
+    //   Linux:  O_RDONLY=0, O_DIRECTORY=0x10000,  O_CLOEXEC=0x80000.
     const long O_RDONLY    = 0;
     const long O_DIRECTORY = 0x10000;
     const long O_CLOEXEC   = 0x80000;
-#    if defined(__x86_64__)
+#    endif
+
+#    if defined(__APPLE__) || defined(__x86_64__)
+    // Both Darwin and Linux-x86_64 have plain SYS_open. Darwin aarch64
+    // also has SYS_open (the legacy BSD numbering is intact on Apple
+    // even on Apple Silicon). Linux-x86_64 has SYS_open. Linux-aarch64
+    // does NOT (was removed; openat-only).
     long fd = misra_sys3(MISRA_SYS_open, (long)(uintptr_t)path, O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0);
 #    else
-    // aarch64: openat(AT_FDCWD=-100, path, flags, mode)
-    long fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(uintptr_t)path, O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0);
+    // Linux-aarch64: openat(AT_FDCWD=-100, path, flags, mode).
+    long fd =
+        misra_sys4(MISRA_SYS_openat, -100L, (long)(uintptr_t)path, O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0);
 #    endif
     if (fd < 0) {
         LOG_ERROR("DirGetContents: open(\"{}\") failed (errno {})", path, (i32)-fd);
@@ -190,8 +225,23 @@ DirContents DirGetContents(const char *path, Allocator *alloc) {
     }
 
     char buf[8192];
+#    if defined(__APPLE__)
+    // Darwin getdirentries64 needs an in/out file-position arg
+    // (`basep`). Initial 0; kernel updates it after each call.
+    i64 basep = 0;
+#    endif
     for (;;) {
+#    if defined(__APPLE__)
+        long n = misra_sys4(
+            MISRA_SYS_getdents64,
+            fd,
+            (long)(uintptr_t)buf,
+            (long)sizeof(buf),
+            (long)(uintptr_t)&basep
+        );
+#    else
         long n = misra_sys3(MISRA_SYS_getdents64, fd, (long)(uintptr_t)buf, (long)sizeof(buf));
+#    endif
         if (n == 0) {
             break; // end of stream
         }
@@ -200,13 +250,23 @@ DirContents DirGetContents(const char *path, Allocator *alloc) {
             break;
         }
         for (long off = 0; off < n;) {
-            struct misra_linux_dirent64 *de = (struct misra_linux_dirent64 *)(void *)(buf + off);
-            const char                  *nm = de->d_name;
+            struct misra_kernel_dirent *de = (struct misra_kernel_dirent *)(void *)(buf + off);
+            const char                 *nm = de->d_name;
+#    if defined(__APPLE__)
+            // Darwin gives d_namlen explicitly (not null-terminated
+            // beyond it).
+            size name_len = (size)de->d_namlen;
+#    else
+            // Linux name is null-terminated; compute length.
+            size name_len = ZstrLen(nm);
+#    endif
             // Skip "." and "..".
-            if (!(nm[0] == '.' && (nm[1] == '\0' || (nm[1] == '.' && nm[2] == '\0')))) {
+            int is_dot    = (name_len == 1) && (nm[0] == '.');
+            int is_dotdot = (name_len == 2) && (nm[0] == '.') && (nm[1] == '.');
+            if (!is_dot && !is_dotdot) {
                 DirEntry direntry = {0};
                 direntry.type     = dirent_type_to_misra(de->d_type);
-                direntry.name     = StrInitFromCstr(nm, ZstrLen(nm), alloc);
+                direntry.name     = StrInitFromCstr(nm, name_len, alloc);
                 VecPushBack(&dc, direntry);
             }
             off += de->d_reclen;
@@ -307,9 +367,13 @@ i64 FileGetSize(const char *filename) {
     // arch-specific `struct stat` layout: lseek returns the offset
     // value the kernel computes, which equals file size at SEEK_END.
     const long O_RDONLY  = 0;
+#    if defined(__APPLE__)
+    const long O_CLOEXEC = 0x1000000;
+#    else
     const long O_CLOEXEC = 0x80000;
+#    endif
     const long SEEK_END_ = 2;
-#    if defined(__x86_64__)
+#    if defined(__APPLE__) || defined(__x86_64__)
     long fd = misra_sys3(MISRA_SYS_open, (long)(uintptr_t)filename, O_RDONLY | O_CLOEXEC, 0);
 #    else
     long fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(uintptr_t)filename, O_RDONLY | O_CLOEXEC, 0);
@@ -359,10 +423,12 @@ i8 FileRemove(const char *path) {
     }
     return 1;
 #elif FEATURE_DIRECT_SYSCALL
-#    if defined(__x86_64__)
+#    if defined(__APPLE__) || defined(__x86_64__)
+    // Darwin has SYS_unlink (#10, BSD) on both x86_64 and aarch64.
+    // Linux x86_64 also has SYS_unlink. Linux aarch64 doesn't.
     long ret = misra_sys1(MISRA_SYS_unlink, (long)(uintptr_t)path);
 #    else
-    // AT_FDCWD = -100, flags = 0 (regular unlink, not rmdir)
+    // Linux aarch64: AT_FDCWD = -100, flags = 0 (regular unlink).
     long ret = misra_sys3(MISRA_SYS_unlinkat, -100L, (long)(uintptr_t)path, 0);
 #    endif
     if (ret < 0) {
@@ -394,10 +460,12 @@ i8 DirRemove(const char *path) {
     }
     return 1;
 #elif FEATURE_DIRECT_SYSCALL
-#    if defined(__x86_64__)
+#    if defined(__APPLE__) || defined(__x86_64__)
+    // Darwin has SYS_rmdir (#137, BSD) on both arches. Linux x86_64
+    // has SYS_rmdir; Linux aarch64 went unlinkat-only.
     long ret = misra_sys1(MISRA_SYS_rmdir, (long)(uintptr_t)path);
 #    else
-    // AT_FDCWD = -100, AT_REMOVEDIR = 0x200
+    // Linux aarch64: AT_FDCWD = -100, AT_REMOVEDIR = 0x200.
     long ret = misra_sys3(MISRA_SYS_unlinkat, -100L, (long)(uintptr_t)path, 0x200);
 #    endif
     if (ret < 0) {
