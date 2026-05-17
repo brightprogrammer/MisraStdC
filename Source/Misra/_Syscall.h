@@ -203,6 +203,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #        define MISRA_SYS_dup2          33
 #        define MISRA_SYS_nanosleep     35
 #        define MISRA_SYS_getpid        39
+#        define MISRA_SYS_gettid        186
 #        define MISRA_SYS_socket        41
 #        define MISRA_SYS_connect       42
 #        define MISRA_SYS_accept        43
@@ -243,6 +244,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #        define MISRA_SYS_dup3          24
 #        define MISRA_SYS_nanosleep     101
 #        define MISRA_SYS_getpid        172
+#        define MISRA_SYS_gettid        178
 #        define MISRA_SYS_socket        198
 #        define MISRA_SYS_connect       203
 #        define MISRA_SYS_accept        202

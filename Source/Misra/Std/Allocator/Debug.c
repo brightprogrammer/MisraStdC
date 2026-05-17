@@ -16,25 +16,48 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Sys/Backtrace.h>
 
+#include "../../_Syscall.h"
+
 #include <stdint.h>
 
 // ---------------------------------------------------------------------------
-// Per-thread unique ID via TLS variable address. Each thread gets its
-// own copy of `g_thread_marker`, so `&g_thread_marker` is unique
-// per-thread and stable for the thread's lifetime.
+// Per-thread unique ID. On Linux the kernel gives us one for free via
+// the `gettid` syscall (returns the LWP id, unique per thread, stable
+// for the thread's lifetime). Older code took the address of a
+// `__thread`-qualified variable, which dragged `__tls_get_addr` into
+// every Linux binary that used the DebugAllocator -- not strictly
+// libc, but a glibc-dynamic-loader symbol nonetheless. The syscall
+// path drops it.
+//
+// Non-direct-syscall platforms (macOS, Windows, any future port that
+// doesn't provide the syscall plumbing) fall back to the TLS-marker
+// trick. macOS could use `pthread_threadid_np` and Windows
+// `GetCurrentThreadId`, but the TLS fallback works everywhere a C
+// compiler does and is purely a one-line static, so it stays as the
+// portable default.
 // ---------------------------------------------------------------------------
 
-#if defined(_MSC_VER)
-#    define MISRA_TLS __declspec(thread)
+#if FEATURE_DIRECT_SYSCALL
+
+u64 debug_current_tid(void) {
+    return (u64)misra_sys0(MISRA_SYS_gettid);
+}
+
 #else
-#    define MISRA_TLS __thread
-#endif
+
+#    if defined(_MSC_VER)
+#        define MISRA_TLS __declspec(thread)
+#    else
+#        define MISRA_TLS __thread
+#    endif
 
 static MISRA_TLS u8 g_thread_marker;
 
 u64 debug_current_tid(void) {
     return (u64)(uintptr_t)&g_thread_marker;
 }
+
+#endif
 
 // ---------------------------------------------------------------------------
 // Hash / compare for void* keys (extern: the Init macro stamps these
