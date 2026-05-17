@@ -98,16 +98,22 @@ i64 FileGetSize(const char *filename);
 /// Remove a regular file. Equivalent of POSIX `unlink(2)` / Win32
 /// `DeleteFileA`. Symlinks are removed, not followed.
 ///
+/// Return type is `i8` (0/1) rather than `bool` to dodge the
+/// `bool`-typedef redefinition trap Misra's Types.h documents:
+/// system headers transitively `#define bool _Bool` and the SAME
+/// identifier ends up meaning different types across TUs. Callers
+/// can still use the result as a boolean (`if (FileRemove(p)) ...`).
+///
 /// path[in] : Path of the file to remove.
 ///
-/// SUCCESS : Returns true; the directory entry is gone.
-/// FAILURE : Returns false; logs the failing syscall. Common causes:
+/// SUCCESS : Returns 1; the directory entry is gone.
+/// FAILURE : Returns 0; logs the failing syscall. Common causes:
 ///           file doesn't exist, no write permission on the parent
 ///           directory, path is a directory (use `DirRemove`).
 ///
 /// TAGS: System, File, FileSystem
 ///
-bool FileRemove(const char *path);
+i8 FileRemove(const char *path);
 
 ///
 /// Remove an empty directory. Equivalent of POSIX `rmdir(2)` / Win32
@@ -115,15 +121,18 @@ bool FileRemove(const char *path);
 /// directories require recursive removal (callers can walk
 /// `DirGetContents` and remove entries one by one).
 ///
+/// Return-type rationale matches `FileRemove`: `i8` to sidestep the
+/// `bool`/`_Bool` cross-TU typedef hazard.
+///
 /// path[in] : Path of the directory to remove.
 ///
-/// SUCCESS : Returns true; the directory is gone.
-/// FAILURE : Returns false; logs the failing syscall. Common causes:
+/// SUCCESS : Returns 1; the directory is gone.
+/// FAILURE : Returns 0; logs the failing syscall. Common causes:
 ///           directory doesn't exist, directory is non-empty (ENOTEMPTY),
 ///           no write permission on the parent directory.
 ///
 /// TAGS: System, Directory, FileSystem
 ///
-bool DirRemove(const char *path);
+i8 DirRemove(const char *path);
 
 #endif // MISRA_SYS_DIR_H

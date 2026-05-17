@@ -347,17 +347,17 @@ i64 FileGetSize(const char *filename) {
 // `DeleteFileA` / `RemoveDirectoryA`.
 // ---------------------------------------------------------------------------
 
-bool FileRemove(const char *path) {
+i8 FileRemove(const char *path) {
     if (!path) {
         LOG_ERROR("FileRemove: NULL path");
-        return false;
+        return 0;
     }
 #if defined(_WIN32)
     if (!DeleteFileA(path)) {
         LOG_ERROR("FileRemove(\"{}\"): DeleteFileA failed (GetLastError={})", path, (i32)GetLastError());
-        return false;
+        return 0;
     }
-    return true;
+    return 1;
 #elif FEATURE_DIRECT_SYSCALL
 #    if defined(__x86_64__)
     long ret = misra_sys1(MISRA_SYS_unlink, (long)(uintptr_t)path);
@@ -367,32 +367,32 @@ bool FileRemove(const char *path) {
 #    endif
     if (ret < 0) {
         LOG_SYS_ERROR(SYS_ERRNO(ret), "FileRemove(\"{}\")", path);
-        return false;
+        return 0;
     }
-    return true;
+    return 1;
 #else
     // macOS / non-direct-syscall: libSystem unlink. errno set on
     // failure; SYS_ERRNO falls back to reading it.
     extern int unlink(const char *);
     if (unlink(path) != 0) {
         LOG_SYS_ERROR(SYS_ERRNO(-1), "FileRemove(\"{}\")", path);
-        return false;
+        return 0;
     }
-    return true;
+    return 1;
 #endif
 }
 
-bool DirRemove(const char *path) {
+i8 DirRemove(const char *path) {
     if (!path) {
         LOG_ERROR("DirRemove: NULL path");
-        return false;
+        return 0;
     }
 #if defined(_WIN32)
     if (!RemoveDirectoryA(path)) {
         LOG_ERROR("DirRemove(\"{}\"): RemoveDirectoryA failed (GetLastError={})", path, (i32)GetLastError());
-        return false;
+        return 0;
     }
-    return true;
+    return 1;
 #elif FEATURE_DIRECT_SYSCALL
 #    if defined(__x86_64__)
     long ret = misra_sys1(MISRA_SYS_rmdir, (long)(uintptr_t)path);
@@ -402,16 +402,16 @@ bool DirRemove(const char *path) {
 #    endif
     if (ret < 0) {
         LOG_SYS_ERROR(SYS_ERRNO(ret), "DirRemove(\"{}\")", path);
-        return false;
+        return 0;
     }
-    return true;
+    return 1;
 #else
     // macOS / non-direct-syscall: libSystem rmdir.
     extern int rmdir(const char *);
     if (rmdir(path) != 0) {
         LOG_SYS_ERROR(SYS_ERRNO(-1), "DirRemove(\"{}\")", path);
-        return false;
+        return 0;
     }
-    return true;
+    return 1;
 #endif
 }
