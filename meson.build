@@ -228,14 +228,21 @@ have_direct_syscall = have_misra_start or (sys_kernel == 'darwin' and (sys_cpu =
 enable_libc_diet = get_option('b_sanitize') == 'none'
 
 # _Freestanding.c: compiler-/harness-emitted symbols (memcpy/memset/
-# memmove/memcmp/bzero, plus setjmp/longjmp on Linux). Cross-platform
-# -- Darwin pulls in the mem* portion (clang on Darwin emits direct
-# bzero/memcpy calls that would otherwise bind to libSystem); Windows
-# clang-cl pulls in the mem* portion too (would otherwise bind to
-# UCRT's intrinsics). Skipped under sanitizers (see above).
+# memmove/memcmp/bzero, plus setjmp/longjmp on Linux). Cross-platform.
+#
+# Gating: on Linux+Mac we always pull this in (under enable_libc_diet)
+# because clang on those targets emits direct mem* calls regardless of
+# linker mode. On Windows we only pull it in when have_misra_start_win
+# is on (clang-cl freestanding flavour): for the standard 'clang +
+# UCRT' flavour, vcruntime_string.h has already declared memcpy / etc.
+# with __cdecl and full prototypes -- our overrides would 'conflict'
+# at compile time. The standard flavour doesn't need our overrides
+# anyway; UCRT supplies them.
 if enable_libc_diet and \
-   (sys_kernel == 'linux' or sys_kernel == 'darwin' or sys_kernel == 'windows') and \
-   (sys_cpu == 'x86_64' or sys_cpu == 'aarch64')
+   ((sys_kernel == 'linux' or sys_kernel == 'darwin') and \
+    (sys_cpu == 'x86_64' or sys_cpu == 'aarch64'))
+    misra_std_sources += files('Source/Misra/_Freestanding.c')
+elif enable_libc_diet and have_misra_start_win
     misra_std_sources += files('Source/Misra/_Freestanding.c')
 endif
 

@@ -64,22 +64,30 @@
 // them directly.
 // ---------------------------------------------------------------------------
 
-__attribute__((used)) void *memcpy(void *dst, const void *src, unsigned long n) {
+// Use __SIZE_TYPE__ (clang/gcc builtin -- expands to whatever the
+// platform's size_t is) rather than 'unsigned long'. On Linux/Mac
+// x86_64 these are the same (LP64). On Windows x86_64 size_t is
+// 'unsigned long long' (LLP64) and 'unsigned long' is 32-bit, so a
+// declaration mismatch fights with vcruntime_string.h's declaration
+// and the linker / compiler refuses with 'conflicting types'.
+typedef __SIZE_TYPE__ misra_freestanding_size_t;
+
+__attribute__((used)) void *memcpy(void *dst, const void *src, misra_freestanding_size_t n) {
     MemCopy(dst, src, (size)n);
     return dst;
 }
 
-__attribute__((used)) void *memmove(void *dst, const void *src, unsigned long n) {
+__attribute__((used)) void *memmove(void *dst, const void *src, misra_freestanding_size_t n) {
     MemMove(dst, src, (size)n);
     return dst;
 }
 
-__attribute__((used)) void *memset(void *dst, int c, unsigned long n) {
+__attribute__((used)) void *memset(void *dst, int c, misra_freestanding_size_t n) {
     MemSet(dst, c, (size)n);
     return dst;
 }
 
-__attribute__((used)) int memcmp(const void *a, const void *b, unsigned long n) {
+__attribute__((used)) int memcmp(const void *a, const void *b, misra_freestanding_size_t n) {
     return (int)MemCompare(a, b, (size)n);
 }
 
@@ -89,7 +97,7 @@ __attribute__((used)) int memcmp(const void *a, const void *b, unsigned long n) 
 // (Skip on Windows: clang-cl doesn't emit bzero, and Windows headers
 // don't declare it.)
 #if !defined(_WIN32)
-__attribute__((used)) void bzero(void *dst, unsigned long n) {
+__attribute__((used)) void bzero(void *dst, misra_freestanding_size_t n) {
     MemSet(dst, 0, (size)n);
 }
 #endif
