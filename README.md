@@ -2,7 +2,8 @@
 
 [![Linux Build](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-linux.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-linux.yml)
 [![macOS Build](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-macos.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-macos.yml)
-[![Windows Build](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows-msvc.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows-msvc.yml)
+[![Windows MSVC](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows-msvc.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows-msvc.yml)
+[![Windows LLVM](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows-llvm.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/test-windows-llvm.yml)
 [![Fuzzing](https://github.com/brightprogrammer/MisraStdC/actions/workflows/fuzz.yml/badge.svg?branch=master)](https://github.com/brightprogrammer/MisraStdC/actions/workflows/fuzz.yml)
 
 A modern C11 library that borrows the parts of Rust, Zig, C++, and Python that
@@ -25,6 +26,7 @@ what you use.
 - [What You Get](#what-you-get)
 - [Build and Install](#build-and-install)
 - [Feature Flags](#feature-flags)
+- [Libc-Diet (Freestanding Build)](#libc-diet-freestanding-build)
 - [Six Core Ideas](#six-core-ideas)
   - [1. Allocators are user-owned values, never global state](#1-allocators-are-user-owned-values-never-global-state)
   - [2. `Scope` is lexical RAII, in plain C](#2-scope-is-lexical-raii-in-plain-c)
@@ -127,6 +129,12 @@ when the `Scope` ends.
   from the installed header set. Disabling `bitvec`, `list`, `map`, `graph`,
   `int`, `float`, `parser_json`, etc. removes their `.c` files from
   `libmisra_std.a` and their `.h` files from the install prefix.
+- **Libc-free shipping binaries** on Linux, macOS, and Windows. The Bin/
+  tools (`beam`, `resolve`, `docgen`, `enumgen`, `Demangler`, `ElfInfo`,
+  `SubProcComm`) link against zero libc by default: direct syscalls on
+  Linux + macOS (XNU BSD subset on Mac, custom `_start`, in-tree mem* and
+  setjmp), `/NODEFAULTLIB` + custom `mainCRTStartup` on Windows. CI
+  asserts the import table per OS — see [Libc-Diet](#libc-diet-freestanding-build).
 
 ---
 
@@ -231,6 +239,128 @@ A `Vec`-using consumer ends up at **127 KB** against the foundation-only
 build, **243 KB** against the full build — the linker pulls in only the `.o`
 files your code references, regardless of how big the archive gets. Disabling
 a feature you don't need really does keep its code out of your binary.
+
+---
+
+## Libc-Diet (Freestanding Build)
+
+The shipping `Bin/` tools link against zero libc on every supported OS.
+Not "minimal libc", not "static libc" — **no libc**. Every syscall goes
+direct to the kernel; compiler-emitted helpers (`memcpy`, `memset`,
+`setjmp`, `__chkstk`, stack canaries) come from in-tree sources. The
+"platform" DLLs that remain are the OS's stable kernel ABI, not the C
+library: direct Linux syscalls, the BSD subset of XNU on macOS via
+`syscall` / `svc #0x80`, and `kernel32`/`ws2_32`/`dbghelp` on Windows.
+
+### What survives the diet, per OS
+
+| Symbol category                          | Linux                                | macOS                                          | Windows (clang-cl)                  |
+|------------------------------------------|--------------------------------------|------------------------------------------------|-------------------------------------|
+| `open`/`close`/`read`/`write`/`mmap`/…    | direct syscalls                      | direct XNU syscalls                            | `kernel32!CreateFileA` / `ReadFile` |
+| `socket`/`bind`/`recvfrom`/`poll`/…       | direct syscalls                      | direct XNU syscalls                            | `Ws2_32!WSARecv` / `WSAPoll`        |
+| `fork`/`execve`/`waitpid`/`pipe`/`kill`   | direct syscalls                      | direct XNU syscalls                            | `kernel32!CreateProcessA`           |
+| `sigaction` / signal handling             | direct `rt_sigaction` + custom restorer | direct XNU `sigaction` + custom `sa_tramp`     | `kernel32!SetConsoleCtrlHandler`    |
+| `getdents` / directory enumeration        | direct `getdents64`                  | direct `getdirentries64` (Darwin struct layout)| `kernel32!FindFirstFile`            |
+| `errno`                                   | `-rc` from syscall return            | `-rc` from carry-flag handling                 | `GetLastError()`                    |
+| `memcpy`/`memset`/`memmove`/`memcmp`/`bzero` | in-tree byte-loop forwarders (`_Freestanding.c`) | same                                           | same                                |
+| `setjmp`/`longjmp`                        | hand-written naked asm per ABI       | (test harness keeps libSystem)                 | (test harness keeps UCRT)           |
+| Process entry point                       | in-tree `_start` (drops `crt1.o`)    | (libSystem; no Mac freestanding `_start` yet)  | custom `misra_start` + `mainCRTStartup` drop |
+| Stack-protector helpers (`__stack_chk_*`) | `-fno-stack-protector` drops emission | same; plus `___chkstk_darwin` stub             | `/GS-` drops emission; stub for residual `__security_cookie` |
+| `__chkstk` / stack-probe                  | not emitted                          | stubbed                                        | `-mno-stack-arg-probe` + stub       |
+| Allowed "platform" surface                | nothing — `ldd` says `statically linked` | `_dyld_*` (Mach-O image enumeration for `Sys/Backtrace`) | `KERNEL32.dll`, `WS2_32.dll`, `DBGHELP.DLL`, `ADVAPI32.dll` (+ the meson-auto-injected user32/gdi32/etc. when actually referenced) |
+
+CI enforces this per OS. Linux freestanding asserts `nm -u` is empty and
+`ldd` reports `statically linked`. macOS freestanding asserts `nm -u`
+contains nothing outside the four allowed `__dyld_*` entries. Windows
+freestanding asserts `llvm-readobj --coff-imports` lists only DLLs from
+the platform allowlist — `ucrtbase`, `vcruntime`, `msvcp*`, and the
+`api-ms-win-crt-*` UCRT facade DLLs are explicitly forbidden.
+
+### Why this matters
+
+Static linking against glibc is impossible on Linux without exotic
+patches. Bundling musl works but trades one libc for another and brings
+its own malloc / setjmp / mem* implementations into your binary.
+libSystem on macOS isn't even technically replaceable — Apple lists it
+as the only sanctioned syscall ABI. UCRT on Windows ships with the OS
+but still couples your binary to its FILE / locale / exit-handler /
+exception machinery. Each of those is a maintenance dependency you
+didn't ask for.
+
+Going libc-free means: smaller binaries, deterministic init (no CRT
+constructors running before `main`), no implicit globals (no `errno`
+TLS slot, no `__progname`), no surprise allocations from `printf`
+formatting, and a build that works the same way whether you're cross-
+compiling for an embedded target or running on the host. The OS
+kernel ABI (Linux syscall numbers, XNU's BSD class, the Win32 API
+surface) is more stable than any libc API — that's what we depend on
+instead.
+
+### How it works
+
+- **`Source/Misra/_Syscall.h`** — per-OS / per-arch asm wrappers
+  (`misra_sys0..6` for Linux, BSD-class-prefixed equivalents for Darwin)
+  plus the syscall-number tables. One file gates whether
+  `FEATURE_DIRECT_SYSCALL` is on (Linux x86_64/aarch64 + Darwin
+  x86_64/aarch64).
+- **`Source/Misra/_StartLinux.c`** — hand-written `_start` assembly that
+  reads `argc`/`argv`/`envp` off the stack the way the Linux ELF kernel
+  hands it to you, calls `main`, then `SYS_exit_group`. Replaces
+  `crt1.o` via `-nostartfiles`.
+- **`Source/Misra/_StartWin.c`** — Windows analogue: `misra_start` calls
+  `kernel32!GetCommandLineA`, tokenises argv, calls `main`, then
+  `ExitProcess`. Wired in via `/ENTRY:misra_start`.
+- **`Source/Misra/_Freestanding.c`** — compiler-emitted intrinsics:
+  `memcpy`/`memmove`/`memset`/`memcmp` byte-loop forwarders (cross-OS);
+  `setjmp`/`longjmp` naked-asm with project-internal `jmp_buf` layout
+  (Linux only); `bzero` (Linux + Mac); `__chkstk_darwin` stub (Mac).
+- **`Source/Misra/_WinStubs.c`** — Windows compiler-runtime stubs:
+  `__security_cookie`, `__security_check_cookie`, `__chkstk`, `_fltused`,
+  `__imp___stdio_common_vsprintf`. Linked per Bin/-target (kept out of
+  `libmisra_std.a`) to avoid clashes with `msvcrtd.lib` in test
+  binaries that keep UCRT.
+- **`Bin/Beam.c`** sigaction — Linux uses direct `rt_sigaction` with a
+  custom restorer trampoline on x86_64. Darwin uses direct XNU
+  `sigaction` (#46) with a hand-rolled signal trampoline that calls
+  `sigreturn` (#184) after invoking the handler. Windows uses
+  `SetConsoleCtrlHandler` (kernel32, not UCRT's `signal()`).
+
+### When libc-diet is off
+
+Sanitizer builds (`-Db_sanitize=address,undefined` or `=address`) keep
+the full libc. The sanitizer runtimes (`libasan`, `libubsan`,
+`clang_rt.asan-x86_64`) live inside libsanitizer which is a libc-side
+library; `-nostdlib` would drop them. Sanitizers exist to catch UB and
+memory bugs — that's orthogonal to the libc-diet property — so a single
+meson gate flips the freestanding machinery off when any sanitizer is
+active. The Bin/ tools then link the full libc + the sanitizer runtime,
+same as the test binaries always have.
+
+This means CI runs the test suite in **two flavours** per OS on Linux
+and macOS:
+
+- `sanitized` — ASan + UBSan correctness pass (links full libc).
+- `freestanding` — libc-diet survival pass (links no libc, asserts on
+  `nm -u` / `dumpbin`-style allowlist).
+
+A regression in either fails CI independently.
+
+### Limitations and unfinished pieces
+
+- **macOS aarch64 sigtramp** is verified end-to-end (SIGINT/SIGTERM
+  deliver cleanly, process exits 0). The x86_64 trampoline is written
+  but untested — GitHub's `macos-latest` is Apple Silicon.
+- **Linux aarch64** paths are gated correctly but only Linux x86_64 has
+  full CI coverage.
+- **Sys/Mutex on Mac** still uses libSystem's `os_unfair_lock`. Not in
+  the Bin tools' `nm -u` (they don't pull Mutex via tree-shaking) but
+  it's there in `libmisra_std.a`.
+- **Windows freestanding is clang-cl only.** MSVC bundles its
+  compiler-runtime helpers inside `libcmt` and can't be cleanly
+  separated. The MSVC CI job runs the standard (with-UCRT) path.
+- **Test harness `setjmp`/`longjmp`** still link libc on Mac and
+  Windows. Splitting the harness out would be the next freestanding
+  push if test binaries need to be libc-free too.
 
 ---
 
