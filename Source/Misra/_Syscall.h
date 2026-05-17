@@ -217,6 +217,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #        define MISRA_SYS_fork          57
 #        define MISRA_SYS_execve        59
 #        define MISRA_SYS_exit          60
+#        define MISRA_SYS_exit_group    231
 #        define MISRA_SYS_wait4         61
 #        define MISRA_SYS_kill          62
 #        define MISRA_SYS_fcntl         72
@@ -257,6 +258,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #        define MISRA_SYS_clone         220
 #        define MISRA_SYS_execve        221
 #        define MISRA_SYS_exit          93
+#        define MISRA_SYS_exit_group    94
 #        define MISRA_SYS_wait4         260
 #        define MISRA_SYS_kill          129
 #        define MISRA_SYS_fcntl         25

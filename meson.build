@@ -183,6 +183,22 @@ misra_std_sources = files(
     'Source/Misra/Std/ArgParse.c',
 )
 
+# Linux + x86_64/aarch64: bring in our own `_start` entry point so we
+# can drop glibc's crt1.o + __libc_start_main from every binary. The
+# matching `-nostartfiles` link flag is added a few lines below.
+# Other platforms (macOS, Windows, ARM32, etc.) keep the toolchain's
+# CRT entry untouched.
+sys_cpu = host_machine.cpu_family()
+have_misra_start = sys_kernel == 'linux' and (sys_cpu == 'x86_64' or sys_cpu == 'aarch64')
+if have_misra_start
+    misra_std_sources += files('Source/Misra/_StartLinux.c')
+    # `-nostartfiles` drops crt1.o (and its __libc_start_main reference)
+    # from the link line of every executable in this project, leaving
+    # libc itself linked. add_project_link_arguments propagates to
+    # every executable() target meson sees.
+    add_project_link_arguments('-nostartfiles', language: 'c')
+endif
+
 if opt_alloc_arena
     misra_std_sources += files('Source/Misra/Std/Allocator/Arena.c')
 endif
