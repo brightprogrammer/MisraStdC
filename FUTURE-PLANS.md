@@ -4,9 +4,6 @@ Parking lot for items we've identified during real implementation work but defer
 
 ## Allocators
 - Allocator vtable: per-call alignment parameter on `AllocatorAlloc` / `AllocatorRealloc` (currently fixed at allocator init).
-- `StackFallbackAllocator`: composition wrapper that tries a fixed stack buffer first then falls back to a parent allocator.
-- `LoggingAllocator`: composition wrapper that logs every alloc/realloc/free on a parent.
-- `ThreadSafeAllocator`: composition wrapper that adds a mutex around any parent.
 - `GuardPageAllocator`: per-allocation `mmap` + `mprotect(PROT_NONE)` flanking guard pages for overflow-traps-instantly testing.
 
 ## Sys / Networking
@@ -23,9 +20,6 @@ Parking lot for items we've identified during real implementation work but defer
 - HTTP/2 and WebSockets — parser today is HTTP/1.1-only.
 - Host-header rewrite and routing rules — currently passes everything through to one upstream.
 - Config file (KvConfig-based) instead of `--listen` / `--upstream` flags.
-
-## Containers
-- `Vec`: add `count * aligned_size` overflow guard at entry of `insert_range_into_vec` / `insert_range_fast_into_vec` / `remove_range_vec` / `fast_remove_range_vec` — defensive, not exploitable on current call paths.
 
 ## Language / Macros
 - `Scope`: `ScopeReturn` / `ScopeGoto` via `setjmp` / `longjmp` for clean early-return from inside a `Scope` block.
