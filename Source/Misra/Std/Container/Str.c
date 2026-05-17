@@ -54,11 +54,16 @@ static bool isinf_f64(f64 x) {
     return (u.i & 0x7FFFFFFFFFFFFFFFULL) == 0x7FF0000000000000ULL;
 }
 
-// Round-half-away-from-zero. Safe for |x| < 2^53, which covers every
-// `value * 10^precision` product we form during formatting (precision
-// is `u8` in practice <= 18; products beyond 2^53 can't preserve
-// fractional precision anyway).
+// Round-half-away-from-zero. For |x| >= 2^53 the value is already
+// an integer (f64 can't represent fractional bits at that magnitude)
+// so we return it unchanged -- this also dodges the UB of casting an
+// out-of-i64-range f64 to i64 (UBSan catches it on values like
+// 1.23e19 that the StrFromF64 precision-limit tests feed in).
 static f64 round_f64(f64 x) {
+    const f64 two53 = 9007199254740992.0; // 2^53
+    if (x >= two53 || x <= -two53) {
+        return x;
+    }
     if (x >= 0.0) {
         return (f64)(i64)(x + 0.5);
     }
