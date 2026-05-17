@@ -200,18 +200,36 @@ have_misra_start = sys_kernel == 'linux' and (sys_cpu == 'x86_64' or sys_cpu == 
 # version -- Apple has renumbered syscalls historically.
 have_direct_syscall = have_misra_start or (sys_kernel == 'darwin' and (sys_cpu == 'x86_64' or sys_cpu == 'aarch64'))
 
+# `enable_libc_diet`: master switch for the whole freestanding /
+# direct-syscall machinery. We turn it OFF whenever any sanitizer is
+# active, because:
+#   - libasan / libubsan / liblsan / etc. live in libsanitizer (a
+#     libc-side library). '-nostdlib' on Bin/ tools drops them too,
+#     producing __asan_* / __ubsan_* undefined references at link
+#     time (this is what failed Linux CI on commit 6ce17b7).
+#   - ASan's own mem* interceptors would clash with our in-tree mem*
+#     overrides in _Freestanding.c.
+#   - Stack-protector + FORTIFY_SOURCE machinery is needed by the
+#     sanitizer instrumentation in some scenarios.
+#   - Our _start replacement skips ASan's TLS setup / ctor running.
+#
+# Sanitizer builds don't care about the libc-diet property -- they
+# care about correctness under instrumentation. Take the full libc
+# path on those.
+enable_libc_diet = get_option('b_sanitize') == 'none'
+
 # _Freestanding.c: compiler-/harness-emitted symbols (memcpy/memset/
 # memmove/memcmp/bzero, plus setjmp/longjmp on Linux). Cross-platform
 # now -- Darwin pulls in the mem* portion (clang on Darwin emits
 # direct bzero/memcpy calls that would otherwise bind to libSystem).
-# Compiled on Linux and Darwin; the file's own gates pick which
-# subset is emitted.
-if (sys_kernel == 'linux' or sys_kernel == 'darwin') and \
+# Skipped under sanitizers (see above).
+if enable_libc_diet and \
+   (sys_kernel == 'linux' or sys_kernel == 'darwin') and \
    (sys_cpu == 'x86_64' or sys_cpu == 'aarch64')
     misra_std_sources += files('Source/Misra/_Freestanding.c')
 endif
 
-if have_misra_start
+if have_misra_start and enable_libc_diet
     misra_std_sources += files('Source/Misra/_StartLinux.c')
 
     # `-nostartfiles` drops crt1.o (our _start replaces it) from every
@@ -245,8 +263,10 @@ endif
 # but doesn't pull libc helpers for stack canaries (the runtime
 # check is inlined), and has no FORTIFY_SOURCE equivalent -- skip
 # both flags on cl.exe / clang-cl to avoid the unknown-argument
-# error.
-if cc.get_id() != 'msvc' and cc.get_id() != 'clang-cl'
+# error. Also skip under sanitizers -- they expect a normal stack
+# layout including canary slots in some configs.
+if enable_libc_diet and \
+   cc.get_id() != 'msvc' and cc.get_id() != 'clang-cl'
     add_project_arguments(
         '-fno-stack-protector',
         '-U_FORTIFY_SOURCE',
