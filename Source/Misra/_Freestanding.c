@@ -33,7 +33,7 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Types.h>
 
-#if (defined(__linux__) || defined(__APPLE__)) && \
+#if (defined(__linux__) || defined(__APPLE__) || defined(_WIN32)) && \
     (defined(__x86_64__) || defined(__aarch64__))
 
 // Darwin's <string.h> macro-expands memcpy/memmove/memset to
@@ -86,9 +86,13 @@ __attribute__((used)) int memcmp(const void *a, const void *b, unsigned long n) 
 // Darwin clang emits direct `bzero` calls for some zero-init patterns
 // (esp. small struct zeroing), unlike Linux clang/gcc which always go
 // through memset. Provide it on both for safety -- it's a one-liner.
+// (Skip on Windows: clang-cl doesn't emit bzero, and Windows headers
+// don't declare it.)
+#if !defined(_WIN32)
 __attribute__((used)) void bzero(void *dst, unsigned long n) {
     MemSet(dst, 0, (size)n);
 }
+#endif
 
 // ---------------------------------------------------------------------------
 // setjmp / longjmp -- callee-saved register snapshot + restore. The

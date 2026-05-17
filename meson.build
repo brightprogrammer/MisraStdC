@@ -191,6 +191,15 @@ misra_std_sources = files(
 sys_cpu = host_machine.cpu_family()
 have_misra_start = sys_kernel == 'linux' and (sys_cpu == 'x86_64' or sys_cpu == 'aarch64')
 
+# Windows freestanding currently requires clang-cl: it gives us
+# clang_rt.builtins for the compiler-emitted helpers (memcpy/memset/
+# __chkstk etc.) without dragging UCRT in. MSVC bundles its
+# equivalents inside libcmt, which can't be cleanly separated from
+# the rest of the C runtime.
+have_misra_start_win = sys_kernel == 'windows' \
+    and cc.get_id() == 'clang-cl' \
+    and sys_cpu == 'x86_64'
+
 # FEATURE_DIRECT_SYSCALL covers both the Linux and Darwin (XNU) direct-
 # syscall paths -- the asm wrappers and per-OS syscall number tables
 # live in Source/Misra/_Syscall.h. Apple "deprecates" raw syscalls
@@ -220,11 +229,12 @@ enable_libc_diet = get_option('b_sanitize') == 'none'
 
 # _Freestanding.c: compiler-/harness-emitted symbols (memcpy/memset/
 # memmove/memcmp/bzero, plus setjmp/longjmp on Linux). Cross-platform
-# now -- Darwin pulls in the mem* portion (clang on Darwin emits
-# direct bzero/memcpy calls that would otherwise bind to libSystem).
-# Skipped under sanitizers (see above).
+# -- Darwin pulls in the mem* portion (clang on Darwin emits direct
+# bzero/memcpy calls that would otherwise bind to libSystem); Windows
+# clang-cl pulls in the mem* portion too (would otherwise bind to
+# UCRT's intrinsics). Skipped under sanitizers (see above).
 if enable_libc_diet and \
-   (sys_kernel == 'linux' or sys_kernel == 'darwin') and \
+   (sys_kernel == 'linux' or sys_kernel == 'darwin' or sys_kernel == 'windows') and \
    (sys_cpu == 'x86_64' or sys_cpu == 'aarch64')
     misra_std_sources += files('Source/Misra/_Freestanding.c')
 endif
@@ -250,6 +260,32 @@ if have_misra_start and enable_libc_diet
     # setup; rewriting all of them is out of scope for the libc-diet
     # effort).
     freestanding_link_args = ['-nostdlib', '-lgcc']
+elif have_misra_start_win and enable_libc_diet
+    # Windows freestanding (clang-cl only): drop UCRT + vcruntime via
+    # /NODEFAULTLIB. Compiler-runtime helpers (memcpy, __chkstk, etc.)
+    # come from clang_rt.builtins which clang-cl auto-links unless
+    # told otherwise -- we leave that alone. mem*/longjmp shims live
+    # in _Freestanding.c. Custom entry point (misra_start) replaces
+    # mainCRTStartup.
+    misra_std_sources += files('Source/Misra/_StartWin.c')
+
+    freestanding_link_args = [
+        # Drop every flavour of CRT (static/dynamic, release/debug).
+        '/NODEFAULTLIB:libucrt.lib',
+        '/NODEFAULTLIB:libucrtd.lib',
+        '/NODEFAULTLIB:libvcruntime.lib',
+        '/NODEFAULTLIB:libvcruntimed.lib',
+        '/NODEFAULTLIB:libcmt.lib',
+        '/NODEFAULTLIB:libcmtd.lib',
+        '/NODEFAULTLIB:msvcrt.lib',
+        '/NODEFAULTLIB:msvcrtd.lib',
+        '/NODEFAULTLIB:oldnames.lib',
+        # Keep the platform DLLs we actually use.
+        '/DEFAULTLIB:kernel32.lib',
+        # Custom entry replaces mainCRTStartup.
+        '/ENTRY:misra_start',
+        '/SUBSYSTEM:CONSOLE',
+    ]
 else
     freestanding_link_args = []
 endif

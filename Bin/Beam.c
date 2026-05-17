@@ -24,7 +24,13 @@
 #include <Misra/Sys/Socket.h>
 
 #if defined(_WIN32)
-#    include <signal.h>
+// Windows: use SetConsoleCtrlHandler (kernel32) instead of signal()
+// (UCRT). SetConsoleCtrlHandler runs the registered callback on a
+// dedicated thread when the user hits Ctrl-C / Ctrl-Break / the
+// console window closes; we just flip the stop flag and return TRUE
+// to swallow the event. No UCRT signal() means the freestanding
+// Windows build can drop UCRT entirely.
+#    include <windows.h>
 #elif (defined(__linux__) || defined(__APPLE__)) && \
       (defined(__x86_64__) || defined(__aarch64__))
 // POSIX direct-syscall path: hand-roll sigaction so Beam doesn't drag
@@ -195,14 +201,32 @@ static void on_signal(int signum) {
     g_stop = 1;
 }
 
+#if defined(_WIN32)
+// Windows console control callback. Runs in a dedicated thread the
+// system spins up when the user hits Ctrl-C / Ctrl-Break, or the
+// console window is closed / user logs off / system shuts down. We
+// flip the stop flag (volatile, so the main loop sees it) and return
+// TRUE to mark the event handled. No SIGPIPE equivalent on Windows;
+// send() to a hung-up peer returns WSAECONNRESET which SocketSend
+// maps to -1.
+static BOOL WINAPI on_console_ctrl(DWORD ctrl_type) {
+    switch (ctrl_type) {
+        case CTRL_C_EVENT :
+        case CTRL_BREAK_EVENT :
+        case CTRL_CLOSE_EVENT :
+        case CTRL_LOGOFF_EVENT :
+        case CTRL_SHUTDOWN_EVENT :
+            g_stop = 1;
+            return TRUE;
+        default :
+            return FALSE;
+    }
+}
+#endif
+
 static void install_signal_handlers(void) {
 #if defined(_WIN32)
-    // Windows has signal() but not sigaction/sigemptyset, and there's
-    // no SIGPIPE on Windows -- send() to a closed peer returns
-    // WSAECONNRESET (mapped to -1 by SocketSend) so the proxy loop
-    // exits cleanly on its own.
-    signal(SIGINT, on_signal);
-    signal(SIGTERM, on_signal);
+    SetConsoleCtrlHandler(on_console_ctrl, TRUE);
 #elif (defined(__linux__) || defined(__APPLE__)) && \
       (defined(__x86_64__) || defined(__aarch64__))
     install_signal(MISRA_SIGINT, on_signal);

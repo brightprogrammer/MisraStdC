@@ -13,40 +13,58 @@ concurrency:
 
 jobs:
   build-and-test:
-    name: Build and Test on Windows with LLVM
+    name: ${{ matrix.flavour }} on Windows with LLVM
     runs-on: windows-latest
-    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Standard pass: full UCRT, no sanitizers (see note in the
+          # Configure step about why ASan/UBSan are skipped on Windows
+          # LLVM). Verifies the build works with default CRT linkage.
+          - flavour: standard
+            setup_extra: ''
+            verify_libc_diet: 'no'
+          # Freestanding pass: meson's enable_libc_diet picks up
+          # b_sanitize=none, plus have_misra_start_win (clang-cl on
+          # x86_64) flips /NODEFAULTLIB:libucrt + /ENTRY:misra_start on.
+          # Bin/ tools end up with zero UCRT / vcruntime imports;
+          # only kernel32 + ws2_32 + dbghelp (Win32 platform DLLs).
+          - flavour: freestanding
+            setup_extra: ''
+            verify_libc_diet: 'yes'
+
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
-        
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.x'
-        
+
     - name: Install dependencies
       run: |
         pip install meson ninja
       shell: pwsh
-      
+
     - name: Download and install LLVM/Clang
       run: |
         # Download Clang
         Invoke-WebRequest -Uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/clang+llvm-18.1.8-x86_64-pc-windows-msvc.tar.xz" -OutFile "clang.tar.xz"
-        
+
         # Extract the archive (using 7zip which is available on Windows runners)
         7z x clang.tar.xz
         7z x clang.tar
-        
+
         # Move to a simpler path
         Move-Item "clang+llvm-18.1.8-x86_64-pc-windows-msvc" "C:\clang"
-        
+
         # Add to PATH
         echo "C:\clang\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       shell: pwsh
-      
+
     - name: Verify Clang installation
       run: |
         clang --version
@@ -54,7 +72,7 @@ jobs:
         lld --version
         llvm-ar --version
       shell: pwsh
-      
+
     - name: Configure with Clang
       run: |
         # Set environment variables for Meson to use Clang with lld linker.
@@ -62,15 +80,15 @@ jobs:
         # linker (https://mesonbuild.com/howtox.html). Doing this via
         # env vars (not -Dc_link_args=...) avoids meson bug #14640
         # where setting c_link_args suppresses b_sanitize injection.
-        $env:CC = "clang"
-        $env:CXX = "clang++"
+        $env:CC = "clang-cl"
+        $env:CXX = "clang-cl"
         $env:CC_LD = "lld"
         $env:CXX_LD = "lld"
         $env:AR = "llvm-ar"
         $env:RANLIB = "llvm-ranlib"
 
-        # Sanitizers are intentionally NOT enabled on this matrix
-        # entry. Two distinct things conspire against them:
+        # Sanitizers are intentionally NOT enabled on this workflow.
+        # Two distinct things conspire against them:
         #
         #   1. AddressSanitizer + clang on Windows + meson is known to
         #      misbehave at link time (the bundled VS2022 clang's asan
@@ -87,12 +105,11 @@ jobs:
         #      lib\windows directory before VS's is possible but
         #      fragile; not worth the complexity.
         #
-        # Result: this matrix entry runs as a clean "does it compile,
-        # link, and test on Windows-clang?" check with warning_level=2
-        # and -Werror=uninitialized from common_c_args. ASan coverage
-        # on Windows lives in the MSVC matrix entry.
+        # Both matrix entries (standard + freestanding) therefore run
+        # without sanitizers. ASan coverage on Windows lives in the
+        # MSVC matrix entry.
         meson setup build --backend ninja `
-          -Dwarning_level=2 -Db_lundef=false
+          -Dwarning_level=2 -Db_lundef=false ${{ matrix.setup_extra }}
       shell: pwsh
 
     - name: Build
@@ -103,6 +120,47 @@ jobs:
       run: |
         meson test -C build --print-errorlogs
 
+    # Libc-diet assertion: Bin/ tools must import only the OS-provided
+    # Win32 DLLs (kernel32, ws2_32, dbghelp, advapi32). Anything else
+    # (esp. ucrtbase.dll, vcruntime140.dll, msvcp140.dll) means UCRT
+    # leaked back into the link. Uses dumpbin (always present on
+    # Windows runners via VS toolchain) since llvm-readobj's
+    # PE-imports output format is harder to parse from PowerShell.
+    - name: Verify libc-diet (Bin/ tools import only platform DLLs)
+      if: matrix.verify_libc_diet == 'yes'
+      run: |
+        $allowed = @('KERNEL32.dll', 'WS2_32.dll', 'DBGHELP.DLL', 'ADVAPI32.dll')
+        $failed = 0
+        $bins = @('beam.exe', 'resolve.exe', 'docgen.exe', 'enumgen.exe',
+                  'Demangler.exe', 'ElfInfo.exe', 'SubProcComm.exe')
+        foreach ($bn in $bins) {
+            $path = "build\$bn"
+            if (-not (Test-Path $path)) {
+                Write-Host "::warning::$path not built, skipping libc-diet check"
+                continue
+            }
+            $imports = & dumpbin /imports $path 2>$null `
+                | Select-String -Pattern '^\s*[A-Za-z0-9_]+\.[Dd][Ll][Ll]\s*$' `
+                | ForEach-Object { $_.Line.Trim() }
+            $unexpected = $imports | Where-Object {
+                $allowed -notcontains $_ -and -not ($allowed | Where-Object { $_ -ieq $imports } )
+            }
+            $unexpected = $imports | Where-Object {
+                $found = $false
+                foreach ($a in $allowed) { if ($_ -ieq $a) { $found = $true; break } }
+                -not $found
+            }
+            if ($unexpected.Count -gt 0) {
+                Write-Host "::error::$bn imports non-platform DLLs (libc-diet broken):"
+                foreach ($u in $unexpected) { Write-Host "  $u" }
+                $failed = 1
+            } else {
+                Write-Host "OK: $bn imports only $($imports -join ', ')"
+            }
+        }
+        exit $failed
+      shell: pwsh
+
     - name: Upload test logs
       # Always upload so we can audit which tests actually ran. Without
       # the artifact we have no way to tell a green run with N tests
@@ -110,5 +168,5 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-logs-windows-llvm
+        name: test-logs-windows-llvm-${{ matrix.flavour }}
         path: build/meson-logs/testlog.txt
