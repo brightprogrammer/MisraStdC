@@ -58,20 +58,6 @@ typedef u64 ProcId;
 ProcId ProcGetCurrentId(void);
 
 ///
-/// Get environment value value in a `Str` object.
-/// Object must be destroyed after use.
-///
-/// name[in]   : Name of environment variable.
-/// value[out] : Value of environment variable.
-///
-/// SUCCESS : `Str` object containing value of environment variable.
-/// FAILURE : Returns NULL if variable not found.
-///
-/// TAGS: System, Environment, Memory
-///
-Str *GetEnv(const char *name, Str *value);
-
-///
 /// Get last error using an error number.
 ///
 /// eno[in]      : Unique error number descriptor.

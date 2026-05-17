@@ -34,62 +34,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// POSIX exposes the environment as a NULL-terminated array of
-// "NAME=value" zstrings at this symbol. Declaring it ourselves means
-// we don't need <stdlib.h>'s getenv -- the symbol is provided by the
-// dynamic loader (it points into argv-adjacent memory set up at
-// process start) and resolves against libSystem on macOS the same way.
-#ifndef _WIN32
-extern char **environ;
-#endif
-
-Str *GetEnv(const char *name, Str *value) {
-    ValidateStr(value);
-    Allocator *alloc = value->allocator;
-    if (!name) {
-        return NULL;
-    }
-#ifdef _WIN32
-    char  *env_var;
-    size_t requiredSize;
-
-    getenv_s(&requiredSize, NULL, 0, name);
-    if (requiredSize == 0) {
-        return NULL;
-    }
-
-    env_var = (char *)AllocatorAlloc(alloc, requiredSize, false);
-    if (!env_var) {
-        return NULL;
-    }
-
-    getenv_s(&requiredSize, env_var, requiredSize, name);
-
-    value->data     = env_var;
-    value->length   = requiredSize - 1;
-    value->capacity = requiredSize - 1;
-    return value;
-#else
-    // Walk `environ` looking for "name=...". No libc call needed --
-    // this is just a pointer chase plus byte compares.
-    size name_len = ZstrLen(name);
-    for (char **e = environ; e && *e; ++e) {
-        const char *entry = *e;
-        // Match name then '='.
-        size i = 0;
-        while (i < name_len && entry[i] && entry[i] == name[i]) {
-            ++i;
-        }
-        if (i == name_len && entry[i] == '=') {
-            const char *val = entry + name_len + 1;
-            *value          = StrInitFromCstr(val, ZstrLen(val), alloc);
-            return value;
-        }
-    }
-    return NULL;
-#endif
-}
-
 // In-tree errno -> short description table. Covers the POSIX errnos
 // we actually surface in Sys / Std / Parsers; anything else falls
 // through to a generic "Unknown error" with the numeric value.
