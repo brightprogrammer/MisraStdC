@@ -1,44 +1,47 @@
-/// file      : Source/Misra/_FreestandingLinux.c
+/// file      : Source/Misra/_Freestanding.c
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Symbols a freestanding (-nostdlib) Linux build needs to link.
-/// Compiled only on Linux + x86_64 / aarch64 -- paired with the
-/// `-nostdlib` link flag in meson, which drops the entire `libc.so.6`
-/// dependency from every executable in the project.
+/// Compiler- and harness-emitted symbols a libc-free build still needs.
+/// Two symbol families live here, each with its own platform gate:
 ///
-/// Two symbol families live here:
-///
-///   memcpy / memset / memcmp / memmove
+///   mem* family  (memcpy / memset / memmove / memcmp / bzero)
+///       Linux + Darwin, x86_64 + aarch64.
 ///       The compiler emits implicit calls to these for struct copies,
 ///       large array initialisations, comparisons, and overlapping
 ///       moves -- you can't avoid them in C without -fno-builtin-* on
 ///       every TU. We forward to Misra's already-in-tree MemCopy /
-///       MemSet / MemCompare / MemMove (which are themselves implemented
-///       as straightforward byte loops in Std/Memory.c, no libc).
+///       MemSet / MemCompare / MemMove (byte loops in Std/Memory.c).
+///
+///       On Linux these resolve the `-nostdlib` freestanding link.
+///       On Darwin the linker prefers our static-lib definition over
+///       libSystem's dylib export (two-level namespace, static archive
+///       processed before the implicit libSystem dylib), so even
+///       though libSystem is still present in the Mach-O LCs, calls
+///       to memcpy/memset/etc. bind to our copies and never reach it.
+///       `bzero` is included because clang emits direct calls to it
+///       on Darwin for zero-init patterns.
 ///
 ///   setjmp / longjmp
-///       Used by Tests/Util/TestRunner.c to catch LOG_FATAL aborts in
-///       deadend tests. Hand-written register save/restore per ABI;
-///       no libc, no compiler intrinsic. The jmp_buf layout is the
-///       project's own (not glibc-compatible) since nobody outside
-///       the test harness uses it.
-///
-/// The library itself doesn't need either family -- it's already
-/// libc-free. These symbols exist so test binaries and Bin/ tools that
-/// link `-nostdlib` can resolve the compiler-emitted and test-harness
-/// references.
+///       Linux only -- used by Tests/Util/TestRunner.c to catch
+///       LOG_FATAL aborts in deadend tests. Hand-written register
+///       save/restore per ABI; no libc, no compiler intrinsic. The
+///       jmp_buf layout is project-internal (not glibc-compatible).
+///       Mac test runner still uses libSystem's _setjmp -- separate
+///       follow-up if we want it gone.
 
 #include <Misra/Std/Memory.h>
 #include <Misra/Types.h>
 
-#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+#if (defined(__linux__) || defined(__APPLE__)) && \
+    (defined(__x86_64__) || defined(__aarch64__))
 
 // ---------------------------------------------------------------------------
 // mem* family -- thin forwarders to the in-tree byte-loop implementations
-// in Std/Memory.c. These need to be plain extern (not static) so the
-// linker can resolve compiler-emitted intrinsic calls against them.
-// Marked `used` so LTO / unused-function passes don't strip them.
+// in Std/Memory.c. Plain extern (not static) so the linker can resolve
+// compiler-emitted intrinsic calls against them. Marked `used` so LTO /
+// unused-function passes don't strip them when no user code references
+// them directly.
 // ---------------------------------------------------------------------------
 
 __attribute__((used)) void *memcpy(void *dst, const void *src, unsigned long n) {
@@ -60,13 +63,31 @@ __attribute__((used)) int memcmp(const void *a, const void *b, unsigned long n) 
     return (int)MemCompare(a, b, (size)n);
 }
 
+// Darwin clang emits direct `bzero` calls for some zero-init patterns
+// (esp. small struct zeroing), unlike Linux clang/gcc which always go
+// through memset. Provide it on both for safety -- it's a one-liner.
+__attribute__((used)) void bzero(void *dst, unsigned long n) {
+    MemSet(dst, 0, (size)n);
+}
+
 // ---------------------------------------------------------------------------
 // setjmp / longjmp -- callee-saved register snapshot + restore. The
 // jmp_buf layout is project-internal (Tests/Util/TestRunner.c). Both
 // `_setjmp` and `setjmp` resolve to the same code because glibc's
 // `setjmp` adds signal-mask save/restore on top of `_setjmp`, but the
 // project test harness only needs the bare control-flow form.
+//
+// Linux-only: on Darwin the test runner currently still links
+// libSystem's _setjmp/_longjmp. Symbol mangling differs (Mach-O wants
+// `_setjmp` as the asm symbol -- which is what naked C declarations
+// produce -- but Darwin's libSystem also exports a 16-byte-aligned
+// jmp_buf that wouldn't match our 56-byte layout) so a separate Mac
+// trampoline + alignment shim is needed if we ever pursue it.
 // ---------------------------------------------------------------------------
+
+#endif // mem* gate
+
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
 
 #    if defined(__x86_64__)
 

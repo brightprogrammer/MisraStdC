@@ -14,3 +14,4 @@ Fuzz/outputs/
 .refactor-todo.md
 core
 core.*
+.claude/

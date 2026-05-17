@@ -199,13 +199,20 @@ have_misra_start = sys_kernel == 'linux' and (sys_cpu == 'x86_64' or sys_cpu == 
 # same approach. macOS support intentionally pins to a tested major
 # version -- Apple has renumbered syscalls historically.
 have_direct_syscall = have_misra_start or (sys_kernel == 'darwin' and (sys_cpu == 'x86_64' or sys_cpu == 'aarch64'))
+
+# _Freestanding.c: compiler-/harness-emitted symbols (memcpy/memset/
+# memmove/memcmp/bzero, plus setjmp/longjmp on Linux). Cross-platform
+# now -- Darwin pulls in the mem* portion (clang on Darwin emits
+# direct bzero/memcpy calls that would otherwise bind to libSystem).
+# Compiled on Linux and Darwin; the file's own gates pick which
+# subset is emitted.
+if (sys_kernel == 'linux' or sys_kernel == 'darwin') and \
+   (sys_cpu == 'x86_64' or sys_cpu == 'aarch64')
+    misra_std_sources += files('Source/Misra/_Freestanding.c')
+endif
+
 if have_misra_start
     misra_std_sources += files('Source/Misra/_StartLinux.c')
-    # Also bring in _FreestandingLinux.c: provides memcpy / memset /
-    # memcmp / memmove (compiler-emitted intrinsics for struct copies
-    # and array fills) plus setjmp / longjmp (test harness only) as
-    # in-tree symbols. Pair with `-nostdlib` below.
-    misra_std_sources += files('Source/Misra/_FreestandingLinux.c')
 
     # `-nostartfiles` drops crt1.o (our _start replaces it) from every
     # link line in the project. Keeps libc.so.6 around for test
@@ -217,7 +224,7 @@ if have_misra_start
     # to the shipping Bin/ tools. `-nostdlib` removes the entire libc
     # dependency; we add `-lgcc` back for compiler-runtime helpers
     # (128-bit divide, soft-float, etc.) the compiler emits implicit
-    # calls to. mem*/setjmp come from _FreestandingLinux.c.
+    # calls to. mem*/setjmp come from _Freestanding.c.
     #
     # Result: shipped binaries (beam, resolve, etc.) report `ldd ...
     # => statically linked`. Test binaries keep their libc-bound
@@ -228,6 +235,19 @@ if have_misra_start
 else
     freestanding_link_args = []
 endif
+
+# Stack-protector / FORTIFY_SOURCE pull in libc-provided helpers
+# (__stack_chk_fail, __stack_chk_guard on Linux; ___stack_chk_fail
+# + ___stack_chk_guard + ___chkstk_darwin on Mac; __memcpy_chk etc.
+# under fortify). We don't gain anything from them in a libc-diet
+# project that goes through hand-audited byte loops everywhere --
+# turn both off project-wide. This drops the last "compiler tagged
+# along a libc dep" surface on both OSes.
+add_project_arguments(
+    '-fno-stack-protector',
+    '-U_FORTIFY_SOURCE',
+    language: 'c',
+)
 
 if opt_alloc_arena
     misra_std_sources += files('Source/Misra/Std/Allocator/Arena.c')
