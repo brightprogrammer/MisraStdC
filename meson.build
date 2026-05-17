@@ -267,13 +267,21 @@ if have_misra_start and enable_libc_diet
     # setup; rewriting all of them is out of scope for the libc-diet
     # effort).
     freestanding_link_args = ['-nostdlib', '-lgcc']
+    # Linux freestanding doesn't need per-target sources; _StartLinux.c
+    # goes into libmisra_std (Linux libc on tests still gets the
+    # COMDAT-resolution treatment so no duplicate-symbol conflict).
+    freestanding_extra_sources = []
 elif have_misra_start_win and enable_libc_diet
     # Windows freestanding (clang-cl only): drop UCRT + vcruntime via
-    # /NODEFAULTLIB. Compiler-runtime helpers (memcpy, __chkstk,
-    # _fltused, __security_cookie etc.) are provided as stubs in
-    # _Freestanding.c. Custom entry point (misra_start) replaces
-    # mainCRTStartup.
-    misra_std_sources += files('Source/Misra/_StartWin.c')
+    # /NODEFAULTLIB. Compiler-runtime helpers (memcpy etc.) come from
+    # _Freestanding.c in libmisra_std. The custom entry point
+    # (misra_start) and the stack-canary / __chkstk / _fltused /
+    # UCRT-inline-fallout stubs live in separate TUs that are NOT in
+    # libmisra_std -- they get added as per-target sources to
+    # freestanding Bin/ executables (see freestanding_extra_sources
+    # below). Keeping them out of libmisra_std avoids 'duplicate
+    # symbol' conflicts with msvcrtd.lib(gs_cookie.obj) when test +
+    # FuzzHarness binaries (which keep UCRT) pull libmisra_std.
 
     # Project-wide compile-side disablement of the libc-coupled
     # codegen clang-cl would otherwise insert into our objects.
@@ -306,8 +314,18 @@ elif have_misra_start_win and enable_libc_diet
         '/ENTRY:misra_start',
         '/SUBSYSTEM:CONSOLE',
     ]
+    # Per-target sources for freestanding Bin/ tools: the custom
+    # entry point (misra_start) + UCRT/compiler-runtime stubs.
+    # Compiled per-executable rather than via libmisra_std so test
+    # binaries (which keep UCRT) don't pull our __security_cookie
+    # def and clash with UCRT's.
+    freestanding_extra_sources = files(
+        'Source/Misra/_StartWin.c',
+        'Source/Misra/_WinStubs.c',
+    )
 else
     freestanding_link_args = []
+    freestanding_extra_sources = []
 endif
 
 # Stack-protector / FORTIFY_SOURCE pull in libc-provided helpers
@@ -550,7 +568,7 @@ misra_std_no_sanitizers = static_library(
 if opt_file and opt_parser_json
     executable(
         'enumgen',
-        files('Bin/EnumGen.c'),
+        files('Bin/EnumGen.c') + freestanding_extra_sources,
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,
@@ -562,7 +580,7 @@ endif
 if opt_sys_proc
     executable(
         'SubProcComm',
-        files('Bin/SubProcComm.c'),
+        files('Bin/SubProcComm.c') + freestanding_extra_sources,
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,
@@ -574,7 +592,7 @@ endif
 if opt_sys_socket and opt_parser_http
     executable(
         'beam',
-        files('Bin/Beam.c'),
+        files('Bin/Beam.c') + freestanding_extra_sources,
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,
@@ -586,7 +604,7 @@ endif
 if opt_file and opt_sys_dir and opt_parser_json
     executable(
         'docgen',
-        files('Bin/DocGen.c'),
+        files('Bin/DocGen.c') + freestanding_extra_sources,
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,
@@ -598,7 +616,7 @@ endif
 if opt_file
     executable(
         'Demangler',
-        files('Bin/Demangler/Main.c'),
+        files('Bin/Demangler/Main.c') + freestanding_extra_sources,
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,
@@ -610,7 +628,7 @@ endif
 if opt_file
     executable(
         'ElfInfo',
-        files('Bin/ElfInfo.c'),
+        files('Bin/ElfInfo.c') + freestanding_extra_sources,
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,
@@ -622,7 +640,7 @@ endif
 if opt_sys_dns
     executable(
         'resolve',
-        files('Bin/Resolve.c'),
+        files('Bin/Resolve.c') + freestanding_extra_sources,
         link_with: [misra_std],
         c_args: common_c_args,
         include_directories: inc_misra,
