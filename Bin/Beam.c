@@ -91,17 +91,19 @@ static void install_signal(int signum, void (*handler)(int)) {
 
 #    else // __APPLE__
 
-// Darwin's struct __sigaction (what SYS_sigaction wants). Fields per
-// <sys/signal.h>. The kernel reads sa_handler+sa_tramp; sa_mask is
-// the signal mask in effect during the handler; sa_flags carries
-// SA_SIGINFO and other modifiers. SIG_IGN is the special handler
-// value (uintptr 1) that means "discard" -- the kernel handles it
-// without invoking sa_tramp at all.
+// Darwin's struct __sigaction (what SYS_sigaction wants). Field
+// layout per <sys/signal.h>: handler / tramp / mask / flags. We use
+// our own field names because Darwin's <signal.h> #defines sa_handler
+// as a textual alias for __sigaction_u.__sa_handler, which would
+// mangle a struct definition that uses 'sa_handler' as a field name.
+// (Headers downstream of Misra/Sys/Socket.h drag <signal.h> in
+// transitively, so we can't escape the macro.) Layout is what matters
+// to the kernel, not the field names.
 struct misra_kernel_sigaction {
-    void (*sa_handler)(int);                                    // sa_handler / sa_sigaction union
-    void (*sa_tramp)(void *, int, int, void *, void *);         // trampoline (handler+sigreturn)
-    unsigned int sa_mask;                                       // 32-bit signal set
-    int          sa_flags;
+    void (*kh_handler)(int);                              // handler -> sa_handler slot
+    void (*kh_tramp)(void *, int, int, void *, void *);   // trampoline (calls handler+sigreturn)
+    unsigned int kh_mask;                                 // 32-bit signal set (sa_mask slot)
+    int          kh_flags;                                // sa_flags slot
 };
 
 // SA_SIGINFO=0x40. We don't use it -- sa_handler is plain
@@ -167,11 +169,14 @@ __attribute__((naked)) static void misra_darwin_sigtramp(void) {
 
 static void install_signal(int signum, void (*handler)(int)) {
     struct misra_kernel_sigaction sa = {0};
-    sa.sa_handler                    = handler;
+    sa.kh_handler                    = handler;
     // SIG_IGN doesn't actually invoke the trampoline, but the kernel
     // still copies sa_tramp into per-thread state. Point it at our
-    // trampoline unconditionally -- safe even when unused.
-    sa.sa_tramp = misra_darwin_sigtramp;
+    // trampoline unconditionally -- safe even when unused. Cast
+    // through (void(*)(void)) to silence the trampoline-signature
+    // mismatch (declared as 5-arg in the struct; defined as naked
+    // void() with kernel-shaped register entry).
+    sa.kh_tramp = (void (*)(void *, int, int, void *, void *))(void (*)(void))misra_darwin_sigtramp;
     misra_sys3(MISRA_SYS_rt_sigaction, (long)signum, (long)(uintptr_t)&sa, 0);
 }
 
