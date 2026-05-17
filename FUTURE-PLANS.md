@@ -15,7 +15,6 @@ Parking lot for items we've identified during real implementation work but defer
 - `Sys/Backtrace`: consider symbolize-once cache so repeated `FormatStackTrace` calls don't redo `dladdr` work.
 - `Sys/Backtrace` (Linux/macOS x86-64): sigsetjmp-guarded `read_u64_at` so a wild RIP during CFI / FP walking aborts the walk instead of crashing the whole process.
 - `Sys/Backtrace`: aarch64 CFI walker — same shape as the x86-64 path but reads x29 / x30 / sp registers; deferred until we have an arm64 host to test on.
-- `Sys/Mutex` (macOS): still uses libSystem `os_unfair_lock`. Migrate to direct `__ulock_wait` / `__ulock_wake` syscalls so the freestanding Bin/ tools have zero libSystem coupling even after we pull a TU that uses Mutex into the link.
 - `Sys/Dns`: DNS-over-TLS / DNS-over-HTTPS — currently plain UDP/TCP only.
 - `Sys/Dns`: response caching (TTL-aware), currently every resolve hits the wire.
 
@@ -51,6 +50,9 @@ Parking lot for items we've identified during real implementation work but defer
 
 ## Completed
 Items below have landed; kept here as a history of what each branch closed out.
+
+### macOS Mutex direct `__ulock` (May 2026)
+- `Sys/Mutex` on macOS migrated from libSystem `os_unfair_lock` to direct XNU `__ulock_wait` (#515) / `__ulock_wake` (#516) syscalls with op = `UL_COMPARE_AND_WAIT` + `ULF_NO_ERRNO`. Collapses the Mac path into the same Drepper 3-state futex algorithm the Linux path already uses; only the wait/wake primitive differs (futex on Linux, __ulock on Mac). Wrapped in shared `mutex_wait` / `mutex_wake_one` static-inline helpers so the lock/unlock paths are OS-agnostic. Verified: `Mutex.c.o` on Mac has zero `_os_unfair_lock_*` references; all test binaries' `nm -u` still lists only the four allowed `__dyld_*` entries. This was the last libSystem dep that survived once anything in a build pulled Sys/Mutex into the link line.
 
 ### libc-diet phase 2: macOS + Windows freestanding (May 2026)
 - `Source/Misra/_Syscall.h`: extended the Linux x86_64/aarch64 plumbing with Darwin x86_64/aarch64. `MISRA_DARWIN_SC(n)` macro stamps BSD-class prefix on syscall numbers. asm wrappers translate XNU's carry-flag-on-error contract to Linux-style `-errno` so every TU sees the same shape. `misra_darwin_pipe()` helper handles Darwin's pipe-returns-fds-in-registers ABI quirk.
