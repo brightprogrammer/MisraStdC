@@ -44,27 +44,25 @@
 // the TCB self-pointer the kernel/loader stashed there -- conceptually
 // the same kind of unique-per-thread address as `&g_marker` was.
 //
-// Non-x86_64/aarch64 platforms fall back to the TLS-marker trick.
-// macOS could use `pthread_threadid_np` and Windows
-// `GetCurrentThreadId`, but the TLS fallback works everywhere a C
-// compiler does and stays as the portable default.
+// macOS / Windows / other-arch platforms fall back to the TLS-marker
+// trick (or libSystem's TLV path implicitly). The inline-asm path is
+// gated to Linux only -- Darwin uses GS (not FS) on x86_64 and
+// TPIDRRO_EL0 plus libSystem TLV thunks on aarch64; reading FS:0 or
+// TPIDR_EL0 there gives garbage or SIGTRAPs the process.
 // ---------------------------------------------------------------------------
 
-#if defined(__x86_64__) || defined(__aarch64__)
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
 
 u64 debug_current_tid(void) {
     u64 tp;
 #    if defined(__x86_64__)
-    // fs:0 holds the TCB self-pointer on x86_64 Linux/glibc; on macOS
-    // the same convention applies (libSystem sets up FS), though the
-    // file-level gate above keeps this Linux/x86_64-only via
-    // _Syscall.h's FEATURE_DIRECT_SYSCALL guard chain. Single mov;
-    // no syscall, no helper symbol.
+    // fs:0 holds the TCB self-pointer on x86_64 Linux/glibc. Single
+    // mov; no syscall, no helper symbol.
     __asm__ volatile("mov %%fs:0, %0"
                      : "=r"(tp));
 #    else // __aarch64__
     // TPIDR_EL0 is the user-accessible thread-pointer register on
-    // AArch64. mrs reads it directly; no syscall.
+    // Linux aarch64; mrs reads it directly.
     __asm__ volatile("mrs %0, tpidr_el0"
                      : "=r"(tp));
 #    endif
