@@ -119,13 +119,25 @@ File FileOpen(const char *path, const char *mode) {
         LOG_ERROR("FileOpen: invalid mode \"{}\"", mode);
         return f;
     }
-    flags |= 0x80000; // O_CLOEXEC -- close on exec
+    // Kernel-ABI O_CLOEXEC value per OS. <fcntl.h>'s O_CLOEXEC needs
+    // _GNU_SOURCE on Linux and we'd rather not toggle feature-test
+    // macros project-wide for one bit. The remaining flags
+    // (O_RDONLY/WRONLY/RDWR/CREAT/TRUNC/APPEND) come from <fcntl.h>
+    // via parse_open_mode and resolve correctly without a feature
+    // macro.
+#    if defined(__APPLE__)
+    flags |= 0x1000000; // Darwin O_CLOEXEC
+#    else
+    flags |= 0x80000;   // Linux O_CLOEXEC
+#    endif
     long fd;
 #    if FEATURE_DIRECT_SYSCALL
-#        if defined(__x86_64__)
+#        if defined(__APPLE__) || defined(__x86_64__)
+    // Darwin has SYS_open on both x86_64 and aarch64. Linux x86_64
+    // does too; only Linux aarch64 went openat-only.
     fd = misra_sys3(MISRA_SYS_open, (long)(uintptr_t)path, (long)flags, 0644L);
 #        else
-    // aarch64: openat(AT_FDCWD=-100, path, flags, mode)
+    // Linux aarch64: openat(AT_FDCWD=-100, path, flags, mode).
     fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(uintptr_t)path, (long)flags, 0644L);
 #        endif
 #    else
