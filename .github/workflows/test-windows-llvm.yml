@@ -128,16 +128,23 @@ jobs:
       run: |
         meson test -C build --print-errorlogs
 
-    # Libc-diet assertion: Bin/ tools must import only the OS-provided
-    # Win32 DLLs (kernel32, ws2_32, dbghelp, advapi32). Anything else
-    # (esp. ucrtbase.dll, vcruntime140.dll, msvcp140.dll) means UCRT
-    # leaked back into the link. Uses dumpbin (always present on
-    # Windows runners via VS toolchain) since llvm-readobj's
-    # PE-imports output format is harder to parse from PowerShell.
+    # Libc-diet assertion: Bin/ tools must import only OS-provided
+    # platform DLLs. Anything UCRT/vcruntime (ucrtbase.dll,
+    # vcruntime140.dll, msvcp140.dll, etc.) means the diet regressed.
+    # Allowed: kernel32 + ws2_32 (Sockets) + dbghelp (Backtrace) +
+    # advapi32 (some Win32 calls pull it). The meson auto-injected
+    # user32/gdi32/etc. show up in the link line but typically don't
+    # end up in IAT unless we actually call them -- they'll only
+    # appear if a Bin tool uses something from them.
     - name: Verify libc-diet (Bin/ tools import only platform DLLs)
       if: matrix.verify_libc_diet == 'yes'
       run: |
-        $allowed = @('KERNEL32.dll', 'WS2_32.dll', 'DBGHELP.DLL', 'ADVAPI32.dll')
+        $allowed = @(
+            'KERNEL32.dll', 'WS2_32.dll', 'DBGHELP.DLL', 'ADVAPI32.dll',
+            'USER32.dll', 'GDI32.dll', 'WINSPOOL.DRV', 'SHELL32.dll',
+            'ole32.dll', 'OLEAUT32.dll', 'COMDLG32.dll'
+        )
+        $forbidden_pattern = '^(ucrtbase|ucrtbased|vcruntime\d+|vcruntime\d+d|msvcp\d+|msvcp\d+d|msvcr\d+|msvcr\d+d|api-ms-win-crt-)'
         $failed = 0
         $bins = @('beam.exe', 'resolve.exe', 'docgen.exe', 'enumgen.exe',
                   'Demangler.exe', 'ElfInfo.exe', 'SubProcComm.exe')
@@ -148,22 +155,28 @@ jobs:
                 continue
             }
             $imports = & dumpbin /imports $path 2>$null `
-                | Select-String -Pattern '^\s*[A-Za-z0-9_]+\.[Dd][Ll][Ll]\s*$' `
+                | Select-String -Pattern '^\s*[A-Za-z0-9_-]+\.[A-Za-z]{3}\s*$' `
                 | ForEach-Object { $_.Line.Trim() }
-            $unexpected = $imports | Where-Object {
-                $allowed -notcontains $_ -and -not ($allowed | Where-Object { $_ -ieq $imports } )
+            $bad = @()
+            foreach ($imp in $imports) {
+                if ($imp -match $forbidden_pattern) {
+                    $bad += "$imp (UCRT/vcruntime)"
+                } else {
+                    $ok = $false
+                    foreach ($a in $allowed) {
+                        if ($imp -ieq $a) { $ok = $true; break }
+                    }
+                    if (-not $ok) {
+                        $bad += "$imp (not in platform allowlist)"
+                    }
+                }
             }
-            $unexpected = $imports | Where-Object {
-                $found = $false
-                foreach ($a in $allowed) { if ($_ -ieq $a) { $found = $true; break } }
-                -not $found
-            }
-            if ($unexpected.Count -gt 0) {
-                Write-Host "::error::$bn imports non-platform DLLs (libc-diet broken):"
-                foreach ($u in $unexpected) { Write-Host "  $u" }
+            if ($bad.Count -gt 0) {
+                Write-Host "::error::$bn imports forbidden DLLs (libc-diet broken):"
+                foreach ($b in $bad) { Write-Host "  $b" }
                 $failed = 1
             } else {
-                Write-Host "OK: $bn imports only $($imports -join ', ')"
+                Write-Host "OK: $bn imports $($imports -join ', ')"
             }
         }
         exit $failed

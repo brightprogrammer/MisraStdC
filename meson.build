@@ -269,12 +269,25 @@ if have_misra_start and enable_libc_diet
     freestanding_link_args = ['-nostdlib', '-lgcc']
 elif have_misra_start_win and enable_libc_diet
     # Windows freestanding (clang-cl only): drop UCRT + vcruntime via
-    # /NODEFAULTLIB. Compiler-runtime helpers (memcpy, __chkstk, etc.)
-    # come from clang_rt.builtins which clang-cl auto-links unless
-    # told otherwise -- we leave that alone. mem*/longjmp shims live
-    # in _Freestanding.c. Custom entry point (misra_start) replaces
+    # /NODEFAULTLIB. Compiler-runtime helpers (memcpy, __chkstk,
+    # _fltused, __security_cookie etc.) are provided as stubs in
+    # _Freestanding.c. Custom entry point (misra_start) replaces
     # mainCRTStartup.
     misra_std_sources += files('Source/Misra/_StartWin.c')
+
+    # Project-wide compile-side disablement of the libc-coupled
+    # codegen clang-cl would otherwise insert into our objects.
+    add_project_arguments(
+        # /GS-: disable stack-canary insertion (no __security_cookie
+        # / __security_check_cookie emission in prologues).
+        '/GS-',
+        # -mno-stack-arg-probe: stop clang emitting __chkstk calls
+        # in function prologues with large stack frames. Our runtime
+        # never allocates the multi-page stack buffers the probe
+        # protects against.
+        '-mno-stack-arg-probe',
+        language: 'c',
+    )
 
     freestanding_link_args = [
         # Drop every flavour of CRT (static/dynamic, release/debug).
