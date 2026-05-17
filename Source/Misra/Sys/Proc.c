@@ -293,10 +293,18 @@ Proc proc_init(const char *filepath, char **argv, char **envp, Allocator *alloc)
     CloseHandle(hStdoutWrite);
     CloseHandle(hStderrWrite);
 
-    proc._pi          = pi;
-    proc._hStdinWrite = hStdinWrite;
-    proc._hStdoutRead = hStdoutRead;
-    proc._hStderrRead = hStderrRead;
+    // Copy PROCESS_INFORMATION fields into our layout-compatible
+    // struct. We can't whole-struct-assign because the public header
+    // declares `_pi` as MisraProcessInfo_ (so it doesn't have to
+    // pull <windows.h>); the field shape matches but the types are
+    // distinct at the C level.
+    proc._pi.hProcess     = pi.hProcess;
+    proc._pi.hThread      = pi.hThread;
+    proc._pi.dwProcessId  = (u32)pi.dwProcessId;
+    proc._pi.dwThreadId   = (u32)pi.dwThreadId;
+    proc._hStdinWrite     = hStdinWrite;
+    proc._hStdoutRead     = hStdoutRead;
+    proc._hStderrRead     = hStderrRead;
 
     return proc;
 #endif

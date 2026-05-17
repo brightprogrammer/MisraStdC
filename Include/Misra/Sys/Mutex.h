@@ -14,14 +14,15 @@
 #include <Misra/Std/Allocator.h>
 #include <Misra/Types.h>
 
-#ifdef _WIN32
-#    ifndef WIN32_LEAN_AND_MEAN
-#        define WIN32_LEAN_AND_MEAN
-#    endif
-#    include <windows.h>
-#elif defined(__linux__) || defined(__APPLE__)
+// We deliberately do NOT include <windows.h> in this public header.
+// Pulling it from a header that's transitively included by Sys.h ->
+// File.h -> everywhere drags ~thousands of Win32 macros (e.g.
+// IMAGE_DEBUG_TYPE_CODEVIEW) into TUs that have their own enums by
+// the same name -- breaks unrelated code. Instead, use a layout-
+// compatible opaque field and cast inside Mutex.c.
+#if defined(__linux__) || defined(__APPLE__)
 #    include <stdatomic.h>
-#else
+#elif !defined(_WIN32)
 #    include <pthread.h>
 #endif
 
@@ -35,7 +36,10 @@ extern "C" {
 ///
 typedef struct Mutex {
 #ifdef _WIN32
-    SRWLOCK _lock;
+    // Layout-compatible with Windows SRWLOCK = `struct { PVOID Ptr; }`.
+    // Mutex.c casts &_lock to (SRWLOCK *) for Win32 calls. Zero-init
+    // = SRWLOCK_INIT = unlocked.
+    void *_lock;
 #elif defined(__linux__) || defined(__APPLE__)
     // Drepper-style 3-state mutex backed by futex (Linux) /
     // __ulock_wait (Darwin). 0 = unlocked, 1 = locked, 2 = locked
@@ -59,8 +63,8 @@ typedef struct Mutex {
 /// TAGS: Sys, Mutex, Init
 ///
 #ifdef _WIN32
-// SRWLOCK_INIT is just {0} -- zero-init is the initialised state.
-#    define MutexInit() ((Mutex) {._lock = {0}})
+// _lock is a void* layout-compatible with SRWLOCK. NULL = SRWLOCK_INIT.
+#    define MutexInit() ((Mutex) {._lock = NULL})
 #elif defined(__linux__) || defined(__APPLE__)
 // _Atomic int = 0 is "unlocked" in the futex / __ulock state machine.
 #    define MutexInit() ((Mutex) {._state = 0})

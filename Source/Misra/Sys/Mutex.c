@@ -105,7 +105,10 @@ void MutexDeinit(Mutex *m) {
 
 Mutex *MutexLock(Mutex *m) {
 #ifdef _WIN32
-    AcquireSRWLockExclusive(&m->_lock);
+    // Cast through (SRWLOCK *) -- the header keeps `_lock` as a
+    // bare void* so it doesn't have to pull <windows.h>. SRWLOCK is
+    // layout-compatible with a single PVOID.
+    AcquireSRWLockExclusive((SRWLOCK *)&m->_lock);
 #elif FEATURE_DIRECT_SYSCALL
     // Fast path: 0 -> 1 (uncontended acquire).
     int expected = 0;
@@ -157,7 +160,7 @@ Mutex *MutexLock(Mutex *m) {
 
 Mutex *MutexUnlock(Mutex *m) {
 #ifdef _WIN32
-    ReleaseSRWLockExclusive(&m->_lock);
+    ReleaseSRWLockExclusive((SRWLOCK *)&m->_lock);
 #elif FEATURE_DIRECT_SYSCALL
     // Fast path: if state was 1 (no waiters), atomic dec brings it to
     // 0 and we're done. Otherwise it was 2 (had waiters), zero it

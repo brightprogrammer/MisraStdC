@@ -14,12 +14,12 @@
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Types.h>
 
-#ifdef _WIN32
-#    ifndef WIN32_LEAN_AND_MEAN
-#        define WIN32_LEAN_AND_MEAN
-#    endif
-#    include <windows.h>
-#else
+// Deliberately NOT including <windows.h> from this public header --
+// it would drag thousands of Win32 macros into every TU in the
+// include chain and break unrelated code (e.g. Parsers/Pe.c's
+// IMAGE_DEBUG_TYPE_CODEVIEW enum). Use layout-compatible opaque
+// fields; Proc.c casts to the real Windows types inside the impl.
+#ifndef _WIN32
 #    include <sys/types.h> // pid_t
 #endif
 
@@ -36,6 +36,23 @@ typedef enum ProcStatus {
     SYS_PROC_STATUS_ERROR       // Error occurred while checking status
 } ProcStatus;
 
+#ifdef _WIN32
+// Layout-compatible with Win32 PROCESS_INFORMATION:
+//   typedef struct _PROCESS_INFORMATION {
+//       HANDLE hProcess;
+//       HANDLE hThread;
+//       DWORD  dwProcessId;
+//       DWORD  dwThreadId;
+//   } PROCESS_INFORMATION;
+// HANDLE is `void *`, DWORD is `unsigned long` (32-bit on Win64 -- u32).
+typedef struct {
+    void *hProcess;
+    void *hThread;
+    u32   dwProcessId;
+    u32   dwThreadId;
+} MisraProcessInfo_;
+#endif
+
 ///
 /// Process handle. Layout is platform-conditional. Stack-declare with
 /// `ProcInit(path, argv, envp)`; don't poke fields directly. The
@@ -46,10 +63,10 @@ typedef struct Proc {
     int  _exit_code;
     bool _completed;
 #ifdef _WIN32
-    PROCESS_INFORMATION _pi;
-    HANDLE              _hStdinWrite;
-    HANDLE              _hStdoutRead;
-    HANDLE              _hStderrRead;
+    MisraProcessInfo_ _pi;     // layout-compat with PROCESS_INFORMATION
+    void             *_hStdinWrite;  // HANDLE
+    void             *_hStdoutRead;  // HANDLE
+    void             *_hStderrRead;  // HANDLE
 #else
     pid_t _pid;
     int   _stdin_fd;  // write here to send to child stdin
@@ -101,7 +118,7 @@ static inline bool ProcOk(const Proc *p) {
         return false;
     }
 #ifdef _WIN32
-    return p->_pi.hProcess != NULL;
+    return p->_pi.hProcess != (void *)0;
 #else
     return p->_pid > 0;
 #endif
