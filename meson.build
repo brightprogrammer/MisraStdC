@@ -190,6 +190,15 @@ misra_std_sources = files(
 # CRT entry untouched.
 sys_cpu = host_machine.cpu_family()
 have_misra_start = sys_kernel == 'linux' and (sys_cpu == 'x86_64' or sys_cpu == 'aarch64')
+
+# FEATURE_DIRECT_SYSCALL covers both the Linux and Darwin (XNU) direct-
+# syscall paths -- the asm wrappers and per-OS syscall number tables
+# live in Source/Misra/_Syscall.h. Apple "deprecates" raw syscalls
+# but they still work for the BSD-class numbers we use; libSystem is
+# the only Apple-supported alternative. Cosmopolitan libc takes the
+# same approach. macOS support intentionally pins to a tested major
+# version -- Apple has renumbered syscalls historically.
+have_direct_syscall = have_misra_start or (sys_kernel == 'darwin' and (sys_cpu == 'x86_64' or sys_cpu == 'aarch64'))
 if have_misra_start
     misra_std_sources += files('Source/Misra/_StartLinux.c')
     # Also bring in _FreestandingLinux.c: provides memcpy / memset /
@@ -364,7 +373,7 @@ config_data.set10('FEATURE_PARSER_MACHO',    opt_parser_macho)
 # the public Sys.h can be specialised correctly the moment any Misra
 # header is included, without having to depend on _Syscall.h being
 # pre-included.
-config_data.set10('FEATURE_DIRECT_SYSCALL',  have_misra_start)
+config_data.set10('FEATURE_DIRECT_SYSCALL',  have_direct_syscall)
 config_data.set10('FEATURE_PARSER_DNS',      opt_parser_dns)
 config_data.set10('FEATURE_SYS_DNS',         opt_sys_dns)
 
