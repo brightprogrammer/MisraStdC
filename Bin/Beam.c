@@ -25,21 +25,35 @@
 
 #if defined(_WIN32)
 #    include <signal.h>
-#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
-// Linux direct-syscall path: hand-roll rt_sigaction so Beam doesn't
-// drag libc's sigaction/sigemptyset/signal into the link. POSIX
-// sigaction is just a thin wrapper around the rt_sigaction syscall,
-// but the kernel sigaction ABI differs from glibc's (different field
-// order; x86_64 requires the caller to supply a SA_RESTORER trampoline
-// because the kernel doesn't synthesize one for unwinding back to
-// userspace).
+#elif (defined(__linux__) || defined(__APPLE__)) && \
+      (defined(__x86_64__) || defined(__aarch64__))
+// POSIX direct-syscall path: hand-roll sigaction so Beam doesn't drag
+// libc's sigaction/sigemptyset/signal into the link. The kernel
+// sigaction ABI is per-OS and per-arch:
+//
+//   Linux x86_64 / aarch64
+//     - Single syscall (rt_sigaction). On x86_64 the caller must
+//       supply a SA_RESTORER trampoline that issues rt_sigreturn;
+//       on aarch64 the kernel synthesises it on the signal stack.
+//     - Struct: handler / flags / restorer / mask (1 word).
+//
+//   Darwin x86_64 / aarch64
+//     - Single syscall (sigaction #46). The kernel never returns to
+//       the user's handler directly: it invokes a per-installation
+//       'sa_tramp' which is responsible for calling the handler then
+//       issuing sigreturn (#184). libSystem normally hides this by
+//       supplying its own _sigtramp; without libSystem we write our
+//       own trampoline. Struct: handler / sa_tramp / mask / flags.
 #    include "../Source/Misra/_Syscall.h"
 
 #    define MISRA_SIGINT          2
 #    define MISRA_SIGPIPE         13
 #    define MISRA_SIGTERM         15
-#    define MISRA_SA_RESTORER     0x04000000UL
 #    define MISRA_SIG_IGN_HANDLER ((void (*)(int))1) // SIG_IGN
+
+#    if defined(__linux__)
+
+#        define MISRA_SA_RESTORER 0x04000000UL
 
 struct misra_kernel_sigaction {
     void (*sa_handler)(int);
@@ -48,7 +62,7 @@ struct misra_kernel_sigaction {
     unsigned long sa_mask; // single-word: covers all 64 standard signals
 };
 
-#    if defined(__x86_64__)
+#        if defined(__x86_64__)
 // x86_64 kernel jumps to this on signal return. We must issue
 // rt_sigreturn ourselves; the kernel doesn't restore for us. `naked`
 // keeps the compiler from emitting a prologue that'd clobber the
@@ -61,19 +75,107 @@ __attribute__((naked)) static void misra_sigreturn_restorer(void) {
         "syscall\n"
     );
 }
-#    endif
+#        endif
 
 static void install_signal(int signum, void (*handler)(int)) {
     struct misra_kernel_sigaction sa = {0};
     sa.sa_handler                    = handler;
-#    if defined(__x86_64__)
+#        if defined(__x86_64__)
     sa.sa_flags    = MISRA_SA_RESTORER;
     sa.sa_restorer = misra_sigreturn_restorer;
-#    endif
+#        endif
     // 4th arg = sigsetsize in bytes (Linux ABI requires 8 for the
     // standard signal set).
     misra_sys4(MISRA_SYS_rt_sigaction, (long)signum, (long)(uintptr_t)&sa, 0, 8);
 }
+
+#    else // __APPLE__
+
+// Darwin's struct __sigaction (what SYS_sigaction wants). Fields per
+// <sys/signal.h>. The kernel reads sa_handler+sa_tramp; sa_mask is
+// the signal mask in effect during the handler; sa_flags carries
+// SA_SIGINFO and other modifiers. SIG_IGN is the special handler
+// value (uintptr 1) that means "discard" -- the kernel handles it
+// without invoking sa_tramp at all.
+struct misra_kernel_sigaction {
+    void (*sa_handler)(int);                                    // sa_handler / sa_sigaction union
+    void (*sa_tramp)(void *, int, int, void *, void *);         // trampoline (handler+sigreturn)
+    unsigned int sa_mask;                                       // 32-bit signal set
+    int          sa_flags;
+};
+
+// SA_SIGINFO=0x40. We don't use it -- sa_handler is plain
+// void(*)(int) -- so sa_flags stays 0 and the trampoline routes
+// through the UC_TRAD branch (handler(sig), no siginfo/uctx args).
+
+#        if defined(__aarch64__)
+// Darwin aarch64 signal trampoline.
+//   Entry registers (kernel-provided, per dyld/libplatform sigtramp):
+//     x0 = handler           (sa_handler or sa_sigaction, per sigstyle)
+//     w1 = sigstyle          (UC_TRAD=1 for plain handler, others for siginfo)
+//     w2 = sig               (signal number)
+//     x3 = sinfo             (siginfo_t*, unused for UC_TRAD)
+//     x4 = uctx              (ucontext_t* -- pass back to sigreturn)
+//   Action:
+//     Call handler(sig) for UC_TRAD; or handler(sig, sinfo, uctx) for SIGINFO.
+//     Then SYS_sigreturn(uctx, sigstyle). The syscall never returns.
+//
+// We only register UC_TRAD-style handlers, so just dispatch that case.
+__attribute__((naked)) static void misra_darwin_sigtramp(void) {
+    __asm__(
+        // Save handler, uctx, sigstyle on stack.
+        "stp x0, x4, [sp, #-32]!\n"  // handler @0, uctx @8
+        "str w1, [sp, #16]\n"        // sigstyle @16
+        // handler(sig)
+        "mov w0, w2\n"               // sig -> arg0
+        "ldr x9, [sp]\n"             // handler
+        "blr x9\n"
+        // sigreturn(uctx, sigstyle)
+        "ldr x0, [sp, #8]\n"         // uctx
+        "ldr w1, [sp, #16]\n"        // sigstyle
+        "mov x16, #184\n"            // SYS_sigreturn
+        "svc #0x80\n"
+        // Should not return.
+        "udf #0\n"
+    );
+}
+#        else // __x86_64__
+// Darwin x86_64 signal trampoline. Same shape as aarch64 above.
+//   Entry registers:
+//     %rdi = handler
+//     %esi = sigstyle
+//     %edx = sig
+//     %rcx = sinfo
+//     %r8  = uctx
+//   Action: handler(sig); then sigreturn(uctx, sigstyle).
+__attribute__((naked)) static void misra_darwin_sigtramp(void) {
+    __asm__(
+        "subq $32, %rsp\n"           // 16-aligned scratch (kernel guarantees 16-aligned entry)
+        "movq %rdi, 0(%rsp)\n"       // save handler
+        "movq %r8,  8(%rsp)\n"       // save uctx
+        "movl %esi, 16(%rsp)\n"      // save sigstyle
+        "movl %edx, %edi\n"          // sig -> arg0
+        "callq *0(%rsp)\n"           // handler(sig)
+        "movq 8(%rsp), %rdi\n"       // uctx -> arg0
+        "movl 16(%rsp), %esi\n"      // sigstyle -> arg1
+        "movq $0x20000B8, %rax\n"    // SYS_sigreturn = MISRA_DARWIN_SC(184) = 0x20000B8
+        "syscall\n"
+        "ud2\n"                      // should not return
+    );
+}
+#        endif
+
+static void install_signal(int signum, void (*handler)(int)) {
+    struct misra_kernel_sigaction sa = {0};
+    sa.sa_handler                    = handler;
+    // SIG_IGN doesn't actually invoke the trampoline, but the kernel
+    // still copies sa_tramp into per-thread state. Point it at our
+    // trampoline unconditionally -- safe even when unused.
+    sa.sa_tramp = misra_darwin_sigtramp;
+    misra_sys3(MISRA_SYS_rt_sigaction, (long)signum, (long)(uintptr_t)&sa, 0);
+}
+
+#    endif // __linux__ / __APPLE__
 #else
 #    include <signal.h>
 #endif
@@ -96,14 +198,16 @@ static void install_signal_handlers(void) {
     // exits cleanly on its own.
     signal(SIGINT, on_signal);
     signal(SIGTERM, on_signal);
-#elif defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+#elif (defined(__linux__) || defined(__APPLE__)) && \
+      (defined(__x86_64__) || defined(__aarch64__))
     install_signal(MISRA_SIGINT, on_signal);
     install_signal(MISRA_SIGTERM, on_signal);
     // SIGPIPE on a hung-up peer would terminate us; mask it and rely
     // on send() returning EPIPE instead.
     install_signal(MISRA_SIGPIPE, MISRA_SIG_IGN_HANDLER);
 #else
-    // Other POSIX (macOS, BSD): fall back to libc sigaction.
+    // Other POSIX (BSD on non-x86_64/aarch64 hardware, etc.): fall
+    // back to libc sigaction.
     struct sigaction sa;
     MemSet(&sa, 0, sizeof(sa));
     sa.sa_handler = on_signal;
