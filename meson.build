@@ -237,17 +237,22 @@ else
 endif
 
 # Stack-protector / FORTIFY_SOURCE pull in libc-provided helpers
-# (__stack_chk_fail, __stack_chk_guard on Linux; ___stack_chk_fail
-# + ___stack_chk_guard + ___chkstk_darwin on Mac; __memcpy_chk etc.
+# (__stack_chk_fail, __stack_chk_guard on Linux; ___stack_chk_fail +
+# ___stack_chk_guard + ___chkstk_darwin on Mac; __memcpy_chk etc.
 # under fortify). We don't gain anything from them in a libc-diet
 # project that goes through hand-audited byte loops everywhere --
-# turn both off project-wide. This drops the last "compiler tagged
-# along a libc dep" surface on both OSes.
-add_project_arguments(
-    '-fno-stack-protector',
-    '-U_FORTIFY_SOURCE',
-    language: 'c',
-)
+# turn both off on the GCC/clang side. MSVC has its own /GS flag
+# but doesn't pull libc helpers for stack canaries (the runtime
+# check is inlined), and has no FORTIFY_SOURCE equivalent -- skip
+# both flags on cl.exe / clang-cl to avoid the unknown-argument
+# error.
+if cc.get_id() != 'msvc' and cc.get_id() != 'clang-cl'
+    add_project_arguments(
+        '-fno-stack-protector',
+        '-U_FORTIFY_SOURCE',
+        language: 'c',
+    )
+endif
 
 if opt_alloc_arena
     misra_std_sources += files('Source/Misra/Std/Allocator/Arena.c')
