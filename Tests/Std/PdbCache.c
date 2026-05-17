@@ -311,10 +311,8 @@ bool test_pdb_cache_resolves_via_codeview(void) {
     PdbCacheDeinit(&cache);
     DefaultAllocatorDeinit(&alloc);
 
-    // Leave the scratch files behind -- Misra doesn't have a portable
-    // FileRemove API yet (would need SYS_unlink / SYS_unlinkat). The
-    // files are mkstemp-named under TMP, so the OS reaps them on
-    // reboot. Tracked in FUTURE-PLANS.
+    FileRemove(pe_path);
+    FileRemove(pdb_path);
     return ok;
 }
 

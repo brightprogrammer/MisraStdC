@@ -94,4 +94,36 @@ DirContents DirGetContents(const char *path, Allocator *alloc);
 ///
 i64 FileGetSize(const char *filename);
 
+///
+/// Remove a regular file. Equivalent of POSIX `unlink(2)` / Win32
+/// `DeleteFileA`. Symlinks are removed, not followed.
+///
+/// path[in] : Path of the file to remove.
+///
+/// SUCCESS : Returns true; the directory entry is gone.
+/// FAILURE : Returns false; logs the failing syscall. Common causes:
+///           file doesn't exist, no write permission on the parent
+///           directory, path is a directory (use `DirRemove`).
+///
+/// TAGS: System, File, FileSystem
+///
+bool FileRemove(const char *path);
+
+///
+/// Remove an empty directory. Equivalent of POSIX `rmdir(2)` / Win32
+/// `RemoveDirectoryA`. The directory must be empty; populated
+/// directories require recursive removal (callers can walk
+/// `DirGetContents` and remove entries one by one).
+///
+/// path[in] : Path of the directory to remove.
+///
+/// SUCCESS : Returns true; the directory is gone.
+/// FAILURE : Returns false; logs the failing syscall. Common causes:
+///           directory doesn't exist, directory is non-empty (ENOTEMPTY),
+///           no write permission on the parent directory.
+///
+/// TAGS: System, Directory, FileSystem
+///
+bool DirRemove(const char *path);
+
 #endif // MISRA_SYS_DIR_H

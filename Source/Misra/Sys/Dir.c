@@ -338,3 +338,80 @@ i64 FileGetSize(const char *filename) {
     }
 #endif
 }
+
+// ---------------------------------------------------------------------------
+// FileRemove / DirRemove. Linux uses the direct-syscall path when
+// FEATURE_DIRECT_SYSCALL is set (x86_64 -> SYS_unlink/SYS_rmdir;
+// aarch64 -> SYS_unlinkat with AT_REMOVEDIR for directories). macOS
+// goes through libSystem `unlink` / `rmdir`. Windows uses Win32
+// `DeleteFileA` / `RemoveDirectoryA`.
+// ---------------------------------------------------------------------------
+
+bool FileRemove(const char *path) {
+    if (!path) {
+        LOG_ERROR("FileRemove: NULL path");
+        return false;
+    }
+#if defined(_WIN32)
+    if (!DeleteFileA(path)) {
+        LOG_ERROR("FileRemove(\"{}\"): DeleteFileA failed (GetLastError={})", path, (i32)GetLastError());
+        return false;
+    }
+    return true;
+#elif FEATURE_DIRECT_SYSCALL
+#    if defined(__x86_64__)
+    long ret = misra_sys1(MISRA_SYS_unlink, (long)(uintptr_t)path);
+#    else
+    // AT_FDCWD = -100, flags = 0 (regular unlink, not rmdir)
+    long ret = misra_sys3(MISRA_SYS_unlinkat, -100L, (long)(uintptr_t)path, 0);
+#    endif
+    if (ret < 0) {
+        LOG_SYS_ERROR(SYS_ERRNO(ret), "FileRemove(\"{}\")", path);
+        return false;
+    }
+    return true;
+#else
+    // macOS / non-direct-syscall: libSystem unlink. errno set on
+    // failure; SYS_ERRNO falls back to reading it.
+    extern int unlink(const char *);
+    if (unlink(path) != 0) {
+        LOG_SYS_ERROR(SYS_ERRNO(-1), "FileRemove(\"{}\")", path);
+        return false;
+    }
+    return true;
+#endif
+}
+
+bool DirRemove(const char *path) {
+    if (!path) {
+        LOG_ERROR("DirRemove: NULL path");
+        return false;
+    }
+#if defined(_WIN32)
+    if (!RemoveDirectoryA(path)) {
+        LOG_ERROR("DirRemove(\"{}\"): RemoveDirectoryA failed (GetLastError={})", path, (i32)GetLastError());
+        return false;
+    }
+    return true;
+#elif FEATURE_DIRECT_SYSCALL
+#    if defined(__x86_64__)
+    long ret = misra_sys1(MISRA_SYS_rmdir, (long)(uintptr_t)path);
+#    else
+    // AT_FDCWD = -100, AT_REMOVEDIR = 0x200
+    long ret = misra_sys3(MISRA_SYS_unlinkat, -100L, (long)(uintptr_t)path, 0x200);
+#    endif
+    if (ret < 0) {
+        LOG_SYS_ERROR(SYS_ERRNO(ret), "DirRemove(\"{}\")", path);
+        return false;
+    }
+    return true;
+#else
+    // macOS / non-direct-syscall: libSystem rmdir.
+    extern int rmdir(const char *);
+    if (rmdir(path) != 0) {
+        LOG_SYS_ERROR(SYS_ERRNO(-1), "DirRemove(\"{}\")", path);
+        return false;
+    }
+    return true;
+#endif
+}
