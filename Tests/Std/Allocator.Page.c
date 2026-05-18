@@ -5,6 +5,7 @@
 
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Allocator/Page.h>
+#include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
@@ -30,7 +31,7 @@ static bool test_basic_alloc_and_free(void) {
         ((char *)ptr)[0]   = 'x';
         ((char *)ptr)[127] = 'y';
         ok                 = ok && (((char *)ptr)[0] == 'x') && (((char *)ptr)[127] == 'y');
-        PageAllocatorFree(&alloc, ptr, 128);
+        AllocatorFree(&alloc.base, ptr);
     }
 
     PageAllocatorDeinit(&alloc);
@@ -55,11 +56,32 @@ static bool test_realloc_grow_then_shrink(void) {
             char *shrunk        = (char *)AllocatorRealloc(alloc_base, grown, page * 2, 32);
             ok                  = ok && (shrunk != NULL) && (shrunk[0] == 'a');
             if (shrunk) {
-                PageAllocatorFree(&alloc, shrunk, 32);
+                AllocatorFree(&alloc.base, shrunk);
             }
         }
     }
 
+    PageAllocatorDeinit(&alloc);
+    return ok;
+}
+
+static bool test_vec_with_page_allocator(void) {
+    // PageAllocator backs Vec via the generic Allocator dispatch.
+    // Exercises the internal descriptor table across multiple grows.
+    PageAllocator alloc = PageAllocatorInit();
+    typedef Vec(int) IntVec;
+    IntVec v  = VecInit(&alloc);
+    bool   ok = true;
+
+    for (int i = 0; i < 1024; i++) {
+        if (!VecPushBackR(&v, i)) {
+            ok = false;
+            break;
+        }
+    }
+
+    ok = ok && (VecLen(&v) == 1024) && (VecAt(&v, 0) == 0) && (VecAt(&v, 1023) == 1023);
+    VecDeinit(&v);
     PageAllocatorDeinit(&alloc);
     return ok;
 }
@@ -76,7 +98,7 @@ static bool test_page_aligned_allocator(void) {
     bool          ok         = (ptr != NULL) && (((uintptr_t)ptr & (page - 1u)) == 0);
 
     if (ptr) {
-        PageAllocatorFree(&alloc, ptr, 1024);
+        AllocatorFree(&alloc.base, ptr);
     }
 
     PageAllocatorDeinit(&alloc);
@@ -88,6 +110,7 @@ int main(void) {
         test_page_size_query,
         test_basic_alloc_and_free,
         test_realloc_grow_then_shrink,
+        test_vec_with_page_allocator,
         test_page_aligned_allocator,
     };
     return run_test_suite(tests, (int)(sizeof(tests) / sizeof(tests[0])), NULL, 0, "Allocator.Page");

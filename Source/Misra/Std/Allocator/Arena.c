@@ -205,7 +205,7 @@ void ArenaAllocatorDeinit(ArenaAllocator *self) {
     ArenaChunk *chunk = self->head;
     while (chunk) {
         ArenaChunk *next = chunk->next;
-        PageAllocatorFree(&self->page, (void *)chunk, chunk->raw_size);
+        AllocatorFree(&self->page.base, (void *)chunk);
         chunk = next;
     }
     MemSet(self, 0, sizeof(*self));

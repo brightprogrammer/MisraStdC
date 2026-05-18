@@ -58,7 +58,7 @@ static bool heap_grow_array(HeapAllocator *heap, void **arr_ptr, u32 *cap_ptr, u
         return false;
     if (*arr_ptr && old_cap) {
         MemCopy(fresh, *arr_ptr, (size)old_cap * (size)entry_size);
-        PageAllocatorFree(&heap->page, *arr_ptr, (size)old_cap * (size)entry_size);
+        AllocatorFree(&heap->page.base, *arr_ptr);
     }
     *arr_ptr = fresh;
     *cap_ptr = new_cap;
@@ -221,7 +221,7 @@ static void *heap_alloc_s(HeapAllocator *heap, u32 slot_size) {
                 if (ix_j != (u32)-1)
                     heap_remove_at(heap->s, &heap->s_len, ix_j, sizeof(HeapPageS));
             }
-            PageAllocatorFree(&heap->page, base, HEAP_OS_PAGE_SIZE);
+            AllocatorFree(&heap->page.base, base);
             return NULL;
         }
         if (i == 0)
@@ -351,7 +351,7 @@ static void *heap_alloc_m(HeapAllocator *heap, u32 slot_size) {
                 if (ix_j != (u32)-1)
                     heap_remove_at(heap->m, &heap->m_len, ix_j, sizeof(HeapPageM));
             }
-            PageAllocatorFree(&heap->page, base, HEAP_OS_PAGE_SIZE);
+            AllocatorFree(&heap->page.base, base);
             return NULL;
         }
         if (i == 0)
@@ -453,7 +453,7 @@ static void *heap_alloc_l(HeapAllocator *heap, u32 slot_size) {
                 if (ix_j != (u32)-1)
                     heap_remove_at(heap->l, &heap->l_len, ix_j, sizeof(HeapPageL));
             }
-            PageAllocatorFree(&heap->page, base, HEAP_OS_PAGE_SIZE);
+            AllocatorFree(&heap->page.base, base);
             return NULL;
         }
         if (i == 0)
@@ -515,7 +515,7 @@ static void *heap_alloc_xl(HeapAllocator *heap, size bytes, i8 zeroed) {
     HeapPageXL desc = {.page = page, .num_pages = num_pages};
     if (heap_insert_sorted(heap, (void **)&heap->xl, &heap->xl_len, &heap->xl_cap, sizeof(HeapPageXL), &desc) ==
         (u32)-1) {
-        PageAllocatorFree(&heap->page, page, full);
+        AllocatorFree(&heap->page.base, page);
         return NULL;
     }
     return page;
@@ -527,7 +527,7 @@ static void *heap_alloc_xl(HeapAllocator *heap, size bytes, i8 zeroed) {
 static size heap_free_xl_at(HeapAllocator *heap, u32 idx) {
     HeapPageXL *e     = &heap->xl[idx];
     size        bytes = (size)e->num_pages * HEAP_PAGE_SIZE;
-    PageAllocatorFree(&heap->page, e->page, bytes);
+    AllocatorFree(&heap->page.base, e->page);
     heap_remove_at(heap->xl, &heap->xl_len, idx, sizeof(HeapPageXL));
     return bytes;
 }
@@ -695,29 +695,29 @@ void HeapAllocatorDeinit(HeapAllocator *self) {
 
     for (u32 i = 0; i < self->s_len; i++) {
         if (IS_GROUP_LEADER(self->s[i].page))
-            PageAllocatorFree(&self->page, self->s[i].page, HEAP_OS_PAGE_SIZE);
+            AllocatorFree(&self->page.base, self->s[i].page);
     }
     if (self->s_cap)
-        PageAllocatorFree(&self->page, self->s, (size)self->s_cap * sizeof(HeapPageS));
+        AllocatorFree(&self->page.base, self->s);
 
     for (u32 i = 0; i < self->m_len; i++) {
         if (IS_GROUP_LEADER(self->m[i].page))
-            PageAllocatorFree(&self->page, self->m[i].page, HEAP_OS_PAGE_SIZE);
+            AllocatorFree(&self->page.base, self->m[i].page);
     }
     if (self->m_cap)
-        PageAllocatorFree(&self->page, self->m, (size)self->m_cap * sizeof(HeapPageM));
+        AllocatorFree(&self->page.base, self->m);
 
     for (u32 i = 0; i < self->l_len; i++) {
         if (IS_GROUP_LEADER(self->l[i].page))
-            PageAllocatorFree(&self->page, self->l[i].page, HEAP_OS_PAGE_SIZE);
+            AllocatorFree(&self->page.base, self->l[i].page);
     }
     if (self->l_cap)
-        PageAllocatorFree(&self->page, self->l, (size)self->l_cap * sizeof(HeapPageL));
+        AllocatorFree(&self->page.base, self->l);
 
     for (u32 i = 0; i < self->xl_len; i++)
-        PageAllocatorFree(&self->page, self->xl[i].page, (size)self->xl[i].num_pages * HEAP_PAGE_SIZE);
+        AllocatorFree(&self->page.base, self->xl[i].page);
     if (self->xl_cap)
-        PageAllocatorFree(&self->page, self->xl, (size)self->xl_cap * sizeof(HeapPageXL));
+        AllocatorFree(&self->page.base, self->xl);
 
     MemSet(self, 0, sizeof(*self));
 }

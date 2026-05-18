@@ -225,7 +225,7 @@ void SlabAllocatorDeinit(SlabAllocator *self) {
         struct SlabChunk *next     = chunk->next;
         void             *raw      = chunk->raw;
         size              raw_size = chunk->raw_size;
-        PageAllocatorFree(&self->page, raw, raw_size);
+        AllocatorFree(&self->page.base, raw);
         chunk = next;
     }
     MemSet(self, 0, sizeof(*self));
