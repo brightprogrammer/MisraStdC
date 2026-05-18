@@ -128,7 +128,7 @@ File FileOpen(const char *path, const char *mode) {
 #    if defined(__APPLE__)
     flags |= 0x1000000; // Darwin O_CLOEXEC
 #    else
-    flags |= 0x80000;   // Linux O_CLOEXEC
+    flags |= 0x80000; // Linux O_CLOEXEC
 #    endif
     long fd;
 #    if FEATURE_DIRECT_SYSCALL
@@ -381,7 +381,7 @@ bool read_complete_file(const char *filename, char **data, u64 *file_size, u64 *
     char *buffer            = *data;
     u64   required_capacity = (u64)fsize + 1;
     if (*capacity < required_capacity) {
-        buffer = AllocatorRealloc(allocator, buffer, *capacity, required_capacity);
+        buffer = AllocatorRealloc(allocator, buffer, required_capacity);
 
         if (!buffer) {
             LOG_ERROR("allocator reallocation failed");

@@ -156,22 +156,20 @@ void *slab_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     return slot;
 }
 
-i8 slab_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size) {
+i8 slab_allocator_resize(Allocator *self, void *ptr, size new_size) {
     slab_validate_self(self);
     SlabAllocator *slab   = (SlabAllocator *)self;
     size           align  = self->alignment > 1 ? self->alignment : sizeof(void *);
     size           padded = slab_padded_slot_size(slab->slot_size, align);
     (void)ptr;
-    (void)old_size;
     return new_size <= padded ? 1 : 0;
 }
 
-void *slab_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size) {
+void *slab_allocator_remap(Allocator *self, void *ptr, size new_size) {
     slab_validate_self(self);
     SlabAllocator *slab   = (SlabAllocator *)self;
     size           align  = self->alignment > 1 ? self->alignment : sizeof(void *);
     size           padded = slab_padded_slot_size(slab->slot_size, align);
-    (void)old_size;
 
     if (!ptr)
         return slab_allocator_allocate(self, new_size, true);
@@ -222,10 +220,9 @@ void SlabAllocatorDeinit(SlabAllocator *self) {
         return;
     struct SlabChunk *chunk = self->head;
     while (chunk) {
-        struct SlabChunk *next     = chunk->next;
-        void             *raw      = chunk->raw;
-        size              raw_size = chunk->raw_size;
-        PageAllocatorFree(&self->page, raw, raw_size);
+        struct SlabChunk *next = chunk->next;
+        void             *raw  = chunk->raw;
+        AllocatorFree(&self->page.base, raw);
         chunk = next;
     }
     MemSet(self, 0, sizeof(*self));

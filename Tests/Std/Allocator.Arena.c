@@ -38,7 +38,7 @@ static bool test_grow_last_in_place(void) {
     if (ok) {
         p[0]        = 'h';
         p[15]       = 'i';
-        char *grown = (char *)AllocatorRealloc(alloc_base, p, 16, 32);
+        char *grown = (char *)AllocatorRealloc(alloc_base, p, 32);
         // Grew in place at the same address, with content preserved.
         ok = (grown == p) && (grown[0] == 'h') && (grown[15] == 'i');
     }
@@ -47,24 +47,27 @@ static bool test_grow_last_in_place(void) {
     return ok;
 }
 
-static bool test_grow_non_last_relocates(void) {
+static bool test_reject_remap_non_last(void) {
+    // Arena's remap can only honor a non-last allocation if it knows
+    // the old size. The bump policy doesn't track per-allocation
+    // sizes (that's the whole point), so remap of a non-last pointer
+    // is a caller bug and aborts via LOG_FATAL.
     ArenaAllocator arena      = ArenaAllocatorInit();
     Allocator     *alloc_base = ALLOCATOR_OF(&arena);
     char          *a          = (char *)AllocatorAlloc(alloc_base, 16, true);
     char          *b          = (char *)AllocatorAlloc(alloc_base, 16, true);
-    bool           ok         = (a != NULL) && (b != NULL);
-
-    if (ok) {
-        a[0]        = 'a';
-        a[15]       = '!';
-        char *grown = (char *)AllocatorRealloc(alloc_base, a, 16, 64);
-        // `a` is no longer the tail, so realloc must move it.
-        ok = (grown != NULL) && (grown != a) && (grown[0] == 'a') && (grown[15] == '!');
-    }
-
     (void)b;
-    ArenaAllocatorDeinit(&arena);
-    return ok;
+    (void)AllocatorRealloc(alloc_base, a, 64); // -> LOG_FATAL
+    return false;                              // unreachable
+}
+
+static bool test_reject_foreign_free(void) {
+    // Free of a pointer not in any arena chunk is a caller bug.
+    ArenaAllocator arena      = ArenaAllocatorInit();
+    Allocator     *alloc_base = ALLOCATOR_OF(&arena);
+    char           stack_byte = 0;
+    AllocatorFree(alloc_base, &stack_byte); // -> LOG_FATAL
+    return false;                           // unreachable
 }
 
 static bool test_vec_on_arena(void) {
@@ -117,13 +120,22 @@ static bool test_alignment(void) {
 }
 
 int main(void) {
-    TestFunction tests[] = {
+    TestFunction normal[] = {
         test_basic_bump,
         test_grow_last_in_place,
-        test_grow_non_last_relocates,
         test_vec_on_arena,
         test_reset,
         test_alignment,
     };
-    return run_test_suite(tests, (int)(sizeof(tests) / sizeof(tests[0])), NULL, 0, "Allocator.Arena");
+    TestFunction deadend[] = {
+        test_reject_remap_non_last,
+        test_reject_foreign_free,
+    };
+    return run_test_suite(
+        normal,
+        (int)(sizeof(normal) / sizeof(normal[0])),
+        deadend,
+        (int)(sizeof(deadend) / sizeof(deadend[0])),
+        "Allocator.Arena"
+    );
 }

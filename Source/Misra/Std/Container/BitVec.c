@@ -159,7 +159,7 @@ bool BitVecReserve(BitVec *bitvec, u64 n) {
     if (n <= bitvec->capacity)
         return true;
     u64 new_byte_size = BYTES_FOR_BITS(n);
-    u8 *new_data      = (u8 *)AllocatorRealloc(bitvec->allocator, bitvec->data, bitvec->byte_size, new_byte_size);
+    u8 *new_data      = (u8 *)AllocatorRealloc(bitvec->allocator, bitvec->data, new_byte_size);
 
     if (!new_data) {
         LOG_ERROR("Failed to allocate memory for bitvec");
@@ -199,7 +199,7 @@ void BitVecShrinkToFit(BitVec *bv) {
         return;
     }
 
-    u8 *new_data = (u8 *)AllocatorRealloc(bv->allocator, bv->data, bv->byte_size, new_byte_size);
+    u8 *new_data = (u8 *)AllocatorRealloc(bv->allocator, bv->data, new_byte_size);
     if (!new_data) {
         // Realloc failed, but that's okay for shrinking
         return;

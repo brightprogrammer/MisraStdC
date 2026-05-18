@@ -4,9 +4,11 @@
 ///
 /// Page-granular allocator. Allocations come straight from the operating
 /// system via `mmap` on POSIX and `VirtualAlloc` on Windows, so this
-/// allocator does not touch libc heap functions. State is inline; the
-/// only "state" is a cached page size and the user's struct lives wherever
-/// the user declared it (typically the stack).
+/// allocator does not touch libc heap functions. Per-allocator state is
+/// inline; the only "state" is a cached page size and a small descriptor
+/// table tracking (ptr, mmap-byte-length) for every live region so that
+/// free can recover the kernel-needed byte count without the caller
+/// supplying it.
 
 #ifndef MISRA_STD_ALLOCATOR_PAGE_H
 #define MISRA_STD_ALLOCATOR_PAGE_H
@@ -27,59 +29,59 @@ extern "C" {
 #endif
 
     ///
+    /// Per-live-allocation descriptor. The byte count is the *rounded*
+    /// mmap length (a multiple of the OS page size), which is what
+    /// `munmap` / `VirtualFree` need. The user pointer is the mmap'd
+    /// base address.
+    ///
+    typedef struct PageEntry {
+        void *ptr;
+        size  bytes;
+    } PageEntry;
+
+    ///
     /// Typed page-backed allocator. Carries `Allocator base` at offset 0 so
-    /// `(Allocator *)&page` is well-defined. The body of an allocation routes
-    /// through `mmap`/`VirtualAlloc` directly - no per-instance state needs
-    /// to be allocated.
+    /// `(Allocator *)&page` is well-defined.
     ///
     /// FIELDS:
     /// - base             : Generic allocator base (function pointers, alignment, ...).
     /// - cached_page_size : Lazily-cached system page size in bytes, 0 until first query.
+    /// - entries          : Descriptor array for live mmap'd regions; managed via
+    ///                      raw page_map/page_unmap calls (not through the public
+    ///                      Allocator dispatch -- would recurse).
+    /// - len              : Number of live entries.
+    /// - cap              : Capacity of `entries` in entries (geometric growth).
+    /// - entries_bytes    : Rounded mmap length of the `entries` table itself,
+    ///                      retained so PageAllocatorDeinit can unmap it.
     ///
     /// TAGS: Allocator, Page, Memory
     ///
     typedef struct PageAllocator {
-        Allocator base;
-        size      cached_page_size;
+        Allocator  base;
+        size       cached_page_size;
+        PageEntry *entries;
+        u32        len;
+        u32        cap;
+        size       entries_bytes;
     } PageAllocator;
 
     void *page_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
-    i8    page_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size);
-    void *page_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size);
+    i8    page_allocator_resize(Allocator *self, void *ptr, size new_size);
+    void *page_allocator_remap(Allocator *self, void *ptr, size new_size);
 
     ///
-    /// Generic-dispatch deallocate stub. `PageAllocator` cannot recover
-    /// the original allocation size from `ptr` alone (`munmap` /
-    /// `VirtualFree` need the byte count). Calling
-    /// `AllocatorFree(&page.base, ptr)` therefore aborts via
-    /// `LOG_FATAL` -- route Page frees through `PageAllocatorFree`
-    /// instead, which carries the explicit size.
+    /// Free a region previously returned by
+    /// `AllocatorAlloc(&page.base, ...)`. The byte count to munmap is
+    /// recovered from the allocator's internal descriptor table -- the
+    /// caller does NOT pass a size.
     ///
-    /// Consequence: `PageAllocator` is not suitable as the backing
-    /// allocator for `Vec` / `Map` / `Str` (their `*Deinit` calls
-    /// `AllocatorFree`). Wrap Page in a `HeapAllocator` for that.
+    /// SUCCESS: Returns the rounded mmap length that was released
+    ///          (page-aligned, what stats accounting sees). The kernel
+    ///          mapping is gone.
+    /// FAILURE: Aborts via `LOG_FATAL` when `ptr` is foreign to this
+    ///          allocator or has already been freed.
     ///
     size page_allocator_deallocate(Allocator *self, void *ptr);
-
-    ///
-    /// Typed deallocator for a region previously returned by
-    /// `AllocatorAlloc(&page.base, ...)` (or the `MisraScope` /
-    /// `ScopeWith` macros over a PageAllocator). Bypasses the generic
-    /// `AllocatorFree` dispatch because PageAllocator needs the byte
-    /// count -- the kernel mapping API does.
-    ///
-    /// self[in,out] : PageAllocator that issued the allocation.
-    /// ptr[in]      : Allocation pointer, or NULL.
-    /// bytes[in]    : Original allocation size in bytes (the same value
-    ///                that was passed to `AllocatorAlloc`).
-    ///
-    /// SUCCESS: Function returns; the kernel mapping is released.
-    /// FAILURE: Aborts via `LOG_FATAL` on a NULL or type-confused
-    ///          `self`. A NULL `ptr` is a no-op.
-    ///
-    /// TAGS: Allocator, Page, Deallocation
-    ///
-    void PageAllocatorFree(PageAllocator *self, void *ptr, size bytes);
 
     ///
     /// Page-level memory protection bits. The actual OS permissions are
@@ -136,6 +138,15 @@ extern "C" {
     ///
     size PageAllocatorPageSize(PageAllocator *self);
 
+    ///
+    /// Tear down a `PageAllocator`. Any region still tracked in `entries`
+    /// (a caller leak, e.g. forgot to `AllocatorFree`) is munmapped so
+    /// the kernel doesn't keep the mapping around. The descriptor table
+    /// itself is then released and the struct is zeroed -- post-deinit
+    /// dispatch trips `ValidateAllocator` on the zeroed `__magic`.
+    ///
+    void PageAllocatorDeinit(PageAllocator *self);
+
 #ifdef __cplusplus
 }
 #endif
@@ -147,7 +158,7 @@ extern "C" {
 ///
 ///     PageAllocator page = PageAllocatorInit();
 ///     void *p = AllocatorAlloc(&page.base, 64 * 1024, true);
-///     PageAllocatorFree(&page, p, 64 * 1024);
+///     AllocatorFree(&page.base, p);
 ///
 #define PageAllocatorInit()                                                                                            \
     ((PageAllocator) {                                                                                                 \
@@ -160,7 +171,11 @@ extern "C" {
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
                    .__magic     = PAGE_ALLOCATOR_MAGIC},                                                                         \
-        .cached_page_size = 0                                                                                          \
+        .cached_page_size = 0,                                                                                         \
+        .entries          = NULL,                                                                                      \
+        .len              = 0,                                                                                         \
+        .cap              = 0,                                                                                         \
+        .entries_bytes    = 0,                                                                                         \
     })
 
 ///
@@ -179,16 +194,11 @@ extern "C" {
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
                    .__magic     = PAGE_ALLOCATOR_MAGIC},                                                                         \
-        .cached_page_size = 0                                                                                          \
+        .cached_page_size = 0,                                                                                         \
+        .entries          = NULL,                                                                                      \
+        .len              = 0,                                                                                         \
+        .cap              = 0,                                                                                         \
+        .entries_bytes    = 0,                                                                                         \
     })
-
-///
-/// Teardown for `PageAllocator`. The allocator owns no per-instance
-/// pages (each `allocate` is matched by a `deallocate` `munmap`), so
-/// teardown just zeroes the struct - post-deinit dispatch then trips
-/// `ValidateAllocator` on the zeroed `__magic` instead of silently
-/// re-using the function-pointer table.
-///
-#define PageAllocatorDeinit(self) MemSet((self), 0, sizeof(*(self)))
 
 #endif // MISRA_STD_ALLOCATOR_PAGE_H

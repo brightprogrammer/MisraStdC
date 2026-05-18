@@ -32,7 +32,7 @@ bool test_page_protect_roundtrip(void) {
     ok       = ok && bytes[2] == 0xef;
     ok       = ok && PageProtect(region, page_bytes, PAGE_PROT_READ_WRITE);
 
-    PageAllocatorFree(&page, region, page_bytes);
+    AllocatorFree(&page.base, region);
     PageAllocatorDeinit(&page);
     return ok;
 }

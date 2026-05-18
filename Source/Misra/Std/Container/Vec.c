@@ -95,8 +95,7 @@ bool reserve_vec(GenericVec *vec, size item_size, size n) {
     aligned_size = vec_aligned_size(vec, item_size);
     if (n > vec->capacity) {
         size  old_capacity = (size)vec->capacity;
-        char *ptr          = (char *)
-            AllocatorRealloc(vec->allocator, vec->data, aligned_size * (old_capacity + 1), aligned_size * (n + 1));
+        char *ptr          = (char *)AllocatorRealloc(vec->allocator, vec->data, aligned_size * (n + 1));
 
         if (!ptr) {
             // Not LOG_SYS_ERROR: allocator failures don't set errno.
@@ -141,12 +140,7 @@ bool reduce_space_vec(GenericVec *vec, size item_size) {
         vec->length   = 0;
         return true;
     } else {
-        char *ptr = (char *)AllocatorRealloc(
-            vec->allocator,
-            vec->data,
-            aligned_size * (vec->capacity + 1),
-            aligned_size * (vec->length + 1)
-        );
+        char *ptr = (char *)AllocatorRealloc(vec->allocator, vec->data, aligned_size * (vec->length + 1));
         if (!ptr) {
             // Not LOG_SYS_ERROR: allocator failures don't set errno.
             LOG_ERROR("allocator reallocate failed");

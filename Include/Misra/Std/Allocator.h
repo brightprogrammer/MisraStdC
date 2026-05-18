@@ -40,12 +40,12 @@ extern "C" {
     // around the `bool` typedef in `Misra/Types.h`. Same reason
     // `resize` returns `i8` (1 = succeeded in-place, 0 = could not).
     typedef void *(*AllocatorAllocateFn)(Allocator *self, size bytes, i8 zeroed);
-    typedef i8 (*AllocatorResizeFn)(Allocator *self, void *ptr, size old_size, size new_size);
-    typedef void *(*AllocatorRemapFn)(Allocator *self, void *ptr, size old_size, size new_size);
-    // `deallocate` returns the number of bytes actually freed (recovered
-    // from the allocator's own bookkeeping). The size is no longer
-    // passed in by the caller -- callers should not be required to
-    // track the original allocation size just to free it.
+    // `resize`, `remap`, and `deallocate` all recover the existing
+    // allocation size from the allocator's own bookkeeping -- callers
+    // do not pass it. Lying about an allocation-time fact is no longer
+    // possible at the API boundary.
+    typedef i8 (*AllocatorResizeFn)(Allocator *self, void *ptr, size new_size);
+    typedef void *(*AllocatorRemapFn)(Allocator *self, void *ptr, size new_size);
     typedef size (*AllocatorDeallocateFn)(Allocator *self, void *ptr);
 
 #if FEATURE_ALLOC_STATS
@@ -166,17 +166,19 @@ extern "C" {
     /// self[in,out] : Allocator base.
     /// ptr[in]      : Existing allocation pointer (must be non-NULL --
     ///                resize of nothing is meaningless).
-    /// old_size[in] : Previous allocation size in bytes.
     /// new_size[in] : Requested new allocation size in bytes (must be
     ///                non-zero -- shrink-to-zero is a free, not a resize).
     ///
+    /// The previous allocation size is recovered from the allocator's
+    /// own bookkeeping. Callers do not pass it.
+    ///
     /// SUCCESS: Returns 1. `ptr` remains valid for `new_size` bytes; if
     ///          growing, new bytes are uninitialised.
-    /// FAILURE: Returns 0. `ptr` and `old_size` are unchanged.
+    /// FAILURE: Returns 0. The allocation is unchanged.
     ///
     /// TAGS: Allocator, Memory, InPlace
     ///
-    i8 AllocatorResize(Allocator *self, void *ptr, size old_size, size new_size);
+    i8 AllocatorResize(Allocator *self, void *ptr, size new_size);
 
     ///
     /// Resize an allocation, allowing relocation. May return a new
@@ -187,8 +189,10 @@ extern "C" {
     /// self[in,out]  : Allocator base.
     /// ptr[in]       : Existing allocation pointer, or NULL (then this
     ///                 behaves like AllocatorAlloc(self, new_size, 0)).
-    /// old_size[in]  : Previous allocation size in bytes.
     /// new_size[in]  : Requested new allocation size in bytes.
+    ///
+    /// The previous allocation size is recovered from the allocator's
+    /// own bookkeeping. Callers do not pass it.
     ///
     /// SUCCESS: Returns the (possibly moved) pointer, or NULL when
     ///          `new_size` is zero.
@@ -197,7 +201,7 @@ extern "C" {
     ///
     /// TAGS: Allocator, Memory, Reallocation
     ///
-    void *AllocatorRemap(Allocator *self, void *ptr, size old_size, size new_size);
+    void *AllocatorRemap(Allocator *self, void *ptr, size new_size);
 
     ///
     /// Convenience cascade: tries `AllocatorResize` first; on failure
@@ -212,7 +216,7 @@ extern "C" {
     ///
     /// TAGS: Allocator, Memory, Reallocation
     ///
-    void *AllocatorRealloc(Allocator *self, void *ptr, size old_size, size new_size);
+    void *AllocatorRealloc(Allocator *self, void *ptr, size new_size);
 
     ///
     /// Free memory through an allocator.
