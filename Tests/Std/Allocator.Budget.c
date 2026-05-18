@@ -1,7 +1,20 @@
 /// file      : Tests/Std/Allocator.Budget.c
-/// Smoke tests for the caller-buffer fixed-budget allocator.
-
-#include <stdint.h>
+///
+/// State-machine + edge-case tests for BudgetAllocator.
+///
+/// The caller-buffer is partitioned by Init into [bitmap | pad | slots].
+/// Alloc/Free operate only on the slot region; the bitmap is allocator-
+/// owned metadata.
+///
+/// Slot state machine:
+///     FREE  -- Alloc -->  IN_USE  -- Free -->  FREE
+///     pre: bit==0          pre: bit==1
+///     post: bit:=1         post: bit:=0
+///
+/// Rejection edges (Free must reject without writing through ptr):
+///   - foreign pointer    (outside slot region)
+///   - misaligned pointer (not at slot boundary)
+///   - double-free        (bit already 0)
 
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Allocator/Budget.h>
@@ -15,6 +28,9 @@ typedef struct {
     int  id;
     char tag[24];
 } Node;
+
+// =============================================================================
+// Happy path
 
 static bool test_basic_alloc_and_free(void) {
     u8              buf[1024] = {0};
@@ -36,19 +52,42 @@ static bool test_basic_alloc_and_free(void) {
     return ok;
 }
 
+static bool test_zero_byte_alloc_returns_null(void) {
+    u8              buf[256] = {0};
+    BudgetAllocator bp       = BudgetAllocatorInit(buf, sizeof(buf), sizeof(Node));
+    Allocator      *alloc    = ALLOCATOR_OF(&bp);
+    void           *p        = AllocatorAlloc(alloc, 0, false);
+    BudgetAllocatorDeinit(&bp);
+    return p == NULL;
+}
+
+static bool test_free_null_is_noop(void) {
+    u8              buf[256] = {0};
+    BudgetAllocator bp       = BudgetAllocatorInit(buf, sizeof(buf), sizeof(Node));
+    Allocator      *alloc    = ALLOCATOR_OF(&bp);
+    AllocatorFree(alloc, NULL, sizeof(Node));
+    void *p  = AllocatorAlloc(alloc, sizeof(Node), false);
+    bool  ok = (p != NULL);
+    if (p)
+        AllocatorFree(alloc, p, sizeof(Node));
+    BudgetAllocatorDeinit(&bp);
+    return ok;
+}
+
+// =============================================================================
+// State machine: capacity + reuse
+
 static bool test_fails_when_empty(void) {
-    // 256 bytes / padded(sizeof(Node)) = a few slots, exhaust them.
     u8              buf[256] = {0};
     BudgetAllocator bp       = BudgetAllocatorInit(buf, sizeof(buf), sizeof(Node));
     Allocator      *alloc    = ALLOCATOR_OF(&bp);
 
     bool ok = bp.slot_count > 0;
     for (size i = 0; ok && i < bp.slot_count; i++) {
-        if (!AllocatorAlloc(alloc, sizeof(Node), false)) {
+        if (!AllocatorAlloc(alloc, sizeof(Node), false))
             ok = false;
-        }
     }
-    // One more must fail - no growth path.
+    // One more must fail -- no growth path.
     void *overflow = AllocatorAlloc(alloc, sizeof(Node), false);
     ok             = ok && (overflow == NULL);
 
@@ -65,12 +104,36 @@ static bool test_free_then_alloc_recycles(void) {
     bool  ok = (a != NULL);
     AllocatorFree(alloc, a, sizeof(Node));
     Node *b = (Node *)AllocatorAlloc(alloc, sizeof(Node), true);
-    ok      = ok && (b == a); // LIFO free list returns the same slot.
+    // ctz finds the lowest clear bit, which is the one we just freed.
+    ok = ok && (b == a);
 
     AllocatorFree(alloc, b, sizeof(Node));
     BudgetAllocatorDeinit(&bp);
     return ok;
 }
+
+static bool test_alloc_distinct_pointers(void) {
+    u8              buf[1024] = {0};
+    BudgetAllocator bp        = BudgetAllocatorInit(buf, sizeof(buf), sizeof(Node));
+    Allocator      *alloc     = ALLOCATOR_OF(&bp);
+
+    Node *a  = (Node *)AllocatorAlloc(alloc, sizeof(Node), false);
+    Node *b  = (Node *)AllocatorAlloc(alloc, sizeof(Node), false);
+    Node *c  = (Node *)AllocatorAlloc(alloc, sizeof(Node), false);
+    bool  ok = (a && b && c && a != b && b != c && a != c);
+
+    if (a)
+        AllocatorFree(alloc, a, sizeof(Node));
+    if (b)
+        AllocatorFree(alloc, b, sizeof(Node));
+    if (c)
+        AllocatorFree(alloc, c, sizeof(Node));
+    BudgetAllocatorDeinit(&bp);
+    return ok;
+}
+
+// =============================================================================
+// Init edge cases
 
 static bool test_oversized_request_fails(void) {
     u8              buf[256] = {0};
@@ -78,7 +141,6 @@ static bool test_oversized_request_fails(void) {
     Allocator      *alloc    = ALLOCATOR_OF(&bp);
     void           *big      = AllocatorAlloc(alloc, 4096, true);
     bool            ok       = (big == NULL);
-
     BudgetAllocatorDeinit(&bp);
     return ok;
 }
@@ -92,38 +154,97 @@ static bool test_alignment_honored(void) {
     int            *p2    = (int *)AllocatorAlloc(alloc, sizeof(int), true);
 
     bool ok = (p1 != NULL) && (p2 != NULL);
-    ok      = ok && (((uintptr_t)p1 & 63u) == 0);
-    ok      = ok && (((uintptr_t)p2 & 63u) == 0);
+    ok      = ok && (((u64)p1 & 63u) == 0);
+    ok      = ok && (((u64)p2 & 63u) == 0);
 
-    if (p1) {
+    if (p1)
         AllocatorFree(alloc, p1, sizeof(int));
-    }
-    if (p2) {
+    if (p2)
         AllocatorFree(alloc, p2, sizeof(int));
-    }
     BudgetAllocatorDeinit(&bp);
     return ok;
 }
 
 static bool test_tiny_buffer_rejects(void) {
-    // Buffer smaller than one padded slot must yield zero slots and
-    // alloc must therefore return NULL on the very first call.
     u8              buf[4] = {0};
     BudgetAllocator bp     = BudgetAllocatorInit(buf, sizeof(buf), sizeof(Node));
     bool            ok     = (bp.slot_count == 0);
-
     BudgetAllocatorDeinit(&bp);
     return ok;
 }
 
+// =============================================================================
+// Rejection edges -- deadend tests. Each triggers a bad free that
+// LOG_FATALs. A passing deadend is one where the abort fired.
+
+static bool test_reject_foreign_pointer(void) {
+    u8              buf1[1024] = {0};
+    u8              buf2[1024] = {0};
+    BudgetAllocator bp1        = BudgetAllocatorInit(buf1, sizeof(buf1), sizeof(Node));
+    BudgetAllocator bp2        = BudgetAllocatorInit(buf2, sizeof(buf2), sizeof(Node));
+    Allocator      *alloc1     = ALLOCATOR_OF(&bp1);
+    Allocator      *alloc2     = ALLOCATOR_OF(&bp2);
+
+    Node *p = (Node *)AllocatorAlloc(alloc1, sizeof(Node), false);
+    AllocatorFree(alloc2, p, sizeof(Node)); // foreign to bp2 -> LOG_FATAL
+    return false;
+}
+
+static bool test_reject_pointer_before_slot_region(void) {
+    // Pointer to bitmap region (front of buf) must be rejected as foreign.
+    u8              buf[1024] = {0};
+    BudgetAllocator bp        = BudgetAllocatorInit(buf, sizeof(buf), sizeof(Node));
+    Allocator      *alloc     = ALLOCATOR_OF(&bp);
+
+    AllocatorFree(alloc, bp.bitmap, sizeof(Node)); // bitmap region -> LOG_FATAL
+    return false;
+}
+
+static bool test_reject_misaligned_pointer(void) {
+    u8              buf[1024] = {0};
+    BudgetAllocator bp        = BudgetAllocatorInit(buf, sizeof(buf), sizeof(Node));
+    Allocator      *alloc     = ALLOCATOR_OF(&bp);
+    char           *p         = (char *)AllocatorAlloc(alloc, sizeof(Node), false);
+    AllocatorFree(alloc, p + 1, sizeof(Node)); // mis-aligned -> LOG_FATAL
+    return false;
+}
+
+static bool test_reject_double_free(void) {
+    u8              buf[1024] = {0};
+    BudgetAllocator bp        = BudgetAllocatorInit(buf, sizeof(buf), sizeof(Node));
+    Allocator      *alloc     = ALLOCATOR_OF(&bp);
+    Node           *p         = (Node *)AllocatorAlloc(alloc, sizeof(Node), false);
+    AllocatorFree(alloc, p, sizeof(Node));
+    AllocatorFree(alloc, p, sizeof(Node)); // bit already 0 -> LOG_FATAL
+    return false;
+}
+
 int main(void) {
-    TestFunction tests[] = {
+    TestFunction normal[] = {
+        // Happy path
         test_basic_alloc_and_free,
+        test_zero_byte_alloc_returns_null,
+        test_free_null_is_noop,
+        // State machine
         test_fails_when_empty,
         test_free_then_alloc_recycles,
+        test_alloc_distinct_pointers,
+        // Init edges
         test_oversized_request_fails,
         test_alignment_honored,
         test_tiny_buffer_rejects,
     };
-    return run_test_suite(tests, (int)(sizeof(tests) / sizeof(tests[0])), NULL, 0, "Allocator.Budget");
+    TestFunction deadend[] = {
+        test_reject_foreign_pointer,
+        test_reject_pointer_before_slot_region,
+        test_reject_misaligned_pointer,
+        test_reject_double_free,
+    };
+    return run_test_suite(
+        normal,
+        (int)(sizeof(normal) / sizeof(normal[0])),
+        deadend,
+        (int)(sizeof(deadend) / sizeof(deadend[0])),
+        "Allocator.Budget"
+    );
 }

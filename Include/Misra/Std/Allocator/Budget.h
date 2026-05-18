@@ -46,33 +46,43 @@
 extern "C" {
 #endif
 
-    typedef struct BudgetFreeSlot BudgetFreeSlot;
-
     ///
-    /// Caller-buffer fixed-budget allocator. Carries `Allocator base` at
-    /// offset 0 so `(Allocator *)&bp` is well-defined.
+    /// Caller-buffer fixed-budget bitmap allocator. Carries `Allocator
+    /// base` at offset 0 so `(Allocator *)&bp` is well-defined.
+    ///
+    /// The caller-provided buffer is partitioned at init into a bitmap
+    /// region followed by a slot region. User pointers returned by
+    /// Alloc always lie in the slot region; on Free the allocator
+    /// validates the pointer against the slot range, alignment, and
+    /// the bitmap state (catches foreign / misaligned / double-free
+    /// without writing through the pointer).
     ///
     /// FIELDS:
-    /// - base       : Generic allocator base (function pointers, alignment, ...).
-    /// - buf        : Pointer to the caller-owned memory region.
-    /// - buf_bytes  : Size of `buf` in bytes.
-    /// - slot_size  : Slot size in bytes (rounded up to `base.alignment`).
-    /// - slot_count : Number of slots carved out of `buf`.
-    /// - free_head  : Head of the intrusive free list.
+    /// - base         : Generic allocator base (function pointers, alignment, ...).
+    /// - buf          : Pointer to the caller-owned memory region.
+    /// - buf_bytes    : Size of `buf` in bytes.
+    /// - bitmap       : u64 bitmap (allocator-owned region inside `buf`).
+    /// - bitmap_words : Number of u64 words in `bitmap`.
+    /// - slots        : Start of the slot region inside `buf`.
+    /// - slot_size    : Slot size in bytes (rounded up to `base.alignment`).
+    /// - slot_count   : Number of slots carved out of `buf`.
     ///
     /// TAGS: Allocator, Budget, Pool, Memory
     ///
     typedef struct BudgetAllocator {
-        Allocator       base;
-        char           *buf;
-        size            buf_bytes;
-        size            slot_size;
-        size            slot_count;
-        BudgetFreeSlot *free_head;
+        Allocator base;
+        char     *buf;
+        size      buf_bytes;
+        u64      *bitmap;
+        u32       bitmap_words;
+        char     *slots;
+        size      slot_size;
+        size      slot_count;
     } BudgetAllocator;
 
     void *budget_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
-    void *budget_allocator_reallocate(Allocator *self, void *ptr, size old_size, size new_size);
+    i8    budget_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size);
+    void *budget_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size);
     void  budget_allocator_deallocate(Allocator *self, void *ptr, size bytes);
 
     ///
