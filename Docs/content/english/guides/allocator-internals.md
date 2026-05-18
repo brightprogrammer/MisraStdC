@@ -1,221 +1,112 @@
 ---
-title: "Allocator Internals: Bitmap-Backed, Validation-First"
+title: "Allocator Design: Bitmaps over Freelists"
 date: 2026-05-18
-description: "How MisraStdC's small-object allocators are laid out, why the freelist allocator they replaced was a design problem rather than an implementation problem, and the limitations of the current shape."
+description: "Why MisraStdC's allocator uses a bitmap instead of a freelist, and which bug class that removes."
 authors:
   - siddharth-mishra
 tags:
   - design
   - allocators
   - bitmaps
-  - state-machines
 ---
 
-This document describes the current internal design of MisraStdC's small-object allocators -- `HeapAllocator`, `SlabAllocator`, and `BudgetAllocator` -- and why they look the way they do. The shape is not a claim that this is the *best* allocator design; it is the design that fell out of one specific constraint, given the time and complexity budget the project has.
+> **Note**: This post was drafted by an AI assistant under direction from the author. It is not first-hand writing; the design choices it describes are real, the prose explaining them is generated. Treat the technical content as the design talking, and the framing as a translation layer.
 
-The constraint is: **if a category of bug can happen, we treat that as a design issue, not as something to patch around with discipline.** The previous freelist-based allocators in this project had one such category, and the rewrite traded away some performance and code compactness to remove it. The new design has its own potential issues, called out at the end of this document.
+## The Freelist Problem
 
-## The Bug That Triggered The Redesign
+A classical small-object allocator stores its free-list pointer inside the free slot itself. When the slot is free, the first eight bytes are the allocator's `next` pointer; when the slot is in use, those eight bytes belong to the caller. The same address holds two different *kinds* of value at different times in its life.
 
-The previous fixed-size pool allocator was the textbook freelist shape:
+This compactness is the point of the design, and it is also the bug. The slot is owned by the allocator while free and by the caller while in use, but the *bytes* are shared. If a caller writes through a pointer they shouldn't — a foreign pointer, a stale pointer, a stack address that happens to alias a freed slot — the line that pushes the slot onto the free-list happily writes the free-list head into eight bytes the allocator doesn't own. The next allocation reads those bytes as a `next` pointer. The allocation after that returns whatever address those bytes encoded, as if it were a fresh slot.
 
-```c
-// Alloc: pop a slot from the freelist head.
-void *alloc(void) {
-    Slot *s = freelist_head;
-    freelist_head = s->next;
-    return s;
-}
+A category of memory-safety bugs — "wild write near a freelist allocator becomes write-anywhere" — is enabled by the shape of the allocator, not by any particular caller mistake.
 
-// Free: push a slot onto the freelist head.
-void free(void *p) {
-    Slot *s = p;
-    s->next = freelist_head;
-    freelist_head = s;
-}
-```
+## Bitmaps Move The Metadata Out
 
-The compactness is the point of the design. It is also the source of the problem: while a slot is free, the first `sizeof(void *)` bytes of it are the allocator's `next` pointer; while the slot is in use, those same bytes belong to the caller. The same address holds two different *kinds* of value at different times in its life.
-
-When `free` is called with a pointer the allocator didn't hand out (a foreign pointer, a stale pointer, a pointer offset into the middle of a slot, or just a stack address), the line `s->next = freelist_head` writes the freelist head into 8 bytes the allocator does not own. The next allocation interprets those bytes as a slot's `next` pointer; the allocation after that returns whatever address those bytes encoded as if it were a fresh slot.
-
-This is the well-known "freelist primitive" used in heap-exploitation literature. The point worth making here is that it is not a bug in any one line of code -- it is the natural consequence of the shape "embed a pointer in user memory while the slot is unused". Any implementation of that shape has this problem. Magic tags, freelist cycle detection, or per-slot canaries narrow the surface; they do not remove the category.
-
-That left two options:
-
-1. Keep the freelist and add enough patching to make exploitation hard.
-2. Pick a different shape.
-
-The redesign picked (2). The trade was roughly:
-
-- **More code.** The bitmap implementation is several hundred lines longer than the freelist it replaced (more validation, more bookkeeping, per-class layout tables).
-- **A slower free path in principle.** Old free was O(1) freelist push. New free is O(log N) for `Heap` (binary search over the per-class descriptor array) and O(N) for `Slab` / `Budget`. In practice N stays small enough that the difference is unmeasurable, but it is no longer constant.
-- **No memory regression per page.** The old design burned one full slot per page on a `HeapPageChunk` header at offset 0; the new design has zero header in the user page (the 24-byte descriptor lives in a separate, page-backed array), so per-page user capacity went up by one slot across every bin and the per-page metadata budget went down on most bins.
-
-The decision was driven by the rule above: a bug whose root cause is the *shape* of the design is not a bug we want to patch around. The slower free path and the extra code were considered acceptable; the memory regression turned out not to exist.
-
-## The Resulting Shape
-
-The replacement is described in one line: **allocator state lives in memory the allocator owns, and user pointers point at memory the allocator has handed out. These two regions are disjoint.**
-
-That sentence is the only invariant the rest of the design enforces. It does not mean the design is correct in every other respect, and it does not protect against bug classes outside this one. The "Limitations and Open Questions" section at the end covers what it does not catch.
-
-## The Three Allocators
-
-### `HeapAllocator` -- four size classes
-
-`HeapAllocator` is the general-purpose backing for `DefaultAllocator`. Requests are partitioned into four size classes:
-
-| class | sizes served    | layout per 4 KiB user page                                                          |
-|-------|-----------------|-------------------------------------------------------------------------------------|
-| S     | 16 / 32 / 64    | 64 × 16-B @ 0   +  32 × 32-B @ 1024  +  32 × 64-B @ 2048                            |
-| M     | 128 / 256 / 512 | 8 × 128-B @ 0   +  4 × 256-B @ 1024  +  4 × 512-B @ 2048                            |
-| L     | 1024 / 2048     | 2 × 1024-B @ 0  +  1 × 2048-B @ 2048                                                |
-| XL    | > 2048          | one page-rounded mmap per allocation                                                |
-
-The choice of split inside each class is a tradeoff. The class-S split (64 / 32 / 32) was picked because it makes the bitmap fit in exactly `u64 + u32 + u32` = 128 bits with one `ctz` instruction per sub-bin. A different split (more 16-byte slots, fewer 32 and 64) would suit a workload heavy on small allocations and lose efficiency for everything else. The current split assumes balanced mixed-size workloads. If a real workload skews heavily in one direction, the class layout becomes a bad fit -- this is one of the open questions.
-
-Each user page is dedicated to one class for its lifetime and contains *only* slot bytes. The per-page bitmap lives in a separate descriptor:
-
-```c
-typedef struct HeapPageS {
-    void *page;        // user page address
-    u64   bitmap_16;   // 64 bits, 1 = in use
-    u32   bitmap_32;   // 32 bits
-    u32   bitmap_64;   // 32 bits
-} HeapPageS;           // 24 bytes total
-```
-
-Classes M and L pack their sub-bins into a single `u16` or `u8` bitmap. `HeapAllocator` carries four descriptor arrays, one per class, kept sorted by page address:
-
-```c
-struct HeapAllocator {
-    Allocator     base;
-    PageAllocator page;
-    HeapPageS  *s;   u32 s_len;  u32 s_cap;
-    HeapPageM  *m;   u32 m_len;  u32 m_cap;
-    HeapPageL  *l;   u32 l_len;  u32 l_cap;
-    HeapPageXL *xl;  u32 xl_len; u32 xl_cap;
-};
-```
-
-The descriptor arrays themselves are page-backed via the embedded `PageAllocator`.
-
-### `SlabAllocator` -- one slot size, multi-chunk
-
-A `SlabAllocator` serves one configured slot size, growing by appending fresh page-backed chunks as needed. Each chunk is laid out as:
+The alternative design splits the allocator's backing buffer into two disjoint regions:
 
 ```
-[ chunk header | u64 bitmap | alignment pad | slot 0 | slot 1 | ... | slot N-1 ]
+   allocator-owned     user-owned
+   [   bitmap   ]      [ slot 0 | slot 1 | ... | slot N-1 ]
+        │                  ▲
+        │                  │
+        └── one bit per slot: 0 = free, 1 = in use
 ```
 
-The header (linked-list link, raw pointer, sizes) and bitmap occupy the front of the chunk. Slots occupy the back. They are disjoint byte ranges.
+The bitmap occupies a fixed-size header at the start of the buffer; user code never receives its address. The slot region occupies the rest of the buffer and holds only user bytes. The code that finds, marks, and returns free slots reads and writes the bitmap, not the slot bytes.
 
-### `BudgetAllocator` -- caller-buffer, hard cap
+All slots are the same size, so the slot a pointer belongs to is `(ptr - slot_region_base) / slot_size`. That index identifies the bit to flip on alloc and free, and it's how the allocator knows the size of any allocation without the caller having to tell it.
 
-A `BudgetAllocator` lives over a caller-supplied buffer with no growth path. The buffer is partitioned at init:
-
-```
-[ u64 bitmap | alignment pad | slot 0 | slot 1 | ... | slot N-1 ]
-```
-
-The bitmap sits at the front of the caller buffer. Both halves are in caller-owned memory; what matters is that they occupy disjoint byte ranges and `alloc` only ever returns addresses inside the slot range.
-
-### The Other Allocators
-
-`ArenaAllocator` rewinds the bump cursor when the freed pointer is the most recent allocation; otherwise the bytes are reclaimed at `Reset` / `Deinit`. Free validates that the pointer falls inside one of the arena's own chunks before doing the no-op — a foreign pointer aborts with `LOG_FATAL` like every other allocator's bad-free path. Remap of a non-last allocation also aborts (the bump policy doesn't track per-allocation sizes; alloc-copy-free can't bound the copy safely). The diagnostic distinguishes "foreign ptr" from "mid-stream ptr, use HeapAllocator for resize-of-anything semantics".
-
-`PageAllocator` is a thin syscall wrapper over `mmap` / `VirtualAlloc`. It maintains a small `(ptr, mmap-bytes)` descriptor table inline so it can recover the kernel-needed byte count on free without the caller supplying it; the table itself is page-backed via raw `page_map` / `page_unmap` (not through the public dispatch -- that would recurse). Generic `AllocatorFree(&page.base, ptr)` works end-to-end; PageAllocator is a full generic Allocator that can back `Vec` / `Map` / `Str`.
-
-`DebugAllocator` tracks every live allocation in an out-of-band map keyed by pointer, and (optionally) appends every successful free to an unbounded freed-history Vec so that a subsequent double-free can be diagnosed with the original alloc + first-free traces before the underlying allocator aborts. Detects foreign free, double-free, leaks, and buffer overflow on its own. Page-protect-on-free (`force_page_backing`) catches use-after-free at the moment of the bug.
-
-## The API Surface
-
-The public dispatch API takes a size on **allocate only**. Everything else recovers the size from the allocator's own bookkeeping:
-
-```c
-void *AllocatorAlloc  (Allocator *self, size bytes, i8 zeroed);
-i8    AllocatorResize (Allocator *self, void *ptr, size new_size);
-void *AllocatorRemap  (Allocator *self, void *ptr, size new_size);
-void *AllocatorRealloc(Allocator *self, void *ptr, size new_size);
-void  AllocatorFree   (Allocator *self, void *ptr);
-```
-
-The rule: **callers do not pass allocation-time facts back into the allocator.** The original allocation size is something the allocator already knows (encoded in a page offset, a slot index, a descriptor table); asking the caller to carry that value across the alloc/free lifetime is asking for a bug class. We had that bug class — a parser stored the wrong size at allocation time and only got caught when the bitmap Heap started validating — and the fix was the API, not the parser. Each allocator's recovery mechanism:
-
-| allocator | recovery |
-|-----------|----------|
-| Heap      | `(ptr & ~PAGE_SIZE-1)` finds the descriptor; offset-within-page picks the sub-bin (`HEAP_*_OFFSET`). XL: descriptor's `num_pages`. |
-| Slab      | per-allocator fixed slot size |
-| Budget    | per-allocator fixed slot size |
-| Arena     | `last_size` (rewind tracking) for the most recent bump; refuses remap of older allocations |
-| Page      | `(ptr, mmap-bytes)` descriptor table inline on the allocator |
-| Debug     | live-map's `requested_size` per pointer |
+A wild write through a stale slot pointer can still corrupt the data the previous caller wrote there, but it cannot reach the bitmap, so it cannot redirect the next allocation to an attacker-chosen address.
 
 ## The Slot State Machine
 
-Every slot is in one of two states:
+Each slot's bit is in one of two states. The allocator transitions a slot between them on alloc and free, and asserts the bit's current value before flipping it.
 
 ```
-       page allocated
-             │
-             ▼
-       ┌──────────┐     Alloc(size)              ┌──────────┐
-       │          │     pre:  bit == 0           │          │
-       │          │  ─────────────────────────▶  │          │
-       │          │     post: bit := 1           │          │
-       │   FREE   │                              │  IN_USE  │
-       │          │     Free(ptr)                │          │
-       │          │     pre:  bit == 1           │          │
-       │          │           ptr is slot base,  │          │
-       │          │  ◀─────── in region, aligned │          │
-       │          │     post: bit := 0           │          │
-       └────┬─────┘                              └─────┬────┘
-            │                                          │
-            │ Alloc found bit == 1                bad  │
-            │ (bitmap corruption)                 Free │ (foreign /
-            │                                          │  misaligned /
-            │                                          │  double-free /
-            ▼                                          ▼  mid-allocation)
-       ┌─────────────────────────────────────────────────────┐
-       │   Aborted   →   LOG_FATAL  +  backtrace             │
-       └─────────────────────────────────────────────────────┘
+       Alloc:   asserts bit == 0, then sets it to 1
+   ┌──────┐ ─────────────────────────────────────▶ ┌────────┐
+   │ FREE │                                        │ IN_USE │
+   └──────┘ ◀───────────────────────────────────── └────────┘
+        Free:   asserts bit == 1, then sets it to 0
 ```
 
+If an assertion fails the program aborts with a backtrace at the offending call site. The two assertions catch different bugs.
 
-Both transitions check the precondition before mutating any bitmap. The alloc-side check is technically redundant because `ctz(~bitmap)` finds a 0 bit by construction; the redundant assert exists to catch bitmap corruption from outside the allocator. The free-side check is doing real work -- it is what catches double-free.
+The alloc-side assertion catches **bitmap corruption from outside**. A healthy bitmap scan finds a clear bit by construction, so the bit it's about to set should already be 0. If it isn't, somebody has written through the bitmap region without going through the allocator.
 
-`Free` aborts via `LOG_FATAL` on any precondition failure. The choice is intentional: a bad free is a caller-side memory-safety bug, and continuing past it would leave the program in an undefined state. Aborting with a backtrace points directly at the call site. An earlier version of this design used `LOG_ERROR` + return; that turned out to be the wrong call because a silently-logged bad free leaves the door open for follow-up corruption.
+The free-side assertion catches **double-free**. The caller is freeing a slot whose bit is already 0, meaning the slot was already returned. The check stops at the call site that asked for it.
 
-## Tests as State-Machine Coverage
+## Bad Free Aborts. It Doesn't Return An Error.
 
-The test suites are split into two halves.
+A bad free is not an error condition; it's a memory-safety bug. The program is in an undefined state by the time the bad free happened — continuing past it is what turns the bug into a corruption. The allocator that detected it is the last well-defined frame on the stack, and that's where the backtrace needs to land.
 
-The **normal** half covers the state machine on valid input: alloc returns distinct pointers, free-then-alloc recycles the slot, filling a class triggers a fresh page, allocations across every sub-bin coexist without collision, zeroed allocations are actually zero, sizes round correctly, alignment is honored, two allocators on the same stack don't share state.
+"Log error and continue" is the wrong policy because a silently-logged bad free can be the first step in a longer corruption chain. Nothing aborts, so nothing anchors a backtrace, so nobody notices.
 
-The **deadend** half covers every rejection edge -- one test per category:
+## What This Catches, And What It Doesn't
 
-- foreign pointer (alloc via heap A, free via heap B)
-- double-free (alloc, free, free)
-- misaligned pointer (`ptr + 1`)
-- mid-allocation pointer in XL (`ptr + 128` of a large allocation)
+Caught and aborted:
 
-A passing deadend test is one where `LOG_FATAL` fired. The test runner intercepts `Abort` via `setjmp/longjmp` and counts the test as passing if and only if the abort happened. If a future refactor weakens validation, the corresponding deadend will return normally and the test fails -- the deadends are the regression fence.
+- Double-free
+- Free of a pointer the allocator doesn't own
+- Free of a pointer offset into the middle of an allocation
+- Free of a misaligned pointer
+- Bitmap corruption from outside
 
-## Limitations and Open Questions
+Not caught:
 
-This is the part of the document the design is genuinely uncertain about.
+- Use-after-free through a stale pointer that aliases into a re-allocated slot. The new contents are wrong but the allocator's bitmap is honest.
+- Buffer overflow past the end of a slot into the next slot. Adjacent caller data is wrong; allocator metadata is fine.
 
-**The free path uses linear search in two of three allocators.** Slab walks its chunk list; Budget is a single linear scan; Heap binary-searches a sorted array. For small-to-medium N this is fine. For workloads with thousands of chunks, Slab and Budget will be slower than the old O(1) freelist pop. There is no plan yet for what to do about that; the assumption is most allocator instances stay small.
+Catching those requires extra structure with measurable cost: a sentinel byte pattern at the tail of every allocation that's verified on free, and freed regions made unreadable so a stale dereference traps with a segfault. Not appropriate for production, but useful as an opt-in mode for tests.
 
-**The class splits are workload-dependent.** Class S at 64/32/32 slots favors balanced workloads. Class M at 8/4/4 has the same shape. If a real workload allocates 1000 × 16-byte structs and nothing in 32-byte or 64-byte sub-bins, the bitmap is half-empty and we burn pages faster than necessary. A hybrid scheme (first page shared, overflow pages dedicated per sub-bin) was considered and not built. If workloads turn out to skew that way, the split is the first thing to revisit.
+## The Same Rule, Applied To The API
 
-**The XL list grows unboundedly.** XL allocations are tracked one descriptor per allocation. A workload that does many large allocations grows the `xl` array indefinitely; there is no per-instance memory cap.
+Consider a free function that takes a size:
 
-**Use-after-free is not detected.** Once a slot's bit is cleared, the bytes in the slot remain whatever the previous caller wrote. A caller that holds a stale pointer and reads through it after free sees that data; if the slot has been re-allocated to a new caller, the stale read sees the new caller's data. `DebugAllocator` catches this via page-protect-on-free; the bitmap allocators on their own do not.
+```c
+free(allocator, ptr, size);
+```
 
-**The allocators are single-threaded by design.** Two threads sharing a `HeapAllocator` would race on the descriptor arrays and the bitmap mutations. The intended use is one allocator per work unit. If the project later grows a "shared allocator" requirement, the bitmap mutations would need atomic-set / atomic-clear with retry, and the descriptor-array growth would need a different shape entirely.
+That size is an allocation-time fact: the caller has to remember the number they passed to `alloc` and pass the same number back at `free`. In practice it drifts. Records get copied, structs get refactored, a length gets stored once and then everything else stays in sync until it doesn't — and the bug only surfaces when the allocator starts validating it.
 
-## Why This Is Written Down
+A free that doesn't ask:
 
-Most of the cost of the rewrite was not the code change itself. It was figuring out that the freelist was a category-of-bug problem, not a fixable-line-of-code problem. The rule that came out of it -- "if the design enables a bug class, treat that as the bug" -- is more useful than the allocator design. Future audits in the project (containers, parsers, sys primitives) will apply the same rule: look for places where library state can be written through a user-supplied pointer, where untrusted input drives metadata mutation, where a precondition is checked after rather than before mutation. If similar patterns surface there, the fix will be a similar shape -- redesign, not patch.
+```c
+free(allocator, ptr);
+```
+
+The allocator already knows the size of the slot, because the index-from-pointer arithmetic above gave it. Recovering the size internally is cheaper than the bug class that came from asking the caller for it.
+
+## The Generalization
+
+**If a design enables a class of bug, treat the design as the bug.**
+
+A freelist that stores its `next` pointer in user-reachable bytes is the design. A free API that takes a caller-supplied size is the design. In both cases the fix isn't to be more careful at the call sites; it's to remove the call-site burden that the bug class needed.
+
+---
+
+## How This Post Was Produced
+
+The AI-assisted draft went through several review passes by a separate AI reviewer reading the post cold (no project context). Each pass surfaced framing problems: forward references to sections that didn't exist, jargon the post hadn't defined, defensive meta-commentary, tangents that broke the through-line, comparisons to past versions of the code a fresh reader couldn't see. Each pass produced a rewrite focused on those specific complaints. The author signed off when the substance held up and further reviewer notes had moved into stylistic taste.
+
+The technical claims about the allocator design — bitmap layout, state machine, abort policy, API shape — match the code in the repository. The framing decisions about what to include, what order to put it in, and what to leave out are AI judgments shaped by the review loop above.
