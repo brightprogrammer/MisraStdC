@@ -2,14 +2,31 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Per-descriptor fixed-size slot slab implementation.
+/// Per-descriptor fixed-size slot bitmap allocator.
+///
+/// Each chunk is a single page-backed allocation partitioned into two
+/// disjoint regions:
+///
+///     [ chunk header ][ bitmap ][ pad ][ slot 0 ] ... [ slot N-1 ]
+///     ^               ^                ^
+///     chunk           bitmap           slots
+///
+/// The chunk header AND the bitmap are allocator-owned metadata. The
+/// slot region is user data. User pointers returned by Alloc always
+/// lie in the slot region; Free range-checks the pointer against the
+/// slot region, validates alignment within it, and only then touches
+/// the bitmap. No metadata is written through the user pointer for the
+/// rest of its life.
+///
+/// Slot state machine:
+///     FREE -- Alloc --> IN_USE -- Free --> FREE
+///     pre: bit==0       pre: bit==1
+///     post: bit:=1      post: bit:=0
 
 #include <Misra/Std/Allocator/Page.h>
 #include <Misra/Std/Allocator/Slab.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
-
-#include <stdint.h>
 
 static void slab_validate_self(const Allocator *self) {
     if (!self || self->__magic != SLAB_ALLOCATOR_MAGIC) {
@@ -19,13 +36,18 @@ static void slab_validate_self(const Allocator *self) {
 
 struct SlabChunk {
     struct SlabChunk *next;
-    char             *slots;
-    size              capacity;
-    size              raw_size;
+    void             *raw;          // base of the page-backed region (for Free on Deinit)
+    size              raw_size;     // bytes mmap'd from PageAllocator
+    u64              *bitmap;       // owned-by-this-chunk metadata region
+    u32               bitmap_words; // u64 count
+    char             *slots;        // start of user slot region
+    u32               slot_count;
 };
 
+// SlabFreeSlot from the old API stays declared (it's referenced by
+// the typedef in Slab.h) but is unused under the bitmap scheme.
 struct SlabFreeSlot {
-    struct SlabFreeSlot *next;
+    int _unused;
 };
 
 static size slab_round_up(size value, size alignment) {
@@ -33,49 +55,53 @@ static size slab_round_up(size value, size alignment) {
 }
 
 static size slab_padded_slot_size(size slot_size, size alignment) {
-    size required = slot_size > sizeof(struct SlabFreeSlot) ? slot_size : sizeof(struct SlabFreeSlot);
-    if (alignment < sizeof(void *)) {
+    if (alignment < sizeof(void *))
         alignment = sizeof(void *);
-    }
-    return slab_round_up(required, alignment);
+    return slab_round_up(slot_size, alignment);
 }
+
+static u32 ctz64(u64 x) {
+    return (u32)__builtin_ctzll(x);
+}
+
+// ---------------------------------------------------------------------------
+// Chunk allocation. Layout inside one page-backed chunk:
+//   [ SlabChunk header ][ u64 bitmap ][ alignment pad ][ slots... ]
 
 static bool slab_grow(SlabAllocator *slab) {
-    size align         = slab->base.alignment > 1 ? slab->base.alignment : sizeof(void *);
-    size padded_slot   = slab_padded_slot_size(slab->slot_size, align);
-    size slot_count    = slab->slots_per_chunk;
-    size header_bytes  = sizeof(struct SlabChunk);
-    size payload_bytes = slot_count * padded_slot + align;
-    size raw_bytes     = header_bytes + payload_bytes;
+    size align       = slab->base.alignment > 1 ? slab->base.alignment : sizeof(void *);
+    size padded_slot = slab_padded_slot_size(slab->slot_size, align);
+    size slot_count  = slab->slots_per_chunk;
+
+    size header_bytes = slab_round_up(sizeof(struct SlabChunk), sizeof(u64));
+    size bitmap_bytes = ((slot_count + 63u) / 64u) * 8u;
+    size raw_bytes    = header_bytes + bitmap_bytes + (align - 1) + slot_count * padded_slot;
 
     char *raw = (char *)AllocatorAlloc(&slab->page.base, raw_bytes, true);
-    if (!raw) {
+    if (!raw)
         return false;
-    }
 
     struct SlabChunk *chunk = (struct SlabChunk *)(void *)raw;
-    chunk->slots            = raw + header_bytes;
-    chunk->capacity         = payload_bytes;
-    chunk->raw_size         = raw_bytes;
     chunk->next             = NULL;
-    if (!slab->head) {
-        slab->head = chunk;
-    } else {
-        slab->tail->next = chunk;
-    }
-    slab->tail = chunk;
+    chunk->raw              = raw;
+    chunk->raw_size         = raw_bytes;
+    chunk->bitmap           = (u64 *)(void *)(raw + header_bytes);
+    chunk->bitmap_words     = (u32)(bitmap_bytes / 8u);
+    char *slots_raw         = raw + header_bytes + bitmap_bytes;
+    u64   aligned           = ((u64)slots_raw + (u64)(align - 1)) & ~(u64)(align - 1);
+    chunk->slots            = (char *)(void *)aligned;
+    chunk->slot_count       = (u32)slot_count;
 
-    uintptr_t base_addr    = (uintptr_t)chunk->slots;
-    uintptr_t aligned_addr = (base_addr + (uintptr_t)(align - 1)) & ~(uintptr_t)(align - 1);
-    char     *cursor       = (char *)(void *)aligned_addr;
-    for (size i = 0; i < slot_count; i++) {
-        struct SlabFreeSlot *slot  = (struct SlabFreeSlot *)(void *)cursor;
-        slot->next                 = slab->free_head;
-        slab->free_head            = slot;
-        cursor                    += padded_slot;
-    }
+    if (!slab->head)
+        slab->head = chunk;
+    else
+        slab->tail->next = chunk;
+    slab->tail = chunk;
     return true;
 }
+
+// ---------------------------------------------------------------------------
+// Public alloc / free / resize / remap.
 
 void *slab_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     slab_validate_self(self);
@@ -83,17 +109,41 @@ void *slab_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     size           align       = self->alignment > 1 ? self->alignment : sizeof(void *);
     size           padded_slot = slab_padded_slot_size(slab->slot_size, align);
 
-    if (bytes > padded_slot) {
+    if (bytes == 0 || bytes > padded_slot)
         return NULL;
+
+    // Find a chunk with at least one free bit.
+    struct SlabChunk *chunk = slab->head;
+    while (chunk) {
+        for (u32 w = 0; w < chunk->bitmap_words; w++) {
+            u64 inv = ~chunk->bitmap[w];
+            if (inv == 0)
+                continue;
+            u32  bit    = ctz64(inv);
+            size global = (size)w * 64u + bit;
+            if (global >= chunk->slot_count)
+                break;
+            if (chunk->bitmap[w] & ((u64)1 << bit)) {
+                LOG_FATAL("SlabAllocator bitmap corruption: chunk {x} word {} bit {}", (u64)chunk, (u64)w, (u64)bit);
+            }
+            chunk->bitmap[w] |= ((u64)1 << bit);
+            void *slot        = chunk->slots + global * padded_slot;
+            if (zeroed)
+                MemSet(slot, 0, padded_slot);
+            return slot;
+        }
+        chunk = chunk->next;
     }
-    if (!slab->free_head && !slab_grow(slab)) {
+
+    // All chunks full -- grow and retry on the new chunk.
+    if (!slab_grow(slab))
         return NULL;
-    }
-    struct SlabFreeSlot *slot = slab->free_head;
-    slab->free_head           = slot->next;
-    if (zeroed) {
+    chunk = slab->tail;
+    // First slot is guaranteed free.
+    chunk->bitmap[0] |= 1u;
+    void *slot        = chunk->slots;
+    if (zeroed)
         MemSet(slot, 0, padded_slot);
-    }
     return slot;
 }
 
@@ -104,11 +154,6 @@ i8 slab_allocator_resize(Allocator *self, void *ptr, size old_size, size new_siz
     size           padded = slab_padded_slot_size(slab->slot_size, align);
     (void)ptr;
     (void)old_size;
-    // Slab slots are fixed-size. Anything that still fits in the
-    // pre-allocated slot trivially "resizes" in place because nothing
-    // physically changes; anything bigger forces a move (which the
-    // slab can't even satisfy -- caller would have to allocate a
-    // separately-sized slot somewhere else).
     return new_size <= padded ? 1 : 0;
 }
 
@@ -117,44 +162,61 @@ void *slab_allocator_remap(Allocator *self, void *ptr, size old_size, size new_s
     SlabAllocator *slab   = (SlabAllocator *)self;
     size           align  = self->alignment > 1 ? self->alignment : sizeof(void *);
     size           padded = slab_padded_slot_size(slab->slot_size, align);
-
     (void)old_size;
 
-    if (!ptr) {
+    if (!ptr)
         return slab_allocator_allocate(self, new_size, true);
-    }
     if (new_size == 0) {
-        struct SlabFreeSlot *slot = (struct SlabFreeSlot *)ptr;
-        slot->next                = slab->free_head;
-        slab->free_head           = slot;
+        slab_allocator_deallocate(self, ptr, old_size);
         return NULL;
     }
-    if (new_size <= padded) {
-        return ptr;
-    }
-    return NULL;
+    return new_size <= padded ? ptr : NULL;
 }
 
 void slab_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
     slab_validate_self(self);
-    SlabAllocator *slab = (SlabAllocator *)self;
+    SlabAllocator *slab        = (SlabAllocator *)self;
+    size           align       = self->alignment > 1 ? self->alignment : sizeof(void *);
+    size           padded_slot = slab_padded_slot_size(slab->slot_size, align);
     (void)bytes;
-    if (!ptr) {
+    if (!ptr)
         return;
+
+    // Find the chunk whose slot range contains ptr.
+    char             *p     = (char *)ptr;
+    struct SlabChunk *chunk = slab->head;
+    while (chunk) {
+        char *end = chunk->slots + (size)chunk->slot_count * padded_slot;
+        if (p >= chunk->slots && p < end) {
+            size off = (size)(p - chunk->slots);
+            if (off % padded_slot != 0) {
+                LOG_ERROR("slab_free: misaligned ptr {x} (slot size {})", (u64)p, (u64)padded_slot);
+                return;
+            }
+            size idx = off / padded_slot;
+            u32  w   = (u32)(idx >> 6);
+            u32  b   = (u32)(idx & 63u);
+            if (!(chunk->bitmap[w] & ((u64)1 << b))) {
+                LOG_ERROR("slab_free: double-free of {x} (idx {})", (u64)p, (u64)idx);
+                return;
+            }
+            chunk->bitmap[w] &= ~((u64)1 << b);
+            return;
+        }
+        chunk = chunk->next;
     }
-    struct SlabFreeSlot *slot = (struct SlabFreeSlot *)ptr;
-    slot->next                = slab->free_head;
-    slab->free_head           = slot;
+    LOG_ERROR("slab_free: foreign ptr {x} not in any chunk's slot region", (u64)p);
 }
 
 void SlabAllocatorDeinit(SlabAllocator *self) {
-    if (!self) {
+    if (!self)
         return;
-    }
     struct SlabChunk *chunk = self->head;
     while (chunk) {
-        struct SlabChunk *next = chunk->next;
-        AllocatorFree(&self->page.base, (void *)chunk, chunk->raw_size);
+        struct SlabChunk *next     = chunk->next;
+        void             *raw      = chunk->raw;
+        size              raw_size = chunk->raw_size;
+        AllocatorFree(&self->page.base, raw, raw_size);
         chunk = next;
     }
     MemSet(self, 0, sizeof(*self));
