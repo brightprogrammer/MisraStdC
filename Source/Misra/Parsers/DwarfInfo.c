@@ -124,21 +124,26 @@ static bool bc_take_uleb128(ByteCursor *c, u64 *out) {
     return false;
 }
 static bool bc_take_sleb128(ByteCursor *c, i64 *out) {
-    i64 result = 0;
-    int shift  = 0;
-    u8  b      = 0;
+    // Decode in unsigned space and reinterpret at the end. The
+    // earlier formulation `result |= (i64)(b & 0x7f) << shift` and
+    // `result |= -((i64)1 << shift)` are signed-shift UB once
+    // `shift` reaches 56+ -- the shifted value steps into the sign
+    // bit of i64.
+    u64 uresult = 0;
+    int shift   = 0;
+    u8  b       = 0;
     while (c->p < c->end) {
-        b       = *c->p++;
-        result |= (i64)(b & 0x7f) << shift;
-        shift  += 7;
+        b        = *c->p++;
+        uresult |= (u64)(b & 0x7f) << shift;
+        shift   += 7;
         if ((b & 0x80) == 0)
             break;
         if (shift >= 64)
             return false;
     }
     if (shift < 64 && (b & 0x40))
-        result |= -((i64)1 << shift);
-    *out = result;
+        uresult |= ~(u64)0 << shift;
+    *out = (i64)uresult;
     return true;
 }
 static const char *bc_take_cstr(ByteCursor *c) {

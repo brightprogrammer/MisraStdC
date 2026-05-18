@@ -238,6 +238,14 @@ static bool decode_line_program_header(ByteCursor *cur, LineProgHeader *out) {
 
     if (!bc_take_u8(cur, &out->line_range))
         return false;
+    // line_range == 0 is a malformed CU header: every special opcode
+    // and DW_LNS_CONST_ADD_PC computes `adjusted / line_range`, which
+    // would divide by zero. The DWARF spec forbids line_range=0 in
+    // practice (it must be a positive integer); refuse the unit.
+    if (out->line_range == 0) {
+        LOG_ERROR("DWARF: line program header has line_range == 0");
+        return false;
+    }
     if (!bc_take_u8(cur, &out->opcode_base))
         return false;
 

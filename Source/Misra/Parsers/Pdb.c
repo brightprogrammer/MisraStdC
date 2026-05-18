@@ -169,10 +169,19 @@ static bool reconstruct_directory(PdbFile *self, u32 num_dir_bytes, u32 block_ma
             LOG_ERROR("PDB: directory block id {} out of range", block_id);
             return false;
         }
-        u32 want = self->block_size;
-        u32 done = i * self->block_size;
-        if (done + want > num_dir_bytes)
+        // `done = i * block_size` is u32 * u32. A malicious header can
+        // produce num_dir_blocks * block_size > 2^32, wrapping `done`
+        // to a small value and turning the subsequent MemCopy into an
+        // OOB write into stream_dir. Promote to u64 explicitly.
+        u64 done = (u64)i * (u64)self->block_size;
+        u64 want = self->block_size;
+        if (done + want > num_dir_bytes) {
+            if (done >= num_dir_bytes) {
+                LOG_ERROR("PDB: directory copy offset past stream-dir size");
+                return false;
+            }
             want = num_dir_bytes - done;
+        }
         MemCopy(self->stream_dir + done, src, want);
     }
     return true;

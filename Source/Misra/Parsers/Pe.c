@@ -463,8 +463,14 @@ bool PeFileRvaToOffset(const PeFile *self, u32 rva, u64 *out_offset) {
         return false;
     for (size i = 0; i < self->sections.length; ++i) {
         const PeSection *s = &self->sections.data[i];
-        if (rva >= s->virtual_address && rva < s->virtual_address + s->virtual_size) {
-            u64 off = (u64)s->raw_offset + (rva - s->virtual_address);
+        // virtual_address + virtual_size is u32 + u32; a crafted
+        // section header can wrap that sum below virtual_address,
+        // making the range check accept RVAs that don't actually
+        // belong to this section. Compute the end in u64.
+        u64 vstart = (u64)s->virtual_address;
+        u64 vend   = vstart + (u64)s->virtual_size;
+        if (rva >= vstart && (u64)rva < vend) {
+            u64 off = (u64)s->raw_offset + ((u64)rva - vstart);
             if (off >= self->data_size)
                 return false;
             *out_offset = off;
