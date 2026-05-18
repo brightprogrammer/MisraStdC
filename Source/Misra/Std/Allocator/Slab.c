@@ -50,14 +50,10 @@ struct SlabFreeSlot {
     int _unused;
 };
 
-static size slab_round_up(size value, size alignment) {
-    return (value + (alignment - 1)) & ~(alignment - 1);
-}
-
 static size slab_padded_slot_size(size slot_size, size alignment) {
     if (alignment < sizeof(void *))
         alignment = sizeof(void *);
-    return slab_round_up(slot_size, alignment);
+    return ALIGN_UP_POW2(slot_size, alignment);
 }
 
 #if defined(_MSC_VER) && !defined(__clang__)
@@ -91,7 +87,7 @@ static bool slab_grow(SlabAllocator *slab) {
     if (slot_count == 0 || slot_count > (size)(u32)-1) {
         return false;
     }
-    size header_bytes = slab_round_up(sizeof(struct SlabChunk), sizeof(u64));
+    size header_bytes = ALIGN_UP_POW2(sizeof(struct SlabChunk), sizeof(u64));
     // (slot_count + 63u) cannot wrap because slot_count <= U32_MAX.
     size bitmap_words_full = (slot_count + 63u) / 64u;
     if (bitmap_words_full > (size)(u32)-1) {

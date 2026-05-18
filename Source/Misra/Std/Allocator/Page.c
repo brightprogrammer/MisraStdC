@@ -90,13 +90,6 @@ static size page_effective_alignment(PageAllocator *self) {
     return requested;
 }
 
-static size page_round_up(size bytes, size align) {
-    if (!bytes) {
-        return 0;
-    }
-    return (bytes + align - 1) & ~(align - 1);
-}
-
 #include "../../_Syscall.h"
 
 // Linux: mmap/munmap/mprotect via direct syscall (kernel returns
@@ -139,9 +132,9 @@ static size page_rounded_size(PageAllocator *self, size bytes) {
     size align     = page_effective_alignment(self);
     size page_size = PageAllocatorPageSize(self);
     if (align > page_size) {
-        return page_round_up(bytes, align);
+        return ALIGN_UP_POW2(bytes, align);
     }
-    return page_round_up(bytes, page_size);
+    return ALIGN_UP_POW2(bytes, page_size);
 }
 
 // ---------------------------------------------------------------------------
@@ -169,7 +162,7 @@ static bool page_table_grow(PageAllocator *page) {
     // ensures the mmap'd region is page-aligned.
     //
     // Explicit overflow check on the doubling -- relying on the
-    // subsequent page_round_up returning 0 after unsigned wrap works
+    // subsequent round-up returning 0 after unsigned wrap works
     // by accident, not by contract. At ~2^63 entries_bytes the
     // doubling wraps; refuse the grow here rather than further down.
     size want_bytes;
@@ -180,7 +173,7 @@ static bool page_table_grow(PageAllocator *page) {
     } else {
         want_bytes = page->entries_bytes * 2;
     }
-    size new_rounded = page_round_up(want_bytes, page_size);
+    size new_rounded = ALIGN_UP_POW2(want_bytes, page_size);
     if (!new_rounded) {
         return false;
     }

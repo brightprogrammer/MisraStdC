@@ -38,10 +38,6 @@ static void budget_validate_self(const Allocator *self) {
     }
 }
 
-static size budget_round_up(size value, size alignment) {
-    return (value + (alignment - 1)) & ~(alignment - 1);
-}
-
 static bool budget_alignment_is_pow2(size alignment) {
     return alignment != 0 && ((alignment & (alignment - 1)) == 0);
 }
@@ -169,7 +165,7 @@ static BudgetAllocator budget_build(void *buf_in, size buf_bytes, size slot_size
     if (alignment < sizeof(void *))
         alignment = sizeof(void *);
 
-    size padded_slot = budget_round_up(slot_size, alignment);
+    size padded_slot = ALIGN_UP_POW2(slot_size, alignment);
 
     // Bitmap lives at the front of the buffer, u64-aligned.
     u64  buf_addr        = (u64)buf_in;
