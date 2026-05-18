@@ -121,13 +121,36 @@ A `BudgetAllocator` lives over a caller-supplied buffer with no growth path. The
 
 The bitmap sits at the front of the caller buffer. Both halves are in caller-owned memory; what matters is that they occupy disjoint byte ranges and `alloc` only ever returns addresses inside the slot range.
 
-### The Two Allocators That Did Not Need Changes
+### The Other Allocators
 
-`ArenaAllocator` was already safe by construction. Its `free` is a no-op unless the freed pointer matches the most recent bump, and any foreign free is silently a no-op. There is no metadata write through the user pointer.
+`ArenaAllocator` rewinds the bump cursor when the freed pointer is the most recent allocation; otherwise the bytes are reclaimed at `Reset` / `Deinit`. Free validates that the pointer falls inside one of the arena's own chunks before doing the no-op — a foreign pointer aborts with `LOG_FATAL` like every other allocator's bad-free path. Remap of a non-last allocation also aborts (the bump policy doesn't track per-allocation sizes; alloc-copy-free can't bound the copy safely). The diagnostic distinguishes "foreign ptr" from "mid-stream ptr, use HeapAllocator for resize-of-anything semantics".
 
-`PageAllocator` is a thin syscall wrapper. Its `Free` is `munmap`. The contract is "the caller knows what they own", which is the contract of `munmap` itself. The layering rule for the project is that user code does not call `PageAllocator.Free` directly -- only the higher-level allocators do, and they validate ownership before forwarding. That rule is policy, not enforced by code; it is one of the open questions.
+`PageAllocator` is a thin syscall wrapper over `mmap` / `VirtualAlloc`. It maintains a small `(ptr, mmap-bytes)` descriptor table inline so it can recover the kernel-needed byte count on free without the caller supplying it; the table itself is page-backed via raw `page_map` / `page_unmap` (not through the public dispatch -- that would recurse). Generic `AllocatorFree(&page.base, ptr)` works end-to-end; PageAllocator is a full generic Allocator that can back `Vec` / `Map` / `Str`.
 
-`DebugAllocator` already tracked every allocation in an out-of-band map and detected foreign free, double-free, leaks, and buffer overflow on its own. It was not touched.
+`DebugAllocator` tracks every live allocation in an out-of-band map keyed by pointer, and (optionally) appends every successful free to an unbounded freed-history Vec so that a subsequent double-free can be diagnosed with the original alloc + first-free traces before the underlying allocator aborts. Detects foreign free, double-free, leaks, and buffer overflow on its own. Page-protect-on-free (`force_page_backing`) catches use-after-free at the moment of the bug.
+
+## The API Surface
+
+The public dispatch API takes a size on **allocate only**. Everything else recovers the size from the allocator's own bookkeeping:
+
+```c
+void *AllocatorAlloc  (Allocator *self, size bytes, i8 zeroed);
+i8    AllocatorResize (Allocator *self, void *ptr, size new_size);
+void *AllocatorRemap  (Allocator *self, void *ptr, size new_size);
+void *AllocatorRealloc(Allocator *self, void *ptr, size new_size);
+void  AllocatorFree   (Allocator *self, void *ptr);
+```
+
+The rule: **callers do not pass allocation-time facts back into the allocator.** The original allocation size is something the allocator already knows (encoded in a page offset, a slot index, a descriptor table); asking the caller to carry that value across the alloc/free lifetime is asking for a bug class. We had that bug class — a parser stored the wrong size at allocation time and only got caught when the bitmap Heap started validating — and the fix was the API, not the parser. Each allocator's recovery mechanism:
+
+| allocator | recovery |
+|-----------|----------|
+| Heap      | `(ptr & ~PAGE_SIZE-1)` finds the descriptor; offset-within-page picks the sub-bin (`HEAP_*_OFFSET`). XL: descriptor's `num_pages`. |
+| Slab      | per-allocator fixed slot size |
+| Budget    | per-allocator fixed slot size |
+| Arena     | `last_size` (rewind tracking) for the most recent bump; refuses remap of older allocations |
+| Page      | `(ptr, mmap-bytes)` descriptor table inline on the allocator |
+| Debug     | live-map's `requested_size` per pointer |
 
 ## The Slot State Machine
 
@@ -184,10 +207,6 @@ A passing deadend test is one where `LOG_FATAL` fired. The test runner intercept
 This is the part of the document the design is genuinely uncertain about.
 
 **The free path uses linear search in two of three allocators.** Slab walks its chunk list; Budget is a single linear scan; Heap binary-searches a sorted array. For small-to-medium N this is fine. For workloads with thousands of chunks, Slab and Budget will be slower than the old O(1) freelist pop. There is no plan yet for what to do about that; the assumption is most allocator instances stay small.
-
-**`Free` no longer takes a size.** An earlier version was `Free(ptr, bytes)` and routed to a size class based on the caller's `bytes`. CI surfaced a real bug -- the PDB parser stored the wrong size, the new bitmap Heap caught the mismatch -- and the diagnosis was that the API itself was the bug class: a free that asks the caller for an allocation-time fact is a free that can be lied to. The current `Free(ptr)` recovers the size class from where the pointer lies inside its page (`HEAP_*_OFFSET`), so wrong-size is structurally not a thing the caller can do.
-
-**`PageAllocator` tracks live mmap regions in its own descriptor table.** Earlier versions punted on this and exposed a typed `PageAllocatorFree(&page, ptr, bytes)` that took the size from the caller, on the theory that `mmap` / `VirtualFree` need a byte count and the kernel doesn't track it. That left a caller-tracked-size bug class identical to the one `AllocatorFree` had just eliminated. The current design adds a small `(ptr, bytes)` table inline on the allocator -- 16 bytes per live region, geometric growth via raw `page_map` / `page_unmap` calls (no recursion through the public Allocator dispatch). Free does a linear scan, looks up the real mmap length, and unmaps. `AllocatorFree(&page.base, ptr)` now works end-to-end; PageAllocator is once again a full generic Allocator that can back `Vec` / `Map` / `Str`.
 
 **The class splits are workload-dependent.** Class S at 64/32/32 slots favors balanced workloads. Class M at 8/4/4 has the same shape. If a real workload allocates 1000 × 16-byte structs and nothing in 32-byte or 64-byte sub-bins, the bitmap is half-empty and we burn pages faster than necessary. A hybrid scheme (first page shared, overflow pages dedicated per sub-bin) was considered and not built. If workloads turn out to skew that way, the split is the first thing to revisit.
 

@@ -35,6 +35,21 @@ static size arena_effective_alignment(const Allocator *self) {
     return self->alignment > 1 ? self->alignment : 1;
 }
 
+// True if `ptr` lies inside any chunk's user region. Used by both
+// remap and deallocate to distinguish "legitimate arena-owned pointer
+// the caller is freeing/remapping" from "foreign pointer".
+static bool arena_owns_pointer(const ArenaAllocator *arena, const void *ptr) {
+    const ArenaChunk *chunk = arena->head;
+    while (chunk) {
+        const char *base = chunk->base;
+        if ((const char *)ptr >= base && (const char *)ptr < base + chunk->capacity) {
+            return true;
+        }
+        chunk = chunk->next;
+    }
+    return false;
+}
+
 static size arena_chunk_size_for(ArenaAllocator *arena, size need_bytes) {
     size page    = PageAllocatorPageSize(&arena->page);
     size minimum = ARENA_DEFAULT_CHUNK_SIZE;
@@ -152,10 +167,22 @@ void *arena_allocator_remap(Allocator *self, void *ptr, size new_size) {
 
     // Move case. We only know the old size if `ptr` is the last bump
     // (tracked in arena->last_size). For any other allocation we have
-    // no way to bound the copy length safely -- refuse instead of
-    // over-reading past the slot. Bump allocators don't expose
-    // per-allocation sizes by design; this is the price.
+    // no way to bound the copy length safely. A foreign pointer is a
+    // caller bug -- abort. A legitimate non-last arena pointer can't
+    // be remapped under the bump policy -- abort too, but with a
+    // different diagnostic so the caller knows the API mismatch (use
+    // a HeapAllocator if you need resize-of-anything semantics).
+    if (!arena_owns_pointer(arena, ptr)) {
+        LOG_FATAL("arena_remap: foreign ptr {x} (not in any chunk)", (u64)ptr);
+        return NULL;
+    }
     if (arena->last_ptr != ptr) {
+        LOG_FATAL(
+            "arena_remap: ptr {x} is not the most recent bump; bump allocators "
+            "cannot remap mid-stream allocations. Use HeapAllocator for "
+            "resize-of-anything.",
+            (u64)ptr
+        );
         return NULL;
     }
     size  old_padded = arena->last_size;
@@ -184,10 +211,13 @@ size arena_allocator_deallocate(Allocator *self, void *ptr) {
         arena->last_size = 0;
         return rewound;
     }
-    // Mid-stream frees are silently ignored under the bump policy --
-    // memory is reclaimed at Reset / Deinit time. Report 0 freed for
-    // stats; the caller's logical lifetime accounting is still
-    // correct because we never decremented bytes_in_use anyway.
+    // Mid-stream free of an arena-owned pointer is a no-op under the
+    // bump policy: the bytes get reclaimed at Reset / Deinit. We still
+    // verify ownership -- a foreign pointer is a caller bug and aborts.
+    if (!arena_owns_pointer(arena, ptr)) {
+        LOG_FATAL("arena_free: foreign ptr {x} (not in any chunk)", (u64)ptr);
+        return 0;
+    }
     return 0;
 }
 

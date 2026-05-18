@@ -47,29 +47,27 @@ static bool test_grow_last_in_place(void) {
     return ok;
 }
 
-static bool test_remap_non_last_refused(void) {
+static bool test_reject_remap_non_last(void) {
     // Arena's remap can only honor a non-last allocation if it knows
-    // the old size -- otherwise the alloc-copy-free fallback would
-    // have to over-read into adjacent allocations to fill the new
-    // buffer. The bump policy doesn't track per-allocation sizes
-    // (that's the whole point of being a bump allocator), so remap
-    // of a non-last pointer refuses with NULL. Callers that need
-    // resize-of-anything semantics should use a HeapAllocator.
+    // the old size. The bump policy doesn't track per-allocation
+    // sizes (that's the whole point), so remap of a non-last pointer
+    // is a caller bug and aborts via LOG_FATAL.
     ArenaAllocator arena      = ArenaAllocatorInit();
     Allocator     *alloc_base = ALLOCATOR_OF(&arena);
     char          *a          = (char *)AllocatorAlloc(alloc_base, 16, true);
     char          *b          = (char *)AllocatorAlloc(alloc_base, 16, true);
-    bool           ok         = (a != NULL) && (b != NULL);
-
-    if (ok) {
-        // `a` is no longer the tail; remap must refuse.
-        char *grown = (char *)AllocatorRealloc(alloc_base, a, 64);
-        ok          = (grown == NULL);
-    }
-
     (void)b;
-    ArenaAllocatorDeinit(&arena);
-    return ok;
+    (void)AllocatorRealloc(alloc_base, a, 64); // -> LOG_FATAL
+    return false;                              // unreachable
+}
+
+static bool test_reject_foreign_free(void) {
+    // Free of a pointer not in any arena chunk is a caller bug.
+    ArenaAllocator arena      = ArenaAllocatorInit();
+    Allocator     *alloc_base = ALLOCATOR_OF(&arena);
+    char           stack_byte = 0;
+    AllocatorFree(alloc_base, &stack_byte); // -> LOG_FATAL
+    return false;                           // unreachable
 }
 
 static bool test_vec_on_arena(void) {
@@ -122,13 +120,22 @@ static bool test_alignment(void) {
 }
 
 int main(void) {
-    TestFunction tests[] = {
+    TestFunction normal[] = {
         test_basic_bump,
         test_grow_last_in_place,
-        test_remap_non_last_refused,
         test_vec_on_arena,
         test_reset,
         test_alignment,
     };
-    return run_test_suite(tests, (int)(sizeof(tests) / sizeof(tests[0])), NULL, 0, "Allocator.Arena");
+    TestFunction deadend[] = {
+        test_reject_remap_non_last,
+        test_reject_foreign_free,
+    };
+    return run_test_suite(
+        normal,
+        (int)(sizeof(normal) / sizeof(normal[0])),
+        deadend,
+        (int)(sizeof(deadend) / sizeof(deadend[0])),
+        "Allocator.Arena"
+    );
 }

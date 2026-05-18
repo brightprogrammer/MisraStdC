@@ -266,10 +266,9 @@ size debug_allocator_deallocate(Allocator *self, void *ptr) {
         }
         // No freed-history hit either: foreign pointer (or freed
         // history disabled). Forward to the underlying allocator and
-        // let its state-machine diagnostic fire. force_page_backing's
-        // underlying is PageAllocator, whose generic dispatch aborts
-        // with its own "use PageAllocatorFree" message; that's fine,
-        // it's still a clear abort.
+        // let its state-machine diagnostic fire -- Heap LOG_FATALs
+        // with "foreign ptr"; PageAllocator does the same via its
+        // entries-table lookup.
         AllocatorFree(src, ptr);
         return 0;
     }
