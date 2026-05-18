@@ -155,7 +155,8 @@ static bool test_independent_heaps(void) {
     void *a  = AllocatorAlloc(alloc1, 32, true);
     void *b  = AllocatorAlloc(alloc2, 32, true);
     bool  ok = (a != NULL) && (b != NULL) && (a != b);
-    ok       = ok && (h1.chunks_head != h2.chunks_head);
+    // Two independent heaps must own separate class-S descriptor arrays.
+    ok = ok && (h1.s != h2.s) && h1.s_len > 0 && h2.s_len > 0;
 
     AllocatorFree(alloc1, a, 32);
     AllocatorFree(alloc2, b, 32);
