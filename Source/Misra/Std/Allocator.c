@@ -130,15 +130,19 @@ void *AllocatorRemap(Allocator *self, void *ptr, size new_size) {
     }
 #if FEATURE_ALLOC_STATS
     if (new_size == 0) {
-        // remap(ptr, 0) is a free; the underlying impl's deallocate
-        // updated stats internally (or, for impls that bypass dispatch,
-        // bytes_in_use stays where it is -- best-effort accounting).
         if (ptr) {
+            // remap(ptr, 0) is a free of ptr.
             self->stats.deallocations += 1;
         }
+        // remap(NULL, 0) is the trivial no-op: nothing freed,
+        // nothing allocated, nothing failed -- no counter moves.
+        // Made explicit so future readers don't read "no else
+        // clause" as a forgotten case.
     } else if (new_ptr) {
         allocator_stats_on_realloc(self, new_size);
     } else {
+        // new_size > 0 and impl returned NULL: alloc-via-remap
+        // failed, or remap of an existing ptr failed.
         self->stats.failed_allocations += 1;
     }
 #endif

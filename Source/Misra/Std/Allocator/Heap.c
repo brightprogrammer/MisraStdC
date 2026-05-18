@@ -507,7 +507,19 @@ static void heap_free_l(HeapAllocator *heap, void *ptr, u32 slot_size) {
 // descriptor existence is the in-use bit.
 
 static void *heap_alloc_xl(HeapAllocator *heap, size bytes, i8 zeroed) {
-    u32   num_pages = (u32)((bytes + HEAP_PAGE_SIZE - 1u) / HEAP_PAGE_SIZE);
+    // `num_pages` is a u32 to keep the XL descriptor compact. Guard
+    // against `bytes` requiring more pages than u32 can address --
+    // without this check the cast below silently truncates and we
+    // hand the user a buffer smaller than they asked for. The kernel
+    // would reject the mapping at this scale on every current
+    // platform, but the truncation happens before the kernel call,
+    // so a hypothetical platform that *could* satisfy the truncated
+    // mapping would see an under-allocation. Belt + suspenders.
+    size pages_needed = (bytes + HEAP_PAGE_SIZE - 1u) / HEAP_PAGE_SIZE;
+    if (pages_needed > (size)(u32)-1) {
+        return NULL;
+    }
+    u32   num_pages = (u32)pages_needed;
     size  full      = (size)num_pages * HEAP_PAGE_SIZE;
     void *page      = AllocatorAlloc(&heap->page.base, full, zeroed);
     if (!page)
@@ -585,6 +597,17 @@ void *heap_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
 // (u32)-1. Used by resize, remap, and deallocate -- all three rely on
 // the same lookup, with the same "size encoded in page offset"
 // invariant the bitmap design buys us.
+//
+// INVARIANT: the four class arrays (`s`, `m`, `l`, `xl`) are disjoint
+// by construction -- a user page lives in exactly one class for its
+// lifetime, and an XL region's base page never overlaps with an S/M/L
+// page (XL is page-allocated separately). The search order below
+// (XL -> L -> M -> S) is therefore semantically equivalent to any
+// other order; the first match is THE match. If a future refactor
+// breaks that invariant (e.g. by reusing a freed S-page as an XL
+// allocation without updating both arrays), the consequence is silent
+// type-confusion at free time. The descriptor-list rollback paths in
+// the grow functions must preserve this invariant.
 static size heap_recover_size(HeapAllocator *heap, void *ptr, u32 *xl_idx_out) {
     *xl_idx_out = (u32)-1;
     if (!ptr)

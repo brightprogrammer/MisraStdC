@@ -167,7 +167,19 @@ static bool page_table_grow(PageAllocator *page) {
     // First grow: one OS page worth of entries. Subsequent grows:
     // double the current allocation. Either way, page_rounded_size
     // ensures the mmap'd region is page-aligned.
-    size want_bytes  = page->entries_bytes ? page->entries_bytes * 2 : page_size;
+    //
+    // Explicit overflow check on the doubling -- relying on the
+    // subsequent page_round_up returning 0 after unsigned wrap works
+    // by accident, not by contract. At ~2^63 entries_bytes the
+    // doubling wraps; refuse the grow here rather than further down.
+    size want_bytes;
+    if (page->entries_bytes == 0) {
+        want_bytes = page_size;
+    } else if (page->entries_bytes > ((size)-1) / 2) {
+        return false;
+    } else {
+        want_bytes = page->entries_bytes * 2;
+    }
     size new_rounded = page_round_up(want_bytes, page_size);
     if (!new_rounded) {
         return false;
