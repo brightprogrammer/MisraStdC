@@ -50,7 +50,15 @@ static bool heap_alignment_demands_passthrough(Allocator *self) {
 #define HEAP_DESC_INITIAL_CAP 16u
 
 static bool heap_grow_array(HeapAllocator *heap, void **arr_ptr, u32 *cap_ptr, u32 entry_size) {
-    u32   old_cap   = *cap_ptr;
+    u32 old_cap = *cap_ptr;
+    // Guard the u32 doubling. With old_cap >= 0x80000000 the product
+    // wraps to a small u32, the alloc succeeds tiny, and the MemCopy
+    // below reads old_cap * entry_size bytes into a smaller buffer.
+    // Currently unreachable (would need 2^31 live descriptors) but
+    // the shape is real -- close it the same way page_table_grow did.
+    if (old_cap > ((u32)-1) / 2u) {
+        return false;
+    }
     u32   new_cap   = old_cap ? old_cap * 2u : HEAP_DESC_INITIAL_CAP;
     size  new_bytes = (size)new_cap * (size)entry_size;
     void *fresh     = AllocatorAlloc(&heap->page.base, new_bytes, true);

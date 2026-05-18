@@ -38,10 +38,6 @@ static void budget_validate_self(const Allocator *self) {
     }
 }
 
-static size budget_round_up(size value, size alignment) {
-    return (value + (alignment - 1)) & ~(alignment - 1);
-}
-
 static bool budget_alignment_is_pow2(size alignment) {
     return alignment != 0 && ((alignment & (alignment - 1)) == 0);
 }
@@ -169,7 +165,7 @@ static BudgetAllocator budget_build(void *buf_in, size buf_bytes, size slot_size
     if (alignment < sizeof(void *))
         alignment = sizeof(void *);
 
-    size padded_slot = budget_round_up(slot_size, alignment);
+    size padded_slot = ALIGN_UP_POW2(slot_size, alignment);
 
     // Bitmap lives at the front of the buffer, u64-aligned.
     u64  buf_addr        = (u64)buf_in;
@@ -187,7 +183,15 @@ static BudgetAllocator budget_build(void *buf_in, size buf_bytes, size slot_size
     if (max_slots_ub == 0)
         return empty;
 
-    size bitmap_bytes = ((max_slots_ub + 63u) / 64u) * 8u;
+    size bitmap_words_full = (max_slots_ub + 63u) / 64u;
+    // `bitmap_words` on the BudgetAllocator struct is u32. Refuse
+    // buffers large enough to overflow that field (>~32 GiB at a
+    // 1-byte slot size). Without this the cast at the bottom
+    // silently truncates and the alloc-side scan skips the high
+    // half of the bitmap.
+    if (bitmap_words_full > (size)(u32)-1)
+        return empty;
+    size bitmap_bytes = bitmap_words_full * 8u;
     if (bitmap_bytes >= avail_after_pad)
         return empty;
 
@@ -218,7 +222,7 @@ static BudgetAllocator budget_build(void *buf_in, size buf_bytes, size slot_size
         .buf          = (char *)buf_in,
         .buf_bytes    = buf_bytes,
         .bitmap       = (u64 *)(void *)bitmap,
-        .bitmap_words = (u32)(bitmap_bytes / 8u),
+        .bitmap_words = (u32)bitmap_words_full,
         .slots        = (char *)(void *)slot_addr_aligned,
         .slot_size    = padded_slot,
         .slot_count   = slot_count,

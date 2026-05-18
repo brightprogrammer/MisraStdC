@@ -50,14 +50,10 @@ struct SlabFreeSlot {
     int _unused;
 };
 
-static size slab_round_up(size value, size alignment) {
-    return (value + (alignment - 1)) & ~(alignment - 1);
-}
-
 static size slab_padded_slot_size(size slot_size, size alignment) {
     if (alignment < sizeof(void *))
         alignment = sizeof(void *);
-    return slab_round_up(slot_size, alignment);
+    return ALIGN_UP_POW2(slot_size, alignment);
 }
 
 #if defined(_MSC_VER) && !defined(__clang__)
@@ -82,9 +78,33 @@ static bool slab_grow(SlabAllocator *slab) {
     size padded_slot = slab_padded_slot_size(slab->slot_size, align);
     size slot_count  = slab->slots_per_chunk;
 
-    size header_bytes = slab_round_up(sizeof(struct SlabChunk), sizeof(u64));
-    size bitmap_bytes = ((slot_count + 63u) / 64u) * 8u;
-    size raw_bytes    = header_bytes + bitmap_bytes + (align - 1) + slot_count * padded_slot;
+    // `slot_count` and `bitmap_words` are stored u32 on the chunk
+    // header. Refuse configurations that would truncate either --
+    // a wrapped u32 slot_count makes the alloc-side scan loop
+    // forever or skip live slots silently. Bound is generous
+    // (2^32 slots, 2^32 64-bit bitmap words) but the numerics are
+    // now closed.
+    if (slot_count == 0 || slot_count > (size)(u32)-1) {
+        return false;
+    }
+    size header_bytes = ALIGN_UP_POW2(sizeof(struct SlabChunk), sizeof(u64));
+    // (slot_count + 63u) cannot wrap because slot_count <= U32_MAX.
+    size bitmap_words_full = (slot_count + 63u) / 64u;
+    if (bitmap_words_full > (size)(u32)-1) {
+        return false;
+    }
+    size bitmap_bytes = bitmap_words_full * 8u;
+    // raw_bytes math: every term is bounded above. slot_count*padded_slot
+    // is the dominant term; refuse if it would wrap a size.
+    if (padded_slot && slot_count > ((size)-1) / padded_slot) {
+        return false;
+    }
+    size slots_bytes = slot_count * padded_slot;
+    size pre_slots   = header_bytes + bitmap_bytes + (align - 1);
+    if (pre_slots > (size)-1 - slots_bytes) {
+        return false;
+    }
+    size raw_bytes = pre_slots + slots_bytes;
 
     char *raw = (char *)AllocatorAlloc(&slab->page.base, raw_bytes, true);
     if (!raw)
@@ -95,7 +115,7 @@ static bool slab_grow(SlabAllocator *slab) {
     chunk->raw              = raw;
     chunk->raw_size         = raw_bytes;
     chunk->bitmap           = (u64 *)(void *)(raw + header_bytes);
-    chunk->bitmap_words     = (u32)(bitmap_bytes / 8u);
+    chunk->bitmap_words     = (u32)bitmap_words_full;
     char *slots_raw         = raw + header_bytes + bitmap_bytes;
     u64   aligned           = ((u64)slots_raw + (u64)(align - 1)) & ~(u64)(align - 1);
     chunk->slots            = (char *)(void *)aligned;

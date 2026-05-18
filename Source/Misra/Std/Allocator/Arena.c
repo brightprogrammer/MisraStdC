@@ -27,10 +27,6 @@ struct ArenaChunk {
     size               raw_size;
 };
 
-static size arena_round_up(size value, size alignment) {
-    return (value + (alignment - 1)) & ~(alignment - 1);
-}
-
 static size arena_effective_alignment(const Allocator *self) {
     return self->alignment > 1 ? self->alignment : 1;
 }
@@ -55,7 +51,7 @@ static size arena_chunk_size_for(ArenaAllocator *arena, size need_bytes) {
     size minimum = ARENA_DEFAULT_CHUNK_SIZE;
     size wanted  = need_bytes > minimum ? need_bytes : minimum;
     if (page > 1) {
-        wanted = arena_round_up(wanted, page);
+        wanted = ALIGN_UP_POW2(wanted, page);
     }
     return wanted;
 }
@@ -83,7 +79,7 @@ void *arena_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     }
     ArenaAllocator *arena  = (ArenaAllocator *)self;
     size            align  = arena_effective_alignment(self);
-    size            padded = arena_round_up(bytes, align);
+    size            padded = ALIGN_UP_POW2(bytes, align);
 
     ArenaChunk *chunk = arena->tail;
     if (chunk) {
@@ -136,7 +132,7 @@ i8 arena_allocator_resize(Allocator *self, void *ptr, size new_size) {
         return 0;
     }
     ArenaChunk *chunk      = arena->tail;
-    size        padded_new = arena_round_up(new_size, align);
+    size        padded_new = ALIGN_UP_POW2(new_size, align);
     size        last_off   = (size)((char *)ptr - chunk->base);
     if (last_off + padded_new > chunk->capacity) {
         return 0; // grow doesn't fit in this chunk
