@@ -2,15 +2,9 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// `.debug_line` parser. Walks every compilation unit's Line Number
-/// Program (a stack-machine bytecode that, when run, emits the matrix
-/// mapping code addresses → source `file:line` positions) and stuffs
-/// the resulting rows into a flat `Vec(DwarfLineEntry)`.
-///
-/// References: DWARF 4 spec, section 6.2 "Line Number Information".
-/// DWARF 5 changes the directory / file table encoding (entry-format
-/// records instead of null-terminated lists) — handled separately
-/// when we add v5 support; tracked in FUTURE-PLANS.md.
+/// `.debug_line` parser (DWARF 4). Walks each CU's Line Number Program
+/// and produces the (address, file, line) matrix as a flat
+/// `Vec(DwarfLineEntry)`.
 
 #include <Misra/Parsers/ByteIter.h>
 #include <Misra/Parsers/Dwarf.h>
@@ -86,15 +80,9 @@ typedef struct LineProgHeader {
     const u8 *strings_start;            // first byte of include_directories
 } LineProgHeader;
 
-// Decode the DWARF 4 line-program header fields at `cur`. After
-// return, `cur->p` points to the byte just past the header's
-// standard_opcode_lengths, i.e. the start of the include_directories
-// table. The directory / file tables themselves are walked separately
-// by `collect_cu_strings` so the strings can be copied into the
-// shared pool.
-//
-// 64-bit DWARF length form (initial u32 == 0xffffffff) not supported
-// in v1 — tracked in FUTURE-PLANS.md.
+// Decode the DWARF 4 line-program header at `cur`. On return the
+// cursor sits at the start of the include_directories table; the
+// directory / file tables are walked separately by collect_cu_strings.
 static bool decode_line_program_header(ByteIter *cur, LineProgHeader *out) {
     MemSet(out, 0, sizeof(*out));
 
@@ -373,9 +361,7 @@ static bool run_line_program(
                     st.op_index = 0;
                     break;
                 case DW_LNE_DEFINE_FILE :
-                    // Skip — rare and runtime-defined files complicate
-                    // the file-index table. Documented in
-                    // FUTURE-PLANS.md if it bites us.
+                    // Skip; runtime-defined files are rare.
                     break;
                 case DW_LNE_SET_DISCRIMINATOR : {
                     u64 disc = 0;
@@ -534,8 +520,6 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *
             ok = false;
             break;
         }
-        // Compare lengths in u64 space; `unit_start + 4 + unit_length`
-        // would wrap uintptr_t for an attacker-controlled unit_length.
         if (4u + (u64)unit_length > bi_remaining(&section_cur)) {
             ok = false;
             break;

@@ -334,14 +334,10 @@ const MachoSection *MachoFileFindSection(const MachoFile *self, const char *segm
     return NULL;
 }
 
-// Symbols on Mach-O don't carry sizes in nlist_64. We pick the symbol
-// with the largest `value <= vaddr`, then sanity-check that `vaddr`
-// stays within either the next-symbol-in-the-same-section gap or the
-// section end. Symbols flagged N_STAB are skipped: per the mach-o
-// spec, an entry is a stab iff ANY of the high three bits of n_type
-// is set (the original code checked `& 0xE0 == 0xE0` which only
-// matched stabs with all three bits set -- N_SO / N_FUN / N_OSO /
-// etc. were getting through and polluting lookups).
+// Mach-O nlist_64 entries carry no size. Pick the symbol with the
+// largest `value <= vaddr`, then bound it by the next symbol in the
+// same section (or the section end). N_STAB entries are skipped:
+// stab iff any of the high three bits of n_type is set.
 const MachoSymbol *MachoFileResolveAddress(const MachoFile *self, u64 vaddr) {
     if (!self || self->symbols.length == 0)
         return NULL;

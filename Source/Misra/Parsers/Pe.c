@@ -121,10 +121,6 @@ static bool pe_decode_nt(PeContext *ctx, u64 *out_opt_offset) {
 // Optional Header. We need ImageBase, SizeOfImage,
 // NumberOfRvaAndSizes, and the DataDirectory[DEBUG] entry.
 static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
-    // Validate the range in u64 space BEFORE forming any pointer
-    // beyond the buffer. `data + opt_offset + opt_hdr_size` with
-    // attacker-controlled values would synthesize an out-of-object
-    // pointer (UB) even if only compared.
     if (opt_offset > ctx->out->data_size || ctx->opt_hdr_size > ctx->out->data_size - opt_offset) {
         LOG_ERROR("PE: optional header overruns file");
         return false;
@@ -418,10 +414,7 @@ bool PeFileRvaToOffset(const PeFile *self, u32 rva, u64 *out_offset) {
         return false;
     for (size i = 0; i < self->sections.length; ++i) {
         const PeSection *s = &self->sections.data[i];
-        // virtual_address + virtual_size is u32 + u32; a crafted
-        // section header can wrap that sum below virtual_address,
-        // making the range check accept RVAs that don't actually
-        // belong to this section. Compute the end in u64.
+        // Compute the section end in u64; u32 + u32 can wrap.
         u64 vstart = (u64)s->virtual_address;
         u64 vend   = vstart + (u64)s->virtual_size;
         if (rva >= vstart && (u64)rva < vend) {

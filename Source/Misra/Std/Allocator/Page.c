@@ -152,19 +152,10 @@ static u32 page_find_idx(const PageAllocator *page, const void *ptr) {
     return (u32)-1;
 }
 
-// Grow `entries` to hold at least one more record. Returns false on
-// OS-allocation failure (the caller is responsible for unwinding any
-// user mmap it just made).
+// Grow `entries`. First grow allocates one OS page; subsequent grows
+// double. Returns false on OS-allocation failure or u64 overflow.
 static bool page_table_grow(PageAllocator *page) {
     size page_size = PageAllocatorPageSize(page);
-    // First grow: one OS page worth of entries. Subsequent grows:
-    // double the current allocation. Either way, page_rounded_size
-    // ensures the mmap'd region is page-aligned.
-    //
-    // Explicit overflow check on the doubling -- relying on the
-    // subsequent round-up returning 0 after unsigned wrap works
-    // by accident, not by contract. At ~2^63 entries_bytes the
-    // doubling wraps; refuse the grow here rather than further down.
     size want_bytes;
     if (page->entries_bytes == 0) {
         want_bytes = page_size;

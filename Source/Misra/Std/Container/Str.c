@@ -618,7 +618,6 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
         }
     }
 
-    // Simple implementation for now
     bool use_sci = config->force_sci || (value != 0.0 && (value < 0.0001 || value >= 1e7));
 
     if (use_sci) {

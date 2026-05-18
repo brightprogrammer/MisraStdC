@@ -75,9 +75,8 @@ static inline bool bi_take_uleb128(ByteIter *c, u64 *out) {
     return false;
 }
 
-/// LEB128 signed. Decoded in unsigned space and reinterpreted; the
-/// natural `result |= -((i64)1 << shift)` form is signed-shift UB once
-/// the shift steps into the sign bit.
+/// LEB128 signed. Decoded in unsigned space and reinterpreted to
+/// avoid signed-shift UB at high bit positions.
 static inline bool bi_take_sleb128(ByteIter *c, i64 *out) {
     u64 uresult = 0;
     u32 shift   = 0;

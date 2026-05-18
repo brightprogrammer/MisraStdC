@@ -951,11 +951,8 @@ bool map_insert(
 
     hash = map_hash_key(map, key, key_size);
 
-    // Loop instead of recursion: scan; if the probe budget is
-    // exhausted, force a rehash to a larger capacity and try again.
-    // Recursing here used to compound stack and memory exponentially
-    // when consecutive rehashes still produced a cluster the new key
-    // hashed into. A bounded loop fails cleanly instead.
+    // Scan; on probe-budget exhaustion, rehash to a larger capacity
+    // and retry. Bounded to 32 attempts.
     for (int attempt = 0; attempt < 32; attempt++) {
         insert_idx     = 0;
         probe_pressure = 0;

@@ -2,28 +2,8 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// PDB reader. Three layers in one file:
-///
-///   - MSF (Multi-Stream File) container: validates the superblock,
-///     follows the directory-block map to reconstruct the stream
-///     directory, then exposes a `read N bytes from stream S at offset
-///     O` primitive on top.
-///
-///   - PDB Info (stream #1): GUID + age, the pair callers match
-///     against a PE binary's CodeView record.
-///
-///   - DBI stream (#3) + SymRecord stream + SectionHdr stream: walk
-///     the symbol records (`S_PUB32`) and build a sorted-by-RVA table
-///     of `(rva, name)` for runtime address-to-name resolution. RVA
-///     = section.virtual_address + record.offset using the section
-///     headers stashed inside the PDB by the linker.
-///
-/// Spec references:
-///   - https://github.com/microsoft/microsoft-pdb (Microsoft's own
-///     half-documented dump of the on-disk format)
-///   - LLVM's `DebugInfo/PDB/Native/*` headers (the cleanest existing
-///     open-source reader; we mirror the same field names where
-///     practical)
+/// PDB reader: MSF container, PDB Info stream (GUID + age), DBI +
+/// SymRecord + SectionHdr streams (sorted RVA -> name table).
 
 #include <Misra/Parsers/Pdb.h>
 #include <Misra/Std.h>
@@ -140,12 +120,6 @@ static bool reconstruct_directory(PdbFile *self, u32 num_dir_bytes, u32 block_ma
     // those indices is `ceil(num_dir_bytes / block_size)`.
     u32 num_dir_blocks = div_ceil_u32(num_dir_bytes, self->block_size);
     if ((u64)num_dir_blocks * sizeof(u32) > self->block_size) {
-        // Some PDBs have a directory big enough that the index array
-        // itself spills multiple pages -- the spec calls these the
-        // "block-map pages" and `block_map_addr` becomes a single
-        // page index pointing at a *list* of more block indices.
-        // For v1 we cap at one block-map page, which covers PDBs
-        // under ~4 MB of directory bytes (i.e. enormous PDBs).
         LOG_ERROR("PDB: directory block-map exceeds one page");
         return false;
     }
@@ -169,10 +143,7 @@ static bool reconstruct_directory(PdbFile *self, u32 num_dir_bytes, u32 block_ma
             LOG_ERROR("PDB: directory block id {} out of range", block_id);
             return false;
         }
-        // `done = i * block_size` is u32 * u32. A malicious header can
-        // produce num_dir_blocks * block_size > 2^32, wrapping `done`
-        // to a small value and turning the subsequent MemCopy into an
-        // OOB write into stream_dir. Promote to u64 explicitly.
+        // Promote to u64; i * block_size can wrap u32.
         u64 done = (u64)i * (u64)self->block_size;
         u64 want = self->block_size;
         if (done + want > num_dir_bytes) {
@@ -293,32 +264,9 @@ static DbiSubstreamInfo parse_dbi_header(const PdbFile *self) {
     if (!stream_read(self, DBI_STREAM_INDEX, 0, hdr, DBI_HEADER_SIZE))
         return r;
 
-    // VersionSignature = -1, VersionHeader = 19990903 ("V70"). We don't
-    // strictly validate; older PDB versions use the same field layout
-    // for the parts we care about.
-    r.symrec_stream = (u16)hdr[16] | (u16)hdr[17] << 8;
-    // Actually SymRecordStream is at offset 14 in the spec I remembered;
-    // double-check by laying out the header offsets:
-    //   off  0: i32 VersionSignature
-    //   off  4: u32 VersionHeader
-    //   off  8: u32 Age
-    //   off 12: u16 GlobalStreamIndex
-    //   off 14: u16 BuildNumber
-    //   off 16: u16 PublicStreamIndex
-    //   off 18: u16 PdbDllVersion
-    //   off 20: u16 SymRecordStream
-    //   off 22: u16 PdbDllRbld
-    //   off 24: i32 ModInfoSize
-    //   off 28: i32 SectionContributionSize
-    //   off 32: i32 SectionMapSize
-    //   off 36: i32 SourceInfoSize
-    //   off 40: i32 TypeServerMapSize
-    //   off 44: u32 MFCTypeServerIndex
-    //   off 48: i32 OptionalDbgHeaderSize
-    //   off 52: i32 ECSubstreamSize
-    //   off 56: u16 Flags
-    //   off 58: u16 Machine
-    //   off 60: u32 Padding
+    // SymRecordStream lives at offset 20 in the DBI header (after
+    // VersionSignature, VersionHeader, Age, GlobalStreamIndex,
+    // BuildNumber, PublicStreamIndex, PdbDllVersion).
     r.symrec_stream = (u16)hdr[20] | (u16)hdr[21] << 8;
 
     // To find the SectionHdr stream index we need the OptionalDbgHeader,

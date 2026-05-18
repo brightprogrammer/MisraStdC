@@ -234,8 +234,7 @@ static bool read_form(ByteIter *cur, u32 form, u8 addr_size, AttrVal *out) {
         case DW_FORM_strp :
         case DW_FORM_sec_offset :
         case DW_FORM_ref_addr : {
-            // ref_addr is 4 bytes in 32-bit DWARF, 8 in 64-bit; v1
-            // doesn't support 64-bit DWARF so it's always 4 here.
+            // 4 bytes in 32-bit DWARF (the only form supported here).
             u32 v;
             if (!bi_take_u32_le(cur, &v))
                 return false;

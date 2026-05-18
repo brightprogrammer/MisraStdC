@@ -51,11 +51,7 @@ static bool heap_alignment_demands_passthrough(Allocator *self) {
 
 static bool heap_grow_array(HeapAllocator *heap, void **arr_ptr, u32 *cap_ptr, u32 entry_size) {
     u32 old_cap = *cap_ptr;
-    // Guard the u32 doubling. With old_cap >= 0x80000000 the product
-    // wraps to a small u32, the alloc succeeds tiny, and the MemCopy
-    // below reads old_cap * entry_size bytes into a smaller buffer.
-    // Currently unreachable (would need 2^31 live descriptors) but
-    // the shape is real -- close it the same way page_table_grow did.
+    // u32 doubling overflow guard.
     if (old_cap > ((u32)-1) / 2u) {
         return false;
     }
@@ -515,14 +511,7 @@ static void heap_free_l(HeapAllocator *heap, void *ptr, u32 slot_size) {
 // descriptor existence is the in-use bit.
 
 static void *heap_alloc_xl(HeapAllocator *heap, size bytes, i8 zeroed) {
-    // `num_pages` is a u32 to keep the XL descriptor compact. Guard
-    // against `bytes` requiring more pages than u32 can address --
-    // without this check the cast below silently truncates and we
-    // hand the user a buffer smaller than they asked for. The kernel
-    // would reject the mapping at this scale on every current
-    // platform, but the truncation happens before the kernel call,
-    // so a hypothetical platform that *could* satisfy the truncated
-    // mapping would see an under-allocation. Belt + suspenders.
+    // num_pages is u32 on the descriptor; refuse requests beyond u32 pages.
     size pages_needed = (bytes + HEAP_PAGE_SIZE - 1u) / HEAP_PAGE_SIZE;
     if (pages_needed > (size)(u32)-1) {
         return NULL;
@@ -599,23 +588,10 @@ void *heap_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     return out;
 }
 
-// Recover the current allocation size for `ptr`. Returns 0 if `ptr` is
-// not owned by this allocator (or is NULL). For XL allocations, also
-// reports the descriptor index via *xl_idx_out; for S/M/L it stays
-// (u32)-1. Used by resize, remap, and deallocate -- all three rely on
-// the same lookup, with the same "size encoded in page offset"
-// invariant the bitmap design buys us.
-//
-// INVARIANT: the four class arrays (`s`, `m`, `l`, `xl`) are disjoint
-// by construction -- a user page lives in exactly one class for its
-// lifetime, and an XL region's base page never overlaps with an S/M/L
-// page (XL is page-allocated separately). The search order below
-// (XL -> L -> M -> S) is therefore semantically equivalent to any
-// other order; the first match is THE match. If a future refactor
-// breaks that invariant (e.g. by reusing a freed S-page as an XL
-// allocation without updating both arrays), the consequence is silent
-// type-confusion at free time. The descriptor-list rollback paths in
-// the grow functions must preserve this invariant.
+// Look up the slot size for `ptr`. Returns 0 if foreign. For XL
+// allocations also writes the descriptor index to *xl_idx_out; for
+// S/M/L it stays (u32)-1. The four class arrays are disjoint -- a
+// page lives in exactly one class -- so first match wins.
 static size heap_recover_size(HeapAllocator *heap, void *ptr, u32 *xl_idx_out) {
     *xl_idx_out = (u32)-1;
     if (!ptr)
@@ -736,13 +712,9 @@ void *heap_allocator_remap(Allocator *self, void *ptr, size new_size) {
 // =============================================================================
 // Deinit. Unmap every user page and free every descriptor array.
 
-// On macOS aarch64 each OS-page mmap produces HEAP_PAGES_PER_OS_PAGE
-// descriptors, but only one munmap is owed per mmap. Only the
-// descriptor whose page address is OS-page-aligned (the "group leader")
-// fires the munmap; the others share the mapping and skip the free.
-// On 4 KiB-page systems HEAP_PAGES_PER_OS_PAGE == 1 and every
-// descriptor is its own group of one -- this loop reduces to the
-// simple "one munmap per descriptor" case.
+// Each OS-page mmap produces HEAP_PAGES_PER_OS_PAGE descriptors but
+// only one munmap. The descriptor whose page is OS-page-aligned owns
+// the unmap; the rest share the mapping.
 #define IS_GROUP_LEADER(page_addr) (((u64)(page_addr) & ((u64)HEAP_OS_PAGE_SIZE - 1u)) == 0u)
 
 void HeapAllocatorDeinit(HeapAllocator *self) {

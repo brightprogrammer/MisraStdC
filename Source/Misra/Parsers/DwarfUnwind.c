@@ -12,26 +12,9 @@
 /// different "CIE marker" sentinel.
 ///
 /// References: System V Application Binary Interface, Linux Standard
-/// Base ELF format, "DWARF Debugging Information Format" v4, §6.4.
-///
-/// What this file handles:
-///   - 32-bit DWARF length form (rare to hit 64-bit on Linux).
-///   - CIE versions 1, 3, 4.
-///   - Augmentation strings starting with 'z' plus `L`, `P`, `R`, `S`.
-///   - FDE pointer encodings DW_EH_PE_{absptr,udata2/4/8,sdata2/4/8,
-///     pcrel,datarel} in their common combinations. DW_EH_PE_omit and
-///     DW_EH_PE_aligned are recognised but the indirect and signed/
-///     leb modifiers are minimal-case.
-///
-/// What this file does NOT yet handle (tracked in FUTURE-PLANS):
-///   - DWARF expressions in pointer encodings (DW_EH_PE_indirect).
-///   - 64-bit DWARF length form.
-///   - `.eh_frame_hdr` binary-search index (we linear-scan FDEs;
-///     adequate up to a few thousand FDEs).
-///
-/// The CFI bytecode interpreter that turns FDE instructions into a
-/// per-IP unwind row is a separate piece (added in a later commit);
-/// this file's job is only to give us an FDE by PC.
+/// `.eh_frame` parser + CFI bytecode interpreter. DWARF v4 §6.4.
+/// Indexes FDEs by PC via linear scan over a flat Vec; the per-IP
+/// unwind row is computed by running the CFI program below.
 
 #include <Misra/Parsers/Dwarf.h>
 
@@ -251,10 +234,6 @@ static bool parse_cie(ByteIter *body, u64 cie_offset, DwarfCie *out) {
         u64 aug_len           = 0;
         if (!bi_take_uleb128(body, &aug_len))
             return false;
-        // Bound aug_len against remaining buffer in u64 space.
-        // `body->p + aug_len` would wrap uintptr_t for an attacker-
-        // controlled huge aug_len, making the subsequent pointer
-        // comparison meaningless. Compare the lengths instead.
         if (aug_len > bi_remaining(body))
             return false;
         size aug_end_pos = body->pos + aug_len;
@@ -448,9 +427,7 @@ const DwarfCie *DwarfCfiFindCie(const DwarfCfi *self, u64 cie_offset) {
 const DwarfFde *DwarfCfiFindFde(const DwarfCfi *self, u64 vaddr) {
     if (!self)
         return NULL;
-    // Linear scan. `.eh_frame_hdr`-based binary search is in
-    // FUTURE-PLANS; with a few thousand FDEs the linear scan is
-    // still sub-microsecond.
+    // Linear scan -- fine up to a few thousand FDEs.
     for (u64 i = 0; i < self->fdes.length; ++i) {
         const DwarfFde *f = &self->fdes.data[i];
         if (vaddr >= f->pc_begin && vaddr < f->pc_begin + f->pc_range) {
