@@ -154,91 +154,55 @@ static bool test_pool_alignment(void) {
 }
 
 // =============================================================================
-// Rejection edges
+// Rejection edges -- deadend tests. A passing deadend is one where
+// the bad free aborts via LOG_FATAL.
 
 static bool test_reject_foreign_pointer(void) {
     SlabAllocator s1 = SlabAllocatorInit(sizeof(Node));
     SlabAllocator s2 = SlabAllocatorInit(sizeof(Node));
     Allocator    *a1 = ALLOCATOR_OF(&s1);
     Allocator    *a2 = ALLOCATOR_OF(&s2);
-
-    Node *p = (Node *)AllocatorAlloc(a1, sizeof(Node), false);
-    AllocatorFree(a2, p, sizeof(Node)); // foreign to s2 -> REJECT
-
-    Node *q  = (Node *)AllocatorAlloc(a2, sizeof(Node), false);
-    bool  ok = (q != NULL);
-    if (q)
-        AllocatorFree(a2, q, sizeof(Node));
-    AllocatorFree(a1, p, sizeof(Node));
-
-    SlabAllocatorDeinit(&s1);
-    SlabAllocatorDeinit(&s2);
-    return ok;
+    Node         *p  = (Node *)AllocatorAlloc(a1, sizeof(Node), false);
+    AllocatorFree(a2, p, sizeof(Node)); // foreign to s2 -> LOG_FATAL
+    return false;
 }
 
 static bool test_reject_misaligned_pointer(void) {
     SlabAllocator slab  = SlabAllocatorInit(sizeof(Node));
     Allocator    *alloc = ALLOCATOR_OF(&slab);
-
-    char *p = (char *)AllocatorAlloc(alloc, sizeof(Node), false);
-    AllocatorFree(alloc, p + 1, sizeof(Node)); // misaligned -> REJECT
-
-    Node *q  = (Node *)AllocatorAlloc(alloc, sizeof(Node), false);
-    bool  ok = (q != NULL) && ((void *)q != (void *)p);
-    if (q)
-        AllocatorFree(alloc, q, sizeof(Node));
-    AllocatorFree(alloc, p, sizeof(Node));
-    SlabAllocatorDeinit(&slab);
-    return ok;
+    char         *p     = (char *)AllocatorAlloc(alloc, sizeof(Node), false);
+    AllocatorFree(alloc, p + 1, sizeof(Node)); // mis-aligned -> LOG_FATAL
+    return false;
 }
 
 static bool test_reject_double_free(void) {
     SlabAllocator slab  = SlabAllocatorInit(sizeof(Node));
     Allocator    *alloc = ALLOCATOR_OF(&slab);
-
-    Node *p = (Node *)AllocatorAlloc(alloc, sizeof(Node), false);
+    Node         *p     = (Node *)AllocatorAlloc(alloc, sizeof(Node), false);
     AllocatorFree(alloc, p, sizeof(Node));
-    AllocatorFree(alloc, p, sizeof(Node)); // bit already 0 -> REJECT
-
-    Node *q  = (Node *)AllocatorAlloc(alloc, sizeof(Node), false);
-    bool  ok = (q != NULL) && (q == p);    // bit was correctly cleared once
-
-    if (q)
-        AllocatorFree(alloc, q, sizeof(Node));
-    SlabAllocatorDeinit(&slab);
-    return ok;
-}
-
-static bool test_reject_double_free_no_double_vending(void) {
-    SlabAllocator slab  = SlabAllocatorInit(sizeof(Node));
-    Allocator    *alloc = ALLOCATOR_OF(&slab);
-
-    Node *a = (Node *)AllocatorAlloc(alloc, sizeof(Node), false);
-    AllocatorFree(alloc, a, sizeof(Node));
-    AllocatorFree(alloc, a, sizeof(Node)); // rejected
-    Node *b  = (Node *)AllocatorAlloc(alloc, sizeof(Node), false);
-    Node *c  = (Node *)AllocatorAlloc(alloc, sizeof(Node), false);
-    bool  ok = a && b && c && (b != c);
-
-    AllocatorFree(alloc, b, sizeof(Node));
-    AllocatorFree(alloc, c, sizeof(Node));
-    SlabAllocatorDeinit(&slab);
-    return ok;
+    AllocatorFree(alloc, p, sizeof(Node)); // bit already 0 -> LOG_FATAL
+    return false;
 }
 
 int main(void) {
-    TestFunction tests[] = {
+    TestFunction normal[] = {
         test_basic_alloc_and_free,
         test_free_then_alloc_recycles,
         test_grow_across_chunks,
         test_oversized_request_fails,
         test_free_half_then_realloc,
         test_pool_alignment,
-        // Rejection edges
+    };
+    TestFunction deadend[] = {
         test_reject_foreign_pointer,
         test_reject_misaligned_pointer,
         test_reject_double_free,
-        test_reject_double_free_no_double_vending,
     };
-    return run_test_suite(tests, (int)(sizeof(tests) / sizeof(tests[0])), NULL, 0, "Allocator.Slab");
+    return run_test_suite(
+        normal,
+        (int)(sizeof(normal) / sizeof(normal[0])),
+        deadend,
+        (int)(sizeof(deadend) / sizeof(deadend[0])),
+        "Allocator.Slab"
+    );
 }

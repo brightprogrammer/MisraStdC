@@ -8,8 +8,11 @@
 /// (bit = 1). Alloc transitions FREE -> IN_USE; Free transitions
 /// IN_USE -> FREE. Both transitions verify the precondition before
 /// mutating the bitmap -- alloc must find a 0 bit (else bitmap
-/// corruption; LOG_FATAL), free must find a 1 bit (else double-free;
-/// LOG_ERROR and return).
+/// corruption), free must find a 1 bit (else double-free). EVERY
+/// failed precondition aborts via LOG_FATAL with a backtrace -- a
+/// bad free is a caller-side memory-safety bug, not a recoverable
+/// error condition, and continuing past it would leave the program
+/// in undefined state.
 ///
 /// User pages are opaque after Alloc returns. No metadata is written
 /// through the user pointer for the rest of its life.
@@ -203,7 +206,7 @@ static void heap_free_s(HeapAllocator *heap, void *ptr, u32 slot_size) {
     void *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
     u32   idx       = heap_find_by_page(heap->s, heap->s_len, sizeof(HeapPageS), page_base);
     if (idx == (u32)-1) {
-        LOG_ERROR("heap_free: ptr {x} not in class-S (foreign or wrong size hint)", (u64)ptr);
+        LOG_FATAL("heap_free: ptr {x} not in class-S (foreign or wrong size hint)", (u64)ptr);
         return;
     }
     HeapPageS *d   = &heap->s[idx];
@@ -222,12 +225,12 @@ static void heap_free_s(HeapAllocator *heap, void *ptr, u32 slot_size) {
     }
 
     if (off < region_off || off >= region_off + (u64)slot_size * region_count) {
-        LOG_ERROR("heap_free: ptr {x} not in S/{} region", (u64)ptr, (u64)slot_size);
+        LOG_FATAL("heap_free: ptr {x} not in S/{} region", (u64)ptr, (u64)slot_size);
         return;
     }
     u64 in_region = off - region_off;
     if (in_region % slot_size != 0) {
-        LOG_ERROR("heap_free: misaligned ptr {x} for slot size {}", (u64)ptr, (u64)slot_size);
+        LOG_FATAL("heap_free: misaligned ptr {x} for slot size {}", (u64)ptr, (u64)slot_size);
         return;
     }
     u32 bit = (u32)(in_region / slot_size);
@@ -236,7 +239,7 @@ static void heap_free_s(HeapAllocator *heap, void *ptr, u32 slot_size) {
     // this is a double-free.
     if (slot_size == 16) {
         if (!(d->bitmap_16 & ((u64)1 << bit))) {
-            LOG_ERROR("heap_free: double-free of {x} (S/16 bit {})", (u64)ptr, (u64)bit);
+            LOG_FATAL("heap_free: double-free of {x} (S/16 bit {})", (u64)ptr, (u64)bit);
             return;
         }
         d->bitmap_16 &= ~((u64)1 << bit);
@@ -244,14 +247,14 @@ static void heap_free_s(HeapAllocator *heap, void *ptr, u32 slot_size) {
     }
     if (slot_size == 32) {
         if (!(d->bitmap_32 & ((u32)1 << bit))) {
-            LOG_ERROR("heap_free: double-free of {x} (S/32 bit {})", (u64)ptr, (u64)bit);
+            LOG_FATAL("heap_free: double-free of {x} (S/32 bit {})", (u64)ptr, (u64)bit);
             return;
         }
         d->bitmap_32 &= ~((u32)1 << bit);
         return;
     }
     if (!(d->bitmap_64 & ((u32)1 << bit))) {
-        LOG_ERROR("heap_free: double-free of {x} (S/64 bit {})", (u64)ptr, (u64)bit);
+        LOG_FATAL("heap_free: double-free of {x} (S/64 bit {})", (u64)ptr, (u64)bit);
         return;
     }
     d->bitmap_64 &= ~((u32)1 << bit);
@@ -312,7 +315,7 @@ static void heap_free_m(HeapAllocator *heap, void *ptr, u32 slot_size) {
     void *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
     u32   idx       = heap_find_by_page(heap->m, heap->m_len, sizeof(HeapPageM), page_base);
     if (idx == (u32)-1) {
-        LOG_ERROR("heap_free: ptr {x} not in class-M (foreign or wrong size hint)", (u64)ptr);
+        LOG_FATAL("heap_free: ptr {x} not in class-M (foreign or wrong size hint)", (u64)ptr);
         return;
     }
     HeapPageM *d   = &heap->m[idx];
@@ -334,18 +337,18 @@ static void heap_free_m(HeapAllocator *heap, void *ptr, u32 slot_size) {
     }
 
     if (off < region_off || off >= region_off + (u64)slot_size * region_count) {
-        LOG_ERROR("heap_free: ptr {x} not in M/{} region", (u64)ptr, (u64)slot_size);
+        LOG_FATAL("heap_free: ptr {x} not in M/{} region", (u64)ptr, (u64)slot_size);
         return;
     }
     u64 in_region = off - region_off;
     if (in_region % slot_size != 0) {
-        LOG_ERROR("heap_free: misaligned ptr {x} for slot size {}", (u64)ptr, (u64)slot_size);
+        LOG_FATAL("heap_free: misaligned ptr {x} for slot size {}", (u64)ptr, (u64)slot_size);
         return;
     }
     u32 bit  = (u32)(in_region / slot_size);
     u16 mask = (u16)((u32)1 << (bit + region_shift));
     if (!(d->bitmap & mask)) {
-        LOG_ERROR("heap_free: double-free of {x} (M/{} bit {})", (u64)ptr, (u64)slot_size, (u64)bit);
+        LOG_FATAL("heap_free: double-free of {x} (M/{} bit {})", (u64)ptr, (u64)slot_size, (u64)bit);
         return;
     }
     d->bitmap &= (u16)~mask;
@@ -402,7 +405,7 @@ static void heap_free_l(HeapAllocator *heap, void *ptr, u32 slot_size) {
     void *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
     u32   idx       = heap_find_by_page(heap->l, heap->l_len, sizeof(HeapPageL), page_base);
     if (idx == (u32)-1) {
-        LOG_ERROR("heap_free: ptr {x} not in class-L (foreign or wrong size hint)", (u64)ptr);
+        LOG_FATAL("heap_free: ptr {x} not in class-L (foreign or wrong size hint)", (u64)ptr);
         return;
     }
     HeapPageL *d   = &heap->l[idx];
@@ -420,18 +423,18 @@ static void heap_free_l(HeapAllocator *heap, void *ptr, u32 slot_size) {
     }
 
     if (off < region_off || off >= region_off + (u64)slot_size * region_count) {
-        LOG_ERROR("heap_free: ptr {x} not in L/{} region", (u64)ptr, (u64)slot_size);
+        LOG_FATAL("heap_free: ptr {x} not in L/{} region", (u64)ptr, (u64)slot_size);
         return;
     }
     u64 in_region = off - region_off;
     if (in_region % slot_size != 0) {
-        LOG_ERROR("heap_free: misaligned ptr {x} for slot size {}", (u64)ptr, (u64)slot_size);
+        LOG_FATAL("heap_free: misaligned ptr {x} for slot size {}", (u64)ptr, (u64)slot_size);
         return;
     }
     u32 bit  = (u32)(in_region / slot_size);
     u8  mask = (u8)((u32)1 << (bit + region_shift));
     if (!(d->bitmap & mask)) {
-        LOG_ERROR("heap_free: double-free of {x} (L/{} bit {})", (u64)ptr, (u64)slot_size, (u64)bit);
+        LOG_FATAL("heap_free: double-free of {x} (L/{} bit {})", (u64)ptr, (u64)slot_size, (u64)bit);
         return;
     }
     d->bitmap &= (u8)~mask;
@@ -466,12 +469,12 @@ static void heap_free_xl(HeapAllocator *heap, void *ptr) {
     void *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
     u32   idx       = heap_find_by_page(heap->xl, heap->xl_len, sizeof(HeapPageXL), page_base);
     if (idx == (u32)-1) {
-        LOG_ERROR("heap_free: foreign ptr {x} routed as XL", (u64)ptr);
+        LOG_FATAL("heap_free: foreign ptr {x} routed as XL", (u64)ptr);
         return;
     }
     HeapPageXL *e = &heap->xl[idx];
     if (ptr != e->page) {
-        LOG_ERROR("heap_free: mid-allocation ptr {x} (XL base {x})", (u64)ptr, (u64)e->page);
+        LOG_FATAL("heap_free: mid-allocation ptr {x} (XL base {x})", (u64)ptr, (u64)e->page);
         return;
     }
     AllocatorFree(&heap->page.base, e->page, (size)e->num_pages * HEAP_PAGE_SIZE);

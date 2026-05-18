@@ -190,14 +190,14 @@ void slab_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
         if (p >= chunk->slots && p < end) {
             size off = (size)(p - chunk->slots);
             if (off % padded_slot != 0) {
-                LOG_ERROR("slab_free: misaligned ptr {x} (slot size {})", (u64)p, (u64)padded_slot);
+                LOG_FATAL("slab_free: misaligned ptr {x} (slot size {})", (u64)p, (u64)padded_slot);
                 return;
             }
             size idx = off / padded_slot;
             u32  w   = (u32)(idx >> 6);
             u32  b   = (u32)(idx & 63u);
             if (!(chunk->bitmap[w] & ((u64)1 << b))) {
-                LOG_ERROR("slab_free: double-free of {x} (idx {})", (u64)p, (u64)idx);
+                LOG_FATAL("slab_free: double-free of {x} (idx {})", (u64)p, (u64)idx);
                 return;
             }
             chunk->bitmap[w] &= ~((u64)1 << b);
@@ -205,7 +205,7 @@ void slab_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
         }
         chunk = chunk->next;
     }
-    LOG_ERROR("slab_free: foreign ptr {x} not in any chunk's slot region", (u64)p);
+    LOG_FATAL("slab_free: foreign ptr {x} not in any chunk's slot region", (u64)p);
 }
 
 void SlabAllocatorDeinit(SlabAllocator *self) {

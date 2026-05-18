@@ -128,19 +128,19 @@ void budget_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
     char *end = bp->slots + bp->slot_count * bp->slot_size;
 
     if (p < bp->slots || p >= end) {
-        LOG_ERROR("budget_free: foreign ptr {x} not in slot region", (u64)p);
+        LOG_FATAL("budget_free: foreign ptr {x} not in slot region", (u64)p);
         return;
     }
     size off = (size)(p - bp->slots);
     if (off % bp->slot_size != 0) {
-        LOG_ERROR("budget_free: misaligned ptr {x} (slot size {})", (u64)p, (u64)bp->slot_size);
+        LOG_FATAL("budget_free: misaligned ptr {x} (slot size {})", (u64)p, (u64)bp->slot_size);
         return;
     }
     size idx = off / bp->slot_size;
     u32  w   = (u32)(idx >> 6);
     u32  b   = (u32)(idx & 63u);
     if (!(bp->bitmap[w] & ((u64)1 << b))) {
-        LOG_ERROR("budget_free: double-free of {x} (idx {})", (u64)p, (u64)idx);
+        LOG_FATAL("budget_free: double-free of {x} (idx {})", (u64)p, (u64)idx);
         return;
     }
     bp->bitmap[w] &= ~((u64)1 << b);

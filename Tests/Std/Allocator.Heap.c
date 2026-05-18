@@ -22,9 +22,12 @@
 ///   - mid-allocation XL ptr (ptr != XL descriptor base)
 ///   - double-free           (target bit already 0)
 ///
-/// Each rejection test verifies: (a) the bad call returns without
-/// LOG_FATAL, (b) a subsequent valid alloc/free on the same heap
-/// still works, proving the bad call did not corrupt allocator state.
+/// Each rejection edge below aborts the program via LOG_FATAL. The
+/// tests are registered as DEADEND tests (run_test_suite picks them
+/// up via setjmp/longjmp + Abort intercept); a passing deadend test
+/// is one that DID abort. This is stronger than "log and continue":
+/// a bad free is a caller-side memory-safety bug, not a recoverable
+/// error condition.
 
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Allocator/Heap.h>
@@ -287,198 +290,96 @@ static bool test_independent_heaps(void) {
 }
 
 // =============================================================================
-// Rejection edges -- each one verifies (a) the bad op returns without
-// crashing and (b) the heap is still usable afterwards.
-//
-// All of these intentionally log via LOG_ERROR. Seeing those messages
-// in test output is the expected signal that the validation kicked in.
+// Rejection edges -- deadend tests. Each triggers a bad free that
+// LOG_FATALs. The test runner intercepts the abort via setjmp/longjmp
+// and counts the test as passing iff the abort fired.
 
 static bool test_reject_foreign_pointer(void) {
-    // Alloc from h1, attempt to free the resulting pointer via h2 (which
-    // owns no descriptor for that page). h2 must reject and remain
-    // usable; h1's slot must remain IN_USE.
     HeapAllocator h1     = HeapAllocatorInit();
     HeapAllocator h2     = HeapAllocatorInit();
     Allocator    *alloc1 = ALLOCATOR_OF(&h1);
     Allocator    *alloc2 = ALLOCATOR_OF(&h2);
-
-    void *p = AllocatorAlloc(alloc1, 32, false);
-
-    // Foreign-free attempt on h2.
-    AllocatorFree(alloc2, p, 32);
-
-    // h2 still works (was empty, now we exercise it).
-    void *q  = AllocatorAlloc(alloc2, 64, false);
-    bool  ok = (q != NULL);
-    if (q)
-        AllocatorFree(alloc2, q, 64);
-
-    // h1's slot was never freed -- free it now to keep DebugAllocator happy.
-    AllocatorFree(alloc1, p, 32);
-
-    HeapAllocatorDeinit(&h1);
-    HeapAllocatorDeinit(&h2);
-    return ok;
+    void         *p      = AllocatorAlloc(alloc1, 32, false);
+    AllocatorFree(alloc2, p, 32); // foreign to h2 -> LOG_FATAL
+    return false;                 // unreachable
 }
 
 static bool test_reject_double_free(void) {
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
-
-    void *p = AllocatorAlloc(alloc, 32, false);
+    void         *p     = AllocatorAlloc(alloc, 32, false);
     AllocatorFree(alloc, p, 32);
-
-    // Second free of the same pointer: bit is already 0 -> REJECT.
-    AllocatorFree(alloc, p, 32);
-
-    // Heap still usable.
-    void *q  = AllocatorAlloc(alloc, 32, false);
-    bool  ok = (q != NULL);
-    // After the double-free was rejected, the slot remained FREE, so
-    // ctz finds bit 0 again -> q should equal p.
-    ok = ok && (q == p);
-
-    if (q)
-        AllocatorFree(alloc, q, 32);
-    HeapAllocatorDeinit(&heap);
-    return ok;
+    AllocatorFree(alloc, p, 32); // bit already 0 -> LOG_FATAL
+    return false;
 }
 
-static bool test_reject_wrong_size_hint_routes_to_wrong_class(void) {
-    // Alloc with size 32 -> class S. Free with bytes=128 -> claims
-    // class M. h->m is empty so the page lookup misses -> REJECT.
+static bool test_reject_wrong_size_hint_cross_class(void) {
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
-
-    void *p = AllocatorAlloc(alloc, 32, false);
-
-    AllocatorFree(alloc, p, 128); // lies: pretends this is class M
-
-    // Heap still usable.
-    void *q  = AllocatorAlloc(alloc, 64, false);
-    bool  ok = (q != NULL);
-    if (q)
-        AllocatorFree(alloc, q, 64);
-
-    // Real slot is still IN_USE -- free it correctly.
-    AllocatorFree(alloc, p, 32);
-    HeapAllocatorDeinit(&heap);
-    return ok;
+    void         *p     = AllocatorAlloc(alloc, 32, false);
+    AllocatorFree(alloc, p, 128); // claim class M; lookup miss -> LOG_FATAL
+    return false;
 }
 
 static bool test_reject_wrong_size_hint_in_class(void) {
-    // Alloc with size 16 -> S/16 region (offset 0). Free with bytes=64
-    // -> still class S, but ptr's offset is in the 16-byte region not
-    // the 64-byte region -> REJECT via the region-bounds check.
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
-
-    void *p = AllocatorAlloc(alloc, 16, false);
-    AllocatorFree(alloc, p, 64); // wrong sub-bin within same class
-
-    // Heap still usable; real slot still IN_USE.
-    void *q  = AllocatorAlloc(alloc, 16, false);
-    bool  ok = (q != NULL) && (q != p); // q must be a DIFFERENT slot
-    if (q)
-        AllocatorFree(alloc, q, 16);
-    AllocatorFree(alloc, p, 16);
-
-    HeapAllocatorDeinit(&heap);
-    return ok;
+    void         *p     = AllocatorAlloc(alloc, 16, false);
+    AllocatorFree(alloc, p, 64); // wrong sub-bin region -> LOG_FATAL
+    return false;
 }
 
 static bool test_reject_misaligned_pointer(void) {
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
-
-    char *p = (char *)AllocatorAlloc(alloc, 64, false);
-    // Mid-slot pointer: in the right region, wrong alignment -> REJECT.
-    AllocatorFree(alloc, p + 1, 64);
-
-    // Heap still usable; original slot still IN_USE.
-    void *q  = AllocatorAlloc(alloc, 64, false);
-    bool  ok = (q != NULL) && (q != p);
-    if (q)
-        AllocatorFree(alloc, q, 64);
-    AllocatorFree(alloc, p, 64);
-
-    HeapAllocatorDeinit(&heap);
-    return ok;
+    char         *p     = (char *)AllocatorAlloc(alloc, 64, false);
+    AllocatorFree(alloc, p + 1, 64); // mis-aligned -> LOG_FATAL
+    return false;
 }
 
 static bool test_reject_mid_xl_pointer(void) {
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
-
-    size  n = 16 * 1024;
-    char *p = (char *)AllocatorAlloc(alloc, n, false);
-    // Mid-allocation pointer in XL -> REJECT.
-    AllocatorFree(alloc, p + 128, n);
-
-    // XL descriptor still present; real free succeeds.
-    bool ok = (heap.xl_len == 1);
-    AllocatorFree(alloc, p, n);
-    ok = ok && (heap.xl_len == 0);
-
-    HeapAllocatorDeinit(&heap);
-    return ok;
-}
-
-static bool test_reject_double_free_does_not_double_vend(void) {
-    // Defense against the classic libc-malloc freelist attack:
-    // alloc, free, free, alloc, alloc -- the third alloc must NOT
-    // return the same pointer as the second (which would be a
-    // double-vending bug = use-after-free primitive).
-    HeapAllocator heap  = HeapAllocatorInit();
-    Allocator    *alloc = ALLOCATOR_OF(&heap);
-
-    void *a = AllocatorAlloc(alloc, 32, false);
-    AllocatorFree(alloc, a, 32);
-    AllocatorFree(alloc, a, 32); // rejected
-    void *b = AllocatorAlloc(alloc, 32, false);
-    void *c = AllocatorAlloc(alloc, 32, false);
-
-    bool ok = (a != NULL) && (b != NULL) && (c != NULL) && (b != c);
-
-    AllocatorFree(alloc, b, 32);
-    AllocatorFree(alloc, c, 32);
-    HeapAllocatorDeinit(&heap);
-    return ok;
+    size          n     = 16 * 1024;
+    char         *p     = (char *)AllocatorAlloc(alloc, n, false);
+    AllocatorFree(alloc, p + 128, n); // mid-allocation -> LOG_FATAL
+    return false;
 }
 
 int main(void) {
-    TestFunction tests[] = {
+    TestFunction normal[] = {
         // Happy path
         test_basic_alloc_free,
         test_zeroed_alloc,
         test_zero_byte_alloc_returns_null,
         test_free_null_is_noop,
-
         // State machine
         test_alloc_returns_distinct_pointers,
         test_free_then_alloc_recycles,
         test_fill_class_grows_new_page,
         test_alloc_across_every_sub_bin,
-
         // Large + alignment
         test_large_alloc_passthrough,
         test_overaligned_alloc,
-
         // Realloc
         test_realloc_same_bin_keeps_pointer,
         test_realloc_cross_bin_copies,
-
         // Independence
         test_independent_heaps,
-
-        // Rejection edges (deliberately emit LOG_ERROR)
+    };
+    TestFunction deadend[] = {
         test_reject_foreign_pointer,
         test_reject_double_free,
-        test_reject_wrong_size_hint_routes_to_wrong_class,
+        test_reject_wrong_size_hint_cross_class,
         test_reject_wrong_size_hint_in_class,
         test_reject_misaligned_pointer,
         test_reject_mid_xl_pointer,
-        test_reject_double_free_does_not_double_vend,
     };
-    return run_test_suite(tests, (int)(sizeof(tests) / sizeof(tests[0])), NULL, 0, "Allocator.Heap");
+    return run_test_suite(
+        normal,
+        (int)(sizeof(normal) / sizeof(normal[0])),
+        deadend,
+        (int)(sizeof(deadend) / sizeof(deadend[0])),
+        "Allocator.Heap"
+    );
 }
