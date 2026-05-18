@@ -344,7 +344,13 @@ static void map_scan_slots(
     }
 }
 
-static void map_insert_raw_entry(
+// Returns true on success. Returns false if the probe budget
+// (max_probe_count) was exhausted before finding an empty / tombstone
+// slot -- the caller (rehash_map) responds by growing the table and
+// retrying the entire rehash. This is not a corruption case; long
+// linear-probe clusters can defeat a fixed probe budget even on a
+// table sized correctly for load factor.
+static bool map_insert_raw_entry(
     GenericMap *map,
     const void *entry,
     size        entry_size,
@@ -369,7 +375,7 @@ static void map_insert_raw_entry(
     );
 
     if (insert_idx >= map->capacity) {
-        LOG_FATAL("Failed to insert raw map entry during rehash");
+        return false;
     }
 
     if (map->states[insert_idx] == MAP_SLOT_TOMBSTONE) {
@@ -379,6 +385,7 @@ static void map_insert_raw_entry(
     MemCopy(map_entry_ptr(map, entry_size, insert_idx), entry, entry_size);
     map->states[insert_idx]  = MAP_SLOT_OCCUPIED;
     map->length             += 1;
+    return true;
 }
 
 void validate_map(const GenericMap *map) {
@@ -512,28 +519,67 @@ bool rehash_map(
     old_states   = map->states;
     old_capacity = map->capacity;
 
-    new_entries = AllocatorAlloc(map->allocator, new_capacity * entry_size, true);
-    new_states  = AllocatorAlloc(map->allocator, new_capacity * sizeof(u8), true);
+    // Try to rehash into `new_capacity`. If any re-insert exhausts the
+    // probe budget (long cluster), free the new table, double the
+    // target capacity, and try again. Long linear-probe clusters can
+    // defeat a 128-slot probe budget even when the load factor is
+    // healthy -- doubling capacity halves expected cluster length
+    // and is the standard fix.
+    for (;;) {
+        new_entries = AllocatorAlloc(map->allocator, new_capacity * entry_size, true);
+        new_states  = AllocatorAlloc(map->allocator, new_capacity * sizeof(u8), true);
 
-    if (!new_entries || !new_states) {
-        AllocatorFree(map->allocator, new_entries, new_capacity * entry_size);
-        AllocatorFree(map->allocator, new_states, new_capacity * sizeof(u8));
-        return false;
-    }
-
-    map->entries    = new_entries;
-    map->states     = new_states;
-    map->capacity   = new_capacity;
-    map->length     = 0;
-    map->tombstones = 0;
-    map->policy     = policy;
-
-    for (idx = 0; idx < old_capacity; idx++) {
-        if (!old_states || old_states[idx] != MAP_SLOT_OCCUPIED) {
-            continue;
+        if (!new_entries || !new_states) {
+            AllocatorFree(map->allocator, new_entries, new_capacity * entry_size);
+            AllocatorFree(map->allocator, new_states, new_capacity * sizeof(u8));
+            // Restore the original table so the map stays usable.
+            map->entries  = old_entries;
+            map->states   = old_states;
+            map->capacity = old_capacity;
+            return false;
         }
 
-        map_insert_raw_entry(map, old_entries + (idx * entry_size), entry_size, key_offset, key_size, hash_offset);
+        map->entries    = new_entries;
+        map->states     = new_states;
+        map->capacity   = new_capacity;
+        map->length     = 0;
+        map->tombstones = 0;
+        map->policy     = policy;
+
+        bool ok = true;
+        for (idx = 0; idx < old_capacity; idx++) {
+            if (!old_states || old_states[idx] != MAP_SLOT_OCCUPIED) {
+                continue;
+            }
+            if (!map_insert_raw_entry(
+                    map,
+                    old_entries + (idx * entry_size),
+                    entry_size,
+                    key_offset,
+                    key_size,
+                    hash_offset
+                )) {
+                ok = false;
+                break;
+            }
+        }
+
+        if (ok)
+            break;
+
+        // Probe-budget exhausted. Free the failed new table, double
+        // capacity, retry.
+        AllocatorFree(map->allocator, new_entries, new_capacity * entry_size);
+        AllocatorFree(map->allocator, new_states, new_capacity * sizeof(u8));
+        size next_cap = new_capacity * 2;
+        if (next_cap <= new_capacity) {
+            // Overflow / no headroom. Restore and fail.
+            map->entries  = old_entries;
+            map->states   = old_states;
+            map->capacity = old_capacity;
+            return false;
+        }
+        new_capacity = next_cap;
     }
 
     AllocatorFree(map->allocator, old_entries, old_capacity * entry_size);
