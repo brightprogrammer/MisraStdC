@@ -105,18 +105,16 @@ void *budget_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     return slot;
 }
 
-i8 budget_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size) {
+i8 budget_allocator_resize(Allocator *self, void *ptr, size new_size) {
     budget_validate_self(self);
     BudgetAllocator *bp = (BudgetAllocator *)self;
     (void)ptr;
-    (void)old_size;
     return new_size <= bp->slot_size ? 1 : 0;
 }
 
-void *budget_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size) {
+void *budget_allocator_remap(Allocator *self, void *ptr, size new_size) {
     budget_validate_self(self);
     BudgetAllocator *bp = (BudgetAllocator *)self;
-    (void)old_size;
     if (!ptr)
         return budget_allocator_allocate(self, new_size, true);
     if (new_size == 0) {

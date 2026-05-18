@@ -259,7 +259,7 @@ static bool test_realloc_same_bin_keeps_pointer(void) {
     bool  ok = (p != NULL);
     if (ok) {
         p[0]        = 'x';
-        char *grown = (char *)AllocatorRealloc(alloc, p, 24, 28);
+        char *grown = (char *)AllocatorRealloc(alloc, p, 28);
         ok          = (grown == p) && (grown[0] == 'x');
         AllocatorFree(alloc, grown);
     }
@@ -276,7 +276,7 @@ static bool test_realloc_cross_bin_copies(void) {
     if (ok) {
         p[0]        = 'h';
         p[15]       = '!';
-        char *grown = (char *)AllocatorRealloc(alloc, p, 16, 200);
+        char *grown = (char *)AllocatorRealloc(alloc, p, 200);
         // Different bin -> heap must copy into a fresh slot.
         ok = (grown != NULL) && (grown != p) && (grown[0] == 'h') && (grown[15] == '!');
         if (grown)

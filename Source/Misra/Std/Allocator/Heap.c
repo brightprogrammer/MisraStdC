@@ -579,17 +579,59 @@ void *heap_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     return out;
 }
 
+// Recover the current allocation size for `ptr`. Returns 0 if `ptr` is
+// not owned by this allocator (or is NULL). For XL allocations, also
+// reports the descriptor index via *xl_idx_out; for S/M/L it stays
+// (u32)-1. Used by resize, remap, and deallocate -- all three rely on
+// the same lookup, with the same "size encoded in page offset"
+// invariant the bitmap design buys us.
+static size heap_recover_size(HeapAllocator *heap, void *ptr, u32 *xl_idx_out) {
+    *xl_idx_out = (u32)-1;
+    if (!ptr)
+        return 0;
+
+    void *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
+
+    u32 xi = heap_find_by_page(heap->xl, heap->xl_len, sizeof(HeapPageXL), page_base);
+    if (xi != (u32)-1) {
+        *xl_idx_out = xi;
+        return (size)heap->xl[xi].num_pages * HEAP_PAGE_SIZE;
+    }
+
+    u64 off = (u64)ptr - (u64)page_base;
+
+    if (heap_find_by_page(heap->l, heap->l_len, sizeof(HeapPageL), page_base) != (u32)-1) {
+        return (off < HEAP_L_2048_OFFSET) ? 1024u : 2048u;
+    }
+    if (heap_find_by_page(heap->m, heap->m_len, sizeof(HeapPageM), page_base) != (u32)-1) {
+        if (off < HEAP_M_256_OFFSET)
+            return 128u;
+        if (off < HEAP_M_512_OFFSET)
+            return 256u;
+        return 512u;
+    }
+    if (heap_find_by_page(heap->s, heap->s_len, sizeof(HeapPageS), page_base) != (u32)-1) {
+        if (off < HEAP_S_32_OFFSET)
+            return 16u;
+        if (off < HEAP_S_64_OFFSET)
+            return 32u;
+        return 64u;
+    }
+    return 0;
+}
+
 size heap_allocator_deallocate(Allocator *self, void *ptr) {
     heap_validate_self(self);
     HeapAllocator *heap = (HeapAllocator *)self;
     if (!ptr)
         return 0;
 
-    void *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
-
-    // XL first. Descriptor base is page-aligned; check the descriptor
-    // matches the user pointer exactly (mid-allocation pointer = bug).
-    u32 xl_idx = heap_find_by_page(heap->xl, heap->xl_len, sizeof(HeapPageXL), page_base);
+    u32  xl_idx;
+    size slot = heap_recover_size(heap, ptr, &xl_idx);
+    if (slot == 0) {
+        LOG_FATAL("heap_free: foreign ptr {x} (not in any class list)", (u64)ptr);
+        return 0;
+    }
     if (xl_idx != (u32)-1) {
         HeapPageXL *e = &heap->xl[xl_idx];
         if (ptr != e->page) {
@@ -598,68 +640,42 @@ size heap_allocator_deallocate(Allocator *self, void *ptr) {
         }
         return heap_free_xl_at(heap, xl_idx);
     }
-
-    // The user pointer's offset within its page disambiguates the
-    // sub-bin within S / M / L -- slot size is encoded in the page
-    // layout (HEAP_*_OFFSET), not in any caller-supplied hint.
-    u64 off = (u64)ptr - (u64)page_base;
-
-    // Class L: 1024 region [0, 2048), 2048 region [2048, 4096).
-    u32 l_idx = heap_find_by_page(heap->l, heap->l_len, sizeof(HeapPageL), page_base);
-    if (l_idx != (u32)-1) {
-        u32 slot = (off < HEAP_L_2048_OFFSET) ? 1024u : 2048u;
-        heap_free_l(heap, ptr, slot);
-        return slot;
-    }
-
-    // Class M: 128 region [0, 1024), 256 region [1024, 2048), 512 region [2048, 4096).
-    u32 m_idx = heap_find_by_page(heap->m, heap->m_len, sizeof(HeapPageM), page_base);
-    if (m_idx != (u32)-1) {
-        u32 slot;
-        if (off < HEAP_M_256_OFFSET)
-            slot = 128u;
-        else if (off < HEAP_M_512_OFFSET)
-            slot = 256u;
-        else
-            slot = 512u;
-        heap_free_m(heap, ptr, slot);
-        return slot;
-    }
-
-    // Class S: 16 region [0, 1024), 32 region [1024, 2048), 64 region [2048, 4096).
-    u32 s_idx = heap_find_by_page(heap->s, heap->s_len, sizeof(HeapPageS), page_base);
-    if (s_idx != (u32)-1) {
-        u32 slot;
-        if (off < HEAP_S_32_OFFSET)
-            slot = 16u;
-        else if (off < HEAP_S_64_OFFSET)
-            slot = 32u;
-        else
-            slot = 64u;
-        heap_free_s(heap, ptr, slot);
-        return slot;
-    }
-
-    LOG_FATAL("heap_free: foreign ptr {x} (not in any class list)", (u64)ptr);
-    return 0;
+    if (slot <= 64)
+        heap_free_s(heap, ptr, (u32)slot);
+    else if (slot <= 512)
+        heap_free_m(heap, ptr, (u32)slot);
+    else
+        heap_free_l(heap, ptr, (u32)slot);
+    return slot;
 }
 
-i8 heap_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size) {
+i8 heap_allocator_resize(Allocator *self, void *ptr, size new_size) {
     heap_validate_self(self);
-    (void)ptr;
-    if (heap_alignment_demands_passthrough(self) || old_size > 2048 || new_size > 2048) {
-        if (old_size > 2048 && new_size > 2048) {
-            u32 op = (u32)((old_size + HEAP_PAGE_SIZE - 1u) / HEAP_PAGE_SIZE);
-            u32 np = (u32)((new_size + HEAP_PAGE_SIZE - 1u) / HEAP_PAGE_SIZE);
-            return op == np ? 1 : 0;
-        }
+    HeapAllocator *heap = (HeapAllocator *)self;
+    if (!ptr || new_size == 0)
         return 0;
+
+    u32  xl_idx;
+    size cur = heap_recover_size(heap, ptr, &xl_idx);
+    if (cur == 0)
+        return 0; // foreign ptr -- can't resize without knowing the slot
+
+    if (xl_idx != (u32)-1) {
+        // XL: page count must match for in-place.
+        u32 op = heap->xl[xl_idx].num_pages;
+        u32 np = (u32)((new_size + HEAP_PAGE_SIZE - 1u) / HEAP_PAGE_SIZE);
+        return op == np ? 1 : 0;
     }
-    return heap_slot_size_for(old_size) == heap_slot_size_for(new_size) ? 1 : 0;
+    if (heap_alignment_demands_passthrough(self) || new_size > 2048) {
+        return 0; // mixed-class transitions cannot be in-place
+    }
+    return (size)heap_slot_size_for(new_size) == cur ? 1 : 0;
 }
 
-void *heap_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size) {
+void *heap_allocator_remap(Allocator *self, void *ptr, size new_size) {
     heap_validate_self(self);
+    HeapAllocator *heap = (HeapAllocator *)self;
+
     if (new_size == 0) {
         if (ptr)
             heap_allocator_deallocate(self, ptr);
@@ -667,12 +683,21 @@ void *heap_allocator_remap(Allocator *self, void *ptr, size old_size, size new_s
     }
     if (!ptr)
         return heap_allocator_allocate(self, new_size, false);
-    if (heap_allocator_resize(self, ptr, old_size, new_size))
+    if (heap_allocator_resize(self, ptr, new_size))
         return ptr;
+
+    // Need the old allocation size to bound the copy. Same lookup the
+    // resize and free paths use; foreign ptr aborts in deallocate.
+    u32  xl_idx;
+    size cur = heap_recover_size(heap, ptr, &xl_idx);
+    if (cur == 0) {
+        LOG_FATAL("heap_remap: foreign ptr {x}", (u64)ptr);
+        return NULL;
+    }
     void *fresh = heap_allocator_allocate(self, new_size, false);
     if (!fresh)
         return NULL;
-    MemCopy(fresh, ptr, old_size < new_size ? old_size : new_size);
+    MemCopy(fresh, ptr, cur < new_size ? cur : new_size);
     heap_allocator_deallocate(self, ptr);
     return fresh;
 }

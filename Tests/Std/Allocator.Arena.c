@@ -38,7 +38,7 @@ static bool test_grow_last_in_place(void) {
     if (ok) {
         p[0]        = 'h';
         p[15]       = 'i';
-        char *grown = (char *)AllocatorRealloc(alloc_base, p, 16, 32);
+        char *grown = (char *)AllocatorRealloc(alloc_base, p, 32);
         // Grew in place at the same address, with content preserved.
         ok = (grown == p) && (grown[0] == 'h') && (grown[15] == 'i');
     }
@@ -47,7 +47,14 @@ static bool test_grow_last_in_place(void) {
     return ok;
 }
 
-static bool test_grow_non_last_relocates(void) {
+static bool test_remap_non_last_refused(void) {
+    // Arena's remap can only honor a non-last allocation if it knows
+    // the old size -- otherwise the alloc-copy-free fallback would
+    // have to over-read into adjacent allocations to fill the new
+    // buffer. The bump policy doesn't track per-allocation sizes
+    // (that's the whole point of being a bump allocator), so remap
+    // of a non-last pointer refuses with NULL. Callers that need
+    // resize-of-anything semantics should use a HeapAllocator.
     ArenaAllocator arena      = ArenaAllocatorInit();
     Allocator     *alloc_base = ALLOCATOR_OF(&arena);
     char          *a          = (char *)AllocatorAlloc(alloc_base, 16, true);
@@ -55,11 +62,9 @@ static bool test_grow_non_last_relocates(void) {
     bool           ok         = (a != NULL) && (b != NULL);
 
     if (ok) {
-        a[0]        = 'a';
-        a[15]       = '!';
-        char *grown = (char *)AllocatorRealloc(alloc_base, a, 16, 64);
-        // `a` is no longer the tail, so realloc must move it.
-        ok = (grown != NULL) && (grown != a) && (grown[0] == 'a') && (grown[15] == '!');
+        // `a` is no longer the tail; remap must refuse.
+        char *grown = (char *)AllocatorRealloc(alloc_base, a, 64);
+        ok          = (grown == NULL);
     }
 
     (void)b;
@@ -120,7 +125,7 @@ int main(void) {
     TestFunction tests[] = {
         test_basic_bump,
         test_grow_last_in_place,
-        test_grow_non_last_relocates,
+        test_remap_non_last_refused,
         test_vec_on_arena,
         test_reset,
         test_alignment,

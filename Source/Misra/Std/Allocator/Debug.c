@@ -333,15 +333,14 @@ size debug_allocator_deallocate(Allocator *self, void *ptr) {
 // useful sense. Refuse and force the caller through remap, which
 // does the clean alloc-fresh + copy + free dance with full canary +
 // live-map maintenance.
-i8 debug_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size) {
+i8 debug_allocator_resize(Allocator *self, void *ptr, size new_size) {
     (void)debug_validate_self(self);
     (void)ptr;
-    (void)old_size;
     (void)new_size;
     return 0;
 }
 
-void *debug_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size) {
+void *debug_allocator_remap(Allocator *self, void *ptr, size new_size) {
     DebugAllocator *dbg = debug_validate_self(self);
     if (new_size == 0) {
         debug_allocator_deallocate(self, ptr);
@@ -350,15 +349,23 @@ void *debug_allocator_remap(Allocator *self, void *ptr, size old_size, size new_
     if (!ptr) {
         return debug_allocator_allocate(self, new_size, false);
     }
+    // Look up the original requested size from the live map to bound
+    // the copy. If ptr is not in the live map, forward to deallocate
+    // which emits the double-free / foreign-ptr diagnostic and aborts.
+    DebugRecord *rec = MapGetFirstPtr(&dbg->live, ptr);
+    if (!rec) {
+        debug_allocator_deallocate(self, ptr); // aborts
+        return NULL;
+    }
+    size old_requested = rec->requested_size;
     // alloc-fresh + memcpy + free, keeping canary + record invariants
     // simple. The cost in debug mode is fine.
     void *fresh = debug_allocator_allocate(self, new_size, false);
     if (!fresh)
         return NULL;
-    size copy = old_size < new_size ? old_size : new_size;
+    size copy = old_requested < new_size ? old_requested : new_size;
     MemCopy(fresh, ptr, copy);
     debug_allocator_deallocate(self, ptr);
-    (void)dbg;
     return fresh;
 }
 

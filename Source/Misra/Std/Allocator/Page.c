@@ -229,14 +229,10 @@ void *page_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
 // on macOS we don't have it, on Linux it can fail anyway if a
 // neighbouring VMA blocks growth. Either way, we don't attempt it --
 // the caller can fall back to remap, which alloc+copy+frees.
-//
-// `old_size` is advisory only; the authoritative byte count comes from
-// the descriptor table. Passed-in `old_size` is ignored.
-i8 page_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size) {
+i8 page_allocator_resize(Allocator *self, void *ptr, size new_size) {
     page_validate_self(self);
     PageAllocator *page = (PageAllocator *)self;
-    (void)old_size;
-    u32 idx = page_find_idx(page, ptr);
+    u32            idx  = page_find_idx(page, ptr);
     if (idx == (u32)-1) {
         // Unknown pointer -- resize can't succeed without knowing the
         // real mapping length; let the caller fall back to remap.
@@ -247,10 +243,9 @@ i8 page_allocator_resize(Allocator *self, void *ptr, size old_size, size new_siz
     return old_rounded == new_rounded ? 1 : 0;
 }
 
-void *page_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size) {
+void *page_allocator_remap(Allocator *self, void *ptr, size new_size) {
     page_validate_self(self);
     PageAllocator *page = (PageAllocator *)self;
-    (void)old_size;
 
     if (new_size == 0) {
         if (ptr) {

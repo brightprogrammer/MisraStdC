@@ -66,8 +66,8 @@ extern "C" {
     } PageAllocator;
 
     void *page_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
-    i8    page_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size);
-    void *page_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size);
+    i8    page_allocator_resize(Allocator *self, void *ptr, size new_size);
+    void *page_allocator_remap(Allocator *self, void *ptr, size new_size);
 
     ///
     /// Free a region previously returned by

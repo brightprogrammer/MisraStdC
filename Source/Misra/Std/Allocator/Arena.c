@@ -112,11 +112,10 @@ void *arena_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
 // them that we can't disturb. Shrinks of older allocations: refused
 // too -- they'd leave a hole the arena can't reclaim and the caller
 // could just keep the over-large slot. Same answer either way.
-i8 arena_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size) {
+i8 arena_allocator_resize(Allocator *self, void *ptr, size new_size) {
     arena_validate_self(self);
     ArenaAllocator *arena = (ArenaAllocator *)self;
     size            align = arena_effective_alignment(self);
-    (void)old_size;
 
     if (arena->last_ptr != ptr || !arena->tail) {
         return 0;
@@ -132,14 +131,12 @@ i8 arena_allocator_resize(Allocator *self, void *ptr, size old_size, size new_si
     return 1;
 }
 
-void *arena_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size) {
+void *arena_allocator_remap(Allocator *self, void *ptr, size new_size) {
     arena_validate_self(self);
     ArenaAllocator *arena = (ArenaAllocator *)self;
-    (void)arena;
 
     if (new_size == 0) {
         (void)ptr;
-        (void)old_size;
         return NULL;
     }
     if (!ptr) {
@@ -149,15 +146,24 @@ void *arena_allocator_remap(Allocator *self, void *ptr, size old_size, size new_
     // Grow in place when `ptr` is the last bump (still a fast path
     // for remap callers that come straight here without trying
     // resize first).
-    if (arena_allocator_resize(self, ptr, old_size, new_size)) {
+    if (arena_allocator_resize(self, ptr, new_size)) {
         return ptr;
     }
 
-    void *fresh = arena_allocator_allocate(self, new_size, true);
+    // Move case. We only know the old size if `ptr` is the last bump
+    // (tracked in arena->last_size). For any other allocation we have
+    // no way to bound the copy length safely -- refuse instead of
+    // over-reading past the slot. Bump allocators don't expose
+    // per-allocation sizes by design; this is the price.
+    if (arena->last_ptr != ptr) {
+        return NULL;
+    }
+    size  old_padded = arena->last_size;
+    void *fresh      = arena_allocator_allocate(self, new_size, true);
     if (!fresh) {
         return NULL;
     }
-    MemCopy(fresh, ptr, old_size < new_size ? old_size : new_size);
+    MemCopy(fresh, ptr, old_padded < new_size ? old_padded : new_size);
     return fresh;
 }
 

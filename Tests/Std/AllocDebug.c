@@ -219,7 +219,7 @@ bool test_debug_remap_grows(void) {
         p[15] = '!';
     }
 
-    char *grown = (char *)AllocatorRealloc(adbg, p, 16, 200);
+    char *grown = (char *)AllocatorRealloc(adbg, p, 200);
     ok          = ok && (grown != NULL) && (grown[0] == 'h') && (grown[15] == '!');
     ok          = ok && (DebugAllocatorLiveCount(&dbg) == 1);
     ok          = ok && (DebugAllocatorLiveBytes(&dbg) == 200);
@@ -236,7 +236,7 @@ bool test_debug_remap_to_zero_frees(void) {
 
     void *p   = AllocatorAlloc(adbg, 24, false);
     bool  ok  = (p != NULL) && (DebugAllocatorLiveCount(&dbg) == 1);
-    void *nil = AllocatorRealloc(adbg, p, 24, 0);
+    void *nil = AllocatorRealloc(adbg, p, 0);
     ok        = ok && (nil == NULL) && (DebugAllocatorLiveCount(&dbg) == 0);
 
     DebugAllocatorDeinit(&dbg);
@@ -247,7 +247,7 @@ bool test_debug_remap_from_null_allocates(void) {
     DebugAllocator dbg  = DebugAllocatorInit();
     Allocator     *adbg = ALLOCATOR_OF(&dbg);
 
-    void *p  = AllocatorRealloc(adbg, NULL, 0, 32);
+    void *p  = AllocatorRealloc(adbg, NULL, 32);
     bool  ok = (p != NULL) && (DebugAllocatorLiveCount(&dbg) == 1);
     if (p)
         AllocatorFree(adbg, p);
