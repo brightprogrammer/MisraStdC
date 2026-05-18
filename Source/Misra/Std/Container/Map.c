@@ -941,12 +941,35 @@ bool map_insert(
     }
 
     hash = map_hash_key(map, key, key_size);
-    map_scan_slots(map, key, entry_size, key_offset, key_size, hash_offset, hash, NULL, &insert_idx, &probe_pressure);
 
-    if (insert_idx >= map->capacity) {
-        // Probe budget exhausted on a cluster wider than max_probe_count.
-        // Pass n=capacity+1 so next_capacity grows the table; rehashing
-        // at the same size would re-probe the same cluster and loop.
+    // Loop instead of recursion: scan; if the probe budget is
+    // exhausted, force a rehash to a larger capacity and try again.
+    // Recursing here used to compound stack and memory exponentially
+    // when consecutive rehashes still produced a cluster the new key
+    // hashed into. A bounded loop fails cleanly instead.
+    for (int attempt = 0; attempt < 32; attempt++) {
+        insert_idx     = 0;
+        probe_pressure = 0;
+        map_scan_slots(
+            map,
+            key,
+            entry_size,
+            key_offset,
+            key_size,
+            hash_offset,
+            hash,
+            NULL,
+            &insert_idx,
+            &probe_pressure
+        );
+
+        if (insert_idx < map->capacity) {
+            break;
+        }
+
+        // Probe budget exhausted. Pass n=capacity+1 so next_capacity
+        // grows the table; rehash_map itself further doubles
+        // internally if the new size still can't fit existing entries.
         (void)map->policy.should_rehash(map->length, map->capacity, map->tombstones, 1, probe_pressure);
 
         size forced_n = map->capacity + 1;
@@ -966,7 +989,10 @@ bool map_insert(
             )) {
             return false;
         }
-        return map_insert(map, key, value, entry_size, key_offset, key_size, value_offset, value_size, hash_offset);
+    }
+
+    if (insert_idx >= map->capacity) {
+        LOG_FATAL("map_insert: probe budget exhausted after 32 rehash attempts (capacity {})", map->capacity);
     }
 
     if (map->states[insert_idx] == MAP_SLOT_TOMBSTONE) {
