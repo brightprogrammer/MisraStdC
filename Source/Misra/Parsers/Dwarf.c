@@ -631,6 +631,14 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *
             ok = false;
             break;
         }
+        // Compare lengths, not pointers -- `unit_start + 4 +
+        // unit_length` would wrap uintptr_t for an attacker-controlled
+        // unit_length near 2^32 placed close to the section end.
+        u64 remaining = (u64)(section_cur.end - unit_start);
+        if (4u + (u64)unit_length > remaining) {
+            ok = false;
+            break;
+        }
         const u8 *unit_end = unit_start + 4 + unit_length;
         if (unit_end > section_cur.end) {
             LOG_ERROR("DWARF: line unit overruns section");

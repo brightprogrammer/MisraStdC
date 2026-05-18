@@ -214,6 +214,16 @@ static bool walk_load_commands(MachoContext *ctx) {
 static bool decode_symbols(MachoContext *ctx) {
     if (!ctx->have_symtab || ctx->nsyms == 0)
         return true;
+    // Sanity cap. `nsyms` is u32 from the LC_SYMTAB command; a crafted
+    // file can declare ~4B symbols, each turning into a Vec push.
+    // Real binaries don't approach this.
+    enum {
+        MACHO_MAX_SYMBOLS = 16u * 1024u * 1024u
+    };
+    if (ctx->nsyms > MACHO_MAX_SYMBOLS) {
+        LOG_ERROR("MachO: nsyms {} exceeds sanity cap; refusing", (u64)ctx->nsyms);
+        return false;
+    }
     u64 tab_end = (u64)ctx->symoff + (u64)ctx->nsyms * NLIST64_SIZE;
     if (tab_end > ctx->out->data_size) {
         LOG_ERROR("MachO: symtab past EOF");

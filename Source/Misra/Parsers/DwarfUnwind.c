@@ -341,9 +341,13 @@ static bool parse_cie(DwUCursor *body, u64 cie_offset, DwarfCie *out) {
         u64 aug_len           = 0;
         if (!dwc_take_uleb128(body, &aug_len))
             return false;
-        const u8 *aug_end = body->p + aug_len;
-        if (aug_end > body->end)
+        // Bound aug_len against remaining buffer in u64 space.
+        // `body->p + aug_len` would wrap uintptr_t for an attacker-
+        // controlled huge aug_len, making the subsequent pointer
+        // comparison meaningless. Compare the lengths instead.
+        if (aug_len > (u64)(body->end - body->p))
             return false;
+        const u8 *aug_end = body->p + aug_len;
 
         for (const char *a = augmentation + 1; *a; ++a) {
             switch (*a) {
@@ -427,7 +431,8 @@ static bool parse_fde(
         u64 aug_len = 0;
         if (!dwc_take_uleb128(body, &aug_len))
             return false;
-        if (body->p + aug_len > body->end)
+        // Bound check in u64 space; pointer + huge can wrap.
+        if (aug_len > (u64)(body->end - body->p))
             return false;
         body->p += aug_len;
     }
@@ -848,7 +853,8 @@ static bool cfi_vm_step(CfiVm *vm, DwUCursor *cur, u64 stop_at, bool *stop_now) 
             u64 expr_len = 0;
             if (!dwc_take_uleb128(cur, &expr_len))
                 return false;
-            if (cur->p + expr_len > cur->end)
+            // Bound check in u64 space; pointer + huge can wrap.
+            if (expr_len > (u64)(cur->end - cur->p))
                 return false;
             cur->p += expr_len;
             return true;

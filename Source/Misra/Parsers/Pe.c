@@ -160,14 +160,18 @@ static bool pe_decode_nt(PeContext *ctx, u64 *out_opt_offset) {
 // Optional Header. We need ImageBase, SizeOfImage,
 // NumberOfRvaAndSizes, and the DataDirectory[DEBUG] entry.
 static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
+    // Validate the range in u64 space BEFORE forming any pointer
+    // beyond the buffer. `data + opt_offset + opt_hdr_size` with
+    // attacker-controlled values would synthesize an out-of-object
+    // pointer (UB) even if only compared.
+    if (opt_offset > ctx->out->data_size || ctx->opt_hdr_size > ctx->out->data_size - opt_offset) {
+        LOG_ERROR("PE: optional header overruns file");
+        return false;
+    }
     ByteCursor c = {
         .p   = ctx->out->data + opt_offset,
         .end = ctx->out->data + opt_offset + ctx->opt_hdr_size,
     };
-    if (c.end > ctx->out->data + ctx->out->data_size) {
-        LOG_ERROR("PE: optional header overruns file");
-        return false;
-    }
 
     u16 magic;
     if (!bc_take_u16(&c, &magic))
