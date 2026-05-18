@@ -114,11 +114,15 @@ bool reserve_vec(GenericVec *vec, size item_size, size n) {
 bool reserve_pow2_vec(GenericVec *vec, size item_size, size n) {
     ValidateVec(vec);
 
-    size n2 = 1;
     if (n == 0) {
         return true;
     }
-
+    // Refuse requests above 2^63 -- the doubling loop below would
+    // spin forever once n2 == 2^63 (next shift wraps to 0 < n).
+    if (n > ((size)1 << 63)) {
+        return false;
+    }
+    size n2 = 1;
     while (n2 < n) {
         n2 <<= 1;
     }
@@ -189,9 +193,17 @@ bool insert_range_into_vec(GenericVec *vec, const char *item_data, size item_siz
     if (idx > vec->length) {
         LOG_FATAL("vector index out of bounds, insertion at index greater than length");
     }
+    // Overflow check on length + count. A wrapped sum below capacity
+    // would skip the reserve and walk past the buffer.
+    if (count > (size)-1 - vec->length) {
+        LOG_FATAL("vector insert: length + count overflows size");
+    }
 
     aligned_size = vec_aligned_size(vec, item_size);
     if (vec->length + count >= vec->capacity) {
+        if (count > (size)-1 - vec->capacity) {
+            LOG_FATAL("vector insert: capacity + count overflows size");
+        }
         if (!reserve_pow2_vec(vec, item_size, vec->capacity + count)) {
             return false;
         }
@@ -251,6 +263,10 @@ bool insert_range_fast_into_vec(GenericVec *vec, const char *item_data, size ite
     if (idx > vec->length) {
         LOG_FATAL("vector index out of bounds, insertion at index greater than length");
     }
+    // Overflow check on length + count. Same shape as insert_range_into_vec.
+    if (count > (size)-1 - vec->length) {
+        LOG_FATAL("vector insert (fast): length + count overflows size");
+    }
 
     aligned_size = vec_aligned_size(vec, item_size);
     if (vec->length + count >= vec->capacity) {
@@ -299,6 +315,11 @@ bool insert_range_fast_into_vec(GenericVec *vec, const char *item_data, size ite
 void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size start, size count) {
     ValidateVec(vec);
 
+    // `start + count` can wrap if both are huge -- a wrapped sum
+    // below length would pass the bound check. Catch it first.
+    if (count > (size)-1 - start) {
+        LOG_FATAL("vector remove range: start + count overflows size");
+    }
     if (start + count > vec->length) {
         LOG_FATAL("vector range out of bounds.");
     }

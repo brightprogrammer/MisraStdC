@@ -44,6 +44,15 @@ static size default_next_capacity(u64 length, u64 capacity, u64 tombstones, size
     if (needed == 0) {
         return 0;
     }
+    // Cap `needed` at what the doubling loop can actually reach. A
+    // `needed` value above (3/4) * 2^63 makes the loop spin forever
+    // -- once new_capacity hits 2^63, the next `<<= 1` wraps to 0,
+    // (0 * 3) / 4 == 0 < needed, and we shift 0 forever. Refuse the
+    // request instead.
+    size max_needed = (((size)1 << 63) / 4u) * 3u; // (2^63) * 3/4
+    if (needed > max_needed) {
+        return 0;
+    }
 
     while (((new_capacity * 3) / 4) < needed) {
         new_capacity <<= 1;
