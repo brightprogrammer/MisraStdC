@@ -457,7 +457,14 @@ static void *heap_alloc_xl(HeapAllocator *heap, size bytes, i8 zeroed) {
 }
 
 static void heap_free_xl(HeapAllocator *heap, void *ptr) {
-    u32 idx = heap_find_by_page(heap->xl, heap->xl_len, sizeof(HeapPageXL), ptr);
+    // Mask ptr down to its containing page so a mid-allocation pointer
+    // inside the first page of an XL region still finds the descriptor,
+    // and we can emit the right "mid-allocation" diagnostic rather than
+    // misreporting it as foreign. A pointer in the 2nd+ page of a
+    // multi-page XL allocation still misses (only the base page is
+    // indexed) and is reported as foreign -- caller bug either way.
+    void *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
+    u32   idx       = heap_find_by_page(heap->xl, heap->xl_len, sizeof(HeapPageXL), page_base);
     if (idx == (u32)-1) {
         LOG_ERROR("heap_free: foreign ptr {x} routed as XL", (u64)ptr);
         return;
