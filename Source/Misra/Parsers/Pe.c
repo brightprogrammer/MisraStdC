@@ -13,6 +13,7 @@
 ///   - `<winnt.h>` IMAGE_* structure definitions
 ///   - LLVM's `Object/COFF.h` for the reader-side conventions
 
+#include <Misra/Parsers/ByteIter.h>
 #include <Misra/Parsers/Pe.h>
 #include <Misra/Std.h>
 #include <Misra/Std/File.h>
@@ -44,58 +45,18 @@ enum {
 };
 
 // ---------------------------------------------------------------------------
-// Byte cursor (third copy of the helper -- kept local to avoid coupling
-// parsers via a shared internal header; the helpers are tiny).
-// ---------------------------------------------------------------------------
-
-typedef struct ByteCursor {
-    const u8 *p;
-    const u8 *end;
-} ByteCursor;
-
-static bool bc_take_u16(ByteCursor *c, u16 *out) {
-    if (c->end - c->p < 2)
-        return false;
-    *out  = (u16)c->p[0] | (u16)c->p[1] << 8;
-    c->p += 2;
-    return true;
-}
-static bool bc_take_u32(ByteCursor *c, u32 *out) {
-    if (c->end - c->p < 4)
-        return false;
-    *out  = (u32)c->p[0] | (u32)c->p[1] << 8 | (u32)c->p[2] << 16 | (u32)c->p[3] << 24;
-    c->p += 4;
-    return true;
-}
-static bool bc_take_u64(ByteCursor *c, u64 *out) {
-    if (c->end - c->p < 8)
-        return false;
-    *out = 0;
-    for (int i = 0; i < 8; ++i)
-        *out |= (u64)c->p[i] << (i * 8);
-    c->p += 8;
-    return true;
-}
-static bool bc_skip(ByteCursor *c, u64 n) {
-    if ((u64)(c->end - c->p) < n)
-        return false;
-    c->p += n;
-    return true;
-}
-
-// ---------------------------------------------------------------------------
 // Decoders
 // ---------------------------------------------------------------------------
 
 typedef struct PeContext {
-    PeFile    *out;
-    ByteCursor file;      // bounds for the whole image
-    u32        nt_offset; // offset of NT signature
-    u16        num_sections;
-    u16        opt_hdr_size;
-    u32        num_dirs;
-    u64        debug_dir_rva;
-    u32        debug_dir_size;
+    PeFile  *out;
+    ByteIter file;      // bounds for the whole image
+    u32      nt_offset; // offset of NT signature
+    u16      num_sections;
+    u16      opt_hdr_size;
+    u32      num_dirs;
+    u64      debug_dir_rva;
+    u32      debug_dir_size;
 } PeContext;
 
 // DOS header gives us e_lfanew, the offset to the NT headers.
@@ -109,9 +70,9 @@ static bool pe_decode_dos(PeContext *ctx) {
         LOG_ERROR("PE: bad DOS magic 0x{x}", (u32)mz);
         return false;
     }
-    u32        e_lfanew;
-    ByteCursor c = {.p = ctx->out->data + DOS_E_LFANEW_OFFSET, .end = ctx->out->data + ctx->out->data_size};
-    if (!bc_take_u32(&c, &e_lfanew))
+    u32      e_lfanew;
+    ByteIter c = BYTE_ITER_FROM_MEMORY(ctx->out->data + DOS_E_LFANEW_OFFSET, ctx->out->data_size - DOS_E_LFANEW_OFFSET);
+    if (!bi_take_u32_le(&c, &e_lfanew))
         return false;
     if (e_lfanew >= ctx->out->data_size) {
         LOG_ERROR("PE: e_lfanew past EOF");
@@ -123,28 +84,28 @@ static bool pe_decode_dos(PeContext *ctx) {
 
 // NT signature + File Header. Returns the offset of the Optional Header.
 static bool pe_decode_nt(PeContext *ctx, u64 *out_opt_offset) {
-    ByteCursor c = {.p = ctx->out->data + ctx->nt_offset, .end = ctx->out->data + ctx->out->data_size};
-    u32        sig;
-    if (!bc_take_u32(&c, &sig) || sig != NT_SIGNATURE) {
+    ByteIter c = BYTE_ITER_FROM_MEMORY(ctx->out->data + ctx->nt_offset, ctx->out->data_size - ctx->nt_offset);
+    u32      sig;
+    if (!bi_take_u32_le(&c, &sig) || sig != NT_SIGNATURE) {
         LOG_ERROR("PE: bad NT signature");
         return false;
     }
     u16 machine, num_sec, size_opt;
     u32 timestamp, sym_ptr, num_sym;
     u16 chars;
-    if (!bc_take_u16(&c, &machine))
+    if (!bi_take_u16_le(&c, &machine))
         return false;
-    if (!bc_take_u16(&c, &num_sec))
+    if (!bi_take_u16_le(&c, &num_sec))
         return false;
-    if (!bc_take_u32(&c, &timestamp))
+    if (!bi_take_u32_le(&c, &timestamp))
         return false;
-    if (!bc_take_u32(&c, &sym_ptr))
+    if (!bi_take_u32_le(&c, &sym_ptr))
         return false;
-    if (!bc_take_u32(&c, &num_sym))
+    if (!bi_take_u32_le(&c, &num_sym))
         return false;
-    if (!bc_take_u16(&c, &size_opt))
+    if (!bi_take_u16_le(&c, &size_opt))
         return false;
-    if (!bc_take_u16(&c, &chars))
+    if (!bi_take_u16_le(&c, &chars))
         return false;
     (void)timestamp;
     (void)sym_ptr;
@@ -153,7 +114,7 @@ static bool pe_decode_nt(PeContext *ctx, u64 *out_opt_offset) {
     ctx->out->machine = (PeMachine)machine;
     ctx->num_sections = num_sec;
     ctx->opt_hdr_size = size_opt;
-    *out_opt_offset   = (u64)(c.p - ctx->out->data);
+    *out_opt_offset   = (u64)(c.data + c.pos - ctx->out->data);
     return true;
 }
 
@@ -168,13 +129,10 @@ static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
         LOG_ERROR("PE: optional header overruns file");
         return false;
     }
-    ByteCursor c = {
-        .p   = ctx->out->data + opt_offset,
-        .end = ctx->out->data + opt_offset + ctx->opt_hdr_size,
-    };
+    ByteIter c = BYTE_ITER_FROM_MEMORY(ctx->out->data + opt_offset, ctx->opt_hdr_size);
 
     u16 magic;
-    if (!bc_take_u16(&c, &magic))
+    if (!bi_take_u16_le(&c, &magic))
         return false;
     if (magic != OPTIONAL_MAGIC_PE32 && magic != OPTIONAL_MAGIC_PE32PLUS) {
         LOG_ERROR("PE: unsupported optional magic 0x{x}", (u32)magic);
@@ -185,21 +143,21 @@ static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
 
     // Skip linker_major, linker_minor, size_of_code, size_of_init_data,
     // size_of_uninit_data, entry_point, base_of_code.
-    if (!bc_skip(&c, 1 + 1 + 4 + 4 + 4 + 4 + 4))
+    if (!bi_skip(&c, 1 + 1 + 4 + 4 + 4 + 4 + 4))
         return false;
     if (!is64) {
         // PE32 has an extra base_of_data here.
-        if (!bc_skip(&c, 4))
+        if (!bi_skip(&c, 4))
             return false;
     }
 
     // ImageBase: u32 on PE32, u64 on PE32+.
     if (is64) {
-        if (!bc_take_u64(&c, &ctx->out->image_base))
+        if (!bi_take_u64_le(&c, &ctx->out->image_base))
             return false;
     } else {
         u32 base;
-        if (!bc_take_u32(&c, &base))
+        if (!bi_take_u32_le(&c, &base))
             return false;
         ctx->out->image_base = base;
     }
@@ -207,24 +165,24 @@ static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
     // Skip section_alignment, file_alignment, os_major, os_minor,
     // image_major, image_minor, subsys_major, subsys_minor,
     // win32_version.
-    if (!bc_skip(&c, 4 + 4 + 2 + 2 + 2 + 2 + 2 + 2 + 4))
+    if (!bi_skip(&c, 4 + 4 + 2 + 2 + 2 + 2 + 2 + 2 + 4))
         return false;
 
-    if (!bc_take_u32(&c, &ctx->out->size_of_image))
+    if (!bi_take_u32_le(&c, &ctx->out->size_of_image))
         return false;
 
     // Skip size_of_headers, checksum, subsystem, dll_chars.
-    if (!bc_skip(&c, 4 + 4 + 2 + 2))
+    if (!bi_skip(&c, 4 + 4 + 2 + 2))
         return false;
 
     // Stack/heap sizes: 4 ea on PE32, 8 ea on PE32+. Four fields.
-    if (!bc_skip(&c, is64 ? 32 : 16))
+    if (!bi_skip(&c, is64 ? 32 : 16))
         return false;
 
     // LoaderFlags (u32), then NumberOfRvaAndSizes (u32).
-    if (!bc_skip(&c, 4))
+    if (!bi_skip(&c, 4))
         return false;
-    if (!bc_take_u32(&c, &ctx->num_dirs))
+    if (!bi_take_u32_le(&c, &ctx->num_dirs))
         return false;
 
     // Data Directories: 8 bytes each. We want index 6 (DEBUG).
@@ -234,45 +192,42 @@ static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
         return true;
     }
     // Skip directories before DEBUG.
-    if (!bc_skip(&c, DIR_INDEX_DEBUG * 8u))
+    if (!bi_skip(&c, DIR_INDEX_DEBUG * 8u))
         return false;
-    if (!bc_take_u32(&c, (u32 *)&ctx->debug_dir_rva))
+    if (!bi_take_u32_le(&c, (u32 *)&ctx->debug_dir_rva))
         return false;
-    if (!bc_take_u32(&c, &ctx->debug_dir_size))
+    if (!bi_take_u32_le(&c, &ctx->debug_dir_size))
         return false;
     return true;
 }
 
 // Section headers immediately follow the Optional Header.
 static bool pe_decode_sections(PeContext *ctx, u64 opt_offset) {
-    u64        sec_offset = opt_offset + ctx->opt_hdr_size;
-    ByteCursor c          = {
-                 .p   = ctx->out->data + sec_offset,
-                 .end = ctx->out->data + ctx->out->data_size,
-    };
+    u64      sec_offset = opt_offset + ctx->opt_hdr_size;
+    ByteIter c          = BYTE_ITER_FROM_MEMORY(ctx->out->data + sec_offset, ctx->out->data_size - sec_offset);
 
     for (u32 i = 0; i < ctx->num_sections; ++i) {
-        if (c.end - c.p < 40) {
+        if (bi_remaining(&c) < 40) {
             LOG_ERROR("PE: section table truncated at index {}", i);
             return false;
         }
         PeSection s;
-        MemCopy(s.name, c.p, 8);
+        MemCopy(s.name, c.data + c.pos, 8);
         s.name[8]  = '\0';
-        c.p       += 8;
+        c.pos     += 8;
 
-        if (!bc_take_u32(&c, &s.virtual_size))
+        if (!bi_take_u32_le(&c, &s.virtual_size))
             return false;
-        if (!bc_take_u32(&c, &s.virtual_address))
+        if (!bi_take_u32_le(&c, &s.virtual_address))
             return false;
-        if (!bc_take_u32(&c, &s.raw_size))
+        if (!bi_take_u32_le(&c, &s.raw_size))
             return false;
-        if (!bc_take_u32(&c, &s.raw_offset))
+        if (!bi_take_u32_le(&c, &s.raw_offset))
             return false;
         // Skip ptr_relocs, ptr_linenums, num_relocs, num_linenums.
-        if (!bc_skip(&c, 4 + 4 + 2 + 2))
+        if (!bi_skip(&c, 4 + 4 + 2 + 2))
             return false;
-        if (!bc_take_u32(&c, &s.characteristics))
+        if (!bi_take_u32_le(&c, &s.characteristics))
             return false;
 
         if (!VecPushBackR(&ctx->out->sections, s))
@@ -307,27 +262,25 @@ static void pe_decode_codeview(PeContext *ctx) {
     }
 
     for (u32 i = 0; i < num_entries; ++i) {
-        ByteCursor c = {
-            .p   = ctx->out->data + dir_offset + (u64)i * DEBUG_ENTRY_SIZE,
-            .end = ctx->out->data + ctx->out->data_size,
-        };
-        u32 charac, ts, type, sz, raddr, rptr;
-        u16 ver_maj, ver_min;
-        if (!bc_take_u32(&c, &charac))
+        u64      entry_off = dir_offset + (u64)i * DEBUG_ENTRY_SIZE;
+        ByteIter c         = BYTE_ITER_FROM_MEMORY(ctx->out->data + entry_off, ctx->out->data_size - entry_off);
+        u32      charac, ts, type, sz, raddr, rptr;
+        u16      ver_maj, ver_min;
+        if (!bi_take_u32_le(&c, &charac))
             return;
-        if (!bc_take_u32(&c, &ts))
+        if (!bi_take_u32_le(&c, &ts))
             return;
-        if (!bc_take_u16(&c, &ver_maj))
+        if (!bi_take_u16_le(&c, &ver_maj))
             return;
-        if (!bc_take_u16(&c, &ver_min))
+        if (!bi_take_u16_le(&c, &ver_min))
             return;
-        if (!bc_take_u32(&c, &type))
+        if (!bi_take_u32_le(&c, &type))
             return;
-        if (!bc_take_u32(&c, &sz))
+        if (!bi_take_u32_le(&c, &sz))
             return;
-        if (!bc_take_u32(&c, &raddr))
+        if (!bi_take_u32_le(&c, &raddr))
             return;
-        if (!bc_take_u32(&c, &rptr))
+        if (!bi_take_u32_le(&c, &rptr))
             return;
         (void)charac;
         (void)ts;
@@ -343,28 +296,26 @@ static void pe_decode_codeview(PeContext *ctx) {
         // RSDS = 4-byte sig + 16-byte GUID + 4-byte age + cstring path.
         if (sz < 4 + 16 + 4 + 1)
             continue;
-        ByteCursor cv_cur = {
-            .p   = ctx->out->data + rptr,
-            .end = ctx->out->data + rptr + sz,
-        };
-        u32 cv_sig;
-        if (!bc_take_u32(&cv_cur, &cv_sig))
+        ByteIter cv_cur = BYTE_ITER_FROM_MEMORY(ctx->out->data + rptr, sz);
+        u32      cv_sig;
+        if (!bi_take_u32_le(&cv_cur, &cv_sig))
             continue;
         if (cv_sig != CV_SIGNATURE_RSDS) {
             // NB7 (PDB 2.0) and earlier are no longer emitted by
             // toolchains we care about; treat them as unsupported.
             continue;
         }
-        if (cv_cur.end - cv_cur.p < 16 + 4)
+        if (bi_remaining(&cv_cur) < 16 + 4)
             continue;
-        MemCopy(cv->guid, cv_cur.p, 16);
-        cv_cur.p += 16;
-        if (!bc_take_u32(&cv_cur, &cv->age))
+        MemCopy(cv->guid, cv_cur.data + cv_cur.pos, 16);
+        cv_cur.pos += 16;
+        if (!bi_take_u32_le(&cv_cur, &cv->age))
             continue;
         // Verify the trailing path is NUL-terminated inside the record.
-        const u8 *path_start = cv_cur.p;
+        const u8 *path_start = cv_cur.data + cv_cur.pos;
+        const u8 *region_end = cv_cur.data + cv_cur.length;
         bool      terminated = false;
-        for (const u8 *p = path_start; p < cv_cur.end; ++p) {
+        for (const u8 *p = path_start; p < region_end; ++p) {
             if (*p == '\0') {
                 terminated = true;
                 break;
@@ -398,7 +349,7 @@ bool pe_file_open_from_memory(PeFile *out, u8 *data, size data_size, Allocator *
 
     PeContext ctx = {
         .out  = out,
-        .file = {.p = data, .end = data + data_size},
+        .file = BYTE_ITER_FROM_MEMORY(data, data_size),
     };
 
     if (!pe_decode_dos(&ctx))

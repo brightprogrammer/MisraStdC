@@ -69,98 +69,7 @@ enum {
     DW_FORM_ref_sig8     = 0x20,
 };
 
-// ---------------------------------------------------------------------------
-// Byte cursor (local copy; the one in Dwarf.c is file-static)
-// ---------------------------------------------------------------------------
-
-typedef struct ByteCursor {
-    const u8 *p;
-    const u8 *end;
-} ByteCursor;
-
-static bool bc_take_u8(ByteCursor *c, u8 *out) {
-    if (c->p >= c->end)
-        return false;
-    *out = *c->p++;
-    return true;
-}
-static bool bc_take_u16_le(ByteCursor *c, u16 *out) {
-    if (c->end - c->p < 2)
-        return false;
-    *out  = (u16)c->p[0] | (u16)c->p[1] << 8;
-    c->p += 2;
-    return true;
-}
-static bool bc_take_u32_le(ByteCursor *c, u32 *out) {
-    if (c->end - c->p < 4)
-        return false;
-    *out  = (u32)c->p[0] | (u32)c->p[1] << 8 | (u32)c->p[2] << 16 | (u32)c->p[3] << 24;
-    c->p += 4;
-    return true;
-}
-static bool bc_take_u64_le(ByteCursor *c, u64 *out) {
-    if (c->end - c->p < 8)
-        return false;
-    *out = 0;
-    for (int i = 0; i < 8; ++i)
-        *out |= (u64)c->p[i] << (i * 8);
-    c->p += 8;
-    return true;
-}
-static bool bc_take_uleb128(ByteCursor *c, u64 *out) {
-    u64 result = 0;
-    int shift  = 0;
-    while (c->p < c->end) {
-        u8 b    = *c->p++;
-        result |= (u64)(b & 0x7f) << shift;
-        if ((b & 0x80) == 0) {
-            *out = result;
-            return true;
-        }
-        shift += 7;
-        if (shift >= 64)
-            return false;
-    }
-    return false;
-}
-static bool bc_take_sleb128(ByteCursor *c, i64 *out) {
-    // Decode in unsigned space and reinterpret at the end. The
-    // earlier formulation `result |= (i64)(b & 0x7f) << shift` and
-    // `result |= -((i64)1 << shift)` are signed-shift UB once
-    // `shift` reaches 56+ -- the shifted value steps into the sign
-    // bit of i64.
-    u64 uresult = 0;
-    int shift   = 0;
-    u8  b       = 0;
-    while (c->p < c->end) {
-        b        = *c->p++;
-        uresult |= (u64)(b & 0x7f) << shift;
-        shift   += 7;
-        if ((b & 0x80) == 0)
-            break;
-        if (shift >= 64)
-            return false;
-    }
-    if (shift < 64 && (b & 0x40))
-        uresult |= ~(u64)0 << shift;
-    *out = (i64)uresult;
-    return true;
-}
-static const char *bc_take_cstr(ByteCursor *c) {
-    const char *s = (const char *)c->p;
-    while (c->p < c->end && *c->p)
-        ++c->p;
-    if (c->p >= c->end)
-        return NULL;
-    ++c->p; // consume NUL
-    return s;
-}
-static bool bc_skip(ByteCursor *c, u64 n) {
-    if ((u64)(c->end - c->p) < n)
-        return false;
-    c->p += n;
-    return true;
-}
+#include <Misra/Parsers/ByteIter.h>
 
 // ---------------------------------------------------------------------------
 // Abbreviation table (per-CU)
@@ -193,11 +102,11 @@ static void abbrev_table_deinit(AbbrevTable *t) {
 
 // Parse the abbrev table starting at `start`. The table is terminated
 // by an entry with code 0. Returns false on malformed input.
-static bool parse_abbrev_table(ByteCursor cur, AbbrevTable *out, Allocator *alloc) {
+static bool parse_abbrev_table(ByteIter cur, AbbrevTable *out, Allocator *alloc) {
     *out = VecInitT(*out, alloc);
-    while (cur.p < cur.end) {
+    while (bi_remaining(&cur) > 0) {
         u64 code;
-        if (!bc_take_uleb128(&cur, &code)) {
+        if (!bi_take_uleb128(&cur, &code)) {
             LOG_ERROR("DWARF info: malformed abbrev table (code)");
             return false;
         }
@@ -205,10 +114,10 @@ static bool parse_abbrev_table(ByteCursor cur, AbbrevTable *out, Allocator *allo
             return true;
 
         u64 tag;
-        if (!bc_take_uleb128(&cur, &tag))
+        if (!bi_take_uleb128(&cur, &tag))
             return false;
         u8 has_children;
-        if (!bc_take_u8(&cur, &has_children))
+        if (!bi_take_u8(&cur, &has_children))
             return false;
 
         AbbrevEntry e;
@@ -219,11 +128,11 @@ static bool parse_abbrev_table(ByteCursor cur, AbbrevTable *out, Allocator *allo
 
         for (;;) {
             u64 name, form;
-            if (!bc_take_uleb128(&cur, &name)) {
+            if (!bi_take_uleb128(&cur, &name)) {
                 VecDeinit(&e.attrs);
                 return false;
             }
-            if (!bc_take_uleb128(&cur, &form)) {
+            if (!bi_take_uleb128(&cur, &form)) {
                 VecDeinit(&e.attrs);
                 return false;
             }
@@ -283,18 +192,18 @@ typedef struct AttrVal {
 //
 // Returns false only on truncated / malformed bytes; unknown forms
 // fail-closed so the caller can stop cleanly.
-static bool read_form(ByteCursor *cur, u32 form, u8 addr_size, AttrVal *out) {
+static bool read_form(ByteIter *cur, u32 form, u8 addr_size, AttrVal *out) {
     *out = (AttrVal) {.kind = ATTR_VAL_NONE};
     switch (form) {
         case DW_FORM_addr : {
             u64 v;
             if (addr_size == 4) {
                 u32 v32;
-                if (!bc_take_u32_le(cur, &v32))
+                if (!bi_take_u32_le(cur, &v32))
                     return false;
                 v = v32;
             } else if (addr_size == 8) {
-                if (!bc_take_u64_le(cur, &v))
+                if (!bi_take_u64_le(cur, &v))
                     return false;
             } else {
                 LOG_ERROR("DWARF info: unsupported addr_size {}", (u32)addr_size);
@@ -307,7 +216,7 @@ static bool read_form(ByteCursor *cur, u32 form, u8 addr_size, AttrVal *out) {
         case DW_FORM_flag :
         case DW_FORM_ref1 : {
             u8 v;
-            if (!bc_take_u8(cur, &v))
+            if (!bi_take_u8(cur, &v))
                 return false;
             *out = (AttrVal) {.kind = ATTR_VAL_U64, .u = v};
             return true;
@@ -315,7 +224,7 @@ static bool read_form(ByteCursor *cur, u32 form, u8 addr_size, AttrVal *out) {
         case DW_FORM_data2 :
         case DW_FORM_ref2 : {
             u16 v;
-            if (!bc_take_u16_le(cur, &v))
+            if (!bi_take_u16_le(cur, &v))
                 return false;
             *out = (AttrVal) {.kind = ATTR_VAL_U64, .u = v};
             return true;
@@ -328,7 +237,7 @@ static bool read_form(ByteCursor *cur, u32 form, u8 addr_size, AttrVal *out) {
             // ref_addr is 4 bytes in 32-bit DWARF, 8 in 64-bit; v1
             // doesn't support 64-bit DWARF so it's always 4 here.
             u32 v;
-            if (!bc_take_u32_le(cur, &v))
+            if (!bi_take_u32_le(cur, &v))
                 return false;
             if (form == DW_FORM_strp) {
                 *out = (AttrVal) {.kind = ATTR_VAL_STR_OFFSET, .off = v};
@@ -341,7 +250,7 @@ static bool read_form(ByteCursor *cur, u32 form, u8 addr_size, AttrVal *out) {
         case DW_FORM_ref8 :
         case DW_FORM_ref_sig8 : {
             u64 v;
-            if (!bc_take_u64_le(cur, &v))
+            if (!bi_take_u64_le(cur, &v))
                 return false;
             *out = (AttrVal) {.kind = ATTR_VAL_U64, .u = v};
             return true;
@@ -349,20 +258,20 @@ static bool read_form(ByteCursor *cur, u32 form, u8 addr_size, AttrVal *out) {
         case DW_FORM_udata :
         case DW_FORM_ref_udata : {
             u64 v;
-            if (!bc_take_uleb128(cur, &v))
+            if (!bi_take_uleb128(cur, &v))
                 return false;
             *out = (AttrVal) {.kind = ATTR_VAL_U64, .u = v};
             return true;
         }
         case DW_FORM_sdata : {
             i64 v;
-            if (!bc_take_sleb128(cur, &v))
+            if (!bi_take_sleb128(cur, &v))
                 return false;
             *out = (AttrVal) {.kind = ATTR_VAL_I64, .i = v};
             return true;
         }
         case DW_FORM_string : {
-            const char *s = bc_take_cstr(cur);
+            const char *s = bi_take_cstr(cur);
             if (!s)
                 return false;
             *out = (AttrVal) {.kind = ATTR_VAL_CSTR, .s = s};
@@ -373,32 +282,32 @@ static bool read_form(ByteCursor *cur, u32 form, u8 addr_size, AttrVal *out) {
             return true;
         case DW_FORM_block1 : {
             u8 n;
-            if (!bc_take_u8(cur, &n))
+            if (!bi_take_u8(cur, &n))
                 return false;
-            return bc_skip(cur, n);
+            return bi_skip(cur, n);
         }
         case DW_FORM_block2 : {
             u16 n;
-            if (!bc_take_u16_le(cur, &n))
+            if (!bi_take_u16_le(cur, &n))
                 return false;
-            return bc_skip(cur, n);
+            return bi_skip(cur, n);
         }
         case DW_FORM_block4 : {
             u32 n;
-            if (!bc_take_u32_le(cur, &n))
+            if (!bi_take_u32_le(cur, &n))
                 return false;
-            return bc_skip(cur, n);
+            return bi_skip(cur, n);
         }
         case DW_FORM_block :
         case DW_FORM_exprloc : {
             u64 n;
-            if (!bc_take_uleb128(cur, &n))
+            if (!bi_take_uleb128(cur, &n))
                 return false;
-            return bc_skip(cur, n);
+            return bi_skip(cur, n);
         }
         case DW_FORM_indirect : {
             u64 actual_form;
-            if (!bc_take_uleb128(cur, &actual_form))
+            if (!bi_take_uleb128(cur, &actual_form))
                 return false;
             return read_form(cur, (u32)actual_form, addr_size, out);
         }
@@ -424,7 +333,7 @@ typedef struct PendingFn {
 typedef Vec(PendingFn) PendingFns;
 
 static bool walk_cu_dies(
-    ByteCursor         cu_cur, // positioned past CU header
+    ByteIter           cu_cur, // positioned past CU header
     const AbbrevTable *abbrevs,
     u8                 addr_size,
     const u8          *debug_str,
@@ -434,11 +343,11 @@ static bool walk_cu_dies(
 ) {
     int depth = 0;
     for (;;) {
-        if (cu_cur.p >= cu_cur.end)
+        if (bi_remaining(&cu_cur) == 0)
             return true;
 
         u64 abbrev_code;
-        if (!bc_take_uleb128(&cu_cur, &abbrev_code)) {
+        if (!bi_take_uleb128(&cu_cur, &abbrev_code)) {
             LOG_ERROR("DWARF info: truncated DIE");
             return false;
         }
@@ -601,19 +510,16 @@ bool DwarfFunctionsBuildFromSlices(
         return false;
     }
 
-    ByteCursor info_cur = {
-        .p   = info_bytes,
-        .end = info_bytes + info_size,
-    };
+    ByteIter info_cur = BYTE_ITER_FROM_MEMORY(info_bytes, info_size);
 
     PendingFns pending = VecInitT(pending, alloc);
 
     bool ok = true;
-    while (info_cur.p < info_cur.end) {
-        const u8 *unit_start = info_cur.p;
+    while (bi_remaining(&info_cur) > 0) {
+        size unit_start_pos = info_cur.pos;
 
         u32 unit_length;
-        if (!bc_take_u32_le(&info_cur, &unit_length)) {
+        if (!bi_take_u32_le(&info_cur, &unit_length)) {
             ok = false;
             break;
         }
@@ -622,8 +528,8 @@ bool DwarfFunctionsBuildFromSlices(
             ok = false;
             break;
         }
-        const u8 *unit_end = unit_start + 4 + unit_length;
-        if (unit_end > info_cur.end) {
+        size unit_end_pos = unit_start_pos + 4u + unit_length;
+        if (unit_end_pos > info_cur.length || unit_end_pos < unit_start_pos) {
             LOG_ERROR("DWARF info: CU overruns section");
             ok = false;
             break;
@@ -632,8 +538,8 @@ bool DwarfFunctionsBuildFromSlices(
         u16 version;
         u32 abbrev_offset;
         u8  addr_size;
-        if (!bc_take_u16_le(&info_cur, &version) || !bc_take_u32_le(&info_cur, &abbrev_offset) ||
-            !bc_take_u8(&info_cur, &addr_size)) {
+        if (!bi_take_u16_le(&info_cur, &version) || !bi_take_u32_le(&info_cur, &abbrev_offset) ||
+            !bi_take_u8(&info_cur, &addr_size)) {
             ok = false;
             break;
         }
@@ -641,7 +547,7 @@ bool DwarfFunctionsBuildFromSlices(
         if (version != 4) {
             // Skip CUs in versions we don't yet parse; we still pick
             // up the rest of the binary's CUs in case some are v4.
-            info_cur.p = unit_end;
+            info_cur.pos = unit_end_pos;
             continue;
         }
 
@@ -652,16 +558,15 @@ bool DwarfFunctionsBuildFromSlices(
         }
 
         AbbrevTable abbrevs;
-        ByteCursor  abbrev_cur = {
-             .p   = abbrev_bytes + abbrev_offset,
-             .end = abbrev_bytes + abbrev_size,
-        };
+        ByteIter    abbrev_cur = BYTE_ITER_FROM_MEMORY(abbrev_bytes + abbrev_offset, abbrev_size - abbrev_offset);
         if (!parse_abbrev_table(abbrev_cur, &abbrevs, alloc)) {
             ok = false;
             break;
         }
 
-        ByteCursor die_cur = {.p = info_cur.p, .end = unit_end};
+        // DIE iter spans the DIE body within this CU (from current
+        // info_cur position up to unit_end_pos).
+        ByteIter die_cur = BYTE_ITER_FROM_MEMORY(info_cur.data + info_cur.pos, unit_end_pos - info_cur.pos);
         if (!walk_cu_dies(die_cur, &abbrevs, addr_size, str_bytes, str_size, &out->string_pool, &pending)) {
             abbrev_table_deinit(&abbrevs);
             ok = false;
@@ -669,7 +574,7 @@ bool DwarfFunctionsBuildFromSlices(
         }
         abbrev_table_deinit(&abbrevs);
 
-        info_cur.p = unit_end;
+        info_cur.pos = unit_end_pos;
     }
 
     if (ok) {
