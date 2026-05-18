@@ -155,7 +155,29 @@ static DebugAllocator *debug_validate_self(const Allocator *self) {
     if (!dbg->live.allocator) {
         dbg->live.allocator = ALLOCATOR_OF(&dbg->meta);
     }
+    if (!dbg->freed.allocator) {
+        dbg->freed.allocator = ALLOCATOR_OF(&dbg->meta);
+    }
     return dbg;
+}
+
+// ---------------------------------------------------------------------------
+// Freed history. Unbounded Vec append on every successful free.
+// On a free that isn't in the live map (the underlying Heap is about
+// to LOG_FATAL with a double-free / foreign-ptr diagnostic), scan
+// this Vec for the ptr to emit the original alloc + first-free
+// traces before Heap aborts.
+//
+// Memory grows with lifetime free count. Set track_freed_history =
+// false in workloads that allocate/free in the millions and don't
+// want the bookkeeping cost.
+
+static const DebugFreedEntry *debug_freed_find(const DebugAllocator *dbg, void *ptr) {
+    for (u32 i = 0; i < dbg->freed.length; i++) {
+        if (dbg->freed.data[i].ptr == ptr)
+            return &dbg->freed.data[i];
+    }
+    return NULL;
 }
 
 // ---------------------------------------------------------------------------
@@ -224,9 +246,21 @@ void debug_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
     DebugRecord *live_rec = MapGetFirstPtr(&dbg->live, ptr);
 
     if (!live_rec) {
-        // Pointer is not in our live set. Forward to the underlying
-        // allocator. Heap will catch foreign / double-free / misaligned
-        // / wrong-size with LOG_FATAL plus a backtrace.
+        // Pointer is not in our live set. Before forwarding to the
+        // underlying allocator (which will LOG_FATAL on double-free /
+        // foreign / etc.), scan the freed-history ring and emit the
+        // original alloc + first-free traces if we have them. Heap's
+        // abort backtrace alone shows only the current call site.
+        const DebugFreedEntry *fe = debug_freed_find(dbg, ptr);
+        if (fe) {
+            LOG_ERROR(
+                "DebugAllocator: DOUBLE FREE of {x} (originally {} bytes); original alloc + first-free traces:",
+                (u64)(uintptr_t)ptr,
+                (u64)fe->requested_size
+            );
+            debug_emit_trace(fe->alloc_trace, fe->alloc_trace_n, "alloc", ALLOCATOR_OF(&dbg->meta));
+            debug_emit_trace(fe->free_trace, fe->free_trace_n, "first-free", ALLOCATOR_OF(&dbg->meta));
+        }
         AllocatorFree(src, ptr, bytes);
         return;
     }
@@ -251,6 +285,25 @@ void debug_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
             );
             debug_emit_trace(live_rec->alloc_trace, live_rec->alloc_trace_n, "alloc", ALLOCATOR_OF(&dbg->meta));
         }
+    }
+
+    // Append to freed history BEFORE removing from live -- captures
+    // alloc_trace from live_rec and a fresh free_trace from this
+    // call site. Unbounded; gated by track_freed_history config.
+    if (dbg->config.track_freed_history) {
+        DebugFreedEntry entry;
+        entry.ptr            = ptr;
+        entry.requested_size = live_rec->requested_size;
+        entry.alloc_trace_n  = live_rec->alloc_trace_n;
+        MemCopy(entry.alloc_trace, live_rec->alloc_trace, (size)live_rec->alloc_trace_n * sizeof(StackFrame));
+        entry.free_trace_n = 0;
+        if (dbg->config.capture_traces && dbg->config.trace_depth > 0) {
+            u32 depth = dbg->config.trace_depth;
+            if (depth > DEBUG_ALLOCATOR_MAX_TRACE)
+                depth = DEBUG_ALLOCATOR_MAX_TRACE;
+            entry.free_trace_n = (u32)CaptureStackTrace(entry.free_trace, depth, 3);
+        }
+        VecPushBack(&dbg->freed, entry);
     }
 
     dbg->bytes_in_use -= (u64)live_rec->requested_size;
@@ -340,6 +393,8 @@ void DebugAllocatorDeinit(DebugAllocator *self) {
     // / fuzz, the memory cost is the documented trade-off.
     if (self->live.allocator)
         MapDeinit(&self->live);
+    if (self->freed.allocator)
+        VecDeinit(&self->freed);
 
     HeapAllocatorDeinit(&self->meta);
     HeapAllocatorDeinit(&self->heap);

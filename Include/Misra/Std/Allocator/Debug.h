@@ -13,19 +13,22 @@
 ///     `DebugAllocatorDeinit` time is reported with the captured
 ///     allocation stack trace. Memory cost is proportional to the
 ///     count of LIVE allocations, not lifetime allocations.
+///   - **Freed history (for double-free forensics)** -- every
+///     successful free appends an entry to an unbounded Vec.
+///     When Heap detects a double-free and aborts, DebugAllocator
+///     first scans the freed history for the original alloc +
+///     first-free traces and emits them. Memory grows with lifetime
+///     free count (~288 B per entry); workloads that don't want
+///     the cost set `track_freed_history = false`.
 ///   - **Double-free / foreign / misaligned / wrong-size frees** --
-///     caught by the underlying `HeapAllocator`, which LOG_FATALs
-///     with a backtrace. DebugAllocator used to keep a `freed` Map
-///     for this and grew unboundedly under bignum-heavy workloads;
-///     the new Heap's bitmap validation makes the freed Map
-///     redundant.
+///     detected and aborted by the underlying `HeapAllocator`'s
+///     bitmap validation. DebugAllocator adds context (original
+///     traces) from the freed history when available.
 ///   - **Buffer-overflow detection** -- every allocation is padded
 ///     with `canary_bytes` of a sentinel pattern immediately after
 ///     the user region; the canary is verified on free.
 ///   - **Stack-trace capture** -- `Sys/Backtrace`'s `CaptureStackTrace`
-///     records frames on the alloc site. Free-site traces are no
-///     longer kept (Heap aborts at the free site with a fresh trace
-///     when bad input is detected).
+///     records frames on alloc + free sites.
 ///   - **Use-after-free (force_page_backing)** -- when enabled,
 ///     allocations route through an internal `PageAllocator` and
 ///     freed regions are `mprotect(PROT_NONE)`'d so any UAF read or
@@ -48,6 +51,7 @@
 #include <Misra/Std/Allocator/Page.h>
 #include <Misra/Std/Container/Map.h>
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Container/Vec.h>
 #include <Misra/Sys/Backtrace.h>
 
 ///
@@ -62,8 +66,8 @@ extern "C" {
 #define DEBUG_ALLOCATOR_MAX_TRACE 16
 
     ///
-    /// Per-allocation bookkeeping record. Stored in the embedded
-    /// `live` map only; freed allocations are not retained.
+    /// Live-allocation bookkeeping record. Stored in the embedded
+    /// `live` map keyed by pointer.
     ///
     typedef struct DebugRecord {
         size       requested_size;
@@ -73,6 +77,23 @@ extern "C" {
     } DebugRecord;
 
     typedef Map(void *, DebugRecord) DebugRecordMap;
+
+    ///
+    /// Bounded-history record for a successfully-freed allocation.
+    /// Kept in the `freed` Vec ring; scanned linearly when the next
+    /// free can't find a live record, to emit the original alloc +
+    /// first-free traces alongside Heap's double-free abort.
+    ///
+    typedef struct DebugFreedEntry {
+        void      *ptr;
+        size       requested_size;
+        u32        alloc_trace_n;
+        u32        free_trace_n;
+        StackFrame alloc_trace[DEBUG_ALLOCATOR_MAX_TRACE];
+        StackFrame free_trace[DEBUG_ALLOCATOR_MAX_TRACE];
+    } DebugFreedEntry;
+
+    typedef Vec(DebugFreedEntry) DebugFreedVec;
 
     ///
     /// Runtime configuration. Use `DEBUG_ALLOCATOR_DEFAULTS` for a
@@ -93,14 +114,23 @@ extern "C" {
         bool force_page_backing;
         u32  trace_depth;
         u32  canary_bytes;
+        ///
+        /// Keep a record of every freed allocation (with traces) so
+        /// double-free aborts can be diagnosed with the original
+        /// alloc + first-free contexts. Memory grows with lifetime
+        /// free count -- disable for stress workloads that do
+        /// millions of allocs/frees.
+        ///
+        bool track_freed_history;
     } DebugAllocatorConfig;
 
 #define DEBUG_ALLOCATOR_DEFAULTS                                                                                       \
-    ((DebugAllocatorConfig) {.capture_traces     = true,                                                               \
-                             .detect_overflow    = true,                                                               \
-                             .force_page_backing = false,                                                              \
-                             .trace_depth        = 8,                                                                  \
-                             .canary_bytes       = 16})
+    ((DebugAllocatorConfig) {.capture_traces      = true,                                                              \
+                             .detect_overflow     = true,                                                              \
+                             .force_page_backing  = false,                                                             \
+                             .trace_depth         = 8,                                                                 \
+                             .canary_bytes        = 16,                                                                \
+                             .track_freed_history = true})
 
     ///
     /// `DebugAllocator` struct. Owns its `heap` / `meta` / `page`
@@ -114,6 +144,7 @@ extern "C" {
         PageAllocator        page;
         DebugAllocatorConfig config;
         DebugRecordMap       live;
+        DebugFreedVec        freed;
         u64                  overflows;
         u64                  bytes_in_use;
         u64                  creator_tid;
@@ -184,6 +215,15 @@ extern "C" {
      .allocator         = NULL,                                                                                        \
      .__magic           = MAP_MAGIC}
 
+#define DEBUG_FREED_LIT                                                                                                \
+    {.length      = 0,                                                                                                 \
+     .capacity    = 0,                                                                                                 \
+     .copy_init   = NULL,                                                                                              \
+     .copy_deinit = NULL,                                                                                              \
+     .data        = NULL,                                                                                              \
+     .allocator   = NULL,                                                                                              \
+     .__magic     = VEC_MAGIC}
+
 #define DebugAllocatorInitWith(_cfg)                                                                                   \
     ((DebugAllocator) {                                                                                                \
         .base =                                                                                                        \
@@ -200,6 +240,7 @@ extern "C" {
         .page         = PageAllocatorInit(),                                                                           \
         .config       = (_cfg),                                                                                        \
         .live         = DEBUG_LIVE_LIT,                                                                                \
+        .freed        = DEBUG_FREED_LIT,                                                                               \
         .overflows    = 0,                                                                                             \
         .bytes_in_use = 0,                                                                                             \
         .creator_tid  = debug_current_tid()                                                                            \
