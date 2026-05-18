@@ -142,25 +142,36 @@ static bool test_free_then_alloc_recycles(void) {
 }
 
 static bool test_fill_class_grows_new_page(void) {
-    // Class S/32 has 32 slots per page. Allocate 33 → second page must
-    // appear in heap->s.
+    // Class S/32 holds HEAP_S_32_COUNT slots per heap page. One mmap
+    // grow creates HEAP_PAGES_PER_OS_PAGE descriptors, so the first
+    // allocation provisions HEAP_PAGES_PER_OS_PAGE × HEAP_S_32_COUNT
+    // 32-byte slots total. Allocating one more than that must trigger
+    // a second mmap-grow and produce > HEAP_PAGES_PER_OS_PAGE
+    // descriptors.
+    enum { N = HEAP_PAGES_PER_OS_PAGE * HEAP_S_32_COUNT + 1 };
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
 
-    void *ptrs[33];
-    bool  ok = true;
-    for (u32 i = 0; i < 33; i++) {
+    void **ptrs = (void **)AllocatorAlloc(alloc, (size)(N * sizeof(void *)), true);
+    if (!ptrs) {
+        HeapAllocatorDeinit(&heap);
+        return false;
+    }
+    bool ok = true;
+    for (u32 i = 0; i < N; i++) {
         ptrs[i] = AllocatorAlloc(alloc, 32, false);
         if (!ptrs[i])
             ok = false;
     }
-    // After 33 allocations of 32 bytes, we must have 2 S-class pages.
-    ok = ok && (heap.s_len == 2);
+    // s_len must be > one batch worth of descriptors -> a second
+    // mmap-grow definitely happened.
+    ok = ok && (heap.s_len > HEAP_PAGES_PER_OS_PAGE);
 
-    for (u32 i = 0; i < 33; i++) {
+    for (u32 i = 0; i < N; i++) {
         if (ptrs[i])
             AllocatorFree(alloc, ptrs[i], 32);
     }
+    AllocatorFree(alloc, ptrs, (size)(N * sizeof(void *)));
     HeapAllocatorDeinit(&heap);
     return ok;
 }

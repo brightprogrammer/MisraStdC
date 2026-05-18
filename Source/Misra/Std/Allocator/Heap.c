@@ -22,6 +22,10 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 
+// HEAP_PAGES_PER_OS_PAGE is in Heap.h. The OS page size derived from
+// it is the unit we ask PageAllocator for on each grow.
+#define HEAP_OS_PAGE_SIZE (HEAP_PAGE_SIZE * HEAP_PAGES_PER_OS_PAGE)
+
 // =============================================================================
 // Self-validation.
 
@@ -179,27 +183,44 @@ static void *heap_alloc_s(HeapAllocator *heap, u32 slot_size) {
         return (char *)d->page + HEAP_S_64_OFFSET + (u32)bit * 64u;
     }
 
-    // No existing page has space -- grow.
-    void *page = AllocatorAlloc(&heap->page.base, HEAP_PAGE_SIZE, false);
-    if (!page)
+    // No existing page has space -- grow. Allocate one OS page (4 KiB on
+    // most platforms, 16 KiB on macOS aarch64), carve it into
+    // HEAP_PAGES_PER_OS_PAGE heap pages, register one descriptor per
+    // heap page. Take the first slot from the lowest-address (first)
+    // new descriptor.
+    void *base = AllocatorAlloc(&heap->page.base, HEAP_OS_PAGE_SIZE, false);
+    if (!base)
         return NULL;
-    HeapPageS desc = {.page = page, .bitmap_16 = 0, .bitmap_32 = 0, .bitmap_64 = 0};
-    u32       idx  = heap_insert_sorted(heap, (void **)&heap->s, &heap->s_len, &heap->s_cap, sizeof(HeapPageS), &desc);
-    if (idx == (u32)-1) {
-        AllocatorFree(&heap->page.base, page, HEAP_PAGE_SIZE);
-        return NULL;
+    u32 first_idx = (u32)-1;
+    for (u32 i = 0; i < HEAP_PAGES_PER_OS_PAGE; i++) {
+        void     *page_i = (char *)base + i * HEAP_PAGE_SIZE;
+        HeapPageS desc   = {.page = page_i, .bitmap_16 = 0, .bitmap_32 = 0, .bitmap_64 = 0};
+        u32 idx = heap_insert_sorted(heap, (void **)&heap->s, &heap->s_len, &heap->s_cap, sizeof(HeapPageS), &desc);
+        if (idx == (u32)-1) {
+            // Roll back any descriptors already inserted from this base.
+            for (u32 j = 0; j < i; j++) {
+                void *p_j  = (char *)base + j * HEAP_PAGE_SIZE;
+                u32   ix_j = heap_find_by_page(heap->s, heap->s_len, sizeof(HeapPageS), p_j);
+                if (ix_j != (u32)-1)
+                    heap_remove_at(heap->s, &heap->s_len, ix_j, sizeof(HeapPageS));
+            }
+            AllocatorFree(&heap->page.base, base, HEAP_OS_PAGE_SIZE);
+            return NULL;
+        }
+        if (i == 0)
+            first_idx = idx;
     }
-    HeapPageS *d = &heap->s[idx];
+    HeapPageS *d = &heap->s[first_idx];
     if (slot_size == 16) {
         d->bitmap_16 |= 1u;
-        return (char *)page + HEAP_S_16_OFFSET;
+        return (char *)base + HEAP_S_16_OFFSET;
     }
     if (slot_size == 32) {
         d->bitmap_32 |= 1u;
-        return (char *)page + HEAP_S_32_OFFSET;
+        return (char *)base + HEAP_S_32_OFFSET;
     }
     d->bitmap_64 |= 1u;
-    return (char *)page + HEAP_S_64_OFFSET;
+    return (char *)base + HEAP_S_64_OFFSET;
 }
 
 static void heap_free_s(HeapAllocator *heap, void *ptr, u32 slot_size) {
@@ -298,17 +319,29 @@ static void *heap_alloc_m(HeapAllocator *heap, u32 slot_size) {
         return (char *)d->page + region_off + bit * slot_size;
     }
 
-    void *page = AllocatorAlloc(&heap->page.base, HEAP_PAGE_SIZE, false);
-    if (!page)
+    void *base = AllocatorAlloc(&heap->page.base, HEAP_OS_PAGE_SIZE, false);
+    if (!base)
         return NULL;
-    HeapPageM desc = {.page = page, .bitmap = 0};
-    u32       idx  = heap_insert_sorted(heap, (void **)&heap->m, &heap->m_len, &heap->m_cap, sizeof(HeapPageM), &desc);
-    if (idx == (u32)-1) {
-        AllocatorFree(&heap->page.base, page, HEAP_PAGE_SIZE);
-        return NULL;
+    u32 first_idx = (u32)-1;
+    for (u32 i = 0; i < HEAP_PAGES_PER_OS_PAGE; i++) {
+        void     *page_i = (char *)base + i * HEAP_PAGE_SIZE;
+        HeapPageM desc   = {.page = page_i, .bitmap = 0};
+        u32 idx = heap_insert_sorted(heap, (void **)&heap->m, &heap->m_len, &heap->m_cap, sizeof(HeapPageM), &desc);
+        if (idx == (u32)-1) {
+            for (u32 j = 0; j < i; j++) {
+                void *p_j  = (char *)base + j * HEAP_PAGE_SIZE;
+                u32   ix_j = heap_find_by_page(heap->m, heap->m_len, sizeof(HeapPageM), p_j);
+                if (ix_j != (u32)-1)
+                    heap_remove_at(heap->m, &heap->m_len, ix_j, sizeof(HeapPageM));
+            }
+            AllocatorFree(&heap->page.base, base, HEAP_OS_PAGE_SIZE);
+            return NULL;
+        }
+        if (i == 0)
+            first_idx = idx;
     }
-    heap->m[idx].bitmap |= (u16)((u32)1 << region_shift);
-    return (char *)page + region_off;
+    heap->m[first_idx].bitmap |= (u16)((u32)1 << region_shift);
+    return (char *)base + region_off;
 }
 
 static void heap_free_m(HeapAllocator *heap, void *ptr, u32 slot_size) {
@@ -388,17 +421,29 @@ static void *heap_alloc_l(HeapAllocator *heap, u32 slot_size) {
         return (char *)d->page + region_off + bit * slot_size;
     }
 
-    void *page = AllocatorAlloc(&heap->page.base, HEAP_PAGE_SIZE, false);
-    if (!page)
+    void *base = AllocatorAlloc(&heap->page.base, HEAP_OS_PAGE_SIZE, false);
+    if (!base)
         return NULL;
-    HeapPageL desc = {.page = page, .bitmap = 0};
-    u32       idx  = heap_insert_sorted(heap, (void **)&heap->l, &heap->l_len, &heap->l_cap, sizeof(HeapPageL), &desc);
-    if (idx == (u32)-1) {
-        AllocatorFree(&heap->page.base, page, HEAP_PAGE_SIZE);
-        return NULL;
+    u32 first_idx = (u32)-1;
+    for (u32 i = 0; i < HEAP_PAGES_PER_OS_PAGE; i++) {
+        void     *page_i = (char *)base + i * HEAP_PAGE_SIZE;
+        HeapPageL desc   = {.page = page_i, .bitmap = 0};
+        u32 idx = heap_insert_sorted(heap, (void **)&heap->l, &heap->l_len, &heap->l_cap, sizeof(HeapPageL), &desc);
+        if (idx == (u32)-1) {
+            for (u32 j = 0; j < i; j++) {
+                void *p_j  = (char *)base + j * HEAP_PAGE_SIZE;
+                u32   ix_j = heap_find_by_page(heap->l, heap->l_len, sizeof(HeapPageL), p_j);
+                if (ix_j != (u32)-1)
+                    heap_remove_at(heap->l, &heap->l_len, ix_j, sizeof(HeapPageL));
+            }
+            AllocatorFree(&heap->page.base, base, HEAP_OS_PAGE_SIZE);
+            return NULL;
+        }
+        if (i == 0)
+            first_idx = idx;
     }
-    heap->l[idx].bitmap |= (u8)((u32)1 << region_shift);
-    return (char *)page + region_off;
+    heap->l[first_idx].bitmap |= (u8)((u32)1 << region_shift);
+    return (char *)base + region_off;
 }
 
 static void heap_free_l(HeapAllocator *heap, void *ptr, u32 slot_size) {
@@ -583,22 +628,37 @@ void *heap_allocator_remap(Allocator *self, void *ptr, size old_size, size new_s
 // =============================================================================
 // Deinit. Unmap every user page and free every descriptor array.
 
+// On macOS aarch64 each OS-page mmap produces HEAP_PAGES_PER_OS_PAGE
+// descriptors, but only one munmap is owed per mmap. Only the
+// descriptor whose page address is OS-page-aligned (the "group leader")
+// fires the munmap; the others share the mapping and skip the free.
+// On 4 KiB-page systems HEAP_PAGES_PER_OS_PAGE == 1 and every
+// descriptor is its own group of one -- this loop reduces to the
+// simple "one munmap per descriptor" case.
+#define IS_GROUP_LEADER(page_addr) (((u64)(page_addr) & ((u64)HEAP_OS_PAGE_SIZE - 1u)) == 0u)
+
 void HeapAllocatorDeinit(HeapAllocator *self) {
     if (!self)
         return;
 
-    for (u32 i = 0; i < self->s_len; i++)
-        AllocatorFree(&self->page.base, self->s[i].page, HEAP_PAGE_SIZE);
+    for (u32 i = 0; i < self->s_len; i++) {
+        if (IS_GROUP_LEADER(self->s[i].page))
+            AllocatorFree(&self->page.base, self->s[i].page, HEAP_OS_PAGE_SIZE);
+    }
     if (self->s_cap)
         AllocatorFree(&self->page.base, self->s, (size)self->s_cap * sizeof(HeapPageS));
 
-    for (u32 i = 0; i < self->m_len; i++)
-        AllocatorFree(&self->page.base, self->m[i].page, HEAP_PAGE_SIZE);
+    for (u32 i = 0; i < self->m_len; i++) {
+        if (IS_GROUP_LEADER(self->m[i].page))
+            AllocatorFree(&self->page.base, self->m[i].page, HEAP_OS_PAGE_SIZE);
+    }
     if (self->m_cap)
         AllocatorFree(&self->page.base, self->m, (size)self->m_cap * sizeof(HeapPageM));
 
-    for (u32 i = 0; i < self->l_len; i++)
-        AllocatorFree(&self->page.base, self->l[i].page, HEAP_PAGE_SIZE);
+    for (u32 i = 0; i < self->l_len; i++) {
+        if (IS_GROUP_LEADER(self->l[i].page))
+            AllocatorFree(&self->page.base, self->l[i].page, HEAP_OS_PAGE_SIZE);
+    }
     if (self->l_cap)
         AllocatorFree(&self->page.base, self->l, (size)self->l_cap * sizeof(HeapPageL));
 
