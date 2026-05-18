@@ -635,7 +635,16 @@ const char *str_read_fmt(const char *input, const char *fmtstr, TypeSpecificIO *
                     }
                 }
 
-                // do raw read
+                // Known limitation: _read_r{8,16,32,64} read
+                // fmt_info.width bytes without bound checking, and the
+                // surrounding rem_in here is derived from ZstrLen(in)
+                // -- which is misleading for binary inputs that have
+                // embedded zeros (the parser callers feed raw file
+                // bytes where embedded zeros are common). Adding a
+                // `rem_in < fmt_info.width` check here breaks the
+                // binary parsers. Closing this properly requires
+                // threading a real buffer length through str_read_fmt
+                // instead of ZstrLen; tracked as a separate refactor.
                 u64 x = 0;
                 next  = raw_reader(in, &fmt_info, &x);
 
@@ -1919,8 +1928,12 @@ const char *_read_Str(const char *i, FmtInfo *fmt_info, Str *s) {
                     StrDeinit(s);
                     return NULL;
                 }
-                i  = curr + 1; // Move past the escape sequence
-                r -= 2;
+                i = curr + 1; // Move past the escape sequence
+                // `r` is u32. Subtracting 2 when r == 1 wraps to
+                // 0xFFFFFFFE, turning the bounded read into ~4 GB.
+                // The escape consumed at least 2 input chars but the
+                // caller may have set max_read_len = 1.
+                r = (r >= 2u) ? (r - 2u) : 0u;
 
                 // Apply case conversion if needed
                 if (force_case) {
@@ -1956,8 +1969,12 @@ const char *_read_Str(const char *i, FmtInfo *fmt_info, Str *s) {
                     StrDeinit(s);
                     return NULL;
                 }
-                i  = curr + 1; // Move past the escape sequence
-                r -= 2;
+                i = curr + 1; // Move past the escape sequence
+                // `r` is u32. Subtracting 2 when r == 1 wraps to
+                // 0xFFFFFFFE, turning the bounded read into ~4 GB.
+                // The escape consumed at least 2 input chars but the
+                // caller may have set max_read_len = 1.
+                r = (r >= 2u) ? (r - 2u) : 0u;
 
                 // Apply case conversion if needed
                 if (force_case) {
