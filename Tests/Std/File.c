@@ -90,7 +90,7 @@ bool test_read_complete_file_default_allocator(void) {
              file_size == (u64)ZstrLen("hello from file") && ZstrCompare(buffer, "hello from file") == 0 &&
              capacity >= file_size + 1;
 
-    AllocatorFree(alloc_base, buffer, capacity);
+    AllocatorFree(alloc_base, buffer);
     remove(path);
     DefaultAllocatorDeinit(&alloc);
     return result;
@@ -125,7 +125,7 @@ bool test_read_complete_file_expands_existing_buffer(void) {
              file_size == (u64)ZstrLen("this is longer than the initial buffer") &&
              ZstrCompare(buffer, "this is longer than the initial buffer") == 0 && capacity >= file_size + 1;
 
-    AllocatorFree(alloc_base, buffer, capacity);
+    AllocatorFree(alloc_base, buffer);
     remove(path);
     DefaultAllocatorDeinit(&alloc);
     return result;

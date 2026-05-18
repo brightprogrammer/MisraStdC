@@ -49,9 +49,18 @@ static bool budget_alignment_is_pow2(size alignment) {
 // ---------------------------------------------------------------------------
 // Bitmap helpers. Each u64 word covers 64 slots.
 
+#if defined(_MSC_VER) && !defined(__clang__)
+#    include <intrin.h>
+static u32 ctz64(u64 x) {
+    unsigned long idx;
+    _BitScanForward64(&idx, x);
+    return (u32)idx;
+}
+#else
 static u32 ctz64(u64 x) {
     return (u32)__builtin_ctzll(x);
 }
+#endif
 
 // Returns first 0 bit globally across all words, or -1 if none.
 static i64 budget_first_free_bit(const u64 *bitmap, u32 words, size cap) {
@@ -111,39 +120,39 @@ void *budget_allocator_remap(Allocator *self, void *ptr, size old_size, size new
     if (!ptr)
         return budget_allocator_allocate(self, new_size, true);
     if (new_size == 0) {
-        budget_allocator_deallocate(self, ptr, old_size);
+        budget_allocator_deallocate(self, ptr);
         return NULL;
     }
     return new_size <= bp->slot_size ? ptr : NULL;
 }
 
-void budget_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
+size budget_allocator_deallocate(Allocator *self, void *ptr) {
     budget_validate_self(self);
     BudgetAllocator *bp = (BudgetAllocator *)self;
-    (void)bytes;
     if (!ptr)
-        return;
+        return 0;
 
     char *p   = (char *)ptr;
     char *end = bp->slots + bp->slot_count * bp->slot_size;
 
     if (p < bp->slots || p >= end) {
         LOG_FATAL("budget_free: foreign ptr {x} not in slot region", (u64)p);
-        return;
+        return 0;
     }
     size off = (size)(p - bp->slots);
     if (off % bp->slot_size != 0) {
         LOG_FATAL("budget_free: misaligned ptr {x} (slot size {})", (u64)p, (u64)bp->slot_size);
-        return;
+        return 0;
     }
     size idx = off / bp->slot_size;
     u32  w   = (u32)(idx >> 6);
     u32  b   = (u32)(idx & 63u);
     if (!(bp->bitmap[w] & ((u64)1 << b))) {
         LOG_FATAL("budget_free: double-free of {x} (idx {})", (u64)p, (u64)idx);
-        return;
+        return 0;
     }
     bp->bitmap[w] &= ~((u64)1 << b);
+    return bp->slot_size;
 }
 
 // ---------------------------------------------------------------------------

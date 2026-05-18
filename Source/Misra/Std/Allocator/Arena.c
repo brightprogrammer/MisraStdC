@@ -161,22 +161,28 @@ void *arena_allocator_remap(Allocator *self, void *ptr, size old_size, size new_
     return fresh;
 }
 
-void arena_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
+size arena_allocator_deallocate(Allocator *self, void *ptr) {
     arena_validate_self(self);
     ArenaAllocator *arena = (ArenaAllocator *)self;
-    (void)bytes;
     if (!ptr) {
-        return;
+        return 0;
     }
     // Rewind only when the caller is freeing the most recent bump.
     if (arena->last_ptr == ptr && arena->tail) {
-        ArenaChunk *chunk = arena->tail;
-        if (chunk->used >= arena->last_size) {
-            chunk->used -= arena->last_size;
+        ArenaChunk *chunk   = arena->tail;
+        size        rewound = arena->last_size;
+        if (chunk->used >= rewound) {
+            chunk->used -= rewound;
         }
         arena->last_ptr  = NULL;
         arena->last_size = 0;
+        return rewound;
     }
+    // Mid-stream frees are silently ignored under the bump policy --
+    // memory is reclaimed at Reset / Deinit time. Report 0 freed for
+    // stats; the caller's logical lifetime accounting is still
+    // correct because we never decremented bytes_in_use anyway.
+    return 0;
 }
 
 void ArenaAllocatorReset(ArenaAllocator *self) {
@@ -199,7 +205,7 @@ void ArenaAllocatorDeinit(ArenaAllocator *self) {
     ArenaChunk *chunk = self->head;
     while (chunk) {
         ArenaChunk *next = chunk->next;
-        AllocatorFree(&self->page.base, (void *)chunk, chunk->raw_size);
+        PageAllocatorFree(&self->page, (void *)chunk, chunk->raw_size);
         chunk = next;
     }
     MemSet(self, 0, sizeof(*self));

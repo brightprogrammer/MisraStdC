@@ -1197,7 +1197,7 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
     }
 
     if (used_heap) {
-        AllocatorFree(ALLOCATOR_OF(&halloc), pfds, sizeof(plat_pollfd_t) * count);
+        AllocatorFree(ALLOCATOR_OF(&halloc), pfds);
         HeapAllocatorDeinit(&halloc);
     }
     return ret;

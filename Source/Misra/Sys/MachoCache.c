@@ -80,7 +80,7 @@ static MachoCacheEntry *cache_find_or_create(MachoCache *self, const char *modul
     MemCopy(entry.module_path, module_path, path_len + 1);
 
     if (!VecPushBackR(&self->entries, entry)) {
-        AllocatorFree(self->allocator, entry.module_path, path_len + 1);
+        AllocatorFree(self->allocator, entry.module_path);
         return NULL;
     }
     return &self->entries.data[self->entries.length - 1];
@@ -180,7 +180,7 @@ void MachoCacheDeinit(MachoCache *self) {
             u64 n = 0;
             for (const char *p = e->module_path; *p; ++p)
                 ++n;
-            AllocatorFree(self->allocator, e->module_path, n + 1);
+            AllocatorFree(self->allocator, e->module_path);
         }
     }
     VecDeinit(&self->entries);

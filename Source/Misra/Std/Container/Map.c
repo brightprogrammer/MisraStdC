@@ -440,8 +440,8 @@ void deinit_map(
 
     clear_map(map, entry_size, key_offset, key_size, value_offset, value_size, hash_offset);
 
-    AllocatorFree(map->allocator, map->entries, map->capacity * entry_size);
-    AllocatorFree(map->allocator, map->states, map->capacity * sizeof(u8));
+    AllocatorFree(map->allocator, map->entries);
+    AllocatorFree(map->allocator, map->states);
 
     MemSet(map, 0, sizeof(*map));
 }
@@ -498,8 +498,8 @@ bool rehash_map(
     validate_map_policy(&policy);
 
     if ((map->length == 0) && (n == 0)) {
-        AllocatorFree(map->allocator, map->entries, map->capacity * entry_size);
-        AllocatorFree(map->allocator, map->states, map->capacity * sizeof(u8));
+        AllocatorFree(map->allocator, map->entries);
+        AllocatorFree(map->allocator, map->states);
         map->entries    = NULL;
         map->states     = NULL;
         map->length     = 0;
@@ -530,8 +530,8 @@ bool rehash_map(
         new_states  = AllocatorAlloc(map->allocator, new_capacity * sizeof(u8), true);
 
         if (!new_entries || !new_states) {
-            AllocatorFree(map->allocator, new_entries, new_capacity * entry_size);
-            AllocatorFree(map->allocator, new_states, new_capacity * sizeof(u8));
+            AllocatorFree(map->allocator, new_entries);
+            AllocatorFree(map->allocator, new_states);
             // Restore the original table so the map stays usable.
             map->entries  = old_entries;
             map->states   = old_states;
@@ -569,8 +569,8 @@ bool rehash_map(
 
         // Probe-budget exhausted. Free the failed new table, double
         // capacity, retry.
-        AllocatorFree(map->allocator, new_entries, new_capacity * entry_size);
-        AllocatorFree(map->allocator, new_states, new_capacity * sizeof(u8));
+        AllocatorFree(map->allocator, new_entries);
+        AllocatorFree(map->allocator, new_states);
         size next_cap = new_capacity * 2;
         if (next_cap <= new_capacity) {
             // Overflow / no headroom. Restore and fail.
@@ -582,8 +582,8 @@ bool rehash_map(
         new_capacity = next_cap;
     }
 
-    AllocatorFree(map->allocator, old_entries, old_capacity * entry_size);
-    AllocatorFree(map->allocator, old_states, old_capacity * sizeof(u8));
+    AllocatorFree(map->allocator, old_entries);
+    AllocatorFree(map->allocator, old_states);
 
     (void)value_offset;
     (void)value_size;
@@ -1063,13 +1063,13 @@ bool map_set_only(
             value,
             hash
         )) {
-        AllocatorFree(map->allocator, temp_entry, entry_size);
+        AllocatorFree(map->allocator, temp_entry);
         return false;
     }
 
     (void)map_remove_all(map, key, entry_size, key_offset, key_size, value_offset, value_size, hash_offset);
     map_insert_raw_entry(map, temp_entry, entry_size, key_offset, key_size, hash_offset);
-    AllocatorFree(map->allocator, temp_entry, entry_size);
+    AllocatorFree(map->allocator, temp_entry);
     return true;
 }
 
@@ -1112,7 +1112,7 @@ bool map_set_first(
             if (map->value_copy_deinit) {
                 map->value_copy_deinit(temp_value, map->allocator);
             }
-            AllocatorFree(map->allocator, temp_value, value_size);
+            AllocatorFree(map->allocator, temp_value);
             return false;
         }
     }
@@ -1125,7 +1125,7 @@ bool map_set_first(
 
     if (map->value_copy_init) {
         MemCopy(dst_value, temp_value, value_size);
-        AllocatorFree(map->allocator, temp_value, value_size);
+        AllocatorFree(map->allocator, temp_value);
     } else {
         MemCopy(dst_value, value, value_size);
     }

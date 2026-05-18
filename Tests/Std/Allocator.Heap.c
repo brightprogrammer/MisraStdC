@@ -4,7 +4,7 @@
 ///
 /// Slot state machine:
 ///
-///                  Alloc(size)               Free(ptr,size)
+///                  Alloc(size)               Free(ptr)
 ///       FREE  --------------------->  IN_USE  -------------------->  FREE
 ///         ^   pre:  bit == 0          | pre:  bit == 1, ptr is slot
 ///         |   post: bit := 1          |       base, in region, aligned
@@ -12,15 +12,19 @@
 ///         |                           |
 ///         |                           +--[reject: double-free,
 ///         |                              foreign, mid-alloc,
-///         +------------------------------- misaligned, wrong-size]
+///         +------------------------------- misaligned]
 ///                                          → state unchanged
 ///
 /// Rejection edges that MUST NOT mutate any bitmap or descriptor:
 ///   - foreign pointer       (not in any descriptor list)
-///   - wrong size hint       (routes to wrong class -> lookup misses)
 ///   - misaligned pointer    (not at slot boundary inside its region)
 ///   - mid-allocation XL ptr (ptr != XL descriptor base)
 ///   - double-free           (target bit already 0)
+///
+/// Note: there is no "wrong size hint" rejection edge any more. `Free`
+/// no longer takes a size -- the size class is derived from where the
+/// pointer lies within its page, so a wrong-size hint is structurally
+/// impossible to pass.
 ///
 /// Each rejection edge below aborts the program via LOG_FATAL. The
 /// tests are registered as DEADEND tests (run_test_suite picks them
@@ -54,8 +58,8 @@ static bool test_basic_alloc_free(void) {
         b[0]   = 'b';
         b[127] = 'B';
         ok     = (a[0] == 'A') && (a[31] == 'Z') && (b[0] == 'b') && (b[127] == 'B');
-        AllocatorFree(alloc, a, 32);
-        AllocatorFree(alloc, b, 128);
+        AllocatorFree(alloc, a);
+        AllocatorFree(alloc, b);
     }
 
     HeapAllocatorDeinit(&heap);
@@ -73,7 +77,7 @@ static bool test_zeroed_alloc(void) {
             ok = false;
     }
     if (p)
-        AllocatorFree(alloc, p, 64);
+        AllocatorFree(alloc, p);
     HeapAllocatorDeinit(&heap);
     return ok;
 }
@@ -93,13 +97,13 @@ static bool test_free_null_is_noop(void) {
     Allocator    *alloc = ALLOCATOR_OF(&heap);
 
     // Must be silent + harmless.
-    AllocatorFree(alloc, NULL, 32);
+    AllocatorFree(alloc, NULL);
 
     // Heap remains usable.
     void *p  = AllocatorAlloc(alloc, 32, false);
     bool  ok = (p != NULL);
     if (p)
-        AllocatorFree(alloc, p, 32);
+        AllocatorFree(alloc, p);
     HeapAllocatorDeinit(&heap);
     return ok;
 }
@@ -118,9 +122,9 @@ static bool test_alloc_returns_distinct_pointers(void) {
     void *c  = AllocatorAlloc(alloc, 32, false);
     bool  ok = (a != NULL) && (b != NULL) && (c != NULL) && (a != b) && (b != c) && (a != c);
 
-    AllocatorFree(alloc, a, 32);
-    AllocatorFree(alloc, b, 32);
-    AllocatorFree(alloc, c, 32);
+    AllocatorFree(alloc, a);
+    AllocatorFree(alloc, b);
+    AllocatorFree(alloc, c);
     HeapAllocatorDeinit(&heap);
     return ok;
 }
@@ -130,13 +134,13 @@ static bool test_free_then_alloc_recycles(void) {
     Allocator    *alloc = ALLOCATOR_OF(&heap);
 
     void *a = AllocatorAlloc(alloc, 32, false);
-    AllocatorFree(alloc, a, 32);
+    AllocatorFree(alloc, a);
     void *b = AllocatorAlloc(alloc, 32, false);
     // ctz finds the LOWEST clear bit, which is the one we just freed.
     bool ok = (a != NULL) && (b == a);
 
     if (b)
-        AllocatorFree(alloc, b, 32);
+        AllocatorFree(alloc, b);
     HeapAllocatorDeinit(&heap);
     return ok;
 }
@@ -148,7 +152,9 @@ static bool test_fill_class_grows_new_page(void) {
     // 32-byte slots total. Allocating one more than that must trigger
     // a second mmap-grow and produce > HEAP_PAGES_PER_OS_PAGE
     // descriptors.
-    enum { N = HEAP_PAGES_PER_OS_PAGE * HEAP_S_32_COUNT + 1 };
+    enum {
+        N = HEAP_PAGES_PER_OS_PAGE * HEAP_S_32_COUNT + 1
+    };
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
 
@@ -169,9 +175,9 @@ static bool test_fill_class_grows_new_page(void) {
 
     for (u32 i = 0; i < N; i++) {
         if (ptrs[i])
-            AllocatorFree(alloc, ptrs[i], 32);
+            AllocatorFree(alloc, ptrs[i]);
     }
-    AllocatorFree(alloc, ptrs, (size)(N * sizeof(void *)));
+    AllocatorFree(alloc, ptrs);
     HeapAllocatorDeinit(&heap);
     return ok;
 }
@@ -201,7 +207,7 @@ static bool test_alloc_across_every_sub_bin(void) {
 
     for (u32 i = 0; i < 8; i++) {
         if (ptrs[i])
-            AllocatorFree(alloc, ptrs[i], sizes[i]);
+            AllocatorFree(alloc, ptrs[i]);
     }
     HeapAllocatorDeinit(&heap);
     return ok;
@@ -222,7 +228,7 @@ static bool test_large_alloc_passthrough(void) {
         p[0]     = 0xAB;
         p[n - 1] = 0xCD;
         ok       = (p[0] == 0xAB) && (p[n - 1] == 0xCD) && (heap.xl_len == 1);
-        AllocatorFree(alloc, p, n);
+        AllocatorFree(alloc, p);
         ok = ok && (heap.xl_len == 0);
     }
     HeapAllocatorDeinit(&heap);
@@ -237,7 +243,7 @@ static bool test_overaligned_alloc(void) {
     bool  ok = (p != NULL) && (((u64)p & 63u) == 0);
 
     if (p)
-        AllocatorFree(alloc, p, 256);
+        AllocatorFree(alloc, p);
     HeapAllocatorDeinit(&heap);
     return ok;
 }
@@ -255,7 +261,7 @@ static bool test_realloc_same_bin_keeps_pointer(void) {
         p[0]        = 'x';
         char *grown = (char *)AllocatorRealloc(alloc, p, 24, 28);
         ok          = (grown == p) && (grown[0] == 'x');
-        AllocatorFree(alloc, grown, 28);
+        AllocatorFree(alloc, grown);
     }
     HeapAllocatorDeinit(&heap);
     return ok;
@@ -274,7 +280,7 @@ static bool test_realloc_cross_bin_copies(void) {
         // Different bin -> heap must copy into a fresh slot.
         ok = (grown != NULL) && (grown != p) && (grown[0] == 'h') && (grown[15] == '!');
         if (grown)
-            AllocatorFree(alloc, grown, 200);
+            AllocatorFree(alloc, grown);
     }
     HeapAllocatorDeinit(&heap);
     return ok;
@@ -293,8 +299,8 @@ static bool test_independent_heaps(void) {
     void *b  = AllocatorAlloc(alloc2, 32, true);
     bool  ok = (a != NULL) && (b != NULL) && (a != b) && (h1.s != h2.s) && (h1.s_len > 0) && (h2.s_len > 0);
 
-    AllocatorFree(alloc1, a, 32);
-    AllocatorFree(alloc2, b, 32);
+    AllocatorFree(alloc1, a);
+    AllocatorFree(alloc2, b);
     HeapAllocatorDeinit(&h1);
     HeapAllocatorDeinit(&h2);
     return ok;
@@ -311,32 +317,16 @@ static bool test_reject_foreign_pointer(void) {
     Allocator    *alloc1 = ALLOCATOR_OF(&h1);
     Allocator    *alloc2 = ALLOCATOR_OF(&h2);
     void         *p      = AllocatorAlloc(alloc1, 32, false);
-    AllocatorFree(alloc2, p, 32); // foreign to h2 -> LOG_FATAL
-    return false;                 // unreachable
+    AllocatorFree(alloc2, p); // foreign to h2 -> LOG_FATAL
+    return false;             // unreachable
 }
 
 static bool test_reject_double_free(void) {
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
     void         *p     = AllocatorAlloc(alloc, 32, false);
-    AllocatorFree(alloc, p, 32);
-    AllocatorFree(alloc, p, 32); // bit already 0 -> LOG_FATAL
-    return false;
-}
-
-static bool test_reject_wrong_size_hint_cross_class(void) {
-    HeapAllocator heap  = HeapAllocatorInit();
-    Allocator    *alloc = ALLOCATOR_OF(&heap);
-    void         *p     = AllocatorAlloc(alloc, 32, false);
-    AllocatorFree(alloc, p, 128); // claim class M; lookup miss -> LOG_FATAL
-    return false;
-}
-
-static bool test_reject_wrong_size_hint_in_class(void) {
-    HeapAllocator heap  = HeapAllocatorInit();
-    Allocator    *alloc = ALLOCATOR_OF(&heap);
-    void         *p     = AllocatorAlloc(alloc, 16, false);
-    AllocatorFree(alloc, p, 64); // wrong sub-bin region -> LOG_FATAL
+    AllocatorFree(alloc, p);
+    AllocatorFree(alloc, p); // bit already 0 -> LOG_FATAL
     return false;
 }
 
@@ -344,7 +334,7 @@ static bool test_reject_misaligned_pointer(void) {
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
     char         *p     = (char *)AllocatorAlloc(alloc, 64, false);
-    AllocatorFree(alloc, p + 1, 64); // mis-aligned -> LOG_FATAL
+    AllocatorFree(alloc, p + 1); // mis-aligned -> LOG_FATAL
     return false;
 }
 
@@ -353,7 +343,7 @@ static bool test_reject_mid_xl_pointer(void) {
     Allocator    *alloc = ALLOCATOR_OF(&heap);
     size          n     = 16 * 1024;
     char         *p     = (char *)AllocatorAlloc(alloc, n, false);
-    AllocatorFree(alloc, p + 128, n); // mid-allocation -> LOG_FATAL
+    AllocatorFree(alloc, p + 128); // mid-allocation -> LOG_FATAL
     return false;
 }
 
@@ -381,8 +371,6 @@ int main(void) {
     TestFunction deadend[] = {
         test_reject_foreign_pointer,
         test_reject_double_free,
-        test_reject_wrong_size_hint_cross_class,
-        test_reject_wrong_size_hint_in_class,
         test_reject_misaligned_pointer,
         test_reject_mid_xl_pointer,
     };

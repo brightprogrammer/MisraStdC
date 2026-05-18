@@ -42,7 +42,11 @@ extern "C" {
     typedef void *(*AllocatorAllocateFn)(Allocator *self, size bytes, i8 zeroed);
     typedef i8 (*AllocatorResizeFn)(Allocator *self, void *ptr, size old_size, size new_size);
     typedef void *(*AllocatorRemapFn)(Allocator *self, void *ptr, size old_size, size new_size);
-    typedef void (*AllocatorDeallocateFn)(Allocator *self, void *ptr, size bytes);
+    // `deallocate` returns the number of bytes actually freed (recovered
+    // from the allocator's own bookkeeping). The size is no longer
+    // passed in by the caller -- callers should not be required to
+    // track the original allocation size just to free it.
+    typedef size (*AllocatorDeallocateFn)(Allocator *self, void *ptr);
 
 #if FEATURE_ALLOC_STATS
     ///
@@ -88,13 +92,13 @@ extern "C" {
     /// back.
     ///
     struct Allocator {
-        AllocatorAllocateFn   allocate;
+        AllocatorAllocateFn allocate;
         // `resize` tries to grow / shrink the existing allocation in
         // place. The pointer never moves. Returns 1 on success, 0 if
         // the allocator can't satisfy the request without relocating
         // (in which case the caller can decide whether to fall back
         // to `remap` or give up).
-        AllocatorResizeFn     resize;
+        AllocatorResizeFn resize;
         // `remap` may move the allocation. Returns the new pointer
         // (possibly equal to `ptr` if the allocator could grow in
         // place anyway), or NULL on failure. Equivalent to the
@@ -215,14 +219,19 @@ extern "C" {
     ///
     /// self[in,out] : Allocator base that issued the original allocation.
     /// ptr[in]      : Pointer to the allocation, or NULL.
-    /// bytes[in]    : Allocation size in bytes.
+    ///
+    /// The allocator recovers the original allocation size from its own
+    /// bookkeeping -- callers do not pass it. Stats accounting reads
+    /// the freed-byte count from the dispatch return value.
     ///
     /// SUCCESS: Function returns. The allocation is reclaimed.
-    /// FAILURE: No action is taken when `ptr` or `self` is invalid.
+    /// FAILURE: No action is taken when `ptr` is NULL. A `ptr` that the
+    ///          allocator does not own / has already freed / does not
+    ///          point at an allocation's base aborts via `LOG_FATAL`.
     ///
     /// TAGS: Allocator, Memory, Deallocation
     ///
-    void AllocatorFree(Allocator *self, void *ptr, size bytes);
+    void AllocatorFree(Allocator *self, void *ptr);
 
     ///
     /// Validate an allocator base. Aborts via `LOG_FATAL` when the allocator

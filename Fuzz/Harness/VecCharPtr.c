@@ -29,7 +29,7 @@ static bool char_ptr_copy_init(void *dst_ptr, const void *src_ptr, const Allocat
 static void char_ptr_deinit(void *copy, const Allocator *alloc) {
     char **str = (char **)copy;
     if (str && *str) {
-        AllocatorFree((Allocator *)alloc, *str, ZstrLen(*str) + 1);
+        AllocatorFree((Allocator *)alloc, *str);
         *str = NULL;
     }
 }
@@ -44,12 +44,12 @@ void deinit_char_ptr_vec(CharPtrVec *vec) {
 }
 
 void fuzz_char_ptr_vec(
-    CharPtrVec         *vec,
-    VecCharPtrFunction  func,
-    const uint8_t      *data,
-    size_t             *offset,
-    size_t              size,
-    DefaultAllocator   *alloc
+    CharPtrVec        *vec,
+    VecCharPtrFunction func,
+    const uint8_t     *data,
+    size_t            *offset,
+    size_t             size,
+    DefaultAllocator  *alloc
 ) {
     switch (func) {
         case VEC_CHAR_PTR_PUSH_BACK : {
@@ -388,8 +388,7 @@ void fuzz_char_ptr_vec(
         case VEC_CHAR_PTR_MERGE : {
             if (*offset + 4 <= size) {
                 // Create a temporary vector for merging
-                CharPtrVec temp =
-                    VecInitWithDeepCopyT(temp, char_ptr_copy_init, char_ptr_deinit, alloc);
+                CharPtrVec temp = VecInitWithDeepCopyT(temp, char_ptr_copy_init, char_ptr_deinit, alloc);
 
                 // Add some strings to temp
                 size_t count = extract_u32(data, offset, size) % 5;
@@ -457,8 +456,7 @@ void fuzz_char_ptr_vec(
         case VEC_CHAR_PTR_INIT_CLONE : {
             if (*offset + 4 <= size) {
                 // Create a temporary vector for cloning
-                CharPtrVec temp =
-                    VecInitWithDeepCopyT(temp, char_ptr_copy_init, char_ptr_deinit, alloc);
+                CharPtrVec temp = VecInitWithDeepCopyT(temp, char_ptr_copy_init, char_ptr_deinit, alloc);
 
                 // Add some strings to temp
                 size_t count = extract_u32(data, offset, size) % 5;

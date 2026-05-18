@@ -197,7 +197,7 @@ void zstr_deinit(void *zs_ptr, const Allocator *alloc) {
     }
 
     if (*zs) {
-        AllocatorFree((Allocator *)alloc, (void *)*zs, ZstrLen(*zs) + 1);
+        AllocatorFree((Allocator *)alloc, (void *)*zs);
         *zs = NULL;
     }
 }

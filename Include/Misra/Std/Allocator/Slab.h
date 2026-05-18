@@ -41,7 +41,7 @@ extern "C" {
     void *slab_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
     i8    slab_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size);
     void *slab_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size);
-    void  slab_allocator_deallocate(Allocator *self, void *ptr, size bytes);
+    size  slab_allocator_deallocate(Allocator *self, void *ptr);
 
     void SlabAllocatorDeinit(SlabAllocator *self);
 

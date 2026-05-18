@@ -434,7 +434,7 @@ bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc) {
     }
 
     if (!ElfFileOpenFromMemory(out, (u8 *)buf, (size)bytes, alloc)) {
-        AllocatorFree(alloc, buf, capacity);
+        AllocatorFree(alloc, buf);
         return false;
     }
     // Take ownership of the buffer so Deinit frees it.
@@ -449,7 +449,7 @@ void ElfFileDeinit(ElfFile *self) {
     if (!self)
         return;
     if (self->owns_data && self->data && self->allocator) {
-        AllocatorFree(self->allocator, self->data, self->data_size);
+        AllocatorFree(self->allocator, self->data);
     }
     VecDeinit(&self->sections);
     VecDeinit(&self->symbols);

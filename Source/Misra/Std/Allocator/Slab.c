@@ -60,9 +60,18 @@ static size slab_padded_slot_size(size slot_size, size alignment) {
     return slab_round_up(slot_size, alignment);
 }
 
+#if defined(_MSC_VER) && !defined(__clang__)
+#    include <intrin.h>
+static u32 ctz64(u64 x) {
+    unsigned long idx;
+    _BitScanForward64(&idx, x);
+    return (u32)idx;
+}
+#else
 static u32 ctz64(u64 x) {
     return (u32)__builtin_ctzll(x);
 }
+#endif
 
 // ---------------------------------------------------------------------------
 // Chunk allocation. Layout inside one page-backed chunk:
@@ -167,20 +176,19 @@ void *slab_allocator_remap(Allocator *self, void *ptr, size old_size, size new_s
     if (!ptr)
         return slab_allocator_allocate(self, new_size, true);
     if (new_size == 0) {
-        slab_allocator_deallocate(self, ptr, old_size);
+        slab_allocator_deallocate(self, ptr);
         return NULL;
     }
     return new_size <= padded ? ptr : NULL;
 }
 
-void slab_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
+size slab_allocator_deallocate(Allocator *self, void *ptr) {
     slab_validate_self(self);
     SlabAllocator *slab        = (SlabAllocator *)self;
     size           align       = self->alignment > 1 ? self->alignment : sizeof(void *);
     size           padded_slot = slab_padded_slot_size(slab->slot_size, align);
-    (void)bytes;
     if (!ptr)
-        return;
+        return 0;
 
     // Find the chunk whose slot range contains ptr.
     char             *p     = (char *)ptr;
@@ -191,21 +199,22 @@ void slab_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
             size off = (size)(p - chunk->slots);
             if (off % padded_slot != 0) {
                 LOG_FATAL("slab_free: misaligned ptr {x} (slot size {})", (u64)p, (u64)padded_slot);
-                return;
+                return 0;
             }
             size idx = off / padded_slot;
             u32  w   = (u32)(idx >> 6);
             u32  b   = (u32)(idx & 63u);
             if (!(chunk->bitmap[w] & ((u64)1 << b))) {
                 LOG_FATAL("slab_free: double-free of {x} (idx {})", (u64)p, (u64)idx);
-                return;
+                return 0;
             }
             chunk->bitmap[w] &= ~((u64)1 << b);
-            return;
+            return padded_slot;
         }
         chunk = chunk->next;
     }
     LOG_FATAL("slab_free: foreign ptr {x} not in any chunk's slot region", (u64)p);
+    return 0;
 }
 
 void SlabAllocatorDeinit(SlabAllocator *self) {
@@ -216,7 +225,7 @@ void SlabAllocatorDeinit(SlabAllocator *self) {
         struct SlabChunk *next     = chunk->next;
         void             *raw      = chunk->raw;
         size              raw_size = chunk->raw_size;
-        AllocatorFree(&self->page.base, raw, raw_size);
+        PageAllocatorFree(&self->page, raw, raw_size);
         chunk = next;
     }
     MemSet(self, 0, sizeof(*self));

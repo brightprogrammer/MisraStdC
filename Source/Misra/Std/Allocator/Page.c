@@ -181,10 +181,26 @@ void *page_allocator_remap(Allocator *self, void *ptr, size old_size, size new_s
     return fresh;
 }
 
-void page_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
+size page_allocator_deallocate(Allocator *self, void *ptr) {
     page_validate_self(self);
-    PageAllocator *page = (PageAllocator *)self;
-    page_unmap(ptr, page_rounded_size(page, bytes));
+    (void)ptr;
+    // Generic AllocatorFree dispatch on a PageAllocator is a caller
+    // bug: munmap / VirtualFree need the byte count, which the
+    // generic dispatch no longer carries. Route Page frees through
+    // PageAllocatorFree instead.
+    LOG_FATAL(
+        "PageAllocator dispatched through AllocatorFree (size required by kernel API). "
+        "Use PageAllocatorFree(&page, ptr, bytes) directly."
+    );
+    return 0;
+}
+
+void PageAllocatorFree(PageAllocator *self, void *ptr, size bytes) {
+    page_validate_self(&self->base);
+    if (!ptr) {
+        return;
+    }
+    page_unmap(ptr, page_rounded_size(self, bytes));
 }
 
 bool PageProtect(void *ptr, size bytes, PageProtection prot) {

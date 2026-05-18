@@ -214,7 +214,7 @@ void *debug_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     }
 
     if (!MapInsertR(&dbg->live, user_p, rec)) {
-        AllocatorFree(src, user_p, padded);
+        AllocatorFree(src, user_p);
         LOG_ERROR("DebugAllocator: failed to record allocation in live map");
         return NULL;
     }
@@ -235,22 +235,23 @@ static void debug_emit_trace(const StackFrame *frames, size count, const char *l
 
 // Deallocate. Memory footprint of this allocator scales with the
 // number of LIVE allocations only -- no per-lifetime growth from a
-// "freed" map. Double-free / foreign / misaligned / wrong-size are
-// caught by the underlying HeapAllocator on the forwarded free.
-void debug_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
+// "freed" map. Double-free / foreign / misaligned are caught here
+// (when freed history has the original trace) and forwarded to the
+// underlying HeapAllocator (which LOG_FATALs with its bitmap-state
+// diagnostic for the cases freed history can't recognize).
+size debug_allocator_deallocate(Allocator *self, void *ptr) {
     DebugAllocator *dbg = debug_validate_self(self);
     if (!ptr)
-        return;
+        return 0;
 
     Allocator   *src      = dbg->config.force_page_backing ? ALLOCATOR_OF(&dbg->page) : ALLOCATOR_OF(&dbg->heap);
     DebugRecord *live_rec = MapGetFirstPtr(&dbg->live, ptr);
 
     if (!live_rec) {
-        // Pointer is not in our live set. Before forwarding to the
-        // underlying allocator (which will LOG_FATAL on double-free /
-        // foreign / etc.), scan the freed-history ring and emit the
-        // original alloc + first-free traces if we have them. Heap's
-        // abort backtrace alone shows only the current call site.
+        // Pointer is not in our live set. Scan the freed-history Vec
+        // and emit the original alloc + first-free traces if we have
+        // them, then abort -- the freed-history hit is conclusive
+        // evidence of a double-free.
         const DebugFreedEntry *fe = debug_freed_find(dbg, ptr);
         if (fe) {
             LOG_ERROR(
@@ -260,18 +261,17 @@ void debug_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
             );
             debug_emit_trace(fe->alloc_trace, fe->alloc_trace_n, "alloc", ALLOCATOR_OF(&dbg->meta));
             debug_emit_trace(fe->free_trace, fe->free_trace_n, "first-free", ALLOCATOR_OF(&dbg->meta));
+            LOG_FATAL("DebugAllocator: double-free of {x}", (u64)(uintptr_t)ptr);
+            return 0;
         }
-        AllocatorFree(src, ptr, bytes);
-        return;
-    }
-
-    if (bytes && bytes != live_rec->requested_size) {
-        LOG_ERROR(
-            "DebugAllocator: size mismatch on free of {x} (claimed {} bytes, tracked {} bytes)",
-            (u64)(uintptr_t)ptr,
-            (u64)bytes,
-            (u64)live_rec->requested_size
-        );
+        // No freed-history hit either: foreign pointer (or freed
+        // history disabled). Forward to the underlying allocator and
+        // let its state-machine diagnostic fire. force_page_backing's
+        // underlying is PageAllocator, whose generic dispatch aborts
+        // with its own "use PageAllocatorFree" message; that's fine,
+        // it's still a clear abort.
+        AllocatorFree(src, ptr);
+        return 0;
     }
 
     if (dbg->config.detect_overflow && dbg->config.canary_bytes) {
@@ -306,8 +306,9 @@ void debug_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
         VecPushBack(&dbg->freed, entry);
     }
 
-    dbg->bytes_in_use -= (u64)live_rec->requested_size;
+    size requested     = live_rec->requested_size;
     size padded        = live_rec->padded_size;
+    dbg->bytes_in_use -= (u64)requested;
     MapRemoveFirst(&dbg->live, ptr);
 
     if (dbg->config.force_page_backing) {
@@ -319,8 +320,9 @@ void debug_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
             LOG_ERROR("DebugAllocator: PageProtect(PROT_NONE) failed on {x}", (u64)(uintptr_t)ptr);
         }
     } else {
-        AllocatorFree(src, ptr, padded);
+        AllocatorFree(src, ptr);
     }
+    return requested;
 }
 
 // In-place resize: always refused. The debug allocator keeps a
@@ -342,7 +344,7 @@ i8 debug_allocator_resize(Allocator *self, void *ptr, size old_size, size new_si
 void *debug_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size) {
     DebugAllocator *dbg = debug_validate_self(self);
     if (new_size == 0) {
-        debug_allocator_deallocate(self, ptr, old_size);
+        debug_allocator_deallocate(self, ptr);
         return NULL;
     }
     if (!ptr) {
@@ -355,7 +357,7 @@ void *debug_allocator_remap(Allocator *self, void *ptr, size old_size, size new_
         return NULL;
     size copy = old_size < new_size ? old_size : new_size;
     MemCopy(fresh, ptr, copy);
-    debug_allocator_deallocate(self, ptr, old_size);
+    debug_allocator_deallocate(self, ptr);
     (void)dbg;
     return fresh;
 }

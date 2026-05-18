@@ -142,7 +142,7 @@ Every slot is in one of two states:
        │          │  ─────────────────────────▶  │          │
        │          │     post: bit := 1           │          │
        │   FREE   │                              │  IN_USE  │
-       │          │     Free(ptr, size)          │          │
+       │          │     Free(ptr)                │          │
        │          │     pre:  bit == 1           │          │
        │          │           ptr is slot base,  │          │
        │          │  ◀─────── in region, aligned │          │
@@ -152,8 +152,8 @@ Every slot is in one of two states:
             │ Alloc found bit == 1                bad  │
             │ (bitmap corruption)                 Free │ (foreign /
             │                                          │  misaligned /
-            │                                          │  wrong-size /
-            ▼                                          ▼  double-free)
+            │                                          │  double-free /
+            ▼                                          ▼  mid-allocation)
        ┌─────────────────────────────────────────────────────┐
        │   Aborted   →   LOG_FATAL  +  backtrace             │
        └─────────────────────────────────────────────────────┘
@@ -174,8 +174,6 @@ The **deadend** half covers every rejection edge -- one test per category:
 
 - foreign pointer (alloc via heap A, free via heap B)
 - double-free (alloc, free, free)
-- wrong size hint, cross-class (alloc 32, free with `bytes=128`)
-- wrong size hint, in-class (alloc 16, free with `bytes=64`)
 - misaligned pointer (`ptr + 1`)
 - mid-allocation pointer in XL (`ptr + 128` of a large allocation)
 
@@ -187,13 +185,15 @@ This is the part of the document the design is genuinely uncertain about.
 
 **The free path uses linear search in two of three allocators.** Slab walks its chunk list; Budget is a single linear scan; Heap binary-searches a sorted array. For small-to-medium N this is fine. For workloads with thousands of chunks, Slab and Budget will be slower than the old O(1) freelist pop. There is no plan yet for what to do about that; the assumption is most allocator instances stay small.
 
-**The size hint on Heap free can be wrong.** Heap's `free(ptr, bytes)` routes to a class based on `bytes`. If the caller passes a wrong size that happens to be in the same class as the real allocation, the wrong-sub-bin region check still rejects it, but the design relies on the caller knowing roughly what they allocated. A truly adversarial caller can defeat the size-class routing only to be caught at the region or alignment check; that is more defense in depth than a guarantee.
+**`Free` no longer takes a size.** An earlier version was `Free(ptr, bytes)` and routed to a size class based on the caller's `bytes`. CI surfaced a real bug -- the PDB parser stored the wrong size, the new bitmap Heap caught the mismatch -- and the diagnosis was that the API itself was the bug class: a free that asks the caller for an allocation-time fact is a free that can be lied to. The current `Free(ptr)` recovers the size class from where the pointer lies inside its page (`HEAP_*_OFFSET`), so wrong-size is structurally not a thing the caller can do.
+
+**`PageAllocator` is a typed-API-only deallocator.** `mmap` / `VirtualFree` need the byte count to release a mapping; the kernel does not maintain a ptr→size table. Page therefore exposes `PageAllocatorFree(&page, ptr, bytes)` as a typed free that takes the size explicitly. Calling `AllocatorFree(&page.base, ptr)` aborts with `LOG_FATAL` -- generic dispatch through Page is a caller bug. Internal users (`Heap`, `Slab`, `Arena`) always know exact sizes and call the typed free directly.
 
 **The class splits are workload-dependent.** Class S at 64/32/32 slots favors balanced workloads. Class M at 8/4/4 has the same shape. If a real workload allocates 1000 × 16-byte structs and nothing in 32-byte or 64-byte sub-bins, the bitmap is half-empty and we burn pages faster than necessary. A hybrid scheme (first page shared, overflow pages dedicated per sub-bin) was considered and not built. If workloads turn out to skew that way, the split is the first thing to revisit.
 
 **The XL list grows unboundedly.** XL allocations are tracked one descriptor per allocation. A workload that does many large allocations grows the `xl` array indefinitely; there is no per-instance memory cap.
 
-**The Page allocator layering rule is policy, not code.** Nothing prevents user code from calling `PageAllocator.Free(ptr)` directly with a foreign pointer and unmapping arbitrary virtual memory. The intent is that only `Heap`, `Slab`, and `Budget` reach `Page.Free` internally. Enforcing this in code would require either a separate "internal allocator" type or a dedicated linkage hint. Neither is in place yet.
+**`PageAllocatorFree` still trusts its caller on `bytes`.** Because Page does not maintain a ptr→size index, the typed free's `bytes` argument is taken at face value -- a wrong byte count unmaps too little (leak) or too much (silent corruption of an adjacent mapping). Internal users (Heap/Slab/Arena) always pass the exact mmap size they tracked. External callers should treat Page as a building block under a typed allocator; this is policy, not code.
 
 **Use-after-free is not detected.** Once a slot's bit is cleared, the bytes in the slot remain whatever the previous caller wrote. A caller that holds a stale pointer and reads through it after free sees that data; if the slot has been re-allocated to a new caller, the stale read sees the new caller's data. `DebugAllocator` catches this via page-protect-on-free; the bitmap allocators on their own do not.
 
