@@ -352,7 +352,7 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const ElfFile *elf, Allocator *allo
 
     const u8 *section_data = elf->data + eh->offset;
 
-    ByteIter section_cur = BYTE_ITER_FROM_MEMORY(section_data, eh->size);
+    ByteIter section_cur = ByteIterFromMemory(section_data, eh->size);
     while (bi_remaining(&section_cur) > 0) {
         const u8 *rec_start = section_cur.data + section_cur.pos;
         u32       length32  = 0;
@@ -385,7 +385,7 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const ElfFile *elf, Allocator *allo
             DwarfCie cie;
             // Body iter starts just after the id field (since parse_cie
             // doesn't re-read id) and spans the remainder of the record.
-            ByteIter body = BYTE_ITER_FROM_MEMORY(section_cur.data + section_cur.pos, length32 - 4);
+            ByteIter body = ByteIterFromMemory(section_cur.data + section_cur.pos, length32 - 4);
             if (parse_cie(&body, cie_offset, &cie)) {
                 if (!VecPushBackR(&out->cies, cie)) {
                     DwarfCfiDeinit(out);
@@ -398,7 +398,7 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const ElfFile *elf, Allocator *allo
             u64      id_field_off = (u64)(section_cur.pos - 4);
             u64      cie_offset   = id_field_off - id;
             DwarfFde fde;
-            ByteIter body = BYTE_ITER_FROM_MEMORY(section_cur.data + section_cur.pos, length32 - 4);
+            ByteIter body = ByteIterFromMemory(section_cur.data + section_cur.pos, length32 - 4);
             if (parse_fde(&body, rec_start, cie_offset, out, section_data, eh->addr, &fde)) {
                 if (!VecPushBackR(&out->fdes, fde)) {
                     DwarfCfiDeinit(out);
@@ -782,7 +782,7 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
 }
 
 static bool cfi_vm_run(CfiVm *vm, const u8 *insns, u64 insns_size, u64 stop_at) {
-    ByteIter cur      = BYTE_ITER_FROM_MEMORY(insns, insns_size);
+    ByteIter cur      = ByteIterFromMemory(insns, insns_size);
     bool     stop_now = false;
     while (bi_remaining(&cur) > 0) {
         if (!cfi_vm_step(vm, &cur, stop_at, &stop_now))

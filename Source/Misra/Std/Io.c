@@ -44,6 +44,7 @@ static inline int misra_is_tty(int fd) {
 #    define STDERR_FILENO FILENO(stderr)
 #endif
 
+#include <Misra/Parsers/ByteIter.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Io.h>
@@ -760,6 +761,149 @@ const char *str_read_fmt(const char *input, const char *fmtstr, TypeSpecificIO *
     }
 
     return in;
+}
+
+// ---------------------------------------------------------------------------
+// byte_iter_read_fmt: formatted read from a ByteIter. Binary-only --
+// accepts {<Nr} / {>Nr} directives where N is 1/2/4/8. Atomic: on any
+// field failure the iter's `pos` is restored to where it was on entry
+// and the function returns false. On success `iter->pos` lands at the
+// byte after the last consumed field.
+//
+// Variable type discovery uses the same `io->reader` function-pointer
+// comparison `str_read_fmt`'s raw path uses; the spec width must match
+// the destination variable's natural width.
+// ---------------------------------------------------------------------------
+
+bool byte_iter_read_fmt(ByteIter *iter, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
+    if (!iter || !fmtstr) {
+        LOG_FATAL("byte_iter_read_fmt: NULL iter or fmtstr");
+    }
+
+    size        start_pos = iter->pos;
+    u64         arg_index = 0;
+    const char *p         = fmtstr;
+
+    while (*p) {
+        if (*p != '{') {
+            LOG_FATAL("byte_iter_read_fmt: stray '{c}' in binary fmt; only {{<Nr}} / {{>Nr}} allowed", (u32)(u8)*p);
+        }
+        const char *spec_start = p + 1;
+        const char *spec_end   = spec_start;
+        while (*spec_end && *spec_end != '}') {
+            spec_end++;
+        }
+        if (*spec_end != '}') {
+            LOG_FATAL("byte_iter_read_fmt: unterminated {{ in fmt");
+        }
+        u32 spec_len = (u32)(spec_end - spec_start);
+
+        FmtInfo fmt_info = {0};
+        if (!ParseFormatSpec(spec_start, spec_len, &fmt_info)) {
+            iter->pos = start_pos;
+            return false; // ParseFormatSpec already logged
+        }
+        if (!(fmt_info.flags & FMT_FLAG_RAW)) {
+            LOG_FATAL("byte_iter_read_fmt: only raw ({{<Nr}}/{{>Nr}}) specs allowed");
+        }
+        if (fmt_info.width != 1 && fmt_info.width != 2 && fmt_info.width != 4 && fmt_info.width != 8) {
+            LOG_FATAL("byte_iter_read_fmt: raw width must be 1/2/4/8 (got {})", (u64)fmt_info.width);
+        }
+        // Bounds check in iter space; pointer arithmetic stays inside the buffer.
+        if (fmt_info.width > (iter->length - iter->pos)) {
+            iter->pos = start_pos;
+            return false;
+        }
+        if (arg_index >= argc) {
+            LOG_FATAL("byte_iter_read_fmt: too few arguments for format string");
+        }
+        TypeSpecificIO *io = &argv[arg_index++];
+        if (!io->reader) {
+            LOG_FATAL("byte_iter_read_fmt: argument {} has no reader", arg_index - 1);
+        }
+
+        // Read the raw bytes into a u64 with the spec's endianness.
+        const char *in   = (const char *)iter->data + iter->pos;
+        u64         x    = 0;
+        const char *next = NULL;
+        switch (fmt_info.width) {
+            case 1 : {
+                u8 v;
+                next = _read_r8(in, &fmt_info, &v);
+                x    = v;
+                break;
+            }
+            case 2 : {
+                u16 v;
+                next = _read_r16(in, &fmt_info, &v);
+                x    = v;
+                break;
+            }
+            case 4 : {
+                u32 v;
+                next = _read_r32(in, &fmt_info, &v);
+                x    = v;
+                break;
+            }
+            case 8 :
+                next = _read_r64(in, &fmt_info, &x);
+                break;
+        }
+        if (!next) {
+            iter->pos = start_pos;
+            return false;
+        }
+        iter->pos += fmt_info.width;
+
+        // Resolve destination variable width via the reader fn pointer
+        // (same discriminator str_read_fmt uses). Require an exact match
+        // with spec width -- on-disk and in-memory layouts must agree.
+        u32   var_width = 0;
+        void *read_fn   = (void *)io->reader;
+        if (read_fn == (void *)_read_u8 || read_fn == (void *)_read_i8) {
+            var_width = 1;
+        } else if (read_fn == (void *)_read_u16 || read_fn == (void *)_read_i16) {
+            var_width = 2;
+        } else if (read_fn == (void *)_read_u32 || read_fn == (void *)_read_i32 ||
+                   read_fn == (void *)_read_f32) {
+            var_width = 4;
+        } else if (read_fn == (void *)_read_u64 || read_fn == (void *)_read_i64 ||
+                   read_fn == (void *)_read_f64) {
+            var_width = 8;
+        } else {
+            LOG_FATAL("byte_iter_read_fmt: unsupported variable type at arg {}", arg_index - 1);
+        }
+        if (fmt_info.width != var_width) {
+            LOG_FATAL(
+                "byte_iter_read_fmt: spec width {} doesn't match variable width {} at arg {}",
+                (u64)fmt_info.width,
+                (u64)var_width,
+                arg_index - 1
+            );
+        }
+
+        switch (var_width) {
+            case 1 :
+                *(u8 *)io->data = (u8)x;
+                break;
+            case 2 :
+                *(u16 *)io->data = (u16)x;
+                break;
+            case 4 :
+                *(u32 *)io->data = (u32)x;
+                break;
+            case 8 :
+                *(u64 *)io->data = x;
+                break;
+        }
+
+        p = spec_end + 1;
+    }
+
+    if (arg_index != argc) {
+        LOG_FATAL("byte_iter_read_fmt: {} unused argument(s) at end of format", argc - arg_index);
+    }
+    return true;
 }
 
 void f_read_fmt(File *file, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {

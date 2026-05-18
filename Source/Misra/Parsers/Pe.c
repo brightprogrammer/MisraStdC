@@ -15,6 +15,47 @@
 
 #include <Misra/Parsers/ByteIter.h>
 #include <Misra/Parsers/Pe.h>
+
+// ---------------------------------------------------------------------------
+// On-disk record layouts (LE)
+// ---------------------------------------------------------------------------
+
+// IMAGE_FILE_HEADER (20 bytes), without the leading 4-byte PE\0\0
+// signature -- the caller consumes that first.
+#define FMT_PE_FILE_HEADER_LE                                                                                          \
+    "{<2r}" /* machine                  */                                                                             \
+    "{<2r}" /* number_of_sections       */                                                                             \
+    "{<4r}" /* time_date_stamp          */                                                                             \
+    "{<4r}" /* pointer_to_symbol_table  */                                                                             \
+    "{<4r}" /* number_of_symbols        */                                                                             \
+    "{<2r}" /* size_of_optional_header  */                                                                             \
+    "{<2r}" /* characteristics          */
+
+// IMAGE_SECTION_HEADER (40 bytes). Name is 8 chars; we read it as
+// separate u8s via {<1r} so the format strings stays one record-shape
+// per directive.
+#define FMT_PE_SECTION_HEADER_LE                                                                                       \
+    /* name[8] handled by caller via MemCopy */                                                                        \
+    "{<4r}" /* virtual_size       */                                                                                   \
+    "{<4r}" /* virtual_address    */                                                                                   \
+    "{<4r}" /* raw_size           */                                                                                   \
+    "{<4r}" /* raw_offset         */                                                                                   \
+    "{<4r}" /* ptr_to_relocations */                                                                                   \
+    "{<4r}" /* ptr_to_linenumbers */                                                                                   \
+    "{<2r}" /* num_relocations    */                                                                                   \
+    "{<2r}" /* num_linenumbers    */                                                                                   \
+    "{<4r}" /* characteristics    */
+
+// IMAGE_DEBUG_DIRECTORY (28 bytes).
+#define FMT_PE_DEBUG_DIR_LE                                                                                            \
+    "{<4r}" /* characteristics  */                                                                                     \
+    "{<4r}" /* timestamp        */                                                                                     \
+    "{<2r}" /* major_version    */                                                                                     \
+    "{<2r}" /* minor_version    */                                                                                     \
+    "{<4r}" /* type             */                                                                                     \
+    "{<4r}" /* size_of_data     */                                                                                     \
+    "{<4r}" /* address_of_data  */                                                                                     \
+    "{<4r}" /* pointer_to_data  */
 #include <Misra/Std.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Log.h>
@@ -71,7 +112,7 @@ static bool pe_decode_dos(PeContext *ctx) {
         return false;
     }
     u32      e_lfanew;
-    ByteIter c = BYTE_ITER_FROM_MEMORY(ctx->out->data + DOS_E_LFANEW_OFFSET, ctx->out->data_size - DOS_E_LFANEW_OFFSET);
+    ByteIter c = ByteIterFromMemory(ctx->out->data + DOS_E_LFANEW_OFFSET, ctx->out->data_size - DOS_E_LFANEW_OFFSET);
     if (!bi_take_u32_le(&c, &e_lfanew))
         return false;
     if (e_lfanew >= ctx->out->data_size) {
@@ -84,29 +125,20 @@ static bool pe_decode_dos(PeContext *ctx) {
 
 // NT signature + File Header. Returns the offset of the Optional Header.
 static bool pe_decode_nt(PeContext *ctx, u64 *out_opt_offset) {
-    ByteIter c = BYTE_ITER_FROM_MEMORY(ctx->out->data + ctx->nt_offset, ctx->out->data_size - ctx->nt_offset);
+    ByteIter c = ByteIterFromMemory(ctx->out->data + ctx->nt_offset, ctx->out->data_size - ctx->nt_offset);
     u32      sig;
     if (!bi_take_u32_le(&c, &sig) || sig != NT_SIGNATURE) {
         LOG_ERROR("PE: bad NT signature");
         return false;
     }
-    u16 machine, num_sec, size_opt;
+    u16 machine, num_sec, size_opt, chars;
     u32 timestamp, sym_ptr, num_sym;
-    u16 chars;
-    if (!bi_take_u16_le(&c, &machine))
+    if (!ByteIterReadFmt(
+            &c, FMT_PE_FILE_HEADER_LE, machine, num_sec, timestamp, sym_ptr, num_sym, size_opt, chars
+        )) {
+        LOG_ERROR("PE: file header truncated");
         return false;
-    if (!bi_take_u16_le(&c, &num_sec))
-        return false;
-    if (!bi_take_u32_le(&c, &timestamp))
-        return false;
-    if (!bi_take_u32_le(&c, &sym_ptr))
-        return false;
-    if (!bi_take_u32_le(&c, &num_sym))
-        return false;
-    if (!bi_take_u16_le(&c, &size_opt))
-        return false;
-    if (!bi_take_u16_le(&c, &chars))
-        return false;
+    }
     (void)timestamp;
     (void)sym_ptr;
     (void)num_sym;
@@ -125,7 +157,7 @@ static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
         LOG_ERROR("PE: optional header overruns file");
         return false;
     }
-    ByteIter c = BYTE_ITER_FROM_MEMORY(ctx->out->data + opt_offset, ctx->opt_hdr_size);
+    ByteIter c = ByteIterFromMemory(ctx->out->data + opt_offset, ctx->opt_hdr_size);
 
     u16 magic;
     if (!bi_take_u16_le(&c, &magic))
@@ -200,7 +232,7 @@ static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
 // Section headers immediately follow the Optional Header.
 static bool pe_decode_sections(PeContext *ctx, u64 opt_offset) {
     u64      sec_offset = opt_offset + ctx->opt_hdr_size;
-    ByteIter c          = BYTE_ITER_FROM_MEMORY(ctx->out->data + sec_offset, ctx->out->data_size - sec_offset);
+    ByteIter c          = ByteIterFromMemory(ctx->out->data + sec_offset, ctx->out->data_size - sec_offset);
 
     for (u32 i = 0; i < ctx->num_sections; ++i) {
         if (bi_remaining(&c) < 40) {
@@ -208,23 +240,33 @@ static bool pe_decode_sections(PeContext *ctx, u64 opt_offset) {
             return false;
         }
         PeSection s;
+        // 8-byte name: bytes, not a numeric, so copy + advance manually.
         MemCopy(s.name, c.data + c.pos, 8);
-        s.name[8]  = '\0';
-        c.pos     += 8;
+        s.name[8] = '\0';
+        c.pos    += 8;
 
-        if (!bi_take_u32_le(&c, &s.virtual_size))
+        u32 ptr_relocs, ptr_linenums;
+        u16 num_relocs, num_linenums;
+        if (!ByteIterReadFmt(
+                &c,
+                FMT_PE_SECTION_HEADER_LE,
+                s.virtual_size,
+                s.virtual_address,
+                s.raw_size,
+                s.raw_offset,
+                ptr_relocs,
+                ptr_linenums,
+                num_relocs,
+                num_linenums,
+                s.characteristics
+            )) {
+            LOG_ERROR("PE: section header {} truncated", i);
             return false;
-        if (!bi_take_u32_le(&c, &s.virtual_address))
-            return false;
-        if (!bi_take_u32_le(&c, &s.raw_size))
-            return false;
-        if (!bi_take_u32_le(&c, &s.raw_offset))
-            return false;
-        // Skip ptr_relocs, ptr_linenums, num_relocs, num_linenums.
-        if (!bi_skip(&c, 4 + 4 + 2 + 2))
-            return false;
-        if (!bi_take_u32_le(&c, &s.characteristics))
-            return false;
+        }
+        (void)ptr_relocs;
+        (void)ptr_linenums;
+        (void)num_relocs;
+        (void)num_linenums;
 
         if (!VecPushBackR(&ctx->out->sections, s))
             return false;
@@ -259,24 +301,12 @@ static void pe_decode_codeview(PeContext *ctx) {
 
     for (u32 i = 0; i < num_entries; ++i) {
         u64      entry_off = dir_offset + (u64)i * DEBUG_ENTRY_SIZE;
-        ByteIter c         = BYTE_ITER_FROM_MEMORY(ctx->out->data + entry_off, ctx->out->data_size - entry_off);
+        ByteIter c         = ByteIterFromMemory(ctx->out->data + entry_off, ctx->out->data_size - entry_off);
         u32      charac, ts, type, sz, raddr, rptr;
         u16      ver_maj, ver_min;
-        if (!bi_take_u32_le(&c, &charac))
-            return;
-        if (!bi_take_u32_le(&c, &ts))
-            return;
-        if (!bi_take_u16_le(&c, &ver_maj))
-            return;
-        if (!bi_take_u16_le(&c, &ver_min))
-            return;
-        if (!bi_take_u32_le(&c, &type))
-            return;
-        if (!bi_take_u32_le(&c, &sz))
-            return;
-        if (!bi_take_u32_le(&c, &raddr))
-            return;
-        if (!bi_take_u32_le(&c, &rptr))
+        if (!ByteIterReadFmt(
+                &c, FMT_PE_DEBUG_DIR_LE, charac, ts, ver_maj, ver_min, type, sz, raddr, rptr
+            ))
             return;
         (void)charac;
         (void)ts;
@@ -292,7 +322,7 @@ static void pe_decode_codeview(PeContext *ctx) {
         // RSDS = 4-byte sig + 16-byte GUID + 4-byte age + cstring path.
         if (sz < 4 + 16 + 4 + 1)
             continue;
-        ByteIter cv_cur = BYTE_ITER_FROM_MEMORY(ctx->out->data + rptr, sz);
+        ByteIter cv_cur = ByteIterFromMemory(ctx->out->data + rptr, sz);
         u32      cv_sig;
         if (!bi_take_u32_le(&cv_cur, &cv_sig))
             continue;
@@ -345,7 +375,7 @@ bool pe_file_open_from_memory(PeFile *out, u8 *data, size data_size, Allocator *
 
     PeContext ctx = {
         .out  = out,
-        .file = BYTE_ITER_FROM_MEMORY(data, data_size),
+        .file = ByteIterFromMemory(data, data_size),
     };
 
     if (!pe_decode_dos(&ctx))

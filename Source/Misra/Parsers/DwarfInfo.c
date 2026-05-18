@@ -509,7 +509,7 @@ bool DwarfFunctionsBuildFromSlices(
         return false;
     }
 
-    ByteIter info_cur = BYTE_ITER_FROM_MEMORY(info_bytes, info_size);
+    ByteIter info_cur = ByteIterFromMemory(info_bytes, info_size);
 
     PendingFns pending = VecInitT(pending, alloc);
 
@@ -537,8 +537,8 @@ bool DwarfFunctionsBuildFromSlices(
         u16 version;
         u32 abbrev_offset;
         u8  addr_size;
-        if (!bi_take_u16_le(&info_cur, &version) || !bi_take_u32_le(&info_cur, &abbrev_offset) ||
-            !bi_take_u8(&info_cur, &addr_size)) {
+        // DWARF v4 CU header tail after unit_length: 2 + 4 + 1 bytes.
+        if (!ByteIterReadFmt(&info_cur, "{<2r}{<4r}{<1r}", version, abbrev_offset, addr_size)) {
             ok = false;
             break;
         }
@@ -557,7 +557,7 @@ bool DwarfFunctionsBuildFromSlices(
         }
 
         AbbrevTable abbrevs;
-        ByteIter    abbrev_cur = BYTE_ITER_FROM_MEMORY(abbrev_bytes + abbrev_offset, abbrev_size - abbrev_offset);
+        ByteIter    abbrev_cur = ByteIterFromMemory(abbrev_bytes + abbrev_offset, abbrev_size - abbrev_offset);
         if (!parse_abbrev_table(abbrev_cur, &abbrevs, alloc)) {
             ok = false;
             break;
@@ -565,7 +565,7 @@ bool DwarfFunctionsBuildFromSlices(
 
         // DIE iter spans the DIE body within this CU (from current
         // info_cur position up to unit_end_pos).
-        ByteIter die_cur = BYTE_ITER_FROM_MEMORY(info_cur.data + info_cur.pos, unit_end_pos - info_cur.pos);
+        ByteIter die_cur = ByteIterFromMemory(info_cur.data + info_cur.pos, unit_end_pos - info_cur.pos);
         if (!walk_cu_dies(die_cur, &abbrevs, addr_size, str_bytes, str_size, &out->string_pool, &pending)) {
             abbrev_table_deinit(&abbrevs);
             ok = false;

@@ -5,6 +5,7 @@
 #ifndef MISRA_PARSERS_BYTE_ITER_H
 #define MISRA_PARSERS_BYTE_ITER_H
 
+#include <Misra/Std/Io.h>
 #include <Misra/Std/Utility/Iter.h>
 #include <Misra/Types.h>
 
@@ -15,7 +16,7 @@
 typedef Iter(const u8) ByteIter;
 
 /// Construct a ByteIter over `[data, data + length)`.
-#define BYTE_ITER_FROM_MEMORY(data_, length_)                                                                          \
+#define ByteIterFromMemory(data_, length_)                                                                             \
     ((ByteIter) {.data = (data_), .length = (length_), .pos = 0, .alignment = 1, .dir = 1})
 
 static inline size bi_remaining(const ByteIter *c) {
@@ -116,5 +117,25 @@ static inline bool bi_skip(ByteIter *c, u64 n) {
     c->pos += n;
     return true;
 }
+
+///
+/// Formatted binary read from a ByteIter. Accepts `{<Nr}` (little-
+/// endian) and `{>Nr}` (big-endian) directives where `N` is 1, 2, 4,
+/// or 8. The spec width must match each destination variable's natural
+/// width; any other directive is a programmer error and aborts.
+///
+/// On success: each variable is written, `iter->pos` advances past
+/// the last consumed field, returns `true`.
+/// On truncation: `iter->pos` is restored to its entry value, returns
+/// `false`. No partial state visible to the caller.
+///
+bool byte_iter_read_fmt(ByteIter *iter, const char *fmtstr, TypeSpecificIO *argv, u64 argc);
+
+#define ByteIterReadFmt(iter, ...) ByteIterReadFmt_IMPL1((iter), __VA_ARGS__)
+#define ByteIterReadFmt_IMPL1(iter, fmtstr, ...)                                                                       \
+    ByteIterReadFmt_IMPL2((iter), fmtstr, ((TypeSpecificIO[]) {APPLY_MACRO_FOREACH(IOFMT_APPEND_COMMA, __VA_ARGS__){    \
+                                              NULL, NULL, NULL}}))
+#define ByteIterReadFmt_IMPL2(iter, fmtstr, varr)                                                                      \
+    byte_iter_read_fmt((iter), (fmtstr), &(varr)[0], sizeof(varr) / sizeof(TypeSpecificIO) - 1)
 
 #endif // MISRA_PARSERS_BYTE_ITER_H

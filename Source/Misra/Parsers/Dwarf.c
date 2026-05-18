@@ -504,7 +504,7 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *
     U64Vec pending_file_offsets = VecInitT(pending_file_offsets, alloc);
     U64Vec pending_dir_offsets  = VecInitT(pending_dir_offsets, alloc);
 
-    ByteIter section_cur = BYTE_ITER_FROM_MEMORY(elf->data + line_section->offset, line_section->size);
+    ByteIter section_cur = ByteIterFromMemory(elf->data + line_section->offset, line_section->size);
 
     bool ok = true;
     while (bi_remaining(&section_cur) > 0) {
@@ -546,7 +546,7 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *
         // String/program iters cover the bytes from `hdr.strings_start`
         // up to the end of this CU.
         size     strings_start_pos = (size)(hdr.strings_start - section_cur.data);
-        ByteIter str_cur           = BYTE_ITER_FROM_MEMORY(section_cur.data, unit_end_pos);
+        ByteIter str_cur           = ByteIterFromMemory(section_cur.data, unit_end_pos);
         str_cur.pos                = strings_start_pos;
         if (!collect_cu_strings(str_cur, &out->string_pool, &cs)) {
             cu_strings_deinit(&cs);
@@ -555,7 +555,7 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *
         }
 
         // Skip past the tables to find the program body start.
-        ByteIter prog_anchor = BYTE_ITER_FROM_MEMORY(section_cur.data, unit_end_pos);
+        ByteIter prog_anchor = ByteIterFromMemory(section_cur.data, unit_end_pos);
         prog_anchor.pos      = strings_start_pos;
         if (!skip_line_program_tables(&prog_anchor)) {
             cu_strings_deinit(&cs);
