@@ -2984,7 +2984,7 @@ const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg) {
     }
 
     if (previous) {
-        AllocatorFree(allocator_ptr, previous, ZstrLen(previous) + 1);
+        AllocatorFree(allocator_ptr, previous);
     }
 
     *out = result;
@@ -3088,10 +3088,10 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
 
         (void)IntToBytesBE(value, buffer, byte_len);
         if (!write_char_internal(o, fmt_info->flags, (const char *)buffer, byte_len)) {
-            AllocatorFree(o->allocator, buffer, byte_len * sizeof(u8));
+            AllocatorFree(o->allocator, buffer);
             return false;
         }
-        AllocatorFree(o->allocator, buffer, byte_len * sizeof(u8));
+        AllocatorFree(o->allocator, buffer);
         return true;
     }
 

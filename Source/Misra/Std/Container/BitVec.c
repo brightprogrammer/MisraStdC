@@ -109,7 +109,7 @@ BitVec bitvec_init_with_capacity(u64 cap, Allocator *alloc) {
 void BitVecDeinit(BitVec *bitvec) {
     ValidateBitVec(bitvec);
     if (bitvec->data) {
-        AllocatorFree(bitvec->allocator, bitvec->data, bitvec->byte_size);
+        AllocatorFree(bitvec->allocator, bitvec->data);
     }
     MemSet(bitvec, 0, sizeof(*bitvec));
 }
@@ -181,7 +181,7 @@ void BitVecShrinkToFit(BitVec *bv) {
     ValidateBitVec(bv);
     if (bv->length == 0) {
         // Free all memory if empty
-        AllocatorFree(bv->allocator, bv->data, bv->byte_size);
+        AllocatorFree(bv->allocator, bv->data);
         bv->data      = NULL;
         bv->capacity  = 0;
         bv->byte_size = 0;
@@ -1524,8 +1524,8 @@ bool BitVecTryEditDistance(BitVec *bv1, BitVec *bv2, u64 *out) {
     u64 *curr_row = AllocatorAlloc(scratch, (len2 + 1) * sizeof(u64), false);
 
     if (!prev_row || !curr_row) {
-        AllocatorFree(scratch, prev_row, (len2 + 1) * sizeof(u64));
-        AllocatorFree(scratch, curr_row, (len2 + 1) * sizeof(u64));
+        AllocatorFree(scratch, prev_row);
+        AllocatorFree(scratch, curr_row);
         return false;
     }
 
@@ -1555,8 +1555,8 @@ bool BitVecTryEditDistance(BitVec *bv1, BitVec *bv2, u64 *out) {
     }
 
     *out = prev_row[len2];
-    AllocatorFree(scratch, prev_row, (len2 + 1) * sizeof(u64));
-    AllocatorFree(scratch, curr_row, (len2 + 1) * sizeof(u64));
+    AllocatorFree(scratch, prev_row);
+    AllocatorFree(scratch, curr_row);
 
     return true;
 }

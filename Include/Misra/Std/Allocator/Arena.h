@@ -40,7 +40,7 @@ extern "C" {
     void *arena_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
     i8    arena_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size);
     void *arena_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size);
-    void  arena_allocator_deallocate(Allocator *self, void *ptr, size bytes);
+    size  arena_allocator_deallocate(Allocator *self, void *ptr);
 
     ///
     /// Release every chunk currently owned by `self`. After this call, the

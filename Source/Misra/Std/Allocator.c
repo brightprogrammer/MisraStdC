@@ -165,14 +165,16 @@ void *AllocatorRealloc(Allocator *self, void *ptr, size old_size, size new_size)
     return AllocatorRemap(self, ptr, old_size, new_size);
 }
 
-void AllocatorFree(Allocator *self, void *ptr, size bytes) {
+void AllocatorFree(Allocator *self, void *ptr) {
     if (!ptr) {
         return;
     }
     ValidateAllocator(self);
-    self->deallocate(self, ptr, bytes);
+    size freed = self->deallocate(self, ptr);
 #if FEATURE_ALLOC_STATS
-    allocator_stats_on_free(self, bytes);
+    allocator_stats_on_free(self, freed);
+#else
+    (void)freed;
 #endif
 }
 

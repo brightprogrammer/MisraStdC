@@ -126,7 +126,7 @@ static void graph_free_node_data(GenericGraph *graph, void *data, size item_size
         MemSet(data, 0, item_size);
     }
 
-    AllocatorFree(graph->allocator, data, item_size);
+    AllocatorFree(graph->allocator, data);
 }
 
 static bool graph_copy_node_data(GenericGraph *graph, void *dst, const void *src, size item_size) {
@@ -315,7 +315,8 @@ void validate_graph(const GenericGraph *graph) {
         LOG_FATAL("Graph is uninitialized or corrupted");
     }
 
-    if (!graph->allocator->allocate || !graph->allocator->resize || !graph->allocator->remap || !graph->allocator->deallocate) {
+    if (!graph->allocator->allocate || !graph->allocator->resize || !graph->allocator->remap ||
+        !graph->allocator->deallocate) {
         LOG_FATAL("Graph allocator is not fully configured");
     }
 

@@ -40,8 +40,8 @@ static bool test_basic_alloc_and_free(void) {
         a->id = 1;
         b->id = 2;
         ok    = (a->id == 1) && (b->id == 2);
-        AllocatorFree(alloc_base, a, sizeof(Node));
-        AllocatorFree(alloc_base, b, sizeof(Node));
+        AllocatorFree(alloc_base, a);
+        AllocatorFree(alloc_base, b);
     }
 
     SlabAllocatorDeinit(&slab);
@@ -54,11 +54,11 @@ static bool test_free_then_alloc_recycles(void) {
     Node         *a          = (Node *)AllocatorAlloc(alloc_base, sizeof(Node), true);
     bool          ok         = (a != NULL);
 
-    AllocatorFree(alloc_base, a, sizeof(Node));
+    AllocatorFree(alloc_base, a);
     Node *b = (Node *)AllocatorAlloc(alloc_base, sizeof(Node), true);
     ok      = ok && (b == a); // The free list returned the same slot.
 
-    AllocatorFree(alloc_base, b, sizeof(Node));
+    AllocatorFree(alloc_base, b);
     SlabAllocatorDeinit(&slab);
     return ok;
 }
@@ -87,7 +87,7 @@ static bool test_grow_across_chunks(void) {
 
     for (size i = 0; i < 600; i++) {
         if (slots[i]) {
-            AllocatorFree(alloc_base, slots[i], sizeof(Node));
+            AllocatorFree(alloc_base, slots[i]);
         }
     }
 
@@ -123,7 +123,7 @@ static bool test_free_half_then_realloc(void) {
     // Free every other slot, then re-allocate 100 more to make the slab
     // walk both the free list (recycling) and the slab on growth.
     for (size i = 0; ok && i < 200; i += 2) {
-        AllocatorFree(alloc_base, slots[i], sizeof(Node));
+        AllocatorFree(alloc_base, slots[i]);
         slots[i] = NULL;
     }
 
@@ -147,7 +147,7 @@ static bool test_pool_alignment(void) {
     bool          ok         = (p != NULL) && (((u64)p & 63u) == 0);
 
     if (p) {
-        AllocatorFree(alloc_base, p, sizeof(int));
+        AllocatorFree(alloc_base, p);
     }
     SlabAllocatorDeinit(&slab);
     return ok;
@@ -163,7 +163,7 @@ static bool test_reject_foreign_pointer(void) {
     Allocator    *a1 = ALLOCATOR_OF(&s1);
     Allocator    *a2 = ALLOCATOR_OF(&s2);
     Node         *p  = (Node *)AllocatorAlloc(a1, sizeof(Node), false);
-    AllocatorFree(a2, p, sizeof(Node)); // foreign to s2 -> LOG_FATAL
+    AllocatorFree(a2, p); // foreign to s2 -> LOG_FATAL
     return false;
 }
 
@@ -171,7 +171,7 @@ static bool test_reject_misaligned_pointer(void) {
     SlabAllocator slab  = SlabAllocatorInit(sizeof(Node));
     Allocator    *alloc = ALLOCATOR_OF(&slab);
     char         *p     = (char *)AllocatorAlloc(alloc, sizeof(Node), false);
-    AllocatorFree(alloc, p + 1, sizeof(Node)); // mis-aligned -> LOG_FATAL
+    AllocatorFree(alloc, p + 1); // mis-aligned -> LOG_FATAL
     return false;
 }
 
@@ -179,8 +179,8 @@ static bool test_reject_double_free(void) {
     SlabAllocator slab  = SlabAllocatorInit(sizeof(Node));
     Allocator    *alloc = ALLOCATOR_OF(&slab);
     Node         *p     = (Node *)AllocatorAlloc(alloc, sizeof(Node), false);
-    AllocatorFree(alloc, p, sizeof(Node));
-    AllocatorFree(alloc, p, sizeof(Node)); // bit already 0 -> LOG_FATAL
+    AllocatorFree(alloc, p);
+    AllocatorFree(alloc, p); // bit already 0 -> LOG_FATAL
     return false;
 }
 

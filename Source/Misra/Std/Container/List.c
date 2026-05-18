@@ -13,7 +13,7 @@ static inline GenericListNode *alloc_list_node(GenericList *list) {
 }
 
 static inline void free_list_node(GenericList *list, GenericListNode *node) {
-    AllocatorFree(list->allocator, node, sizeof(GenericListNode));
+    AllocatorFree(list->allocator, node);
 }
 
 static inline void *alloc_list_item(GenericList *list, u64 item_size) {
@@ -21,7 +21,7 @@ static inline void *alloc_list_item(GenericList *list, u64 item_size) {
 }
 
 static inline void free_list_item(GenericList *list, void *item, u64 item_size) {
-    AllocatorFree(list->allocator, item, item_size);
+    AllocatorFree(list->allocator, item);
 }
 
 void deinit_list(GenericList *list, u64 item_size) {
@@ -210,7 +210,7 @@ bool qsort_list(GenericList *list, u64 item_size, GenericCompare comp) {
         node = node->next;
     }
 
-    AllocatorFree(list->allocator, data, item_size * item_count);
+    AllocatorFree(list->allocator, data);
     return true;
 }
 

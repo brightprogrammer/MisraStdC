@@ -44,8 +44,8 @@ static bool test_basic_alloc_and_free(void) {
         a->id = 1;
         b->id = 2;
         ok    = (a->id == 1) && (b->id == 2);
-        AllocatorFree(alloc, a, sizeof(Node));
-        AllocatorFree(alloc, b, sizeof(Node));
+        AllocatorFree(alloc, a);
+        AllocatorFree(alloc, b);
     }
 
     BudgetAllocatorDeinit(&bp);
@@ -65,11 +65,11 @@ static bool test_free_null_is_noop(void) {
     u8              buf[256] = {0};
     BudgetAllocator bp       = BudgetAllocatorInit(buf, sizeof(buf), sizeof(Node));
     Allocator      *alloc    = ALLOCATOR_OF(&bp);
-    AllocatorFree(alloc, NULL, sizeof(Node));
+    AllocatorFree(alloc, NULL);
     void *p  = AllocatorAlloc(alloc, sizeof(Node), false);
     bool  ok = (p != NULL);
     if (p)
-        AllocatorFree(alloc, p, sizeof(Node));
+        AllocatorFree(alloc, p);
     BudgetAllocatorDeinit(&bp);
     return ok;
 }
@@ -102,12 +102,12 @@ static bool test_free_then_alloc_recycles(void) {
 
     Node *a  = (Node *)AllocatorAlloc(alloc, sizeof(Node), true);
     bool  ok = (a != NULL);
-    AllocatorFree(alloc, a, sizeof(Node));
+    AllocatorFree(alloc, a);
     Node *b = (Node *)AllocatorAlloc(alloc, sizeof(Node), true);
     // ctz finds the lowest clear bit, which is the one we just freed.
     ok = ok && (b == a);
 
-    AllocatorFree(alloc, b, sizeof(Node));
+    AllocatorFree(alloc, b);
     BudgetAllocatorDeinit(&bp);
     return ok;
 }
@@ -123,11 +123,11 @@ static bool test_alloc_distinct_pointers(void) {
     bool  ok = (a && b && c && a != b && b != c && a != c);
 
     if (a)
-        AllocatorFree(alloc, a, sizeof(Node));
+        AllocatorFree(alloc, a);
     if (b)
-        AllocatorFree(alloc, b, sizeof(Node));
+        AllocatorFree(alloc, b);
     if (c)
-        AllocatorFree(alloc, c, sizeof(Node));
+        AllocatorFree(alloc, c);
     BudgetAllocatorDeinit(&bp);
     return ok;
 }
@@ -158,9 +158,9 @@ static bool test_alignment_honored(void) {
     ok      = ok && (((u64)p2 & 63u) == 0);
 
     if (p1)
-        AllocatorFree(alloc, p1, sizeof(int));
+        AllocatorFree(alloc, p1);
     if (p2)
-        AllocatorFree(alloc, p2, sizeof(int));
+        AllocatorFree(alloc, p2);
     BudgetAllocatorDeinit(&bp);
     return ok;
 }
@@ -186,7 +186,7 @@ static bool test_reject_foreign_pointer(void) {
     Allocator      *alloc2     = ALLOCATOR_OF(&bp2);
 
     Node *p = (Node *)AllocatorAlloc(alloc1, sizeof(Node), false);
-    AllocatorFree(alloc2, p, sizeof(Node)); // foreign to bp2 -> LOG_FATAL
+    AllocatorFree(alloc2, p); // foreign to bp2 -> LOG_FATAL
     return false;
 }
 
@@ -196,7 +196,7 @@ static bool test_reject_pointer_before_slot_region(void) {
     BudgetAllocator bp        = BudgetAllocatorInit(buf, sizeof(buf), sizeof(Node));
     Allocator      *alloc     = ALLOCATOR_OF(&bp);
 
-    AllocatorFree(alloc, bp.bitmap, sizeof(Node)); // bitmap region -> LOG_FATAL
+    AllocatorFree(alloc, bp.bitmap); // bitmap region -> LOG_FATAL
     return false;
 }
 
@@ -205,7 +205,7 @@ static bool test_reject_misaligned_pointer(void) {
     BudgetAllocator bp        = BudgetAllocatorInit(buf, sizeof(buf), sizeof(Node));
     Allocator      *alloc     = ALLOCATOR_OF(&bp);
     char           *p         = (char *)AllocatorAlloc(alloc, sizeof(Node), false);
-    AllocatorFree(alloc, p + 1, sizeof(Node)); // mis-aligned -> LOG_FATAL
+    AllocatorFree(alloc, p + 1); // mis-aligned -> LOG_FATAL
     return false;
 }
 
@@ -214,8 +214,8 @@ static bool test_reject_double_free(void) {
     BudgetAllocator bp        = BudgetAllocatorInit(buf, sizeof(buf), sizeof(Node));
     Allocator      *alloc     = ALLOCATOR_OF(&bp);
     Node           *p         = (Node *)AllocatorAlloc(alloc, sizeof(Node), false);
-    AllocatorFree(alloc, p, sizeof(Node));
-    AllocatorFree(alloc, p, sizeof(Node)); // bit already 0 -> LOG_FATAL
+    AllocatorFree(alloc, p);
+    AllocatorFree(alloc, p); // bit already 0 -> LOG_FATAL
     return false;
 }
 

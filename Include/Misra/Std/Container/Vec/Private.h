@@ -62,15 +62,13 @@ extern "C" {
 
     static inline bool
         vec_release_merged_source_on_success(GenericVec *dst, GenericVec *src, size item_size, bool success) {
-        size aligned_item_size;
-
+        (void)item_size;
         if (!success) {
             return false;
         }
 
         if (!dst->copy_init && src->data) {
-            aligned_item_size = ALIGN_UP_POW2(item_size, src->allocator->alignment);
-            AllocatorFree(src->allocator, src->data, (src->capacity + 1) * aligned_item_size);
+            AllocatorFree(src->allocator, src->data);
             src->data     = NULL;
             src->length   = 0;
             src->capacity = 0;

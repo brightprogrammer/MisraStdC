@@ -46,7 +46,40 @@ extern "C" {
     void *page_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
     i8    page_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size);
     void *page_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size);
-    void  page_allocator_deallocate(Allocator *self, void *ptr, size bytes);
+
+    ///
+    /// Generic-dispatch deallocate stub. `PageAllocator` cannot recover
+    /// the original allocation size from `ptr` alone (`munmap` /
+    /// `VirtualFree` need the byte count). Calling
+    /// `AllocatorFree(&page.base, ptr)` therefore aborts via
+    /// `LOG_FATAL` -- route Page frees through `PageAllocatorFree`
+    /// instead, which carries the explicit size.
+    ///
+    /// Consequence: `PageAllocator` is not suitable as the backing
+    /// allocator for `Vec` / `Map` / `Str` (their `*Deinit` calls
+    /// `AllocatorFree`). Wrap Page in a `HeapAllocator` for that.
+    ///
+    size page_allocator_deallocate(Allocator *self, void *ptr);
+
+    ///
+    /// Typed deallocator for a region previously returned by
+    /// `AllocatorAlloc(&page.base, ...)` (or the `MisraScope` /
+    /// `ScopeWith` macros over a PageAllocator). Bypasses the generic
+    /// `AllocatorFree` dispatch because PageAllocator needs the byte
+    /// count -- the kernel mapping API does.
+    ///
+    /// self[in,out] : PageAllocator that issued the allocation.
+    /// ptr[in]      : Allocation pointer, or NULL.
+    /// bytes[in]    : Original allocation size in bytes (the same value
+    ///                that was passed to `AllocatorAlloc`).
+    ///
+    /// SUCCESS: Function returns; the kernel mapping is released.
+    /// FAILURE: Aborts via `LOG_FATAL` on a NULL or type-confused
+    ///          `self`. A NULL `ptr` is a no-op.
+    ///
+    /// TAGS: Allocator, Page, Deallocation
+    ///
+    void PageAllocatorFree(PageAllocator *self, void *ptr, size bytes);
 
     ///
     /// Page-level memory protection bits. The actual OS permissions are
@@ -113,7 +146,8 @@ extern "C" {
 /// designated-initializer:
 ///
 ///     PageAllocator page = PageAllocatorInit();
-///     Vec(int) v = VecInit(&page);
+///     void *p = AllocatorAlloc(&page.base, 64 * 1024, true);
+///     PageAllocatorFree(&page, p, 64 * 1024);
 ///
 #define PageAllocatorInit()                                                                                            \
     ((PageAllocator) {                                                                                                 \

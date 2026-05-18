@@ -57,7 +57,7 @@ void deinit_vec(GenericVec *vec, size item_size) {
             MemSet(vec->data, 0, aligned_size * (vec->capacity + 1));
         }
 
-        AllocatorFree(vec->allocator, vec->data, aligned_size * (vec->capacity + 1));
+        AllocatorFree(vec->allocator, vec->data);
     }
 
     // Zero the whole header so any use-after-deinit hits a zeroed
@@ -135,7 +135,7 @@ bool reduce_space_vec(GenericVec *vec, size item_size) {
 
     aligned_size = vec_aligned_size(vec, item_size);
     if (vec->length == 0) {
-        AllocatorFree(vec->allocator, vec->data, aligned_size * (vec->capacity + 1));
+        AllocatorFree(vec->allocator, vec->data);
         vec->data     = NULL;
         vec->capacity = 0;
         vec->length   = 0;

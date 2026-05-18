@@ -58,7 +58,7 @@ static bool heap_grow_array(HeapAllocator *heap, void **arr_ptr, u32 *cap_ptr, u
         return false;
     if (*arr_ptr && old_cap) {
         MemCopy(fresh, *arr_ptr, (size)old_cap * (size)entry_size);
-        AllocatorFree(&heap->page.base, *arr_ptr, (size)old_cap * (size)entry_size);
+        PageAllocatorFree(&heap->page, *arr_ptr, (size)old_cap * (size)entry_size);
     }
     *arr_ptr = fresh;
     *cap_ptr = new_cap;
@@ -112,12 +112,29 @@ static u32 heap_find_by_page(const void *arr, u32 len, u32 entry_size, void *pag
     return (u32)-1;
 }
 
+// MSVC: no GCC/Clang builtins; use _BitScanForward[64] from <intrin.h>.
+// Both branches assume x != 0 (the callers all gate on `if (inv != 0)`
+// or its equivalent before invoking these helpers).
+#if defined(_MSC_VER) && !defined(__clang__)
+#    include <intrin.h>
+static u32 ctz64(u64 x) {
+    unsigned long idx;
+    _BitScanForward64(&idx, x);
+    return (u32)idx;
+}
+static u32 ctz32(u32 x) {
+    unsigned long idx;
+    _BitScanForward(&idx, x);
+    return (u32)idx;
+}
+#else
 static u32 ctz64(u64 x) {
     return (u32)__builtin_ctzll(x);
 }
 static u32 ctz32(u32 x) {
     return (u32)__builtin_ctz(x);
 }
+#endif
 
 // =============================================================================
 // Class S. Three sub-bins (16/32/64), each with its own bitmap field.
@@ -204,7 +221,7 @@ static void *heap_alloc_s(HeapAllocator *heap, u32 slot_size) {
                 if (ix_j != (u32)-1)
                     heap_remove_at(heap->s, &heap->s_len, ix_j, sizeof(HeapPageS));
             }
-            AllocatorFree(&heap->page.base, base, HEAP_OS_PAGE_SIZE);
+            PageAllocatorFree(&heap->page, base, HEAP_OS_PAGE_SIZE);
             return NULL;
         }
         if (i == 0)
@@ -334,7 +351,7 @@ static void *heap_alloc_m(HeapAllocator *heap, u32 slot_size) {
                 if (ix_j != (u32)-1)
                     heap_remove_at(heap->m, &heap->m_len, ix_j, sizeof(HeapPageM));
             }
-            AllocatorFree(&heap->page.base, base, HEAP_OS_PAGE_SIZE);
+            PageAllocatorFree(&heap->page, base, HEAP_OS_PAGE_SIZE);
             return NULL;
         }
         if (i == 0)
@@ -436,7 +453,7 @@ static void *heap_alloc_l(HeapAllocator *heap, u32 slot_size) {
                 if (ix_j != (u32)-1)
                     heap_remove_at(heap->l, &heap->l_len, ix_j, sizeof(HeapPageL));
             }
-            AllocatorFree(&heap->page.base, base, HEAP_OS_PAGE_SIZE);
+            PageAllocatorFree(&heap->page, base, HEAP_OS_PAGE_SIZE);
             return NULL;
         }
         if (i == 0)
@@ -498,32 +515,21 @@ static void *heap_alloc_xl(HeapAllocator *heap, size bytes, i8 zeroed) {
     HeapPageXL desc = {.page = page, .num_pages = num_pages};
     if (heap_insert_sorted(heap, (void **)&heap->xl, &heap->xl_len, &heap->xl_cap, sizeof(HeapPageXL), &desc) ==
         (u32)-1) {
-        AllocatorFree(&heap->page.base, page, full);
+        PageAllocatorFree(&heap->page, page, full);
         return NULL;
     }
     return page;
 }
 
-static void heap_free_xl(HeapAllocator *heap, void *ptr) {
-    // Mask ptr down to its containing page so a mid-allocation pointer
-    // inside the first page of an XL region still finds the descriptor,
-    // and we can emit the right "mid-allocation" diagnostic rather than
-    // misreporting it as foreign. A pointer in the 2nd+ page of a
-    // multi-page XL allocation still misses (only the base page is
-    // indexed) and is reported as foreign -- caller bug either way.
-    void *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
-    u32   idx       = heap_find_by_page(heap->xl, heap->xl_len, sizeof(HeapPageXL), page_base);
-    if (idx == (u32)-1) {
-        LOG_FATAL("heap_free: foreign ptr {x} routed as XL", (u64)ptr);
-        return;
-    }
-    HeapPageXL *e = &heap->xl[idx];
-    if (ptr != e->page) {
-        LOG_FATAL("heap_free: mid-allocation ptr {x} (XL base {x})", (u64)ptr, (u64)e->page);
-        return;
-    }
-    AllocatorFree(&heap->page.base, e->page, (size)e->num_pages * HEAP_PAGE_SIZE);
+// Release the XL allocation at descriptor index `idx`. Caller has
+// already validated that `idx` is in range and that the user pointer
+// matches the descriptor base. Returns bytes released.
+static size heap_free_xl_at(HeapAllocator *heap, u32 idx) {
+    HeapPageXL *e     = &heap->xl[idx];
+    size        bytes = (size)e->num_pages * HEAP_PAGE_SIZE;
+    PageAllocatorFree(&heap->page, e->page, bytes);
     heap_remove_at(heap->xl, &heap->xl_len, idx, sizeof(HeapPageXL));
+    return bytes;
 }
 
 // =============================================================================
@@ -573,23 +579,69 @@ void *heap_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     return out;
 }
 
-void heap_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
+size heap_allocator_deallocate(Allocator *self, void *ptr) {
     heap_validate_self(self);
     HeapAllocator *heap = (HeapAllocator *)self;
     if (!ptr)
-        return;
-    if (heap_alignment_demands_passthrough(self) || bytes > 2048) {
-        heap_free_xl(heap, ptr);
-        return;
+        return 0;
+
+    void *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
+
+    // XL first. Descriptor base is page-aligned; check the descriptor
+    // matches the user pointer exactly (mid-allocation pointer = bug).
+    u32 xl_idx = heap_find_by_page(heap->xl, heap->xl_len, sizeof(HeapPageXL), page_base);
+    if (xl_idx != (u32)-1) {
+        HeapPageXL *e = &heap->xl[xl_idx];
+        if (ptr != e->page) {
+            LOG_FATAL("heap_free: mid-allocation ptr {x} (XL base {x})", (u64)ptr, (u64)e->page);
+            return 0;
+        }
+        return heap_free_xl_at(heap, xl_idx);
     }
 
-    u32 slot = heap_slot_size_for(bytes);
-    if (slot <= 64)
-        heap_free_s(heap, ptr, slot);
-    else if (slot <= 512)
-        heap_free_m(heap, ptr, slot);
-    else
+    // The user pointer's offset within its page disambiguates the
+    // sub-bin within S / M / L -- slot size is encoded in the page
+    // layout (HEAP_*_OFFSET), not in any caller-supplied hint.
+    u64 off = (u64)ptr - (u64)page_base;
+
+    // Class L: 1024 region [0, 2048), 2048 region [2048, 4096).
+    u32 l_idx = heap_find_by_page(heap->l, heap->l_len, sizeof(HeapPageL), page_base);
+    if (l_idx != (u32)-1) {
+        u32 slot = (off < HEAP_L_2048_OFFSET) ? 1024u : 2048u;
         heap_free_l(heap, ptr, slot);
+        return slot;
+    }
+
+    // Class M: 128 region [0, 1024), 256 region [1024, 2048), 512 region [2048, 4096).
+    u32 m_idx = heap_find_by_page(heap->m, heap->m_len, sizeof(HeapPageM), page_base);
+    if (m_idx != (u32)-1) {
+        u32 slot;
+        if (off < HEAP_M_256_OFFSET)
+            slot = 128u;
+        else if (off < HEAP_M_512_OFFSET)
+            slot = 256u;
+        else
+            slot = 512u;
+        heap_free_m(heap, ptr, slot);
+        return slot;
+    }
+
+    // Class S: 16 region [0, 1024), 32 region [1024, 2048), 64 region [2048, 4096).
+    u32 s_idx = heap_find_by_page(heap->s, heap->s_len, sizeof(HeapPageS), page_base);
+    if (s_idx != (u32)-1) {
+        u32 slot;
+        if (off < HEAP_S_32_OFFSET)
+            slot = 16u;
+        else if (off < HEAP_S_64_OFFSET)
+            slot = 32u;
+        else
+            slot = 64u;
+        heap_free_s(heap, ptr, slot);
+        return slot;
+    }
+
+    LOG_FATAL("heap_free: foreign ptr {x} (not in any class list)", (u64)ptr);
+    return 0;
 }
 
 i8 heap_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size) {
@@ -610,7 +662,7 @@ void *heap_allocator_remap(Allocator *self, void *ptr, size old_size, size new_s
     heap_validate_self(self);
     if (new_size == 0) {
         if (ptr)
-            heap_allocator_deallocate(self, ptr, old_size);
+            heap_allocator_deallocate(self, ptr);
         return NULL;
     }
     if (!ptr)
@@ -621,7 +673,7 @@ void *heap_allocator_remap(Allocator *self, void *ptr, size old_size, size new_s
     if (!fresh)
         return NULL;
     MemCopy(fresh, ptr, old_size < new_size ? old_size : new_size);
-    heap_allocator_deallocate(self, ptr, old_size);
+    heap_allocator_deallocate(self, ptr);
     return fresh;
 }
 
@@ -643,29 +695,29 @@ void HeapAllocatorDeinit(HeapAllocator *self) {
 
     for (u32 i = 0; i < self->s_len; i++) {
         if (IS_GROUP_LEADER(self->s[i].page))
-            AllocatorFree(&self->page.base, self->s[i].page, HEAP_OS_PAGE_SIZE);
+            PageAllocatorFree(&self->page, self->s[i].page, HEAP_OS_PAGE_SIZE);
     }
     if (self->s_cap)
-        AllocatorFree(&self->page.base, self->s, (size)self->s_cap * sizeof(HeapPageS));
+        PageAllocatorFree(&self->page, self->s, (size)self->s_cap * sizeof(HeapPageS));
 
     for (u32 i = 0; i < self->m_len; i++) {
         if (IS_GROUP_LEADER(self->m[i].page))
-            AllocatorFree(&self->page.base, self->m[i].page, HEAP_OS_PAGE_SIZE);
+            PageAllocatorFree(&self->page, self->m[i].page, HEAP_OS_PAGE_SIZE);
     }
     if (self->m_cap)
-        AllocatorFree(&self->page.base, self->m, (size)self->m_cap * sizeof(HeapPageM));
+        PageAllocatorFree(&self->page, self->m, (size)self->m_cap * sizeof(HeapPageM));
 
     for (u32 i = 0; i < self->l_len; i++) {
         if (IS_GROUP_LEADER(self->l[i].page))
-            AllocatorFree(&self->page.base, self->l[i].page, HEAP_OS_PAGE_SIZE);
+            PageAllocatorFree(&self->page, self->l[i].page, HEAP_OS_PAGE_SIZE);
     }
     if (self->l_cap)
-        AllocatorFree(&self->page.base, self->l, (size)self->l_cap * sizeof(HeapPageL));
+        PageAllocatorFree(&self->page, self->l, (size)self->l_cap * sizeof(HeapPageL));
 
     for (u32 i = 0; i < self->xl_len; i++)
-        AllocatorFree(&self->page.base, self->xl[i].page, (size)self->xl[i].num_pages * HEAP_PAGE_SIZE);
+        PageAllocatorFree(&self->page, self->xl[i].page, (size)self->xl[i].num_pages * HEAP_PAGE_SIZE);
     if (self->xl_cap)
-        AllocatorFree(&self->page.base, self->xl, (size)self->xl_cap * sizeof(HeapPageXL));
+        PageAllocatorFree(&self->page, self->xl, (size)self->xl_cap * sizeof(HeapPageXL));
 
     MemSet(self, 0, sizeof(*self));
 }

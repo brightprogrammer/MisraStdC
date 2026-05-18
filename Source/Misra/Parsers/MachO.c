@@ -290,7 +290,7 @@ bool macho_file_open(MachoFile *out, const char *path, Allocator *alloc) {
         return false;
     }
     if (!MachoFileOpenFromMemory(out, (u8 *)buf, (size)bytes, alloc)) {
-        AllocatorFree(alloc, buf, capacity);
+        AllocatorFree(alloc, buf);
         return false;
     }
     out->owns_data = true;
@@ -304,7 +304,7 @@ void MachoFileDeinit(MachoFile *self) {
     if (!self)
         return;
     if (self->owns_data && self->data && self->allocator) {
-        AllocatorFree(self->allocator, self->data, self->data_size);
+        AllocatorFree(self->allocator, self->data);
     }
     VecDeinit(&self->segments);
     VecDeinit(&self->sections);

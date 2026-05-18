@@ -427,7 +427,7 @@ bool pe_file_open(PeFile *out, const char *path, Allocator *alloc) {
         return false;
     }
     if (!PeFileOpenFromMemory(out, (u8 *)buf, (size)bytes, alloc)) {
-        AllocatorFree(alloc, buf, capacity);
+        AllocatorFree(alloc, buf);
         return false;
     }
     out->owns_data = true;
@@ -441,7 +441,7 @@ void PeFileDeinit(PeFile *self) {
     if (!self)
         return;
     if (self->owns_data && self->data && self->allocator) {
-        AllocatorFree(self->allocator, self->data, self->data_size);
+        AllocatorFree(self->allocator, self->data);
     }
     VecDeinit(&self->sections);
     MemSet(self, 0, sizeof(*self));

@@ -156,7 +156,7 @@ extern "C" {
     void *debug_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
     i8    debug_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size);
     void *debug_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size);
-    void  debug_allocator_deallocate(Allocator *self, void *ptr, size bytes);
+    size  debug_allocator_deallocate(Allocator *self, void *ptr);
 
     // Hash / compare callbacks for the embedded void*->DebugRecord
     // maps. Exposed so the Init macro can wire them into the Map

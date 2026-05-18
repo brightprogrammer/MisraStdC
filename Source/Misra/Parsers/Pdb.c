@@ -374,13 +374,13 @@ static SectionRva *load_section_table(const PdbFile *self, u16 section_hdr_strea
 
     u8 *buf = AllocatorAlloc(self->allocator, sz, 0);
     if (!buf) {
-        AllocatorFree(self->allocator, out, n * sizeof(SectionRva));
+        AllocatorFree(self->allocator, out);
         return NULL;
     }
     bool read_ok = stream_read(self, section_hdr_stream, 0, buf, sz);
     if (!read_ok) {
-        AllocatorFree(self->allocator, buf, sz);
-        AllocatorFree(self->allocator, out, n * sizeof(SectionRva));
+        AllocatorFree(self->allocator, buf);
+        AllocatorFree(self->allocator, out);
         return NULL;
     }
     for (u32 i = 0; i < n; ++i) {
@@ -388,7 +388,7 @@ static SectionRva *load_section_table(const PdbFile *self, u16 section_hdr_strea
         out[i].virtual_size    = read_u32_le(buf + i * 40 + 8);
         out[i].virtual_address = read_u32_le(buf + i * 40 + 12);
     }
-    AllocatorFree(self->allocator, buf, sz);
+    AllocatorFree(self->allocator, buf);
     *out_count = n;
     return out;
 }
@@ -449,7 +449,7 @@ static bool walk_publics(
     if (!buf)
         return false;
     if (!stream_read(self, symrec_stream, 0, buf, sz)) {
-        AllocatorFree(self->allocator, buf, sz);
+        AllocatorFree(self->allocator, buf);
         return false;
     }
 
@@ -491,11 +491,11 @@ static bool walk_publics(
                     PendingPub pp;
                     pp.rva = rva;
                     if (!pool_append_cstr(pool, name, &pp.name_offset_in_pool)) {
-                        AllocatorFree(self->allocator, buf, sz);
+                        AllocatorFree(self->allocator, buf);
                         return false;
                     }
                     if (!VecPushBackR(pending, pp)) {
-                        AllocatorFree(self->allocator, buf, sz);
+                        AllocatorFree(self->allocator, buf);
                         return false;
                     }
                 }
@@ -504,7 +504,7 @@ static bool walk_publics(
         cur = next;
     }
 
-    AllocatorFree(self->allocator, buf, sz);
+    AllocatorFree(self->allocator, buf);
     return true;
 }
 
@@ -518,7 +518,7 @@ static bool parse_pdb_functions(PdbFile *self) {
     SectionRva *sections     = load_section_table(self, dbi.section_hdr_stream, &num_sections);
     if (!sections || num_sections == 0) {
         if (sections)
-            AllocatorFree(self->allocator, sections, num_sections * sizeof(SectionRva));
+            AllocatorFree(self->allocator, sections);
         return true; // can't compute RVAs without section table
     }
 
@@ -527,7 +527,7 @@ static bool parse_pdb_functions(PdbFile *self) {
     Str         name_pool = StrInit(self->allocator);
     PendingPubs pending   = VecInitT(pending, self->allocator);
     bool        ok        = walk_publics(self, dbi.symrec_stream, sections, num_sections, &name_pool, &pending);
-    AllocatorFree(self->allocator, sections, num_sections * sizeof(SectionRva));
+    AllocatorFree(self->allocator, sections);
 
     if (!ok) {
         VecDeinit(&pending);
@@ -633,7 +633,7 @@ bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc) {
         return false;
     }
     if (!PdbFileOpenFromMemory(out, (u8 *)buf, (size)bytes, alloc)) {
-        AllocatorFree(alloc, buf, capacity);
+        AllocatorFree(alloc, buf);
         return false;
     }
     out->owns_data = true;
@@ -647,22 +647,22 @@ void PdbFileDeinit(PdbFile *self) {
     if (!self)
         return;
     if (self->owns_data && self->data && self->allocator) {
-        AllocatorFree(self->allocator, self->data, self->data_size);
+        AllocatorFree(self->allocator, self->data);
     }
     if (self->name_pool && self->allocator) {
-        AllocatorFree(self->allocator, self->name_pool, self->name_pool_size);
+        AllocatorFree(self->allocator, self->name_pool);
     }
     if (self->stream_dir && self->allocator) {
-        AllocatorFree(self->allocator, self->stream_dir, self->stream_dir_size);
+        AllocatorFree(self->allocator, self->stream_dir);
     }
     if (self->stream_sizes && self->allocator) {
-        AllocatorFree(self->allocator, self->stream_sizes, self->num_streams * sizeof(u32));
+        AllocatorFree(self->allocator, self->stream_sizes);
     }
     if (self->stream_blocks && self->allocator) {
-        AllocatorFree(self->allocator, self->stream_blocks, self->num_streams * sizeof(const u32 *));
+        AllocatorFree(self->allocator, self->stream_blocks);
     }
     if (self->stream_block_counts && self->allocator) {
-        AllocatorFree(self->allocator, self->stream_block_counts, self->num_streams * sizeof(u32));
+        AllocatorFree(self->allocator, self->stream_block_counts);
     }
     VecDeinit(&self->functions);
     MemSet(self, 0, sizeof(*self));

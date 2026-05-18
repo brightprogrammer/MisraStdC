@@ -25,7 +25,7 @@
 ///     BudgetAllocator bp = BudgetAllocatorInit(buf, sizeof(buf), 64);
 ///     void           *a  = AllocatorAlloc(ALLOCATOR_OF(&bp), 64, true);
 ///     ...
-///     AllocatorFree(ALLOCATOR_OF(&bp), a, 64);
+///     AllocatorFree(ALLOCATOR_OF(&bp), a);
 ///     BudgetAllocatorDeinit(&bp);  // no-op; the caller owns `buf`
 
 #ifndef MISRA_STD_ALLOCATOR_BUDGET_H
@@ -83,7 +83,7 @@ extern "C" {
     void *budget_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
     i8    budget_allocator_resize(Allocator *self, void *ptr, size old_size, size new_size);
     void *budget_allocator_remap(Allocator *self, void *ptr, size old_size, size new_size);
-    void  budget_allocator_deallocate(Allocator *self, void *ptr, size bytes);
+    size  budget_allocator_deallocate(Allocator *self, void *ptr);
 
     ///
     /// Initialize a `BudgetAllocator` over a caller-owned memory region.

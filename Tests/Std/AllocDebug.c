@@ -36,11 +36,11 @@ bool test_debug_normal_alloc_free(void) {
     ok      = ok && DebugAllocatorLiveCount(&dbg) == 2;
     ok      = ok && DebugAllocatorLiveBytes(&dbg) == (64 + 128);
 
-    AllocatorFree(adbg, p1, 64);
+    AllocatorFree(adbg, p1);
     ok = ok && DebugAllocatorLiveCount(&dbg) == 1;
     ok = ok && DebugAllocatorLiveBytes(&dbg) == 128;
 
-    AllocatorFree(adbg, p2, 128);
+    AllocatorFree(adbg, p2);
     ok = ok && DebugAllocatorLiveCount(&dbg) == 0;
     ok = ok && DebugAllocatorLiveBytes(&dbg) == 0;
     ok = ok && DebugAllocatorOverflows(&dbg) == 0;
@@ -64,11 +64,11 @@ bool test_debug_null_free_is_noop(void) {
     DebugAllocator dbg  = DebugAllocatorInit();
     Allocator     *adbg = ALLOCATOR_OF(&dbg);
 
-    AllocatorFree(adbg, NULL, 16); // no-op, must not crash
+    AllocatorFree(adbg, NULL); // no-op, must not crash
     void *p  = AllocatorAlloc(adbg, 32, false);
     bool  ok = (p != NULL) && (DebugAllocatorLiveCount(&dbg) == 1);
     if (p)
-        AllocatorFree(adbg, p, 32);
+        AllocatorFree(adbg, p);
 
     DebugAllocatorDeinit(&dbg);
     return ok;
@@ -83,7 +83,7 @@ bool test_debug_catches_overflow(void) {
 
     u8 *buf = (u8 *)AllocatorAlloc(adbg, 16, true);
     buf[16] = 0x55; // stomp first canary byte
-    AllocatorFree(adbg, buf, 16);
+    AllocatorFree(adbg, buf);
 
     bool ok = DebugAllocatorOverflows(&dbg) == 1;
     DebugAllocatorDeinit(&dbg);
@@ -126,9 +126,9 @@ bool test_debug_report_leaks_emits_traces(void) {
 
     StrDeinit(&out);
     if (p1)
-        AllocatorFree(adbg, p1, 24);
+        AllocatorFree(adbg, p1);
     if (p2)
-        AllocatorFree(adbg, p2, 40);
+        AllocatorFree(adbg, p2);
     DebugAllocatorDeinit(&dbg);
     return ok;
 }
@@ -147,7 +147,7 @@ bool test_debug_alloc_trace_captured(void) {
     ok               = ok && (rec != NULL) && (rec->alloc_trace_n > 0);
 
     if (p)
-        AllocatorFree(adbg, p, 64);
+        AllocatorFree(adbg, p);
     DebugAllocatorDeinit(&dbg);
     return ok;
 }
@@ -165,11 +165,11 @@ bool test_debug_freed_history_grows_on_free(void) {
     void *p3 = AllocatorAlloc(adbg, 64, false);
     ok       = ok && (dbg.freed.length == 0); // alloc doesn't push
 
-    AllocatorFree(adbg, p1, 16);
+    AllocatorFree(adbg, p1);
     ok = ok && (dbg.freed.length == 1);
 
-    AllocatorFree(adbg, p2, 32);
-    AllocatorFree(adbg, p3, 64);
+    AllocatorFree(adbg, p2);
+    AllocatorFree(adbg, p3);
     ok = ok && (dbg.freed.length == 3);
 
     // Each freed entry carries the ptr + both traces.
@@ -196,7 +196,7 @@ bool test_debug_freed_history_disabled(void) {
             ok = false;
             break;
         }
-        AllocatorFree(adbg, p, 32);
+        AllocatorFree(adbg, p);
     }
     ok = ok && (dbg.freed.length == 0);
     ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
@@ -225,7 +225,7 @@ bool test_debug_remap_grows(void) {
     ok          = ok && (DebugAllocatorLiveBytes(&dbg) == 200);
 
     if (grown)
-        AllocatorFree(adbg, grown, 200);
+        AllocatorFree(adbg, grown);
     DebugAllocatorDeinit(&dbg);
     return ok;
 }
@@ -250,7 +250,7 @@ bool test_debug_remap_from_null_allocates(void) {
     void *p  = AllocatorRealloc(adbg, NULL, 0, 32);
     bool  ok = (p != NULL) && (DebugAllocatorLiveCount(&dbg) == 1);
     if (p)
-        AllocatorFree(adbg, p, 32);
+        AllocatorFree(adbg, p);
 
     DebugAllocatorDeinit(&dbg);
     return ok;
@@ -270,7 +270,7 @@ bool test_debug_page_backed_alloc_free(void) {
     ok       = ok && (DebugAllocatorLiveBytes(&dbg) == 64);
     ok       = ok && (((u64)p & 0xfff) == 0); // page-aligned
 
-    AllocatorFree(adbg, p, 64);
+    AllocatorFree(adbg, p);
     ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
 
     DebugAllocatorDeinit(&dbg);
@@ -285,9 +285,9 @@ bool test_debug_double_free_aborts(void) {
     Allocator     *adbg = ALLOCATOR_OF(&dbg);
 
     void *p = AllocatorAlloc(adbg, 32, true);
-    AllocatorFree(adbg, p, 32);
-    AllocatorFree(adbg, p, 32); // -> Heap LOG_FATAL
-    return false;               // unreachable
+    AllocatorFree(adbg, p);
+    AllocatorFree(adbg, p); // -> Heap LOG_FATAL
+    return false;           // unreachable
 }
 
 bool test_debug_foreign_free_aborts(void) {
@@ -298,7 +298,7 @@ bool test_debug_foreign_free_aborts(void) {
     Allocator     *adbg = ALLOCATOR_OF(&dbg);
 
     u8 junk[64];
-    AllocatorFree(adbg, junk, 64);
+    AllocatorFree(adbg, junk);
     return false; // unreachable
 }
 
