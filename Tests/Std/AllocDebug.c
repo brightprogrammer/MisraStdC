@@ -1,12 +1,10 @@
 #include <Misra.h>
 #include <Misra/Std/Allocator/Debug.h>
 
-#include <stdint.h>
-
 #include "../Util/TestRunner.h"
 
 // Allocate + free a block — leak count should be 0 at destroy, no
-// overflows, no double-frees.
+// overflows.
 bool test_debug_normal_alloc_free(void) {
     DebugAllocator dbg  = DebugAllocatorInit();
     Allocator     *adbg = ALLOCATOR_OF(&dbg);
@@ -25,24 +23,7 @@ bool test_debug_normal_alloc_free(void) {
     AllocatorFree(adbg, p2, 128);
     ok = ok && DebugAllocatorLiveCount(&dbg) == 0;
     ok = ok && DebugAllocatorLiveBytes(&dbg) == 0;
-    ok = ok && DebugAllocatorDoubleFrees(&dbg) == 0;
     ok = ok && DebugAllocatorOverflows(&dbg) == 0;
-
-    DebugAllocatorDeinit(&dbg);
-    return ok;
-}
-
-// Free the same pointer twice; second free should bump the
-// double-free counter without crashing.
-bool test_debug_catches_double_free(void) {
-    DebugAllocator dbg  = DebugAllocatorInit();
-    Allocator     *adbg = ALLOCATOR_OF(&dbg);
-
-    void *p = AllocatorAlloc(adbg, 32, true);
-    AllocatorFree(adbg, p, 32);
-    AllocatorFree(adbg, p, 32); // expected to be caught
-
-    bool ok = DebugAllocatorDoubleFrees(&dbg) == 1;
 
     DebugAllocatorDeinit(&dbg);
     return ok;
@@ -55,8 +36,7 @@ bool test_debug_catches_overflow(void) {
     Allocator     *adbg = ALLOCATOR_OF(&dbg);
 
     u8 *buf = (u8 *)AllocatorAlloc(adbg, 16, true);
-    // Stomp on the canary by writing the first byte past the user
-    // region.
+    // Stomp on the canary by writing the first byte past the user region.
     buf[16] = 0x55;
     AllocatorFree(adbg, buf, 16);
 
@@ -79,17 +59,14 @@ bool test_debug_leak_count(void) {
     ok      = ok && DebugAllocatorLiveBytes(&dbg) == (32 + 48);
 
     // DebugAllocatorDeinit will print the leaks (LOG_ERROR) and
-    // free everything via the internal heap. The leaked records are
-    // surfaced before the tracking map gets torn down.
+    // free everything via the internal heap.
     DebugAllocatorDeinit(&dbg);
     return ok;
 }
 
 // Page-backed mode: every alloc consumes a page, every free
 // PROT_NONEs the region instead of releasing it. Verifies basic
-// alloc + free still update bookkeeping correctly. Double-free
-// detection still works (looked up via map BEFORE dereferencing the
-// protected memory).
+// alloc + free updates bookkeeping correctly.
 bool test_debug_page_backed_alloc_free(void) {
     DebugAllocatorConfig cfg = DEBUG_ALLOCATOR_DEFAULTS;
     cfg.force_page_backing   = true;
@@ -102,31 +79,46 @@ bool test_debug_page_backed_alloc_free(void) {
     ok       = ok && DebugAllocatorLiveBytes(&dbg) == 64;
 
     // Page-backed allocations should be page-aligned.
-    ok = ok && ((uintptr_t)p & 0xfff) == 0;
+    ok = ok && ((u64)p & 0xfff) == 0;
 
     AllocatorFree(adbg, p, 64);
     ok = ok && DebugAllocatorLiveCount(&dbg) == 0;
-    ok = ok && DebugAllocatorDoubleFrees(&dbg) == 0;
-
-    // Second free of the same pointer is caught (via the freed map),
-    // never dereferences the PROT_NONE'd memory.
-    AllocatorFree(adbg, p, 64);
-    ok = ok && DebugAllocatorDoubleFrees(&dbg) == 1;
 
     DebugAllocatorDeinit(&dbg);
     return ok;
 }
 
+// Double-free detection has moved to the underlying HeapAllocator
+// (which LOG_FATALs on bit-clear-of-cleared). This is a deadend test:
+// the second free crashes the process via the underlying Heap.
+bool test_debug_double_free_aborts(void) {
+    DebugAllocator dbg  = DebugAllocatorInit();
+    Allocator     *adbg = ALLOCATOR_OF(&dbg);
+
+    void *p = AllocatorAlloc(adbg, 32, true);
+    AllocatorFree(adbg, p, 32);
+    AllocatorFree(adbg, p, 32); // forwarded to Heap -> LOG_FATAL
+    return false;               // unreachable
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting AllocDebug tests\n\n");
 
-    TestFunction tests[] = {
+    TestFunction normal[] = {
         test_debug_normal_alloc_free,
-        test_debug_catches_double_free,
         test_debug_catches_overflow,
         test_debug_leak_count,
         test_debug_page_backed_alloc_free,
     };
+    TestFunction deadend[] = {
+        test_debug_double_free_aborts,
+    };
 
-    return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "AllocDebug");
+    return run_test_suite(
+        normal,
+        sizeof(normal) / sizeof(normal[0]),
+        deadend,
+        sizeof(deadend) / sizeof(deadend[0]),
+        "AllocDebug"
+    );
 }

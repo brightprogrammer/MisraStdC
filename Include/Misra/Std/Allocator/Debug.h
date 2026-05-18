@@ -3,7 +3,7 @@
 /// This is free and unencumbered software released into the public domain.
 ///
 /// `DebugAllocator` is an init-by-value allocator that bolts leak +
-/// double-free + canary overflow + stack-trace tracking onto an
+/// canary overflow + alloc-site stack-trace tracking onto an
 /// internally-owned `HeapAllocator`. It mirrors `HeapAllocator`'s
 /// shape -- a struct literal you assign to a stack-resident value,
 /// no `Create`/`Destroy` pointer dance, no globals.
@@ -11,16 +11,21 @@
 ///   - **Leak detection** -- every live allocation is tracked in an
 ///     embedded `Map(void*, DebugRecord)`. Anything still present at
 ///     `DebugAllocatorDeinit` time is reported with the captured
-///     allocation stack trace.
-///   - **Double-free detection** -- when `retain_metadata` is on,
-///     freed records move to a `freed` map. A second free of the
-///     same pointer is caught and logged with both the alloc trace
-///     and the previous free trace.
+///     allocation stack trace. Memory cost is proportional to the
+///     count of LIVE allocations, not lifetime allocations.
+///   - **Double-free / foreign / misaligned / wrong-size frees** --
+///     caught by the underlying `HeapAllocator`, which LOG_FATALs
+///     with a backtrace. DebugAllocator used to keep a `freed` Map
+///     for this and grew unboundedly under bignum-heavy workloads;
+///     the new Heap's bitmap validation makes the freed Map
+///     redundant.
 ///   - **Buffer-overflow detection** -- every allocation is padded
 ///     with `canary_bytes` of a sentinel pattern immediately after
 ///     the user region; the canary is verified on free.
 ///   - **Stack-trace capture** -- `Sys/Backtrace`'s `CaptureStackTrace`
-///     records frames on every alloc and free site.
+///     records frames on the alloc site. Free-site traces are no
+///     longer kept (Heap aborts at the free site with a fresh trace
+///     when bad input is detected).
 ///   - **Use-after-free (force_page_backing)** -- when enabled,
 ///     allocations route through an internal `PageAllocator` and
 ///     freed regions are `mprotect(PROT_NONE)`'d so any UAF read or
@@ -58,17 +63,13 @@ extern "C" {
 
     ///
     /// Per-allocation bookkeeping record. Stored in the embedded
-    /// `live` / `freed` maps. Strings (none today) and stack frames
-    /// live inline in the struct.
+    /// `live` map only; freed allocations are not retained.
     ///
     typedef struct DebugRecord {
         size       requested_size;
         size       padded_size;
         u32        alloc_trace_n;
-        u32        free_trace_n;
-        bool       freed;
         StackFrame alloc_trace[DEBUG_ALLOCATOR_MAX_TRACE];
-        StackFrame free_trace[DEBUG_ALLOCATOR_MAX_TRACE];
     } DebugRecord;
 
     typedef Map(void *, DebugRecord) DebugRecordMap;
@@ -80,7 +81,6 @@ extern "C" {
     typedef struct DebugAllocatorConfig {
         bool capture_traces;
         bool detect_overflow;
-        bool retain_metadata;
         ///
         /// Route every user allocation through the internal
         /// `PageAllocator` (one or more whole pages per alloc) and
@@ -98,7 +98,6 @@ extern "C" {
 #define DEBUG_ALLOCATOR_DEFAULTS                                                                                       \
     ((DebugAllocatorConfig) {.capture_traces     = true,                                                               \
                              .detect_overflow    = true,                                                               \
-                             .retain_metadata    = true,                                                               \
                              .force_page_backing = false,                                                              \
                              .trace_depth        = 8,                                                                  \
                              .canary_bytes       = 16})
@@ -115,9 +114,6 @@ extern "C" {
         PageAllocator        page;
         DebugAllocatorConfig config;
         DebugRecordMap       live;
-        DebugRecordMap       freed;
-        bool                 freed_map_initialized;
-        u64                  double_frees;
         u64                  overflows;
         u64                  bytes_in_use;
         u64                  creator_tid;
@@ -153,8 +149,6 @@ extern "C" {
     size DebugAllocatorLiveCount(const DebugAllocator *self);
     /// Total user-requested bytes still outstanding.
     size DebugAllocatorLiveBytes(const DebugAllocator *self);
-    /// Number of double-free events caught.
-    size DebugAllocatorDoubleFrees(const DebugAllocator *self);
     /// Number of canary-corruption events caught.
     size DebugAllocatorOverflows(const DebugAllocator *self);
     /// Append a human-readable leak report to `out`.
@@ -201,17 +195,14 @@ extern "C" {
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
                    .__magic     = DEBUG_ALLOCATOR_MAGIC},                                                                        \
-        .heap                  = HeapAllocatorInit(),                                                                  \
-        .meta                  = HeapAllocatorInit(),                                                                  \
-        .page                  = PageAllocatorInit(),                                                                  \
-        .config                = (_cfg),                                                                               \
-        .live                  = DEBUG_LIVE_LIT,                                                                       \
-        .freed                 = {0},                                                                                  \
-        .freed_map_initialized = false,                                                                                \
-        .double_frees          = 0,                                                                                    \
-        .overflows             = 0,                                                                                    \
-        .bytes_in_use          = 0,                                                                                    \
-        .creator_tid           = debug_current_tid()                                                                   \
+        .heap         = HeapAllocatorInit(),                                                                           \
+        .meta         = HeapAllocatorInit(),                                                                           \
+        .page         = PageAllocatorInit(),                                                                           \
+        .config       = (_cfg),                                                                                        \
+        .live         = DEBUG_LIVE_LIT,                                                                                \
+        .overflows    = 0,                                                                                             \
+        .bytes_in_use = 0,                                                                                             \
+        .creator_tid  = debug_current_tid()                                                                            \
     })
 
 #define DebugAllocatorInit() DebugAllocatorInitWith(DEBUG_ALLOCATOR_DEFAULTS)

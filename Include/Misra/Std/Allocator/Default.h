@@ -62,7 +62,6 @@ typedef HeapAllocator DefaultAllocator;
 #        define DefaultAllocatorInit()                                                                                 \
             DebugAllocatorInitWith(((DebugAllocatorConfig) {.capture_traces     = true,                                \
                                                             .detect_overflow    = true,                                \
-                                                            .retain_metadata    = true,                                \
                                                             .force_page_backing = true,                                \
                                                             .trace_depth        = 8,                                   \
                                                             .canary_bytes       = 16}))

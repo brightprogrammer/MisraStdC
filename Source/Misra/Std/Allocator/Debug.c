@@ -211,43 +211,23 @@ static void debug_emit_trace(const StackFrame *frames, size count, const char *l
     StrDeinit(&rendered);
 }
 
-static void debug_record_free_trace(DebugAllocator *dbg, DebugRecord *rec) {
-    if (dbg->config.capture_traces && dbg->config.trace_depth > 0) {
-        u32 depth = dbg->config.trace_depth;
-        if (depth > DEBUG_ALLOCATOR_MAX_TRACE)
-            depth = DEBUG_ALLOCATOR_MAX_TRACE;
-        rec->free_trace_n = (u32)CaptureStackTrace(rec->free_trace, depth, 3);
-    }
-    rec->freed = true;
-}
-
+// Deallocate. Memory footprint of this allocator scales with the
+// number of LIVE allocations only -- no per-lifetime growth from a
+// "freed" map. Double-free / foreign / misaligned / wrong-size are
+// caught by the underlying HeapAllocator on the forwarded free.
 void debug_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
     DebugAllocator *dbg = debug_validate_self(self);
     if (!ptr)
         return;
 
+    Allocator   *src      = dbg->config.force_page_backing ? ALLOCATOR_OF(&dbg->page) : ALLOCATOR_OF(&dbg->heap);
     DebugRecord *live_rec = MapGetFirstPtr(&dbg->live, ptr);
+
     if (!live_rec) {
-        if (dbg->config.retain_metadata && dbg->freed_map_initialized) {
-            DebugRecord *freed_rec = MapGetFirstPtr(&dbg->freed, ptr);
-            if (freed_rec) {
-                dbg->double_frees += 1;
-                LOG_ERROR(
-                    "DebugAllocator: DOUBLE FREE of {x} (originally {} bytes)",
-                    (u64)(uintptr_t)ptr,
-                    (u64)freed_rec->requested_size
-                );
-                debug_emit_trace(freed_rec->alloc_trace, freed_rec->alloc_trace_n, "alloc", ALLOCATOR_OF(&dbg->meta));
-                debug_emit_trace(
-                    freed_rec->free_trace,
-                    freed_rec->free_trace_n,
-                    "first-free",
-                    ALLOCATOR_OF(&dbg->meta)
-                );
-                return;
-            }
-        }
-        LOG_ERROR("DebugAllocator: free of unknown pointer {x}", (u64)(uintptr_t)ptr);
+        // Pointer is not in our live set. Forward to the underlying
+        // allocator. Heap will catch foreign / double-free / misaligned
+        // / wrong-size with LOG_FATAL plus a backtrace.
+        AllocatorFree(src, ptr, bytes);
         return;
     }
 
@@ -273,21 +253,9 @@ void debug_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
         }
     }
 
-    DebugRecord record = *live_rec;
-    debug_record_free_trace(dbg, &record);
     dbg->bytes_in_use -= (u64)live_rec->requested_size;
-
-    size padded = live_rec->padded_size;
+    size padded        = live_rec->padded_size;
     MapRemoveFirst(&dbg->live, ptr);
-
-    if (dbg->config.retain_metadata) {
-        if (!dbg->freed_map_initialized) {
-            DebugRecordMap fresh       = MapInit(debug_ptr_hash, debug_ptr_compare, &dbg->meta);
-            dbg->freed                 = fresh;
-            dbg->freed_map_initialized = true;
-        }
-        MapInsertR(&dbg->freed, ptr, record);
-    }
 
     if (dbg->config.force_page_backing) {
         // Don't release the page. mprotect it PROT_NONE so any UAF
@@ -298,7 +266,7 @@ void debug_allocator_deallocate(Allocator *self, void *ptr, size bytes) {
             LOG_ERROR("DebugAllocator: PageProtect(PROT_NONE) failed on {x}", (u64)(uintptr_t)ptr);
         }
     } else {
-        AllocatorFree(ALLOCATOR_OF(&dbg->heap), ptr, padded);
+        AllocatorFree(src, ptr, padded);
     }
 }
 
@@ -365,19 +333,13 @@ void DebugAllocatorDeinit(DebugAllocator *self) {
         }
     }
 
-    // Tear down maps. MapDeinit frees any bucket storage they took
-    // from `&self->meta`. force_page_backing'd allocations are NOT
-    // released here (they remain mprotected to keep UAF detection
-    // honest beyond the allocator's lifetime is wrong though -- the
-    // pages get unmapped when meta is destroyed... no, the page
-    // backing went through `self->page`, not `self->meta`; those
-    // pages stay mapped until the OS reclaims them at process exit.
-    // Acceptable: force_page_backing is an opt-in for short-running
-    // tests / fuzz, the memory cost is the documented trade-off).
+    // Tear down the live map (bucket storage from `&self->meta`).
+    // force_page_backing'd allocations are NOT released here -- they
+    // remain mprotected and the pages stay mapped until process exit.
+    // Acceptable: force_page_backing is opt-in for short-running tests
+    // / fuzz, the memory cost is the documented trade-off.
     if (self->live.allocator)
         MapDeinit(&self->live);
-    if (self->freed_map_initialized)
-        MapDeinit(&self->freed);
 
     HeapAllocatorDeinit(&self->meta);
     HeapAllocatorDeinit(&self->heap);
@@ -400,12 +362,6 @@ size DebugAllocatorLiveBytes(const DebugAllocator *self) {
     if (!self)
         return 0;
     return (size)self->bytes_in_use;
-}
-
-size DebugAllocatorDoubleFrees(const DebugAllocator *self) {
-    if (!self)
-        return 0;
-    return (size)self->double_frees;
 }
 
 size DebugAllocatorOverflows(const DebugAllocator *self) {
