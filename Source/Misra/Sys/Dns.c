@@ -8,6 +8,7 @@
 /// Parsers/Dns; transport goes through Sys/Socket. No libc.
 
 #include <Misra/Sys/Dns.h>
+#include <Misra/Std/Zstr.h>
 
 #include <Misra/Parsers/Dns.h>
 #include <Misra/Std/Allocator/Default.h>

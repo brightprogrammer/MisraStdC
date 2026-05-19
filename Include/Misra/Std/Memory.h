@@ -1,18 +1,15 @@
-///
-/// file      : std/memory.c
+/// file      : std/memory.h
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Memory manipulation functions
+/// Raw memory manipulation: compare / copy / move / set / generic sort.
+/// String operations on NUL-terminated C strings live in `Misra/Std/Zstr.h`.
 
 #ifndef MISRA_STD_MEMORY_H
 #define MISRA_STD_MEMORY_H
 
 #include <Misra/Std/Container/Common.h>
-#include <Misra/Std/Container/Vec/Type.h>
 #include <Misra/Types.h>
-
-typedef Vec(const char *) Zstrs;
 
 ///
 /// Compare memory regions.
@@ -25,7 +22,7 @@ typedef Vec(const char *) Zstrs;
 /// SUCCESS: Returns 0 if equal, <0 if p1<p2, >0 if p1>p2.
 /// FAILURE: Function cannot fail - always returns comparison result.
 ///
-/// TAGS: Memory, Comparison, Safety
+/// TAGS: Memory, Comparison
 i32 MemCompare(const void *p1, const void *p2, size n);
 
 ///
@@ -39,35 +36,27 @@ i32 MemCompare(const void *p1, const void *p2, size n);
 /// SUCCESS: Returns destination pointer.
 /// FAILURE: Function cannot fail if regions don't overlap.
 ///
-/// TAGS: Memory, Copy, Safety
+/// TAGS: Memory, Copy
 void *MemCopy(void *dst, const void *src, size n);
 
 ///
 /// Move memory from source to destination, handling overlapping regions.
 /// A zero byte count returns `dst` without reading either pointer.
 ///
-/// dst[out] : Destination memory region.
-/// src[in]  : Source memory region.
-/// n[in]    : Number of bytes to move.
-///
 /// SUCCESS: Returns destination pointer.
 /// FAILURE: Function cannot fail.
 ///
-/// TAGS: Memory, Move, Safety
+/// TAGS: Memory, Move
 void *MemMove(void *dst, const void *src, size n);
 
 ///
 /// Set memory region to a value.
 /// A zero byte count returns `dst` without writing to it.
 ///
-/// dst[out] : Memory region to set.
-/// val[in]  : Value to set (converted to unsigned char).
-/// n[in]    : Number of bytes to set.
-///
 /// SUCCESS: Returns destination pointer.
 /// FAILURE: Function cannot fail.
 ///
-/// TAGS: Memory, Set, Safety
+/// TAGS: Memory, Set
 void *MemSet(void *dst, i32 val, size n);
 
 ///
@@ -86,188 +75,8 @@ void *MemSet(void *dst, i32 val, size n);
 /// FAILURE: No failure mode. If `n_items < 2` or `cmp` is NULL the
 ///          call is a no-op.
 ///
-/// TAGS: Memory, Sort, Generic
+/// TAGS: Memory, Sort
 ///
 void MemSort(void *base, size n_items, size item_size, GenericCompare cmp);
-
-///
-/// Get length of a null-terminated string.
-///
-/// str[in] : Null-terminated string.
-///
-/// SUCCESS: Returns number of characters before null terminator.
-/// FAILURE: Function cannot fail if str is valid.
-///
-/// TAGS: String, Length, Safety
-size ZstrLen(const char *str);
-
-///
-/// Compare two strings lexicographically.
-///
-/// s1[in] : First string.
-/// s2[in] : Second string.
-///
-/// SUCCESS: Returns 0 if equal, <0 if s1<s2, >0 if s1>s2.
-/// FAILURE: Function cannot fail if strings are valid.
-///
-/// TAGS: String, Comparison, Safety
-i32 ZstrCompare(const char *s1, const char *s2);
-
-///
-/// Compare two strings lexicographically up to n characters.
-///
-/// s1[in] : First string.
-/// s2[in] : Second string.
-/// n[in]  : Maximum number of characters to compare.
-///
-/// SUCCESS: Returns 0 if equal, <0 if s1<s2, >0 if s1>s2.
-/// FAILURE: Function cannot fail if strings are valid.
-///
-/// TAGS: String, Comparison, Safety
-i32 ZstrCompareN(const char *s1, const char *s2, size n);
-
-///
-/// Find the first occurrence of a character in a null-terminated string.
-///
-/// str[in] : String to search in.
-/// ch[in]  : Character to search for.
-///
-/// SUCCESS: Returns pointer to first occurrence or NULL if not found.
-/// FAILURE: Function cannot fail if `str` is valid.
-///
-/// TAGS: String, Search, Safety
-char *ZstrFindChar(const char *str, char ch);
-
-///
-/// Duplicates a string up to the specified length.
-/// Creates a new null-terminated string by allocating memory and copying
-/// at most n characters from the source string.
-///
-/// `alloc` is optional inside a `Scope` block (defaults to `MisraScope`).
-///
-/// src[in]   : Source string to duplicate.
-/// n[in]     : Maximum number of characters to copy.
-/// alloc[in] : Allocator that owns the returned buffer (optional).
-///
-/// SUCCESS : Returns a pointer to the newly allocated duplicate string.
-/// FAILURE : Returns NULL if memory allocation fails.
-///
-/// TAGS: String, Memory, Allocation
-///
-char *zstr_dup_n(const char *src, size n, Allocator *alloc);
-#define ZstrDupN(...)              MISRA_OVERLOAD(ZstrDupN, __VA_ARGS__)
-#define ZstrDupN_2(src, n)         zstr_dup_n((src), (n), MisraScope)
-#define ZstrDupN_3(src, n, alloc)  zstr_dup_n((src), (n), ALLOCATOR_OF(alloc))
-
-///
-/// Duplicates a string.
-/// Creates a new null-terminated string by allocating memory and copying
-/// the source string in full.
-///
-/// `alloc` is optional inside a `Scope` block (defaults to `MisraScope`).
-///
-/// src[in]   : Source string to duplicate.
-/// alloc[in] : Allocator that owns the returned buffer (optional).
-///
-/// SUCCESS : Returns a pointer to the newly allocated duplicate string.
-/// FAILURE : Returns NULL if memory allocation fails or if src is NULL.
-///
-/// TAGS: String, Memory, Allocation
-///
-char *zstr_dup(const char *src, Allocator *alloc);
-#define ZstrDup(...)           MISRA_OVERLOAD(ZstrDup, __VA_ARGS__)
-#define ZstrDup_1(src)         zstr_dup((src), MisraScope)
-#define ZstrDup_2(src, alloc)  zstr_dup((src), ALLOCATOR_OF(alloc))
-
-///
-/// Init clone method for zero-terminated strings.
-///
-/// NOTE: This is meant to be used as init method with `Zstrs` vector which is basically
-///       a typedef of `Vec(const char*)`.
-///
-/// dst[out]  : Pointer to zero-terminated string to store cloned string pointer into.
-/// src[in]   : Pointer to zero-terminated string to make clone of.
-/// alloc[in] : Allocator that owns the cloned buffer.
-///
-/// SUCCESS: Returns true
-/// FAILURE: May abort with a log message or may return false depending on severity of situation.
-///
-bool zstr_init_clone(void *dst, const void *src, const Allocator *alloc);
-
-///
-/// Deinit method for zero-terminated strings.
-///
-/// NOTE: This is meant to be used as deinit method with `Zstrs` vector which is basically
-///       a typedef of `Vec(const char*)`.
-///
-/// zs[in]    : Pointer to zero-terminated string to be destroyed.
-/// alloc[in] : Allocator that originally owned the string buffer (same one passed to clone).
-///
-/// SUCCESS: Returns.
-/// FAILURE: Does not return.
-///
-void zstr_deinit(void *zs, const Allocator *alloc);
-
-///
-/// Parse a signed decimal integer from a null-terminated string.
-/// Skips ASCII whitespace, accepts an optional leading sign, then
-/// consumes the longest run of `0..9`. Drops the libc `strtoll` /
-/// `strtol` dependency for callers that only need base-10.
-///
-/// s[in]       : Source string.
-/// endptr[out] : If non-NULL, set to the first byte past the last
-///               digit consumed (or to `s` if no digits were found).
-///
-/// SUCCESS: Returns the parsed value as i64. Overflow wraps in the
-///          unsigned accumulator before sign application; callers
-///          that care should validate the value externally.
-/// FAILURE: Returns 0 when no digits are present.
-///
-/// TAGS: String, Parse, Integer
-///
-i64 ZstrToI64(const char *s, char **endptr);
-
-///
-/// Parse a decimal floating-point value from a null-terminated
-/// string. Accepts `[+-]?digits(.digits)?([eE][+-]?digits)?`. Skips
-/// ASCII whitespace before the sign. Not bit-exact: precision-loss
-/// is possible on long mantissas. Adequate for JSON / KvConfig
-/// numeric values; replaces libc `strtod`.
-///
-/// s[in]       : Source string.
-/// endptr[out] : If non-NULL, set to the first byte past the last
-///               character consumed (matches strtod's contract).
-///
-/// SUCCESS: Returns the parsed value as f64.
-/// FAILURE: Returns 0.0 when no digits are present.
-///
-/// TAGS: String, Parse, Float
-///
-f64 ZstrToF64(const char *s, char **endptr);
-
-///
-/// Find first occurrence of needle in haystack.
-///
-/// haystack[in] : String to search in.
-/// needle[in]   : String to search for.
-///
-/// SUCCESS: Returns pointer to first occurrence or NULL if not found.
-/// FAILURE: Returns NULL if either string is invalid.
-///
-/// TAGS: String, Search, Safety
-char *ZstrFindSubstring(const char *haystack, const char *needle);
-
-///
-/// Find first occurrence of a substring of specified length in haystack.
-///
-/// haystack[in] : String to search in.
-/// needle[in]   : Substring to search for.
-/// needle_len[in]: Length of the substring to search for.
-///
-/// SUCCESS: Returns pointer to first occurrence or NULL if not found.
-/// FAILURE: Returns NULL if haystack is invalid or needle is NULL.
-///
-/// TAGS: String, Search, Safety
-char *ZstrFindSubstringN(const char *haystack, const char *needle, size needle_len);
 
 #endif // MISRA_STD_MEMORY_H

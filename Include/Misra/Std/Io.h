@@ -8,6 +8,7 @@
 #define MISRA_STD_IO
 
 #include <Misra/Std/Container.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/File.h>
 #include <Misra/Types.h>
 

@@ -1,4 +1,5 @@
 #include <Misra/Parsers/JSON.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/Allocator/Default.h>
 
 // libc

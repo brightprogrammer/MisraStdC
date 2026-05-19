@@ -3,6 +3,7 @@
 #endif
 
 #include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>

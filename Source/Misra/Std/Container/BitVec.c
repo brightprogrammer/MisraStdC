@@ -5,6 +5,7 @@
 /// Bit vector implementation - efficient storage for boolean values
 
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Log.h>

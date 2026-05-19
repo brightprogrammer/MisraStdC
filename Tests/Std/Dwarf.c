@@ -1,5 +1,6 @@
 #include <Misra.h>
 #include <Misra/Parsers/Dwarf.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Parsers/Elf.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Sys/SymbolResolver.h>

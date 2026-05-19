@@ -19,6 +19,7 @@
 
 #include <Misra.h>
 #include <Misra/Std/Allocator/Debug.h>
+#include <Misra/Std/Zstr.h>
 
 #include "../Util/TestRunner.h"
 

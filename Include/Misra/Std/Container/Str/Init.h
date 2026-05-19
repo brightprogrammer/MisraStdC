@@ -9,6 +9,7 @@
 
 #include "Type.h"
 #include <Misra/Std/Memory.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Vec/Type.h>
 
 #ifdef __cplusplus

@@ -6,6 +6,7 @@
 /// the transport layer (sockets / files / etc.) is the caller's problem.
 
 #include <Misra/Parsers/Http.h>
+#include <Misra/Std/Zstr.h>
 
 #if FEATURE_FILE
 #    include <Misra/Std/File.h>

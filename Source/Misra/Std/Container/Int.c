@@ -5,6 +5,7 @@
 /// Arbitrary-precision unsigned integer implementation built on top of BitVec.
 
 #include <Misra/Std/Container/Int.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Int/Private.h>
 #include <Misra/Std/Container/BitVec.h>
 #include <Misra/Std/Log.h>

@@ -45,6 +45,7 @@ static inline int misra_is_tty(int fd) {
 #endif
 
 #include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Io.h>

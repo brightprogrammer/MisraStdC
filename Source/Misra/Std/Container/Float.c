@@ -5,6 +5,7 @@
 /// Arbitrary-precision decimal floating-point implementation built on top of Int.
 
 #include <Misra/Std/Container/Float.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Float/Private.h>
 #include <Misra/Std/Container/Int.h>
 #include <Misra/Std/Log.h>
