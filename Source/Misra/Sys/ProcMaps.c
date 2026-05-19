@@ -156,8 +156,7 @@ static bool parse_one_line(char **cursor_inout, char *end, ProcMapEntry *out) {
 
 bool proc_maps_load(ProcMaps *out, Allocator *alloc) {
     if (!out || !alloc) {
-        LOG_ERROR("ProcMapsLoad: NULL argument");
-        return false;
+        LOG_FATAL("ProcMapsLoad: NULL argument");
     }
     MemSet(out, 0, sizeof(*out));
     out->allocator = alloc;

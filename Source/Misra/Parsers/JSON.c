@@ -176,8 +176,7 @@ StrIter JReadString(StrIter si, Str *str) {
     }
 
     if (!str) {
-        LOG_ERROR("Invalid str object to read into.");
-        return si;
+        LOG_FATAL("Invalid str object to read into.");
     }
 
     StrIter saved_si = si;
@@ -285,8 +284,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
     }
 
     if (!num) {
-        LOG_ERROR("Invalid number object.");
-        return si;
+        LOG_FATAL("Invalid number object.");
     }
 
     StrIter saved_si = si;
@@ -423,8 +421,7 @@ StrIter JReadInteger(StrIter si, i64 *val) {
     }
 
     if (!val) {
-        LOG_ERROR("Invalid pointer to integer. Don't know where to store.");
-        return si;
+        LOG_FATAL("Invalid pointer to integer. Don't know where to store.");
     }
 
     StrIter saved_si = si;
@@ -452,8 +449,7 @@ StrIter JReadFloat(StrIter si, f64 *val) {
     }
 
     if (!val) {
-        LOG_ERROR("Invalid pointer to float. Don't know where to store.");
-        return si;
+        LOG_FATAL("Invalid pointer to float. Don't know where to store.");
     }
 
     StrIter saved_si = si;
@@ -480,8 +476,7 @@ StrIter JReadBool(StrIter si, bool *b) {
     }
 
     if (!b) {
-        LOG_ERROR("Invalid boolean pointer. Don't know where to store.");
-        return si;
+        LOG_FATAL("Invalid boolean pointer. Don't know where to store.");
     }
 
     StrIter saved_si = si;
@@ -530,8 +525,7 @@ StrIter JReadNull(StrIter si, bool *is_null) {
     }
 
     if (!is_null) {
-        LOG_ERROR("Invalid boolean pointer. Don't know where to store.");
-        return si;
+        LOG_FATAL("Invalid boolean pointer. Don't know where to store.");
     }
 
     StrIter saved_si = si;

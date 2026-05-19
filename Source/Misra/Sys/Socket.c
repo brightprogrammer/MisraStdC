@@ -550,8 +550,7 @@ static void fill_socket_addr_from_sockaddr(SocketAddr *out, const struct sockadd
 
 bool SocketAddrParse(SocketAddr *out, const char *spec, SocketKind kind) {
     if (!out) {
-        LOG_ERROR("SocketAddrParse: out is NULL");
-        return false;
+        LOG_FATAL("SocketAddrParse: out is NULL");
     }
     MemSet(out, 0, sizeof(*out));
 
@@ -876,8 +875,7 @@ static bool plat_set_nonblocking(SockFd s, bool nonblock) {
 
 bool ListenerOpen(Listener *out, SocketKind kind, const SocketAddr *addr, i32 backlog) {
     if (!out || !addr) {
-        LOG_ERROR("ListenerOpen: NULL argument");
-        return false;
+        LOG_FATAL("ListenerOpen: NULL argument");
     }
     MemSet(out, 0, sizeof(*out));
     out->fd = SOCKET_FD_INVALID;
@@ -934,8 +932,7 @@ bool ListenerOpen(Listener *out, SocketKind kind, const SocketAddr *addr, i32 ba
 
 bool ListenerLocalAddr(const Listener *self, SocketAddr *out) {
     if (!self || !out) {
-        LOG_ERROR("ListenerLocalAddr: NULL argument");
-        return false;
+        LOG_FATAL("ListenerLocalAddr: NULL argument");
     }
     MemSet(out, 0, sizeof(*out));
     u8  buf[SOCKET_ADDR_MAX_SIZE];
@@ -949,8 +946,7 @@ bool ListenerLocalAddr(const Listener *self, SocketAddr *out) {
 
 bool ListenerAccept(Listener *self, Socket *out_conn) {
     if (!self || !out_conn) {
-        LOG_ERROR("ListenerAccept: NULL argument");
-        return false;
+        LOG_FATAL("ListenerAccept: NULL argument");
     }
     MemSet(out_conn, 0, sizeof(*out_conn));
     out_conn->fd = SOCKET_FD_INVALID;
@@ -985,8 +981,7 @@ void ListenerClose(Listener *self) {
 
 bool SocketConnect(Socket *out, SocketKind kind, const SocketAddr *target) {
     if (!out || !target) {
-        LOG_ERROR("SocketConnect: NULL argument");
-        return false;
+        LOG_FATAL("SocketConnect: NULL argument");
     }
     MemSet(out, 0, sizeof(*out));
     out->fd = SOCKET_FD_INVALID;
@@ -1017,16 +1012,14 @@ bool SocketConnect(Socket *out, SocketKind kind, const SocketAddr *target) {
 
 i64 SocketRecv(Socket *self, void *buf, size n) {
     if (!self || !buf) {
-        LOG_ERROR("SocketRecv: NULL argument");
-        return -1;
+        LOG_FATAL("SocketRecv: NULL argument");
     }
     return plat_recv(self->fd, buf, n);
 }
 
 i64 SocketSend(Socket *self, const void *buf, size n) {
     if (!self || !buf) {
-        LOG_ERROR("SocketSend: NULL argument");
-        return -1;
+        LOG_FATAL("SocketSend: NULL argument");
     }
     return plat_send(self->fd, buf, n);
 }
@@ -1105,8 +1098,7 @@ typedef struct pollfd plat_pollfd_t;
 
 i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
     if (!items && count > 0) {
-        LOG_ERROR("SocketPoll: items is NULL but count > 0");
-        return -1;
+        LOG_FATAL("SocketPoll: items is NULL but count > 0");
     }
 
     enum {

@@ -498,8 +498,7 @@ static bool run_line_program(
 
 bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *alloc) {
     if (!out || !elf || !alloc) {
-        LOG_ERROR("DwarfLinesBuildFromElf: NULL argument");
-        return false;
+        LOG_FATAL("DwarfLinesBuildFromElf: NULL argument");
     }
     MemSet(out, 0, sizeof(*out));
     out->allocator   = alloc;

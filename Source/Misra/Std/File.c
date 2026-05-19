@@ -429,8 +429,7 @@ File file_open_temp(const char *prefix, Str *out_path, Allocator *alloc) {
     f.fd = -1;
 #endif
     if (!prefix || !out_path || !alloc) {
-        LOG_ERROR("FileOpenTemp: NULL argument");
-        return f;
+        LOG_FATAL("FileOpenTemp: NULL argument");
     }
 
     // 8 attempts is overkill in practice -- collisions on a 16-hex-digit

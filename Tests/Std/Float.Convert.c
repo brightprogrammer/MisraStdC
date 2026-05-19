@@ -248,13 +248,15 @@ int main(void) {
         test_float_very_large_string_round_trip,
         test_float_scientific_parse,
         test_float_from_str_invalid,
+    };
+
+    // NULL-input: strict contract = LOG_FATAL; deadend driver catches.
+    TestFunction deadend_tests[] = {
         test_float_from_str_null,
     };
 
-    TestFunction deadend_tests[1] = {0};
-
     int total_tests         = sizeof(tests) / sizeof(tests[0]);
-    int total_deadend_tests = 0;
+    int total_deadend_tests = sizeof(deadend_tests) / sizeof(deadend_tests[0]);
 
     return run_test_suite(tests, total_tests, deadend_tests, total_deadend_tests, "Float.Convert");
 }

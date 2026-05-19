@@ -15,8 +15,7 @@ static bool kvconfig_is_comment_start(char c) {
 
 static bool kvconfig_parse_bool_value(const Str *value, bool *out) {
     if (!out) {
-        LOG_ERROR("Expected valid bool output pointer");
-        return false;
+        LOG_FATAL("Expected valid bool output pointer");
     }
 
     ValidateStr(value);
@@ -41,8 +40,7 @@ static bool kvconfig_parse_i64_value(const Str *value, i64 *out) {
     long long parsed;
 
     if (!out) {
-        LOG_ERROR("Expected valid integer output pointer");
-        return false;
+        LOG_FATAL("Expected valid integer output pointer");
     }
 
     parsed = ZstrToI64(value->data, &endptr);
@@ -60,8 +58,7 @@ static bool kvconfig_parse_f64_value(const Str *value, f64 *out) {
     double parsed;
 
     if (!out) {
-        LOG_ERROR("Expected valid float output pointer");
-        return false;
+        LOG_FATAL("Expected valid float output pointer");
     }
 
     parsed = ZstrToF64(value->data, &endptr);
@@ -144,8 +141,7 @@ StrIter KvConfigReadKey(StrIter si, Str *key) {
     StrIter saved_si = si;
 
     if (!key) {
-        LOG_ERROR("Expected valid key output string");
-        return si;
+        LOG_FATAL("Expected valid key output string");
     }
 
     si = KvConfigSkipWhitespace(si);
@@ -173,8 +169,7 @@ StrIter KvConfigReadValue(StrIter si, Str *value) {
     StrIter saved_si = si;
 
     if (!value) {
-        LOG_ERROR("Expected valid value output string");
-        return si;
+        LOG_FATAL("Expected valid value output string");
     }
 
     si = KvConfigSkipWhitespace(si);
@@ -261,8 +256,7 @@ StrIter KvConfigReadPair(StrIter si, Str *key, Str *value) {
     StrIter saved_si = si;
 
     if (!key || !value) {
-        LOG_ERROR("Expected valid key/value outputs");
-        return si;
+        LOG_FATAL("Expected valid key/value outputs");
     }
 
     si = KvConfigReadKey(si, key);
@@ -312,8 +306,7 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg) {
     StrIter saved_si = si;
 
     if (!cfg) {
-        LOG_ERROR("Expected valid KvConfig object");
-        return si;
+        LOG_FATAL("Expected valid KvConfig object");
     }
 
     ValidateMap(cfg);

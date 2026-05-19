@@ -56,8 +56,7 @@ static i64 float_sub_i64_checked(i64 a, i64 b) {
 // (could lose information).
 static bool float_try_from_ieee_bits(Float *out, u64 mantissa, int binexp, bool negative, Allocator *alloc) {
     if (!out) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
     *out          = FloatInit(alloc);
     out->negative = negative;
@@ -102,8 +101,7 @@ static bool float_try_from_ieee_bits(Float *out, u64 mantissa, int binexp, bool 
 
 static bool float_try_from_f32_value(Float *out, float value, Allocator *alloc) {
     if (!out) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
     union {
         f32 f;
@@ -132,8 +130,7 @@ static bool float_try_from_f32_value(Float *out, float value, Allocator *alloc) 
 
 static bool float_try_from_f64_value(Float *out, double value, Allocator *alloc) {
     if (!out) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
     union {
         f64 f;
@@ -167,8 +164,7 @@ static bool float_try_int_from_u64(Int *out, u64 value, Allocator *alloc) {
     u64 bits = 0;
 
     if (!out) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     *out = IntInit(alloc);
@@ -194,8 +190,7 @@ static bool float_pow10(Int *out, u64 power, Allocator *alloc) {
     Int result;
 
     if (!out) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
     if (!float_try_int_from_u64(&base, 10, alloc) || !float_try_int_from_u64(&result, 1, alloc)) {
         IntDeinit(&base);
@@ -252,8 +247,7 @@ static bool float_try_abs_compare(int *out, Float *lhs, Float *rhs) {
     ValidateFloat(lhs);
     ValidateFloat(rhs);
     if (!out) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     if (FloatIsZero(lhs) && FloatIsZero(rhs)) {
@@ -326,8 +320,7 @@ Float FloatClone(Float *value) {
 
 bool FloatTryClone(Float *out, Float *value) {
     if (!out || !value) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     ValidateFloat(value);
@@ -345,8 +338,7 @@ bool FloatTryClone(Float *out, Float *value) {
 
 static bool float_try_from_u64_value(Float *out, u64 value, Allocator *alloc) {
     if (!out) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     *out = FloatInit(alloc);
@@ -363,8 +355,7 @@ static bool float_try_from_i64_value(Float *out, i64 value, Allocator *alloc) {
     u64 magnitude = 0;
 
     if (!out) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     if (value < 0) {
@@ -383,8 +374,7 @@ static bool float_try_from_i64_value(Float *out, i64 value, Allocator *alloc) {
 
 static bool float_try_from_int_value(Float *out, Int *value) {
     if (!out || !value) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     ValidateInt(value);
@@ -507,8 +497,7 @@ bool FloatTryFromStr(Float *out, const char *text) {
     i64   explicit_exp = 0;
 
     if (!out || !text) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     ValidateFloat(out);
@@ -615,8 +604,7 @@ bool float_try_to_str(Str *out, Float *value, Allocator *alloc) {
 
     ValidateFloat(value);
     if (!out) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     *out = StrInit(alloc);

@@ -278,8 +278,8 @@ bool test_int_from_binary_invalid_digit(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int parsed = IntFromBinary("10a1", &alloc.base);
-    Int value  = IntInit(&alloc.base);
+    Int  parsed = IntFromBinary("10a1", &alloc.base);
+    Int  value  = IntInit(&alloc.base);
     bool result = !IntTryFromBinary(&value, "10a1");
 
     result = result && IntIsZero(&parsed);
@@ -296,8 +296,8 @@ bool test_int_from_decimal_invalid_digit(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int parsed = IntFromStr("12x3", &alloc.base);
-    Int value  = IntInit(&alloc.base);
+    Int  parsed = IntFromStr("12x3", &alloc.base);
+    Int  value  = IntInit(&alloc.base);
     bool result = !IntTryFromStr(&value, "12x3");
 
     result = result && IntIsZero(&parsed);
@@ -314,8 +314,8 @@ bool test_int_from_hex_invalid_digit(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int parsed = IntFromHexStr("12g3", &alloc.base);
-    Int value  = IntInit(&alloc.base);
+    Int  parsed = IntFromHexStr("12g3", &alloc.base);
+    Int  value  = IntInit(&alloc.base);
     bool result = !IntTryFromHexStr(&value, "12g3");
 
     result = result && IntIsZero(&parsed);
@@ -332,8 +332,8 @@ bool test_int_from_radix_invalid_digit(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int parsed = IntFromStrRadix("102", 2, &alloc.base);
-    Int value  = IntInit(&alloc.base);
+    Int  parsed = IntFromStrRadix("102", 2, &alloc.base);
+    Int  value  = IntInit(&alloc.base);
     bool result = !IntTryFromStrRadix(&value, "102", 2);
 
     result = result && IntIsZero(&parsed);
@@ -350,8 +350,8 @@ bool test_int_from_radix_invalid_radix(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int parsed = IntFromStrRadix("10", 1, &alloc.base);
-    Int value  = IntInit(&alloc.base);
+    Int  parsed = IntFromStrRadix("10", 1, &alloc.base);
+    Int  value  = IntInit(&alloc.base);
     bool result = !IntTryFromStrRadix(&value, "10", 1);
 
     result = result && IntIsZero(&parsed);
@@ -368,8 +368,8 @@ bool test_int_to_u64_overflow(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFrom(1, &alloc.base);
-    u64 out   = 0;
+    Int  value = IntFrom(1, &alloc.base);
+    u64  out   = 0;
     bool error = false;
 
     IntShiftLeft(&value, 64);
@@ -405,8 +405,8 @@ bool test_int_from_binary_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int parsed = IntFromBinary(NULL, &alloc.base);
-    Int value  = IntInit(&alloc.base);
+    Int  parsed = IntFromBinary(NULL, &alloc.base);
+    Int  value  = IntInit(&alloc.base);
     bool result = !IntTryFromBinary(&value, NULL);
 
     result = result && IntIsZero(&parsed);
@@ -423,8 +423,8 @@ bool test_int_from_decimal_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int parsed = IntFromStr(NULL, &alloc.base);
-    Int value  = IntInit(&alloc.base);
+    Int  parsed = IntFromStr(NULL, &alloc.base);
+    Int  value  = IntInit(&alloc.base);
     bool result = !IntTryFromStr(&value, NULL);
 
     result = result && IntIsZero(&parsed);
@@ -441,8 +441,8 @@ bool test_int_from_radix_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int parsed = IntFromStrRadix(NULL, 10, &alloc.base);
-    Int value  = IntInit(&alloc.base);
+    Int  parsed = IntFromStrRadix(NULL, 10, &alloc.base);
+    Int  value  = IntInit(&alloc.base);
     bool result = !IntTryFromStrRadix(&value, NULL, 10);
 
     result = result && IntIsZero(&parsed);
@@ -459,8 +459,8 @@ bool test_int_from_octal_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int parsed = IntFromOctStr(NULL, &alloc.base);
-    Int value  = IntInit(&alloc.base);
+    Int  parsed = IntFromOctStr(NULL, &alloc.base);
+    Int  value  = IntInit(&alloc.base);
     bool result = !IntTryFromOctStr(&value, NULL);
 
     result = result && IntIsZero(&parsed);
@@ -477,8 +477,8 @@ bool test_int_from_hex_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int parsed = IntFromHexStr(NULL, &alloc.base);
-    Int value  = IntInit(&alloc.base);
+    Int  parsed = IntFromHexStr(NULL, &alloc.base);
+    Int  value  = IntInit(&alloc.base);
     bool result = !IntTryFromHexStr(&value, NULL);
 
     result = result && IntIsZero(&parsed);
@@ -548,14 +548,17 @@ int main(void) {
         test_int_from_radix_invalid_radix,
         test_int_to_u64_overflow,
         test_int_to_str_radix_invalid_radix,
+    };
+
+    // NULL-input tests: now expected to LOG_FATAL via the strict-
+    // contract rule (programmer errors abort). The deadend driver
+    // catches the abort and treats it as PASS.
+    TestFunction deadend_tests[] = {
         test_int_from_binary_null,
         test_int_from_decimal_null,
         test_int_from_radix_null,
         test_int_from_octal_null,
         test_int_from_hex_null,
-    };
-
-    TestFunction deadend_tests[] = {
         test_int_from_bytes_le_null,
         test_int_to_bytes_le_null,
         test_int_to_bytes_be_zero_max_len,

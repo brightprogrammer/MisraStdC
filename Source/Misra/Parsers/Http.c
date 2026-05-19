@@ -60,8 +60,7 @@ bool http_header_init_copy(void *dst_ptr, const void *src_ptr, const Allocator *
 
 HttpHeader *HttpHeadersFind(HttpHeaders *headers, const char *key) {
     if (!headers || !key) {
-        LOG_ERROR("invalid arguments");
-        return NULL;
+        LOG_FATAL("invalid arguments");
     }
     VecForeachPtr(headers, header) {
         if (0 == ZstrCompare(header->key.data, key)) {
@@ -424,8 +423,7 @@ Str http_response_serialize(const HttpResponse *response, Allocator *alloc) {
     Str out = StrInit(alloc);
 
     if (!response) {
-        LOG_ERROR("HttpResponseSerialize: response is NULL");
-        return out;
+        LOG_FATAL("HttpResponseSerialize: response is NULL");
     }
 
     const char *response_code = HttpResponseCodeToZstr(response->status_code);

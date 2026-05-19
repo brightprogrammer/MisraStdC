@@ -207,8 +207,7 @@ static ResolverCacheEntry *resolver_cache_find_or_open(SymbolResolver *self, con
 
 bool symbol_resolver_init(SymbolResolver *out, Allocator *alloc) {
     if (!out || !alloc) {
-        LOG_ERROR("SymbolResolverInit: NULL argument");
-        return false;
+        LOG_FATAL("SymbolResolverInit: NULL argument");
     }
     MemSet(out, 0, sizeof(*out));
     out->allocator = alloc;

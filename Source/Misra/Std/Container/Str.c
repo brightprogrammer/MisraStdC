@@ -756,8 +756,7 @@ bool StrToU64(const Str *str, u64 *value, const StrParseConfig *config) {
     ValidateStr(str);
 
     if (!value) {
-        LOG_ERROR("NULL output pointer");
-        return false;
+        LOG_FATAL("NULL output pointer");
     }
 
     if (!config) {
@@ -846,8 +845,7 @@ bool StrToI64(const Str *str, i64 *value, const StrParseConfig *config) {
     ValidateStr(str);
 
     if (!value) {
-        LOG_ERROR("NULL output pointer");
-        return false;
+        LOG_FATAL("NULL output pointer");
     }
 
     if (!config) {
@@ -910,8 +908,7 @@ bool StrToF64(const Str *str, f64 *value, const StrParseConfig *config) {
     ValidateStr(str);
 
     if (!value) {
-        LOG_ERROR("NULL output pointer");
-        return false;
+        LOG_FATAL("NULL output pointer");
     }
 
     if (!config) {

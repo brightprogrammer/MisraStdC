@@ -334,8 +334,7 @@ static bool parse_fde(
 
 bool dwarf_cfi_build_from_elf(DwarfCfi *out, const ElfFile *elf, Allocator *alloc) {
     if (!out || !elf || !alloc) {
-        LOG_ERROR("DwarfCfiBuildFromElf: NULL argument");
-        return false;
+        LOG_FATAL("DwarfCfiBuildFromElf: NULL argument");
     }
     MemSet(out, 0, sizeof(*out));
     out->allocator = alloc;

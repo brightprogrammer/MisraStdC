@@ -403,8 +403,7 @@ i64 file_get_size(const char *filename) {
 
 i8 file_remove(const char *path) {
     if (!path) {
-        LOG_ERROR("FileRemove: NULL path");
-        return 0;
+        LOG_FATAL("FileRemove: NULL path");
     }
 #if defined(_WIN32)
     if (!DeleteFileA(path)) {
@@ -433,8 +432,7 @@ i8 file_remove(const char *path) {
 
 i8 dir_remove(const char *path) {
     if (!path) {
-        LOG_ERROR("DirRemove: NULL path");
-        return 0;
+        LOG_FATAL("DirRemove: NULL path");
     }
 #if defined(_WIN32)
     if (!RemoveDirectoryA(path)) {
@@ -475,8 +473,7 @@ i8 dir_remove(const char *path) {
 
 i8 dir_create(const char *path) {
     if (!path) {
-        LOG_ERROR("DirCreate: NULL path");
-        return 0;
+        LOG_FATAL("DirCreate: NULL path");
     }
 #if defined(_WIN32)
     if (!CreateDirectoryA(path, NULL)) {
@@ -529,8 +526,7 @@ static bool dir_already_exists(const char *path) {
 
 i8 dir_create_all(const char *path) {
     if (!path) {
-        LOG_ERROR("DirCreateAll: NULL path");
-        return 0;
+        LOG_FATAL("DirCreateAll: NULL path");
     }
     size n = ZstrLen(path);
     if (n == 0) {
@@ -579,8 +575,7 @@ i8 dir_create_all(const char *path) {
 
 i8 dir_remove_all(const char *path) {
     if (!path) {
-        LOG_ERROR("DirRemoveAll: NULL path");
-        return 0;
+        LOG_FATAL("DirRemoveAll: NULL path");
     }
     // Stat first: a missing path is a successful no-op (mirrors
     // `rm -rf` semantics that callers rely on for test cleanup).

@@ -236,8 +236,7 @@ void BitVecSwap(BitVec *bv1, BitVec *bv2) {
 bool BitVecTryClone(BitVec *out, BitVec *bv) {
     ValidateBitVec(bv);
     if (!out) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     *out = BitVecInit(bv->allocator);

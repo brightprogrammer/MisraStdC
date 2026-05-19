@@ -493,8 +493,7 @@ bool DwarfFunctionsBuildFromSlices(
     Allocator      *alloc
 ) {
     if (!out || !alloc) {
-        LOG_ERROR("DwarfFunctionsBuildFromSlices: NULL argument");
-        return false;
+        LOG_FATAL("DwarfFunctionsBuildFromSlices: NULL argument");
     }
     MemSet(out, 0, sizeof(*out));
     out->allocator   = alloc;
@@ -613,8 +612,7 @@ bool DwarfFunctionsBuildFromSlices(
 
 bool dwarf_functions_build_from_elf(DwarfFunctions *out, const ElfFile *elf, Allocator *alloc) {
     if (!out || !elf || !alloc) {
-        LOG_ERROR("DwarfFunctionsBuildFromElf: NULL argument");
-        return false;
+        LOG_FATAL("DwarfFunctionsBuildFromElf: NULL argument");
     }
     const ElfSection *info_sec   = ElfFileFindSection(elf, ".debug_info");
     const ElfSection *abbrev_sec = ElfFileFindSection(elf, ".debug_abbrev");

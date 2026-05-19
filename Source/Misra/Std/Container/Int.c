@@ -35,8 +35,7 @@ static Int int_wrap(BitVec bits) {
 
 static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator *alloc) {
     if (!out) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     *out = int_wrap(BitVecInitWithCapacity(capacity, alloc));
@@ -53,8 +52,7 @@ static bool int_try_from_u64_with_allocator(Int *out, u64 value, Allocator *allo
     u64 bits = int_u64_bits(value);
 
     if (!out) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     *out = IntInit(alloc);
@@ -321,8 +319,7 @@ static bool int_try_from_str_radix_impl(Int *out, const char *digits, u64 start,
     bool saw_digit = false;
 
     if (!out || !digits) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     ValidateInt(out);
@@ -376,8 +373,7 @@ u64 IntByteLength(Int *value) {
 
 bool IntTryLog2(Int *value, u64 *out) {
     if (!value || !out) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     ValidateInt(value);
@@ -444,8 +440,7 @@ bool IntIsPowerOfTwo(Int *value) {
 
 static bool int_try_clone_value(Int *out, Int *value) {
     if (!out || !value) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     ValidateInt(value);
@@ -488,8 +483,7 @@ Int int_from_i64(i64 value, Allocator *alloc) {
 
 bool IntTryToU64(Int *value, u64 *out) {
     if (!value || !out) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     ValidateInt(value);
@@ -627,8 +621,7 @@ bool IntTryFromStr(Int *out, const char *decimal) {
     u64 start = 0;
 
     if (!out || !decimal) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     if (decimal[0] == '+') {
@@ -665,8 +658,7 @@ bool IntTryFromStrRadix(Int *out, const char *digits, u8 radix) {
     u64 start = 0;
 
     if (!out || !digits) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
     if (digits[0] == '+') {
         start = 1;
@@ -688,8 +680,7 @@ bool int_try_to_str_radix(Str *out, Int *value, u8 radix, bool uppercase, Alloca
 
     ValidateInt(value);
     if (!out) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     *out = StrInit(alloc);
@@ -753,8 +744,7 @@ bool IntTryFromBinary(Int *out, const char *binary) {
     u64 len   = 0;
 
     if (!out || !binary) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     len = (u64)ZstrLen(binary);
@@ -781,8 +771,7 @@ bool IntTryFromOctStr(Int *out, const char *octal) {
     u64 len   = 0;
 
     if (!out || !octal) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     len = (u64)ZstrLen(octal);
@@ -806,8 +795,7 @@ Str IntToOctStr(Int *value) {
 
 bool IntTryFromHexStr(Int *out, const char *hex) {
     if (!out || !hex) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     return int_try_from_str_radix_impl(out, hex, 0, 16, false);
@@ -1829,8 +1817,7 @@ bool IntTryJacobi(int *out, Int *a, Int *n) {
     ValidateInt(n);
 
     if (!out) {
-        LOG_ERROR("Invalid arguments");
-        return false;
+        LOG_FATAL("Invalid arguments");
     }
 
     if (IntIsZero(n) || IntIsEven(n)) {
