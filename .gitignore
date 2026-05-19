@@ -12,6 +12,7 @@ Docs/public
 fuzz-outputs
 Fuzz/outputs/
 .refactor-todo.md
+.subagent-reports.md
 core
 core.*
 .claude/
