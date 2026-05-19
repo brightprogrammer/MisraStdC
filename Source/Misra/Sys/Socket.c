@@ -627,7 +627,7 @@ Str socket_addr_format(const SocketAddr *addr, Allocator *alloc) {
             return out;
         }
         port = FROM_BIG_ENDIAN2(sa->sin_port);
-        StrWriteFmt(&out, "{}:{}", host_p, (u32)port);
+        StrAppendFmt(&out, "{}:{}", host_p, (u32)port);
     } else if (addr->family == SOCKET_FAMILY_INET6) {
         const struct sockaddr_in6 *sa = (const struct sockaddr_in6 *)addr->raw;
         // Windows' IN6_ADDR aliases `s6_addr` via macro.
@@ -637,7 +637,7 @@ Str socket_addr_format(const SocketAddr *addr, Allocator *alloc) {
             return out;
         }
         port = FROM_BIG_ENDIAN2(sa->sin6_port);
-        StrWriteFmt(&out, "[{}]:{}", host_p, (u32)port);
+        StrAppendFmt(&out, "[{}]:{}", host_p, (u32)port);
     } else {
         LOG_ERROR("SocketAddrFormat: unknown family {}", (u32)addr->family);
     }

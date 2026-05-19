@@ -45,6 +45,7 @@ static inline int misra_is_tty(int fd) {
 #endif
 
 #include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
@@ -297,7 +298,7 @@ static bool PadString(Str *o, size width, Alignment align, size content_len) {
     return true;
 }
 
-bool str_write_fmt(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc) {
+bool str_append_fmt(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc) {
     if (!o || !fmt) {
         LOG_FATAL("Invalid arguments");
         return false;
@@ -491,6 +492,42 @@ bool str_write_fmt(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc) {
     return true;
 }
 
+bool str_write_fmt(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc) {
+    if (!o || !fmt) {
+        LOG_FATAL("Invalid arguments");
+        return false;
+    }
+    StrClear(o);
+    return str_append_fmt(o, fmt, args, argc);
+}
+
+bool str_patch_fmt(Str *o, size offset, const char *fmt, TypeSpecificIO *args, u64 argc) {
+    if (!o || !fmt) {
+        LOG_FATAL("Invalid arguments");
+        return false;
+    }
+    // Render into a scratch Str, then overwrite [offset, offset+rendered.length).
+    DefaultAllocator scratch = DefaultAllocatorInit();
+    Str              tmp     = StrInit(&scratch);
+    bool             ok      = str_append_fmt(&tmp, fmt, args, argc);
+    if (ok) {
+        if (offset > o->length || tmp.length > o->length - offset) {
+            LOG_ERROR(
+                "StrPatchFmt: write of {} bytes at offset {} exceeds str length {}",
+                tmp.length,
+                offset,
+                o->length
+            );
+            ok = false;
+        } else if (tmp.length) {
+            MemCopy(o->data + offset, tmp.data, tmp.length);
+        }
+    }
+    StrDeinit(&tmp);
+    DefaultAllocatorDeinit(&scratch);
+    return ok;
+}
+
 bool f_write_fmt(File *stream, const char *fmtstr, TypeSpecificIO *argv, u64 argc, bool append_newline) {
     Str              out;
     bool             ok      = true;
@@ -503,7 +540,7 @@ bool f_write_fmt(File *stream, const char *fmtstr, TypeSpecificIO *argv, u64 arg
     }
 
     out = StrInit(&scratch);
-    ok  = str_write_fmt(&out, fmtstr, argv, argc);
+    ok  = str_append_fmt(&out, fmtstr, argv, argc);
 
     // Build the whole line first, including any trailing newline, then
     // emit in a single FileWrite. Single-syscall writes under PIPE_BUF
@@ -635,7 +672,16 @@ const char *str_read_fmt(const char *input, const char *fmtstr, TypeSpecificIO *
                     }
                 }
 
-                // do raw read
+                // Known limitation: _read_r{8,16,32,64} read
+                // fmt_info.width bytes without bound checking, and the
+                // surrounding rem_in here is derived from ZstrLen(in)
+                // -- which is misleading for binary inputs that have
+                // embedded zeros (the parser callers feed raw file
+                // bytes where embedded zeros are common). Adding a
+                // `rem_in < fmt_info.width` check here breaks the
+                // binary parsers. Closing this properly requires
+                // threading a real buffer length through str_read_fmt
+                // instead of ZstrLen; tracked as a separate refactor.
                 u64 x = 0;
                 next  = raw_reader(in, &fmt_info, &x);
 
@@ -751,6 +797,289 @@ const char *str_read_fmt(const char *input, const char *fmtstr, TypeSpecificIO *
     }
 
     return in;
+}
+
+// ---------------------------------------------------------------------------
+// buf_read_fmt / buf_append_fmt / buf_write_fmt / buf_patch_fmt:
+// formatted binary I/O over a ByteIter (read) or Buf (write/append/patch).
+// All four share the same on-disk format vocabulary: `{<Nr}` / `{>Nr}` for
+// raw N-byte LE/BE reads/writes where N is 1/2/4/8. The destination /
+// source variable width must match the spec width exactly.
+//
+// Read is atomic: on any field failure iter->pos is restored to entry
+// value. Append/Write fail-stop on first allocation failure, leaving the
+// Buf in whatever state the partial run left it (caller may have to
+// truncate). Patch validates fit before mutating, then writes in-place.
+// ---------------------------------------------------------------------------
+
+bool buf_read_fmt(ByteIter *iter, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
+    if (!iter || !fmtstr) {
+        LOG_FATAL("buf_read_fmt: NULL iter or fmtstr");
+    }
+
+    size        start_pos = iter->pos;
+    u64         arg_index = 0;
+    const char *p         = fmtstr;
+
+    while (*p) {
+        if (*p != '{') {
+            LOG_FATAL("buf_read_fmt: stray '{c}' in binary fmt; only {{<Nr}} / {{>Nr}} allowed", (u32)(u8)*p);
+        }
+        const char *spec_start = p + 1;
+        const char *spec_end   = spec_start;
+        while (*spec_end && *spec_end != '}') {
+            spec_end++;
+        }
+        if (*spec_end != '}') {
+            LOG_FATAL("buf_read_fmt: unterminated {{ in fmt");
+        }
+        u32 spec_len = (u32)(spec_end - spec_start);
+
+        FmtInfo fmt_info = {0};
+        if (!ParseFormatSpec(spec_start, spec_len, &fmt_info)) {
+            iter->pos = start_pos;
+            return false; // ParseFormatSpec already logged
+        }
+        if (!(fmt_info.flags & FMT_FLAG_RAW)) {
+            LOG_FATAL("buf_read_fmt: only raw ({{<Nr}}/{{>Nr}}) specs allowed");
+        }
+        if (fmt_info.width != 1 && fmt_info.width != 2 && fmt_info.width != 4 && fmt_info.width != 8) {
+            LOG_FATAL("buf_read_fmt: raw width must be 1/2/4/8 (got {})", (u64)fmt_info.width);
+        }
+        // Bounds check in iter space; pointer arithmetic stays inside the buffer.
+        if (fmt_info.width > (iter->length - iter->pos)) {
+            iter->pos = start_pos;
+            return false;
+        }
+        if (arg_index >= argc) {
+            LOG_FATAL("buf_read_fmt: too few arguments for format string");
+        }
+        TypeSpecificIO *io = &argv[arg_index++];
+        if (!io->reader) {
+            LOG_FATAL("buf_read_fmt: argument {} has no reader", arg_index - 1);
+        }
+
+        // Read the raw bytes into a u64 with the spec's endianness.
+        const char *in   = (const char *)iter->data + iter->pos;
+        u64         x    = 0;
+        const char *next = NULL;
+        switch (fmt_info.width) {
+            case 1 : {
+                u8 v;
+                next = _read_r8(in, &fmt_info, &v);
+                x    = v;
+                break;
+            }
+            case 2 : {
+                u16 v;
+                next = _read_r16(in, &fmt_info, &v);
+                x    = v;
+                break;
+            }
+            case 4 : {
+                u32 v;
+                next = _read_r32(in, &fmt_info, &v);
+                x    = v;
+                break;
+            }
+            case 8 :
+                next = _read_r64(in, &fmt_info, &x);
+                break;
+        }
+        if (!next) {
+            iter->pos = start_pos;
+            return false;
+        }
+        iter->pos += fmt_info.width;
+
+        // Resolve destination variable width via the reader fn pointer
+        // (same discriminator str_read_fmt uses). Require an exact match
+        // with spec width -- on-disk and in-memory layouts must agree.
+        u32   var_width = 0;
+        void *read_fn   = (void *)io->reader;
+        if (read_fn == (void *)_read_u8 || read_fn == (void *)_read_i8) {
+            var_width = 1;
+        } else if (read_fn == (void *)_read_u16 || read_fn == (void *)_read_i16) {
+            var_width = 2;
+        } else if (read_fn == (void *)_read_u32 || read_fn == (void *)_read_i32 || read_fn == (void *)_read_f32) {
+            var_width = 4;
+        } else if (read_fn == (void *)_read_u64 || read_fn == (void *)_read_i64 || read_fn == (void *)_read_f64) {
+            var_width = 8;
+        } else {
+            LOG_FATAL("buf_read_fmt: unsupported variable type at arg {}", arg_index - 1);
+        }
+        if (fmt_info.width != var_width) {
+            LOG_FATAL(
+                "buf_read_fmt: spec width {} doesn't match variable width {} at arg {}",
+                (u64)fmt_info.width,
+                (u64)var_width,
+                arg_index - 1
+            );
+        }
+
+        switch (var_width) {
+            case 1 :
+                *(u8 *)io->data = (u8)x;
+                break;
+            case 2 :
+                *(u16 *)io->data = (u16)x;
+                break;
+            case 4 :
+                *(u32 *)io->data = (u32)x;
+                break;
+            case 8 :
+                *(u64 *)io->data = x;
+                break;
+        }
+
+        p = spec_end + 1;
+    }
+
+    if (arg_index != argc) {
+        LOG_FATAL("buf_read_fmt: {} unused argument(s) at end of format", argc - arg_index);
+    }
+    return true;
+}
+
+// Render one `{<Nr}` / `{>Nr}` directive into `out` (a Str backing the
+// Buf body) using the same `_write_rN` helpers str_append_fmt uses for
+// raw output. Returns the index of the next byte after the directive,
+// or 0 on a failed write (fmt error / OOM).
+static bool render_one_raw_field(Str *out, FmtInfo *fmt_info, TypeSpecificIO *io, u64 arg_index) {
+    if (!io->writer) {
+        LOG_FATAL("buf_*_fmt: argument {} has no writer", arg_index);
+    }
+    void *write_fn  = (void *)io->writer;
+    u32   var_width = 0;
+    if (write_fn == (void *)_write_u8 || write_fn == (void *)_write_i8) {
+        var_width = 1;
+    } else if (write_fn == (void *)_write_u16 || write_fn == (void *)_write_i16) {
+        var_width = 2;
+    } else if (write_fn == (void *)_write_u32 || write_fn == (void *)_write_i32 || write_fn == (void *)_write_f32) {
+        var_width = 4;
+    } else if (write_fn == (void *)_write_u64 || write_fn == (void *)_write_i64 || write_fn == (void *)_write_f64) {
+        var_width = 8;
+    } else {
+        LOG_FATAL("buf_*_fmt: unsupported variable type at arg {}", arg_index);
+    }
+    if (fmt_info->width != var_width) {
+        LOG_FATAL(
+            "buf_*_fmt: spec width {} doesn't match variable width {} at arg {}",
+            (u64)fmt_info->width,
+            (u64)var_width,
+            arg_index
+        );
+    }
+    switch (fmt_info->width) {
+        case 1 : {
+            u8 v = *(u8 *)io->data;
+            return _write_r8(out, fmt_info, &v);
+        }
+        case 2 : {
+            u16 v = *(u16 *)io->data;
+            return _write_r16(out, fmt_info, &v);
+        }
+        case 4 : {
+            u32 v = *(u32 *)io->data;
+            return _write_r32(out, fmt_info, &v);
+        }
+        case 8 : {
+            u64 v = *(u64 *)io->data;
+            return _write_r64(out, fmt_info, &v);
+        }
+    }
+    return false;
+}
+
+// Render a binary-only fmt string + args into `out`. `out` must be a
+// Str (or Str-shaped Vec(char)) backing whatever container the caller
+// ultimately writes into. Shared between buf_append_fmt and the body
+// rendering done by buf_write_fmt / buf_patch_fmt.
+static bool render_binary_fmt(Str *out, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
+    u64         arg_index = 0;
+    const char *p         = fmtstr;
+    while (*p) {
+        if (*p != '{') {
+            LOG_FATAL("buf_*_fmt: stray '{c}' in binary fmt; only {{<Nr}} / {{>Nr}} allowed", (u32)(u8)*p);
+        }
+        const char *spec_start = p + 1;
+        const char *spec_end   = spec_start;
+        while (*spec_end && *spec_end != '}') {
+            spec_end++;
+        }
+        if (*spec_end != '}') {
+            LOG_FATAL("buf_*_fmt: unterminated {{ in fmt");
+        }
+        u32 spec_len = (u32)(spec_end - spec_start);
+
+        FmtInfo fmt_info = {0};
+        if (!ParseFormatSpec(spec_start, spec_len, &fmt_info)) {
+            return false;
+        }
+        if (!(fmt_info.flags & FMT_FLAG_RAW)) {
+            LOG_FATAL("buf_*_fmt: only raw ({{<Nr}}/{{>Nr}}) specs allowed");
+        }
+        if (fmt_info.width != 1 && fmt_info.width != 2 && fmt_info.width != 4 && fmt_info.width != 8) {
+            LOG_FATAL("buf_*_fmt: raw width must be 1/2/4/8 (got {})", (u64)fmt_info.width);
+        }
+        if (arg_index >= argc) {
+            LOG_FATAL("buf_*_fmt: too few arguments for format string");
+        }
+        TypeSpecificIO *io = &argv[arg_index++];
+        if (!render_one_raw_field(out, &fmt_info, io, arg_index - 1)) {
+            return false;
+        }
+        p = spec_end + 1;
+    }
+    if (arg_index != argc) {
+        LOG_FATAL("buf_*_fmt: {} unused argument(s) at end of format", argc - arg_index);
+    }
+    return true;
+}
+
+bool buf_append_fmt(Buf *out, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
+    if (!out || !fmtstr) {
+        LOG_FATAL("buf_append_fmt: NULL out or fmtstr");
+    }
+    // The raw-write helpers (_write_rN) emit into a Str. Buf is Vec(u8)
+    // and Str is Vec(char); both have identical layout, so we alias.
+    return render_binary_fmt((Str *)out, fmtstr, argv, argc);
+}
+
+bool buf_write_fmt(Buf *out, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
+    if (!out || !fmtstr) {
+        LOG_FATAL("buf_write_fmt: NULL out or fmtstr");
+    }
+    VecClear(out);
+    return render_binary_fmt((Str *)out, fmtstr, argv, argc);
+}
+
+bool buf_patch_fmt(Buf *out, size offset, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
+    if (!out || !fmtstr) {
+        LOG_FATAL("buf_patch_fmt: NULL out or fmtstr");
+    }
+    // Render into a scratch Str so we know the byte count before
+    // mutating `out`. The patch fails if it would extend past the
+    // current length -- caller must AppendFmt placeholder bytes first.
+    DefaultAllocator scratch = DefaultAllocatorInit();
+    Str              tmp     = StrInit(&scratch);
+    bool             ok      = render_binary_fmt(&tmp, fmtstr, argv, argc);
+    if (ok) {
+        if (offset > out->length || tmp.length > out->length - offset) {
+            LOG_ERROR(
+                "BufPatchFmt: write of {} bytes at offset {} exceeds buf length {}",
+                tmp.length,
+                offset,
+                out->length
+            );
+            ok = false;
+        } else if (tmp.length) {
+            MemCopy(out->data + offset, tmp.data, tmp.length);
+        }
+    }
+    StrDeinit(&tmp);
+    DefaultAllocatorDeinit(&scratch);
+    return ok;
 }
 
 void f_read_fmt(File *file, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
@@ -1919,8 +2248,12 @@ const char *_read_Str(const char *i, FmtInfo *fmt_info, Str *s) {
                     StrDeinit(s);
                     return NULL;
                 }
-                i  = curr + 1; // Move past the escape sequence
-                r -= 2;
+                i = curr + 1; // Move past the escape sequence
+                // `r` is u32. Subtracting 2 when r == 1 wraps to
+                // 0xFFFFFFFE, turning the bounded read into ~4 GB.
+                // The escape consumed at least 2 input chars but the
+                // caller may have set max_read_len = 1.
+                r = (r >= 2u) ? (r - 2u) : 0u;
 
                 // Apply case conversion if needed
                 if (force_case) {
@@ -1956,8 +2289,12 @@ const char *_read_Str(const char *i, FmtInfo *fmt_info, Str *s) {
                     StrDeinit(s);
                     return NULL;
                 }
-                i  = curr + 1; // Move past the escape sequence
-                r -= 2;
+                i = curr + 1; // Move past the escape sequence
+                // `r` is u32. Subtracting 2 when r == 1 wraps to
+                // 0xFFFFFFFE, turning the bounded read into ~4 GB.
+                // The escape consumed at least 2 input chars but the
+                // caller may have set max_read_len = 1.
+                r = (r >= 2u) ? (r - 2u) : 0u;
 
                 // Apply case conversion if needed
                 if (force_case) {

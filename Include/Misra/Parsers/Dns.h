@@ -22,6 +22,7 @@
 
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Types.h>
 
@@ -31,7 +32,7 @@ extern "C" {
 
     // Wire byte buffer used by both the encoder (caller passes it in
     // for query construction) and the decoder's raw-rdata storage.
-    typedef Vec(u8) DnsWireBuf;
+    typedef Buf DnsWireBuf;
 
     typedef enum DnsType {
         DNS_TYPE_A     = 1,

@@ -221,23 +221,37 @@ i64 ZstrToI64(const char *s, char **endptr) {
         neg = true;
         s++;
     }
+    // Accumulate in u64 with explicit overflow detection. The bound
+    // is INT64_MAX for positive, INT64_MAX+1 (= 2^63) for negative.
+    // On overflow saturate to that bound -- callers that care can
+    // notice the saturation value; callers that don't get a stable
+    // pinned value rather than a silent wrap.
     const char *digit_start = s;
+    const u64   bound       = neg ? ((u64)1 << 63) : (u64)0x7FFFFFFFFFFFFFFFULL;
     u64         val         = 0;
+    bool        saturated   = false;
     while (*s >= '0' && *s <= '9') {
-        val = val * 10 + (u64)(*s - '0');
+        u64 digit = (u64)(*s - '0');
+        if (!saturated) {
+            if (val > (bound - digit) / 10) {
+                val       = bound;
+                saturated = true;
+            } else {
+                val = val * 10 + digit;
+            }
+        }
         s++;
     }
     if (endptr) {
-        *endptr = (char *)(s == digit_start ? digit_start - (neg || *digit_start ? 1 : 0) : s);
         // If no digits, return endptr at original start; matches strtol shape.
-        if (s == digit_start) {
-            *endptr = (char *)digit_start;
-        }
+        *endptr = (char *)(s == digit_start ? digit_start : s);
     }
     if (s == digit_start) {
         return 0;
     }
-    return neg ? -(i64)val : (i64)val;
+    // Negate in unsigned space so val == 2^63 (the INT64_MIN literal)
+    // doesn't trip signed-overflow UB on the (i64) cast + negation.
+    return neg ? (i64)(0u - val) : (i64)val;
 }
 
 f64 ZstrToF64(const char *s, char **endptr) {

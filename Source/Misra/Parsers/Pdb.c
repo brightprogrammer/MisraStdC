@@ -2,29 +2,10 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// PDB reader. Three layers in one file:
-///
-///   - MSF (Multi-Stream File) container: validates the superblock,
-///     follows the directory-block map to reconstruct the stream
-///     directory, then exposes a `read N bytes from stream S at offset
-///     O` primitive on top.
-///
-///   - PDB Info (stream #1): GUID + age, the pair callers match
-///     against a PE binary's CodeView record.
-///
-///   - DBI stream (#3) + SymRecord stream + SectionHdr stream: walk
-///     the symbol records (`S_PUB32`) and build a sorted-by-RVA table
-///     of `(rva, name)` for runtime address-to-name resolution. RVA
-///     = section.virtual_address + record.offset using the section
-///     headers stashed inside the PDB by the linker.
-///
-/// Spec references:
-///   - https://github.com/microsoft/microsoft-pdb (Microsoft's own
-///     half-documented dump of the on-disk format)
-///   - LLVM's `DebugInfo/PDB/Native/*` headers (the cleanest existing
-///     open-source reader; we mirror the same field names where
-///     practical)
+/// PDB reader: MSF container, PDB Info stream (GUID + age), DBI +
+/// SymRecord + SectionHdr streams (sorted RVA -> name table).
 
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Parsers/Pdb.h>
 #include <Misra/Std.h>
 #include <Misra/Std/File.h>
@@ -43,6 +24,54 @@ enum {
     SUPERBLOCK_SIZE = 56,
     NIL_STREAM      = 0xFFFFFFFFu,
 };
+
+// ---------------------------------------------------------------------------
+// On-disk record layouts (LE)
+// ---------------------------------------------------------------------------
+
+#define FMT_PDB_SUPERBLOCK_LE                                                                                          \
+    "{<4r}" /* block_size           */                                                                                 \
+    "{<4r}" /* free_block_map_block */                                                                                 \
+    "{<4r}" /* num_blocks           */                                                                                 \
+    "{<4r}" /* num_directory_bytes  */                                                                                 \
+    "{<4r}" /* unknown              */                                                                                 \
+    "{<4r}" /* block_map_addr       */
+
+// PDB Info stream header: 3 u32s (version, signature, age). GUID +
+// stream-name table follow but the parser only needs the prefix.
+#define FMT_PDB_INFO_LE                                                                                                \
+    "{<4r}" /* version   */                                                                                            \
+    "{<4r}" /* signature */                                                                                            \
+    "{<4r}" /* age       */
+
+// DBI header (first 64 bytes). u32 = read; u16 = read; mixed.
+// S_PUB32 record body prefix (10 bytes). Variable-length NUL-terminated name follows.
+#define FMT_S_PUB32_PREFIX_LE                                                                                          \
+    "{<4r}" /* flags   */                                                                                              \
+    "{<4r}" /* offset  */                                                                                              \
+    "{<2r}" /* segment */
+
+#define FMT_PDB_DBI_HEADER_LE                                                                                          \
+    "{<4r}" /* version_signature    */                                                                                 \
+    "{<4r}" /* version_header       */                                                                                 \
+    "{<4r}" /* age                  */                                                                                 \
+    "{<2r}" /* global_stream_index  */                                                                                 \
+    "{<2r}" /* build_number         */                                                                                 \
+    "{<2r}" /* public_stream_index  */                                                                                 \
+    "{<2r}" /* pdb_dll_version      */                                                                                 \
+    "{<2r}" /* sym_record_stream    */                                                                                 \
+    "{<2r}" /* pdb_dll_rbld         */                                                                                 \
+    "{<4r}" /* mod_info_size        */                                                                                 \
+    "{<4r}" /* section_contrib_size */                                                                                 \
+    "{<4r}" /* section_map_size     */                                                                                 \
+    "{<4r}" /* source_info_size     */                                                                                 \
+    "{<4r}" /* type_server_map_size */                                                                                 \
+    "{<4r}" /* mfc_type_server_idx  */                                                                                 \
+    "{<4r}" /* opt_dbg_header_size  */                                                                                 \
+    "{<4r}" /* ec_substream_size    */                                                                                 \
+    "{<2r}" /* flags                */                                                                                 \
+    "{<2r}" /* machine              */                                                                                 \
+    "{<4r}" /* padding              */
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -113,13 +142,23 @@ static bool parse_superblock(PdbFile *self, u32 *out_num_dir_bytes, u32 *out_blo
         LOG_ERROR("PDB: bad MSF magic (not 7.00)");
         return false;
     }
-    self->block_size   = read_u32_le(self->data + 32);
-    u32 free_blk       = read_u32_le(self->data + 36);
-    u32 num_blocks     = read_u32_le(self->data + 40);
-    *out_num_dir_bytes = read_u32_le(self->data + 44);
-    /* u32 unknown        */ read_u32_le(self->data + 48);
-    *out_block_map_addr = read_u32_le(self->data + 52);
+    ByteIter sb = ByteIterFromMemory(self->data + 32, self->data_size - 32);
+    u32      free_blk, num_blocks, unknown;
+    if (!BufReadFmt(
+            &sb,
+            FMT_PDB_SUPERBLOCK_LE,
+            self->block_size,
+            free_blk,
+            num_blocks,
+            *out_num_dir_bytes,
+            unknown,
+            *out_block_map_addr
+        )) {
+        LOG_ERROR("PDB: superblock truncated");
+        return false;
+    }
     (void)free_blk;
+    (void)unknown;
 
     if (self->block_size != 512 && self->block_size != 1024 && self->block_size != 2048 && self->block_size != 4096) {
         LOG_ERROR("PDB: unsupported MSF block size {}", self->block_size);
@@ -140,12 +179,6 @@ static bool reconstruct_directory(PdbFile *self, u32 num_dir_bytes, u32 block_ma
     // those indices is `ceil(num_dir_bytes / block_size)`.
     u32 num_dir_blocks = div_ceil_u32(num_dir_bytes, self->block_size);
     if ((u64)num_dir_blocks * sizeof(u32) > self->block_size) {
-        // Some PDBs have a directory big enough that the index array
-        // itself spills multiple pages -- the spec calls these the
-        // "block-map pages" and `block_map_addr` becomes a single
-        // page index pointing at a *list* of more block indices.
-        // For v1 we cap at one block-map page, which covers PDBs
-        // under ~4 MB of directory bytes (i.e. enormous PDBs).
         LOG_ERROR("PDB: directory block-map exceeds one page");
         return false;
     }
@@ -169,10 +202,16 @@ static bool reconstruct_directory(PdbFile *self, u32 num_dir_bytes, u32 block_ma
             LOG_ERROR("PDB: directory block id {} out of range", block_id);
             return false;
         }
-        u32 want = self->block_size;
-        u32 done = i * self->block_size;
-        if (done + want > num_dir_bytes)
+        // Promote to u64; i * block_size can wrap u32.
+        u64 done = (u64)i * (u64)self->block_size;
+        u64 want = self->block_size;
+        if (done + want > num_dir_bytes) {
+            if (done >= num_dir_bytes) {
+                LOG_ERROR("PDB: directory copy offset past stream-dir size");
+                return false;
+            }
             want = num_dir_bytes - done;
+        }
         MemCopy(self->stream_dir + done, src, want);
     }
     return true;
@@ -184,7 +223,9 @@ static bool parse_directory(PdbFile *self) {
         LOG_ERROR("PDB: directory truncated (no stream count)");
         return false;
     }
-    self->num_streams = read_u32_le(self->stream_dir);
+    ByteIter dir_iter = ByteIterFromMemory(self->stream_dir, self->stream_dir_size);
+    if (!BufReadU32LE(&dir_iter, &self->num_streams))
+        return false;
     if (self->num_streams == 0)
         return true;
 
@@ -202,8 +243,9 @@ static bool parse_directory(PdbFile *self) {
 
     u64 total_block_words = 0;
     for (u32 i = 0; i < self->num_streams; ++i) {
-        self->stream_sizes[i] = read_u32_le(self->stream_dir + 4 + i * 4);
-        u32 sz                = self->stream_sizes[i];
+        if (!BufReadU32LE(&dir_iter, &self->stream_sizes[i]))
+            return false;
+        u32 sz = self->stream_sizes[i];
         if (sz != NIL_STREAM) {
             total_block_words += div_ceil_u32(sz, self->block_size);
         }
@@ -247,9 +289,11 @@ static bool parse_pdb_info(PdbFile *self) {
     u8 buf[28];
     if (!stream_read(self, 1, 0, buf, sizeof(buf)))
         return false;
-    self->info.version   = read_u32_le(buf + 0);
-    self->info.signature = read_u32_le(buf + 4);
-    self->info.age       = read_u32_le(buf + 8);
+    ByteIter bi = ByteIterFromMemory(buf, sizeof(buf));
+    if (!BufReadFmt(&bi, FMT_PDB_INFO_LE, self->info.version, self->info.signature, self->info.age)) {
+        LOG_ERROR("PDB: info stream prefix truncated");
+        return false;
+    }
     MemCopy(self->info.guid, buf + 12, 16);
     return true;
 }
@@ -284,44 +328,48 @@ static DbiSubstreamInfo parse_dbi_header(const PdbFile *self) {
     if (!stream_read(self, DBI_STREAM_INDEX, 0, hdr, DBI_HEADER_SIZE))
         return r;
 
-    // VersionSignature = -1, VersionHeader = 19990903 ("V70"). We don't
-    // strictly validate; older PDB versions use the same field layout
-    // for the parts we care about.
-    r.symrec_stream = (u16)hdr[16] | (u16)hdr[17] << 8;
-    // Actually SymRecordStream is at offset 14 in the spec I remembered;
-    // double-check by laying out the header offsets:
-    //   off  0: i32 VersionSignature
-    //   off  4: u32 VersionHeader
-    //   off  8: u32 Age
-    //   off 12: u16 GlobalStreamIndex
-    //   off 14: u16 BuildNumber
-    //   off 16: u16 PublicStreamIndex
-    //   off 18: u16 PdbDllVersion
-    //   off 20: u16 SymRecordStream
-    //   off 22: u16 PdbDllRbld
-    //   off 24: i32 ModInfoSize
-    //   off 28: i32 SectionContributionSize
-    //   off 32: i32 SectionMapSize
-    //   off 36: i32 SourceInfoSize
-    //   off 40: i32 TypeServerMapSize
-    //   off 44: u32 MFCTypeServerIndex
-    //   off 48: i32 OptionalDbgHeaderSize
-    //   off 52: i32 ECSubstreamSize
-    //   off 56: u16 Flags
-    //   off 58: u16 Machine
-    //   off 60: u32 Padding
-    r.symrec_stream = (u16)hdr[20] | (u16)hdr[21] << 8;
-
-    // To find the SectionHdr stream index we need the OptionalDbgHeader,
-    // which sits at the end of the DBI stream after all the other
-    // substreams. The header records each substream's size in bytes.
-    u32 mod_size    = (u32)read_u32_le(hdr + 24);
-    u32 seccontrib  = (u32)read_u32_le(hdr + 28);
-    u32 secmap      = (u32)read_u32_le(hdr + 32);
-    u32 srcinfo     = (u32)read_u32_le(hdr + 36);
-    u32 tsm         = (u32)read_u32_le(hdr + 40);
-    u32 optdbg_size = (u32)read_u32_le(hdr + 48);
-    u32 ec_size     = (u32)read_u32_le(hdr + 52);
+    ByteIter bi = ByteIterFromMemory(hdr, DBI_HEADER_SIZE);
+    u32 version_sig, version_hdr, age, mod_size, seccontrib, secmap, srcinfo, tsm, mfc_tsm_idx, optdbg_size, ec_size,
+        padding;
+    u16 global_idx, build_num, public_idx, pdb_dll_ver, pdb_dll_rbld, flags, machine;
+    if (!BufReadFmt(
+            &bi,
+            FMT_PDB_DBI_HEADER_LE,
+            version_sig,
+            version_hdr,
+            age,
+            global_idx,
+            build_num,
+            public_idx,
+            pdb_dll_ver,
+            r.symrec_stream,
+            pdb_dll_rbld,
+            mod_size,
+            seccontrib,
+            secmap,
+            srcinfo,
+            tsm,
+            mfc_tsm_idx,
+            optdbg_size,
+            ec_size,
+            flags,
+            machine,
+            padding
+        )) {
+        return r;
+    }
+    (void)version_sig;
+    (void)version_hdr;
+    (void)age;
+    (void)global_idx;
+    (void)build_num;
+    (void)public_idx;
+    (void)pdb_dll_ver;
+    (void)pdb_dll_rbld;
+    (void)mfc_tsm_idx;
+    (void)flags;
+    (void)machine;
+    (void)padding;
 
     u64 optdbg_off = (u64)DBI_HEADER_SIZE + mod_size + seccontrib + secmap + srcinfo + tsm + ec_size;
     if (optdbg_off + optdbg_size > dbi_size)
@@ -385,8 +433,9 @@ static SectionRva *load_section_table(const PdbFile *self, u16 section_hdr_strea
     }
     for (u32 i = 0; i < n; ++i) {
         // IMAGE_SECTION_HEADER: name[8] + VirtualSize(4) + VirtualAddress(4) + ...
-        out[i].virtual_size    = read_u32_le(buf + i * 40 + 8);
-        out[i].virtual_address = read_u32_le(buf + i * 40 + 12);
+        ByteIter rec = ByteIterFromMemory(buf + i * 40 + 8, 40 - 8);
+        (void)BufReadU32LE(&rec, &out[i].virtual_size);
+        (void)BufReadU32LE(&rec, &out[i].virtual_address);
     }
     AllocatorFree(self->allocator, buf);
     *out_count = n;
@@ -464,15 +513,16 @@ static bool walk_publics(
             break;
 
         if (rec_kind == CV_SYMTYPE_PUB32 && rec_len >= 2 + 4 + 4 + 2 + 1) {
-            // Record body starts at cur + 4 (past len + kind).
-            //   u32 Flags
-            //   u32 Offset
-            //   u16 Segment
-            //   char Name[];
-            u32         flags   = read_u32_le(buf + cur + 4);
-            u32         offset  = read_u32_le(buf + cur + 8);
-            u16         segment = (u16)buf[cur + 12] | (u16)buf[cur + 13] << 8;
-            const char *name    = (const char *)(buf + cur + 14);
+            // Record body starts at cur + 4 (past len + kind). 10-byte
+            // prefix (Flags/Offset/Segment) then NUL-terminated Name.
+            ByteIter body = ByteIterFromMemory(buf + cur + 4, rec_len - 2);
+            u32      flags, offset;
+            u16      segment;
+            if (!BufReadFmt(&body, FMT_S_PUB32_PREFIX_LE, flags, offset, segment)) {
+                cur = next;
+                continue;
+            }
+            const char *name = (const char *)(body.data + body.pos);
 
             (void)flags; // permissive: we don't filter by FUNCTION bit;
                          // many real-world PDBs leave it unset.

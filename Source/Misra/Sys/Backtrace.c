@@ -213,15 +213,15 @@ static void format_walk_win(Str *out, const StackFrame *frames, size count, Allo
         }
 
         if (named) {
-            StrWriteFmt(out, "  #{} {}+{x} [{x}]", (u32)i, sym_name, (u64)sym_off, (u64)ip);
+            StrAppendFmt(out, "  #{} {}+{x} [{x}]", (u32)i, sym_name, (u64)sym_off, (u64)ip);
         } else {
-            StrWriteFmt(out, "  #{} {x}", (u32)i, (u64)ip);
+            StrAppendFmt(out, "  #{} {x}", (u32)i, (u64)ip);
         }
 
         DWORD line_disp = 0;
         if (g_dbghelp_initialized && SymGetLineFromAddr64(proc, ip, &line_disp, &line) && line.FileName) {
             const char *fname = basename_of(line.FileName);
-            StrWriteFmt(out, " ({}:{})", fname, (u32)line.LineNumber);
+            StrAppendFmt(out, " ({}:{})", fname, (u32)line.LineNumber);
         }
         StrPushBack(out, '\n');
     }
@@ -413,12 +413,12 @@ static void format_walk_mac(Str *out, const StackFrame *frames, size count, Allo
 
         if (named) {
             const char *mod = basename_of(mod_path);
-            StrWriteFmt(out, "  #{} {}!{}+{x} [{x}]\n", (u32)i, mod, sym_name, (u64)sym_off, ip);
+            StrAppendFmt(out, "  #{} {}!{}+{x} [{x}]\n", (u32)i, mod, sym_name, (u64)sym_off, ip);
         } else if (mod_path) {
             const char *mod = basename_of(mod_path);
-            StrWriteFmt(out, "  #{} {}+? [{x}]\n", (u32)i, mod, ip);
+            StrAppendFmt(out, "  #{} {}+? [{x}]\n", (u32)i, mod, ip);
         } else {
-            StrWriteFmt(out, "  #{} {x}\n", (u32)i, ip);
+            StrAppendFmt(out, "  #{} {x}\n", (u32)i, ip);
         }
     }
 
@@ -499,19 +499,19 @@ bool capture_stack_trace_vec(StackFrames *out, size skip_frames) {
 static void emit_resolved_line(Str *out, u32 idx, const ResolvedSymbol *r, void *ip) {
     if (r->symbol_name) {
         const char *mod = basename_of(r->module_path);
-        StrWriteFmt(out, "  #{} {}!{}+{x} [{x}]", idx, mod, r->symbol_name, r->offset, (u64)(uintptr_t)ip);
+        StrAppendFmt(out, "  #{} {}!{}+{x} [{x}]", idx, mod, r->symbol_name, r->offset, (u64)(uintptr_t)ip);
     } else if (r->module_path) {
         const char *mod = basename_of(r->module_path);
-        StrWriteFmt(out, "  #{} {}+{x} [{x}]", idx, mod, r->offset, (u64)(uintptr_t)ip);
+        StrAppendFmt(out, "  #{} {}+{x} [{x}]", idx, mod, r->offset, (u64)(uintptr_t)ip);
     } else {
-        StrWriteFmt(out, "  #{} {x}", idx, (u64)(uintptr_t)ip);
+        StrAppendFmt(out, "  #{} {x}", idx, (u64)(uintptr_t)ip);
     }
     if (r->source_file) {
         const char *file = basename_of(r->source_file);
         if (r->source_line > 0) {
-            StrWriteFmt(out, " ({}:{})", file, r->source_line);
+            StrAppendFmt(out, " ({}:{})", file, r->source_line);
         } else {
-            StrWriteFmt(out, " ({})", file);
+            StrAppendFmt(out, " ({})", file);
         }
     }
     StrPushBack(out, '\n');
@@ -523,7 +523,7 @@ static void format_walk_with(Str *out, const StackFrame *frames, size count, Sym
         if (SymbolResolverResolve(resolver, frames[i].ip, &r)) {
             emit_resolved_line(out, (u32)i, &r, frames[i].ip);
         } else {
-            StrWriteFmt(out, "  #{} {x}\n", (u32)i, (u64)(uintptr_t)frames[i].ip);
+            StrAppendFmt(out, "  #{} {x}\n", (u32)i, (u64)(uintptr_t)frames[i].ip);
         }
     }
 }
@@ -532,7 +532,7 @@ static void format_walk_alloc(Str *out, const StackFrame *frames, size count, Al
     SymbolResolver res;
     if (!SymbolResolverInit(&res, alloc)) {
         for (size i = 0; i < count; ++i) {
-            StrWriteFmt(out, "  #{} {x}\n", (u32)i, (u64)(uintptr_t)frames[i].ip);
+            StrAppendFmt(out, "  #{} {x}\n", (u32)i, (u64)(uintptr_t)frames[i].ip);
         }
         return;
     }

@@ -5,6 +5,7 @@
 /// DNS wire format (RFC 1035) encoder + decoder.
 
 #include <Misra/Parsers/Dns.h>
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Types.h>
@@ -12,13 +13,6 @@
 // ---------------------------------------------------------------------------
 // Encoding
 // ---------------------------------------------------------------------------
-
-// Push a big-endian u16 to the wire buffer.
-static bool push_be16(DnsWireBuf *out, u16 v) {
-    u8 hi = (u8)(v >> 8);
-    u8 lo = (u8)(v & 0xFFu);
-    return VecPushBackR(out, hi) && VecPushBackR(out, lo);
-}
 
 // Encode a hostname into the on-wire label form:
 //   [len][label-bytes...]  ...  [0]
@@ -38,12 +32,11 @@ static bool encode_qname(DnsWireBuf *out, const char *name) {
         }
         u64 seg_len = (u64)(p - seg);
         if (seg_len == 0) {
-            // Empty label (consecutive dots or trailing dot). Trailing
-            // dot is valid -- it just means we're at the root. Break.
+            // Trailing dot at the end is valid (means root); leading or
+            // middle empty labels are not.
             if (*p == '\0') {
                 break;
             }
-            // Leading or middle empty label is invalid.
             return false;
         }
         if (seg_len > 63) {
@@ -53,102 +46,72 @@ static bool encode_qname(DnsWireBuf *out, const char *name) {
         if (total_bytes > 254) {
             return false;
         }
-        if (!VecPushBackR(out, (u8)seg_len)) {
+        if (!BufWriteU8(out, (u8)seg_len)) {
             return false;
         }
-        for (u64 i = 0; i < seg_len; ++i) {
-            if (!VecPushBackR(out, (u8)seg[i])) {
-                return false;
-            }
+        if (!BufPushBytes(out, (const u8 *)seg, seg_len)) {
+            return false;
         }
         if (*p == '.') {
             ++p;
         }
     }
     // Root label terminator.
-    return VecPushBackR(out, (u8)0);
+    return BufWriteU8(out, 0);
 }
 
 bool DnsBuildQuery(DnsWireBuf *out, u16 id, const char *name, DnsType type) {
     if (!out || !name) {
         return false;
     }
-    VecClear(out);
-
     // Header: id, flags=0x0100 (RD set), qdcount=1, ancount=0, nscount=0, arcount=0.
-    if (!push_be16(out, id) || !push_be16(out, 0x0100u) || !push_be16(out, 1u) || !push_be16(out, 0u) ||
-        !push_be16(out, 0u) || !push_be16(out, 0u)) {
+    if (!BufWriteFmt(out, "{>2r}{>2r}{>2r}{>2r}{>2r}{>2r}", id, (u16)0x0100u, (u16)1u, (u16)0u, (u16)0u, (u16)0u)) {
         return false;
     }
     // Question section: qname + qtype + qclass (IN = 1).
     if (!encode_qname(out, name)) {
         return false;
     }
-    if (!push_be16(out, (u16)type) || !push_be16(out, 1u)) {
-        return false;
-    }
-    return true;
+    u16 qtype  = (u16)type;
+    u16 qclass = 1u;
+    return BufAppendFmt(out, "{>2r}{>2r}", qtype, qclass);
 }
 
-// ---------------------------------------------------------------------------
-// Decoding helpers
-// ---------------------------------------------------------------------------
-
-// Read a big-endian u16 from `buf` at `pos`; bumps `pos`.
-// Returns false on out-of-bounds.
-static bool read_be16(const u8 *buf, u64 len, u64 *pos, u16 *out) {
-    if (*pos + 2 > len) {
-        return false;
-    }
-    *out  = (u16)(((u16)buf[*pos] << 8) | buf[*pos + 1]);
-    *pos += 2;
-    return true;
-}
-
-static bool read_be32(const u8 *buf, u64 len, u64 *pos, u32 *out) {
-    if (*pos + 4 > len) {
-        return false;
-    }
-    *out  = ((u32)buf[*pos] << 24) | ((u32)buf[*pos + 1] << 16) | ((u32)buf[*pos + 2] << 8) | (u32)buf[*pos + 3];
-    *pos += 4;
-    return true;
-}
-
-// Decode a domain name starting at `*pos` in `buf`, following any
-// 0xC0-prefixed compression pointers. `*pos` is advanced PAST the
-// name in the linear (non-pointer-followed) reading; that lets the
-// caller continue reading the record after the name regardless of
-// how many pointer hops the decoded form took.
+// Decode a domain name starting at the iter's current position,
+// following any 0xC0-prefixed compression pointers. The iter is
+// advanced PAST the name in the linear (non-pointer-followed)
+// reading; that lets the caller continue reading the record after
+// the name regardless of how many pointer hops the decoded form took.
 //
 // out_name is the caller-managed Str the decoded form is appended
 // to (dotted form, NO trailing dot to keep formatting consistent
 // with what callers pass into DnsBuildQuery).
 //
 // Returns false on cycles, oversized names, or out-of-bounds.
-static bool decode_name(const u8 *buf, u64 len, u64 *pos, Str *out_name) {
+static bool decode_name(ByteIter *it, Str *out_name) {
     const u32 MAX_HOPS  = 64;
     u32       hops      = 0;
     bool      jumped    = false;
-    u64       linear_p  = *pos;
-    u64       cur       = *pos;
+    u64       linear_p  = it->pos;
+    u64       cur       = it->pos;
     u64       name_len  = 0;
     u64       label_idx = 0;
-    while (cur < len) {
-        u8 b = buf[cur];
+    while (cur < it->length) {
+        u8 b = it->data[cur];
         if (b == 0) {
             ++cur;
             if (!jumped) {
                 linear_p = cur;
             }
-            *pos = linear_p;
+            it->pos = linear_p;
             return true;
         }
         if ((b & 0xC0u) == 0xC0u) {
             // Compression pointer: 14-bit offset.
-            if (cur + 2 > len) {
+            if (cur + 2 > it->length) {
                 return false;
             }
-            u16 ptr = (u16)(((b & 0x3Fu) << 8) | buf[cur + 1]);
+            u16 ptr = (u16)(((b & 0x3Fu) << 8) | it->data[cur + 1]);
             if (!jumped) {
                 // First jump: linear cursor advances past the 2-byte
                 // pointer; everything after will be read from the
@@ -171,7 +134,7 @@ static bool decode_name(const u8 *buf, u64 len, u64 *pos, Str *out_name) {
             return false;
         }
         u64 label_len = (u64)b;
-        if (cur + 1 + label_len > len) {
+        if (cur + 1 + label_len > it->length) {
             return false;
         }
         if (name_len + 1 + label_len > 253) {
@@ -182,7 +145,7 @@ static bool decode_name(const u8 *buf, u64 len, u64 *pos, Str *out_name) {
             ++name_len;
         }
         for (u64 i = 0; i < label_len; ++i) {
-            StrPushBack(out_name, (char)buf[cur + 1 + i]);
+            StrPushBack(out_name, (char)it->data[cur + 1 + i]);
         }
         name_len += label_len;
         cur      += 1 + label_len;
@@ -194,37 +157,34 @@ static bool decode_name(const u8 *buf, u64 len, u64 *pos, Str *out_name) {
     return false;
 }
 
-// Decode one resource record. Advances `*pos` past the record.
-static bool decode_record(const u8 *buf, u64 len, u64 *pos, DnsRecord *rec, Allocator *alloc) {
+// Decode one resource record. Advances the iter past the record.
+static bool decode_record(ByteIter *it, DnsRecord *rec, Allocator *alloc) {
     rec->name   = StrInit(alloc);
     rec->target = StrInit(alloc);
     rec->rdata  = VecInitT(rec->rdata, alloc);
     MemSet(rec->ipv4, 0, sizeof(rec->ipv4));
     MemSet(rec->ipv6, 0, sizeof(rec->ipv6));
 
-    if (!decode_name(buf, len, pos, &rec->name)) {
+    if (!decode_name(it, &rec->name)) {
         return false;
     }
-    u16 type_bits  = 0;
-    u16 class_bits = 0;
-    u32 ttl        = 0;
-    u16 rdlength   = 0;
-    if (!read_be16(buf, len, pos, &type_bits) || !read_be16(buf, len, pos, &class_bits) ||
-        !read_be32(buf, len, pos, &ttl) || !read_be16(buf, len, pos, &rdlength)) {
+    u16 type_bits, class_bits, rdlength;
+    u32 ttl;
+    if (!BufReadFmt(it, "{>2r}{>2r}{>4r}{>2r}", type_bits, class_bits, ttl, rdlength)) {
         return false;
     }
     rec->type   = (DnsType)type_bits;
     rec->rclass = class_bits;
     rec->ttl    = ttl;
 
-    if (*pos + (u64)rdlength > len) {
+    if (it->pos + (u64)rdlength > it->length) {
         return false;
     }
-    u64 rdata_start = *pos;
+    u64 rdata_start = it->pos;
 
     // Stash raw rdata.
-    for (u64 i = 0; i < rdlength; ++i) {
-        VecPushBackR(&rec->rdata, buf[rdata_start + i]);
+    if (!BufPushBytes(&rec->rdata, it->data + rdata_start, rdlength)) {
+        return false;
     }
 
     // Type-specific decode.
@@ -234,7 +194,7 @@ static bool decode_record(const u8 *buf, u64 len, u64 *pos, DnsRecord *rec, Allo
                 return false;
             }
             for (u64 i = 0; i < 4; ++i) {
-                rec->ipv4[i] = buf[rdata_start + i];
+                rec->ipv4[i] = it->data[rdata_start + i];
             }
             break;
         case DNS_TYPE_AAAA :
@@ -242,18 +202,21 @@ static bool decode_record(const u8 *buf, u64 len, u64 *pos, DnsRecord *rec, Allo
                 return false;
             }
             for (u64 i = 0; i < 16; ++i) {
-                rec->ipv6[i] = buf[rdata_start + i];
+                rec->ipv6[i] = it->data[rdata_start + i];
             }
             break;
         case DNS_TYPE_CNAME :
         case DNS_TYPE_NS :
         case DNS_TYPE_PTR : {
-            u64 sub_pos = rdata_start;
-            if (!decode_name(buf, len, &sub_pos, &rec->target)) {
+            // The name lives inside the rdata window; decode_name may
+            // follow compression pointers back into the whole message,
+            // so we use a sub-iter cloned from the main one.
+            ByteIter sub = *it;
+            if (!decode_name(&sub, &rec->target)) {
                 return false;
             }
-            // sub_pos lands inside the rdata window; the linear cursor
-            // for the outer record list advances by rdlength regardless.
+            // The outer cursor advances by rdlength regardless of how
+            // far the sub-iter got within the rdata window.
             break;
         }
         default :
@@ -261,7 +224,7 @@ static bool decode_record(const u8 *buf, u64 len, u64 *pos, DnsRecord *rec, Allo
             break;
     }
 
-    *pos = rdata_start + (u64)rdlength;
+    it->pos = rdata_start + (u64)rdlength;
     return true;
 }
 
@@ -269,10 +232,10 @@ static bool decode_record(const u8 *buf, u64 len, u64 *pos, DnsRecord *rec, Allo
 // Top-level parse
 // ---------------------------------------------------------------------------
 
-static bool decode_record_list(const u8 *buf, u64 len, u64 *pos, u16 count, DnsRecords *out, Allocator *alloc) {
+static bool decode_record_list(ByteIter *it, u16 count, DnsRecords *out, Allocator *alloc) {
     for (u16 i = 0; i < count; ++i) {
         DnsRecord rec = {0};
-        if (!decode_record(buf, len, pos, &rec, alloc)) {
+        if (!decode_record(it, &rec, alloc)) {
             DnsRecordDeinit(&rec);
             return false;
         }
@@ -294,10 +257,9 @@ bool DnsParseResponse(DnsResponse *out, const u8 *buf, u64 len, Allocator *alloc
         LOG_ERROR("DNS response shorter than header (got {} bytes, need 12)", len);
         return false;
     }
-    u64 pos = 0;
-    u16 flags, qd, an, ns, ar;
-    if (!read_be16(buf, len, &pos, &out->id) || !read_be16(buf, len, &pos, &flags) || !read_be16(buf, len, &pos, &qd) ||
-        !read_be16(buf, len, &pos, &an) || !read_be16(buf, len, &pos, &ns) || !read_be16(buf, len, &pos, &ar)) {
+    ByteIter it = ByteIterFromMemory(buf, len);
+    u16      flags, qd, an, ns, ar;
+    if (!BufReadFmt(&it, "{>2r}{>2r}{>2r}{>2r}{>2r}{>2r}", out->id, flags, qd, an, ns, ar)) {
         return false;
     }
     out->is_response       = (flags & 0x8000u) != 0;
@@ -310,20 +272,19 @@ bool DnsParseResponse(DnsResponse *out, const u8 *buf, u64 len, Allocator *alloc
     // Skip echoed question section: each question is qname + qtype(2) + qclass(2).
     for (u16 i = 0; i < qd; ++i) {
         Str dummy = StrInit(alloc);
-        if (!decode_name(buf, len, &pos, &dummy)) {
+        if (!decode_name(&it, &dummy)) {
             StrDeinit(&dummy);
             return false;
         }
         StrDeinit(&dummy);
         u16 qtype, qclass;
-        if (!read_be16(buf, len, &pos, &qtype) || !read_be16(buf, len, &pos, &qclass)) {
+        if (!BufReadFmt(&it, "{>2r}{>2r}", qtype, qclass)) {
             return false;
         }
     }
 
-    if (!decode_record_list(buf, len, &pos, an, &out->answers, alloc) ||
-        !decode_record_list(buf, len, &pos, ns, &out->authority, alloc) ||
-        !decode_record_list(buf, len, &pos, ar, &out->additional, alloc)) {
+    if (!decode_record_list(&it, an, &out->answers, alloc) || !decode_record_list(&it, ns, &out->authority, alloc) ||
+        !decode_record_list(&it, ar, &out->additional, alloc)) {
         return false;
     }
     return true;

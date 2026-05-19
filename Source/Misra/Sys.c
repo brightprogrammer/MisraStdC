@@ -245,7 +245,7 @@ Str *StrError(i32 eno, Str *err_str) {
     ValidateStr(err_str);
     Allocator *alloc = err_str->allocator;
     Str        out   = StrInit(alloc);
-    StrWriteFmt(&out, "{} (errno {})", errno_description(eno), eno);
+    StrAppendFmt(&out, "{} (errno {})", errno_description(eno), eno);
     StrDeinit(err_str);
     *err_str = out;
     return err_str;

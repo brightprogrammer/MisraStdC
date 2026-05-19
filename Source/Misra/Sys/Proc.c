@@ -298,13 +298,13 @@ Proc proc_init(const char *filepath, char **argv, char **envp, Allocator *alloc)
     // declares `_pi` as MisraProcessInfo_ (so it doesn't have to
     // pull <windows.h>); the field shape matches but the types are
     // distinct at the C level.
-    proc._pi.hProcess     = pi.hProcess;
-    proc._pi.hThread      = pi.hThread;
-    proc._pi.dwProcessId  = (u32)pi.dwProcessId;
-    proc._pi.dwThreadId   = (u32)pi.dwThreadId;
-    proc._hStdinWrite     = hStdinWrite;
-    proc._hStdoutRead     = hStdoutRead;
-    proc._hStderrRead     = hStderrRead;
+    proc._pi.hProcess    = pi.hProcess;
+    proc._pi.hThread     = pi.hThread;
+    proc._pi.dwProcessId = (u32)pi.dwProcessId;
+    proc._pi.dwThreadId  = (u32)pi.dwThreadId;
+    proc._hStdinWrite    = hStdinWrite;
+    proc._hStdoutRead    = hStdoutRead;
+    proc._hStderrRead    = hStderrRead;
 
     return proc;
 #endif
@@ -528,7 +528,11 @@ i32 sys_proc_read_internal(Proc *proc, Str *buf, bool is_stdout) {
         LOG_FATAL("Invalid argument");
     }
 
-    u64  total_read   = 0;
+    // Signed so the -1 error sentinel is honest and the final cast
+    // to the function's i32 return type doesn't have to round-trip
+    // through u64. A subprocess producing >2 GiB on a single stream
+    // still saturates the i32 return -- documented limitation.
+    i64  total_read   = 0;
     char tmpbuf[1024] = {0};
 
 #if defined(__APPLE__) || defined(__linux__)

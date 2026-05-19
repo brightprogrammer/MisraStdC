@@ -6,11 +6,71 @@
 /// in `<mach-o/loader.h>`; the relevant subset is reproduced inline as
 /// enum constants so we don't need any system headers.
 
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Parsers/MachO.h>
 #include <Misra/Std.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
+
+// ---------------------------------------------------------------------------
+// On-disk record layouts (LE)
+// ---------------------------------------------------------------------------
+
+// mach_header_64 (32 bytes).
+#define FMT_MACHO_HEADER_LE                                                                                            \
+    "{<4r}" /* magic       */                                                                                          \
+    "{<4r}" /* cputype     */                                                                                          \
+    "{<4r}" /* cpusubtype  */                                                                                          \
+    "{<4r}" /* filetype    */                                                                                          \
+    "{<4r}" /* ncmds       */                                                                                          \
+    "{<4r}" /* sizeofcmds  */                                                                                          \
+    "{<4r}" /* flags       */                                                                                          \
+    "{<4r}" /* reserved    */
+
+// load_command prefix (cmd + cmdsize, 8 bytes).
+#define FMT_MACHO_LC_PREFIX_LE                                                                                         \
+    "{<4r}" /* cmd      */                                                                                             \
+    "{<4r}" /* cmdsize  */
+
+// segment_command_64 body after the 16-byte segname (48 bytes).
+#define FMT_MACHO_SEGMENT64_BODY_LE                                                                                    \
+    "{<8r}" /* vmaddr   */                                                                                             \
+    "{<8r}" /* vmsize   */                                                                                             \
+    "{<8r}" /* fileoff  */                                                                                             \
+    "{<8r}" /* filesize */                                                                                             \
+    "{<4r}" /* maxprot  */                                                                                             \
+    "{<4r}" /* initprot */                                                                                             \
+    "{<4r}" /* nsects   */                                                                                             \
+    "{<4r}" /* flags    */
+
+// section_64 body after sectname + segname (32 bytes consumed; 48 bytes here).
+#define FMT_MACHO_SECTION64_BODY_LE                                                                                    \
+    "{<8r}" /* addr      */                                                                                            \
+    "{<8r}" /* size      */                                                                                            \
+    "{<4r}" /* offset    */                                                                                            \
+    "{<4r}" /* align     */                                                                                            \
+    "{<4r}" /* reloff    */                                                                                            \
+    "{<4r}" /* nreloc    */                                                                                            \
+    "{<4r}" /* flags     */                                                                                            \
+    "{<4r}" /* reserved1 */                                                                                            \
+    "{<4r}" /* reserved2 */                                                                                            \
+    "{<4r}" /* reserved3 */
+
+// symtab_command body after the cmd/cmdsize prefix (16 bytes).
+#define FMT_MACHO_SYMTAB_BODY_LE                                                                                       \
+    "{<4r}" /* symoff   */                                                                                             \
+    "{<4r}" /* nsyms    */                                                                                             \
+    "{<4r}" /* stroff   */                                                                                             \
+    "{<4r}" /* strsize  */
+
+// nlist_64 record (16 bytes).
+#define FMT_MACHO_NLIST64_LE                                                                                           \
+    "{<4r}" /* n_strx   */                                                                                             \
+    "{<1r}" /* n_type   */                                                                                             \
+    "{<1r}" /* n_sect   */                                                                                             \
+    "{<2r}" /* n_desc   */                                                                                             \
+    "{<8r}" /* n_value  */
 
 // ---------------------------------------------------------------------------
 // Spec constants
@@ -40,23 +100,8 @@ enum {
     UUID_CMD_SIZE      = 24,
 };
 
-// ---------------------------------------------------------------------------
-// Byte readers (little-endian)
-// ---------------------------------------------------------------------------
-
-static u32 ru32(const u8 *p) {
-    return (u32)p[0] | (u32)p[1] << 8 | (u32)p[2] << 16 | (u32)p[3] << 24;
-}
-static u64 ru64(const u8 *p) {
-    u64 v = 0;
-    for (int i = 0; i < 8; ++i)
-        v |= (u64)p[i] << (i * 8);
-    return v;
-}
-
+// Names are 16 bytes, NUL-padded but not guaranteed NUL-terminated.
 static void copy_fixed16(char *dst, const u8 *src) {
-    // Mach-O segment / section names are 16 bytes, NUL-padded but
-    // need not be NUL-terminated. We copy then forcibly NUL-terminate.
     MemCopy(dst, src, 16);
     dst[16] = '\0';
 }
@@ -82,7 +127,26 @@ static bool decode_header(MachoContext *ctx) {
         LOG_ERROR("MachO: file too small for header");
         return false;
     }
-    u32 magic = ru32(m->data);
+    ByteIter c = ByteIterFromMemory(m->data, m->data_size);
+    u32      magic, cputype, cpusubtype, filetype, ncmds, sizeofcmds, flags, reserved;
+    if (!BufReadFmt(
+            &c,
+            FMT_MACHO_HEADER_LE,
+            magic,
+            cputype,
+            cpusubtype,
+            filetype,
+            ncmds,
+            sizeofcmds,
+            flags,
+            reserved
+        )) {
+        LOG_ERROR("MachO: header truncated");
+        return false;
+    }
+    (void)cpusubtype;
+    (void)flags;
+    (void)reserved;
     if (magic == FAT_MAGIC || magic == FAT_CIGAM) {
         LOG_ERROR("MachO: fat/universal binary not supported in v1 -- caller must pick a slice");
         return false;
@@ -99,11 +163,10 @@ static bool decode_header(MachoContext *ctx) {
         LOG_ERROR("MachO: bad magic 0x{x}", magic);
         return false;
     }
-    m->cputype      = ru32(m->data + 4);
-    m->filetype     = (MachoFileType)ru32(m->data + 12);
-    ctx->ncmds      = ru32(m->data + 16);
-    ctx->sizeofcmds = ru32(m->data + 20);
-    // ru32(m->data + 24) = flags; ru32(m->data + 28) = reserved.
+    m->cputype      = cputype;
+    m->filetype     = (MachoFileType)filetype;
+    ctx->ncmds      = ncmds;
+    ctx->sizeofcmds = sizeofcmds;
     return true;
 }
 
@@ -114,14 +177,27 @@ static bool decode_segment_64(MachoContext *ctx, const u8 *cmd_p, u32 cmdsize) {
     }
     MachoSegment seg;
     MemSet(&seg, 0, sizeof(seg));
+    // cmd_p layout: cmd(4) cmdsize(4) segname[16] then FMT_MACHO_SEGMENT64_BODY_LE.
     copy_fixed16(seg.name, cmd_p + 8);
-    seg.vmaddr   = ru64(cmd_p + 24);
-    seg.vmsize   = ru64(cmd_p + 32);
-    seg.fileoff  = ru64(cmd_p + 40);
-    seg.filesize = ru64(cmd_p + 48);
-    // maxprot (4) + initprot (4) at offset 56..63.
-    seg.nsects = ru32(cmd_p + 64);
-    seg.flags  = ru32(cmd_p + 68);
+    ByteIter c = ByteIterFromMemory(cmd_p + 24, cmdsize - 24);
+    u32      maxprot, initprot;
+    if (!BufReadFmt(
+            &c,
+            FMT_MACHO_SEGMENT64_BODY_LE,
+            seg.vmaddr,
+            seg.vmsize,
+            seg.fileoff,
+            seg.filesize,
+            maxprot,
+            initprot,
+            seg.nsects,
+            seg.flags
+        )) {
+        LOG_ERROR("MachO: LC_SEGMENT_64 body truncated");
+        return false;
+    }
+    (void)maxprot;
+    (void)initprot;
     if (!VecPushBackR(&ctx->out->segments, seg))
         return false;
 
@@ -137,11 +213,31 @@ static bool decode_segment_64(MachoContext *ctx, const u8 *cmd_p, u32 cmdsize) {
         MemSet(&sec, 0, sizeof(sec));
         copy_fixed16(sec.section, s + 0);
         copy_fixed16(sec.segment, s + 16);
-        sec.addr   = ru64(s + 32);
-        sec.size   = ru64(s + 40);
-        sec.offset = ru32(s + 48);
-        // align (4) + reloff (4) + nreloc (4) at 52..63.
-        sec.flags = ru32(s + 64);
+        ByteIter sc = ByteIterFromMemory(s + 32, SECT64_SIZE - 32);
+        u32      align, reloff, nreloc, reserved1, reserved2, reserved3;
+        if (!BufReadFmt(
+                &sc,
+                FMT_MACHO_SECTION64_BODY_LE,
+                sec.addr,
+                sec.size,
+                sec.offset,
+                align,
+                reloff,
+                nreloc,
+                sec.flags,
+                reserved1,
+                reserved2,
+                reserved3
+            )) {
+            LOG_ERROR("MachO: section_64 body truncated");
+            return false;
+        }
+        (void)align;
+        (void)reloff;
+        (void)nreloc;
+        (void)reserved1;
+        (void)reserved2;
+        (void)reserved3;
         if (!VecPushBackR(&ctx->out->sections, sec))
             return false;
         sect_off += SECT64_SIZE;
@@ -154,10 +250,11 @@ static bool decode_symtab(MachoContext *ctx, const u8 *cmd_p, u32 cmdsize) {
         LOG_ERROR("MachO: LC_SYMTAB truncated");
         return false;
     }
-    ctx->symoff      = ru32(cmd_p + 8);
-    ctx->nsyms       = ru32(cmd_p + 12);
-    ctx->stroff      = ru32(cmd_p + 16);
-    ctx->strsize     = ru32(cmd_p + 20);
+    ByteIter c = ByteIterFromMemory(cmd_p + 8, cmdsize - 8);
+    if (!BufReadFmt(&c, FMT_MACHO_SYMTAB_BODY_LE, ctx->symoff, ctx->nsyms, ctx->stroff, ctx->strsize)) {
+        LOG_ERROR("MachO: LC_SYMTAB body truncated");
+        return false;
+    }
     ctx->have_symtab = true;
     return true;
 }
@@ -182,9 +279,13 @@ static bool walk_load_commands(MachoContext *ctx) {
     for (u32 i = 0; i < ctx->ncmds; ++i) {
         if (cur + 8 > end)
             return false;
-        const u8 *cmd_p   = ctx->out->data + cur;
-        u32       cmd     = ru32(cmd_p + 0);
-        u32       cmdsize = ru32(cmd_p + 4);
+        const u8 *cmd_p = ctx->out->data + cur;
+        ByteIter  pc    = ByteIterFromMemory(cmd_p, end - cur);
+        u32       cmd, cmdsize;
+        if (!BufReadFmt(&pc, FMT_MACHO_LC_PREFIX_LE, cmd, cmdsize)) {
+            LOG_ERROR("MachO: load command prefix truncated at {}", i);
+            return false;
+        }
         if (cmdsize < 8 || cur + cmdsize > end) {
             LOG_ERROR("MachO: bad cmdsize at load command {}", i);
             return false;
@@ -214,6 +315,16 @@ static bool walk_load_commands(MachoContext *ctx) {
 static bool decode_symbols(MachoContext *ctx) {
     if (!ctx->have_symtab || ctx->nsyms == 0)
         return true;
+    // Sanity cap. `nsyms` is u32 from the LC_SYMTAB command; a crafted
+    // file can declare ~4B symbols, each turning into a Vec push.
+    // Real binaries don't approach this.
+    enum {
+        MACHO_MAX_SYMBOLS = 16u * 1024u * 1024u
+    };
+    if (ctx->nsyms > MACHO_MAX_SYMBOLS) {
+        LOG_ERROR("MachO: nsyms {} exceeds sanity cap; refusing", (u64)ctx->nsyms);
+        return false;
+    }
     u64 tab_end = (u64)ctx->symoff + (u64)ctx->nsyms * NLIST64_SIZE;
     if (tab_end > ctx->out->data_size) {
         LOG_ERROR("MachO: symtab past EOF");
@@ -225,13 +336,17 @@ static bool decode_symbols(MachoContext *ctx) {
         return false;
     }
     const u8 *str_base = ctx->out->data + ctx->stroff;
+    ByteIter  tab      = ByteIterFromMemory(ctx->out->data + ctx->symoff, (u64)ctx->nsyms * NLIST64_SIZE);
     for (u32 i = 0; i < ctx->nsyms; ++i) {
-        const u8 *e      = ctx->out->data + ctx->symoff + (u64)i * NLIST64_SIZE;
-        u32       n_strx = ru32(e + 0);
-        u8        n_type = e[4];
-        u8        n_sect = e[5];
-        // u16 n_desc = ru16(e + 6);
-        u64 n_value = ru64(e + 8);
+        u32 n_strx;
+        u8  n_type, n_sect;
+        u16 n_desc;
+        u64 n_value;
+        if (!BufReadFmt(&tab, FMT_MACHO_NLIST64_LE, n_strx, n_type, n_sect, n_desc, n_value)) {
+            LOG_ERROR("MachO: nlist_64 truncated at index {}", i);
+            return false;
+        }
+        (void)n_desc;
         if (n_strx >= ctx->strsize)
             continue; // bad index; skip
         MachoSymbol sym;
@@ -324,14 +439,10 @@ const MachoSection *MachoFileFindSection(const MachoFile *self, const char *segm
     return NULL;
 }
 
-// Symbols on Mach-O don't carry sizes in nlist_64. We pick the symbol
-// with the largest `value <= vaddr`, then sanity-check that `vaddr`
-// stays within either the next-symbol-in-the-same-section gap or the
-// section end. Symbols flagged N_STAB are skipped: per the mach-o
-// spec, an entry is a stab iff ANY of the high three bits of n_type
-// is set (the original code checked `& 0xE0 == 0xE0` which only
-// matched stabs with all three bits set -- N_SO / N_FUN / N_OSO /
-// etc. were getting through and polluting lookups).
+// Mach-O nlist_64 entries carry no size. Pick the symbol with the
+// largest `value <= vaddr`, then bound it by the next symbol in the
+// same section (or the section end). N_STAB entries are skipped:
+// stab iff any of the high three bits of n_type is set.
 const MachoSymbol *MachoFileResolveAddress(const MachoFile *self, u64 vaddr) {
     if (!self || self->symbols.length == 0)
         return NULL;

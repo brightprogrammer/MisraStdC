@@ -13,9 +13,9 @@
 
 // libc
 
-// NOTE: Because Str derives of Vec, the vector implementation is designed to always have actual capacity
-// one more than length and set the space just after length to 0 (memset to 0)
-// actual capacity may differ from stored capacity value
+// Vec keeps a NUL sentinel byte at `data[length]` so Str (which is a
+// Vec(char)) is implicitly C-string-compatible. Allocated capacity is
+// always `stored_capacity + 1` items.
 
 static inline size vec_aligned_size(GenericVec *v, size item_size) {
     ValidateVec(v);
@@ -114,11 +114,15 @@ bool reserve_vec(GenericVec *vec, size item_size, size n) {
 bool reserve_pow2_vec(GenericVec *vec, size item_size, size n) {
     ValidateVec(vec);
 
-    size n2 = 1;
     if (n == 0) {
         return true;
     }
-
+    // Refuse requests above 2^63 -- the doubling loop below would
+    // spin forever once n2 == 2^63 (next shift wraps to 0 < n).
+    if (n > ((size)1 << 63)) {
+        return false;
+    }
+    size n2 = 1;
     while (n2 < n) {
         n2 <<= 1;
     }
@@ -189,9 +193,17 @@ bool insert_range_into_vec(GenericVec *vec, const char *item_data, size item_siz
     if (idx > vec->length) {
         LOG_FATAL("vector index out of bounds, insertion at index greater than length");
     }
+    // Overflow check on length + count. A wrapped sum below capacity
+    // would skip the reserve and walk past the buffer.
+    if (count > (size)-1 - vec->length) {
+        LOG_FATAL("vector insert: length + count overflows size");
+    }
 
     aligned_size = vec_aligned_size(vec, item_size);
     if (vec->length + count >= vec->capacity) {
+        if (count > (size)-1 - vec->capacity) {
+            LOG_FATAL("vector insert: capacity + count overflows size");
+        }
         if (!reserve_pow2_vec(vec, item_size, vec->capacity + count)) {
             return false;
         }
@@ -233,7 +245,6 @@ bool insert_range_into_vec(GenericVec *vec, const char *item_data, size item_siz
 
     vec->length += count;
 
-    // make sure space just after vector length is memeset to 0
     MemSet(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
     return true;
 }
@@ -250,6 +261,10 @@ bool insert_range_fast_into_vec(GenericVec *vec, const char *item_data, size ite
 
     if (idx > vec->length) {
         LOG_FATAL("vector index out of bounds, insertion at index greater than length");
+    }
+    // Overflow check on length + count. Same shape as insert_range_into_vec.
+    if (count > (size)-1 - vec->length) {
+        LOG_FATAL("vector insert (fast): length + count overflows size");
     }
 
     aligned_size = vec_aligned_size(vec, item_size);
@@ -290,7 +305,6 @@ bool insert_range_fast_into_vec(GenericVec *vec, const char *item_data, size ite
 
     vec->length += count;
 
-    // make sure space just after vector length is memeset to 0
     MemSet(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
     return true;
 }
@@ -299,6 +313,11 @@ bool insert_range_fast_into_vec(GenericVec *vec, const char *item_data, size ite
 void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size start, size count) {
     ValidateVec(vec);
 
+    // `start + count` can wrap if both are huge -- a wrapped sum
+    // below length would pass the bound check. Catch it first.
+    if (count > (size)-1 - start) {
+        LOG_FATAL("vector remove range: start + count overflows size");
+    }
     if (start + count > vec->length) {
         LOG_FATAL("vector range out of bounds.");
     }
@@ -332,7 +351,6 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size 
 
     vec->length -= count;
 
-    // make sure space just after vector length is memeset to 0
     MemSet(vec_ptr_at(vec, vec->length, item_size), 0, item_size);
 }
 
@@ -419,8 +437,7 @@ void swap_vec(GenericVec *vec, size item_size, size idx1, size idx2) {
     char *a, *b, tmp;
     a = vec_ptr_at(vec, idx1, item_size);
     b = vec_ptr_at(vec, idx2, item_size);
-    // here it's ok to use item_size directly ig, because data after that is always untouched
-    // never read, and never written to
+    // Swap the user bytes only; alignment padding is never read.
     while (item_size--) {
         tmp = *a;
         *a  = *b;
@@ -490,7 +507,8 @@ void validate_vec(const GenericVec *v) {
     if (!(v)->allocator->allocate || !(v)->allocator->resize || !(v)->allocator->remap || !(v)->allocator->deallocate) {
         LOG_FATAL("Invalid vec allocator.");
     }
-    // if memory is invalid, system will segfault here
+    // Force-read a byte from data so a freed/garbage pointer faults
+    // here, at the validate site, rather than downstream.
     if ((v)->data) {
         (void)(*(char *)(void *)((v)->data));
     }

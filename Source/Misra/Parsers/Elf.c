@@ -260,6 +260,17 @@ static bool elf_decode_symbol_table(ElfFile *self, const ElfSection *symtab, Elf
     }
 
     u64 count = symtab->size / SYM64_SIZE;
+    // Sanity cap. A crafted symtab section can declare a size near
+    // u64 max if the file itself is huge (mmap'd artifact), making
+    // this loop walk billions of iterations with a Vec push each.
+    // Real binaries top out at a few hundred thousand symbols.
+    enum {
+        ELF_MAX_SYMBOLS = 16u * 1024u * 1024u
+    };
+    if (count > ELF_MAX_SYMBOLS) {
+        LOG_ERROR("ElfFile: symbol count {} exceeds sanity cap; refusing", count);
+        return false;
+    }
 
     const char *cursor = (const char *)self->data + symtab->offset;
     for (u64 i = 0; i < count; ++i) {

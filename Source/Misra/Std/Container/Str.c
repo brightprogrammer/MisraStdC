@@ -618,7 +618,6 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
         }
     }
 
-    // Simple implementation for now
     bool use_sci = config->force_sci || (value != 0.0 && (value < 0.0001 || value >= 1e7));
 
     if (use_sci) {
@@ -889,13 +888,15 @@ bool StrToI64(const Str *str, i64 *value, const StrParseConfig *config) {
         return false;
     }
 
-    // Check overflow
+    // Check overflow. For negative, the absolute value can reach
+    // 2^63 (representing INT64_MIN). Negating that as a signed i64
+    // is UB -- do the negation in unsigned space and reinterpret.
     if (negative) {
         if (unsigned_value > 9223372036854775808ULL) {
             LOG_ERROR("Overflow");
             return false;
         }
-        *value = -(i64)unsigned_value;
+        *value = (i64)(0u - unsigned_value);
     } else {
         if (unsigned_value > 9223372036854775807ULL) {
             LOG_ERROR("Overflow");

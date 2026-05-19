@@ -18,51 +18,18 @@
 
 #include <stdint.h>
 
-// ---------------------------------------------------------------------------
-// Per-thread unique ID. The DebugAllocator wants a value that's
-// (a) unique per thread, (b) stable for the thread's lifetime,
-// (c) cheap to read on the hot allocation path.
-//
-// On x86_64 / aarch64 the kernel already maintains a per-thread
-// pointer in a CPU register (FS base on x86_64, TPIDR_EL0 on aarch64)
-// for TLS. Reading it is a single instruction, requires no syscall,
-// no libc, no `__tls_get_addr` helper -- the kernel sets it during
-// thread creation and the scheduler preserves it across context
-// switches.
-//
-// Two earlier implementations of this function got it wrong in
-// different directions:
-//   v1: `static __thread u8 g_marker; return &g_marker;` -- correct
-//       and fast, but the compiler emitted `__tls_get_addr` calls
-//       under the General Dynamic TLS model, pulling in glibc's
-//       dynamic loader as a runtime dependency.
-//   v2: `return gettid_syscall()` -- no `__tls_get_addr`, but ~50x
-//       slower per call (~50-100ns vs ~1ns).
-//
-// This version reads the thread-pointer register directly via inline
-// asm. Same speed as v1, no libc dependency. The returned value is
-// the TCB self-pointer the kernel/loader stashed there -- conceptually
-// the same kind of unique-per-thread address as `&g_marker` was.
-//
-// macOS / Windows / other-arch platforms fall back to the TLS-marker
-// trick (or libSystem's TLV path implicitly). The inline-asm path is
-// gated to Linux only -- Darwin uses GS (not FS) on x86_64 and
-// TPIDRRO_EL0 plus libSystem TLV thunks on aarch64; reading FS:0 or
-// TPIDR_EL0 there gives garbage or SIGTRAPs the process.
-// ---------------------------------------------------------------------------
+// Per-thread unique ID. Returns the TCB self-pointer on Linux
+// x86_64 / aarch64 (one register read, no libc); falls back to the
+// address of a TLS-marker byte everywhere else.
 
 #if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
 
 u64 debug_current_tid(void) {
     u64 tp;
 #    if defined(__x86_64__)
-    // fs:0 holds the TCB self-pointer on x86_64 Linux/glibc. Single
-    // mov; no syscall, no helper symbol.
     __asm__ volatile("mov %%fs:0, %0"
                      : "=r"(tp));
 #    else // __aarch64__
-    // TPIDR_EL0 is the user-accessible thread-pointer register on
-    // Linux aarch64; mrs reads it directly.
     __asm__ volatile("mrs %0, tpidr_el0"
                      : "=r"(tp));
 #    endif
@@ -439,9 +406,9 @@ void DebugAllocatorReportLeaks(DebugAllocator *self, Str *out) {
     if (self->live.length == 0)
         return;
 
-    StrWriteFmt(out, "DebugAllocator: {} live allocation(s):\n", (u64)self->live.length);
+    StrAppendFmt(out, "DebugAllocator: {} live allocation(s):\n", (u64)self->live.length);
     MapForeachPairPtr(&self->live, key_ptr, val_ptr) {
-        StrWriteFmt(out, "  leak: {x} ({} bytes)\n", (u64)(uintptr_t)*key_ptr, (u64)val_ptr->requested_size);
+        StrAppendFmt(out, "  leak: {x} ({} bytes)\n", (u64)(uintptr_t)*key_ptr, (u64)val_ptr->requested_size);
         if (val_ptr->alloc_trace_n > 0) {
             FormatStackTrace(out, val_ptr->alloc_trace, val_ptr->alloc_trace_n, ALLOCATOR_OF(&self->meta));
         }

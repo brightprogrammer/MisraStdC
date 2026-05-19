@@ -161,13 +161,8 @@ void *arena_allocator_remap(Allocator *self, void *ptr, size new_size) {
         return ptr;
     }
 
-    // Move case. We only know the old size if `ptr` is the last bump
-    // (tracked in arena->last_size). For any other allocation we have
-    // no way to bound the copy length safely. A foreign pointer is a
-    // caller bug -- abort. A legitimate non-last arena pointer can't
-    // be remapped under the bump policy -- abort too, but with a
-    // different diagnostic so the caller knows the API mismatch (use
-    // a HeapAllocator if you need resize-of-anything semantics).
+    // Foreign pointer or non-last bump: abort. The LOG_FATAL messages
+    // below carry the distinction.
     if (!arena_owns_pointer(arena, ptr)) {
         LOG_FATAL("arena_remap: foreign ptr {x} (not in any chunk)", (u64)ptr);
         return NULL;

@@ -2,7 +2,7 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Internal helpers for the formatted-I/O macros (`StrWriteFmt`,
+/// Internal helpers for the formatted-I/O macros (`StrAppendFmt`,
 /// `StrReadFmt`, `WriteFmt`, `ReadFmt`, ...). Declarations live here so
 /// the public umbrella `Misra/Std/Io.h` stays focused on user-facing
 /// macros and types; the public header pulls this in transitively.
@@ -22,11 +22,24 @@ extern "C" {
     typedef struct TypeSpecificIO TypeSpecificIO;
 
     ///
-    /// Append the result of expanding placeholders in `fmt` to `o`.
-    /// Called by the `StrWriteFmt` macro after it has built the `TypeSpecificIO`
-    /// argv array.
+    /// Append the formatted result of `fmt` + `args` to the end of `o`.
+    /// Existing bytes are preserved. Backs the `StrAppendFmt` macro.
+    ///
+    bool str_append_fmt(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc);
+
+    ///
+    /// Write the formatted result to `o` from scratch: equivalent to
+    /// `StrClear(o)` followed by `str_append_fmt(o, ...)`. Backs the
+    /// `StrWriteFmt` macro.
     ///
     bool str_write_fmt(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc);
+
+    ///
+    /// Overwrite bytes of `o` starting at `offset` with the formatted
+    /// result. Fails if the output would extend past `o->length`. Backs
+    /// the `StrPatchFmt` macro.
+    ///
+    bool str_patch_fmt(Str *o, size offset, const char *fmt, TypeSpecificIO *args, u64 argc);
 
     ///
     /// Write the result of expanding placeholders in `fmtstr` to `stream`.

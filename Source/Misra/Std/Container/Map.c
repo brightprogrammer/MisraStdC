@@ -44,6 +44,15 @@ static size default_next_capacity(u64 length, u64 capacity, u64 tombstones, size
     if (needed == 0) {
         return 0;
     }
+    // Cap `needed` at what the doubling loop can actually reach. A
+    // `needed` value above (3/4) * 2^63 makes the loop spin forever
+    // -- once new_capacity hits 2^63, the next `<<= 1` wraps to 0,
+    // (0 * 3) / 4 == 0 < needed, and we shift 0 forever. Refuse the
+    // request instead.
+    size max_needed = (((size)1 << 63) / 4u) * 3u; // (2^63) * 3/4
+    if (needed > max_needed) {
+        return 0;
+    }
 
     while (((new_capacity * 3) / 4) < needed) {
         new_capacity <<= 1;
@@ -942,11 +951,8 @@ bool map_insert(
 
     hash = map_hash_key(map, key, key_size);
 
-    // Loop instead of recursion: scan; if the probe budget is
-    // exhausted, force a rehash to a larger capacity and try again.
-    // Recursing here used to compound stack and memory exponentially
-    // when consecutive rehashes still produced a cluster the new key
-    // hashed into. A bounded loop fails cleanly instead.
+    // Scan; on probe-budget exhaustion, rehash to a larger capacity
+    // and retry. Bounded to 32 attempts.
     for (int attempt = 0; attempt < 32; attempt++) {
         insert_idx     = 0;
         probe_pressure = 0;
