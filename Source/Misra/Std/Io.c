@@ -8,7 +8,9 @@
 // Reference : https://forums.freebsd.org/threads/strerror_r-best-practices-posix-vs-gnu.92296/
 #define _POSIX_C_SOURCE 200112L
 
-#if defined(_WIN32)
+#include <Misra/Config.h>
+
+#if PLATFORM_WINDOWS
 #    include <io.h>
 #    define FILENO _fileno
 #else
@@ -21,7 +23,7 @@
 // Returns 1 if `fd` is a TTY, 0 otherwise. Linux: direct ioctl(TCGETS).
 // macOS/BSD: libSystem isatty. Windows: CRT _isatty.
 static inline int misra_is_tty(int fd) {
-#if defined(_WIN32)
+#if PLATFORM_WINDOWS
     return _isatty(fd);
 #elif FEATURE_DIRECT_SYSCALL
     char buf[128]; // termios is < 64 bytes; 128 is safe overkill.
@@ -167,6 +169,14 @@ static bool ParseFormatSpec(const char *spec, u32 len, FmtInfo *fi) {
         }
     }
 
+    // Zero-pad flag. A leading '0' followed by at least one more digit
+    // means "pad numeric output with '0' and drop any base prefix" (matches
+    // C/Python {:0Nx} convention). `{0}` alone stays a zero-width spec.
+    if (pos + 1 < len && spec[pos] == '0' && spec[pos + 1] >= '0' && spec[pos + 1] <= '9') {
+        fi->flags |= FMT_FLAG_ZERO_PAD;
+        pos++;
+    }
+
     // Parse width
     u32 width = 0;
     if (pos < len && spec[pos] >= '0' && spec[pos] <= '9') {
@@ -250,6 +260,29 @@ static bool ParseFormatSpec(const char *spec, u32 len, FmtInfo *fi) {
         return false;
     }
 
+    return true;
+}
+
+// Zero-fill a numeric value that was rendered into `o` starting at
+// `content_start`. The fill goes between the sign (if any) and the
+// first digit, producing e.g. "-0000042" rather than "0000-0042".
+// width and content_len are measured in chars (sign counts as content).
+static bool pad_numeric_zeros(Str *o, size content_start, size width, size content_len) {
+    if (content_len >= width) {
+        return true;
+    }
+    size pad_len = width - content_len;
+    // Detect a leading sign character; if present, the '0' fill goes
+    // after it. Otherwise insert at the start of the content.
+    size insert_pos = content_start;
+    if (content_len > 0 && (o->data[content_start] == '-' || o->data[content_start] == '+')) {
+        insert_pos += 1;
+    }
+    for (size i = 0; i < pad_len; i++) {
+        if (!StrInsertCharAt(o, '0', insert_pos)) {
+            return false;
+        }
+    }
     return true;
 }
 
@@ -505,6 +538,9 @@ bool str_patch_fmt(Str *o, size offset, const char *fmt, TypeSpecificIO *args, u
         return false;
     }
     // Render into a scratch Str, then overwrite [offset, offset+rendered.length).
+    // DefaultAllocator is the right fit -- the rendered output size depends on
+    // the caller-supplied fmt string and arguments, so no stack-bound makes
+    // sense. Library-internal scratch keeps the debug-build instrumentation.
     DefaultAllocator scratch = DefaultAllocatorInit();
     Str              tmp     = StrInit(&scratch);
     bool             ok      = str_append_fmt(&tmp, fmt, args, argc);
@@ -527,8 +563,10 @@ bool str_patch_fmt(Str *o, size offset, const char *fmt, TypeSpecificIO *args, u
 }
 
 bool f_write_fmt(File *stream, const char *fmtstr, TypeSpecificIO *argv, u64 argc, bool append_newline) {
-    Str              out;
-    bool             ok      = true;
+    Str  out;
+    bool ok = true;
+    // DefaultAllocator: rendered line size is caller-controlled (depends on the
+    // fmt string + args), so no fixed stack cap fits all callers.
     DefaultAllocator scratch = DefaultAllocatorInit();
 
     if (!stream || !fmtstr) {
@@ -1059,6 +1097,7 @@ bool buf_patch_fmt(Buf *out, size offset, const char *fmtstr, TypeSpecificIO *ar
     // Render into a scratch Str so we know the byte count before
     // mutating `out`. The patch fails if it would extend past the
     // current length -- caller must AppendFmt placeholder bytes first.
+    // DefaultAllocator: rendered size is caller-controlled (open-ended).
     DefaultAllocator scratch = DefaultAllocatorInit();
     Str              tmp     = StrInit(&scratch);
     bool             ok      = render_binary_fmt(&tmp, fmtstr, argv, argc);
@@ -1081,6 +1120,8 @@ bool buf_patch_fmt(Buf *out, size offset, const char *fmtstr, TypeSpecificIO *ar
 }
 
 void f_read_fmt(File *file, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
+    // DefaultAllocator: the slurp buffer below sizes itself from file length
+    // (potentially many MiB on seekable inputs), so no stack-bound applies.
     DefaultAllocator scratch = DefaultAllocatorInit();
 
     if (!file || !fmtstr) {
@@ -1816,8 +1857,12 @@ bool _write_u64(Str *o, FmtInfo *fmt_info, u64 *v) {
         base = 8;
     }
 
-    // Use StrFromU64 directly with the appropriate base
-    bool         use_prefix = (base != 10); // Add prefix for non-decimal bases
+    // Use StrFromU64 directly with the appropriate base.
+    // Zero-pad mode suppresses any base prefix so the rendered glyph
+    // count matches the requested width exactly (e.g. {016x} -> 16 hex
+    // chars, not "0x" + 14 chars).
+    bool         zero_pad   = (fmt_info->flags & FMT_FLAG_ZERO_PAD) != 0;
+    bool         use_prefix = (base != 10) && !zero_pad;
     StrIntFormat config = {.base = base, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0, .use_prefix = use_prefix};
     if (!StrFromU64(&temp, *v, &config)) {
         StrDeinit(&temp);
@@ -1834,7 +1879,11 @@ bool _write_u64(Str *o, FmtInfo *fmt_info, u64 *v) {
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+        if (zero_pad) {
+            if (!pad_numeric_zeros(o, start_len, fmt_info->width, content_len)) {
+                return false;
+            }
+        } else if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -1914,8 +1963,11 @@ bool _write_i64(Str *o, FmtInfo *fmt_info, i64 *v) {
         base = 8;
     }
 
-    // Use StrFromI64 directly with the appropriate base
-    bool         use_prefix = (base != 10); // Add prefix for non-decimal bases
+    // Use StrFromI64 directly with the appropriate base. Zero-pad
+    // suppresses the base prefix; the leading sign (if any) is kept
+    // ahead of the '0' fill -- see pad_numeric_zeros.
+    bool         zero_pad   = (fmt_info->flags & FMT_FLAG_ZERO_PAD) != 0;
+    bool         use_prefix = (base != 10) && !zero_pad;
     StrIntFormat config = {.base = base, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0, .use_prefix = use_prefix};
     if (!StrFromI64(&temp, *v, &config)) {
         StrDeinit(&temp);
@@ -1932,7 +1984,11 @@ bool _write_i64(Str *o, FmtInfo *fmt_info, i64 *v) {
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+        if (zero_pad) {
+            if (!pad_numeric_zeros(o, start_len, fmt_info->width, content_len)) {
+                return false;
+            }
+        } else if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -2484,6 +2540,24 @@ static bool IsValidNumericString(const Str *str, bool allow_float) {
 
     return true;
 }
+
+// ---------------------------------------------------------------------------
+// `_read_*` type-specific readers
+//
+// Each reader scans a numeric / string slice out of the input, copies it
+// into a temporary Str, runs the validate-and-convert pipeline, and
+// returns the consumed end. The per-call DefaultAllocator is the right
+// fit here:
+//
+//   - The TypeSpecificReader function-pointer signature has no Allocator *
+//     slot (it's part of the public visitor protocol), so we cannot
+//     accept one from the caller without changing public API.
+//   - Slice lengths are caller-controlled (the input string may be
+//     arbitrarily large), so a stack-bound StrInitStack would impose a
+//     truncation cap that the existing pipeline never had.
+//   - DefaultAllocator stays as DebugAllocator in debug builds, so leak
+//     / canary instrumentation still covers these hot paths.
+// ---------------------------------------------------------------------------
 
 const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v) {
     DefaultAllocator scratch = DefaultAllocatorInit();

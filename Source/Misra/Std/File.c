@@ -2,9 +2,8 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Cross-platform File implementation plus the existing
-/// `read_complete_file` helper. Linux uses direct syscalls; macOS
-/// uses libSystem's open/read/write/close/lseek; Windows uses
+/// Cross-platform File implementation. Linux uses direct syscalls;
+/// macOS uses libSystem's open/read/write/close/lseek; Windows uses
 /// CreateFile / ReadFile / WriteFile / SetFilePointer / CloseHandle.
 
 #include <Misra/Std/Container/Str.h>
@@ -14,7 +13,7 @@
 #include <Misra/Sys.h>
 #include <Misra/Types.h>
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 #    include <windows.h>
 #else
 #    include <fcntl.h>
@@ -32,7 +31,7 @@
 // Returns POSIX open() flags. `binary` is set true regardless -- we treat
 // every mode as binary. Returns false if the mode is invalid.
 static bool parse_open_mode(const char *mode, int *out_flags) {
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     (void)mode;
     (void)out_flags;
     return false; // Windows uses a different mode encoding (see FileOpen).
@@ -73,7 +72,7 @@ static bool parse_open_mode(const char *mode, int *out_flags) {
 
 File file_open(const char *path, const char *mode) {
     File f = {0};
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     f.handle = INVALID_HANDLE_VALUE;
     if (!path || !mode || !*mode) {
         return f;
@@ -125,14 +124,14 @@ File file_open(const char *path, const char *mode) {
     // (O_RDONLY/WRONLY/RDWR/CREAT/TRUNC/APPEND) come from <fcntl.h>
     // via parse_open_mode and resolve correctly without a feature
     // macro.
-#    if defined(__APPLE__)
+#    if PLATFORM_DARWIN
     flags |= 0x1000000; // Darwin O_CLOEXEC
 #    else
     flags |= 0x80000; // Linux O_CLOEXEC
 #    endif
     long fd;
 #    if FEATURE_DIRECT_SYSCALL
-#        if defined(__APPLE__) || defined(__x86_64__)
+#        if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     // Darwin has SYS_open on both x86_64 and aarch64. Linux x86_64
     // does too; only Linux aarch64 went openat-only.
     fd = misra_sys3(MISRA_SYS_open, (long)(u64)path, (long)flags, 0644L);
@@ -155,7 +154,7 @@ File file_open(const char *path, const char *mode) {
 
 File FileFromFd(i32 fd) {
     File f = {0};
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     (void)fd;
     f.handle = INVALID_HANDLE_VALUE;
 #else
@@ -166,7 +165,7 @@ File FileFromFd(i32 fd) {
 }
 
 File FileStdin(void) {
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     File f = {.handle = GetStdHandle(STD_INPUT_HANDLE), .owns = false};
     return f;
 #else
@@ -175,7 +174,7 @@ File FileStdin(void) {
 }
 
 File FileStdout(void) {
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     File f = {.handle = GetStdHandle(STD_OUTPUT_HANDLE), .owns = false};
     return f;
 #else
@@ -184,7 +183,7 @@ File FileStdout(void) {
 }
 
 File FileStderr(void) {
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     File f = {.handle = GetStdHandle(STD_ERROR_HANDLE), .owns = false};
     return f;
 #else
@@ -196,7 +195,7 @@ bool FileClose(File *f) {
     if (!f) {
         return false;
     }
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     bool ok = true;
     if (f->owns && f->handle && f->handle != INVALID_HANDLE_VALUE) {
         ok = CloseHandle((HANDLE)f->handle) != 0;
@@ -224,7 +223,7 @@ bool FileIsOpen(const File *f) {
     if (!f) {
         return false;
     }
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     return f->handle && f->handle != INVALID_HANDLE_VALUE;
 #else
     return f->fd >= 0;
@@ -242,7 +241,7 @@ i64 file_read(File *f, void *buf, u64 n) {
     if (n == 0) {
         return 0;
     }
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     DWORD got = 0;
     if (!ReadFile((HANDLE)f->handle, buf, (DWORD)n, &got, NULL)) {
         return -1;
@@ -279,7 +278,7 @@ i64 FileWrite(File *f, const void *buf, u64 n) {
     if (n == 0) {
         return 0;
     }
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     DWORD put = 0;
     if (!WriteFile((HANDLE)f->handle, buf, (DWORD)n, &put, NULL)) {
         return -1;
@@ -305,7 +304,7 @@ i64 FileSeek(File *f, i64 offset, FileWhence whence) {
         return -1;
     }
     f->at_eof = false;
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     LARGE_INTEGER off;
     off.QuadPart = offset;
     LARGE_INTEGER newpos;
@@ -337,7 +336,7 @@ bool FileFlush(File *f) {
     if (!FileIsOpen(f)) {
         return false;
     }
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     return FlushFileBuffers((HANDLE)f->handle) != 0;
 #else
     // POSIX: with no user-side buffering the kernel already sees the
@@ -352,7 +351,7 @@ bool FileIsEof(const File *f) {
 }
 
 i32 FileFd(const File *f) {
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     (void)f;
     return -1;
 #else
@@ -413,25 +412,9 @@ i64 file_read_to_str(File *f, Str *out) {
 // same prefix can never collide -- one wins, the other retries.
 // ---------------------------------------------------------------------------
 
-// Append `v` as a 16-digit zero-padded lowercase hex string to `out`.
-// The project's StrAppendFmt understands `{x}` for hex, but has no
-// zero-pad / fixed-width specifier today -- pad_zeros / min_width
-// fields exist on StrIntFormat but are not honored by the format
-// machinery. Rendering the nibbles directly keeps the suffix
-// length deterministic without inventing a new format spec.
-static bool append_hex16(Str *out, u64 v) {
-    static const char hex[] = "0123456789abcdef";
-    for (i32 i = 15; i >= 0; --i) {
-        if (!StrPushBack(out, hex[(v >> (i * 4)) & 0xF])) {
-            return false;
-        }
-    }
-    return true;
-}
-
 File file_open_temp(const char *prefix, Str *out_path, Allocator *alloc) {
     File f = {0};
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     f.handle = INVALID_HANDLE_VALUE;
 #else
     f.fd = -1;
@@ -445,14 +428,12 @@ File file_open_temp(const char *prefix, Str *out_path, Allocator *alloc) {
     // pathological filesystem races, not for entropy weakness.
     for (i32 attempt = 0; attempt < 8; ++attempt) {
         *out_path = StrInit(alloc);
-        StrAppendFmt(out_path, "{}", prefix);
-        if (!append_hex16(out_path, Prng64())) {
-            StrDeinit(out_path);
-            LOG_ERROR("FileOpenTemp: out-of-memory rendering suffix");
-            return f;
-        }
+        // {016x} = hex, zero-padded to 16 chars, no "0x" prefix. The
+        // fixed width is what makes collisions detectable as exact
+        // string mismatches rather than substring overlaps.
+        StrAppendFmt(out_path, "{}{016x}", prefix, Prng64());
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
         // CREATE_NEW fails with ERROR_FILE_EXISTS on collision. GENERIC_READ|WRITE
         // gives us the equivalent of POSIX O_RDWR.
         HANDLE h = CreateFileA(
@@ -481,14 +462,14 @@ File file_open_temp(const char *prefix, Str *out_path, Allocator *alloc) {
         // same on Linux and Darwin for these three.
         // O_RDWR=2, O_CREAT=0x40 (Linux) / 0x200 (Darwin),
         // O_EXCL=0x80 (Linux) / 0x800 (Darwin).
-#    if defined(__APPLE__)
+#    if PLATFORM_DARWIN
         int flags = 2 | 0x200 | 0x800 | 0x1000000; // RDWR | CREAT | EXCL | CLOEXEC
 #    else
         int flags = 2 | 0x40 | 0x80 | 0x80000; // RDWR | CREAT | EXCL | CLOEXEC
 #    endif
         long fd;
 #    if FEATURE_DIRECT_SYSCALL
-#        if defined(__APPLE__) || defined(__x86_64__)
+#        if PLATFORM_DARWIN || ARCHITECTURE_X86_64
         fd = misra_sys3(MISRA_SYS_open, (long)(u64)out_path->data, (long)flags, 0600L);
 #        else
         fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(u64)out_path->data, (long)flags, 0600L);

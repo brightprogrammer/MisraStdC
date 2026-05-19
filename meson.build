@@ -498,6 +498,21 @@ config_data.set10('FEATURE_DIRECT_SYSCALL',  have_direct_syscall)
 config_data.set10('FEATURE_PARSER_DNS',      opt_parser_dns)
 config_data.set10('FEATURE_SYS_DNS',         opt_sys_dns)
 
+# Platform / architecture macros. These mirror the compiler builtins
+# (`__linux__`, `__APPLE__`, `_WIN32`, `__x86_64__`, ...) but are
+# project-controlled: exactly one PLATFORM_* and one ARCHITECTURE_* is
+# `1`, the rest are `0`. Consumer code uses `#if PLATFORM_LINUX` rather
+# than `#if defined(__linux__)`. PLATFORM_UNIX is the POSIX-like
+# convenience flag (Linux OR Darwin, extensible to BSD).
+config_data.set10('PLATFORM_LINUX',          sys_kernel == 'linux')
+config_data.set10('PLATFORM_DARWIN',         sys_kernel == 'darwin')
+config_data.set10('PLATFORM_WINDOWS',        sys_kernel == 'windows')
+config_data.set10('PLATFORM_UNIX',           sys_kernel == 'linux' or sys_kernel == 'darwin')
+config_data.set10('ARCHITECTURE_X86_64',     sys_cpu == 'x86_64')
+config_data.set10('ARCHITECTURE_AARCH64',    sys_cpu == 'aarch64')
+config_data.set10('ARCHITECTURE_X86_32',     sys_cpu == 'x86')
+config_data.set10('ARCHITECTURE_ARM32',      sys_cpu == 'arm')
+
 # Numeric tunables. `set` (vs `set10`) emits the literal value -- the
 # `@FOO@` substitution in Config.h.in would normally be used, but we
 # don't have one; configure_file with `configuration:` mode emits

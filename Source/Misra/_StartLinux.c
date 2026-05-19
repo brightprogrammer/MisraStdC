@@ -31,7 +31,7 @@
 
 #include "_Syscall.h"
 
-#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+#if PLATFORM_LINUX && (defined(__x86_64__) || defined(__aarch64__))
 
 extern int main(int argc, char **argv);
 
@@ -83,4 +83,4 @@ __attribute__((naked, used, noreturn)) void _start(void) {
 #    endif
 }
 
-#endif // __linux__ && (__x86_64__ || __aarch64__)
+#endif // PLATFORM_LINUX && (__x86_64__ || __aarch64__)

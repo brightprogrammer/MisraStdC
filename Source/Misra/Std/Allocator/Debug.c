@@ -20,11 +20,11 @@
 // x86_64 / aarch64 (one register read, no libc); falls back to the
 // address of a TLS-marker byte everywhere else.
 
-#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+#if PLATFORM_LINUX && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
 
 u64 debug_current_tid(void) {
     u64 tp;
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     __asm__ volatile("mov %%fs:0, %0"
                      : "=r"(tp));
 #    else // __aarch64__

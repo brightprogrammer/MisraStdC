@@ -19,7 +19,7 @@
 
 #include "../_Syscall.h"
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 #    include <bcrypt.h>
 #    include <windows.h>
 #endif
@@ -30,12 +30,12 @@
 static void prng_seed_from_kernel(u64 *out) {
     u8 *p   = (u8 *)out;
     u64 rem = sizeof(*out);
-#if defined(_WIN32)
+#if PLATFORM_WINDOWS
     if (BCryptGenRandom(NULL, p, (unsigned long)rem, 2) != 0) { // BCRYPT_USE_SYSTEM_PREFERRED_RNG = 2
         LOG_FATAL("Prng: BCryptGenRandom failed");
     }
 #elif FEATURE_DIRECT_SYSCALL
-#    if defined(__APPLE__)
+#    if PLATFORM_DARWIN
     // getentropy: max 256 bytes per call. We only ask for 8.
     while (rem > 0) {
         long chunk = rem > 256 ? 256 : (long)rem;

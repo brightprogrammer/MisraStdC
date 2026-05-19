@@ -14,7 +14,9 @@
 /// fallback that older ports needed. Building against Win7 would
 /// require adding that fallback for failed `connect()` detection.
 
-#if !defined(_WIN32)
+#include <Misra/Config.h>
+
+#if !PLATFORM_WINDOWS
 #    define _DEFAULT_SOURCE
 #    define _POSIX_C_SOURCE 200809L
 #endif
@@ -24,7 +26,7 @@
 #include <Misra/Std.h>
 #include <Misra/Std/Log.h>
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 // Order matters: winsock2.h must come before windows.h. Defining the
 // guard suppresses the legacy winsock.h that windows.h would otherwise
 // drag in via mistake.
@@ -79,7 +81,7 @@ static bool ensure_winsock(void) {
             LOG_ERROR(msg " (WSAGetLastError={})", (i32)WSAGetLastError());                                            \
         } while (0)
 
-#else // !_WIN32 (POSIX)
+#else // POSIX
 
 #    include <arpa/inet.h>
 #    include <fcntl.h>
@@ -133,7 +135,7 @@ static inline long misra_sock_fcntl(int fd, int cmd, long arg) {
     return misra_sys3(MISRA_SYS_fcntl, (long)fd, (long)cmd, arg);
 }
 static inline long misra_sock_poll(void *pfds, unsigned long nfds, int timeout_ms) {
-#        if defined(__APPLE__) || defined(__x86_64__)
+#        if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     // Darwin has SYS_poll (#230); Linux x86_64 has SYS_poll (#7). Same shape.
     return misra_sys3(MISRA_SYS_poll, (long)(u64)pfds, (long)nfds, (long)timeout_ms);
 #        else
@@ -178,7 +180,7 @@ static inline SockFd int_to_sf(int s) {
 // syscall it carries -errno directly; on libSystem (macOS) the value
 // is -1 and errno is set. ErrnoOf papers over the difference.
 #    define LOG_SOCK_ERROR(ret, msg) LOG_SYS_ERROR(ErrnoOf(ret), msg)
-#endif // _WIN32
+#endif // PLATFORM_WINDOWS
 
 // ---------------------------------------------------------------------------
 // Pure-C parsers / formatters. No platform dependencies -- shared.
@@ -639,7 +641,7 @@ Str socket_addr_format(const SocketAddr *addr, Allocator *alloc) {
 // Wrapping at this level lets the high-level functions share code.
 // ---------------------------------------------------------------------------
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 
 // Returns SOCKET_FD_INVALID on failure. `ret`-passing to LOG_SOCK_ERROR
 // is a no-op on Windows (the macro reads WSAGetLastError instead) but
@@ -867,7 +869,7 @@ static bool plat_set_nonblocking(SockFd s, bool nonblock) {
     return true;
 }
 
-#endif // _WIN32
+#endif // PLATFORM_WINDOWS
 
 // ---------------------------------------------------------------------------
 // Listener
@@ -900,7 +902,7 @@ bool ListenerOpen(Listener *out, SocketKind kind, const SocketAddr *addr, i32 ba
     //     on Windows lets other processes hijack -- never use it on a
     //     server).
     i32 yes = 1;
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     if (!plat_setsockopt(fd, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, &yes, sizeof(yes))) {
         plat_close(fd);
         return false;
@@ -1055,7 +1057,7 @@ bool SocketSetKeepAlive(SockFd fd, bool keepalive) {
 
 bool SocketSetReuseAddr(SockFd fd, bool reuse) {
     i32 v = reuse ? 1 : 0;
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     return plat_setsockopt(fd, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, &v, sizeof(v));
 #else
     return plat_setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(v));
@@ -1063,7 +1065,7 @@ bool SocketSetReuseAddr(SockFd fd, bool reuse) {
 }
 
 bool SocketSetRecvTimeoutMs(SockFd fd, u32 ms) {
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     DWORD tv = (DWORD)ms;
     return plat_setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 #else
@@ -1075,7 +1077,7 @@ bool SocketSetRecvTimeoutMs(SockFd fd, u32 ms) {
 }
 
 bool SocketSetSendTimeoutMs(SockFd fd, u32 ms) {
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     DWORD tv = (DWORD)ms;
     return plat_setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 #else
@@ -1090,7 +1092,7 @@ bool SocketSetSendTimeoutMs(SockFd fd, u32 ms) {
 // Multiplexing
 // ---------------------------------------------------------------------------
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 typedef WSAPOLLFD plat_pollfd_t;
 #else
 typedef struct pollfd plat_pollfd_t;
@@ -1120,7 +1122,7 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
     }
 
     for (u32 i = 0; i < count; ++i) {
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
         pfds[i].fd = sf_to_socket(items[i].fd);
 #else
         pfds[i].fd = sf_to_int(items[i].fd);
@@ -1136,7 +1138,7 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
     }
 
     i32 ret;
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     // WSAPoll on Win10 2004+ is correct; older Windows had a bug on
     // failed connect that we'd need a select() fallback for. We accept
     // the modern-Windows-only constraint.

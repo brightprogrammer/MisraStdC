@@ -8,7 +8,9 @@
 // Reference : https://forums.freebsd.org/threads/strerror_r-best-practices-posix-vs-gnu.92296/
 #define _POSIX_C_SOURCE 200112L
 
-#ifdef _WIN32
+#include <Misra/Config.h>
+
+#if PLATFORM_WINDOWS
 #    include <windows.h>
 #    include <tlhelp32.h>
 #    include <psapi.h>
@@ -20,7 +22,7 @@
 #    include <sys/wait.h>
 #    include <signal.h>
 #    include <unistd.h>
-#    ifdef __APPLE__
+#    if PLATFORM_DARWIN
 #        include <mach-o/dyld.h>
 #    endif
 #endif
@@ -289,7 +291,7 @@ void Abort(void) {
 }
 
 ProcId ProcGetCurrentId(void) {
-#if defined(_WIN32)
+#if PLATFORM_WINDOWS
     // kernel32.dll, not libc.
     return (ProcId)GetCurrentProcessId();
 #elif FEATURE_DIRECT_SYSCALL
@@ -311,7 +313,7 @@ ProcId ProcGetCurrentId(void) {
 // reference -- on macOS that resolves to libSystem; on builds where it
 // doesn't resolve the function returns NULL safely.
 
-#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+#if PLATFORM_LINUX && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
 extern char **misra_envp;
 #else
 // Weakly-referenced libc symbol -- no `<stdlib.h>` include. If the
@@ -324,7 +326,7 @@ const char *EnvGet(const char *name) {
     if (!name) {
         return NULL;
     }
-#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+#if PLATFORM_LINUX && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
     if (!misra_envp) {
         return NULL;
     }

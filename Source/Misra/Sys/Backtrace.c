@@ -85,7 +85,7 @@ static const char *basename_of(const char *path) {
 // Windows backend
 // ---------------------------------------------------------------------------
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 
 #    include <windows.h>
 #    include <dbghelp.h>
@@ -258,7 +258,7 @@ void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *allo
 // invariant. Following the `Parsers/Elf` pattern, we restate the
 // handful of dyld / Mach-O declarations we actually need.
 
-#elif defined(__APPLE__)
+#elif PLATFORM_DARWIN
 
 // dyld public API surface (libdyld.dylib, ABI-stable).
 extern u32         _dyld_image_count(void);
@@ -570,7 +570,7 @@ void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *allo
 // and the return-address pseudo-register at 16. We track RSP and RBP
 // across frames; other GPRs aren't needed to walk the call stack.
 
-#    if FEATURE_SYS_SYMRESOLVE && FEATURE_PARSER_DWARF && defined(__x86_64__)
+#    if FEATURE_SYS_SYMRESOLVE && FEATURE_PARSER_DWARF && ARCHITECTURE_X86_64
 
 enum {
     DWARF_REG_RBP = 6,

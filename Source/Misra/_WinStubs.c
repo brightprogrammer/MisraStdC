@@ -18,7 +18,9 @@
 /// never actually call sprintf, allocate giant stack frames, or check
 /// stack canaries -- the symbols exist purely to satisfy the linker.
 
-#if defined(_WIN32)
+#include <Misra/Config.h>
+
+#if PLATFORM_WINDOWS
 
 // (1) Stack-protector cookies. clang-cl emits prologue/epilogue refs
 //     to these for every function with a stack array, even with
@@ -26,7 +28,7 @@
 //     cookie value (not security-meaningful since we're a libc-diet
 //     project, not a hardened service), and an empty check function.
 __attribute__((used)) unsigned long long __security_cookie = 0xBEEFC0DE12345678ULL;
-__attribute__((used)) void __security_check_cookie(unsigned long long cookie) {
+__attribute__((used)) void               __security_check_cookie(unsigned long long cookie) {
     (void)cookie;
 }
 
@@ -56,12 +58,12 @@ __attribute__((used)) int _fltused = 0x9875;
 //     dllimport convention: the linker looks for __imp_<symbol>
 //     as a function pointer. Provide that.
 static long long misra_stdio_common_vsprintf_stub(
-    unsigned long long  options,
-    char               *buf,
-    unsigned long long  bufsize,
-    const char         *format,
-    void               *locale,
-    void              **arglist
+    unsigned long long options,
+    char              *buf,
+    unsigned long long bufsize,
+    const char        *format,
+    void              *locale,
+    void             **arglist
 ) {
     (void)options;
     (void)buf;
@@ -71,7 +73,6 @@ static long long misra_stdio_common_vsprintf_stub(
     (void)arglist;
     return -1;
 }
-__attribute__((used)) void *__imp___stdio_common_vsprintf =
-    (void *)misra_stdio_common_vsprintf_stub;
+__attribute__((used)) void *__imp___stdio_common_vsprintf = (void *)misra_stdio_common_vsprintf_stub;
 
-#endif // _WIN32
+#endif // PLATFORM_WINDOWS

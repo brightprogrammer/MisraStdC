@@ -21,6 +21,7 @@
 #include <Misra/Parsers/Dwarf.h>
 #include <Misra/Std.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Math.h>
 #include <Misra/Std/Memory.h>
 
 // ---------------------------------------------------------------------------
@@ -431,8 +432,22 @@ static bool walk_cu_dies(
             }
         }
 
+        // Compute `hi` for the subprogram with overflow guard. Both
+        // `low_pc` and `high_pc` are attacker-controlled u64 fields
+        // when high_pc_is_offset; their sum can wrap. On overflow we
+        // skip the subprogram (treat as malformed, fall through to
+        // the depth/children bookkeeping below).
+        bool subprogram_hi_ok = false;
+        u64  hi               = 0;
         if (is_subprogram && have_name && have_low && have_high) {
-            u64 hi = high_pc_is_offset ? low_pc + high_pc : high_pc;
+            if (high_pc_is_offset) {
+                subprogram_hi_ok = AddOverflow64(low_pc, high_pc, &hi);
+            } else {
+                hi               = high_pc;
+                subprogram_hi_ok = true;
+            }
+        }
+        if (subprogram_hi_ok) {
             if (hi > low_pc) {
                 // Resolve name into the pool now (or later if it came
                 // from .debug_str — same pool either way).
@@ -443,9 +458,19 @@ static bool walk_cu_dies(
                     src = name;
                 }
                 // Validate the string is NUL-terminated within bounds.
-                // For strp-source, the segment is bounded by debug_str_size.
-                u64 src_max = name_from_strp ? (debug_str_size - name_str_off) : 0x10000;
-                u64 nlen    = 0;
+                // For strp-source the cap is what remains of debug_str
+                // after name_str_off; guard against underflow if
+                // name_str_off > debug_str_size (defense-in-depth even
+                // though the attribute reader already bounded it). For
+                // inline cstr the attribute reader proved the string
+                // lies inside .debug_info; cap scan length anyway.
+                u64 src_max;
+                if (name_from_strp) {
+                    src_max = name_str_off <= debug_str_size ? debug_str_size - name_str_off : 0;
+                } else {
+                    src_max = 0x10000;
+                }
+                u64 nlen = 0;
                 while (nlen < src_max && src[nlen] != '\0')
                     ++nlen;
                 if (nlen > 0 && nlen < src_max) {

@@ -36,7 +36,7 @@
 /// real Winsock `SOCKET` (UINT_PTR), `i32` everywhere else so it stays
 /// printf-friendly and matches the POSIX `int` fd.
 ///
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 typedef u64 SockFd;
 #    define SOCKET_FD_INVALID ((SockFd) ~(u64)0) // == INVALID_SOCKET
 #else
@@ -148,7 +148,7 @@ bool SocketAddrParse(SocketAddr *out, const char *spec, SocketKind kind);
 /// TAGS: Socket, Address, Format
 ///
 Str socket_addr_format(const SocketAddr *addr, Allocator *alloc);
-#define SocketAddrFormat(...)         MISRA_OVERLOAD(SocketAddrFormat, __VA_ARGS__)
+#define SocketAddrFormat(...)           MISRA_OVERLOAD(SocketAddrFormat, __VA_ARGS__)
 #define SocketAddrFormat_1(addr)        socket_addr_format((addr), MisraScope)
 #define SocketAddrFormat_2(addr, alloc) socket_addr_format((addr), ALLOCATOR_OF(alloc))
 

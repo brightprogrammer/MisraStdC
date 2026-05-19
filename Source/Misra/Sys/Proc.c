@@ -15,7 +15,7 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Log.h>
 #include "../_Syscall.h"
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 #    include <windows.h>
 #    include <tlhelp32.h>
 #    include <psapi.h>
@@ -30,7 +30,7 @@
 #    include <fcntl.h>
 #    include <signal.h>
 #    include <unistd.h>
-#    ifdef __APPLE__
+#    if PLATFORM_DARWIN
 #        include <mach-o/dyld.h>
 #    endif
 #    define FILENO fileno
@@ -39,7 +39,7 @@
 // Sleep for `us` microseconds. Linux: direct nanosleep syscall.
 // macOS / BSD: nanosleep from libSystem. Windows: kernel32 Sleep.
 static inline void proc_sleep_us(u64 us) {
-#if defined(_WIN32)
+#if PLATFORM_WINDOWS
     Sleep((DWORD)(us / 1000));
 #elif FEATURE_DIRECT_SYSCALL
     // struct __kernel_timespec is `long sec; long nsec;` on 64-bit Linux.
@@ -75,24 +75,24 @@ static inline long misra_proc_write(int fd, const void *buf, unsigned long n) {
     return misra_sys3(MISRA_SYS_write, (long)fd, (long)(u64)buf, (long)n);
 }
 static inline long misra_proc_pipe(int fds[2]) {
-#    if defined(__APPLE__)
+#    if PLATFORM_DARWIN
     // Darwin pipe ignores its arg and returns fds in registers.
     return misra_darwin_pipe(fds);
-#    elif defined(__x86_64__)
+#    elif ARCHITECTURE_X86_64
     return misra_sys1(MISRA_SYS_pipe, (long)(u64)fds);
 #    else
     return misra_sys2(MISRA_SYS_pipe2, (long)(u64)fds, 0);
 #    endif
 }
 static inline long misra_proc_dup2(int oldfd, int newfd) {
-#    if defined(__APPLE__) || defined(__x86_64__)
+#    if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     return misra_sys2(MISRA_SYS_dup2, (long)oldfd, (long)newfd);
 #    else
     return misra_sys3(MISRA_SYS_dup3, (long)oldfd, (long)newfd, 0);
 #    endif
 }
 static inline long misra_proc_fork(void) {
-#    if defined(__APPLE__) || defined(__x86_64__)
+#    if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     // Darwin has fork (#2); Linux x86_64 has fork (#57). Same shape:
     // returns 0 in child, pid in parent.
     return misra_sys0(MISRA_SYS_fork);
@@ -109,7 +109,7 @@ static inline long misra_proc_kill(int pid, int sig) {
     return misra_sys2(MISRA_SYS_kill, (long)pid, (long)sig);
 }
 static inline long misra_proc_readlink(const char *path, char *buf, unsigned long sz) {
-#    if defined(__APPLE__) || defined(__x86_64__)
+#    if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     return misra_sys3(MISRA_SYS_readlink, (long)(u64)path, (long)(u64)buf, (long)sz);
 #    else
     // Linux aarch64: no SYS_readlink. AT_FDCWD = -100.
@@ -155,7 +155,7 @@ static inline long misra_proc_waitpid(int pid, int *status, int options) {
 
 Proc proc_init(const char *filepath, char **argv, char **envp, Allocator *alloc) {
     Proc proc = {0};
-#if defined(__APPLE__) || defined(__linux__)
+#if PLATFORM_UNIX
     (void)alloc; // POSIX path doesn't need an allocator
     int stdin_pipe[2]  = {-1};
     int stdout_pipe[2] = {-1};
@@ -314,7 +314,7 @@ ProcStatus ProcWait(Proc *proc) {
         LOG_FATAL("Invalid argument");
     }
 
-#if defined(__APPLE__) || defined(__linux__)
+#if PLATFORM_UNIX
     int  status;
     long wait_ret = waitpid(proc->_pid, &status, 0);
     if (wait_ret < 0) {
@@ -361,7 +361,7 @@ ProcStatus ProcWaitFor(Proc *proc, u64 timeout_ms) {
         LOG_FATAL("Invalid arguments");
     }
 
-#if defined(_WIN32)
+#if PLATFORM_WINDOWS
     DWORD wait_time = (timeout_ms == 0) ? INFINITE : (DWORD)timeout_ms;
     DWORD result    = WaitForSingleObject(proc->_pi.hProcess, wait_time);
 
@@ -436,7 +436,7 @@ void ProcTerminate(Proc *proc) {
         return;
     }
 
-#if defined(__APPLE__) || defined(__linux__)
+#if PLATFORM_UNIX
     long kill_ret = kill(proc->_pid, SIGTERM);
     if (kill_ret < 0) {
         LOG_SYS_ERROR(ErrnoOf(kill_ret), "kill(pid, SIGTERM) failed");
@@ -492,7 +492,7 @@ void ProcDeinit(Proc *proc) {
     // child-side cleanup; we always zero-and-return at the end.
     if (ProcOk(proc)) {
         ProcTerminate(proc);
-#if defined(__APPLE__) || defined(__linux__)
+#if PLATFORM_UNIX
         close(proc->_stdin_fd);
         close(proc->_stdout_fd);
         close(proc->_stderr_fd);
@@ -512,7 +512,7 @@ i32 ProcWriteToStdin(Proc *proc, Str *buf) {
         LOG_FATAL("Invalid arguments");
     }
 
-#if defined(__APPLE__) || defined(__linux__)
+#if PLATFORM_UNIX
     return write(proc->_stdin_fd, buf->data, buf->length);
 #else
     DWORD written = 0;
@@ -534,7 +534,7 @@ i32 sys_proc_read_internal(Proc *proc, Str *buf, bool is_stdout) {
     i64  total_read   = 0;
     char tmpbuf[1024] = {0};
 
-#if defined(__APPLE__) || defined(__linux__)
+#if PLATFORM_UNIX
     i32 rfd = is_stdout ? proc->_stdout_fd : proc->_stderr_fd;
 
     // // Save original flags and switch to blocking
@@ -629,7 +629,7 @@ i32 ProcGetId(Proc *proc) {
         LOG_FATAL("Invalid argument");
     }
 
-#if defined(__APPLE__) || defined(__linux__)
+#if PLATFORM_UNIX
     return proc->_pid;
 #else
     return (i32)proc->_pi.dwProcessId;
@@ -641,7 +641,7 @@ i32 ProcIsRunning(Proc *proc) {
         LOG_FATAL("Invalid argument");
     }
 
-#if defined(__APPLE__) || defined(__linux__)
+#if PLATFORM_UNIX
     int   status;
     pid_t result = waitpid(proc->_pid, &status, WNOHANG);
     if (result == 0) {
@@ -669,7 +669,7 @@ i32 ProcGetExitCode(Proc *proc) {
         return -1; // Cannot get exit code if not completed
     }
 
-#if defined(_WIN32)
+#if PLATFORM_WINDOWS
     DWORD code;
     if (GetExitCodeProcess(proc->_pi.hProcess, &code)) {
         return (i32)code;
@@ -684,7 +684,7 @@ Str *GetCurrentExecutablePath(Str *exe_path) {
     ValidateStr(exe_path);
     Allocator *alloc = exe_path->allocator;
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     char  buffer[MAX_PATH];
     DWORD len = GetModuleFileNameA(NULL, buffer, MAX_PATH);
     if (len == 0 || len >= MAX_PATH) {
@@ -713,7 +713,7 @@ Str *GetCurrentExecutablePath(Str *exe_path) {
 // dyld's internal tables (don't free, don't outlive the process,
 // which is fine for our copy-into-Str use here). Same call as
 // Sys/Backtrace already makes per-frame.
-#    ifdef __APPLE__
+#    if PLATFORM_DARWIN
     extern const char *_dyld_get_image_name(u32 image_index);
     const char        *exe = _dyld_get_image_name(0);
     if (exe) {

@@ -349,6 +349,19 @@ static bool decode_symbols(MachoContext *ctx) {
         (void)n_desc;
         if (n_strx >= ctx->strsize)
             continue; // bad index; skip
+        // The strtab may be missing a NUL terminator within
+        // [n_strx, strsize); accepting it would let downstream C
+        // string consumers read past the strtab. Scan forward and
+        // skip the symbol if no NUL is found.
+        bool name_has_nul = false;
+        for (u64 p = n_strx; p < ctx->strsize; ++p) {
+            if (str_base[p] == 0) {
+                name_has_nul = true;
+                break;
+            }
+        }
+        if (!name_has_nul)
+            continue;
         MachoSymbol sym;
         sym.name          = (const char *)(str_base + n_strx);
         sym.value         = n_value;

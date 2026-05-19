@@ -25,11 +25,11 @@
 
 #include "../_Syscall.h"
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 #    include <windows.h>
 #elif FEATURE_DIRECT_SYSCALL
 #    include <stdatomic.h>
-#    if defined(__APPLE__)
+#    if PLATFORM_DARWIN
 // XNU __ulock op codes. We want plain 32-bit compare-and-wait,
 // process-local. ULF_NO_ERRNO would make the kernel return -errno
 // instead of setting libSystem's errno -- not strictly necessary
@@ -55,7 +55,7 @@
 // primitive. Same semantics: wait sleeps iff *addr == expected;
 // wake_one releases at most one waiter.
 static inline void mutex_wait(_Atomic int *addr, int expected) {
-#    if defined(__APPLE__)
+#    if PLATFORM_DARWIN
     // __ulock_wait(op_and_flags, addr, value, timeout_us=0=infinite)
     (void)misra_sys4(
         MISRA_SYS___ulock_wait,
@@ -71,7 +71,7 @@ static inline void mutex_wait(_Atomic int *addr, int expected) {
 }
 
 static inline void mutex_wake_one(_Atomic int *addr) {
-#    if defined(__APPLE__)
+#    if PLATFORM_DARWIN
     // __ulock_wake(op_and_flags, addr, wake_value=0) -- with
     // UL_COMPARE_AND_WAIT alone (no ULF_WAKE_ALL) the kernel wakes
     // exactly one waiter, same as FUTEX_WAKE with val=1.
@@ -89,7 +89,7 @@ void MutexDeinit(Mutex *m) {
     if (!m) {
         return;
     }
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     // SRWLOCK has no destroy call.
 #elif FEATURE_DIRECT_SYSCALL
     // futex/ulock int has no destroy call; zeroing happens below.
@@ -100,7 +100,7 @@ void MutexDeinit(Mutex *m) {
 }
 
 Mutex *MutexLock(Mutex *m) {
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     // Cast through (SRWLOCK *) -- the header keeps `_lock` as a
     // bare void* so it doesn't have to pull <windows.h>. SRWLOCK is
     // layout-compatible with a single PVOID.
@@ -137,7 +137,7 @@ Mutex *MutexLock(Mutex *m) {
 }
 
 Mutex *MutexUnlock(Mutex *m) {
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     ReleaseSRWLockExclusive((SRWLOCK *)&m->_lock);
 #elif FEATURE_DIRECT_SYSCALL
     // Fast path: if state was 1 (no waiters), atomic dec brings it to

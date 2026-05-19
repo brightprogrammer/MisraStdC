@@ -10,6 +10,7 @@
 #include <Misra/Std.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Math.h>
 #include <Misra/Std/Memory.h>
 
 // ---------------------------------------------------------------------------
@@ -102,7 +103,10 @@ static bool stream_read(const PdbFile *self, u32 idx, u64 offset, u8 *dest, u64 
     u32 size = self->stream_sizes[idx];
     if (size == NIL_STREAM)
         return false;
-    if (offset + n > size)
+    // `offset + n` is a u64 sum of attacker-controlled values; it can
+    // wrap when offset is near u64 max. Reorder so the comparison
+    // cannot overflow.
+    if (n > size || offset > size - n)
         return false;
 
     const u32 *blocks      = self->stream_blocks[idx];
@@ -235,9 +239,27 @@ static bool parse_directory(PdbFile *self) {
         return false;
     }
 
-    self->stream_sizes        = AllocatorAlloc(self->allocator, self->num_streams * sizeof(u32), 0);
-    self->stream_blocks       = AllocatorAlloc(self->allocator, self->num_streams * sizeof(const u32 *), 0);
-    self->stream_block_counts = AllocatorAlloc(self->allocator, self->num_streams * sizeof(u32), 0);
+    // Compute each per-stream array's byte size in u64 to detect
+    // overflow before AllocatorAlloc receives a wrapped size_t (32-bit
+    // builds). Sanity cap also bounds the loop work.
+    enum {
+        PDB_MAX_STREAMS = 16u * 1024u * 1024u
+    };
+    if (self->num_streams > PDB_MAX_STREAMS) {
+        LOG_ERROR("PDB: num_streams {} exceeds sanity cap; refusing", (u64)self->num_streams);
+        return false;
+    }
+    u64 sizes_bytes  = (u64)self->num_streams * sizeof(u32);
+    u64 ptrs_bytes   = (u64)self->num_streams * sizeof(const u32 *);
+    u64 counts_bytes = (u64)self->num_streams * sizeof(u32);
+    if (sizes_bytes > (u64)((size)-1) || ptrs_bytes > (u64)((size)-1) || counts_bytes > (u64)((size)-1)) {
+        LOG_ERROR("PDB: per-stream array byte size overflows size_t");
+        return false;
+    }
+
+    self->stream_sizes        = AllocatorAlloc(self->allocator, (size)sizes_bytes, 0);
+    self->stream_blocks       = AllocatorAlloc(self->allocator, (size)ptrs_bytes, 0);
+    self->stream_block_counts = AllocatorAlloc(self->allocator, (size)counts_bytes, 0);
     if (!self->stream_sizes || !self->stream_blocks || !self->stream_block_counts)
         return false;
 
@@ -258,6 +280,7 @@ static bool parse_directory(PdbFile *self) {
     // Block indices follow. Each stream's block list is a contiguous
     // run inside the directory; we record a pointer to it.
     const u8 *block_cursor = self->stream_dir + expected;
+    const u8 *dir_end      = self->stream_dir + self->stream_dir_size;
     for (u32 i = 0; i < self->num_streams; ++i) {
         u32 sz = self->stream_sizes[i];
         if (sz == NIL_STREAM) {
@@ -265,10 +288,18 @@ static bool parse_directory(PdbFile *self) {
             self->stream_block_counts[i] = 0;
             continue;
         }
-        u32 cnt                       = div_ceil_u32(sz, self->block_size);
+        u32 cnt = div_ceil_u32(sz, self->block_size);
+        // Defense-in-depth: the aggregate check above is correct, but
+        // the per-stream cursor advance is what actually accesses
+        // memory. Verify each step fits inside [stream_dir, dir_end).
+        u64 advance = (u64)cnt * sizeof(u32);
+        if (advance > (u64)(dir_end - block_cursor)) {
+            LOG_ERROR("PDB: directory block-id table overruns stream-dir");
+            return false;
+        }
         self->stream_blocks[i]        = (const u32 *)block_cursor;
         self->stream_block_counts[i]  = cnt;
-        block_cursor                 += cnt * sizeof(u32);
+        block_cursor                 += (size)advance;
     }
     return true;
 }
@@ -527,7 +558,15 @@ static bool walk_publics(
             (void)flags; // permissive: we don't filter by FUNCTION bit;
                          // many real-world PDBs leave it unset.
             if (segment >= 1 && segment <= num_sections) {
-                u32 rva = sections[segment - 1].virtual_address + offset;
+                // Widen to u64 before adding: both operands are u32
+                // attacker-controlled fields, the sum can wrap. RVA is
+                // a u32 in PDB; reject above u32 max.
+                u64 rva64 = (u64)sections[segment - 1].virtual_address + (u64)offset;
+                if (rva64 > 0xFFFFFFFFu) {
+                    cur = next;
+                    continue;
+                }
+                u32 rva = (u32)rva64;
                 // Validate name is NUL-terminated within the record.
                 bool ok_name = false;
                 u32  end     = next;
@@ -605,7 +644,13 @@ static bool parse_pdb_functions(PdbFile *self) {
             .name = name_pool.data + pending.data[i].name_offset_in_pool,
         };
         if (i + 1 < pending.length) {
-            f.size = pending.data[i + 1].rva - f.rva;
+            // Although `pending` is sorted ascending by rva, treat the
+            // u32 subtraction defensively in case a future sort
+            // predicate changes or duplicates land in a surprising
+            // order. If next.rva < f.rva (impossible today), leave
+            // size = 0 rather than wrap.
+            u32 next_rva = pending.data[i + 1].rva;
+            f.size       = next_rva >= f.rva ? next_rva - f.rva : 0;
         }
         if (!VecPushBackR(&self->functions, f)) {
             ok = false;
@@ -754,7 +799,9 @@ const PdbFunction *PdbFileResolveRva(const PdbFile *self, u32 rva) {
         return NULL;
     const PdbFunction *f = &self->functions.data[lo - 1];
     // size == 0 means "until next entry"; we already accept that case.
-    if (f->size > 0 && rva >= f->rva + f->size)
+    // Widen to u64 to avoid u32 wrap: rva and size are both u32, so a
+    // crafted size near u32 max would let a stale entry match.
+    if (f->size > 0 && (u64)rva >= (u64)f->rva + (u64)f->size)
         return NULL;
     return f;
 }

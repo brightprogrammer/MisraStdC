@@ -51,6 +51,10 @@ typedef enum {
 /// FMT_FLAG_HAS_PRECISION : Precision was specified in format string.
 /// FMT_FLAG_RAW           : Read/write data in raw binary format
 /// FMT_FLAG_STRING        : Read a single word, a quoted string (single or double quoted)
+/// FMT_FLAG_ZERO_PAD      : Pad numeric output with '0' instead of ' ', drop base prefix.
+///                          Triggered by a leading '0' before the width digits, e.g. {016x}
+///                          renders u64 0xabc as "0000000000000abc". Sign (for signed
+///                          integers) precedes the zero-fill: "{08}" of -42 -> "-0000042".
 ///
 /// TAGS: Formatting, Text, Flags
 typedef enum {
@@ -65,6 +69,7 @@ typedef enum {
     FMT_FLAG_HAS_PRECISION = 1 << 7,
     FMT_FLAG_RAW           = 1 << 8,
     FMT_FLAG_STRING        = 1 << 9,
+    FMT_FLAG_ZERO_PAD      = 1 << 10,
 } FormatFlagsBits;
 typedef u32 FormatFlags;
 

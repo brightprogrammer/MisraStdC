@@ -1,7 +1,7 @@
 #include <Misra/Sys/Dir.h>
 #include <Misra/Std/Log.h>
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 #    include <windows.h>
 #    include <tlhelp32.h>
 #    include <psapi.h>
@@ -13,7 +13,7 @@
 #    include <sys/wait.h>
 #    include <signal.h>
 #    include <unistd.h>
-#    ifdef __APPLE__
+#    if PLATFORM_DARWIN
 #        include <mach-o/dyld.h>
 #    endif
 #endif
@@ -69,7 +69,7 @@ DirEntry *DirEntryDeinitCopy(DirEntry *copy) {
     return copy;
 }
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 // Windows-specific implementation using FindFirstFile/FindNextFile
 DirContents dir_get_contents(const char *path, Allocator *alloc) {
     if (!path || !alloc) {
@@ -137,7 +137,7 @@ DirContents dir_get_contents(const char *path, Allocator *alloc) {
 #    define DIRENT_TYPE_REG     8
 #    define DIRENT_TYPE_LNK     10
 
-#    if defined(__APPLE__)
+#    if PLATFORM_DARWIN
 // Darwin's struct dirent (per sys/dirent.h, the __DARWIN_64_BIT_INO_T
 // variant the kernel emits via getdirentries64). Field order is
 // d_ino / d_seekoff / d_reclen / d_namlen / d_type / d_name. d_name
@@ -193,7 +193,7 @@ DirContents dir_get_contents(const char *path, Allocator *alloc) {
     // O_RDONLY | O_DIRECTORY | O_CLOEXEC. Values match between Linux
     // and Darwin for O_RDONLY (0) but DIFFER for the others. Use the
     // per-OS values.
-#    if defined(__APPLE__)
+#    if PLATFORM_DARWIN
     //   Darwin: O_RDONLY=0, O_DIRECTORY=0x100000, O_CLOEXEC=0x1000000.
     const long O_RDONLY    = 0;
     const long O_DIRECTORY = 0x100000;
@@ -205,7 +205,7 @@ DirContents dir_get_contents(const char *path, Allocator *alloc) {
     const long O_CLOEXEC   = 0x80000;
 #    endif
 
-#    if defined(__APPLE__) || defined(__x86_64__)
+#    if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     // Both Darwin and Linux-x86_64 have plain SYS_open. Darwin aarch64
     // also has SYS_open (the legacy BSD numbering is intact on Apple
     // even on Apple Silicon). Linux-x86_64 has SYS_open. Linux-aarch64
@@ -221,13 +221,13 @@ DirContents dir_get_contents(const char *path, Allocator *alloc) {
     }
 
     char buf[8192];
-#    if defined(__APPLE__)
+#    if PLATFORM_DARWIN
     // Darwin getdirentries64 needs an in/out file-position arg
     // (`basep`). Initial 0; kernel updates it after each call.
     i64 basep = 0;
 #    endif
     for (;;) {
-#    if defined(__APPLE__)
+#    if PLATFORM_DARWIN
         long n = misra_sys4(MISRA_SYS_getdents64, fd, (long)(u64)buf, (long)sizeof(buf), (long)(u64)&basep);
 #    else
         long n = misra_sys3(MISRA_SYS_getdents64, fd, (long)(u64)buf, (long)sizeof(buf));
@@ -242,7 +242,7 @@ DirContents dir_get_contents(const char *path, Allocator *alloc) {
         for (long off = 0; off < n;) {
             struct misra_kernel_dirent *de = (struct misra_kernel_dirent *)(void *)(buf + off);
             const char                 *nm = de->d_name;
-#    if defined(__APPLE__)
+#    if PLATFORM_DARWIN
             // Darwin gives d_namlen explicitly (not null-terminated
             // beyond it).
             size name_len = (size)de->d_namlen;
@@ -317,7 +317,7 @@ DirContents dir_get_contents(const char *path, Allocator *alloc) {
             } else {
                 direntry.type = SYS_DIR_ENTRY_TYPE_UNKNOWN;
             }
-#    if defined(__APPLE__)
+#    if PLATFORM_DARWIN
             direntry.name = StrInitFromCstr(entry->d_name, entry->d_namlen, alloc);
 #    else
             direntry.name = StrInitFromCstr(entry->d_name, ZstrLen(entry->d_name), alloc);
@@ -334,7 +334,7 @@ DirContents dir_get_contents(const char *path, Allocator *alloc) {
 
 // Cross-platform function to get file size
 i64 file_get_size(const char *filename) {
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     // Windows-specific code using GetFileSizeEx
     HANDLE file = CreateFileA(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
     if (file == INVALID_HANDLE_VALUE) {
@@ -357,13 +357,13 @@ i64 file_get_size(const char *filename) {
     // arch-specific `struct stat` layout: lseek returns the offset
     // value the kernel computes, which equals file size at SEEK_END.
     const long O_RDONLY = 0;
-#    if defined(__APPLE__)
+#    if PLATFORM_DARWIN
     const long O_CLOEXEC = 0x1000000;
 #    else
     const long O_CLOEXEC = 0x80000;
 #    endif
     const long SEEK_END_ = 2;
-#    if defined(__APPLE__) || defined(__x86_64__)
+#    if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     long fd = misra_sys3(MISRA_SYS_open, (long)(u64)filename, O_RDONLY | O_CLOEXEC, 0);
 #    else
     long fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(u64)filename, O_RDONLY | O_CLOEXEC, 0);
@@ -405,14 +405,14 @@ i8 file_remove(const char *path) {
     if (!path) {
         LOG_FATAL("FileRemove: NULL path");
     }
-#if defined(_WIN32)
+#if PLATFORM_WINDOWS
     if (!DeleteFileA(path)) {
         LOG_ERROR("FileRemove(\"{}\"): DeleteFileA failed (GetLastError={})", path, (i32)GetLastError());
         return 0;
     }
     return 1;
 #elif FEATURE_DIRECT_SYSCALL
-#    if defined(__APPLE__) || defined(__x86_64__)
+#    if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     // Darwin has SYS_unlink (#10, BSD) on both x86_64 and aarch64.
     // Linux x86_64 also has SYS_unlink. Linux aarch64 doesn't.
     long ret = misra_sys1(MISRA_SYS_unlink, (long)(u64)path);
@@ -434,14 +434,14 @@ i8 dir_remove(const char *path) {
     if (!path) {
         LOG_FATAL("DirRemove: NULL path");
     }
-#if defined(_WIN32)
+#if PLATFORM_WINDOWS
     if (!RemoveDirectoryA(path)) {
         LOG_ERROR("DirRemove(\"{}\"): RemoveDirectoryA failed (GetLastError={})", path, (i32)GetLastError());
         return 0;
     }
     return 1;
 #elif FEATURE_DIRECT_SYSCALL
-#    if defined(__APPLE__) || defined(__x86_64__)
+#    if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     // Darwin has SYS_rmdir (#137, BSD) on both arches. Linux x86_64
     // has SYS_rmdir; Linux aarch64 went unlinkat-only.
     long ret = misra_sys1(MISRA_SYS_rmdir, (long)(u64)path);
@@ -475,14 +475,14 @@ i8 dir_create(const char *path) {
     if (!path) {
         LOG_FATAL("DirCreate: NULL path");
     }
-#if defined(_WIN32)
+#if PLATFORM_WINDOWS
     if (!CreateDirectoryA(path, NULL)) {
         LOG_ERROR("DirCreate(\"{}\"): CreateDirectoryA failed (GetLastError={})", path, (i32)GetLastError());
         return 0;
     }
     return 1;
 #elif FEATURE_DIRECT_SYSCALL
-#    if defined(__APPLE__) || defined(__x86_64__)
+#    if PLATFORM_DARWIN || ARCHITECTURE_X86_64
     long ret = misra_sys2(MISRA_SYS_mkdir, (long)(u64)path, DIR_CREATE_MODE);
 #    else
     // Linux aarch64: AT_FDCWD = -100.
@@ -503,7 +503,7 @@ i8 dir_create(const char *path) {
 // DirCreateAll to make EEXIST tolerant (idempotent). Avoids re-walking
 // the existing tree on the second invocation.
 static bool dir_already_exists(const char *path) {
-#if defined(_WIN32)
+#if PLATFORM_WINDOWS
     DWORD attrs = GetFileAttributesA(path);
     return attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY);
 #elif FEATURE_DIRECT_SYSCALL
@@ -512,7 +512,7 @@ static bool dir_already_exists(const char *path) {
     // `stat64` on both Linux and Darwin x86_64/aarch64.
     u8   buf[256] = {0};
     long ret;
-#    if defined(__APPLE__)
+#    if PLATFORM_DARWIN
     ret = misra_sys4(MISRA_SYS_fstatat64, -100L, (long)(u64)path, (long)(u64)buf, 0);
 #    else
     ret = misra_sys4(MISRA_SYS_newfstatat, -100L, (long)(u64)path, (long)(u64)buf, 0);

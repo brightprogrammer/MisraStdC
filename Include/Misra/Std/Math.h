@@ -92,6 +92,33 @@ extern "C" {
         return neg ? 1.0 / result : result;
     }
 
+    /// Checked-add for u64. Computes `a + b`, stores the result in
+    /// `*out`, returns `true` if the mathematical sum fits in u64,
+    /// `false` if it would overflow. On overflow `*out` still holds
+    /// the wrapped value (callers must not rely on it).
+    ///
+    /// Used by parsers to validate `offset + size` style arithmetic
+    /// over attacker-controlled u64 fields, where the older
+    /// "if (a + b > bound)" idiom wraps and silently passes.
+    static inline bool AddOverflow64(u64 a, u64 b, u64 *out) {
+#if defined(__GNUC__) || defined(__clang__)
+        return !__builtin_add_overflow(a, b, out);
+#else
+    *out = a + b;
+    return *out >= a;
+#endif
+    }
+
+    /// Checked-multiply for u64. Same shape as AddOverflow64.
+    static inline bool MulOverflow64(u64 a, u64 b, u64 *out) {
+#if defined(__GNUC__) || defined(__clang__)
+        return !__builtin_mul_overflow(a, b, out);
+#else
+    *out = a * b;
+    return a == 0 || (*out / a) == b;
+#endif
+    }
+
 #ifdef __cplusplus
 }
 #endif

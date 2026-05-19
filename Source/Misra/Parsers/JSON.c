@@ -25,7 +25,10 @@ static StrIter JSkipObject(StrIter si) {
     bool    expect_comma = false;
 
     // scratch allocator for the per-iteration `key` Str. Lives across the
-    // whole loop; freed before every return below.
+    // whole loop; freed before every return below. DefaultAllocator is the
+    // right fit -- JSON keys are caller-controlled and unbounded in size,
+    // so a stack-backed buffer would impose a truncation limit on parser
+    // input.
     DefaultAllocator scratch = DefaultAllocatorInit();
 
     // while not at the end of object.
@@ -289,7 +292,9 @@ StrIter JReadNumber(StrIter si, Number *num) {
 
     StrIter saved_si = si;
     si               = JSkipWhitespace(si);
-    // scratch allocator for the digit-accumulator Str `ns`.
+    // scratch allocator for the digit-accumulator Str `ns`. JSON numbers
+    // are caller-controlled and have no spec-mandated upper length, so a
+    // stack-backed buffer is unsafe -- DefaultAllocator is the right fit.
     DefaultAllocator scratch = DefaultAllocatorInit();
     Str              ns      = StrInit(&scratch);
 
@@ -606,10 +611,13 @@ StrIter JSkipValue(StrIter si) {
 
     // expecting a string
     if (c == '"') {
-        StrIter          before_si = si;
-        DefaultAllocator scratch   = DefaultAllocatorInit();
-        Str              s         = StrInit(&scratch);
-        si                         = JReadString(si, &s);
+        StrIter before_si = si;
+        // String value is parsed-and-discarded; JSON spec puts no upper
+        // bound on string length, so a stack-backed buffer would limit
+        // valid input. DefaultAllocator is the right fit here.
+        DefaultAllocator scratch = DefaultAllocatorInit();
+        Str              s       = StrInit(&scratch);
+        si                       = JReadString(si, &s);
         StrDeinit(&s);
         DefaultAllocatorDeinit(&scratch);
 

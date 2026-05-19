@@ -23,7 +23,7 @@
 
 #include <Misra/Types.h>
 
-#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+#if PLATFORM_LINUX && (defined(__x86_64__) || defined(__aarch64__))
 
 #    define FEATURE_DIRECT_SYSCALL 1
 
@@ -282,7 +282,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #        define MISRA_SYS_getrandom     278
 #    endif
 
-#elif defined(__APPLE__) && (defined(__x86_64__) || defined(__aarch64__))
+#elif PLATFORM_DARWIN && (defined(__x86_64__) || defined(__aarch64__))
 
 // Darwin direct-syscall path. Apple "deprecates" raw syscalls -- the
 // stable Apple-supported ABI is libSystem.dylib -- but they still
@@ -649,6 +649,6 @@ static inline long misra_darwin_pipe(int fds[2]) {
 
 #    define FEATURE_DIRECT_SYSCALL 0
 
-#endif // __linux__ && (__x86_64__ || __aarch64__)
+#endif // PLATFORM_LINUX && (__x86_64__ || __aarch64__)
 
 #endif // MISRA__SYSCALL_H

@@ -21,7 +21,7 @@
 
 #include <Misra/Types.h>
 
-#if defined(_WIN32)
+#if PLATFORM_WINDOWS
 
 // Forward-declare the kernel32 entry points we use. Avoids pulling
 // <windows.h> here, which would drag in declarations for thousands
@@ -29,11 +29,11 @@
 #    define DECLSPEC __declspec(dllimport)
 #    define WINAPI   __stdcall
 
-typedef const char *LPCSTR;
+typedef const char   *LPCSTR;
 typedef unsigned long DWORD;
 
 DECLSPEC LPCSTR WINAPI GetCommandLineA(void);
-DECLSPEC void WINAPI ExitProcess(DWORD uExitCode);
+DECLSPEC void WINAPI   ExitProcess(DWORD uExitCode);
 
 // User's main. Implemented in Bin/<Tool>.c. The linker resolves at
 // final-link time.
@@ -119,4 +119,4 @@ void misra_start(void) {
     ExitProcess((DWORD)rc);
 }
 
-#endif // _WIN32
+#endif // PLATFORM_WINDOWS

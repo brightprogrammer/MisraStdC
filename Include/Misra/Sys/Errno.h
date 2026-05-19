@@ -45,11 +45,11 @@ extern "C" {
 #define EPIPE  32
 #define ERANGE 34
 
-#if defined(__APPLE__)
+#if PLATFORM_DARWIN
 #    define EAGAIN      35
 #    define EADDRINUSE  48
 #    define EWOULDBLOCK EAGAIN
-#elif defined(_WIN32)
+#elif PLATFORM_WINDOWS
 // Winsock error codes are higher numbered; we only define the
 // shapes we currently use.
 #    define EAGAIN      10035 // WSAEWOULDBLOCK
@@ -64,7 +64,7 @@ extern "C" {
     // Forward-declare the libc accessor for the TLS errno slot. We
     // pull the symbol by declaration so we never include
     // `<errno.h>`; each libc names this differently.
-#if defined(__APPLE__)
+#if PLATFORM_DARWIN
     extern int *__error(void);
 #elif defined(_MSC_VER) || defined(__MSC_VER)
 extern int *_errno(void);
@@ -81,7 +81,7 @@ extern int *__errno_location(void);
     /// TAGS: Errno
     ///
     static inline i32 Errno(void) {
-#if defined(__APPLE__)
+#if PLATFORM_DARWIN
         return (i32)*__error();
 #elif defined(_MSC_VER) || defined(__MSC_VER)
     return (i32)*_errno();

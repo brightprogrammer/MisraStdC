@@ -11,7 +11,8 @@
 #include <Misra/Std/Zstr.h>
 
 #include <Misra/Parsers/Dns.h>
-#include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/Allocator/Arena.h>
+#include <Misra/Std/Allocator/Heap.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
@@ -28,7 +29,7 @@
 // path will often have an empty nameserver table on Windows -- users
 // who need lookups should populate `resolver->nameservers` directly
 // or wait for the iphlpapi-backed reader in a follow-up.
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 #    define HOSTS_FILE_PATH       "C:\\Windows\\System32\\drivers\\etc\\hosts"
 #    define RESOLV_CONF_FILE_PATH "C:\\Windows\\System32\\drivers\\etc\\resolv.conf"
 // Pull in Winsock's `sockaddr_in` / `sockaddr_in6` so the sockaddr_v4 /
@@ -467,7 +468,7 @@ static u16 random_query_id(void) {
     // Darwin's clock_gettime is libSystem-only, so use gettimeofday
     // (BSD #116) -- microsecond resolution is enough for query-id
     // randomization.
-#    if defined(__APPLE__)
+#    if PLATFORM_DARWIN
     struct {
         long sec;
         long usec;
@@ -526,14 +527,19 @@ static bool try_one_query(
     u16               port,
     DnsAddrs         *out
 ) {
-    DefaultAllocator scratch = DefaultAllocatorInit();
-    Allocator       *sa      = ALLOCATOR_OF(&scratch);
+    // Per-call scratch: one DNS query buffer (<= 1232 B) plus the parsed
+    // response with its records vector. Everything is dropped at function
+    // exit, so a bump arena fits better than DefaultAllocator -- a single
+    // page-backed chunk handles a typical response with zero per-free
+    // bookkeeping.
+    ArenaAllocator scratch = ArenaAllocatorInit();
+    Allocator     *sa      = ALLOCATOR_OF(&scratch);
 
     DnsWireBuf query = VecInitT(query, sa);
     u16        id    = random_query_id();
     if (!DnsBuildQuery(&query, id, hostname, qtype)) {
         VecDeinit(&query);
-        DefaultAllocatorDeinit(&scratch);
+        ArenaAllocatorDeinit(&scratch);
         return false;
     }
 
@@ -541,7 +547,7 @@ static bool try_one_query(
     i64 got = udp_round_trip(ns, query.data, query.length, resp_buf, sizeof(resp_buf), self->timeout_ms);
     VecDeinit(&query);
     if (got <= 0) {
-        DefaultAllocatorDeinit(&scratch);
+        ArenaAllocatorDeinit(&scratch);
         return false;
     }
 
@@ -549,7 +555,7 @@ static bool try_one_query(
     bool        ok   = DnsParseResponse(&resp, resp_buf, (u64)got, sa);
     if (!ok || resp.id != id || resp.rcode != DNS_RCODE_NOERROR) {
         DnsResponseDeinit(&resp);
-        DefaultAllocatorDeinit(&scratch);
+        ArenaAllocatorDeinit(&scratch);
         return false;
     }
 
@@ -562,7 +568,7 @@ static bool try_one_query(
         }
     }
     DnsResponseDeinit(&resp);
-    DefaultAllocatorDeinit(&scratch);
+    ArenaAllocatorDeinit(&scratch);
     return found;
 }
 
@@ -572,22 +578,24 @@ bool DnsResolve_5(DnsResolver *self, const char *hostname, u16 port, SocketKind 
         return false;
     }
 
-    // Normalize the input: strip trailing dot, lowercase. Stack-bound
-    // scratch -- hostnames are bounded by DNS limits at 253 chars.
-    char             buf[256];
-    DefaultAllocator scratch = DefaultAllocatorInit();
-    Str              norm    = StrInit(ALLOCATOR_OF(&scratch));
-    normalize_hostname(hostname, &norm);
-    if (norm.length >= sizeof(buf)) {
-        StrDeinit(&norm);
-        DefaultAllocatorDeinit(&scratch);
+    // Normalize the input: strip trailing dot, lowercase. Hostnames are
+    // capped by DNS at 253 chars, so pre-check the raw input and then
+    // back the working Str with a 256-byte stack buffer via StrInitStack.
+    // The spillover allocator is wired up but unreachable -- the bound
+    // check above guarantees we stay inside the cap.
+    char buf[256];
+    if (ZstrLen(hostname) >= sizeof(buf)) {
         LOG_ERROR("DnsResolve: hostname \"{}\" exceeds 255 bytes", (const char *)hostname);
         return false;
     }
-    MemCopy(buf, norm.data, norm.length);
-    buf[norm.length] = '\0';
-    StrDeinit(&norm);
-    DefaultAllocatorDeinit(&scratch);
+    HeapAllocator spill = HeapAllocatorInit();
+    Str           norm;
+    StrInitStack(norm, &spill, sizeof(buf), {
+        normalize_hostname(hostname, &norm);
+        MemCopy(buf, norm.data, norm.length);
+        buf[norm.length] = '\0';
+    });
+    HeapAllocatorDeinit(&spill);
 
     // 1. /etc/hosts fast path.
     bool found = false;

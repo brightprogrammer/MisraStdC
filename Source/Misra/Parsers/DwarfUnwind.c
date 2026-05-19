@@ -139,6 +139,9 @@ static bool decode_eh_ptr(BufIter *c, u8 encoding, u64 here_vaddr, u64 *out) {
     u64 result;
     if (is_signed) {
         // pc-relative signed offset is the common case for FDE pc_begin.
+        // The two's-complement add intentionally wraps for negative
+        // signed_val (anchor + (u64)signed_val resolves to anchor -
+        // |signed_val|); leave it alone.
         if (base_kind == DW_EH_PE_PCREL) {
             result = anchor + (u64)signed_val;
         } else if (base_kind == 0) {
@@ -392,8 +395,16 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const ElfFile *elf, Allocator *allo
         } else {
             // CIE pointer = (offset of the id field) - id, points at the
             // start of the CIE record (i.e. at the CIE's length field).
-            u64      id_field_off = (u64)(section_cur.pos - 4);
-            u64      cie_offset   = id_field_off - id;
+            // `id` is attacker-controlled; if it exceeds id_field_off
+            // the subtraction wraps to a bogus offset that would either
+            // miss every CIE (best case) or alias one (worst case).
+            // Skip the FDE explicitly.
+            u64 id_field_off = (u64)(section_cur.pos - 4);
+            if ((u64)id > id_field_off) {
+                section_cur.pos = body_pos_start + length32;
+                continue;
+            }
+            u64      cie_offset = id_field_off - (u64)id;
             DwarfFde fde;
             BufIter  body = BufIterFromMemory(section_cur.data + section_cur.pos, length32 - 4);
             if (parse_fde(&body, rec_start, cie_offset, out, section_data, eh->addr, &fde)) {

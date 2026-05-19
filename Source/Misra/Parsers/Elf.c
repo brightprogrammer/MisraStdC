@@ -93,7 +93,17 @@ static const char *elf_str_at(const ElfFile *self, u64 strtab_offset, u64 strtab
     if ((u64)idx >= strtab_size) {
         return "";
     }
-    return (const char *)(self->data + strtab_offset + idx);
+    // A crafted strtab section may omit the NUL terminator at its
+    // tail; returning the raw pointer would let later C-string code
+    // read past the strtab. Scan forward; if no NUL is found inside
+    // [idx, strtab_size), return an empty string.
+    const char *base = (const char *)(self->data + strtab_offset);
+    for (u64 p = idx; p < strtab_size; ++p) {
+        if (base[p] == '\0') {
+            return base + idx;
+        }
+    }
+    return "";
 }
 
 static bool elf_range_ok(const ElfFile *self, u64 offset, u64 size) {
@@ -101,7 +111,9 @@ static bool elf_range_ok(const ElfFile *self, u64 offset, u64 size) {
         return false;
     if (size > self->data_size)
         return false;
-    if (offset + size > self->data_size)
+    // After the two checks above both `offset` and `size` are
+    // bounded by `data_size`; subtracting cannot wrap.
+    if (size > self->data_size - offset)
         return false;
     return true;
 }

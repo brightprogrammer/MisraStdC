@@ -71,7 +71,7 @@ static void page_validate_self(const Allocator *self) {
     }
 }
 
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 #    define PAGE_ALLOCATOR_WINDOWS 1
 #    include <windows.h>
 #else
@@ -95,7 +95,7 @@ static size page_query_page_size(void) {
         return 4096;
     }
     return (size)info.dwPageSize;
-#elif defined(__APPLE__) && defined(__aarch64__)
+#elif PLATFORM_DARWIN && ARCHITECTURE_AARCH64
     return 16384;
 #else
     // Linux/macOS-x86_64/arm64-linux all use 4 KiB. If a future port

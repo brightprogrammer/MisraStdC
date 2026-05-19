@@ -26,7 +26,7 @@
 /// with `FileIsOpen` after open.
 ///
 typedef struct File {
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     void *handle; // HANDLE (kept as void* so we don't pull <windows.h>)
 #else
     i32 fd; // -1 if not open

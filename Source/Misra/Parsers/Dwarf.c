@@ -7,6 +7,7 @@
 /// `Vec(DwarfLineEntry)`.
 
 #include <Misra/Std/Container/Buf.h>
+#include <Misra/Std/Math.h>
 #include <Misra/Parsers/Dwarf.h>
 
 #include <Misra/Std.h>
@@ -402,7 +403,16 @@ static bool run_line_program(
                     u64 adv = 0;
                     if (!BufReadULeb128(&cur, &adv))
                         return false;
-                    st.address += (u64)hdr->min_instr_len * adv;
+                    // `adv` is an unbounded ULEB128 from attacker bytes;
+                    // saturate the multiply-and-add to u64 max rather
+                    // than wrap silently.
+                    u64 delta = 0, new_addr = 0;
+                    if (!MulOverflow64((u64)hdr->min_instr_len, adv, &delta) ||
+                        !AddOverflow64(st.address, delta, &new_addr)) {
+                        st.address = (u64)-1;
+                    } else {
+                        st.address = new_addr;
+                    }
                     break;
                 }
                 case DW_LNS_ADVANCE_LINE : {
@@ -434,17 +444,31 @@ static bool run_line_program(
                     break;
                 case DW_LNS_CONST_ADD_PC : {
                     // Add the address advance of special opcode 255.
-                    u32 adjusted  = 255u - hdr->opcode_base;
-                    u32 op_adv    = adjusted / hdr->line_range;
-                    st.address   += (u64)hdr->min_instr_len * op_adv;
+                    u32 adjusted = 255u - hdr->opcode_base;
+                    u32 op_adv   = adjusted / hdr->line_range;
+                    // `op_adv` is bounded but `st.address` is attacker-
+                    // controlled across prior opcodes; saturate on
+                    // overflow instead of silently wrapping.
+                    u64 delta = 0, new_addr = 0;
+                    if (!MulOverflow64((u64)hdr->min_instr_len, (u64)op_adv, &delta) ||
+                        !AddOverflow64(st.address, delta, &new_addr)) {
+                        st.address = (u64)-1;
+                    } else {
+                        st.address = new_addr;
+                    }
                     break;
                 }
                 case DW_LNS_FIXED_ADVANCE_PC : {
                     u16 adv = 0;
                     if (!BufReadU16LE(&cur, &adv))
                         return false;
-                    st.address  += adv;
-                    st.op_index  = 0;
+                    u64 new_addr = 0;
+                    if (!AddOverflow64(st.address, (u64)adv, &new_addr)) {
+                        st.address = (u64)-1;
+                    } else {
+                        st.address = new_addr;
+                    }
+                    st.op_index = 0;
                     break;
                 }
                 case DW_LNS_SET_PROLOGUE_END :
@@ -476,11 +500,20 @@ static bool run_line_program(
             }
         } else {
             // Special opcode
-            u32 adjusted  = (u32)op - hdr->opcode_base;
-            u32 op_adv    = adjusted / hdr->line_range;
-            i32 line_adv  = hdr->line_base + (i32)(adjusted % hdr->line_range);
-            st.address   += (u64)hdr->min_instr_len * op_adv;
-            st.line       = (u32)((i32)st.line + line_adv);
+            u32 adjusted = (u32)op - hdr->opcode_base;
+            u32 op_adv   = adjusted / hdr->line_range;
+            i32 line_adv = hdr->line_base + (i32)(adjusted % hdr->line_range);
+            // Same saturation discipline as DW_LNS_CONST_ADD_PC: the
+            // accumulated `st.address` is attacker-influenced via
+            // earlier opcodes.
+            u64 delta = 0, new_addr = 0;
+            if (!MulOverflow64((u64)hdr->min_instr_len, (u64)op_adv, &delta) ||
+                !AddOverflow64(st.address, delta, &new_addr)) {
+                st.address = (u64)-1;
+            } else {
+                st.address = new_addr;
+            }
+            st.line = (u32)((i32)st.line + line_adv);
             if (!lnp_emit(out, &out->string_pool, cs, &st, pending_file_offsets, pending_dir_offsets))
                 return false;
             st.basic_block    = false;

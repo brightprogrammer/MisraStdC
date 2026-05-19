@@ -35,7 +35,7 @@
 // has 16 KiB OS pages -- each mmap grow allocates one OS page and
 // carves it into HEAP_PAGES_PER_OS_PAGE heap pages, registering one
 // descriptor per heap page.
-#if defined(__APPLE__) && defined(__aarch64__)
+#if PLATFORM_DARWIN && ARCHITECTURE_AARCH64
 #    define HEAP_PAGES_PER_OS_PAGE 4u
 #else
 #    define HEAP_PAGES_PER_OS_PAGE 1u

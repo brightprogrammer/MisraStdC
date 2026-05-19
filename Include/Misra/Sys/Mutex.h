@@ -20,9 +20,9 @@
 // IMAGE_DEBUG_TYPE_CODEVIEW) into TUs that have their own enums by
 // the same name -- breaks unrelated code. Instead, use a layout-
 // compatible opaque field and cast inside Mutex.c.
-#if defined(__linux__) || defined(__APPLE__)
+#if PLATFORM_UNIX
 #    include <stdatomic.h>
-#elif !defined(_WIN32)
+#elif !PLATFORM_WINDOWS
 #    include <pthread.h>
 #endif
 
@@ -30,17 +30,17 @@
 extern "C" {
 #endif
 
-///
-/// Mutex struct. Layout is platform-conditional but the API is
-/// uniform. Stack-declare with `MutexInit()`; do not poke fields.
-///
-typedef struct Mutex {
-#ifdef _WIN32
-    // Layout-compatible with Windows SRWLOCK = `struct { PVOID Ptr; }`.
-    // Mutex.c casts &_lock to (SRWLOCK *) for Win32 calls. Zero-init
-    // = SRWLOCK_INIT = unlocked.
-    void *_lock;
-#elif defined(__linux__) || defined(__APPLE__)
+    ///
+    /// Mutex struct. Layout is platform-conditional but the API is
+    /// uniform. Stack-declare with `MutexInit()`; do not poke fields.
+    ///
+    typedef struct Mutex {
+#if PLATFORM_WINDOWS
+        // Layout-compatible with Windows SRWLOCK = `struct { PVOID Ptr; }`.
+        // Mutex.c casts &_lock to (SRWLOCK *) for Win32 calls. Zero-init
+        // = SRWLOCK_INIT = unlocked.
+        void *_lock;
+#elif PLATFORM_UNIX
     // Drepper-style 3-state mutex backed by futex (Linux) /
     // __ulock_wait (Darwin). 0 = unlocked, 1 = locked, 2 = locked
     // with waiters.
@@ -48,7 +48,7 @@ typedef struct Mutex {
 #else
     pthread_mutex_t _lock;
 #endif
-} Mutex;
+    } Mutex;
 
 ///
 /// Initialize a `Mutex`. Expands to a designated-initialiser struct
@@ -62,10 +62,10 @@ typedef struct Mutex {
 ///
 /// TAGS: Sys, Mutex, Init
 ///
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
 // _lock is a void* layout-compatible with SRWLOCK. NULL = SRWLOCK_INIT.
 #    define MutexInit() ((Mutex) {._lock = NULL})
-#elif defined(__linux__) || defined(__APPLE__)
+#elif PLATFORM_UNIX
 // _Atomic int = 0 is "unlocked" in the futex / __ulock state machine.
 #    define MutexInit() ((Mutex) {._state = 0})
 #else
@@ -74,38 +74,38 @@ typedef struct Mutex {
 #    define MutexInit() ((Mutex) {._lock = PTHREAD_MUTEX_INITIALIZER})
 #endif
 
-///
-/// Tear down a mutex. On Windows / direct-syscall paths the kernel
-/// has no per-mutex resources; the call zeroes the struct. On the
-/// pthread fallback path, `pthread_mutex_destroy` releases the
-/// underlying kernel resource.
-///
-/// SUCCESS: Function returns; struct is uninitialised.
-/// FAILURE: No-op for NULL.
-///
-/// TAGS: Sys, Mutex, Deinit
-///
-void MutexDeinit(Mutex *m);
+    ///
+    /// Tear down a mutex. On Windows / direct-syscall paths the kernel
+    /// has no per-mutex resources; the call zeroes the struct. On the
+    /// pthread fallback path, `pthread_mutex_destroy` releases the
+    /// underlying kernel resource.
+    ///
+    /// SUCCESS: Function returns; struct is uninitialised.
+    /// FAILURE: No-op for NULL.
+    ///
+    /// TAGS: Sys, Mutex, Deinit
+    ///
+    void MutexDeinit(Mutex *m);
 
-///
-/// Acquire the lock. Blocks until the lock is available.
-///
-/// SUCCESS: Returns `m` (locked).
-/// FAILURE: Doesn't return -- aborts on NULL.
-///
-/// TAGS: Sys, Mutex, Lock
-///
-Mutex *MutexLock(Mutex *m);
+    ///
+    /// Acquire the lock. Blocks until the lock is available.
+    ///
+    /// SUCCESS: Returns `m` (locked).
+    /// FAILURE: Doesn't return -- aborts on NULL.
+    ///
+    /// TAGS: Sys, Mutex, Lock
+    ///
+    Mutex *MutexLock(Mutex *m);
 
-///
-/// Release the lock. Wakes one waiter on the direct-syscall paths.
-///
-/// SUCCESS: Returns `m` (unlocked).
-/// FAILURE: Doesn't return -- aborts on NULL.
-///
-/// TAGS: Sys, Mutex, Unlock
-///
-Mutex *MutexUnlock(Mutex *m);
+    ///
+    /// Release the lock. Wakes one waiter on the direct-syscall paths.
+    ///
+    /// SUCCESS: Returns `m` (unlocked).
+    /// FAILURE: Doesn't return -- aborts on NULL.
+    ///
+    /// TAGS: Sys, Mutex, Unlock
+    ///
+    Mutex *MutexUnlock(Mutex *m);
 
 #ifdef __cplusplus
 }
