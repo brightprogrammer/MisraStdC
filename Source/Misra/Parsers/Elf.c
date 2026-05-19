@@ -89,7 +89,7 @@ enum {
 // Helpers
 // ---------------------------------------------------------------------------
 
-static const char *elf_str_at(const ElfFile *self, u64 strtab_offset, u64 strtab_size, u32 idx) {
+static const char *elf_str_at(const Elf *self, u64 strtab_offset, u64 strtab_size, u32 idx) {
     if ((u64)idx >= strtab_size) {
         return "";
     }
@@ -106,7 +106,7 @@ static const char *elf_str_at(const ElfFile *self, u64 strtab_offset, u64 strtab
     return "";
 }
 
-static bool elf_range_ok(const ElfFile *self, u64 offset, u64 size) {
+static bool elf_range_ok(const Elf *self, u64 offset, u64 size) {
     if (offset > BufLength(&self->data))
         return false;
     if (size > BufLength(&self->data))
@@ -122,24 +122,24 @@ static bool elf_range_ok(const ElfFile *self, u64 offset, u64 size) {
 // Header + section decoding
 // ---------------------------------------------------------------------------
 
-static bool elf_decode_header(ElfFile *self) {
+static bool elf_decode_header(Elf *self) {
     if (BufLength(&self->data) < EI_NIDENT + EHDR64_SIZE_AFTER_IDENT) {
-        LOG_ERROR("ElfFile: file too small for ELF64 header ({} bytes)", (u64)BufLength(&self->data));
+        LOG_ERROR("Elf: file too small for ELF64 header ({} bytes)", (u64)BufLength(&self->data));
         return false;
     }
 
     const u8 *id = BufData(&self->data);
     if (id[EI_MAG0] != ELF_MAG0 || id[EI_MAG1] != ELF_MAG1 || id[EI_MAG2] != ELF_MAG2 || id[EI_MAG3] != ELF_MAG3) {
-        LOG_ERROR("ElfFile: bad magic");
+        LOG_ERROR("Elf: bad magic");
         return false;
     }
 
     if (id[EI_CLASS] != (u8)ELF_CLASS_64) {
-        LOG_ERROR("ElfFile: only ELF64 supported in v1 (got class {})", (u32)id[EI_CLASS]);
+        LOG_ERROR("Elf: only ELF64 supported in v1 (got class {})", (u32)id[EI_CLASS]);
         return false;
     }
     if (id[EI_DATA] != (u8)ELF_DATA_LSB) {
-        LOG_ERROR("ElfFile: only little-endian supported in v1 (got data {})", (u32)id[EI_DATA]);
+        LOG_ERROR("Elf: only little-endian supported in v1 (got data {})", (u32)id[EI_DATA]);
         return false;
     }
 
@@ -181,24 +181,24 @@ static bool elf_decode_header(ElfFile *self) {
     self->header.shstrndx = shstrndx;
 
     if (shentsize != SHDR64_SIZE && shnum > 0) {
-        LOG_ERROR("ElfFile: unexpected e_shentsize ({} vs {})", (u32)shentsize, (u32)SHDR64_SIZE);
+        LOG_ERROR("Elf: unexpected e_shentsize ({} vs {})", (u32)shentsize, (u32)SHDR64_SIZE);
         return false;
     }
 
     return true;
 }
 
-static bool elf_decode_sections(ElfFile *self) {
+static bool elf_decode_sections(Elf *self) {
     u16 n      = self->header.shnum;
     u64 shoff  = self->header.shoff;
     u64 needed = (u64)n * SHDR64_SIZE;
     if (!elf_range_ok(self, shoff, needed)) {
-        LOG_ERROR("ElfFile: section header table out of range");
+        LOG_ERROR("Elf: section header table out of range");
         return false;
     }
 
     if (self->header.shstrndx >= n) {
-        LOG_ERROR("ElfFile: shstrndx {} out of range (shnum={})", (u32)self->header.shstrndx, (u32)n);
+        LOG_ERROR("Elf: shstrndx {} out of range (shnum={})", (u32)self->header.shstrndx, (u32)n);
         return false;
     }
 
@@ -215,7 +215,7 @@ static bool elf_decode_sections(ElfFile *self) {
         shstr_size = size_;
     }
     if (!elf_range_ok(self, shstr_off, shstr_size)) {
-        LOG_ERROR("ElfFile: shstrtab out of range");
+        LOG_ERROR("Elf: shstrtab out of range");
         return false;
     }
 
@@ -248,16 +248,16 @@ static bool elf_decode_sections(ElfFile *self) {
 // Symbol-table decoding
 // ---------------------------------------------------------------------------
 
-static bool elf_decode_symbol_table(ElfFile *self, const ElfSection *symtab, ElfSymbols *out) {
+static bool elf_decode_symbol_table(Elf *self, const ElfSection *symtab, ElfSymbols *out) {
     if (!symtab || symtab->size == 0) {
         return true;
     }
     if (symtab->entry_size != SYM64_SIZE) {
-        LOG_ERROR("ElfFile: unexpected symbol entry size {}", (u64)symtab->entry_size);
+        LOG_ERROR("Elf: unexpected symbol entry size {}", (u64)symtab->entry_size);
         return false;
     }
     if (!elf_range_ok(self, symtab->offset, symtab->size)) {
-        LOG_ERROR("ElfFile: symbol table out of range");
+        LOG_ERROR("Elf: symbol table out of range");
         return false;
     }
 
@@ -265,12 +265,12 @@ static bool elf_decode_symbol_table(ElfFile *self, const ElfSection *symtab, Elf
     // associated string table.
     u32 strtab_idx = symtab->link;
     if (strtab_idx >= self->sections.length) {
-        LOG_ERROR("ElfFile: symtab link {} out of range", (u32)strtab_idx);
+        LOG_ERROR("Elf: symtab link {} out of range", (u32)strtab_idx);
         return false;
     }
     const ElfSection *strtab = &self->sections.data[strtab_idx];
     if (!elf_range_ok(self, strtab->offset, strtab->size)) {
-        LOG_ERROR("ElfFile: strtab out of range");
+        LOG_ERROR("Elf: strtab out of range");
         return false;
     }
 
@@ -283,7 +283,7 @@ static bool elf_decode_symbol_table(ElfFile *self, const ElfSection *symtab, Elf
         ELF_MAX_SYMBOLS = 16u * 1024u * 1024u
     };
     if (count > ELF_MAX_SYMBOLS) {
-        LOG_ERROR("ElfFile: symbol count {} exceeds sanity cap; refusing", count);
+        LOG_ERROR("Elf: symbol count {} exceeds sanity cap; refusing", count);
         return false;
     }
 
@@ -311,7 +311,7 @@ static bool elf_decode_symbol_table(ElfFile *self, const ElfSection *symtab, Elf
     return true;
 }
 
-static bool elf_decode_symbols(ElfFile *self) {
+static bool elf_decode_symbols(Elf *self) {
     const ElfSection *symtab    = NULL;
     const ElfSection *dynsymtab = NULL;
 
@@ -352,7 +352,7 @@ enum {
     NT_GNU_BUILD_ID = 3
 };
 
-static void elf_decode_build_id(ElfFile *self, const ElfSection *note) {
+static void elf_decode_build_id(Elf *self, const ElfSection *note) {
     if (!elf_range_ok(self, note->offset, note->size) || note->size < 16) {
         return;
     }
@@ -381,7 +381,7 @@ static void elf_decode_build_id(ElfFile *self, const ElfSection *note) {
     self->build_id_size = descsz;
 }
 
-static void elf_decode_debug_link(ElfFile *self, const ElfSection *dl) {
+static void elf_decode_debug_link(Elf *self, const ElfSection *dl) {
     if (!elf_range_ok(self, dl->offset, dl->size) || dl->size < 5) {
         return;
     }
@@ -404,12 +404,12 @@ static void elf_decode_debug_link(ElfFile *self, const ElfSection *dl) {
     self->debuglink_crc  = crc;
 }
 
-static void elf_decode_debug_metadata(ElfFile *self) {
-    const ElfSection *note = ElfFileFindSection(self, ".note.gnu.build-id");
+static void elf_decode_debug_metadata(Elf *self) {
+    const ElfSection *note = ElfFindSection(self, ".note.gnu.build-id");
     if (note) {
         elf_decode_build_id(self, note);
     }
-    const ElfSection *dl = ElfFileFindSection(self, ".gnu_debuglink");
+    const ElfSection *dl = ElfFindSection(self, ".gnu_debuglink");
     if (dl) {
         elf_decode_debug_link(self, dl);
     }
@@ -422,11 +422,11 @@ static void elf_decode_debug_metadata(ElfFile *self) {
 // L-value form. Takes the caller's `Buf` by pointer, captures it as a
 // local snapshot, and immediately MemSets the caller's view to zero so
 // any post-call use is a clean empty Buf rather than a stale alias.
-// Anything that fails past the snapshot cleans up via ElfFileDeinit,
+// Anything that fails past the snapshot cleans up via ElfDeinit,
 // so the buffer never leaks.
-bool elf_file_open_from_memory(ElfFile *out, Buf *in) {
+bool elf_open_from_memory(Elf *out, Buf *in) {
     if (!out || !in || !in->data || !in->allocator) {
-        LOG_FATAL("ElfFileOpenFromMemory: NULL argument (contract violation)");
+        LOG_FATAL("ElfOpenFromMemory: NULL argument (contract violation)");
     }
     Buf taken = *in;
     MemSet(in, 0, sizeof(*in));
@@ -447,48 +447,41 @@ bool elf_file_open_from_memory(ElfFile *out, Buf *in) {
     return true;
 
 fail:
-    ElfFileDeinit(out);
+    ElfDeinit(out);
     return false;
 }
 
 // R-value form (copy). Caller's `data` is never retained.
-bool elf_file_open_from_memory_copy(ElfFile *out, const u8 *data, size data_size, Allocator *alloc) {
+bool elf_open_from_memory_copy(Elf *out, const u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
-        LOG_FATAL("ElfFileOpenFromMemoryCopy: NULL argument (contract violation)");
+        LOG_FATAL("ElfOpenFromMemoryCopy: NULL argument (contract violation)");
     }
     Buf copy = BufInit(alloc);
     if (!VecReserve(&copy, (u64)data_size)) {
-        LOG_ERROR("ElfFileOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
+        LOG_ERROR("ElfOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
         return false;
     }
     MemCopy(copy.data, data, data_size);
     copy.length = (size)data_size;
     // Hand `&copy` to the L-form -- it consumes the local and zeros
     // it. The local goes out of scope right after.
-    return elf_file_open_from_memory(out, &copy);
+    return elf_open_from_memory(out, &copy);
 }
 
-bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc) {
+bool elf_open(Elf *out, const char *path, Allocator *alloc) {
     if (!out || !path || !alloc) {
-        LOG_FATAL("ElfFileOpen: NULL argument (contract violation)");
-    }
-    File f = FileOpen(path, "rb");
-    if (!FileIsOpen(&f)) {
-        LOG_ERROR("ElfFileOpen: failed to open {}", path);
-        return false;
+        LOG_FATAL("ElfOpen: NULL argument (contract violation)");
     }
     Buf data = BufInit(alloc);
-    i64 got  = FileRead(&f, &data);
-    FileClose(&f);
-    if (got < 0) {
+    if (FileReadAndClose(path, &data) < 0) {
         BufDeinit(&data);
-        LOG_ERROR("ElfFileOpen: failed to read {}", path);
+        LOG_ERROR("ElfOpen: failed to read {}", path);
         return false;
     }
-    return elf_file_open_from_memory(out, &data);
+    return elf_open_from_memory(out, &data);
 }
 
-void ElfFileDeinit(ElfFile *self) {
+void ElfDeinit(Elf *self) {
     if (!self)
         return;
     BufDeinit(&self->data);
@@ -525,7 +518,7 @@ static const ElfSymbol *elf_search_symbols(const ElfSymbols *syms, u64 vaddr) {
     return best;
 }
 
-const ElfSymbol *ElfFileResolveAddress(const ElfFile *self, u64 vaddr) {
+const ElfSymbol *ElfResolveAddress(const Elf *self, u64 vaddr) {
     if (!self)
         return NULL;
     const ElfSymbol *hit = elf_search_symbols(&self->symbols, vaddr);
@@ -534,7 +527,7 @@ const ElfSymbol *ElfFileResolveAddress(const ElfFile *self, u64 vaddr) {
     return elf_search_symbols(&self->dynamic_symbols, vaddr);
 }
 
-const ElfSection *ElfFileFindSection(const ElfFile *self, const char *name) {
+const ElfSection *ElfFindSection(const Elf *self, const char *name) {
     if (!self || !name)
         return NULL;
     for (u64 i = 0; i < self->sections.length; ++i) {

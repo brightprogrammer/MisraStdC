@@ -529,7 +529,7 @@ static bool run_line_program(
 // Public API
 // ---------------------------------------------------------------------------
 
-bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *alloc) {
+bool dwarf_lines_build_from_elf(DwarfLines *out, const Elf *elf, Allocator *alloc) {
     if (!out || !elf || !alloc) {
         LOG_FATAL("DwarfLinesBuildFromElf: NULL argument");
     }
@@ -538,7 +538,7 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *
     out->entries     = VecInitT(out->entries, alloc);
     out->string_pool = StrInit(alloc);
 
-    const ElfSection *line_section = ElfFileFindSection(elf, ".debug_line");
+    const ElfSection *line_section = ElfFindSection(elf, ".debug_line");
     if (!line_section || line_section->size == 0) {
         // No debug info — empty result is still success.
         return true;

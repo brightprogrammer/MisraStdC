@@ -13,7 +13,7 @@
 ///      using the recorded basename.
 ///   4. Opens the PDB, builds the function-name table, and stashes
 ///      it next to the PE.
-///   5. Resolves subsequent IPs via `PdbFileResolveRva`.
+///   5. Resolves subsequent IPs via `PdbResolveRva`.
 ///
 /// The whole chain is in C: no `dbghelp`, no `<windows.h>`. The
 /// caller is responsible for figuring out `(module_path, module_base)`
@@ -32,8 +32,8 @@
 typedef struct PdbCacheEntry {
     char   *module_path; // owned copy
     u64     module_base; // last-seen runtime load base
-    PeFile  pe;
-    PdbFile pdb;
+    Pe  pe;
+    Pdb pdb;
     bool    pe_open;
     bool    pdb_open;
 } PdbCacheEntry;
@@ -57,7 +57,7 @@ bool pdb_cache_init(PdbCache *out, Allocator *alloc);
 #define PdbCacheInit_2(out, alloc) pdb_cache_init((out), ALLOCATOR_OF(alloc))
 
 ///
-/// Tear down the cache, releasing every cached `PeFile` and `PdbFile`.
+/// Tear down the cache, releasing every cached `Pe` and `Pdb`.
 /// Safe on a zeroed struct.
 ///
 void PdbCacheDeinit(PdbCache *self);

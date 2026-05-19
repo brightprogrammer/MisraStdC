@@ -40,7 +40,7 @@
 ///          a size directly; we infer it as `next_rva - this_rva`
 ///          after sorting, so the last function's `size` is 0.
 /// - name : Function name string. Borrowed from the PDB's name pool;
-///          valid until `PdbFileDeinit`.
+///          valid until `PdbDeinit`.
 ///
 typedef struct PdbFunction {
     u32         rva;
@@ -64,7 +64,7 @@ typedef struct PdbInfo {
 
 ///
 /// Parsed PDB file. Holds the raw bytes (always parser-owned) plus
-/// decoded indices into them. All three `PdbFileOpen*` constructors
+/// decoded indices into them. All three `PdbOpen*` constructors
 /// leave the parser as sole owner of `data` -- see the L / R
 /// semantics on the `FromMemory` / `FromMemoryCopy` constructors
 /// (mirrors `VecInsertL` / `VecInsertR`).
@@ -79,9 +79,9 @@ typedef struct PdbInfo {
 /// - info        : Decoded PDB Info stream (#1).
 /// - functions   : Sorted-by-rva list of public function names from
 ///                 the Publics stream. Populated by
-///                 `PdbFileOpen[FromMemory]`.
+///                 `PdbOpen[FromMemory]`.
 ///
-typedef struct PdbFile {
+typedef struct Pdb {
     Buf          data;
     u32          block_size;
     u32          num_streams;
@@ -101,11 +101,11 @@ typedef struct PdbFile {
     u32        *stream_block_counts;
     // Owned name pool for function-name strings. `functions[i].name`
     // is a borrowed pointer into here; pool and entries are freed
-    // together in `PdbFileDeinit`.
+    // together in `PdbDeinit`.
     char *name_pool;
     size  name_pool_size;
     size  name_pool_used;
-} PdbFile;
+} Pdb;
 
 ///
 /// Open and parse a PDB from disk.
@@ -115,23 +115,21 @@ typedef struct PdbFile {
 ///
 /// TAGS: Parser, PDB, File
 ///
-bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc);
-#define PdbFileOpen(...) MISRA_OVERLOAD(PdbFileOpen, __VA_ARGS__)
-#define PdbFileOpen_2(out, path)                                                                                       \
+bool pdb_open(Pdb *out, const char *path, Allocator *alloc);
+#define PdbOpen(...) MISRA_OVERLOAD(PdbOpen, __VA_ARGS__)
+#define PdbOpen_2(out, path)                                                                                           \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: pdb_file_open((out), ((Str *)(path))->data, MisraScope),                                                \
-        const Str *: pdb_file_open((out), ((const Str *)(path))->data, MisraScope),                                    \
-        char *: pdb_file_open((out), (const char *)(path), MisraScope),                                                \
-        const char *: pdb_file_open((out), (const char *)(path), MisraScope)                                           \
+        Str *: pdb_open((out), ((Str *)(path))->data, MisraScope),                                                     \
+        char *: pdb_open((out), (const char *)(path), MisraScope),                                                     \
+        const char *: pdb_open((out), (const char *)(path), MisraScope)                                                \
     )
-#define PdbFileOpen_3(out, path, alloc)                                                                                \
+#define PdbOpen_3(out, path, alloc)                                                                                    \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: pdb_file_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                       \
-        const Str *: pdb_file_open((out), ((const Str *)(path))->data, ALLOCATOR_OF(alloc)),                           \
-        char *: pdb_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                       \
-        const char *: pdb_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                  \
+        Str *: pdb_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                            \
+        char *: pdb_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                            \
+        const char *: pdb_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                       \
     )
 
 ///
@@ -143,7 +141,7 @@ bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc);
 /// on exit (success OR failure) `*data == NULL`. Calling code:
 ///
 ///   u8 *buf = my_buffer;
-///   PdbFileOpenFromMemory(&pdb, &buf, n, &alloc);
+///   PdbOpenFromMemory(&pdb, &buf, n, &alloc);
 ///   // buf == NULL afterwards.
 ///
 /// SUCCESS : Returns true; `out` owns the bytes; `*data == NULL`.
@@ -152,8 +150,8 @@ bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc);
 ///
 /// TAGS: Parser, PDB, Memory, Ownership
 ///
-bool pdb_file_open_from_memory(PdbFile *out, Buf *in);
-#define PdbFileOpenFromMemory(out, in) pdb_file_open_from_memory((out), (in))
+bool pdb_open_from_memory(Pdb *out, Buf *in);
+#define PdbOpenFromMemory(out, in) pdb_open_from_memory((out), (in))
 
 ///
 /// Open and parse a PDB from an in-memory byte range -- **R-value /
@@ -167,17 +165,16 @@ bool pdb_file_open_from_memory(PdbFile *out, Buf *in);
 ///
 /// TAGS: Parser, PDB, Memory, Copy
 ///
-bool pdb_file_open_from_memory_copy(PdbFile *out, const u8 *data, size data_size, Allocator *alloc);
-#define PdbFileOpenFromMemoryCopy(...) MISRA_OVERLOAD(PdbFileOpenFromMemoryCopy, __VA_ARGS__)
-#define PdbFileOpenFromMemoryCopy_3(out, data, data_size)                                                              \
-    pdb_file_open_from_memory_copy((out), (data), (data_size), MisraScope)
-#define PdbFileOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                       \
-    pdb_file_open_from_memory_copy((out), (data), (data_size), ALLOCATOR_OF(alloc))
+bool pdb_open_from_memory_copy(Pdb *out, const u8 *data, size data_size, Allocator *alloc);
+#define PdbOpenFromMemoryCopy(...)                    MISRA_OVERLOAD(PdbOpenFromMemoryCopy, __VA_ARGS__)
+#define PdbOpenFromMemoryCopy_3(out, data, data_size) pdb_open_from_memory_copy((out), (data), (data_size), MisraScope)
+#define PdbOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                           \
+    pdb_open_from_memory_copy((out), (data), (data_size), ALLOCATOR_OF(alloc))
 
 ///
-/// Release storage owned by a `PdbFile`. Safe on a zeroed struct.
+/// Release storage owned by a `Pdb`. Safe on a zeroed struct.
 ///
-void PdbFileDeinit(PdbFile *self);
+void PdbDeinit(Pdb *self);
 
 ///
 /// Locate the function whose `[rva, rva + size)` range contains
@@ -185,9 +182,9 @@ void PdbFileDeinit(PdbFile *self);
 /// `rva >= function.rva`.)
 ///
 /// SUCCESS : Returns a pointer to the matching entry. Valid until
-///           `PdbFileDeinit`.
+///           `PdbDeinit`.
 /// FAILURE : Returns NULL.
 ///
-const PdbFunction *PdbFileResolveRva(const PdbFile *self, u32 rva);
+const PdbFunction *PdbResolveRva(const Pdb *self, u32 rva);
 
 #endif // MISRA_PARSERS_PDB_H

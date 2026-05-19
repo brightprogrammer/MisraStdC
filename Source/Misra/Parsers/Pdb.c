@@ -88,7 +88,7 @@ static u32 div_ceil_u32(u32 a, u32 b) {
 
 // Return a pointer to the first byte of block `block_id` inside the
 // PDB file. NULL on out-of-range.
-static const u8 *block_ptr(const PdbFile *self, u32 block_id) {
+static const u8 *block_ptr(const Pdb *self, u32 block_id) {
     u64 off = (u64)block_id * self->block_size;
     if (off + self->block_size > BufLength(&self->data))
         return NULL;
@@ -97,7 +97,7 @@ static const u8 *block_ptr(const PdbFile *self, u32 block_id) {
 
 // Read `n` bytes from stream `idx` starting at byte offset `offset`
 // into `dest`. Walks the stream's block chain.
-static bool stream_read(const PdbFile *self, u32 idx, u64 offset, u8 *dest, u64 n) {
+static bool stream_read(const Pdb *self, u32 idx, u64 offset, u8 *dest, u64 n) {
     if (idx >= self->num_streams)
         return false;
     u32 size = self->stream_sizes[idx];
@@ -137,7 +137,7 @@ static bool stream_read(const PdbFile *self, u32 idx, u64 offset, u8 *dest, u64 
 // Superblock + directory
 // ---------------------------------------------------------------------------
 
-static bool parse_superblock(PdbFile *self, u32 *out_num_dir_bytes, u32 *out_block_map_addr) {
+static bool parse_superblock(Pdb *self, u32 *out_num_dir_bytes, u32 *out_block_map_addr) {
     if (BufLength(&self->data) < SUPERBLOCK_SIZE) {
         LOG_ERROR("PDB: file too small for MSF superblock");
         return false;
@@ -177,7 +177,7 @@ static bool parse_superblock(PdbFile *self, u32 *out_num_dir_bytes, u32 *out_blo
 }
 
 // Reconstruct the stream directory into a contiguous buffer.
-static bool reconstruct_directory(PdbFile *self, u32 num_dir_bytes, u32 block_map_addr) {
+static bool reconstruct_directory(Pdb *self, u32 num_dir_bytes, u32 block_map_addr) {
     // The block_map_addr page holds an array of u32 block indices,
     // one per `block_size` chunk of the directory. The number of
     // those indices is `ceil(num_dir_bytes / block_size)`.
@@ -222,7 +222,7 @@ static bool reconstruct_directory(PdbFile *self, u32 num_dir_bytes, u32 block_ma
 }
 
 // Parse the reconstructed directory bytes into per-stream metadata.
-static bool parse_directory(PdbFile *self) {
+static bool parse_directory(Pdb *self) {
     if (self->stream_dir_size < 4) {
         LOG_ERROR("PDB: directory truncated (no stream count)");
         return false;
@@ -308,7 +308,7 @@ static bool parse_directory(PdbFile *self) {
 // PDB Info stream (#1)
 // ---------------------------------------------------------------------------
 
-static bool parse_pdb_info(PdbFile *self) {
+static bool parse_pdb_info(Pdb *self) {
     if (self->num_streams <= 1)
         return true; // no info stream
     if (self->stream_sizes[1] == NIL_STREAM)
@@ -347,7 +347,7 @@ typedef struct DbiSubstreamInfo {
     bool ok;
 } DbiSubstreamInfo;
 
-static DbiSubstreamInfo parse_dbi_header(const PdbFile *self) {
+static DbiSubstreamInfo parse_dbi_header(const Pdb *self) {
     DbiSubstreamInfo r = {0};
     if (DBI_STREAM_INDEX >= self->num_streams)
         return r;
@@ -434,7 +434,7 @@ typedef struct SectionRva {
 // Read all IMAGE_SECTION_HEADERs out of the SectionHdr stream and
 // return a small allocator-backed array of (RVA, VSize) pairs. Caller
 // frees via AllocatorFree.
-static SectionRva *load_section_table(const PdbFile *self, u16 section_hdr_stream, u32 *out_count) {
+static SectionRva *load_section_table(const Pdb *self, u16 section_hdr_stream, u32 *out_count) {
     *out_count = 0;
     if (section_hdr_stream >= self->num_streams)
         return NULL;
@@ -508,7 +508,7 @@ static int cmp_pending(const void *a, const void *b) {
 }
 
 static bool walk_publics(
-    const PdbFile    *self,
+    const Pdb        *self,
     u16               symrec_stream,
     const SectionRva *sections,
     u32               num_sections,
@@ -598,7 +598,7 @@ static bool walk_publics(
 }
 
 // Top-level: pull DBI -> SectionHdr table + SymRecord stream -> publics.
-static bool parse_pdb_functions(PdbFile *self) {
+static bool parse_pdb_functions(Pdb *self) {
     DbiSubstreamInfo dbi = parse_dbi_header(self);
     if (!dbi.ok)
         return true; // No DBI / not enough -- just leave functions empty.
@@ -636,7 +636,7 @@ static bool parse_pdb_functions(PdbFile *self) {
     // Re-anchor PendingPub.name_offset_in_pool to pointers into the
     // (now-stable) pool buffer, push into self->functions, and fill
     // sizes by next-rva diff. Steal the pool's buffer at the end so
-    // names stay alive for the lifetime of the PdbFile.
+    // names stay alive for the lifetime of the Pdb.
     for (size i = 0; i < pending.length; ++i) {
         PdbFunction f = {
             .rva  = pending.data[i].rva,
@@ -664,9 +664,9 @@ static bool parse_pdb_functions(PdbFile *self) {
         return false;
     }
 
-    // Transfer ownership of the name-pool buffer to the PdbFile so the
+    // Transfer ownership of the name-pool buffer to the Pdb so the
     // function->name pointers stay valid. We stash it in a dedicated
-    // field for cleanup; see PdbFileDeinit.
+    // field for cleanup; see PdbDeinit.
     self->name_pool      = name_pool.data;
     self->name_pool_size = name_pool.capacity;
     self->name_pool_used = name_pool.length;
@@ -685,9 +685,9 @@ static bool parse_pdb_functions(PdbFile *self) {
 
 // L-value form. `data` is `u8 **` -- ownership of the pointer moves
 // from caller to parser. On exit `*data == NULL` (success or failure).
-bool pdb_file_open_from_memory(PdbFile *out, Buf *in) {
+bool pdb_open_from_memory(Pdb *out, Buf *in) {
     if (!out || !in || !in->data || !in->allocator) {
-        LOG_FATAL("PdbFileOpenFromMemory: NULL argument (contract violation)");
+        LOG_FATAL("PdbOpenFromMemory: NULL argument (contract violation)");
     }
     Buf taken = *in;
     MemSet(in, 0, sizeof(*in));
@@ -712,46 +712,39 @@ bool pdb_file_open_from_memory(PdbFile *out, Buf *in) {
     return true;
 
 fail:
-    PdbFileDeinit(out);
+    PdbDeinit(out);
     return false;
 }
 
 // R-value form: allocate Buf, copy, hand `&copy` to the L-form.
-bool pdb_file_open_from_memory_copy(PdbFile *out, const u8 *data, size data_size, Allocator *alloc) {
+bool pdb_open_from_memory_copy(Pdb *out, const u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
-        LOG_FATAL("PdbFileOpenFromMemoryCopy: NULL argument (contract violation)");
+        LOG_FATAL("PdbOpenFromMemoryCopy: NULL argument (contract violation)");
     }
     Buf copy = BufInit(alloc);
     if (!BufReserve(&copy, (u64)data_size)) {
-        LOG_ERROR("PdbFileOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
+        LOG_ERROR("PdbOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
         return false;
     }
     MemCopy(BufData(&copy), data, data_size);
     copy.length = (size)data_size;
-    return pdb_file_open_from_memory(out, &copy);
+    return pdb_open_from_memory(out, &copy);
 }
 
-bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc) {
+bool pdb_open(Pdb *out, const char *path, Allocator *alloc) {
     if (!out || !path || !alloc) {
-        LOG_FATAL("PdbFileOpen: NULL argument (contract violation)");
-    }
-    File f = FileOpen(path, "rb");
-    if (!FileIsOpen(&f)) {
-        LOG_ERROR("PdbFileOpen: failed to open {}", path);
-        return false;
+        LOG_FATAL("PdbOpen: NULL argument (contract violation)");
     }
     Buf data = BufInit(alloc);
-    i64 got  = FileRead(&f, &data);
-    FileClose(&f);
-    if (got < 0) {
+    if (FileReadAndClose(path, &data) < 0) {
         BufDeinit(&data);
-        LOG_ERROR("PdbFileOpen: failed to read {}", path);
+        LOG_ERROR("PdbOpen: failed to read {}", path);
         return false;
     }
-    return pdb_file_open_from_memory(out, &data);
+    return pdb_open_from_memory(out, &data);
 }
 
-void PdbFileDeinit(PdbFile *self) {
+void PdbDeinit(Pdb *self) {
     if (!self)
         return;
     Allocator *alloc = BufAllocator(&self->data);
@@ -772,7 +765,7 @@ void PdbFileDeinit(PdbFile *self) {
     MemSet(self, 0, sizeof(*self));
 }
 
-const PdbFunction *PdbFileResolveRva(const PdbFile *self, u32 rva) {
+const PdbFunction *PdbResolveRva(const Pdb *self, u32 rva) {
     if (!self || self->functions.length == 0)
         return NULL;
     // Binary search for the largest rva <= input.

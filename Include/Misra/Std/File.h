@@ -74,7 +74,6 @@ File file_open(const char *path, const char *mode);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: file_open(((Str *)(path))->data, (mode)),                                                               \
-        const Str *: file_open(((const Str *)(path))->data, (mode)),                                                   \
         char *: file_open((const char *)(path), (mode)),                                                               \
         const char *: file_open((const char *)(path), (mode))                                                          \
     )
@@ -148,6 +147,43 @@ i64 file_read_to_buf(File *f, Buf *out);
     _Generic((out), Buf *: file_read_to_buf((f), (Buf *)(out)), Str *: file_read_to_str((f), (Str *)(out)))
 #define FileRead_3(f, buf, n) file_read((f), (buf), (n))
 
+///
+/// Slurp a file from disk in one call: open, read-to-EOF into `out`,
+/// close. `out` may be a `Buf *` (binary) or `Str *` (text). Removes
+/// the open/read/close ceremony that's nearly identical across every
+/// parser caller. The fast path inside `file_read_to_{buf,str}` (one-
+/// shot reserve via `FileSeek(END)`) still applies.
+///
+/// path[in] : Path to open. `Str *` / `char *` (NUL-terminated).
+/// out[out] : Already-init'd `Buf *` or `Str *`. Existing content is
+///            overwritten; the destination's allocator drives growth.
+///
+/// SUCCESS : Returns bytes loaded (>= 0); file is closed.
+/// FAILURE : Returns -1; file is closed; `out` may be in a partial
+///           state -- caller should `BufDeinit` / `StrDeinit` if it
+///           was a fresh container.
+///
+/// TAGS: File, Read
+///
+i64 file_read_and_close_to_buf(const char *path, Buf *out);
+i64 file_read_and_close_to_str(const char *path, Str *out);
+#define FileReadAndClose(path, out)                                                                                    \
+    _Generic(                                                                                                          \
+        (out),                                                                                                         \
+        Buf *: _Generic(                                                                                               \
+            (path),                                                                                                    \
+            Str *: file_read_and_close_to_buf(((Str *)(path))->data, (Buf *)(out)),                                    \
+            char *: file_read_and_close_to_buf((const char *)(path), (Buf *)(out)),                                    \
+            const char *: file_read_and_close_to_buf((const char *)(path), (Buf *)(out))                               \
+        ),                                                                                                             \
+        Str *: _Generic(                                                                                               \
+            (path),                                                                                                    \
+            Str *: file_read_and_close_to_str(((Str *)(path))->data, (Str *)(out)),                                    \
+            char *: file_read_and_close_to_str((const char *)(path), (Str *)(out)),                                    \
+            const char *: file_read_and_close_to_str((const char *)(path), (Str *)(out))                               \
+        )                                                                                                              \
+    )
+
 // FileGetSize lives in `Sys/Dir.h` -- path-based size query that
 // goes straight to the kernel (open + lseek(SEEK_END) + close, or
 // GetFileSizeEx on Windows). Use it when you have a path; the
@@ -162,6 +198,47 @@ i64 file_read_to_buf(File *f, Buf *out);
 /// FAILURE : Returns -1 on error.
 ///
 i64 FileWrite(File *f, const void *buf, u64 n);
+
+///
+/// Open `path` for write (truncating), write all of `out`, close.
+/// Two arities via `MISRA_OVERLOAD`:
+///   - `FileWriteAndClose(path, container)` -- `container` is `Buf *`
+///     or `Str *`; writes its full `length`.
+///   - `FileWriteAndClose(path, buf, n)`    -- explicit `void *buf`
+///     and `u64 n` byte count.
+///
+/// SUCCESS : Returns total bytes written; file is closed.
+/// FAILURE : Returns -1; file is closed (or never opened).
+///
+/// TAGS: File, Write
+///
+i64 file_write_and_close_from_buf(const char *path, const Buf *in);
+i64 file_write_and_close_from_str(const char *path, const Str *in);
+i64 file_write_and_close_from_bytes(const char *path, const void *buf, u64 n);
+#define FileWriteAndClose(...) MISRA_OVERLOAD(FileWriteAndClose, __VA_ARGS__)
+#define FileWriteAndClose_2(path, container)                                                                           \
+    _Generic(                                                                                                          \
+        (container),                                                                                                   \
+        Buf *: _Generic(                                                                                               \
+            (path),                                                                                                    \
+            Str *: file_write_and_close_from_buf(((Str *)(path))->data, (const Buf *)(container)),                     \
+            char *: file_write_and_close_from_buf((const char *)(path), (const Buf *)(container)),                     \
+            const char *: file_write_and_close_from_buf((const char *)(path), (const Buf *)(container))                \
+        ),                                                                                                             \
+        Str *: _Generic(                                                                                               \
+            (path),                                                                                                    \
+            Str *: file_write_and_close_from_str(((Str *)(path))->data, (const Str *)(container)),                     \
+            char *: file_write_and_close_from_str((const char *)(path), (const Str *)(container)),                     \
+            const char *: file_write_and_close_from_str((const char *)(path), (const Str *)(container))                \
+        )                                                                                                              \
+    )
+#define FileWriteAndClose_3(path, buf, n)                                                                              \
+    _Generic(                                                                                                          \
+        (path),                                                                                                        \
+        Str *: file_write_and_close_from_bytes(((Str *)(path))->data, (buf), (n)),                                     \
+        char *: file_write_and_close_from_bytes((const char *)(path), (buf), (n)),                                     \
+        const char *: file_write_and_close_from_bytes((const char *)(path), (buf), (n))                                \
+    )
 
 ///
 /// Adjust the file offset relative to `whence`.

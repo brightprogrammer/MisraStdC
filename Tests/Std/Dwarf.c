@@ -17,8 +17,8 @@ static __attribute__((noinline)) void dwarf_marker_helper(void) {
 bool test_dwarf_lines_load_self(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    ElfFile elf;
-    if (!ElfFileOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc))) {
+    Elf elf;
+    if (!ElfOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc))) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
@@ -29,7 +29,7 @@ bool test_dwarf_lines_load_self(void) {
 
     if (built)
         DwarfLinesDeinit(&lines);
-    ElfFileDeinit(&elf);
+    ElfDeinit(&elf);
     DefaultAllocatorDeinit(&alloc);
     return ok;
 }
@@ -56,8 +56,8 @@ bool test_dwarf_resolves_helper_to_source_file(void) {
     }
     u64 file_relative = (u64)&dwarf_marker_helper - r.module_base;
 
-    ElfFile elf;
-    if (!ElfFileOpen(&elf, r.module_path, base)) {
+    Elf elf;
+    if (!ElfOpen(&elf, r.module_path, base)) {
         SymbolResolverDeinit(&res);
         DefaultAllocatorDeinit(&alloc);
         return false;
@@ -74,7 +74,7 @@ bool test_dwarf_resolves_helper_to_source_file(void) {
         DwarfLinesDeinit(&lines);
     }
 
-    ElfFileDeinit(&elf);
+    ElfDeinit(&elf);
     SymbolResolverDeinit(&res);
     DefaultAllocatorDeinit(&alloc);
     return ok;
@@ -102,8 +102,8 @@ bool test_dwarf_cfi_finds_fde_for_self(void) {
     }
     u64 file_relative = (u64)&dwarf_marker_helper - r.module_base;
 
-    ElfFile elf;
-    if (!ElfFileOpen(&elf, r.module_path, base)) {
+    Elf elf;
+    if (!ElfOpen(&elf, r.module_path, base)) {
         SymbolResolverDeinit(&res);
         DefaultAllocatorDeinit(&alloc);
         return false;
@@ -130,7 +130,7 @@ bool test_dwarf_cfi_finds_fde_for_self(void) {
         DwarfCfiDeinit(&cfi);
     }
 
-    ElfFileDeinit(&elf);
+    ElfDeinit(&elf);
     SymbolResolverDeinit(&res);
     DefaultAllocatorDeinit(&alloc);
     return ok;
@@ -158,8 +158,8 @@ bool test_dwarf_functions_resolves_helper_to_name(void) {
     }
     u64 file_relative = (u64)&dwarf_marker_helper - r.module_base;
 
-    ElfFile elf;
-    if (!ElfFileOpen(&elf, r.module_path, base)) {
+    Elf elf;
+    if (!ElfOpen(&elf, r.module_path, base)) {
         SymbolResolverDeinit(&res);
         DefaultAllocatorDeinit(&alloc);
         return false;
@@ -174,7 +174,7 @@ bool test_dwarf_functions_resolves_helper_to_name(void) {
         DwarfFunctionsDeinit(&fns);
     }
 
-    ElfFileDeinit(&elf);
+    ElfDeinit(&elf);
     SymbolResolverDeinit(&res);
     DefaultAllocatorDeinit(&alloc);
     return ok;

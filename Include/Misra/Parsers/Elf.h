@@ -81,7 +81,7 @@ typedef enum ElfSymbolType {
 
 // ---------------------------------------------------------------------------
 // Parsed records. Strings point into the file's loaded byte buffer —
-// they are valid as long as the `ElfFile` is alive.
+// they are valid as long as the `Elf` is alive.
 // ---------------------------------------------------------------------------
 
 ///
@@ -102,7 +102,7 @@ typedef struct ElfHeader {
 
 ///
 /// Decoded section header. `name` is borrowed from the file's
-/// `.shstrtab` and stays valid until `ElfFileDeinit`.
+/// `.shstrtab` and stays valid until `ElfDeinit`.
 ///
 typedef struct ElfSection {
     const char *name;
@@ -134,19 +134,19 @@ typedef Vec(ElfSymbol) ElfSymbols;
 
 ///
 /// Parsed ELF file. Holds the raw bytes plus decoded indices into them.
-/// Three construction paths, all of which leave the `ElfFile` in the
+/// Three construction paths, all of which leave the `Elf` in the
 /// same lifecycle state: parser owns the bytes, parser frees them on
-/// `ElfFileDeinit`. There is no "borrowed buffer" mode -- the L / R
+/// `ElfDeinit`. There is no "borrowed buffer" mode -- the L / R
 /// split below mirrors `VecInsertL` / `VecInsertR`:
 ///
-///   `ElfFileOpen`               — reads a file from disk; parser owns
+///   `ElfOpen`               — reads a file from disk; parser owns
 ///                                 the resulting buffer end-to-end.
-///   `ElfFileOpenFromMemory`     — **L**: takes ownership of the
+///   `ElfOpenFromMemory`     — **L**: takes ownership of the
 ///                                 caller's `(data, data_size)`. Caller
 ///                                 must not free or touch `data`
 ///                                 afterwards. `alloc` MUST be the
 ///                                 allocator that produced `data`.
-///   `ElfFileOpenFromMemoryCopy` — **R**: allocates internally through
+///   `ElfOpenFromMemoryCopy` — **R**: allocates internally through
 ///                                 `alloc`, copies the caller's bytes
 ///                                 in, and never retains the caller's
 ///                                 pointer. Caller's buffer is
@@ -174,7 +174,7 @@ typedef Vec(ElfSymbol) ElfSymbols;
 /// - debuglink_crc   : CRC32 of the expected sidecar contents
 ///                     (validated by the resolver before use).
 ///
-typedef struct ElfFile {
+typedef struct Elf {
     Buf         data;
     ElfHeader   header;
     ElfSections sections;
@@ -184,7 +184,7 @@ typedef struct ElfFile {
     u32         build_id_size;
     const char *debuglink_name;
     u32         debuglink_crc;
-} ElfFile;
+} Elf;
 
 ///
 /// Open and parse an ELF file from disk.
@@ -192,32 +192,30 @@ typedef struct ElfFile {
 /// out[out]   : Populated on success.
 /// path[in]   : Filesystem path. Prefer `Str *`; `const char *` accepted.
 /// alloc[in]  : Allocator for the read-in byte buffer and the section /
-///              symbol vectors. Must outlive the `ElfFile`.
+///              symbol vectors. Must outlive the `Elf`.
 ///
 /// SUCCESS : Returns true; `out` owns the read-in buffer and will free
-///           it on `ElfFileDeinit`.
+///           it on `ElfDeinit`.
 /// FAILURE : Returns false; logs the failing step (open / read / magic /
 ///           class / decoding). `out` is left zeroed.
 ///
 /// TAGS: Parser, ELF, File
 ///
-bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc);
-#define ElfFileOpen(...) MISRA_OVERLOAD(ElfFileOpen, __VA_ARGS__)
-#define ElfFileOpen_2(out, path)                                                                                       \
+bool elf_open(Elf *out, const char *path, Allocator *alloc);
+#define ElfOpen(...) MISRA_OVERLOAD(ElfOpen, __VA_ARGS__)
+#define ElfOpen_2(out, path)                                                                                           \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: elf_file_open((out), ((Str *)(path))->data, MisraScope),                                                \
-        const Str *: elf_file_open((out), ((const Str *)(path))->data, MisraScope),                                    \
-        char *: elf_file_open((out), (const char *)(path), MisraScope),                                                \
-        const char *: elf_file_open((out), (const char *)(path), MisraScope)                                           \
+        Str *: elf_open((out), ((Str *)(path))->data, MisraScope),                                                     \
+        char *: elf_open((out), (const char *)(path), MisraScope),                                                     \
+        const char *: elf_open((out), (const char *)(path), MisraScope)                                                \
     )
-#define ElfFileOpen_3(out, path, alloc)                                                                                \
+#define ElfOpen_3(out, path, alloc)                                                                                    \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: elf_file_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                       \
-        const Str *: elf_file_open((out), ((const Str *)(path))->data, ALLOCATOR_OF(alloc)),                           \
-        char *: elf_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                       \
-        const char *: elf_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                  \
+        Str *: elf_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                            \
+        char *: elf_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                            \
+        const char *: elf_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                       \
     )
 
 ///
@@ -228,14 +226,14 @@ bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc);
 /// internally and zeroes the caller's `*in` so any post-call use sees
 /// an empty Buf instead of a stale alias. The parser then owns the
 /// bytes and the buffer's allocator; both are released by
-/// `ElfFileDeinit`. The zero-on-take invariant holds on both success
+/// `ElfDeinit`. The zero-on-take invariant holds on both success
 /// and failure -- on parse failure the parser still consumed the Buf,
 /// just frees it through the carried allocator before returning.
 ///
 /// USAGE:
 ///   Buf buf = BufInit(&alloc);
 ///   FileRead(&f, &buf);
-///   ElfFileOpenFromMemory(&elf, &buf);
+///   ElfOpenFromMemory(&elf, &buf);
 ///   // buf is now {NULL, 0, 0, NULL} -- safe to drop on stack.
 ///
 /// out[out]    : Populated on success.
@@ -249,8 +247,8 @@ bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc);
 ///
 /// TAGS: Parser, ELF, Memory, Ownership
 ///
-bool elf_file_open_from_memory(ElfFile *out, Buf *in);
-#define ElfFileOpenFromMemory(out, in) elf_file_open_from_memory((out), (in))
+bool elf_open_from_memory(Elf *out, Buf *in);
+#define ElfOpenFromMemory(out, in) elf_open_from_memory((out), (in))
 
 ///
 /// Parse an ELF object from an in-memory byte range -- **R-value /
@@ -265,7 +263,7 @@ bool elf_file_open_from_memory(ElfFile *out, Buf *in);
 /// data[in]      : Raw ELF bytes. Read-only here; caller keeps them.
 /// data_size[in] : Length of `data` in bytes.
 /// alloc[in]     : Allocator for the internal copy and the section /
-///                 symbol vectors. Must outlive the `ElfFile`.
+///                 symbol vectors. Must outlive the `Elf`.
 ///
 /// SUCCESS : Returns true; `out` owns an independent copy of `data`.
 /// FAILURE : Returns false; logs the failing step. `out` is left
@@ -273,21 +271,20 @@ bool elf_file_open_from_memory(ElfFile *out, Buf *in);
 ///
 /// TAGS: Parser, ELF, Memory, Copy
 ///
-bool elf_file_open_from_memory_copy(ElfFile *out, const u8 *data, size data_size, Allocator *alloc);
-#define ElfFileOpenFromMemoryCopy(...) MISRA_OVERLOAD(ElfFileOpenFromMemoryCopy, __VA_ARGS__)
-#define ElfFileOpenFromMemoryCopy_3(out, data, data_size)                                                              \
-    elf_file_open_from_memory_copy((out), (data), (data_size), MisraScope)
-#define ElfFileOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                       \
-    elf_file_open_from_memory_copy((out), (data), (data_size), ALLOCATOR_OF(alloc))
+bool elf_open_from_memory_copy(Elf *out, const u8 *data, size data_size, Allocator *alloc);
+#define ElfOpenFromMemoryCopy(...)                    MISRA_OVERLOAD(ElfOpenFromMemoryCopy, __VA_ARGS__)
+#define ElfOpenFromMemoryCopy_3(out, data, data_size) elf_open_from_memory_copy((out), (data), (data_size), MisraScope)
+#define ElfOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                           \
+    elf_open_from_memory_copy((out), (data), (data_size), ALLOCATOR_OF(alloc))
 
 ///
-/// Release storage owned by an `ElfFile`. Frees the byte buffer
+/// Release storage owned by an `Elf`. Frees the byte buffer
 /// through `allocator` and tears down the section / symbol vectors.
-/// All three `ElfFileOpen*` constructors leave the parser as the
+/// All three `ElfOpen*` constructors leave the parser as the
 /// sole owner of `data`, so this is unconditional. Safe to call on
 /// a zeroed struct.
 ///
-void ElfFileDeinit(ElfFile *self);
+void ElfDeinit(Elf *self);
 
 ///
 /// Look up the symbol whose `[value, value+size)` range contains
@@ -302,16 +299,16 @@ void ElfFileDeinit(ElfFile *self);
 /// vaddr[in]  : Virtual address to resolve.
 ///
 /// SUCCESS : Returns a pointer to the matching `ElfSymbol`. The pointer
-///           is valid until `ElfFileDeinit`.
+///           is valid until `ElfDeinit`.
 /// FAILURE : Returns NULL if no symbol covers `vaddr`.
 ///
 /// TAGS: Parser, ELF, Symbol
 ///
-const ElfSymbol *ElfFileResolveAddress(const ElfFile *self, u64 vaddr);
+const ElfSymbol *ElfResolveAddress(const Elf *self, u64 vaddr);
 
 ///
 /// Find a section by name (first match). Returns NULL if absent.
 ///
-const ElfSection *ElfFileFindSection(const ElfFile *self, const char *name);
+const ElfSection *ElfFindSection(const Elf *self, const char *name);
 
 #endif // MISRA_PARSERS_ELF_H

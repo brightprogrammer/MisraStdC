@@ -30,9 +30,9 @@
 typedef struct MachoCacheEntry {
     char          *module_path;
     u64            slide;
-    MachoFile      main;
+    Macho      main;
     bool           main_open;
-    MachoFile      dsym;
+    Macho      dsym;
     bool           dsym_open;
     DwarfFunctions fns;
     bool           fns_built;

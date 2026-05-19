@@ -81,7 +81,6 @@ DirContents dir_get_contents(const char *path, Allocator *alloc);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: dir_get_contents(((Str *)(path))->data, MisraScope),                                                    \
-        const Str *: dir_get_contents(((const Str *)(path))->data, MisraScope),                                        \
         char *: dir_get_contents((const char *)(path), MisraScope),                                                    \
         const char *: dir_get_contents((const char *)(path), MisraScope)                                               \
     )
@@ -89,7 +88,6 @@ DirContents dir_get_contents(const char *path, Allocator *alloc);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: dir_get_contents(((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                           \
-        const Str *: dir_get_contents(((const Str *)(path))->data, ALLOCATOR_OF(alloc)),                               \
         char *: dir_get_contents((const char *)(path), ALLOCATOR_OF(alloc)),                                           \
         const char *: dir_get_contents((const char *)(path), ALLOCATOR_OF(alloc))                                      \
     )
@@ -109,7 +107,6 @@ i64 file_get_size(const char *filename);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: file_get_size(((Str *)(path))->data),                                                                   \
-        const Str *: file_get_size(((const Str *)(path))->data),                                                       \
         char *: file_get_size((const char *)(path)),                                                                   \
         const char *: file_get_size((const char *)(path))                                                              \
     )
@@ -138,7 +135,6 @@ i8 file_remove(const char *path);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: file_remove(((Str *)(path))->data),                                                                     \
-        const Str *: file_remove(((const Str *)(path))->data),                                                         \
         char *: file_remove((const char *)(path)),                                                                     \
         const char *: file_remove((const char *)(path))                                                                \
     )
@@ -162,7 +158,6 @@ i8 dir_remove(const char *path);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: dir_remove(((Str *)(path))->data),                                                                      \
-        const Str *: dir_remove(((const Str *)(path))->data),                                                          \
         char *: dir_remove((const char *)(path)),                                                                      \
         const char *: dir_remove((const char *)(path))                                                                 \
     )
@@ -186,7 +181,6 @@ i8 dir_create(const char *path);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: dir_create(((Str *)(path))->data),                                                                      \
-        const Str *: dir_create(((const Str *)(path))->data),                                                          \
         char *: dir_create((const char *)(path)),                                                                      \
         const char *: dir_create((const char *)(path))                                                                 \
     )
@@ -209,7 +203,6 @@ i8 dir_create_all(const char *path);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: dir_create_all(((Str *)(path))->data),                                                                  \
-        const Str *: dir_create_all(((const Str *)(path))->data),                                                      \
         char *: dir_create_all((const char *)(path)),                                                                  \
         const char *: dir_create_all((const char *)(path))                                                             \
     )
@@ -231,7 +224,6 @@ i8 dir_remove_all(const char *path);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: dir_remove_all(((Str *)(path))->data),                                                                  \
-        const Str *: dir_remove_all(((const Str *)(path))->data),                                                      \
         char *: dir_remove_all((const char *)(path)),                                                                  \
         const char *: dir_remove_all((const char *)(path))                                                             \
     )

@@ -63,7 +63,7 @@ typedef Vec(PeSection) PeSections;
 ///              the PDB must have the same age to be considered a
 ///              match.
 /// - pdb_path : NUL-terminated string borrowed from the PE bytes.
-///              Valid until `PeFileDeinit`.
+///              Valid until `PeDeinit`.
 ///
 typedef struct PeCodeViewInfo {
     bool        present;
@@ -74,7 +74,7 @@ typedef struct PeCodeViewInfo {
 
 ///
 /// Parsed PE file. Holds the raw bytes plus decoded indices. All
-/// three `PeFileOpen*` constructors leave the parser as the sole
+/// three `PeOpen*` constructors leave the parser as the sole
 /// owner of `data` -- see the L / R semantics on the `FromMemory` /
 /// `FromMemoryCopy` constructors (mirrors `VecInsertL` / `VecInsertR`).
 ///
@@ -94,7 +94,7 @@ typedef struct PeCodeViewInfo {
 /// - sections      : All section headers, in original order.
 /// - codeview      : CodeView debug record, if present.
 ///
-typedef struct PeFile {
+typedef struct Pe {
     Buf            data;
     PeMachine      machine;
     bool           is_pe32_plus;
@@ -102,7 +102,7 @@ typedef struct PeFile {
     u32            size_of_image;
     PeSections     sections;
     PeCodeViewInfo codeview;
-} PeFile;
+} Pe;
 
 ///
 /// Open and parse a PE file from disk.
@@ -110,30 +110,28 @@ typedef struct PeFile {
 /// out[out]   : Populated on success.
 /// path[in]   : Filesystem path. `Str *` preferred; `const char *` accepted.
 /// alloc[in]  : Allocator for the read-in buffer and the sections
-///              vector. Must outlive the `PeFile`.
+///              vector. Must outlive the `Pe`.
 ///
 /// SUCCESS : Returns true; `out` owns the read-in buffer.
 /// FAILURE : Returns false; logs the failing step. `out` is left zeroed.
 ///
 /// TAGS: Parser, PE, File
 ///
-bool pe_file_open(PeFile *out, const char *path, Allocator *alloc);
-#define PeFileOpen(...) MISRA_OVERLOAD(PeFileOpen, __VA_ARGS__)
-#define PeFileOpen_2(out, path)                                                                                        \
+bool pe_open(Pe *out, const char *path, Allocator *alloc);
+#define PeOpen(...) MISRA_OVERLOAD(PeOpen, __VA_ARGS__)
+#define PeOpen_2(out, path)                                                                                            \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: pe_file_open((out), ((Str *)(path))->data, MisraScope),                                                 \
-        const Str *: pe_file_open((out), ((const Str *)(path))->data, MisraScope),                                     \
-        char *: pe_file_open((out), (const char *)(path), MisraScope),                                                 \
-        const char *: pe_file_open((out), (const char *)(path), MisraScope)                                            \
+        Str *: pe_open((out), ((Str *)(path))->data, MisraScope),                                                      \
+        char *: pe_open((out), (const char *)(path), MisraScope),                                                      \
+        const char *: pe_open((out), (const char *)(path), MisraScope)                                                 \
     )
-#define PeFileOpen_3(out, path, alloc)                                                                                 \
+#define PeOpen_3(out, path, alloc)                                                                                     \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
-        Str *: pe_file_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                        \
-        const Str *: pe_file_open((out), ((const Str *)(path))->data, ALLOCATOR_OF(alloc)),                            \
-        char *: pe_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                        \
-        const char *: pe_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                   \
+        Str *: pe_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                             \
+        char *: pe_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                             \
+        const char *: pe_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                        \
     )
 
 ///
@@ -145,7 +143,7 @@ bool pe_file_open(PeFile *out, const char *path, Allocator *alloc);
 /// on exit (success OR failure) `*data == NULL`. Calling code:
 ///
 ///   u8 *buf = my_buffer;
-///   PeFileOpenFromMemory(&pe, &buf, n, &alloc);
+///   PeOpenFromMemory(&pe, &buf, n, &alloc);
 ///   // buf == NULL afterwards.
 ///
 /// SUCCESS : Returns true; `out` owns the bytes; `*data == NULL`.
@@ -154,8 +152,8 @@ bool pe_file_open(PeFile *out, const char *path, Allocator *alloc);
 ///
 /// TAGS: Parser, PE, Memory, Ownership
 ///
-bool pe_file_open_from_memory(PeFile *out, Buf *in);
-#define PeFileOpenFromMemory(out, in) pe_file_open_from_memory((out), (in))
+bool pe_open_from_memory(Pe *out, Buf *in);
+#define PeOpenFromMemory(out, in) pe_open_from_memory((out), (in))
 
 ///
 /// Parse a PE image from an in-memory byte range -- **R-value /
@@ -169,25 +167,24 @@ bool pe_file_open_from_memory(PeFile *out, Buf *in);
 ///
 /// TAGS: Parser, PE, Memory, Copy
 ///
-bool pe_file_open_from_memory_copy(PeFile *out, const u8 *data, size data_size, Allocator *alloc);
-#define PeFileOpenFromMemoryCopy(...) MISRA_OVERLOAD(PeFileOpenFromMemoryCopy, __VA_ARGS__)
-#define PeFileOpenFromMemoryCopy_3(out, data, data_size)                                                               \
-    pe_file_open_from_memory_copy((out), (data), (data_size), MisraScope)
-#define PeFileOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                        \
-    pe_file_open_from_memory_copy((out), (data), (data_size), ALLOCATOR_OF(alloc))
+bool pe_open_from_memory_copy(Pe *out, const u8 *data, size data_size, Allocator *alloc);
+#define PeOpenFromMemoryCopy(...)                    MISRA_OVERLOAD(PeOpenFromMemoryCopy, __VA_ARGS__)
+#define PeOpenFromMemoryCopy_3(out, data, data_size) pe_open_from_memory_copy((out), (data), (data_size), MisraScope)
+#define PeOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                            \
+    pe_open_from_memory_copy((out), (data), (data_size), ALLOCATOR_OF(alloc))
 
 ///
-/// Release storage owned by a `PeFile`. Frees `data` through
+/// Release storage owned by a `Pe`. Frees `data` through
 /// `allocator` (unconditional -- parser always owns its bytes) and
 /// tears down the sections vector. Safe on a zeroed struct.
 ///
-void PeFileDeinit(PeFile *self);
+void PeDeinit(Pe *self);
 
 ///
 /// Find a section by name (first match; PE allows duplicates but
 /// they're vanishingly rare).
 ///
-const PeSection *PeFileFindSection(const PeFile *self, const char *name);
+const PeSection *PeFindSection(const Pe *self, const char *name);
 
 ///
 /// Convert an RVA (offset from `ImageBase`) to a file offset by
@@ -201,6 +198,6 @@ const PeSection *PeFileFindSection(const PeFile *self, const char *name);
 ///
 /// TAGS: Parser, PE, Address
 ///
-bool PeFileRvaToOffset(const PeFile *self, u32 rva, u64 *out_offset);
+bool PeRvaToOffset(const Pe *self, u32 rva, u64 *out_offset);
 
 #endif // MISRA_PARSERS_PE_H

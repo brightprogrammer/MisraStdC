@@ -458,6 +458,56 @@ i64 file_read_to_str(File *f, Str *out) {
 }
 
 // ---------------------------------------------------------------------------
+// Convenience: open + read + close in one call. Parsers slurping a
+// whole file used to do this dance by hand; centralising it removes
+// the easy-to-forget close-on-error path.
+// ---------------------------------------------------------------------------
+
+i64 file_read_and_close_to_buf(const char *path, Buf *out) {
+    if (!path || !out) {
+        LOG_FATAL("FileReadAndClose: NULL argument (contract violation)");
+    }
+    File f = file_open(path, "rb");
+    if (!FileIsOpen(&f)) {
+        return -1;
+    }
+    i64 got = file_read_to_buf(&f, out);
+    FileClose(&f);
+    return got;
+}
+
+i64 file_read_and_close_to_str(const char *path, Str *out) {
+    return file_read_and_close_to_buf(path, (Buf *)out);
+}
+
+i64 file_write_and_close_from_bytes(const char *path, const void *buf, u64 n) {
+    if (!path || (!buf && n > 0)) {
+        LOG_FATAL("FileWriteAndClose: NULL argument (contract violation)");
+    }
+    File f = file_open(path, "wb");
+    if (!FileIsOpen(&f)) {
+        return -1;
+    }
+    i64 wrote = (n == 0) ? 0 : FileWrite(&f, buf, n);
+    FileClose(&f);
+    return wrote;
+}
+
+i64 file_write_and_close_from_buf(const char *path, const Buf *in) {
+    if (!in) {
+        LOG_FATAL("FileWriteAndClose: NULL Buf (contract violation)");
+    }
+    return file_write_and_close_from_bytes(path, BufData(in), (u64)BufLength(in));
+}
+
+i64 file_write_and_close_from_str(const char *path, const Str *in) {
+    if (!in) {
+        LOG_FATAL("FileWriteAndClose: NULL Str (contract violation)");
+    }
+    return file_write_and_close_from_bytes(path, in->data, (u64)in->length);
+}
+
+// ---------------------------------------------------------------------------
 // FileOpenTemp -- atomic-unique-create replacement for libc mkstemp.
 // Filename entropy comes from the project-wide `Prng64`. Open is
 // `O_RDWR | O_CREAT | O_EXCL | 0600` so two callers racing on the

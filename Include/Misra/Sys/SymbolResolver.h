@@ -11,7 +11,7 @@
 ///   - `Parsers/Elf` to resolve the file-relative address to a symbol
 ///     entry from `.symtab` (static + global) and `.dynsym` (exported).
 ///
-/// The resolver owns a cache of opened `ElfFile`s so repeated calls
+/// The resolver owns a cache of opened `Elf`s so repeated calls
 /// don't re-parse the same shared object. The cache is keyed by file
 /// path borrowed from the underlying `ProcMaps`.
 ///
@@ -73,13 +73,13 @@ typedef struct ResolvedSymbol {
 typedef struct ResolverCacheEntry {
     const char *path; // borrowed from ProcMaps.raw
     u64         load_base;
-    ElfFile     elf;
+    Elf     elf;
     // Sidecar debug file found via .gnu_debuglink or .note.gnu.build-id.
     // Populated lazily for stripped binaries that have an installed
     // -dbg package or a debug file alongside them. When `has_sidecar`
     // is true, the sidecar's symbol tables (and DWARF lines, below)
     // are searched after the main file's.
-    ElfFile sidecar;
+    Elf sidecar;
     bool    has_sidecar;
 #if FEATURE_PARSER_DWARF
     DwarfLines dwarf;
@@ -133,7 +133,7 @@ bool symbol_resolver_init(SymbolResolver *out, Allocator *alloc);
 #define SymbolResolverInit_2(out, alloc) symbol_resolver_init((out), ALLOCATOR_OF(alloc))
 
 ///
-/// Tear down the resolver, closing every cached `ElfFile` and freeing
+/// Tear down the resolver, closing every cached `Elf` and freeing
 /// the cache + ProcMaps. Safe on a zeroed struct.
 ///
 void SymbolResolverDeinit(SymbolResolver *self);

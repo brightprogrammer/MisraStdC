@@ -635,13 +635,13 @@ bool DwarfFunctionsBuildFromSlices(
     return ok;
 }
 
-bool dwarf_functions_build_from_elf(DwarfFunctions *out, const ElfFile *elf, Allocator *alloc) {
+bool dwarf_functions_build_from_elf(DwarfFunctions *out, const Elf *elf, Allocator *alloc) {
     if (!out || !elf || !alloc) {
         LOG_FATAL("DwarfFunctionsBuildFromElf: NULL argument");
     }
-    const ElfSection *info_sec   = ElfFileFindSection(elf, ".debug_info");
-    const ElfSection *abbrev_sec = ElfFileFindSection(elf, ".debug_abbrev");
-    const ElfSection *str_sec    = ElfFileFindSection(elf, ".debug_str");
+    const ElfSection *info_sec   = ElfFindSection(elf, ".debug_info");
+    const ElfSection *abbrev_sec = ElfFindSection(elf, ".debug_abbrev");
+    const ElfSection *str_sec    = ElfFindSection(elf, ".debug_str");
 
     const u8 *info_b   = info_sec ? BufData(&elf->data) + info_sec->offset : NULL;
     u64       info_n   = info_sec ? info_sec->size : 0;

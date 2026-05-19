@@ -58,8 +58,8 @@ static bool resolve_through_stripped(void (*func)(void), const char *expect_name
     SymbolResolverDeinit(&res);
 
     // (2) Open the stripped sibling.
-    ElfFile stripped;
-    if (!ElfFileOpen(&stripped, stripped_path_arg, base)) {
+    Elf stripped;
+    if (!ElfOpen(&stripped, stripped_path_arg, base)) {
         LOG_ERROR("stripped binary not openable: {}", stripped_path_arg);
         DefaultAllocatorDeinit(&alloc);
         return false;
@@ -67,7 +67,7 @@ static bool resolve_through_stripped(void (*func)(void), const char *expect_name
 
     // (3) Symbol lookup against .symtab/.dynsym should miss for our
     //     static helpers (they're not exported, and .symtab is gone).
-    const ElfSymbol *sym                    = ElfFileResolveAddress(&stripped, file_relative);
+    const ElfSymbol *sym                    = ElfResolveAddress(&stripped, file_relative);
     bool             sym_missing_or_unnamed = (!sym) || (sym && (!sym->name || !sym->name[0]));
     if (!sym_missing_or_unnamed) {
         // The static marker shouldn't be in .dynsym; if we got a name,
@@ -85,7 +85,7 @@ static bool resolve_through_stripped(void (*func)(void), const char *expect_name
         DwarfFunctionsDeinit(&fns);
     }
 
-    ElfFileDeinit(&stripped);
+    ElfDeinit(&stripped);
     DefaultAllocatorDeinit(&alloc);
     return ok && sym_missing_or_unnamed;
 }

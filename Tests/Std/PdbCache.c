@@ -2,7 +2,7 @@
 // memory, writes them to temp files, then asks the cache to resolve
 // a runtime IP through the chain:
 //
-//   ip -> PE.codeview -> PDB on disk -> PdbFile.functions -> name
+//   ip -> PE.codeview -> PDB on disk -> Pdb.functions -> name
 //
 // This is the same chain the Windows Backtrace path would run, minus
 // the OS calls that find `(module_path, module_base)` from a raw IP.

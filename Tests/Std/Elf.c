@@ -9,9 +9,9 @@
 // symbol table (debug builds aren't stripped).
 bool test_elf_self_exe_parse(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
-    ElfFile          elf;
+    Elf          elf;
 
-    bool opened = ElfFileOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc));
+    bool opened = ElfOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc));
     if (!opened) {
         DefaultAllocatorDeinit(&alloc);
         return false;
@@ -24,7 +24,7 @@ bool test_elf_self_exe_parse(void) {
     // dynamic symbol tables.
     ok = ok && elf.symbols.length > 0;
 
-    ElfFileDeinit(&elf);
+    ElfDeinit(&elf);
     DefaultAllocatorDeinit(&alloc);
     return ok;
 }
@@ -32,17 +32,17 @@ bool test_elf_self_exe_parse(void) {
 // Find a section by name and verify it's the right shape.
 bool test_elf_find_text_section(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
-    ElfFile          elf;
+    Elf          elf;
 
-    if (!ElfFileOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc))) {
+    if (!ElfOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc))) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
 
-    const ElfSection *text = ElfFileFindSection(&elf, ".text");
+    const ElfSection *text = ElfFindSection(&elf, ".text");
     bool              ok   = text != NULL && text->size > 0 && (text->flags & 0x4); // SHF_EXECINSTR = 0x4
 
-    ElfFileDeinit(&elf);
+    ElfDeinit(&elf);
     DefaultAllocatorDeinit(&alloc);
     return ok;
 }
@@ -56,22 +56,22 @@ bool test_elf_find_text_section(void) {
 // production binaries.
 bool test_elf_build_id_present(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
-    ElfFile          elf;
-    if (!ElfFileOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc))) {
+    Elf          elf;
+    if (!ElfOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc))) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
     bool ok = elf.build_id != NULL && elf.build_id_size > 0 && elf.build_id_size <= 64;
-    ElfFileDeinit(&elf);
+    ElfDeinit(&elf);
     DefaultAllocatorDeinit(&alloc);
     return ok;
 }
 
 bool test_elf_some_function_symbol(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
-    ElfFile          elf;
+    Elf          elf;
 
-    if (!ElfFileOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc))) {
+    if (!ElfOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc))) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
@@ -85,7 +85,7 @@ bool test_elf_some_function_symbol(void) {
         }
     }
 
-    ElfFileDeinit(&elf);
+    ElfDeinit(&elf);
     DefaultAllocatorDeinit(&alloc);
     return ok;
 }

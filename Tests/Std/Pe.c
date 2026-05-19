@@ -1,6 +1,6 @@
 // PE/COFF parser unit test. Builds a synthetic PE32+ image in memory
 // (just enough headers + one section + one CodeView debug record) and
-// feeds it to PeFileOpenFromMemoryCopy. We assemble it byte-by-byte so
+// feeds it to PeOpenFromMemoryCopy. We assemble it byte-by-byte so
 // the test runs on Linux without needing an actual Windows toolchain.
 //
 // The layout is documented inline below; offsets in comments are
@@ -158,8 +158,8 @@ bool test_pe_parses_synthetic_blob(void) {
 
     build_pe_blob();
 
-    PeFile pe;
-    bool   ok = PeFileOpenFromMemoryCopy(&pe, blob, sizeof(blob), base);
+    Pe pe;
+    bool   ok = PeOpenFromMemoryCopy(&pe, blob, sizeof(blob), base);
     if (!ok) {
         DefaultAllocatorDeinit(&alloc);
         return false;
@@ -174,7 +174,7 @@ bool test_pe_parses_synthetic_blob(void) {
     ok = ok && MemCompare(pe.codeview.guid, kGuid, 16) == 0;
     ok = ok && pe.codeview.pdb_path && ZstrCompare(pe.codeview.pdb_path, kPdbPath) == 0;
 
-    PeFileDeinit(&pe);
+    PeDeinit(&pe);
     DefaultAllocatorDeinit(&alloc);
     return ok;
 }
@@ -184,21 +184,21 @@ bool test_pe_rva_to_offset_round_trips(void) {
     Allocator       *base  = ALLOCATOR_OF(&alloc);
 
     build_pe_blob();
-    PeFile pe;
-    if (!PeFileOpenFromMemoryCopy(&pe, blob, sizeof(blob), base)) {
+    Pe pe;
+    if (!PeOpenFromMemoryCopy(&pe, blob, sizeof(blob), base)) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
 
     // The CodeView record sits at RVA 0x1020 -> file offset 0x420.
     u64  off = 0;
-    bool ok  = PeFileRvaToOffset(&pe, CV_REC_RVA, &off) && off == CV_REC_RAW_OFF;
+    bool ok  = PeRvaToOffset(&pe, CV_REC_RVA, &off) && off == CV_REC_RAW_OFF;
 
     // RVA outside any section should fail cleanly.
     u64 garbage = 0;
-    ok          = ok && !PeFileRvaToOffset(&pe, 0xdead0000, &garbage);
+    ok          = ok && !PeRvaToOffset(&pe, 0xdead0000, &garbage);
 
-    PeFileDeinit(&pe);
+    PeDeinit(&pe);
     DefaultAllocatorDeinit(&alloc);
     return ok;
 }
@@ -212,8 +212,8 @@ bool test_pe_rejects_bad_magic(void) {
     garbage[0] = 'X';
     garbage[1] = 'X';
 
-    PeFile pe;
-    bool   ok = !PeFileOpenFromMemoryCopy(&pe, garbage, sizeof(garbage), base);
+    Pe pe;
+    bool   ok = !PeOpenFromMemoryCopy(&pe, garbage, sizeof(garbage), base);
 
     DefaultAllocatorDeinit(&alloc);
     return ok;

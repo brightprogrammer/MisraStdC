@@ -11,7 +11,7 @@
 ///   2. Lookup the file path in our cache; on miss, open the file
 ///      through `Parsers/Elf` and stash it for future lookups.
 ///   3. file_relative_addr = runtime_addr - load_base.
-///   4. `ElfFileResolveAddress(elf, file_relative_addr)`.
+///   4. `ElfResolveAddress(elf, file_relative_addr)`.
 
 #include <Misra/Sys/SymbolResolver.h>
 
@@ -73,7 +73,7 @@ static bool path_exists(const char *path) {
 // For Build-ID lookups, the two files must carry identical build IDs.
 // For debuglink lookups, the file's mere presence is good enough in v1
 // (CRC32 cross-check is in FUTURE-PLANS).
-static bool sidecar_matches(const ElfFile *main, const ElfFile *sidecar, bool by_build_id) {
+static bool sidecar_matches(const Elf *main, const Elf *sidecar, bool by_build_id) {
     if (!by_build_id) {
         return true;
     }
@@ -92,8 +92,8 @@ static bool sidecar_matches(const ElfFile *main, const ElfFile *sidecar, bool by
 //   3. {binary_dir}/.debug/{debuglink_name}
 //   4. /usr/lib/debug{binary_dir}/{debuglink_name}
 //
-// Returns true on success; `out` is populated with an opened ElfFile.
-static bool try_open_sidecar(const char *main_path, const ElfFile *main, ElfFile *out, Allocator *alloc) {
+// Returns true on success; `out` is populated with an opened Elf.
+static bool try_open_sidecar(const char *main_path, const Elf *main, Elf *out, Allocator *alloc) {
     Str path = StrInit(alloc);
 
     // (1) Build-ID
@@ -102,12 +102,12 @@ static bool try_open_sidecar(const char *main_path, const ElfFile *main, ElfFile
         StrPushBackZstr(&path, "/usr/lib/debug/.build-id/");
         append_build_id_path(&path, main->build_id, main->build_id_size);
         StrPushBackZstr(&path, ".debug");
-        if (path_exists(path.data) && ElfFileOpen(out, path.data, alloc)) {
+        if (path_exists(path.data) && ElfOpen(out, path.data, alloc)) {
             if (sidecar_matches(main, out, /*by_build_id*/ true)) {
                 StrDeinit(&path);
                 return true;
             }
-            ElfFileDeinit(out);
+            ElfDeinit(out);
         }
     }
 
@@ -121,12 +121,12 @@ static bool try_open_sidecar(const char *main_path, const ElfFile *main, ElfFile
         append_dirname(&path, main_path);
         StrPushBack(&path, '/');
         StrPushBackZstr(&path, main->debuglink_name);
-        if (path_exists(path.data) && ElfFileOpen(out, path.data, alloc)) {
+        if (path_exists(path.data) && ElfOpen(out, path.data, alloc)) {
             if (sidecar_matches(main, out, /*by_build_id*/ false)) {
                 StrDeinit(&path);
                 return true;
             }
-            ElfFileDeinit(out);
+            ElfDeinit(out);
         }
 
         // (3) {dir}/.debug/{name}
@@ -134,12 +134,12 @@ static bool try_open_sidecar(const char *main_path, const ElfFile *main, ElfFile
         append_dirname(&path, main_path);
         StrPushBackZstr(&path, "/.debug/");
         StrPushBackZstr(&path, main->debuglink_name);
-        if (path_exists(path.data) && ElfFileOpen(out, path.data, alloc)) {
+        if (path_exists(path.data) && ElfOpen(out, path.data, alloc)) {
             if (sidecar_matches(main, out, /*by_build_id*/ false)) {
                 StrDeinit(&path);
                 return true;
             }
-            ElfFileDeinit(out);
+            ElfDeinit(out);
         }
 
         // (4) /usr/lib/debug{dir}/{name}
@@ -148,12 +148,12 @@ static bool try_open_sidecar(const char *main_path, const ElfFile *main, ElfFile
         append_dirname(&path, main_path);
         StrPushBack(&path, '/');
         StrPushBackZstr(&path, main->debuglink_name);
-        if (path_exists(path.data) && ElfFileOpen(out, path.data, alloc)) {
+        if (path_exists(path.data) && ElfOpen(out, path.data, alloc)) {
             if (sidecar_matches(main, out, /*by_build_id*/ false)) {
                 StrDeinit(&path);
                 return true;
             }
-            ElfFileDeinit(out);
+            ElfDeinit(out);
         }
         (void)cand_dirs; // unused list kept for future variants
     }
@@ -184,7 +184,7 @@ static ResolverCacheEntry *resolver_cache_find_or_open(SymbolResolver *self, con
     MemSet(&entry, 0, sizeof(entry));
     entry.path      = path;
     entry.load_base = load_base;
-    if (!ElfFileOpen(&entry.elf, path, self->allocator)) {
+    if (!ElfOpen(&entry.elf, path, self->allocator)) {
         return NULL;
     }
     // Best-effort sidecar lookup. Silent failure is fine — we'll just
@@ -194,8 +194,8 @@ static ResolverCacheEntry *resolver_cache_find_or_open(SymbolResolver *self, con
     }
     if (!VecPushBackR(&self->cache, entry)) {
         if (entry.has_sidecar)
-            ElfFileDeinit(&entry.sidecar);
-        ElfFileDeinit(&entry.elf);
+            ElfDeinit(&entry.sidecar);
+        ElfDeinit(&entry.elf);
         return NULL;
     }
     return &self->cache.data[self->cache.length - 1];
@@ -243,9 +243,9 @@ void SymbolResolverDeinit(SymbolResolver *self) {
         }
 #endif
         if (e->has_sidecar) {
-            ElfFileDeinit(&e->sidecar);
+            ElfDeinit(&e->sidecar);
         }
-        ElfFileDeinit(&e->elf);
+        ElfDeinit(&e->elf);
     }
     VecDeinit(&self->cache);
     ProcMapsDeinit(&self->maps);
@@ -330,9 +330,9 @@ bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSym
     // Symbol resolution: try the main file first, fall through to the
     // sidecar (full `.symtab` for stripped binaries) if nothing
     // matches.
-    const ElfSymbol *sym = ElfFileResolveAddress(&cache_entry->elf, file_relative);
+    const ElfSymbol *sym = ElfResolveAddress(&cache_entry->elf, file_relative);
     if (!(sym && sym->name && sym->name[0]) && cache_entry->has_sidecar) {
-        sym = ElfFileResolveAddress(&cache_entry->sidecar, file_relative);
+        sym = ElfResolveAddress(&cache_entry->sidecar, file_relative);
     }
     if (sym && sym->name && sym->name[0]) {
         out->symbol_name  = sym->name;

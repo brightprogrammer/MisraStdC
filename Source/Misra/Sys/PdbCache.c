@@ -66,7 +66,7 @@ static const char *basename_of(const char *path) {
 //   2. Basename of (1) alongside the PE.
 //
 // On success populates `out_path` (an owned Str the caller frees).
-static bool find_pdb(const PeFile *pe, const char *pe_path, Str *out_path) {
+static bool find_pdb(const Pe *pe, const char *pe_path, Str *out_path) {
     if (!pe->codeview.present || !pe->codeview.pdb_path)
         return false;
 
@@ -97,7 +97,7 @@ static bool find_pdb(const PeFile *pe, const char *pe_path, Str *out_path) {
 // of the same module doesn't retry the misses.
 static bool entry_open(PdbCacheEntry *entry, Allocator *alloc) {
     if (!entry->pe_open) {
-        if (!PeFileOpen(&entry->pe, entry->module_path, alloc))
+        if (!PeOpen(&entry->pe, entry->module_path, alloc))
             return false;
         entry->pe_open = true;
     }
@@ -109,7 +109,7 @@ static bool entry_open(PdbCacheEntry *entry, Allocator *alloc) {
         StrDeinit(&pdb_path);
         return false;
     }
-    bool ok = PdbFileOpen(&entry->pdb, pdb_path.data, alloc);
+    bool ok = PdbOpen(&entry->pdb, pdb_path.data, alloc);
     StrDeinit(&pdb_path);
     if (!ok)
         return false;
@@ -119,7 +119,7 @@ static bool entry_open(PdbCacheEntry *entry, Allocator *alloc) {
     if (entry->pe.codeview.age != entry->pdb.info.age ||
         MemCompare(entry->pe.codeview.guid, entry->pdb.info.guid, 16) != 0) {
         LOG_ERROR("PdbCache: GUID/age mismatch between PE and PDB for {}", entry->module_path);
-        PdbFileDeinit(&entry->pdb);
+        PdbDeinit(&entry->pdb);
         return false;
     }
     entry->pdb_open = true;
@@ -174,9 +174,9 @@ void PdbCacheDeinit(PdbCache *self) {
     for (size i = 0; i < self->entries.length; ++i) {
         PdbCacheEntry *e = &self->entries.data[i];
         if (e->pdb_open)
-            PdbFileDeinit(&e->pdb);
+            PdbDeinit(&e->pdb);
         if (e->pe_open)
-            PeFileDeinit(&e->pe);
+            PeDeinit(&e->pe);
         if (e->module_path && self->allocator) {
             u64 n = 0;
             for (const char *p = e->module_path; *p; ++p)
@@ -214,7 +214,7 @@ bool PdbCacheResolve(
         return false;
     u32 rva = (u32)rva64;
 
-    const PdbFunction *f = PdbFileResolveRva(&entry->pdb, rva);
+    const PdbFunction *f = PdbResolveRva(&entry->pdb, rva);
     if (!f)
         return false;
     *out_name = f->name;

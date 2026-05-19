@@ -70,7 +70,7 @@ typedef Vec(DwarfLineEntry) DwarfLineEntries;
 ///                 that `entries` borrows from. Required because
 ///                 `.debug_line` file/dir entries are interleaved
 ///                 byte-strings inside the section — we copy them
-///                 into a contiguous pool so the `ElfFile`'s lifetime
+///                 into a contiguous pool so the `Elf`'s lifetime
 ///                 doesn't have to match ours.
 ///
 typedef struct DwarfLines {
@@ -80,7 +80,7 @@ typedef struct DwarfLines {
 } DwarfLines;
 
 ///
-/// Parse the `.debug_line` section of a previously-opened `ElfFile`.
+/// Parse the `.debug_line` section of a previously-opened `Elf`.
 ///
 /// out[out]   : Populated on success.
 /// elf[in]    : ELF file to read from. Borrowed; not retained.
@@ -93,7 +93,7 @@ typedef struct DwarfLines {
 ///
 /// TAGS: Parser, DWARF, Lines
 ///
-bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *alloc);
+bool dwarf_lines_build_from_elf(DwarfLines *out, const Elf *elf, Allocator *alloc);
 #define DwarfLinesBuildFromElf(...)               MISRA_OVERLOAD(DwarfLinesBuildFromElf, __VA_ARGS__)
 #define DwarfLinesBuildFromElf_2(out, elf)        dwarf_lines_build_from_elf((out), (elf), MisraScope)
 #define DwarfLinesBuildFromElf_3(out, elf, alloc) dwarf_lines_build_from_elf((out), (elf), ALLOCATOR_OF(alloc))
@@ -179,7 +179,7 @@ typedef struct DwarfCfi {
 } DwarfCfi;
 
 ///
-/// Parse the `.eh_frame` section of an already-opened ElfFile.
+/// Parse the `.eh_frame` section of an already-opened Elf.
 ///
 /// out[out]   : Populated on success.
 /// elf[in]    : ELF file to read from. Borrowed.
@@ -191,7 +191,7 @@ typedef struct DwarfCfi {
 ///
 /// TAGS: Parser, DWARF, CFI
 ///
-bool dwarf_cfi_build_from_elf(DwarfCfi *out, const ElfFile *elf, Allocator *alloc);
+bool dwarf_cfi_build_from_elf(DwarfCfi *out, const Elf *elf, Allocator *alloc);
 #define DwarfCfiBuildFromElf(...)               MISRA_OVERLOAD(DwarfCfiBuildFromElf, __VA_ARGS__)
 #define DwarfCfiBuildFromElf_2(out, elf)        dwarf_cfi_build_from_elf((out), (elf), MisraScope)
 #define DwarfCfiBuildFromElf_3(out, elf, alloc) dwarf_cfi_build_from_elf((out), (elf), ALLOCATOR_OF(alloc))
@@ -333,7 +333,7 @@ typedef struct DwarfFunctions {
 ///
 /// TAGS: Parser, DWARF, Info
 ///
-bool dwarf_functions_build_from_elf(DwarfFunctions *out, const ElfFile *elf, Allocator *alloc);
+bool dwarf_functions_build_from_elf(DwarfFunctions *out, const Elf *elf, Allocator *alloc);
 #define DwarfFunctionsBuildFromElf(...)               MISRA_OVERLOAD(DwarfFunctionsBuildFromElf, __VA_ARGS__)
 #define DwarfFunctionsBuildFromElf_2(out, elf)        dwarf_functions_build_from_elf((out), (elf), MisraScope)
 #define DwarfFunctionsBuildFromElf_3(out, elf, alloc) dwarf_functions_build_from_elf((out), (elf), ALLOCATOR_OF(alloc))

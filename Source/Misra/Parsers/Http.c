@@ -404,14 +404,7 @@ HttpResponse *HttpRespondWithFile(
     response->content_type = content_type;
     StrDeinit(&response->body);
     response->body = StrInit(response->allocator);
-    File f         = FileOpen(filepath, "rb");
-    if (!FileIsOpen(&f)) {
-        LOG_ERROR("failed to open file: {}", filepath);
-        return NULL;
-    }
-    i64 got = FileRead(&f, &response->body);
-    FileClose(&f);
-    if (got < 0) {
+    if (FileReadAndClose(filepath, &response->body) < 0) {
         LOG_ERROR("failed to read file: {}", filepath);
         return NULL;
     }

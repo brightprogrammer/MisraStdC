@@ -1,7 +1,7 @@
 // Mach-O parser unit test. Builds a minimal 64-bit Mach-O image in
 // memory with one __TEXT segment, one symbol, and a UUID. Verifies
 // the parser decodes the header, segment + section, LC_SYMTAB, and
-// LC_UUID, and that MachoFileResolveAddress returns the right symbol
+// LC_UUID, and that MachoResolveAddress returns the right symbol
 // for an address inside the function body.
 
 #include <Misra.h>
@@ -123,8 +123,8 @@ bool test_macho_parses_synthetic_blob(void) {
 
     build_macho_blob();
 
-    MachoFile m;
-    bool      ok = MachoFileOpenFromMemoryCopy(&m, blob, sizeof(blob), base);
+    Macho m;
+    bool      ok = MachoOpenFromMemoryCopy(&m, blob, sizeof(blob), base);
     if (!ok) {
         DefaultAllocatorDeinit(&alloc);
         return false;
@@ -141,7 +141,7 @@ bool test_macho_parses_synthetic_blob(void) {
     ok = ok && m.symbols.data[0].name && ZstrCompare(m.symbols.data[0].name, "my_function") == 0;
     ok = ok && m.symbols.data[0].value == 0x100000010ull;
 
-    MachoFileDeinit(&m);
+    MachoDeinit(&m);
     DefaultAllocatorDeinit(&alloc);
     return ok;
 }
@@ -152,25 +152,25 @@ bool test_macho_resolves_address(void) {
 
     build_macho_blob();
 
-    MachoFile m;
-    if (!MachoFileOpenFromMemoryCopy(&m, blob, sizeof(blob), base)) {
+    Macho m;
+    if (!MachoOpenFromMemoryCopy(&m, blob, sizeof(blob), base)) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
 
     // Address at the function start.
-    const MachoSymbol *s  = MachoFileResolveAddress(&m, 0x100000010ull);
+    const MachoSymbol *s  = MachoResolveAddress(&m, 0x100000010ull);
     bool               ok = s && s->name && ZstrCompare(s->name, "my_function") == 0;
 
     // Address just past the start, still inside the function body.
-    s  = MachoFileResolveAddress(&m, 0x100000020ull);
+    s  = MachoResolveAddress(&m, 0x100000020ull);
     ok = ok && s && ZstrCompare(s->name, "my_function") == 0;
 
     // Address below the symbol value: no match.
-    s  = MachoFileResolveAddress(&m, 0x100000000ull);
+    s  = MachoResolveAddress(&m, 0x100000000ull);
     ok = ok && s == NULL;
 
-    MachoFileDeinit(&m);
+    MachoDeinit(&m);
     DefaultAllocatorDeinit(&alloc);
     return ok;
 }
@@ -183,8 +183,8 @@ bool test_macho_rejects_fat_binary(void) {
     MemSet(fat, 0, sizeof(fat));
     wr_u32(&fat[0], 0xCAFEBABEu);
 
-    MachoFile m;
-    bool      ok = !MachoFileOpenFromMemoryCopy(&m, fat, sizeof(fat), base);
+    Macho m;
+    bool      ok = !MachoOpenFromMemoryCopy(&m, fat, sizeof(fat), base);
 
     DefaultAllocatorDeinit(&alloc);
     return ok;
@@ -212,8 +212,8 @@ bool test_macho_parses_running_binary(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Allocator       *base  = ALLOCATOR_OF(&alloc);
 
-    MachoFile m;
-    if (!MachoFileOpen(&m, path, base)) {
+    Macho m;
+    if (!MachoOpen(&m, path, base)) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
@@ -221,10 +221,10 @@ bool test_macho_parses_running_binary(void) {
     bool ok = m.filetype == MACHO_FILE_TYPE_EXECUTE;
     ok      = ok && m.has_uuid;
     ok      = ok && m.segments.length > 0;
-    ok      = ok && MachoFileFindSection(&m, "__TEXT", "__text") != NULL;
+    ok      = ok && MachoFindSection(&m, "__TEXT", "__text") != NULL;
     ok      = ok && m.symbols.length > 0;
 
-    MachoFileDeinit(&m);
+    MachoDeinit(&m);
     DefaultAllocatorDeinit(&alloc);
     return ok;
 }
@@ -232,7 +232,7 @@ bool test_macho_parses_running_binary(void) {
 // Resolve a known function (this test function itself) by its runtime
 // address. Validates that:
 //   (a) the symbol table contains exported globals,
-//   (b) `MachoFileResolveAddress` returns the correct entry after we
+//   (b) `MachoResolveAddress` returns the correct entry after we
 //       de-slide the runtime IP.
 extern intptr_t _dyld_get_image_vmaddr_slide(uint32_t image_index);
 
@@ -245,8 +245,8 @@ bool test_macho_resolves_running_binary_symbol(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Allocator       *base  = ALLOCATOR_OF(&alloc);
 
-    MachoFile m;
-    if (!MachoFileOpen(&m, path, base)) {
+    Macho m;
+    if (!MachoOpen(&m, path, base)) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
@@ -255,11 +255,11 @@ bool test_macho_resolves_running_binary_symbol(void) {
     u64 runtime_addr = (u64)(uintptr_t)&test_macho_resolves_running_binary_symbol;
     u64 vaddr        = runtime_addr - slide;
 
-    const MachoSymbol *sym = MachoFileResolveAddress(&m, vaddr);
+    const MachoSymbol *sym = MachoResolveAddress(&m, vaddr);
     bool               ok  = sym != NULL && sym->name != NULL &&
               ZstrFindSubstring(sym->name, "test_macho_resolves_running_binary_symbol") != NULL;
 
-    MachoFileDeinit(&m);
+    MachoDeinit(&m);
     DefaultAllocatorDeinit(&alloc);
     return ok;
 }

@@ -105,18 +105,18 @@ enum {
 // ---------------------------------------------------------------------------
 
 typedef struct MachoContext {
-    MachoFile *out;
-    u32        ncmds;
-    u32        sizeofcmds;
-    u32        symoff;
-    u32        nsyms;
-    u32        stroff;
-    u32        strsize;
-    bool       have_symtab;
+    Macho *out;
+    u32    ncmds;
+    u32    sizeofcmds;
+    u32    symoff;
+    u32    nsyms;
+    u32    stroff;
+    u32    strsize;
+    bool   have_symtab;
 } MachoContext;
 
 static bool decode_header(MachoContext *ctx) {
-    MachoFile *m = ctx->out;
+    Macho *m = ctx->out;
     if (BufLength(&m->data) < MH_HEADER_64_SIZE) {
         LOG_ERROR("MachO: file too small for header");
         return false;
@@ -158,7 +158,7 @@ static bool decode_header(MachoContext *ctx) {
         return false;
     }
     m->cputype      = cputype;
-    m->filetype     = (MachoFileType)filetype;
+    m->filetype     = (MachoType)filetype;
     ctx->ncmds      = ncmds;
     ctx->sizeofcmds = sizeofcmds;
     return true;
@@ -397,10 +397,10 @@ static bool decode_symbols(MachoContext *ctx) {
 
 // L-value form. Takes the caller's `Buf` by pointer, snapshots it,
 // MemSets the caller's view to zero. Anything that fails past the
-// snapshot cleans up via MachoFileDeinit -- the buffer never leaks.
-bool macho_file_open_from_memory(MachoFile *out, Buf *in) {
+// snapshot cleans up via MachoDeinit -- the buffer never leaks.
+bool macho_open_from_memory(Macho *out, Buf *in) {
     if (!out || !in || !in->data || !in->allocator) {
-        LOG_FATAL("MachoFileOpenFromMemory: NULL argument (contract violation)");
+        LOG_FATAL("MachoOpenFromMemory: NULL argument (contract violation)");
     }
     Buf taken = *in;
     MemSet(in, 0, sizeof(*in));
@@ -421,46 +421,39 @@ bool macho_file_open_from_memory(MachoFile *out, Buf *in) {
     return true;
 
 fail:
-    MachoFileDeinit(out);
+    MachoDeinit(out);
     return false;
 }
 
 // R-value form: allocate Buf, copy, hand `&copy` to the L-form.
-bool macho_file_open_from_memory_copy(MachoFile *out, const u8 *data, size data_size, Allocator *alloc) {
+bool macho_open_from_memory_copy(Macho *out, const u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
-        LOG_FATAL("MachoFileOpenFromMemoryCopy: NULL argument (contract violation)");
+        LOG_FATAL("MachoOpenFromMemoryCopy: NULL argument (contract violation)");
     }
     Buf copy = BufInit(alloc);
     if (!VecReserve(&copy, (u64)data_size)) {
-        LOG_ERROR("MachoFileOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
+        LOG_ERROR("MachoOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
         return false;
     }
     MemCopy(copy.data, data, data_size);
     copy.length = (size)data_size;
-    return macho_file_open_from_memory(out, &copy);
+    return macho_open_from_memory(out, &copy);
 }
 
-bool macho_file_open(MachoFile *out, const char *path, Allocator *alloc) {
+bool macho_open(Macho *out, const char *path, Allocator *alloc) {
     if (!out || !path || !alloc) {
-        LOG_FATAL("MachoFileOpen: NULL argument (contract violation)");
-    }
-    File f = FileOpen(path, "rb");
-    if (!FileIsOpen(&f)) {
-        LOG_ERROR("MachoFileOpen: failed to open {}", path);
-        return false;
+        LOG_FATAL("MachoOpen: NULL argument (contract violation)");
     }
     Buf data = BufInit(alloc);
-    i64 got  = FileRead(&f, &data);
-    FileClose(&f);
-    if (got < 0) {
+    if (FileReadAndClose(path, &data) < 0) {
         BufDeinit(&data);
-        LOG_ERROR("MachoFileOpen: failed to read {}", path);
+        LOG_ERROR("MachoOpen: failed to read {}", path);
         return false;
     }
-    return macho_file_open_from_memory(out, &data);
+    return macho_open_from_memory(out, &data);
 }
 
-void MachoFileDeinit(MachoFile *self) {
+void MachoDeinit(Macho *self) {
     if (!self)
         return;
     BufDeinit(&self->data);
@@ -470,7 +463,7 @@ void MachoFileDeinit(MachoFile *self) {
     MemSet(self, 0, sizeof(*self));
 }
 
-const MachoSection *MachoFileFindSection(const MachoFile *self, const char *segment, const char *section) {
+const MachoSection *MachoFindSection(const Macho *self, const char *segment, const char *section) {
     if (!self || !segment || !section)
         return NULL;
     for (size i = 0; i < self->sections.length; ++i) {
@@ -486,7 +479,7 @@ const MachoSection *MachoFileFindSection(const MachoFile *self, const char *segm
 // largest `value <= vaddr`, then bound it by the next symbol in the
 // same section (or the section end). N_STAB entries are skipped:
 // stab iff any of the high three bits of n_type is set.
-const MachoSymbol *MachoFileResolveAddress(const MachoFile *self, u64 vaddr) {
+const MachoSymbol *MachoResolveAddress(const Macho *self, u64 vaddr) {
     if (!self || self->symbols.length == 0)
         return NULL;
     enum {

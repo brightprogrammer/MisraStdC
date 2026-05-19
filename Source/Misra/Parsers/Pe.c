@@ -144,7 +144,7 @@ enum {
 // ---------------------------------------------------------------------------
 
 typedef struct PeContext {
-    PeFile *out;
+    Pe     *out;
     BufIter file;      // bounds for the whole image
     u32     nt_offset; // offset of NT signature
     u16     num_sections;
@@ -416,7 +416,7 @@ static void pe_decode_codeview(PeContext *ctx) {
         return;
 
     u64 dir_offset;
-    if (!PeFileRvaToOffset(ctx->out, (u32)ctx->debug_dir_rva, &dir_offset)) {
+    if (!PeRvaToOffset(ctx->out, (u32)ctx->debug_dir_rva, &dir_offset)) {
         LOG_ERROR("PE: debug directory RVA not in any section");
         return;
     }
@@ -490,17 +490,17 @@ static void pe_decode_codeview(PeContext *ctx) {
 
 // L-value form. Takes the caller's `Buf` by pointer, snapshots it,
 // MemSets the caller's view. Anything that fails past the snapshot
-// cleans up via PeFileDeinit -- the buffer never leaks.
-bool pe_file_open_from_memory(PeFile *out, Buf *in) {
+// cleans up via PeDeinit -- the buffer never leaks.
+bool pe_open_from_memory(Pe *out, Buf *in) {
     if (!out || !in || !in->data || !in->allocator) {
-        LOG_FATAL("PeFileOpenFromMemory: NULL argument (contract violation)");
+        LOG_FATAL("PeOpenFromMemory: NULL argument (contract violation)");
     }
     Buf taken = *in;
     MemSet(in, 0, sizeof(*in));
 
     MemSet(out, 0, sizeof(*out));
     out->data = taken;
-    // Initialize the sections vec up-front so PeFileDeinit on a
+    // Initialize the sections vec up-front so PeDeinit on a
     // failed-parse path doesn't trip ValidateVec.
     out->sections = VecInitT(out->sections, taken.allocator);
 
@@ -522,46 +522,39 @@ bool pe_file_open_from_memory(PeFile *out, Buf *in) {
     return true;
 
 fail:
-    PeFileDeinit(out);
+    PeDeinit(out);
     return false;
 }
 
 // R-value form: allocate Buf, copy, hand `&copy` to the L-form.
-bool pe_file_open_from_memory_copy(PeFile *out, const u8 *data, size data_size, Allocator *alloc) {
+bool pe_open_from_memory_copy(Pe *out, const u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
-        LOG_FATAL("PeFileOpenFromMemoryCopy: NULL argument (contract violation)");
+        LOG_FATAL("PeOpenFromMemoryCopy: NULL argument (contract violation)");
     }
     Buf copy = BufInit(alloc);
     if (!BufReserve(&copy, (u64)data_size)) {
-        LOG_ERROR("PeFileOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
+        LOG_ERROR("PeOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
         return false;
     }
     MemCopy(BufData(&copy), data, data_size);
     copy.length = (size)data_size;
-    return pe_file_open_from_memory(out, &copy);
+    return pe_open_from_memory(out, &copy);
 }
 
-bool pe_file_open(PeFile *out, const char *path, Allocator *alloc) {
+bool pe_open(Pe *out, const char *path, Allocator *alloc) {
     if (!out || !path || !alloc) {
-        LOG_FATAL("PeFileOpen: NULL argument (contract violation)");
-    }
-    File f = FileOpen(path, "rb");
-    if (!FileIsOpen(&f)) {
-        LOG_ERROR("PeFileOpen: failed to open {}", path);
-        return false;
+        LOG_FATAL("PeOpen: NULL argument (contract violation)");
     }
     Buf data = BufInit(alloc);
-    i64 got  = FileRead(&f, &data);
-    FileClose(&f);
-    if (got < 0) {
+    if (FileReadAndClose(path, &data) < 0) {
         BufDeinit(&data);
-        LOG_ERROR("PeFileOpen: failed to read {}", path);
+        LOG_ERROR("PeOpen: failed to read {}", path);
         return false;
     }
-    return pe_file_open_from_memory(out, &data);
+    return pe_open_from_memory(out, &data);
 }
 
-void PeFileDeinit(PeFile *self) {
+void PeDeinit(Pe *self) {
     if (!self)
         return;
     BufDeinit(&self->data);
@@ -569,7 +562,7 @@ void PeFileDeinit(PeFile *self) {
     MemSet(self, 0, sizeof(*self));
 }
 
-const PeSection *PeFileFindSection(const PeFile *self, const char *name) {
+const PeSection *PeFindSection(const Pe *self, const char *name) {
     if (!self || !name)
         return NULL;
     for (size i = 0; i < self->sections.length; ++i) {
@@ -580,7 +573,7 @@ const PeSection *PeFileFindSection(const PeFile *self, const char *name) {
     return NULL;
 }
 
-bool PeFileRvaToOffset(const PeFile *self, u32 rva, u64 *out_offset) {
+bool PeRvaToOffset(const Pe *self, u32 rva, u64 *out_offset) {
     if (!self || !out_offset)
         return false;
     for (size i = 0; i < self->sections.length; ++i) {

@@ -91,7 +91,7 @@ static MachoCacheEntry *cache_find_or_create(MachoCache *self, const char *modul
 static bool entry_open_main(MachoCacheEntry *e, Allocator *alloc) {
     if (e->main_open)
         return true;
-    if (!MachoFileOpen(&e->main, e->module_path, alloc))
+    if (!MachoOpen(&e->main, e->module_path, alloc))
         return false;
     e->main_open = true;
     return true;
@@ -114,7 +114,7 @@ static bool entry_open_dsym(MachoCacheEntry *e, Allocator *alloc) {
         StrDeinit(&path);
         return false;
     }
-    if (!path_exists(path.data) || !MachoFileOpen(&e->dsym, path.data, alloc)) {
+    if (!path_exists(path.data) || !MachoOpen(&e->dsym, path.data, alloc)) {
         StrDeinit(&path);
         return false;
     }
@@ -122,7 +122,7 @@ static bool entry_open_dsym(MachoCacheEntry *e, Allocator *alloc) {
 
     if (!e->dsym.has_uuid || MemCompare(e->dsym.uuid, e->main.uuid, 16) != 0) {
         LOG_ERROR("MachoCache: dSYM UUID mismatch for {}", e->module_path);
-        MachoFileDeinit(&e->dsym);
+        MachoDeinit(&e->dsym);
         return false;
     }
     e->dsym_open = true;
@@ -137,9 +137,9 @@ static bool entry_build_dwarf(MachoCacheEntry *e, Allocator *alloc) {
     if (!e->dsym_open)
         return false;
 
-    const MachoSection *info_sec   = MachoFileFindSection(&e->dsym, "__DWARF", "__debug_info");
-    const MachoSection *abbrev_sec = MachoFileFindSection(&e->dsym, "__DWARF", "__debug_abbrev");
-    const MachoSection *str_sec    = MachoFileFindSection(&e->dsym, "__DWARF", "__debug_str");
+    const MachoSection *info_sec   = MachoFindSection(&e->dsym, "__DWARF", "__debug_info");
+    const MachoSection *abbrev_sec = MachoFindSection(&e->dsym, "__DWARF", "__debug_abbrev");
+    const MachoSection *str_sec    = MachoFindSection(&e->dsym, "__DWARF", "__debug_str");
 
     const u8 *info_b   = info_sec ? e->dsym.data.data + info_sec->offset : NULL;
     u64       info_n   = info_sec ? info_sec->size : 0;
@@ -173,9 +173,9 @@ void MachoCacheDeinit(MachoCache *self) {
         if (e->fns_built && e->fns_ok)
             DwarfFunctionsDeinit(&e->fns);
         if (e->dsym_open)
-            MachoFileDeinit(&e->dsym);
+            MachoDeinit(&e->dsym);
         if (e->main_open)
-            MachoFileDeinit(&e->main);
+            MachoDeinit(&e->main);
         if (e->module_path && self->allocator) {
             u64 n = 0;
             for (const char *p = e->module_path; *p; ++p)
@@ -211,7 +211,7 @@ bool MachoCacheResolve(
     u64 file_relative = runtime_ip - slide;
 
     // (1) Main file's LC_SYMTAB.
-    const MachoSymbol *s = MachoFileResolveAddress(&entry->main, file_relative);
+    const MachoSymbol *s = MachoResolveAddress(&entry->main, file_relative);
     if (s && s->name && s->name[0]) {
         *out_name = s->name;
         if (out_offset)
@@ -221,7 +221,7 @@ bool MachoCacheResolve(
 
     // (2) Sidecar dSYM's LC_SYMTAB.
     if (entry_open_dsym(entry, self->allocator)) {
-        s = MachoFileResolveAddress(&entry->dsym, file_relative);
+        s = MachoResolveAddress(&entry->dsym, file_relative);
         if (s && s->name && s->name[0]) {
             *out_name = s->name;
             if (out_offset)

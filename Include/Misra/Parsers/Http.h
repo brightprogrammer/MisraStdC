@@ -299,7 +299,7 @@ HttpResponse *HttpRespondWithFile(
 ///           (unknown response code, unknown content type, etc.).
 ///
 Str http_response_serialize(const HttpResponse *response, Allocator *alloc);
-#define HttpResponseSerialize(...)             MISRA_OVERLOAD(HttpResponseSerialize, __VA_ARGS__)
+#define HttpResponseSerialize(...)               MISRA_OVERLOAD(HttpResponseSerialize, __VA_ARGS__)
 #define HttpResponseSerialize_1(response)        http_response_serialize((response), MisraScope)
 #define HttpResponseSerialize_2(response, alloc) http_response_serialize((response), ALLOCATOR_OF(alloc))
 

@@ -335,7 +335,7 @@ static bool parse_fde(
 // Public API
 // ---------------------------------------------------------------------------
 
-bool dwarf_cfi_build_from_elf(DwarfCfi *out, const ElfFile *elf, Allocator *alloc) {
+bool dwarf_cfi_build_from_elf(DwarfCfi *out, const Elf *elf, Allocator *alloc) {
     if (!out || !elf || !alloc) {
         LOG_FATAL("DwarfCfiBuildFromElf: NULL argument");
     }
@@ -344,7 +344,7 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const ElfFile *elf, Allocator *allo
     out->cies      = VecInitT(out->cies, alloc);
     out->fdes      = VecInitT(out->fdes, alloc);
 
-    const ElfSection *eh = ElfFileFindSection(elf, ".eh_frame");
+    const ElfSection *eh = ElfFindSection(elf, ".eh_frame");
     if (!eh || eh->size == 0) {
         return true; // No CFI in this binary — still success, just empty.
     }

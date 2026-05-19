@@ -55,7 +55,7 @@ typedef Map(Str, Str) KvConfig;
         str_deinit,                                                                                                    \
         str_init_copy,                                                                                                 \
         str_deinit,                                                                                                    \
-        MapPolicyLinear,                                                                                          \
+        MapPolicyLinear,                                                                                               \
         (allocator_ptr)                                                                                                \
     )
 
