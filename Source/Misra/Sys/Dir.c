@@ -78,9 +78,20 @@ DirContents dir_get_contents(const char *path, Allocator *alloc) {
 
     DirContents dc = (DirContents)VecInit(alloc);
 
-    // Construct the search path with a wildcard
+    // Construct the search path: "<path>\*". Done by hand so we
+    // don't pull `<stdio.h>` for `snprintf` (libc-free goal; clang-cl
+    // with `-Werror=implicit-function-declaration` would also fail
+    // the implicit decl).
     char search_path[MAX_PATH];
-    snprintf(search_path, sizeof(search_path), "%s\\*", path);
+    size path_len = ZstrLen(path);
+    if (path_len + 3 > sizeof(search_path)) {
+        LOG_ERROR("dir_get_contents: path too long for MAX_PATH");
+        return dc;
+    }
+    MemCopy(search_path, path, path_len);
+    search_path[path_len]     = '\\';
+    search_path[path_len + 1] = '*';
+    search_path[path_len + 2] = '\0';
 
     WIN32_FIND_DATA findFileData;
     HANDLE          hFind = FindFirstFile(search_path, &findFileData);

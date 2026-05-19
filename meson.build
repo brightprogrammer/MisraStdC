@@ -546,13 +546,17 @@ message('  parser_pe=@0@  parser_pdb=@1@  parser_macho=@2@  parser_dns=@3@'.form
 
 # Build-time platform deps. The Windows Sys/Backtrace backend links
 # against dbghelp for SymFromAddr / SymGetLineFromAddr64. Sys/Socket
-# on Windows pulls in Ws2_32 for Winsock2.
+# on Windows pulls in Ws2_32 for Winsock2. Std/Prng's Windows path
+# calls BCryptGenRandom, which lives in bcrypt.dll.
 misra_std_platform_deps = [math_dep]
 if opt_sys_backtrace and host_machine.system() == 'windows'
     misra_std_platform_deps += cc.find_library('dbghelp', required: true)
 endif
 if opt_sys_socket and host_machine.system() == 'windows'
     misra_std_platform_deps += ws2_32_dep
+endif
+if host_machine.system() == 'windows'
+    misra_std_platform_deps += cc.find_library('bcrypt', required: true)
 endif
 
 # Regular library with sanitizers for normal tests and executables
