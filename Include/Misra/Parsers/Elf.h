@@ -133,21 +133,29 @@ typedef Vec(ElfSymbol) ElfSymbols;
 
 ///
 /// Parsed ELF file. Holds the raw bytes plus decoded indices into them.
-/// Two construction paths:
+/// Three construction paths, all of which leave the `ElfFile` in the
+/// same lifecycle state: parser owns the bytes, parser frees them on
+/// `ElfFileDeinit`. There is no "borrowed buffer" mode -- the L / R
+/// split below mirrors `VecInsertL` / `VecInsertR`:
 ///
-///   `ElfFileOpen`           — reads a file from disk; the `ElfFile`
-///                             owns the byte buffer and frees it on
-///                             `ElfFileDeinit`.
-///   `ElfFileOpenFromMemory` — borrows a caller-supplied buffer; the
-///                             caller is responsible for keeping the
-///                             buffer alive until `ElfFileDeinit`.
+///   `ElfFileOpen`               — reads a file from disk; parser owns
+///                                 the resulting buffer end-to-end.
+///   `ElfFileOpenFromMemory`     — **L**: takes ownership of the
+///                                 caller's `(data, data_size)`. Caller
+///                                 must not free or touch `data`
+///                                 afterwards. `alloc` MUST be the
+///                                 allocator that produced `data`.
+///   `ElfFileOpenFromMemoryCopy` — **R**: allocates internally through
+///                                 `alloc`, copies the caller's bytes
+///                                 in, and never retains the caller's
+///                                 pointer. Caller's buffer is
+///                                 untouched and remains theirs.
 ///
 /// FIELDS:
-/// - allocator       : Allocator used for the owned buffer (if any) and
-///                     for the section / symbol vectors.
-/// - data            : Pointer to the raw file bytes.
+/// - allocator       : Allocator used for `data` and for the section /
+///                     symbol vectors.
+/// - data            : Pointer to the raw file bytes (owned).
 /// - data_size       : Length of `data` in bytes.
-/// - owns_data       : True if `data` was allocated via `allocator`.
 /// - header          : Decoded ELF header.
 /// - sections        : All section headers, in original order.
 /// - symbols         : Entries from `.symtab` (may be empty if stripped).
@@ -169,7 +177,6 @@ typedef struct ElfFile {
     Allocator  *allocator;
     u8         *data;
     size        data_size;
-    bool        owns_data;
     ElfHeader   header;
     ElfSections sections;
     ElfSymbols  symbols;
@@ -184,12 +191,12 @@ typedef struct ElfFile {
 /// Open and parse an ELF file from disk.
 ///
 /// out[out]   : Populated on success.
-/// path[in]   : Filesystem path.
+/// path[in]   : Filesystem path. Prefer `Str *`; `const char *` accepted.
 /// alloc[in]  : Allocator for the read-in byte buffer and the section /
 ///              symbol vectors. Must outlive the `ElfFile`.
 ///
-/// SUCCESS : Returns true; `out` is fully populated and `out->owns_data`
-///           is true.
+/// SUCCESS : Returns true; `out` owns the read-in buffer and will free
+///           it on `ElfFileDeinit`.
 /// FAILURE : Returns false; logs the failing step (open / read / magic /
 ///           class / decoding). `out` is left zeroed.
 ///
@@ -215,19 +222,30 @@ bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc);
     )
 
 ///
-/// Parse an ELF object from an in-memory byte range. The `data` buffer
-/// is borrowed — the caller must keep it alive for the lifetime of the
-/// returned `ElfFile`.
+/// Parse an ELF object from an in-memory byte range -- **L-value /
+/// ownership-transfer form** (mirrors `VecInsertL`).
+///
+/// Caller is handing `(data, data_size)` over to the parser. After
+/// this call returns, the parser owns the pointer and will free it
+/// through `alloc` on `ElfFileDeinit`. Caller must not free `data`,
+/// must not read or write through it, must not call this function
+/// twice with the same pointer. `alloc` MUST be the allocator that
+/// produced `data` (because Deinit will free through it).
+///
+/// If the parse fails the parser still owns `data` and frees it; the
+/// caller is released either way.
 ///
 /// out[out]      : Populated on success.
-/// data[in]      : Raw ELF bytes. Borrowed; not copied.
+/// data[in]      : Raw ELF bytes. Ownership transferred to the parser.
 /// data_size[in] : Length of `data` in bytes.
-/// alloc[in]     : Allocator for the section / symbol vectors.
+/// alloc[in]     : Allocator that produced `data` (and that will back
+///                 the section / symbol vectors).
 ///
-/// SUCCESS : Returns true; `out->owns_data` is false.
-/// FAILURE : Returns false; logs the failing step. `out` is left zeroed.
+/// SUCCESS : Returns true; `out` owns `data`.
+/// FAILURE : Returns false; logs the failing step. `data` is freed
+///           through `alloc`. `out` is left zeroed.
 ///
-/// TAGS: Parser, ELF, Memory
+/// TAGS: Parser, ELF, Memory, Ownership
 ///
 bool elf_file_open_from_memory(ElfFile *out, u8 *data, size data_size, Allocator *alloc);
 #define ElfFileOpenFromMemory(...)                    MISRA_OVERLOAD(ElfFileOpenFromMemory, __VA_ARGS__)
@@ -236,8 +254,39 @@ bool elf_file_open_from_memory(ElfFile *out, u8 *data, size data_size, Allocator
     elf_file_open_from_memory((out), (data), (data_size), ALLOCATOR_OF(alloc))
 
 ///
-/// Release storage owned by an `ElfFile`. Frees the byte buffer if
-/// `owns_data` was true. Safe to call on a zeroed struct.
+/// Parse an ELF object from an in-memory byte range -- **R-value /
+/// copy form** (mirrors `VecInsertR`).
+///
+/// Parser allocates its own buffer through `alloc` and `MemCopy`s the
+/// caller's bytes in. The caller's pointer is never retained: after
+/// this call returns, the caller's buffer is theirs to do anything
+/// with (including free, mutate, or hand to another parser).
+///
+/// out[out]      : Populated on success.
+/// data[in]      : Raw ELF bytes. Read-only here; caller keeps them.
+/// data_size[in] : Length of `data` in bytes.
+/// alloc[in]     : Allocator for the internal copy and the section /
+///                 symbol vectors. Must outlive the `ElfFile`.
+///
+/// SUCCESS : Returns true; `out` owns an independent copy of `data`.
+/// FAILURE : Returns false; logs the failing step. `out` is left
+///           zeroed and the caller's `data` is untouched.
+///
+/// TAGS: Parser, ELF, Memory, Copy
+///
+bool elf_file_open_from_memory_copy(ElfFile *out, const u8 *data, size data_size, Allocator *alloc);
+#define ElfFileOpenFromMemoryCopy(...) MISRA_OVERLOAD(ElfFileOpenFromMemoryCopy, __VA_ARGS__)
+#define ElfFileOpenFromMemoryCopy_3(out, data, data_size)                                                              \
+    elf_file_open_from_memory_copy((out), (data), (data_size), MisraScope)
+#define ElfFileOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                       \
+    elf_file_open_from_memory_copy((out), (data), (data_size), ALLOCATOR_OF(alloc))
+
+///
+/// Release storage owned by an `ElfFile`. Frees the byte buffer
+/// through `allocator` and tears down the section / symbol vectors.
+/// All three `ElfFileOpen*` constructors leave the parser as the
+/// sole owner of `data`, so this is unconditional. Safe to call on
+/// a zeroed struct.
 ///
 void ElfFileDeinit(ElfFile *self);
 

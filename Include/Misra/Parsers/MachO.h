@@ -78,14 +78,17 @@ typedef Vec(MachoSection) MachoSections;
 typedef Vec(MachoSymbol) MachoSymbols;
 
 ///
-/// Parsed Mach-O file. Holds the raw bytes plus decoded indices.
+/// Parsed Mach-O file. Holds the raw bytes plus decoded indices. All
+/// three `MachoFileOpen*` constructors leave the parser as the sole
+/// owner of `data` -- see the `OpenFromMemory` / `OpenFromMemoryCopy`
+/// docs below for the L / R semantics (mirrors `VecInsertL` /
+/// `VecInsertR`).
 ///
 /// FIELDS:
-/// - allocator     : Allocator backing the owned buffer and the
+/// - allocator     : Allocator backing `data` and the
 ///                   segments/sections/symbols vectors.
-/// - data          : Raw Mach-O bytes.
+/// - data          : Raw Mach-O bytes (owned).
 /// - data_size     : Length of `data` in bytes.
-/// - owns_data     : True if `data` was allocated via `allocator`.
 /// - cputype       : Mach-O `cputype` value (e.g. 0x01000007 = x86_64,
 ///                   0x0100000C = arm64).
 /// - filetype      : `MachoFileType` value.
@@ -99,7 +102,6 @@ typedef struct MachoFile {
     Allocator    *allocator;
     u8           *data;
     size          data_size;
-    bool          owns_data;
     u32           cputype;
     MachoFileType filetype;
     u8            uuid[16];
@@ -112,7 +114,7 @@ typedef struct MachoFile {
 ///
 /// Open and parse a Mach-O file from disk.
 ///
-/// SUCCESS : Returns true; `out->owns_data` is true.
+/// SUCCESS : Returns true; parser owns the read-in buffer.
 /// FAILURE : Returns false on read / magic / load-command parse error.
 ///           Fat/universal headers (`CAFEBABE`) are rejected as
 ///           unsupported in v1; the caller must pick a slice.
@@ -139,14 +141,20 @@ bool macho_file_open(MachoFile *out, const char *path, Allocator *alloc);
     )
 
 ///
-/// Parse a Mach-O image from an in-memory byte range. `data` is
-/// borrowed; the caller must keep it alive for the `MachoFile`'s
-/// lifetime.
+/// Parse a Mach-O image from an in-memory byte range -- **L-value /
+/// ownership-transfer form** (mirrors `VecInsertL`).
 ///
-/// SUCCESS : Returns true; `out->owns_data` is false.
-/// FAILURE : Returns false. `out` is left zeroed.
+/// Caller hands `(data, data_size)` to the parser. After this call
+/// the parser owns the pointer and frees it through `alloc` on
+/// `MachoFileDeinit`; on failure the parser still frees `data` before
+/// returning. Caller must not free or touch `data` afterwards.
+/// `alloc` MUST be the allocator that produced `data`.
 ///
-/// TAGS: Parser, MachO, Memory
+/// SUCCESS : Returns true; `out` owns `data`.
+/// FAILURE : Returns false; `data` is freed through `alloc`; `out` is
+///           left zeroed.
+///
+/// TAGS: Parser, MachO, Memory, Ownership
 ///
 bool macho_file_open_from_memory(MachoFile *out, u8 *data, size data_size, Allocator *alloc);
 #define MachoFileOpenFromMemory(...) MISRA_OVERLOAD(MachoFileOpenFromMemory, __VA_ARGS__)
@@ -156,7 +164,29 @@ bool macho_file_open_from_memory(MachoFile *out, u8 *data, size data_size, Alloc
     macho_file_open_from_memory((out), (data), (data_size), ALLOCATOR_OF(alloc))
 
 ///
-/// Release storage owned by a `MachoFile`. Safe on a zeroed struct.
+/// Parse a Mach-O image from an in-memory byte range -- **R-value /
+/// copy form** (mirrors `VecInsertR`).
+///
+/// Parser allocates its own buffer through `alloc` and `MemCopy`s the
+/// caller's bytes in. Caller's pointer is never retained; their
+/// buffer remains theirs.
+///
+/// SUCCESS : Returns true; `out` owns an independent copy of `data`.
+/// FAILURE : Returns false; `out` zeroed; caller's `data` untouched.
+///
+/// TAGS: Parser, MachO, Memory, Copy
+///
+bool macho_file_open_from_memory_copy(MachoFile *out, const u8 *data, size data_size, Allocator *alloc);
+#define MachoFileOpenFromMemoryCopy(...) MISRA_OVERLOAD(MachoFileOpenFromMemoryCopy, __VA_ARGS__)
+#define MachoFileOpenFromMemoryCopy_3(out, data, data_size)                                                            \
+    macho_file_open_from_memory_copy((out), (data), (data_size), MisraScope)
+#define MachoFileOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                     \
+    macho_file_open_from_memory_copy((out), (data), (data_size), ALLOCATOR_OF(alloc))
+
+///
+/// Release storage owned by a `MachoFile`. Frees `data` through
+/// `allocator` (unconditional -- the parser always owns its bytes)
+/// and tears down the vectors. Safe on a zeroed struct.
 ///
 void MachoFileDeinit(MachoFile *self);
 

@@ -638,16 +638,20 @@ static bool parse_pdb_functions(PdbFile *self) {
 // Lifecycle
 // ---------------------------------------------------------------------------
 
+// L-value form: parser takes ownership of (data, data_size). On
+// failure we still free data -- the caller is released by the call.
 bool pdb_file_open_from_memory(PdbFile *out, u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
         LOG_ERROR("PdbFileOpenFromMemory: NULL argument");
+        if (data && alloc) {
+            AllocatorFree(alloc, data);
+        }
         return false;
     }
     MemSet(out, 0, sizeof(*out));
     out->allocator = alloc;
     out->data      = data;
     out->data_size = data_size;
-    out->owns_data = false;
     out->functions = VecInitT(out->functions, alloc);
 
     u32 num_dir_bytes  = 0;
@@ -670,6 +674,21 @@ fail:
     return false;
 }
 
+// R-value form: allocate, copy, hand to the L-form.
+bool pdb_file_open_from_memory_copy(PdbFile *out, const u8 *data, size data_size, Allocator *alloc) {
+    if (!out || !data || !alloc) {
+        LOG_ERROR("PdbFileOpenFromMemoryCopy: NULL argument");
+        return false;
+    }
+    u8 *copy = (u8 *)AllocatorAlloc(alloc, data_size, false);
+    if (!copy) {
+        LOG_ERROR("PdbFileOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
+        return false;
+    }
+    MemCopy(copy, data, data_size);
+    return pdb_file_open_from_memory(out, copy, data_size, alloc);
+}
+
 bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc) {
     if (!out || !path || !alloc) {
         LOG_ERROR("PdbFileOpen: NULL argument");
@@ -688,23 +707,19 @@ bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc) {
         LOG_ERROR("PdbFileOpen: failed to read {}", path);
         return false;
     }
-    if (!PdbFileOpenFromMemory(out, (u8 *)data.data, data.length, alloc)) {
-        StrDeinit(&data);
-        return false;
-    }
-    out->owns_data = true;
-    out->data      = (u8 *)data.data;
-    out->data_size = data.length;
+    u8  *buf       = (u8 *)data.data;
+    size buf_n     = data.length;
     data.data      = NULL;
     data.length    = 0;
     data.capacity  = 0;
-    return true;
+    data.allocator = NULL;
+    return pdb_file_open_from_memory(out, buf, buf_n, alloc);
 }
 
 void PdbFileDeinit(PdbFile *self) {
     if (!self)
         return;
-    if (self->owns_data && self->data && self->allocator) {
+    if (self->data && self->allocator) {
         AllocatorFree(self->allocator, self->data);
     }
     if (self->name_pool && self->allocator) {

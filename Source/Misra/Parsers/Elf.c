@@ -403,16 +403,25 @@ static void elf_decode_debug_metadata(ElfFile *self) {
 // Open / close
 // ---------------------------------------------------------------------------
 
+// L-value form (ownership transfer). Mirrors VecInsertL semantics: the
+// caller's `data` pointer is consumed -- on success the parser holds
+// it, on failure the parser frees it. Either way the caller is
+// contractually done with `data` after this call.
 bool elf_file_open_from_memory(ElfFile *out, u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
         LOG_ERROR("ElfFileOpenFromMemory: NULL argument");
+        if (data && alloc) {
+            // Caller already gave up ownership when they called us.
+            // Honour the contract: we free what they handed over even
+            // on the NULL-out path.
+            AllocatorFree(alloc, data);
+        }
         return false;
     }
     MemSet(out, 0, sizeof(*out));
     out->allocator       = alloc;
     out->data            = data;
     out->data_size       = data_size;
-    out->owns_data       = false;
     out->sections        = VecInitT(out->sections, alloc);
     out->symbols         = VecInitT(out->symbols, alloc);
     out->dynamic_symbols = VecInitT(out->dynamic_symbols, alloc);
@@ -427,8 +436,29 @@ bool elf_file_open_from_memory(ElfFile *out, u8 *data, size data_size, Allocator
     return true;
 
 fail:
+    // ElfFileDeinit frees data through allocator, then zeroes the
+    // struct -- matches the L-form contract that we own data even on
+    // failure.
     ElfFileDeinit(out);
     return false;
+}
+
+// R-value form (copy). Mirrors VecInsertR: allocate an independent
+// copy, parse into it. Caller's `data` is never retained.
+bool elf_file_open_from_memory_copy(ElfFile *out, const u8 *data, size data_size, Allocator *alloc) {
+    if (!out || !data || !alloc) {
+        LOG_ERROR("ElfFileOpenFromMemoryCopy: NULL argument");
+        return false;
+    }
+    u8 *copy = (u8 *)AllocatorAlloc(alloc, data_size, false);
+    if (!copy) {
+        LOG_ERROR("ElfFileOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
+        return false;
+    }
+    MemCopy(copy, data, data_size);
+    // Hand the copy to the L-form. If parsing fails, the L-form frees
+    // through `alloc` for us.
+    return elf_file_open_from_memory(out, copy, data_size, alloc);
 }
 
 bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc) {
@@ -449,26 +479,22 @@ bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc) {
         LOG_ERROR("ElfFileOpen: failed to read {}", path);
         return false;
     }
-
-    if (!ElfFileOpenFromMemory(out, (u8 *)data.data, data.length, alloc)) {
-        StrDeinit(&data);
-        return false;
-    }
-    // Move ownership from Str into ElfFile; clear Str so its Deinit
-    // is a no-op. The buffer is now owned by ElfFile.
-    out->owns_data = true;
-    out->data      = (u8 *)data.data;
-    out->data_size = data.length;
+    // Move the Str's buffer into the L-form. Detach the Str first so
+    // its Deinit is a no-op even if the L-form fails (the L-form will
+    // free the buffer in that case).
+    u8  *buf       = (u8 *)data.data;
+    size buf_n     = data.length;
     data.data      = NULL;
     data.length    = 0;
     data.capacity  = 0;
-    return true;
+    data.allocator = NULL;
+    return elf_file_open_from_memory(out, buf, buf_n, alloc);
 }
 
 void ElfFileDeinit(ElfFile *self) {
     if (!self)
         return;
-    if (self->owns_data && self->data && self->allocator) {
+    if (self->data && self->allocator) {
         AllocatorFree(self->allocator, self->data);
     }
     VecDeinit(&self->sections);

@@ -96,7 +96,7 @@ bool test_pdb_parses_minimal_msf(void) {
     build_msf_blob();
 
     PdbFile pdb;
-    bool    ok = PdbFileOpenFromMemory(&pdb, blob, sizeof(blob), base);
+    bool    ok = PdbFileOpenFromMemoryCopy(&pdb, blob, sizeof(blob), base);
     if (!ok) {
         DefaultAllocatorDeinit(&alloc);
         return false;
@@ -122,7 +122,7 @@ bool test_pdb_rejects_bad_magic(void) {
     MemSet(garbage, 0xCC, sizeof(garbage));
 
     PdbFile pdb;
-    bool    ok = !PdbFileOpenFromMemory(&pdb, garbage, sizeof(garbage), base);
+    bool    ok = !PdbFileOpenFromMemoryCopy(&pdb, garbage, sizeof(garbage), base);
 
     DefaultAllocatorDeinit(&alloc);
     return ok;
@@ -284,7 +284,7 @@ bool test_pdb_extracts_pub32_function_name(void) {
     build_full_pdb_blob();
 
     PdbFile pdb;
-    bool    ok = PdbFileOpenFromMemory(&pdb, fblob, sizeof(fblob), base);
+    bool    ok = PdbFileOpenFromMemoryCopy(&pdb, fblob, sizeof(fblob), base);
     if (!ok) {
         DefaultAllocatorDeinit(&alloc);
         return false;

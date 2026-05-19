@@ -484,16 +484,20 @@ static void pe_decode_codeview(PeContext *ctx) {
 // Public API
 // ---------------------------------------------------------------------------
 
+// L-value form: parser takes ownership of (data, data_size). On
+// failure we still free data -- the caller is released by the call.
 bool pe_file_open_from_memory(PeFile *out, u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
         LOG_ERROR("PeFileOpenFromMemory: NULL argument");
+        if (data && alloc) {
+            AllocatorFree(alloc, data);
+        }
         return false;
     }
     MemSet(out, 0, sizeof(*out));
     out->allocator = alloc;
     out->data      = data;
     out->data_size = data_size;
-    out->owns_data = false;
     // Initialize the sections vec up-front so PeFileDeinit on a
     // failed-parse path doesn't trip ValidateVec.
     out->sections = VecInitT(out->sections, alloc);
@@ -520,6 +524,21 @@ fail:
     return false;
 }
 
+// R-value form: allocate, copy, hand to the L-form.
+bool pe_file_open_from_memory_copy(PeFile *out, const u8 *data, size data_size, Allocator *alloc) {
+    if (!out || !data || !alloc) {
+        LOG_ERROR("PeFileOpenFromMemoryCopy: NULL argument");
+        return false;
+    }
+    u8 *copy = (u8 *)AllocatorAlloc(alloc, data_size, false);
+    if (!copy) {
+        LOG_ERROR("PeFileOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
+        return false;
+    }
+    MemCopy(copy, data, data_size);
+    return pe_file_open_from_memory(out, copy, data_size, alloc);
+}
+
 bool pe_file_open(PeFile *out, const char *path, Allocator *alloc) {
     if (!out || !path || !alloc) {
         LOG_ERROR("PeFileOpen: NULL argument");
@@ -538,23 +557,19 @@ bool pe_file_open(PeFile *out, const char *path, Allocator *alloc) {
         LOG_ERROR("PeFileOpen: failed to read {}", path);
         return false;
     }
-    if (!PeFileOpenFromMemory(out, (u8 *)data.data, data.length, alloc)) {
-        StrDeinit(&data);
-        return false;
-    }
-    out->owns_data = true;
-    out->data      = (u8 *)data.data;
-    out->data_size = data.length;
+    u8  *buf       = (u8 *)data.data;
+    size buf_n     = data.length;
     data.data      = NULL;
     data.length    = 0;
     data.capacity  = 0;
-    return true;
+    data.allocator = NULL;
+    return pe_file_open_from_memory(out, buf, buf_n, alloc);
 }
 
 void PeFileDeinit(PeFile *self) {
     if (!self)
         return;
-    if (self->owns_data && self->data && self->allocator) {
+    if (self->data && self->allocator) {
         AllocatorFree(self->allocator, self->data);
     }
     VecDeinit(&self->sections);

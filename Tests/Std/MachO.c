@@ -124,7 +124,7 @@ bool test_macho_parses_synthetic_blob(void) {
     build_macho_blob();
 
     MachoFile m;
-    bool      ok = MachoFileOpenFromMemory(&m, blob, sizeof(blob), base);
+    bool      ok = MachoFileOpenFromMemoryCopy(&m, blob, sizeof(blob), base);
     if (!ok) {
         DefaultAllocatorDeinit(&alloc);
         return false;
@@ -153,7 +153,7 @@ bool test_macho_resolves_address(void) {
     build_macho_blob();
 
     MachoFile m;
-    if (!MachoFileOpenFromMemory(&m, blob, sizeof(blob), base)) {
+    if (!MachoFileOpenFromMemoryCopy(&m, blob, sizeof(blob), base)) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
@@ -184,7 +184,7 @@ bool test_macho_rejects_fat_binary(void) {
     wr_u32(&fat[0], 0xCAFEBABEu);
 
     MachoFile m;
-    bool      ok = !MachoFileOpenFromMemory(&m, fat, sizeof(fat), base);
+    bool      ok = !MachoFileOpenFromMemoryCopy(&m, fat, sizeof(fat), base);
 
     DefaultAllocatorDeinit(&alloc);
     return ok;

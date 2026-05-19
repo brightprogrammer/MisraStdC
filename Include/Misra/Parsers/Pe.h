@@ -72,16 +72,15 @@ typedef struct PeCodeViewInfo {
 } PeCodeViewInfo;
 
 ///
-/// Parsed PE file. Holds the raw bytes plus decoded indices. Like
-/// `ElfFile`, supports both an owned-buffer and a borrowed-buffer
-/// construction path.
+/// Parsed PE file. Holds the raw bytes plus decoded indices. All
+/// three `PeFileOpen*` constructors leave the parser as the sole
+/// owner of `data` -- see the L / R semantics on the `FromMemory` /
+/// `FromMemoryCopy` constructors (mirrors `VecInsertL` / `VecInsertR`).
 ///
 /// FIELDS:
-/// - allocator     : Allocator for the owned buffer (if any) and the
-///                   sections vector.
-/// - data          : Pointer to the raw PE bytes.
+/// - allocator     : Allocator for `data` and the sections vector.
+/// - data          : Pointer to the raw PE bytes (owned).
 /// - data_size     : Length of `data` in bytes.
-/// - owns_data     : True if `data` was allocated via `allocator`.
 /// - machine       : Decoded `IMAGE_FILE_HEADER.Machine`.
 /// - is_pe32_plus  : True for PE32+ (64-bit). v1 supports both PE32
 ///                   and PE32+ headers, but the address-bearing fields
@@ -98,7 +97,6 @@ typedef struct PeFile {
     Allocator     *allocator;
     u8            *data;
     size           data_size;
-    bool           owns_data;
     PeMachine      machine;
     bool           is_pe32_plus;
     u64            image_base;
@@ -111,14 +109,12 @@ typedef struct PeFile {
 /// Open and parse a PE file from disk.
 ///
 /// out[out]   : Populated on success.
-/// path[in]   : Filesystem path.
+/// path[in]   : Filesystem path. `Str *` preferred; `const char *` accepted.
 /// alloc[in]  : Allocator for the read-in buffer and the sections
 ///              vector. Must outlive the `PeFile`.
 ///
-/// SUCCESS : Returns true; `out` is fully populated and
-///           `out->owns_data` is true.
-/// FAILURE : Returns false; logs the failing step (open / magic /
-///           NT-signature / etc). `out` is left zeroed.
+/// SUCCESS : Returns true; `out` owns the read-in buffer.
+/// FAILURE : Returns false; logs the failing step. `out` is left zeroed.
 ///
 /// TAGS: Parser, PE, File
 ///
@@ -142,15 +138,20 @@ bool pe_file_open(PeFile *out, const char *path, Allocator *alloc);
     )
 
 ///
-/// Parse a PE image from an in-memory byte range. The `data` buffer
-/// is borrowed -- the caller must keep it alive for the lifetime of
-/// the returned `PeFile`.
+/// Parse a PE image from an in-memory byte range -- **L-value /
+/// ownership-transfer form** (mirrors `VecInsertL`).
 ///
-/// SUCCESS : Returns true; `out->owns_data` is false.
-/// FAILURE : Returns false; logs the failing step. `out` is left
-///           zeroed.
+/// Caller hands `(data, data_size)` to the parser. After this call
+/// the parser owns the pointer and frees it through `alloc` on
+/// `PeFileDeinit`; on failure the parser still frees `data` before
+/// returning. Caller must not free or touch `data` afterwards.
+/// `alloc` MUST be the allocator that produced `data`.
 ///
-/// TAGS: Parser, PE, Memory
+/// SUCCESS : Returns true; `out` owns `data`.
+/// FAILURE : Returns false; `data` is freed through `alloc`; `out`
+///           is left zeroed.
+///
+/// TAGS: Parser, PE, Memory, Ownership
 ///
 bool pe_file_open_from_memory(PeFile *out, u8 *data, size data_size, Allocator *alloc);
 #define PeFileOpenFromMemory(...)                    MISRA_OVERLOAD(PeFileOpenFromMemory, __VA_ARGS__)
@@ -159,8 +160,28 @@ bool pe_file_open_from_memory(PeFile *out, u8 *data, size data_size, Allocator *
     pe_file_open_from_memory((out), (data), (data_size), ALLOCATOR_OF(alloc))
 
 ///
-/// Release storage owned by a `PeFile`. Frees the byte buffer if
-/// `owns_data` was true. Safe on a zeroed struct.
+/// Parse a PE image from an in-memory byte range -- **R-value /
+/// copy form** (mirrors `VecInsertR`).
+///
+/// Parser allocates its own buffer through `alloc` and `MemCopy`s the
+/// caller's bytes in. Caller's pointer is never retained.
+///
+/// SUCCESS : Returns true; `out` owns an independent copy of `data`.
+/// FAILURE : Returns false; `out` zeroed; caller's `data` untouched.
+///
+/// TAGS: Parser, PE, Memory, Copy
+///
+bool pe_file_open_from_memory_copy(PeFile *out, const u8 *data, size data_size, Allocator *alloc);
+#define PeFileOpenFromMemoryCopy(...) MISRA_OVERLOAD(PeFileOpenFromMemoryCopy, __VA_ARGS__)
+#define PeFileOpenFromMemoryCopy_3(out, data, data_size)                                                               \
+    pe_file_open_from_memory_copy((out), (data), (data_size), MisraScope)
+#define PeFileOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                        \
+    pe_file_open_from_memory_copy((out), (data), (data_size), ALLOCATOR_OF(alloc))
+
+///
+/// Release storage owned by a `PeFile`. Frees `data` through
+/// `allocator` (unconditional -- parser always owns its bytes) and
+/// tears down the sections vector. Safe on a zeroed struct.
 ///
 void PeFileDeinit(PeFile *self);
 

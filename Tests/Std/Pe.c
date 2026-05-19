@@ -1,6 +1,6 @@
 // PE/COFF parser unit test. Builds a synthetic PE32+ image in memory
 // (just enough headers + one section + one CodeView debug record) and
-// feeds it to PeFileOpenFromMemory. We assemble it byte-by-byte so
+// feeds it to PeFileOpenFromMemoryCopy. We assemble it byte-by-byte so
 // the test runs on Linux without needing an actual Windows toolchain.
 //
 // The layout is documented inline below; offsets in comments are
@@ -159,7 +159,7 @@ bool test_pe_parses_synthetic_blob(void) {
     build_pe_blob();
 
     PeFile pe;
-    bool   ok = PeFileOpenFromMemory(&pe, blob, sizeof(blob), base);
+    bool   ok = PeFileOpenFromMemoryCopy(&pe, blob, sizeof(blob), base);
     if (!ok) {
         DefaultAllocatorDeinit(&alloc);
         return false;
@@ -185,7 +185,7 @@ bool test_pe_rva_to_offset_round_trips(void) {
 
     build_pe_blob();
     PeFile pe;
-    if (!PeFileOpenFromMemory(&pe, blob, sizeof(blob), base)) {
+    if (!PeFileOpenFromMemoryCopy(&pe, blob, sizeof(blob), base)) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
@@ -213,7 +213,7 @@ bool test_pe_rejects_bad_magic(void) {
     garbage[1] = 'X';
 
     PeFile pe;
-    bool   ok = !PeFileOpenFromMemory(&pe, garbage, sizeof(garbage), base);
+    bool   ok = !PeFileOpenFromMemoryCopy(&pe, garbage, sizeof(garbage), base);
 
     DefaultAllocatorDeinit(&alloc);
     return ok;

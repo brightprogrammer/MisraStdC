@@ -364,16 +364,21 @@ static bool decode_symbols(MachoContext *ctx) {
 // Public API
 // ---------------------------------------------------------------------------
 
+// L-value form: parser takes ownership of (data, data_size). On
+// failure we still own data and free it -- the caller is released
+// after the call regardless of outcome.
 bool macho_file_open_from_memory(MachoFile *out, u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
         LOG_ERROR("MachoFileOpenFromMemory: NULL argument");
+        if (data && alloc) {
+            AllocatorFree(alloc, data);
+        }
         return false;
     }
     MemSet(out, 0, sizeof(*out));
     out->allocator = alloc;
     out->data      = data;
     out->data_size = data_size;
-    out->owns_data = false;
     out->segments  = VecInitT(out->segments, alloc);
     out->sections  = VecInitT(out->sections, alloc);
     out->symbols   = VecInitT(out->symbols, alloc);
@@ -390,6 +395,21 @@ bool macho_file_open_from_memory(MachoFile *out, u8 *data, size data_size, Alloc
 fail:
     MachoFileDeinit(out);
     return false;
+}
+
+// R-value form: allocate, copy, hand to the L-form.
+bool macho_file_open_from_memory_copy(MachoFile *out, const u8 *data, size data_size, Allocator *alloc) {
+    if (!out || !data || !alloc) {
+        LOG_ERROR("MachoFileOpenFromMemoryCopy: NULL argument");
+        return false;
+    }
+    u8 *copy = (u8 *)AllocatorAlloc(alloc, data_size, false);
+    if (!copy) {
+        LOG_ERROR("MachoFileOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
+        return false;
+    }
+    MemCopy(copy, data, data_size);
+    return macho_file_open_from_memory(out, copy, data_size, alloc);
 }
 
 bool macho_file_open(MachoFile *out, const char *path, Allocator *alloc) {
@@ -410,23 +430,19 @@ bool macho_file_open(MachoFile *out, const char *path, Allocator *alloc) {
         LOG_ERROR("MachoFileOpen: failed to read {}", path);
         return false;
     }
-    if (!MachoFileOpenFromMemory(out, (u8 *)data.data, data.length, alloc)) {
-        StrDeinit(&data);
-        return false;
-    }
-    out->owns_data = true;
-    out->data      = (u8 *)data.data;
-    out->data_size = data.length;
+    u8  *buf       = (u8 *)data.data;
+    size buf_n     = data.length;
     data.data      = NULL;
     data.length    = 0;
     data.capacity  = 0;
-    return true;
+    data.allocator = NULL;
+    return macho_file_open_from_memory(out, buf, buf_n, alloc);
 }
 
 void MachoFileDeinit(MachoFile *self) {
     if (!self)
         return;
-    if (self->owns_data && self->data && self->allocator) {
+    if (self->data && self->allocator) {
         AllocatorFree(self->allocator, self->data);
     }
     VecDeinit(&self->segments);

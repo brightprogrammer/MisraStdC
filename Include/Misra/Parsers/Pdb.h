@@ -62,14 +62,16 @@ typedef struct PdbInfo {
 } PdbInfo;
 
 ///
-/// Parsed PDB file. Holds the raw bytes (owned or borrowed) plus
-/// decoded indices into them.
+/// Parsed PDB file. Holds the raw bytes (always parser-owned) plus
+/// decoded indices into them. All three `PdbFileOpen*` constructors
+/// leave the parser as sole owner of `data` -- see the L / R
+/// semantics on the `FromMemory` / `FromMemoryCopy` constructors
+/// (mirrors `VecInsertL` / `VecInsertR`).
 ///
 /// FIELDS:
-/// - allocator   : Allocator backing the byte buffer + functions vec.
-/// - data        : Raw PDB bytes.
+/// - allocator   : Allocator backing `data` + the functions vec.
+/// - data        : Raw PDB bytes (owned).
 /// - data_size   : Length of `data` in bytes.
-/// - owns_data   : True if `data` was allocated via `allocator`.
 /// - block_size  : MSF page size (read from the superblock; usually
 ///                 4096 but can be 512/1024/2048).
 /// - num_streams : Stream count from the directory.
@@ -82,7 +84,6 @@ typedef struct PdbFile {
     Allocator   *allocator;
     u8          *data;
     size         data_size;
-    bool         owns_data;
     u32          block_size;
     u32          num_streams;
     PdbInfo      info;
@@ -110,9 +111,8 @@ typedef struct PdbFile {
 ///
 /// Open and parse a PDB from disk.
 ///
-/// SUCCESS : Returns true; `out->owns_data` is true.
-/// FAILURE : Returns false; logs the failing step (open / magic /
-///           directory-parse / etc). `out` is left zeroed.
+/// SUCCESS : Returns true; parser owns the read-in buffer.
+/// FAILURE : Returns false; logs the failing step. `out` is left zeroed.
 ///
 /// TAGS: Parser, PDB, File
 ///
@@ -136,19 +136,45 @@ bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc);
     )
 
 ///
-/// Open and parse a PDB from an in-memory byte range. The `data`
-/// buffer is borrowed.
+/// Open and parse a PDB from an in-memory byte range -- **L-value /
+/// ownership-transfer form** (mirrors `VecInsertL`).
 ///
-/// SUCCESS : Returns true; `out->owns_data` is false.
-/// FAILURE : Returns false. `out` is left zeroed.
+/// Caller hands `(data, data_size)` to the parser. After this call
+/// the parser owns the pointer and frees it through `alloc` on
+/// `PdbFileDeinit`; on failure the parser still frees `data`. Caller
+/// must not free or touch `data` afterwards. `alloc` MUST be the
+/// allocator that produced `data`.
 ///
-/// TAGS: Parser, PDB, Memory
+/// SUCCESS : Returns true; `out` owns `data`.
+/// FAILURE : Returns false; `data` is freed through `alloc`; `out`
+///           is left zeroed.
+///
+/// TAGS: Parser, PDB, Memory, Ownership
 ///
 bool pdb_file_open_from_memory(PdbFile *out, u8 *data, size data_size, Allocator *alloc);
 #define PdbFileOpenFromMemory(...)                    MISRA_OVERLOAD(PdbFileOpenFromMemory, __VA_ARGS__)
 #define PdbFileOpenFromMemory_3(out, data, data_size) pdb_file_open_from_memory((out), (data), (data_size), MisraScope)
 #define PdbFileOpenFromMemory_4(out, data, data_size, alloc)                                                           \
     pdb_file_open_from_memory((out), (data), (data_size), ALLOCATOR_OF(alloc))
+
+///
+/// Open and parse a PDB from an in-memory byte range -- **R-value /
+/// copy form** (mirrors `VecInsertR`).
+///
+/// Parser allocates its own buffer through `alloc` and `MemCopy`s
+/// the caller's bytes in. Caller's pointer is never retained.
+///
+/// SUCCESS : Returns true; `out` owns an independent copy of `data`.
+/// FAILURE : Returns false; `out` zeroed; caller's `data` untouched.
+///
+/// TAGS: Parser, PDB, Memory, Copy
+///
+bool pdb_file_open_from_memory_copy(PdbFile *out, const u8 *data, size data_size, Allocator *alloc);
+#define PdbFileOpenFromMemoryCopy(...) MISRA_OVERLOAD(PdbFileOpenFromMemoryCopy, __VA_ARGS__)
+#define PdbFileOpenFromMemoryCopy_3(out, data, data_size)                                                              \
+    pdb_file_open_from_memory_copy((out), (data), (data_size), MisraScope)
+#define PdbFileOpenFromMemoryCopy_4(out, data, data_size, alloc)                                                       \
+    pdb_file_open_from_memory_copy((out), (data), (data_size), ALLOCATOR_OF(alloc))
 
 ///
 /// Release storage owned by a `PdbFile`. Safe on a zeroed struct.
