@@ -4,7 +4,7 @@
 ///
 /// `Buf` is the binary analogue of `Str`: a growable container of
 /// bytes built on `Vec(u8)`. Use it whenever code is producing or
-/// holding raw wire data. Cursor reads use `ByteIter`, which can be
+/// holding raw wire data. Cursor reads use `BufIter`, which can be
 /// constructed from a `Buf` or from any `(u8 *, size)` pair.
 
 #ifndef MISRA_STD_CONTAINER_BUF_H
@@ -20,7 +20,7 @@ typedef Vec(u8) Buf;
 
 /// Iterator over an immutable byte buffer. Layout matches `Iter(const u8)`
 /// so the generic Iter macros work on it.
-typedef Iter(const u8) ByteIter;
+typedef Iter(const u8) BufIter;
 
 // ---------------------------------------------------------------------------
 // Construction / lifecycle
@@ -33,12 +33,12 @@ typedef Iter(const u8) ByteIter;
 #define BufData(b)       ((b)->data)
 #define BufReserve(b, n) VecReserve((b), (n))
 
-/// Construct a ByteIter over `[data, data + length)`.
-#define ByteIterFromMemory(data_, length_)                                                                             \
-    ((ByteIter) {.data = (data_), .length = (length_), .pos = 0, .alignment = 1, .dir = 1})
+/// Construct a BufIter over `[data, data + length)`.
+#define BufIterFromMemory(data_, length_)                                                                              \
+    ((BufIter) {.data = (data_), .length = (length_), .pos = 0, .alignment = 1, .dir = 1})
 
-/// Construct a ByteIter over a Buf's bytes.
-#define ByteIterFromBuf(b_) ByteIterFromMemory((const u8 *)(b_)->data, (b_)->length)
+/// Construct a BufIter over a Buf's bytes.
+#define BufIterFromBuf(b_) BufIterFromMemory((const u8 *)(b_)->data, (b_)->length)
 
 // ---------------------------------------------------------------------------
 // Single-byte / bulk push helpers
@@ -58,10 +58,10 @@ static inline bool BufPushBytes(Buf *b, const u8 *data, size n) {
 }
 
 // ---------------------------------------------------------------------------
-// Read primitives (operate on a ByteIter)
+// Read primitives (operate on a BufIter)
 // ---------------------------------------------------------------------------
 
-static inline bool BufReadU8(ByteIter *c, u8 *out) {
+static inline bool BufReadU8(BufIter *c, u8 *out) {
     if (c->pos >= c->length) {
         return false;
     }
@@ -69,7 +69,7 @@ static inline bool BufReadU8(ByteIter *c, u8 *out) {
     return true;
 }
 
-static inline bool BufReadU16LE(ByteIter *c, u16 *out) {
+static inline bool BufReadU16LE(BufIter *c, u16 *out) {
     if (c->pos + 2 > c->length) {
         return false;
     }
@@ -78,7 +78,7 @@ static inline bool BufReadU16LE(ByteIter *c, u16 *out) {
     return true;
 }
 
-static inline bool BufReadU16BE(ByteIter *c, u16 *out) {
+static inline bool BufReadU16BE(BufIter *c, u16 *out) {
     if (c->pos + 2 > c->length) {
         return false;
     }
@@ -87,7 +87,7 @@ static inline bool BufReadU16BE(ByteIter *c, u16 *out) {
     return true;
 }
 
-static inline bool BufReadU32LE(ByteIter *c, u32 *out) {
+static inline bool BufReadU32LE(BufIter *c, u32 *out) {
     if (c->pos + 4 > c->length) {
         return false;
     }
@@ -97,7 +97,7 @@ static inline bool BufReadU32LE(ByteIter *c, u32 *out) {
     return true;
 }
 
-static inline bool BufReadU32BE(ByteIter *c, u32 *out) {
+static inline bool BufReadU32BE(BufIter *c, u32 *out) {
     if (c->pos + 4 > c->length) {
         return false;
     }
@@ -107,7 +107,7 @@ static inline bool BufReadU32BE(ByteIter *c, u32 *out) {
     return true;
 }
 
-static inline bool BufReadU64LE(ByteIter *c, u64 *out) {
+static inline bool BufReadU64LE(BufIter *c, u64 *out) {
     if (c->pos + 8 > c->length) {
         return false;
     }
@@ -120,7 +120,7 @@ static inline bool BufReadU64LE(ByteIter *c, u64 *out) {
     return true;
 }
 
-static inline bool BufReadU64BE(ByteIter *c, u64 *out) {
+static inline bool BufReadU64BE(BufIter *c, u64 *out) {
     if (c->pos + 8 > c->length) {
         return false;
     }
@@ -134,7 +134,7 @@ static inline bool BufReadU64BE(ByteIter *c, u64 *out) {
 }
 
 /// LEB128 unsigned. Fails on truncation or width overflow.
-static inline bool BufReadULeb128(ByteIter *c, u64 *out) {
+static inline bool BufReadULeb128(BufIter *c, u64 *out) {
     u64 result = 0;
     u32 shift  = 0;
     while (c->pos < c->length) {
@@ -154,7 +154,7 @@ static inline bool BufReadULeb128(ByteIter *c, u64 *out) {
 
 /// LEB128 signed. Decoded in unsigned space and reinterpreted to
 /// avoid signed-shift UB at high bit positions.
-static inline bool BufReadSLeb128(ByteIter *c, i64 *out) {
+static inline bool BufReadSLeb128(BufIter *c, i64 *out) {
     u64 uresult = 0;
     u32 shift   = 0;
     u8  b       = 0;
@@ -181,7 +181,7 @@ static inline bool BufReadSLeb128(ByteIter *c, i64 *out) {
 
 /// NUL-terminated string starting at the cursor. Returns the start;
 /// advances past the terminator. NULL on truncation.
-static inline const char *BufReadCstr(ByteIter *c) {
+static inline const char *BufReadCstr(BufIter *c) {
     const char *s = (const char *)(c->data + c->pos);
     while (c->pos < c->length && c->data[c->pos] != 0) {
         c->pos++;
@@ -304,7 +304,7 @@ static inline bool BufWriteCstr(Buf *b, const char *s) {
 // must match the spec width.
 // ---------------------------------------------------------------------------
 
-bool buf_read_fmt(ByteIter *iter, const char *fmtstr, TypeSpecificIO *argv, u64 argc);
+bool buf_read_fmt(BufIter *iter, const char *fmtstr, TypeSpecificIO *argv, u64 argc);
 bool buf_append_fmt(Buf *out, const char *fmtstr, TypeSpecificIO *argv, u64 argc);
 bool buf_write_fmt(Buf *out, const char *fmtstr, TypeSpecificIO *argv, u64 argc);
 bool buf_patch_fmt(Buf *out, size offset, const char *fmtstr, TypeSpecificIO *argv, u64 argc);

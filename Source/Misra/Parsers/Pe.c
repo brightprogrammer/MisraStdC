@@ -144,14 +144,14 @@ enum {
 // ---------------------------------------------------------------------------
 
 typedef struct PeContext {
-    PeFile  *out;
-    ByteIter file;      // bounds for the whole image
-    u32      nt_offset; // offset of NT signature
-    u16      num_sections;
-    u16      opt_hdr_size;
-    u32      num_dirs;
-    u64      debug_dir_rva;
-    u32      debug_dir_size;
+    PeFile *out;
+    BufIter file;      // bounds for the whole image
+    u32     nt_offset; // offset of NT signature
+    u16     num_sections;
+    u16     opt_hdr_size;
+    u32     num_dirs;
+    u64     debug_dir_rva;
+    u32     debug_dir_size;
 } PeContext;
 
 // DOS header gives us e_lfanew, the offset to the NT headers.
@@ -165,8 +165,8 @@ static bool pe_decode_dos(PeContext *ctx) {
         LOG_ERROR("PE: bad DOS magic 0x{x}", (u32)mz);
         return false;
     }
-    u32      e_lfanew;
-    ByteIter c = ByteIterFromMemory(ctx->out->data + DOS_E_LFANEW_OFFSET, ctx->out->data_size - DOS_E_LFANEW_OFFSET);
+    u32     e_lfanew;
+    BufIter c = BufIterFromMemory(ctx->out->data + DOS_E_LFANEW_OFFSET, ctx->out->data_size - DOS_E_LFANEW_OFFSET);
     if (!BufReadU32LE(&c, &e_lfanew))
         return false;
     if (e_lfanew >= ctx->out->data_size) {
@@ -179,8 +179,8 @@ static bool pe_decode_dos(PeContext *ctx) {
 
 // NT signature + File Header. Returns the offset of the Optional Header.
 static bool pe_decode_nt(PeContext *ctx, u64 *out_opt_offset) {
-    ByteIter c = ByteIterFromMemory(ctx->out->data + ctx->nt_offset, ctx->out->data_size - ctx->nt_offset);
-    u32      sig;
+    BufIter c = BufIterFromMemory(ctx->out->data + ctx->nt_offset, ctx->out->data_size - ctx->nt_offset);
+    u32     sig;
     if (!BufReadU32LE(&c, &sig) || sig != NT_SIGNATURE) {
         LOG_ERROR("PE: bad NT signature");
         return false;
@@ -209,7 +209,7 @@ static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
         LOG_ERROR("PE: optional header overruns file");
         return false;
     }
-    ByteIter c = ByteIterFromMemory(ctx->out->data + opt_offset, ctx->opt_hdr_size);
+    BufIter c = BufIterFromMemory(ctx->out->data + opt_offset, ctx->opt_hdr_size);
 
     u16 magic;
     if (!BufReadU16LE(&c, &magic))
@@ -358,8 +358,8 @@ static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
 
 // Section headers immediately follow the Optional Header.
 static bool pe_decode_sections(PeContext *ctx, u64 opt_offset) {
-    u64      sec_offset = opt_offset + ctx->opt_hdr_size;
-    ByteIter c          = ByteIterFromMemory(ctx->out->data + sec_offset, ctx->out->data_size - sec_offset);
+    u64     sec_offset = opt_offset + ctx->opt_hdr_size;
+    BufIter c          = BufIterFromMemory(ctx->out->data + sec_offset, ctx->out->data_size - sec_offset);
 
     for (u32 i = 0; i < ctx->num_sections; ++i) {
         if (IterRemainingLength(&c) < 40) {
@@ -427,10 +427,10 @@ static void pe_decode_codeview(PeContext *ctx) {
     }
 
     for (u32 i = 0; i < num_entries; ++i) {
-        u64      entry_off = dir_offset + (u64)i * DEBUG_ENTRY_SIZE;
-        ByteIter c         = ByteIterFromMemory(ctx->out->data + entry_off, ctx->out->data_size - entry_off);
-        u32      charac, ts, type, sz, raddr, rptr;
-        u16      ver_maj, ver_min;
+        u64     entry_off = dir_offset + (u64)i * DEBUG_ENTRY_SIZE;
+        BufIter c         = BufIterFromMemory(ctx->out->data + entry_off, ctx->out->data_size - entry_off);
+        u32     charac, ts, type, sz, raddr, rptr;
+        u16     ver_maj, ver_min;
         if (!BufReadFmt(&c, FMT_PE_DEBUG_DIR_LE, charac, ts, ver_maj, ver_min, type, sz, raddr, rptr))
             return;
         (void)charac;
@@ -447,8 +447,8 @@ static void pe_decode_codeview(PeContext *ctx) {
         // RSDS = 4-byte sig + 16-byte GUID + 4-byte age + cstring path.
         if (sz < 4 + 16 + 4 + 1)
             continue;
-        ByteIter cv_cur = ByteIterFromMemory(ctx->out->data + rptr, sz);
-        u32      cv_sig;
+        BufIter cv_cur = BufIterFromMemory(ctx->out->data + rptr, sz);
+        u32     cv_sig;
         if (!BufReadU32LE(&cv_cur, &cv_sig))
             continue;
         if (cv_sig != CV_SIGNATURE_RSDS) {
@@ -500,7 +500,7 @@ bool pe_file_open_from_memory(PeFile *out, u8 *data, size data_size, Allocator *
 
     PeContext ctx = {
         .out  = out,
-        .file = ByteIterFromMemory(data, data_size),
+        .file = BufIterFromMemory(data, data_size),
     };
 
     if (!pe_decode_dos(&ctx))

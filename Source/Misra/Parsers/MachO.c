@@ -127,8 +127,8 @@ static bool decode_header(MachoContext *ctx) {
         LOG_ERROR("MachO: file too small for header");
         return false;
     }
-    ByteIter c = ByteIterFromMemory(m->data, m->data_size);
-    u32      magic, cputype, cpusubtype, filetype, ncmds, sizeofcmds, flags, reserved;
+    BufIter c = BufIterFromMemory(m->data, m->data_size);
+    u32     magic, cputype, cpusubtype, filetype, ncmds, sizeofcmds, flags, reserved;
     if (!BufReadFmt(
             &c,
             FMT_MACHO_HEADER_LE,
@@ -179,8 +179,8 @@ static bool decode_segment_64(MachoContext *ctx, const u8 *cmd_p, u32 cmdsize) {
     MemSet(&seg, 0, sizeof(seg));
     // cmd_p layout: cmd(4) cmdsize(4) segname[16] then FMT_MACHO_SEGMENT64_BODY_LE.
     copy_fixed16(seg.name, cmd_p + 8);
-    ByteIter c = ByteIterFromMemory(cmd_p + 24, cmdsize - 24);
-    u32      maxprot, initprot;
+    BufIter c = BufIterFromMemory(cmd_p + 24, cmdsize - 24);
+    u32     maxprot, initprot;
     if (!BufReadFmt(
             &c,
             FMT_MACHO_SEGMENT64_BODY_LE,
@@ -213,8 +213,8 @@ static bool decode_segment_64(MachoContext *ctx, const u8 *cmd_p, u32 cmdsize) {
         MemSet(&sec, 0, sizeof(sec));
         copy_fixed16(sec.section, s + 0);
         copy_fixed16(sec.segment, s + 16);
-        ByteIter sc = ByteIterFromMemory(s + 32, SECT64_SIZE - 32);
-        u32      align, reloff, nreloc, reserved1, reserved2, reserved3;
+        BufIter sc = BufIterFromMemory(s + 32, SECT64_SIZE - 32);
+        u32     align, reloff, nreloc, reserved1, reserved2, reserved3;
         if (!BufReadFmt(
                 &sc,
                 FMT_MACHO_SECTION64_BODY_LE,
@@ -250,7 +250,7 @@ static bool decode_symtab(MachoContext *ctx, const u8 *cmd_p, u32 cmdsize) {
         LOG_ERROR("MachO: LC_SYMTAB truncated");
         return false;
     }
-    ByteIter c = ByteIterFromMemory(cmd_p + 8, cmdsize - 8);
+    BufIter c = BufIterFromMemory(cmd_p + 8, cmdsize - 8);
     if (!BufReadFmt(&c, FMT_MACHO_SYMTAB_BODY_LE, ctx->symoff, ctx->nsyms, ctx->stroff, ctx->strsize)) {
         LOG_ERROR("MachO: LC_SYMTAB body truncated");
         return false;
@@ -280,7 +280,7 @@ static bool walk_load_commands(MachoContext *ctx) {
         if (cur + 8 > end)
             return false;
         const u8 *cmd_p = ctx->out->data + cur;
-        ByteIter  pc    = ByteIterFromMemory(cmd_p, end - cur);
+        BufIter   pc    = BufIterFromMemory(cmd_p, end - cur);
         u32       cmd, cmdsize;
         if (!BufReadFmt(&pc, FMT_MACHO_LC_PREFIX_LE, cmd, cmdsize)) {
             LOG_ERROR("MachO: load command prefix truncated at {}", i);
@@ -336,7 +336,7 @@ static bool decode_symbols(MachoContext *ctx) {
         return false;
     }
     const u8 *str_base = ctx->out->data + ctx->stroff;
-    ByteIter  tab      = ByteIterFromMemory(ctx->out->data + ctx->symoff, (u64)ctx->nsyms * NLIST64_SIZE);
+    BufIter   tab      = BufIterFromMemory(ctx->out->data + ctx->symoff, (u64)ctx->nsyms * NLIST64_SIZE);
     for (u32 i = 0; i < ctx->nsyms; ++i) {
         u32 n_strx;
         u8  n_type, n_sect;

@@ -90,7 +90,7 @@ typedef struct LineProgHeader {
 // Decode the DWARF 4 line-program header at `cur`. On return the
 // cursor sits at the start of the include_directories table; the
 // directory / file tables are walked separately by collect_cu_strings.
-static bool decode_line_program_header(ByteIter *cur, LineProgHeader *out) {
+static bool decode_line_program_header(BufIter *cur, LineProgHeader *out) {
     MemSet(out, 0, sizeof(*out));
 
     u32 unit_length = 0;
@@ -167,7 +167,7 @@ static bool decode_line_program_header(ByteIter *cur, LineProgHeader *out) {
 
 // Walk past include_directories + file_names, leaving cur at the
 // start of the line number program body.
-static bool skip_line_program_tables(ByteIter *cur) {
+static bool skip_line_program_tables(BufIter *cur) {
     while (cur->pos < cur->length && cur->data[cur->pos] != 0) {
         if (!BufReadCstr(cur))
             return false;
@@ -220,7 +220,7 @@ static void cu_strings_deinit(CuStrings *cs) {
 // strings into the shared pool. `header_after_opcode_lengths_p` points
 // to the first byte after the standard_opcode_lengths array; we
 // continue from there.
-static bool collect_cu_strings(ByteIter cur, Str *pool, CuStrings *cs) {
+static bool collect_cu_strings(BufIter cur, Str *pool, CuStrings *cs) {
     // include_directories
     while (cur.pos < cur.length && cur.data[cur.pos] != 0) {
         const char *dir = BufReadCstr(&cur);
@@ -324,7 +324,7 @@ static bool lnp_emit(
 }
 
 static bool run_line_program(
-    ByteIter              cur,
+    BufIter               cur,
     const u8             *prog_end,
     const LineProgHeader *hdr,
     const CuStrings      *cs,
@@ -517,13 +517,13 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *
     U64Vec pending_file_offsets = VecInitT(pending_file_offsets, alloc);
     U64Vec pending_dir_offsets  = VecInitT(pending_dir_offsets, alloc);
 
-    ByteIter section_cur = ByteIterFromMemory(elf->data + line_section->offset, line_section->size);
+    BufIter section_cur = BufIterFromMemory(elf->data + line_section->offset, line_section->size);
 
     bool ok = true;
     while (IterRemainingLength(&section_cur) > 0) {
         const u8 *unit_start  = section_cur.data + section_cur.pos;
         u32       unit_length = 0;
-        ByteIter  peek        = section_cur;
+        BufIter   peek        = section_cur;
         if (!BufReadU32LE(&peek, &unit_length)) {
             ok = false;
             break;
@@ -543,7 +543,7 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *
         // Decode header (fields only), then walk the directory / file
         // tables once to populate the shared string pool, then run
         // the program body.
-        ByteIter       hdr_cur = section_cur;
+        BufIter        hdr_cur = section_cur;
         LineProgHeader hdr;
         if (!decode_line_program_header(&hdr_cur, &hdr)) {
             // Unsupported version (5+) or malformed: skip this CU and
@@ -558,9 +558,9 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *
 
         // String/program iters cover the bytes from `hdr.strings_start`
         // up to the end of this CU.
-        size     strings_start_pos = (size)(hdr.strings_start - section_cur.data);
-        ByteIter str_cur           = ByteIterFromMemory(section_cur.data, unit_end_pos);
-        str_cur.pos                = strings_start_pos;
+        size    strings_start_pos = (size)(hdr.strings_start - section_cur.data);
+        BufIter str_cur           = BufIterFromMemory(section_cur.data, unit_end_pos);
+        str_cur.pos               = strings_start_pos;
         if (!collect_cu_strings(str_cur, &out->string_pool, &cs)) {
             cu_strings_deinit(&cs);
             ok = false;
@@ -568,15 +568,15 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *
         }
 
         // Skip past the tables to find the program body start.
-        ByteIter prog_anchor = ByteIterFromMemory(section_cur.data, unit_end_pos);
-        prog_anchor.pos      = strings_start_pos;
+        BufIter prog_anchor = BufIterFromMemory(section_cur.data, unit_end_pos);
+        prog_anchor.pos     = strings_start_pos;
         if (!skip_line_program_tables(&prog_anchor)) {
             cu_strings_deinit(&cs);
             ok = false;
             break;
         }
 
-        ByteIter prog_cur = prog_anchor;
+        BufIter prog_cur = prog_anchor;
         if (!run_line_program(prog_cur, unit_end, &hdr, &cs, out, &pending_file_offsets, &pending_dir_offsets)) {
             cu_strings_deinit(&cs);
             ok = false;

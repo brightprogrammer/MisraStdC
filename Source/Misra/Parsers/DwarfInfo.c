@@ -102,7 +102,7 @@ static void abbrev_table_deinit(AbbrevTable *t) {
 
 // Parse the abbrev table starting at `start`. The table is terminated
 // by an entry with code 0. Returns false on malformed input.
-static bool parse_abbrev_table(ByteIter cur, AbbrevTable *out, Allocator *alloc) {
+static bool parse_abbrev_table(BufIter cur, AbbrevTable *out, Allocator *alloc) {
     *out = VecInitT(*out, alloc);
     while (IterRemainingLength(&cur) > 0) {
         u64 code;
@@ -192,7 +192,7 @@ typedef struct AttrVal {
 //
 // Returns false only on truncated / malformed bytes; unknown forms
 // fail-closed so the caller can stop cleanly.
-static bool read_form(ByteIter *cur, u32 form, u8 addr_size, AttrVal *out) {
+static bool read_form(BufIter *cur, u32 form, u8 addr_size, AttrVal *out) {
     *out = (AttrVal) {.kind = ATTR_VAL_NONE};
     switch (form) {
         case DW_FORM_addr : {
@@ -332,7 +332,7 @@ typedef struct PendingFn {
 typedef Vec(PendingFn) PendingFns;
 
 static bool walk_cu_dies(
-    ByteIter           cu_cur, // positioned past CU header
+    BufIter            cu_cur, // positioned past CU header
     const AbbrevTable *abbrevs,
     u8                 addr_size,
     const u8          *debug_str,
@@ -509,7 +509,7 @@ bool DwarfFunctionsBuildFromSlices(
         return false;
     }
 
-    ByteIter info_cur = ByteIterFromMemory(info_bytes, info_size);
+    BufIter info_cur = BufIterFromMemory(info_bytes, info_size);
 
     PendingFns pending = VecInitT(pending, alloc);
 
@@ -557,7 +557,7 @@ bool DwarfFunctionsBuildFromSlices(
         }
 
         AbbrevTable abbrevs;
-        ByteIter    abbrev_cur = ByteIterFromMemory(abbrev_bytes + abbrev_offset, abbrev_size - abbrev_offset);
+        BufIter     abbrev_cur = BufIterFromMemory(abbrev_bytes + abbrev_offset, abbrev_size - abbrev_offset);
         if (!parse_abbrev_table(abbrev_cur, &abbrevs, alloc)) {
             ok = false;
             break;
@@ -565,7 +565,7 @@ bool DwarfFunctionsBuildFromSlices(
 
         // DIE iter spans the DIE body within this CU (from current
         // info_cur position up to unit_end_pos).
-        ByteIter die_cur = ByteIterFromMemory(info_cur.data + info_cur.pos, unit_end_pos - info_cur.pos);
+        BufIter die_cur = BufIterFromMemory(info_cur.data + info_cur.pos, unit_end_pos - info_cur.pos);
         if (!walk_cu_dies(die_cur, &abbrevs, addr_size, str_bytes, str_size, &out->string_pool, &pending)) {
             abbrev_table_deinit(&abbrevs);
             ok = false;

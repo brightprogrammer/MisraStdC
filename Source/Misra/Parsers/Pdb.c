@@ -142,8 +142,8 @@ static bool parse_superblock(PdbFile *self, u32 *out_num_dir_bytes, u32 *out_blo
         LOG_ERROR("PDB: bad MSF magic (not 7.00)");
         return false;
     }
-    ByteIter sb = ByteIterFromMemory(self->data + 32, self->data_size - 32);
-    u32      free_blk, num_blocks, unknown;
+    BufIter sb = BufIterFromMemory(self->data + 32, self->data_size - 32);
+    u32     free_blk, num_blocks, unknown;
     if (!BufReadFmt(
             &sb,
             FMT_PDB_SUPERBLOCK_LE,
@@ -223,7 +223,7 @@ static bool parse_directory(PdbFile *self) {
         LOG_ERROR("PDB: directory truncated (no stream count)");
         return false;
     }
-    ByteIter dir_iter = ByteIterFromMemory(self->stream_dir, self->stream_dir_size);
+    BufIter dir_iter = BufIterFromMemory(self->stream_dir, self->stream_dir_size);
     if (!BufReadU32LE(&dir_iter, &self->num_streams))
         return false;
     if (self->num_streams == 0)
@@ -289,7 +289,7 @@ static bool parse_pdb_info(PdbFile *self) {
     u8 buf[28];
     if (!stream_read(self, 1, 0, buf, sizeof(buf)))
         return false;
-    ByteIter bi = ByteIterFromMemory(buf, sizeof(buf));
+    BufIter bi = BufIterFromMemory(buf, sizeof(buf));
     if (!BufReadFmt(&bi, FMT_PDB_INFO_LE, self->info.version, self->info.signature, self->info.age)) {
         LOG_ERROR("PDB: info stream prefix truncated");
         return false;
@@ -328,7 +328,7 @@ static DbiSubstreamInfo parse_dbi_header(const PdbFile *self) {
     if (!stream_read(self, DBI_STREAM_INDEX, 0, hdr, DBI_HEADER_SIZE))
         return r;
 
-    ByteIter bi = ByteIterFromMemory(hdr, DBI_HEADER_SIZE);
+    BufIter bi = BufIterFromMemory(hdr, DBI_HEADER_SIZE);
     u32 version_sig, version_hdr, age, mod_size, seccontrib, secmap, srcinfo, tsm, mfc_tsm_idx, optdbg_size, ec_size,
         padding;
     u16 global_idx, build_num, public_idx, pdb_dll_ver, pdb_dll_rbld, flags, machine;
@@ -433,7 +433,7 @@ static SectionRva *load_section_table(const PdbFile *self, u16 section_hdr_strea
     }
     for (u32 i = 0; i < n; ++i) {
         // IMAGE_SECTION_HEADER: name[8] + VirtualSize(4) + VirtualAddress(4) + ...
-        ByteIter rec = ByteIterFromMemory(buf + i * 40 + 8, 40 - 8);
+        BufIter rec = BufIterFromMemory(buf + i * 40 + 8, 40 - 8);
         (void)BufReadU32LE(&rec, &out[i].virtual_size);
         (void)BufReadU32LE(&rec, &out[i].virtual_address);
     }
@@ -515,9 +515,9 @@ static bool walk_publics(
         if (rec_kind == CV_SYMTYPE_PUB32 && rec_len >= 2 + 4 + 4 + 2 + 1) {
             // Record body starts at cur + 4 (past len + kind). 10-byte
             // prefix (Flags/Offset/Segment) then NUL-terminated Name.
-            ByteIter body = ByteIterFromMemory(buf + cur + 4, rec_len - 2);
-            u32      flags, offset;
-            u16      segment;
+            BufIter body = BufIterFromMemory(buf + cur + 4, rec_len - 2);
+            u32     flags, offset;
+            u16     segment;
             if (!BufReadFmt(&body, FMT_S_PUB32_PREFIX_LE, flags, offset, segment)) {
                 cur = next;
                 continue;
