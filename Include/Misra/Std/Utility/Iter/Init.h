@@ -118,4 +118,24 @@
 #define IterInitRevFromVecT(i, v)                                                                                      \
     ((TYPE_OF(i)) {.data = (v).data, .length = (v).length, .pos = 0, .alignment = (v).allocator->alignment, .dir = -1})
 
+///
+/// Carve a child iterator from a parent. The child starts at the
+/// parent's current position with length `n` (so its valid range is
+/// the parent's `[pos, pos + n)`), pos `0`, inheriting the parent's
+/// alignment and direction. The parent is unchanged -- after the
+/// sub-read returns, the parent can keep iterating from where it
+/// left off.
+///
+/// parent[in] : Source iterator. Must outlive the child read.
+/// n[in]      : Number of elements the child can read.
+///
+/// TAGS: Initialization, Iter, Subview
+///
+#define IterCarve(parent, n)                                                                                           \
+    ((TYPE_OF(*(parent))) {.data      = (parent)->data + (parent)->pos,                                                \
+                           .length    = (n),                                                                           \
+                           .pos       = 0,                                                                             \
+                           .alignment = (parent)->alignment,                                                           \
+                           .dir       = (parent)->dir})
+
 #endif // MISRA_STD_UTILITY_ITER_INIT_H

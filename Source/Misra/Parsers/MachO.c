@@ -100,12 +100,6 @@ enum {
     UUID_CMD_SIZE      = 24,
 };
 
-// Names are 16 bytes, NUL-padded but not guaranteed NUL-terminated.
-static void copy_fixed16(char *dst, const u8 *src) {
-    MemCopy(dst, src, 16);
-    dst[16] = '\0';
-}
-
 // ---------------------------------------------------------------------------
 // Decoders
 // ---------------------------------------------------------------------------
@@ -127,7 +121,7 @@ static bool decode_header(MachoContext *ctx) {
         LOG_ERROR("MachO: file too small for header");
         return false;
     }
-    BufIter c = BufIterFromMemory(BufData(&m->data), BufLength(&m->data));
+    BufIter c = BufIterFromBuf(&m->data);
     u32     magic, cputype, cpusubtype, filetype, ncmds, sizeofcmds, flags, reserved;
     if (!BufReadFmt(
             &c,
@@ -170,19 +164,28 @@ static bool decode_header(MachoContext *ctx) {
     return true;
 }
 
-static bool decode_segment_64(MachoContext *ctx, const u8 *cmd_p, u32 cmdsize) {
+// Sub-decoders receive a `BufIter *cmd` positioned at the start of
+// the load command's first byte; `IterLength(cmd)` is the cmdsize
+// reported in the prefix. The sub-decoder advances `cmd` freely;
+// the walker carved a fresh view per command so the parent iter is
+// untouched.
+
+static bool decode_segment_64(MachoContext *ctx, BufIter *cmd) {
+    u64 cmdsize = IterLength(cmd);
     if (cmdsize < SEG64_CMD_SIZE_MIN) {
         LOG_ERROR("MachO: LC_SEGMENT_64 truncated");
         return false;
     }
     MachoSegment seg;
     MemSet(&seg, 0, sizeof(seg));
-    // cmd_p layout: cmd(4) cmdsize(4) segname[16] then FMT_MACHO_SEGMENT64_BODY_LE.
-    copy_fixed16(seg.name, cmd_p + 8);
-    BufIter c = BufIterFromMemory(cmd_p + 24, cmdsize - 24);
-    u32     maxprot, initprot;
+    // Skip cmd(4) + cmdsize(4) prefix; copy segname[16]; read body.
+    IterMustMove(cmd, 8);
+    MemCopy(seg.name, cmd->data + cmd->pos, 16);
+    seg.name[16] = '\0';
+    IterMustMove(cmd, 16);
+    u32 maxprot, initprot;
     if (!BufReadFmt(
-            &c,
+            cmd,
             FMT_MACHO_SEGMENT64_BODY_LE,
             seg.vmaddr,
             seg.vmsize,
@@ -201,22 +204,26 @@ static bool decode_segment_64(MachoContext *ctx, const u8 *cmd_p, u32 cmdsize) {
     if (!VecPushBackR(&ctx->out->segments, seg))
         return false;
 
-    // Section table follows the segment command header.
-    u64 sect_off = SEG64_CMD_SIZE_MIN;
+    // Section table follows the segment command header. `cmd` is now
+    // positioned just past the segment body; each section is
+    // SECT64_SIZE bytes.
     for (u32 i = 0; i < seg.nsects; ++i) {
-        if (sect_off + SECT64_SIZE > cmdsize) {
+        if (cmd->pos + SECT64_SIZE > cmd->length) {
             LOG_ERROR("MachO: section table overruns LC_SEGMENT_64");
             return false;
         }
-        const u8    *s = cmd_p + sect_off;
+        BufIter      sec_it = IterCarve(cmd, SECT64_SIZE);
         MachoSection sec;
         MemSet(&sec, 0, sizeof(sec));
-        copy_fixed16(sec.section, s + 0);
-        copy_fixed16(sec.segment, s + 16);
-        BufIter sc = BufIterFromMemory(s + 32, SECT64_SIZE - 32);
-        u32     align, reloff, nreloc, reserved1, reserved2, reserved3;
+        MemCopy(sec.section, sec_it.data + sec_it.pos, 16);
+        sec.section[16] = '\0';
+        IterMustMove(&sec_it, 16);
+        MemCopy(sec.segment, sec_it.data + sec_it.pos, 16);
+        sec.segment[16] = '\0';
+        IterMustMove(&sec_it, 16);
+        u32 align, reloff, nreloc, reserved1, reserved2, reserved3;
         if (!BufReadFmt(
-                &sc,
+                &sec_it,
                 FMT_MACHO_SECTION64_BODY_LE,
                 sec.addr,
                 sec.size,
@@ -240,18 +247,18 @@ static bool decode_segment_64(MachoContext *ctx, const u8 *cmd_p, u32 cmdsize) {
         (void)reserved3;
         if (!VecPushBackR(&ctx->out->sections, sec))
             return false;
-        sect_off += SECT64_SIZE;
+        IterMustMove(cmd, SECT64_SIZE);
     }
     return true;
 }
 
-static bool decode_symtab(MachoContext *ctx, const u8 *cmd_p, u32 cmdsize) {
-    if (cmdsize < SYMTAB_CMD_SIZE) {
+static bool decode_symtab(MachoContext *ctx, BufIter *cmd) {
+    if (IterLength(cmd) < SYMTAB_CMD_SIZE) {
         LOG_ERROR("MachO: LC_SYMTAB truncated");
         return false;
     }
-    BufIter c = BufIterFromMemory(cmd_p + 8, cmdsize - 8);
-    if (!BufReadFmt(&c, FMT_MACHO_SYMTAB_BODY_LE, ctx->symoff, ctx->nsyms, ctx->stroff, ctx->strsize)) {
+    IterMustMove(cmd, 8); // skip cmd + cmdsize prefix
+    if (!BufReadFmt(cmd, FMT_MACHO_SYMTAB_BODY_LE, ctx->symoff, ctx->nsyms, ctx->stroff, ctx->strsize)) {
         LOG_ERROR("MachO: LC_SYMTAB body truncated");
         return false;
     }
@@ -259,12 +266,13 @@ static bool decode_symtab(MachoContext *ctx, const u8 *cmd_p, u32 cmdsize) {
     return true;
 }
 
-static bool decode_uuid(MachoContext *ctx, const u8 *cmd_p, u32 cmdsize) {
-    if (cmdsize < UUID_CMD_SIZE) {
+static bool decode_uuid(MachoContext *ctx, BufIter *cmd) {
+    if (IterLength(cmd) < UUID_CMD_SIZE) {
         LOG_ERROR("MachO: LC_UUID truncated");
         return false;
     }
-    MemCopy(ctx->out->uuid, cmd_p + 8, 16);
+    IterMustMove(cmd, 8); // skip cmd + cmdsize prefix
+    MemCopy(ctx->out->uuid, cmd->data + cmd->pos, 16);
     ctx->out->has_uuid = true;
     return true;
 }
@@ -274,40 +282,48 @@ static bool walk_load_commands(MachoContext *ctx) {
         LOG_ERROR("MachO: load commands overrun file");
         return false;
     }
-    u64 cur = MH_HEADER_64_SIZE;
-    u64 end = MH_HEADER_64_SIZE + ctx->sizeofcmds;
+    BufIter walker = BufIterFromBuf(&ctx->out->data);
+    IterMustMove(&walker, MH_HEADER_64_SIZE);
+    IterTruncate(&walker, ctx->sizeofcmds);
+
     for (u32 i = 0; i < ctx->ncmds; ++i) {
-        if (cur + 8 > end)
-            return false;
-        const u8 *cmd_p = BufData(&ctx->out->data) + cur;
-        BufIter   pc    = BufIterFromMemory(cmd_p, end - cur);
-        u32       cmd, cmdsize;
-        if (!BufReadFmt(&pc, FMT_MACHO_LC_PREFIX_LE, cmd, cmdsize)) {
+        u64 remaining = walker.length - walker.pos;
+        if (remaining < 8) {
             LOG_ERROR("MachO: load command prefix truncated at {}", i);
             return false;
         }
-        if (cmdsize < 8 || cur + cmdsize > end) {
+        // Peek the prefix (cmd, cmdsize) without advancing the walker.
+        BufIter prefix = IterCarve(&walker, 8);
+        u32     cmd, cmdsize;
+        if (!BufReadFmt(&prefix, FMT_MACHO_LC_PREFIX_LE, cmd, cmdsize)) {
+            LOG_ERROR("MachO: load command prefix truncated at {}", i);
+            return false;
+        }
+        if (cmdsize < 8 || cmdsize > remaining) {
             LOG_ERROR("MachO: bad cmdsize at load command {}", i);
             return false;
         }
-        u32 type = cmd & ~LC_REQ_DYLD;
+        // Carve a view of this entire command (including the 8-byte
+        // prefix) for the sub-decoder. The walker stays put.
+        BufIter cmd_view = IterCarve(&walker, cmdsize);
+        u32     type     = cmd & ~LC_REQ_DYLD;
         switch (type) {
             case LC_SEGMENT_64 :
-                if (!decode_segment_64(ctx, cmd_p, cmdsize))
+                if (!decode_segment_64(ctx, &cmd_view))
                     return false;
                 break;
             case LC_SYMTAB :
-                if (!decode_symtab(ctx, cmd_p, cmdsize))
+                if (!decode_symtab(ctx, &cmd_view))
                     return false;
                 break;
             case LC_UUID :
-                if (!decode_uuid(ctx, cmd_p, cmdsize))
+                if (!decode_uuid(ctx, &cmd_view))
                     return false;
                 break;
             default :
                 break;
         }
-        cur += cmdsize;
+        IterMustMove(&walker, cmdsize);
     }
     return true;
 }
@@ -336,7 +352,9 @@ static bool decode_symbols(MachoContext *ctx) {
         return false;
     }
     const u8 *str_base = BufData(&ctx->out->data) + ctx->stroff;
-    BufIter   tab      = BufIterFromMemory(BufData(&ctx->out->data) + ctx->symoff, (u64)ctx->nsyms * NLIST64_SIZE);
+    BufIter   tab      = BufIterFromBuf(&ctx->out->data);
+    IterMustMove(&tab, ctx->symoff);
+    IterTruncate(&tab, (u64)ctx->nsyms * NLIST64_SIZE);
     for (u32 i = 0; i < ctx->nsyms; ++i) {
         u32 n_strx;
         u8  n_type, n_sect;

@@ -15,6 +15,18 @@
 #define IterLength(mi) ((mi)->length)
 
 ///
+/// Bound the iterator so only `n` further elements are reachable from
+/// the current position. Caps `length` at `pos + n`; subsequent
+/// `IterRead`/`IterPeekAt`/`IterMove` calls treat the new tail as
+/// past-the-end. Use when a structural field (e.g. a Mach-O
+/// `cmdsize`) tells you the in-memory record ends earlier than the
+/// underlying buffer.
+///
+/// TAGS: Memory, Length, Iter
+///
+#define IterTruncate(mi, n) ((void)((mi)->length = (mi)->pos + (n)))
+
+///
 /// Elements remaining to read in the iteration direction. Returns `0`
 /// once the iterator is past the end (forward) or past the start
 /// (reverse).
