@@ -106,11 +106,45 @@ static bool debug_check_canary(const u8 *trail, size n) {
 // ---------------------------------------------------------------------------
 
 static DebugAllocator *debug_validate_self(const Allocator *self) {
-    if (!self || self->__magic != DEBUG_ALLOCATOR_MAGIC) {
+    if (!self) {
+        LOG_FATAL("DebugAllocator: NULL self");
+    }
+    if (self->__magic != DEBUG_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to debug_allocator_* is not a DebugAllocator");
     }
-    DebugAllocator *dbg     = (DebugAllocator *)self;
-    u64             cur_tid = debug_current_tid();
+    if (!self->allocate || !self->resize || !self->remap || !self->deallocate) {
+        LOG_FATAL("DebugAllocator: vtable function pointer is NULL");
+    }
+    if (self->alignment == 0 || (self->alignment & (self->alignment - 1)) != 0) {
+        LOG_FATAL("DebugAllocator: alignment {} is not a positive power of two", (u64)self->alignment);
+    }
+    DebugAllocator *dbg = (DebugAllocator *)self;
+    // Embedded backing allocators must themselves be sane. We don't
+    // call their full validators here (they have side effects via
+    // _validate_self in their own dispatch) but the magic check is
+    // already strong enough to catch corruption.
+    if (dbg->heap.base.__magic != HEAP_ALLOCATOR_MAGIC) {
+        LOG_FATAL("DebugAllocator: embedded heap has bad magic");
+    }
+    if (dbg->meta.base.__magic != HEAP_ALLOCATOR_MAGIC) {
+        LOG_FATAL("DebugAllocator: embedded meta has bad magic");
+    }
+    if (dbg->page.base.__magic != PAGE_ALLOCATOR_MAGIC) {
+        LOG_FATAL("DebugAllocator: embedded page has bad magic");
+    }
+    if (dbg->live.__magic != MAP_MAGIC) {
+        LOG_FATAL("DebugAllocator: live map has bad magic");
+    }
+    if (dbg->freed.__magic != VEC_MAGIC) {
+        LOG_FATAL("DebugAllocator: freed vec has bad magic");
+    }
+    // bytes_in_use must be consistent with live: if live is non-empty
+    // bytes_in_use is non-zero; conversely zero live entries means
+    // every byte has been returned.
+    if (dbg->live.length == 0 && dbg->bytes_in_use != 0) {
+        LOG_FATAL("DebugAllocator: bytes_in_use {} with no live records", (u64)dbg->bytes_in_use);
+    }
+    u64 cur_tid = debug_current_tid();
     if (dbg->creator_tid != cur_tid) {
         LOG_FATAL(
             "DebugAllocator: cross-thread use detected (created on {x}, called from {x}). "

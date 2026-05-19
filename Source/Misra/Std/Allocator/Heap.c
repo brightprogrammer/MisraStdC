@@ -29,9 +29,51 @@
 // =============================================================================
 // Self-validation.
 
+// Relational invariants for HeapAllocator. The struct carries four
+// parallel descriptor arrays (s / m / l / xl) shaped as Vec-style
+// (ptr, len, cap) triples. For every class the allowed states are
+// (NULL, 0, 0) -- empty -- or (non-NULL, 0..cap, cap>0) -- in use.
+// The embedded PageAllocator must itself pass page_validate_self.
 static void heap_validate_self(const Allocator *self) {
-    if (!self || self->__magic != HEAP_ALLOCATOR_MAGIC) {
+    if (!self) {
+        LOG_FATAL("HeapAllocator: NULL self");
+    }
+    if (self->__magic != HEAP_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to heap_allocator_* is not a HeapAllocator");
+    }
+    if (!self->allocate || !self->resize || !self->remap || !self->deallocate) {
+        LOG_FATAL("HeapAllocator: vtable function pointer is NULL");
+    }
+    if (self->alignment == 0 || (self->alignment & (self->alignment - 1)) != 0) {
+        LOG_FATAL("HeapAllocator: alignment {} is not a positive power of two", (u64)self->alignment);
+    }
+    const HeapAllocator *h = (const HeapAllocator *)self;
+
+#define HEAP_CHECK_CLASS(_ptr, _len, _cap, _name)                                                                      \
+    do {                                                                                                               \
+        if ((_len) > (_cap)) {                                                                                         \
+            LOG_FATAL("HeapAllocator: " _name "_len {} exceeds " _name "_cap {}", (u64)(_len), (u64)(_cap));           \
+        }                                                                                                              \
+        if (((_ptr) == NULL) != ((_cap) == 0)) {                                                                       \
+            LOG_FATAL("HeapAllocator: " _name " / " _name "_cap mismatch ({x} / {})", (u64)(_ptr), (u64)(_cap));       \
+        }                                                                                                              \
+        if ((_len) > 0 && !(_ptr)) {                                                                                   \
+            LOG_FATAL("HeapAllocator: " _name "_len {} with NULL " _name, (u64)(_len));                                \
+        }                                                                                                              \
+        if ((_ptr)) {                                                                                                  \
+            (void)(*(const volatile char *)(const void *)(_ptr));                                                      \
+        }                                                                                                              \
+    } while (0)
+
+    HEAP_CHECK_CLASS(h->s, h->s_len, h->s_cap, "s");
+    HEAP_CHECK_CLASS(h->m, h->m_len, h->m_cap, "m");
+    HEAP_CHECK_CLASS(h->l, h->l_len, h->l_cap, "l");
+    HEAP_CHECK_CLASS(h->xl, h->xl_len, h->xl_cap, "xl");
+
+#undef HEAP_CHECK_CLASS
+
+    if (h->page.base.__magic != PAGE_ALLOCATOR_MAGIC) {
+        LOG_FATAL("HeapAllocator: embedded PageAllocator has bad magic");
     }
 }
 

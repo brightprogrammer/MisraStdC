@@ -28,9 +28,41 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 
+// Relational invariants for SlabAllocator:
+//   - slot_size and slots_per_chunk must be positive (a zero-slot
+//     slab is meaningless; AllocatorAlloc would loop forever).
+//   - chunk list endpoints (head, tail) are both NULL or both non-NULL.
+//   - free_head is a vestigial field from the pre-bitmap scheme; the
+//     current implementation never sets it, so it must stay NULL.
+//   - the embedded PageAllocator must itself validate.
 static void slab_validate_self(const Allocator *self) {
-    if (!self || self->__magic != SLAB_ALLOCATOR_MAGIC) {
+    if (!self) {
+        LOG_FATAL("SlabAllocator: NULL self");
+    }
+    if (self->__magic != SLAB_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to slab_allocator_* is not a SlabAllocator");
+    }
+    if (!self->allocate || !self->resize || !self->remap || !self->deallocate) {
+        LOG_FATAL("SlabAllocator: vtable function pointer is NULL");
+    }
+    if (self->alignment == 0 || (self->alignment & (self->alignment - 1)) != 0) {
+        LOG_FATAL("SlabAllocator: alignment {} is not a positive power of two", (u64)self->alignment);
+    }
+    const SlabAllocator *s = (const SlabAllocator *)self;
+    if (s->slot_size == 0) {
+        LOG_FATAL("SlabAllocator: slot_size is 0");
+    }
+    if (s->slots_per_chunk == 0) {
+        LOG_FATAL("SlabAllocator: slots_per_chunk is 0");
+    }
+    if ((s->head == NULL) != (s->tail == NULL)) {
+        LOG_FATAL("SlabAllocator: head/tail mismatch ({x} / {x})", (u64)s->head, (u64)s->tail);
+    }
+    if (s->free_head != NULL) {
+        LOG_FATAL("SlabAllocator: stale free_head pointer ({x}); bitmap scheme leaves it NULL", (u64)s->free_head);
+    }
+    if (s->page.base.__magic != PAGE_ALLOCATOR_MAGIC) {
+        LOG_FATAL("SlabAllocator: embedded PageAllocator has bad magic");
     }
 }
 

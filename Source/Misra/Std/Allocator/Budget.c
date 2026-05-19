@@ -32,9 +32,65 @@ struct BudgetFreeSlot {
     int _unused;
 };
 
+// Relational invariants for BudgetAllocator. The caller-provided
+// buffer is partitioned at init into a bitmap region followed by a
+// slots region; the linked fields stay synchronized for the lifetime
+// of the allocator. An init failure (buf too small, slot_size 0,
+// etc.) yields a zero-initialized struct with __magic == 0 -- the
+// magic check above already rejects it.
 static void budget_validate_self(const Allocator *self) {
-    if (!self || self->__magic != BUDGET_ALLOCATOR_MAGIC) {
+    if (!self) {
+        LOG_FATAL("BudgetAllocator: NULL self");
+    }
+    if (self->__magic != BUDGET_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to budget_allocator_* is not a BudgetAllocator");
+    }
+    if (!self->allocate || !self->resize || !self->remap || !self->deallocate) {
+        LOG_FATAL("BudgetAllocator: vtable function pointer is NULL");
+    }
+    if (self->alignment == 0 || (self->alignment & (self->alignment - 1)) != 0) {
+        LOG_FATAL("BudgetAllocator: alignment {} is not a positive power of two", (u64)self->alignment);
+    }
+    const BudgetAllocator *b = (const BudgetAllocator *)self;
+    if (!b->buf || b->buf_bytes == 0) {
+        LOG_FATAL("BudgetAllocator: NULL or zero-byte backing buffer");
+    }
+    if (!b->bitmap || b->bitmap_words == 0) {
+        LOG_FATAL("BudgetAllocator: NULL or zero-word bitmap");
+    }
+    if (!b->slots || b->slot_count == 0) {
+        LOG_FATAL("BudgetAllocator: NULL or zero-count slot region");
+    }
+    if (b->slot_size == 0) {
+        LOG_FATAL("BudgetAllocator: slot_size is 0");
+    }
+    // Bitmap covers at least slot_count bits.
+    if ((u64)b->bitmap_words * 64u < (u64)b->slot_count) {
+        LOG_FATAL(
+            "BudgetAllocator: bitmap_words {} too small for slot_count {} (need {})",
+            (u64)b->bitmap_words,
+            (u64)b->slot_count,
+            (u64)((b->slot_count + 63u) / 64u)
+        );
+    }
+    // Slots and bitmap both lie inside [buf, buf + buf_bytes).
+    const char *buf_end = b->buf + b->buf_bytes;
+    if ((const char *)b->bitmap < b->buf || (const char *)b->bitmap >= buf_end) {
+        LOG_FATAL("BudgetAllocator: bitmap pointer outside buf region");
+    }
+    if (b->slots < b->buf || b->slots > buf_end) {
+        LOG_FATAL("BudgetAllocator: slots pointer outside buf region");
+    }
+    if ((u64)b->slot_count * (u64)b->slot_size > (u64)(buf_end - b->slots)) {
+        LOG_FATAL(
+            "BudgetAllocator: slots region overruns buf (need {} bytes, have {})",
+            (u64)b->slot_count * (u64)b->slot_size,
+            (u64)(buf_end - b->slots)
+        );
+    }
+    // Bitmap region must precede the slot region (init lays them out that way).
+    if ((const char *)b->bitmap >= b->slots) {
+        LOG_FATAL("BudgetAllocator: bitmap region must precede slot region");
     }
 }
 

@@ -21,11 +21,53 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Sys.h>
 
-#include <stddef.h>
 
+// Relational invariants beyond the type-confusion magic check.
+//
+// The descriptor table is a Vec-shaped (ptr, len, cap) triple. Allowed
+// states are exactly two: (NULL, 0, 0) for freshly-initialized or
+// post-deinit, and (non-NULL, 0..cap, > 0) once any region has been
+// allocated. `entries_bytes` records the rounded mmap length of the
+// table itself so PageAllocatorDeinit can unmap it -- it's zero
+// exactly when `entries` is NULL.
 static void page_validate_self(const Allocator *self) {
-    if (!self || self->__magic != PAGE_ALLOCATOR_MAGIC) {
+    if (!self) {
+        LOG_FATAL("PageAllocator: NULL self");
+    }
+    if (self->__magic != PAGE_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to page_allocator_* is not a PageAllocator");
+    }
+    if (!self->allocate || !self->resize || !self->remap || !self->deallocate) {
+        LOG_FATAL("PageAllocator: vtable function pointer is NULL");
+    }
+    if (self->alignment == 0 || (self->alignment & (self->alignment - 1)) != 0) {
+        LOG_FATAL("PageAllocator: alignment {} is not a positive power of two", (u64)self->alignment);
+    }
+    const PageAllocator *pg = (const PageAllocator *)self;
+    if (pg->len > pg->cap) {
+        LOG_FATAL("PageAllocator: len {} exceeds cap {}", (u64)pg->len, (u64)pg->cap);
+    }
+    if ((pg->entries == NULL) != (pg->cap == 0)) {
+        LOG_FATAL("PageAllocator: entries / cap mismatch (entries={x}, cap={})", (u64)pg->entries, (u64)pg->cap);
+    }
+    if (pg->len > 0 && !pg->entries) {
+        LOG_FATAL("PageAllocator: len {} with NULL entries", (u64)pg->len);
+    }
+    if ((pg->entries == NULL) != (pg->entries_bytes == 0)) {
+        LOG_FATAL("PageAllocator: entries / entries_bytes mismatch");
+    }
+    if (pg->entries && pg->entries_bytes < (size)pg->cap * sizeof(PageEntry)) {
+        LOG_FATAL(
+            "PageAllocator: entries_bytes {} too small for cap {} (need {})",
+            (u64)pg->entries_bytes,
+            (u64)pg->cap,
+            (u64)((size)pg->cap * sizeof(PageEntry))
+        );
+    }
+    // Force-read first byte of the descriptor table so a freed mapping
+    // faults at the validate site, not downstream.
+    if (pg->entries) {
+        (void)(*(const volatile char *)(const void *)pg->entries);
     }
 }
 

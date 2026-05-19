@@ -11,9 +11,37 @@
 
 #include <stdint.h>
 
+// Relational invariants for ArenaAllocator:
+//   - head and tail chain endpoints are both NULL or both non-NULL.
+//   - last_ptr / last_size record the most recent allocation for
+//     resize-in-place; both NULL/0 means no rollback target, but a
+//     non-NULL last_ptr requires a chunk to exist for it to live in.
+//   - the embedded PageAllocator must itself validate.
 static void arena_validate_self(const Allocator *self) {
-    if (!self || self->__magic != ARENA_ALLOCATOR_MAGIC) {
+    if (!self) {
+        LOG_FATAL("ArenaAllocator: NULL self");
+    }
+    if (self->__magic != ARENA_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to arena_allocator_* is not an ArenaAllocator");
+    }
+    if (!self->allocate || !self->resize || !self->remap || !self->deallocate) {
+        LOG_FATAL("ArenaAllocator: vtable function pointer is NULL");
+    }
+    if (self->alignment == 0 || (self->alignment & (self->alignment - 1)) != 0) {
+        LOG_FATAL("ArenaAllocator: alignment {} is not a positive power of two", (u64)self->alignment);
+    }
+    const ArenaAllocator *a = (const ArenaAllocator *)self;
+    if ((a->head == NULL) != (a->tail == NULL)) {
+        LOG_FATAL("ArenaAllocator: head/tail mismatch ({x} / {x})", (u64)a->head, (u64)a->tail);
+    }
+    if ((a->last_ptr == NULL) != (a->last_size == 0)) {
+        LOG_FATAL("ArenaAllocator: last_ptr/last_size mismatch ({x} / {})", (u64)a->last_ptr, (u64)a->last_size);
+    }
+    if (a->last_ptr && !a->head) {
+        LOG_FATAL("ArenaAllocator: last_ptr is set but chunk list is empty");
+    }
+    if (a->page.base.__magic != PAGE_ALLOCATOR_MAGIC) {
+        LOG_FATAL("ArenaAllocator: embedded PageAllocator has bad magic");
     }
 }
 
