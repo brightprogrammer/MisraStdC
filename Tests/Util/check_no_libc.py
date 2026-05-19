@@ -166,7 +166,10 @@ def find_repo_root() -> str:
 
 def scan_file(path: str, root: str):
     """Return list of (relpath, lineno, header) for libc includes."""
-    rel = os.path.relpath(path, root)
+    # Normalise to forward slashes so EXEMPTIONS keys match on Windows
+    # (os.path.relpath uses backslashes there); the script otherwise
+    # passes on Linux/Mac and fails on Windows.
+    rel = os.path.relpath(path, root).replace(os.sep, "/")
     findings = []
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as fh:
