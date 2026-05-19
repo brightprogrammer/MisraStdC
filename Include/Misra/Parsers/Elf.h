@@ -225,33 +225,42 @@ bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc);
 /// Parse an ELF object from an in-memory byte range -- **L-value /
 /// ownership-transfer form** (mirrors `VecInsertL`).
 ///
-/// Caller is handing `(data, data_size)` over to the parser. After
-/// this call returns, the parser owns the pointer and will free it
-/// through `alloc` on `ElfFileDeinit`. Caller must not free `data`,
-/// must not read or write through it, must not call this function
-/// twice with the same pointer. `alloc` MUST be the allocator that
-/// produced `data` (because Deinit will free through it).
+/// The `data` parameter is `u8 **` -- a pointer to the caller's
+/// pointer -- precisely because ownership is moving. After the call
+/// returns, `*data == NULL`: the caller's variable has been zeroed
+/// to make use-after-transfer impossible. The parser holds the
+/// original pointer internally and frees it through `alloc` on
+/// `ElfFileDeinit`. This invariant is the same on success and failure
+/// -- on parse failure the parser still frees the bytes and still
+/// nulls `*data`.
 ///
-/// If the parse fails the parser still owns `data` and frees it; the
-/// caller is released either way.
+/// USAGE:
+///   u8 *buf = my_buffer;       // buffer allocated through `alloc`
+///   ElfFileOpenFromMemory(&elf, &buf, n, &alloc);
+///   // buf == NULL here -- compiler can't enforce, but a follow-up
+///   // dereference will SIGSEGV instead of using freed memory.
 ///
 /// out[out]      : Populated on success.
-/// data[in]      : Raw ELF bytes. Ownership transferred to the parser.
-/// data_size[in] : Length of `data` in bytes.
-/// alloc[in]     : Allocator that produced `data` (and that will back
-///                 the section / symbol vectors).
+/// data[in,out]  : Address of the caller's `u8 *` holding the bytes.
+///                 `*data` MUST be non-NULL and MUST have been
+///                 produced by `alloc`. After the call, `*data` is
+///                 NULL (success or failure).
+/// data_size[in] : Length of the buffer pointed to by `*data`.
+/// alloc[in]     : Allocator that produced `*data` and that will back
+///                 the section / symbol vectors.
 ///
-/// SUCCESS : Returns true; `out` owns `data`.
-/// FAILURE : Returns false; logs the failing step. `data` is freed
-///           through `alloc`. `out` is left zeroed.
+/// SUCCESS : Returns true; `out` owns the bytes; `*data == NULL`.
+/// FAILURE : Returns false; the bytes have been freed through `alloc`;
+///           `*data == NULL`; `out` is left zeroed.
 ///
 /// TAGS: Parser, ELF, Memory, Ownership
 ///
-bool elf_file_open_from_memory(ElfFile *out, u8 *data, size data_size, Allocator *alloc);
-#define ElfFileOpenFromMemory(...)                    MISRA_OVERLOAD(ElfFileOpenFromMemory, __VA_ARGS__)
-#define ElfFileOpenFromMemory_3(out, data, data_size) elf_file_open_from_memory((out), (data), (data_size), MisraScope)
-#define ElfFileOpenFromMemory_4(out, data, data_size, alloc)                                                           \
-    elf_file_open_from_memory((out), (data), (data_size), ALLOCATOR_OF(alloc))
+bool elf_file_open_from_memory(ElfFile *out, u8 **data, size data_size, Allocator *alloc);
+#define ElfFileOpenFromMemory(...) MISRA_OVERLOAD(ElfFileOpenFromMemory, __VA_ARGS__)
+#define ElfFileOpenFromMemory_3(out, dataref, data_size)                                                               \
+    elf_file_open_from_memory((out), (dataref), (data_size), MisraScope)
+#define ElfFileOpenFromMemory_4(out, dataref, data_size, alloc)                                                        \
+    elf_file_open_from_memory((out), (dataref), (data_size), ALLOCATOR_OF(alloc))
 
 ///
 /// Parse an ELF object from an in-memory byte range -- **R-value /

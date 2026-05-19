@@ -638,19 +638,18 @@ static bool parse_pdb_functions(PdbFile *self) {
 // Lifecycle
 // ---------------------------------------------------------------------------
 
-// L-value form: parser takes ownership of (data, data_size). On
-// failure we still free data -- the caller is released by the call.
-bool pdb_file_open_from_memory(PdbFile *out, u8 *data, size data_size, Allocator *alloc) {
-    if (!out || !data || !alloc) {
-        LOG_ERROR("PdbFileOpenFromMemory: NULL argument");
-        if (data && alloc) {
-            AllocatorFree(alloc, data);
-        }
-        return false;
+// L-value form. `data` is `u8 **` -- ownership of the pointer moves
+// from caller to parser. On exit `*data == NULL` (success or failure).
+bool pdb_file_open_from_memory(PdbFile *out, u8 **data, size data_size, Allocator *alloc) {
+    if (!out || !data || !*data || !alloc) {
+        LOG_FATAL("PdbFileOpenFromMemory: NULL argument (contract violation)");
     }
+    u8 *taken = *data;
+    *data     = NULL;
+
     MemSet(out, 0, sizeof(*out));
     out->allocator = alloc;
-    out->data      = data;
+    out->data      = taken;
     out->data_size = data_size;
     out->functions = VecInitT(out->functions, alloc);
 
@@ -674,11 +673,10 @@ fail:
     return false;
 }
 
-// R-value form: allocate, copy, hand to the L-form.
+// R-value form: allocate, copy, hand `&copy` to the L-form.
 bool pdb_file_open_from_memory_copy(PdbFile *out, const u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
-        LOG_ERROR("PdbFileOpenFromMemoryCopy: NULL argument");
-        return false;
+        LOG_FATAL("PdbFileOpenFromMemoryCopy: NULL argument (contract violation)");
     }
     u8 *copy = (u8 *)AllocatorAlloc(alloc, data_size, false);
     if (!copy) {
@@ -686,13 +684,12 @@ bool pdb_file_open_from_memory_copy(PdbFile *out, const u8 *data, size data_size
         return false;
     }
     MemCopy(copy, data, data_size);
-    return pdb_file_open_from_memory(out, copy, data_size, alloc);
+    return pdb_file_open_from_memory(out, &copy, data_size, alloc);
 }
 
 bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc) {
     if (!out || !path || !alloc) {
-        LOG_ERROR("PdbFileOpen: NULL argument");
-        return false;
+        LOG_FATAL("PdbFileOpen: NULL argument (contract violation)");
     }
     File f = FileOpen(path, "rb");
     if (!FileIsValid(&f)) {
@@ -713,7 +710,7 @@ bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc) {
     data.length    = 0;
     data.capacity  = 0;
     data.allocator = NULL;
-    return pdb_file_open_from_memory(out, buf, buf_n, alloc);
+    return pdb_file_open_from_memory(out, &buf, buf_n, alloc);
 }
 
 void PdbFileDeinit(PdbFile *self) {

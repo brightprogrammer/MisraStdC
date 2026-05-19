@@ -139,23 +139,26 @@ bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc);
 /// Open and parse a PDB from an in-memory byte range -- **L-value /
 /// ownership-transfer form** (mirrors `VecInsertL`).
 ///
-/// Caller hands `(data, data_size)` to the parser. After this call
-/// the parser owns the pointer and frees it through `alloc` on
-/// `PdbFileDeinit`; on failure the parser still frees `data`. Caller
-/// must not free or touch `data` afterwards. `alloc` MUST be the
-/// allocator that produced `data`.
+/// `data` is `u8 **`: ownership is moving from caller to parser. On
+/// entry `*data` is the caller's buffer (allocated through `alloc`);
+/// on exit (success OR failure) `*data == NULL`. Calling code:
 ///
-/// SUCCESS : Returns true; `out` owns `data`.
-/// FAILURE : Returns false; `data` is freed through `alloc`; `out`
-///           is left zeroed.
+///   u8 *buf = my_buffer;
+///   PdbFileOpenFromMemory(&pdb, &buf, n, &alloc);
+///   // buf == NULL afterwards.
+///
+/// SUCCESS : Returns true; `out` owns the bytes; `*data == NULL`.
+/// FAILURE : Returns false; the bytes have been freed through `alloc`;
+///           `*data == NULL`; `out` is left zeroed.
 ///
 /// TAGS: Parser, PDB, Memory, Ownership
 ///
-bool pdb_file_open_from_memory(PdbFile *out, u8 *data, size data_size, Allocator *alloc);
-#define PdbFileOpenFromMemory(...)                    MISRA_OVERLOAD(PdbFileOpenFromMemory, __VA_ARGS__)
-#define PdbFileOpenFromMemory_3(out, data, data_size) pdb_file_open_from_memory((out), (data), (data_size), MisraScope)
-#define PdbFileOpenFromMemory_4(out, data, data_size, alloc)                                                           \
-    pdb_file_open_from_memory((out), (data), (data_size), ALLOCATOR_OF(alloc))
+bool pdb_file_open_from_memory(PdbFile *out, u8 **data, size data_size, Allocator *alloc);
+#define PdbFileOpenFromMemory(...) MISRA_OVERLOAD(PdbFileOpenFromMemory, __VA_ARGS__)
+#define PdbFileOpenFromMemory_3(out, dataref, data_size)                                                               \
+    pdb_file_open_from_memory((out), (dataref), (data_size), MisraScope)
+#define PdbFileOpenFromMemory_4(out, dataref, data_size, alloc)                                                        \
+    pdb_file_open_from_memory((out), (dataref), (data_size), ALLOCATOR_OF(alloc))
 
 ///
 /// Open and parse a PDB from an in-memory byte range -- **R-value /

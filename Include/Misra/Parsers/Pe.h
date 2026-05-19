@@ -141,23 +141,26 @@ bool pe_file_open(PeFile *out, const char *path, Allocator *alloc);
 /// Parse a PE image from an in-memory byte range -- **L-value /
 /// ownership-transfer form** (mirrors `VecInsertL`).
 ///
-/// Caller hands `(data, data_size)` to the parser. After this call
-/// the parser owns the pointer and frees it through `alloc` on
-/// `PeFileDeinit`; on failure the parser still frees `data` before
-/// returning. Caller must not free or touch `data` afterwards.
-/// `alloc` MUST be the allocator that produced `data`.
+/// `data` is `u8 **`: ownership is moving from caller to parser. On
+/// entry `*data` is the caller's buffer (allocated through `alloc`);
+/// on exit (success OR failure) `*data == NULL`. Calling code:
 ///
-/// SUCCESS : Returns true; `out` owns `data`.
-/// FAILURE : Returns false; `data` is freed through `alloc`; `out`
-///           is left zeroed.
+///   u8 *buf = my_buffer;
+///   PeFileOpenFromMemory(&pe, &buf, n, &alloc);
+///   // buf == NULL afterwards.
+///
+/// SUCCESS : Returns true; `out` owns the bytes; `*data == NULL`.
+/// FAILURE : Returns false; the bytes have been freed through `alloc`;
+///           `*data == NULL`; `out` is left zeroed.
 ///
 /// TAGS: Parser, PE, Memory, Ownership
 ///
-bool pe_file_open_from_memory(PeFile *out, u8 *data, size data_size, Allocator *alloc);
-#define PeFileOpenFromMemory(...)                    MISRA_OVERLOAD(PeFileOpenFromMemory, __VA_ARGS__)
-#define PeFileOpenFromMemory_3(out, data, data_size) pe_file_open_from_memory((out), (data), (data_size), MisraScope)
-#define PeFileOpenFromMemory_4(out, data, data_size, alloc)                                                            \
-    pe_file_open_from_memory((out), (data), (data_size), ALLOCATOR_OF(alloc))
+bool pe_file_open_from_memory(PeFile *out, u8 **data, size data_size, Allocator *alloc);
+#define PeFileOpenFromMemory(...) MISRA_OVERLOAD(PeFileOpenFromMemory, __VA_ARGS__)
+#define PeFileOpenFromMemory_3(out, dataref, data_size)                                                                \
+    pe_file_open_from_memory((out), (dataref), (data_size), MisraScope)
+#define PeFileOpenFromMemory_4(out, dataref, data_size, alloc)                                                         \
+    pe_file_open_from_memory((out), (dataref), (data_size), ALLOCATOR_OF(alloc))
 
 ///
 /// Parse a PE image from an in-memory byte range -- **R-value /

@@ -484,19 +484,18 @@ static void pe_decode_codeview(PeContext *ctx) {
 // Public API
 // ---------------------------------------------------------------------------
 
-// L-value form: parser takes ownership of (data, data_size). On
-// failure we still free data -- the caller is released by the call.
-bool pe_file_open_from_memory(PeFile *out, u8 *data, size data_size, Allocator *alloc) {
-    if (!out || !data || !alloc) {
-        LOG_ERROR("PeFileOpenFromMemory: NULL argument");
-        if (data && alloc) {
-            AllocatorFree(alloc, data);
-        }
-        return false;
+// L-value form. `data` is `u8 **` -- ownership of the pointer moves
+// from caller to parser. On exit `*data == NULL` (success or failure).
+bool pe_file_open_from_memory(PeFile *out, u8 **data, size data_size, Allocator *alloc) {
+    if (!out || !data || !*data || !alloc) {
+        LOG_FATAL("PeFileOpenFromMemory: NULL argument (contract violation)");
     }
+    u8 *taken = *data;
+    *data     = NULL;
+
     MemSet(out, 0, sizeof(*out));
     out->allocator = alloc;
-    out->data      = data;
+    out->data      = taken;
     out->data_size = data_size;
     // Initialize the sections vec up-front so PeFileDeinit on a
     // failed-parse path doesn't trip ValidateVec.
@@ -504,7 +503,7 @@ bool pe_file_open_from_memory(PeFile *out, u8 *data, size data_size, Allocator *
 
     PeContext ctx = {
         .out  = out,
-        .file = BufIterFromMemory(data, data_size),
+        .file = BufIterFromMemory(taken, data_size),
     };
 
     if (!pe_decode_dos(&ctx))
@@ -524,11 +523,10 @@ fail:
     return false;
 }
 
-// R-value form: allocate, copy, hand to the L-form.
+// R-value form: allocate, copy, hand `&copy` to the L-form.
 bool pe_file_open_from_memory_copy(PeFile *out, const u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
-        LOG_ERROR("PeFileOpenFromMemoryCopy: NULL argument");
-        return false;
+        LOG_FATAL("PeFileOpenFromMemoryCopy: NULL argument (contract violation)");
     }
     u8 *copy = (u8 *)AllocatorAlloc(alloc, data_size, false);
     if (!copy) {
@@ -536,13 +534,12 @@ bool pe_file_open_from_memory_copy(PeFile *out, const u8 *data, size data_size, 
         return false;
     }
     MemCopy(copy, data, data_size);
-    return pe_file_open_from_memory(out, copy, data_size, alloc);
+    return pe_file_open_from_memory(out, &copy, data_size, alloc);
 }
 
 bool pe_file_open(PeFile *out, const char *path, Allocator *alloc) {
     if (!out || !path || !alloc) {
-        LOG_ERROR("PeFileOpen: NULL argument");
-        return false;
+        LOG_FATAL("PeFileOpen: NULL argument (contract violation)");
     }
     File f = FileOpen(path, "rb");
     if (!FileIsValid(&f)) {
@@ -563,7 +560,7 @@ bool pe_file_open(PeFile *out, const char *path, Allocator *alloc) {
     data.length    = 0;
     data.capacity  = 0;
     data.allocator = NULL;
-    return pe_file_open_from_memory(out, buf, buf_n, alloc);
+    return pe_file_open_from_memory(out, &buf, buf_n, alloc);
 }
 
 void PeFileDeinit(PeFile *self) {

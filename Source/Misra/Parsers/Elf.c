@@ -403,24 +403,24 @@ static void elf_decode_debug_metadata(ElfFile *self) {
 // Open / close
 // ---------------------------------------------------------------------------
 
-// L-value form (ownership transfer). Mirrors VecInsertL semantics: the
-// caller's `data` pointer is consumed -- on success the parser holds
-// it, on failure the parser frees it. Either way the caller is
-// contractually done with `data` after this call.
-bool elf_file_open_from_memory(ElfFile *out, u8 *data, size data_size, Allocator *alloc) {
-    if (!out || !data || !alloc) {
-        LOG_ERROR("ElfFileOpenFromMemory: NULL argument");
-        if (data && alloc) {
-            // Caller already gave up ownership when they called us.
-            // Honour the contract: we free what they handed over even
-            // on the NULL-out path.
-            AllocatorFree(alloc, data);
-        }
-        return false;
+// L-value form. Signature takes `u8 **` because ownership of the
+// pointer is moving from caller to parser. On entry `*data` is the
+// caller's buffer; on exit (success OR failure) `*data == NULL` so a
+// use-after-transfer at the call site reads NULL instead of a stale
+// pointer.
+bool elf_file_open_from_memory(ElfFile *out, u8 **data, size data_size, Allocator *alloc) {
+    if (!out || !data || !*data || !alloc) {
+        LOG_FATAL("ElfFileOpenFromMemory: NULL argument (contract violation)");
     }
+    // Take ownership: capture the pointer, then immediately null the
+    // caller's view. Anything that fails past this point cleans up
+    // via ElfFileDeinit, so the buffer never leaks.
+    u8 *taken = *data;
+    *data     = NULL;
+
     MemSet(out, 0, sizeof(*out));
     out->allocator       = alloc;
-    out->data            = data;
+    out->data            = taken;
     out->data_size       = data_size;
     out->sections        = VecInitT(out->sections, alloc);
     out->symbols         = VecInitT(out->symbols, alloc);
@@ -436,19 +436,14 @@ bool elf_file_open_from_memory(ElfFile *out, u8 *data, size data_size, Allocator
     return true;
 
 fail:
-    // ElfFileDeinit frees data through allocator, then zeroes the
-    // struct -- matches the L-form contract that we own data even on
-    // failure.
     ElfFileDeinit(out);
     return false;
 }
 
-// R-value form (copy). Mirrors VecInsertR: allocate an independent
-// copy, parse into it. Caller's `data` is never retained.
+// R-value form (copy). Caller's `data` is never retained.
 bool elf_file_open_from_memory_copy(ElfFile *out, const u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
-        LOG_ERROR("ElfFileOpenFromMemoryCopy: NULL argument");
-        return false;
+        LOG_FATAL("ElfFileOpenFromMemoryCopy: NULL argument (contract violation)");
     }
     u8 *copy = (u8 *)AllocatorAlloc(alloc, data_size, false);
     if (!copy) {
@@ -456,15 +451,15 @@ bool elf_file_open_from_memory_copy(ElfFile *out, const u8 *data, size data_size
         return false;
     }
     MemCopy(copy, data, data_size);
-    // Hand the copy to the L-form. If parsing fails, the L-form frees
-    // through `alloc` for us.
-    return elf_file_open_from_memory(out, copy, data_size, alloc);
+    // Hand `&copy` to the L-form -- it consumes the local and nulls
+    // it. The local goes out of scope right after; the NULL is a
+    // contract artifact, not observed by anyone.
+    return elf_file_open_from_memory(out, &copy, data_size, alloc);
 }
 
 bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc) {
     if (!out || !path || !alloc) {
-        LOG_ERROR("ElfFileOpen: NULL argument");
-        return false;
+        LOG_FATAL("ElfFileOpen: NULL argument (contract violation)");
     }
     File f = FileOpen(path, "rb");
     if (!FileIsValid(&f)) {
@@ -488,7 +483,7 @@ bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc) {
     data.length    = 0;
     data.capacity  = 0;
     data.allocator = NULL;
-    return elf_file_open_from_memory(out, buf, buf_n, alloc);
+    return elf_file_open_from_memory(out, &buf, buf_n, alloc);
 }
 
 void ElfFileDeinit(ElfFile *self) {
