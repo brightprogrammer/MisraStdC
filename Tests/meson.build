@@ -91,6 +91,14 @@ alloc_debug_tests = [
     ['AllocDebug', 'Std/AllocDebug.c'],
 ]
 
+iter_tests = [
+    ['Iter', 'Std/Iter.c'],
+]
+
+iter_deadend_tests = [
+    ['Iter.Deadend', 'Std/Iter.Deadend.c'],
+]
+
 str_tests = [
     ['Str.Type', 'Std/Str.Type.c'],
     ['Str.Init', 'Std/Str.Init.c'],
@@ -674,7 +682,7 @@ endif
 foreach test_info : str_tests
     test_name = test_info[0]
     test_src = test_info[1]
-    
+
     test_exe = executable(
         test_name,
         files(test_src),
@@ -684,9 +692,26 @@ foreach test_info : str_tests
         include_directories: inc_misra,
         install: false
     )
-    
+
     test(test_name, test_exe)
-endforeach 
+endforeach
+
+foreach test_info : iter_tests + iter_deadend_tests
+    test_name = test_info[0]
+    test_src = test_info[1]
+
+    test_exe = executable(
+        test_name,
+        files(test_src),
+        link_with: [misra_std],
+        dependencies: [test_util_dep],
+        c_args: test_args,
+        include_directories: inc_misra,
+        install: false
+    )
+
+    test(test_name, test_exe)
+endforeach
 
 foreach test_info : vec_tests
     test_name = test_info[0]

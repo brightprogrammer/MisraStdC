@@ -9,6 +9,7 @@
 // Include test utilities
 #include "../Util/TestRunner.h"
 
+
 // --- Allocator-aware overrides of JR_OBJ/JR_STR/JR_STR_KV ---
 // These rewrite the JSON read path to use explicit JReadString
 // with a local `DefaultAllocator alloc` available in scope.
@@ -21,28 +22,29 @@
         }                                                                                                              \
         StrIter saved_si = si;                                                                                         \
         si               = JSkipWhitespace(si);                                                                        \
-        if (StrIterPeek(&si) != '{') {                                                                                 \
+        char jr_c;                                                                                                     \
+        if (!StrIterPeek(&si, &jr_c) || jr_c != '{') {                                                                 \
             LOG_ERROR("Invalid object start. Expected '{'.");                                                          \
             si = saved_si;                                                                                             \
             break;                                                                                                     \
         }                                                                                                              \
-        StrIterNext(&si);                                                                                              \
+        StrIterMustNext(&si);                                                                                          \
         si = JSkipWhitespace(si);                                                                                      \
         StrIter read_si_;                                                                                              \
         bool    expect_comma = false;                                                                                  \
         bool    failed       = false;                                                                                  \
-        while (StrIterPeek(&si) && StrIterPeek(&si) != '}') {                                                          \
+        while (StrIterPeek(&si, &jr_c) && jr_c != '}') {                                                               \
             if (expect_comma) {                                                                                        \
-                if (StrIterPeek(&si) != ',') {                                                                         \
+                if (jr_c != ',') {                                                                                     \
                     LOG_ERROR("Expected ',' after key/value pairs in object. Invalid JSON object.");                   \
                     failed = true;                                                                                     \
                     si     = saved_si;                                                                                 \
                     break;                                                                                             \
                 }                                                                                                      \
-                StrIterNext(&si);                                                                                      \
+                StrIterMustNext(&si);                                                                                  \
                 si = JSkipWhitespace(si);                                                                              \
             }                                                                                                          \
-            Str key = StrInit(&alloc);                                                                                 \
+            Str key  = StrInit(&alloc);                                                                                \
             read_si_ = JReadString(si, &key);                                                                          \
             if (read_si_.pos == si.pos) {                                                                              \
                 LOG_ERROR("Failed to read string key in object. Invalid JSON");                                        \
@@ -53,15 +55,15 @@
             }                                                                                                          \
             si = read_si_;                                                                                             \
             si = JSkipWhitespace(si);                                                                                  \
-            if (StrIterPeek(&si) != ':') {                                                                             \
+            if (!StrIterPeek(&si, &jr_c) || jr_c != ':') {                                                             \
                 LOG_ERROR("Expected ':' after key string. Failed to read JSON");                                       \
                 StrDeinit(&key);                                                                                       \
                 failed = true;                                                                                         \
                 si     = saved_si;                                                                                     \
                 break;                                                                                                 \
             }                                                                                                          \
-            StrIterNext(&si);                                                                                          \
-            si = JSkipWhitespace(si);                                                                                  \
+            StrIterMustNext(&si);                                                                                      \
+            si                     = JSkipWhitespace(si);                                                              \
             StrIter si_before_read = si;                                                                               \
             { reader }                                                                                                 \
             if (si_before_read.pos == si.pos) {                                                                        \
@@ -76,18 +78,17 @@
                 si = read_si2;                                                                                         \
             }                                                                                                          \
             StrDeinit(&key);                                                                                           \
-            si = JSkipWhitespace(si);                                                                                  \
+            si           = JSkipWhitespace(si);                                                                        \
             expect_comma = true;                                                                                       \
         }                                                                                                              \
         if (!failed) {                                                                                                 \
-            char c = StrIterPeek(&si);                                                                                 \
-            if (c != '}') {                                                                                            \
-                LOG_ERROR("Expected end of object '}' but found '{c}'", c);                                            \
+            if (!StrIterPeek(&si, &jr_c) || jr_c != '}') {                                                             \
+                LOG_ERROR("Expected end of object '}' but found '{c}'", jr_c);                                         \
                 failed = true;                                                                                         \
                 si     = saved_si;                                                                                     \
                 break;                                                                                                 \
             }                                                                                                          \
-            StrIterNext(&si);                                                                                          \
+            StrIterMustNext(&si);                                                                                      \
         }                                                                                                              \
     } while (0)
 
@@ -220,8 +221,9 @@ bool test_basic_iterator_functionality(void) {
         success = false;
     }
 
-    if (StrIterPeek(&si) != '{') {
-        WriteFmt("[DEBUG] Peek check failed: expected '{', got '{c}'\n", StrIterPeek(&si));
+    char c;
+    if (!StrIterPeek(&si, &c) || c != '{') {
+        WriteFmt("[DEBUG] Peek check failed: expected '{', got '{c}'\n", c);
         success = false;
     }
 
@@ -292,8 +294,9 @@ bool test_two_level_nesting(void) {
 
     bool success = true;
     Str  json    = StrInitFromZstr(
-        "{\"user\": {\"id\": 123, \"profile\": {\"name\": \"Alice\", \"age\": 30}}, \"status\": \"active\"}"
-    , &alloc);
+        "{\"user\": {\"id\": 123, \"profile\": {\"name\": \"Alice\", \"age\": 30}}, \"status\": \"active\"}",
+        &alloc
+    );
     StrIter si = StrIterFromStr(json);
 
     struct {
@@ -365,8 +368,9 @@ bool test_three_level_nesting(void) {
     bool success = true;
     Str  json    = StrInitFromZstr(
         "{\"company\": {\"departments\": {\"engineering\": {\"head\": \"John\", \"count\": 25, \"budget\": 150000.0}}, "
-            "\"name\": \"TechCorp\"}}"
-    , &alloc);
+            "\"name\": \"TechCorp\"}}",
+        &alloc
+    );
     StrIter si = StrIterFromStr(json);
 
     struct {
@@ -447,8 +451,9 @@ bool test_dynamic_key_parsing(void) {
     bool success = true;
     Str  json    = StrInitFromZstr(
         "{\"functions\": {\"12345\": {\"67890\": {\"distance\": 0.85, \"name\": \"main\"}}, \"54321\": {\"98765\": "
-            "{\"distance\": 0.92, \"name\": \"helper\"}}}}"
-    , &alloc);
+            "{\"distance\": 0.92, \"name\": \"helper\"}}}}",
+        &alloc
+    );
     StrIter si = StrIterFromStr(json);
 
     typedef Vec(AnnSymbol) Symbols;
@@ -551,8 +556,9 @@ bool test_complex_api_response(void) {
             "\"nearest_neighbor_analysis_id\": 999, \"nearest_neighbor_binary_id\": 888, "
             "\"nearest_neighbor_analysis_name\": \"test_analysis\", \"nearest_neighbor_function_name\": \"main_func\", "
             "\"nearest_neighbor_sha_256_hash\": \"abc123\", \"nearest_neighbor_debug\": true, "
-            "\"nearest_neighbor_function_name_mangled\": \"_Z4main\"}}}}"
-    , &alloc);
+            "\"nearest_neighbor_function_name_mangled\": \"_Z4main\"}}}}",
+        &alloc
+    );
     StrIter si = StrIterFromStr(json);
 
     ApiResponse response = {false, StrInit(&alloc), VecInitWithDeepCopy(NULL, AnnSymbolDeinit, &alloc)};
@@ -697,8 +703,8 @@ bool test_function_info_parsing(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
     bool    success = true;
-    Str     json    = StrInitFromZstr("{\"id\": 12345, \"name\": \"test_func\", \"size\": 1024, \"vaddr\": 4096}", &alloc);
-    StrIter si      = StrIterFromStr(json);
+    Str     json = StrInitFromZstr("{\"id\": 12345, \"name\": \"test_func\", \"size\": 1024, \"vaddr\": 4096}", &alloc);
+    StrIter si   = StrIterFromStr(json);
 
     FunctionInfo info = {0};
     info.name         = StrInit(&alloc);
@@ -787,8 +793,9 @@ bool test_search_results_with_tags(void) {
     bool success = true;
     Str  json    = StrInitFromZstr(
         "{\"binary_id\": 888, \"binary_name\": \"test_binary\", \"analysis_id\": 999, \"sha256\": \"abc123\", "
-            "\"created_at\": \"2024-04-01\", \"model_id\": 12345, \"model_name\": \"test_model\", \"owned_by\": \"user1\"}"
-    , &alloc);
+            "\"created_at\": \"2024-04-01\", \"model_id\": 12345, \"model_name\": \"test_model\", \"owned_by\": \"user1\"}",
+        &alloc
+    );
     StrIter si = StrIterFromStr(json);
 
     SearchResult result = {0};
@@ -879,8 +886,9 @@ bool test_conditional_parsing(void) {
             "\"nearest_neighbor_analysis_id\": 999, \"nearest_neighbor_binary_id\": 888, "
             "\"nearest_neighbor_analysis_name\": \"test_analysis\", \"nearest_neighbor_function_name\": \"main_func\", "
             "\"nearest_neighbor_sha_256_hash\": \"abc123\", \"nearest_neighbor_debug\": true, "
-            "\"nearest_neighbor_function_name_mangled\": \"_Z4main\"}}}}"
-    , &alloc);
+            "\"nearest_neighbor_function_name_mangled\": \"_Z4main\"}}}}",
+        &alloc
+    );
     StrIter si = StrIterFromStr(json);
 
     ApiResponse response = {false, StrInit(&alloc), VecInitWithDeepCopy(NULL, AnnSymbolDeinit, &alloc)};
@@ -1051,8 +1059,9 @@ bool test_status_response_pattern(void) {
             "\"nearest_neighbor_analysis_id\": 999, \"nearest_neighbor_binary_id\": 888, "
             "\"nearest_neighbor_analysis_name\": \"test_analysis\", \"nearest_neighbor_function_name\": \"main_func\", "
             "\"nearest_neighbor_sha_256_hash\": \"abc123\", \"nearest_neighbor_debug\": true, "
-            "\"nearest_neighbor_function_name_mangled\": \"_Z4main\"}}}}"
-    , &alloc);
+            "\"nearest_neighbor_function_name_mangled\": \"_Z4main\"}}}}",
+        &alloc
+    );
     StrIter si = StrIterFromStr(json);
 
     ApiResponse response = {false, StrInit(&alloc), VecInitWithDeepCopy(NULL, AnnSymbolDeinit, &alloc)};
