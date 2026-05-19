@@ -88,7 +88,7 @@ bool DnsBuildQuery(DnsWireBuf *out, u16 id, const char *name, DnsType type) {
 // with what callers pass into DnsBuildQuery).
 //
 // Returns false on cycles, oversized names, or out-of-bounds.
-static bool decode_name(ByteIter *it, Str *out_name) {
+static bool decode_name(BufIter *it, Str *out_name) {
     const u32 MAX_HOPS  = 64;
     u32       hops      = 0;
     bool      jumped    = false;
@@ -158,7 +158,7 @@ static bool decode_name(ByteIter *it, Str *out_name) {
 }
 
 // Decode one resource record. Advances the iter past the record.
-static bool decode_record(ByteIter *it, DnsRecord *rec, Allocator *alloc) {
+static bool decode_record(BufIter *it, DnsRecord *rec, Allocator *alloc) {
     rec->name   = StrInit(alloc);
     rec->target = StrInit(alloc);
     rec->rdata  = VecInitT(rec->rdata, alloc);
@@ -211,7 +211,7 @@ static bool decode_record(ByteIter *it, DnsRecord *rec, Allocator *alloc) {
             // The name lives inside the rdata window; decode_name may
             // follow compression pointers back into the whole message,
             // so we use a sub-iter cloned from the main one.
-            ByteIter sub = *it;
+            BufIter sub = *it;
             if (!decode_name(&sub, &rec->target)) {
                 return false;
             }
@@ -232,7 +232,7 @@ static bool decode_record(ByteIter *it, DnsRecord *rec, Allocator *alloc) {
 // Top-level parse
 // ---------------------------------------------------------------------------
 
-static bool decode_record_list(ByteIter *it, u16 count, DnsRecords *out, Allocator *alloc) {
+static bool decode_record_list(BufIter *it, u16 count, DnsRecords *out, Allocator *alloc) {
     for (u16 i = 0; i < count; ++i) {
         DnsRecord rec = {0};
         if (!decode_record(it, &rec, alloc)) {
@@ -257,8 +257,8 @@ bool DnsParseResponse(DnsResponse *out, const u8 *buf, u64 len, Allocator *alloc
         LOG_ERROR("DNS response shorter than header (got {} bytes, need 12)", len);
         return false;
     }
-    ByteIter it = ByteIterFromMemory(buf, len);
-    u16      flags, qd, an, ns, ar;
+    BufIter it = BufIterFromMemory(buf, len);
+    u16     flags, qd, an, ns, ar;
     if (!BufReadFmt(&it, "{>2r}{>2r}{>2r}{>2r}{>2r}{>2r}", out->id, flags, qd, an, ns, ar)) {
         return false;
     }

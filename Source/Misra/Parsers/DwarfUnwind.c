@@ -58,7 +58,7 @@ enum {
 // Read an encoded pointer from `c` per `encoding`. `here_vaddr` is the
 // file-relative virtual address of `c->p` (used by PCREL). On success
 // `*out` receives the decoded absolute file-relative VA.
-static bool decode_eh_ptr(ByteIter *c, u8 encoding, u64 here_vaddr, u64 *out) {
+static bool decode_eh_ptr(BufIter *c, u8 encoding, u64 here_vaddr, u64 *out) {
     if (encoding == DW_EH_PE_OMIT) {
         return false;
     }
@@ -179,7 +179,7 @@ static u64 eh_byte_vaddr(const u8 *section_data_ptr, u64 section_base_vaddr, con
 // CIE / FDE record parse
 // ---------------------------------------------------------------------------
 
-static bool parse_cie(ByteIter *body, u64 cie_offset, DwarfCie *out) {
+static bool parse_cie(BufIter *body, u64 cie_offset, DwarfCie *out) {
     MemSet(out, 0, sizeof(*out));
     out->offset = cie_offset;
 
@@ -280,7 +280,7 @@ static bool parse_cie(ByteIter *body, u64 cie_offset, DwarfCie *out) {
 }
 
 static bool parse_fde(
-    ByteIter       *body,
+    BufIter        *body,
     const u8       *body_start,
     u64             cie_offset,
     const DwarfCfi *cfi,
@@ -352,7 +352,7 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const ElfFile *elf, Allocator *allo
 
     const u8 *section_data = elf->data + eh->offset;
 
-    ByteIter section_cur = ByteIterFromMemory(section_data, eh->size);
+    BufIter section_cur = BufIterFromMemory(section_data, eh->size);
     while (IterRemainingLength(&section_cur) > 0) {
         const u8 *rec_start = section_cur.data + section_cur.pos;
         u32       length32  = 0;
@@ -385,7 +385,7 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const ElfFile *elf, Allocator *allo
             DwarfCie cie;
             // Body iter starts just after the id field (since parse_cie
             // doesn't re-read id) and spans the remainder of the record.
-            ByteIter body = ByteIterFromMemory(section_cur.data + section_cur.pos, length32 - 4);
+            BufIter body = BufIterFromMemory(section_cur.data + section_cur.pos, length32 - 4);
             if (parse_cie(&body, cie_offset, &cie)) {
                 if (!VecPushBackR(&out->cies, cie)) {
                     DwarfCfiDeinit(out);
@@ -398,7 +398,7 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const ElfFile *elf, Allocator *allo
             u64      id_field_off = (u64)(section_cur.pos - 4);
             u64      cie_offset   = id_field_off - id;
             DwarfFde fde;
-            ByteIter body = ByteIterFromMemory(section_cur.data + section_cur.pos, length32 - 4);
+            BufIter  body = BufIterFromMemory(section_cur.data + section_cur.pos, length32 - 4);
             if (parse_fde(&body, rec_start, cie_offset, out, section_data, eh->addr, &fde)) {
                 if (!VecPushBackR(&out->fdes, fde)) {
                     DwarfCfiDeinit(out);
@@ -503,7 +503,7 @@ static void cfi_vm_init(CfiVm *vm, const DwarfCie *cie, u64 fde_pc_begin, u8 ra_
 
 // One instruction. `stop_at` lets the caller bail mid-stream once an
 // advance_loc has covered the requested target PC.
-static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
+static bool cfi_vm_step(CfiVm *vm, BufIter *cur, u64 stop_at, bool *stop_now) {
     u8 op = 0;
     if (!BufReadU8(cur, &op))
         return false;
@@ -782,8 +782,8 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
 }
 
 static bool cfi_vm_run(CfiVm *vm, const u8 *insns, u64 insns_size, u64 stop_at) {
-    ByteIter cur      = ByteIterFromMemory(insns, insns_size);
-    bool     stop_now = false;
+    BufIter cur      = BufIterFromMemory(insns, insns_size);
+    bool    stop_now = false;
     while (IterRemainingLength(&cur) > 0) {
         if (!cfi_vm_step(vm, &cur, stop_at, &stop_now))
             return false;

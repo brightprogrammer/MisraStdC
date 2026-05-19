@@ -96,14 +96,14 @@ bool test_buf_read_round_trip(void) {
     BufWriteU32BE(&b, 0x12345678);
     BufWriteU64LE(&b, 0xFEEDFACECAFEBEEFull);
 
-    ByteIter it = ByteIterFromBuf(&b);
-    u16      v16;
-    u32      v32;
-    u64      v64;
-    bool     ok = BufReadU16LE(&it, &v16) && v16 == 0xABCD;
-    ok          = ok && BufReadU32BE(&it, &v32) && v32 == 0x12345678;
-    ok          = ok && BufReadU64LE(&it, &v64) && v64 == 0xFEEDFACECAFEBEEFull;
-    ok          = ok && IterRemainingLength(&it) == 0;
+    BufIter it = BufIterFromBuf(&b);
+    u16     v16;
+    u32     v32;
+    u64     v64;
+    bool    ok = BufReadU16LE(&it, &v16) && v16 == 0xABCD;
+    ok         = ok && BufReadU32BE(&it, &v32) && v32 == 0x12345678;
+    ok         = ok && BufReadU64LE(&it, &v64) && v64 == 0xFEEDFACECAFEBEEFull;
+    ok         = ok && IterRemainingLength(&it) == 0;
 
     BufDeinit(&b);
     DefaultAllocatorDeinit(&alloc);
@@ -116,12 +116,12 @@ bool test_buf_read_leb128_round_trip(void) {
     BufWriteULeb128(&b, 624485);
     BufWriteSLeb128(&b, -123456);
 
-    ByteIter it = ByteIterFromBuf(&b);
-    u64      uv;
-    i64      sv;
-    bool     ok = BufReadULeb128(&it, &uv) && uv == 624485;
-    ok          = ok && BufReadSLeb128(&it, &sv) && sv == -123456;
-    ok          = ok && IterRemainingLength(&it) == 0;
+    BufIter it = BufIterFromBuf(&b);
+    u64     uv;
+    i64     sv;
+    bool    ok = BufReadULeb128(&it, &uv) && uv == 624485;
+    ok         = ok && BufReadSLeb128(&it, &sv) && sv == -123456;
+    ok         = ok && IterRemainingLength(&it) == 0;
 
     BufDeinit(&b);
     DefaultAllocatorDeinit(&alloc);
@@ -134,7 +134,7 @@ bool test_buf_read_cstr_round_trip(void) {
     BufWriteCstr(&b, "hello");
     BufWriteCstr(&b, "world");
 
-    ByteIter    it = ByteIterFromBuf(&b);
+    BufIter     it = BufIterFromBuf(&b);
     const char *s1 = BufReadCstr(&it);
     const char *s2 = BufReadCstr(&it);
     bool        ok = s1 && s2 && s1[0] == 'h' && s2[0] == 'w';
@@ -217,13 +217,13 @@ bool test_buf_read_fmt(void) {
     Buf              b     = BufInit(&alloc);
     BufAppendFmt(&b, "{<2r}{>4r}{<8r}", (u16)0x1234, (u32)0xDEADBEEF, (u64)0x0102030405060708ull);
 
-    ByteIter it = ByteIterFromBuf(&b);
-    u16      v16;
-    u32      v32;
-    u64      v64;
-    bool     ok = BufReadFmt(&it, "{<2r}{>4r}{<8r}", v16, v32, v64);
-    ok          = ok && v16 == 0x1234 && v32 == 0xDEADBEEF && v64 == 0x0102030405060708ull;
-    ok          = ok && IterRemainingLength(&it) == 0;
+    BufIter it = BufIterFromBuf(&b);
+    u16     v16;
+    u32     v32;
+    u64     v64;
+    bool    ok = BufReadFmt(&it, "{<2r}{>4r}{<8r}", v16, v32, v64);
+    ok         = ok && v16 == 0x1234 && v32 == 0xDEADBEEF && v64 == 0x0102030405060708ull;
+    ok         = ok && IterRemainingLength(&it) == 0;
 
     BufDeinit(&b);
     DefaultAllocatorDeinit(&alloc);
@@ -235,11 +235,11 @@ bool test_buf_read_fmt_truncated_atomic(void) {
     Buf              b     = BufInit(&alloc);
     BufAppendFmt(&b, "{<2r}", (u16)0xABCD); // only 2 bytes; reader wants 6
 
-    ByteIter it    = ByteIterFromBuf(&b);
-    size     entry = it.pos;
-    u16      v16   = 0;
-    u32      v32   = 0;
-    bool     ok    = !BufReadFmt(&it, "{<2r}{<4r}", v16, v32);
+    BufIter it    = BufIterFromBuf(&b);
+    size    entry = it.pos;
+    u16     v16   = 0;
+    u32     v32   = 0;
+    bool    ok    = !BufReadFmt(&it, "{<2r}{<4r}", v16, v32);
     // Atomic rollback: pos restored, output vars left as initialized.
     ok = ok && it.pos == entry && v32 == 0;
 
@@ -250,7 +250,7 @@ bool test_buf_read_fmt_truncated_atomic(void) {
 
 bool test_byte_iter_from_memory(void) {
     const u8 bytes[] = {0xAA, 0xBB, 0xCC};
-    ByteIter it      = ByteIterFromMemory(bytes, 3);
+    BufIter  it      = BufIterFromMemory(bytes, 3);
     u8       v;
     bool     ok = BufReadU8(&it, &v) && v == 0xAA;
     ok          = ok && BufReadU8(&it, &v) && v == 0xBB;

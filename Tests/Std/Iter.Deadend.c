@@ -4,16 +4,16 @@
 
 #include "../Util/TestRunner.h"
 
-typedef Iter(const u8) ByteIter;
+typedef Iter(const u8) BufIter;
 
-static ByteIter from(const u8 *p, size n) {
-    ByteIter it = {.data = p, .length = n, .pos = 0, .alignment = 1, .dir = 1};
+static BufIter from(const u8 *p, size n) {
+    BufIter it = {.data = p, .length = n, .pos = 0, .alignment = 1, .dir = 1};
     return it;
 }
 
 bool deadend_must_read_eof(void) {
     const u8 buf[1] = {1};
-    ByteIter it     = from(buf, 1);
+    BufIter  it     = from(buf, 1);
     u8       v;
     IterRead(&it, &v); // consume sole element
     // Now exhausted - this must abort.
@@ -23,7 +23,7 @@ bool deadend_must_read_eof(void) {
 
 bool deadend_must_peek_out_of_range(void) {
     const u8 buf[1] = {1};
-    ByteIter it     = from(buf, 1);
+    BufIter  it     = from(buf, 1);
     u8       v;
     // pos=0, length=1: peek at +1 is out of range.
     IterMustPeekAt(&it, 1, &v);
@@ -32,7 +32,7 @@ bool deadend_must_peek_out_of_range(void) {
 
 bool deadend_must_move_overflow(void) {
     const u8 buf[3] = {0};
-    ByteIter it     = from(buf, 3);
+    BufIter  it     = from(buf, 3);
     // length=3, dir=+1: move by 4 lands past end.
     IterMustMove(&it, 4);
     return true; // unreachable
@@ -40,7 +40,7 @@ bool deadend_must_move_overflow(void) {
 
 bool deadend_must_next_eof(void) {
     const u8 buf[1] = {0};
-    ByteIter it     = from(buf, 1);
+    BufIter  it     = from(buf, 1);
     u8       v;
     IterRead(&it, &v); // pos=1, exhausted
     IterMustNext(&it);
@@ -49,7 +49,7 @@ bool deadend_must_next_eof(void) {
 
 bool deadend_must_prev_underflow(void) {
     const u8 buf[3] = {0};
-    ByteIter it     = from(buf, 3);
+    BufIter  it     = from(buf, 3);
     // pos=0, dir=+1: prev would land at -1.
     IterMustPrev(&it);
     return true; // unreachable

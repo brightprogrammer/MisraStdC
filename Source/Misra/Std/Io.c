@@ -801,7 +801,7 @@ const char *str_read_fmt(const char *input, const char *fmtstr, TypeSpecificIO *
 
 // ---------------------------------------------------------------------------
 // buf_read_fmt / buf_append_fmt / buf_write_fmt / buf_patch_fmt:
-// formatted binary I/O over a ByteIter (read) or Buf (write/append/patch).
+// formatted binary I/O over a BufIter (read) or Buf (write/append/patch).
 // All four share the same on-disk format vocabulary: `{<Nr}` / `{>Nr}` for
 // raw N-byte LE/BE reads/writes where N is 1/2/4/8. The destination /
 // source variable width must match the spec width exactly.
@@ -812,7 +812,7 @@ const char *str_read_fmt(const char *input, const char *fmtstr, TypeSpecificIO *
 // truncate). Patch validates fit before mutating, then writes in-place.
 // ---------------------------------------------------------------------------
 
-bool buf_read_fmt(ByteIter *iter, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
+bool buf_read_fmt(BufIter *iter, const char *fmtstr, TypeSpecificIO *argv, u64 argc) {
     if (!iter || !fmtstr) {
         LOG_FATAL("buf_read_fmt: NULL iter or fmtstr");
     }
