@@ -138,6 +138,12 @@ i64 file_read_to_str(File *f, Str *out);
 #define FileRead_2(f, out)    file_read_to_str((f), (out))
 #define FileRead_3(f, buf, n) file_read((f), (buf), (n))
 
+// FileGetSize lives in `Sys/Dir.h` -- path-based size query that
+// goes straight to the kernel (open + lseek(SEEK_END) + close, or
+// GetFileSizeEx on Windows). Use it when you have a path; the
+// `file_read_to_str` fast path uses an fd-based equivalent because
+// it already has an open `File *`.
+
 ///
 /// Write up to `n` bytes from `buf`. Same short-write semantics as
 /// FileRead.

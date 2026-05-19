@@ -370,6 +370,28 @@ i32 FileFd(const File *f) {
 // on a single huge realloc when the file turns out tiny.
 #define FILE_READ_CHUNK 4096
 
+// fd-based remaining-size probe used by file_read_to_str. Returns
+// -1 for non-seekable streams (pipes, sockets, /dev/*) where the
+// seek-to-end dance fails -- caller falls back to a grow-loop.
+// (Distinct from `Sys/Dir.c`'s path-based `file_get_size`, which
+// opens its own fd; here we already have an open `File *`.)
+static i64 file_remaining_size(File *f) {
+    i64 here = FileTell(f);
+    if (here < 0) {
+        return -1;
+    }
+    i64 end = FileSeek(f, 0, FILE_SEEK_END);
+    if (end < 0 || end < here) {
+        return -1;
+    }
+    // Restore the read cursor regardless of whether the caller uses
+    // the size.
+    if (FileSeek(f, here, FILE_SEEK_SET) < 0) {
+        return -1;
+    }
+    return end - here;
+}
+
 i64 file_read_to_str(File *f, Str *out) {
     if (!FileIsOpen(f) || !out) {
         return -1;
@@ -378,12 +400,31 @@ i64 file_read_to_str(File *f, Str *out) {
     // backing allocator stays; capacity is reused.
     out->length = 0;
 
+    // Fast path: for seekable files, learn the remaining size up
+    // front and reserve once. The geometric grow-loop below would
+    // otherwise do ~log2(size / FILE_READ_CHUNK) reallocations, each
+    // of which `MemCopy`s the buffer-so-far into a larger one --
+    // 99%+ of wall-clock when called on multi-MB inputs under ASan
+    // (measured: the ELF/DWARF/Backtrace/SymbolResolver tests all
+    // slurp /proc/self/exe through this path).
+    //
+    // Non-seekable streams (pipes, sockets, /dev/*) return -1 from
+    // `file_remaining_size`; the grow-loop below handles them.
+    i64 remaining = file_remaining_size(f);
+    if (remaining > 0) {
+        if (!VecReserve(out, (u64)remaining)) {
+            LOG_ERROR("file_read_to_str: VecReserve failed at size {}", (u64)remaining);
+            return -1;
+        }
+    }
+
     i64 total = 0;
     for (;;) {
         // Vec keeps a sentinel slot at data[capacity], so VecReserve(n)
         // allocates (n + 1) bytes -- we don't add the trailing slot
         // ourselves. VecReserve only touches capacity; the read
-        // syscall is what advances length.
+        // syscall is what advances length. After the pre-sized
+        // reserve above this is a no-op until we hit the upfront cap.
         if (!VecReserve(out, out->length + FILE_READ_CHUNK)) {
             LOG_ERROR("file_read_to_str: VecReserve failed at length {}", (u64)out->length);
             return -1;

@@ -104,12 +104,7 @@ DirContents dir_get_contents(const char *path, Allocator *alloc);
 ///
 i64 file_get_size(const char *filename);
 #define FileGetSize(path)                                                                                              \
-    _Generic(                                                                                                          \
-        (path),                                                                                                        \
-        Str *: file_get_size(((Str *)(path))->data),                                                                   \
-        const Str *: file_get_size(((const Str *)(path))->data),                                                       \
-        default: file_get_size((const char *)(path))                                                                   \
-    )
+    _Generic((path), Str *: file_get_size(((Str *)(path))->data), default: file_get_size((const char *)(path)))
 
 ///
 /// Remove a regular file. Direct syscall (`unlink` on Linux x86_64 /
