@@ -414,7 +414,7 @@ bool macho_file_open(MachoFile *out, const char *path, Allocator *alloc) {
         LOG_FATAL("MachoFileOpen: NULL argument (contract violation)");
     }
     File f = FileOpen(path, "rb");
-    if (!FileIsValid(&f)) {
+    if (!FileIsOpen(&f)) {
         LOG_ERROR("MachoFileOpen: failed to open {}", path);
         return false;
     }

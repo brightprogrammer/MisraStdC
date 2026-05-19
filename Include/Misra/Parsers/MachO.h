@@ -128,16 +128,14 @@ bool macho_file_open(MachoFile *out, const char *path, Allocator *alloc);
         (path),                                                                                                        \
         Str *: macho_file_open((out), ((Str *)(path))->data, MisraScope),                                              \
         const Str *: macho_file_open((out), ((const Str *)(path))->data, MisraScope),                                  \
-        char *: macho_file_open((out), (const char *)(path), MisraScope),                                              \
-        const char *: macho_file_open((out), (const char *)(path), MisraScope)                                         \
+        default: macho_file_open((out), (const char *)(path), MisraScope)                                              \
     )
 #define MachoFileOpen_3(out, path, alloc)                                                                              \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: macho_file_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                     \
         const Str *: macho_file_open((out), ((const Str *)(path))->data, ALLOCATOR_OF(alloc)),                         \
-        char *: macho_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                     \
-        const char *: macho_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                \
+        default: macho_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                     \
     )
 
 ///

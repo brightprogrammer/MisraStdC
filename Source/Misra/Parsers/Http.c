@@ -405,7 +405,7 @@ HttpResponse *HttpRespondWithFile(
     StrDeinit(&response->body);
     response->body = StrInit(response->allocator);
     File f         = FileOpen(filepath, "rb");
-    if (!FileIsValid(&f)) {
+    if (!FileIsOpen(&f)) {
         LOG_ERROR("failed to open file: {}", filepath);
         return NULL;
     }

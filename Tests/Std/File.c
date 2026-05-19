@@ -22,7 +22,7 @@
 // can read it back and remove it.
 static bool write_test_file(const char *prefix, const char *text, Str *out_path, Allocator *alloc) {
     File f = FileOpenTemp(prefix, out_path, alloc);
-    if (!FileIsValid(&f)) {
+    if (!FileIsOpen(&f)) {
         return false;
     }
     size n       = ZstrLen(text);
@@ -49,7 +49,7 @@ bool test_file_read_into_str(void) {
     }
 
     File f = FileOpen(&path, "rb");
-    if (!FileIsValid(&f)) {
+    if (!FileIsOpen(&f)) {
         FileRemove(&path);
         StrDeinit(&path);
         DefaultAllocatorDeinit(&alloc);
@@ -83,7 +83,7 @@ bool test_file_read_grows_str(void) {
     }
 
     File f = FileOpen(&path, "rb");
-    if (!FileIsValid(&f)) {
+    if (!FileIsOpen(&f)) {
         FileRemove(&path);
         StrDeinit(&path);
         DefaultAllocatorDeinit(&alloc);

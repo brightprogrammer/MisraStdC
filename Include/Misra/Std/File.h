@@ -23,7 +23,7 @@
 ///
 /// Value type -- caller stack-allocates and passes by pointer. A
 /// failed open leaves `fd` (or `handle`) negative / INVALID; check
-/// with `FileIsValid` after open.
+/// with `FileIsOpen` after open.
 ///
 typedef struct File {
 #ifdef _WIN32
@@ -46,10 +46,12 @@ typedef enum FileWhence {
     FILE_SEEK_END = 2,
 } FileWhence;
 
-// File API path-arg dispatch. `Str *` is the canonical form; `char *`
-// is accepted as a literal/borrowed-buffer convenience. Each macro
-// inlines its own `_Generic` -- we intentionally do not share a
-// dispatch helper across APIs.
+// File API path-arg dispatch. `Str *` and `const Str *` are the
+// canonical forms; any other pointer type (including `char *` /
+// `const char *`) routes through the `default:` arm and is treated
+// as a NUL-terminated C string. Each macro inlines its own
+// `_Generic` -- we intentionally do not share a dispatch helper
+// across APIs.
 
 ///
 /// Open a file. `mode` is libc-compatible: `"r"`/`"rb"`, `"w"`/`"wb"`,
@@ -61,8 +63,8 @@ typedef enum FileWhence {
 ///            silently drop the NUL terminator). `const char *` is
 ///            accepted as a literal/borrowed-buffer convenience.
 ///
-/// SUCCESS : Returns a File where `FileIsValid(&out)` is true.
-/// FAILURE : Returns a File where `FileIsValid(&out)` is false.
+/// SUCCESS : Returns a File where `FileIsOpen(&out)` is true.
+/// FAILURE : Returns a File where `FileIsOpen(&out)` is false.
 ///
 File file_open(const char *path, const char *mode);
 #define FileOpen(path, mode)                                                                                           \
@@ -70,8 +72,7 @@ File file_open(const char *path, const char *mode);
         (path),                                                                                                        \
         Str *: file_open(((Str *)(path))->data, (mode)),                                                               \
         const Str *: file_open(((const Str *)(path))->data, (mode)),                                                   \
-        char *: file_open((const char *)(path), (mode)),                                                               \
-        const char *: file_open((const char *)(path), (mode))                                                          \
+        default: file_open((const char *)(path), (mode))                                                               \
     )
 
 ///
@@ -101,9 +102,9 @@ File FileStderr(void);
 bool FileClose(File *f);
 
 ///
-/// True if the underlying handle is valid (open).
+/// True if the underlying handle is currently open.
 ///
-bool FileIsValid(const File *f);
+bool FileIsOpen(const File *f);
 
 ///
 /// Read bytes from a file. Two arities via `MISRA_OVERLOAD`:
@@ -205,8 +206,8 @@ i32 FileFd(const File *f);
 ///                 Caller `StrDeinit`s when done; the on-disk file
 ///                 is NOT auto-removed (use `FileRemove(out_path)`).
 ///
-/// SUCCESS : Returns an open `File` with `FileIsValid` true.
-/// FAILURE : Returns a `File` where `FileIsValid` is false.
+/// SUCCESS : Returns an open `File` with `FileIsOpen` true.
+/// FAILURE : Returns a `File` where `FileIsOpen` is false.
 ///
 /// TAGS: File, Temp
 ///
@@ -217,16 +218,14 @@ File file_open_temp(const char *prefix, Str *out_path, Allocator *alloc);
         (prefix),                                                                                                      \
         Str *: file_open_temp(((Str *)(prefix))->data, (out_path), MisraScope),                                        \
         const Str *: file_open_temp(((const Str *)(prefix))->data, (out_path), MisraScope),                            \
-        char *: file_open_temp((const char *)(prefix), (out_path), MisraScope),                                        \
-        const char *: file_open_temp((const char *)(prefix), (out_path), MisraScope)                                   \
+        default: file_open_temp((const char *)(prefix), (out_path), MisraScope)                                        \
     )
 #define FileOpenTemp_3(prefix, out_path, alloc)                                                                        \
     _Generic(                                                                                                          \
         (prefix),                                                                                                      \
         Str *: file_open_temp(((Str *)(prefix))->data, (out_path), ALLOCATOR_OF(alloc)),                               \
         const Str *: file_open_temp(((const Str *)(prefix))->data, (out_path), ALLOCATOR_OF(alloc)),                   \
-        char *: file_open_temp((const char *)(prefix), (out_path), ALLOCATOR_OF(alloc)),                               \
-        const char *: file_open_temp((const char *)(prefix), (out_path), ALLOCATOR_OF(alloc))                          \
+        default: file_open_temp((const char *)(prefix), (out_path), ALLOCATOR_OF(alloc))                               \
     )
 
 #endif // MISRA_FILE_H

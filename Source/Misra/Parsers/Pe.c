@@ -542,7 +542,7 @@ bool pe_file_open(PeFile *out, const char *path, Allocator *alloc) {
         LOG_FATAL("PeFileOpen: NULL argument (contract violation)");
     }
     File f = FileOpen(path, "rb");
-    if (!FileIsValid(&f)) {
+    if (!FileIsOpen(&f)) {
         LOG_ERROR("PeFileOpen: failed to open {}", path);
         return false;
     }

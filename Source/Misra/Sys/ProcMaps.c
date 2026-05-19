@@ -168,7 +168,7 @@ bool proc_maps_load(ProcMaps *out, Allocator *alloc) {
     // buffer size and short-circuits to empty — we have to loop-read
     // into a growing buffer ourselves.
     File f = FileOpen("/proc/self/maps", "rb");
-    if (!FileIsValid(&f)) {
+    if (!FileIsOpen(&f)) {
         LOG_ERROR("ProcMapsLoad: FileOpen(/proc/self/maps) failed");
         ProcMapsDeinit(out);
         return false;

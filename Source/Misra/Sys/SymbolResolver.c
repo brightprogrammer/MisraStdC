@@ -62,7 +62,7 @@ static void append_dirname(Str *out, const char *path) {
 // Check whether `path` exists and is non-empty.
 static bool path_exists(const char *path) {
     File f = FileOpen(path, "rb");
-    if (!FileIsValid(&f)) {
+    if (!FileIsOpen(&f)) {
         return false;
     }
     FileClose(&f);

@@ -16,7 +16,7 @@
 /// First call seeds from the OS entropy source (Linux `getrandom`,
 /// Darwin `getentropy`, Windows `BCryptGenRandom`). After that each
 /// call advances an xorshift64* state. Every
-/// `MISRA_PRNG_RESEED_INTERVAL` calls (see `Misra/Config.h`) the
+/// `PRNG_RESEED_INTERVAL` calls (see `Misra/Config.h`) the
 /// state is XOR-mixed with a fresh kernel-entropy draw; smaller
 /// values give stronger sequences at the cost of more frequent
 /// kernel calls.

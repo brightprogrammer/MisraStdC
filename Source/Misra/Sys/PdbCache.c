@@ -22,7 +22,7 @@
 
 static bool path_exists(const char *path) {
     File f = FileOpen(path, "rb");
-    if (!FileIsValid(&f)) {
+    if (!FileIsOpen(&f)) {
         return false;
     }
     FileClose(&f);

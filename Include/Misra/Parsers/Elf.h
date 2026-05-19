@@ -209,16 +209,14 @@ bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc);
         (path),                                                                                                        \
         Str *: elf_file_open((out), ((Str *)(path))->data, MisraScope),                                                \
         const Str *: elf_file_open((out), ((const Str *)(path))->data, MisraScope),                                    \
-        char *: elf_file_open((out), (const char *)(path), MisraScope),                                                \
-        const char *: elf_file_open((out), (const char *)(path), MisraScope)                                           \
+        default: elf_file_open((out), (const char *)(path), MisraScope)                                                \
     )
 #define ElfFileOpen_3(out, path, alloc)                                                                                \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: elf_file_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                       \
         const Str *: elf_file_open((out), ((const Str *)(path))->data, ALLOCATOR_OF(alloc)),                           \
-        char *: elf_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                       \
-        const char *: elf_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                  \
+        default: elf_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                       \
     )
 
 ///

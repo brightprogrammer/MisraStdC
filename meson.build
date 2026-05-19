@@ -502,7 +502,7 @@ config_data.set10('FEATURE_SYS_DNS',         opt_sys_dns)
 # `@FOO@` substitution in Config.h.in would normally be used, but we
 # don't have one; configure_file with `configuration:` mode emits
 # `#define FOO value` for each key, which is exactly what we want.
-config_data.set('MISRA_PRNG_RESEED_INTERVAL', get_option('prng_reseed_interval'))
+config_data.set('PRNG_RESEED_INTERVAL', get_option('prng_reseed_interval'))
 
 # `subdir(...)` runs the inner meson.build, where `configure_file`
 # emits `build/Include/Misra/Config.h`. The top-level

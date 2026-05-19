@@ -41,7 +41,7 @@ static void wr_u64(u8 *p, u64 v) {
 
 static bool write_file(const char *path, const u8 *data, u64 size) {
     File f = FileOpen(path, "wb");
-    if (!FileIsValid(&f))
+    if (!FileIsOpen(&f))
         return false;
     bool ok = FileWrite(&f, data, size) == (i64)size;
     FileClose(&f);

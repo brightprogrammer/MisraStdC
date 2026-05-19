@@ -462,7 +462,7 @@ bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc) {
         LOG_FATAL("ElfFileOpen: NULL argument (contract violation)");
     }
     File f = FileOpen(path, "rb");
-    if (!FileIsValid(&f)) {
+    if (!FileIsOpen(&f)) {
         LOG_ERROR("ElfFileOpen: failed to open {}", path);
         return false;
     }

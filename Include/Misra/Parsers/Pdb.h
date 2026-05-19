@@ -123,16 +123,14 @@ bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc);
         (path),                                                                                                        \
         Str *: pdb_file_open((out), ((Str *)(path))->data, MisraScope),                                                \
         const Str *: pdb_file_open((out), ((const Str *)(path))->data, MisraScope),                                    \
-        char *: pdb_file_open((out), (const char *)(path), MisraScope),                                                \
-        const char *: pdb_file_open((out), (const char *)(path), MisraScope)                                           \
+        default: pdb_file_open((out), (const char *)(path), MisraScope)                                                \
     )
 #define PdbFileOpen_3(out, path, alloc)                                                                                \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: pdb_file_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                       \
         const Str *: pdb_file_open((out), ((const Str *)(path))->data, ALLOCATOR_OF(alloc)),                           \
-        char *: pdb_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                       \
-        const char *: pdb_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                  \
+        default: pdb_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                       \
     )
 
 ///

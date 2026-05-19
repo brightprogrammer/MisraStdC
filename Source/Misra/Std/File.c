@@ -220,7 +220,7 @@ bool FileClose(File *f) {
 #endif
 }
 
-bool FileIsValid(const File *f) {
+bool FileIsOpen(const File *f) {
     if (!f) {
         return false;
     }
@@ -236,7 +236,7 @@ bool FileIsValid(const File *f) {
 // ---------------------------------------------------------------------------
 
 i64 file_read(File *f, void *buf, u64 n) {
-    if (!FileIsValid(f) || !buf) {
+    if (!FileIsOpen(f) || !buf) {
         return -1;
     }
     if (n == 0) {
@@ -273,7 +273,7 @@ i64 file_read(File *f, void *buf, u64 n) {
 }
 
 i64 FileWrite(File *f, const void *buf, u64 n) {
-    if (!FileIsValid(f) || !buf) {
+    if (!FileIsOpen(f) || !buf) {
         return -1;
     }
     if (n == 0) {
@@ -301,7 +301,7 @@ i64 FileWrite(File *f, const void *buf, u64 n) {
 }
 
 i64 FileSeek(File *f, i64 offset, FileWhence whence) {
-    if (!FileIsValid(f)) {
+    if (!FileIsOpen(f)) {
         return -1;
     }
     f->at_eof = false;
@@ -334,7 +334,7 @@ i64 FileTell(File *f) {
 }
 
 bool FileFlush(File *f) {
-    if (!FileIsValid(f)) {
+    if (!FileIsOpen(f)) {
         return false;
     }
 #ifdef _WIN32
@@ -372,7 +372,7 @@ i32 FileFd(const File *f) {
 #define FILE_READ_CHUNK 4096
 
 i64 file_read_to_str(File *f, Str *out) {
-    if (!FileIsValid(f) || !out) {
+    if (!FileIsOpen(f) || !out) {
         return -1;
     }
     // Reset out so repeated calls overwrite previous content. The
@@ -381,10 +381,11 @@ i64 file_read_to_str(File *f, Str *out) {
 
     i64 total = 0;
     for (;;) {
-        // Reserve room for the next chunk + the NUL terminator we'll
-        // append on EOF. VecReserve only touches capacity; the read
+        // Vec keeps a sentinel slot at data[capacity], so VecReserve(n)
+        // allocates (n + 1) bytes -- we don't add the trailing slot
+        // ourselves. VecReserve only touches capacity; the read
         // syscall is what advances length.
-        if (!VecReserve(out, out->length + FILE_READ_CHUNK + 1)) {
+        if (!VecReserve(out, out->length + FILE_READ_CHUNK)) {
             LOG_ERROR("file_read_to_str: VecReserve failed at length {}", (u64)out->length);
             return -1;
         }
@@ -398,11 +399,10 @@ i64 file_read_to_str(File *f, Str *out) {
         out->length += (size)got;
         total       += got;
     }
-    // NUL terminate without bumping length, matching the rest of the
-    // Str API (length is "byte count excluding terminator").
-    if (out->capacity > out->length) {
-        out->data[out->length] = 0;
-    }
+    // Vec's reserved sentinel slot at data[capacity] is always
+    // present after a successful VecReserve, so this write is
+    // unconditional -- no `capacity > length` guard needed.
+    out->data[out->length] = 0;
     return total;
 }
 
@@ -413,12 +413,20 @@ i64 file_read_to_str(File *f, Str *out) {
 // same prefix can never collide -- one wins, the other retries.
 // ---------------------------------------------------------------------------
 
-static void hex16_from_u64(char dst[16], u64 v) {
+// Append `v` as a 16-digit zero-padded lowercase hex string to `out`.
+// The project's StrAppendFmt understands `{x}` for hex, but has no
+// zero-pad / fixed-width specifier today -- pad_zeros / min_width
+// fields exist on StrIntFormat but are not honored by the format
+// machinery. Rendering the nibbles directly keeps the suffix
+// length deterministic without inventing a new format spec.
+static bool append_hex16(Str *out, u64 v) {
     static const char hex[] = "0123456789abcdef";
     for (i32 i = 15; i >= 0; --i) {
-        dst[i]   = hex[v & 0xF];
-        v      >>= 4;
+        if (!StrPushBack(out, hex[(v >> (i * 4)) & 0xF])) {
+            return false;
+        }
     }
+    return true;
 }
 
 File file_open_temp(const char *prefix, Str *out_path, Allocator *alloc) {
@@ -436,13 +444,13 @@ File file_open_temp(const char *prefix, Str *out_path, Allocator *alloc) {
     // namespace are vanishingly rare. The retry loop exists for
     // pathological filesystem races, not for entropy weakness.
     for (i32 attempt = 0; attempt < 8; ++attempt) {
-        char        suffix_buf[17];
-        const char *suffix = suffix_buf;
-        hex16_from_u64(suffix_buf, Prng64());
-        suffix_buf[16] = 0;
-
         *out_path = StrInit(alloc);
-        StrAppendFmt(out_path, "{}{}", prefix, suffix);
+        StrAppendFmt(out_path, "{}", prefix);
+        if (!append_hex16(out_path, Prng64())) {
+            StrDeinit(out_path);
+            LOG_ERROR("FileOpenTemp: out-of-memory rendering suffix");
+            return f;
+        }
 
 #ifdef _WIN32
         // CREATE_NEW fails with ERROR_FILE_EXISTS on collision. GENERIC_READ|WRITE

@@ -567,11 +567,15 @@ i8 dir_create_all(const char *path) {
     return 1;
 }
 
-// PATH_MAX-class cap for the per-entry "parent/child" path built
-// during recursive removal. 4 KiB covers any realistic filesystem
-// path; if a single component exceeds this we fall back through
-// StrInitStack's overflow path (still backed by the in-tree HA).
-#define DIR_REMOVE_ALL_PATH_CAP 4096
+// Per-entry "parent/child" path buffer cap for the recursive removal
+// loop. Kept well under 4 KiB on purpose: on macOS, Clang emits an
+// implicit `___chkstk_darwin` call in the prologue of any function
+// whose stack frame exceeds ~4 KiB (see `_Freestanding.c`), and
+// `dir_remove_all` recurses one frame per directory level -- a 4 KiB
+// buffer per frame would compound into deep-tree stack pressure.
+// 512 covers any realistic single path component plus the parent
+// prefix; overflow spills through `StrInitStack`'s fallback allocator.
+#define DIR_REMOVE_ALL_PATH_CAP 512
 
 i8 dir_remove_all(const char *path) {
     if (!path) {

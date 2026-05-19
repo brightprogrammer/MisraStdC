@@ -105,7 +105,7 @@ static u64 prng_internal(void) {
     // draw. We keep the existing state's contribution so repeated
     // sequences from the same process can never collide even if the
     // kernel CSPRNG were re-pulled identically (which it won't be).
-    if ((call_count % MISRA_PRNG_RESEED_INTERVAL) == 0) {
+    if ((call_count % PRNG_RESEED_INTERVAL) == 0) {
         u64 mix;
         prng_seed_from_kernel(&mix);
         state ^= mix;

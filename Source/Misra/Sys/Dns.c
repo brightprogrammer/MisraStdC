@@ -220,7 +220,7 @@ static void ascii_lower(char *p, u64 n) {
 // with an empty Str.
 static bool slurp_file(const char *path, Str *out) {
     File f = FileOpen(path, "rb");
-    if (!FileIsValid(&f)) {
+    if (!FileIsOpen(&f)) {
         // Missing config file is fine -- resolver just won't know about it.
         return true;
     }

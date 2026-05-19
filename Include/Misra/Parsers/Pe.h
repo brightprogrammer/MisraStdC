@@ -125,16 +125,14 @@ bool pe_file_open(PeFile *out, const char *path, Allocator *alloc);
         (path),                                                                                                        \
         Str *: pe_file_open((out), ((Str *)(path))->data, MisraScope),                                                 \
         const Str *: pe_file_open((out), ((const Str *)(path))->data, MisraScope),                                     \
-        char *: pe_file_open((out), (const char *)(path), MisraScope),                                                 \
-        const char *: pe_file_open((out), (const char *)(path), MisraScope)                                            \
+        default: pe_file_open((out), (const char *)(path), MisraScope)                                                 \
     )
 #define PeFileOpen_3(out, path, alloc)                                                                                 \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: pe_file_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                        \
         const Str *: pe_file_open((out), ((const Str *)(path))->data, ALLOCATOR_OF(alloc)),                            \
-        char *: pe_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                        \
-        const char *: pe_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                   \
+        default: pe_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                        \
     )
 
 ///

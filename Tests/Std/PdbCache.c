@@ -85,7 +85,7 @@ static bool write_file(const char *path, const u8 *data, u64 size) {
     // Use Misra's File API so this test runs under -nostdlib too
     // (no libc fopen/fwrite/fclose).
     File f = FileOpen(path, "w");
-    if (!FileIsValid(&f))
+    if (!FileIsOpen(&f))
         return false;
     bool ok = (u64)FileWrite(&f, data, size) == size;
     FileClose(&f);
