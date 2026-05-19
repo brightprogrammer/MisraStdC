@@ -49,7 +49,9 @@ extern int main(int argc, char **argv);
 // `envp = argv + argc + 1`. The strings themselves live in a region
 // the kernel maps above the initial stack; pointers remain valid for
 // the lifetime of the process.
-char **misra_envp = 0;
+// Defined in `Sys.c` so the symbol is always present in libmisra_std.a.
+// We just write to it here before calling `main`.
+extern char **misra_envp;
 
 __attribute__((used, noreturn)) static void misra_start_c(long *kernel_sp) {
     int    argc = (int)kernel_sp[0];

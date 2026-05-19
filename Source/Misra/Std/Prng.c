@@ -20,8 +20,10 @@
 #include "../_Syscall.h"
 
 #if PLATFORM_WINDOWS
-#    include <bcrypt.h>
+// `<windows.h>` must come first: it provides `LONG`, `ULONG`,
+// `LPCWSTR`, `PUCHAR` and the typedefs that `<bcrypt.h>` references.
 #    include <windows.h>
+#    include <bcrypt.h>
 #endif
 
 // Pull `sizeof(*out)` bytes of kernel entropy into `*out`. Aborts on

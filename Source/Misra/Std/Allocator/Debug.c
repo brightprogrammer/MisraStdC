@@ -16,9 +16,14 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Sys/Backtrace.h>
 
-// Per-thread unique ID. Returns the TCB self-pointer on Linux
-// x86_64 / aarch64 (one register read, no libc); falls back to the
-// address of a TLS-marker byte everywhere else.
+// Per-thread unique ID. Returns the TCB self-pointer via one register
+// read on the platforms where the ABI exposes it directly -- no libc,
+// no TLS bootstrap. Other platforms fall back to a TLS-marker byte
+// whose address is per-thread.
+//
+// macOS: avoid `__thread`. On Darwin that triggers a `__tlv_bootstrap`
+// reference against libSystem, which the Bin/-tools libc-diet gate
+// (Mac CI) rejects -- the allowed-set is `__dyld_get_image_*` only.
 
 #if PLATFORM_LINUX && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
 
@@ -27,8 +32,24 @@ u64 debug_current_tid(void) {
 #    if ARCHITECTURE_X86_64
     __asm__ volatile("mov %%fs:0, %0"
                      : "=r"(tp));
-#    else // __aarch64__
+#    else // aarch64
     __asm__ volatile("mrs %0, tpidr_el0"
+                     : "=r"(tp));
+#    endif
+    return tp;
+}
+
+#elif PLATFORM_DARWIN && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
+
+u64 debug_current_tid(void) {
+    u64 tp;
+#    if ARCHITECTURE_X86_64
+    // macOS x86_64: thread-local-storage base is reachable via GS.
+    __asm__ volatile("mov %%gs:0, %0"
+                     : "=r"(tp));
+#    else // aarch64
+    // macOS aarch64: thread pointer in TPIDRRO_EL0 (read-only).
+    __asm__ volatile("mrs %0, tpidrro_el0"
                      : "=r"(tp));
 #    endif
     return tp;
@@ -37,12 +58,12 @@ u64 debug_current_tid(void) {
 #else
 
 #    if defined(_MSC_VER)
-#        define MISRA_TLS __declspec(thread)
+#        define TLS_STORAGE __declspec(thread)
 #    else
-#        define MISRA_TLS __thread
+#        define TLS_STORAGE __thread
 #    endif
 
-static MISRA_TLS u8 g_thread_marker;
+static TLS_STORAGE u8 g_thread_marker;
 
 u64 debug_current_tid(void) {
     return (u64)&g_thread_marker;

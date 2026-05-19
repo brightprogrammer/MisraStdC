@@ -305,20 +305,34 @@ ProcId ProcGetCurrentId(void) {
 #endif
 }
 
-// `EnvGet`: walk `envp` directly. Each envp entry is a NUL-terminated
-// `KEY=VALUE` string; the array ends at a NULL pointer. We avoid the
-// libc `getenv` entry point entirely on the platforms where we set up
-// our own startup (Linux x86_64/aarch64 via `_StartLinux.c`'s
-// `misra_envp`). Other platforms fall through to a weak `getenv`
-// reference -- on macOS that resolves to libSystem; on builds where it
-// doesn't resolve the function returns NULL safely.
+// `EnvGet`: read an environment variable. The strategy depends on what
+// startup machinery the platform gives us:
+//
+//   - Linux x86_64/aarch64: `_StartLinux.c` captures `envp` from the
+//     kernel-supplied stack into `misra_envp` (defined here) before
+//     calling `main`. We walk it directly -- no libc touch.
+//   - Windows (MSVC / clang-cl): UCRT is always linked; pull
+//     `getenv` from `<stdlib.h>` via a dllimport-matched prototype.
+//   - Darwin: do NOT reference `getenv`. The libc-diet gate on Mac
+//     forbids any unexpected libSystem ref in Bin/ tools, and
+//     `_getenv` is not in the allowed set. Callers that need env
+//     vars on Darwin must capture them at startup themselves; for
+//     now `EnvGet` returns NULL on Darwin.
+//   - Other Unix: weak `getenv` fallback (works if libc is linked,
+//     returns NULL otherwise).
 
 #if PLATFORM_LINUX && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
-extern char **misra_envp;
-#else
-// Weakly-referenced libc symbol -- no `<stdlib.h>` include. If the
-// final binary links libc, this binds to its `getenv`; otherwise it
-// remains unresolved and we treat it as NULL.
+// Owned here so the symbol is always defined in libmisra_std.a. Set
+// by `_StartLinux.c`'s `misra_start_c` trampoline before `main`.
+// Targets that don't link our `_start` -- e.g. `Tests/Dwarf.Stripped`,
+// which provides its own entry -- leave it NULL, and `EnvGet` returns
+// NULL safely.
+char **misra_envp = NULL;
+#elif PLATFORM_WINDOWS
+__declspec(dllimport) extern char *__cdecl getenv(const char *name);
+#elif !PLATFORM_DARWIN
+// Other Unix: weak fallback. Resolves to libc's `getenv` when libc
+// is linked; unresolved (treated as NULL) otherwise.
 extern char *getenv(const char *name) __attribute__((weak));
 #endif
 
@@ -342,6 +356,13 @@ const char *EnvGet(const char *name) {
             return entry + 1;
         }
     }
+    return NULL;
+#elif PLATFORM_WINDOWS
+    return (const char *)getenv(name);
+#elif PLATFORM_DARWIN
+    // No libSystem `_getenv` reference -- callers must capture envp
+    // themselves.
+    (void)name;
     return NULL;
 #else
     if (!getenv) {

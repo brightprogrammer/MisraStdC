@@ -50,8 +50,20 @@ extern "C" {
 #    define EADDRINUSE  48
 #    define EWOULDBLOCK EAGAIN
 #elif PLATFORM_WINDOWS
-// Winsock error codes are higher numbered; we only define the
-// shapes we currently use.
+// Winsock error codes are higher numbered; we use those values
+// because socket-path errnos come through `WSAGetLastError`. UCRT's
+// `<errno.h>` (transitively pulled in by Windows system headers)
+// uses lower-numbered constants for its C-runtime path; we override
+// here so project code reads consistent Winsock values across TUs.
+#    ifdef EAGAIN
+#        undef EAGAIN
+#    endif
+#    ifdef EADDRINUSE
+#        undef EADDRINUSE
+#    endif
+#    ifdef EWOULDBLOCK
+#        undef EWOULDBLOCK
+#    endif
 #    define EAGAIN      10035 // WSAEWOULDBLOCK
 #    define EADDRINUSE  10048 // WSAEADDRINUSE
 #    define EWOULDBLOCK EAGAIN
@@ -62,12 +74,15 @@ extern "C" {
 #endif
 
     // Forward-declare the libc accessor for the TLS errno slot. We
-    // pull the symbol by declaration so we never include
-    // `<errno.h>`; each libc names this differently.
+    // pull the symbol by declaration so we never include `<errno.h>`;
+    // each libc names this differently. On Windows the UCRT header
+    // declares `_errno` as `__declspec(dllimport)`; our declaration
+    // must match or the compiler flags an inconsistent-linkage
+    // redeclaration (MSVC errors, clang-cl warns).
 #if PLATFORM_DARWIN
     extern int *__error(void);
-#elif defined(_MSC_VER) || defined(__MSC_VER)
-extern int *_errno(void);
+#elif PLATFORM_WINDOWS
+__declspec(dllimport) extern int *__cdecl _errno(void);
 #else
 extern int *__errno_location(void);
 #endif
