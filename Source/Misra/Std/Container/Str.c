@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Vec/Private.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Types.h>

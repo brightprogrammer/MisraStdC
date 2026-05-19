@@ -8,6 +8,7 @@
 #define MISRA_STD_CONTAINER_STR_INSERT_H
 
 #include "Type.h"
+#include <Misra/Std/Zstr.h>
 
 #ifdef __cplusplus
 extern "C" {

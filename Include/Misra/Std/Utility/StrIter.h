@@ -2,6 +2,7 @@
 #define MISRA_STD_UTILITY_STR_ITER_H
 
 #include <Misra/Std/Container/Vec/Type.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/Utility/Iter.h>
 #include <Misra/Types.h>
 

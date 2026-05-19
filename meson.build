@@ -174,6 +174,7 @@ misra_std_sources = files(
     'Source/Misra/Sys/Mutex.c',
     'Source/Misra/Std/Log.c',
     'Source/Misra/Std/Memory.c',
+    'Source/Misra/Std/Zstr.c',
     'Source/Misra/Std/Allocator.c',
     'Source/Misra/Std/Allocator/Page.c',
     'Source/Misra/Std/Allocator/Heap.c',

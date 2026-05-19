@@ -1,4 +1,5 @@
 #include <Misra/Parsers/KvConfig.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Map/Private.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Log.h>
@@ -14,39 +15,22 @@ static bool kvconfig_is_comment_start(char c) {
     return c == '#' || c == ';';
 }
 
-static char kvconfig_ascii_lower(char c) {
-    return (c >= 'A' && c <= 'Z') ? (char)(c - 'A' + 'a') : c;
-}
-
-static bool kvconfig_equals_ignore_case(const Str *value, const char *zstr) {
-    size idx = 0;
-
-    ValidateStr(value);
-
-    while (idx < value->length && zstr[idx]) {
-        if (kvconfig_ascii_lower(value->data[idx]) != kvconfig_ascii_lower(zstr[idx])) {
-            return false;
-        }
-        idx += 1;
-    }
-
-    return idx == value->length && zstr[idx] == '\0';
-}
-
 static bool kvconfig_parse_bool_value(const Str *value, bool *out) {
     if (!out) {
         LOG_ERROR("Expected valid bool output pointer");
         return false;
     }
 
-    if (kvconfig_equals_ignore_case(value, "true") || kvconfig_equals_ignore_case(value, "yes") ||
-        kvconfig_equals_ignore_case(value, "on") || kvconfig_equals_ignore_case(value, "1")) {
+    ValidateStr(value);
+
+    if (StrCmpZstrIgnoreCase(value, "true") == 0 || StrCmpZstrIgnoreCase(value, "yes") == 0 ||
+        StrCmpZstrIgnoreCase(value, "on") == 0 || StrCmpZstrIgnoreCase(value, "1") == 0) {
         *out = true;
         return true;
     }
 
-    if (kvconfig_equals_ignore_case(value, "false") || kvconfig_equals_ignore_case(value, "no") ||
-        kvconfig_equals_ignore_case(value, "off") || kvconfig_equals_ignore_case(value, "0")) {
+    if (StrCmpZstrIgnoreCase(value, "false") == 0 || StrCmpZstrIgnoreCase(value, "no") == 0 ||
+        StrCmpZstrIgnoreCase(value, "off") == 0 || StrCmpZstrIgnoreCase(value, "0") == 0) {
         *out = false;
         return true;
     }

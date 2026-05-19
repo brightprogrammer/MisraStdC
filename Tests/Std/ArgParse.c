@@ -1,4 +1,5 @@
 #include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/ArgParse.h>
 #include <Misra/Std/Log.h>
 

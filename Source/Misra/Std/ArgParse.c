@@ -6,6 +6,7 @@
 /// for the public API surface and the design notes.
 
 #include <Misra/Std/ArgParse.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>

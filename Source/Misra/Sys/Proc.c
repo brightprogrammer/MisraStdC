@@ -10,6 +10,7 @@
 #define _DEFAULT_SOURCE
 
 #include <Misra/Sys/Proc.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Sys.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Log.h>

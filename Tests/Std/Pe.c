@@ -9,6 +9,7 @@
 
 #include <Misra.h>
 #include <Misra/Parsers/Pe.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Memory.h>
 

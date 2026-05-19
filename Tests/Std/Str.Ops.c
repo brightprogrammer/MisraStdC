@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
@@ -290,14 +291,65 @@ bool test_str_strip(void) {
     return result;
 }
 
+bool test_str_cmp_ignore_case(void);
+bool test_str_cmp_ignore_case(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Str hello_lc = StrInitFromZstr("hello", &alloc);
+    Str hello_uc = StrInitFromZstr("HELLO", &alloc);
+    Str hello_mc = StrInitFromZstr("HeLLo", &alloc);
+    Str world    = StrInitFromZstr("world", &alloc);
+    Str hello_x  = StrInitFromZstr("HelloX", &alloc); // longer
+
+    // Equal under ASCII case folding.
+    bool ok = StrCmpIgnoreCase(&hello_lc, &hello_uc) == 0;
+    ok      = ok && StrCmpIgnoreCase(&hello_lc, &hello_mc) == 0;
+
+    // 'h' lowers to 'h' (0x68), 'w' to 'w' (0x77); negative.
+    ok = ok && StrCmpIgnoreCase(&hello_lc, &world) < 0;
+    // Reverse direction.
+    ok = ok && StrCmpIgnoreCase(&world, &hello_uc) > 0;
+
+    // Length mismatch: hello < hellox under case-insensitive compare.
+    ok = ok && StrCmpIgnoreCase(&hello_lc, &hello_x) < 0;
+
+    // Cstr / Zstr variants share the same underlying helper.
+    ok = ok && StrCmpZstrIgnoreCase(&hello_lc, "HELLO") == 0;
+    ok = ok && StrCmpZstrIgnoreCase(&hello_uc, "world") < 0;
+    ok = ok && StrCmpCstrIgnoreCase(&hello_lc, "HELLO_extra", 5) == 0;
+    ok = ok && StrCmpCstrIgnoreCase(&hello_lc, "HellX", 5) != 0;
+
+    // Non-ASCII bytes pass through verbatim (no Unicode folding).
+    Str non_ascii_a = StrInitFromZstr("ABC\xC0", &alloc);
+    Str non_ascii_b = StrInitFromZstr("abc\xC0", &alloc);
+    ok              = ok && StrCmpIgnoreCase(&non_ascii_a, &non_ascii_b) == 0;
+
+    StrDeinit(&hello_lc);
+    StrDeinit(&hello_uc);
+    StrDeinit(&hello_mc);
+    StrDeinit(&world);
+    StrDeinit(&hello_x);
+    StrDeinit(&non_ascii_a);
+    StrDeinit(&non_ascii_b);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting Str.Ops tests\n\n");
 
     // Array of test functions
-    TestFunction tests[] =
-        {test_str_cmp,          test_str_find,        test_str_contains_index, test_str_starts_ends_with,
-         test_str_replace,      test_str_split,       test_str_strip};
+    TestFunction tests[] = {
+        test_str_cmp,
+        test_str_cmp_ignore_case,
+        test_str_find,
+        test_str_contains_index,
+        test_str_starts_ends_with,
+        test_str_replace,
+        test_str_split,
+        test_str_strip
+    };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 

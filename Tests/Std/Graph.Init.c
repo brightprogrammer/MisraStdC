@@ -1,4 +1,5 @@
 #include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/Allocator/Heap.h>
 #include <Misra/Std/Container/Graph.h>
 #include <Misra/Std/Container/Str.h>

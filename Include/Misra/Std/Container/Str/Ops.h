@@ -9,6 +9,7 @@
 
 #include "Type.h"
 #include <Misra/Std/Utility/StrIter.h>
+#include <Misra/Std/Zstr.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,6 +52,14 @@ extern "C" {
 /// RETURN : 0 if both are equal
 ///
 #define StrCmpZstr(str, zstr) ZstrCompare((str)->data, (zstr))
+
+///
+/// Case-insensitive (ASCII) variants of the StrCmp family. Non-ASCII
+/// bytes are compared verbatim; there is no Unicode case folding.
+///
+#define StrCmpIgnoreCase(str, ostr)               ZstrCompareIgnoreCase((str)->data, (ostr)->data)
+#define StrCmpZstrIgnoreCase(str, zstr)           ZstrCompareIgnoreCase((str)->data, (zstr))
+#define StrCmpCstrIgnoreCase(str, cstr, cstr_len) ZstrCompareNIgnoreCase((str)->data, (cstr), (cstr_len))
 
 //
 // Find Operations

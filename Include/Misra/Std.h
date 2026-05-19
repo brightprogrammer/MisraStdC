@@ -23,6 +23,7 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Utility.h>
+#include <Misra/Std/Zstr.h>
 
 #if FEATURE_ALLOC_ARENA
 #    include <Misra/Std/Allocator/Arena.h>

@@ -1,4 +1,5 @@
 #include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Sys/Dns.h>
 #include <Misra/Sys/Socket.h>
