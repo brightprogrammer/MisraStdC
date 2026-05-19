@@ -311,8 +311,11 @@ ProcId ProcGetCurrentId(void) {
 //   - Linux x86_64/aarch64: `_StartLinux.c` captures `envp` from the
 //     kernel-supplied stack into `misra_envp` (defined here) before
 //     calling `main`. We walk it directly -- no libc touch.
-//   - Windows (MSVC / clang-cl): UCRT is always linked; pull
-//     `getenv` from `<stdlib.h>` via a dllimport-matched prototype.
+//   - Windows (MSVC / clang-cl): non-freestanding builds link UCRT
+//     and pull `getenv` via a dllimport-matched prototype. The
+//     freestanding Bin/ tools (no UCRT) get a stub from
+//     `_WinStubs.c` that returns NULL -- so `EnvGet` on freestanding
+//     Windows behaves like Darwin.
 //   - Darwin: do NOT reference `getenv`. The libc-diet gate on Mac
 //     forbids any unexpected libSystem ref in Bin/ tools, and
 //     `_getenv` is not in the allowed set. Callers that need env

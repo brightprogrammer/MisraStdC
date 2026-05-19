@@ -17,14 +17,16 @@ subdir('Util')
 #  * The deadend suites (BitVec / List / Map / Graph / Allocator.* /
 #    Iter / Str / Int / AllocDebug) fire many LOG_FATALs in sequence.
 #    Each LOG_FATAL prints a backtrace, and on macOS the dyld-based
-#    symbolication is several seconds per frame under ASan; a handful
-#    of fatals per suite is enough to clear 30 s.
+#    symbolication is several seconds per frame under ASan; the
+#    deadend-densest suites (AllocDebug ~13 happy paths, List.Deadend
+#    26 cases, BitVec.Math 17 deadend cases) still exceed 120 s on a
+#    sanitised macOS build, so we keep extra headroom.
 #  * Backtrace / MachO stress tests already run ~28 s on macOS CI,
 #    leaving no margin for slower runners.
 # Globally multiply the per-test timeout instead of sprinkling
 # `timeout:` overrides; fast tests are unaffected and slow ones get
 # breathing room.
-add_test_setup('default', is_default: true, timeout_multiplier: 4)
+add_test_setup('default', is_default: true, timeout_multiplier: 8)
 
 #Test configuration
 test_args = common_c_args
