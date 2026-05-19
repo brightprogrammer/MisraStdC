@@ -412,28 +412,29 @@ StrIter JSkipValue(StrIter si);
         StrIter saved_si = si;                                                                                         \
         si               = JSkipWhitespace(si);                                                                        \
                                                                                                                        \
-        /* starting of an object */                                                                                    \
-        if (StrIterPeek(&si) != '[') {                                                                                 \
+        /* starting of an array */                                                                                     \
+        char jr_c;                                                                                                     \
+        if (!StrIterPeek(&si, &jr_c) || jr_c != '[') {                                                                 \
             LOG_ERROR("Invalid array start. Expected '['.");                                                           \
             si = saved_si;                                                                                             \
             break;                                                                                                     \
         }                                                                                                              \
-        StrIterNext(&si);                                                                                              \
+        StrIterMustNext(&si);                                                                                          \
         si = JSkipWhitespace(si);                                                                                      \
                                                                                                                        \
         bool expect_comma = false;                                                                                     \
         bool failed       = false;                                                                                     \
                                                                                                                        \
         /* while not at the end of array. */                                                                           \
-        while (StrIterPeek(&si) && StrIterPeek(&si) != ']') {                                                          \
+        while (StrIterPeek(&si, &jr_c) && jr_c != ']') {                                                               \
             if (expect_comma) {                                                                                        \
-                if (StrIterPeek(&si) != ',') {                                                                         \
+                if (jr_c != ',') {                                                                                     \
                     LOG_ERROR("Expected ',' between values in array. Invalid JSON array.");                            \
                     failed = true;                                                                                     \
                     si     = saved_si;                                                                                 \
                     break;                                                                                             \
                 }                                                                                                      \
-                StrIterNext(&si); /* skip comma */                                                                     \
+                StrIterMustNext(&si); /* skip comma */                                                                 \
                 si = JSkipWhitespace(si);                                                                              \
             }                                                                                                          \
                                                                                                                        \
@@ -464,14 +465,14 @@ StrIter JSkipValue(StrIter si);
                                                                                                                        \
         /* end of array */                                                                                             \
         if (!failed) {                                                                                                 \
-            if (StrIterPeek(&si) != ']') {                                                                             \
+            if (!StrIterPeek(&si, &jr_c) || jr_c != ']') {                                                             \
                 LOG_ERROR("Invalid end of array. Expected ']'.");                                                      \
                 failed = true;                                                                                         \
                 si     = saved_si;                                                                                     \
                 break;                                                                                                 \
             }                                                                                                          \
                                                                                                                        \
-            StrIterNext(&si);                                                                                          \
+            StrIterMustNext(&si);                                                                                      \
         }                                                                                                              \
     } while (0)
 
@@ -505,12 +506,13 @@ StrIter JSkipValue(StrIter si);
         si               = JSkipWhitespace(si);                                                                        \
                                                                                                                        \
         /* starting of an object */                                                                                    \
-        if (StrIterPeek(&si) != '{') {                                                                                 \
+        char jr_c;                                                                                                     \
+        if (!StrIterPeek(&si, &jr_c) || jr_c != '{') {                                                                 \
             LOG_ERROR("Invalid object start. Expected '{'.");                                                          \
             si = saved_si;                                                                                             \
             break;                                                                                                     \
         }                                                                                                              \
-        StrIterNext(&si);                                                                                              \
+        StrIterMustNext(&si);                                                                                          \
         si = JSkipWhitespace(si);                                                                                      \
                                                                                                                        \
         StrIter read_si;                                                                                               \
@@ -518,15 +520,15 @@ StrIter JSkipValue(StrIter si);
         bool    failed       = false;                                                                                  \
                                                                                                                        \
         /* while not at the end of object. */                                                                          \
-        while (StrIterPeek(&si) && StrIterPeek(&si) != '}') {                                                          \
+        while (StrIterPeek(&si, &jr_c) && jr_c != '}') {                                                               \
             if (expect_comma) {                                                                                        \
-                if (StrIterPeek(&si) != ',') {                                                                         \
+                if (jr_c != ',') {                                                                                     \
                     LOG_ERROR("Expected ',' after key/value pairs in object. Invalid JSON object.");                   \
                     failed = true;                                                                                     \
                     si     = saved_si;                                                                                 \
                     break;                                                                                             \
                 }                                                                                                      \
-                StrIterNext(&si); /* skip comma */                                                                     \
+                StrIterMustNext(&si); /* skip comma */                                                                 \
                 si = JSkipWhitespace(si);                                                                              \
             }                                                                                                          \
                                                                                                                        \
@@ -547,14 +549,14 @@ StrIter JSkipValue(StrIter si);
             si = JSkipWhitespace(si);                                                                                  \
                                                                                                                        \
                                                                                                                        \
-            if (StrIterPeek(&si) != ':') {                                                                             \
+            if (!StrIterPeek(&si, &jr_c) || jr_c != ':') {                                                             \
                 LOG_ERROR("Expected ':' after key string. Failed to read JSON");                                       \
                 StrDeinit(&key);                                                                                       \
                 failed = true;                                                                                         \
                 si     = saved_si;                                                                                     \
                 break;                                                                                                 \
             }                                                                                                          \
-            StrIterNext(&si);                                                                                          \
+            StrIterMustNext(&si);                                                                                      \
             si = JSkipWhitespace(si);                                                                                  \
                                                                                                                        \
                                                                                                                        \
@@ -589,15 +591,14 @@ StrIter JSkipValue(StrIter si);
         }                                                                                                              \
                                                                                                                        \
         if (!failed) {                                                                                                 \
-            char c = StrIterPeek(&si);                                                                                 \
-            if (c != '}') {                                                                                            \
-                LOG_ERROR("Expected end of object '}' but found '{c}'", c);                                            \
+            if (!StrIterPeek(&si, &jr_c) || jr_c != '}') {                                                             \
+                LOG_ERROR("Expected end of object '}' but found '{c}'", jr_c);                                         \
                 failed = true;                                                                                         \
                 si     = saved_si;                                                                                     \
                 break;                                                                                                 \
             }                                                                                                          \
                                                                                                                        \
-            StrIterNext(&si);                                                                                          \
+            StrIterMustNext(&si);                                                                                      \
         }                                                                                                              \
     } while (0)
 

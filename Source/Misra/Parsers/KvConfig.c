@@ -10,10 +10,6 @@ static bool kvconfig_is_space(char c) {
     return c == ' ' || c == '\t' || c == '\r';
 }
 
-static bool kvconfig_is_line_end(char c) {
-    return c == '\n' || c == '\0';
-}
-
 static bool kvconfig_is_comment_start(char c) {
     return c == '#' || c == ';';
 }
@@ -97,14 +93,13 @@ static bool kvconfig_parse_f64_value(const Str *value, f64 *out) {
 }
 
 static StrIter kvconfig_consume_line_end(StrIter si) {
-    if (StrIterPeek(&si) == '\r') {
-        StrIterNext(&si);
+    char c;
+    if (StrIterPeek(&si, &c) && c == '\r') {
+        StrIterMustNext(&si);
     }
-
-    if (StrIterPeek(&si) == '\n') {
-        StrIterNext(&si);
+    if (StrIterPeek(&si, &c) && c == '\n') {
+        StrIterMustNext(&si);
     }
-
     return si;
 }
 
@@ -148,18 +143,18 @@ i32 KvConfigCompare(const void *lhs, const void *rhs) {
 }
 
 StrIter KvConfigSkipWhitespace(StrIter si) {
-    while (StrIterRemainingLength(&si) && kvconfig_is_space(StrIterPeek(&si))) {
-        StrIterNext(&si);
+    char c;
+    while (StrIterPeek(&si, &c) && kvconfig_is_space(c)) {
+        StrIterMustNext(&si);
     }
-
     return si;
 }
 
 StrIter KvConfigSkipLine(StrIter si) {
-    while (StrIterRemainingLength(&si) && !kvconfig_is_line_end(StrIterPeek(&si))) {
-        StrIterNext(&si);
+    char c;
+    while (StrIterPeek(&si, &c) && c != '\n') {
+        StrIterMustNext(&si);
     }
-
     return kvconfig_consume_line_end(si);
 }
 
@@ -173,15 +168,14 @@ StrIter KvConfigReadKey(StrIter si, Str *key) {
 
     si = KvConfigSkipWhitespace(si);
 
-    while (StrIterRemainingLength(&si)) {
-        char c = StrIterPeek(&si);
-
-        if (c == '=' || c == ':' || kvconfig_is_space(c) || kvconfig_is_line_end(c) || kvconfig_is_comment_start(c)) {
+    char c;
+    while (StrIterPeek(&si, &c)) {
+        if (c == '=' || c == ':' || kvconfig_is_space(c) || c == '\n' || kvconfig_is_comment_start(c)) {
             break;
         }
 
         StrPushBack(key, c);
-        StrIterNext(&si);
+        StrIterMustNext(&si);
     }
 
     if (key->length == 0) {
@@ -195,7 +189,6 @@ StrIter KvConfigReadKey(StrIter si, Str *key) {
 
 StrIter KvConfigReadValue(StrIter si, Str *value) {
     StrIter saved_si = si;
-    char    quote    = '\0';
 
     if (!value) {
         LOG_ERROR("Expected valid value output string");
@@ -204,32 +197,29 @@ StrIter KvConfigReadValue(StrIter si, Str *value) {
 
     si = KvConfigSkipWhitespace(si);
 
-    if (!StrIterRemainingLength(&si) || kvconfig_is_line_end(StrIterPeek(&si)) ||
-        kvconfig_is_comment_start(StrIterPeek(&si))) {
+    char c;
+    if (!StrIterPeek(&si, &c) || c == '\n' || kvconfig_is_comment_start(c)) {
         return si;
     }
 
-    quote = StrIterPeek(&si);
+    char quote = c;
     if (quote == '"' || quote == '\'') {
-        StrIterNext(&si);
+        StrIterMustNext(&si);
 
-        while (StrIterRemainingLength(&si)) {
-            char c = StrIterPeek(&si);
-
+        while (StrIterPeek(&si, &c)) {
             if (c == quote) {
-                StrIterNext(&si);
+                StrIterMustNext(&si);
                 return si;
             }
 
             if (c == '\\') {
-                StrIterNext(&si);
-                if (!StrIterRemainingLength(&si)) {
+                StrIterMustNext(&si);
+                if (!StrIterPeek(&si, &c)) {
                     LOG_ERROR("Unexpected end of quoted config value");
                     StrClear(value);
                     return saved_si;
                 }
 
-                c = StrIterPeek(&si);
                 switch (c) {
                     case 'n' :
                         StrPushBack(value, '\n');
@@ -240,22 +230,18 @@ StrIter KvConfigReadValue(StrIter si, Str *value) {
                     case 't' :
                         StrPushBack(value, '\t');
                         break;
-                    case '\\' :
-                    case '"' :
-                    case '\'' :
-                        StrPushBack(value, c);
-                        break;
                     default :
+                        // Pass any other escaped character through verbatim.
                         StrPushBack(value, c);
                         break;
                 }
 
-                StrIterNext(&si);
+                StrIterMustNext(&si);
                 continue;
             }
 
             StrPushBack(value, c);
-            StrIterNext(&si);
+            StrIterMustNext(&si);
         }
 
         LOG_ERROR("Missing closing quote in config value");
@@ -263,9 +249,7 @@ StrIter KvConfigReadValue(StrIter si, Str *value) {
         return saved_si;
     }
 
-    while (StrIterRemainingLength(&si) && !kvconfig_is_line_end(StrIterPeek(&si))) {
-        char c = StrIterPeek(&si);
-
+    while (StrIterPeek(&si, &c) && c != '\n') {
         if (kvconfig_is_comment_start(c) && value->length > 0 && kvconfig_is_space(value->data[value->length - 1])) {
             while (value->length > 0 && kvconfig_is_space(value->data[value->length - 1])) {
                 char dropped = '\0';
@@ -279,7 +263,7 @@ StrIter KvConfigReadValue(StrIter si, Str *value) {
         }
 
         StrPushBack(value, c);
-        StrIterNext(&si);
+        StrIterMustNext(&si);
     }
 
     if (value->length > 0) {
@@ -306,14 +290,15 @@ StrIter KvConfigReadPair(StrIter si, Str *key, Str *value) {
 
     si = KvConfigSkipWhitespace(si);
 
-    if (StrIterPeek(&si) != '=' && StrIterPeek(&si) != ':') {
+    char c;
+    if (!StrIterPeek(&si, &c) || (c != '=' && c != ':')) {
         LOG_ERROR("Expected '=' or ':' after config key");
         StrClear(key);
         StrClear(value);
         return saved_si;
     }
 
-    StrIterNext(&si);
+    StrIterMustNext(&si);
     si = KvConfigReadValue(si, value);
 
     if (si.pos == saved_si.pos) {
@@ -323,9 +308,13 @@ StrIter KvConfigReadPair(StrIter si, Str *key, Str *value) {
     }
 
     si = KvConfigSkipWhitespace(si);
-    if (kvconfig_is_comment_start(StrIterPeek(&si))) {
+    if (!StrIterPeek(&si, &c)) {
+        // EOF after value is fine - last line without newline.
+        return si;
+    }
+    if (kvconfig_is_comment_start(c)) {
         si = KvConfigSkipLine(si);
-    } else if (!kvconfig_is_line_end(StrIterPeek(&si))) {
+    } else if (c != '\n') {
         LOG_ERROR("Unexpected trailing characters after config value");
         StrClear(key);
         StrClear(value);
@@ -347,22 +336,22 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg) {
 
     ValidateMap(cfg);
 
-    while (StrIterRemainingLength(&si)) {
+    char c;
+    while (StrIterPeek(&si, &c)) {
         Str     key   = StrInit(cfg->allocator);
         Str     value = StrInit(cfg->allocator);
         StrIter read_si;
 
-        while (StrIterRemainingLength(&si)) {
-            char c = StrIterPeek(&si);
-
+        while (StrIterPeek(&si, &c)) {
             if (c == '\n') {
-                StrIterNext(&si);
+                StrIterMustNext(&si);
                 continue;
             }
 
             if (kvconfig_is_space(c)) {
                 si = KvConfigSkipWhitespace(si);
-                if (kvconfig_is_line_end(StrIterPeek(&si))) {
+                char c2;
+                if (!StrIterPeek(&si, &c2) || c2 == '\n') {
                     si = kvconfig_consume_line_end(si);
                     continue;
                 }
@@ -371,12 +360,16 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg) {
             break;
         }
 
-        if (!StrIterRemainingLength(&si)) {
+        if (!StrIterPeek(&si, &c)) {
+            StrDeinit(&key);
+            StrDeinit(&value);
             break;
         }
 
-        if (kvconfig_is_comment_start(StrIterPeek(&si))) {
+        if (kvconfig_is_comment_start(c)) {
             si = KvConfigSkipLine(si);
+            StrDeinit(&key);
+            StrDeinit(&value);
             continue;
         }
 

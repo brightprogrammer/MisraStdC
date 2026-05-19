@@ -4,59 +4,42 @@
 #ifndef MISRA_STD_UTILITY_ITER_ACCESS_H
 #define MISRA_STD_UTILITY_ITER_ACCESS_H
 
-#include "Type.h"
 #include "Private.h"
+#include "Type.h"
 
 ///
-/// Get total length of this Iter object
-///
-/// SUCCESS : If provided Iter object is not NULL_ITER(mi) then returns size in bytes of memory region
-///           this Iter is iterating over.
-/// FAILURE : If provided Iter is NULL_ITER(mi) then returns 0
+/// Total length (in elements) of the region the iterator covers.
 ///
 /// TAGS: Memory, Length, Iter
 ///
 #define IterLength(mi) ((mi)->length)
+
 ///
-/// Get remaining length left to read this memory iterator.
-///
-/// SUCCESS : If provided Iter object is not NULL_ITER(mi) then remaining size left to read in
-///           memory region is returned.
-/// FAILURE : If provided Iter is NULL_ITER(mi) then returns 0
+/// Elements remaining to read in the iteration direction. Returns `0`
+/// once the iterator is past the end (forward) or past the start
+/// (reverse).
 ///
 /// TAGS: Memory, Iter, Length
 ///
 #define IterRemainingLength(mi) remaining_length_iter(GENERIC_ITER(mi))
 
 ///
-/// Get total size of this Iter object
-///
-/// SUCCESS : If provided Iter object is not NULL_ITER(mi) then returns size in bytes of memory region
-///           this Iter is iterating over.
-/// FAILURE : If provided Iter is NULL_ITER(mi) then returns 0
+/// Total region size in bytes (length scaled by element stride).
 ///
 /// TAGS: Memory, Size, Iter
 ///
 #define IterSize(mi) IterLength(mi) * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment)
 
 ///
-/// Get remaining size left to read this memory iterator.
-///
-/// SUCCESS : If provided Iter object is not NULL_ITER(mi) then remaining size left to read in
-///           memory region is returned.
-/// FAILURE : If provided Iter is NULL_ITER(mi) then returns 0
+/// Remaining region size in bytes.
 ///
 /// TAGS: Memory, Iter, Size
 ///
 #define IterRemainingSize(mi) IterRemainingLength(mi) * ALIGN_UP(sizeof(ITER_DATA_TYPE(mi)), (mi)->alignment)
 
 ///
-/// If there's space left to read in memory region we're iterating over,
-/// then return a pointer to current read position.
-///
-/// SUCCESS : If provided Iter is not NULL_ITER_DATA(mi), and we have space left to read,
-///           then return pointer to memory to start/resume reading from.
-/// FAILURE : NULL_ITER_DATA(mi) othewise
+/// Pointer to the current read position, or `NULL_ITER_DATA(mi)` when
+/// the iterator is exhausted.
 ///
 /// TAGS: Iter, Memory, Position
 ///
@@ -67,37 +50,67 @@
          NULL_ITER_DATA(mi))
 
 ///
-/// Read object from memory iter, given that
-/// - Provided Iter object is not NULL_ITER(mi).
-/// - There's space left to read.
-/// - Length of object data is being read into is an integral multiple of size of data type
-///   this memory iter is iterating over.
+/// Propagating read. Writes the current element to `*out` and advances
+/// the iterator. `out` must point at storage compatible with the
+/// iterator's element type.
 ///
-/// SUCCESS : Data is copied from current read position to provided `dst`, and `mi` is returned
-/// FAILURE : NULL_ITER(mi) returned
+/// SUCCESS : `*out` is set, `pos` advances by `dir`, returns `true`.
+/// FAILURE : Iterator is exhausted. `*out` is not written, `pos` is
+///           unchanged, returns `false`.
 ///
 /// TAGS: Memory, Iter, Read
 ///
-#define IterRead(mi)                                                                                                   \
-    (IterRemainingLength(mi) ? (((mi)->pos = (mi)->pos + (mi)->dir), (mi)->data[(mi)->pos - (mi)->dir]) :              \
-                               (ITER_DATA_TYPE(mi)) {0})
+#define IterRead(mi, out)                                                                                              \
+    (IterRemainingLength(mi) ? (*(out) = (mi)->data[(mi)->pos], (mi)->pos = (mi)->pos + (mi)->dir, true) : false)
 
 ///
-/// Peek (not read) object from memory iter, given that
-/// - Provided Iter object is not NULL_ITER(mi).
-/// - There's space left to read.
-/// - Length of object data is being read into is an integral multiple of size of data type
-///   this memory iter is iterating over.
+/// Aborting variant of `IterRead`. See that macro for parameter
+/// semantics and success-state effects.
 ///
-/// This is different from reading because it does not change current read position.
-/// This is good for making some decisions over data without changing the read position.
+/// SUCCESS : Returns to the caller; the underlying `IterRead` succeeded.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` when the iterator
+///           is exhausted.
 ///
-/// SUCCESS: Data copied over to `dst` from current read position and `mi` is returned.
-/// FAILURE: NULL_ITER_DATA(mi) returned.
+/// TAGS: Iter, Read, Must, Abort
+///
+#define IterMustRead(mi, out)                                                                                          \
+    do {                                                                                                               \
+        if (!IterRead((mi), (out))) {                                                                                  \
+            LOG_FATAL("IterMustRead: iterator exhausted");                                                             \
+        }                                                                                                              \
+    } while (0)
+
+///
+/// Propagating peek at signed offset `n` from the current position.
+/// Does not advance the iterator. Writes `data[pos + n]` to `*out`.
+///
+/// SUCCESS : `*out` is set, returns `true`.
+/// FAILURE : `pos + n` is outside `[0, length)`. `*out` is not written,
+///           returns `false`.
 ///
 /// TAGS: Memory, Peek, Iter
 ///
-#define IterPeekAt(mi, n)                                                                                              \
-    (IterRemainingLength(mi) > (n) || (mi)->pos + (n) >= 0 ? (mi)->data[(mi)->pos + (n)] : (ITER_DATA_TYPE(mi)) {0})
+#define IterPeekAt(mi, n, out)                                                                                         \
+    ((iter_peek_index(GENERIC_ITER(mi), (i64)(n)) != (size) - 1) ?                                                     \
+         (*(out) = (mi)->data[iter_peek_index(GENERIC_ITER(mi), (i64)(n))], true) :                                    \
+         false)
+
+///
+/// Aborting variant of `IterPeekAt`. See that macro for parameter
+/// semantics and success-state effects.
+///
+/// SUCCESS : Returns to the caller; the underlying `IterPeekAt`
+///           succeeded.
+/// FAILURE : Does not return - aborts via `LOG_FATAL` when `pos + n`
+///           is out of range.
+///
+/// TAGS: Iter, Peek, Must, Abort
+///
+#define IterMustPeekAt(mi, n, out)                                                                                     \
+    do {                                                                                                               \
+        if (!IterPeekAt((mi), (n), (out))) {                                                                           \
+            LOG_FATAL("IterMustPeekAt: offset out of range");                                                          \
+        }                                                                                                              \
+    } while (0)
 
 #endif // MISRA_STD_UTILITY_ITER_ACCESS_H

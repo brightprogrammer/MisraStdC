@@ -13,11 +13,12 @@ static StrIter JSkipObject(StrIter si) {
     si               = JSkipWhitespace(si);
 
     // starting of an object
-    if (StrIterPeek(&si) != '{') {
+    char c;
+    if (!StrIterPeek(&si, &c) || c != '{') {
         LOG_ERROR("Invalid object start. Expected '{'.");
         return saved_si;
     }
-    StrIterNext(&si);
+    StrIterMustNext(&si);
     si = JSkipWhitespace(si);
 
     StrIter read_si;
@@ -28,9 +29,9 @@ static StrIter JSkipObject(StrIter si) {
     DefaultAllocator scratch = DefaultAllocatorInit();
 
     // while not at the end of object.
-    while (StrIterPeek(&si) && StrIterPeek(&si) != '}') {
+    while (StrIterPeek(&si, &c) && c != '}') {
         if (expect_comma) {
-            if (StrIterPeek(&si) != ',') {
+            if (c != ',') {
                 LOG_ERROR(
                     "Expected ',' between key/value pairs in object. Invalid "
                     "JSON object."
@@ -38,7 +39,7 @@ static StrIter JSkipObject(StrIter si) {
                 DefaultAllocatorDeinit(&scratch);
                 return saved_si;
             }
-            StrIterNext(&si); // skip comma
+            StrIterMustNext(&si); // skip comma
             si = JSkipWhitespace(si);
         }
 
@@ -55,13 +56,13 @@ static StrIter JSkipObject(StrIter si) {
         si = read_si;
         si = JSkipWhitespace(si);
 
-        if (StrIterPeek(&si) != ':') {
+        if (!StrIterPeek(&si, &c) || c != ':') {
             LOG_ERROR("Expected ':' after key string. Failed to read JSON");
             StrDeinit(&key);
             DefaultAllocatorDeinit(&scratch);
             return saved_si;
         }
-        StrIterNext(&si);
+        StrIterMustNext(&si);
         si = JSkipWhitespace(si);
 
         // skip values within object
@@ -85,14 +86,13 @@ static StrIter JSkipObject(StrIter si) {
         expect_comma = true;
     }
 
-    char c = StrIterPeek(&si);
-    if (c != '}') {
+    if (!StrIterPeek(&si, &c) || c != '}') {
         LOG_ERROR("Expected end of object '}' but found '{c}'", c);
         DefaultAllocatorDeinit(&scratch);
         return saved_si;
     }
 
-    StrIterNext(&si);
+    StrIterMustNext(&si);
     DefaultAllocatorDeinit(&scratch);
     return si;
 }
@@ -105,25 +105,25 @@ static StrIter JSkipArray(StrIter si) {
     StrIter saved_si = si;
     si               = JSkipWhitespace(si);
 
-    // starting of an object
-    if (StrIterPeek(&si) != '[') {
+    char c;
+    if (!StrIterPeek(&si, &c) || c != '[') {
         LOG_ERROR("Invalid array start. Expected '['.");
         return saved_si;
     }
-    StrIterNext(&si);
+    StrIterMustNext(&si);
     si = JSkipWhitespace(si);
 
     StrIter read_si;
     bool    expect_comma = false;
 
     // while not at the end of array.
-    while (StrIterPeek(&si) && StrIterPeek(&si) != ']') {
+    while (StrIterPeek(&si, &c) && c != ']') {
         if (expect_comma) {
-            if (StrIterPeek(&si) != ',') {
+            if (c != ',') {
                 LOG_ERROR("Expected ',' between values in array. Invalid JSON array.");
                 return saved_si;
             }
-            StrIterNext(&si); // skip comma
+            StrIterMustNext(&si); // skip comma
             si = JSkipWhitespace(si);
         }
 
@@ -144,33 +144,29 @@ static StrIter JSkipArray(StrIter si) {
     }
 
     // end of array
-    if (StrIterPeek(&si) != ']') {
+    if (!StrIterPeek(&si, &c) || c != ']') {
         LOG_ERROR("Invalid end of array. Expected ']'.");
         return saved_si;
     }
 
-    StrIterNext(&si);
+    StrIterMustNext(&si);
     return si;
 }
 
 StrIter JSkipWhitespace(StrIter si) {
-    if (!StrIterRemainingLength(&si)) {
-        return si;
-    }
-
-    while (StrIterRemainingLength(&si) && StrIterPeek(&si)) {
-        switch (StrIterPeek(&si)) {
+    char c;
+    while (StrIterPeek(&si, &c)) {
+        switch (c) {
             case ' ' :
             case '\t' :
             case '\r' :
             case '\n' :
-                StrIterNext(&si);
+                StrIterMustNext(&si);
                 break;
             default :
                 return si;
         }
     }
-
     return si;
 }
 
@@ -188,70 +184,71 @@ StrIter JReadString(StrIter si, Str *str) {
     si               = JSkipWhitespace(si);
 
     // string start
-    if (StrIterRemainingLength(&si) && StrIterPeek(&si) == '"') {
-        StrIterNext(&si);
+    char c;
+    if (StrIterPeek(&si, &c) && c == '"') {
+        StrIterMustNext(&si);
 
         // while a printable character
-        while (StrIterRemainingLength(&si) && StrIterPeek(&si)) {
+        while (StrIterPeek(&si, &c)) {
             // three cases
             // - end of string (return)
             // - an escape sequence (processed and appended)
             // - acceptable string character (appended)
-            switch (StrIterPeek(&si)) {
+            switch (c) {
                 // end of string
                 case '"' :
-                    StrIterNext(&si);
+                    StrIterMustNext(&si);
                     return si;
 
                 // starting of an escape sequence
                 case '\\' :
-                    StrIterNext(&si);
-                    if (!StrIterRemainingLength(&si)) {
+                    StrIterMustNext(&si);
+                    if (!StrIterPeek(&si, &c)) {
                         LOG_ERROR("Unexpected end of string.");
                         StrClear(str);
                         return saved_si;
                     }
 
-                    switch (StrIterPeek(&si)) {
+                    switch (c) {
                         // escape sequence
                         case '\\' :
                             StrPushBack(str, '\\');
-                            StrIterNext(&si);
+                            StrIterMustNext(&si);
                             break;
 
                         case '"' :
                             StrPushBack(str, '"');
-                            StrIterNext(&si);
+                            StrIterMustNext(&si);
                             break;
 
                         case '/' :
                             StrPushBack(str, '/');
-                            StrIterNext(&si);
+                            StrIterMustNext(&si);
                             break;
 
                         case 'b' :
                             StrPushBack(str, '\b');
-                            StrIterNext(&si);
+                            StrIterMustNext(&si);
                             break;
 
                         case 'f' :
                             StrPushBack(str, '\f');
-                            StrIterNext(&si);
+                            StrIterMustNext(&si);
                             break;
 
                         case 'n' :
                             StrPushBack(str, '\n');
-                            StrIterNext(&si);
+                            StrIterMustNext(&si);
                             break;
 
                         case 'r' :
                             StrPushBack(str, '\r');
-                            StrIterNext(&si);
+                            StrIterMustNext(&si);
                             break;
 
                         case 't' :
                             StrPushBack(str, '\t');
-                            StrIterNext(&si);
+                            StrIterMustNext(&si);
                             break;
 
                         // espaced unicode sequence
@@ -260,7 +257,7 @@ StrIter JReadString(StrIter si, Str *str) {
                                 "No unicode support '{.6}'. Unicode sequence will be skipped.",
                                 LVAL(si.data + si.pos - 1)
                             );
-                            StrIterMove(&si, 5);
+                            StrIterMustMove(&si, 5);
                             break;
 
                         default :
@@ -272,8 +269,8 @@ StrIter JReadString(StrIter si, Str *str) {
 
                 // default allowed characters
                 default :
-                    StrPushBack(str, StrIterPeek(&si));
-                    StrIterNext(&si);
+                    StrPushBack(str, c);
+                    StrIterMustNext(&si);
                     break;
             }
         }
@@ -299,9 +296,10 @@ StrIter JReadNumber(StrIter si, Number *num) {
     Str              ns      = StrInit(&scratch);
 
     bool is_neg = false;
-    if (StrIterPeek(&si) == '-') {
+    char c;
+    if (StrIterPeek(&si, &c) && c == '-') {
         is_neg = true;
-        StrIterNext(&si);
+        StrIterMustNext(&si);
     }
 
     bool is_flt             = false;
@@ -309,8 +307,8 @@ StrIter JReadNumber(StrIter si, Number *num) {
     bool has_exp_plus_minus = false;
     bool is_parsing         = true;
 
-    while (is_parsing && StrIterRemainingLength(&si) && StrIterPeek(&si)) {
-        switch (StrIterPeek(&si)) {
+    while (is_parsing && StrIterPeek(&si, &c)) {
+        switch (c) {
             case 'E' :
             case 'e' :
                 if (has_exp) {
@@ -321,8 +319,8 @@ StrIter JReadNumber(StrIter si, Number *num) {
                 }
                 has_exp = true;
                 is_flt  = true;
-                StrPushBack(&ns, StrIterPeek(&si));
-                StrIterNext(&si);
+                StrPushBack(&ns, c);
+                StrIterMustNext(&si);
                 break;
 
             case '.' :
@@ -333,8 +331,8 @@ StrIter JReadNumber(StrIter si, Number *num) {
                     return saved_si;
                 }
                 is_flt = true;
-                StrPushBack(&ns, StrIterPeek(&si));
-                StrIterNext(&si);
+                StrPushBack(&ns, c);
+                StrIterMustNext(&si);
                 break;
 
             case '0' :
@@ -347,8 +345,8 @@ StrIter JReadNumber(StrIter si, Number *num) {
             case '7' :
             case '8' :
             case '9' :
-                StrPushBack(&ns, StrIterPeek(&si));
-                StrIterNext(&si);
+                StrPushBack(&ns, c);
+                StrIterMustNext(&si);
                 break;
 
             case '-' :
@@ -373,8 +371,8 @@ StrIter JReadNumber(StrIter si, Number *num) {
                     return saved_si;
                 }
                 has_exp_plus_minus = true;
-                StrPushBack(&ns, StrIterPeek(&si));
-                StrIterNext(&si);
+                StrPushBack(&ns, c);
+                StrIterMustNext(&si);
                 break;
 
             default :
@@ -489,11 +487,12 @@ StrIter JReadBool(StrIter si, bool *b) {
     StrIter saved_si = si;
     si               = JSkipWhitespace(si);
 
+    char c;
     if (StrIterRemainingLength(&si) >= 4) {
-        if (StrIterPeek(&si) == 't') {
+        if (StrIterPeek(&si, &c) && c == 't') {
             const char *pos = StrIterPos(&si);
             if (pos && ZstrCompareN(pos, "true", 4) == 0) {
-                StrIterMove(&si, 4);
+                StrIterMustMove(&si, 4);
                 *b = true;
                 return si;
             }
@@ -502,10 +501,10 @@ StrIter JReadBool(StrIter si, bool *b) {
         }
 
         if (StrIterRemainingLength(&si) >= 5) {
-            if (StrIterPeek(&si) == 'f') {
+            if (StrIterPeek(&si, &c) && c == 'f') {
                 const char *pos = StrIterPos(&si);
                 if (pos && ZstrCompareN(pos, "false", 5) == 0) {
-                    StrIterMove(&si, 5);
+                    StrIterMustMove(&si, 5);
                     *b = false;
                     return si;
                 }
@@ -539,11 +538,12 @@ StrIter JReadNull(StrIter si, bool *is_null) {
     si               = JSkipWhitespace(si);
 
     *is_null = false;
+    char c;
     if (StrIterRemainingLength(&si) >= 4) {
-        if (StrIterPeek(&si) == 'n') {
+        if (StrIterPeek(&si, &c) && c == 'n') {
             const char *pos = StrIterPos(&si);
             if (pos && ZstrCompareN(pos, "null", 4) == 0) {
-                StrIterMove(&si, 4);
+                StrIterMustMove(&si, 4);
                 *is_null = true;
                 return si;
             }
@@ -569,8 +569,14 @@ StrIter JSkipValue(StrIter si) {
     StrIter saved_si = si;
     si               = JSkipWhitespace(si);
 
+    char c;
+    if (!StrIterPeek(&si, &c)) {
+        LOG_ERROR("Failed to read value. Invalid JSON");
+        return si;
+    }
+
     // check for true/false
-    if (StrIterPeek(&si) == 't' || StrIterPeek(&si) == 'f') {
+    if (c == 't' || c == 'f') {
         StrIter before_si = si;
         bool    b;
         si = JReadBool(si, &b);
@@ -587,7 +593,7 @@ StrIter JSkipValue(StrIter si) {
     }
 
     // check for null
-    if (StrIterPeek(&si) == 'n') {
+    if (c == 'n') {
         StrIter before_si = si;
         bool    n;
         si = JReadNull(si, &n);
@@ -605,7 +611,7 @@ StrIter JSkipValue(StrIter si) {
 
 
     // expecting a string
-    if (StrIterPeek(&si) == '"') {
+    if (c == '"') {
         StrIter          before_si = si;
         DefaultAllocator scratch   = DefaultAllocatorInit();
         Str              s         = StrInit(&scratch);
@@ -622,7 +628,7 @@ StrIter JSkipValue(StrIter si) {
     }
 
     // looks like starting of a number?
-    if (StrIterPeek(&si) == '-' || (StrIterPeek(&si) >= '0' && StrIterPeek(&si) <= '9')) {
+    if (c == '-' || (c >= '0' && c <= '9')) {
         StrIter before_si = si;
         Number  num;
         si = JReadNumber(si, &num);
@@ -636,7 +642,7 @@ StrIter JSkipValue(StrIter si) {
     }
 
     // looks like starting of an object
-    if (StrIterPeek(&si) == '{') {
+    if (c == '{') {
         StrIter before_si = si;
         si                = JSkipObject(si);
 
@@ -649,7 +655,7 @@ StrIter JSkipValue(StrIter si) {
     }
 
     // looks like starting of an array
-    if (StrIterPeek(&si) == '[') {
+    if (c == '[') {
         StrIter before_si = si;
         si                = JSkipArray(si);
 

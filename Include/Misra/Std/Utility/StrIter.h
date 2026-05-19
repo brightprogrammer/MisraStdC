@@ -15,166 +15,77 @@ typedef Vec(StrIter) StrIters;
 ///
 /// i[in] : Pointer to `StrIter` object to validate.
 ///
-/// SUCCESS : Continue execution, meaning given `StrIter` object is most probably a valid `StrIter`.
+/// SUCCESS : Continue execution.
 /// FAILURE : `abort`
 ///
 #define ValidateStrIter(si) ValidateIter(si)
 
 ///
 /// Validate whether a given `StrIters` object is valid.
-/// Not foolproof but will work most of the time.
-/// Aborts if provided `StrIters` is not valid.
-///
-/// i[in] : Pointer to `StrIters` object to validate.
-///
-/// SUCCESS : Continue execution, meaning given `StrIters` object is most probably a valid `StrIters`.
-/// FAILURE : `abort`
 ///
 #define ValidateStrIters(siv) ValidateVec(siv);
 
-///
-/// Move string iterator position by `n` elements
-///
-/// si[in,out] : `StrIter` to modify
-/// n[in]      : Number of elements to move
-///
-/// SUCCESS: Updates position if within bounds
-/// FAILURE: No change for invalid moves
-///
-/// TAGS: StrIter, Pos, Iter
+// ---------------------------------------------------------------------------
+// Position
+// ---------------------------------------------------------------------------
+
+/// Propagating: succeeds if the new position is in range.
 #define StrIterMove(si, n) IterMove((si), (n))
+/// Aborting variant of `StrIterMove`.
+#define StrIterMustMove(si, n) IterMustMove((si), (n))
 
-///
-/// Advance to next character in string iterator
-///
-/// si[in,out] : `StrIter` to modify
-///
-/// TAGS: StrIter, Pos, Iter
+/// Propagating: advance one character; false if exhausted.
 #define StrIterNext(si) IterNext((si))
+/// Aborting variant of `StrIterNext`.
+#define StrIterMustNext(si) IterMustNext((si))
 
-///
-/// Move to previous character in string iterator
-///
-/// si[in,out] : `StrIter` to modify
-///
-/// TAGS: StrIter, Pos, Iter
+/// Propagating: step back one character; false if before start.
 #define StrIterPrev(si) IterPrev((si))
+/// Aborting variant of `StrIterPrev`.
+#define StrIterMustPrev(si) IterMustPrev((si))
 
-///
-/// Create string iterator from `Str` object
-///
-/// s[in] : `Str` object to iterate
-///
-/// TAGS: StrIter, Initialization, Str, Iter
+// ---------------------------------------------------------------------------
+// Construction
+// ---------------------------------------------------------------------------
+
 #define StrIterFromStr(s) IterInitFromVec(s)
 
-///
-/// Create string iterator from null-terminated C string
-///
-/// s[in] : Null-terminated C string
-///
-/// TAGS: StrIter, Initialization, CString, Iter
-#define StrIterFromZstr(s) ((StrIter) {.data = (s), .length = ZstrLen((s)), .pos = 0, .alignment = 1})
+#define StrIterFromZstr(s) ((StrIter) {.data = (s), .length = ZstrLen((s)), .pos = 0, .alignment = 1, .dir = 1})
 
-///
-/// Create string iterator from C string with explicit length
-///
-/// s[in] : Character buffer
-/// n[in] : Length of buffer
-///
-/// TAGS: StrIter, Initialization, CString, Iter
-#define StrIterFromCstr(s, n) ((StrIter) {.data = (s), .length = n, .pos = 0, .alignment = 1})
+#define StrIterFromCstr(s, n) ((StrIter) {.data = (s), .length = n, .pos = 0, .alignment = 1, .dir = 1})
 
-///
-/// Get total size of string data in bytes
-///
-/// mi[in] : `StrIter` object
-///
-/// SUCCESS: Returns byte size for valid iterators
-/// FAILURE: Returns 0 for invalid iterators
-///
-/// TAGS: StrIter, Size, Query, Iter
-#define StrIterSize(mi) IterSize(mi)
+// ---------------------------------------------------------------------------
+// Sizing
+// ---------------------------------------------------------------------------
 
-///
-/// Get remaining bytes left to read
-///
-/// mi[in] : `StrIter` object
-///
-/// SUCCESS: Returns remaining byte count
-/// FAILURE: Returns 0 for invalid iterators
-///
-/// TAGS: StrIter, Size, Query, Iter
-#define StrIterRemainingSize(mi) IterRemainingSize(mi)
-
-///
-/// Get total length in elements
-///
-/// mi[in] : `StrIter` object
-///
-/// SUCCESS: Returns element count for valid iterators
-/// FAILURE: Returns 0 for invalid iterators
-///
-/// TAGS: StrIter, Length, Query, Iter
-#define StrIterLength(mi) IterLength(mi)
-
-///
-/// Get remaining elements left to read
-///
-/// mi[in] : `StrIter` object
-///
-/// SUCCESS: Returns remaining element count
-/// FAILURE: Returns 0 for invalid iterators
-///
-/// TAGS: StrIter, Length, Query, Iter
+#define StrIterSize(mi)            IterSize(mi)
+#define StrIterRemainingSize(mi)   IterRemainingSize(mi)
+#define StrIterLength(mi)          IterLength(mi)
 #define StrIterRemainingLength(mi) IterRemainingLength(mi)
+#define StrIterPos(mi)             IterPos(mi)
 
-///
-/// Get current read position pointer
-///
-/// mi[in] : `StrIter` object
-///
-/// SUCCESS: Returns valid char pointer
-/// FAILURE: Returns `NULL_ITER_DATA` if exhausted/invalid
-///
-/// TAGS: StrIter, Pos, Pos, Iter
-#define StrIterPos(mi) IterPos(mi)
+// ---------------------------------------------------------------------------
+// Read / peek
+// ---------------------------------------------------------------------------
 
-///
-/// Read character from iterator
-///
-/// mi[in,out] : `StrIter` object
-///
-/// SUCCESS: Returns character and advances position
-/// FAILURE: Returns null character if exhausted
-///
-/// TAGS: StrIter, Read, Character, Iter
-#define StrIterRead(mi, dst) IterRead(mi)
+/// Propagating: writes `*out`, advances, returns bool.
+#define StrIterRead(mi, out) IterRead((mi), (out))
+/// Aborting variant of `StrIterRead`.
+#define StrIterMustRead(mi, out) IterMustRead((mi), (out))
 
-///
-/// Peek current character without advancing
-///
-/// mi[in] : `StrIter` object
-///
-/// SUCCESS: Returns current character
-/// FAILURE: Returns null character if exhausted
-///
-/// TAGS: StrIter, Peek, Character, Iter
-#define StrIterPeek(mi) IterPeekAt((mi), 0)
+/// Propagating: writes `*out` with the current char; returns false at EOF.
+#define StrIterPeek(mi, out) IterPeekAt((mi), 0, (out))
+/// Aborting variant of `StrIterPeek`.
+#define StrIterMustPeek(mi, out) IterMustPeekAt((mi), 0, (out))
 
-///
-/// Peek character at offset without advancing
-///
-/// mi[in] : `StrIter` object
-/// n[in]  : Peek position
-///
-/// SUCCESS: Returns current character
-/// FAILURE: Returns null character if exhausted
-///
-/// TAGS: StrIter, Peek, Character, Iter
-#define StrIterPeekAt(mi, n) IterPeekAt((mi), (n))
+/// Propagating: writes `*out` with the char at signed offset `n`.
+#define StrIterPeekAt(mi, n, out) IterPeekAt((mi), (n), (out))
+/// Aborting variant of `StrIterPeekAt`.
+#define StrIterMustPeekAt(mi, n, out) IterMustPeekAt((mi), (n), (out))
 
-#define StrIterPeekNext(mi) IterPeekAt((mi), 1)
-#define StrIterPeekPrev(mi) IterPeekAt((mi), -1)
+/// Propagating: peek one ahead in iteration direction.
+#define StrIterPeekNext(mi, out) IterPeekAt((mi), 1, (out))
+/// Propagating: peek one behind in iteration direction.
+#define StrIterPeekPrev(mi, out) IterPeekAt((mi), -1, (out))
 
 #endif // MISRA_STD_UTILITY_STR_ITER_H
