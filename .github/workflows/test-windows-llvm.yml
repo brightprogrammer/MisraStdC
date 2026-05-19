@@ -132,7 +132,8 @@ jobs:
     # platform DLLs. Anything UCRT/vcruntime (ucrtbase.dll,
     # vcruntime140.dll, msvcp140.dll, etc.) means the diet regressed.
     # Allowed: kernel32 + ws2_32 (Sockets) + dbghelp (Backtrace) +
-    # advapi32 (some Win32 calls pull it). The meson auto-injected
+    # advapi32 (some Win32 calls pull it) + bcrypt (RNG via
+    # BCryptGenRandom, see Std/Prng.c). The meson auto-injected
     # user32/gdi32/etc. show up in the link line but typically don't
     # end up in IAT unless we actually call them.
     #
@@ -143,6 +144,7 @@ jobs:
       run: |
         $allowed = @(
             'KERNEL32.dll', 'WS2_32.dll', 'DBGHELP.DLL', 'ADVAPI32.dll',
+            'BCRYPT.dll',
             'USER32.dll', 'GDI32.dll', 'WINSPOOL.DRV', 'SHELL32.dll',
             'ole32.dll', 'OLEAUT32.dll', 'COMDLG32.dll'
         )

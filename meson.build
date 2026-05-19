@@ -576,11 +576,17 @@ misra_std_dep = declare_dependency(
     dependencies: misra_std_platform_deps,
 )
 
-# Non-sanitized library specifically for deadend tests to avoid memory leak reports
+# Test-only library variant for deadend suites that can't carry
+# sanitisers (the LOG_FATAL longjmp path leaks the per-FATAL
+# HeapAllocator, which ASan loudly reports). Same sources as
+# `misra_std`; sanitisers off via override, plus the same
+# MISRA_LOG_NO_BACKTRACE gate as `misra_std_no_backtrace` because the
+# only consumers (bitvec_deadend_tests + their test_util variant) fire
+# many LOG_FATALs per binary and don't need the trace either.
 misra_std_no_sanitizers = static_library(
     'misra_std_no_sanitizers',
     misra_std_sources,
-    c_args: common_c_args,
+    c_args: common_c_args + ['-DMISRA_LOG_NO_BACKTRACE=1'],
     dependencies: misra_std_platform_deps,
     include_directories: inc_misra,
     install: false,

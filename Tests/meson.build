@@ -526,7 +526,12 @@ if opt_parser_elf and tests_need_posix_exe
             install: false
         )
 
-        test(test_name, test_exe)
+        # Elf test parses /proc/self/exe (the sanitised test binary
+        # itself -- large, full debug info) four times back-to-back.
+        # Every byte read goes through ASan's shadow-byte check; on a
+        # shared GitHub Ubuntu runner this clocks in around 50s, leaving
+        # no margin above the 60s timeout. Bump it to be safe.
+        test(test_name, test_exe, timeout: 120)
     endforeach
 endif
 
@@ -549,7 +554,12 @@ if opt_parser_dwarf and tests_need_posix_exe
             install: false
         )
 
-        test(test_name, test_exe)
+        # Dwarf parser test directly exercises SymbolResolver, which
+        # probes many external-debug paths (/usr/lib/debug/.build-id/*
+        # etc.) that don't exist on CI runners -- each failed open is
+        # cheap but the chain repeats per symbol. Give explicit room
+        # over the default 30 s * multiplier so CI doesn't flake.
+        test(test_name, test_exe, timeout: 120)
     endforeach
 
     # Stripped-binary integration test. The same source produces both
@@ -590,7 +600,9 @@ if opt_parser_dwarf and tests_need_posix_exe
             build_by_default: true
         )
 
-        test('Dwarf.Stripped', stripped_driver, args: [stripped_target.full_path()])
+        # Same SymbolResolver-driven slowness as the Dwarf parser test;
+        # see comment above.
+        test('Dwarf.Stripped', stripped_driver, args: [stripped_target.full_path()], timeout: 120)
     endif
 endif
 
@@ -629,7 +641,12 @@ if opt_sys_symresolve and tests_need_posix_exe
             install: false
         )
 
-        test(test_name, test_exe)
+        # SymbolResolver test probes external debug-symbol paths
+        # (/usr/lib/debug/.build-id/*) that don't exist on CI runners.
+        # Each ENOENT is cheap on its own, but ASan + UBSan instrumentation
+        # over the full resolve chain on a large sanitised binary pushes
+        # this near the 60s default. Bump.
+        test(test_name, test_exe, timeout: 120)
     endforeach
 endif
 
@@ -665,7 +682,12 @@ if opt_sys_backtrace and backtrace_test_platforms
             install: false
         )
 
-        test(test_name, test_exe)
+        # The Backtrace test exercises the full symbolisation chain
+        # (CaptureStackBackTrace + SymbolResolver + DWARF lookups) on
+        # purpose. CI runners without debug-symbol packages spend
+        # noticeable time hitting ENOENT on the build-id paths the
+        # resolver probes. Headroom over the global multiplier.
+        test(test_name, test_exe, timeout: 120)
     endforeach
 endif
 
