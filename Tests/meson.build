@@ -12,21 +12,13 @@ subdir('Util')
 
 # Default test timeout headroom.
 #
-# Meson's default per-test timeout is 30 s. Several suites legitimately
-# need more than that on slower CI runners:
-#  * The deadend suites (BitVec / List / Map / Graph / Allocator.* /
-#    Iter / Str / Int / AllocDebug) fire many LOG_FATALs in sequence.
-#    Each LOG_FATAL prints a backtrace, and on macOS the dyld-based
-#    symbolication is several seconds per frame under ASan; the
-#    deadend-densest suites (AllocDebug ~13 happy paths, List.Deadend
-#    26 cases, BitVec.Math 17 deadend cases) still exceed 120 s on a
-#    sanitised macOS build, so we keep extra headroom.
-#  * Backtrace / MachO stress tests already run ~28 s on macOS CI,
-#    leaving no margin for slower runners.
-# Globally multiply the per-test timeout instead of sprinkling
-# `timeout:` overrides; fast tests are unaffected and slow ones get
-# breathing room.
-add_test_setup('default', is_default: true, timeout_multiplier: 8)
+# Meson's default per-test timeout is 30 s. Test binaries link
+# `misra_std_no_backtrace` (LogWrite's FATAL backtrace formatter
+# gated out), so deadend suites no longer pay the per-LOG_FATAL macOS
+# dSYM + DWARF symbolisation cost. A small 2x cushion covers the
+# Backtrace / MachO stress tests, which legitimately spend ~28 s on
+# macOS CI even on the full library.
+add_test_setup('default', is_default: true, timeout_multiplier: 2)
 
 #Test configuration
 test_args = common_c_args
@@ -271,8 +263,8 @@ if opt_bitvec and opt_int and opt_float
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -290,8 +282,8 @@ if opt_file
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -309,8 +301,8 @@ foreach test_info : argparse_tests
     test_exe = executable(
         test_name,
         files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
+        link_with: [misra_std_no_backtrace],
+        dependencies: [test_util_dep_no_backtrace],
         c_args: test_args,
         include_directories: inc_misra,
         install: false
@@ -327,8 +319,8 @@ if opt_sys_socket
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -346,8 +338,8 @@ if opt_parser_http
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -367,8 +359,8 @@ if opt_parser_pe
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -388,8 +380,8 @@ if opt_parser_pdb
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -405,8 +397,8 @@ if opt_parser_pdb
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -425,8 +417,8 @@ if opt_parser_macho
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -449,8 +441,8 @@ if opt_parser_macho
             test_exe = executable(
                 test_name,
                 files(test_src),
-                link_with: [misra_std],
-                dependencies: [test_util_dep],
+                link_with: [misra_std_no_backtrace],
+                dependencies: [test_util_dep_no_backtrace],
                 c_args: test_args,
                 include_directories: inc_misra,
                 install: false
@@ -471,8 +463,8 @@ if opt_parser_dns
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -497,8 +489,8 @@ if opt_sys_dns and host_machine.system() != 'windows'
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -526,8 +518,8 @@ if opt_parser_elf and tests_need_posix_exe
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             link_args: ['-Wl,--build-id=sha1'],
@@ -549,8 +541,8 @@ if opt_parser_dwarf and tests_need_posix_exe
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args + ['-gdwarf-4'],
             include_directories: inc_misra,
             link_args: ['-rdynamic'],
@@ -570,8 +562,8 @@ if opt_parser_dwarf and tests_need_posix_exe
         stripped_driver = executable(
             'Dwarf.Stripped',
             files('Std/StrippedResolve.c'),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args + ['-gdwarf-4'],
             include_directories: inc_misra,
             link_args: ['-rdynamic'],
@@ -610,8 +602,8 @@ if opt_sys_procmaps and tests_need_posix_exe
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -629,8 +621,8 @@ if opt_sys_symresolve and tests_need_posix_exe
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             link_args: ['-rdynamic'],
@@ -665,8 +657,8 @@ if opt_sys_backtrace and backtrace_test_platforms
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: backtrace_test_c_args,
             include_directories: inc_misra,
             link_args: backtrace_test_link_args,
@@ -684,8 +676,8 @@ foreach test_info : page_protect_tests
     test_exe = executable(
         test_name,
         files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
+        link_with: [misra_std_no_backtrace],
+        dependencies: [test_util_dep_no_backtrace],
         c_args: test_args,
         include_directories: inc_misra,
         install: false
@@ -702,8 +694,8 @@ if opt_alloc_debug
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -720,8 +712,8 @@ foreach test_info : str_tests
     test_exe = executable(
         test_name,
         files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
+        link_with: [misra_std_no_backtrace],
+        dependencies: [test_util_dep_no_backtrace],
         c_args: test_args,
         include_directories: inc_misra,
         install: false
@@ -737,8 +729,8 @@ foreach test_info : iter_tests + iter_deadend_tests + buf_tests
     test_exe = executable(
         test_name,
         files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
+        link_with: [misra_std_no_backtrace],
+        dependencies: [test_util_dep_no_backtrace],
         c_args: test_args,
         include_directories: inc_misra,
         install: false
@@ -754,8 +746,8 @@ foreach test_info : vec_tests
     test_exe = executable(
         test_name,
         files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
+        link_with: [misra_std_no_backtrace],
+        dependencies: [test_util_dep_no_backtrace],
         c_args: test_args,
         include_directories: inc_misra,
         install: false
@@ -772,8 +764,8 @@ if opt_graph
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -791,8 +783,8 @@ if opt_list
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -810,8 +802,8 @@ if opt_map
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -829,8 +821,8 @@ if opt_parser_json
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -848,8 +840,8 @@ if opt_parser_kvconf
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -866,8 +858,8 @@ foreach test_info : allocator_tests
     test_exe = executable(
         test_name,
         files(test_src),
-        link_with: [misra_std],
-        dependencies: [test_util_dep],
+        link_with: [misra_std_no_backtrace],
+        dependencies: [test_util_dep_no_backtrace],
         c_args: test_args,
         include_directories: inc_misra,
         install: false
@@ -884,8 +876,8 @@ if opt_bitvec
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -903,8 +895,8 @@ if opt_int
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false
@@ -922,8 +914,8 @@ if opt_float
         test_exe = executable(
             test_name,
             files(test_src),
-            link_with: [misra_std],
-            dependencies: [test_util_dep],
+            link_with: [misra_std_no_backtrace],
+            dependencies: [test_util_dep_no_backtrace],
             c_args: test_args,
             include_directories: inc_misra,
             install: false

@@ -248,7 +248,20 @@ static void debug_emit_trace(const StackFrame *frames, size count, const char *l
         return;
     }
     Str rendered = StrInit(meta);
+#if !defined(MISRA_LOG_NO_BACKTRACE) || !MISRA_LOG_NO_BACKTRACE
     FormatStackTrace(&rendered, frames, count, meta);
+#else
+    // Same rationale as LogWrite's FATAL gate (see Log.c). Symbolicating
+    // every leak/double-free trace costs ~10 s per call on macOS under
+    // ASan because MachoCache re-parses Mach-O + dSYM + DWARF per
+    // backtrace. The test harness (which is the only caller of this
+    // path that opts into MISRA_LOG_NO_BACKTRACE) only checks that
+    // traces were captured (`trace_n > 0`), not that they symbolicate,
+    // so emit raw IPs in this build.
+    for (size i = 0; i < count; ++i) {
+        StrAppendFmt(&rendered, "  #{} {x}\n", (u32)i, (u64)frames[i].ip);
+    }
+#endif
     LOG_ERROR("    {} trace:\n{}", label, rendered);
     StrDeinit(&rendered);
 }
@@ -463,7 +476,13 @@ void DebugAllocatorReportLeaks(DebugAllocator *self, Str *out) {
     MapForeachPairPtr(&self->live, key_ptr, val_ptr) {
         StrAppendFmt(out, "  leak: {x} ({} bytes)\n", (u64)*key_ptr, (u64)val_ptr->requested_size);
         if (val_ptr->alloc_trace_n > 0) {
+#if !defined(MISRA_LOG_NO_BACKTRACE) || !MISRA_LOG_NO_BACKTRACE
             FormatStackTrace(out, val_ptr->alloc_trace, val_ptr->alloc_trace_n, ALLOCATOR_OF(&self->meta));
+#else
+            for (size i = 0; i < val_ptr->alloc_trace_n; ++i) {
+                StrAppendFmt(out, "  #{} {x}\n", (u32)i, (u64)val_ptr->alloc_trace[i].ip);
+            }
+#endif
         }
     }
 }

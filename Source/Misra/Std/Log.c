@@ -56,6 +56,7 @@ void LogWrite(LogMessageType type, const char *tag, u64 line, const char *msg) {
     File out = (type == LOG_MESSAGE_TYPE_INFO) ? FileFromFd(1) : FileFromFd(2);
     (void)FileWrite(&out, full.data, full.length);
 
+#if !defined(MISRA_LOG_NO_BACKTRACE) || !MISRA_LOG_NO_BACKTRACE
     if (type == LOG_MESSAGE_TYPE_FATAL) {
         // Append captured stack trace so the diagnostic carries the
         // call site context up to Abort(). Skip our own + LogWrite's
@@ -67,6 +68,16 @@ void LogWrite(LogMessageType type, const char *tag, u64 line, const char *msg) {
         (void)FileWrite(&out, trace.data, trace.length);
         StrDeinit(&trace);
     }
+#else
+    // MISRA_LOG_NO_BACKTRACE: deadend test binaries opt out of the
+    // FATAL backtrace because (a) they install an abort callback that
+    // longjmps over the trace anyway, and (b) on macOS each backtrace
+    // re-parses the binary's Mach-O + dSYM + DWARF (MachoCache lives
+    // for the duration of one trace only), which dominates sanitised
+    // test wall-clock at ~99% per measurement. The FATAL message
+    // itself (with func:line) already identifies the abort point.
+    (void)type;
+#endif
 
     StrDeinit(&full);
     HeapAllocatorDeinit(&h);

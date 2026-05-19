@@ -587,6 +587,22 @@ misra_std_no_sanitizers = static_library(
     override_options: ['b_sanitize=none']
 )
 
+# Test-only library variant with `LogWrite`'s FATAL backtrace block
+# compiled out (MISRA_LOG_NO_BACKTRACE). Deadend test binaries link
+# this so each `LOG_FATAL` skips the per-frame macOS dSYM/DWARF
+# symbolisation (which Mach-O re-parses every call -- ~99% of wall
+# clock under ASan, see Log.c gate for rationale). Sanitisers stay
+# enabled; only the trace formatter is gated. Production code paths
+# (Bin/ tools, misra_std proper) keep full symbolisation.
+misra_std_no_backtrace = static_library(
+    'misra_std_no_backtrace',
+    misra_std_sources,
+    c_args: common_c_args + ['-DMISRA_LOG_NO_BACKTRACE=1'],
+    dependencies: misra_std_platform_deps,
+    include_directories: inc_misra,
+    install: false,
+)
+
 # Main.c and misra executable have been removed
 
 # Bin/* executables. The shipping set is two tools: beam (reverse proxy)
