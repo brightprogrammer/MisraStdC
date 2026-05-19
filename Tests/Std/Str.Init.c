@@ -144,14 +144,14 @@ bool test_str_dup(void) {
     return result;
 }
 
-// Test StrWriteFmt function
+// Test StrAppendFmt function
 bool test_str_WriteFmt(void) {
-    WriteFmt("Testing StrWriteFmt\n");
+    WriteFmt("Testing StrAppendFmt\n");
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
     Str s = StrInit(&alloc);
-    StrWriteFmt(&s, "Hello, {}!", &"World"[0]);
+    StrAppendFmt(&s, "Hello, {}!", &"World"[0]);
 
     // Validate the string
     ValidateStr(&s);

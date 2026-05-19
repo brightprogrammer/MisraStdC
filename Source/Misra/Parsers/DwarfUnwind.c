@@ -18,7 +18,7 @@
 
 #include <Misra/Parsers/Dwarf.h>
 
-#include <Misra/Parsers/ByteIter.h>
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Std.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
@@ -76,43 +76,43 @@ static bool decode_eh_ptr(ByteIter *c, u8 encoding, u64 here_vaddr, u64 *out) {
     switch (value_kind) {
         case DW_EH_PE_ABSPTR : {
             // Treat as 8 bytes on our 64-bit target.
-            if (!bi_take_u64_le(c, &raw_val))
+            if (!BufReadU64LE(c, &raw_val))
                 return false;
             break;
         }
         case DW_EH_PE_ULEB128 : {
-            if (!bi_take_uleb128(c, &raw_val))
+            if (!BufReadULeb128(c, &raw_val))
                 return false;
             break;
         }
         case DW_EH_PE_UDATA2 : {
             u16 v = 0;
-            if (!bi_take_u16_le(c, &v))
+            if (!BufReadU16LE(c, &v))
                 return false;
             raw_val = v;
             break;
         }
         case DW_EH_PE_UDATA4 : {
             u32 v = 0;
-            if (!bi_take_u32_le(c, &v))
+            if (!BufReadU32LE(c, &v))
                 return false;
             raw_val = v;
             break;
         }
         case DW_EH_PE_UDATA8 : {
-            if (!bi_take_u64_le(c, &raw_val))
+            if (!BufReadU64LE(c, &raw_val))
                 return false;
             break;
         }
         case DW_EH_PE_SLEB128 : {
-            if (!bi_take_sleb128(c, &signed_val))
+            if (!BufReadSLeb128(c, &signed_val))
                 return false;
             is_signed = true;
             break;
         }
         case DW_EH_PE_SDATA2 : {
             u16 v = 0;
-            if (!bi_take_u16_le(c, &v))
+            if (!BufReadU16LE(c, &v))
                 return false;
             signed_val = (i64)(i16)v;
             is_signed  = true;
@@ -120,7 +120,7 @@ static bool decode_eh_ptr(ByteIter *c, u8 encoding, u64 here_vaddr, u64 *out) {
         }
         case DW_EH_PE_SDATA4 : {
             u32 v = 0;
-            if (!bi_take_u32_le(c, &v))
+            if (!BufReadU32LE(c, &v))
                 return false;
             signed_val = (i64)(i32)v;
             is_signed  = true;
@@ -128,7 +128,7 @@ static bool decode_eh_ptr(ByteIter *c, u8 encoding, u64 here_vaddr, u64 *out) {
         }
         case DW_EH_PE_SDATA8 : {
             u64 v = 0;
-            if (!bi_take_u64_le(c, &v))
+            if (!BufReadU64LE(c, &v))
                 return false;
             signed_val = (i64)v;
             is_signed  = true;
@@ -184,22 +184,22 @@ static bool parse_cie(ByteIter *body, u64 cie_offset, DwarfCie *out) {
     out->offset = cie_offset;
 
     u8 version = 0;
-    if (!bi_take_u8(body, &version))
+    if (!BufReadU8(body, &version))
         return false;
     if (version != 1 && version != 3 && version != 4) {
         return false;
     }
     out->version = version;
 
-    const char *augmentation = bi_take_cstr(body);
+    const char *augmentation = BufReadCstr(body);
     if (!augmentation)
         return false;
 
     if (version >= 4) {
         u8 address_size = 0, segment_size = 0;
-        if (!bi_take_u8(body, &address_size))
+        if (!BufReadU8(body, &address_size))
             return false;
-        if (!bi_take_u8(body, &segment_size))
+        if (!BufReadU8(body, &segment_size))
             return false;
         // We only handle non-segmented 64-bit (address_size==8).
         if (address_size != 8 || segment_size != 0)
@@ -208,21 +208,21 @@ static bool parse_cie(ByteIter *body, u64 cie_offset, DwarfCie *out) {
 
     u64 caf = 0;
     i64 daf = 0;
-    if (!bi_take_uleb128(body, &caf))
+    if (!BufReadULeb128(body, &caf))
         return false;
-    if (!bi_take_sleb128(body, &daf))
+    if (!BufReadSLeb128(body, &daf))
         return false;
     out->code_alignment_factor = (i64)caf;
     out->data_alignment_factor = daf;
 
     if (version >= 3) {
         u64 ra = 0;
-        if (!bi_take_uleb128(body, &ra))
+        if (!BufReadULeb128(body, &ra))
             return false;
         out->return_address_register = (u8)ra;
     } else {
         u8 ra = 0;
-        if (!bi_take_u8(body, &ra))
+        if (!BufReadU8(body, &ra))
             return false;
         out->return_address_register = ra;
     }
@@ -232,9 +232,9 @@ static bool parse_cie(ByteIter *body, u64 cie_offset, DwarfCie *out) {
     if (augmentation[0] == 'z') {
         out->has_augmentation = 1;
         u64 aug_len           = 0;
-        if (!bi_take_uleb128(body, &aug_len))
+        if (!BufReadULeb128(body, &aug_len))
             return false;
-        if (aug_len > bi_remaining(body))
+        if (aug_len > IterRemainingLength(body))
             return false;
         size aug_end_pos = body->pos + aug_len;
 
@@ -242,13 +242,13 @@ static bool parse_cie(ByteIter *body, u64 cie_offset, DwarfCie *out) {
             switch (*a) {
                 case 'L' : {
                     u8 lsda_enc = 0;
-                    if (!bi_take_u8(body, &lsda_enc))
+                    if (!BufReadU8(body, &lsda_enc))
                         return false;
                     break;
                 }
                 case 'P' : {
                     u8 pers_enc = 0;
-                    if (!bi_take_u8(body, &pers_enc))
+                    if (!BufReadU8(body, &pers_enc))
                         return false;
                     // Skip the personality routine pointer.
                     u64 dummy = 0;
@@ -257,7 +257,7 @@ static bool parse_cie(ByteIter *body, u64 cie_offset, DwarfCie *out) {
                 }
                 case 'R' : {
                     u8 fde_enc = 0;
-                    if (!bi_take_u8(body, &fde_enc))
+                    if (!BufReadU8(body, &fde_enc))
                         return false;
                     out->fde_pointer_encoding = fde_enc;
                     break;
@@ -275,7 +275,7 @@ static bool parse_cie(ByteIter *body, u64 cie_offset, DwarfCie *out) {
     }
 
     out->initial_instructions      = body->data + body->pos;
-    out->initial_instructions_size = bi_remaining(body);
+    out->initial_instructions_size = IterRemainingLength(body);
     return true;
 }
 
@@ -318,15 +318,15 @@ static bool parse_fde(
 
     if (cie->has_augmentation) {
         u64 aug_len = 0;
-        if (!bi_take_uleb128(body, &aug_len))
+        if (!BufReadULeb128(body, &aug_len))
             return false;
-        if (aug_len > bi_remaining(body))
+        if (aug_len > IterRemainingLength(body))
             return false;
         body->pos += aug_len;
     }
 
     out->instructions      = body->data + body->pos;
-    out->instructions_size = bi_remaining(body);
+    out->instructions_size = IterRemainingLength(body);
     return true;
 }
 
@@ -353,10 +353,10 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const ElfFile *elf, Allocator *allo
     const u8 *section_data = elf->data + eh->offset;
 
     ByteIter section_cur = ByteIterFromMemory(section_data, eh->size);
-    while (bi_remaining(&section_cur) > 0) {
+    while (IterRemainingLength(&section_cur) > 0) {
         const u8 *rec_start = section_cur.data + section_cur.pos;
         u32       length32  = 0;
-        if (!bi_take_u32_le(&section_cur, &length32))
+        if (!BufReadU32LE(&section_cur, &length32))
             break;
         if (length32 == 0) {
             // Terminator record.
@@ -366,11 +366,11 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const ElfFile *elf, Allocator *allo
             // 64-bit DWARF length form — not supported in v1.
             break;
         }
-        if (length32 > bi_remaining(&section_cur))
+        if (length32 > IterRemainingLength(&section_cur))
             break;
 
         u32 id = 0;
-        if (!bi_take_u32_le(&section_cur, &id))
+        if (!BufReadU32LE(&section_cur, &id))
             break;
 
         // The CIE/FDE body is `length32` bytes starting at the id field.
@@ -505,7 +505,7 @@ static void cfi_vm_init(CfiVm *vm, const DwarfCie *cie, u64 fde_pc_begin, u8 ra_
 // advance_loc has covered the requested target PC.
 static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
     u8 op = 0;
-    if (!bi_take_u8(cur, &op))
+    if (!BufReadU8(cur, &op))
         return false;
 
     u8 high = op & 0xc0;
@@ -525,7 +525,7 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
     if (high == 0x80) {
         // DW_CFA_offset (register in low bits, operand ULEB offset, scaled by data_align)
         u64 raw = 0;
-        if (!bi_take_uleb128(cur, &raw))
+        if (!BufReadULeb128(cur, &raw))
             return false;
         if (low < DWARF_UNWIND_MAX_REGS) {
             vm->row.regs[low].kind   = DWARF_REG_RULE_OFFSET;
@@ -547,7 +547,7 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
 
         case DW_CFA_SET_LOC : {
             u64 abs_pc = 0;
-            if (!bi_take_u64_le(cur, &abs_pc))
+            if (!BufReadU64LE(cur, &abs_pc))
                 return false;
             if (vm->location <= stop_at && stop_at < abs_pc) {
                 *stop_now = true;
@@ -558,7 +558,7 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
         }
         case DW_CFA_ADVANCE_LOC1 : {
             u8 d = 0;
-            if (!bi_take_u8(cur, &d))
+            if (!BufReadU8(cur, &d))
                 return false;
             u64 next = vm->location + (u64)d * (u64)vm->code_align;
             if (vm->location <= stop_at && stop_at < next) {
@@ -570,7 +570,7 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
         }
         case DW_CFA_ADVANCE_LOC2 : {
             u16 d = 0;
-            if (!bi_take_u16_le(cur, &d))
+            if (!BufReadU16LE(cur, &d))
                 return false;
             u64 next = vm->location + (u64)d * (u64)vm->code_align;
             if (vm->location <= stop_at && stop_at < next) {
@@ -582,7 +582,7 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
         }
         case DW_CFA_ADVANCE_LOC4 : {
             u32 d = 0;
-            if (!bi_take_u32_le(cur, &d))
+            if (!BufReadU32LE(cur, &d))
                 return false;
             u64 next = vm->location + (u64)d * (u64)vm->code_align;
             if (vm->location <= stop_at && stop_at < next) {
@@ -595,9 +595,9 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
 
         case DW_CFA_OFFSET_EXTENDED : {
             u64 reg = 0, off = 0;
-            if (!bi_take_uleb128(cur, &reg))
+            if (!BufReadULeb128(cur, &reg))
                 return false;
-            if (!bi_take_uleb128(cur, &off))
+            if (!BufReadULeb128(cur, &off))
                 return false;
             if (reg < DWARF_UNWIND_MAX_REGS) {
                 vm->row.regs[reg].kind   = DWARF_REG_RULE_OFFSET;
@@ -608,9 +608,9 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
         case DW_CFA_OFFSET_EXTENDED_SF : {
             u64 reg = 0;
             i64 off = 0;
-            if (!bi_take_uleb128(cur, &reg))
+            if (!BufReadULeb128(cur, &reg))
                 return false;
-            if (!bi_take_sleb128(cur, &off))
+            if (!BufReadSLeb128(cur, &off))
                 return false;
             if (reg < DWARF_UNWIND_MAX_REGS) {
                 vm->row.regs[reg].kind   = DWARF_REG_RULE_OFFSET;
@@ -620,7 +620,7 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
         }
         case DW_CFA_RESTORE_EXTENDED : {
             u64 reg = 0;
-            if (!bi_take_uleb128(cur, &reg))
+            if (!BufReadULeb128(cur, &reg))
                 return false;
             if (reg < DWARF_UNWIND_MAX_REGS) {
                 vm->row.regs[reg] = vm->initial.regs[reg];
@@ -629,7 +629,7 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
         }
         case DW_CFA_UNDEFINED : {
             u64 reg = 0;
-            if (!bi_take_uleb128(cur, &reg))
+            if (!BufReadULeb128(cur, &reg))
                 return false;
             if (reg < DWARF_UNWIND_MAX_REGS) {
                 vm->row.regs[reg].kind = DWARF_REG_RULE_UNDEFINED;
@@ -638,7 +638,7 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
         }
         case DW_CFA_SAME_VALUE : {
             u64 reg = 0;
-            if (!bi_take_uleb128(cur, &reg))
+            if (!BufReadULeb128(cur, &reg))
                 return false;
             if (reg < DWARF_UNWIND_MAX_REGS) {
                 vm->row.regs[reg].kind = DWARF_REG_RULE_SAME_VALUE;
@@ -647,9 +647,9 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
         }
         case DW_CFA_REGISTER : {
             u64 reg = 0, src = 0;
-            if (!bi_take_uleb128(cur, &reg))
+            if (!BufReadULeb128(cur, &reg))
                 return false;
-            if (!bi_take_uleb128(cur, &src))
+            if (!BufReadULeb128(cur, &src))
                 return false;
             if (reg < DWARF_UNWIND_MAX_REGS) {
                 vm->row.regs[reg].kind = DWARF_REG_RULE_REGISTER;
@@ -673,9 +673,9 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
         }
         case DW_CFA_DEF_CFA : {
             u64 reg = 0, off = 0;
-            if (!bi_take_uleb128(cur, &reg))
+            if (!BufReadULeb128(cur, &reg))
                 return false;
-            if (!bi_take_uleb128(cur, &off))
+            if (!BufReadULeb128(cur, &off))
                 return false;
             vm->row.cfa.kind   = DWARF_CFA_RULE_REG_OFFSET;
             vm->row.cfa.reg    = (u8)reg;
@@ -685,9 +685,9 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
         case DW_CFA_DEF_CFA_SF : {
             u64 reg = 0;
             i64 off = 0;
-            if (!bi_take_uleb128(cur, &reg))
+            if (!BufReadULeb128(cur, &reg))
                 return false;
-            if (!bi_take_sleb128(cur, &off))
+            if (!BufReadSLeb128(cur, &off))
                 return false;
             vm->row.cfa.kind   = DWARF_CFA_RULE_REG_OFFSET;
             vm->row.cfa.reg    = (u8)reg;
@@ -696,7 +696,7 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
         }
         case DW_CFA_DEF_CFA_REGISTER : {
             u64 reg = 0;
-            if (!bi_take_uleb128(cur, &reg))
+            if (!BufReadULeb128(cur, &reg))
                 return false;
             if (vm->row.cfa.kind != DWARF_CFA_RULE_REG_OFFSET) {
                 vm->row.cfa.kind = DWARF_CFA_RULE_REG_OFFSET;
@@ -706,7 +706,7 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
         }
         case DW_CFA_DEF_CFA_OFFSET : {
             u64 off = 0;
-            if (!bi_take_uleb128(cur, &off))
+            if (!BufReadULeb128(cur, &off))
                 return false;
             if (vm->row.cfa.kind != DWARF_CFA_RULE_REG_OFFSET) {
                 vm->row.cfa.kind = DWARF_CFA_RULE_REG_OFFSET;
@@ -716,7 +716,7 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
         }
         case DW_CFA_DEF_CFA_OFFSET_SF : {
             i64 off = 0;
-            if (!bi_take_sleb128(cur, &off))
+            if (!BufReadSLeb128(cur, &off))
                 return false;
             if (vm->row.cfa.kind != DWARF_CFA_RULE_REG_OFFSET) {
                 vm->row.cfa.kind = DWARF_CFA_RULE_REG_OFFSET;
@@ -733,7 +733,7 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
             // don't evaluate DWARF expressions yet.
             if (op != DW_CFA_DEF_CFA_EXPRESSION) {
                 u64 reg = 0;
-                if (!bi_take_uleb128(cur, &reg))
+                if (!BufReadULeb128(cur, &reg))
                     return false;
                 if (reg < DWARF_UNWIND_MAX_REGS) {
                     vm->row.regs[reg].kind = DWARF_REG_RULE_EXPRESSION;
@@ -742,9 +742,9 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
                 vm->row.cfa.kind = DWARF_CFA_RULE_EXPRESSION;
             }
             u64 expr_len = 0;
-            if (!bi_take_uleb128(cur, &expr_len))
+            if (!BufReadULeb128(cur, &expr_len))
                 return false;
-            if (expr_len > bi_remaining(cur))
+            if (expr_len > IterRemainingLength(cur))
                 return false;
             cur->pos += expr_len;
             return true;
@@ -752,9 +752,9 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
 
         case DW_CFA_VAL_OFFSET : {
             u64 reg = 0, off = 0;
-            if (!bi_take_uleb128(cur, &reg))
+            if (!BufReadULeb128(cur, &reg))
                 return false;
-            if (!bi_take_uleb128(cur, &off))
+            if (!BufReadULeb128(cur, &off))
                 return false;
             if (reg < DWARF_UNWIND_MAX_REGS) {
                 vm->row.regs[reg].kind   = DWARF_REG_RULE_VAL_OFFSET;
@@ -765,9 +765,9 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
         case DW_CFA_VAL_OFFSET_SF : {
             u64 reg = 0;
             i64 off = 0;
-            if (!bi_take_uleb128(cur, &reg))
+            if (!BufReadULeb128(cur, &reg))
                 return false;
-            if (!bi_take_sleb128(cur, &off))
+            if (!BufReadSLeb128(cur, &off))
                 return false;
             if (reg < DWARF_UNWIND_MAX_REGS) {
                 vm->row.regs[reg].kind   = DWARF_REG_RULE_VAL_OFFSET;
@@ -784,7 +784,7 @@ static bool cfi_vm_step(CfiVm *vm, ByteIter *cur, u64 stop_at, bool *stop_now) {
 static bool cfi_vm_run(CfiVm *vm, const u8 *insns, u64 insns_size, u64 stop_at) {
     ByteIter cur      = ByteIterFromMemory(insns, insns_size);
     bool     stop_now = false;
-    while (bi_remaining(&cur) > 0) {
+    while (IterRemainingLength(&cur) > 0) {
         if (!cfi_vm_step(vm, &cur, stop_at, &stop_now))
             return false;
         if (stop_now)

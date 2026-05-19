@@ -283,28 +283,38 @@ Float:                                                                          
 #define IOFMT_APPEND_COMMA(x)      IOFMT(x),
 
 ///
-/// Print out a formatted string with rust-style placeholders
-/// to given string `o`. This is a macro wrapper around StrWriteFmtImpl.
+/// Append a formatted string to `out`. Existing contents are preserved;
+/// new content lands at the end of the buffer.
 ///
-/// WARN: Directly passing literals like `StrWriteFmt(o, "{}", "literal")` for string literals
-///       or `StrWriteFmt(o, "{}", 1337)` for integer literals might not work as expected
-///       without proper wrapping using ``. For constants like integers, booleans,
-///       you typically use `constant_variable`.
-/// NOTE: New content is appended at the end of given Str object.
-///
-/// out[out]    : The Str object to which the formatted string will be appended.
+/// out[out]    : Destination `Str`. Existing bytes are kept.
 /// fmtstr[in]  : Format string with `{}` placeholders.
-/// ...[in]     : Variable number of arguments to replace the placeholders. Each argument
-///               should be wrapped with `variable`.
+/// ...[in]     : Variables to substitute. Wrap literals with `LVAL(...)`.
 ///
-/// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
-///           result is appended to the `out` Str object.
-/// FAILURE : Failure occurs within `str_write_fmt`. Refer to its documentation
-///           for details on failure behavior (typically logs error messages and does not return).
+/// SUCCESS : `out` extended with the formatted content; returns `true`.
+/// FAILURE : Returns `false`. May log diagnostics; `out` may be left
+///           partially extended on allocation failure mid-write.
 ///
-/// TAGS: Macro, Wrapper, Format, I/O
+/// TAGS: Str, Append, Format, I/O
 ///
-// #define StrWriteFmt(out, ...) StrWriteFmtImpl(out, __VA_ARGS__, (TypeSpecificIO) {NULL, NULL, NULL})
+#define StrAppendFmt(out, ...) StrAppendFmt_IMPL1(out, __VA_ARGS__)
+#define StrAppendFmt_IMPL1(input, fmtstr, ...)                                                                         \
+    StrAppendFmt_IMPL2(                                                                                                \
+        input,                                                                                                         \
+        fmtstr,                                                                                                        \
+        ((TypeSpecificIO[]) {                                                                                          \
+            APPLY_MACRO_FOREACH(IOFMT_LVAL_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                               \
+    })                                                                                                             \
+    )
+#define StrAppendFmt_IMPL2(input, fmtstr, varr)                                                                        \
+    str_append_fmt((input), (fmtstr), &(varr)[0], (sizeof(varr) / sizeof(TypeSpecificIO)) - 1)
+
+///
+/// Write a formatted string to `out` from scratch. Equivalent to
+/// `StrClear(out)` followed by `StrAppendFmt(out, ...)` -- any prior
+/// contents of `out` are discarded.
+///
+/// TAGS: Str, Write, Format, I/O
+///
 #define StrWriteFmt(out, ...) StrWriteFmt_IMPL1(out, __VA_ARGS__)
 #define StrWriteFmt_IMPL1(input, fmtstr, ...)                                                                          \
     StrWriteFmt_IMPL2(                                                                                                 \
@@ -316,6 +326,32 @@ Float:                                                                          
     )
 #define StrWriteFmt_IMPL2(input, fmtstr, varr)                                                                         \
     str_write_fmt((input), (fmtstr), &(varr)[0], (sizeof(varr) / sizeof(TypeSpecificIO)) - 1)
+
+///
+/// Patch existing bytes in `out` starting at `offset`. The formatted
+/// content must fit within the current `out->length`; the buffer is
+/// not grown. Useful for back-patching placeholder fields after later
+/// data has been computed.
+///
+/// SUCCESS : Bytes `[offset, offset + written)` of `out` are replaced;
+///           returns `true`.
+/// FAILURE : Returns `false` if the formatted output would extend past
+///           `out->length`. `out` is left unchanged.
+///
+/// TAGS: Str, Patch, Format, I/O
+///
+#define StrPatchFmt(out, offset, ...) StrPatchFmt_IMPL1(out, offset, __VA_ARGS__)
+#define StrPatchFmt_IMPL1(input, offset, fmtstr, ...)                                                                  \
+    StrPatchFmt_IMPL2(                                                                                                 \
+        input,                                                                                                         \
+        offset,                                                                                                        \
+        fmtstr,                                                                                                        \
+        ((TypeSpecificIO[]) {                                                                                          \
+            APPLY_MACRO_FOREACH(IOFMT_LVAL_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                               \
+    })                                                                                                             \
+    )
+#define StrPatchFmt_IMPL2(input, offset, fmtstr, varr)                                                                 \
+    str_patch_fmt((input), (offset), (fmtstr), &(varr)[0], (sizeof(varr) / sizeof(TypeSpecificIO)) - 1)
 
 ///
 /// Parse input string according to format string with rust-style placeholders,

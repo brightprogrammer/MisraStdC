@@ -37,7 +37,7 @@ bool test_http_response_serialize_html(void) {
 
     HttpResponse response = HttpResponseInit(alloc_base);
     Str          body     = StrInit(alloc_base);
-    StrWriteFmt(&body, "<h1>hi</h1>");
+    StrAppendFmt(&body, "<h1>hi</h1>");
     HttpRespondWithHtml(&response, HTTP_RESPONSE_CODE_OK, &body);
     StrDeinit(&body);
 

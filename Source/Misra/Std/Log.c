@@ -9,7 +9,7 @@
 ///
 ///   - Stack-creates a HeapAllocator for the message Str.
 ///   - Builds the full line (prefix + caller-supplied message + '\n')
-///     via StrWriteFmt so all in-tree types (Str / Int / Float / etc.)
+///     via StrAppendFmt so all in-tree types (Str / Int / Float / etc.)
 ///     work as format args.
 ///   - Issues a single FileWrite to the appropriate File:
 ///       INFO  -> FileFromFd(1)  (normal output channel)
@@ -51,7 +51,7 @@ void LogWrite(LogMessageType type, const char *tag, u64 line, const char *msg) {
     HeapAllocator h    = HeapAllocatorInit();
     Allocator    *a    = ALLOCATOR_OF(&h);
     Str           full = StrInit(a);
-    StrWriteFmt(&full, "[{}] [{}:{}] {}\n", (const char *)NAMES[type], (const char *)tag, line, (const char *)msg);
+    StrAppendFmt(&full, "[{}] [{}:{}] {}\n", (const char *)NAMES[type], (const char *)tag, line, (const char *)msg);
 
     File out = (type == LOG_MESSAGE_TYPE_INFO) ? FileFromFd(1) : FileFromFd(2);
     (void)FileWrite(&out, full.data, full.length);

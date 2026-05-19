@@ -5,7 +5,7 @@
 /// PDB reader: MSF container, PDB Info stream (GUID + age), DBI +
 /// SymRecord + SectionHdr streams (sorted RVA -> name table).
 
-#include <Misra/Parsers/ByteIter.h>
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Parsers/Pdb.h>
 #include <Misra/Std.h>
 #include <Misra/Std/File.h>
@@ -144,7 +144,7 @@ static bool parse_superblock(PdbFile *self, u32 *out_num_dir_bytes, u32 *out_blo
     }
     ByteIter sb = ByteIterFromMemory(self->data + 32, self->data_size - 32);
     u32      free_blk, num_blocks, unknown;
-    if (!ByteIterReadFmt(
+    if (!BufReadFmt(
             &sb,
             FMT_PDB_SUPERBLOCK_LE,
             self->block_size,
@@ -224,7 +224,7 @@ static bool parse_directory(PdbFile *self) {
         return false;
     }
     ByteIter dir_iter = ByteIterFromMemory(self->stream_dir, self->stream_dir_size);
-    if (!bi_take_u32_le(&dir_iter, &self->num_streams))
+    if (!BufReadU32LE(&dir_iter, &self->num_streams))
         return false;
     if (self->num_streams == 0)
         return true;
@@ -243,7 +243,7 @@ static bool parse_directory(PdbFile *self) {
 
     u64 total_block_words = 0;
     for (u32 i = 0; i < self->num_streams; ++i) {
-        if (!bi_take_u32_le(&dir_iter, &self->stream_sizes[i]))
+        if (!BufReadU32LE(&dir_iter, &self->stream_sizes[i]))
             return false;
         u32 sz = self->stream_sizes[i];
         if (sz != NIL_STREAM) {
@@ -290,7 +290,7 @@ static bool parse_pdb_info(PdbFile *self) {
     if (!stream_read(self, 1, 0, buf, sizeof(buf)))
         return false;
     ByteIter bi = ByteIterFromMemory(buf, sizeof(buf));
-    if (!ByteIterReadFmt(&bi, FMT_PDB_INFO_LE, self->info.version, self->info.signature, self->info.age)) {
+    if (!BufReadFmt(&bi, FMT_PDB_INFO_LE, self->info.version, self->info.signature, self->info.age)) {
         LOG_ERROR("PDB: info stream prefix truncated");
         return false;
     }
@@ -329,10 +329,10 @@ static DbiSubstreamInfo parse_dbi_header(const PdbFile *self) {
         return r;
 
     ByteIter bi = ByteIterFromMemory(hdr, DBI_HEADER_SIZE);
-    u32      version_sig, version_hdr, age, mod_size, seccontrib, secmap, srcinfo, tsm, mfc_tsm_idx, optdbg_size,
-        ec_size, padding;
+    u32 version_sig, version_hdr, age, mod_size, seccontrib, secmap, srcinfo, tsm, mfc_tsm_idx, optdbg_size, ec_size,
+        padding;
     u16 global_idx, build_num, public_idx, pdb_dll_ver, pdb_dll_rbld, flags, machine;
-    if (!ByteIterReadFmt(
+    if (!BufReadFmt(
             &bi,
             FMT_PDB_DBI_HEADER_LE,
             version_sig,
@@ -434,8 +434,8 @@ static SectionRva *load_section_table(const PdbFile *self, u16 section_hdr_strea
     for (u32 i = 0; i < n; ++i) {
         // IMAGE_SECTION_HEADER: name[8] + VirtualSize(4) + VirtualAddress(4) + ...
         ByteIter rec = ByteIterFromMemory(buf + i * 40 + 8, 40 - 8);
-        (void)bi_take_u32_le(&rec, &out[i].virtual_size);
-        (void)bi_take_u32_le(&rec, &out[i].virtual_address);
+        (void)BufReadU32LE(&rec, &out[i].virtual_size);
+        (void)BufReadU32LE(&rec, &out[i].virtual_address);
     }
     AllocatorFree(self->allocator, buf);
     *out_count = n;
@@ -518,7 +518,7 @@ static bool walk_publics(
             ByteIter body = ByteIterFromMemory(buf + cur + 4, rec_len - 2);
             u32      flags, offset;
             u16      segment;
-            if (!ByteIterReadFmt(&body, FMT_S_PUB32_PREFIX_LE, flags, offset, segment)) {
+            if (!BufReadFmt(&body, FMT_S_PUB32_PREFIX_LE, flags, offset, segment)) {
                 cur = next;
                 continue;
             }

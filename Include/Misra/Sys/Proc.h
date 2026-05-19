@@ -203,7 +203,7 @@ Str *GetCurrentExecutablePath(Str *exe_path);
 #define ProcWriteToStdinFmt(p, ...)                                                                                    \
     do {                                                                                                               \
         Str b_ = StrInit();                                                                                            \
-        StrWriteFmt(&b_, __VA_ARGS__);                                                                                 \
+        StrAppendFmt(&b_, __VA_ARGS__);                                                                                 \
         ProcWriteToStdin((p), &b_);                                                                                    \
         StrDeinit(&b_);                                                                                                \
     } while (0)
@@ -211,7 +211,7 @@ Str *GetCurrentExecutablePath(Str *exe_path);
 #define ProcWriteToStdinFmtLn(p, ...)                                                                                  \
     do {                                                                                                               \
         Str b_ = StrInit();                                                                                            \
-        StrWriteFmt(&b_, __VA_ARGS__);                                                                                 \
+        StrAppendFmt(&b_, __VA_ARGS__);                                                                                 \
         StrPushBack(&b_, '\n');                                                                                        \
         ProcWriteToStdin((p), &b_);                                                                                    \
         StrDeinit(&b_);                                                                                                \

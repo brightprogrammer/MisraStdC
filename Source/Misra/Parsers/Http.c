@@ -437,7 +437,7 @@ Str http_response_serialize(const HttpResponse *response, Allocator *alloc) {
         return out;
     }
 
-    StrWriteFmt(
+    StrAppendFmt(
         &out,
         "HTTP/1.1 {}\r\n"
         "Content-Type: {}\r\n"
@@ -448,10 +448,10 @@ Str http_response_serialize(const HttpResponse *response, Allocator *alloc) {
     );
 
     VecForeachPtr(&response->headers, header) {
-        StrWriteFmt(&out, "{}: {}\r\n", header->key, header->value);
+        StrAppendFmt(&out, "{}: {}\r\n", header->key, header->value);
     }
 
-    StrWriteFmt(&out, "\r\n");
+    StrAppendFmt(&out, "\r\n");
 
     if (response->body.length) {
         u64 head = out.length;

@@ -6,7 +6,7 @@
 /// and produces the (address, file, line) matrix as a flat
 /// `Vec(DwarfLineEntry)`.
 
-#include <Misra/Parsers/ByteIter.h>
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Parsers/Dwarf.h>
 
 #include <Misra/Std.h>
@@ -94,7 +94,7 @@ static bool decode_line_program_header(ByteIter *cur, LineProgHeader *out) {
     MemSet(out, 0, sizeof(*out));
 
     u32 unit_length = 0;
-    if (!bi_take_u32_le(cur, &unit_length))
+    if (!BufReadU32LE(cur, &unit_length))
         return false;
     if (unit_length == 0xffffffff) {
         LOG_ERROR("DWARF: 64-bit DWARF length form not supported in v1");
@@ -102,7 +102,7 @@ static bool decode_line_program_header(ByteIter *cur, LineProgHeader *out) {
     }
 
     u16 version = 0;
-    if (!bi_take_u16_le(cur, &version))
+    if (!BufReadU16LE(cur, &version))
         return false;
     if (version != 3 && version != 4) {
         // DWARF 5+ has a different header / table layout. Caller can
@@ -115,7 +115,7 @@ static bool decode_line_program_header(ByteIter *cur, LineProgHeader *out) {
     u8 def_is_stmt = 0;
     u8 raw_lb      = 0;
     if (version >= 4) {
-        if (!ByteIterReadFmt(
+        if (!BufReadFmt(
                 cur,
                 FMT_DWARF_LINE_HDR_V4_TAIL_LE,
                 out->header_length,
@@ -130,7 +130,7 @@ static bool decode_line_program_header(ByteIter *cur, LineProgHeader *out) {
             return false;
         }
     } else {
-        if (!ByteIterReadFmt(
+        if (!BufReadFmt(
                 cur,
                 FMT_DWARF_LINE_HDR_V3_TAIL_LE,
                 out->header_length,
@@ -157,7 +157,7 @@ static bool decode_line_program_header(ByteIter *cur, LineProgHeader *out) {
     }
 
     out->std_opcode_lengths_count = out->opcode_base ? (u64)(out->opcode_base - 1) : 0;
-    if (bi_remaining(cur) < out->std_opcode_lengths_count)
+    if (IterRemainingLength(cur) < out->std_opcode_lengths_count)
         return false;
     out->standard_opcode_lengths  = cur->data + cur->pos;
     cur->pos                     += out->std_opcode_lengths_count;
@@ -169,21 +169,21 @@ static bool decode_line_program_header(ByteIter *cur, LineProgHeader *out) {
 // start of the line number program body.
 static bool skip_line_program_tables(ByteIter *cur) {
     while (cur->pos < cur->length && cur->data[cur->pos] != 0) {
-        if (!bi_take_cstr(cur))
+        if (!BufReadCstr(cur))
             return false;
     }
     if (cur->pos < cur->length)
         ++cur->pos; // empty terminator
 
     while (cur->pos < cur->length && cur->data[cur->pos] != 0) {
-        if (!bi_take_cstr(cur))
+        if (!BufReadCstr(cur))
             return false;
         u64 dir_idx = 0, mtime = 0, length_ = 0;
-        if (!bi_take_uleb128(cur, &dir_idx))
+        if (!BufReadULeb128(cur, &dir_idx))
             return false;
-        if (!bi_take_uleb128(cur, &mtime))
+        if (!BufReadULeb128(cur, &mtime))
             return false;
-        if (!bi_take_uleb128(cur, &length_))
+        if (!BufReadULeb128(cur, &length_))
             return false;
     }
     if (cur->pos < cur->length)
@@ -223,7 +223,7 @@ static void cu_strings_deinit(CuStrings *cs) {
 static bool collect_cu_strings(ByteIter cur, Str *pool, CuStrings *cs) {
     // include_directories
     while (cur.pos < cur.length && cur.data[cur.pos] != 0) {
-        const char *dir = bi_take_cstr(&cur);
+        const char *dir = BufReadCstr(&cur);
         if (!dir)
             return false;
         u64 off = 0;
@@ -237,15 +237,15 @@ static bool collect_cu_strings(ByteIter cur, Str *pool, CuStrings *cs) {
 
     // file_names
     while (cur.pos < cur.length && cur.data[cur.pos] != 0) {
-        const char *name = bi_take_cstr(&cur);
+        const char *name = BufReadCstr(&cur);
         if (!name)
             return false;
         u64 dir_idx = 0, mtime = 0, length_ = 0;
-        if (!bi_take_uleb128(&cur, &dir_idx))
+        if (!BufReadULeb128(&cur, &dir_idx))
             return false;
-        if (!bi_take_uleb128(&cur, &mtime))
+        if (!BufReadULeb128(&cur, &mtime))
             return false;
-        if (!bi_take_uleb128(&cur, &length_))
+        if (!BufReadULeb128(&cur, &length_))
             return false;
         u64 off = 0;
         if (!pool_append(pool, name, &off))
@@ -337,19 +337,19 @@ static bool run_line_program(
 
     while (cur.data + cur.pos < prog_end) {
         u8 op = 0;
-        if (!bi_take_u8(&cur, &op))
+        if (!BufReadU8(&cur, &op))
             return false;
 
         if (op == 0) {
             // Extended opcode: <length:uleb> <sub_op:u8> <operands>
             u64 length = 0;
-            if (!bi_take_uleb128(&cur, &length))
+            if (!BufReadULeb128(&cur, &length))
                 return false;
             if (length == 0 || (u64)(prog_end - (cur.data + cur.pos)) < length)
                 return false;
             const u8 *body_end = cur.data + cur.pos + length;
             u8        sub_op   = 0;
-            if (!bi_take_u8(&cur, &sub_op))
+            if (!BufReadU8(&cur, &sub_op))
                 return false;
             switch (sub_op) {
                 case DW_LNE_END_SEQUENCE :
@@ -361,11 +361,11 @@ static bool run_line_program(
                 case DW_LNE_SET_ADDRESS :
                     // operand size = remaining body bytes; on x86-64 always 8.
                     if (body_end - (cur.data + cur.pos) == 8) {
-                        if (!bi_take_u64_le(&cur, &st.address))
+                        if (!BufReadU64LE(&cur, &st.address))
                             return false;
                     } else if (body_end - (cur.data + cur.pos) == 4) {
                         u32 a32 = 0;
-                        if (!bi_take_u32_le(&cur, &a32))
+                        if (!BufReadU32LE(&cur, &a32))
                             return false;
                         st.address = a32;
                     } else {
@@ -378,7 +378,7 @@ static bool run_line_program(
                     break;
                 case DW_LNE_SET_DISCRIMINATOR : {
                     u64 disc = 0;
-                    if (!bi_take_uleb128(&cur, &disc))
+                    if (!BufReadULeb128(&cur, &disc))
                         return false;
                     st.discriminator = (u32)disc;
                     break;
@@ -400,28 +400,28 @@ static bool run_line_program(
                     break;
                 case DW_LNS_ADVANCE_PC : {
                     u64 adv = 0;
-                    if (!bi_take_uleb128(&cur, &adv))
+                    if (!BufReadULeb128(&cur, &adv))
                         return false;
                     st.address += (u64)hdr->min_instr_len * adv;
                     break;
                 }
                 case DW_LNS_ADVANCE_LINE : {
                     i64 adv = 0;
-                    if (!bi_take_sleb128(&cur, &adv))
+                    if (!BufReadSLeb128(&cur, &adv))
                         return false;
                     st.line = (u32)((i64)st.line + adv);
                     break;
                 }
                 case DW_LNS_SET_FILE : {
                     u64 f = 0;
-                    if (!bi_take_uleb128(&cur, &f))
+                    if (!BufReadULeb128(&cur, &f))
                         return false;
                     st.file = f;
                     break;
                 }
                 case DW_LNS_SET_COLUMN : {
                     u64 c = 0;
-                    if (!bi_take_uleb128(&cur, &c))
+                    if (!BufReadULeb128(&cur, &c))
                         return false;
                     st.column = (u32)c;
                     break;
@@ -441,7 +441,7 @@ static bool run_line_program(
                 }
                 case DW_LNS_FIXED_ADVANCE_PC : {
                     u16 adv = 0;
-                    if (!bi_take_u16_le(&cur, &adv))
+                    if (!BufReadU16LE(&cur, &adv))
                         return false;
                     st.address  += adv;
                     st.op_index  = 0;
@@ -455,7 +455,7 @@ static bool run_line_program(
                     break;
                 case DW_LNS_SET_ISA : {
                     u64 isa = 0;
-                    if (!bi_take_uleb128(&cur, &isa))
+                    if (!BufReadULeb128(&cur, &isa))
                         return false;
                     st.isa = (u32)isa;
                     break;
@@ -467,7 +467,7 @@ static bool run_line_program(
                         u8 nops = hdr->standard_opcode_lengths[op - 1];
                         for (u8 i = 0; i < nops; ++i) {
                             u64 dummy = 0;
-                            if (!bi_take_uleb128(&cur, &dummy))
+                            if (!BufReadULeb128(&cur, &dummy))
                                 return false;
                         }
                     }
@@ -520,11 +520,11 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *
     ByteIter section_cur = ByteIterFromMemory(elf->data + line_section->offset, line_section->size);
 
     bool ok = true;
-    while (bi_remaining(&section_cur) > 0) {
+    while (IterRemainingLength(&section_cur) > 0) {
         const u8 *unit_start  = section_cur.data + section_cur.pos;
         u32       unit_length = 0;
         ByteIter  peek        = section_cur;
-        if (!bi_take_u32_le(&peek, &unit_length)) {
+        if (!BufReadU32LE(&peek, &unit_length)) {
             ok = false;
             break;
         }
@@ -533,7 +533,7 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *
             ok = false;
             break;
         }
-        if (4u + (u64)unit_length > bi_remaining(&section_cur)) {
+        if (4u + (u64)unit_length > IterRemainingLength(&section_cur)) {
             ok = false;
             break;
         }

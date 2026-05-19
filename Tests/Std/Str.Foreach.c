@@ -41,7 +41,7 @@ bool test_str_foreach_idx(void) {
     // Build a new string by iterating through each character with its index
     Str result = StrInit(&alloc);
     StrForeachIdx(&s, chr, idx) {
-        StrWriteFmt(&result, "{c}{}", chr, idx);
+        StrAppendFmt(&result, "{c}{}", chr, idx);
     }
 
     // The result should be "H0e1l2l3o4"
@@ -66,7 +66,7 @@ bool test_str_foreach_reverse_idx(void) {
 
     StrForeachReverseIdx(&s, chr, idx) {
         // Append the character and its index to the result string
-        StrWriteFmt(&result, "{c}{}", chr, idx);
+        StrAppendFmt(&result, "{c}{}", chr, idx);
     }
 
     bool success = (ZstrCompare(result.data, "o4l3l2e1H0") == 0);
@@ -90,7 +90,7 @@ bool test_str_foreach_ptr_idx(void) {
     Str result = StrInit(&alloc);
     StrForeachPtrIdx(&s, chrptr, idx) {
         // Append the character (via pointer) and its index to the result string
-        StrWriteFmt(&result, "{c}{}", *chrptr, idx);
+        StrAppendFmt(&result, "{c}{}", *chrptr, idx);
 
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {
@@ -123,7 +123,7 @@ bool test_str_foreach_reverse_ptr_idx(void) {
 
     StrForeachReversePtrIdx(&s, chrptr, idx) {
         // Append the character (via pointer) and its index to the result string
-        StrWriteFmt(&result, "{c}{}", *chrptr, idx);
+        StrAppendFmt(&result, "{c}{}", *chrptr, idx);
 
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {
@@ -286,7 +286,7 @@ bool test_str_foreach_in_range_idx(void) {
     Str result = StrInit(&alloc);
     StrForeachInRangeIdx(&s, chr, idx, 6, 11) {
         // Append the character and its index to the result string
-        StrWriteFmt(&result, "{c}{}", chr, idx);
+        StrAppendFmt(&result, "{c}{}", chr, idx);
     }
 
     // The result should be "W6o7r8l9d10" (characters from index 6-10 with their indices)
@@ -356,7 +356,7 @@ bool test_str_foreach_ptr_in_range_idx(void) {
     Str result = StrInit(&alloc);
     StrForeachPtrInRangeIdx(&s, chrptr, idx, 6, 11) {
         // Append the character and its index to the result string
-        StrWriteFmt(&result, "{c}{}", *chrptr, idx);
+        StrAppendFmt(&result, "{c}{}", *chrptr, idx);
 
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {

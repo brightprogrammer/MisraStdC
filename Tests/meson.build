@@ -99,6 +99,10 @@ iter_deadend_tests = [
     ['Iter.Deadend', 'Std/Iter.Deadend.c'],
 ]
 
+buf_tests = [
+    ['Buf', 'Std/Buf.c'],
+]
+
 str_tests = [
     ['Str.Type', 'Std/Str.Type.c'],
     ['Str.Init', 'Std/Str.Init.c'],
@@ -696,7 +700,7 @@ foreach test_info : str_tests
     test(test_name, test_exe)
 endforeach
 
-foreach test_info : iter_tests + iter_deadend_tests
+foreach test_info : iter_tests + iter_deadend_tests + buf_tests
     test_name = test_info[0]
     test_src = test_info[1]
 

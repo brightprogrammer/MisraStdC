@@ -406,9 +406,9 @@ void DebugAllocatorReportLeaks(DebugAllocator *self, Str *out) {
     if (self->live.length == 0)
         return;
 
-    StrWriteFmt(out, "DebugAllocator: {} live allocation(s):\n", (u64)self->live.length);
+    StrAppendFmt(out, "DebugAllocator: {} live allocation(s):\n", (u64)self->live.length);
     MapForeachPairPtr(&self->live, key_ptr, val_ptr) {
-        StrWriteFmt(out, "  leak: {x} ({} bytes)\n", (u64)(uintptr_t)*key_ptr, (u64)val_ptr->requested_size);
+        StrAppendFmt(out, "  leak: {x} ({} bytes)\n", (u64)(uintptr_t)*key_ptr, (u64)val_ptr->requested_size);
         if (val_ptr->alloc_trace_n > 0) {
             FormatStackTrace(out, val_ptr->alloc_trace, val_ptr->alloc_trace_n, ALLOCATOR_OF(&self->meta));
         }

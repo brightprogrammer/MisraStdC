@@ -354,17 +354,17 @@ bool test_str_merge(void) {
     return result;
 }
 
-// Test StrWriteFmt as the in-tree replacement for the now-removed
+// Test StrAppendFmt as the in-tree replacement for the now-removed
 // StrAppendf printf-style formatter.
 bool test_str_write_fmt_append(void) {
-    WriteFmt("Testing StrWriteFmt append\n");
+    WriteFmt("Testing StrAppendFmt append\n");
     DefaultAllocator alloc = DefaultAllocatorInit();
 
 
     Str s = StrInitFromZstr("Hello", &alloc);
 
     // Append formatted suffix.
-    StrWriteFmt(&s, " {} {}", (const char *)"World", (u32)2023);
+    StrAppendFmt(&s, " {} {}", (const char *)"World", (u32)2023);
 
     // Check that the string was appended correctly
     bool result = (ZstrCompare(s.data, "Hello World 2023") == 0);

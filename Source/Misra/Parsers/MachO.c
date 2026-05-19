@@ -6,7 +6,7 @@
 /// in `<mach-o/loader.h>`; the relevant subset is reproduced inline as
 /// enum constants so we don't need any system headers.
 
-#include <Misra/Parsers/ByteIter.h>
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Parsers/MachO.h>
 #include <Misra/Std.h>
 #include <Misra/Std/File.h>
@@ -129,7 +129,7 @@ static bool decode_header(MachoContext *ctx) {
     }
     ByteIter c = ByteIterFromMemory(m->data, m->data_size);
     u32      magic, cputype, cpusubtype, filetype, ncmds, sizeofcmds, flags, reserved;
-    if (!ByteIterReadFmt(
+    if (!BufReadFmt(
             &c,
             FMT_MACHO_HEADER_LE,
             magic,
@@ -181,7 +181,7 @@ static bool decode_segment_64(MachoContext *ctx, const u8 *cmd_p, u32 cmdsize) {
     copy_fixed16(seg.name, cmd_p + 8);
     ByteIter c = ByteIterFromMemory(cmd_p + 24, cmdsize - 24);
     u32      maxprot, initprot;
-    if (!ByteIterReadFmt(
+    if (!BufReadFmt(
             &c,
             FMT_MACHO_SEGMENT64_BODY_LE,
             seg.vmaddr,
@@ -215,7 +215,7 @@ static bool decode_segment_64(MachoContext *ctx, const u8 *cmd_p, u32 cmdsize) {
         copy_fixed16(sec.segment, s + 16);
         ByteIter sc = ByteIterFromMemory(s + 32, SECT64_SIZE - 32);
         u32      align, reloff, nreloc, reserved1, reserved2, reserved3;
-        if (!ByteIterReadFmt(
+        if (!BufReadFmt(
                 &sc,
                 FMT_MACHO_SECTION64_BODY_LE,
                 sec.addr,
@@ -251,7 +251,7 @@ static bool decode_symtab(MachoContext *ctx, const u8 *cmd_p, u32 cmdsize) {
         return false;
     }
     ByteIter c = ByteIterFromMemory(cmd_p + 8, cmdsize - 8);
-    if (!ByteIterReadFmt(&c, FMT_MACHO_SYMTAB_BODY_LE, ctx->symoff, ctx->nsyms, ctx->stroff, ctx->strsize)) {
+    if (!BufReadFmt(&c, FMT_MACHO_SYMTAB_BODY_LE, ctx->symoff, ctx->nsyms, ctx->stroff, ctx->strsize)) {
         LOG_ERROR("MachO: LC_SYMTAB body truncated");
         return false;
     }
@@ -282,7 +282,7 @@ static bool walk_load_commands(MachoContext *ctx) {
         const u8 *cmd_p = ctx->out->data + cur;
         ByteIter  pc    = ByteIterFromMemory(cmd_p, end - cur);
         u32       cmd, cmdsize;
-        if (!ByteIterReadFmt(&pc, FMT_MACHO_LC_PREFIX_LE, cmd, cmdsize)) {
+        if (!BufReadFmt(&pc, FMT_MACHO_LC_PREFIX_LE, cmd, cmdsize)) {
             LOG_ERROR("MachO: load command prefix truncated at {}", i);
             return false;
         }
@@ -342,7 +342,7 @@ static bool decode_symbols(MachoContext *ctx) {
         u8  n_type, n_sect;
         u16 n_desc;
         u64 n_value;
-        if (!ByteIterReadFmt(&tab, FMT_MACHO_NLIST64_LE, n_strx, n_type, n_sect, n_desc, n_value)) {
+        if (!BufReadFmt(&tab, FMT_MACHO_NLIST64_LE, n_strx, n_type, n_sect, n_desc, n_value)) {
             LOG_ERROR("MachO: nlist_64 truncated at index {}", i);
             return false;
         }

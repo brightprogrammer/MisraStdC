@@ -13,7 +13,7 @@
 ///   - `<winnt.h>` IMAGE_* structure definitions
 ///   - LLVM's `Object/COFF.h` for the reader-side conventions
 
-#include <Misra/Parsers/ByteIter.h>
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Parsers/Pe.h>
 
 // ---------------------------------------------------------------------------
@@ -167,7 +167,7 @@ static bool pe_decode_dos(PeContext *ctx) {
     }
     u32      e_lfanew;
     ByteIter c = ByteIterFromMemory(ctx->out->data + DOS_E_LFANEW_OFFSET, ctx->out->data_size - DOS_E_LFANEW_OFFSET);
-    if (!bi_take_u32_le(&c, &e_lfanew))
+    if (!BufReadU32LE(&c, &e_lfanew))
         return false;
     if (e_lfanew >= ctx->out->data_size) {
         LOG_ERROR("PE: e_lfanew past EOF");
@@ -181,13 +181,13 @@ static bool pe_decode_dos(PeContext *ctx) {
 static bool pe_decode_nt(PeContext *ctx, u64 *out_opt_offset) {
     ByteIter c = ByteIterFromMemory(ctx->out->data + ctx->nt_offset, ctx->out->data_size - ctx->nt_offset);
     u32      sig;
-    if (!bi_take_u32_le(&c, &sig) || sig != NT_SIGNATURE) {
+    if (!BufReadU32LE(&c, &sig) || sig != NT_SIGNATURE) {
         LOG_ERROR("PE: bad NT signature");
         return false;
     }
     u16 machine, num_sec, size_opt, chars;
     u32 timestamp, sym_ptr, num_sym;
-    if (!ByteIterReadFmt(&c, FMT_PE_FILE_HEADER_LE, machine, num_sec, timestamp, sym_ptr, num_sym, size_opt, chars)) {
+    if (!BufReadFmt(&c, FMT_PE_FILE_HEADER_LE, machine, num_sec, timestamp, sym_ptr, num_sym, size_opt, chars)) {
         LOG_ERROR("PE: file header truncated");
         return false;
     }
@@ -212,7 +212,7 @@ static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
     ByteIter c = ByteIterFromMemory(ctx->out->data + opt_offset, ctx->opt_hdr_size);
 
     u16 magic;
-    if (!bi_take_u16_le(&c, &magic))
+    if (!BufReadU16LE(&c, &magic))
         return false;
     if (magic != OPTIONAL_MAGIC_PE32 && magic != OPTIONAL_MAGIC_PE32PLUS) {
         LOG_ERROR("PE: unsupported optional magic 0x{x}", (u32)magic);
@@ -234,7 +234,7 @@ static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
 
     if (is64) {
         u64 stack_res, stack_com, heap_res, heap_com;
-        if (!ByteIterReadFmt(
+        if (!BufReadFmt(
                 &c,
                 FMT_PE_OPT_HDR_PE32PLUS_LE,
                 linker_major,
@@ -275,7 +275,7 @@ static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
         (void)heap_com;
     } else {
         u32 base_of_data, image_base32, stack_res, stack_com, heap_res, heap_com;
-        if (!ByteIterReadFmt(
+        if (!BufReadFmt(
                 &c,
                 FMT_PE_OPT_HDR_PE32_LE,
                 linker_major,
@@ -347,11 +347,11 @@ static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
         // stays empty.
         return true;
     }
-    if (!bi_skip(&c, DIR_INDEX_DEBUG * 8u))
+    if (!IterMove(&c, (i64)(DIR_INDEX_DEBUG * 8u)))
         return false;
-    if (!bi_take_u32_le(&c, (u32 *)&ctx->debug_dir_rva))
+    if (!BufReadU32LE(&c, (u32 *)&ctx->debug_dir_rva))
         return false;
-    if (!bi_take_u32_le(&c, &ctx->debug_dir_size))
+    if (!BufReadU32LE(&c, &ctx->debug_dir_size))
         return false;
     return true;
 }
@@ -362,7 +362,7 @@ static bool pe_decode_sections(PeContext *ctx, u64 opt_offset) {
     ByteIter c          = ByteIterFromMemory(ctx->out->data + sec_offset, ctx->out->data_size - sec_offset);
 
     for (u32 i = 0; i < ctx->num_sections; ++i) {
-        if (bi_remaining(&c) < 40) {
+        if (IterRemainingLength(&c) < 40) {
             LOG_ERROR("PE: section table truncated at index {}", i);
             return false;
         }
@@ -374,7 +374,7 @@ static bool pe_decode_sections(PeContext *ctx, u64 opt_offset) {
 
         u32 ptr_relocs, ptr_linenums;
         u16 num_relocs, num_linenums;
-        if (!ByteIterReadFmt(
+        if (!BufReadFmt(
                 &c,
                 FMT_PE_SECTION_HEADER_LE,
                 s.virtual_size,
@@ -431,7 +431,7 @@ static void pe_decode_codeview(PeContext *ctx) {
         ByteIter c         = ByteIterFromMemory(ctx->out->data + entry_off, ctx->out->data_size - entry_off);
         u32      charac, ts, type, sz, raddr, rptr;
         u16      ver_maj, ver_min;
-        if (!ByteIterReadFmt(&c, FMT_PE_DEBUG_DIR_LE, charac, ts, ver_maj, ver_min, type, sz, raddr, rptr))
+        if (!BufReadFmt(&c, FMT_PE_DEBUG_DIR_LE, charac, ts, ver_maj, ver_min, type, sz, raddr, rptr))
             return;
         (void)charac;
         (void)ts;
@@ -449,18 +449,18 @@ static void pe_decode_codeview(PeContext *ctx) {
             continue;
         ByteIter cv_cur = ByteIterFromMemory(ctx->out->data + rptr, sz);
         u32      cv_sig;
-        if (!bi_take_u32_le(&cv_cur, &cv_sig))
+        if (!BufReadU32LE(&cv_cur, &cv_sig))
             continue;
         if (cv_sig != CV_SIGNATURE_RSDS) {
             // NB7 (PDB 2.0) and earlier are no longer emitted by
             // toolchains we care about; treat them as unsupported.
             continue;
         }
-        if (bi_remaining(&cv_cur) < 16 + 4)
+        if (IterRemainingLength(&cv_cur) < 16 + 4)
             continue;
         MemCopy(cv->guid, cv_cur.data + cv_cur.pos, 16);
         cv_cur.pos += 16;
-        if (!bi_take_u32_le(&cv_cur, &cv->age))
+        if (!BufReadU32LE(&cv_cur, &cv->age))
             continue;
         // Verify the trailing path is NUL-terminated inside the record.
         const u8 *path_start = cv_cur.data + cv_cur.pos;

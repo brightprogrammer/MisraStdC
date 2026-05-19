@@ -42,7 +42,7 @@ void Abort(void);
     do {                                                                                                               \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
         Str           m_         = StrInit(&log_alloc_);                                                               \
-        StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
+        StrAppendFmt(&m_, __VA_ARGS__);                                                                                 \
         LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, m_.data);                                                 \
         StrDeinit(&m_);                                                                                                \
         HeapAllocatorDeinit(&log_alloc_);                                                                              \
@@ -56,7 +56,7 @@ void Abort(void);
     do {                                                                                                               \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
         Str           m_         = StrInit(&log_alloc_);                                                               \
-        StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
+        StrAppendFmt(&m_, __VA_ARGS__);                                                                                 \
         LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, m_.data);                                                 \
         StrDeinit(&m_);                                                                                                \
         HeapAllocatorDeinit(&log_alloc_);                                                                              \
@@ -69,7 +69,7 @@ void Abort(void);
     do {                                                                                                               \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
         Str           m_         = StrInit(&log_alloc_);                                                               \
-        StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
+        StrAppendFmt(&m_, __VA_ARGS__);                                                                                 \
         LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, m_.data);                                                  \
         StrDeinit(&m_);                                                                                                \
         HeapAllocatorDeinit(&log_alloc_);                                                                              \
@@ -92,11 +92,11 @@ void Abort(void);
         i32           sys_eno_   = (i32)(eno);                                                                         \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
         Str           m_         = StrInit(&log_alloc_);                                                               \
-        StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
+        StrAppendFmt(&m_, __VA_ARGS__);                                                                                 \
         Str syserr_;                                                                                                   \
         StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
             StrError(sys_eno_, &syserr_);                                                                              \
-            StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
+            StrAppendFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
         LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, m_.data);                                                 \
         StrDeinit(&m_);                                                                                                \
@@ -114,11 +114,11 @@ void Abort(void);
         i32           sys_eno_   = (i32)(eno);                                                                         \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
         Str           m_         = StrInit(&log_alloc_);                                                               \
-        StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
+        StrAppendFmt(&m_, __VA_ARGS__);                                                                                 \
         Str syserr_;                                                                                                   \
         StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
             StrError(sys_eno_, &syserr_);                                                                              \
-            StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
+            StrAppendFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
         LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, m_.data);                                                 \
         StrDeinit(&m_);                                                                                                \
@@ -134,11 +134,11 @@ void Abort(void);
         i32           sys_eno_   = (i32)(eno);                                                                         \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
         Str           m_         = StrInit(&log_alloc_);                                                               \
-        StrWriteFmt(&m_, __VA_ARGS__);                                                                                 \
+        StrAppendFmt(&m_, __VA_ARGS__);                                                                                 \
         Str syserr_;                                                                                                   \
         StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
             StrError(sys_eno_, &syserr_);                                                                              \
-            StrWriteFmt(&m_, " : {}", syserr_);                                                                        \
+            StrAppendFmt(&m_, " : {}", syserr_);                                                                        \
         });                                                                                                            \
         LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, m_.data);                                                  \
         StrDeinit(&m_);                                                                                                \

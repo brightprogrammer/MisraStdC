@@ -304,7 +304,7 @@ DirContents dir_get_contents(const char *path, Allocator *alloc) {
         } else {
             Str         entry_path = StrInit(alloc);
             const char *dir_name   = &entry->d_name[0];
-            StrWriteFmt(&entry_path, "{}/{}", path, dir_name);
+            StrAppendFmt(&entry_path, "{}/{}", path, dir_name);
 
             struct stat path_stat;
             stat(entry_path.data, &path_stat);

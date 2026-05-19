@@ -69,7 +69,7 @@ enum {
     DW_FORM_ref_sig8     = 0x20,
 };
 
-#include <Misra/Parsers/ByteIter.h>
+#include <Misra/Std/Container/Buf.h>
 
 // ---------------------------------------------------------------------------
 // Abbreviation table (per-CU)
@@ -104,9 +104,9 @@ static void abbrev_table_deinit(AbbrevTable *t) {
 // by an entry with code 0. Returns false on malformed input.
 static bool parse_abbrev_table(ByteIter cur, AbbrevTable *out, Allocator *alloc) {
     *out = VecInitT(*out, alloc);
-    while (bi_remaining(&cur) > 0) {
+    while (IterRemainingLength(&cur) > 0) {
         u64 code;
-        if (!bi_take_uleb128(&cur, &code)) {
+        if (!BufReadULeb128(&cur, &code)) {
             LOG_ERROR("DWARF info: malformed abbrev table (code)");
             return false;
         }
@@ -114,10 +114,10 @@ static bool parse_abbrev_table(ByteIter cur, AbbrevTable *out, Allocator *alloc)
             return true;
 
         u64 tag;
-        if (!bi_take_uleb128(&cur, &tag))
+        if (!BufReadULeb128(&cur, &tag))
             return false;
         u8 has_children;
-        if (!bi_take_u8(&cur, &has_children))
+        if (!BufReadU8(&cur, &has_children))
             return false;
 
         AbbrevEntry e;
@@ -128,11 +128,11 @@ static bool parse_abbrev_table(ByteIter cur, AbbrevTable *out, Allocator *alloc)
 
         for (;;) {
             u64 name, form;
-            if (!bi_take_uleb128(&cur, &name)) {
+            if (!BufReadULeb128(&cur, &name)) {
                 VecDeinit(&e.attrs);
                 return false;
             }
-            if (!bi_take_uleb128(&cur, &form)) {
+            if (!BufReadULeb128(&cur, &form)) {
                 VecDeinit(&e.attrs);
                 return false;
             }
@@ -199,11 +199,11 @@ static bool read_form(ByteIter *cur, u32 form, u8 addr_size, AttrVal *out) {
             u64 v;
             if (addr_size == 4) {
                 u32 v32;
-                if (!bi_take_u32_le(cur, &v32))
+                if (!BufReadU32LE(cur, &v32))
                     return false;
                 v = v32;
             } else if (addr_size == 8) {
-                if (!bi_take_u64_le(cur, &v))
+                if (!BufReadU64LE(cur, &v))
                     return false;
             } else {
                 LOG_ERROR("DWARF info: unsupported addr_size {}", (u32)addr_size);
@@ -216,7 +216,7 @@ static bool read_form(ByteIter *cur, u32 form, u8 addr_size, AttrVal *out) {
         case DW_FORM_flag :
         case DW_FORM_ref1 : {
             u8 v;
-            if (!bi_take_u8(cur, &v))
+            if (!BufReadU8(cur, &v))
                 return false;
             *out = (AttrVal) {.kind = ATTR_VAL_U64, .u = v};
             return true;
@@ -224,7 +224,7 @@ static bool read_form(ByteIter *cur, u32 form, u8 addr_size, AttrVal *out) {
         case DW_FORM_data2 :
         case DW_FORM_ref2 : {
             u16 v;
-            if (!bi_take_u16_le(cur, &v))
+            if (!BufReadU16LE(cur, &v))
                 return false;
             *out = (AttrVal) {.kind = ATTR_VAL_U64, .u = v};
             return true;
@@ -236,7 +236,7 @@ static bool read_form(ByteIter *cur, u32 form, u8 addr_size, AttrVal *out) {
         case DW_FORM_ref_addr : {
             // 4 bytes in 32-bit DWARF (the only form supported here).
             u32 v;
-            if (!bi_take_u32_le(cur, &v))
+            if (!BufReadU32LE(cur, &v))
                 return false;
             if (form == DW_FORM_strp) {
                 *out = (AttrVal) {.kind = ATTR_VAL_STR_OFFSET, .off = v};
@@ -249,7 +249,7 @@ static bool read_form(ByteIter *cur, u32 form, u8 addr_size, AttrVal *out) {
         case DW_FORM_ref8 :
         case DW_FORM_ref_sig8 : {
             u64 v;
-            if (!bi_take_u64_le(cur, &v))
+            if (!BufReadU64LE(cur, &v))
                 return false;
             *out = (AttrVal) {.kind = ATTR_VAL_U64, .u = v};
             return true;
@@ -257,20 +257,20 @@ static bool read_form(ByteIter *cur, u32 form, u8 addr_size, AttrVal *out) {
         case DW_FORM_udata :
         case DW_FORM_ref_udata : {
             u64 v;
-            if (!bi_take_uleb128(cur, &v))
+            if (!BufReadULeb128(cur, &v))
                 return false;
             *out = (AttrVal) {.kind = ATTR_VAL_U64, .u = v};
             return true;
         }
         case DW_FORM_sdata : {
             i64 v;
-            if (!bi_take_sleb128(cur, &v))
+            if (!BufReadSLeb128(cur, &v))
                 return false;
             *out = (AttrVal) {.kind = ATTR_VAL_I64, .i = v};
             return true;
         }
         case DW_FORM_string : {
-            const char *s = bi_take_cstr(cur);
+            const char *s = BufReadCstr(cur);
             if (!s)
                 return false;
             *out = (AttrVal) {.kind = ATTR_VAL_CSTR, .s = s};
@@ -281,32 +281,32 @@ static bool read_form(ByteIter *cur, u32 form, u8 addr_size, AttrVal *out) {
             return true;
         case DW_FORM_block1 : {
             u8 n;
-            if (!bi_take_u8(cur, &n))
+            if (!BufReadU8(cur, &n))
                 return false;
-            return bi_skip(cur, n);
+            return IterMove(cur, (i64)(n));
         }
         case DW_FORM_block2 : {
             u16 n;
-            if (!bi_take_u16_le(cur, &n))
+            if (!BufReadU16LE(cur, &n))
                 return false;
-            return bi_skip(cur, n);
+            return IterMove(cur, (i64)(n));
         }
         case DW_FORM_block4 : {
             u32 n;
-            if (!bi_take_u32_le(cur, &n))
+            if (!BufReadU32LE(cur, &n))
                 return false;
-            return bi_skip(cur, n);
+            return IterMove(cur, (i64)(n));
         }
         case DW_FORM_block :
         case DW_FORM_exprloc : {
             u64 n;
-            if (!bi_take_uleb128(cur, &n))
+            if (!BufReadULeb128(cur, &n))
                 return false;
-            return bi_skip(cur, n);
+            return IterMove(cur, (i64)(n));
         }
         case DW_FORM_indirect : {
             u64 actual_form;
-            if (!bi_take_uleb128(cur, &actual_form))
+            if (!BufReadULeb128(cur, &actual_form))
                 return false;
             return read_form(cur, (u32)actual_form, addr_size, out);
         }
@@ -342,11 +342,11 @@ static bool walk_cu_dies(
 ) {
     int depth = 0;
     for (;;) {
-        if (bi_remaining(&cu_cur) == 0)
+        if (IterRemainingLength(&cu_cur) == 0)
             return true;
 
         u64 abbrev_code;
-        if (!bi_take_uleb128(&cu_cur, &abbrev_code)) {
+        if (!BufReadULeb128(&cu_cur, &abbrev_code)) {
             LOG_ERROR("DWARF info: truncated DIE");
             return false;
         }
@@ -514,11 +514,11 @@ bool DwarfFunctionsBuildFromSlices(
     PendingFns pending = VecInitT(pending, alloc);
 
     bool ok = true;
-    while (bi_remaining(&info_cur) > 0) {
+    while (IterRemainingLength(&info_cur) > 0) {
         size unit_start_pos = info_cur.pos;
 
         u32 unit_length;
-        if (!bi_take_u32_le(&info_cur, &unit_length)) {
+        if (!BufReadU32LE(&info_cur, &unit_length)) {
             ok = false;
             break;
         }
@@ -538,7 +538,7 @@ bool DwarfFunctionsBuildFromSlices(
         u32 abbrev_offset;
         u8  addr_size;
         // DWARF v4 CU header tail after unit_length: 2 + 4 + 1 bytes.
-        if (!ByteIterReadFmt(&info_cur, "{<2r}{<4r}{<1r}", version, abbrev_offset, addr_size)) {
+        if (!BufReadFmt(&info_cur, "{<2r}{<4r}{<1r}", version, abbrev_offset, addr_size)) {
             ok = false;
             break;
         }
