@@ -8,6 +8,7 @@
 #define MISRA_STD_IO
 
 #include <Misra/Std/Container.h>
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/File.h>
 #include <Misra/Types.h>
@@ -622,5 +623,75 @@ const char *_read_BitVec(const char *i, FmtInfo *fmt_info, BitVec *bv);
 #if FEATURE_INT
 const char *_read_Int(const char *i, FmtInfo *fmt_info, Int *value);
 #endif
+
+// ---------------------------------------------------------------------------
+// Formatted Buf I/O. Moved out of Container/Buf.h because formatting is
+// an I/O concern (Buf is a plain byte container; the FMT layer is built
+// on TypeSpecificIO + FmtInfo which live here). Keeping these here also
+// avoids a Buf.h -> Io.h -> File.h include cycle.
+//
+// `BufReadFmt(it, ...)` consumes raw bytes from a cursor.
+// `BufAppendFmt(buf, ...)` adds raw bytes to the end of a Buf.
+// `BufWriteFmt(buf, ...)` clears the Buf first, then appends.
+// `BufPatchFmt(buf, offset, ...)` overwrites existing bytes at offset.
+//
+// Format string accepts only `{<Nr}` (LE) and `{>Nr}` (BE) directives,
+// where N is 1, 2, 4, or 8. The destination variable's natural width
+// must match the spec width.
+// ---------------------------------------------------------------------------
+
+bool buf_read_fmt(BufIter *iter, const char *fmtstr, TypeSpecificIO *argv, u64 argc);
+bool buf_append_fmt(Buf *out, const char *fmtstr, TypeSpecificIO *argv, u64 argc);
+bool buf_write_fmt(Buf *out, const char *fmtstr, TypeSpecificIO *argv, u64 argc);
+bool buf_patch_fmt(Buf *out, size offset, const char *fmtstr, TypeSpecificIO *argv, u64 argc);
+
+#define BufReadFmt(iter, ...) BufReadFmt_IMPL1((iter), __VA_ARGS__)
+#define BufReadFmt_IMPL1(iter, fmtstr, ...)                                                                            \
+    BufReadFmt_IMPL2(                                                                                                  \
+        (iter),                                                                                                        \
+        fmtstr,                                                                                                        \
+        ((TypeSpecificIO[]) {                                                                                          \
+            APPLY_MACRO_FOREACH(IOFMT_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                                    \
+    })                                                                                                             \
+    )
+#define BufReadFmt_IMPL2(iter, fmtstr, varr)                                                                           \
+    buf_read_fmt((iter), (fmtstr), &(varr)[0], sizeof(varr) / sizeof(TypeSpecificIO) - 1)
+
+#define BufAppendFmt(buf, ...) BufAppendFmt_IMPL1((buf), __VA_ARGS__)
+#define BufAppendFmt_IMPL1(buf, fmtstr, ...)                                                                           \
+    BufAppendFmt_IMPL2(                                                                                                \
+        (buf),                                                                                                         \
+        fmtstr,                                                                                                        \
+        ((TypeSpecificIO[]) {                                                                                          \
+            APPLY_MACRO_FOREACH(IOFMT_LVAL_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                               \
+    })                                                                                                             \
+    )
+#define BufAppendFmt_IMPL2(buf, fmtstr, varr)                                                                          \
+    buf_append_fmt((buf), (fmtstr), &(varr)[0], sizeof(varr) / sizeof(TypeSpecificIO) - 1)
+
+#define BufWriteFmt(buf, ...) BufWriteFmt_IMPL1((buf), __VA_ARGS__)
+#define BufWriteFmt_IMPL1(buf, fmtstr, ...)                                                                            \
+    BufWriteFmt_IMPL2(                                                                                                 \
+        (buf),                                                                                                         \
+        fmtstr,                                                                                                        \
+        ((TypeSpecificIO[]) {                                                                                          \
+            APPLY_MACRO_FOREACH(IOFMT_LVAL_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                               \
+    })                                                                                                             \
+    )
+#define BufWriteFmt_IMPL2(buf, fmtstr, varr)                                                                           \
+    buf_write_fmt((buf), (fmtstr), &(varr)[0], sizeof(varr) / sizeof(TypeSpecificIO) - 1)
+
+#define BufPatchFmt(buf, offset, ...) BufPatchFmt_IMPL1((buf), (offset), __VA_ARGS__)
+#define BufPatchFmt_IMPL1(buf, offset, fmtstr, ...)                                                                    \
+    BufPatchFmt_IMPL2(                                                                                                 \
+        (buf),                                                                                                         \
+        (offset),                                                                                                      \
+        fmtstr,                                                                                                        \
+        ((TypeSpecificIO[]) {                                                                                          \
+            APPLY_MACRO_FOREACH(IOFMT_LVAL_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                               \
+    })                                                                                                             \
+    )
+#define BufPatchFmt_IMPL2(buf, offset, fmtstr, varr)                                                                   \
+    buf_patch_fmt((buf), (offset), (fmtstr), &(varr)[0], sizeof(varr) / sizeof(TypeSpecificIO) - 1)
 
 #endif // MISRA_STD_IO

@@ -350,7 +350,7 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const ElfFile *elf, Allocator *allo
     }
     out->eh_frame_addr = eh->addr;
 
-    const u8 *section_data = elf->data + eh->offset;
+    const u8 *section_data = BufData(&elf->data) + eh->offset;
 
     BufIter section_cur = BufIterFromMemory(section_data, eh->size);
     while (IterRemainingLength(&section_cur) > 0) {

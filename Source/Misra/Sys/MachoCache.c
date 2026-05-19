@@ -141,11 +141,11 @@ static bool entry_build_dwarf(MachoCacheEntry *e, Allocator *alloc) {
     const MachoSection *abbrev_sec = MachoFileFindSection(&e->dsym, "__DWARF", "__debug_abbrev");
     const MachoSection *str_sec    = MachoFileFindSection(&e->dsym, "__DWARF", "__debug_str");
 
-    const u8 *info_b   = info_sec ? e->dsym.data + info_sec->offset : NULL;
+    const u8 *info_b   = info_sec ? e->dsym.data.data + info_sec->offset : NULL;
     u64       info_n   = info_sec ? info_sec->size : 0;
-    const u8 *abbrev_b = abbrev_sec ? e->dsym.data + abbrev_sec->offset : NULL;
+    const u8 *abbrev_b = abbrev_sec ? e->dsym.data.data + abbrev_sec->offset : NULL;
     u64       abbrev_n = abbrev_sec ? abbrev_sec->size : 0;
-    const u8 *str_b    = str_sec ? e->dsym.data + str_sec->offset : NULL;
+    const u8 *str_b    = str_sec ? e->dsym.data.data + str_sec->offset : NULL;
     u64       str_n    = str_sec ? str_sec->size : 0;
 
     e->fns_ok = DwarfFunctionsBuildFromSlices(&e->fns, info_b, info_n, abbrev_b, abbrev_n, str_b, str_n, alloc);

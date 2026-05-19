@@ -23,6 +23,7 @@
 #define MISRA_PARSERS_MACHO_H
 
 #include <Misra/Std/Allocator.h>
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Types.h>
 
@@ -99,9 +100,7 @@ typedef Vec(MachoSymbol) MachoSymbols;
 /// - symbols       : Entries from LC_SYMTAB; may be empty if stripped.
 ///
 typedef struct MachoFile {
-    Allocator    *allocator;
-    u8           *data;
-    size          data_size;
+    Buf           data;
     u32           cputype;
     MachoFileType filetype;
     u8            uuid[16];
@@ -128,40 +127,41 @@ bool macho_file_open(MachoFile *out, const char *path, Allocator *alloc);
         (path),                                                                                                        \
         Str *: macho_file_open((out), ((Str *)(path))->data, MisraScope),                                              \
         const Str *: macho_file_open((out), ((const Str *)(path))->data, MisraScope),                                  \
-        default: macho_file_open((out), (const char *)(path), MisraScope)                                              \
+        char *: macho_file_open((out), (const char *)(path), MisraScope),                                              \
+        const char *: macho_file_open((out), (const char *)(path), MisraScope)                                         \
     )
 #define MachoFileOpen_3(out, path, alloc)                                                                              \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: macho_file_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                     \
         const Str *: macho_file_open((out), ((const Str *)(path))->data, ALLOCATOR_OF(alloc)),                         \
-        default: macho_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                     \
+        char *: macho_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                     \
+        const char *: macho_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                \
     )
 
 ///
 /// Parse a Mach-O image from an in-memory byte range -- **L-value /
 /// ownership-transfer form** (mirrors `VecInsertL`).
 ///
-/// `data` is `u8 **`: ownership is moving from caller to parser. On
-/// entry `*data` is the caller's buffer (allocated through `alloc`);
-/// on exit (success OR failure) `*data == NULL`. Calling code:
+/// Takes the caller's `Buf` by pointer. The parser snapshots the Buf
+/// and zeroes the caller's `*in` so any post-call use is an empty Buf
+/// rather than a stale alias. Allocator comes from the Buf. The
+/// zero-on-take invariant holds on success and failure.
 ///
-///   u8 *buf = my_buffer;
-///   MachoFileOpenFromMemory(&m, &buf, n, &alloc);
-///   // buf == NULL afterwards.
+/// USAGE:
+///   Buf buf = BufInit(&alloc);
+///   FileRead(&f, &buf);
+///   MachoFileOpenFromMemory(&m, &buf);
+///   // buf is now zeroed.
 ///
-/// SUCCESS : Returns true; `out` owns the bytes; `*data == NULL`.
-/// FAILURE : Returns false; the bytes have been freed through `alloc`;
-///           `*data == NULL`; `out` is left zeroed.
+/// SUCCESS : Returns true; `out` owns the bytes; `*in` is zeroed.
+/// FAILURE : Returns false; the bytes have been freed; `*in` is zeroed;
+///           `out` is left zeroed.
 ///
 /// TAGS: Parser, MachO, Memory, Ownership
 ///
-bool macho_file_open_from_memory(MachoFile *out, u8 **data, size data_size, Allocator *alloc);
-#define MachoFileOpenFromMemory(...) MISRA_OVERLOAD(MachoFileOpenFromMemory, __VA_ARGS__)
-#define MachoFileOpenFromMemory_3(out, dataref, data_size)                                                             \
-    macho_file_open_from_memory((out), (dataref), (data_size), MisraScope)
-#define MachoFileOpenFromMemory_4(out, dataref, data_size, alloc)                                                      \
-    macho_file_open_from_memory((out), (dataref), (data_size), ALLOCATOR_OF(alloc))
+bool macho_file_open_from_memory(MachoFile *out, Buf *in);
+#define MachoFileOpenFromMemory(out, in) macho_file_open_from_memory((out), (in))
 
 ///
 /// Parse a Mach-O image from an in-memory byte range -- **R-value /

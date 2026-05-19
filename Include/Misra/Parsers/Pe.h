@@ -17,6 +17,7 @@
 #define MISRA_PARSERS_PE_H
 
 #include <Misra/Std/Allocator.h>
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Types.h>
 
@@ -94,9 +95,7 @@ typedef struct PeCodeViewInfo {
 /// - codeview      : CodeView debug record, if present.
 ///
 typedef struct PeFile {
-    Allocator     *allocator;
-    u8            *data;
-    size           data_size;
+    Buf            data;
     PeMachine      machine;
     bool           is_pe32_plus;
     u64            image_base;
@@ -125,14 +124,16 @@ bool pe_file_open(PeFile *out, const char *path, Allocator *alloc);
         (path),                                                                                                        \
         Str *: pe_file_open((out), ((Str *)(path))->data, MisraScope),                                                 \
         const Str *: pe_file_open((out), ((const Str *)(path))->data, MisraScope),                                     \
-        default: pe_file_open((out), (const char *)(path), MisraScope)                                                 \
+        char *: pe_file_open((out), (const char *)(path), MisraScope),                                                 \
+        const char *: pe_file_open((out), (const char *)(path), MisraScope)                                            \
     )
 #define PeFileOpen_3(out, path, alloc)                                                                                 \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: pe_file_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                        \
         const Str *: pe_file_open((out), ((const Str *)(path))->data, ALLOCATOR_OF(alloc)),                            \
-        default: pe_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                        \
+        char *: pe_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                        \
+        const char *: pe_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                   \
     )
 
 ///
@@ -153,12 +154,8 @@ bool pe_file_open(PeFile *out, const char *path, Allocator *alloc);
 ///
 /// TAGS: Parser, PE, Memory, Ownership
 ///
-bool pe_file_open_from_memory(PeFile *out, u8 **data, size data_size, Allocator *alloc);
-#define PeFileOpenFromMemory(...) MISRA_OVERLOAD(PeFileOpenFromMemory, __VA_ARGS__)
-#define PeFileOpenFromMemory_3(out, dataref, data_size)                                                                \
-    pe_file_open_from_memory((out), (dataref), (data_size), MisraScope)
-#define PeFileOpenFromMemory_4(out, dataref, data_size, alloc)                                                         \
-    pe_file_open_from_memory((out), (dataref), (data_size), ALLOCATOR_OF(alloc))
+bool pe_file_open_from_memory(PeFile *out, Buf *in);
+#define PeFileOpenFromMemory(out, in) pe_file_open_from_memory((out), (in))
 
 ///
 /// Parse a PE image from an in-memory byte range -- **R-value /

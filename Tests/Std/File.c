@@ -8,20 +8,12 @@
 
 #include "../Util/TestRunner.h"
 
-#ifdef _WIN32
-#    define FILE_TEST_PREFIX      "misra-file-test-"
-#    define FILE_TEST_GROW_PREFIX "misra-file-grow-test-"
-#else
-#    define FILE_TEST_PREFIX      "/tmp/misra-file-test-"
-#    define FILE_TEST_GROW_PREFIX "/tmp/misra-file-grow-test-"
-#endif
-
 // Writes `text` into a freshly-created unique temp file (FileOpenTemp
-// = atomic O_CREAT|O_EXCL + internal-PRNG suffix). `out_path` is the
-// caller's Str; on success it holds the resolved path so the caller
-// can read it back and remove it.
-static bool write_test_file(const char *prefix, const char *text, Str *out_path, Allocator *alloc) {
-    File f = FileOpenTemp(prefix, out_path, alloc);
+// = atomic O_CREAT|O_EXCL + Prng64 16-hex name in CWD). `out_path`
+// is the caller's Str; on success it holds the resolved name so the
+// caller can read it back and remove it.
+static bool write_test_file(const char *text, Str *out_path, Allocator *alloc) {
+    File f = FileOpenTemp(out_path, alloc);
     if (!FileIsOpen(&f)) {
         return false;
     }
@@ -43,7 +35,7 @@ bool test_file_read_into_str(void) {
     Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
 
     Str path;
-    if (!write_test_file(FILE_TEST_PREFIX, "hello from file", &path, alloc_base)) {
+    if (!write_test_file("hello from file", &path, alloc_base)) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
@@ -77,7 +69,7 @@ bool test_file_read_grows_str(void) {
     Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
 
     Str path;
-    if (!write_test_file(FILE_TEST_GROW_PREFIX, "this is longer than the initial buffer", &path, alloc_base)) {
+    if (!write_test_file("this is longer than the initial buffer", &path, alloc_base)) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }

@@ -43,9 +43,9 @@ static bool kvconfig_parse_i64_value(const Str *value, i64 *out) {
         LOG_FATAL("Expected valid integer output pointer");
     }
 
-    parsed = ZstrToI64(value->data, &endptr);
+    parsed = ZstrToI64(StrBegin(value), &endptr);
 
-    if (!endptr || endptr == value->data || *endptr != '\0') {
+    if (!endptr || endptr == StrBegin(value) || *endptr != '\0') {
         return false;
     }
 
@@ -61,9 +61,9 @@ static bool kvconfig_parse_f64_value(const Str *value, f64 *out) {
         LOG_FATAL("Expected valid float output pointer");
     }
 
-    parsed = ZstrToF64(value->data, &endptr);
+    parsed = ZstrToF64(StrBegin(value), &endptr);
 
-    if (!endptr || endptr == value->data || *endptr != '\0') {
+    if (!endptr || endptr == StrBegin(value) || *endptr != '\0') {
         return false;
     }
 
@@ -90,8 +90,8 @@ u64 KvConfigHash(const void *data, u32 ignored_size) {
     (void)ignored_size;
     ValidateStr(str);
 
-    for (idx = 0; idx < str->length; idx++) {
-        hash ^= (u64)(unsigned char)str->data[idx];
+    for (idx = 0; idx < StrLen(str); idx++) {
+        hash ^= (u64)(unsigned char)StrCharAt(str, idx);
         hash *= 1099511628211ULL;
     }
 
@@ -107,18 +107,18 @@ i32 KvConfigCompare(const void *lhs, const void *rhs) {
     ValidateStr(a);
     ValidateStr(b);
 
-    min = a->length < b->length ? a->length : b->length;
-    cmp = MemCompare(a->data, b->data, min);
+    min = StrLen(a) < StrLen(b) ? StrLen(a) : StrLen(b);
+    cmp = MemCompare(StrBegin(a), StrBegin(b), min);
 
     if (cmp != 0) {
         return cmp;
     }
 
-    if (a->length == b->length) {
+    if (StrLen(a) == StrLen(b)) {
         return 0;
     }
 
-    return a->length < b->length ? -1 : 1;
+    return StrLen(a) < StrLen(b) ? -1 : 1;
 }
 
 StrIter KvConfigSkipWhitespace(StrIter si) {
@@ -156,7 +156,7 @@ StrIter KvConfigReadKey(StrIter si, Str *key) {
         StrIterMustNext(&si);
     }
 
-    if (key->length == 0) {
+    if (StrLen(key) == 0) {
         LOG_ERROR("Expected config key");
         StrClear(key);
         return saved_si;
@@ -227,15 +227,16 @@ StrIter KvConfigReadValue(StrIter si, Str *value) {
     }
 
     while (StrIterPeek(&si, &c) && c != '\n') {
-        if (kvconfig_is_comment_start(c) && value->length > 0 && kvconfig_is_space(value->data[value->length - 1])) {
-            while (value->length > 0 && kvconfig_is_space(value->data[value->length - 1])) {
+        if (kvconfig_is_comment_start(c) && StrLen(value) > 0 &&
+            kvconfig_is_space(StrCharAt(value, StrLen(value) - 1))) {
+            while (StrLen(value) > 0 && kvconfig_is_space(StrCharAt(value, StrLen(value) - 1))) {
                 char dropped = '\0';
                 StrPopBack(value, &dropped);
             }
             return si;
         }
 
-        if (kvconfig_is_comment_start(c) && value->length == 0) {
+        if (kvconfig_is_comment_start(c) && StrLen(value) == 0) {
             return si;
         }
 
@@ -243,7 +244,7 @@ StrIter KvConfigReadValue(StrIter si, Str *value) {
         StrIterMustNext(&si);
     }
 
-    if (value->length > 0) {
+    if (StrLen(value) > 0) {
         Str stripped = StrStrip(value, NULL);
         StrDeinit(value);
         *value = stripped;
@@ -393,7 +394,7 @@ Str KvConfigGet(KvConfig *cfg, const char *key) {
         return StrInit(cfg->allocator);
     }
 
-    return StrInitFromCstr(value->data, value->length, cfg->allocator);
+    return StrInitFromCstr(StrBegin(value), StrLen(value), cfg->allocator);
 }
 
 bool KvConfigContains(KvConfig *cfg, const char *key) {

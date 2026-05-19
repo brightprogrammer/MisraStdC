@@ -26,6 +26,7 @@
 #define MISRA_PARSERS_PDB_H
 
 #include <Misra/Std/Allocator.h>
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Types.h>
 
@@ -81,9 +82,7 @@ typedef struct PdbInfo {
 ///                 `PdbFileOpen[FromMemory]`.
 ///
 typedef struct PdbFile {
-    Allocator   *allocator;
-    u8          *data;
-    size         data_size;
+    Buf          data;
     u32          block_size;
     u32          num_streams;
     PdbInfo      info;
@@ -123,14 +122,16 @@ bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc);
         (path),                                                                                                        \
         Str *: pdb_file_open((out), ((Str *)(path))->data, MisraScope),                                                \
         const Str *: pdb_file_open((out), ((const Str *)(path))->data, MisraScope),                                    \
-        default: pdb_file_open((out), (const char *)(path), MisraScope)                                                \
+        char *: pdb_file_open((out), (const char *)(path), MisraScope),                                                \
+        const char *: pdb_file_open((out), (const char *)(path), MisraScope)                                           \
     )
 #define PdbFileOpen_3(out, path, alloc)                                                                                \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: pdb_file_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                       \
         const Str *: pdb_file_open((out), ((const Str *)(path))->data, ALLOCATOR_OF(alloc)),                           \
-        default: pdb_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                       \
+        char *: pdb_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                       \
+        const char *: pdb_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                  \
     )
 
 ///
@@ -151,12 +152,8 @@ bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc);
 ///
 /// TAGS: Parser, PDB, Memory, Ownership
 ///
-bool pdb_file_open_from_memory(PdbFile *out, u8 **data, size data_size, Allocator *alloc);
-#define PdbFileOpenFromMemory(...) MISRA_OVERLOAD(PdbFileOpenFromMemory, __VA_ARGS__)
-#define PdbFileOpenFromMemory_3(out, dataref, data_size)                                                               \
-    pdb_file_open_from_memory((out), (dataref), (data_size), MisraScope)
-#define PdbFileOpenFromMemory_4(out, dataref, data_size, alloc)                                                        \
-    pdb_file_open_from_memory((out), (dataref), (data_size), ALLOCATOR_OF(alloc))
+bool pdb_file_open_from_memory(PdbFile *out, Buf *in);
+#define PdbFileOpenFromMemory(out, in) pdb_file_open_from_memory((out), (in))
 
 ///
 /// Open and parse a PDB from an in-memory byte range -- **R-value /

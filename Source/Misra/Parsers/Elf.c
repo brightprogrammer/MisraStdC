@@ -97,7 +97,7 @@ static const char *elf_str_at(const ElfFile *self, u64 strtab_offset, u64 strtab
     // tail; returning the raw pointer would let later C-string code
     // read past the strtab. Scan forward; if no NUL is found inside
     // [idx, strtab_size), return an empty string.
-    const char *base = (const char *)(self->data + strtab_offset);
+    const char *base = (const char *)(BufData(&self->data) + strtab_offset);
     for (u64 p = idx; p < strtab_size; ++p) {
         if (base[p] == '\0') {
             return base + idx;
@@ -107,13 +107,13 @@ static const char *elf_str_at(const ElfFile *self, u64 strtab_offset, u64 strtab
 }
 
 static bool elf_range_ok(const ElfFile *self, u64 offset, u64 size) {
-    if (offset > self->data_size)
+    if (offset > BufLength(&self->data))
         return false;
-    if (size > self->data_size)
+    if (size > BufLength(&self->data))
         return false;
     // After the two checks above both `offset` and `size` are
     // bounded by `data_size`; subtracting cannot wrap.
-    if (size > self->data_size - offset)
+    if (size > BufLength(&self->data) - offset)
         return false;
     return true;
 }
@@ -123,12 +123,12 @@ static bool elf_range_ok(const ElfFile *self, u64 offset, u64 size) {
 // ---------------------------------------------------------------------------
 
 static bool elf_decode_header(ElfFile *self) {
-    if (self->data_size < EI_NIDENT + EHDR64_SIZE_AFTER_IDENT) {
-        LOG_ERROR("ElfFile: file too small for ELF64 header ({} bytes)", (u64)self->data_size);
+    if (BufLength(&self->data) < EI_NIDENT + EHDR64_SIZE_AFTER_IDENT) {
+        LOG_ERROR("ElfFile: file too small for ELF64 header ({} bytes)", (u64)BufLength(&self->data));
         return false;
     }
 
-    const u8 *id = self->data;
+    const u8 *id = BufData(&self->data);
     if (id[EI_MAG0] != ELF_MAG0 || id[EI_MAG1] != ELF_MAG1 || id[EI_MAG2] != ELF_MAG2 || id[EI_MAG3] != ELF_MAG3) {
         LOG_ERROR("ElfFile: bad magic");
         return false;
@@ -146,14 +146,15 @@ static bool elf_decode_header(ElfFile *self) {
     self->header.class = ELF_CLASS_64;
     self->header.data  = ELF_DATA_LSB;
 
-    const char *cursor = (const char *)self->data + EI_NIDENT;
+    BufIter iter = BufIterFromBuf(&self->data);
+    IterMustMove(&iter, EI_NIDENT);
 
     u16 type = 0, machine = 0, ehsize = 0, phentsize = 0, phnum = 0, shentsize = 0, shnum = 0, shstrndx = 0;
     u32 version = 0, flags = 0;
     u64 entry = 0, phoff = 0, shoff = 0;
 
-    StrReadFmt(
-        cursor,
+    BufReadFmt(
+        &iter,
         FMT_EHDR64_LE,
         type,
         machine,
@@ -205,10 +206,11 @@ static bool elf_decode_sections(ElfFile *self) {
     u64 shstr_off  = 0;
     u64 shstr_size = 0;
     {
-        const char *cursor = (const char *)self->data + shoff + (u64)self->header.shstrndx * SHDR64_SIZE;
-        u32         name = 0, type = 0, link = 0, info = 0;
-        u64         flags = 0, addr = 0, offset = 0, size_ = 0, addralign = 0, entsize = 0;
-        StrReadFmt(cursor, FMT_SHDR64_LE, name, type, flags, addr, offset, size_, link, info, addralign, entsize);
+        BufIter iter = BufIterFromBuf(&self->data);
+        IterMustMove(&iter, shoff + (u64)self->header.shstrndx * SHDR64_SIZE);
+        u32 name = 0, type = 0, link = 0, info = 0;
+        u64 flags = 0, addr = 0, offset = 0, size_ = 0, addralign = 0, entsize = 0;
+        BufReadFmt(&iter, FMT_SHDR64_LE, name, type, flags, addr, offset, size_, link, info, addralign, entsize);
         shstr_off  = offset;
         shstr_size = size_;
     }
@@ -217,12 +219,13 @@ static bool elf_decode_sections(ElfFile *self) {
         return false;
     }
 
-    const char *cursor = (const char *)self->data + shoff;
+    BufIter iter = BufIterFromBuf(&self->data);
+    IterMustMove(&iter, shoff);
     for (u16 i = 0; i < n; ++i) {
         u32 name = 0, type = 0, link = 0, info = 0;
         u64 flags = 0, addr = 0, offset = 0, size_ = 0, addralign = 0, entsize = 0;
 
-        StrReadFmt(cursor, FMT_SHDR64_LE, name, type, flags, addr, offset, size_, link, info, addralign, entsize);
+        BufReadFmt(&iter, FMT_SHDR64_LE, name, type, flags, addr, offset, size_, link, info, addralign, entsize);
 
         ElfSection s;
         s.name       = elf_str_at(self, shstr_off, shstr_size, name);
@@ -284,14 +287,15 @@ static bool elf_decode_symbol_table(ElfFile *self, const ElfSection *symtab, Elf
         return false;
     }
 
-    const char *cursor = (const char *)self->data + symtab->offset;
+    BufIter iter = BufIterFromBuf(&self->data);
+    IterMustMove(&iter, symtab->offset);
     for (u64 i = 0; i < count; ++i) {
         u32 name = 0;
         u8  info = 0, other = 0;
         u16 shndx = 0;
         u64 value = 0, size_ = 0;
 
-        StrReadFmt(cursor, FMT_SYM64_LE, name, info, other, shndx, value, size_);
+        BufReadFmt(&iter, FMT_SYM64_LE, name, info, other, shndx, value, size_);
 
         ElfSymbol s;
         s.name          = elf_str_at(self, strtab->offset, strtab->size, name);
@@ -352,7 +356,7 @@ static void elf_decode_build_id(ElfFile *self, const ElfSection *note) {
     if (!elf_range_ok(self, note->offset, note->size) || note->size < 16) {
         return;
     }
-    const u8 *p   = self->data + note->offset;
+    const u8 *p   = BufData(&self->data) + note->offset;
     const u8 *end = p + note->size;
     if ((u64)(end - p) < 12)
         return;
@@ -381,7 +385,7 @@ static void elf_decode_debug_link(ElfFile *self, const ElfSection *dl) {
     if (!elf_range_ok(self, dl->offset, dl->size) || dl->size < 5) {
         return;
     }
-    const char *base = (const char *)(self->data + dl->offset);
+    const char *base = (const char *)(BufData(&self->data) + dl->offset);
     // filename runs up to (and including) the NUL; CRC follows in the
     // last 4 bytes of the section, after alignment padding.
     u64 max_name = dl->size > 4 ? dl->size - 4 : 0;
@@ -393,7 +397,7 @@ static void elf_decode_debug_link(ElfFile *self, const ElfSection *dl) {
         return; // unterminated or empty
     }
     // CRC is in the last 4 bytes.
-    const u8 *crc_bytes = self->data + dl->offset + dl->size - 4;
+    const u8 *crc_bytes = BufData(&self->data) + dl->offset + dl->size - 4;
     u32 crc = (u32)crc_bytes[0] | ((u32)crc_bytes[1] << 8) | ((u32)crc_bytes[2] << 16) | ((u32)crc_bytes[3] << 24);
 
     self->debuglink_name = base;
@@ -415,28 +419,23 @@ static void elf_decode_debug_metadata(ElfFile *self) {
 // Open / close
 // ---------------------------------------------------------------------------
 
-// L-value form. Signature takes `u8 **` because ownership of the
-// pointer is moving from caller to parser. On entry `*data` is the
-// caller's buffer; on exit (success OR failure) `*data == NULL` so a
-// use-after-transfer at the call site reads NULL instead of a stale
-// pointer.
-bool elf_file_open_from_memory(ElfFile *out, u8 **data, size data_size, Allocator *alloc) {
-    if (!out || !data || !*data || !alloc) {
+// L-value form. Takes the caller's `Buf` by pointer, captures it as a
+// local snapshot, and immediately MemSets the caller's view to zero so
+// any post-call use is a clean empty Buf rather than a stale alias.
+// Anything that fails past the snapshot cleans up via ElfFileDeinit,
+// so the buffer never leaks.
+bool elf_file_open_from_memory(ElfFile *out, Buf *in) {
+    if (!out || !in || !in->data || !in->allocator) {
         LOG_FATAL("ElfFileOpenFromMemory: NULL argument (contract violation)");
     }
-    // Take ownership: capture the pointer, then immediately null the
-    // caller's view. Anything that fails past this point cleans up
-    // via ElfFileDeinit, so the buffer never leaks.
-    u8 *taken = *data;
-    *data     = NULL;
+    Buf taken = *in;
+    MemSet(in, 0, sizeof(*in));
 
     MemSet(out, 0, sizeof(*out));
-    out->allocator       = alloc;
     out->data            = taken;
-    out->data_size       = data_size;
-    out->sections        = VecInitT(out->sections, alloc);
-    out->symbols         = VecInitT(out->symbols, alloc);
-    out->dynamic_symbols = VecInitT(out->dynamic_symbols, alloc);
+    out->sections        = VecInitT(out->sections, taken.allocator);
+    out->symbols         = VecInitT(out->symbols, taken.allocator);
+    out->dynamic_symbols = VecInitT(out->dynamic_symbols, taken.allocator);
 
     if (!elf_decode_header(out))
         goto fail;
@@ -457,16 +456,16 @@ bool elf_file_open_from_memory_copy(ElfFile *out, const u8 *data, size data_size
     if (!out || !data || !alloc) {
         LOG_FATAL("ElfFileOpenFromMemoryCopy: NULL argument (contract violation)");
     }
-    u8 *copy = (u8 *)AllocatorAlloc(alloc, data_size, false);
-    if (!copy) {
+    Buf copy = BufInit(alloc);
+    if (!VecReserve(&copy, (u64)data_size)) {
         LOG_ERROR("ElfFileOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
         return false;
     }
-    MemCopy(copy, data, data_size);
-    // Hand `&copy` to the L-form -- it consumes the local and nulls
-    // it. The local goes out of scope right after; the NULL is a
-    // contract artifact, not observed by anyone.
-    return elf_file_open_from_memory(out, &copy, data_size, alloc);
+    MemCopy(copy.data, data, data_size);
+    copy.length = (size)data_size;
+    // Hand `&copy` to the L-form -- it consumes the local and zeros
+    // it. The local goes out of scope right after.
+    return elf_file_open_from_memory(out, &copy);
 }
 
 bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc) {
@@ -478,32 +477,21 @@ bool elf_file_open(ElfFile *out, const char *path, Allocator *alloc) {
         LOG_ERROR("ElfFileOpen: failed to open {}", path);
         return false;
     }
-    Str data = StrInit(alloc);
+    Buf data = BufInit(alloc);
     i64 got  = FileRead(&f, &data);
     FileClose(&f);
     if (got < 0) {
-        StrDeinit(&data);
+        BufDeinit(&data);
         LOG_ERROR("ElfFileOpen: failed to read {}", path);
         return false;
     }
-    // Move the Str's buffer into the L-form. Detach the Str first so
-    // its Deinit is a no-op even if the L-form fails (the L-form will
-    // free the buffer in that case).
-    u8  *buf       = (u8 *)data.data;
-    size buf_n     = data.length;
-    data.data      = NULL;
-    data.length    = 0;
-    data.capacity  = 0;
-    data.allocator = NULL;
-    return elf_file_open_from_memory(out, &buf, buf_n, alloc);
+    return elf_file_open_from_memory(out, &data);
 }
 
 void ElfFileDeinit(ElfFile *self) {
     if (!self)
         return;
-    if (self->data && self->allocator) {
-        AllocatorFree(self->allocator, self->data);
-    }
+    BufDeinit(&self->data);
     VecDeinit(&self->sections);
     VecDeinit(&self->symbols);
     VecDeinit(&self->dynamic_symbols);

@@ -643,11 +643,11 @@ bool dwarf_functions_build_from_elf(DwarfFunctions *out, const ElfFile *elf, All
     const ElfSection *abbrev_sec = ElfFileFindSection(elf, ".debug_abbrev");
     const ElfSection *str_sec    = ElfFileFindSection(elf, ".debug_str");
 
-    const u8 *info_b   = info_sec ? elf->data + info_sec->offset : NULL;
+    const u8 *info_b   = info_sec ? BufData(&elf->data) + info_sec->offset : NULL;
     u64       info_n   = info_sec ? info_sec->size : 0;
-    const u8 *abbrev_b = abbrev_sec ? elf->data + abbrev_sec->offset : NULL;
+    const u8 *abbrev_b = abbrev_sec ? BufData(&elf->data) + abbrev_sec->offset : NULL;
     u64       abbrev_n = abbrev_sec ? abbrev_sec->size : 0;
-    const u8 *str_b    = str_sec ? elf->data + str_sec->offset : NULL;
+    const u8 *str_b    = str_sec ? BufData(&elf->data) + str_sec->offset : NULL;
     u64       str_n    = str_sec ? str_sec->size : 0;
     return DwarfFunctionsBuildFromSlices(out, info_b, info_n, abbrev_b, abbrev_n, str_b, str_n, alloc);
 }

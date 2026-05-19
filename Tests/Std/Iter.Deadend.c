@@ -1,10 +1,9 @@
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Utility/Iter.h>
 #include <Misra/Types.h>
 
 #include "../Util/TestRunner.h"
-
-typedef Iter(const u8) BufIter;
 
 static BufIter from(const u8 *p, size n) {
     BufIter it = {.data = p, .length = n, .pos = 0, .alignment = 1, .dir = 1};

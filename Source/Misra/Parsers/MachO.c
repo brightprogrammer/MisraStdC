@@ -123,11 +123,11 @@ typedef struct MachoContext {
 
 static bool decode_header(MachoContext *ctx) {
     MachoFile *m = ctx->out;
-    if (m->data_size < MH_HEADER_64_SIZE) {
+    if (BufLength(&m->data) < MH_HEADER_64_SIZE) {
         LOG_ERROR("MachO: file too small for header");
         return false;
     }
-    BufIter c = BufIterFromMemory(m->data, m->data_size);
+    BufIter c = BufIterFromMemory(BufData(&m->data), BufLength(&m->data));
     u32     magic, cputype, cpusubtype, filetype, ncmds, sizeofcmds, flags, reserved;
     if (!BufReadFmt(
             &c,
@@ -270,7 +270,7 @@ static bool decode_uuid(MachoContext *ctx, const u8 *cmd_p, u32 cmdsize) {
 }
 
 static bool walk_load_commands(MachoContext *ctx) {
-    if ((u64)MH_HEADER_64_SIZE + ctx->sizeofcmds > ctx->out->data_size) {
+    if ((u64)MH_HEADER_64_SIZE + ctx->sizeofcmds > BufLength(&ctx->out->data)) {
         LOG_ERROR("MachO: load commands overrun file");
         return false;
     }
@@ -279,7 +279,7 @@ static bool walk_load_commands(MachoContext *ctx) {
     for (u32 i = 0; i < ctx->ncmds; ++i) {
         if (cur + 8 > end)
             return false;
-        const u8 *cmd_p = ctx->out->data + cur;
+        const u8 *cmd_p = BufData(&ctx->out->data) + cur;
         BufIter   pc    = BufIterFromMemory(cmd_p, end - cur);
         u32       cmd, cmdsize;
         if (!BufReadFmt(&pc, FMT_MACHO_LC_PREFIX_LE, cmd, cmdsize)) {
@@ -326,17 +326,17 @@ static bool decode_symbols(MachoContext *ctx) {
         return false;
     }
     u64 tab_end = (u64)ctx->symoff + (u64)ctx->nsyms * NLIST64_SIZE;
-    if (tab_end > ctx->out->data_size) {
+    if (tab_end > BufLength(&ctx->out->data)) {
         LOG_ERROR("MachO: symtab past EOF");
         return false;
     }
     u64 str_end = (u64)ctx->stroff + ctx->strsize;
-    if (str_end > ctx->out->data_size) {
+    if (str_end > BufLength(&ctx->out->data)) {
         LOG_ERROR("MachO: symbol strtab past EOF");
         return false;
     }
-    const u8 *str_base = ctx->out->data + ctx->stroff;
-    BufIter   tab      = BufIterFromMemory(ctx->out->data + ctx->symoff, (u64)ctx->nsyms * NLIST64_SIZE);
+    const u8 *str_base = BufData(&ctx->out->data) + ctx->stroff;
+    BufIter   tab      = BufIterFromMemory(BufData(&ctx->out->data) + ctx->symoff, (u64)ctx->nsyms * NLIST64_SIZE);
     for (u32 i = 0; i < ctx->nsyms; ++i) {
         u32 n_strx;
         u8  n_type, n_sect;
@@ -377,22 +377,21 @@ static bool decode_symbols(MachoContext *ctx) {
 // Public API
 // ---------------------------------------------------------------------------
 
-// L-value form. `data` is `u8 **` -- ownership of the pointer moves
-// from caller to parser. On exit `*data == NULL` (success or failure).
-bool macho_file_open_from_memory(MachoFile *out, u8 **data, size data_size, Allocator *alloc) {
-    if (!out || !data || !*data || !alloc) {
+// L-value form. Takes the caller's `Buf` by pointer, snapshots it,
+// MemSets the caller's view to zero. Anything that fails past the
+// snapshot cleans up via MachoFileDeinit -- the buffer never leaks.
+bool macho_file_open_from_memory(MachoFile *out, Buf *in) {
+    if (!out || !in || !in->data || !in->allocator) {
         LOG_FATAL("MachoFileOpenFromMemory: NULL argument (contract violation)");
     }
-    u8 *taken = *data;
-    *data     = NULL;
+    Buf taken = *in;
+    MemSet(in, 0, sizeof(*in));
 
     MemSet(out, 0, sizeof(*out));
-    out->allocator = alloc;
-    out->data      = taken;
-    out->data_size = data_size;
-    out->segments  = VecInitT(out->segments, alloc);
-    out->sections  = VecInitT(out->sections, alloc);
-    out->symbols   = VecInitT(out->symbols, alloc);
+    out->data     = taken;
+    out->segments = VecInitT(out->segments, taken.allocator);
+    out->sections = VecInitT(out->sections, taken.allocator);
+    out->symbols  = VecInitT(out->symbols, taken.allocator);
 
     MachoContext ctx = {.out = out};
     if (!decode_header(&ctx))
@@ -408,18 +407,19 @@ fail:
     return false;
 }
 
-// R-value form: allocate, copy, hand `&copy` to the L-form.
+// R-value form: allocate Buf, copy, hand `&copy` to the L-form.
 bool macho_file_open_from_memory_copy(MachoFile *out, const u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
         LOG_FATAL("MachoFileOpenFromMemoryCopy: NULL argument (contract violation)");
     }
-    u8 *copy = (u8 *)AllocatorAlloc(alloc, data_size, false);
-    if (!copy) {
+    Buf copy = BufInit(alloc);
+    if (!VecReserve(&copy, (u64)data_size)) {
         LOG_ERROR("MachoFileOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
         return false;
     }
-    MemCopy(copy, data, data_size);
-    return macho_file_open_from_memory(out, &copy, data_size, alloc);
+    MemCopy(copy.data, data, data_size);
+    copy.length = (size)data_size;
+    return macho_file_open_from_memory(out, &copy);
 }
 
 bool macho_file_open(MachoFile *out, const char *path, Allocator *alloc) {
@@ -431,29 +431,21 @@ bool macho_file_open(MachoFile *out, const char *path, Allocator *alloc) {
         LOG_ERROR("MachoFileOpen: failed to open {}", path);
         return false;
     }
-    Str data = StrInit(alloc);
+    Buf data = BufInit(alloc);
     i64 got  = FileRead(&f, &data);
     FileClose(&f);
     if (got < 0) {
-        StrDeinit(&data);
+        BufDeinit(&data);
         LOG_ERROR("MachoFileOpen: failed to read {}", path);
         return false;
     }
-    u8  *buf       = (u8 *)data.data;
-    size buf_n     = data.length;
-    data.data      = NULL;
-    data.length    = 0;
-    data.capacity  = 0;
-    data.allocator = NULL;
-    return macho_file_open_from_memory(out, &buf, buf_n, alloc);
+    return macho_file_open_from_memory(out, &data);
 }
 
 void MachoFileDeinit(MachoFile *self) {
     if (!self)
         return;
-    if (self->data && self->allocator) {
-        AllocatorFree(self->allocator, self->data);
-    }
+    BufDeinit(&self->data);
     VecDeinit(&self->segments);
     VecDeinit(&self->sections);
     VecDeinit(&self->symbols);

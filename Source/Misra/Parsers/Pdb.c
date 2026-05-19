@@ -90,9 +90,9 @@ static u32 div_ceil_u32(u32 a, u32 b) {
 // PDB file. NULL on out-of-range.
 static const u8 *block_ptr(const PdbFile *self, u32 block_id) {
     u64 off = (u64)block_id * self->block_size;
-    if (off + self->block_size > self->data_size)
+    if (off + self->block_size > BufLength(&self->data))
         return NULL;
-    return self->data + off;
+    return BufData(&self->data) + off;
 }
 
 // Read `n` bytes from stream `idx` starting at byte offset `offset`
@@ -138,15 +138,15 @@ static bool stream_read(const PdbFile *self, u32 idx, u64 offset, u8 *dest, u64 
 // ---------------------------------------------------------------------------
 
 static bool parse_superblock(PdbFile *self, u32 *out_num_dir_bytes, u32 *out_block_map_addr) {
-    if (self->data_size < SUPERBLOCK_SIZE) {
+    if (BufLength(&self->data) < SUPERBLOCK_SIZE) {
         LOG_ERROR("PDB: file too small for MSF superblock");
         return false;
     }
-    if (MemCompare(self->data, kMsfMagic7, sizeof(kMsfMagic7)) != 0) {
+    if (MemCompare(BufData(&self->data), kMsfMagic7, sizeof(kMsfMagic7)) != 0) {
         LOG_ERROR("PDB: bad MSF magic (not 7.00)");
         return false;
     }
-    BufIter sb = BufIterFromMemory(self->data + 32, self->data_size - 32);
+    BufIter sb = BufIterFromMemory(BufData(&self->data) + 32, BufLength(&self->data) - 32);
     u32     free_blk, num_blocks, unknown;
     if (!BufReadFmt(
             &sb,
@@ -168,7 +168,7 @@ static bool parse_superblock(PdbFile *self, u32 *out_num_dir_bytes, u32 *out_blo
         LOG_ERROR("PDB: unsupported MSF block size {}", self->block_size);
         return false;
     }
-    if ((u64)num_blocks * self->block_size != self->data_size) {
+    if ((u64)num_blocks * self->block_size != BufLength(&self->data)) {
         // Some PDBs come with trailing padding; the spec says num_blocks
         // * block_size should equal file size. We warn but don't fail.
         // No-op in v1 (kept for future "strict" mode).
@@ -195,7 +195,7 @@ static bool reconstruct_directory(PdbFile *self, u32 num_dir_bytes, u32 block_ma
     self->dir_stream_blocks_count = num_dir_blocks;
 
     self->stream_dir_size = num_dir_bytes;
-    self->stream_dir      = AllocatorAlloc(self->allocator, num_dir_bytes, /*zeroed=*/0);
+    self->stream_dir      = AllocatorAlloc(BufAllocator(&self->data), num_dir_bytes, /*zeroed=*/0);
     if (!self->stream_dir)
         return false;
 
@@ -257,9 +257,9 @@ static bool parse_directory(PdbFile *self) {
         return false;
     }
 
-    self->stream_sizes        = AllocatorAlloc(self->allocator, (size)sizes_bytes, 0);
-    self->stream_blocks       = AllocatorAlloc(self->allocator, (size)ptrs_bytes, 0);
-    self->stream_block_counts = AllocatorAlloc(self->allocator, (size)counts_bytes, 0);
+    self->stream_sizes        = AllocatorAlloc(BufAllocator(&self->data), (size)sizes_bytes, 0);
+    self->stream_blocks       = AllocatorAlloc(BufAllocator(&self->data), (size)ptrs_bytes, 0);
+    self->stream_block_counts = AllocatorAlloc(BufAllocator(&self->data), (size)counts_bytes, 0);
     if (!self->stream_sizes || !self->stream_blocks || !self->stream_block_counts)
         return false;
 
@@ -447,19 +447,19 @@ static SectionRva *load_section_table(const PdbFile *self, u16 section_hdr_strea
         return NULL;
     }
     u32         n   = sz / 40;
-    SectionRva *out = AllocatorAlloc(self->allocator, n * sizeof(SectionRva), 0);
+    SectionRva *out = AllocatorAlloc(BufAllocator(&self->data), n * sizeof(SectionRva), 0);
     if (!out)
         return NULL;
 
-    u8 *buf = AllocatorAlloc(self->allocator, sz, 0);
+    u8 *buf = AllocatorAlloc(BufAllocator(&self->data), sz, 0);
     if (!buf) {
-        AllocatorFree(self->allocator, out);
+        AllocatorFree(BufAllocator(&self->data), out);
         return NULL;
     }
     bool read_ok = stream_read(self, section_hdr_stream, 0, buf, sz);
     if (!read_ok) {
-        AllocatorFree(self->allocator, buf);
-        AllocatorFree(self->allocator, out);
+        AllocatorFree(BufAllocator(&self->data), buf);
+        AllocatorFree(BufAllocator(&self->data), out);
         return NULL;
     }
     for (u32 i = 0; i < n; ++i) {
@@ -468,7 +468,7 @@ static SectionRva *load_section_table(const PdbFile *self, u16 section_hdr_strea
         (void)BufReadU32LE(&rec, &out[i].virtual_size);
         (void)BufReadU32LE(&rec, &out[i].virtual_address);
     }
-    AllocatorFree(self->allocator, buf);
+    AllocatorFree(BufAllocator(&self->data), buf);
     *out_count = n;
     return out;
 }
@@ -525,11 +525,11 @@ static bool walk_publics(
 
     // Stream into a flat buffer; the record stream is typically large
     // but not unbounded.
-    u8 *buf = AllocatorAlloc(self->allocator, sz, 0);
+    u8 *buf = AllocatorAlloc(BufAllocator(&self->data), sz, 0);
     if (!buf)
         return false;
     if (!stream_read(self, symrec_stream, 0, buf, sz)) {
-        AllocatorFree(self->allocator, buf);
+        AllocatorFree(BufAllocator(&self->data), buf);
         return false;
     }
 
@@ -580,11 +580,11 @@ static bool walk_publics(
                     PendingPub pp;
                     pp.rva = rva;
                     if (!pool_append_cstr(pool, name, &pp.name_offset_in_pool)) {
-                        AllocatorFree(self->allocator, buf);
+                        AllocatorFree(BufAllocator(&self->data), buf);
                         return false;
                     }
                     if (!VecPushBackR(pending, pp)) {
-                        AllocatorFree(self->allocator, buf);
+                        AllocatorFree(BufAllocator(&self->data), buf);
                         return false;
                     }
                 }
@@ -593,7 +593,7 @@ static bool walk_publics(
         cur = next;
     }
 
-    AllocatorFree(self->allocator, buf);
+    AllocatorFree(BufAllocator(&self->data), buf);
     return true;
 }
 
@@ -607,16 +607,16 @@ static bool parse_pdb_functions(PdbFile *self) {
     SectionRva *sections     = load_section_table(self, dbi.section_hdr_stream, &num_sections);
     if (!sections || num_sections == 0) {
         if (sections)
-            AllocatorFree(self->allocator, sections);
+            AllocatorFree(BufAllocator(&self->data), sections);
         return true; // can't compute RVAs without section table
     }
 
     // Per-function names need an offset-into-pool indirection because
     // the pool may grow during the walk.
-    Str         name_pool = StrInit(self->allocator);
-    PendingPubs pending   = VecInitT(pending, self->allocator);
+    Str         name_pool = StrInit(BufAllocator(&self->data));
+    PendingPubs pending   = VecInitT(pending, BufAllocator(&self->data));
     bool        ok        = walk_publics(self, dbi.symrec_stream, sections, num_sections, &name_pool, &pending);
-    AllocatorFree(self->allocator, sections);
+    AllocatorFree(BufAllocator(&self->data), sections);
 
     if (!ok) {
         VecDeinit(&pending);
@@ -685,18 +685,16 @@ static bool parse_pdb_functions(PdbFile *self) {
 
 // L-value form. `data` is `u8 **` -- ownership of the pointer moves
 // from caller to parser. On exit `*data == NULL` (success or failure).
-bool pdb_file_open_from_memory(PdbFile *out, u8 **data, size data_size, Allocator *alloc) {
-    if (!out || !data || !*data || !alloc) {
+bool pdb_file_open_from_memory(PdbFile *out, Buf *in) {
+    if (!out || !in || !in->data || !in->allocator) {
         LOG_FATAL("PdbFileOpenFromMemory: NULL argument (contract violation)");
     }
-    u8 *taken = *data;
-    *data     = NULL;
+    Buf taken = *in;
+    MemSet(in, 0, sizeof(*in));
 
     MemSet(out, 0, sizeof(*out));
-    out->allocator = alloc;
     out->data      = taken;
-    out->data_size = data_size;
-    out->functions = VecInitT(out->functions, alloc);
+    out->functions = VecInitT(out->functions, taken.allocator);
 
     u32 num_dir_bytes  = 0;
     u32 block_map_addr = 0;
@@ -718,18 +716,19 @@ fail:
     return false;
 }
 
-// R-value form: allocate, copy, hand `&copy` to the L-form.
+// R-value form: allocate Buf, copy, hand `&copy` to the L-form.
 bool pdb_file_open_from_memory_copy(PdbFile *out, const u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
         LOG_FATAL("PdbFileOpenFromMemoryCopy: NULL argument (contract violation)");
     }
-    u8 *copy = (u8 *)AllocatorAlloc(alloc, data_size, false);
-    if (!copy) {
+    Buf copy = BufInit(alloc);
+    if (!BufReserve(&copy, (u64)data_size)) {
         LOG_ERROR("PdbFileOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
         return false;
     }
-    MemCopy(copy, data, data_size);
-    return pdb_file_open_from_memory(out, &copy, data_size, alloc);
+    MemCopy(BufData(&copy), data, data_size);
+    copy.length = (size)data_size;
+    return pdb_file_open_from_memory(out, &copy);
 }
 
 bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc) {
@@ -741,43 +740,33 @@ bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc) {
         LOG_ERROR("PdbFileOpen: failed to open {}", path);
         return false;
     }
-    Str data = StrInit(alloc);
+    Buf data = BufInit(alloc);
     i64 got  = FileRead(&f, &data);
     FileClose(&f);
     if (got < 0) {
-        StrDeinit(&data);
+        BufDeinit(&data);
         LOG_ERROR("PdbFileOpen: failed to read {}", path);
         return false;
     }
-    u8  *buf       = (u8 *)data.data;
-    size buf_n     = data.length;
-    data.data      = NULL;
-    data.length    = 0;
-    data.capacity  = 0;
-    data.allocator = NULL;
-    return pdb_file_open_from_memory(out, &buf, buf_n, alloc);
+    return pdb_file_open_from_memory(out, &data);
 }
 
 void PdbFileDeinit(PdbFile *self) {
     if (!self)
         return;
-    if (self->data && self->allocator) {
-        AllocatorFree(self->allocator, self->data);
-    }
-    if (self->name_pool && self->allocator) {
-        AllocatorFree(self->allocator, self->name_pool);
-    }
-    if (self->stream_dir && self->allocator) {
-        AllocatorFree(self->allocator, self->stream_dir);
-    }
-    if (self->stream_sizes && self->allocator) {
-        AllocatorFree(self->allocator, self->stream_sizes);
-    }
-    if (self->stream_blocks && self->allocator) {
-        AllocatorFree(self->allocator, self->stream_blocks);
-    }
-    if (self->stream_block_counts && self->allocator) {
-        AllocatorFree(self->allocator, self->stream_block_counts);
+    Allocator *alloc = BufAllocator(&self->data);
+    BufDeinit(&self->data);
+    if (alloc) {
+        if (self->name_pool)
+            AllocatorFree(alloc, self->name_pool);
+        if (self->stream_dir)
+            AllocatorFree(alloc, self->stream_dir);
+        if (self->stream_sizes)
+            AllocatorFree(alloc, self->stream_sizes);
+        if (self->stream_blocks)
+            AllocatorFree(alloc, self->stream_blocks);
+        if (self->stream_block_counts)
+            AllocatorFree(alloc, self->stream_block_counts);
     }
     VecDeinit(&self->functions);
     MemSet(self, 0, sizeof(*self));

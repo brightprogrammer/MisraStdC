@@ -549,7 +549,7 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const ElfFile *elf, Allocator *
     U64Vec pending_file_offsets = VecInitT(pending_file_offsets, alloc);
     U64Vec pending_dir_offsets  = VecInitT(pending_dir_offsets, alloc);
 
-    BufIter section_cur = BufIterFromMemory(elf->data + line_section->offset, line_section->size);
+    BufIter section_cur = BufIterFromMemory(BufData(&elf->data) + line_section->offset, line_section->size);
 
     bool ok = true;
     while (IterRemainingLength(&section_cur) > 0) {

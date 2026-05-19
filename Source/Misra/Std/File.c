@@ -6,6 +6,7 @@
 /// macOS uses libSystem's open/read/write/close/lseek; Windows uses
 /// CreateFile / ReadFile / WriteFile / SetFilePointer / CloseHandle.
 
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Log.h>
@@ -392,7 +393,17 @@ static i64 file_remaining_size(File *f) {
     return end - here;
 }
 
-i64 file_read_to_str(File *f, Str *out) {
+// Canonical slurp into a byte buffer. Fast path: for seekable files,
+// learn the remaining size up front and reserve once. The geometric
+// grow-loop below would otherwise do ~log2(size / FILE_READ_CHUNK)
+// reallocations, each of which `MemCopy`s the buffer-so-far into a
+// larger one -- 99%+ of wall-clock when called on multi-MB inputs
+// under ASan (measured: ELF/DWARF/Backtrace/SymbolResolver tests all
+// slurp /proc/self/exe through this path).
+//
+// Non-seekable streams (pipes, sockets, /dev/*) return -1 from
+// `file_remaining_size`; the grow-loop below handles them.
+i64 file_read_to_buf(File *f, Buf *out) {
     if (!FileIsOpen(f) || !out) {
         return -1;
     }
@@ -400,20 +411,10 @@ i64 file_read_to_str(File *f, Str *out) {
     // backing allocator stays; capacity is reused.
     out->length = 0;
 
-    // Fast path: for seekable files, learn the remaining size up
-    // front and reserve once. The geometric grow-loop below would
-    // otherwise do ~log2(size / FILE_READ_CHUNK) reallocations, each
-    // of which `MemCopy`s the buffer-so-far into a larger one --
-    // 99%+ of wall-clock when called on multi-MB inputs under ASan
-    // (measured: the ELF/DWARF/Backtrace/SymbolResolver tests all
-    // slurp /proc/self/exe through this path).
-    //
-    // Non-seekable streams (pipes, sockets, /dev/*) return -1 from
-    // `file_remaining_size`; the grow-loop below handles them.
     i64 remaining = file_remaining_size(f);
     if (remaining > 0) {
         if (!VecReserve(out, (u64)remaining)) {
-            LOG_ERROR("file_read_to_str: VecReserve failed at size {}", (u64)remaining);
+            LOG_ERROR("file_read_to_buf: VecReserve failed at size {}", (u64)remaining);
             return -1;
         }
     }
@@ -426,7 +427,7 @@ i64 file_read_to_str(File *f, Str *out) {
         // syscall is what advances length. After the pre-sized
         // reserve above this is a no-op until we hit the upfront cap.
         if (!VecReserve(out, out->length + FILE_READ_CHUNK)) {
-            LOG_ERROR("file_read_to_str: VecReserve failed at length {}", (u64)out->length);
+            LOG_ERROR("file_read_to_buf: VecReserve failed at length {}", (u64)out->length);
             return -1;
         }
         i64 got = file_read(f, out->data + out->length, FILE_READ_CHUNK);
@@ -440,10 +441,20 @@ i64 file_read_to_str(File *f, Str *out) {
         total       += got;
     }
     // Vec's reserved sentinel slot at data[capacity] is always
-    // present after a successful VecReserve, so this write is
-    // unconditional -- no `capacity > length` guard needed.
+    // present after a successful VecReserve. Buf callers get a benign
+    // sentinel byte past `length` they never observe; Str delegates
+    // through and gets the NUL terminator it expects.
     out->data[out->length] = 0;
     return total;
+}
+
+// `Str` is `Vec(char)`, `Buf` is `Vec(u8)`. Same layout (1-byte
+// element, identical field offsets); the cast is safe. Kept as a
+// thin shim so callers that legitimately know the input is text
+// (e.g. JSON / config / source-file readers) get a typed `Str *`
+// signature without manually casting.
+i64 file_read_to_str(File *f, Str *out) {
+    return file_read_to_buf(f, (Buf *)out);
 }
 
 // ---------------------------------------------------------------------------
@@ -453,14 +464,14 @@ i64 file_read_to_str(File *f, Str *out) {
 // same prefix can never collide -- one wins, the other retries.
 // ---------------------------------------------------------------------------
 
-File file_open_temp(const char *prefix, Str *out_path, Allocator *alloc) {
+File file_open_temp(Str *out_path, Allocator *alloc) {
     File f = {0};
 #if PLATFORM_WINDOWS
     f.handle = INVALID_HANDLE_VALUE;
 #else
     f.fd = -1;
 #endif
-    if (!prefix || !out_path || !alloc) {
+    if (!out_path || !alloc) {
         LOG_FATAL("FileOpenTemp: NULL argument");
     }
 
@@ -470,9 +481,9 @@ File file_open_temp(const char *prefix, Str *out_path, Allocator *alloc) {
     for (i32 attempt = 0; attempt < 8; ++attempt) {
         *out_path = StrInit(alloc);
         // {016x} = hex, zero-padded to 16 chars, no "0x" prefix. The
-        // fixed width is what makes collisions detectable as exact
-        // string mismatches rather than substring overlaps.
-        StrAppendFmt(out_path, "{}{016x}", prefix, Prng64());
+        // bare-hex name lands in CWD; callers that want a different
+        // directory can `FileRename`/`MemCopy` the path before use.
+        StrAppendFmt(out_path, "{016x}", Prng64());
 
 #if PLATFORM_WINDOWS
         // CREATE_NEW fails with ERROR_FILE_EXISTS on collision. GENERIC_READ|WRITE
@@ -537,6 +548,6 @@ File file_open_temp(const char *prefix, Str *out_path, Allocator *alloc) {
 #endif
     }
 
-    LOG_ERROR("FileOpenTemp: exhausted retries for prefix \"{}\"", prefix);
+    LOG_ERROR("FileOpenTemp: exhausted retries (8 successive Prng64 collisions -- broken PRNG?)");
     return f;
 }

@@ -156,20 +156,23 @@ typedef struct PeContext {
 
 // DOS header gives us e_lfanew, the offset to the NT headers.
 static bool pe_decode_dos(PeContext *ctx) {
-    if (ctx->out->data_size < 64) {
+    if (BufLength(&ctx->out->data) < 64) {
         LOG_ERROR("PE: file too small for DOS header");
         return false;
     }
-    u16 mz = (u16)ctx->out->data[0] | (u16)ctx->out->data[1] << 8;
+    u16 mz = (u16)BufData(&ctx->out->data)[0] | (u16)BufData(&ctx->out->data)[1] << 8;
     if (mz != DOS_MAGIC) {
         LOG_ERROR("PE: bad DOS magic 0x{x}", (u32)mz);
         return false;
     }
     u32     e_lfanew;
-    BufIter c = BufIterFromMemory(ctx->out->data + DOS_E_LFANEW_OFFSET, ctx->out->data_size - DOS_E_LFANEW_OFFSET);
+    BufIter c = BufIterFromMemory(
+        BufData(&ctx->out->data) + DOS_E_LFANEW_OFFSET,
+        BufLength(&ctx->out->data) - DOS_E_LFANEW_OFFSET
+    );
     if (!BufReadU32LE(&c, &e_lfanew))
         return false;
-    if (e_lfanew >= ctx->out->data_size) {
+    if (e_lfanew >= BufLength(&ctx->out->data)) {
         LOG_ERROR("PE: e_lfanew past EOF");
         return false;
     }
@@ -179,8 +182,9 @@ static bool pe_decode_dos(PeContext *ctx) {
 
 // NT signature + File Header. Returns the offset of the Optional Header.
 static bool pe_decode_nt(PeContext *ctx, u64 *out_opt_offset) {
-    BufIter c = BufIterFromMemory(ctx->out->data + ctx->nt_offset, ctx->out->data_size - ctx->nt_offset);
-    u32     sig;
+    BufIter c =
+        BufIterFromMemory(BufData(&ctx->out->data) + ctx->nt_offset, BufLength(&ctx->out->data) - ctx->nt_offset);
+    u32 sig;
     if (!BufReadU32LE(&c, &sig) || sig != NT_SIGNATURE) {
         LOG_ERROR("PE: bad NT signature");
         return false;
@@ -198,18 +202,18 @@ static bool pe_decode_nt(PeContext *ctx, u64 *out_opt_offset) {
     ctx->out->machine = (PeMachine)machine;
     ctx->num_sections = num_sec;
     ctx->opt_hdr_size = size_opt;
-    *out_opt_offset   = (u64)(c.data + c.pos - ctx->out->data);
+    *out_opt_offset   = (u64)(c.data + c.pos - BufData(&ctx->out->data));
     return true;
 }
 
 // Optional Header. We need ImageBase, SizeOfImage,
 // NumberOfRvaAndSizes, and the DataDirectory[DEBUG] entry.
 static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
-    if (opt_offset > ctx->out->data_size || ctx->opt_hdr_size > ctx->out->data_size - opt_offset) {
+    if (opt_offset > BufLength(&ctx->out->data) || ctx->opt_hdr_size > BufLength(&ctx->out->data) - opt_offset) {
         LOG_ERROR("PE: optional header overruns file");
         return false;
     }
-    BufIter c = BufIterFromMemory(ctx->out->data + opt_offset, ctx->opt_hdr_size);
+    BufIter c = BufIterFromMemory(BufData(&ctx->out->data) + opt_offset, ctx->opt_hdr_size);
 
     u16 magic;
     if (!BufReadU16LE(&c, &magic))
@@ -359,7 +363,7 @@ static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
 // Section headers immediately follow the Optional Header.
 static bool pe_decode_sections(PeContext *ctx, u64 opt_offset) {
     u64     sec_offset = opt_offset + ctx->opt_hdr_size;
-    BufIter c          = BufIterFromMemory(ctx->out->data + sec_offset, ctx->out->data_size - sec_offset);
+    BufIter c = BufIterFromMemory(BufData(&ctx->out->data) + sec_offset, BufLength(&ctx->out->data) - sec_offset);
 
     for (u32 i = 0; i < ctx->num_sections; ++i) {
         if (IterRemainingLength(&c) < 40) {
@@ -421,14 +425,14 @@ static void pe_decode_codeview(PeContext *ctx) {
         DEBUG_ENTRY_SIZE = 28,
     };
     u32 num_entries = ctx->debug_dir_size / DEBUG_ENTRY_SIZE;
-    if (dir_offset + (u64)num_entries * DEBUG_ENTRY_SIZE > ctx->out->data_size) {
+    if (dir_offset + (u64)num_entries * DEBUG_ENTRY_SIZE > BufLength(&ctx->out->data)) {
         LOG_ERROR("PE: debug directory overruns file");
         return;
     }
 
     for (u32 i = 0; i < num_entries; ++i) {
         u64     entry_off = dir_offset + (u64)i * DEBUG_ENTRY_SIZE;
-        BufIter c         = BufIterFromMemory(ctx->out->data + entry_off, ctx->out->data_size - entry_off);
+        BufIter c = BufIterFromMemory(BufData(&ctx->out->data) + entry_off, BufLength(&ctx->out->data) - entry_off);
         u32     charac, ts, type, sz, raddr, rptr;
         u16     ver_maj, ver_min;
         if (!BufReadFmt(&c, FMT_PE_DEBUG_DIR_LE, charac, ts, ver_maj, ver_min, type, sz, raddr, rptr))
@@ -440,14 +444,14 @@ static void pe_decode_codeview(PeContext *ctx) {
 
         if (type != IMAGE_DEBUG_TYPE_CODEVIEW)
             continue;
-        if (rptr + (u64)sz > ctx->out->data_size) {
+        if (rptr + (u64)sz > BufLength(&ctx->out->data)) {
             LOG_ERROR("PE: codeview record points outside file");
             continue;
         }
         // RSDS = 4-byte sig + 16-byte GUID + 4-byte age + cstring path.
         if (sz < 4 + 16 + 4 + 1)
             continue;
-        BufIter cv_cur = BufIterFromMemory(ctx->out->data + rptr, sz);
+        BufIter cv_cur = BufIterFromMemory(BufData(&ctx->out->data) + rptr, sz);
         u32     cv_sig;
         if (!BufReadU32LE(&cv_cur, &cv_sig))
             continue;
@@ -484,26 +488,25 @@ static void pe_decode_codeview(PeContext *ctx) {
 // Public API
 // ---------------------------------------------------------------------------
 
-// L-value form. `data` is `u8 **` -- ownership of the pointer moves
-// from caller to parser. On exit `*data == NULL` (success or failure).
-bool pe_file_open_from_memory(PeFile *out, u8 **data, size data_size, Allocator *alloc) {
-    if (!out || !data || !*data || !alloc) {
+// L-value form. Takes the caller's `Buf` by pointer, snapshots it,
+// MemSets the caller's view. Anything that fails past the snapshot
+// cleans up via PeFileDeinit -- the buffer never leaks.
+bool pe_file_open_from_memory(PeFile *out, Buf *in) {
+    if (!out || !in || !in->data || !in->allocator) {
         LOG_FATAL("PeFileOpenFromMemory: NULL argument (contract violation)");
     }
-    u8 *taken = *data;
-    *data     = NULL;
+    Buf taken = *in;
+    MemSet(in, 0, sizeof(*in));
 
     MemSet(out, 0, sizeof(*out));
-    out->allocator = alloc;
-    out->data      = taken;
-    out->data_size = data_size;
+    out->data = taken;
     // Initialize the sections vec up-front so PeFileDeinit on a
     // failed-parse path doesn't trip ValidateVec.
-    out->sections = VecInitT(out->sections, alloc);
+    out->sections = VecInitT(out->sections, taken.allocator);
 
     PeContext ctx = {
         .out  = out,
-        .file = BufIterFromMemory(taken, data_size),
+        .file = BufIterFromBuf(&out->data),
     };
 
     if (!pe_decode_dos(&ctx))
@@ -523,18 +526,19 @@ fail:
     return false;
 }
 
-// R-value form: allocate, copy, hand `&copy` to the L-form.
+// R-value form: allocate Buf, copy, hand `&copy` to the L-form.
 bool pe_file_open_from_memory_copy(PeFile *out, const u8 *data, size data_size, Allocator *alloc) {
     if (!out || !data || !alloc) {
         LOG_FATAL("PeFileOpenFromMemoryCopy: NULL argument (contract violation)");
     }
-    u8 *copy = (u8 *)AllocatorAlloc(alloc, data_size, false);
-    if (!copy) {
+    Buf copy = BufInit(alloc);
+    if (!BufReserve(&copy, (u64)data_size)) {
         LOG_ERROR("PeFileOpenFromMemoryCopy: allocation failed ({} bytes)", (u64)data_size);
         return false;
     }
-    MemCopy(copy, data, data_size);
-    return pe_file_open_from_memory(out, &copy, data_size, alloc);
+    MemCopy(BufData(&copy), data, data_size);
+    copy.length = (size)data_size;
+    return pe_file_open_from_memory(out, &copy);
 }
 
 bool pe_file_open(PeFile *out, const char *path, Allocator *alloc) {
@@ -546,29 +550,21 @@ bool pe_file_open(PeFile *out, const char *path, Allocator *alloc) {
         LOG_ERROR("PeFileOpen: failed to open {}", path);
         return false;
     }
-    Str data = StrInit(alloc);
+    Buf data = BufInit(alloc);
     i64 got  = FileRead(&f, &data);
     FileClose(&f);
     if (got < 0) {
-        StrDeinit(&data);
+        BufDeinit(&data);
         LOG_ERROR("PeFileOpen: failed to read {}", path);
         return false;
     }
-    u8  *buf       = (u8 *)data.data;
-    size buf_n     = data.length;
-    data.data      = NULL;
-    data.length    = 0;
-    data.capacity  = 0;
-    data.allocator = NULL;
-    return pe_file_open_from_memory(out, &buf, buf_n, alloc);
+    return pe_file_open_from_memory(out, &data);
 }
 
 void PeFileDeinit(PeFile *self) {
     if (!self)
         return;
-    if (self->data && self->allocator) {
-        AllocatorFree(self->allocator, self->data);
-    }
+    BufDeinit(&self->data);
     VecDeinit(&self->sections);
     MemSet(self, 0, sizeof(*self));
 }
@@ -594,7 +590,7 @@ bool PeFileRvaToOffset(const PeFile *self, u32 rva, u64 *out_offset) {
         u64 vend   = vstart + (u64)s->virtual_size;
         if (rva >= vstart && (u64)rva < vend) {
             u64 off = (u64)s->raw_offset + ((u64)rva - vstart);
-            if (off >= self->data_size)
+            if (off >= BufLength(&self->data))
                 return false;
             *out_offset = off;
             return true;

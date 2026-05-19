@@ -63,7 +63,7 @@ HttpHeader *HttpHeadersFind(HttpHeaders *headers, const char *key) {
         LOG_FATAL("invalid arguments");
     }
     VecForeachPtr(headers, header) {
-        if (0 == ZstrCompare(header->key.data, key)) {
+        if (0 == ZstrCompare(StrBegin(&header->key), key)) {
             return header;
         }
     }
@@ -75,26 +75,26 @@ HttpHeader *HttpHeadersFind(HttpHeaders *headers, const char *key) {
 // ---------------------------------------------------------------------------
 
 static HttpRequestMethod http_request_method_from_str(const Str *mstr) {
-    if (!mstr || !mstr->data) {
+    if (!mstr || !StrBegin(mstr)) {
         return HTTP_REQUEST_METHOD_UNKNOWN;
     }
-    if (0 == ZstrCompareN(mstr->data, "GET", 3) && mstr->length == 3)
+    if (0 == ZstrCompareN(StrBegin(mstr), "GET", 3) && StrLen(mstr) == 3)
         return HTTP_REQUEST_METHOD_GET;
-    if (0 == ZstrCompareN(mstr->data, "POST", 4) && mstr->length == 4)
+    if (0 == ZstrCompareN(StrBegin(mstr), "POST", 4) && StrLen(mstr) == 4)
         return HTTP_REQUEST_METHOD_POST;
-    if (0 == ZstrCompareN(mstr->data, "DELETE", 6) && mstr->length == 6)
+    if (0 == ZstrCompareN(StrBegin(mstr), "DELETE", 6) && StrLen(mstr) == 6)
         return HTTP_REQUEST_METHOD_DELETE;
-    if (0 == ZstrCompareN(mstr->data, "PUT", 3) && mstr->length == 3)
+    if (0 == ZstrCompareN(StrBegin(mstr), "PUT", 3) && StrLen(mstr) == 3)
         return HTTP_REQUEST_METHOD_PUT;
-    if (0 == ZstrCompareN(mstr->data, "PATCH", 5) && mstr->length == 5)
+    if (0 == ZstrCompareN(StrBegin(mstr), "PATCH", 5) && StrLen(mstr) == 5)
         return HTTP_REQUEST_METHOD_PATCH;
-    if (0 == ZstrCompareN(mstr->data, "HEAD", 4) && mstr->length == 4)
+    if (0 == ZstrCompareN(StrBegin(mstr), "HEAD", 4) && StrLen(mstr) == 4)
         return HTTP_REQUEST_METHOD_HEAD;
-    if (0 == ZstrCompareN(mstr->data, "OPTIONS", 7) && mstr->length == 7)
+    if (0 == ZstrCompareN(StrBegin(mstr), "OPTIONS", 7) && StrLen(mstr) == 7)
         return HTTP_REQUEST_METHOD_OPTIONS;
-    if (0 == ZstrCompareN(mstr->data, "CONNECT", 7) && mstr->length == 7)
+    if (0 == ZstrCompareN(StrBegin(mstr), "CONNECT", 7) && StrLen(mstr) == 7)
         return HTTP_REQUEST_METHOD_CONNECT;
-    if (0 == ZstrCompareN(mstr->data, "TRACE", 5) && mstr->length == 5)
+    if (0 == ZstrCompareN(StrBegin(mstr), "TRACE", 5) && StrLen(mstr) == 5)
         return HTTP_REQUEST_METHOD_TRACE;
     return HTTP_REQUEST_METHOD_UNKNOWN;
 }

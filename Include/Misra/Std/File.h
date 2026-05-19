@@ -10,6 +10,7 @@
 
 // decompiler
 #include <Misra/Std/Allocator.h>
+#include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Sys.h>
 #include <Misra/Types.h>
@@ -46,12 +47,14 @@ typedef enum FileWhence {
     FILE_SEEK_END = 2,
 } FileWhence;
 
-// File API path-arg dispatch. `Str *` and `const Str *` are the
-// canonical forms; any other pointer type (including `char *` /
-// `const char *`) routes through the `default:` arm and is treated
-// as a NUL-terminated C string. Each macro inlines its own
-// `_Generic` -- we intentionally do not share a dispatch helper
-// across APIs.
+// File API path-arg dispatch. `Str *` / `const Str *` are the
+// canonical forms; `char *` / `const char *` are accepted as a
+// NUL-terminated C-string convenience for literals and borrowed
+// buffers. Any other input type triggers a compile-time `_Generic`
+// mismatch -- silently casting `int *` or a struct pointer to
+// `const char *` is precisely the bug we want to surface. Each
+// macro inlines its own `_Generic`; we intentionally do not share
+// a dispatch helper across APIs.
 
 ///
 /// Open a file. `mode` is libc-compatible: `"r"`/`"rb"`, `"w"`/`"wb"`,
@@ -72,7 +75,8 @@ File file_open(const char *path, const char *mode);
         (path),                                                                                                        \
         Str *: file_open(((Str *)(path))->data, (mode)),                                                               \
         const Str *: file_open(((const Str *)(path))->data, (mode)),                                                   \
-        default: file_open((const char *)(path), (mode))                                                               \
+        char *: file_open((const char *)(path), (mode)),                                                               \
+        const char *: file_open((const char *)(path), (mode))                                                          \
     )
 
 ///
@@ -115,15 +119,19 @@ bool FileIsOpen(const File *f);
 ///                            EINTR for you -- callers loop if they
 ///                            need that). Sets `at_eof` when the
 ///                            syscall reports zero bytes.
-///   `FileRead(f, out)`     - read to EOF into the `Str *out`. The
-///                            existing length is overwritten; `out`
-///                            grows through its own allocator. The
-///                            byte buffer is NUL-terminated for
-///                            convenience.
+///   `FileRead(f, out)`     - read to EOF into the container `out`.
+///                            `out` may be a `Buf *` (binary payload --
+///                            preferred for parser-input slurps) or a
+///                            `Str *` (text payload -- only when the
+///                            caller knows the file is text). Existing
+///                            length is overwritten; `out` grows
+///                            through its own allocator.
 ///
-/// `out` must be an already-init'd `Str *` (its allocator drives the
-/// growth). Calling `FileRead(f, out)` more than once on the same
-/// `Str` simply overwrites previous content.
+/// `out` must be an already-init'd `Buf *` or `Str *` (its allocator
+/// drives the growth). Calling `FileRead(f, out)` more than once on
+/// the same container simply overwrites previous content. Both forms
+/// place a trailing zero past `length` (NUL terminator for the Str
+/// form, a benign sentinel byte for Buf).
 ///
 /// SUCCESS : 3-arg form returns bytes read (>= 0); 2-arg form
 ///           returns total bytes loaded (== `out->length`).
@@ -134,8 +142,10 @@ bool FileIsOpen(const File *f);
 ///
 i64 file_read(File *f, void *buf, u64 n);
 i64 file_read_to_str(File *f, Str *out);
-#define FileRead(...)         MISRA_OVERLOAD(FileRead, __VA_ARGS__)
-#define FileRead_2(f, out)    file_read_to_str((f), (out))
+i64 file_read_to_buf(File *f, Buf *out);
+#define FileRead(...) MISRA_OVERLOAD(FileRead, __VA_ARGS__)
+#define FileRead_2(f, out)                                                                                             \
+    _Generic((out), Buf *: file_read_to_buf((f), (Buf *)(out)), Str *: file_read_to_str((f), (Str *)(out)))
 #define FileRead_3(f, buf, n) file_read((f), (buf), (n))
 
 // FileGetSize lives in `Sys/Dir.h` -- path-based size query that
@@ -194,44 +204,31 @@ i32 FileFd(const File *f);
 
 ///
 /// Open a unique temporary file for read+write. Replaces libc
-/// `mkstemp`. The 16-hex-digit suffix comes from the internal
-/// `Prng64` (no kernel entropy needed per call). Open is
-/// `O_RDWR | O_CREAT | O_EXCL | 0600`, so two callers racing on the
-/// same prefix can never collide -- one wins, the other retries.
+/// `mkstemp`. The name is the 16-hex-digit of `Prng64()` -- no
+/// caller-supplied prefix, no kernel entropy per call. Open is
+/// `O_RDWR | O_CREAT | O_EXCL | 0600`, so two callers racing can
+/// never collide -- one wins, the other retries with a new draw.
+/// The file lands in the process's current working directory.
 ///
 /// Two forms via argument-count overload (allocator backs `out_path`):
 ///
-/// - `FileOpenTemp(prefix, out_path)` -- inside a `Scope`; allocator
-///   is `MisraScope`.
-/// - `FileOpenTemp(prefix, out_path, allocator)` -- explicit allocator.
+/// - `FileOpenTemp(out_path)` -- inside a `Scope`; allocator is
+///   `MisraScope`.
+/// - `FileOpenTemp(out_path, allocator)` -- explicit allocator.
 ///
-/// prefix[in]    : Path prefix. Prefer `Str *`; `const char *`
-///                 accepted for literals. Final path is
-///                 `<prefix><hex>`.
-/// out_path[out] : Fresh `Str *` -- receives the resolved path.
-///                 Caller `StrDeinit`s when done; the on-disk file
-///                 is NOT auto-removed (use `FileRemove(out_path)`).
+/// out_path[out] : Fresh `Str *` -- receives the resolved 16-char
+///                 hex name. Caller `StrDeinit`s when done; the
+///                 on-disk file is NOT auto-removed (use
+///                 `FileRemove(out_path)`).
 ///
 /// SUCCESS : Returns an open `File` with `FileIsOpen` true.
 /// FAILURE : Returns a `File` where `FileIsOpen` is false.
 ///
 /// TAGS: File, Temp
 ///
-File file_open_temp(const char *prefix, Str *out_path, Allocator *alloc);
-#define FileOpenTemp(...) MISRA_OVERLOAD(FileOpenTemp, __VA_ARGS__)
-#define FileOpenTemp_2(prefix, out_path)                                                                               \
-    _Generic(                                                                                                          \
-        (prefix),                                                                                                      \
-        Str *: file_open_temp(((Str *)(prefix))->data, (out_path), MisraScope),                                        \
-        const Str *: file_open_temp(((const Str *)(prefix))->data, (out_path), MisraScope),                            \
-        default: file_open_temp((const char *)(prefix), (out_path), MisraScope)                                        \
-    )
-#define FileOpenTemp_3(prefix, out_path, alloc)                                                                        \
-    _Generic(                                                                                                          \
-        (prefix),                                                                                                      \
-        Str *: file_open_temp(((Str *)(prefix))->data, (out_path), ALLOCATOR_OF(alloc)),                               \
-        const Str *: file_open_temp(((const Str *)(prefix))->data, (out_path), ALLOCATOR_OF(alloc)),                   \
-        default: file_open_temp((const char *)(prefix), (out_path), ALLOCATOR_OF(alloc))                               \
-    )
+File file_open_temp(Str *out_path, Allocator *alloc);
+#define FileOpenTemp(...)               MISRA_OVERLOAD(FileOpenTemp, __VA_ARGS__)
+#define FileOpenTemp_1(out_path)        file_open_temp((out_path), MisraScope)
+#define FileOpenTemp_2(out_path, alloc) file_open_temp((out_path), ALLOCATOR_OF(alloc))
 
 #endif // MISRA_FILE_H
