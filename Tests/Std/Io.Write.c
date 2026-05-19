@@ -762,6 +762,45 @@ bool test_float_formatting(void) {
 //     return true;
 // }
 
+// `StrWriteFmt` is the clear-then-append form: prior contents of the
+// destination Str must be discarded before the formatted output lands.
+bool test_str_write_fmt_clears(void);
+bool test_str_write_fmt_clears(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              s     = StrInit(&alloc);
+    StrAppendFmt(&s, "old prefix ");
+    StrWriteFmt(&s, "fresh {}", LVAL(42));
+    bool ok = (s.length == 8) && (s.data[0] == 'f') && (s.data[s.length - 1] == '2');
+    StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
+// `StrPatchFmt` overwrites existing bytes at an offset. Length stays
+// constant on success; out-of-range writes fail and leave the Str
+// untouched.
+bool test_str_patch_fmt(void);
+bool test_str_patch_fmt(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Str              s     = StrInit(&alloc);
+    StrAppendFmt(&s, "AAAAAAAA");
+    size before_length = s.length;
+    bool ok            = StrPatchFmt(&s, 2, "{}", LVAL(1234));
+    ok                 = ok && s.length == before_length;
+    ok                 = ok && s.data[0] == 'A' && s.data[1] == 'A';
+    ok                 = ok && s.data[2] == '1' && s.data[3] == '2' && s.data[4] == '3' && s.data[5] == '4';
+    ok                 = ok && s.data[6] == 'A' && s.data[7] == 'A';
+
+    // Patch that would extend past the end must fail.
+    ok = ok && !StrPatchFmt(&s, 6, "{}", LVAL(9999));
+    ok = ok && s.length == before_length;
+    ok = ok && s.data[6] == 'A' && s.data[7] == 'A';
+
+    StrDeinit(&s);
+    DefaultAllocatorDeinit(&alloc);
+    return ok;
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting format writer tests\n\n");
@@ -782,7 +821,9 @@ int main(void) {
         test_char_formatting,
         test_bitvec_formatting,
         test_int_formatting,
-        test_float_formatting
+        test_float_formatting,
+        test_str_write_fmt_clears,
+        test_str_patch_fmt
         // test_error_handling
     };
 
