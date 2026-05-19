@@ -56,6 +56,60 @@
     "{<4r}" /* size_of_data     */                                                                                     \
     "{<4r}" /* address_of_data  */                                                                                     \
     "{<4r}" /* pointer_to_data  */
+
+// IMAGE_OPTIONAL_HEADER, two variants. The caller consumes the
+// 2-byte `magic` first (it picks which body to read), so these macros
+// cover the remaining 94 (PE32) / 110 (PE32+) bytes through
+// NumberOfRvaAndSizes. The two macros differ only where the spec
+// differs: base_of_data exists in PE32 but not PE32+, image_base is
+// u32 vs u64, and the four stack/heap reserve/commit fields are u32
+// vs u64.
+#define FMT_PE_OPT_HDR_PE32_LE                                                                                         \
+    "{<1r}{<1r}" /* linker_major, linker_minor */                                                                      \
+    "{<4r}"      /* size_of_code               */                                                                      \
+    "{<4r}"      /* size_of_init_data          */                                                                      \
+    "{<4r}"      /* size_of_uninit_data        */                                                                      \
+    "{<4r}"      /* entry_point                */                                                                      \
+    "{<4r}"      /* base_of_code               */                                                                      \
+    "{<4r}"      /* base_of_data (PE32 only)   */                                                                      \
+    "{<4r}"      /* image_base                 */                                                                      \
+    "{<4r}"      /* section_alignment          */                                                                      \
+    "{<4r}"      /* file_alignment             */                                                                      \
+    "{<2r}{<2r}" /* os_major, os_minor         */                                                                      \
+    "{<2r}{<2r}" /* image_major, image_minor   */                                                                      \
+    "{<2r}{<2r}" /* subsys_major, subsys_minor */                                                                      \
+    "{<4r}"      /* win32_version              */                                                                      \
+    "{<4r}"      /* size_of_image              */                                                                      \
+    "{<4r}"      /* size_of_headers            */                                                                      \
+    "{<4r}"      /* checksum                   */                                                                      \
+    "{<2r}{<2r}" /* subsystem, dll_chars       */                                                                      \
+    "{<4r}{<4r}" /* stack_reserve, stack_commit */                                                                     \
+    "{<4r}{<4r}" /* heap_reserve, heap_commit   */                                                                     \
+    "{<4r}"      /* loader_flags               */                                                                      \
+    "{<4r}"      /* number_of_rva_and_sizes    */
+
+#define FMT_PE_OPT_HDR_PE32PLUS_LE                                                                                     \
+    "{<1r}{<1r}" /* linker_major, linker_minor */                                                                      \
+    "{<4r}"      /* size_of_code               */                                                                      \
+    "{<4r}"      /* size_of_init_data          */                                                                      \
+    "{<4r}"      /* size_of_uninit_data        */                                                                      \
+    "{<4r}"      /* entry_point                */                                                                      \
+    "{<4r}"      /* base_of_code               */                                                                      \
+    "{<8r}"      /* image_base (u64)           */                                                                      \
+    "{<4r}"      /* section_alignment          */                                                                      \
+    "{<4r}"      /* file_alignment             */                                                                      \
+    "{<2r}{<2r}" /* os_major, os_minor         */                                                                      \
+    "{<2r}{<2r}" /* image_major, image_minor   */                                                                      \
+    "{<2r}{<2r}" /* subsys_major, subsys_minor */                                                                      \
+    "{<4r}"      /* win32_version              */                                                                      \
+    "{<4r}"      /* size_of_image              */                                                                      \
+    "{<4r}"      /* size_of_headers            */                                                                      \
+    "{<4r}"      /* checksum                   */                                                                      \
+    "{<2r}{<2r}" /* subsystem, dll_chars       */                                                                      \
+    "{<8r}{<8r}" /* stack_reserve, stack_commit */                                                                     \
+    "{<8r}{<8r}" /* heap_reserve, heap_commit   */                                                                     \
+    "{<4r}"      /* loader_flags               */                                                                      \
+    "{<4r}"      /* number_of_rva_and_sizes    */
 #include <Misra/Std.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Log.h>
@@ -133,9 +187,7 @@ static bool pe_decode_nt(PeContext *ctx, u64 *out_opt_offset) {
     }
     u16 machine, num_sec, size_opt, chars;
     u32 timestamp, sym_ptr, num_sym;
-    if (!ByteIterReadFmt(
-            &c, FMT_PE_FILE_HEADER_LE, machine, num_sec, timestamp, sym_ptr, num_sym, size_opt, chars
-        )) {
+    if (!ByteIterReadFmt(&c, FMT_PE_FILE_HEADER_LE, machine, num_sec, timestamp, sym_ptr, num_sym, size_opt, chars)) {
         LOG_ERROR("PE: file header truncated");
         return false;
     }
@@ -169,49 +221,125 @@ static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
     bool is64              = (magic == OPTIONAL_MAGIC_PE32PLUS);
     ctx->out->is_pe32_plus = is64;
 
-    // Skip linker_major, linker_minor, size_of_code, size_of_init_data,
-    // size_of_uninit_data, entry_point, base_of_code.
-    if (!bi_skip(&c, 1 + 1 + 4 + 4 + 4 + 4 + 4))
-        return false;
-    if (!is64) {
-        // PE32 has an extra base_of_data here.
-        if (!bi_skip(&c, 4))
-            return false;
-    }
+    // Shared discards across both variants. Only image_base,
+    // size_of_image, and num_dirs are kept; everything else is read
+    // for layout correctness and discarded.
+    u8  linker_major, linker_minor;
+    u32 size_of_code, size_of_init, size_of_uninit;
+    u32 entry_point, base_of_code;
+    u32 section_alignment, file_alignment;
+    u16 os_major, os_minor, image_major, image_minor, subsys_major, subsys_minor;
+    u16 subsystem, dll_chars;
+    u32 win32_version, size_of_headers, checksum, loader_flags;
 
-    // ImageBase: u32 on PE32, u64 on PE32+.
     if (is64) {
-        if (!bi_take_u64_le(&c, &ctx->out->image_base))
+        u64 stack_res, stack_com, heap_res, heap_com;
+        if (!ByteIterReadFmt(
+                &c,
+                FMT_PE_OPT_HDR_PE32PLUS_LE,
+                linker_major,
+                linker_minor,
+                size_of_code,
+                size_of_init,
+                size_of_uninit,
+                entry_point,
+                base_of_code,
+                ctx->out->image_base,
+                section_alignment,
+                file_alignment,
+                os_major,
+                os_minor,
+                image_major,
+                image_minor,
+                subsys_major,
+                subsys_minor,
+                win32_version,
+                ctx->out->size_of_image,
+                size_of_headers,
+                checksum,
+                subsystem,
+                dll_chars,
+                stack_res,
+                stack_com,
+                heap_res,
+                heap_com,
+                loader_flags,
+                ctx->num_dirs
+            )) {
+            LOG_ERROR("PE: optional (PE32+) header truncated");
             return false;
+        }
+        (void)stack_res;
+        (void)stack_com;
+        (void)heap_res;
+        (void)heap_com;
     } else {
-        u32 base;
-        if (!bi_take_u32_le(&c, &base))
+        u32 base_of_data, image_base32, stack_res, stack_com, heap_res, heap_com;
+        if (!ByteIterReadFmt(
+                &c,
+                FMT_PE_OPT_HDR_PE32_LE,
+                linker_major,
+                linker_minor,
+                size_of_code,
+                size_of_init,
+                size_of_uninit,
+                entry_point,
+                base_of_code,
+                base_of_data,
+                image_base32,
+                section_alignment,
+                file_alignment,
+                os_major,
+                os_minor,
+                image_major,
+                image_minor,
+                subsys_major,
+                subsys_minor,
+                win32_version,
+                ctx->out->size_of_image,
+                size_of_headers,
+                checksum,
+                subsystem,
+                dll_chars,
+                stack_res,
+                stack_com,
+                heap_res,
+                heap_com,
+                loader_flags,
+                ctx->num_dirs
+            )) {
+            LOG_ERROR("PE: optional (PE32) header truncated");
             return false;
-        ctx->out->image_base = base;
+        }
+        ctx->out->image_base = image_base32;
+        (void)base_of_data;
+        (void)stack_res;
+        (void)stack_com;
+        (void)heap_res;
+        (void)heap_com;
     }
 
-    // Skip section_alignment, file_alignment, os_major, os_minor,
-    // image_major, image_minor, subsys_major, subsys_minor,
-    // win32_version.
-    if (!bi_skip(&c, 4 + 4 + 2 + 2 + 2 + 2 + 2 + 2 + 4))
-        return false;
-
-    if (!bi_take_u32_le(&c, &ctx->out->size_of_image))
-        return false;
-
-    // Skip size_of_headers, checksum, subsystem, dll_chars.
-    if (!bi_skip(&c, 4 + 4 + 2 + 2))
-        return false;
-
-    // Stack/heap sizes: 4 ea on PE32, 8 ea on PE32+. Four fields.
-    if (!bi_skip(&c, is64 ? 32 : 16))
-        return false;
-
-    // LoaderFlags (u32), then NumberOfRvaAndSizes (u32).
-    if (!bi_skip(&c, 4))
-        return false;
-    if (!bi_take_u32_le(&c, &ctx->num_dirs))
-        return false;
+    (void)linker_major;
+    (void)linker_minor;
+    (void)size_of_code;
+    (void)size_of_init;
+    (void)size_of_uninit;
+    (void)entry_point;
+    (void)base_of_code;
+    (void)section_alignment;
+    (void)file_alignment;
+    (void)os_major;
+    (void)os_minor;
+    (void)image_major;
+    (void)image_minor;
+    (void)subsys_major;
+    (void)subsys_minor;
+    (void)win32_version;
+    (void)size_of_headers;
+    (void)checksum;
+    (void)subsystem;
+    (void)dll_chars;
+    (void)loader_flags;
 
     // Data Directories: 8 bytes each. We want index 6 (DEBUG).
     if (ctx->num_dirs <= DIR_INDEX_DEBUG) {
@@ -219,7 +347,6 @@ static bool pe_decode_optional(PeContext *ctx, u64 opt_offset) {
         // stays empty.
         return true;
     }
-    // Skip directories before DEBUG.
     if (!bi_skip(&c, DIR_INDEX_DEBUG * 8u))
         return false;
     if (!bi_take_u32_le(&c, (u32 *)&ctx->debug_dir_rva))
@@ -242,8 +369,8 @@ static bool pe_decode_sections(PeContext *ctx, u64 opt_offset) {
         PeSection s;
         // 8-byte name: bytes, not a numeric, so copy + advance manually.
         MemCopy(s.name, c.data + c.pos, 8);
-        s.name[8] = '\0';
-        c.pos    += 8;
+        s.name[8]  = '\0';
+        c.pos     += 8;
 
         u32 ptr_relocs, ptr_linenums;
         u16 num_relocs, num_linenums;
@@ -304,9 +431,7 @@ static void pe_decode_codeview(PeContext *ctx) {
         ByteIter c         = ByteIterFromMemory(ctx->out->data + entry_off, ctx->out->data_size - entry_off);
         u32      charac, ts, type, sz, raddr, rptr;
         u16      ver_maj, ver_min;
-        if (!ByteIterReadFmt(
-                &c, FMT_PE_DEBUG_DIR_LE, charac, ts, ver_maj, ver_min, type, sz, raddr, rptr
-            ))
+        if (!ByteIterReadFmt(&c, FMT_PE_DEBUG_DIR_LE, charac, ts, ver_maj, ver_min, type, sz, raddr, rptr))
             return;
         (void)charac;
         (void)ts;

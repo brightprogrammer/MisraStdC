@@ -80,6 +80,13 @@ typedef struct LineProgHeader {
     const u8 *strings_start;            // first byte of include_directories
 } LineProgHeader;
 
+// DWARF 4 line-program header tail: 8 fields after unit_length+version.
+//   header_length, min_instr_len, max_ops_per_instr, default_is_stmt,
+//   line_base, line_range, opcode_base
+// DWARF 3 lacks max_ops_per_instr (caller defaults to 1).
+#define FMT_DWARF_LINE_HDR_V4_TAIL_LE "{<4r}{<1r}{<1r}{<1r}{<1r}{<1r}{<1r}"
+#define FMT_DWARF_LINE_HDR_V3_TAIL_LE "{<4r}{<1r}{<1r}{<1r}{<1r}{<1r}"
+
 // Decode the DWARF 4 line-program header at `cur`. On return the
 // cursor sits at the start of the include_directories table; the
 // directory / file tables are walked separately by collect_cu_strings.
@@ -105,43 +112,49 @@ static bool decode_line_program_header(ByteIter *cur, LineProgHeader *out) {
     }
     out->version = version;
 
-    u32 header_length = 0;
-    if (!bi_take_u32_le(cur, &header_length))
-        return false;
-    out->header_length = header_length;
-
-    if (!bi_take_u8(cur, &out->min_instr_len))
-        return false;
-
+    u8 def_is_stmt = 0;
+    u8 raw_lb      = 0;
     if (version >= 4) {
-        if (!bi_take_u8(cur, &out->max_ops_per_instr))
+        if (!ByteIterReadFmt(
+                cur,
+                FMT_DWARF_LINE_HDR_V4_TAIL_LE,
+                out->header_length,
+                out->min_instr_len,
+                out->max_ops_per_instr,
+                def_is_stmt,
+                raw_lb,
+                out->line_range,
+                out->opcode_base
+            )) {
+            LOG_ERROR("DWARF: line program header (v4) truncated");
             return false;
+        }
     } else {
+        if (!ByteIterReadFmt(
+                cur,
+                FMT_DWARF_LINE_HDR_V3_TAIL_LE,
+                out->header_length,
+                out->min_instr_len,
+                def_is_stmt,
+                raw_lb,
+                out->line_range,
+                out->opcode_base
+            )) {
+            LOG_ERROR("DWARF: line program header (v3) truncated");
+            return false;
+        }
         out->max_ops_per_instr = 1;
     }
-
-    u8 def_is_stmt = 0;
-    if (!bi_take_u8(cur, &def_is_stmt))
-        return false;
     out->default_is_stmt = def_is_stmt != 0;
+    out->line_base       = (i8)raw_lb;
 
-    u8 raw_lb = 0;
-    if (!bi_take_u8(cur, &raw_lb))
-        return false;
-    out->line_base = (i8)raw_lb;
-
-    if (!bi_take_u8(cur, &out->line_range))
-        return false;
     // line_range == 0 is a malformed CU header: every special opcode
     // and DW_LNS_CONST_ADD_PC computes `adjusted / line_range`, which
-    // would divide by zero. The DWARF spec forbids line_range=0 in
-    // practice (it must be a positive integer); refuse the unit.
+    // would divide by zero. Refuse the unit.
     if (out->line_range == 0) {
         LOG_ERROR("DWARF: line program header has line_range == 0");
         return false;
     }
-    if (!bi_take_u8(cur, &out->opcode_base))
-        return false;
 
     out->std_opcode_lengths_count = out->opcode_base ? (u64)(out->opcode_base - 1) : 0;
     if (bi_remaining(cur) < out->std_opcode_lengths_count)
