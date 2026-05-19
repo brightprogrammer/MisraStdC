@@ -30,9 +30,6 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Sys.h>
 #include "_Syscall.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 // In-tree errno -> short description table. Covers the POSIX errnos
 // we actually surface in Sys / Std / Parsers; anything else falls
@@ -303,5 +300,51 @@ ProcId ProcGetCurrentId(void) {
     // ABI on those platforms (libc.dylib is just a stub forwarding to
     // libSystem). Apple disallows direct user-mode syscalls.
     return (ProcId)getpid();
+#endif
+}
+
+// `EnvGet`: walk `envp` directly. Each envp entry is a NUL-terminated
+// `KEY=VALUE` string; the array ends at a NULL pointer. We avoid the
+// libc `getenv` entry point entirely on the platforms where we set up
+// our own startup (Linux x86_64/aarch64 via `_StartLinux.c`'s
+// `misra_envp`). Other platforms fall through to a weak `getenv`
+// reference -- on macOS that resolves to libSystem; on builds where it
+// doesn't resolve the function returns NULL safely.
+
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+extern char **misra_envp;
+#else
+// Weakly-referenced libc symbol -- no `<stdlib.h>` include. If the
+// final binary links libc, this binds to its `getenv`; otherwise it
+// remains unresolved and we treat it as NULL.
+extern char *getenv(const char *name) __attribute__((weak));
+#endif
+
+const char *EnvGet(const char *name) {
+    if (!name) {
+        return NULL;
+    }
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
+    if (!misra_envp) {
+        return NULL;
+    }
+    // Match `name` against the prefix of each entry up to '='.
+    for (char **e = misra_envp; *e; ++e) {
+        const char *entry = *e;
+        const char *n     = name;
+        while (*n && *entry == *n) {
+            ++entry;
+            ++n;
+        }
+        if (*n == 0 && *entry == '=') {
+            return entry + 1;
+        }
+    }
+    return NULL;
+#else
+    if (!getenv) {
+        return NULL;
+    }
+    return (const char *)getenv(name);
 #endif
 }

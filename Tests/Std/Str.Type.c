@@ -3,8 +3,6 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 
-#include <stdio.h>
-#include <string.h>
 
 // Include test utilities for deadend testing
 #include "../Util/TestRunner.h"

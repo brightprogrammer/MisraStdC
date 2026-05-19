@@ -15,8 +15,6 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Log.h>
 #include "../_Syscall.h"
-#include <stdint.h>
-
 #ifdef _WIN32
 #    include <windows.h>
 #    include <tlhelp32.h>
@@ -51,7 +49,7 @@ static inline void proc_sleep_us(u64 us) {
     } ts;
     ts.sec  = (long)(us / 1000000);
     ts.nsec = (long)((us % 1000000) * 1000);
-    (void)misra_sys2(MISRA_SYS_nanosleep, (long)(uintptr_t)&ts, 0);
+    (void)misra_sys2(MISRA_SYS_nanosleep, (long)(u64)&ts, 0);
 #else
     struct timespec ts = {(time_t)(us / 1000000), (long)((us % 1000000) * 1000)};
     nanosleep(&ts, NULL);
@@ -71,19 +69,19 @@ static inline long misra_proc_close(int fd) {
     return misra_sys1(MISRA_SYS_close, (long)fd);
 }
 static inline long misra_proc_read(int fd, void *buf, unsigned long n) {
-    return misra_sys3(MISRA_SYS_read, (long)fd, (long)(uintptr_t)buf, (long)n);
+    return misra_sys3(MISRA_SYS_read, (long)fd, (long)(u64)buf, (long)n);
 }
 static inline long misra_proc_write(int fd, const void *buf, unsigned long n) {
-    return misra_sys3(MISRA_SYS_write, (long)fd, (long)(uintptr_t)buf, (long)n);
+    return misra_sys3(MISRA_SYS_write, (long)fd, (long)(u64)buf, (long)n);
 }
 static inline long misra_proc_pipe(int fds[2]) {
 #    if defined(__APPLE__)
     // Darwin pipe ignores its arg and returns fds in registers.
     return misra_darwin_pipe(fds);
 #    elif defined(__x86_64__)
-    return misra_sys1(MISRA_SYS_pipe, (long)(uintptr_t)fds);
+    return misra_sys1(MISRA_SYS_pipe, (long)(u64)fds);
 #    else
-    return misra_sys2(MISRA_SYS_pipe2, (long)(uintptr_t)fds, 0);
+    return misra_sys2(MISRA_SYS_pipe2, (long)(u64)fds, 0);
 #    endif
 }
 static inline long misra_proc_dup2(int oldfd, int newfd) {
@@ -105,21 +103,21 @@ static inline long misra_proc_fork(void) {
 #    endif
 }
 static inline long misra_proc_execve(const char *path, char *const *argv, char *const *envp) {
-    return misra_sys3(MISRA_SYS_execve, (long)(uintptr_t)path, (long)(uintptr_t)argv, (long)(uintptr_t)envp);
+    return misra_sys3(MISRA_SYS_execve, (long)(u64)path, (long)(u64)argv, (long)(u64)envp);
 }
 static inline long misra_proc_kill(int pid, int sig) {
     return misra_sys2(MISRA_SYS_kill, (long)pid, (long)sig);
 }
 static inline long misra_proc_readlink(const char *path, char *buf, unsigned long sz) {
 #    if defined(__APPLE__) || defined(__x86_64__)
-    return misra_sys3(MISRA_SYS_readlink, (long)(uintptr_t)path, (long)(uintptr_t)buf, (long)sz);
+    return misra_sys3(MISRA_SYS_readlink, (long)(u64)path, (long)(u64)buf, (long)sz);
 #    else
     // Linux aarch64: no SYS_readlink. AT_FDCWD = -100.
-    return misra_sys4(MISRA_SYS_readlinkat, -100L, (long)(uintptr_t)path, (long)(uintptr_t)buf, (long)sz);
+    return misra_sys4(MISRA_SYS_readlinkat, -100L, (long)(u64)path, (long)(u64)buf, (long)sz);
 #    endif
 }
 static inline long misra_proc_waitpid(int pid, int *status, int options) {
-    return misra_sys4(MISRA_SYS_wait4, (long)pid, (long)(uintptr_t)status, (long)options, 0);
+    return misra_sys4(MISRA_SYS_wait4, (long)pid, (long)(u64)status, (long)options, 0);
 }
 
 // Macro shims so the existing POSIX call sites use our direct-syscall
@@ -166,14 +164,14 @@ Proc proc_init(const char *filepath, char **argv, char **envp, Allocator *alloc)
     // Capture the failing-call return so the error log can name the
     // errno without having to read libc's `errno` TLS slot. On
     // Linux+direct-syscall this is the kernel's -errno; on macOS
-    // libSystem it's just -1 and SYS_ERRNO falls back to errno.
+    // libSystem it's just -1 and ErrnoOf falls back to errno.
     long pipe_ret = pipe(stdin_pipe);
     if (pipe_ret == 0)
         pipe_ret = pipe(stdout_pipe);
     if (pipe_ret == 0)
         pipe_ret = pipe(stderr_pipe);
     if (pipe_ret < 0) {
-        LOG_SYS_ERROR(SYS_ERRNO(pipe_ret), "pipe() failed");
+        LOG_SYS_ERROR(ErrnoOf(pipe_ret), "pipe() failed");
         if (stdin_pipe[READ_END] >= 0)
             close(stdin_pipe[READ_END]);
         if (stdout_pipe[READ_END] >= 0)
@@ -191,7 +189,7 @@ Proc proc_init(const char *filepath, char **argv, char **envp, Allocator *alloc)
 
     pid_t pid = fork();
     if (pid < 0) {
-        LOG_SYS_ERROR(SYS_ERRNO(pid), "fork");
+        LOG_SYS_ERROR(ErrnoOf(pid), "fork");
         close(stdin_pipe[READ_END]);
         close(stdout_pipe[READ_END]);
         close(stderr_pipe[READ_END]);
@@ -213,7 +211,7 @@ Proc proc_init(const char *filepath, char **argv, char **envp, Allocator *alloc)
         long exec_ret = execve(filepath, argv, envp);
 
         // Only reached if execve failed.
-        LOG_SYS_ERROR(SYS_ERRNO(exec_ret), "execve() failed");
+        LOG_SYS_ERROR(ErrnoOf(exec_ret), "execve() failed");
         close(stdin_pipe[READ_END]);
         close(stdout_pipe[READ_END]);
         close(stderr_pipe[READ_END]);
@@ -320,7 +318,7 @@ ProcStatus ProcWait(Proc *proc) {
     int  status;
     long wait_ret = waitpid(proc->_pid, &status, 0);
     if (wait_ret < 0) {
-        LOG_SYS_ERROR(SYS_ERRNO(wait_ret), "Failed to wait for child process");
+        LOG_SYS_ERROR(ErrnoOf(wait_ret), "Failed to wait for child process");
         return SYS_PROC_STATUS_ERROR;
     }
 
@@ -441,14 +439,14 @@ void ProcTerminate(Proc *proc) {
 #if defined(__APPLE__) || defined(__linux__)
     long kill_ret = kill(proc->_pid, SIGTERM);
     if (kill_ret < 0) {
-        LOG_SYS_ERROR(SYS_ERRNO(kill_ret), "kill(pid, SIGTERM) failed");
+        LOG_SYS_ERROR(ErrnoOf(kill_ret), "kill(pid, SIGTERM) failed");
     }
 
     // Now wait for it to exit and capture the exit code
     int  status;
     long wait_ret = waitpid(proc->_pid, &status, 0);
     if (wait_ret < 0) {
-        LOG_SYS_ERROR(SYS_ERRNO(wait_ret), "waitpid after SIGTERM failed");
+        LOG_SYS_ERROR(ErrnoOf(wait_ret), "waitpid after SIGTERM failed");
         return;
     }
 
@@ -568,10 +566,10 @@ i32 sys_proc_read_internal(Proc *proc, Str *buf, bool is_stdout) {
             if (n == -EINTR)
                 continue;
 #    else
-            if (errno == EINTR)
+            if (Errno() == EINTR)
                 continue;
 #    endif
-            LOG_SYS_ERROR(SYS_ERRNO(n), "read failed");
+            LOG_SYS_ERROR(ErrnoOf(n), "read failed");
             total_read = -1;
             break;
         }
@@ -716,7 +714,7 @@ Str *GetCurrentExecutablePath(Str *exe_path) {
 // which is fine for our copy-into-Str use here). Same call as
 // Sys/Backtrace already makes per-frame.
 #    ifdef __APPLE__
-    extern const char *_dyld_get_image_name(uint32_t image_index);
+    extern const char *_dyld_get_image_name(u32 image_index);
     const char        *exe = _dyld_get_image_name(0);
     if (exe) {
         *exe_path = StrInitFromCstr(exe, ZstrLen(exe), alloc);

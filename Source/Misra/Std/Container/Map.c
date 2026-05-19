@@ -9,9 +9,6 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Sys.h>
 
-#include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
 
 static size quadratic_probe_index(u64 hash, size probe_count, size capacity) {
     (void)capacity;

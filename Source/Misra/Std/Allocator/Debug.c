@@ -16,8 +16,6 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Sys/Backtrace.h>
 
-#include <stdint.h>
-
 // Per-thread unique ID. Returns the TCB self-pointer on Linux
 // x86_64 / aarch64 (one register read, no libc); falls back to the
 // address of a TLS-marker byte everywhere else.
@@ -47,7 +45,7 @@ u64 debug_current_tid(void) {
 static MISRA_TLS u8 g_thread_marker;
 
 u64 debug_current_tid(void) {
-    return (u64)(uintptr_t)&g_thread_marker;
+    return (u64)&g_thread_marker;
 }
 
 #endif
@@ -59,7 +57,7 @@ u64 debug_current_tid(void) {
 
 u64 debug_ptr_hash(const void *data, u32 size) {
     (void)size;
-    u64 x  = (u64)(uintptr_t)(*(void *const *)data);
+    u64 x  = (u64)(*(void *const *)data);
     x     ^= x >> 30;
     x     *= 0xbf58476d1ce4e5b9ULL;
     x     ^= x >> 27;
@@ -71,9 +69,9 @@ u64 debug_ptr_hash(const void *data, u32 size) {
 i32 debug_ptr_compare(const void *lhs, const void *rhs) {
     void *a = *(void *const *)lhs;
     void *b = *(void *const *)rhs;
-    if ((uintptr_t)a < (uintptr_t)b)
+    if ((u64)a < (u64)b)
         return -1;
-    if ((uintptr_t)a > (uintptr_t)b)
+    if ((u64)a > (u64)b)
         return 1;
     return 0;
 }
@@ -257,12 +255,12 @@ size debug_allocator_deallocate(Allocator *self, void *ptr) {
         if (fe) {
             LOG_ERROR(
                 "DebugAllocator: DOUBLE FREE of {x} (originally {} bytes); original alloc + first-free traces:",
-                (u64)(uintptr_t)ptr,
+                (u64)ptr,
                 (u64)fe->requested_size
             );
             debug_emit_trace(fe->alloc_trace, fe->alloc_trace_n, "alloc", ALLOCATOR_OF(&dbg->meta));
             debug_emit_trace(fe->free_trace, fe->free_trace_n, "first-free", ALLOCATOR_OF(&dbg->meta));
-            LOG_FATAL("DebugAllocator: double-free of {x}", (u64)(uintptr_t)ptr);
+            LOG_FATAL("DebugAllocator: double-free of {x}", (u64)ptr);
             return 0;
         }
         // No freed-history hit either: foreign pointer (or freed
@@ -280,7 +278,7 @@ size debug_allocator_deallocate(Allocator *self, void *ptr) {
             dbg->overflows += 1;
             LOG_ERROR(
                 "DebugAllocator: BUFFER OVERFLOW past {x} ({} bytes requested)",
-                (u64)(uintptr_t)ptr,
+                (u64)ptr,
                 (u64)live_rec->requested_size
             );
             debug_emit_trace(live_rec->alloc_trace, live_rec->alloc_trace_n, "alloc", ALLOCATOR_OF(&dbg->meta));
@@ -317,7 +315,7 @@ size debug_allocator_deallocate(Allocator *self, void *ptr) {
         size page_size = PageAllocatorPageSize(&dbg->page);
         size rounded   = (padded + page_size - 1) & ~(page_size - 1);
         if (!PageProtect(ptr, rounded, PAGE_PROT_NONE)) {
-            LOG_ERROR("DebugAllocator: PageProtect(PROT_NONE) failed on {x}", (u64)(uintptr_t)ptr);
+            LOG_ERROR("DebugAllocator: PageProtect(PROT_NONE) failed on {x}", (u64)ptr);
         }
     } else {
         AllocatorFree(src, ptr);
@@ -390,7 +388,7 @@ void DebugAllocatorDeinit(DebugAllocator *self) {
     if (self->live.allocator && self->live.length > 0) {
         LOG_ERROR("DebugAllocator: {} live allocation(s) at deinit time:", (u64)self->live.length);
         MapForeachPairPtr(&self->live, key_ptr, val_ptr) {
-            LOG_ERROR("  leaked {x} ({} bytes)", (u64)(uintptr_t)*key_ptr, (u64)val_ptr->requested_size);
+            LOG_ERROR("  leaked {x} ({} bytes)", (u64)*key_ptr, (u64)val_ptr->requested_size);
             debug_emit_trace(val_ptr->alloc_trace, val_ptr->alloc_trace_n, "alloc", ALLOCATOR_OF(&self->meta));
         }
     }
@@ -442,7 +440,7 @@ void DebugAllocatorReportLeaks(DebugAllocator *self, Str *out) {
 
     StrAppendFmt(out, "DebugAllocator: {} live allocation(s):\n", (u64)self->live.length);
     MapForeachPairPtr(&self->live, key_ptr, val_ptr) {
-        StrAppendFmt(out, "  leak: {x} ({} bytes)\n", (u64)(uintptr_t)*key_ptr, (u64)val_ptr->requested_size);
+        StrAppendFmt(out, "  leak: {x} ({} bytes)\n", (u64)*key_ptr, (u64)val_ptr->requested_size);
         if (val_ptr->alloc_trace_n > 0) {
             FormatStackTrace(out, val_ptr->alloc_trace, val_ptr->alloc_trace_n, ALLOCATOR_OF(&self->meta));
         }

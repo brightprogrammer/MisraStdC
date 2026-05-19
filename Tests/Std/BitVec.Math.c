@@ -1,10 +1,8 @@
 #include <Misra/Std/Container/BitVec.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
-#include <stdio.h>
 #include <Misra/Types.h>
-#include <math.h>
-#include <float.h>
+#include <Misra/Std/Math.h>
 
 // Include test utilities
 #include "../Util/TestRunner.h"
@@ -146,7 +144,7 @@ bool test_bitvec_jaccard_similarity_basic(void) {
     BitVecPush(&bv2, true);
 
     double similarity = BitVecJaccardSimilarity(&bv1, &bv2);
-    result            = result && (fabs(similarity - 1.0) < 0.001);
+    result            = result && (F64Abs(similarity - 1.0) < 0.001);
 
     // Test no overlap
     BitVecClear(&bv1);
@@ -157,7 +155,7 @@ bool test_bitvec_jaccard_similarity_basic(void) {
     BitVecPush(&bv2, true);
 
     similarity = BitVecJaccardSimilarity(&bv1, &bv2);
-    result     = result && (fabs(similarity - 0.0) < 0.001);
+    result     = result && (F64Abs(similarity - 0.0) < 0.001);
 
     // Test partial overlap
     BitVecClear(&bv1);
@@ -171,7 +169,7 @@ bool test_bitvec_jaccard_similarity_basic(void) {
     // Intersection: 1, Union: 2, Jaccard = 1/2 = 0.5
 
     similarity = BitVecJaccardSimilarity(&bv1, &bv2);
-    result     = result && (fabs(similarity - 0.5) < 0.001);
+    result     = result && (F64Abs(similarity - 0.5) < 0.001);
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
@@ -191,7 +189,7 @@ bool test_bitvec_jaccard_similarity_edge_cases(void) {
 
     // Test empty bitvectors
     double similarity = BitVecJaccardSimilarity(&bv1, &bv2);
-    result            = result && (fabs(similarity - 1.0) < 0.001);
+    result            = result && (F64Abs(similarity - 1.0) < 0.001);
 
     // Test all zeros
     BitVecPush(&bv1, false);
@@ -200,7 +198,7 @@ bool test_bitvec_jaccard_similarity_edge_cases(void) {
     BitVecPush(&bv2, false);
 
     similarity = BitVecJaccardSimilarity(&bv1, &bv2);
-    result     = result && (fabs(similarity - 1.0) < 0.001);
+    result     = result && (F64Abs(similarity - 1.0) < 0.001);
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
@@ -227,7 +225,7 @@ bool test_bitvec_cosine_similarity_basic(void) {
     BitVecPush(&bv2, true);
 
     double similarity = BitVecCosineSimilarity(&bv1, &bv2);
-    result            = result && (fabs(similarity - 1.0) < 0.001);
+    result            = result && (F64Abs(similarity - 1.0) < 0.001);
 
     // Test orthogonal vectors
     BitVecClear(&bv1);
@@ -238,7 +236,7 @@ bool test_bitvec_cosine_similarity_basic(void) {
     BitVecPush(&bv2, true);
 
     similarity = BitVecCosineSimilarity(&bv1, &bv2);
-    result     = result && (fabs(similarity - 0.0) < 0.001);
+    result     = result && (F64Abs(similarity - 0.0) < 0.001);
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
@@ -448,7 +446,7 @@ bool test_bitvec_correlation_basic(void) {
     BitVecPush(&bv2, false);
 
     double correlation = BitVecCorrelation(&bv1, &bv2);
-    result             = result && (fabs(correlation - 1.0) < 0.001);
+    result             = result && (F64Abs(correlation - 1.0) < 0.001);
 
     // Test perfect anti-correlation
     BitVecClear(&bv2);
@@ -458,7 +456,7 @@ bool test_bitvec_correlation_basic(void) {
     BitVecPush(&bv2, true);
 
     correlation = BitVecCorrelation(&bv1, &bv2);
-    result      = result && (fabs(correlation + 1.0) < 0.001);
+    result      = result && (F64Abs(correlation + 1.0) < 0.001);
 
     BitVecDeinit(&bv1);
     BitVecDeinit(&bv2);
@@ -513,7 +511,7 @@ bool test_bitvec_entropy_basic(void) {
     BitVecPush(&bv, false);
 
     double entropy = BitVecEntropy(&bv);
-    result         = result && (fabs(entropy - 1.0) < 0.001);
+    result         = result && (F64Abs(entropy - 1.0) < 0.001);
 
     // Test minimum entropy (all same)
     BitVecClear(&bv);

@@ -117,9 +117,23 @@ typedef struct PdbFile {
 /// TAGS: Parser, PDB, File
 ///
 bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc);
-#define PdbFileOpen(...)                MISRA_OVERLOAD(PdbFileOpen, __VA_ARGS__)
-#define PdbFileOpen_2(out, path)        pdb_file_open((out), (path), MisraScope)
-#define PdbFileOpen_3(out, path, alloc) pdb_file_open((out), (path), ALLOCATOR_OF(alloc))
+#define PdbFileOpen(...) MISRA_OVERLOAD(PdbFileOpen, __VA_ARGS__)
+#define PdbFileOpen_2(out, path)                                                                                       \
+    _Generic(                                                                                                          \
+        (path),                                                                                                        \
+        Str *: pdb_file_open((out), ((Str *)(path))->data, MisraScope),                                                \
+        const Str *: pdb_file_open((out), ((const Str *)(path))->data, MisraScope),                                    \
+        char *: pdb_file_open((out), (const char *)(path), MisraScope),                                                \
+        const char *: pdb_file_open((out), (const char *)(path), MisraScope)                                           \
+    )
+#define PdbFileOpen_3(out, path, alloc)                                                                                \
+    _Generic(                                                                                                          \
+        (path),                                                                                                        \
+        Str *: pdb_file_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                       \
+        const Str *: pdb_file_open((out), ((const Str *)(path))->data, ALLOCATOR_OF(alloc)),                           \
+        char *: pdb_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                       \
+        const char *: pdb_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                  \
+    )
 
 ///
 /// Open and parse a PDB from an in-memory byte range. The `data`
@@ -131,9 +145,10 @@ bool pdb_file_open(PdbFile *out, const char *path, Allocator *alloc);
 /// TAGS: Parser, PDB, Memory
 ///
 bool pdb_file_open_from_memory(PdbFile *out, u8 *data, size data_size, Allocator *alloc);
-#define PdbFileOpenFromMemory(...)                          MISRA_OVERLOAD(PdbFileOpenFromMemory, __VA_ARGS__)
-#define PdbFileOpenFromMemory_3(out, data, data_size)        pdb_file_open_from_memory((out), (data), (data_size), MisraScope)
-#define PdbFileOpenFromMemory_4(out, data, data_size, alloc) pdb_file_open_from_memory((out), (data), (data_size), ALLOCATOR_OF(alloc))
+#define PdbFileOpenFromMemory(...)                    MISRA_OVERLOAD(PdbFileOpenFromMemory, __VA_ARGS__)
+#define PdbFileOpenFromMemory_3(out, data, data_size) pdb_file_open_from_memory((out), (data), (data_size), MisraScope)
+#define PdbFileOpenFromMemory_4(out, data, data_size, alloc)                                                           \
+    pdb_file_open_from_memory((out), (data), (data_size), ALLOCATOR_OF(alloc))
 
 ///
 /// Release storage owned by a `PdbFile`. Safe on a zeroed struct.

@@ -20,7 +20,6 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 
-#include <stdint.h>
 #include <Misra/Std/File.h>
 
 // ---------------------------------------------------------------------------
@@ -265,7 +264,7 @@ bool SymbolResolverFindFde(
     if (!self || !out_cfi || !out_fde || !out_module_base)
         return false;
 
-    u64                 addr  = (u64)(uintptr_t)runtime_addr;
+    u64                 addr  = (u64)runtime_addr;
     const ProcMapEntry *entry = ProcMapsFindByAddr(&self->maps, addr);
     if (!entry || !entry->path || entry->path[0] == '\0')
         return false;
@@ -305,7 +304,7 @@ bool SymbolResolverResolve(SymbolResolver *self, void *runtime_addr, ResolvedSym
         return false;
     MemSet(out, 0, sizeof(*out));
 
-    u64 addr = (u64)(uintptr_t)runtime_addr;
+    u64 addr = (u64)runtime_addr;
 
     const ProcMapEntry *entry = ProcMapsFindByAddr(&self->maps, addr);
     if (!entry || !entry->path || entry->path[0] == '\0') {

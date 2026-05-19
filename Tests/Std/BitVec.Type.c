@@ -2,7 +2,6 @@
 #include <Misra/Std/Container/BitVec.h>
 #include <Misra/Std/Log.h>
 
-#include <stdio.h>
 #include <Misra/Types.h>
 
 // Include test utilities

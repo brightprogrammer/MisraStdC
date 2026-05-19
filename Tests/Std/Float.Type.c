@@ -3,7 +3,6 @@
 #include <Misra/Std/Container/Float.h>
 #include <Misra/Std/Container/BitVec.h>
 #include <Misra/Std/Log.h>
-#include <string.h>
 
 #include "../Util/TestRunner.h"
 

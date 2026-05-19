@@ -9,8 +9,6 @@
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Log.h>
-#include <string.h>
-#include <stdio.h>
 
 // In-tree replacements for the two libm calls BitVec used (sqrt + log2,
 // both in similarity / entropy methods). Input domain is positive
@@ -76,7 +74,7 @@ static double log2_f64(double x) {
 #            define SIZE_MAX 4294967295U
 #        endif
 #    else
-#        if ULONG_MAX == 18446744073709551615ULL
+#        if defined(__SIZEOF_LONG__) && __SIZEOF_LONG__ == 8
 #            define SIZE_MAX 18446744073709551615ULL
 #        else
 #            define SIZE_MAX 4294967295U
@@ -1646,7 +1644,7 @@ u64 BitVecBestAlignment(BitVec *bv1, BitVec *bv2) {
     }
 
     u64 best_offset = 0;
-    int best_score  = INT_MIN;
+    i32 best_score  = INT32_MIN;
 
     // Try all possible alignments of bv2 against bv1
     for (u64 offset = 0; offset <= bv1->length; offset++) {

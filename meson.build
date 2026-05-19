@@ -181,6 +181,7 @@ misra_std_sources = files(
     'Source/Misra/Std/Container/Vec.c',
     'Source/Misra/Std/Container/Str.c',
     'Source/Misra/Std/Io.c',
+    'Source/Misra/Std/Prng.c',
     'Source/Misra/Std/ArgParse.c',
 )
 
@@ -496,6 +497,12 @@ config_data.set10('FEATURE_PARSER_MACHO',    opt_parser_macho)
 config_data.set10('FEATURE_DIRECT_SYSCALL',  have_direct_syscall)
 config_data.set10('FEATURE_PARSER_DNS',      opt_parser_dns)
 config_data.set10('FEATURE_SYS_DNS',         opt_sys_dns)
+
+# Numeric tunables. `set` (vs `set10`) emits the literal value -- the
+# `@FOO@` substitution in Config.h.in would normally be used, but we
+# don't have one; configure_file with `configuration:` mode emits
+# `#define FOO value` for each key, which is exactly what we want.
+config_data.set('MISRA_PRNG_RESEED_INTERVAL', get_option('prng_reseed_interval'))
 
 # `subdir(...)` runs the inner meson.build, where `configure_file`
 # emits `build/Include/Misra/Config.h`. The top-level

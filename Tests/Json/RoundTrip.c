@@ -2,9 +2,7 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
+#include <Misra/Std/Math.h>
 #include <Misra/Types.h>
 
 // Include test utilities
@@ -315,9 +313,9 @@ bool test_numeric_roundtrip(void) {
          original.zero_int == parsed.zero_int);
 
     bool floats_match =
-        (fabs(original.precise_float - parsed.precise_float) < 0.000001 &&
-         fabs(original.small_float - parsed.small_float) < 0.0000001 &&
-         fabs(original.negative_float - parsed.negative_float) < 0.001);
+        (F64Abs(original.precise_float - parsed.precise_float) < 0.000001 &&
+         F64Abs(original.small_float - parsed.small_float) < 0.0000001 &&
+         F64Abs(original.negative_float - parsed.negative_float) < 0.001);
 
     if (ints_match && floats_match) {
         WriteFmtLn("[DEBUG] Numeric round-trip test passed");

@@ -7,7 +7,6 @@
 #ifndef MISRA_STD_CONTAINER_MAP_TYPE_H
 #define MISRA_STD_CONTAINER_MAP_TYPE_H
 
-#include <stddef.h>
 
 #include <Misra/Std/Container/Common.h>
 #include <Misra/Types.h>

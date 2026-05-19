@@ -20,8 +20,6 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Sys/SymbolResolver.h>
 
-#include <stdint.h>
-
 #include "../Util/TestRunner.h"
 
 // Named, static, noinline so the compiler can't fold or hide them.
@@ -56,7 +54,7 @@ static bool resolve_through_stripped(void (*func)(void), const char *expect_name
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
-    u64 file_relative = (u64)(uintptr_t)func - r.module_base;
+    u64 file_relative = (u64)func - r.module_base;
     SymbolResolverDeinit(&res);
 
     // (2) Open the stripped sibling.

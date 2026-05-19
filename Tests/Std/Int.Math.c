@@ -3,7 +3,6 @@
 #include <Misra/Std/Container/Int.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Types.h>
-#include <string.h>
 
 #include "../Util/TestRunner.h"
 
@@ -99,10 +98,10 @@ bool test_int_add(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int a      = IntFrom(255, &alloc.base);
-    Int b      = IntFrom(1, &alloc.base);
+    Int a            = IntFrom(255, &alloc.base);
+    Int b            = IntFrom(1, &alloc.base);
     Int result_value = IntInit(&alloc.base);
-    Str text   = StrInit(&alloc.base);
+    Str text         = StrInit(&alloc.base);
 
     IntAdd(&result_value, &a, &b);
     text = IntToBinary(&result_value);
@@ -156,8 +155,8 @@ bool test_int_sub(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int a      = IntFrom(256, &alloc.base);
-    Int b      = IntFrom(1, &alloc.base);
+    Int a            = IntFrom(256, &alloc.base);
+    Int b            = IntFrom(1, &alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     bool result = IntSub(&result_value, &a, &b);
@@ -213,8 +212,8 @@ bool test_int_sub_underflow_preserves_result(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int a      = IntFrom(3, &alloc.base);
-    Int b      = IntFrom(5, &alloc.base);
+    Int a            = IntFrom(3, &alloc.base);
+    Int b            = IntFrom(5, &alloc.base);
     Int result_value = IntFrom(99, &alloc.base);
 
     bool result = !IntSub(&result_value, &a, &b);
@@ -232,8 +231,8 @@ bool test_int_mul(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int a      = IntFrom(21, &alloc.base);
-    Int b      = IntFrom(6, &alloc.base);
+    Int a            = IntFrom(21, &alloc.base);
+    Int b            = IntFrom(6, &alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     IntMul(&result_value, &a, &b);
@@ -252,9 +251,9 @@ bool test_int_mul_scalar(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFromStr("12345678901234567890", &alloc.base);
+    Int value        = IntFromStr("12345678901234567890", &alloc.base);
     Int result_value = IntInit(&alloc.base);
-    Str text = StrInit(&alloc.base);
+    Str text         = StrInit(&alloc.base);
 
     IntMul(&result_value, &value, 25u);
     text = IntToStr(&result_value);
@@ -273,8 +272,8 @@ bool test_int_mul_zero(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int a      = IntFrom(0, &alloc.base);
-    Int b      = IntFrom(12345, &alloc.base);
+    Int a            = IntFrom(0, &alloc.base);
+    Int b            = IntFrom(12345, &alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     IntMul(&result_value, &a, &b);
@@ -294,7 +293,7 @@ bool test_int_square(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFrom(12345, &alloc.base);
+    Int value        = IntFrom(12345, &alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     IntSquare(&result_value, &value);
@@ -312,13 +311,13 @@ bool test_int_pow_generic(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int base = IntFrom(7, &alloc.base);
-    Int exponent = IntFrom(20, &alloc.base);
+    Int base         = IntFrom(7, &alloc.base);
+    Int exponent     = IntFrom(20, &alloc.base);
     Int result_value = IntInit(&alloc.base);
-    Str text = StrInit(&alloc.base);
+    Str text         = StrInit(&alloc.base);
 
     IntPow(&result_value, &base, 20u);
-    text   = IntToStr(&result_value);
+    text        = IntToStr(&result_value);
     bool result = ZstrCompare(text.data, "79792266297612001") == 0;
 
     StrDeinit(&text);
@@ -363,7 +362,7 @@ bool test_int_div(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int dividend = IntFrom(126, &alloc.base);
+    Int dividend     = IntFrom(126, &alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     IntDiv(&result_value, &dividend, 10u);
@@ -381,13 +380,13 @@ bool test_int_div_exact(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int dividend = IntFromStr("12345678901234567890", &alloc.base);
+    Int dividend     = IntFromStr("12345678901234567890", &alloc.base);
     Int result_value = IntInit(&alloc.base);
-    Str text = StrInit(&alloc.base);
+    Str text         = StrInit(&alloc.base);
 
     bool result = IntDivExact(&result_value, &dividend, 90u);
-    text = IntToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "137174210013717421") == 0);
+    text        = IntToStr(&result_value);
+    result      = result && (ZstrCompare(text.data, "137174210013717421") == 0);
 
     IntDeinit(&dividend);
     IntDeinit(&result_value);
@@ -401,8 +400,8 @@ bool test_int_div_exact_failure_preserves_result(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int dividend = IntFrom(10, &alloc.base);
-    Int divisor = IntFrom(3, &alloc.base);
+    Int dividend     = IntFrom(10, &alloc.base);
+    Int divisor      = IntFrom(3, &alloc.base);
     Int result_value = IntFrom(99, &alloc.base);
 
     bool result = !IntDivExact(&result_value, &dividend, &divisor);
@@ -420,10 +419,10 @@ bool test_int_div_mod_scalar(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int dividend = IntFromStr("12345678901234567890", &alloc.base);
-    Int quotient = IntInit(&alloc.base);
+    Int dividend  = IntFromStr("12345678901234567890", &alloc.base);
+    Int quotient  = IntInit(&alloc.base);
     Int remainder = IntInit(&alloc.base);
-    Str text = StrInit(&alloc.base);
+    Str text      = StrInit(&alloc.base);
 
     IntDivMod(&quotient, &remainder, &dividend, 97);
     text = IntToStr(&quotient);
@@ -444,7 +443,7 @@ bool test_int_mod(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int dividend = IntFrom(126, &alloc.base);
+    Int dividend     = IntFrom(126, &alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     IntMod(&result_value, &dividend, 10u);
@@ -462,7 +461,7 @@ bool test_int_mod_scalar(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFromStr("12345678901234567890", &alloc.base);
+    Int value     = IntFromStr("12345678901234567890", &alloc.base);
     Int remainder = IntInit(&alloc.base);
 
     IntMod(&remainder, &value, 97u);
@@ -479,8 +478,8 @@ bool test_int_gcd(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int a = IntFrom(48, &alloc.base);
-    Int b = IntFrom(18, &alloc.base);
+    Int a            = IntFrom(48, &alloc.base);
+    Int b            = IntFrom(18, &alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     IntGCD(&result_value, &a, &b);
@@ -499,8 +498,8 @@ bool test_int_lcm(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int a = IntFrom(21, &alloc.base);
-    Int b = IntFrom(6, &alloc.base);
+    Int a            = IntFrom(21, &alloc.base);
+    Int b            = IntFrom(6, &alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     IntLCM(&result_value, &a, &b);
@@ -519,7 +518,7 @@ bool test_int_root(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFrom(4096, &alloc.base);
+    Int value        = IntFrom(4096, &alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     IntRoot(&result_value, &value, 4);
@@ -537,8 +536,8 @@ bool test_int_root_rem(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFrom(200, &alloc.base);
-    Int root = IntInit(&alloc.base);
+    Int value     = IntFrom(200, &alloc.base);
+    Int root      = IntInit(&alloc.base);
     Int remainder = IntInit(&alloc.base);
 
     IntRootRem(&root, &remainder, &value, 3);
@@ -558,7 +557,7 @@ bool test_int_sqrt(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFrom(200, &alloc.base);
+    Int value        = IntFrom(200, &alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     IntSqrt(&result_value, &value);
@@ -576,8 +575,8 @@ bool test_int_sqrt_rem(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFrom(200, &alloc.base);
-    Int root = IntInit(&alloc.base);
+    Int value     = IntFrom(200, &alloc.base);
+    Int root      = IntInit(&alloc.base);
     Int remainder = IntInit(&alloc.base);
 
     IntSqrtRem(&root, &remainder, &value);
@@ -597,7 +596,7 @@ bool test_int_is_perfect_square(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int square = IntFrom(144, &alloc.base);
+    Int square     = IntFrom(144, &alloc.base);
     Int non_square = IntFrom(145, &alloc.base);
 
     bool result = IntIsPerfectSquare(&square);
@@ -614,9 +613,9 @@ bool test_int_is_perfect_power(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int power = IntFrom(81, &alloc.base);
+    Int power     = IntFrom(81, &alloc.base);
     Int non_power = IntFrom(82, &alloc.base);
-    Int one = IntFrom(1, &alloc.base);
+    Int one       = IntFrom(1, &alloc.base);
 
     bool result = IntIsPerfectPower(&power);
     result      = result && !IntIsPerfectPower(&non_power);
@@ -655,8 +654,8 @@ bool test_int_square_mod(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFrom(12345, &alloc.base);
-    Int mod = IntFrom(97, &alloc.base);
+    Int value        = IntFrom(12345, &alloc.base);
+    Int mod          = IntFrom(97, &alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     IntSquareMod(&result_value, &value, &mod);
@@ -675,9 +674,9 @@ bool test_int_mod_add(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int a = IntFrom(100, &alloc.base);
-    Int b = IntFrom(250, &alloc.base);
-    Int m = IntFrom(13, &alloc.base);
+    Int a            = IntFrom(100, &alloc.base);
+    Int b            = IntFrom(250, &alloc.base);
+    Int m            = IntFrom(13, &alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     IntModAdd(&result_value, &a, &b, &m);
@@ -697,9 +696,9 @@ bool test_int_mod_sub(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int a = IntFrom(5, &alloc.base);
-    Int b = IntFrom(9, &alloc.base);
-    Int m = IntFrom(13, &alloc.base);
+    Int a            = IntFrom(5, &alloc.base);
+    Int b            = IntFrom(9, &alloc.base);
+    Int m            = IntFrom(13, &alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     IntModSub(&result_value, &a, &b, &m);
@@ -719,9 +718,9 @@ bool test_int_mod_mul(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int a = IntFrom(123, &alloc.base);
-    Int b = IntFrom(456, &alloc.base);
-    Int m = IntFrom(97, &alloc.base);
+    Int a            = IntFrom(123, &alloc.base);
+    Int b            = IntFrom(456, &alloc.base);
+    Int m            = IntFrom(97, &alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     IntModMul(&result_value, &a, &b, &m);
@@ -741,11 +740,11 @@ bool test_int_mod_div(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int a = IntFrom(10, &alloc.base);
-    Int b = IntFrom(3, &alloc.base);
-    Int m = IntFrom(13, &alloc.base);
+    Int a            = IntFrom(10, &alloc.base);
+    Int b            = IntFrom(3, &alloc.base);
+    Int m            = IntFrom(13, &alloc.base);
     Int result_value = IntInit(&alloc.base);
-    Int check = IntInit(&alloc.base);
+    Int check        = IntInit(&alloc.base);
 
     bool result = IntModDiv(&result_value, &a, &b, &m);
     result      = result && (IntToU64(&result_value) == 12);
@@ -767,8 +766,8 @@ bool test_int_pow_mod_scalar(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int base = IntFrom(7, &alloc.base);
-    Int mod = IntFrom(13, &alloc.base);
+    Int base         = IntFrom(7, &alloc.base);
+    Int mod          = IntFrom(13, &alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     IntPowMod(&result_value, &base, 20u, &mod);
@@ -787,9 +786,9 @@ bool test_int_pow_mod_integer_exponent(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int base = IntFrom(4, &alloc.base);
-    Int exp = IntFrom(13, &alloc.base);
-    Int mod = IntFrom(497, &alloc.base);
+    Int base         = IntFrom(4, &alloc.base);
+    Int exp          = IntFrom(13, &alloc.base);
+    Int mod          = IntFrom(497, &alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     IntPowMod(&result_value, &base, &exp, &mod);
@@ -809,10 +808,10 @@ bool test_int_mod_inv(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFrom(3, &alloc.base);
-    Int mod = IntFrom(11, &alloc.base);
+    Int value        = IntFrom(3, &alloc.base);
+    Int mod          = IntFrom(11, &alloc.base);
     Int result_value = IntInit(&alloc.base);
-    Int check = IntInit(&alloc.base);
+    Int check        = IntInit(&alloc.base);
 
     bool result = IntModInv(&result_value, &value, &mod);
     result      = result && (IntToU64(&result_value) == 4);
@@ -834,8 +833,8 @@ bool test_int_mod_sqrt(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
     Int value = IntFrom(10, &alloc.base);
-    Int mod = IntFrom(13, &alloc.base);
-    Int root = IntInit(&alloc.base);
+    Int mod   = IntFrom(13, &alloc.base);
+    Int root  = IntInit(&alloc.base);
     Int check = IntInit(&alloc.base);
 
     bool result = IntModSqrt(&root, &value, &mod);
@@ -856,8 +855,8 @@ bool test_int_mod_sqrt_no_solution(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
     Int value = IntFrom(3, &alloc.base);
-    Int mod = IntFrom(7, &alloc.base);
-    Int root = IntFrom(99, &alloc.base);
+    Int mod   = IntFrom(7, &alloc.base);
+    Int root  = IntFrom(99, &alloc.base);
 
     bool result = !IntModSqrt(&root, &value, &mod);
     result      = result && (IntCompare(&root, 99) == 0);
@@ -874,7 +873,7 @@ bool test_int_is_probable_prime(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int prime = IntFromStr("1000000007", &alloc.base);
+    Int prime     = IntFromStr("1000000007", &alloc.base);
     Int composite = IntFrom(561, &alloc.base);
 
     bool result = IntIsProbablePrime(&prime);
@@ -892,11 +891,11 @@ bool test_int_next_prime(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
     Int value = IntFromStr("1000000000", &alloc.base);
-    Int next = IntInit(&alloc.base);
-    Str text = StrInit(&alloc.base);
+    Int next  = IntInit(&alloc.base);
+    Str text  = StrInit(&alloc.base);
 
     bool ok = IntNextPrime(&next, &value);
-    text = IntToStr(&next);
+    text    = IntToStr(&next);
 
     bool result = ok && ZstrCompare(text.data, "1000000007") == 0;
 
@@ -912,8 +911,8 @@ bool test_int_mod_inv_no_solution(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value = IntFrom(6, &alloc.base);
-    Int mod = IntFrom(15, &alloc.base);
+    Int value        = IntFrom(6, &alloc.base);
+    Int mod          = IntFrom(15, &alloc.base);
     Int result_value = IntFrom(99, &alloc.base);
 
     bool result = !IntModInv(&result_value, &value, &mod);
@@ -931,9 +930,9 @@ bool test_int_mod_div_no_solution(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int a = IntFrom(1, &alloc.base);
-    Int b = IntFrom(6, &alloc.base);
-    Int m = IntFrom(15, &alloc.base);
+    Int a            = IntFrom(1, &alloc.base);
+    Int b            = IntFrom(6, &alloc.base);
+    Int m            = IntFrom(15, &alloc.base);
     Int result_value = IntFrom(99, &alloc.base);
 
     bool result = !IntModDiv(&result_value, &a, &b, &m);
@@ -998,10 +997,10 @@ bool test_int_root_zero_degree(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int value     = IntFrom(16, &alloc.base);
-    Int root      = IntFrom(99, &alloc.base);
-    Int remainder = IntFrom(77, &alloc.base);
-    bool result   = !IntRootRem(&root, &remainder, &value, 0);
+    Int  value     = IntFrom(16, &alloc.base);
+    Int  root      = IntFrom(99, &alloc.base);
+    Int  remainder = IntFrom(77, &alloc.base);
+    bool result    = !IntRootRem(&root, &remainder, &value, 0);
 
     result = result && (IntCompare(&root, 99) == 0);
     result = result && (IntCompare(&remainder, 77) == 0);
@@ -1094,8 +1093,8 @@ bool test_int_pow_mod_scalar_zero_modulus(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int base = IntFrom(2, &alloc.base);
-    Int mod = IntInit(&alloc.base);
+    Int base         = IntFrom(2, &alloc.base);
+    Int mod          = IntInit(&alloc.base);
     Int result_value = IntInit(&alloc.base);
 
     IntPowMod(&result_value, &base, 8u, &mod);

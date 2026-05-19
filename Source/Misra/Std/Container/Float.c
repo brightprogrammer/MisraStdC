@@ -10,11 +10,6 @@
 #include <Misra/Std/Container/Int.h>
 #include <Misra/Std/Log.h>
 
-#include <errno.h>
-#include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 static void float_normalize(Float *value);
 static void float_replace(Float *dst, Float *src);

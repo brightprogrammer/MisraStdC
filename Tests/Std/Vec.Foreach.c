@@ -2,7 +2,6 @@
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Log.h>
 
-#include <stdio.h>
 #include <Misra/Types.h> // For LVAL macro
 
 // Include test utilities

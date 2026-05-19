@@ -14,10 +14,9 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/Memory.h>
+#include <Misra/Std/File.h>
+#include <Misra/Sys.h>
 #include <Misra/Sys/MachoCache.h>
-
-#include <stdio.h>
-#include <stdlib.h> // system()
 
 #include "../Util/TestRunner.h"
 
@@ -41,11 +40,11 @@ static void wr_u64(u8 *p, u64 v) {
 }
 
 static bool write_file(const char *path, const u8 *data, u64 size) {
-    FILE *f = fopen(path, "wb");
-    if (!f)
+    File f = FileOpen(path, "wb");
+    if (!FileIsValid(&f))
         return false;
-    bool ok = fwrite(data, 1, size, f) == size;
-    fclose(f);
+    bool ok = FileWrite(&f, data, size) == (i64)size;
+    FileClose(&f);
     return ok;
 }
 
@@ -200,7 +199,7 @@ bool test_macho_cache_resolves_via_main_symtab(void) {
 
     MachoCacheDeinit(&cache);
     DefaultAllocatorDeinit(&alloc);
-    remove(bin_path);
+    FileRemove(bin_path);
     return ok;
 }
 
@@ -213,7 +212,7 @@ bool test_macho_cache_falls_through_to_dsym(void) {
     const char *dsym_path = "/tmp/misra_macho_stripped.dSYM/Contents/Resources/DWARF/misra_macho_stripped";
 
     // Make the dSYM bundle directory.
-    system("mkdir -p /tmp/misra_macho_stripped.dSYM/Contents/Resources/DWARF");
+    DirCreateAll("/tmp/misra_macho_stripped.dSYM/Contents/Resources/DWARF");
     (void)dsym_dir;
 
     // Main binary: no symbols at all (stripped).
@@ -240,9 +239,9 @@ bool test_macho_cache_falls_through_to_dsym(void) {
     DefaultAllocatorDeinit(&alloc);
 
     // Cleanup
-    remove(bin_path);
-    remove(dsym_path);
-    system("rm -rf /tmp/misra_macho_stripped.dSYM");
+    FileRemove(bin_path);
+    FileRemove(dsym_path);
+    DirRemoveAll("/tmp/misra_macho_stripped.dSYM");
     return ok;
 }
 
@@ -253,7 +252,7 @@ bool test_macho_cache_rejects_uuid_mismatch(void) {
     const char *bin_path  = "/tmp/misra_macho_uuidmiss";
     const char *dsym_path = "/tmp/misra_macho_uuidmiss.dSYM/Contents/Resources/DWARF/misra_macho_uuidmiss";
 
-    system("mkdir -p /tmp/misra_macho_uuidmiss.dSYM/Contents/Resources/DWARF");
+    DirCreateAll("/tmp/misra_macho_uuidmiss.dSYM/Contents/Resources/DWARF");
 
     u8 bad_uuid[16];
     MemCopy(bad_uuid, kUuid, 16);
@@ -274,9 +273,9 @@ bool test_macho_cache_rejects_uuid_mismatch(void) {
     MachoCacheDeinit(&cache);
     DefaultAllocatorDeinit(&alloc);
 
-    remove(bin_path);
-    remove(dsym_path);
-    system("rm -rf /tmp/misra_macho_uuidmiss.dSYM");
+    FileRemove(bin_path);
+    FileRemove(dsym_path);
+    DirRemoveAll("/tmp/misra_macho_uuidmiss.dSYM");
     return ok;
 }
 

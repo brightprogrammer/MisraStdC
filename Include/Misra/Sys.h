@@ -8,8 +8,7 @@
 #define MISRA_SYS_H
 
 #include <Misra/Std/Container/Str.h>
-#include <errno.h>
-
+#include <Misra/Sys/Errno.h>
 #include <Misra/Sys/Mutex.h>
 
 // `ProcId` is part of the foundation because `LOG_FATAL` formats it
@@ -47,31 +46,31 @@ typedef u64 ProcId;
 ///
 /// Convert the return value of a system call into an errno-style i32.
 ///
-/// On the Linux direct-syscall path the kernel returns `-errno`
-/// directly in the return register, so `SYS_ERRNO(ret)` is just
-/// `-ret`. On libc-bound platforms (macOS, Windows fallback, any
-/// older arch without direct-syscall support) the failing libc
-/// wrapper returns -1 and stores the code in the thread-local
-/// `errno`; `SYS_ERRNO(ret)` ignores the return value and reads
-/// errno.
+/// On the Linux/Darwin direct-syscall path the kernel returns `-errno`
+/// directly in the return register, so `ErrnoOf(ret)` is just `-ret`.
+/// On libc-bound fallback paths the failing wrapper returns -1 and
+/// stores the code in the thread-local `errno`; `ErrnoOf(ret)` ignores
+/// the return value and reads errno.
 ///
 /// Use this everywhere you'd previously have read `errno` after a
-/// system call. Lets `LOG_SYS_ERROR(SYS_ERRNO(ret), "...")` work
-/// uniformly across platforms and -- critically -- drops the
-/// `__errno_location` reference from Linux binaries that don't
-/// otherwise need libc errno.
+/// system call. Lets `LOG_SYS_ERROR(ErrnoOf(ret), "...")` work
+/// uniformly across platforms and -- critically -- avoids touching
+/// `__errno_location` on the direct-syscall path.
 ///
 /// USAGE:
-///   pid_t pid = fork();
+///   long pid = misra_sys0(MISRA_SYS_fork);
 ///   if (pid < 0) {
-///       LOG_SYS_ERROR(SYS_ERRNO(pid), "fork failed");
+///       LOG_SYS_ERROR(ErrnoOf(pid), "fork failed");
 ///   }
 ///
+static inline i32 ErrnoOf(long ret) {
 #if FEATURE_DIRECT_SYSCALL
-#    define SYS_ERRNO(ret) ((i32)(-(long)(ret)))
+    return (i32)(-ret);
 #else
-#    define SYS_ERRNO(ret) ((void)(ret), (i32)errno)
+    (void)ret;
+    return Errno();
 #endif
+}
 
 ///
 /// Platform-independent method to get current process Id. Foundation
@@ -85,6 +84,20 @@ typedef u64 ProcId;
 /// TAGS: System, Process
 ///
 ProcId ProcGetCurrentId(void);
+
+///
+/// Read an environment variable. Direct wrapper over the OS-supplied
+/// `getenv` (libc on POSIX, `GetEnvironmentVariableA` on Windows) so
+/// that consumers don't have to pull `<stdlib.h>` for the prototype.
+///
+/// name[in] : NUL-terminated environment variable name.
+///
+/// SUCCESS : Returns a pointer to the value string (process-owned).
+/// FAILURE : Returns NULL when the variable is not set.
+///
+/// TAGS: Environment
+///
+const char *EnvGet(const char *name);
 
 ///
 /// Get last error using an error number.

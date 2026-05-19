@@ -2,7 +2,6 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 
-#include <stdio.h>
 #include <Misra/Types.h>
 
 // Include test utilities

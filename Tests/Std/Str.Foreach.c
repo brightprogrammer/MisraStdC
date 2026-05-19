@@ -3,7 +3,6 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Io.h>
-#include <stdio.h>
 #include <Misra/Types.h> // For LVAL macro
 
 // Include test utilities

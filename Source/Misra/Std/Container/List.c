@@ -2,10 +2,9 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 
-#include <stddef.h>
 
 static inline size list_alloc_alignment(void) {
-    return _Alignof(max_align_t);
+    return MAX_ALIGN;
 }
 
 static inline GenericListNode *alloc_list_node(GenericList *list) {

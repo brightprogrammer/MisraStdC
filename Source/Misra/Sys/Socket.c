@@ -24,8 +24,6 @@
 #include <Misra/Std.h>
 #include <Misra/Std/Log.h>
 
-#include <stdint.h>
-
 #ifdef _WIN32
 // Order matters: winsock2.h must come before windows.h. Defining the
 // guard suppresses the legacy winsock.h that windows.h would otherwise
@@ -84,7 +82,6 @@ static bool ensure_winsock(void) {
 #else // !_WIN32 (POSIX)
 
 #    include <arpa/inet.h>
-#    include <errno.h>
 #    include <fcntl.h>
 #    include <netinet/in.h>
 #    include <netinet/tcp.h>
@@ -106,35 +103,28 @@ static inline long misra_sock_socket(int domain, int type, int protocol) {
     return misra_sys3(MISRA_SYS_socket, (long)domain, (long)type, (long)protocol);
 }
 static inline long misra_sock_bind(int fd, const void *addr, unsigned addrlen) {
-    return misra_sys3(MISRA_SYS_bind, (long)fd, (long)(uintptr_t)addr, (long)addrlen);
+    return misra_sys3(MISRA_SYS_bind, (long)fd, (long)(u64)addr, (long)addrlen);
 }
 static inline long misra_sock_connect(int fd, const void *addr, unsigned addrlen) {
-    return misra_sys3(MISRA_SYS_connect, (long)fd, (long)(uintptr_t)addr, (long)addrlen);
+    return misra_sys3(MISRA_SYS_connect, (long)fd, (long)(u64)addr, (long)addrlen);
 }
 static inline long misra_sock_listen(int fd, int backlog) {
     return misra_sys2(MISRA_SYS_listen, (long)fd, (long)backlog);
 }
 static inline long misra_sock_accept(int fd, void *addr, void *addrlen) {
-    return misra_sys3(MISRA_SYS_accept, (long)fd, (long)(uintptr_t)addr, (long)(uintptr_t)addrlen);
+    return misra_sys3(MISRA_SYS_accept, (long)fd, (long)(u64)addr, (long)(u64)addrlen);
 }
 static inline long misra_sock_recv(int fd, void *buf, unsigned long n, int flags) {
-    return misra_sys6(MISRA_SYS_recvfrom, (long)fd, (long)(uintptr_t)buf, (long)n, (long)flags, 0, 0);
+    return misra_sys6(MISRA_SYS_recvfrom, (long)fd, (long)(u64)buf, (long)n, (long)flags, 0, 0);
 }
 static inline long misra_sock_send(int fd, const void *buf, unsigned long n, int flags) {
-    return misra_sys6(MISRA_SYS_sendto, (long)fd, (long)(uintptr_t)buf, (long)n, (long)flags, 0, 0);
+    return misra_sys6(MISRA_SYS_sendto, (long)fd, (long)(u64)buf, (long)n, (long)flags, 0, 0);
 }
 static inline long misra_sock_setsockopt(int fd, int level, int optname, const void *optval, unsigned optlen) {
-    return misra_sys5(
-        MISRA_SYS_setsockopt,
-        (long)fd,
-        (long)level,
-        (long)optname,
-        (long)(uintptr_t)optval,
-        (long)optlen
-    );
+    return misra_sys5(MISRA_SYS_setsockopt, (long)fd, (long)level, (long)optname, (long)(u64)optval, (long)optlen);
 }
 static inline long misra_sock_getsockname(int fd, void *addr, void *addrlen) {
-    return misra_sys3(MISRA_SYS_getsockname, (long)fd, (long)(uintptr_t)addr, (long)(uintptr_t)addrlen);
+    return misra_sys3(MISRA_SYS_getsockname, (long)fd, (long)(u64)addr, (long)(u64)addrlen);
 }
 static inline long misra_sock_close(int fd) {
     return misra_sys1(MISRA_SYS_close, (long)fd);
@@ -145,7 +135,7 @@ static inline long misra_sock_fcntl(int fd, int cmd, long arg) {
 static inline long misra_sock_poll(void *pfds, unsigned long nfds, int timeout_ms) {
 #        if defined(__APPLE__) || defined(__x86_64__)
     // Darwin has SYS_poll (#230); Linux x86_64 has SYS_poll (#7). Same shape.
-    return misra_sys3(MISRA_SYS_poll, (long)(uintptr_t)pfds, (long)nfds, (long)timeout_ms);
+    return misra_sys3(MISRA_SYS_poll, (long)(u64)pfds, (long)nfds, (long)timeout_ms);
 #        else
     // Linux aarch64 dropped poll for ppoll(fds, nfds, ts, sigmask, sizeof(sigmask)).
     struct {
@@ -158,7 +148,7 @@ static inline long misra_sock_poll(void *pfds, unsigned long nfds, int timeout_m
         ts.nsec = (long)(timeout_ms % 1000) * 1000000L;
         ts_ptr  = &ts;
     }
-    return misra_sys5(MISRA_SYS_ppoll, (long)(uintptr_t)pfds, (long)nfds, (long)(uintptr_t)ts_ptr, 0, 0);
+    return misra_sys5(MISRA_SYS_ppoll, (long)(u64)pfds, (long)nfds, (long)(u64)ts_ptr, 0, 0);
 #        endif
 }
 
@@ -186,8 +176,8 @@ static inline SockFd int_to_sf(int s) {
 
 // POSIX: ret is the failing syscall's return value. On Linux direct-
 // syscall it carries -errno directly; on libSystem (macOS) the value
-// is -1 and errno is set. SYS_ERRNO papers over the difference.
-#    define LOG_SOCK_ERROR(ret, msg) LOG_SYS_ERROR(SYS_ERRNO(ret), msg)
+// is -1 and errno is set. ErrnoOf papers over the difference.
+#    define LOG_SOCK_ERROR(ret, msg) LOG_SYS_ERROR(ErrnoOf(ret), msg)
 #endif // _WIN32
 
 // ---------------------------------------------------------------------------
@@ -761,9 +751,9 @@ static bool plat_set_nonblocking(SockFd s, bool nonblock) {
 
 // Each wrapper captures the syscall's return value into `ret` so we
 // can hand it to LOG_SOCK_ERROR -- on the Linux direct-syscall path
-// the kernel returns -errno in that value, and SYS_ERRNO unpacks it
+// the kernel returns -errno in that value, and ErrnoOf unpacks it
 // without going through the libc errno TLS slot. On macOS / non-
-// direct-syscall the value is just -1 and SYS_ERRNO falls back to
+// direct-syscall the value is just -1 and ErrnoOf falls back to
 // reading errno; both paths land at the same log shape.
 static SockFd plat_socket(int af, int type, int proto) {
     long ret = socket(af, type, proto);
@@ -813,7 +803,7 @@ static bool plat_connect(SockFd s, const void *addr, u32 len) {
 }
 
 static i64 plat_recv(SockFd s, void *buf, size n) {
-    long ret = recv(sf_to_int(s), buf, (size_t)n, 0);
+    long ret = recv(sf_to_int(s), buf, (size)n, 0);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "recv() failed");
         return -1;
@@ -822,7 +812,7 @@ static i64 plat_recv(SockFd s, void *buf, size n) {
 }
 
 static i64 plat_send(SockFd s, const void *buf, size n) {
-    long ret = send(sf_to_int(s), buf, (size_t)n, MSG_NOSIGNAL);
+    long ret = send(sf_to_int(s), buf, (size)n, MSG_NOSIGNAL);
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "send() failed");
         return -1;
@@ -1173,7 +1163,7 @@ i32 SocketPoll(SocketPollItem *items, u32 count, i32 timeout_ms) {
 #    if FEATURE_DIRECT_SYSCALL
     } while (ret == -EINTR);
 #    else
-    } while (ret < 0 && errno == EINTR);
+    } while (ret < 0 && Errno() == EINTR);
 #    endif
     if (ret < 0) {
         LOG_SOCK_ERROR(ret, "poll() failed");

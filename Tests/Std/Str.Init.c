@@ -2,8 +2,6 @@
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
-#include <stdio.h>
-#include <string.h>
 #include <Misra/Types.h>
 
 // Include test utilities
@@ -235,8 +233,8 @@ bool test_str_clone_inherits_allocator_config(void) {
 
     Str src = StrInitFromCstr("Hello, World!", ZstrLen("Hello, World!"), &alloc);
 
-    Str dup = StrInitFromStr(&src, &alloc);
-    Str dst = StrInit(&alloc);
+    Str  dup    = StrInitFromStr(&src, &alloc);
+    Str  dst    = StrInit(&alloc);
     bool copied = StrInitCopy(&dst, &src);
 
     ValidateStr(&src);
@@ -246,14 +244,9 @@ bool test_str_clone_inherits_allocator_config(void) {
     bool dup_allocator_matches = (dup.allocator == src.allocator);
     bool dst_allocator_matches = copied && (dst.allocator == src.allocator);
 
-    bool result =
-        copied &&
-        dup.length == src.length &&
-        dst.length == src.length &&
-        ZstrCompare(dup.data, src.data) == 0 &&
-        ZstrCompare(dst.data, src.data) == 0 &&
-        dup_allocator_matches &&
-        dst_allocator_matches;
+    bool result = copied && dup.length == src.length && dst.length == src.length &&
+                  ZstrCompare(dup.data, src.data) == 0 && ZstrCompare(dst.data, src.data) == 0 &&
+                  dup_allocator_matches && dst_allocator_matches;
 
     StrDeinit(&src);
     StrDeinit(&dup);

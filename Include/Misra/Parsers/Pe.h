@@ -123,9 +123,23 @@ typedef struct PeFile {
 /// TAGS: Parser, PE, File
 ///
 bool pe_file_open(PeFile *out, const char *path, Allocator *alloc);
-#define PeFileOpen(...)                MISRA_OVERLOAD(PeFileOpen, __VA_ARGS__)
-#define PeFileOpen_2(out, path)        pe_file_open((out), (path), MisraScope)
-#define PeFileOpen_3(out, path, alloc) pe_file_open((out), (path), ALLOCATOR_OF(alloc))
+#define PeFileOpen(...) MISRA_OVERLOAD(PeFileOpen, __VA_ARGS__)
+#define PeFileOpen_2(out, path)                                                                                        \
+    _Generic(                                                                                                          \
+        (path),                                                                                                        \
+        Str *: pe_file_open((out), ((Str *)(path))->data, MisraScope),                                                 \
+        const Str *: pe_file_open((out), ((const Str *)(path))->data, MisraScope),                                     \
+        char *: pe_file_open((out), (const char *)(path), MisraScope),                                                 \
+        const char *: pe_file_open((out), (const char *)(path), MisraScope)                                            \
+    )
+#define PeFileOpen_3(out, path, alloc)                                                                                 \
+    _Generic(                                                                                                          \
+        (path),                                                                                                        \
+        Str *: pe_file_open((out), ((Str *)(path))->data, ALLOCATOR_OF(alloc)),                                        \
+        const Str *: pe_file_open((out), ((const Str *)(path))->data, ALLOCATOR_OF(alloc)),                            \
+        char *: pe_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc)),                                        \
+        const char *: pe_file_open((out), (const char *)(path), ALLOCATOR_OF(alloc))                                   \
+    )
 
 ///
 /// Parse a PE image from an in-memory byte range. The `data` buffer
@@ -139,9 +153,10 @@ bool pe_file_open(PeFile *out, const char *path, Allocator *alloc);
 /// TAGS: Parser, PE, Memory
 ///
 bool pe_file_open_from_memory(PeFile *out, u8 *data, size data_size, Allocator *alloc);
-#define PeFileOpenFromMemory(...)                          MISRA_OVERLOAD(PeFileOpenFromMemory, __VA_ARGS__)
-#define PeFileOpenFromMemory_3(out, data, data_size)        pe_file_open_from_memory((out), (data), (data_size), MisraScope)
-#define PeFileOpenFromMemory_4(out, data, data_size, alloc) pe_file_open_from_memory((out), (data), (data_size), ALLOCATOR_OF(alloc))
+#define PeFileOpenFromMemory(...)                    MISRA_OVERLOAD(PeFileOpenFromMemory, __VA_ARGS__)
+#define PeFileOpenFromMemory_3(out, data, data_size) pe_file_open_from_memory((out), (data), (data_size), MisraScope)
+#define PeFileOpenFromMemory_4(out, data, data_size, alloc)                                                            \
+    pe_file_open_from_memory((out), (data), (data_size), ALLOCATOR_OF(alloc))
 
 ///
 /// Release storage owned by a `PeFile`. Frees the byte buffer if

@@ -9,7 +9,6 @@
 #include <Misra/Std/Container/Int/Private.h>
 #include <Misra/Std/Container/BitVec.h>
 #include <Misra/Std/Log.h>
-#include <string.h>
 
 typedef struct {
     bool negative;

@@ -164,7 +164,7 @@ static void page_unmap(void *ptr, size bytes) {
     (void)bytes;
     VirtualFree(ptr, 0, MEM_RELEASE);
 #elif FEATURE_DIRECT_SYSCALL
-    (void)misra_sys2(MISRA_SYS_munmap, (long)(uintptr_t)ptr, (long)bytes);
+    (void)misra_sys2(MISRA_SYS_munmap, (long)(u64)ptr, (long)bytes);
 #else
     munmap(ptr, (size_t)bytes);
 #endif
@@ -391,7 +391,7 @@ bool PageProtect(void *ptr, size bytes, PageProtection prot) {
             return false;
     }
 #    if FEATURE_DIRECT_SYSCALL
-    long ret = misra_sys3(MISRA_SYS_mprotect, (long)(uintptr_t)ptr, (long)bytes, (long)posix_prot);
+    long ret = misra_sys3(MISRA_SYS_mprotect, (long)(u64)ptr, (long)bytes, (long)posix_prot);
     if (ret != 0) {
         LOG_ERROR("PageProtect: mprotect failed (errno {})", (i32)-ret);
         return false;
@@ -399,8 +399,8 @@ bool PageProtect(void *ptr, size bytes, PageProtection prot) {
 #    else
     if (mprotect(ptr, (size_t)bytes, posix_prot) != 0) {
         // libc path (macOS / non-direct-syscall): mprotect returns -1
-        // and sets errno; SYS_ERRNO falls through to reading it here.
-        LOG_SYS_ERROR(SYS_ERRNO(-1), "PageProtect: mprotect failed");
+        // and sets errno; ErrnoOf falls through to reading it here.
+        LOG_SYS_ERROR(ErrnoOf(-1), "PageProtect: mprotect failed");
         return false;
     }
 #    endif

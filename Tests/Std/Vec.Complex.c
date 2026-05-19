@@ -1,31 +1,38 @@
 #include <Misra/Std/Allocator/Default.h>
+#include <Misra/Std/Allocator/Heap.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Log.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <Misra/Types.h> // For LVAL macro
 
 // Include test utilities
 #include "../Util/TestRunner.h"
 
-// Local libc-backed string-dup helper so fixture-owned strings can be
-// libc-`free`d directly. We intentionally do not use `ZstrDup` here because
-// since Stage 3 it routes through the library's non-libc heap.
-static char *libc_strdup(const char *src) {
-    if (!src) {
-        return NULL;
+// File-scoped HeapAllocator backing every fixture-owned `name` / `values`
+// allocation. The fixture predates Stage 3 (when ZstrDup routed through
+// libc); now ZstrDup lives on the library heap, so we have nothing to
+// dogfood against -- a project-side HeapAllocator is the natural choice
+// for the fixture's lifetime-tracked buffers. Initialised on first use,
+// released by the test runner via the OS at process exit.
+static HeapAllocator g_fixture_heap;
+static bool          g_fixture_heap_ready = false;
+
+static Allocator *fixture_alloc(void) {
+    if (!g_fixture_heap_ready) {
+        g_fixture_heap       = HeapAllocatorInit();
+        g_fixture_heap_ready = true;
     }
-    size  len = ZstrLen(src);
-    char *out = (char *)malloc(len + 1);
-    if (!out) {
-        return NULL;
-    }
-    MemCopy(out, src, len);
-    out[len] = '\0';
-    return out;
+    return ALLOCATOR_OF(&g_fixture_heap);
 }
+
+#define fixture_malloc(n) AllocatorAlloc(fixture_alloc(), (n), false)
+#define fixture_free(p)   AllocatorFree(fixture_alloc(), (p))
+
+static inline char *ZstrDupAlloc(const char *s) {
+    return zstr_dup(s, fixture_alloc());
+}
+
 
 // Define a complex structure with nested pointers
 typedef struct {
@@ -42,7 +49,7 @@ bool ComplexItemCopyInit(ComplexItem *dst, ComplexItem *src) {
     // Copy name
     if (src->name) {
         size name_len = ZstrLen(src->name);
-        dst->name     = malloc(name_len + 1);
+        dst->name     = fixture_malloc(name_len + 1);
         if (!dst->name)
             return false;
         MemCopy(dst->name, src->name, name_len + 1);
@@ -53,9 +60,9 @@ bool ComplexItemCopyInit(ComplexItem *dst, ComplexItem *src) {
     // Copy values array
     dst->num_values = src->num_values;
     if (src->values && src->num_values > 0) {
-        dst->values = malloc(src->num_values * sizeof(int));
+        dst->values = fixture_malloc(src->num_values * sizeof(int));
         if (!dst->values) {
-            free(dst->name);
+            fixture_free(dst->name);
             dst->name = NULL;
             return false;
         }
@@ -74,13 +81,13 @@ void ComplexItemDeinit(ComplexItem *item) {
 
     // Free name
     if (item->name) {
-        free(item->name);
+        fixture_free(item->name);
         item->name = NULL;
     }
 
     // Free values array
     if (item->values) {
-        free(item->values);
+        fixture_free(item->values);
         item->values = NULL;
     }
 
@@ -98,7 +105,7 @@ ComplexItem CreateComplexItem(const char *name, int *values, size num_values) {
 
     if (name) {
         size name_len = ZstrLen(name);
-        item.name     = (char *)malloc(name_len + 1);
+        item.name     = (char *)fixture_malloc(name_len + 1);
         if (item.name) {
             MemCopy(item.name, name, name_len);
             item.name[name_len] = '\0';
@@ -106,7 +113,7 @@ ComplexItem CreateComplexItem(const char *name, int *values, size num_values) {
     }
 
     if (values && num_values > 0) {
-        item.values = (int *)malloc(num_values * sizeof(int));
+        item.values = (int *)fixture_malloc(num_values * sizeof(int));
         if (item.values) {
             MemCopy(item.values, values, num_values * sizeof(int));
             item.num_values = num_values;
@@ -190,8 +197,8 @@ bool test_complex_vec_init(void) {
     result = result && ComplexItemsEqual(&VecAt(&vec, 0), &item);
 
     // Modify the original item and verify the vector's copy is independent
-    free(item.name);
-    item.name      = libc_strdup("Modified");
+    fixture_free(item.name);
+    item.name      = ZstrDupAlloc("Modified");
     item.values[0] = 99;
 
     // The vector's copy should still have the original values
@@ -688,7 +695,7 @@ bool test_lvalue_memset_insert(void) {
 
     // First, create a dummy item and add it to the vector
     ComplexItem dummy = {0};
-    dummy.name        = libc_strdup("Dummy");
+    dummy.name        = ZstrDupAlloc("Dummy");
     dummy.values      = NULL;
     dummy.num_values  = 0;
 
@@ -723,13 +730,13 @@ bool test_lvalue_memset_fast_insert(void) {
 
     // Create several dummy items to populate the vector
     ComplexItem dummy1 = {0};
-    dummy1.name        = libc_strdup("Dummy1");
+    dummy1.name        = ZstrDupAlloc("Dummy1");
 
     ComplexItem dummy2 = {0};
-    dummy2.name        = libc_strdup("Dummy2");
+    dummy2.name        = ZstrDupAlloc("Dummy2");
 
     ComplexItem dummy3 = {0};
-    dummy3.name        = libc_strdup("Dummy3");
+    dummy3.name        = ZstrDupAlloc("Dummy3");
 
     // Add the dummy items using L-value semantics
     VecPushBackL(&vec, dummy1);
@@ -789,7 +796,7 @@ bool test_lvalue_memset_pushfront(void) {
 
     // Add a dummy item first
     ComplexItem dummy = {0};
-    dummy.name        = libc_strdup("Dummy");
+    dummy.name        = ZstrDupAlloc("Dummy");
     VecPushBackL(&vec, dummy);
 
     // Insert with L-value semantics at the front (vector takes ownership)

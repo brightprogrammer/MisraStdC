@@ -7,9 +7,7 @@
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
-#include <stdio.h>
-#include <math.h> // For fabs()
-#include <string.h>
+#include <Misra/Std/Math.h>
 #include <Misra/Types.h>
 
 // Include test utilities
@@ -21,12 +19,12 @@
 
 // Helper function for comparing floats with epsilon
 static bool float_equals(float a, float b) {
-    return fabs(a - b) < FLOAT_EPSILON;
+    return F64Abs(a - b) < FLOAT_EPSILON;
 }
 
 // Helper function for comparing doubles with epsilon
 static bool double_equals(double a, double b) {
-    return fabs(a - b) < DOUBLE_EPSILON;
+    return F64Abs(a - b) < DOUBLE_EPSILON;
 }
 
 // Function prototypes
@@ -923,7 +921,7 @@ bool test_int_reading(void) {
     DefaultAllocator alloc      = DefaultAllocatorInit();
     Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
 
-    const char *z = NULL;
+    const char *z       = NULL;
     bool        success = true;
 
     Int dec = IntInit(alloc_base);
@@ -975,7 +973,7 @@ bool test_float_reading(void) {
     DefaultAllocator alloc      = DefaultAllocatorInit();
     Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
 
-    const char *z = NULL;
+    const char *z       = NULL;
     bool        success = true;
 
     Float dec = FloatInit(alloc_base);

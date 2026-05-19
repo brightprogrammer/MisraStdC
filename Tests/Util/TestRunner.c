@@ -7,9 +7,6 @@
 #include "TestRunner.h"
 #include <Misra/Sys.h>
 #include <Misra/Std.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <setjmp.h>
 
 // Global jump buffer for capturing aborts

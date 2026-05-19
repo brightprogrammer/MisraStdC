@@ -3,9 +3,6 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Log.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <Misra/Types.h>
 
 // Include test utilities
@@ -141,7 +138,7 @@ bool test_bitvec_from_bytes(void) {
     WriteFmt("Testing BitVecFromBytes\n");
 
     // Create byte array
-    u8     bytes[] = {0xB3}; // 10110011 in binary
+    u8     bytes[] = {0xB3};                                             // 10110011 in binary
     BitVec bv;
     bool   ok = BitVecTryFromBytes(&bv, bytes, 8, ALLOCATOR_OF(&alloc)); // 8 bits from the byte
 
@@ -272,15 +269,13 @@ bool test_bitvec_try_conversion_allocators(void) {
 
     BitVec bv;
     Str    str;
-    bool   ok =
-        BitVecTryFromStr(&bv, "101001", ALLOCATOR_OF(&alloc));
-    bool result = ok && (bv.allocator->effort == alloc.base.effort) &&
-                  (bv.allocator->retry_limit == alloc.base.retry_limit);
+    bool   ok = BitVecTryFromStr(&bv, "101001", ALLOCATOR_OF(&alloc));
+    bool   result =
+        ok && (bv.allocator->effort == alloc.base.effort) && (bv.allocator->retry_limit == alloc.base.retry_limit);
 
     ok     = BitVecTryToStr(&str, &bv);
     result = result && ok && (str.allocator->effort == alloc.base.effort) &&
-             (str.allocator->retry_limit == alloc.base.retry_limit) &&
-             (ZstrCompare(str.data, "101001") == 0);
+             (str.allocator->retry_limit == alloc.base.retry_limit) && (ZstrCompare(str.data, "101001") == 0);
 
     StrDeinit(&str);
     BitVecDeinit(&bv);
@@ -402,8 +397,8 @@ bool test_bitvec_integer_conversion_edge_cases(void) {
     result    = result && (value == 0);
 
     // Test integer to bitvec with 0
-    BitVec bv2 = BitVecFromInteger(0, 8, ALLOCATOR_OF(&alloc));     // 8 bits for zero
-    result     = result && (bv2.length == 8); // Should be 8 bits
+    BitVec bv2 = BitVecFromInteger(0, 8, ALLOCATOR_OF(&alloc)); // 8 bits for zero
+    result     = result && (bv2.length == 8);                   // Should be 8 bits
     BitVecDeinit(&bv2);
 
     // Test large integer

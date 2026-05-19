@@ -1,133 +1,106 @@
-#ifndef _WIN32
-#    define _POSIX_C_SOURCE 200809L
-#endif
-
 #include <Misra/Std/Allocator/Default.h>
-#include <Misra/Std/Zstr.h>
+#include <Misra/Std/Container/Str.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <Misra/Std/Zstr.h>
+#include <Misra/Sys/Dir.h>
 
 #include "../Util/TestRunner.h"
 
-// `mkstemp` is POSIX-only. On Windows MSVC the equivalent is `_mktemp_s` plus
-// a normal `fopen`. Wrap both behind a tiny shim so the rest of the file can
-// stay portable.
 #ifdef _WIN32
-#    include <io.h>
-static FILE *open_unique_temp_file(char *path_template_inout) {
-    if (_mktemp_s(path_template_inout, strlen(path_template_inout) + 1) != 0) {
-        return NULL;
-    }
-    return fopen(path_template_inout, "wb");
-}
+#    define FILE_TEST_PREFIX      "misra-file-test-"
+#    define FILE_TEST_GROW_PREFIX "misra-file-grow-test-"
 #else
-#    include <unistd.h>
-static FILE *open_unique_temp_file(char *path_template_inout) {
-    int fd = mkstemp(path_template_inout);
-    if (fd < 0) {
-        return NULL;
-    }
-    FILE *stream = fdopen(fd, "wb");
-    if (!stream) {
-        close(fd);
-        remove(path_template_inout);
-    }
-    return stream;
-}
+#    define FILE_TEST_PREFIX      "/tmp/misra-file-test-"
+#    define FILE_TEST_GROW_PREFIX "/tmp/misra-file-grow-test-"
 #endif
 
-static bool write_test_file(char *path, const char *text) {
-    FILE *stream  = open_unique_temp_file(path);
-    bool  success = false;
-
-    if (!stream) {
+// Writes `text` into a freshly-created unique temp file (FileOpenTemp
+// = atomic O_CREAT|O_EXCL + internal-PRNG suffix). `out_path` is the
+// caller's Str; on success it holds the resolved path so the caller
+// can read it back and remove it.
+static bool write_test_file(const char *prefix, const char *text, Str *out_path, Allocator *alloc) {
+    File f = FileOpenTemp(prefix, out_path, alloc);
+    if (!FileIsValid(&f)) {
         return false;
     }
-
-    success = fwrite(text, 1, ZstrLen(text), stream) == ZstrLen(text);
-    fclose(stream);
-
-    if (!success) {
-        remove(path);
+    size n       = ZstrLen(text);
+    i64  written = FileWrite(&f, text, (u64)n);
+    bool ok      = (written == (i64)n);
+    FileClose(&f);
+    if (!ok) {
+        FileRemove(out_path);
+        StrDeinit(out_path);
     }
-
-    return success;
+    return ok;
 }
 
-// The POSIX form uses /tmp/... ; on Windows tests run from the build dir and
-// the relative path lands in the build dir's filesystem - good enough for a
-// scratch file.
-#ifdef _WIN32
-#    define FILE_TEST_PATH_DEFAULT "misra-file-test-XXXXXX"
-#    define FILE_TEST_PATH_GROW    "misra-file-grow-test-XXXXXX"
-#else
-#    define FILE_TEST_PATH_DEFAULT "/tmp/misra-file-test-XXXXXX"
-#    define FILE_TEST_PATH_GROW    "/tmp/misra-file-grow-test-XXXXXX"
-#endif
-
-bool test_read_complete_file_default_allocator(void) {
-    char  path[]    = FILE_TEST_PATH_DEFAULT;
-    char *buffer    = NULL;
-    u64   file_size = 0;
-    u64   capacity  = 0;
-    bool  result    = false;
-
-    WriteFmt("Testing ReadCompleteFile with default allocator\n");
+bool test_file_read_into_str(void) {
+    WriteFmt("Testing FileRead into Str (whole-file load)\n");
 
     DefaultAllocator alloc      = DefaultAllocatorInit();
     Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
 
-    if (!write_test_file(path, "hello from file")) {
+    Str path;
+    if (!write_test_file(FILE_TEST_PREFIX, "hello from file", &path, alloc_base)) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
 
-    result = ReadCompleteFile(path, &buffer, &file_size, &capacity, alloc_base) &&
-             file_size == (u64)ZstrLen("hello from file") && ZstrCompare(buffer, "hello from file") == 0 &&
-             capacity >= file_size + 1;
+    File f = FileOpen(&path, "rb");
+    if (!FileIsValid(&f)) {
+        FileRemove(&path);
+        StrDeinit(&path);
+        DefaultAllocatorDeinit(&alloc);
+        return false;
+    }
 
-    AllocatorFree(alloc_base, buffer);
-    remove(path);
+    Str body = StrInit(alloc_base);
+    i64 got  = FileRead(&f, &body);
+    FileClose(&f);
+
+    bool result = (got == (i64)ZstrLen("hello from file")) && (body.length == (size)ZstrLen("hello from file")) &&
+                  ZstrCompare(body.data, "hello from file") == 0;
+
+    StrDeinit(&body);
+    FileRemove(&path);
+    StrDeinit(&path);
     DefaultAllocatorDeinit(&alloc);
     return result;
 }
 
-bool test_read_complete_file_expands_existing_buffer(void) {
-    char  path[]    = FILE_TEST_PATH_GROW;
-    char *buffer    = NULL;
-    u64   file_size = 0;
-    u64   capacity  = 0;
-    bool  result    = false;
+bool test_file_read_grows_str(void) {
+    WriteFmt("Testing FileRead grows the Str backing buffer\n");
 
     DefaultAllocator alloc      = DefaultAllocatorInit();
     Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
 
-    WriteFmt("Testing ReadCompleteFile with existing buffer allocator\n");
-
-    if (!write_test_file(path, "this is longer than the initial buffer")) {
+    Str path;
+    if (!write_test_file(FILE_TEST_GROW_PREFIX, "this is longer than the initial buffer", &path, alloc_base)) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
 
-    buffer = (char *)AllocatorAlloc(alloc_base, 4, true);
-    if (!buffer) {
-        remove(path);
+    File f = FileOpen(&path, "rb");
+    if (!FileIsValid(&f)) {
+        FileRemove(&path);
+        StrDeinit(&path);
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
-    capacity = 4;
 
-    result = ReadCompleteFile(path, &buffer, &file_size, &capacity, alloc_base) &&
-             file_size == (u64)ZstrLen("this is longer than the initial buffer") &&
-             ZstrCompare(buffer, "this is longer than the initial buffer") == 0 && capacity >= file_size + 1;
+    Str body = StrInit(alloc_base);
+    i64 got  = FileRead(&f, &body);
+    FileClose(&f);
 
-    AllocatorFree(alloc_base, buffer);
-    remove(path);
+    const char *expected = "this is longer than the initial buffer";
+    bool        result   = (got == (i64)ZstrLen(expected)) && (body.length == (size)ZstrLen(expected)) &&
+                  ZstrCompare(body.data, expected) == 0 && body.capacity >= body.length + 1;
+
+    StrDeinit(&body);
+    FileRemove(&path);
+    StrDeinit(&path);
     DefaultAllocatorDeinit(&alloc);
     return result;
 }
@@ -136,8 +109,8 @@ int main(void) {
     WriteFmt("[INFO] Starting File tests\n\n");
 
     TestFunction tests[] = {
-        test_read_complete_file_default_allocator,
-        test_read_complete_file_expands_existing_buffer,
+        test_file_read_into_str,
+        test_file_read_grows_str,
     };
 
     return run_test_suite(tests, sizeof(tests) / sizeof(tests[0]), NULL, 0, "File");

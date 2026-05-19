@@ -525,21 +525,29 @@ bool pe_file_open(PeFile *out, const char *path, Allocator *alloc) {
         LOG_ERROR("PeFileOpen: NULL argument");
         return false;
     }
-    char *buf      = NULL;
-    u64   bytes    = 0;
-    u64   capacity = 0;
-    if (!ReadCompleteFile(path, &buf, &bytes, &capacity, alloc)) {
+    File f = FileOpen(path, "rb");
+    if (!FileIsValid(&f)) {
+        LOG_ERROR("PeFileOpen: failed to open {}", path);
+        return false;
+    }
+    Str data = StrInit(alloc);
+    i64 got  = FileRead(&f, &data);
+    FileClose(&f);
+    if (got < 0) {
+        StrDeinit(&data);
         LOG_ERROR("PeFileOpen: failed to read {}", path);
         return false;
     }
-    if (!PeFileOpenFromMemory(out, (u8 *)buf, (size)bytes, alloc)) {
-        AllocatorFree(alloc, buf);
+    if (!PeFileOpenFromMemory(out, (u8 *)data.data, data.length, alloc)) {
+        StrDeinit(&data);
         return false;
     }
     out->owns_data = true;
-    out->data      = (u8 *)buf;
-    out->data_size = (size)bytes;
-    (void)capacity;
+    out->data      = (u8 *)data.data;
+    out->data_size = data.length;
+    data.data      = NULL;
+    data.length    = 0;
+    data.capacity  = 0;
     return true;
 }
 

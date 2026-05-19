@@ -1,8 +1,6 @@
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
-#include <stdio.h>
-#include <string.h>
 #include <Misra/Types.h>
 
 // Include test utilities
@@ -175,9 +173,15 @@ int main(void) {
     WriteFmt("[INFO] Starting Str.Access tests\n\n");
 
     // Array of test functions
-    TestFunction tests[] =
-        {test_str_len_empty, test_str_first, test_str_last, test_str_begin, test_str_end, test_str_char_at,
-         test_str_char_ptr_at};
+    TestFunction tests[] = {
+        test_str_len_empty,
+        test_str_first,
+        test_str_last,
+        test_str_begin,
+        test_str_end,
+        test_str_char_at,
+        test_str_char_ptr_at
+    };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 

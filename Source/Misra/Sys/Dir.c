@@ -24,9 +24,6 @@
 
 #include "../_Syscall.h"
 
-#include <stdint.h>
-
-
 const char *DirEntryTypeToZstr(DirEntryType type) {
     switch (type) {
         case SYS_DIR_ENTRY_TYPE_UNKNOWN :
@@ -213,11 +210,10 @@ DirContents dir_get_contents(const char *path, Allocator *alloc) {
     // also has SYS_open (the legacy BSD numbering is intact on Apple
     // even on Apple Silicon). Linux-x86_64 has SYS_open. Linux-aarch64
     // does NOT (was removed; openat-only).
-    long fd = misra_sys3(MISRA_SYS_open, (long)(uintptr_t)path, O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0);
+    long fd = misra_sys3(MISRA_SYS_open, (long)(u64)path, O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0);
 #    else
     // Linux-aarch64: openat(AT_FDCWD=-100, path, flags, mode).
-    long fd =
-        misra_sys4(MISRA_SYS_openat, -100L, (long)(uintptr_t)path, O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0);
+    long fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(u64)path, O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0);
 #    endif
     if (fd < 0) {
         LOG_ERROR("DirGetContents: open(\"{}\") failed (errno {})", path, (i32)-fd);
@@ -232,15 +228,9 @@ DirContents dir_get_contents(const char *path, Allocator *alloc) {
 #    endif
     for (;;) {
 #    if defined(__APPLE__)
-        long n = misra_sys4(
-            MISRA_SYS_getdents64,
-            fd,
-            (long)(uintptr_t)buf,
-            (long)sizeof(buf),
-            (long)(uintptr_t)&basep
-        );
+        long n = misra_sys4(MISRA_SYS_getdents64, fd, (long)(u64)buf, (long)sizeof(buf), (long)(u64)&basep);
 #    else
-        long n = misra_sys3(MISRA_SYS_getdents64, fd, (long)(uintptr_t)buf, (long)sizeof(buf));
+        long n = misra_sys3(MISRA_SYS_getdents64, fd, (long)(u64)buf, (long)sizeof(buf));
 #    endif
         if (n == 0) {
             break; // end of stream
@@ -288,9 +278,9 @@ DirContents dir_get_contents(const char *path, Allocator *alloc) {
     DIR *dir = opendir(path);
     if (NULL == dir) {
         // macOS-only path -- opendir is libc and sets errno on failure.
-        // SYS_ERRNO routes to errno here since FEATURE_DIRECT_SYSCALL
+        // ErrnoOf routes to errno here since FEATURE_DIRECT_SYSCALL
         // is off on macOS.
-        LOG_SYS_ERROR(SYS_ERRNO(-1), "opendir(\"{}\") failed", path);
+        LOG_SYS_ERROR(ErrnoOf(-1), "opendir(\"{}\") failed", path);
         return dc;
     }
 
@@ -343,7 +333,7 @@ DirContents dir_get_contents(const char *path, Allocator *alloc) {
 #endif
 
 // Cross-platform function to get file size
-i64 FileGetSize(const char *filename) {
+i64 file_get_size(const char *filename) {
 #ifdef _WIN32
     // Windows-specific code using GetFileSizeEx
     HANDLE file = CreateFileA(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
@@ -366,7 +356,7 @@ i64 FileGetSize(const char *filename) {
     // Open + lseek(SEEK_END) + close. Avoids needing the kernel's
     // arch-specific `struct stat` layout: lseek returns the offset
     // value the kernel computes, which equals file size at SEEK_END.
-    const long O_RDONLY  = 0;
+    const long O_RDONLY = 0;
 #    if defined(__APPLE__)
     const long O_CLOEXEC = 0x1000000;
 #    else
@@ -374,9 +364,9 @@ i64 FileGetSize(const char *filename) {
 #    endif
     const long SEEK_END_ = 2;
 #    if defined(__APPLE__) || defined(__x86_64__)
-    long fd = misra_sys3(MISRA_SYS_open, (long)(uintptr_t)filename, O_RDONLY | O_CLOEXEC, 0);
+    long fd = misra_sys3(MISRA_SYS_open, (long)(u64)filename, O_RDONLY | O_CLOEXEC, 0);
 #    else
-    long fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(uintptr_t)filename, O_RDONLY | O_CLOEXEC, 0);
+    long fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(u64)filename, O_RDONLY | O_CLOEXEC, 0);
 #    endif
     if (fd < 0) {
         LOG_ERROR("FileGetSize: open(\"{}\") failed (errno {})", filename, (i32)-fd);
@@ -391,13 +381,13 @@ i64 FileGetSize(const char *filename) {
     return (i64)sz;
 #else
     // Unix-like systems (Linux/macOS) code using stat. Only reached
-    // when FEATURE_DIRECT_SYSCALL is off (i.e., macOS); SYS_ERRNO
+    // when FEATURE_DIRECT_SYSCALL is off (i.e., macOS); ErrnoOf
     // collapses to reading errno on that path.
     struct stat file_stat;
     if (stat(filename, &file_stat) == 0) {
         return (i64)file_stat.st_size;
     } else {
-        LOG_SYS_ERROR(SYS_ERRNO(-1), "stat() failed");
+        LOG_SYS_ERROR(ErrnoOf(-1), "stat() failed");
         return -1;
     }
 #endif
@@ -411,7 +401,7 @@ i64 FileGetSize(const char *filename) {
 // `DeleteFileA` / `RemoveDirectoryA`.
 // ---------------------------------------------------------------------------
 
-i8 FileRemove(const char *path) {
+i8 file_remove(const char *path) {
     if (!path) {
         LOG_ERROR("FileRemove: NULL path");
         return 0;
@@ -426,29 +416,22 @@ i8 FileRemove(const char *path) {
 #    if defined(__APPLE__) || defined(__x86_64__)
     // Darwin has SYS_unlink (#10, BSD) on both x86_64 and aarch64.
     // Linux x86_64 also has SYS_unlink. Linux aarch64 doesn't.
-    long ret = misra_sys1(MISRA_SYS_unlink, (long)(uintptr_t)path);
+    long ret = misra_sys1(MISRA_SYS_unlink, (long)(u64)path);
 #    else
     // Linux aarch64: AT_FDCWD = -100, flags = 0 (regular unlink).
-    long ret = misra_sys3(MISRA_SYS_unlinkat, -100L, (long)(uintptr_t)path, 0);
+    long ret = misra_sys3(MISRA_SYS_unlinkat, -100L, (long)(u64)path, 0);
 #    endif
     if (ret < 0) {
-        LOG_SYS_ERROR(SYS_ERRNO(ret), "FileRemove(\"{}\")", path);
+        LOG_SYS_ERROR(ErrnoOf(ret), "FileRemove(\"{}\")", path);
         return 0;
     }
     return 1;
 #else
-    // macOS / non-direct-syscall: libSystem unlink. errno set on
-    // failure; SYS_ERRNO falls back to reading it.
-    extern int unlink(const char *);
-    if (unlink(path) != 0) {
-        LOG_SYS_ERROR(SYS_ERRNO(-1), "FileRemove(\"{}\")", path);
-        return 0;
-    }
-    return 1;
+#    error "FileRemove: no direct-syscall path. Add the right MISRA_SYS_unlink* number in _Syscall.h for this arch."
 #endif
 }
 
-i8 DirRemove(const char *path) {
+i8 dir_remove(const char *path) {
     if (!path) {
         LOG_ERROR("DirRemove: NULL path");
         return 0;
@@ -463,23 +446,185 @@ i8 DirRemove(const char *path) {
 #    if defined(__APPLE__) || defined(__x86_64__)
     // Darwin has SYS_rmdir (#137, BSD) on both arches. Linux x86_64
     // has SYS_rmdir; Linux aarch64 went unlinkat-only.
-    long ret = misra_sys1(MISRA_SYS_rmdir, (long)(uintptr_t)path);
+    long ret = misra_sys1(MISRA_SYS_rmdir, (long)(u64)path);
 #    else
     // Linux aarch64: AT_FDCWD = -100, AT_REMOVEDIR = 0x200.
-    long ret = misra_sys3(MISRA_SYS_unlinkat, -100L, (long)(uintptr_t)path, 0x200);
+    long ret = misra_sys3(MISRA_SYS_unlinkat, -100L, (long)(u64)path, 0x200);
 #    endif
     if (ret < 0) {
-        LOG_SYS_ERROR(SYS_ERRNO(ret), "DirRemove(\"{}\")", path);
+        LOG_SYS_ERROR(ErrnoOf(ret), "DirRemove(\"{}\")", path);
         return 0;
     }
     return 1;
 #else
-    // macOS / non-direct-syscall: libSystem rmdir.
-    extern int rmdir(const char *);
-    if (rmdir(path) != 0) {
-        LOG_SYS_ERROR(SYS_ERRNO(-1), "DirRemove(\"{}\")", path);
+#    error                                                                                                             \
+        "DirRemove: no direct-syscall path. Add MISRA_SYS_rmdir / MISRA_SYS_unlinkat numbers in _Syscall.h for this arch."
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// DirCreate / DirCreateAll / DirRemoveAll. Linux x86_64 has SYS_mkdir;
+// aarch64 dropped it -- use SYS_mkdirat with AT_FDCWD. Darwin keeps
+// SYS_mkdir (#136, BSD) on both arches. Windows uses CreateDirectoryA.
+// ---------------------------------------------------------------------------
+
+// 0755 is the POSIX-conventional permission for newly-created
+// directories: owner rwx, group rx, world rx. Subject to the process
+// umask, which the kernel applies after we pass `mode`.
+#define DIR_CREATE_MODE 0755
+
+i8 dir_create(const char *path) {
+    if (!path) {
+        LOG_ERROR("DirCreate: NULL path");
+        return 0;
+    }
+#if defined(_WIN32)
+    if (!CreateDirectoryA(path, NULL)) {
+        LOG_ERROR("DirCreate(\"{}\"): CreateDirectoryA failed (GetLastError={})", path, (i32)GetLastError());
         return 0;
     }
     return 1;
+#elif FEATURE_DIRECT_SYSCALL
+#    if defined(__APPLE__) || defined(__x86_64__)
+    long ret = misra_sys2(MISRA_SYS_mkdir, (long)(u64)path, DIR_CREATE_MODE);
+#    else
+    // Linux aarch64: AT_FDCWD = -100.
+    long ret = misra_sys3(MISRA_SYS_mkdirat, -100L, (long)(u64)path, DIR_CREATE_MODE);
+#    endif
+    if (ret < 0) {
+        LOG_SYS_ERROR(ErrnoOf(ret), "DirCreate(\"{}\")", path);
+        return 0;
+    }
+    return 1;
+#else
+#    error                                                                                                             \
+        "DirCreate: no direct-syscall path. Add MISRA_SYS_mkdir / MISRA_SYS_mkdirat numbers in _Syscall.h for this arch."
 #endif
+}
+
+// Check whether the given path already exists as a directory. Used by
+// DirCreateAll to make EEXIST tolerant (idempotent). Avoids re-walking
+// the existing tree on the second invocation.
+static bool dir_already_exists(const char *path) {
+#if defined(_WIN32)
+    DWORD attrs = GetFileAttributesA(path);
+    return attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY);
+#elif FEATURE_DIRECT_SYSCALL
+    // newfstatat with AT_FDCWD (= -100); buf is opaque, we only need
+    // the syscall to succeed. 256 bytes is enough for `struct stat` /
+    // `stat64` on both Linux and Darwin x86_64/aarch64.
+    u8   buf[256] = {0};
+    long ret;
+#    if defined(__APPLE__)
+    ret = misra_sys4(MISRA_SYS_fstatat64, -100L, (long)(u64)path, (long)(u64)buf, 0);
+#    else
+    ret = misra_sys4(MISRA_SYS_newfstatat, -100L, (long)(u64)path, (long)(u64)buf, 0);
+#    endif
+    return ret >= 0;
+#else
+#    error                                                                                                             \
+        "dir_already_exists: no direct-syscall path. Add the right MISRA_SYS_*stat number in _Syscall.h for this arch."
+#endif
+}
+
+i8 dir_create_all(const char *path) {
+    if (!path) {
+        LOG_ERROR("DirCreateAll: NULL path");
+        return 0;
+    }
+    size n = ZstrLen(path);
+    if (n == 0) {
+        return 1;
+    }
+    if (n >= 4096) {
+        LOG_ERROR("DirCreateAll(\"{}\"): path too long ({} bytes)", path, (u64)n);
+        return 0;
+    }
+    // Walk a stack copy, NUL-terminating at each '/' to create
+    // intermediate components. Restores the slash before continuing.
+    char buf[4096];
+    MemCopy(buf, path, n);
+    buf[n] = 0;
+    // Skip leading slash so the loop doesn't try to mkdir("").
+    size i = (buf[0] == '/') ? 1 : 0;
+    for (; i <= n; ++i) {
+        if (i == n || buf[i] == '/') {
+            // Trim duplicate slashes (//) and trailing slash.
+            if (i < n && i > 0 && buf[i - 1] == '/') {
+                continue;
+            }
+            char saved = buf[i];
+            buf[i]     = 0;
+            if (!dir_already_exists(buf)) {
+                if (!DirCreate(buf)) {
+                    // DirCreate logged the syscall error; re-check
+                    // in case a concurrent process beat us to it.
+                    if (!dir_already_exists(buf)) {
+                        buf[i] = saved;
+                        return 0;
+                    }
+                }
+            }
+            buf[i] = saved;
+        }
+    }
+    return 1;
+}
+
+// PATH_MAX-class cap for the per-entry "parent/child" path built
+// during recursive removal. 4 KiB covers any realistic filesystem
+// path; if a single component exceeds this we fall back through
+// StrInitStack's overflow path (still backed by the in-tree HA).
+#define DIR_REMOVE_ALL_PATH_CAP 4096
+
+i8 dir_remove_all(const char *path) {
+    if (!path) {
+        LOG_ERROR("DirRemoveAll: NULL path");
+        return 0;
+    }
+    // Stat first: a missing path is a successful no-op (mirrors
+    // `rm -rf` semantics that callers rely on for test cleanup).
+    if (!dir_already_exists(path)) {
+        return 1;
+    }
+
+    // `DirContents` is variable-sized so it has to be heap-backed --
+    // we don't know the entry count in advance. The per-entry path
+    // string is stack-backed via StrInitStack below.
+    HeapAllocator ha = HeapAllocatorInit();
+    Allocator    *al = ALLOCATOR_OF(&ha);
+    DirContents   dc = dir_get_contents(path, al);
+
+    bool ok        = true;
+    size path_len  = ZstrLen(path);
+    bool trail_sep = (path_len > 0 && path[path_len - 1] == '/');
+    for (size i = 0; i < dc.length; ++i) {
+        DirEntry *e = &dc.data[i];
+        if (ZstrCompare(e->name.data, ".") == 0 || ZstrCompare(e->name.data, "..") == 0) {
+            continue;
+        }
+        // Per-iteration "parent/child" path. Stack-backed buffer so we
+        // don't allocate; `al` is the overflow-fallback only.
+        bool inner_ok = false;
+        Str  child;
+        StrInitStack(child, al, DIR_REMOVE_ALL_PATH_CAP, {
+            StrAppendFmt(&child, trail_sep ? "{}{}" : "{}/{}", path, e->name.data);
+            if (e->type == SYS_DIR_ENTRY_TYPE_DIRECTORY) {
+                inner_ok = DirRemoveAll(&child);
+            } else {
+                inner_ok = FileRemove(&child);
+            }
+        });
+        ok = ok && inner_ok;
+        if (!ok) {
+            break;
+        }
+    }
+    VecDeinit(&dc);
+    HeapAllocatorDeinit(&ha);
+
+    if (!ok) {
+        return 0;
+    }
+    return DirRemove(path);
 }

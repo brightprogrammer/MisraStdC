@@ -9,8 +9,6 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Sys.h>
 
-#include <stddef.h>
-#include <stdlib.h>
 
 #define GRAPH_SLOT_OCCUPIED ((u32)1u << 0)
 #define GRAPH_SLOT_MARKED   ((u32)1u << 1)

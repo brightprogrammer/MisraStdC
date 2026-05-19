@@ -7,7 +7,6 @@
 #ifndef MISRA_STD_CONTAINER_STR_TYPE_H
 #define MISRA_STD_CONTAINER_STR_TYPE_H
 
-#include <string.h>
 #include <Misra/Std/Container/Vec/Type.h>
 #include <Misra/Std/Utility/Iter/Type.h>
 #include <Misra/Types.h>
@@ -45,6 +44,5 @@ void ValidateStr(const Str *s);
 /// FAILURE: `abort`
 ///
 void ValidateStrs(const Strs *vs);
-
 
 #endif // MISRA_STD_CONTAINER_STR_TYPE_H

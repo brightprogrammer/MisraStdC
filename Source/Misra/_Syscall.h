@@ -23,8 +23,6 @@
 
 #include <Misra/Types.h>
 
-#include <stdint.h>
-
 #if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
 
 #    define FEATURE_DIRECT_SYSCALL 1
@@ -208,6 +206,8 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #        define MISRA_SYS_rt_sigreturn  15
 #        define MISRA_SYS_unlink        87
 #        define MISRA_SYS_rmdir         84
+#        define MISRA_SYS_mkdir         83
+#        define MISRA_SYS_mkdirat       258
 #        define MISRA_SYS_socket        41
 #        define MISRA_SYS_connect       42
 #        define MISRA_SYS_accept        43
@@ -232,6 +232,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #        define MISRA_SYS_openat        257
 #        define MISRA_SYS_newfstatat    262
 #        define MISRA_SYS_getdents64    217
+#        define MISRA_SYS_getrandom     318
 #    else // __aarch64__
 // aarch64 only has the "modern" syscall set: no SYS_open (use openat),
 // no SYS_stat (use newfstatat), no SYS_pipe (use pipe2), no SYS_fork
@@ -253,6 +254,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #        define MISRA_SYS_rt_sigaction  134
 #        define MISRA_SYS_rt_sigreturn  139
 #        define MISRA_SYS_unlinkat      35 // aarch64: no SYS_unlink/SYS_rmdir, use unlinkat
+#        define MISRA_SYS_mkdirat       34 // aarch64: no SYS_mkdir, use mkdirat
 #        define MISRA_SYS_socket        198
 #        define MISRA_SYS_connect       203
 #        define MISRA_SYS_accept        202
@@ -277,6 +279,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #        define MISRA_SYS_newfstatat    79
 #        define MISRA_SYS_getdents64    61
 #        define MISRA_SYS_ppoll         73
+#        define MISRA_SYS_getrandom     278
 #    endif
 
 #elif defined(__APPLE__) && (defined(__x86_64__) || defined(__aarch64__))
@@ -576,6 +579,11 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #    define MISRA_SYS_openat          MISRA_DARWIN_SC(463)
 #    define MISRA_SYS_fstatat64       MISRA_DARWIN_SC(470)
 #    define MISRA_SYS_unlinkat        MISRA_DARWIN_SC(472)
+#    define MISRA_SYS_mkdir           MISRA_DARWIN_SC(136)
+#    define MISRA_SYS_mkdirat         MISRA_DARWIN_SC(475)
+// Darwin has no `getrandom`; BSD-class #500 `getentropy` is the
+// kernel-CSPRNG entry. 256-byte per-call cap, no flags arg.
+#    define MISRA_SYS_getentropy      MISRA_DARWIN_SC(500)
 #    define MISRA_SYS_nanosleep       MISRA_DARWIN_SC(240)
 #    define MISRA_SYS_readlink        MISRA_DARWIN_SC(58)
 #    define MISRA_SYS_readlinkat      MISRA_DARWIN_SC(473)
@@ -602,13 +610,15 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 static inline long misra_darwin_pipe(int fds[2]) {
 #    if defined(__x86_64__)
     long fd0, fd1;
-    __asm__ volatile("syscall\n\t"
-                     "jnc 1f\n\t"
-                     "negq %%rax\n"
-                     "1:"
-                     : "=a"(fd0), "=d"(fd1)
-                     : "0"((long)MISRA_SYS_pipe)
-                     : "rcx", "r11", "cc", "memory");
+    __asm__ volatile(
+        "syscall\n\t"
+        "jnc 1f\n\t"
+        "negq %%rax\n"
+        "1:"
+        : "=a"(fd0), "=d"(fd1)
+        : "0"((long)MISRA_SYS_pipe)
+        : "rcx", "r11", "cc", "memory"
+    );
     if (fd0 < 0)
         return fd0;
     fds[0] = (int)fd0;
@@ -618,13 +628,15 @@ static inline long misra_darwin_pipe(int fds[2]) {
     register long x16_ __asm__("x16") = (long)MISRA_SYS_pipe;
     register long x0_ __asm__("x0");
     register long x1_ __asm__("x1");
-    __asm__ volatile("svc #0x80\n\t"
-                     "b.cc 1f\n\t"
-                     "neg x0, x0\n"
-                     "1:"
-                     : "=r"(x0_), "=r"(x1_)
-                     : "r"(x16_)
-                     : "cc", "memory");
+    __asm__ volatile(
+        "svc #0x80\n\t"
+        "b.cc 1f\n\t"
+        "neg x0, x0\n"
+        "1:"
+        : "=r"(x0_), "=r"(x1_)
+        : "r"(x16_)
+        : "cc", "memory"
+    );
     if (x0_ < 0)
         return x0_;
     fds[0] = (int)x0_;

@@ -2,8 +2,6 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Sys/ProcMaps.h>
 
-#include <stdint.h>
-
 #include "../Util/TestRunner.h"
 
 bool test_procmaps_load(void) {
@@ -45,7 +43,7 @@ bool test_procmaps_find_self(void) {
 
     // The address of this function should land inside an executable
     // mapping of the test binary itself.
-    u64                 self_addr = (u64)(uintptr_t)&test_procmaps_find_self;
+    u64                 self_addr = (u64)&test_procmaps_find_self;
     const ProcMapEntry *entry     = ProcMapsFindByAddr(&maps, self_addr);
 
     bool ok = entry != NULL && (entry->perms & PROC_MAP_PERM_EXEC) != 0;

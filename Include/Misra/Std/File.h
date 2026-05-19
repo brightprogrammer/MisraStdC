@@ -7,7 +7,6 @@
 #ifndef MISRA_FILE_H
 #define MISRA_FILE_H
 
-#include <stddef.h>
 
 // decompiler
 #include <Misra/Std/Allocator.h>
@@ -24,24 +23,16 @@
 ///
 /// Value type -- caller stack-allocates and passes by pointer. A
 /// failed open leaves `fd` (or `handle`) negative / INVALID; check
-/// with `FileIsValid` before doing anything else with the handle.
-///
-/// Open modes are libc-compatible (`"r"`, `"w"`, `"a"`, `"r+"`,
-/// `"w+"`, `"a+"`), `"b"` suffix is accepted and ignored -- the
-/// implementation is always binary. No buffering today.
-///
-/// TAGS: File, IO, Handle, Cross-Platform
+/// with `FileIsValid` after open.
 ///
 typedef struct File {
 #ifdef _WIN32
-    // HANDLE -- kept as void* so the header doesn't drag in
-    // <windows.h>. INVALID_HANDLE_VALUE == (void*)-1.
-    void *handle;
+    void *handle; // HANDLE (kept as void* so we don't pull <windows.h>)
 #else
     i32 fd; // -1 if not open
 #endif
-    bool at_eof; // last read returned 0 bytes
-    bool owns;   // true when FileClose should release the handle
+    bool at_eof;  // last read returned 0 bytes
+    bool owns;    // true when FileClose should release the handle
 } File;
 
 ///
@@ -55,16 +46,33 @@ typedef enum FileWhence {
     FILE_SEEK_END = 2,
 } FileWhence;
 
+// File API path-arg dispatch. `Str *` is the canonical form; `char *`
+// is accepted as a literal/borrowed-buffer convenience. Each macro
+// inlines its own `_Generic` -- we intentionally do not share a
+// dispatch helper across APIs.
+
 ///
 /// Open a file. `mode` is libc-compatible: `"r"`/`"rb"`, `"w"`/`"wb"`,
-/// `"a"`/`"ab"`, `"r+"`/`"rb+"`/`"r+b"`, `"w+"`, `"a+"`. Binary is
-/// always implied; the `"b"` suffix is accepted for compatibility but
-/// has no effect on the implementation.
+/// `"a"`/`"ab"`, `"r+"`, `"w+"`, `"a+"`. Binary is always implied;
+/// the `"b"` suffix is accepted but has no effect on the
+/// implementation.
+///
+/// path[in] : Path to open. Prefer `Str *` (carries length, can't
+///            silently drop the NUL terminator). `const char *` is
+///            accepted as a literal/borrowed-buffer convenience.
 ///
 /// SUCCESS : Returns a File where `FileIsValid(&out)` is true.
 /// FAILURE : Returns a File where `FileIsValid(&out)` is false.
 ///
-File FileOpen(const char *path, const char *mode);
+File file_open(const char *path, const char *mode);
+#define FileOpen(path, mode)                                                                                           \
+    _Generic(                                                                                                          \
+        (path),                                                                                                        \
+        Str *: file_open(((Str *)(path))->data, (mode)),                                                               \
+        const Str *: file_open(((const Str *)(path))->data, (mode)),                                                   \
+        char *: file_open((const char *)(path), (mode)),                                                               \
+        const char *: file_open((const char *)(path), (mode))                                                          \
+    )
 
 ///
 /// Borrow a file handle wrapping an already-open fd / HANDLE. The
@@ -98,15 +106,36 @@ bool FileClose(File *f);
 bool FileIsValid(const File *f);
 
 ///
-/// Read up to `n` bytes into `buf`. Short reads are normal at EOF
-/// and on signal interruption (we don't retry on EINTR for you --
-/// callers that need that should loop). Sets the at_eof flag when
-/// the syscall reports zero bytes.
+/// Read bytes from a file. Two arities via `MISRA_OVERLOAD`:
 ///
-/// SUCCESS : Returns the number of bytes read (>= 0).
-/// FAILURE : Returns -1 on error.
+///   `FileRead(f, buf, n)`  - low-level: up to `n` bytes into `buf`.
+///                            Short reads are normal at EOF and on
+///                            signal interruption (we don't retry on
+///                            EINTR for you -- callers loop if they
+///                            need that). Sets `at_eof` when the
+///                            syscall reports zero bytes.
+///   `FileRead(f, out)`     - read to EOF into the `Str *out`. The
+///                            existing length is overwritten; `out`
+///                            grows through its own allocator. The
+///                            byte buffer is NUL-terminated for
+///                            convenience.
 ///
-i64 FileRead(File *f, void *buf, u64 n);
+/// `out` must be an already-init'd `Str *` (its allocator drives the
+/// growth). Calling `FileRead(f, out)` more than once on the same
+/// `Str` simply overwrites previous content.
+///
+/// SUCCESS : 3-arg form returns bytes read (>= 0); 2-arg form
+///           returns total bytes loaded (== `out->length`).
+/// FAILURE : Returns -1 on I/O error. The 2-arg form may leave `out`
+///           in a partial state.
+///
+/// TAGS: File, Read
+///
+i64 file_read(File *f, void *buf, u64 n);
+i64 file_read_to_str(File *f, Str *out);
+#define FileRead(...)         MISRA_OVERLOAD(FileRead, __VA_ARGS__)
+#define FileRead_2(f, out)    file_read_to_str((f), (out))
+#define FileRead_3(f, buf, n) file_read((f), (buf), (n))
 
 ///
 /// Write up to `n` bytes from `buf`. Same short-write semantics as
@@ -156,42 +185,48 @@ bool FileIsEof(const File *f);
 ///
 i32 FileFd(const File *f);
 
-/// Snake_case runtime helper. Users call `ReadCompleteFile(...)`; the
-/// macro routes through `MISRA_OVERLOAD` to one of the per-arity forms
-/// below, which forward to this function.
-bool read_complete_file(const char *filename, char **data, u64 *file_size, u64 *capacity, Allocator *allocator);
-
 ///
-/// Read complete contents of a file at once.
+/// Open a unique temporary file for read+write. Replaces libc
+/// `mkstemp`. The 16-hex-digit suffix comes from the internal
+/// `Prng64` (no kernel entropy needed per call). Open is
+/// `O_RDWR | O_CREAT | O_EXCL | 0600`, so two callers racing on the
+/// same prefix can never collide -- one wins, the other retries.
 ///
-/// Two forms via argument-count overload:
+/// Two forms via argument-count overload (allocator backs `out_path`):
 ///
-/// - `ReadCompleteFile(filename, data, file_size, capacity)` - inside a
-///   `Scope` block; the buffer is allocated through `MisraScope`.
-/// - `ReadCompleteFile(filename, data, file_size, capacity, allocator)`
-///   - explicit allocator (typed handle or raw `Allocator *`).
+/// - `FileOpenTemp(prefix, out_path)` -- inside a `Scope`; allocator
+///   is `MisraScope`.
+/// - `FileOpenTemp(prefix, out_path, allocator)` -- explicit allocator.
 ///
-/// The 4-arg form fails to compile outside any `Scope` block because
-/// `MisraScope` is undeclared - the library does not accept a NULL
-/// allocator anywhere.
+/// prefix[in]    : Path prefix. Prefer `Str *`; `const char *`
+///                 accepted for literals. Final path is
+///                 `<prefix><hex>`.
+/// out_path[out] : Fresh `Str *` -- receives the resolved path.
+///                 Caller `StrDeinit`s when done; the on-disk file
+///                 is NOT auto-removed (use `FileRemove(out_path)`).
 ///
-/// filename[in]     : Name/path of file to be read.
-/// data[in,out]     : Memory buffer where loaded file will be stored.
-///                    The buffer is null-terminated for convenience.
-/// file_size[out]   : Complete size of file in bytes.
-/// capacity[in,out] : Current capacity of `*data`, updated on successful growth.
-/// allocator[in,out]: Allocator responsible for `*data`.
+/// SUCCESS : Returns an open `File` with `FileIsValid` true.
+/// FAILURE : Returns a `File` where `FileIsValid` is false.
 ///
-/// SUCCESS : Returns true. `*data`, `*file_size`, and `*capacity` are updated.
-/// FAILURE : Returns false on I/O or allocation failure. The buffer state
-///           may be partially updated.
+/// TAGS: File, Temp
 ///
-/// TAGS: Read, File, I/O, Utility, Allocator
-///
-#define ReadCompleteFile(...) MISRA_OVERLOAD(ReadCompleteFile, __VA_ARGS__)
-#define ReadCompleteFile_4(filename, data, file_size, capacity)                                                        \
-    read_complete_file((filename), (data), (file_size), (capacity), MisraScope)
-#define ReadCompleteFile_5(filename, data, file_size, capacity, allocator)                                             \
-    read_complete_file((filename), (data), (file_size), (capacity), (allocator))
+File file_open_temp(const char *prefix, Str *out_path, Allocator *alloc);
+#define FileOpenTemp(...) MISRA_OVERLOAD(FileOpenTemp, __VA_ARGS__)
+#define FileOpenTemp_2(prefix, out_path)                                                                               \
+    _Generic(                                                                                                          \
+        (prefix),                                                                                                      \
+        Str *: file_open_temp(((Str *)(prefix))->data, (out_path), MisraScope),                                        \
+        const Str *: file_open_temp(((const Str *)(prefix))->data, (out_path), MisraScope),                            \
+        char *: file_open_temp((const char *)(prefix), (out_path), MisraScope),                                        \
+        const char *: file_open_temp((const char *)(prefix), (out_path), MisraScope)                                   \
+    )
+#define FileOpenTemp_3(prefix, out_path, alloc)                                                                        \
+    _Generic(                                                                                                          \
+        (prefix),                                                                                                      \
+        Str *: file_open_temp(((Str *)(prefix))->data, (out_path), ALLOCATOR_OF(alloc)),                               \
+        const Str *: file_open_temp(((const Str *)(prefix))->data, (out_path), ALLOCATOR_OF(alloc)),                   \
+        char *: file_open_temp((const char *)(prefix), (out_path), ALLOCATOR_OF(alloc)),                               \
+        const char *: file_open_temp((const char *)(prefix), (out_path), ALLOCATOR_OF(alloc))                          \
+    )
 
 #endif // MISRA_FILE_H

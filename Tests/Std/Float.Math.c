@@ -3,7 +3,6 @@
 #include <Misra/Std/Container/Float.h>
 #include <Misra/Std/Container/Int.h>
 #include <Misra/Std/Log.h>
-#include <string.h>
 
 #include "../Util/FloatTestData.h"
 #include "../Util/TestRunner.h"
@@ -105,7 +104,7 @@ bool test_float_add_generic(void) {
     Str   text         = StrInit(&alloc.base);
 
     FloatAdd(&result_value, &a, &b);
-    text = FloatToStr(&result_value);
+    text        = FloatToStr(&result_value);
     bool result = ZstrCompare(text.data, "2") == 0;
 
     StrDeinit(&text);
@@ -200,7 +199,7 @@ bool test_float_sub_generic(void) {
     Str   text         = StrInit(&alloc.base);
 
     FloatSub(&result_value, &a, &b);
-    text = FloatToStr(&result_value);
+    text        = FloatToStr(&result_value);
     bool result = ZstrCompare(text.data, "5") == 0;
 
     StrDeinit(&text);
@@ -290,7 +289,7 @@ bool test_float_mul_generic(void) {
     Str   text         = StrInit(&alloc.base);
 
     FloatMul(&result_value, &a, &b);
-    text = FloatToStr(&result_value);
+    text        = FloatToStr(&result_value);
     bool result = ZstrCompare(text.data, "3") == 0;
 
     StrDeinit(&text);
@@ -380,7 +379,7 @@ bool test_float_div_generic(void) {
     Str   text         = StrInit(&alloc.base);
 
     FloatDiv(&result_value, &a, &b, 1);
-    text = FloatToStr(&result_value);
+    text        = FloatToStr(&result_value);
     bool result = ZstrCompare(text.data, "3") == 0;
 
     StrDeinit(&text);

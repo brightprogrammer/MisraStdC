@@ -5,8 +5,6 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Sys/SymbolResolver.h>
 
-#include <stdint.h>
-
 #include "../Util/TestRunner.h"
 
 static __attribute__((noinline)) void dwarf_marker_helper(void) {
@@ -56,7 +54,7 @@ bool test_dwarf_resolves_helper_to_source_file(void) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
-    u64 file_relative = (u64)(uintptr_t)&dwarf_marker_helper - r.module_base;
+    u64 file_relative = (u64)&dwarf_marker_helper - r.module_base;
 
     ElfFile elf;
     if (!ElfFileOpen(&elf, r.module_path, base)) {
@@ -102,7 +100,7 @@ bool test_dwarf_cfi_finds_fde_for_self(void) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
-    u64 file_relative = (u64)(uintptr_t)&dwarf_marker_helper - r.module_base;
+    u64 file_relative = (u64)&dwarf_marker_helper - r.module_base;
 
     ElfFile elf;
     if (!ElfFileOpen(&elf, r.module_path, base)) {
@@ -158,7 +156,7 @@ bool test_dwarf_functions_resolves_helper_to_name(void) {
         DefaultAllocatorDeinit(&alloc);
         return false;
     }
-    u64 file_relative = (u64)(uintptr_t)&dwarf_marker_helper - r.module_base;
+    u64 file_relative = (u64)&dwarf_marker_helper - r.module_base;
 
     ElfFile elf;
     if (!ElfFileOpen(&elf, r.module_path, base)) {

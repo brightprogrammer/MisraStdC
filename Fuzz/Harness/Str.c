@@ -9,19 +9,13 @@
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Log.h>
 #include <string.h>
-#include <stdio.h>
 #include <stdarg.h>
 
 // Note: generate_cstring is already defined in Harness.h
 
 // Generate a Str from fuzz input data
-static Str generate_str_from_input(
-    const uint8_t    *data,
-    size_t           *offset,
-    size_t            size,
-    size_t            max_len,
-    DefaultAllocator *alloc
-) {
+static Str
+    generate_str_from_input(const uint8_t *data, size_t *offset, size_t size, size_t max_len, DefaultAllocator *alloc) {
     // Extract length (limit to max_len for sanity)
     uint8_t len = extract_u8(data, offset, size);
     len         = len % (max_len + 1); // 0 to max_len
@@ -41,14 +35,7 @@ void deinit_str(Str *str) {
     StrDeinit(str);
 }
 
-void fuzz_str(
-    Str              *str,
-    StrFunction       func,
-    const uint8_t    *data,
-    size_t           *offset,
-    size_t            size,
-    DefaultAllocator *alloc
-) {
+void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, size_t size, DefaultAllocator *alloc) {
     switch (func) {
         case STR_INIT : {
             // Reinitialize the string

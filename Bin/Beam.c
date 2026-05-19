@@ -31,8 +31,7 @@
 // to swallow the event. No UCRT signal() means the freestanding
 // Windows build can drop UCRT entirely.
 #    include <windows.h>
-#elif (defined(__linux__) || defined(__APPLE__)) && \
-      (defined(__x86_64__) || defined(__aarch64__))
+#elif (defined(__linux__) || defined(__APPLE__)) && (defined(__x86_64__) || defined(__aarch64__))
 // POSIX direct-syscall path: hand-roll sigaction so Beam doesn't drag
 // libc's sigaction/sigemptyset/signal into the link. The kernel
 // sigaction ABI is per-OS and per-arch:
@@ -92,10 +91,10 @@ static void install_signal(int signum, void (*handler)(int)) {
 #        endif
     // 4th arg = sigsetsize in bytes (Linux ABI requires 8 for the
     // standard signal set).
-    misra_sys4(MISRA_SYS_rt_sigaction, (long)signum, (long)(uintptr_t)&sa, 0, 8);
+    misra_sys4(MISRA_SYS_rt_sigaction, (long)signum, (long)(u64)&sa, 0, 8);
 }
 
-#    else // __APPLE__
+#    else     // __APPLE__
 
 // Darwin's struct __sigaction (what SYS_sigaction wants). Field
 // layout per <sys/signal.h>: handler / tramp / mask / flags. We use
@@ -106,10 +105,10 @@ static void install_signal(int signum, void (*handler)(int)) {
 // transitively, so we can't escape the macro.) Layout is what matters
 // to the kernel, not the field names.
 struct misra_kernel_sigaction {
-    void (*kh_handler)(int);                              // handler -> sa_handler slot
-    void (*kh_tramp)(void *, int, int, void *, void *);   // trampoline (calls handler+sigreturn)
-    unsigned int kh_mask;                                 // 32-bit signal set (sa_mask slot)
-    int          kh_flags;                                // sa_flags slot
+    void (*kh_handler)(int);                            // handler -> sa_handler slot
+    void (*kh_tramp)(void *, int, int, void *, void *); // trampoline (calls handler+sigreturn)
+    unsigned int kh_mask;                               // 32-bit signal set (sa_mask slot)
+    int          kh_flags;                              // sa_flags slot
 };
 
 // SA_SIGINFO=0x40. We don't use it -- sa_handler is plain
@@ -132,16 +131,16 @@ struct misra_kernel_sigaction {
 __attribute__((naked)) static void misra_darwin_sigtramp(void) {
     __asm__(
         // Save handler, uctx, sigstyle on stack.
-        "stp x0, x4, [sp, #-32]!\n"  // handler @0, uctx @8
-        "str w1, [sp, #16]\n"        // sigstyle @16
+        "stp x0, x4, [sp, #-32]!\n" // handler @0, uctx @8
+        "str w1, [sp, #16]\n"       // sigstyle @16
         // handler(sig)
-        "mov w0, w2\n"               // sig -> arg0
-        "ldr x9, [sp]\n"             // handler
+        "mov w0, w2\n"   // sig -> arg0
+        "ldr x9, [sp]\n" // handler
         "blr x9\n"
         // sigreturn(uctx, sigstyle)
-        "ldr x0, [sp, #8]\n"         // uctx
-        "ldr w1, [sp, #16]\n"        // sigstyle
-        "mov x16, #184\n"            // SYS_sigreturn
+        "ldr x0, [sp, #8]\n"  // uctx
+        "ldr w1, [sp, #16]\n" // sigstyle
+        "mov x16, #184\n"     // SYS_sigreturn
         "svc #0x80\n"
         // Should not return.
         "udf #0\n"
@@ -158,17 +157,17 @@ __attribute__((naked)) static void misra_darwin_sigtramp(void) {
 //   Action: handler(sig); then sigreturn(uctx, sigstyle).
 __attribute__((naked)) static void misra_darwin_sigtramp(void) {
     __asm__(
-        "subq $32, %rsp\n"           // 16-aligned scratch (kernel guarantees 16-aligned entry)
-        "movq %rdi, 0(%rsp)\n"       // save handler
-        "movq %r8,  8(%rsp)\n"       // save uctx
-        "movl %esi, 16(%rsp)\n"      // save sigstyle
-        "movl %edx, %edi\n"          // sig -> arg0
-        "callq *0(%rsp)\n"           // handler(sig)
-        "movq 8(%rsp), %rdi\n"       // uctx -> arg0
-        "movl 16(%rsp), %esi\n"      // sigstyle -> arg1
-        "movq $0x20000B8, %rax\n"    // SYS_sigreturn = MISRA_DARWIN_SC(184) = 0x20000B8
+        "subq $32, %rsp\n"        // 16-aligned scratch (kernel guarantees 16-aligned entry)
+        "movq %rdi, 0(%rsp)\n"    // save handler
+        "movq %r8,  8(%rsp)\n"    // save uctx
+        "movl %esi, 16(%rsp)\n"   // save sigstyle
+        "movl %edx, %edi\n"       // sig -> arg0
+        "callq *0(%rsp)\n"        // handler(sig)
+        "movq 8(%rsp), %rdi\n"    // uctx -> arg0
+        "movl 16(%rsp), %esi\n"   // sigstyle -> arg1
+        "movq $0x20000B8, %rax\n" // SYS_sigreturn = MISRA_DARWIN_SC(184) = 0x20000B8
         "syscall\n"
-        "ud2\n"                      // should not return
+        "ud2\n"                   // should not return
     );
 }
 #        endif
@@ -183,10 +182,10 @@ static void install_signal(int signum, void (*handler)(int)) {
     // mismatch (declared as 5-arg in the struct; defined as naked
     // void() with kernel-shaped register entry).
     sa.kh_tramp = (void (*)(void *, int, int, void *, void *))(void (*)(void))misra_darwin_sigtramp;
-    misra_sys3(MISRA_SYS_rt_sigaction, (long)signum, (long)(uintptr_t)&sa, 0);
+    misra_sys3(MISRA_SYS_rt_sigaction, (long)signum, (long)(u64)&sa, 0);
 }
 
-#    endif // __linux__ / __APPLE__
+#    endif    // __linux__ / __APPLE__
 #else
 #    include <signal.h>
 #endif
@@ -227,8 +226,7 @@ static BOOL WINAPI on_console_ctrl(DWORD ctrl_type) {
 static void install_signal_handlers(void) {
 #if defined(_WIN32)
     SetConsoleCtrlHandler(on_console_ctrl, TRUE);
-#elif (defined(__linux__) || defined(__APPLE__)) && \
-      (defined(__x86_64__) || defined(__aarch64__))
+#elif (defined(__linux__) || defined(__APPLE__)) && (defined(__x86_64__) || defined(__aarch64__))
     install_signal(MISRA_SIGINT, on_signal);
     install_signal(MISRA_SIGTERM, on_signal);
     // SIGPIPE on a hung-up peer would terminate us; mask it and rely

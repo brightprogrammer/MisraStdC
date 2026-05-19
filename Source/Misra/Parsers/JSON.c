@@ -3,7 +3,6 @@
 #include <Misra/Std/Allocator/Default.h>
 
 // libc
-#include <stdlib.h>
 
 static StrIter JSkipObject(StrIter si) {
     if (!StrIterRemainingLength(&si)) {

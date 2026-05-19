@@ -13,6 +13,18 @@ subdir('Util')
 #Test configuration
 test_args = common_c_args
 
+# Project-wide policy check: no libc includes outside the documented
+# OS boundary (POSIX / Win32 are not libc, see the script's
+# docblock). Runs as a meson test so any libc creep is reported the
+# next time the test suite is run.
+no_libc_check = find_program('python3', required : true)
+test(
+    'CheckNoLibc',
+    no_libc_check,
+    args : [meson.project_source_root() / 'Tests' / 'Util' / 'check_no_libc.py'],
+    workdir : meson.project_source_root(),
+)
+
 #Group tests by module
 io_tests = [
     ['Io.Write', 'Std/Io.Write.c'],

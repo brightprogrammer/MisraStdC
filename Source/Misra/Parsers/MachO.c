@@ -397,21 +397,29 @@ bool macho_file_open(MachoFile *out, const char *path, Allocator *alloc) {
         LOG_ERROR("MachoFileOpen: NULL argument");
         return false;
     }
-    char *buf      = NULL;
-    u64   bytes    = 0;
-    u64   capacity = 0;
-    if (!ReadCompleteFile(path, &buf, &bytes, &capacity, alloc)) {
+    File f = FileOpen(path, "rb");
+    if (!FileIsValid(&f)) {
+        LOG_ERROR("MachoFileOpen: failed to open {}", path);
+        return false;
+    }
+    Str data = StrInit(alloc);
+    i64 got  = FileRead(&f, &data);
+    FileClose(&f);
+    if (got < 0) {
+        StrDeinit(&data);
         LOG_ERROR("MachoFileOpen: failed to read {}", path);
         return false;
     }
-    if (!MachoFileOpenFromMemory(out, (u8 *)buf, (size)bytes, alloc)) {
-        AllocatorFree(alloc, buf);
+    if (!MachoFileOpenFromMemory(out, (u8 *)data.data, data.length, alloc)) {
+        StrDeinit(&data);
         return false;
     }
     out->owns_data = true;
-    out->data      = (u8 *)buf;
-    out->data_size = (size)bytes;
-    (void)capacity;
+    out->data      = (u8 *)data.data;
+    out->data_size = data.length;
+    data.data      = NULL;
+    data.length    = 0;
+    data.capacity  = 0;
     return true;
 }
 

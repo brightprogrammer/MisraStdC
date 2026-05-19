@@ -7,8 +7,10 @@
 /// uses libSystem's open/read/write/close/lseek; Windows uses
 /// CreateFile / ReadFile / WriteFile / SetFilePointer / CloseHandle.
 
+#include <Misra/Std/Container/Str.h>
 #include <Misra/Std/File.h>
 #include <Misra/Std/Log.h>
+#include <Misra/Std/Prng.h>
 #include <Misra/Sys.h>
 #include <Misra/Types.h>
 
@@ -21,8 +23,6 @@
 #endif
 
 #include "../_Syscall.h"
-
-#include <stdint.h>
 
 // ---------------------------------------------------------------------------
 // Mode parsing
@@ -71,7 +71,7 @@ static bool parse_open_mode(const char *mode, int *out_flags) {
 // Open / close
 // ---------------------------------------------------------------------------
 
-File FileOpen(const char *path, const char *mode) {
+File file_open(const char *path, const char *mode) {
     File f = {0};
 #ifdef _WIN32
     f.handle = INVALID_HANDLE_VALUE;
@@ -135,10 +135,10 @@ File FileOpen(const char *path, const char *mode) {
 #        if defined(__APPLE__) || defined(__x86_64__)
     // Darwin has SYS_open on both x86_64 and aarch64. Linux x86_64
     // does too; only Linux aarch64 went openat-only.
-    fd = misra_sys3(MISRA_SYS_open, (long)(uintptr_t)path, (long)flags, 0644L);
+    fd = misra_sys3(MISRA_SYS_open, (long)(u64)path, (long)flags, 0644L);
 #        else
     // Linux aarch64: openat(AT_FDCWD=-100, path, flags, mode).
-    fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(uintptr_t)path, (long)flags, 0644L);
+    fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(u64)path, (long)flags, 0644L);
 #        endif
 #    else
     fd = open(path, flags, 0644);
@@ -235,7 +235,7 @@ bool FileIsValid(const File *f) {
 // Read / write / seek / tell
 // ---------------------------------------------------------------------------
 
-i64 FileRead(File *f, void *buf, u64 n) {
+i64 file_read(File *f, void *buf, u64 n) {
     if (!FileIsValid(f) || !buf) {
         return -1;
     }
@@ -252,7 +252,7 @@ i64 FileRead(File *f, void *buf, u64 n) {
     }
     return (i64)got;
 #elif FEATURE_DIRECT_SYSCALL
-    long r = misra_sys3(MISRA_SYS_read, (long)f->fd, (long)(uintptr_t)buf, (long)n);
+    long r = misra_sys3(MISRA_SYS_read, (long)f->fd, (long)(u64)buf, (long)n);
     if (r < 0) {
         return -1;
     }
@@ -261,7 +261,7 @@ i64 FileRead(File *f, void *buf, u64 n) {
     }
     return (i64)r;
 #else
-    ssize_t r = read(f->fd, buf, (size_t)n);
+    ssize_t r = read(f->fd, buf, (size)n);
     if (r < 0) {
         return -1;
     }
@@ -286,13 +286,13 @@ i64 FileWrite(File *f, const void *buf, u64 n) {
     }
     return (i64)put;
 #elif FEATURE_DIRECT_SYSCALL
-    long r = misra_sys3(MISRA_SYS_write, (long)f->fd, (long)(uintptr_t)buf, (long)n);
+    long r = misra_sys3(MISRA_SYS_write, (long)f->fd, (long)(u64)buf, (long)n);
     if (r < 0) {
         return -1;
     }
     return (i64)r;
 #else
-    ssize_t r = write(f->fd, buf, (size_t)n);
+    ssize_t r = write(f->fd, buf, (size)n);
     if (r < 0) {
         return -1;
     }
@@ -361,51 +361,153 @@ i32 FileFd(const File *f) {
 }
 
 // ---------------------------------------------------------------------------
-// Legacy convenience: read_complete_file
+// FileRead-to-container helpers. Read to EOF, growing the destination
+// through its own allocator. The Str / Buf forms are the canonical
+// public API; the byte-pointer form (file_read) sits underneath both.
 // ---------------------------------------------------------------------------
 
-bool read_complete_file(const char *filename, char **data, u64 *file_size, u64 *capacity, Allocator *allocator) {
-    if (!filename || !data || !file_size || !capacity) {
-        LOG_FATAL("invalid arguments.");
-    }
-    if (!allocator) {
-        LOG_FATAL("read_complete_file requires an allocator");
-    }
+// Block size for the read loop. Large enough to amortise the syscall
+// cost on big files; small enough that the dest doesn't waste memory
+// on a single huge realloc when the file turns out tiny.
+#define FILE_READ_CHUNK 4096
 
-    i64 fsize = FileGetSize(filename);
-    if (-1 == fsize) {
-        LOG_ERROR("failed to get file size");
-        return false;
+i64 file_read_to_str(File *f, Str *out) {
+    if (!FileIsValid(f) || !out) {
+        return -1;
     }
+    // Reset out so repeated calls overwrite previous content. The
+    // backing allocator stays; capacity is reused.
+    out->length = 0;
 
-    char *buffer            = *data;
-    u64   required_capacity = (u64)fsize + 1;
-    if (*capacity < required_capacity) {
-        buffer = AllocatorRealloc(allocator, buffer, required_capacity);
-
-        if (!buffer) {
-            LOG_ERROR("allocator reallocation failed");
-            return false;
+    i64 total = 0;
+    for (;;) {
+        // Reserve room for the next chunk + the NUL terminator we'll
+        // append on EOF. VecReserve only touches capacity; the read
+        // syscall is what advances length.
+        if (!VecReserve(out, out->length + FILE_READ_CHUNK + 1)) {
+            LOG_ERROR("file_read_to_str: VecReserve failed at length {}", (u64)out->length);
+            return -1;
         }
+        i64 got = file_read(f, out->data + out->length, FILE_READ_CHUNK);
+        if (got < 0) {
+            return -1;
+        }
+        if (got == 0) {
+            break; // EOF
+        }
+        out->length += (size)got;
+        total       += got;
+    }
+    // NUL terminate without bumping length, matching the rest of the
+    // Str API (length is "byte count excluding terminator").
+    if (out->capacity > out->length) {
+        out->data[out->length] = 0;
+    }
+    return total;
+}
 
-        *data     = buffer;
-        *capacity = required_capacity;
+// ---------------------------------------------------------------------------
+// FileOpenTemp -- atomic-unique-create replacement for libc mkstemp.
+// Filename entropy comes from the project-wide `Prng64`. Open is
+// `O_RDWR | O_CREAT | O_EXCL | 0600` so two callers racing on the
+// same prefix can never collide -- one wins, the other retries.
+// ---------------------------------------------------------------------------
+
+static void hex16_from_u64(char dst[16], u64 v) {
+    static const char hex[] = "0123456789abcdef";
+    for (i32 i = 15; i >= 0; --i) {
+        dst[i]   = hex[v & 0xF];
+        v      >>= 4;
+    }
+}
+
+File file_open_temp(const char *prefix, Str *out_path, Allocator *alloc) {
+    File f = {0};
+#ifdef _WIN32
+    f.handle = INVALID_HANDLE_VALUE;
+#else
+    f.fd = -1;
+#endif
+    if (!prefix || !out_path || !alloc) {
+        LOG_ERROR("FileOpenTemp: NULL argument");
+        return f;
     }
 
-    File f = FileOpen(filename, "rb");
-    if (!FileIsValid(&f)) {
-        return false;
+    // 8 attempts is overkill in practice -- collisions on a 16-hex-digit
+    // namespace are vanishingly rare. The retry loop exists for
+    // pathological filesystem races, not for entropy weakness.
+    for (i32 attempt = 0; attempt < 8; ++attempt) {
+        char        suffix_buf[17];
+        const char *suffix = suffix_buf;
+        hex16_from_u64(suffix_buf, Prng64());
+        suffix_buf[16] = 0;
+
+        *out_path = StrInit(alloc);
+        StrAppendFmt(out_path, "{}{}", prefix, suffix);
+
+#ifdef _WIN32
+        // CREATE_NEW fails with ERROR_FILE_EXISTS on collision. GENERIC_READ|WRITE
+        // gives us the equivalent of POSIX O_RDWR.
+        HANDLE h = CreateFileA(
+            out_path->data,
+            GENERIC_READ | GENERIC_WRITE,
+            0, // no sharing -- mimic POSIX 0600
+            NULL,
+            CREATE_NEW,
+            FILE_ATTRIBUTE_NORMAL,
+            NULL
+        );
+        if (h != INVALID_HANDLE_VALUE) {
+            f.handle = h;
+            f.owns   = true;
+            return f;
+        }
+        DWORD err = GetLastError();
+        StrDeinit(out_path);
+        if (err == ERROR_FILE_EXISTS) {
+            continue; // retry with new entropy
+        }
+        LOG_ERROR("FileOpenTemp: CreateFileA failed (err {})", (u32)err);
+        return f;
+#else
+        // O_RDWR | O_CREAT | O_EXCL, mode 0600. Flag values are the
+        // same on Linux and Darwin for these three.
+        // O_RDWR=2, O_CREAT=0x40 (Linux) / 0x200 (Darwin),
+        // O_EXCL=0x80 (Linux) / 0x800 (Darwin).
+#    if defined(__APPLE__)
+        int flags = 2 | 0x200 | 0x800 | 0x1000000; // RDWR | CREAT | EXCL | CLOEXEC
+#    else
+        int flags = 2 | 0x40 | 0x80 | 0x80000; // RDWR | CREAT | EXCL | CLOEXEC
+#    endif
+        long fd;
+#    if FEATURE_DIRECT_SYSCALL
+#        if defined(__APPLE__) || defined(__x86_64__)
+        fd = misra_sys3(MISRA_SYS_open, (long)(u64)out_path->data, (long)flags, 0600L);
+#        else
+        fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(u64)out_path->data, (long)flags, 0600L);
+#        endif
+#    else
+        extern int open(const char *, int, ...);
+        fd = open(out_path->data, flags, 0600);
+        if (fd < 0) {
+            fd = -Errno();
+        }
+#    endif
+        if (fd >= 0) {
+            f.fd   = (i32)fd;
+            f.owns = true;
+            return f;
+        }
+        i32 eno = ErrnoOf(fd);
+        StrDeinit(out_path);
+        if (eno == EEXIST) {
+            continue; // collision: retry with new entropy
+        }
+        LOG_SYS_ERROR(eno, "FileOpenTemp: open failed");
+        return f;
+#endif
     }
 
-    i64 got = FileRead(&f, buffer, (u64)fsize);
-    FileClose(&f);
-    if (got != fsize) {
-        LOG_ERROR("read_complete_file: short read on \"{}\" (got {} of {})", filename, got, fsize);
-        return false;
-    }
-
-    ((char *)buffer)[fsize] = 0;
-    *data                   = buffer;
-    *file_size              = (u64)fsize;
-    return true;
+    LOG_ERROR("FileOpenTemp: exhausted retries for prefix \"{}\"", prefix);
+    return f;
 }

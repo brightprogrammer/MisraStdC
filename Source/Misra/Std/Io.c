@@ -25,7 +25,7 @@ static inline int misra_is_tty(int fd) {
     return _isatty(fd);
 #elif FEATURE_DIRECT_SYSCALL
     char buf[128]; // termios is < 64 bytes; 128 is safe overkill.
-    long ret = misra_sys3(MISRA_SYS_ioctl, (long)fd, 0x5401L, (long)(uintptr_t)buf);
+    long ret = misra_sys3(MISRA_SYS_ioctl, (long)fd, 0x5401L, (long)(u64)buf);
     return ret == 0 ? 1 : 0;
 #else
     return isatty(fd);
@@ -65,10 +65,7 @@ static inline int misra_is_tty(int fd) {
 #endif
 
 // stdc
-#include <math.h>
-#include <stdio.h>
-
-
+#include <Misra/Std/Math.h>
 // Tiny in-tree hex helpers so Io doesn't need libc isxdigit/strtol.
 // Returns -1 on a non-hex digit, otherwise 0..15.
 static inline int hex_nibble(char c) {
@@ -2006,10 +2003,10 @@ bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
     size start_len = o->length;
 
     // Handle special cases directly here to avoid StrFromF64 issues
-    if (isnan(*v)) {
+    if (F64IsNan(*v)) {
         // Direct string append for NaN
         if (fmt_info->flags & FMT_FLAG_CAPS) {
-            if (!StrPushBackZstr(o, "NAN")) {
+            if (!StrPushBackZstr(o, "F64_NAN")) {
                 return false;
             }
         } else {
@@ -2017,7 +2014,7 @@ bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
                 return false;
             }
         }
-    } else if (isinf(*v)) {
+    } else if (F64IsInf(*v)) {
         // Direct string append for infinity
         if (*v < 0) {
             if (!StrPushBack(o, '-')) {

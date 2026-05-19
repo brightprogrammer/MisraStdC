@@ -3,8 +3,7 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
-#include <stdio.h>
-#include <math.h>
+#include <Misra/Std/Math.h>
 #include <Misra/Types.h>
 
 // Include test utilities
@@ -215,19 +214,19 @@ bool test_str_from_f64(void) {
     // Test infinity
     StrClear(&s);
     config = (StrFloatFormat) {.precision = 2, .force_sci = false, .uppercase = false};
-    StrFromF64(&s, INFINITY, &config);
+    StrFromF64(&s, F64_INFINITY, &config);
     result = result && (ZstrCompare(s.data, "inf") == 0);
 
     // Test negative infinity
     StrClear(&s);
     config = (StrFloatFormat) {.precision = 2, .force_sci = false, .uppercase = false};
-    StrFromF64(&s, -INFINITY, &config);
+    StrFromF64(&s, -F64_INFINITY, &config);
     result = result && (ZstrCompare(s.data, "-inf") == 0);
 
     // Test NaN
     StrClear(&s);
     config = (StrFloatFormat) {.precision = 2, .force_sci = false, .uppercase = false};
-    StrFromF64(&s, NAN, &config);
+    StrFromF64(&s, F64_NAN, &config);
     result = result && (ZstrCompare(s.data, "nan") == 0);
 
     StrDeinit(&s);
@@ -352,49 +351,49 @@ bool test_str_to_f64(void) {
     Str  s       = StrInitFromZstr("123", &alloc);
     f64  value   = 0.0;
     bool success = StrToF64(&s, &value, NULL);
-    bool result  = (success && fabs(value - 123.0) < 0.0001);
+    bool result  = (success && F64Abs(value - 123.0) < 0.0001);
 
     // Test fractional conversion
     StrDeinit(&s);
     s       = StrInitFromZstr("123.456", &alloc);
     success = StrToF64(&s, &value, NULL);
-    result  = result && (success && fabs(value - 123.456) < 0.0001);
+    result  = result && (success && F64Abs(value - 123.456) < 0.0001);
 
     // Test negative number
     StrDeinit(&s);
     s       = StrInitFromZstr("-123.456", &alloc);
     success = StrToF64(&s, &value, NULL);
-    result  = result && (success && fabs(value - (-123.456)) < 0.0001);
+    result  = result && (success && F64Abs(value - (-123.456)) < 0.0001);
 
     // Test scientific notation
     StrDeinit(&s);
     s       = StrInitFromZstr("1.23e2", &alloc);
     success = StrToF64(&s, &value, NULL);
-    result  = result && (success && fabs(value - 123.0) < 0.0001);
+    result  = result && (success && F64Abs(value - 123.0) < 0.0001);
 
     // Test zero
     StrDeinit(&s);
     s       = StrInitFromZstr("0", &alloc);
     success = StrToF64(&s, &value, NULL);
-    result  = result && (success && fabs(value) < 0.0001);
+    result  = result && (success && F64Abs(value) < 0.0001);
 
     // Test infinity
     StrDeinit(&s);
     s       = StrInitFromZstr("inf", &alloc);
     success = StrToF64(&s, &value, NULL);
-    result  = result && (success && isinf(value) && value > 0);
+    result  = result && (success && F64IsInf(value) && value > 0);
 
     // Test negative infinity
     StrDeinit(&s);
     s       = StrInitFromZstr("-inf", &alloc);
     success = StrToF64(&s, &value, NULL);
-    result  = result && (success && isinf(value) && value < 0);
+    result  = result && (success && F64IsInf(value) && value < 0);
 
     // Test NaN
     StrDeinit(&s);
     s       = StrInitFromZstr("nan", &alloc);
     success = StrToF64(&s, &value, NULL);
-    result  = result && (success && isnan(value));
+    result  = result && (success && F64IsNan(value));
 
     // Test invalid input
     StrDeinit(&s);
@@ -478,8 +477,8 @@ bool test_str_round_trip_conversions(void) {
             bool success       = StrToF64(&s, &recovered_f64, NULL);
 
             // Allow for precision loss
-            f64 tolerance = pow(10.0, -(f64)precision + 1);
-            result        = result && success && (fabs(recovered_f64 - f64_values[i]) < tolerance);
+            f64 tolerance = F64Pow(10.0, -(i32)precision + 1);
+            result        = result && success && (F64Abs(recovered_f64 - f64_values[i]) < tolerance);
 
             StrDeinit(&s);
         }
@@ -749,7 +748,7 @@ bool test_str_large_scale_conversions(void) {
     // Test various floating point values
     for (int exp = -10; exp <= 10; exp++) {
         for (int mantissa = 1; mantissa <= 9; mantissa++) {
-            f64 test_value = mantissa * pow(10.0, exp);
+            f64 test_value = mantissa * F64Pow((10.0), (i32)(exp));
 
             Str            s      = StrInit(&alloc);
             StrFloatFormat config = {.precision = 6, .force_sci = false, .uppercase = false};
@@ -759,11 +758,11 @@ bool test_str_large_scale_conversions(void) {
             bool success   = StrToF64(&s, &recovered, NULL);
 
             // Allow for floating point precision issues
-            f64 tolerance = fabs(test_value) * 1e-10;
+            f64 tolerance = F64Abs(test_value) * 1e-10;
             if (tolerance < 1e-15)
                 tolerance = 1e-15;
 
-            result = result && success && (fabs(recovered - test_value) < tolerance);
+            result = result && success && (F64Abs(recovered - test_value) < tolerance);
 
             StrDeinit(&s);
 

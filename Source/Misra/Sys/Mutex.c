@@ -29,7 +29,6 @@
 #    include <windows.h>
 #elif FEATURE_DIRECT_SYSCALL
 #    include <stdatomic.h>
-#    include <stdint.h>
 #    if defined(__APPLE__)
 // XNU __ulock op codes. We want plain 32-bit compare-and-wait,
 // process-local. ULF_NO_ERRNO would make the kernel return -errno
@@ -61,13 +60,13 @@ static inline void mutex_wait(_Atomic int *addr, int expected) {
     (void)misra_sys4(
         MISRA_SYS___ulock_wait,
         (long)(MISRA_UL_COMPARE_AND_WAIT | MISRA_ULF_NO_ERRNO),
-        (long)(uintptr_t)addr,
+        (long)(u64)addr,
         (long)expected,
         0
     );
 #    else
     // futex(addr, FUTEX_WAIT_PRIVATE, val=expected, timeout=NULL)
-    (void)misra_sys4(MISRA_SYS_futex, (long)(uintptr_t)addr, FUTEX_WAIT_PRIVATE, expected, 0);
+    (void)misra_sys4(MISRA_SYS_futex, (long)(u64)addr, FUTEX_WAIT_PRIVATE, expected, 0);
 #    endif
 }
 
@@ -76,15 +75,12 @@ static inline void mutex_wake_one(_Atomic int *addr) {
     // __ulock_wake(op_and_flags, addr, wake_value=0) -- with
     // UL_COMPARE_AND_WAIT alone (no ULF_WAKE_ALL) the kernel wakes
     // exactly one waiter, same as FUTEX_WAKE with val=1.
-    (void)misra_sys3(
-        MISRA_SYS___ulock_wake,
-        (long)(MISRA_UL_COMPARE_AND_WAIT | MISRA_ULF_NO_ERRNO),
-        (long)(uintptr_t)addr,
-        0
-    );
+    (
+        void
+    )misra_sys3(MISRA_SYS___ulock_wake, (long)(MISRA_UL_COMPARE_AND_WAIT | MISRA_ULF_NO_ERRNO), (long)(u64)addr, 0);
 #    else
     // futex(addr, FUTEX_WAKE_PRIVATE, val=1) -- wake at most one.
-    (void)misra_sys3(MISRA_SYS_futex, (long)(uintptr_t)addr, FUTEX_WAKE_PRIVATE, 1);
+    (void)misra_sys3(MISRA_SYS_futex, (long)(u64)addr, FUTEX_WAKE_PRIVATE, 1);
 #    endif
 }
 #endif
@@ -112,13 +108,7 @@ Mutex *MutexLock(Mutex *m) {
 #elif FEATURE_DIRECT_SYSCALL
     // Fast path: 0 -> 1 (uncontended acquire).
     int expected = 0;
-    if (atomic_compare_exchange_strong_explicit(
-            &m->_state,
-            &expected,
-            1,
-            memory_order_acquire,
-            memory_order_relaxed
-        )) {
+    if (atomic_compare_exchange_strong_explicit(&m->_state, &expected, 1, memory_order_acquire, memory_order_relaxed)) {
         return m;
     }
     // Slow path: lock is held. Mark as contended (state = 2) and
@@ -129,25 +119,13 @@ Mutex *MutexLock(Mutex *m) {
         // sleep until the holder releases.
         int one = 1;
         if (c == 2 ||
-            atomic_compare_exchange_strong_explicit(
-                &m->_state,
-                &one,
-                2,
-                memory_order_relaxed,
-                memory_order_relaxed
-            )) {
+            atomic_compare_exchange_strong_explicit(&m->_state, &one, 2, memory_order_relaxed, memory_order_relaxed)) {
             mutex_wait(&m->_state, 2);
         }
         // Try to take the lock (and keep the contended marker so the
         // next unlocker will wake remaining waiters).
         int zero = 0;
-        if (atomic_compare_exchange_strong_explicit(
-                &m->_state,
-                &zero,
-                2,
-                memory_order_acquire,
-                memory_order_relaxed
-            )) {
+        if (atomic_compare_exchange_strong_explicit(&m->_state, &zero, 2, memory_order_acquire, memory_order_relaxed)) {
             return m;
         }
         c = atomic_load_explicit(&m->_state, memory_order_relaxed);

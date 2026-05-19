@@ -19,8 +19,6 @@
 
 #include "../_Syscall.h"
 
-#include <stdint.h>
-
 // Platform default paths for the two config files we read. POSIX
 // (Linux + macOS): the well-known /etc paths. Windows: the same files
 // live under `%SystemRoot%\System32\drivers\etc`, which historically
@@ -474,14 +472,14 @@ static u16 random_query_id(void) {
         long sec;
         long usec;
     } tv = {0, 0};
-    (void)misra_sys2(MISRA_SYS_gettimeofday, (long)(uintptr_t)&tv, 0);
+    (void)misra_sys2(MISRA_SYS_gettimeofday, (long)(u64)&tv, 0);
     u64 mix = (u64)tv.sec ^ ((u64)tv.usec << 21) ^ (u64)misra_sys0(MISRA_SYS_getpid);
 #    else
     struct {
         long sec;
         long nsec;
     } ts = {0, 0};
-    (void)misra_sys2(MISRA_SYS_clock_gettime, 0L, (long)(uintptr_t)&ts);
+    (void)misra_sys2(MISRA_SYS_clock_gettime, 0L, (long)(u64)&ts);
     u64 mix = (u64)ts.sec ^ ((u64)ts.nsec << 21) ^ (u64)misra_sys0(MISRA_SYS_getpid);
 #    endif
     return (u16)(mix ^ (mix >> 16) ^ (mix >> 32));

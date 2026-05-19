@@ -4,8 +4,6 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Log.h>
 
-#include <errno.h>
-#include <stdlib.h>
 
 static bool kvconfig_is_space(char c) {
     return c == ' ' || c == '\t' || c == '\r';

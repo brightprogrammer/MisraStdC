@@ -1,8 +1,6 @@
 /// file      : Tests/Std/Allocator.Arena.c
 /// Smoke tests for the bump (arena) allocator.
 
-#include <stdint.h>
-
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Allocator/Arena.h>
 #include <Misra/Std/Container/Vec.h>
@@ -112,7 +110,7 @@ static bool test_alignment(void) {
     bool           ok         = (a != NULL) && (b != NULL);
 
     if (ok) {
-        ok = (((uintptr_t)a & 63u) == 0) && (((uintptr_t)b & 63u) == 0);
+        ok = (((u64)a & 63u) == 0) && (((u64)b & 63u) == 0);
     }
 
     ArenaAllocatorDeinit(&arena);

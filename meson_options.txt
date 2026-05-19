@@ -60,3 +60,6 @@ option('parser_pe',       type: 'boolean', value: true, description: 'Build PE/C
 option('parser_pdb',      type: 'boolean', value: true, description: 'Build PDB reader (MSF container + DBI/Publics streams). Used by the Windows backtrace path to resolve symbols without dbghelp. Requires parser_pe.')
 option('parser_macho',    type: 'boolean', value: true, description: 'Build Mach-O parser. Used by the macOS backtrace path to walk loaded images.')
 option('parser_dns',      type: 'boolean', value: true, description: 'Build DNS wire-format encoder + decoder (RFC 1035). Pure data manipulation; sys_dns is the I/O consumer.')
+
+# --- Tunables ---------------------------------------------------------------
+option('prng_reseed_interval', type: 'integer', value: 10000, min: 1, description: 'Number of Prng* calls between kernel-CSPRNG reseeds of the internal PRNG state. Smaller = stronger sequence (more kernel calls), larger = faster but the sequence stays correlated longer between reseeds.')

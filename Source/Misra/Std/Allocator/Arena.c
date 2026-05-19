@@ -9,8 +9,6 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 
-#include <stdint.h>
-
 // Relational invariants for ArenaAllocator:
 //   - head and tail chain endpoints are both NULL or both non-NULL.
 //   - last_ptr / last_size record the most recent allocation for
@@ -111,10 +109,10 @@ void *arena_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
 
     ArenaChunk *chunk = arena->tail;
     if (chunk) {
-        uintptr_t base_addr    = (uintptr_t)chunk->base;
-        uintptr_t free_addr    = base_addr + chunk->used;
-        uintptr_t aligned_addr = (free_addr + (uintptr_t)(align - 1)) & ~(uintptr_t)(align - 1);
-        size      aligned_used = (size)(aligned_addr - base_addr);
+        u64  base_addr    = (u64)chunk->base;
+        u64  free_addr    = base_addr + chunk->used;
+        u64  aligned_addr = (free_addr + (u64)(align - 1)) & ~(u64)(align - 1);
+        size aligned_used = (size)(aligned_addr - base_addr);
         if (aligned_used + padded <= chunk->capacity) {
             char *result     = chunk->base + aligned_used;
             chunk->used      = aligned_used + padded;
@@ -135,13 +133,13 @@ void *arena_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     }
     arena->tail = chunk;
 
-    uintptr_t base_addr    = (uintptr_t)chunk->base;
-    uintptr_t aligned_addr = (base_addr + (uintptr_t)(align - 1)) & ~(uintptr_t)(align - 1);
-    size      aligned_used = (size)(aligned_addr - base_addr);
-    char     *result       = chunk->base + aligned_used;
-    chunk->used            = aligned_used + padded;
-    arena->last_ptr        = result;
-    arena->last_size       = padded;
+    u64   base_addr    = (u64)chunk->base;
+    u64   aligned_addr = (base_addr + (u64)(align - 1)) & ~(u64)(align - 1);
+    size  aligned_used = (size)(aligned_addr - base_addr);
+    char *result       = chunk->base + aligned_used;
+    chunk->used        = aligned_used + padded;
+    arena->last_ptr    = result;
+    arena->last_size   = padded;
     return result;
 }
 

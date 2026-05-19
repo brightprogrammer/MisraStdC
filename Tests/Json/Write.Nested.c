@@ -2,8 +2,6 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <Misra/Types.h>
 
 // Include test utilities
@@ -230,7 +228,11 @@ bool test_complex_api_response_writing(void) {
     bool success = true;
     Str  json    = StrInit(&alloc);
 
-    ApiResponse response = {true, StrInitFromZstr("Success", &alloc), VecInitWithDeepCopy(NULL, AnnSymbolDeinit, &alloc)};
+    ApiResponse response = {
+        true,
+        StrInitFromZstr("Success", &alloc),
+        VecInitWithDeepCopy(NULL, AnnSymbolDeinit, &alloc)
+    };
 
     // Add sample data
     AnnSymbol sym             = {0};

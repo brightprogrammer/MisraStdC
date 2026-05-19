@@ -7,12 +7,6 @@
 #ifndef MISRA_STD_LOG_H
 #define MISRA_STD_LOG_H
 
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-// Misra
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Allocator/Heap.h>
 #include <Misra/Std/Io.h>
@@ -42,7 +36,7 @@ void Abort(void);
     do {                                                                                                               \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
         Str           m_         = StrInit(&log_alloc_);                                                               \
-        StrAppendFmt(&m_, __VA_ARGS__);                                                                                 \
+        StrAppendFmt(&m_, __VA_ARGS__);                                                                                \
         LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, m_.data);                                                 \
         StrDeinit(&m_);                                                                                                \
         HeapAllocatorDeinit(&log_alloc_);                                                                              \
@@ -56,7 +50,7 @@ void Abort(void);
     do {                                                                                                               \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
         Str           m_         = StrInit(&log_alloc_);                                                               \
-        StrAppendFmt(&m_, __VA_ARGS__);                                                                                 \
+        StrAppendFmt(&m_, __VA_ARGS__);                                                                                \
         LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, m_.data);                                                 \
         StrDeinit(&m_);                                                                                                \
         HeapAllocatorDeinit(&log_alloc_);                                                                              \
@@ -69,7 +63,7 @@ void Abort(void);
     do {                                                                                                               \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
         Str           m_         = StrInit(&log_alloc_);                                                               \
-        StrAppendFmt(&m_, __VA_ARGS__);                                                                                 \
+        StrAppendFmt(&m_, __VA_ARGS__);                                                                                \
         LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, m_.data);                                                  \
         StrDeinit(&m_);                                                                                                \
         HeapAllocatorDeinit(&log_alloc_);                                                                              \
@@ -84,7 +78,7 @@ void Abort(void);
 /// directly). Caller passes it explicitly so we don't have to read
 /// the libc `errno` TLS slot here -- pulling `__errno_location` into
 /// every binary that uses LOG_SYS_* defeats the libc-diet effort.
-/// Use `SYS_ERRNO(ret)` from `<Misra/Sys.h>` to convert a syscall
+/// Use `ErrnoOf(ret)` from `<Misra/Sys.h>` to convert a syscall
 /// return value to an errno code in a platform-portable way.
 ///
 #define LOG_SYS_FATAL(eno, ...)                                                                                        \
@@ -92,11 +86,11 @@ void Abort(void);
         i32           sys_eno_   = (i32)(eno);                                                                         \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
         Str           m_         = StrInit(&log_alloc_);                                                               \
-        StrAppendFmt(&m_, __VA_ARGS__);                                                                                 \
+        StrAppendFmt(&m_, __VA_ARGS__);                                                                                \
         Str syserr_;                                                                                                   \
         StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
             StrError(sys_eno_, &syserr_);                                                                              \
-            StrAppendFmt(&m_, " : {}", syserr_);                                                                        \
+            StrAppendFmt(&m_, " : {}", syserr_);                                                                       \
         });                                                                                                            \
         LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, m_.data);                                                 \
         StrDeinit(&m_);                                                                                                \
@@ -114,11 +108,11 @@ void Abort(void);
         i32           sys_eno_   = (i32)(eno);                                                                         \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
         Str           m_         = StrInit(&log_alloc_);                                                               \
-        StrAppendFmt(&m_, __VA_ARGS__);                                                                                 \
+        StrAppendFmt(&m_, __VA_ARGS__);                                                                                \
         Str syserr_;                                                                                                   \
         StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
             StrError(sys_eno_, &syserr_);                                                                              \
-            StrAppendFmt(&m_, " : {}", syserr_);                                                                        \
+            StrAppendFmt(&m_, " : {}", syserr_);                                                                       \
         });                                                                                                            \
         LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, m_.data);                                                 \
         StrDeinit(&m_);                                                                                                \
@@ -134,11 +128,11 @@ void Abort(void);
         i32           sys_eno_   = (i32)(eno);                                                                         \
         HeapAllocator log_alloc_ = HeapAllocatorInit();                                                                \
         Str           m_         = StrInit(&log_alloc_);                                                               \
-        StrAppendFmt(&m_, __VA_ARGS__);                                                                                 \
+        StrAppendFmt(&m_, __VA_ARGS__);                                                                                \
         Str syserr_;                                                                                                   \
         StrInitStack(syserr_, &log_alloc_, 256, {                                                                      \
             StrError(sys_eno_, &syserr_);                                                                              \
-            StrAppendFmt(&m_, " : {}", syserr_);                                                                        \
+            StrAppendFmt(&m_, " : {}", syserr_);                                                                       \
         });                                                                                                            \
         LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, m_.data);                                                  \
         StrDeinit(&m_);                                                                                                \

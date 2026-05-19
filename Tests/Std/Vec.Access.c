@@ -1,7 +1,6 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Log.h>
-#include <stdio.h>
 #include <Misra/Types.h>
 
 // Include test utilities
@@ -168,8 +167,8 @@ bool test_vec_begin_end(void) {
 bool test_vec_size_len(void) {
     WriteFmt("Testing VecSize and VecLen\n");
 
-    DefaultAllocator alloc      = DefaultAllocatorInit();
-    HeapAllocator    aligned8   = HeapAllocatorInitAligned(8);
+    DefaultAllocator alloc    = DefaultAllocatorInit();
+    HeapAllocator    aligned8 = HeapAllocatorInitAligned(8);
 
     // Create a vector of integers
     typedef Vec(int) IntVec;

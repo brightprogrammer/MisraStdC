@@ -11,10 +11,9 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Std/Memory.h>
+#include <Misra/Sys.h>
 #include <Misra/Sys/PdbCache.h>
 
-#include <stdio.h>
-#include <stdlib.h> // getenv
 
 #include "../Util/TestRunner.h"
 
@@ -24,15 +23,15 @@
 // free.
 static const char *tmp_dir_path(void) {
 #ifdef _WIN32
-    const char *p = getenv("TEMP");
+    const char *p = EnvGet("TEMP");
     if (p && *p)
         return p;
-    p = getenv("TMP");
+    p = EnvGet("TMP");
     if (p && *p)
         return p;
     return "C:/Windows/Temp";
 #else
-    const char *p = getenv("TMPDIR");
+    const char *p = EnvGet("TMPDIR");
     if (p && *p)
         return p;
     return "/tmp";

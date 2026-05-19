@@ -2,8 +2,6 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <Misra/Types.h>
 
 // Include test utilities
@@ -462,10 +460,10 @@ bool test_dynamic_key_parsing(void) {
     JR_OBJ(si, {
         JR_OBJ_KV(si, "functions", {
             // First level: source function ID from key
-            u64 source_function_id = strtoull(key.data, NULL, 10);
+            u64 source_function_id = (u64)ZstrToI64(key.data, NULL);
             JR_OBJ(si, {
                 // Second level: target function ID from key
-                u64 target_function_id = strtoull(key.data, NULL, 10);
+                u64 target_function_id = (u64)ZstrToI64(key.data, NULL);
 
                 // Properly initialize all Str fields
                 AnnSymbol sym             = {0};
@@ -569,7 +567,7 @@ bool test_complex_api_response(void) {
 
         if (response.status) {
             JR_OBJ_KV(si, "data", {
-                u64 source_function_id = strtoull(key.data, NULL, 10);
+                u64 source_function_id = (u64)ZstrToI64(key.data, NULL);
                 JR_OBJ(si, {
                     // Properly initialize all Str fields
                     AnnSymbol sym             = {0};
@@ -578,7 +576,7 @@ bool test_complex_api_response(void) {
                     sym.sha256                = StrInit(&alloc);
                     sym.function_mangled_name = StrInit(&alloc);
                     sym.source_function_id    = source_function_id;
-                    sym.target_function_id    = strtoull(key.data, NULL, 10);
+                    sym.target_function_id    = (u64)ZstrToI64(key.data, NULL);
 
                     JR_OBJ(si, {
                         JR_FLT_KV(si, "distance", sym.distance);
@@ -908,7 +906,7 @@ bool test_conditional_parsing(void) {
         if (response.status) {
             WriteFmt("[DEBUG] Status is true, parsing data...\n");
             JR_OBJ_KV(si, "data", {
-                u64 source_function_id = strtoull(key.data, NULL, 10);
+                u64 source_function_id = (u64)ZstrToI64(key.data, NULL);
                 WriteFmt("[DEBUG] Source function ID from key: {}\n", source_function_id);
                 JR_OBJ(si, {
                     // Properly initialize all Str fields
@@ -918,7 +916,7 @@ bool test_conditional_parsing(void) {
                     sym.sha256                = StrInit(&alloc);
                     sym.function_mangled_name = StrInit(&alloc);
                     sym.source_function_id    = source_function_id;
-                    sym.target_function_id    = strtoull(key.data, NULL, 10);
+                    sym.target_function_id    = (u64)ZstrToI64(key.data, NULL);
 
                     WriteFmt("[DEBUG] Target function ID from key: {}\n", sym.target_function_id);
 
@@ -1081,7 +1079,7 @@ bool test_status_response_pattern(void) {
         if (response.status) {
             WriteFmt("[DEBUG] Status is true, parsing data...\n");
             JR_OBJ_KV(si, "data", {
-                u64 source_function_id = strtoull(key.data, NULL, 10);
+                u64 source_function_id = (u64)ZstrToI64(key.data, NULL);
                 WriteFmt("[DEBUG] Source function ID from key: {}\n", source_function_id);
                 JR_OBJ(si, {
                     // Properly initialize all Str fields
@@ -1091,7 +1089,7 @@ bool test_status_response_pattern(void) {
                     sym.sha256                = StrInit(&alloc);
                     sym.function_mangled_name = StrInit(&alloc);
                     sym.source_function_id    = source_function_id;
-                    sym.target_function_id    = strtoull(key.data, NULL, 10);
+                    sym.target_function_id    = (u64)ZstrToI64(key.data, NULL);
 
                     WriteFmt("[DEBUG] Target function ID from key: {}\n", sym.target_function_id);
 

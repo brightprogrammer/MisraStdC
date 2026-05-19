@@ -6,9 +6,7 @@
 #include <Misra/Std/Container/Float.h>
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
-#include <math.h>   // For INFINITY and NAN
-#include <string.h> // For strlen
-#include <stdio.h>
+#include <Misra/Std/Math.h>
 #include <Misra/Types.h>
 
 // Include test utilities
@@ -305,18 +303,18 @@ bool test_float_special_values(void) {
     bool success = true;
 
     // Test infinity
-    f64 pos_inf = INFINITY;
+    f64 pos_inf = F64_INFINITY;
     StrAppendFmt(&output, "{}", pos_inf);
     success = success && (ZstrCompare(output.data, "inf") == 0);
     StrClear(&output);
 
-    f64 neg_inf = -INFINITY;
+    f64 neg_inf = -F64_INFINITY;
     StrAppendFmt(&output, "{}", neg_inf);
     success = success && (ZstrCompare(output.data, "-inf") == 0);
     StrClear(&output);
 
     // Test NaN
-    f64 nan_val = NAN;
+    f64 nan_val = F64_NAN;
     StrAppendFmt(&output, "{}", nan_val);
     success = success && (ZstrCompare(output.data, "nan") == 0);
 

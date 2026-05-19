@@ -31,8 +31,6 @@
 #    include <Misra/Sys/SymbolResolver.h>
 #endif
 
-#include <stdint.h>
-
 // ---------------------------------------------------------------------------
 // Sink callback shared across all backends.
 // ---------------------------------------------------------------------------
@@ -120,7 +118,7 @@ static bool win_module_for_ip(void *ip, char *out_path, size out_path_size, u64 
     DWORD n = GetModuleFileNameA(mod, out_path, (DWORD)out_path_size);
     if (n == 0 || n >= out_path_size)
         return false;
-    *out_base = (u64)(uintptr_t)mod;
+    *out_base = (u64)mod;
     return true;
 }
 #    endif
@@ -186,7 +184,7 @@ static void format_walk_win(Str *out, const StackFrame *frames, size count, Allo
 #    endif
 
     for (size i = 0; i < count; ++i) {
-        DWORD64     ip       = (DWORD64)(uintptr_t)frames[i].ip;
+        DWORD64     ip       = (DWORD64)(u64)frames[i].ip;
         bool        named    = false;
         const char *sym_name = NULL;
         u32         sym_off  = 0;
@@ -263,10 +261,10 @@ void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *allo
 #elif defined(__APPLE__)
 
 // dyld public API surface (libdyld.dylib, ABI-stable).
-extern uint32_t    _dyld_image_count(void);
-extern const void *_dyld_get_image_header(uint32_t image_index);
-extern const char *_dyld_get_image_name(uint32_t image_index);
-extern intptr_t    _dyld_get_image_vmaddr_slide(uint32_t image_index);
+extern u32         _dyld_image_count(void);
+extern const void *_dyld_get_image_header(u32 image_index);
+extern const char *_dyld_get_image_name(u32 image_index);
+extern i64         _dyld_get_image_vmaddr_slide(u32 image_index);
 
 // Mach-O constants we look at.
 enum {
@@ -322,9 +320,9 @@ static __attribute__((always_inline)) inline size fp_walk(size skip_frames, Stac
     size   depth    = 0;
     void **prev_fp  = NULL;
     while (fp && depth < BACKTRACE_MAX_WALK) {
-        if ((uintptr_t)fp & 0x7u)
+        if ((u64)fp & 0x7u)
             break;
-        if (prev_fp && (uintptr_t)fp <= (uintptr_t)prev_fp)
+        if (prev_fp && (u64)fp <= (u64)prev_fp)
             break;
         void *saved_fp = fp[0];
         void *ret_addr = fp[1];
@@ -360,20 +358,20 @@ bool capture_stack_trace_vec(StackFrames *out, size skip_frames) {
 
 #    if FEATURE_PARSER_MACHO
 static bool dyld_image_for_ip(void *ip, const char **out_path, u64 *out_slide) {
-    uintptr_t ipx = (uintptr_t)ip;
-    u32       n   = _dyld_image_count();
+    u64 ipx = (u64)ip;
+    u32 n   = _dyld_image_count();
     for (u32 i = 0; i < n; ++i) {
         const MachoHeader64 *h = (const MachoHeader64 *)_dyld_get_image_header(i);
         if (!h || h->magic != MACHO_MH_MAGIC_64)
             continue;
-        intptr_t  slide = _dyld_get_image_vmaddr_slide(i);
+        i64       slide = _dyld_get_image_vmaddr_slide(i);
         const u8 *cmd_p = (const u8 *)h + sizeof(MachoHeader64);
         for (u32 c = 0; c < h->ncmds; ++c) {
             const MachoLoadCommandHdr *lc = (const MachoLoadCommandHdr *)cmd_p;
             if (lc->cmd == MACHO_LC_SEGMENT_64) {
                 const MachoSegmentCommand64 *seg = (const MachoSegmentCommand64 *)cmd_p;
-                uintptr_t                    lo  = (uintptr_t)(seg->vmaddr + (u64)slide);
-                uintptr_t                    hi  = lo + (uintptr_t)seg->vmsize;
+                u64                          lo  = (u64)(seg->vmaddr + (u64)slide);
+                u64                          hi  = lo + (u64)seg->vmsize;
                 if (ipx >= lo && ipx < hi) {
                     *out_path  = _dyld_get_image_name(i);
                     *out_slide = (u64)slide;
@@ -396,7 +394,7 @@ static void format_walk_mac(Str *out, const StackFrame *frames, size count, Allo
 #    endif
 
     for (size i = 0; i < count; ++i) {
-        u64         ip       = (u64)(uintptr_t)frames[i].ip;
+        u64         ip       = (u64)frames[i].ip;
         const char *sym_name = NULL;
         u32         sym_off  = 0;
         const char *mod_path = NULL;
@@ -460,9 +458,9 @@ static __attribute__((always_inline)) inline size fp_walk(size skip_frames, Stac
     size   depth    = 0;
     void **prev_fp  = NULL;
     while (fp && depth < BACKTRACE_MAX_WALK) {
-        if ((uintptr_t)fp & 0x7u)
+        if ((u64)fp & 0x7u)
             break;
-        if (prev_fp && (uintptr_t)fp <= (uintptr_t)prev_fp)
+        if (prev_fp && (u64)fp <= (u64)prev_fp)
             break;
         void *saved_fp = fp[0];
         void *ret_addr = fp[1];
@@ -499,12 +497,12 @@ bool capture_stack_trace_vec(StackFrames *out, size skip_frames) {
 static void emit_resolved_line(Str *out, u32 idx, const ResolvedSymbol *r, void *ip) {
     if (r->symbol_name) {
         const char *mod = basename_of(r->module_path);
-        StrAppendFmt(out, "  #{} {}!{}+{x} [{x}]", idx, mod, r->symbol_name, r->offset, (u64)(uintptr_t)ip);
+        StrAppendFmt(out, "  #{} {}!{}+{x} [{x}]", idx, mod, r->symbol_name, r->offset, (u64)ip);
     } else if (r->module_path) {
         const char *mod = basename_of(r->module_path);
-        StrAppendFmt(out, "  #{} {}+{x} [{x}]", idx, mod, r->offset, (u64)(uintptr_t)ip);
+        StrAppendFmt(out, "  #{} {}+{x} [{x}]", idx, mod, r->offset, (u64)ip);
     } else {
-        StrAppendFmt(out, "  #{} {x}", idx, (u64)(uintptr_t)ip);
+        StrAppendFmt(out, "  #{} {x}", idx, (u64)ip);
     }
     if (r->source_file) {
         const char *file = basename_of(r->source_file);
@@ -523,7 +521,7 @@ static void format_walk_with(Str *out, const StackFrame *frames, size count, Sym
         if (SymbolResolverResolve(resolver, frames[i].ip, &r)) {
             emit_resolved_line(out, (u32)i, &r, frames[i].ip);
         } else {
-            StrAppendFmt(out, "  #{} {x}\n", (u32)i, (u64)(uintptr_t)frames[i].ip);
+            StrAppendFmt(out, "  #{} {x}\n", (u32)i, (u64)frames[i].ip);
         }
     }
 }
@@ -532,7 +530,7 @@ static void format_walk_alloc(Str *out, const StackFrame *frames, size count, Al
     SymbolResolver res;
     if (!SymbolResolverInit(&res, alloc)) {
         for (size i = 0; i < count; ++i) {
-            StrAppendFmt(out, "  #{} {x}\n", (u32)i, (u64)(uintptr_t)frames[i].ip);
+            StrAppendFmt(out, "  #{} {x}\n", (u32)i, (u64)frames[i].ip);
         }
         return;
     }
@@ -584,7 +582,7 @@ static bool read_u64_at(u64 addr, u64 *out) {
         return false;
     if (addr & 0x7)
         return false;
-    *out = *(volatile u64 *)(uintptr_t)addr;
+    *out = *(volatile u64 *)(u64)addr;
     return true;
 }
 
@@ -635,7 +633,7 @@ static __attribute__((always_inline)) inline size
                      : "=r"(rsp));
     __asm__ volatile("movq %%rbp, %0"
                      : "=r"(rbp));
-    u64 rip  = (u64)(uintptr_t)__builtin_return_address(0);
+    u64 rip  = (u64)__builtin_return_address(0);
     rsp     += 8;
 
     enum {
@@ -649,7 +647,7 @@ static __attribute__((always_inline)) inline size
             break;
 
         if (emitted >= skip_frames) {
-            if (!sink(user, (void *)(uintptr_t)rip))
+            if (!sink(user, (void *)(u64)rip))
                 break;
             ++captured;
         }
@@ -658,7 +656,7 @@ static __attribute__((always_inline)) inline size
         const DwarfCfi *cfi         = NULL;
         const DwarfFde *fde         = NULL;
         u64             module_base = 0;
-        if (!SymbolResolverFindFde(resolver, (void *)(uintptr_t)rip, &cfi, &fde, &module_base))
+        if (!SymbolResolverFindFde(resolver, (void *)(u64)rip, &cfi, &fde, &module_base))
             break;
         u64 file_relative = rip - module_base;
 

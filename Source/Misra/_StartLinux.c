@@ -33,45 +33,52 @@
 
 #if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
 
+extern int main(int argc, char **argv);
+
+// envp captured at process start. Lives here so `Sys.c`'s `EnvGet`
+// can walk it without ever calling `getenv` / touching libc.
+//
+// The kernel-supplied stack at `_start` is:
+//   sp:                    argc
+//   sp + 8..8+8*argc:      argv[0..argc-1]
+//   sp + 8+8*argc:         NULL  (argv terminator)
+//   sp + 8+8*argc+8 ...:   envp[0..N-1]
+//   ...                    NULL  (envp terminator)
+//   ...                    auxv pairs
+//
+// `envp = argv + argc + 1`. The strings themselves live in a region
+// the kernel maps above the initial stack; pointers remain valid for
+// the lifetime of the process.
+char **misra_envp = 0;
+
+__attribute__((used, noreturn)) static void misra_start_c(long *kernel_sp) {
+    int    argc = (int)kernel_sp[0];
+    char **argv = (char **)(kernel_sp + 1);
+    misra_envp  = argv + argc + 1;
+    int rc      = main(argc, argv);
+    (void)misra_sys1(MISRA_SYS_exit_group, rc);
+    __builtin_unreachable();
+}
+
 // Naked entry point. The kernel jumps here with a freshly-set-up
-// stack: SP points at argc, followed by argv[0..argc-1], a NULL
-// terminator, envp[...], NULL, then the auxv pairs and string data.
-// We grab argc + argv, hand them to `main`, then issue exit_group with
-// main's return value. ABI registers (rdi/rsi on x86_64, x0/x1 on
-// aarch64) are loaded directly; no C prologue is generated because of
-// the `naked` attribute.
+// stack as described above. We hand the raw SP to `misra_start_c`,
+// which decodes argc/argv/envp and dispatches to `main`.
 __attribute__((naked, used, noreturn)) void _start(void) {
 #    if defined(__x86_64__)
     __asm__(
-        // SysV AMD64 ABI: clear rbp so unwinders treat _start as the
-        // root frame, load argc into rdi, argv into rsi, force the
-        // stack alignment the C ABI wants at a call boundary (the
-        // kernel hands us 8-aligned, not 16), then call main. After
-        // main returns, exit_group via syscall 231.
         "xor %ebp, %ebp\n"
-        "mov (%rsp), %rdi\n"  // argc (1st arg)
-        "lea 8(%rsp), %rsi\n" // argv (2nd arg)
-        "and $-16, %rsp\n"    // 16-byte stack align for the call
-        "call main\n"
-        "mov %eax, %edi\n"    // exit status -> 1st syscall arg
-        "mov $231, %eax\n"    // SYS_exit_group
-        "syscall\n"
-        "ud2\n"               // unreachable; trap if syscall returns
+        "mov %rsp, %rdi\n" // kernel_sp (1st arg)
+        "and $-16, %rsp\n" // 16-byte stack align for the C call
+        "call misra_start_c\n"
+        "ud2\n"            // unreachable
     );
 #    elif defined(__aarch64__)
     __asm__(
-        // AArch64 ABI: zero frame-pointer + link-register so backtraces
-        // bottom out cleanly. Load argc into x0, argv into x1, call
-        // main, then SYS_exit_group (94) with w0 carrying the exit
-        // status.
         "mov x29, #0\n"
         "mov x30, #0\n"
-        "ldr x0, [sp]\n"   // argc (1st arg)
-        "add x1, sp, #8\n" // argv (2nd arg)
-        "bl main\n"
-        "mov w8, #94\n"    // SYS_exit_group
-        "svc #0\n"
-        "brk #0\n"         // unreachable
+        "mov x0, sp\n" // kernel_sp (1st arg)
+        "bl misra_start_c\n"
+        "brk #0\n"     // unreachable
     );
 #    endif
 }

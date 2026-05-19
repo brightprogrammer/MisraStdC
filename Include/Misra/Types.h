@@ -12,11 +12,6 @@
 // build time and installed alongside the rest of the public headers.
 #include <Misra/Config.h>
 
-#include <stdarg.h>
-#include <string.h> // For strncmp, memcpy, etc.
-#include <stdlib.h> // For malloc
-#include <limits.h> // For INT_MIN, INT_MAX, etc.
-
 // take an 8 character string and
 #define MAKE_NEW_MAGIC_VALUE(s)                                                                                        \
     ((((u64)(s[0]) << 56) ^ ((u64)(s[1]) << 48) ^ ((u64)(s[2]) << 40) ^ ((u64)(s[3]) << 32) ^ ((u64)(s[4]) << 24) ^    \
@@ -47,48 +42,50 @@ typedef unsigned long size;
 typedef unsigned long size;
 #endif
 
-// Integer limits
+// Integer limits. Hex because the bit patterns matter -- decimal
+// hides the fact that INTn_MAX is 0x7F...F and UINTn_MAX is 0xFF...F.
 #ifndef INT8_MIN
-#    define INT8_MIN (-128)
+#    define INT8_MIN ((i8)0x80)
 #endif
 #ifndef INT8_MAX
-#    define INT8_MAX 127
+#    define INT8_MAX ((i8)0x7F)
 #endif
 #ifndef UINT8_MAX
-#    define UINT8_MAX 255
+#    define UINT8_MAX 0xFFu
 #endif
 
 #ifndef INT16_MIN
-#    define INT16_MIN (-32768)
+#    define INT16_MIN ((i16)0x8000)
 #endif
 #ifndef INT16_MAX
-#    define INT16_MAX 32767
+#    define INT16_MAX ((i16)0x7FFF)
 #endif
 #ifndef UINT16_MAX
-#    define UINT16_MAX 65535
+#    define UINT16_MAX 0xFFFFu
 #endif
 
 #ifndef INT32_MIN
-#    define INT32_MIN (-2147483647 - 1)
+#    define INT32_MIN ((i32)0x80000000)
 #endif
 #ifndef INT32_MAX
-#    define INT32_MAX 2147483647
+#    define INT32_MAX ((i32)0x7FFFFFFF)
 #endif
 #ifndef UINT32_MAX
-#    define UINT32_MAX 4294967295U
+#    define UINT32_MAX 0xFFFFFFFFu
 #endif
 
 #ifndef INT64_MIN
-#    define INT64_MIN (-9223372036854775807LL - 1)
+#    define INT64_MIN ((i64)0x8000000000000000LL)
 #endif
 #ifndef INT64_MAX
-#    define INT64_MAX 9223372036854775807LL
+#    define INT64_MAX ((i64)0x7FFFFFFFFFFFFFFFLL)
 #endif
 #ifndef UINT64_MAX
-#    define UINT64_MAX 18446744073709551615ULL
+#    define UINT64_MAX 0xFFFFFFFFFFFFFFFFULL
 #endif
 
-// Size type limits
+// Size type limits. `__SIZEOF_LONG__` is a builtin macro on GCC and
+// Clang (works on clang-cl too); on MSVC we gate by `_WIN64`.
 #ifndef SIZE_MAX
 #    if defined(_MSC_VER) || defined(__MSC_VER)
 #        if defined(_WIN64)
@@ -97,7 +94,7 @@ typedef unsigned long size;
 #            define SIZE_MAX UINT32_MAX
 #        endif
 #    else
-#        if ULONG_MAX == UINT64_MAX
+#        if defined(__SIZEOF_LONG__) && __SIZEOF_LONG__ == 8
 #            define SIZE_MAX UINT64_MAX
 #        else
 #            define SIZE_MAX UINT32_MAX
@@ -153,21 +150,21 @@ typedef i8 bool;
 #    define TYPE_OF(x) __typeof__((x))
 #endif
 
-#if defined(_MSC_VER) && !defined(__clang__) && !defined(__cplusplus)
-/// MSVC's `<stddef.h>` does not expose `max_align_t` in C mode. Provide a portable
-/// shim using a union of the widest standard scalar types so `_Alignof(max_align_t)`
-/// works uniformly across compilers.
-///
-/// Clang in MSVC-compat mode (`clang-cl`, or `clang --target=*-msvc`) also
-/// defines `_MSC_VER`, but its bundled `<stddef.h>` already provides
-/// `max_align_t`, so guarding on `!defined(__clang__)` avoids a typedef
-/// redefinition clash there.
-typedef union {
-    long long   ll_;
-    long double ld_;
-    void       *p_;
-    void (*fn_)(void);
-} max_align_t;
+// Strongest scalar alignment, matching libc's `_Alignof(max_align_t)`
+// on every target we ship: 16 on x86_64/aarch64 Linux+macOS,
+// 8 on 32-bit Windows. Used by container allocations that want to be
+// safe for any payload type without pulling `<stddef.h>` for
+// `max_align_t`.
+#define MAX_ALIGN _Alignof(long double)
+
+// `offsetof` without `<stddef.h>`. Compilers expose a builtin for the
+// same purpose; fall back to the textbook trick otherwise.
+#ifndef offsetof
+#    if defined(__GNUC__) || defined(__clang__)
+#        define offsetof(T, m) __builtin_offsetof(T, m)
+#    else
+#        define offsetof(T, m) ((size)((char *)&((T *)0)->m - (char *)0))
+#    endif
 #endif
 
 ///

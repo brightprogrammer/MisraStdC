@@ -23,8 +23,6 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 
-#include <stdint.h>
-
 // ---------------------------------------------------------------------------
 // DW_EH_PE_* constants and encoded-pointer reader
 // ---------------------------------------------------------------------------

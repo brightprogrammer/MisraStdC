@@ -405,13 +405,14 @@ HttpResponse *HttpRespondWithFile(
     response->content_type = content_type;
     StrDeinit(&response->body);
     response->body = StrInit(response->allocator);
-    if (!ReadCompleteFile(
-            filepath,
-            &response->body.data,
-            &response->body.length,
-            &response->body.capacity,
-            response->allocator
-        )) {
+    File f         = FileOpen(filepath, "rb");
+    if (!FileIsValid(&f)) {
+        LOG_ERROR("failed to open file: {}", filepath);
+        return NULL;
+    }
+    i64 got = FileRead(&f, &response->body);
+    FileClose(&f);
+    if (got < 0) {
         LOG_ERROR("failed to read file: {}", filepath);
         return NULL;
     }

@@ -1,8 +1,6 @@
 /// file      : Tests/Std/Allocator.Page.c
 /// Smoke tests for the page-backed allocator.
 
-#include <stdint.h>
-
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Allocator/Page.h>
 #include <Misra/Std/Container/Vec.h>
@@ -95,7 +93,7 @@ static bool test_page_aligned_allocator(void) {
     Allocator    *alloc_base = ALLOCATOR_OF(&alloc);
     size          page       = PageAllocatorPageSize(&alloc);
     void         *ptr        = AllocatorAlloc(alloc_base, 1024, true);
-    bool          ok         = (ptr != NULL) && (((uintptr_t)ptr & (page - 1u)) == 0);
+    bool          ok         = (ptr != NULL) && (((u64)ptr & (page - 1u)) == 0);
 
     if (ptr) {
         AllocatorFree(&alloc.base, ptr);
