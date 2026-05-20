@@ -28,20 +28,38 @@
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 
-// Relational invariants for SlabAllocator:
-//   - slot_size and slots_per_chunk must be positive (a zero-slot
-//     slab is meaningless; AllocatorAlloc would loop forever).
-//   - chunk list endpoints (head, tail) are both NULL or both non-NULL.
-//   - free_head is a vestigial field from the pre-bitmap scheme; the
-//     current implementation never sets it, so it must stay NULL.
-//   - the embedded PageAllocator must itself validate.
-static void slab_validate_self(const Allocator *self) {
+// Fast path: magic on the allocator + magic on the embedded
+// PageAllocator. Catches uninitialised / post-deinit / _Generic
+// mismatch escape. Always on, FORCE_INLINEd into every caller --
+// same treatment as heap_validate_self_fast in Heap.c. Without
+// FORCE_INLINE gcc emits a standalone copy at -O3 because the
+// LOG_FATAL macro expansions count against the inline cost
+// heuristic; that standalone copy then dominates the perf profile
+// of every alloc/free pair (51% of self-time in the bench before
+// this change).
+//
+// Full path (FEATURE_HEAP_VALIDATE_FULL): adds vtable / alignment /
+// slot_size / slots_per_chunk / head-tail consistency / free_head
+// staleness / embedded PageAllocator magic. Costs ~7 ns / dispatch
+// when on. `free_head` is a vestigial field from the pre-bitmap
+// scheme; the current implementation never sets it, so it must
+// stay NULL.
+static FORCE_INLINE void slab_validate_self_fast(const Allocator *self) {
     if (!self) {
         LOG_FATAL("SlabAllocator: NULL self");
     }
     if (self->__magic != SLAB_ALLOCATOR_MAGIC) {
         LOG_FATAL("type-confusion: allocator passed to slab_allocator_* is not a SlabAllocator");
     }
+    const SlabAllocator *s = (const SlabAllocator *)self;
+    if (s->page.base.__magic != PAGE_ALLOCATOR_MAGIC) {
+        LOG_FATAL("SlabAllocator: embedded PageAllocator has bad magic");
+    }
+}
+
+#if FEATURE_HEAP_VALIDATE_FULL
+static void slab_validate_self_full(const Allocator *self) {
+    slab_validate_self_fast(self);
     if (!self->allocate || !self->resize || !self->remap || !self->deallocate) {
         LOG_FATAL("SlabAllocator: vtable function pointer is NULL");
     }
@@ -61,10 +79,14 @@ static void slab_validate_self(const Allocator *self) {
     if (s->free_head != NULL) {
         LOG_FATAL("SlabAllocator: stale free_head pointer ({x}); bitmap scheme leaves it NULL", (u64)s->free_head);
     }
-    if (s->page.base.__magic != PAGE_ALLOCATOR_MAGIC) {
-        LOG_FATAL("SlabAllocator: embedded PageAllocator has bad magic");
-    }
 }
+#endif
+
+#if FEATURE_HEAP_VALIDATE_FULL
+#    define slab_validate_self(self) slab_validate_self_full(self)
+#else
+#    define slab_validate_self(self) slab_validate_self_fast(self)
+#endif
 
 struct SlabChunk {
     struct SlabChunk *next;
