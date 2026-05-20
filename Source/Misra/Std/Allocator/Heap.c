@@ -301,15 +301,13 @@ static void *heap_alloc_s(HeapAllocator *heap, u32 slot_size) {
     return (char *)base + HEAP_S_64_OFFSET;
 }
 
-static void heap_free_s(HeapAllocator *heap, void *ptr, u32 slot_size) {
-    void *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
-    u32   idx       = heap_find_by_page(heap->s, heap->s_len, sizeof(HeapPageS), page_base);
-    if (idx == (u32)-1) {
-        LOG_FATAL("heap_free: ptr {x} not in class-S (foreign or wrong size hint)", (u64)ptr);
-        return;
-    }
-    HeapPageS *d   = &heap->s[idx];
-    u64        off = (u64)ptr - (u64)page_base;
+// idx is the descriptor index the caller already resolved via
+// heap_recover_size; we skip the duplicate heap_find_by_page that
+// the freed-page lookup would otherwise repeat.
+static void heap_free_s(HeapAllocator *heap, void *ptr, u32 slot_size, u32 idx) {
+    void      *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
+    HeapPageS *d         = &heap->s[idx];
+    u64        off       = (u64)ptr - (u64)page_base;
 
     u32 region_off, region_count;
     if (slot_size == 16) {
@@ -422,15 +420,13 @@ static void *heap_alloc_m(HeapAllocator *heap, u32 slot_size) {
     return (char *)base + region_off;
 }
 
-static void heap_free_m(HeapAllocator *heap, void *ptr, u32 slot_size) {
-    void *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
-    u32   idx       = heap_find_by_page(heap->m, heap->m_len, sizeof(HeapPageM), page_base);
-    if (idx == (u32)-1) {
-        LOG_FATAL("heap_free: ptr {x} not in class-M (foreign or wrong size hint)", (u64)ptr);
-        return;
-    }
-    HeapPageM *d   = &heap->m[idx];
-    u64        off = (u64)ptr - (u64)page_base;
+// idx is the descriptor index the caller already resolved via
+// heap_recover_size; we skip the duplicate heap_find_by_page that
+// the freed-page lookup would otherwise repeat.
+static void heap_free_m(HeapAllocator *heap, void *ptr, u32 slot_size, u32 idx) {
+    void      *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
+    HeapPageM *d         = &heap->m[idx];
+    u64        off       = (u64)ptr - (u64)page_base;
 
     u32 region_off, region_count, region_shift;
     if (slot_size == 128) {
@@ -524,15 +520,13 @@ static void *heap_alloc_l(HeapAllocator *heap, u32 slot_size) {
     return (char *)base + region_off;
 }
 
-static void heap_free_l(HeapAllocator *heap, void *ptr, u32 slot_size) {
-    void *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
-    u32   idx       = heap_find_by_page(heap->l, heap->l_len, sizeof(HeapPageL), page_base);
-    if (idx == (u32)-1) {
-        LOG_FATAL("heap_free: ptr {x} not in class-L (foreign or wrong size hint)", (u64)ptr);
-        return;
-    }
-    HeapPageL *d   = &heap->l[idx];
-    u64        off = (u64)ptr - (u64)page_base;
+// idx is the descriptor index the caller already resolved via
+// heap_recover_size; we skip the duplicate heap_find_by_page that
+// the freed-page lookup would otherwise repeat.
+static void heap_free_l(HeapAllocator *heap, void *ptr, u32 slot_size, u32 idx) {
+    void      *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
+    HeapPageL *d         = &heap->l[idx];
+    u64        off       = (u64)ptr - (u64)page_base;
 
     u32 region_off, region_count, region_shift;
     if (slot_size == 1024) {
@@ -645,36 +639,46 @@ void *heap_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     return out;
 }
 
-// Look up the slot size for `ptr`. Returns 0 if foreign. For XL
-// allocations also writes the descriptor index to *xl_idx_out; for
-// S/M/L it stays (u32)-1. The four class arrays are disjoint -- a
-// page lives in exactly one class -- so first match wins.
-static size heap_recover_size(HeapAllocator *heap, void *ptr, u32 *xl_idx_out) {
-    *xl_idx_out = (u32)-1;
+// Look up the slot size for `ptr` and write its owning descriptor
+// index into *idx_out. Returns 0 if foreign (idx_out is left as
+// (u32)-1). The four class arrays are disjoint -- a page lives in
+// exactly one class -- so first match wins, and the index is into
+// the array of whichever class the returned size identifies:
+// xl for size > 2048, l for 1024 / 2048, m for 128 / 256 / 512,
+// s for 16 / 32 / 64. Callers consume the index to skip a second
+// heap_find_by_page in the matching free path.
+static size heap_recover_size(HeapAllocator *heap, void *ptr, u32 *idx_out) {
+    *idx_out = (u32)-1;
     if (!ptr)
         return 0;
 
     void *page_base = (void *)((u64)ptr & ~(u64)(HEAP_PAGE_SIZE - 1u));
 
-    u32 xi = heap_find_by_page(heap->xl, heap->xl_len, sizeof(HeapPageXL), page_base);
-    if (xi != (u32)-1) {
-        *xl_idx_out = xi;
-        return (size)heap->xl[xi].num_pages * HEAP_PAGE_SIZE;
+    u32 i = heap_find_by_page(heap->xl, heap->xl_len, sizeof(HeapPageXL), page_base);
+    if (i != (u32)-1) {
+        *idx_out = i;
+        return (size)heap->xl[i].num_pages * HEAP_PAGE_SIZE;
     }
 
     u64 off = (u64)ptr - (u64)page_base;
 
-    if (heap_find_by_page(heap->l, heap->l_len, sizeof(HeapPageL), page_base) != (u32)-1) {
+    i = heap_find_by_page(heap->l, heap->l_len, sizeof(HeapPageL), page_base);
+    if (i != (u32)-1) {
+        *idx_out = i;
         return (off < HEAP_L_2048_OFFSET) ? 1024u : 2048u;
     }
-    if (heap_find_by_page(heap->m, heap->m_len, sizeof(HeapPageM), page_base) != (u32)-1) {
+    i = heap_find_by_page(heap->m, heap->m_len, sizeof(HeapPageM), page_base);
+    if (i != (u32)-1) {
+        *idx_out = i;
         if (off < HEAP_M_256_OFFSET)
             return 128u;
         if (off < HEAP_M_512_OFFSET)
             return 256u;
         return 512u;
     }
-    if (heap_find_by_page(heap->s, heap->s_len, sizeof(HeapPageS), page_base) != (u32)-1) {
+    i = heap_find_by_page(heap->s, heap->s_len, sizeof(HeapPageS), page_base);
+    if (i != (u32)-1) {
+        *idx_out = i;
         if (off < HEAP_S_32_OFFSET)
             return 16u;
         if (off < HEAP_S_64_OFFSET)
@@ -690,24 +694,24 @@ size heap_allocator_deallocate(Allocator *self, void *ptr) {
     if (!ptr)
         return 0;
 
-    u32  xl_idx;
-    size slot = heap_recover_size(heap, ptr, &xl_idx);
+    u32  idx;
+    size slot = heap_recover_size(heap, ptr, &idx);
     if (slot == 0) {
         LOG_FATAL("heap_free: foreign ptr {x} (not in any class list)", (u64)ptr);
         return 0;
     }
-    if (xl_idx != (u32)-1) {
-        HeapPageXL *e = &heap->xl[xl_idx];
+    if (slot > 2048) {
+        HeapPageXL *e = &heap->xl[idx];
         if (ptr != e->page) {
             LOG_FATAL("heap_free: mid-allocation ptr {x} (XL base {x})", (u64)ptr, (u64)e->page);
             return 0;
         }
-        return heap_free_xl_at(heap, xl_idx);
+        return heap_free_xl_at(heap, idx);
     }
     if (slot <= 64)
-        heap_free_s(heap, ptr, (u32)slot);
+        heap_free_s(heap, ptr, (u32)slot, idx);
     else if (slot <= 512)
-        heap_free_m(heap, ptr, (u32)slot);
+        heap_free_m(heap, ptr, (u32)slot, idx);
     else
         heap_free_l(heap, ptr, (u32)slot);
     return slot;
@@ -719,14 +723,14 @@ i8 heap_allocator_resize(Allocator *self, void *ptr, size new_size) {
     if (!ptr || new_size == 0)
         return 0;
 
-    u32  xl_idx;
-    size cur = heap_recover_size(heap, ptr, &xl_idx);
+    u32  idx;
+    size cur = heap_recover_size(heap, ptr, &idx);
     if (cur == 0)
         return 0; // foreign ptr -- can't resize without knowing the slot
 
-    if (xl_idx != (u32)-1) {
+    if (cur > 2048) {
         // XL: page count must match for in-place.
-        u32 op = heap->xl[xl_idx].num_pages;
+        u32 op = heap->xl[idx].num_pages;
         u32 np = (u32)((new_size + HEAP_PAGE_SIZE - 1u) / HEAP_PAGE_SIZE);
         return op == np ? 1 : 0;
     }
@@ -752,8 +756,8 @@ void *heap_allocator_remap(Allocator *self, void *ptr, size new_size) {
 
     // Need the old allocation size to bound the copy. Same lookup the
     // resize and free paths use; foreign ptr aborts in deallocate.
-    u32  xl_idx;
-    size cur = heap_recover_size(heap, ptr, &xl_idx);
+    u32  idx;
+    size cur = heap_recover_size(heap, ptr, &idx);
     if (cur == 0) {
         LOG_FATAL("heap_remap: foreign ptr {x}", (u64)ptr);
         return NULL;
