@@ -2,17 +2,26 @@
 /// author    : Siddharth Mishra (admin@brightprogrammer.in)
 /// This is free and unencumbered software released into the public domain.
 ///
-/// Per-descriptor fixed-size slot slab. Every allocation must match the
-/// configured slot size. Free/in-use state is tracked by a per-chunk
-/// bitmap (one bit per slot, 0 = free, 1 = in use). Alloc scans the
-/// chunk-list for a chunk with a free bit (O(chunks * bitmap-words)
-/// worst case, O(1) when the head chunk has space at word 0); free
-/// walks the chunk-list to find the owning chunk by pointer range and
-/// clears the bit. The bitmap representation makes double-free trivial
-/// to detect (the bit is already 0) and supports range queries the
-/// debug paths use; both come at the cost of being slower than a pure
-/// intrusive-free-list allocator (e.g. tcmalloc). State is inline; the
-/// embedded `PageAllocator` provides backing chunks.
+/// Fixed-size slot allocator. Each "slab" is exactly one OS page of user
+/// slots; the slab page contains *only* user data, no header, no inline
+/// metadata. Per-slab free/in-use bitmaps live in a single packed buffer
+/// owned by the SlabAllocator, separate from the slab pages themselves.
+///
+/// Slot size is fixed at init and MUST be a power of two in [16, PAGE_SIZE].
+/// The 16-byte minimum matches `MAX_ALIGN` so every returned pointer is
+/// safe for any payload type. The power-of-two constraint lets the
+/// allocator translate offsets to slot indices and back via shifts, and
+/// keeps the in-page bitmap free of tail-bit guards.
+///
+/// Free is O(log N slabs): binary-search the sorted `slabs[]` array for
+/// the page that `ptr & ~(PAGE_SIZE-1)` lands in, compute the slot index
+/// by shift, clear the bit in the corresponding bitmap word. No
+/// chunk-list walk, no per-slab header, no inline bitmap.
+///
+/// Alloc is O(N slabs) worst case (linear scan of bitmaps until a free
+/// bit is found), O(1) when the first slab has space. Growing the
+/// allocator means asking PageAllocator for one more OS page and
+/// inserting it sorted into `slabs[]`.
 
 #ifndef MISRA_STD_ALLOCATOR_SLAB_H
 #define MISRA_STD_ALLOCATOR_SLAB_H
@@ -33,14 +42,38 @@
 extern "C" {
 #endif
 
-    typedef struct SlabChunk SlabChunk;
-
     typedef struct SlabAllocator {
-        Allocator     base;
-        SlabChunk    *head;
-        SlabChunk    *tail;
-        size          slot_size;
-        size          slots_per_chunk;
+        Allocator base;
+
+        // Per-slab page bases. Sorted ascending by address so free can
+        // bsearch by `ptr & ~(PAGE_SIZE-1)`. Each entry is one OS page
+        // of pure user slots -- no header, no bitmap.
+        void **slabs;
+        u32    slabs_len;
+        u32    slabs_cap;
+
+        // Per-slab bitmaps packed into one contiguous buffer.
+        // bitmap-for-slabs[i] = bitmaps + i*bitmap_words_per_slab.
+        // Sized at first slab grow (when page size is known); grown in
+        // lockstep with slabs[] capacity.
+        u64 *bitmaps;
+
+        // User-configured slot size. Must be a power of two in
+        // [16, PAGE_SIZE]. Validated at first grow / on validate-full.
+        size slot_size;
+
+        // ctz(slot_size). Cached so the hot path computes
+        // `slot_in_slab = (ptr - slab_base) >> slot_size_shift`
+        // in one instruction instead of an integer division.
+        u8 slot_size_shift;
+
+        // u64 words per slab's bitmap. Computed at first grow once we
+        // know the OS page size. The hot free path needs this for
+        // `bitmap_w = bitmaps + slab_idx * bitmap_words_per_slab`.
+        // For slot_size >= 64 and PAGE_SIZE = 4096 this is 1, so the
+        // multiply degenerates to a no-op.
+        u8 bitmap_words_per_slab;
+
         PageAllocator page;
     } SlabAllocator;
 
@@ -50,10 +83,9 @@ extern "C" {
     size  slab_allocator_deallocate(Allocator *self, void *ptr);
 
     ///
-    /// Release every chunk currently owned by `self` through the
-    /// embedded `PageAllocator`, then zero the struct so any
-    /// post-deinit dispatch trips `ValidateAllocator` on the cleared
-    /// `__magic`. The per-chunk bitmap state dies with the chunks.
+    /// Release every slab page and the bitmaps buffer owned by `self`,
+    /// then zero the struct so any post-deinit dispatch trips
+    /// `ValidateAllocator` on the cleared `__magic`.
     ///
     /// self[in,out] : SlabAllocator instance, or NULL.
     ///
@@ -70,12 +102,55 @@ extern "C" {
 }
 #endif
 
-#define MISRA_SLAB_DEFAULT_CHUNK_SLOTS 256u
+///
+/// Round a requested slot size up to the nearest power of two in
+/// [16, 4096]. Sub-16-byte requests round up to 16 (the
+/// MAX_ALIGN-derived minimum). Requests above 4096 fall through to
+/// 4096; the validator catches them at first grow when it compares
+/// against the actual OS page size.
+///
+/// This is the policy that lets callers write `SlabAllocatorInit(
+/// sizeof(MyType))` for arbitrary type sizes -- e.g. a 28-byte
+/// struct goes into 32-byte slots, like the way glibc rounds a
+/// 2-byte malloc up to its 24-byte minimum chunk.
+///
+#define MISRA_SLAB_ROUNDUP_POW2(s)                                                                                     \
+    ((s) <= 16u     ? 16u                                                                                              \
+     : (s) <= 32u   ? 32u                                                                                              \
+     : (s) <= 64u   ? 64u                                                                                              \
+     : (s) <= 128u  ? 128u                                                                                             \
+     : (s) <= 256u  ? 256u                                                                                             \
+     : (s) <= 512u  ? 512u                                                                                             \
+     : (s) <= 1024u ? 1024u                                                                                            \
+     : (s) <= 2048u ? 2048u                                                                                            \
+                    : 4096u)
 
 ///
-/// Initialize a `SlabAllocator` with the given slot size. Slot size is
-/// padded internally up to the configured alignment so every returned
-/// pointer is aligned for the caller's payload type.
+/// Compile-time `ctz` for the supported slot sizes. Folded to a
+/// constant when the input is a literal (the common case --
+/// `SlabAllocatorInit(16)`). For runtime values, evaluates as a small
+/// conditional cascade once at init. Always paired with
+/// `MISRA_SLAB_ROUNDUP_POW2` so the input is guaranteed to land on a
+/// supported power of two.
+///
+#define MISRA_SLAB_SHIFT_FROM_SIZE(s)                                                                                  \
+    ((s) == 16u     ? 4u                                                                                               \
+     : (s) == 32u   ? 5u                                                                                               \
+     : (s) == 64u   ? 6u                                                                                               \
+     : (s) == 128u  ? 7u                                                                                               \
+     : (s) == 256u  ? 8u                                                                                               \
+     : (s) == 512u  ? 9u                                                                                               \
+     : (s) == 1024u ? 10u                                                                                              \
+     : (s) == 2048u ? 11u                                                                                              \
+     : (s) == 4096u ? 12u                                                                                              \
+                    : 0u)
+
+///
+/// Initialize a `SlabAllocator` with the given slot size. Slot size
+/// must be a power of two in [16, PAGE_SIZE]; the validator aborts
+/// on first allocation otherwise. Default alignment = 16 (`MAX_ALIGN`)
+/// since the minimum slot size is also 16 and every slot is naturally
+/// MAX_ALIGN-aligned within its OS page.
 ///
 #define SlabAllocatorInit(slot_size_bytes)                                                                             \
     ((SlabAllocator) {                                                                                                 \
@@ -84,19 +159,26 @@ extern "C" {
                    .resize      = slab_allocator_resize,                                                                     \
                    .remap       = slab_allocator_remap,                                                                      \
                    .deallocate  = slab_allocator_deallocate,                                                                 \
-                   .alignment   = 1,                                                                                         \
+                   .alignment   = 16,                                                                                        \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
                    .__magic     = SLAB_ALLOCATOR_MAGIC},                                                                         \
-        .head            = NULL,                                                                                       \
-        .tail            = NULL,                                                                                       \
-        .slot_size       = (slot_size_bytes),                                                                          \
-        .slots_per_chunk = MISRA_SLAB_DEFAULT_CHUNK_SLOTS,                                                             \
-        .page            = PageAllocatorInit()                                                                         \
+        .slabs                 = NULL,                                                                                 \
+        .slabs_len             = 0,                                                                                    \
+        .slabs_cap             = 0,                                                                                    \
+        .bitmaps               = NULL,                                                                                 \
+        .slot_size             = MISRA_SLAB_ROUNDUP_POW2(slot_size_bytes),                                             \
+        .slot_size_shift       = (u8)MISRA_SLAB_SHIFT_FROM_SIZE(MISRA_SLAB_ROUNDUP_POW2(slot_size_bytes)),             \
+        .bitmap_words_per_slab = 0,                                                                                    \
+        .page                  = PageAllocatorInit()                                                                   \
     })
 
 ///
 /// Initialize a `SlabAllocator` with a custom alignment floor.
+/// `alignment_value` must not exceed `slot_size_bytes`; alignments
+/// stronger than `MAX_ALIGN` are accepted but the underlying slab
+/// page guarantees only `MAX_ALIGN` so over-strong alignment is
+/// the caller's responsibility to honour at use.
 ///
 #define SlabAllocatorInitAligned(slot_size_bytes, alignment_value)                                                     \
     ((SlabAllocator) {                                                                                                 \
@@ -105,15 +187,18 @@ extern "C" {
                    .resize      = slab_allocator_resize,                                                                     \
                    .remap       = slab_allocator_remap,                                                                      \
                    .deallocate  = slab_allocator_deallocate,                                                                 \
-                   .alignment   = (alignment_value) ? (alignment_value) : 1,                                                 \
+                   .alignment   = (alignment_value) ? (alignment_value) : 16,                                                \
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
                    .__magic     = SLAB_ALLOCATOR_MAGIC},                                                                         \
-        .head            = NULL,                                                                                       \
-        .tail            = NULL,                                                                                       \
-        .slot_size       = (slot_size_bytes),                                                                          \
-        .slots_per_chunk = MISRA_SLAB_DEFAULT_CHUNK_SLOTS,                                                             \
-        .page            = PageAllocatorInit()                                                                         \
+        .slabs                 = NULL,                                                                                 \
+        .slabs_len             = 0,                                                                                    \
+        .slabs_cap             = 0,                                                                                    \
+        .bitmaps               = NULL,                                                                                 \
+        .slot_size             = MISRA_SLAB_ROUNDUP_POW2(slot_size_bytes),                                             \
+        .slot_size_shift       = (u8)MISRA_SLAB_SHIFT_FROM_SIZE(MISRA_SLAB_ROUNDUP_POW2(slot_size_bytes)),             \
+        .bitmap_words_per_slab = 0,                                                                                    \
+        .page                  = PageAllocatorInit()                                                                   \
     })
 
 #endif // MISRA_STD_ALLOCATOR_SLAB_H
