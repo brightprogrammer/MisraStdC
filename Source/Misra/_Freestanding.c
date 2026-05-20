@@ -116,14 +116,33 @@ __attribute__((used)) void bzero(void *dst, misra_freestanding_size_t n) {
 // in-tree: the guard is seeded from AT_RANDOM in _StartLinux.c
 // before main runs, and the fail path aborts via LOG_FATAL.
 //
-// Both symbols are weak so consumers that DO link libc (test
-// binaries, sanitizer builds, non-freestanding library users)
-// pick libc's strong defs and the project remains a drop-in.
-// On Darwin libSystem is always linked, so libSystem's strong
-// versions win there too.
+// Both symbols are weak. Platform resolution rules differ:
+//
+//   Linux ELF: strong-beats-weak. Consumers linking libc get libc's
+//   strong __stack_chk_guard / __stack_chk_fail (libc seeds its own
+//   slot from AT_RANDOM at process start); our weak versions are
+//   dead. Libc-diet links (-nostdlib) get only our versions, and
+//   _StartLinux.c seeds OUR __stack_chk_guard from AT_RANDOM before
+//   main runs.
+//
+//   Darwin Mach-O: opposite mechanic. Static archives are searched
+//   before dylibs, and two-level namespacing pins libSystem's
+//   internal __stack_chk_guard references to libSystem's own slot
+//   at libSystem's build time. So OUR weak symbol wins for the
+//   binary's instrumentation -- two slots co-exist at runtime, ours
+//   and libSystem's. libSystem's startup-init constructor (run by
+//   dyld before main) seeds __stack_chk_guard by symbol name through
+//   dyld's flat-namespace lookup, which finds the binary's exported
+//   __stack_chk_guard -- which is ours. The kernel-entropy write
+//   lands in our storage. Verified empirically: every process run
+//   reads a fresh random value here, and a buffer overflow triggers
+//   our __stack_chk_fail correctly.
 //
 // Windows clang-cl uses a different mechanism (__security_cookie /
-// __security_check_cookie) handled in _WinStubs.c.
+// __security_check_cookie) handled in _WinStubs.c, with our own
+// __security_init_cookie seeding from BCryptGenRandom -- there's no
+// dyld-cooperation on the libc-diet Windows path (no libSystem
+// equivalent linked).
 #    if !PLATFORM_WINDOWS
 // Type is `unsigned long` to match what gcc/clang's canary
 // instrumentation expects on every supported Misra target
@@ -146,6 +165,12 @@ __attribute__((weak, used, noreturn)) void __stack_chk_fail(void) {
         "stack-protector: canary corrupted -- buffer overflow detected"
     );
     Abort();
+    // Abort() is not declared noreturn in Misra/Std/Log.h (it's a
+    // function pointer indirection through SetAbortCallback in some
+    // builds, so the compiler can't prove termination). Give the
+    // compiler the noreturn guarantee explicitly so this whole
+    // function compiles clean as noreturn.
+    __builtin_unreachable();
 }
 #    endif
 
