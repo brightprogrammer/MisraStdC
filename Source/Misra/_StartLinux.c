@@ -53,11 +53,57 @@ extern int main(int argc, char **argv);
 // We just write to it here before calling `main`.
 extern char **misra_envp;
 
+// __stack_chk_guard lives in _Freestanding.c (weak). Seeded from
+// AT_RANDOM by init_stack_canary below before any canary-using
+// function runs. With this in place, the per-process canary is
+// kernel-CSPRNG-quality random and a return-address-clobbering
+// buffer overflow is detected on function exit (via
+// __stack_chk_fail in _Freestanding.c -> LogWrite + Abort).
+extern unsigned long __stack_chk_guard;
+
+// Linux ELF aux-vector tag for "16 bytes of kernel-CSPRNG entropy
+// at this address". See <elf.h> AT_RANDOM. Hardcoded here so the
+// freestanding build doesn't include a libc header for one value.
+#    define MISRA_AT_RANDOM 25
+
+// `no_stack_protector` is critical: every other function with
+// stack instrumentation reads __stack_chk_guard in its prologue,
+// and we haven't seeded it yet. If init_stack_canary itself had
+// canary instrumentation, the read on entry would consume the
+// guard's pre-seed value (0). Excluding this one function from
+// instrumentation closes the bootstrap loop.
+//
+// The byte loop intentionally avoids memcpy: in some libc-diet
+// configs memcpy is itself instrumented, and the canary check on
+// memcpy's exit would race against our seeding.
+__attribute__((no_stack_protector, used)) static void init_stack_canary(char **envp) {
+    while (*envp) {
+        envp += 1;
+    }
+    unsigned long *auxv = (unsigned long *)(envp + 1);
+    for (; *auxv != 0; auxv += 2) {
+        if (auxv[0] == MISRA_AT_RANDOM) {
+            const unsigned char *src = (const unsigned char *)auxv[1];
+            unsigned char       *dst = (unsigned char *)&__stack_chk_guard;
+            for (unsigned long i = 0; i < sizeof __stack_chk_guard; i += 1) {
+                dst[i] = src[i];
+            }
+            return;
+        }
+    }
+    // AT_RANDOM absent (very old kernel; should not happen on any
+    // supported Misra target). Fall back to an ASLR-derived value
+    // so the canary is at least unpredictable across runs even
+    // though it's not CSPRNG-strong.
+    __stack_chk_guard = (unsigned long)&__stack_chk_guard ^ 0xdeadbeefcafef00dUL;
+}
+
 __attribute__((used, noreturn)) static void misra_start_c(long *kernel_sp) {
     int    argc = (int)kernel_sp[0];
     char **argv = (char **)(kernel_sp + 1);
     misra_envp  = argv + argc + 1;
-    int rc      = main(argc, argv);
+    init_stack_canary(misra_envp);
+    int rc = main(argc, argv);
     (void)misra_sys1(MISRA_SYS_exit_group, rc);
     __builtin_unreachable();
 }

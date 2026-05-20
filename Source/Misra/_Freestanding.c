@@ -30,6 +30,7 @@
 ///       Mac test runner still uses libSystem's _setjmp -- separate
 ///       follow-up if we want it gone.
 
+#include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Types.h>
 
@@ -98,6 +99,53 @@ __attribute__((used)) int memcmp(const void *a, const void *b, misra_freestandin
 #    if !PLATFORM_WINDOWS
 __attribute__((used)) void bzero(void *dst, misra_freestanding_size_t n) {
     MemSet(dst, 0, (size)n);
+}
+#    endif
+
+// ---------------------------------------------------------------------------
+// Stack-protector helpers -- __stack_chk_guard / __stack_chk_fail.
+//
+// gcc/clang emit a canary load + store in every function with a
+// stack array, and a canary check + branch on exit; on mismatch the
+// generated code tail-calls __stack_chk_fail (noreturn). The
+// per-process canary value lives in __stack_chk_guard, normally
+// supplied by libc and seeded from kernel entropy at process start.
+//
+// In a libc-diet build there is no libc to supply either symbol.
+// Rather than disabling the instrumentation, we provide both
+// in-tree: the guard is seeded from AT_RANDOM in _StartLinux.c
+// before main runs, and the fail path aborts via LOG_FATAL.
+//
+// Both symbols are weak so consumers that DO link libc (test
+// binaries, sanitizer builds, non-freestanding library users)
+// pick libc's strong defs and the project remains a drop-in.
+// On Darwin libSystem is always linked, so libSystem's strong
+// versions win there too.
+//
+// Windows clang-cl uses a different mechanism (__security_cookie /
+// __security_check_cookie) handled in _WinStubs.c.
+#    if !PLATFORM_WINDOWS
+// Type is `unsigned long` to match what gcc/clang's canary
+// instrumentation expects on every supported Misra target
+// (LP64 -- 8 bytes on x86_64 and aarch64 Linux/Mac). Don't use
+// size_t here: glibc / libSystem's strong defs are unsigned long,
+// and a type mismatch on the weak symbol would surface as a link
+// warning when the strong def is around.
+__attribute__((weak, used)) unsigned long __stack_chk_guard;
+
+// LogWrite + Abort, not LOG_FATAL. The macro builds a HeapAllocator
+// + Str through the format pipeline, and from a corrupted-stack
+// state any of those touches could segfault on already-bad memory.
+// LogWrite takes a const-string message directly -- no allocations,
+// no formatting, no shared state.
+__attribute__((weak, used, noreturn)) void __stack_chk_fail(void) {
+    LogWrite(
+        LOG_MESSAGE_TYPE_FATAL,
+        "__stack_chk_fail",
+        0,
+        "stack-protector: canary corrupted -- buffer overflow detected"
+    );
+    Abort();
 }
 #    endif
 

@@ -713,7 +713,7 @@ size heap_allocator_deallocate(Allocator *self, void *ptr) {
     else if (slot <= 512)
         heap_free_m(heap, ptr, (u32)slot, idx);
     else
-        heap_free_l(heap, ptr, (u32)slot);
+        heap_free_l(heap, ptr, (u32)slot, idx);
     return slot;
 }
 
