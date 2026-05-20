@@ -217,7 +217,16 @@ def render_frag_table(data: dict) -> str:
                 cells.append("n/a")
                 continue
             fp = get_counter(j, bench_name, "footprint_MB")
-            cells.append(f"{fp:.1f}" if fp is not None else "n/a")
+            # Backends without a working stats API (mimalloc 3.3.0's
+            # mi_stats_get is broken; see the long comment in
+            # Allocator_libc.c::bench_footprint_bytes) report 0.0.
+            # That would flatter them in a fragmentation table -- they
+            # didn't allocate zero bytes, we just can't read what they
+            # did. Render those as n/a, not 0.0.
+            if fp is None or fp == 0.0:
+                cells.append("n/a")
+            else:
+                cells.append(f"{fp:.1f}")
         out.append("| " + " | ".join(cells) + " |")
     return "\n".join(out)
 

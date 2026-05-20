@@ -15,7 +15,7 @@
 #include <Misra/Std/Allocator/Page.h>
 
 static PageAllocator g_page;
-static int           g_page_live = 0;
+static bool          g_page_live = false;
 
 const char *bench_backend_name(void) {
 #ifdef BENCH_MISRA_VARIANT_NAME
@@ -27,13 +27,13 @@ const char *bench_backend_name(void) {
 
 void bench_init(void) {
     g_page      = PageAllocatorInit();
-    g_page_live = 1;
+    g_page_live = true;
 }
 
 void bench_teardown(void) {
     if (g_page_live) {
         PageAllocatorDeinit(&g_page);
-        g_page_live = 0;
+        g_page_live = false;
     }
 }
 

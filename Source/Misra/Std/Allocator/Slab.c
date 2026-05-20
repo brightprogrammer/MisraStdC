@@ -269,6 +269,16 @@ void *slab_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     // free bit. First fit wins. Tail bits in the last word (if any)
     // are pre-set to 1 at slab-insert time, so ctz on the inverted
     // word can never spuriously hit them.
+    //
+    // The pre-redesign code re-read bm[w] here and LOG_FATAL'd if the
+    // freshly-found bit was already set, defending against an
+    // inconsistent-with-itself bitmap word. That check was a
+    // self-consistency probe against rare corruption -- not a useful
+    // safety net under the contiguous-bitmaps layout, where the only
+    // way the bit can be set is if `CTZ64(~bm[w])` is broken (which
+    // is platform code we trust). Free's double-free check (below)
+    // still defends against the more useful real-world failure mode:
+    // releasing a slot twice from user code.
     for (u32 i = 0; i < slab->slabs_len; i++) {
         u64 *bm = &slab->bitmaps[(size)i * (size)bw];
         for (u32 w = 0; w < bw; w++) {
@@ -277,8 +287,6 @@ void *slab_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
                 continue;
             }
             u32 bit = CTZ64(inv);
-            // No tail-bit guard needed: tail bits are pre-set to 1,
-            // so ctz(~word) never finds them.
             bm[w] |= ((u64)1 << bit);
             u32   slot_idx = w * 64u + bit;
             void *slot     = (char *)slab->slabs[i] + ((size)slot_idx << slab->slot_size_shift);

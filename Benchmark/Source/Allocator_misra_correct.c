@@ -27,8 +27,6 @@
 #include <Misra/Std/Allocator/Page.h>
 #include <Misra/Std/Allocator/Slab.h>
 
-#include <stdlib.h>
-
 // MODE_NONE = pre-init / post-teardown. MODE_HEAP / MODE_SLAB choose
 // which of the two static allocator instances below is currently
 // live. The two are unioned by usage, not by struct -- only one is
@@ -38,11 +36,11 @@ typedef enum {
     MODE_NONE = 0,
     MODE_HEAP = 1,
     MODE_SLAB = 2,
-} BenchMode;
+} bench_mode;
 
 static HeapAllocator g_heap;
 static SlabAllocator g_slab;
-static BenchMode     g_mode = MODE_NONE;
+static bench_mode     g_mode = MODE_NONE;
 
 const char *bench_backend_name(void) {
 #ifdef BENCH_MISRA_VARIANT_NAME
@@ -80,11 +78,11 @@ void bench_teardown(void) {
 // Matches MisraStdC's slab max (currently 4096 B, the smallest OS page
 // size we target). If the slab grows multi-page support later, raise
 // this threshold to match.
-#define MISRA_BENCH_SLAB_MAX_SLOT 4096u
+#define BENCH_SLAB_MAX_SLOT 4096u
 
 void bench_use_fixed_size(size_t slot) {
     tear_current();
-    if (slot > MISRA_BENCH_SLAB_MAX_SLOT) {
+    if (slot > BENCH_SLAB_MAX_SLOT) {
         // Slab can't hold a slot this big; fall back to Heap and let
         // it route through XL (mmap-per-alloc) the way the upstream
         // "wrong tool" backend does. The bench's
@@ -124,10 +122,13 @@ void *bench_alloc(size_t n) {
 
 void *bench_realloc(void *p, size_t n) {
     // SlabAllocator slot size is fixed at init; realloc is not a
-    // sensible operation in slab mode and would have to copy through
-    // a new slab of a different size. The bench's only realloc
+    // sensible operation in slab mode. The bench's only realloc
     // workload (BM_ReallocGrow) runs in MODE_HEAP, so this branch
-    // should never fire in slab mode. Fail loudly if it does.
+    // should never fire in slab mode. Return NULL (caller treats as
+    // alloc failure -- the bench then reads the size-class check
+    // and moves on); we avoid LOG_FATAL here because aborting the
+    // whole bench process on a routing mismatch would make the
+    // failure mode hostile to interactive debugging.
     if (g_mode == MODE_SLAB) {
         (void)p;
         (void)n;

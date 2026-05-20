@@ -23,8 +23,6 @@
 #include <Misra/Std/Allocator/Heap.h>
 #include <Misra/Std/Allocator/Page.h>
 
-#include <stdlib.h>
-
 static HeapAllocator g_heap;
 static Allocator    *g_alloc = NULL;
 // `g_heap_typed` exists so the bench passes a typed `HeapAllocator *`

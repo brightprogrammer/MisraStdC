@@ -43,9 +43,17 @@ void bench_teardown(void);
 // workload shape.
 //
 // Outstanding allocations from before the call are NOT preserved; the
-// previous allocator's state is destroyed. Call before the first
-// bench_alloc of a benchmark; call bench_use_general before any
-// benchmark that uses multiple sizes or realloc.
+// previous allocator's state is destroyed and a fresh one constructed.
+// This is an asymmetry vs the libc-shape backends, which keep
+// per-process malloc state across benchmark runs. The asymmetry does
+// NOT favour the misra backends: a fresh slab/heap has to fault its
+// first page on iteration 1, and Google Benchmark's auto-scaled
+// iteration count (typically 10^6+ to fill --benchmark_min_time)
+// absorbs that cold-start blip in the median.
+//
+// Call bench_use_fixed_size before the first bench_alloc of a
+// fixed-size benchmark; call bench_use_general before any benchmark
+// that uses multiple sizes or realloc.
 void bench_use_fixed_size(size_t slot);
 void bench_use_general(void);
 

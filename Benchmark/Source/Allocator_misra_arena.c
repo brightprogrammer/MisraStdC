@@ -19,7 +19,7 @@
 #include <Misra/Std/Allocator/Page.h>
 
 static ArenaAllocator g_arena;
-static int            g_arena_live = 0;
+static bool           g_arena_live = false;
 
 const char *bench_backend_name(void) {
 #ifdef BENCH_MISRA_VARIANT_NAME
@@ -31,13 +31,13 @@ const char *bench_backend_name(void) {
 
 void bench_init(void) {
     g_arena      = ArenaAllocatorInit();
-    g_arena_live = 1;
+    g_arena_live = true;
 }
 
 void bench_teardown(void) {
     if (g_arena_live) {
         ArenaAllocatorDeinit(&g_arena);
-        g_arena_live = 0;
+        g_arena_live = false;
     }
 }
 
