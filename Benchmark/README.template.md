@@ -40,6 +40,12 @@ Geometric realloc ladder from 8 B up to 1 MiB. Time per full ladder, lower is be
 
 {{TABLE_REALLOC_GROW}}
 
+### Arena bump + bulk reset
+
+Allocate N small (32 B) objects, then release them all. Arena does this as one O(1) reset; every other backend has to free each pointer individually. Time per batch, lower is better.
+
+{{TABLE_ARENA_BUMP_RESET}}
+
 ## Fragmentation
 
 Each allocator's own introspection API reports committed bytes after the workload runs. Lower committed-bytes for the same live-bytes is better.

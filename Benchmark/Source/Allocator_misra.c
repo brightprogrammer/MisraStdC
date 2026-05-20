@@ -61,6 +61,8 @@ void bench_init(void) {
 // the comparison against Allocator_misra_correct.c.
 void bench_use_fixed_size(size_t slot) { (void)slot; }
 void bench_use_general(void)           {}
+int  bench_can_reset(void)             { return 0; }
+void bench_reset(void)                 {}
 
 void bench_teardown(void) {
     if (g_alloc) {

@@ -28,7 +28,51 @@ from pathlib import Path
 
 # Allocators in column order. Misra columns last so improvements stand
 # out next to the production baselines.
-BACKENDS = ["glibc", "jemalloc", "mimalloc", "tcmalloc", "misra", "misra-correct"]
+BACKENDS = [
+    "glibc",
+    "jemalloc",
+    "mimalloc",
+    "tcmalloc",
+    "misra",            # HeapAllocator for every bench
+    "misra-correct",    # Heap or Slab per bench (the "right tool" comparison)
+    "misra-arena",      # ArenaAllocator (bump + bulk-reset)
+    "misra-page",       # PageAllocator (mmap-per-alloc)
+]
+
+MIN_TIME_OVERRIDES: dict[str, str] = {}
+
+# Per-backend benchmark filter (gbench --benchmark_filter regex).
+# Use a POSITIVE include list -- gbench's filter is `re_search`, not
+# subtraction, so we enumerate the benches each backend can run honestly.
+#
+# misra-arena: ArenaAllocator's `arena_allocator_deallocate` rewinds the
+#   bump cursor only when the freed ptr is `last_ptr` (the single most
+#   recent allocation). Pair-style benches (alloc, free-same-ptr) work
+#   -- every free rewinds, next alloc bumps back to the same address.
+#   But BM_BatchAllocFree alloc-N-then-free-N can only rewind ONE of
+#   the N frees (the last allocated); the other (N-1) frees are no-ops,
+#   accumulating in the arena until Reset/Deinit. With GBench's auto-
+#   scaled iteration counts the arena leaks gigabytes and thrashes.
+#   This isn't a perf bug, it's arena's contract -- arena's
+#   batch-equivalent workload is BM_ArenaBumpReset (one Reset releases
+#   everything). Skip BatchAllocFree for arena, include the rest.
+BENCHMARK_FILTERS = {
+    # Only the benches arena can run honestly with its single-deep LIFO
+    # rewind:
+    #   AllocFreePair / AllocTouchFree -- alloc-then-free-immediately,
+    #     last_ptr matches every time, zero net growth.
+    #   ArenaBumpReset -- the workload arena is designed for.
+    #   ReallocGrow -- a single buffer growing in place; arena's
+    #     last-ptr remap fast-path handles each step.
+    #
+    # Excluded:
+    #   BatchAllocFree / MixedPareto / Frag_* -- all hold N allocations
+    #     live and then free them, which arena's single-deep LIFO can't
+    #     rewind for the (N-1) older items. Memory would grow without
+    #     bound. These are workloads arena isn't built for; the table
+    #     shows n/a for arena on those rows.
+    "misra-arena": "BM_(AllocFreePair|AllocTouchFree|ArenaBumpReset|ReallocGrow)",
+}
 
 # Per-test column groups. Each entry: (template-placeholder, list of
 # (benchmark-name, display-label, time-unit-to-format)).
@@ -62,6 +106,11 @@ TABLES = {
     "TABLE_REALLOC_GROW": [
         ("BM_ReallocGrow", "8 B → 1 MiB", "ns"),
     ],
+    "TABLE_ARENA_BUMP_RESET": [
+        ("BM_ArenaBumpReset/128",  "128 × 32 B",  "us"),
+        ("BM_ArenaBumpReset/1024", "1024 × 32 B", "us"),
+        ("BM_ArenaBumpReset/8192", "8192 × 32 B", "us"),
+    ],
 }
 
 # Fragmentation table is structurally different (custom counters in
@@ -75,20 +124,19 @@ FRAG_ROWS = [
 ]
 
 
-def run_binary(binary: Path, repetitions: int) -> dict:
+def run_binary(binary: Path, repetitions: int, min_time: str = "0.5s",
+               filter_re: str | None = None) -> dict:
     """Run one bench-X binary; return its parsed JSON."""
-    out = subprocess.run(
-        [
-            str(binary),
-            "--benchmark_format=json",
-            f"--benchmark_repetitions={repetitions}",
-            "--benchmark_report_aggregates_only=true",
-            "--benchmark_min_time=0.5s",
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    argv = [
+        str(binary),
+        "--benchmark_format=json",
+        f"--benchmark_repetitions={repetitions}",
+        "--benchmark_report_aggregates_only=true",
+        f"--benchmark_min_time={min_time}",
+    ]
+    if filter_re:
+        argv.append(f"--benchmark_filter={filter_re}")
+    out = subprocess.run(argv, check=True, capture_output=True, text=True)
     return json.loads(out.stdout)
 
 
@@ -295,8 +343,12 @@ def main() -> int:
         if not binary.exists():
             print(f"warn: {binary} missing -- skipping {be}", file=sys.stderr)
             continue
-        print(f"[run] bench-{be}", file=sys.stderr)
-        data[be] = run_binary(binary, args.reps)
+        min_time  = MIN_TIME_OVERRIDES.get(be, "0.5s")
+        filter_re = BENCHMARK_FILTERS.get(be)
+        print(f"[run] bench-{be}  (min_time={min_time}"
+              + (f", filter={filter_re}" if filter_re else "") + ")",
+              file=sys.stderr)
+        data[be] = run_binary(binary, args.reps, min_time=min_time, filter_re=filter_re)
 
     # Build substitution map.
     subs = {f"{{{{{k}}}}}": v for k, v in gather_env(builddir).items()}

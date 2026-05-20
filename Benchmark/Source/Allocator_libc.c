@@ -34,6 +34,11 @@ void bench_teardown(void) {}
 void bench_use_fixed_size(size_t slot) { (void)slot; }
 void bench_use_general(void)           {}
 
+// Libc has no bulk-reset; arena-shaped workloads fall back to
+// per-pointer free in the harness.
+int  bench_can_reset(void) { return 0; }
+void bench_reset(void)     {}
+
 void *bench_alloc(size_t n)              { return malloc(n);     }
 void *bench_realloc(void *p, size_t n)   { return realloc(p, n); }
 void  bench_free(void *p)                { free(p);              }

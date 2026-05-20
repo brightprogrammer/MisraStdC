@@ -49,6 +49,16 @@ void bench_teardown(void);
 void bench_use_fixed_size(size_t slot);
 void bench_use_general(void);
 
+// Bulk-reset support. Some allocators (ArenaAllocator) can release
+// every outstanding allocation in O(1) via a single reset; others
+// have to free each one individually. Arena-shaped workloads
+// (BM_ArenaBumpReset) branch on `bench_can_reset()`:
+//   true  -> the harness calls bench_reset() once after the alloc loop.
+//   false -> the harness frees each tracked pointer in a loop.
+// Same workload, same accounting; the cost differential is the story.
+int  bench_can_reset(void);
+void bench_reset(void);
+
 void *bench_alloc(size_t n);
 void *bench_realloc(void *p, size_t n);
 void  bench_free(void *p);

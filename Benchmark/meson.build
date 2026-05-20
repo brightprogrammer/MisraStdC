@@ -88,3 +88,29 @@ executable(
     dependencies: [bench_gbench_dep, misra_std_dep],
     install: false,
 )
+
+# ArenaAllocator backend. Bump-pointer with no per-alloc free.
+# Targets BM_ArenaBumpReset specifically: arena's reset is bulk-O(1).
+# For pair-style benches this backend leaks until the next teardown,
+# which the benchmarks tolerate (they don't run long enough to
+# exhaust an arena).
+executable(
+    'bench-misra-arena',
+    files('Source/Allocator_misra_arena.c') + bench_cpp_sources,
+    c_args: ['-DBENCH_MISRA_VARIANT_NAME="misra-arena"'],
+    include_directories: bench_inc,
+    dependencies: [bench_gbench_dep, misra_std_dep],
+    install: false,
+)
+
+# PageAllocator backend. One mmap per alloc, rounded to a page.
+# Useful at page-aligned sizes (AllocFreePair/4096, /16384, /65536);
+# sub-page requests round up to a full page and waste the rest.
+executable(
+    'bench-misra-page',
+    files('Source/Allocator_misra_page.c') + bench_cpp_sources,
+    c_args: ['-DBENCH_MISRA_VARIANT_NAME="misra-page"'],
+    include_directories: bench_inc,
+    dependencies: [bench_gbench_dep, misra_std_dep],
+    install: false,
+)

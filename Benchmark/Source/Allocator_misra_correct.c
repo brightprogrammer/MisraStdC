@@ -105,6 +105,11 @@ void bench_use_general(void) {
     g_mode = MODE_HEAP;
 }
 
+// Slab and Heap both support per-pointer free natively; arena-shaped
+// workloads fall back to per-pointer free in the bench harness.
+int  bench_can_reset(void) { return 0; }
+void bench_reset(void)     {}
+
 void *bench_alloc(size_t n) {
     // _Generic in AllocatorAlloc routes to slab_allocator_allocate or
     // heap_allocator_allocate based on the static type at each call

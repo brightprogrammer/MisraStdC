@@ -54,7 +54,11 @@ static void BM_BatchAllocFree(benchmark::State &state) {
     bench_use_fixed_size(sz);
     for (auto _ : state) {
         for (size_t i = 0; i < n; i++) ptrs[i] = bench_alloc(sz);
-        for (size_t i = 0; i < n; i++) bench_free(ptrs[i]);
+        // Free in reverse order: last-allocated, first-freed. Lets
+        // bump-style allocators (ArenaAllocator) rewind their cursor
+        // on each free instead of leaking. Other allocators are
+        // indifferent to free order at this granularity.
+        for (size_t i = n; i-- > 0; ) bench_free(ptrs[i]);
     }
     bench_use_general();
     state.SetItemsProcessed(int64_t(state.iterations()) * int64_t(n));
@@ -114,7 +118,31 @@ static void BM_MixedPareto(benchmark::State &state) {
 BENCHMARK(BM_MixedPareto);
 
 // ---------------------------------------------------------------------------
-// 5. alloc + write every byte
+// 5. arena bump + bulk reset
+// ---------------------------------------------------------------------------
+// Allocate N small objects, then either reset the backing arena (bulk
+// O(1) free) or fall back to freeing each pointer individually. Same
+// workload on every backend; arena-shaped backends short-circuit to
+// reset. Shows the cost differential of "1 reset" vs "N individual
+// frees" for the same bump-N workload.
+static void BM_ArenaBumpReset(benchmark::State &state) {
+    const size_t n  = static_cast<size_t>(state.range(0));
+    const size_t sz = 32;
+    std::vector<void *> ptrs(n);
+    for (auto _ : state) {
+        for (size_t i = 0; i < n; i++) ptrs[i] = bench_alloc(sz);
+        if (bench_can_reset()) {
+            bench_reset();
+        } else {
+            for (size_t i = 0; i < n; i++) bench_free(ptrs[i]);
+        }
+    }
+    state.SetItemsProcessed(int64_t(state.iterations()) * int64_t(n));
+}
+BENCHMARK(BM_ArenaBumpReset)->Arg(128)->Arg(1024)->Arg(8192);
+
+// ---------------------------------------------------------------------------
+// 6. alloc + write every byte
 // ---------------------------------------------------------------------------
 // Surfaces the first-page-fault cost an allocator pays on lazy-mmap
 // backends (every backend here, including MisraStdC's PageAllocator).
