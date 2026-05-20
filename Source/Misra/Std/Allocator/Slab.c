@@ -39,11 +39,8 @@
 // this change).
 //
 // Full path (FEATURE_HEAP_VALIDATE_FULL): adds vtable / alignment /
-// slot_size / slots_per_chunk / head-tail consistency / free_head
-// staleness / embedded PageAllocator magic. Costs ~7 ns / dispatch
-// when on. `free_head` is a vestigial field from the pre-bitmap
-// scheme; the current implementation never sets it, so it must
-// stay NULL.
+// slot_size / slots_per_chunk / head-tail consistency / embedded
+// PageAllocator magic. Costs ~7 ns / dispatch when on.
 static FORCE_INLINE void slab_validate_self_fast(const Allocator *self) {
     if (!self) {
         LOG_FATAL("SlabAllocator: NULL self");
@@ -76,9 +73,6 @@ static void slab_validate_self_full(const Allocator *self) {
     if ((s->head == NULL) != (s->tail == NULL)) {
         LOG_FATAL("SlabAllocator: head/tail mismatch ({x} / {x})", (u64)s->head, (u64)s->tail);
     }
-    if (s->free_head != NULL) {
-        LOG_FATAL("SlabAllocator: stale free_head pointer ({x}); bitmap scheme leaves it NULL", (u64)s->free_head);
-    }
 }
 #endif
 
@@ -96,12 +90,6 @@ struct SlabChunk {
     u32               bitmap_words; // u64 count
     char             *slots;        // start of user slot region
     u32               slot_count;
-};
-
-// SlabFreeSlot from the old API stays declared (it's referenced by
-// the typedef in Slab.h) but is unused under the bitmap scheme.
-struct SlabFreeSlot {
-    int _unused;
 };
 
 static size slab_padded_slot_size(size slot_size, size alignment) {

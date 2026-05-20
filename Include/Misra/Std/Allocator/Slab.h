@@ -3,8 +3,16 @@
 /// This is free and unencumbered software released into the public domain.
 ///
 /// Per-descriptor fixed-size slot slab. Every allocation must match the
-/// configured slot size; alloc/free are O(1) via an intrusive free list.
-/// State is inline; the embedded `PageAllocator` provides backing slabs.
+/// configured slot size. Free/in-use state is tracked by a per-chunk
+/// bitmap (one bit per slot, 0 = free, 1 = in use). Alloc scans the
+/// chunk-list for a chunk with a free bit (O(chunks * bitmap-words)
+/// worst case, O(1) when the head chunk has space at word 0); free
+/// walks the chunk-list to find the owning chunk by pointer range and
+/// clears the bit. The bitmap representation makes double-free trivial
+/// to detect (the bit is already 0) and supports range queries the
+/// debug paths use; both come at the cost of being slower than a pure
+/// intrusive-free-list allocator (e.g. tcmalloc). State is inline; the
+/// embedded `PageAllocator` provides backing chunks.
 
 #ifndef MISRA_STD_ALLOCATOR_SLAB_H
 #define MISRA_STD_ALLOCATOR_SLAB_H
@@ -25,14 +33,12 @@
 extern "C" {
 #endif
 
-    typedef struct SlabChunk    SlabChunk;
-    typedef struct SlabFreeSlot SlabFreeSlot;
+    typedef struct SlabChunk SlabChunk;
 
     typedef struct SlabAllocator {
         Allocator     base;
         SlabChunk    *head;
         SlabChunk    *tail;
-        SlabFreeSlot *free_head;
         size          slot_size;
         size          slots_per_chunk;
         PageAllocator page;
@@ -47,7 +53,7 @@ extern "C" {
     /// Release every chunk currently owned by `self` through the
     /// embedded `PageAllocator`, then zero the struct so any
     /// post-deinit dispatch trips `ValidateAllocator` on the cleared
-    /// `__magic`. The intrusive free list dies with the chunks.
+    /// `__magic`. The per-chunk bitmap state dies with the chunks.
     ///
     /// self[in,out] : SlabAllocator instance, or NULL.
     ///
@@ -68,7 +74,8 @@ extern "C" {
 
 ///
 /// Initialize a `SlabAllocator` with the given slot size. Slot size is
-/// padded internally so each slot holds the intrusive free-list pointer.
+/// padded internally up to the configured alignment so every returned
+/// pointer is aligned for the caller's payload type.
 ///
 #define SlabAllocatorInit(slot_size_bytes)                                                                             \
     ((SlabAllocator) {                                                                                                 \
@@ -83,7 +90,6 @@ extern "C" {
                    .__magic     = SLAB_ALLOCATOR_MAGIC},                                                                         \
         .head            = NULL,                                                                                       \
         .tail            = NULL,                                                                                       \
-        .free_head       = NULL,                                                                                       \
         .slot_size       = (slot_size_bytes),                                                                          \
         .slots_per_chunk = MISRA_SLAB_DEFAULT_CHUNK_SLOTS,                                                             \
         .page            = PageAllocatorInit()                                                                         \
@@ -105,7 +111,6 @@ extern "C" {
                    .__magic     = SLAB_ALLOCATOR_MAGIC},                                                                         \
         .head            = NULL,                                                                                       \
         .tail            = NULL,                                                                                       \
-        .free_head       = NULL,                                                                                       \
         .slot_size       = (slot_size_bytes),                                                                          \
         .slots_per_chunk = MISRA_SLAB_DEFAULT_CHUNK_SLOTS,                                                             \
         .page            = PageAllocatorInit()                                                                         \
