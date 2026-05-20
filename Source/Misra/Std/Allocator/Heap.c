@@ -112,9 +112,14 @@ static bool heap_grow_array(HeapAllocator *heap, void **arr_ptr, u32 *cap_ptr, u
     if (old_cap > ((u32)-1) / 2u) {
         return false;
     }
-    u32   new_cap   = old_cap ? old_cap * 2u : HEAP_DESC_INITIAL_CAP;
-    size  new_bytes = (size)new_cap * (size)entry_size;
-    void *fresh     = AllocatorAlloc(&heap->page.base, new_bytes, true);
+    u32  new_cap   = old_cap ? old_cap * 2u : HEAP_DESC_INITIAL_CAP;
+    size new_bytes = (size)new_cap * (size)entry_size;
+    // zeroed=false: the only readers of this buffer are heap_find_by_page
+    // (bounded by `len`, not `cap`) and heap_insert_sorted (writes before
+    // reading any tail slot). Asking for zeroed memory + then MemCopy-ing
+    // the old data on top touches old_cap*entry_size bytes twice; with
+    // zeroed=false the new buffer's bytes are touched at most once.
+    void *fresh = AllocatorAlloc(&heap->page.base, new_bytes, false);
     if (!fresh)
         return false;
     if (*arr_ptr && old_cap) {
