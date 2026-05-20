@@ -190,30 +190,6 @@ static u32 heap_find_by_page(const void *arr, u32 len, u32 entry_size, void *pag
     return (u32)-1;
 }
 
-// MSVC: no GCC/Clang builtins; use _BitScanForward[64] from <intrin.h>.
-// Both branches assume x != 0 (the callers all gate on `if (inv != 0)`
-// or its equivalent before invoking these helpers).
-#if defined(_MSC_VER) && !defined(__clang__)
-#    include <intrin.h>
-static u32 ctz64(u64 x) {
-    unsigned long idx;
-    _BitScanForward64(&idx, x);
-    return (u32)idx;
-}
-static u32 ctz32(u32 x) {
-    unsigned long idx;
-    _BitScanForward(&idx, x);
-    return (u32)idx;
-}
-#else
-static u32 ctz64(u64 x) {
-    return (u32)__builtin_ctzll(x);
-}
-static u32 ctz32(u32 x) {
-    return (u32)__builtin_ctz(x);
-}
-#endif
-
 // =============================================================================
 // Class S. Three sub-bins (16/32/64), each with its own bitmap field.
 
@@ -232,11 +208,11 @@ static u32 mask_low_u32(u32 count) {
 // Find first free bit in `bitmap` masked to `count` bits. Returns -1 if none.
 static i32 heap_find_free_bit_64(u64 bitmap, u32 count) {
     u64 inv = ~bitmap & mask_low_u64(count);
-    return inv ? (i32)ctz64(inv) : -1;
+    return inv ? (i32)CTZ64(inv) : -1;
 }
 static i32 heap_find_free_bit_32(u32 bitmap, u32 count) {
     u32 inv = ~bitmap & mask_low_u32(count);
-    return inv ? (i32)ctz32(inv) : -1;
+    return inv ? (i32)CTZ32(inv) : -1;
 }
 
 static void *heap_alloc_s(HeapAllocator *heap, u32 slot_size) {
@@ -398,7 +374,7 @@ static void *heap_alloc_m(HeapAllocator *heap, u32 slot_size) {
         u32        sub = (~(u32)d->bitmap >> region_shift) & (((u32)1 << region_count) - 1u);
         if (!sub)
             continue;
-        u32 bit  = ctz32(sub);
+        u32 bit  = CTZ32(sub);
         u32 mask = (u32)1 << (bit + region_shift);
         if (d->bitmap & (u16)mask) {
             LOG_FATAL(
@@ -498,7 +474,7 @@ static void *heap_alloc_l(HeapAllocator *heap, u32 slot_size) {
         u32        sub = (~(u32)d->bitmap >> region_shift) & (((u32)1 << region_count) - 1u);
         if (!sub)
             continue;
-        u32 bit  = ctz32(sub);
+        u32 bit  = CTZ32(sub);
         u32 mask = (u32)1 << (bit + region_shift);
         if (d->bitmap & (u8)mask) {
             LOG_FATAL(

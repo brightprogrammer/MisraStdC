@@ -87,22 +87,6 @@ static void slab_validate_self_full(const Allocator *self) {
 #endif
 
 // =============================================================================
-// Bit-scan helper. ctz on 64-bit word.
-
-#if defined(_MSC_VER) && !defined(__clang__)
-#    include <intrin.h>
-static FORCE_INLINE u32 ctz64(u64 x) {
-    unsigned long idx;
-    _BitScanForward64(&idx, x);
-    return (u32)idx;
-}
-#else
-static FORCE_INLINE u32 ctz64(u64 x) {
-    return (u32)__builtin_ctzll(x);
-}
-#endif
-
-// =============================================================================
 // Bookkeeping helpers.
 
 #define SLAB_INITIAL_CAP 8u
@@ -292,7 +276,7 @@ void *slab_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
             if (inv == 0u) {
                 continue;
             }
-            u32 bit = ctz64(inv);
+            u32 bit = CTZ64(inv);
             // No tail-bit guard needed: tail bits are pre-set to 1,
             // so ctz(~word) never finds them.
             bm[w] |= ((u64)1 << bit);

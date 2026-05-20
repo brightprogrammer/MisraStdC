@@ -101,26 +101,13 @@ static bool budget_alignment_is_pow2(size alignment) {
 // ---------------------------------------------------------------------------
 // Bitmap helpers. Each u64 word covers 64 slots.
 
-#if defined(_MSC_VER) && !defined(__clang__)
-#    include <intrin.h>
-static u32 ctz64(u64 x) {
-    unsigned long idx;
-    _BitScanForward64(&idx, x);
-    return (u32)idx;
-}
-#else
-static u32 ctz64(u64 x) {
-    return (u32)__builtin_ctzll(x);
-}
-#endif
-
 // Returns first 0 bit globally across all words, or -1 if none.
 static i64 budget_first_free_bit(const u64 *bitmap, u32 words, size cap) {
     for (u32 w = 0; w < words; w++) {
         u64 inv = ~bitmap[w];
         if (inv == 0)
             continue;
-        u32  bit    = ctz64(inv);
+        u32  bit    = CTZ64(inv);
         size global = (size)w * 64u + bit;
         if (global >= cap)
             return -1; // the tail bits past cap are set; this can't happen on a clean bitmap

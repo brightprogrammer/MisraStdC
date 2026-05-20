@@ -114,7 +114,16 @@ extern "C" {
 /// struct goes into 32-byte slots, like the way glibc rounds a
 /// 2-byte malloc up to its 24-byte minimum chunk.
 ///
-#define MISRA_SLAB_ROUNDUP_POW2(s)                                                                                     \
+/// s[in] : Requested slot size in bytes.
+///
+/// SUCCESS: Returns the smallest supported power-of-two slot size
+///          `>= s`, clamped to [16, 4096].
+/// FAILURE: No runtime failure mode. For `s > 4096` returns 4096;
+///          first-allocation validation aborts when the rounded
+///          slot does not fit in the OS page size.
+///
+/// TAGS: Slab, Macro, PowerOfTwo, Utility
+#define SLAB_ROUNDUP_POW2(s)                                                                                           \
     ((s) <= 16u     ? 16u                                                                                              \
      : (s) <= 32u   ? 32u                                                                                              \
      : (s) <= 64u   ? 64u                                                                                              \
@@ -130,10 +139,19 @@ extern "C" {
 /// constant when the input is a literal (the common case --
 /// `SlabAllocatorInit(16)`). For runtime values, evaluates as a small
 /// conditional cascade once at init. Always paired with
-/// `MISRA_SLAB_ROUNDUP_POW2` so the input is guaranteed to land on a
+/// `SLAB_ROUNDUP_POW2` so the input is guaranteed to land on a
 /// supported power of two.
 ///
-#define MISRA_SLAB_SHIFT_FROM_SIZE(s)                                                                                  \
+/// s[in] : Power-of-two slot size in bytes (caller-guaranteed via
+///         `SLAB_ROUNDUP_POW2`).
+///
+/// SUCCESS: Returns `log2(s)` for supported sizes (16..4096), as a
+///          `u32` literal in [4, 12].
+/// FAILURE: Returns 0 for any unsupported input; the slab validator
+///          rejects a `slot_size_shift == 0` slab at first allocation.
+///
+/// TAGS: Slab, Macro, BitScan, Utility
+#define SLAB_SHIFT_FROM_SIZE(s)                                                                                        \
     ((s) == 16u     ? 4u                                                                                               \
      : (s) == 32u   ? 5u                                                                                               \
      : (s) == 64u   ? 6u                                                                                               \
@@ -167,8 +185,8 @@ extern "C" {
         .slabs_len             = 0,                                                                                    \
         .slabs_cap             = 0,                                                                                    \
         .bitmaps               = NULL,                                                                                 \
-        .slot_size             = MISRA_SLAB_ROUNDUP_POW2(slot_size_bytes),                                             \
-        .slot_size_shift       = (u8)MISRA_SLAB_SHIFT_FROM_SIZE(MISRA_SLAB_ROUNDUP_POW2(slot_size_bytes)),             \
+        .slot_size             = SLAB_ROUNDUP_POW2(slot_size_bytes),                                             \
+        .slot_size_shift       = (u8)SLAB_SHIFT_FROM_SIZE(SLAB_ROUNDUP_POW2(slot_size_bytes)),             \
         .bitmap_words_per_slab = 0,                                                                                    \
         .page                  = PageAllocatorInit()                                                                   \
     })
@@ -195,8 +213,8 @@ extern "C" {
         .slabs_len             = 0,                                                                                    \
         .slabs_cap             = 0,                                                                                    \
         .bitmaps               = NULL,                                                                                 \
-        .slot_size             = MISRA_SLAB_ROUNDUP_POW2(slot_size_bytes),                                             \
-        .slot_size_shift       = (u8)MISRA_SLAB_SHIFT_FROM_SIZE(MISRA_SLAB_ROUNDUP_POW2(slot_size_bytes)),             \
+        .slot_size             = SLAB_ROUNDUP_POW2(slot_size_bytes),                                             \
+        .slot_size_shift       = (u8)SLAB_SHIFT_FROM_SIZE(SLAB_ROUNDUP_POW2(slot_size_bytes)),             \
         .bitmap_words_per_slab = 0,                                                                                    \
         .page                  = PageAllocatorInit()                                                                   \
     })

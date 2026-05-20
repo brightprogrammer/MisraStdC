@@ -205,6 +205,44 @@ typedef i8 bool;
 #endif
 
 ///
+/// Count trailing zero bits in a 64-bit word. Undefined for `x == 0`
+/// (matches the underlying compiler builtin's contract); callers must
+/// pre-check.
+///
+/// Per-compiler expansion:
+///   - GCC / Clang / clang-cl : `__builtin_ctzll(x)`. Folds to BSF /
+///     TZCNT on x86, RBIT+CLZ on ARM.
+///   - MSVC `cl.exe`          : `_BitScanForward64`. Writes the bit
+///     index to a `unsigned long` output; we wrap to a uniform return.
+///
+/// x[in] : Non-zero 64-bit value.
+///
+/// SUCCESS: Returns the bit index (0..63) of the lowest set bit.
+/// FAILURE: Undefined behaviour when x == 0; check at the call site.
+///
+/// TAGS: BitScan, Codegen, Compiler-Portability, Utility
+#if defined(_MSC_VER) && !defined(__clang__)
+#    include <intrin.h>
+static FORCE_INLINE u32 CTZ64(u64 x) {
+    unsigned long idx;
+    _BitScanForward64(&idx, x);
+    return (u32)idx;
+}
+static FORCE_INLINE u32 CTZ32(u32 x) {
+    unsigned long idx;
+    _BitScanForward(&idx, x);
+    return (u32)idx;
+}
+#else
+static FORCE_INLINE u32 CTZ64(u64 x) {
+    return (u32)__builtin_ctzll(x);
+}
+static FORCE_INLINE u32 CTZ32(u32 x) {
+    return (u32)__builtin_ctz(x);
+}
+#endif
+
+///
 /// Creates a fresh l-value of type `T` initialized from expression `x`.
 /// Uses compound-literal initialization rather than a cast so it works for
 /// structs as well as scalars (MSVC C2440 rejects struct-to-same-struct casts).
