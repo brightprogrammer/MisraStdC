@@ -27,6 +27,7 @@ what you use.
 - [Build and Install](#build-and-install)
 - [Feature Flags](#feature-flags)
 - [Libc-Diet (Freestanding Build)](#libc-diet-freestanding-build)
+- [Allocator Performance](#allocator-performance)
 - [Six Core Ideas](#six-core-ideas)
   - [1. Allocators are user-owned values, never global state](#1-allocators-are-user-owned-values-never-global-state)
   - [2. `Scope` is lexical RAII, in plain C](#2-scope-is-lexical-raii-in-plain-c)
@@ -369,6 +370,147 @@ A regression in either fails CI independently.
 - **Test harness `setjmp`/`longjmp`** still link libc on Mac and
   Windows. Splitting the harness out would be the next freestanding
   push if test binaries need to be libc-free too.
+
+---
+
+## Allocator Performance
+
+How `HeapAllocator` (the default backend) compares against four production
+general-purpose allocators on a microbenchmark suite. Lower is better
+in every row.
+
+### Setup
+
+- Hardware: Intel Core Ultra 7 165U, 14 logical cores, AVX2.
+- Kernel: Linux 6.18.25 (NixOS).
+- Toolchain: gcc 15.2.0.
+- Allocator versions (nixpkgs unstable, channel `nixos-unstable` as of
+  the date of this README):
+  - glibc 2.42 system malloc
+  - jemalloc 5.3.0
+  - mimalloc 3.3.0 — rebuilt with `-DMI_STAT=1` so committed-bytes
+    introspection works (default release build leaves the counter
+    in the no-update branch)
+  - gperftools 2.17.2 (tcmalloc)
+  - MisraStdC at the commit of this README. Two variants:
+    `heap_validate_full=true` (the default, "misra-full" in the
+    table) and `heap_validate_full=false` ("misra-fast").
+
+- Build configuration: every allocator at `-O3 -march=native`, LTO
+  off, sanitisers off. Matches what nixpkgs ships its own
+  jemalloc/mimalloc/tcmalloc with, so no allocator has a codegen
+  advantage from the build. MisraStdC built with all upstream
+  feature flags at their default values plus
+  `-Dheap_validate_full={true,false}`.
+
+- Harness: Google Benchmark 1.9.4, 3 repetitions per row, median
+  reported. One binary per allocator; each binary links exactly
+  one general-purpose allocator (via the linker's normal `malloc`
+  resolution), with MisraStdC in its own binary that uses the
+  typed `HeapAllocator` API directly.
+
+- Memory operations: harness-side `memset` calls go through libc's
+  vectorised version for every backend (the in-tree mem* overrides
+  from `Source/Misra/_Freestanding.c` are skipped at the bench
+  build level so they don't interpose on the harness's own
+  touch loops -- otherwise the bench would partly measure memset
+  throughput, not the allocator).
+
+### Timing
+
+Median nanoseconds (or microseconds) per loop iteration:
+
+| Benchmark             |    glibc | jemalloc | mimalloc | tcmalloc | misra-fast | misra-full |
+|-----------------------|---------:|---------:|---------:|---------:|-----------:|-----------:|
+| AllocFreePair/16      |    5 ns  |    4 ns  |    7 ns  |    3 ns  |     13 ns  |     23 ns  |
+| AllocFreePair/64      |    5 ns  |    4 ns  |    7 ns  |    4 ns  |     13 ns  |     21 ns  |
+| AllocFreePair/1024    |    5 ns  |    6 ns  |   10 ns  |    3 ns  |     12 ns  |     20 ns  |
+| AllocFreePair/4096    |   16 ns  |   11 ns  |   12 ns  |    4 ns  |   1.60 µs  |   1.58 µs  |
+| AllocFreePair/65536   |   16 ns  |  262 ns  |   20 ns  |    4 ns  |   1.01 µs  |   1.01 µs  |
+| AllocTouchFree/65536  |  856 ns  | 1.07 µs  |  870 ns  |  844 ns  |  15.29 µs  |  15.33 µs  |
+| BatchAllocFree/1024   | 10.07 µs | 11.38 µs |  5.78 µs |  3.99 µs |  33.09 µs  |  34.98 µs  |
+| BatchAllocFree/8192   | 78.04 µs | 95.25 µs | 51.68 µs | 33.53 µs | 541.00 µs  | 560.86 µs  |
+| MixedPareto           | 28.43 µs | 12.00 µs | 13.42 µs | 12.25 µs |  43.03 µs  |  46.14 µs  |
+| ReallocGrow           |  232 ns  | 3.79 µs  | 16.84 µs | 15.12 µs | 250.40 µs  | 250.06 µs  |
+
+### Fragmentation
+
+Each backend's own stats API gives "committed bytes" after the
+workload runs; no `/proc/self/statm` reads. `mimalloc` is shown as
+n/a because the public `mi_stats_get` API in 3.3.0 has a header /
+source ABI mismatch that makes its committed-bytes counter unusable
+from a consumer.
+
+| Workload                   |   live |    glibc | jemalloc | tcmalloc | misra-fast | misra-full |
+|----------------------------|-------:|---------:|---------:|---------:|-----------:|-----------:|
+| Frag_Checkerboard/16384    | 2.5 MB |  4.07 MB | 11.85 MB |  7.00 MB |   10.10 MB |   10.10 MB |
+| Frag_Checkerboard/65536    |  10 MB | 15.27 MB | 22.18 MB | 16.00 MB |   40.23 MB |   40.23 MB |
+| Frag_LifetimeMix           | ~ 4 MB |  5.05 MB | 20.64 MB | 16.00 MB |   45.84 MB |   45.84 MB |
+| Frag_PageOverhang          | 18.2 MB | 20.51 MB | 32.46 MB | 29.00 MB |   77.00 MB |   77.00 MB |
+
+### Reading the numbers
+
+- `misra-fast` vs `misra-full` is exactly the cost of
+  `heap_validate_self_full` versus `_fast`. The full path adds
+  vtable / alignment / per-class invariant cross-checks + four forced
+  volatile cache-line probes per dispatch (~10 ns / call). The fast
+  path keeps only the magic check on the allocator and on the
+  embedded `PageAllocator`. The `heap_validate_full` meson option
+  picks one at library build time. The hot bin / free-list code is
+  byte-identical between the two -- only validation differs, so
+  fragmentation is also byte-identical between the two columns.
+
+- Small allocations (< 2 KiB): `misra-fast` is ~2.5× glibc, in the
+  same range as jemalloc and mimalloc on this workload. tcmalloc's
+  thread-local cache makes it the outright winner.
+
+- Large allocations (>= 4 KiB): `HeapAllocator` routes everything
+  above the 2 KiB bin straight to `mmap` / `munmap` per call by
+  design (no large-alloc cache; the README's "every allocator is a
+  plain stack-allocated struct, no hidden globals" property would
+  not survive a thread-local large-block cache). The other
+  allocators retain freed large blocks in per-thread arenas and so
+  serve them back without a syscall.
+
+- Fragmentation: `HeapAllocator` partitions each 4 KiB user page into
+  fixed sub-regions (e.g. 8×128 B + 4×256 B + 4×512 B in the medium
+  class). When a workload uses only one sub-region size, the rest of
+  the page stays committed but unused. The general-purpose allocators
+  use variable-size bins and pack better on these patterns.
+
+### Reproducing
+
+The benchmark harness is a separate project that links MisraStdC plus
+the four reference allocators. The shape of each binary:
+
+```c
+// per benchmark binary, one of:
+//   bench-glibc      -- links nothing extra; default malloc resolution
+//   bench-jemalloc   -- -ljemalloc; libjemalloc.so interposes malloc
+//   bench-mimalloc   -- -lmimalloc; libmimalloc.so interposes malloc
+//   bench-tcmalloc   -- -ltcmalloc; libtcmalloc.so interposes malloc
+//   bench-misra-fast -- -lmisra_std at -Dheap_validate_full=false
+//   bench-misra-full -- -lmisra_std at -Dheap_validate_full=true
+```
+
+Each binary runs the same Google Benchmark suite; the only difference
+is which `malloc` resolves (for the four `libc`-shape backends) or
+which `libmisra_std.a` variant is linked (for the two misra binaries).
+The misra binary calls `HeapAllocator`'s typed `AllocatorAlloc` /
+`AllocatorFree` directly -- not the libc `malloc` shim.
+
+Three workload categories are exercised:
+- Synthetic timing micro-benchmarks (`BM_AllocFreePair`,
+  `BM_BatchAllocFree`, `BM_AllocTouchFree`, `BM_ReallocGrow`).
+- A Pareto-distributed mixed-size workload (`BM_MixedPareto`).
+- Fragmentation-exposing patterns (`BM_Frag_*`): checkerboard frees,
+  long-running lifetime mix, page-boundary overhang allocations.
+
+Footprint is read through each allocator's own introspection API
+(`mallinfo2` for glibc, `mallctl("stats.mapped")` for jemalloc,
+`MallocExtension_GetNumericProperty("generic.heap_size")` for
+tcmalloc, the embedded `PageAllocator.entries[]` for misra) so the
+metric is the allocator's own bookkeeping, not process-wide RSS.
 
 ---
 
