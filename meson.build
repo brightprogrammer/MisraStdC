@@ -212,28 +212,33 @@ have_misra_start_win = sys_kernel == 'windows' \
 # version -- Apple has renumbered syscalls historically.
 have_direct_syscall = have_misra_start or (sys_kernel == 'darwin' and (sys_cpu == 'x86_64' or sys_cpu == 'aarch64'))
 
-# `enable_libc_diet`: master switch for the whole freestanding /
-# direct-syscall machinery. We turn it OFF whenever any sanitizer is
-# active, because:
-#   - libasan / libubsan / liblsan / etc. live in libsanitizer (a
-#     libc-side library). '-nostdlib' on Bin/ tools drops them too,
-#     producing __asan_* / __ubsan_* undefined references at link
-#     time (this is what failed Linux CI on commit 6ce17b7).
-#   - ASan's own mem* interceptors would clash with our in-tree mem*
+# `freestanding`: the library's default identity. _Freestanding.c's
+# mem* overrides, _StartLinux.c's custom `_start`, the in-tree
+# stack-protector helpers, and the `-nostdlib`-shaped link args on
+# Bin/ tools are all keyed off this. Not a user-facing option;
+# auto-derived from `b_sanitize` because sanitizer instrumentation
+# structurally requires libc and so cannot coexist with freestanding:
+#   - libasan / libubsan / liblsan live in libsanitizer (libc-side).
+#     '-nostdlib' on Bin/ tools drops them, producing __asan_* /
+#     __ubsan_* undefined references at link time. (commit 6ce17b7
+#     was the Linux CI failure that first surfaced this.)
+#   - ASan's own mem* interceptors clash with our in-tree mem*
 #     overrides in _Freestanding.c.
-#   - Stack-protector + FORTIFY_SOURCE machinery is needed by the
-#     sanitizer instrumentation in some scenarios.
+#   - Stack-protector + FORTIFY_SOURCE machinery is needed by some
+#     sanitizer configs.
 #   - Our _start replacement skips ASan's TLS setup / ctor running.
 #
-# Sanitizer builds don't care about the libc-diet property -- they
-# care about correctness under instrumentation. Take the full libc
-# path on those.
-enable_libc_diet = get_option('b_sanitize') == 'none'
+# So: sanitizer builds force a hosted build automatically. The
+# shipping configuration is freestanding; sanitizers are a CI / dev
+# tool that opts out of freestanding for libsanitizer compatibility.
+# Everything below that uses `freestanding` is gating freestanding-
+# specific behaviour, not making a user-visible choice.
+freestanding = get_option('b_sanitize') == 'none'
 
 # _Freestanding.c: compiler-/harness-emitted symbols (memcpy/memset/
 # memmove/memcmp/bzero, plus setjmp/longjmp on Linux). Cross-platform.
 #
-# Gating: on Linux+Mac we always pull this in (under enable_libc_diet)
+# Gating: on Linux+Mac we always pull this in (under freestanding)
 # because clang on those targets emits direct mem* calls regardless of
 # linker mode. On Windows we only pull it in when have_misra_start_win
 # is on (clang-cl freestanding flavour): for the standard 'clang +
@@ -241,15 +246,15 @@ enable_libc_diet = get_option('b_sanitize') == 'none'
 # with __cdecl and full prototypes -- our overrides would 'conflict'
 # at compile time. The standard flavour doesn't need our overrides
 # anyway; UCRT supplies them.
-if enable_libc_diet and \
+if freestanding and \
    ((sys_kernel == 'linux' or sys_kernel == 'darwin') and \
     (sys_cpu == 'x86_64' or sys_cpu == 'aarch64'))
     misra_std_sources += files('Source/Misra/_Freestanding.c')
-elif enable_libc_diet and have_misra_start_win
+elif freestanding and have_misra_start_win
     misra_std_sources += files('Source/Misra/_Freestanding.c')
 endif
 
-if have_misra_start and enable_libc_diet
+if have_misra_start and freestanding
     misra_std_sources += files('Source/Misra/_StartLinux.c')
 
     # `-nostartfiles` drops crt1.o (our _start replaces it) from every
@@ -274,7 +279,7 @@ if have_misra_start and enable_libc_diet
     # goes into libmisra_std (Linux libc on tests still gets the
     # COMDAT-resolution treatment so no duplicate-symbol conflict).
     freestanding_extra_sources = []
-elif have_misra_start_win and enable_libc_diet
+elif have_misra_start_win and freestanding
     # Windows freestanding (clang-cl only): drop UCRT + vcruntime via
     # /NODEFAULTLIB. Compiler-runtime helpers (memcpy etc.) come from
     # _Freestanding.c in libmisra_std. The custom entry point
@@ -345,7 +350,7 @@ endif
 # without external libc symbols (controlled via /GS), and there's
 # no FORTIFY_SOURCE concept on the MS side. Skip the gcc/clang
 # flag set on those compilers to avoid the unknown-argument error.
-if enable_libc_diet and \
+if freestanding and \
    cc.get_id() != 'msvc' and cc.get_id() != 'clang-cl'
     add_project_arguments(
         '-U_FORTIFY_SOURCE',

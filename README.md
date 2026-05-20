@@ -26,7 +26,7 @@ what you use.
 - [What You Get](#what-you-get)
 - [Build and Install](#build-and-install)
 - [Feature Flags](#feature-flags)
-- [Libc-Diet (Freestanding Build)](#libc-diet-freestanding-build)
+- [Freestanding (Libc-Free Binaries)](#freestanding-libc-free-binaries)
 - [Allocator Performance](#allocator-performance)
 - [Six Core Ideas](#six-core-ideas)
   - [1. Allocators are user-owned values, never global state](#1-allocators-are-user-owned-values-never-global-state)
@@ -251,15 +251,21 @@ a feature you don't need really does keep its code out of your binary.
 
 ---
 
-## Libc-Diet (Freestanding Build)
+## Freestanding (Libc-Free Binaries)
 
-The shipping `Bin/` tools link against zero libc on every supported OS.
-Not "minimal libc", not "static libc" — **no libc**. Every syscall goes
-direct to the kernel; compiler-emitted helpers (`memcpy`, `memset`,
-`setjmp`, `__chkstk`, stack canaries) come from in-tree sources. The
-"platform" DLLs that remain are the OS's stable kernel ABI, not the C
-library: direct Linux syscalls, the BSD subset of XNU on macOS via
-`syscall` / `svc #0x80`, and `kernel32`/`ws2_32`/`dbghelp` on Windows.
+The library's identity is freestanding. Shipping `Bin/` tools link
+against zero libc on every supported OS. Not "minimal libc", not
+"static libc" — **no libc**. Every syscall goes direct to the kernel;
+compiler-emitted helpers (`memcpy`, `memset`, `setjmp`, `__chkstk`,
+stack canaries) come from in-tree sources. The "platform" DLLs that
+remain are the OS's stable kernel ABI, not the C library: direct
+Linux syscalls, the BSD subset of XNU on macOS via `syscall` /
+`svc #0x80`, and `kernel32`/`ws2_32`/`dbghelp` on Windows.
+
+The one exception is documented below: ASan / UBSan builds
+automatically fall back to a hosted configuration because libsanitizer
+is libc-resident. There's no user-facing toggle — the build derives
+the freestanding-vs-hosted shape from `-Db_sanitize=...` alone.
 
 ### What survives the diet, per OS
 
@@ -334,23 +340,35 @@ instead.
   `sigreturn` (#184) after invoking the handler. Windows uses
   `SetConsoleCtrlHandler` (kernel32, not UCRT's `signal()`).
 
-### When libc-diet is off
+### Sanitizer builds (the one auto-hosted case)
 
 Sanitizer builds (`-Db_sanitize=address,undefined` or `=address`) keep
-the full libc. The sanitizer runtimes (`libasan`, `libubsan`,
-`clang_rt.asan-x86_64`) live inside libsanitizer which is a libc-side
-library; `-nostdlib` would drop them. Sanitizers exist to catch UB and
-memory bugs — that's orthogonal to the libc-diet property — so a single
-meson gate flips the freestanding machinery off when any sanitizer is
-active. The Bin/ tools then link the full libc + the sanitizer runtime,
-same as the test binaries always have.
+the full libc — the sanitizer runtimes (`libasan`, `libubsan`,
+`clang_rt.asan-x86_64`) live inside libsanitizer, which is a libc-side
+library. `-nostdlib` would drop them, breaking the link. Sanitizers
+also have their own `mem*` interceptors that would clash with our
+in-tree `_Freestanding.c` overrides, and they expect a normal stack
+layout including the canary slots the freestanding path replaces.
 
-This means CI runs the test suite in **two flavours** per OS on Linux
-and macOS:
+So when any sanitizer is active, the build automatically drops out of
+freestanding: `_Freestanding.c` / `_StartLinux.c` / the in-tree
+stack-protector helpers are skipped, and `Bin/` tools link the full
+libc + libsanitizer like a normal hosted program. This is keyed
+internally off `get_option('b_sanitize') != 'none'`; there is no
+user-facing toggle for it. The shipping build is always freestanding.
 
-- `sanitized` — ASan + UBSan correctness pass (links full libc).
-- `freestanding` — libc-diet survival pass (links no libc, asserts on
-  `nm -u` / `dumpbin`-style allowlist).
+ASan / UBSan aren't redundant with the project's own `DebugAllocator`
+— they cover bug classes the allocator structurally can't see (stack
+overflows, global overflows, uninitialised reads, integer overflow,
+misaligned loads, use-after-scope). They're the reason CI runs each
+OS in two flavours:
+
+- `sanitized` — full libc + ASan + UBSan, exercises parser / fuzz
+  paths under undefined-behaviour instrumentation.
+- `freestanding` — the shipping configuration, asserts on `nm -u` /
+  `dumpbin`-style allowlist (Linux: empty `nm -u` + `ldd` reports
+  `statically linked`; Mac: only `__dyld_*` entries; Windows: only
+  platform-DLL imports, no `ucrtbase*` / `vcruntime*` / `msvcp*`).
 
 A regression in either fails CI independently.
 
