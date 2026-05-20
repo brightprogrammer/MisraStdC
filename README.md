@@ -37,10 +37,14 @@ what you use.
 - [Container Tour](#container-tour)
   - [Vec](#vec)
   - [Str](#str)
+  - [Buf](#buf)
   - [List, Graph](#list-graph)
   - [BitVec, Int, Float](#bitvec-int-float)
 - [Formatted I/O](#formatted-io)
 - [Parsers](#parsers)
+  - [JSON](#json)
+  - [KvConfig](#kvconfig)
+  - [Binary parsers: Elf, Macho, Pe, Pdb](#binary-parsers-elf-macho-pe-pdb)
 - [System Utilities](#system-utilities)
 - [Contributing](#contributing)
 - [License](#license)
@@ -115,7 +119,8 @@ when the `Scope` ends.
   leak / double-free / canary-overflow / use-after-free detection — opt-in
   process-wide via the `default_alloc_debug` build flag).
 - **Generic containers** built on a shared runtime: `Vec(T)`, `List(T)`,
-  `Map(K,V)`, `Graph(T)`, `BitVec`, `Str` (= `Vec(char)`), `Strs` (= `Vec(Str)`).
+  `Map(K,V)`, `Graph(T)`, `BitVec`, `Str` (= `Vec(char)`), `Strs` (= `Vec(Str)`),
+  `Buf` (= `Vec(u8)`, with cursor-style binary reads via `BufIter`).
 - **Arbitrary-precision arithmetic:** `Int` on top of `BitVec`, `Float` on top
   of `Int`, with radix-string conversion, modular arithmetic, primality,
   decimal-exact add/sub/mul/div.
@@ -123,6 +128,9 @@ when the `Scope` ends.
   `WriteFmt(...)` works for `int`, `f64`, `Str`, `Int`, `Float`, `BitVec`,
   C strings — all dispatched at compile time via `_Generic`.
 - **JSON and key-value config parsers** as opt-in features.
+- **Binary-format parsers** for `Elf`, `Macho`, `Pe`, and `Pdb`, all walking
+  bytes through `BufIter` + `BufReadFmt` — no `libelf`, no `dbghelp`. Used
+  by the in-tree backtrace symbolizer.
 - **Cross-platform system utilities:** subprocess control, directory listings,
   mutexes, environment access, current-process info, current-executable path.
 - **Feature flags** that drop whole subsystems from the static library and
@@ -197,7 +205,7 @@ the default build. Adding `int` automatically pulls in `bitvec`; adding
 | `graph`                           | `Graph(T)` directed graph (uses `Vec` runtime helpers)                                                              | —                                |
 | `int`                             | Arbitrary-precision integer `Int`                                                                                   | `bitvec`                         |
 | `float`                           | Arbitrary-precision decimal `Float`                                                                                 | `int → bitvec`                   |
-| `file`                            | `File` cross-platform handle + `ReadCompleteFile(...)`                                                              | —                                |
+| `file`                            | `File` cross-platform handle + `FileRead{,AndClose}` / `FileWrite{,AndClose}` slurp helpers                          | —                                |
 | `iter`                            | Generic `Iter(T)` iteration helpers                                                                                 | —                                |
 | `sys_dir`                         | `DirGetContents(...)` and friends                                                                                   | —                                |
 | `sys_proc`                        | `ProcCreate(...)` / spawn / wait                                                                                    | —                                |
@@ -675,6 +683,48 @@ Scope(alloc, DefaultAllocator) {
 }
 ```
 
+### Buf
+
+`Buf` is `Str`'s binary cousin: a `Vec(u8)` typedef for code that produces or
+consumes raw wire bytes — headers, on-disk file formats, network frames.
+Same `VecInit` / `VecDeinit` underneath, with a thin layer of binary
+read/write primitives on top:
+
+```c
+Scope(alloc, DefaultAllocator) {
+    Buf bytes = BufInit();
+    BufWriteU32LE(&bytes, 0xDEADBEEF);
+    BufWriteCstr (&bytes, "hello");
+
+    BufIter it = BufIterFromBuf(&bytes);
+    u32     tag = 0;
+    BufReadU32LE(&it, &tag);
+    const char *msg = BufReadCstr(&it);
+    WriteFmtLn("tag=0x{x}, msg={}", tag, msg);
+
+    BufDeinit(&bytes);
+}
+```
+
+`BufIter` is a cursor over `(data, length)` — separate from the `Buf` itself,
+so the same iterator type works for borrowed memory you don't own
+(`BufIterFromMemory(ptr, n)`). The read primitives advance the cursor and
+return `false` on truncation; no pointer arithmetic in caller code.
+
+When you need a sub-range — say, a length-prefixed record inside a larger
+buffer — `IterCarve(&parent, n)` returns a child iterator over the parent's
+next `n` bytes without modifying the parent. `IterTruncate(&it, n)` is the
+in-place variant: caps the current iterator so only the next `n` bytes are
+reachable. Both keep the buffer bounds where the format puts them, instead
+of in scattered `if (pos + size > len)` checks.
+
+The format layer in `<Misra/Std/Io.h>` adds four operations on top:
+`BufReadFmt(&it, "{<4}{<2}", tag, flags)` consumes typed binary fields from
+a cursor; `BufAppendFmt` / `BufWriteFmt` / `BufPatchFmt` emit them. The
+format directive `{<Nr}` means little-endian width `N` (1, 2, 4, or 8);
+`{>Nr}` is big-endian. Width must match the destination's natural size, so
+mismatches are caught at the call site.
+
 ### List, Graph
 
 ```c
@@ -851,10 +901,35 @@ Scope(alloc, DefaultAllocator) {
 - `WriteFmt(fmt, ...)` / `WriteFmtLn(fmt, ...)` / `ReadFmt(fmt, ...)`
   (normal output / standard input channel — `FileFromFd(1)` / `FileFromFd(0)`
   on POSIX, the corresponding `GetStdHandle` on Windows)
+- `BufReadFmt(&iter, fmt, ...)` / `BufAppendFmt(&buf, fmt, ...)` /
+  `BufWriteFmt(&buf, fmt, ...)` / `BufPatchFmt(&buf, offset, fmt, ...)`
+  (binary cursor / Buf — `{<Nr}` LE and `{>Nr}` BE only, `N` in `{1,2,4,8}`)
+
+### Files in one call
+
+For the common case of "slurp this path" or "write this Buf to that path",
+`<Misra/Std/File.h>` exposes one-shot helpers:
+
+```c
+Scope(alloc, DefaultAllocator) {
+    Buf payload = BufInit();
+    FileReadAndClose("input.bin", &payload);          // open + read + close
+    BufAppendFmt(&payload, "{<4}", (u32)0x4D495352);  // patch a trailer
+    FileWriteAndClose("output.bin", &payload);
+}
+```
+
+Both helpers dispatch the path on `Str *` / `char *` and the container on
+`Buf *` / `Str *`. `FileRead(&file, &buf)` (and `FileRead(&file, &str)`)
+is the lower-level read-to-EOF overload when you already hold a `File`.
+`FileGetSize(path)` in `<Misra/Sys/Dir.h>` answers the path-based size
+question without an open.
 
 ---
 
 ## Parsers
+
+### JSON
 
 JSON read/write is available when `parser_json` is enabled:
 
@@ -875,6 +950,8 @@ Scope(alloc, DefaultAllocator) {
     StrDeinit(&json);
 }
 ```
+
+### KvConfig
 
 KvConfig is a simple `key = value` / `key: value` parser with `#` and `;`
 comment support, quoted values, and last-write-wins semantics, available
@@ -902,6 +979,53 @@ Scope(alloc, DefaultAllocator) {
     StrDeinit(&text);
 }
 ```
+
+### Binary parsers: Elf, Macho, Pe, Pdb
+
+Four binary-format readers in `<Misra/Parsers/{Elf,MachO,Pe,Pdb}.h>`, all
+shaped the same way. Internally each one stores a `Buf` of the raw file
+bytes and walks it through `BufIter` + `BufReadFmt`; the parser owns the
+bytes for its whole lifetime. The in-tree backtrace symbolizer is the
+primary consumer (ELF + DWARF on Linux, Mach-O + dSYM on macOS, PE + PDB
+on Windows), but the APIs are usable on their own.
+
+Three construction paths per parser, mirroring `VecInsertL` / `VecInsertR`:
+
+```c
+Scope(alloc, DefaultAllocator) {
+    // Path-based: parser opens, reads, owns.
+    Elf elf = {0};
+    if (ElfOpen(&elf, "/usr/bin/ls")) {
+        const ElfSection *text = ElfFindSection(&elf, ".text");
+        if (text) WriteFmtLn(".text at 0x{x}, {} bytes", text->addr, text->size);
+        ElfDeinit(&elf);
+    }
+
+    // L-form: hand the parser an existing Buf. The Buf is snapshot'd and
+    // zeroed in place, so the caller's local is safe to drop on stack.
+    Buf bytes = BufInit();
+    FileReadAndClose("vmlinux", &bytes);
+    Elf elf2 = {0};
+    ElfOpenFromMemory(&elf2, &bytes);   // *bytes is now zeroed
+    ElfDeinit(&elf2);
+
+    // R-form: parser copies; caller's data is untouched.
+    Elf elf3 = {0};
+    ElfOpenFromMemoryCopy(&elf3, raw_data, raw_size);
+    ElfDeinit(&elf3);
+}
+```
+
+The L-form's ownership-transfer semantics are the reason this isn't just a
+single "from memory" constructor: passing `&bytes` makes it visible at the
+call site that the parser is taking the Buf, and the zero-on-take leaves
+no dangling alias for the caller to misuse on the next line.
+
+`Macho`, `Pe`, and `Pdb` carry the same `Open` / `OpenFromMemory` /
+`OpenFromMemoryCopy` / `Deinit` shape, plus the lookups each format needs
+— `MachoFindSection` / `MachoResolveAddress`, `PeFindSection` plus the
+`codeview` field for matching the binary to its PDB, and `PdbResolveRva`
+for function lookup by image-relative address.
 
 ---
 
