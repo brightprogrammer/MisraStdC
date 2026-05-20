@@ -669,6 +669,14 @@ endif
 # Include tests
 subdir('Tests')
 
+# Allocator benchmark suite. Off by default; the build needs Google
+# Benchmark + jemalloc + mimalloc + gperftools, which not every consumer
+# of MisraStdC has installed. Enable with -Dbenchmark=true. After
+# building, run Benchmark/Scripts/run.py to refresh Benchmark/README.md.
+if get_option('benchmark')
+    subdir('Benchmark')
+endif
+
 # Install library headers
 # Header install gating. Only headers for enabled features land in the
 # install prefix. Disabled features have their `Container/<Name>/`,
