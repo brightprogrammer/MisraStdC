@@ -153,7 +153,7 @@ extern "C" {
     ///
     /// TAGS: Allocator, Memory, Allocation
     ///
-    void *AllocatorAlloc(Allocator *self, size bytes, i8 zeroed);
+    void *AllocatorAlloc_dyn(Allocator *self, size bytes, i8 zeroed);
 
     ///
     /// Try to grow / shrink an allocation in place. The pointer never
@@ -178,7 +178,7 @@ extern "C" {
     ///
     /// TAGS: Allocator, Memory, InPlace
     ///
-    i8 AllocatorResize(Allocator *self, void *ptr, size new_size);
+    i8 AllocatorResize_dyn(Allocator *self, void *ptr, size new_size);
 
     ///
     /// Resize an allocation, allowing relocation. May return a new
@@ -201,7 +201,7 @@ extern "C" {
     ///
     /// TAGS: Allocator, Memory, Reallocation
     ///
-    void *AllocatorRemap(Allocator *self, void *ptr, size new_size);
+    void *AllocatorRemap_dyn(Allocator *self, void *ptr, size new_size);
 
     ///
     /// Convenience cascade: tries `AllocatorResize` first; on failure
@@ -216,7 +216,7 @@ extern "C" {
     ///
     /// TAGS: Allocator, Memory, Reallocation
     ///
-    void *AllocatorRealloc(Allocator *self, void *ptr, size new_size);
+    void *AllocatorRealloc_dyn(Allocator *self, void *ptr, size new_size);
 
     ///
     /// Free memory through an allocator.
@@ -235,7 +235,43 @@ extern "C" {
     ///
     /// TAGS: Allocator, Memory, Deallocation
     ///
-    void AllocatorFree(Allocator *self, void *ptr);
+    void AllocatorFree_dyn(Allocator *self, void *ptr);
+
+    // Typed-dispatch leaves. Forward-declared here so the AllocatorAlloc
+    // / Resize / Remap / Free macros below can name them in every arm
+    // of their _Generic. Definitions live in each typed allocator's .c
+    // file; full declarations also appear in the typed allocator's own
+    // header. Duplicating here is intentional: consumers that include
+    // only <Misra/Std/Allocator.h> still get the dispatch macros.
+    void *heap_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
+    i8    heap_allocator_resize(Allocator *self, void *ptr, size new_size);
+    void *heap_allocator_remap(Allocator *self, void *ptr, size new_size);
+    size  heap_allocator_deallocate(Allocator *self, void *ptr);
+
+    void *page_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
+    i8    page_allocator_resize(Allocator *self, void *ptr, size new_size);
+    void *page_allocator_remap(Allocator *self, void *ptr, size new_size);
+    size  page_allocator_deallocate(Allocator *self, void *ptr);
+
+    void *arena_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
+    i8    arena_allocator_resize(Allocator *self, void *ptr, size new_size);
+    void *arena_allocator_remap(Allocator *self, void *ptr, size new_size);
+    size  arena_allocator_deallocate(Allocator *self, void *ptr);
+
+    void *slab_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
+    i8    slab_allocator_resize(Allocator *self, void *ptr, size new_size);
+    void *slab_allocator_remap(Allocator *self, void *ptr, size new_size);
+    size  slab_allocator_deallocate(Allocator *self, void *ptr);
+
+    void *budget_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
+    i8    budget_allocator_resize(Allocator *self, void *ptr, size new_size);
+    void *budget_allocator_remap(Allocator *self, void *ptr, size new_size);
+    size  budget_allocator_deallocate(Allocator *self, void *ptr);
+
+    void *debug_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
+    i8    debug_allocator_resize(Allocator *self, void *ptr, size new_size);
+    void *debug_allocator_remap(Allocator *self, void *ptr, size new_size);
+    size  debug_allocator_deallocate(Allocator *self, void *ptr);
 
     ///
     /// Validate an allocator base. Aborts via `LOG_FATAL` when the allocator
@@ -286,6 +322,15 @@ extern "C" {
 /// Adding a new typed allocator requires adding it to this whitelist
 /// (and forward-declaring it above).
 ///
+/// Note for new code: the conventions doc (CODING-CONVENTIONS.md,
+/// "_Generic dispatch") asks each macro to inline its own _Generic
+/// instead of going through a shared "convert type X to Y" helper.
+/// This macro pre-dates that rule. New dispatch macros in this file
+/// (AllocatorAlloc / Resize / Remap / Realloc / Free) follow the
+/// convention -- they inline `(Allocator *)(self)` per call. Two
+/// external callers still use ALLOCATOR_OF directly; the macro is
+/// kept for source compatibility until they migrate.
+///
 #define ALLOCATOR_OF(allocator_ptr)                                                                                    \
     _Generic(                                                                                                          \
         (allocator_ptr),                                                                                               \
@@ -296,6 +341,127 @@ extern "C" {
         SlabAllocator *: (Allocator *)(allocator_ptr),                                                                 \
         BudgetAllocator *: (Allocator *)(allocator_ptr),                                                               \
         DebugAllocator *: (Allocator *)(allocator_ptr)                                                                 \
+    )
+
+///
+/// Allocate memory through an allocator. The macro dispatches at
+/// compile time on the static type of `self`: typed allocator
+/// pointers (`HeapAllocator *`, ...) route straight to the concrete
+/// `*_allocator_allocate`, skipping the `Allocator *` indirect call;
+/// `Allocator *` falls through to the dynamic wrapper for the
+/// type-erased path. Wrong types fail at the `_Generic` mismatch.
+///
+/// The typed direct path skips the dynamic wrapper's outer
+/// `ValidateAllocator`, retry loop, and stats accounting. The typed
+/// `*_allocator_*` body still self-validates (magic check etc.).
+/// Callers that need stats accounting must take the `Allocator *`
+/// route, which uses `AllocatorAlloc_dyn`.
+///
+/// self[in,out] : Typed allocator pointer or `Allocator *`.
+/// bytes[in]    : Number of bytes to allocate.
+/// zeroed[in]   : Whether the allocated region must be zero-initialized.
+///
+/// SUCCESS: Returns a writable pointer to allocated memory.
+/// FAILURE: Returns NULL when allocation fails or `self` is invalid.
+///
+/// TAGS: Allocator, Memory, Allocation
+///
+#define AllocatorAlloc(self, bytes, zeroed)                                                                                                                                                                                                                                                                                \
+    _Generic((self), HeapAllocator *: heap_allocator_allocate, PageAllocator *: page_allocator_allocate, ArenaAllocator *: arena_allocator_allocate, SlabAllocator *: slab_allocator_allocate, BudgetAllocator *: budget_allocator_allocate, DebugAllocator *: debug_allocator_allocate, Allocator *: AllocatorAlloc_dyn)( \
+        (Allocator *)(self),                                                                                                                                                                                                                                                                                               \
+        (bytes),                                                                                                                                                                                                                                                                                                           \
+        (zeroed)                                                                                                                                                                                                                                                                                                           \
+    )
+
+///
+/// Try to grow / shrink an allocation in place. The pointer never moves.
+/// Same dispatch shape as `AllocatorAlloc`.
+///
+/// self[in,out] : Typed allocator pointer or `Allocator *`.
+/// ptr[in]      : Existing allocation pointer (non-NULL).
+/// new_size[in] : Requested new size in bytes (non-zero).
+///
+/// SUCCESS: Returns 1. `ptr` remains valid for `new_size` bytes.
+/// FAILURE: Returns 0. The allocation is unchanged.
+///
+/// TAGS: Allocator, Memory, InPlace
+///
+#define AllocatorResize(self, ptr, new_size)                                                                                                                                                                                                                                                                    \
+    _Generic((self), HeapAllocator *: heap_allocator_resize, PageAllocator *: page_allocator_resize, ArenaAllocator *: arena_allocator_resize, SlabAllocator *: slab_allocator_resize, BudgetAllocator *: budget_allocator_resize, DebugAllocator *: debug_allocator_resize, Allocator *: AllocatorResize_dyn)( \
+        (Allocator *)(self),                                                                                                                                                                                                                                                                                    \
+        (ptr),                                                                                                                                                                                                                                                                                                  \
+        (new_size)                                                                                                                                                                                                                                                                                              \
+    )
+
+///
+/// Resize an allocation, allowing relocation. May return a new pointer
+/// that differs from `ptr`. Same dispatch shape as `AllocatorAlloc`.
+///
+/// self[in,out] : Typed allocator pointer or `Allocator *`.
+/// ptr[in]      : Existing allocation pointer, or NULL.
+/// new_size[in] : Requested new size in bytes.
+///
+/// SUCCESS: Returns the (possibly moved) pointer, or NULL when
+///          `new_size` is zero.
+/// FAILURE: Returns NULL when the allocator can't satisfy the request.
+///
+/// TAGS: Allocator, Memory, Reallocation
+///
+#define AllocatorRemap(self, ptr, new_size)                                                                                                                                                                                                                                                              \
+    _Generic((self), HeapAllocator *: heap_allocator_remap, PageAllocator *: page_allocator_remap, ArenaAllocator *: arena_allocator_remap, SlabAllocator *: slab_allocator_remap, BudgetAllocator *: budget_allocator_remap, DebugAllocator *: debug_allocator_remap, Allocator *: AllocatorRemap_dyn)( \
+        (Allocator *)(self),                                                                                                                                                                                                                                                                             \
+        (ptr),                                                                                                                                                                                                                                                                                           \
+        (new_size)                                                                                                                                                                                                                                                                                       \
+    )
+
+///
+/// Convenience cascade: tries `AllocatorResize` first, falls back to
+/// `AllocatorRemap`. Both sub-calls are `_Generic`-dispatched, so for
+/// a typed pointer the whole cascade resolves to two typed-direct
+/// function calls -- no indirect dispatch and no outer wrapper frame.
+/// `Allocator *` routes both halves through the dyn wrappers, keeping
+/// `ValidateAllocator` + stats accounting.
+///
+/// Macro hygiene: `self` is evaluated up to twice, `ptr` up to three
+/// times, `new_size` up to three times. Pass simple lvalues; do not
+/// pass expressions with side effects.
+///
+/// self[in,out] : Typed allocator pointer or `Allocator *`.
+/// ptr[in]      : Existing allocation pointer, or NULL.
+/// new_size[in] : Requested new size in bytes.
+///
+/// SUCCESS: Returns the (possibly moved) pointer, or NULL when
+///          `new_size` is zero.
+/// FAILURE: Returns NULL when reallocation fails.
+///
+/// TAGS: Allocator, Memory, Reallocation
+///
+#define AllocatorRealloc(self, ptr, new_size)                                                                          \
+    (((ptr) && (new_size) > 0 && AllocatorResize((self), (ptr), (new_size))) ?                                         \
+         (ptr) :                                                                                                       \
+         AllocatorRemap((self), (ptr), (new_size)))
+
+///
+/// Free memory through an allocator. Typed paths dispatch directly to
+/// the concrete `*_allocator_deallocate`, whose `size` return value is
+/// the freed-byte count (discarded here -- stats live on the dynamic
+/// wrapper path). Type-erased `Allocator *` routes through
+/// `AllocatorFree_dyn` (with `ValidateAllocator` + stats).
+///
+/// self[in,out] : Typed allocator pointer or `Allocator *`.
+/// ptr[in]      : Pointer to the allocation, or NULL.
+///
+/// SUCCESS: Function returns. The allocation is reclaimed.
+/// FAILURE: No-op on NULL. A `ptr` the allocator does not own / has
+///          already freed / does not point at an allocation's base
+///          aborts via `LOG_FATAL`.
+///
+/// TAGS: Allocator, Memory, Deallocation
+///
+#define AllocatorFree(self, ptr)                                                                                                                                                                                                                                                                                                      \
+    _Generic((self), HeapAllocator *: heap_allocator_deallocate, PageAllocator *: page_allocator_deallocate, ArenaAllocator *: arena_allocator_deallocate, SlabAllocator *: slab_allocator_deallocate, BudgetAllocator *: budget_allocator_deallocate, DebugAllocator *: debug_allocator_deallocate, Allocator *: AllocatorFree_dyn)( \
+        (Allocator *)(self),                                                                                                                                                                                                                                                                                                          \
+        (ptr)                                                                                                                                                                                                                                                                                                                         \
     )
 
 // Typed allocator headers (PageAllocator, HeapAllocator, ArenaAllocator,

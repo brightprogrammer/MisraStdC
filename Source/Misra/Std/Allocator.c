@@ -64,7 +64,7 @@ static void allocator_stats_on_free(Allocator *self, size bytes) {
 }
 #endif
 
-void *AllocatorAlloc(Allocator *self, size bytes, i8 zeroed) {
+void *AllocatorAlloc_dyn(Allocator *self, size bytes, i8 zeroed) {
     ValidateAllocator(self);
 
     size  attempts = allocator_attempt_limit(self);
@@ -99,7 +99,7 @@ static void allocator_stats_on_realloc(Allocator *self, size new_size) {
 }
 #endif
 
-i8 AllocatorResize(Allocator *self, void *ptr, size new_size) {
+i8 AllocatorResize_dyn(Allocator *self, void *ptr, size new_size) {
     ValidateAllocator(self);
     // Resize requires a real allocation and a real new size. Anything
     // degenerate falls outside the in-place contract (caller should
@@ -117,7 +117,7 @@ i8 AllocatorResize(Allocator *self, void *ptr, size new_size) {
     return ok;
 }
 
-void *AllocatorRemap(Allocator *self, void *ptr, size new_size) {
+void *AllocatorRemap_dyn(Allocator *self, void *ptr, size new_size) {
     ValidateAllocator(self);
 
     size  attempts = allocator_attempt_limit(self);
@@ -149,19 +149,19 @@ void *AllocatorRemap(Allocator *self, void *ptr, size new_size) {
     return new_ptr;
 }
 
-void *AllocatorRealloc(Allocator *self, void *ptr, size new_size) {
+void *AllocatorRealloc_dyn(Allocator *self, void *ptr, size new_size) {
     // Convenience cascade: try in-place first (cheap if the allocator
     // can do it -- no copy, no free, pointer stays valid), fall back
     // to remap on failure. Callers that need to know whether the
     // pointer moved should use AllocatorResize / AllocatorRemap
     // directly. ValidateAllocator runs inside each sub-call.
-    if (ptr && new_size > 0 && AllocatorResize(self, ptr, new_size)) {
+    if (ptr && new_size > 0 && AllocatorResize_dyn(self, ptr, new_size)) {
         return ptr;
     }
-    return AllocatorRemap(self, ptr, new_size);
+    return AllocatorRemap_dyn(self, ptr, new_size);
 }
 
-void AllocatorFree(Allocator *self, void *ptr) {
+void AllocatorFree_dyn(Allocator *self, void *ptr) {
     if (!ptr) {
         return;
     }
