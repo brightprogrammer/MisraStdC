@@ -168,6 +168,43 @@ typedef i8 bool;
 #endif
 
 ///
+/// Function-definition prefix that forces the compiler to inline the
+/// annotated body at every call site, overriding the default cost
+/// heuristic that may otherwise leave a standalone copy of small but
+/// branch-heavy helpers (e.g. ones containing `LOG_FATAL` expansions
+/// in unlikely branches). Use sparingly -- inlining everywhere can
+/// bloat the text segment.
+///
+/// Per-compiler expansion:
+///   - GCC / Clang / clang-cl : `inline __attribute__((always_inline))`.
+///     `always_inline` is a no-op without the `inline` keyword on
+///     these compilers, so both are included.
+///   - MSVC `cl.exe`          : `__forceinline`. Carries inline
+///     semantics itself, no separate keyword needed.
+///   - Other / unknown        : plain `inline`. Best effort; the
+///     compiler is free to ignore the hint.
+///
+/// USAGE:
+///   static FORCE_INLINE void heap_validate_self_fast(const Allocator *self) {
+///       ...
+///   }
+///
+/// SUCCESS: Function body inlined at every call site; no standalone
+///          copy emitted.
+/// FAILURE: No runtime failure mode. If the compiler cannot honour
+///          the request (e.g. recursive call, varargs body), GCC /
+///          Clang emit a warning and fall back to a normal call.
+///
+/// TAGS: Inline, Codegen, Compiler-Portability, Utility
+#if defined(__GNUC__) || defined(__clang__)
+#    define FORCE_INLINE inline __attribute__((always_inline))
+#elif defined(_MSC_VER)
+#    define FORCE_INLINE __forceinline
+#else
+#    define FORCE_INLINE inline
+#endif
+
+///
 /// Creates a fresh l-value of type `T` initialized from expression `x`.
 /// Uses compound-literal initialization rather than a cast so it works for
 /// structs as well as scalars (MSVC C2440 rejects struct-to-same-struct casts).

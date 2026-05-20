@@ -37,7 +37,19 @@
 // per-class invariant cross-checks plus a forced volatile read of
 // each descriptor array's first byte, to surface freed or torn
 // metadata at the dispatch boundary. Costs ~22 ns / dispatch on x86.
-static inline void heap_validate_self_fast(const Allocator *self) {
+// `FORCE_INLINE`: plain `static inline` wasn't enough -- gcc's
+// inline-cost heuristic counted the three LOG_FATAL macro expansions
+// (each pulls in a HeapAllocator + Str + format pipeline) against
+// this function's body and emitted a standalone copy at -O3. The
+// hot path calls this twice per dispatch (alloc + free), so the
+// function-call overhead added ~1 ns/pair. Forcing inlining costs
+// ~3x the magic-check sequence per call site -- still small in
+// absolute bytes -- and the LOG_FATAL branches don't actually
+// inline because they're conditional cold paths. The macro is
+// defined in Misra/Types.h and expands to the right per-compiler
+// always-inline hint (GCC/Clang/clang-cl: `inline
+// __attribute__((always_inline))`; MSVC cl.exe: `__forceinline`).
+static FORCE_INLINE void heap_validate_self_fast(const Allocator *self) {
     if (!self) {
         LOG_FATAL("HeapAllocator: NULL self");
     }
