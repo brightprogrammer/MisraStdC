@@ -35,6 +35,11 @@ typedef unsigned long DWORD;
 DECLSPEC LPCSTR WINAPI GetCommandLineA(void);
 DECLSPEC void WINAPI   ExitProcess(DWORD uExitCode);
 
+// Defined in _WinStubs.c (same per-target source set as this file).
+// Seeds __security_cookie from BCryptGenRandom before any function
+// with stack-canary instrumentation runs.
+extern void __security_init_cookie(void);
+
 // User's main. Implemented in Bin/<Tool>.c. The linker resolves at
 // final-link time.
 extern int main(int argc, char **argv);
@@ -101,7 +106,15 @@ static int parse_cmdline(char *cmd, char **argv, int max_args) {
 // The custom entry point. `void` parameter, `void` return, but the
 // last thing we do is ExitProcess so control never returns to the
 // linker's epilogue.
-void misra_start(void) {
+//
+// no_stack_protector on the entry itself: __security_cookie still
+// holds its pre-init sentinel when this function's prologue reads
+// it, so the canary slot would be set from the wrong value.
+// Skipping instrumentation here means every other function in the
+// program reads the post-init (BCryptGenRandom-seeded) cookie.
+__attribute__((no_stack_protector)) void misra_start(void) {
+    __security_init_cookie();
+
     LPCSTR raw = GetCommandLineA();
 
     // Copy into our mutable buffer. parse_cmdline writes nulls into
