@@ -71,16 +71,31 @@ extern "C" {
 
     ///
     /// Parse a decimal string into a float.
-    /// Supports an optional sign, decimal point, and scientific exponent.
+    /// Supports an optional sign, decimal point, and scientific exponent
+    /// (`[+-]?digits(.digits)?([eE][+-]?digits)?`).
     ///
-    bool FloatTryFromStr(Float *out, const char *text);
+    /// out[in,out] : Float to overwrite with the parsed value. The
+    ///               existing storage is reused; `*out` must already be
+    ///               a valid initialised Float bound to an allocator.
+    /// text[in]    : Null-terminated decimal string.
+    ///
+    /// SUCCESS : Returns `true`. `*out` is deinitialised and replaced
+    ///           with the normalised parsed value (sign, significand,
+    ///           and exponent set).
+    /// FAILURE : Returns `false` on a malformed string, an exponent
+    ///           overflow, or an allocation failure. `*out` retains its
+    ///           pre-call value.
+    ///
+    /// TAGS: Float, Convert, Parse, Decimal
+    ///
+    bool FloatTryFromStr(Float *out, Zstr text);
 
     ///
     /// Compatibility wrapper for `FloatTryFromStr(...)`.
     ///
     /// SUCCESS : Returns Parsed floating-point value, or zero on failure.
     ///
-    Float float_from_str(const char *text, Allocator *alloc);
+    Float float_from_str(Zstr text, Allocator *alloc);
 #define FloatFromStr(...)           MISRA_OVERLOAD(FloatFromStr, __VA_ARGS__)
 #define FloatFromStr_1(text)        float_from_str((text), MisraScope)
 #define FloatFromStr_2(text, alloc) float_from_str((text), ALLOCATOR_OF(alloc))

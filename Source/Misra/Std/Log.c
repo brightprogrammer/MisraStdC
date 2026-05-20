@@ -34,7 +34,7 @@
 #include <Misra/Sys.h>
 #include <Misra/Sys/Backtrace.h>
 
-void LogWrite(LogMessageType type, const char *tag, u64 line, const char *msg) {
+void LogWrite(LogMessageType type, Zstr tag, u64 line, Zstr msg) {
     if (!msg) {
         return;
     }

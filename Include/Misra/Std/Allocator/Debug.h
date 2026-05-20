@@ -172,17 +172,82 @@ extern "C" {
     /// Tear down a DebugAllocator. Iterates `live` first and emits a
     /// `LOG_ERROR` for each still-live allocation with its captured
     /// alloc trace. Releases all backing storage (`heap` / `meta` /
-    /// `page`-managed pages) and clears the struct.
+    /// `page`-managed pages) and clears the struct. Enforces the
+    /// thread-affinity check -- calling from a thread other than the
+    /// one that ran `DebugAllocatorInit` aborts via `LOG_FATAL`.
+    ///
+    /// self[in,out] : DebugAllocator instance, or NULL / uninitialised.
+    ///
+    /// SUCCESS: Function returns. Any still-live allocations have been
+    ///          logged with their captured traces; `heap` / `meta` are
+    ///          deinitialised; the struct is fully zeroed and cannot
+    ///          be used until re-initialised. `force_page_backing`'d
+    ///          regions remain mprotected and stay mapped until
+    ///          process exit (documented trade-off).
+    /// FAILURE: No action when `self` is NULL or `__magic` does not
+    ///          match `DEBUG_ALLOCATOR_MAGIC`. Cross-thread call
+    ///          aborts via `LOG_FATAL`.
+    ///
+    /// TAGS: Allocator, Debug, Cleanup
     ///
     void DebugAllocatorDeinit(DebugAllocator *self);
 
-    /// Number of outstanding allocations (alloc minus free).
+    ///
+    /// Number of outstanding allocations (alloc minus free), read
+    /// from the embedded `live` map.
+    ///
+    /// self[in] : DebugAllocator instance, or NULL.
+    ///
+    /// SUCCESS: Returns the live-allocation count. No state is touched.
+    /// FAILURE: Returns 0 when `self` is NULL.
+    ///
+    /// TAGS: Allocator, Debug, Observability
+    ///
     size DebugAllocatorLiveCount(const DebugAllocator *self);
-    /// Total user-requested bytes still outstanding.
+
+    ///
+    /// Total user-requested bytes still outstanding, summed by the
+    /// allocate / deallocate hooks into `bytes_in_use`.
+    ///
+    /// self[in] : DebugAllocator instance, or NULL.
+    ///
+    /// SUCCESS: Returns the outstanding-bytes count. No state is touched.
+    /// FAILURE: Returns 0 when `self` is NULL.
+    ///
+    /// TAGS: Allocator, Debug, Observability
+    ///
     size DebugAllocatorLiveBytes(const DebugAllocator *self);
-    /// Number of canary-corruption events caught.
+
+    ///
+    /// Number of canary-corruption events caught by free-time canary
+    /// verification since this DebugAllocator was initialised.
+    ///
+    /// self[in] : DebugAllocator instance, or NULL.
+    ///
+    /// SUCCESS: Returns the overflow counter. No state is touched.
+    /// FAILURE: Returns 0 when `self` is NULL.
+    ///
+    /// TAGS: Allocator, Debug, Observability
+    ///
     size DebugAllocatorOverflows(const DebugAllocator *self);
-    /// Append a human-readable leak report to `out`.
+
+    ///
+    /// Append a human-readable leak report to `out`. For each entry
+    /// in `live`, appends one summary line plus the captured alloc
+    /// stack trace (formatted via `FormatStackTrace` when backtraces
+    /// are enabled, otherwise raw instruction pointers).
+    ///
+    /// self[in]  : DebugAllocator instance, or NULL.
+    /// out[in,out] : `Str` the report is appended to; pre-existing
+    ///               contents are preserved.
+    ///
+    /// SUCCESS: Function returns. When `live` is non-empty, `out`
+    ///          has the report appended; when `live` is empty,
+    ///          `out` is left unchanged.
+    /// FAILURE: No action when `self` or `out` is NULL.
+    ///
+    /// TAGS: Allocator, Debug, Reporting
+    ///
     void DebugAllocatorReportLeaks(DebugAllocator *self, Str *out);
 
 #ifdef __cplusplus

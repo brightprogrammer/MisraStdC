@@ -127,9 +127,20 @@ extern "C" {
     size  heap_allocator_deallocate(Allocator *self, void *ptr);
 
     ///
-    /// Release every user page and descriptor array owned by `self`.
-    /// After this call any pointer previously returned by Alloc through
-    /// this heap is invalid.
+    /// Release every user page and descriptor array owned by `self`,
+    /// across all four size classes (S/M/L/XL). The four descriptor
+    /// arrays themselves are also released through the embedded
+    /// `PageAllocator`, then the struct is zeroed so any post-deinit
+    /// dispatch trips `ValidateAllocator` on the cleared `__magic`.
+    ///
+    /// self[in,out] : HeapAllocator instance, or NULL.
+    ///
+    /// SUCCESS: Function returns. Every pointer previously handed out
+    ///          by this heap is invalid; the struct is fully zeroed
+    ///          and cannot be used until re-initialised.
+    /// FAILURE: No action when `self` is NULL.
+    ///
+    /// TAGS: Allocator, Heap, Cleanup
     ///
     void HeapAllocatorDeinit(HeapAllocator *self);
 

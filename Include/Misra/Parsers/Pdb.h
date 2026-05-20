@@ -28,6 +28,7 @@
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Vec.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
 
 ///
@@ -115,7 +116,7 @@ typedef struct Pdb {
 ///
 /// TAGS: Parser, PDB, File
 ///
-bool pdb_open(Pdb *out, const char *path, Allocator *alloc);
+bool pdb_open(Pdb *out, Zstr path, Allocator *alloc);
 #define PdbOpen(...) MISRA_OVERLOAD(PdbOpen, __VA_ARGS__)
 #define PdbOpen_2(out, path)                                                                                           \
     _Generic(                                                                                                          \

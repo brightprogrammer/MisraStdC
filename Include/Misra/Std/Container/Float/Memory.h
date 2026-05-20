@@ -13,28 +13,38 @@
 extern "C" {
 #endif
 
-///
-/// Create a deep copy of a floating-point value.
-///
-/// value[in] : Float to clone
-///
-/// RETURNS: `true` on success, `false` if cloning fails.
-///
-bool FloatTryClone(Float *out, Float *value);
+    ///
+    /// Create a deep copy of a floating-point value.
+    ///
+    /// out[in,out] : Destination Float that receives the clone. Must
+    ///               already be a valid initialised Float; its existing
+    ///               storage is deinitialised before the copy is installed.
+    /// value[in]   : Source Float to clone. Not modified.
+    ///
+    /// SUCCESS : Returns `true`. `*out` holds an independent deep copy of
+    ///           `value` (sign, significand bits, and exponent) bound to
+    ///           `value`'s allocator.
+    /// FAILURE : Returns `false` on allocation failure while copying the
+    ///           significand. `*out` is left as a freshly initialised empty
+    ///           Float bound to `value`'s allocator.
+    ///
+    /// TAGS: Float, Memory, Clone, Copy
+    ///
+    bool FloatTryClone(Float *out, Float *value);
 
-///
-/// Create a deep copy of a floating-point value.
-///
-/// value[in] : Float to clone
-///
-/// RETURNS: Independent copy of `value`.
-///
-/// USAGE:
-///   Float copy = FloatClone(&value);
-///
-/// TAGS: Float, Memory, Clone, Copy
-///
-Float FloatClone(Float *value);
+    ///
+    /// Create a deep copy of a floating-point value.
+    ///
+    /// value[in] : Float to clone
+    ///
+    /// RETURNS: Independent copy of `value`.
+    ///
+    /// USAGE:
+    ///   Float copy = FloatClone(&value);
+    ///
+    /// TAGS: Float, Memory, Clone, Copy
+    ///
+    Float FloatClone(Float *value);
 
 #ifdef __cplusplus
 }

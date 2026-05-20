@@ -8,6 +8,7 @@
 #define MISRA_SYS_H
 
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Sys/Errno.h>
 #include <Misra/Sys/Mutex.h>
 
@@ -93,11 +94,14 @@ ProcId ProcGetCurrentId(void);
 /// name[in] : NUL-terminated environment variable name.
 ///
 /// SUCCESS : Returns a pointer to the value string (process-owned).
-/// FAILURE : Returns NULL when the variable is not set.
+/// FAILURE : Returns NULL when `name` is NULL, when the variable is
+///           not set, or when the platform has no envp source linked
+///           (freestanding Windows, Darwin with no caller-captured
+///           envp).
 ///
 /// TAGS: Environment
 ///
-const char *EnvGet(const char *name);
+Zstr EnvGet(Zstr name);
 
 ///
 /// Get last error using an error number.

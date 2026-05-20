@@ -43,15 +43,36 @@ extern "C" {
     size  arena_allocator_deallocate(Allocator *self, void *ptr);
 
     ///
-    /// Release every chunk currently owned by `self`. After this call, the
-    /// arena is back to its post-`ArenaAllocatorInit` state.
+    /// Release every chunk currently owned by `self`. Walks the
+    /// chunk list and frees each one through the embedded
+    /// `PageAllocator`, then zeroes the struct so any post-deinit
+    /// dispatch trips `ValidateAllocator` on the cleared `__magic`.
+    ///
+    /// self[in,out] : ArenaAllocator instance, or NULL.
+    ///
+    /// SUCCESS: Function returns. Every previously-handed-out pointer
+    ///          is invalid; the arena is back to its post-Init zero
+    ///          state and cannot be used until re-initialised.
+    /// FAILURE: No action when `self` is NULL.
+    ///
+    /// TAGS: Allocator, Arena, Cleanup
     ///
     void ArenaAllocatorDeinit(ArenaAllocator *self);
 
     ///
-    /// Rewind the arena cursor without releasing chunks. All allocations
-    /// previously made become invalid; subsequent allocations reuse the
-    /// existing chunks.
+    /// Rewind every chunk's bump cursor and clear the most-recent
+    /// allocation snapshot, without releasing the chunks themselves.
+    /// Existing kernel mappings are kept so subsequent allocations
+    /// can reuse them without going back to `mmap`.
+    ///
+    /// self[in,out] : ArenaAllocator instance, or NULL.
+    ///
+    /// SUCCESS: Function returns. Every previously-handed-out pointer
+    ///          is invalid; `last_ptr` / `last_size` are cleared so
+    ///          resize-the-most-recent-bump has no rollback target.
+    /// FAILURE: No action when `self` is NULL.
+    ///
+    /// TAGS: Allocator, Arena, Reset
     ///
     void ArenaAllocatorReset(ArenaAllocator *self);
 

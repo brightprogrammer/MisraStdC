@@ -160,7 +160,11 @@ static bool pe_decode_dos(PeContext *ctx) {
         LOG_ERROR("PE: file too small for DOS header");
         return false;
     }
-    u16 mz = (u16)BufData(&ctx->out->data)[0] | (u16)BufData(&ctx->out->data)[1] << 8;
+    BufIter mz_iter = BufIterFromMemory(BufData(&ctx->out->data), 2);
+    u16     mz;
+    if (!BufReadU16LE(&mz_iter, &mz)) {
+        return false;
+    }
     if (mz != DOS_MAGIC) {
         LOG_ERROR("PE: bad DOS magic 0x{x}", (u32)mz);
         return false;
@@ -541,7 +545,7 @@ bool pe_open_from_memory_copy(Pe *out, const u8 *data, size data_size, Allocator
     return pe_open_from_memory(out, &copy);
 }
 
-bool pe_open(Pe *out, const char *path, Allocator *alloc) {
+bool pe_open(Pe *out, Zstr path, Allocator *alloc) {
     if (!out || !path || !alloc) {
         LOG_FATAL("PeOpen: NULL argument (contract violation)");
     }
@@ -562,12 +566,13 @@ void PeDeinit(Pe *self) {
     MemSet(self, 0, sizeof(*self));
 }
 
-const PeSection *PeFindSection(const Pe *self, const char *name) {
+const PeSection *PeFindSection(const Pe *self, Zstr name) {
     if (!self || !name)
         return NULL;
-    for (size i = 0; i < self->sections.length; ++i) {
-        if (ZstrCompare(self->sections.data[i].name, name) == 0) {
-            return &self->sections.data[i];
+    for (size i = 0; i < VecLen(&self->sections); ++i) {
+        const PeSection *s = VecPtrAt(&self->sections, i);
+        if (ZstrCompare(s->name, name) == 0) {
+            return s;
         }
     }
     return NULL;
@@ -576,8 +581,8 @@ const PeSection *PeFindSection(const Pe *self, const char *name) {
 bool PeRvaToOffset(const Pe *self, u32 rva, u64 *out_offset) {
     if (!self || !out_offset)
         return false;
-    for (size i = 0; i < self->sections.length; ++i) {
-        const PeSection *s = &self->sections.data[i];
+    for (size i = 0; i < VecLen(&self->sections); ++i) {
+        const PeSection *s = VecPtrAt(&self->sections, i);
         // Compute the section end in u64; u32 + u32 can wrap.
         u64 vstart = (u64)s->virtual_address;
         u64 vend   = vstart + (u64)s->virtual_size;

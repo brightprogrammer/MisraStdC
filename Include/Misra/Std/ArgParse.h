@@ -41,6 +41,7 @@
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/Vec.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
 
 #ifdef __cplusplus
@@ -148,7 +149,7 @@ extern "C" {
     /// SUCCESS: Returns an initialized parser.
     /// FAILURE: Aborts via `LOG_FATAL` on allocator OOM.
     ///
-    ArgParse arg_parse_init(const char *name, const char *about, Allocator *alloc);
+    ArgParse arg_parse_init(Zstr name, Zstr about, Allocator *alloc);
 
 #define ArgParseInit(...)                      MISRA_OVERLOAD(ArgParseInit, __VA_ARGS__)
 #define ArgParseInit_2(name, about)            arg_parse_init((name), (about), MisraScope)

@@ -11,6 +11,7 @@
 #include <Misra/Std/Container/Map.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Utility/StrIter.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
 
 ///
@@ -190,7 +191,7 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg);
 /// SUCCESS : Newly allocated copy of stored `Str` value. Caller must `StrDeinit(...)` it.
 /// FAILURE : Empty `Str` if key does not exist.
 ///
-Str KvConfigGet(KvConfig *cfg, const char *key);
+Str KvConfigGet(KvConfig *cfg, Zstr key);
 
 ///
 /// Get stored value for `key` by internal reference.
@@ -201,7 +202,7 @@ Str KvConfigGet(KvConfig *cfg, const char *key);
 /// SUCCESS : Pointer to stored `Str` value. Do not deinitialize or mutate through ownership-sensitive APIs.
 /// FAILURE : `NULL` if key does not exist.
 ///
-Str *KvConfigGetPtr(KvConfig *cfg, const char *key);
+Str *KvConfigGetPtr(KvConfig *cfg, Zstr key);
 
 ///
 /// Check whether a key exists in config.
@@ -212,7 +213,7 @@ Str *KvConfigGetPtr(KvConfig *cfg, const char *key);
 /// SUCCESS : `true` if key exists.
 /// FAILURE : `false`
 ///
-bool KvConfigContains(KvConfig *cfg, const char *key);
+bool KvConfigContains(KvConfig *cfg, Zstr key);
 
 ///
 /// Parse and fetch a boolean config value.
@@ -226,7 +227,7 @@ bool KvConfigContains(KvConfig *cfg, const char *key);
 /// SUCCESS : `true` if key exists and value is a valid boolean.
 /// FAILURE : `false`
 ///
-bool KvConfigGetBool(KvConfig *cfg, const char *key, bool *value);
+bool KvConfigGetBool(KvConfig *cfg, Zstr key, bool *value);
 
 ///
 /// Parse and fetch a signed 64-bit integer config value.
@@ -238,7 +239,7 @@ bool KvConfigGetBool(KvConfig *cfg, const char *key, bool *value);
 /// SUCCESS : `true` if key exists and value is a valid integer.
 /// FAILURE : `false`
 ///
-bool KvConfigGetI64(KvConfig *cfg, const char *key, i64 *value);
+bool KvConfigGetI64(KvConfig *cfg, Zstr key, i64 *value);
 
 ///
 /// Parse and fetch a double-precision floating config value.
@@ -250,6 +251,6 @@ bool KvConfigGetI64(KvConfig *cfg, const char *key, i64 *value);
 /// SUCCESS : `true` if key exists and value is a valid float.
 /// FAILURE : `false`
 ///
-bool KvConfigGetF64(KvConfig *cfg, const char *key, f64 *value);
+bool KvConfigGetF64(KvConfig *cfg, Zstr key, f64 *value);
 
 #endif // MISRA_PARSERS_KVCONFIG_H

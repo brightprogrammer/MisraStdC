@@ -123,7 +123,7 @@ extern "C" {
     ///
     /// TAGS: Str, IndexOf, Search
     ///
-    size StrIndexOfZstr(const Str *s, const char *key);
+    size StrIndexOfZstr(const Str *s, Zstr key);
 
     ///
     /// Find the index of first occurrence of a fixed-length string.
@@ -163,7 +163,7 @@ extern "C" {
     ///
     /// TAGS: Str, Contains, Search
     ///
-    bool StrContainsZstr(const Str *s, const char *key);
+    bool StrContainsZstr(const Str *s, Zstr key);
 
     ///
     /// Check if string contains a fixed-length string.
@@ -192,7 +192,7 @@ extern "C" {
     /// SUCCESS : Returns `true` when `s` starts with `prefix`.
     /// FAILURE : Returns `false`. The string is not modified.
     ///
-    bool StrStartsWithZstr(const Str *s, const char *prefix);
+    bool StrStartsWithZstr(const Str *s, Zstr prefix);
 
     ///
     /// Check if string ends with a null-terminated string (Zstr).
@@ -203,7 +203,7 @@ extern "C" {
     /// SUCCESS : Returns `true` when `s` ends with `suffix`.
     /// FAILURE : Returns `false`. The string is not modified.
     ///
-    bool StrEndsWithZstr(const Str *s, const char *suffix);
+    bool StrEndsWithZstr(const Str *s, Zstr suffix);
 
     ///
     /// Check if string starts with a fixed-length C-style string (Cstr).
@@ -266,7 +266,7 @@ extern "C" {
     /// SUCCESS : Modifies `s` in place.
     /// FAILURE : No replacement if `match` not found.
     ///
-    void StrReplaceZstr(Str *s, const char *match, const char *replacement, size count);
+    void StrReplaceZstr(Str *s, Zstr match, Zstr replacement, size count);
 
     ///
     /// Replace occurrences of a fixed-length string (Cstr) in string.
@@ -322,7 +322,7 @@ extern "C" {
     /// SUCCESS : StrIters vector of non-zero length
     /// FAILURE : StrIters vector of zero-length
     ///
-    StrIters StrSplitToIters(Str *s, const char *key);
+    StrIters StrSplitToIters(Str *s, Zstr key);
 
     ///
     /// Split the given Str object into multiple Str objects stored in a vector
@@ -339,7 +339,7 @@ extern "C" {
     /// SUCCESS : Strs vector of non-zero length
     /// FAILURE : Strs vector of zero-length
     ///
-    Strs StrSplit(Str *s, const char *key);
+    Strs StrSplit(Str *s, Zstr key);
 
     //
     // Strip Operations
@@ -349,7 +349,7 @@ extern "C" {
     /// Internal implementation for strip functions.
     /// Used by StrStrip, StrLStrip, and StrRStrip macros.
     ///
-    Str strip_str(Str *s, const char *key, int split_direction);
+    Str strip_str(Str *s, Zstr key, int split_direction);
 
 ///
 /// Strip leading and trailing whitespace (or optional custom characters) from

@@ -58,7 +58,7 @@ bool http_header_init_copy(void *dst_ptr, const void *src_ptr, const Allocator *
     return true;
 }
 
-HttpHeader *HttpHeadersFind(HttpHeaders *headers, const char *key) {
+HttpHeader *HttpHeadersFind(HttpHeaders *headers, Zstr key) {
     if (!headers || !key) {
         LOG_FATAL("invalid arguments");
     }
@@ -99,7 +99,7 @@ static HttpRequestMethod http_request_method_from_str(const Str *mstr) {
     return HTTP_REQUEST_METHOD_UNKNOWN;
 }
 
-const char *HttpRequestParse(HttpRequest *req, const char *in) {
+const char *HttpRequestParse(HttpRequest *req, Zstr in) {
     if (!req || !req->allocator || !in) {
         LOG_FATAL("invalid arguments");
     }
@@ -117,7 +117,7 @@ const char *HttpRequestParse(HttpRequest *req, const char *in) {
         return in;
     }
 
-    if (0 != ZstrCompareN(version.data, "HTTP/1.1", 8)) {
+    if (0 != ZstrCompareN(StrBegin(&version), "HTTP/1.1", 8)) {
         LOG_ERROR("invalid/unsupported HTTP version");
         StrDeinit(&method);
         StrDeinit(&version);
@@ -391,12 +391,8 @@ HttpResponse *HttpRespondWithHtml(HttpResponse *response, HttpResponseCode statu
 }
 
 #if FEATURE_FILE
-HttpResponse *HttpRespondWithFile(
-    HttpResponse    *response,
-    HttpResponseCode status,
-    HttpContentType  content_type,
-    const char      *filepath
-) {
+HttpResponse *
+    HttpRespondWithFile(HttpResponse *response, HttpResponseCode status, HttpContentType content_type, Zstr filepath) {
     if (!response || !response->allocator || !filepath) {
         LOG_FATAL("invalid arguments");
     }

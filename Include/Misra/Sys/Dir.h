@@ -2,6 +2,7 @@
 #define MISRA_SYS_DIR_H
 
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Zstr.h>
 
 typedef enum DirEntryType {
     SYS_DIR_ENTRY_TYPE_UNKNOWN,
@@ -24,7 +25,7 @@ typedef enum DirEntryType {
 ///
 /// TAGS: System, Conversion, String, Utility
 ///
-const char *DirEntryTypeToZstr(DirEntryType type);
+Zstr DirEntryTypeToZstr(DirEntryType type);
 
 ///
 /// Directory entry structure containing type and name.
@@ -37,12 +38,31 @@ typedef struct DirEntry {
 } DirEntry;
 
 ///
-/// Initialize a copy of directory entry.
+/// Initialize a copy of a directory entry. Copies `type` and deep-copies
+/// `name` (the destination owns the new Str buffer through `src->name`'s
+/// allocator).
+///
+/// dst[out] : Uninitialised entry receiving the copy.
+/// src[in]  : Source entry.
+///
+/// SUCCESS : Returns `dst` with `type` set and `name` deep-copied; the
+///           new `name` buffer is owned by the same allocator that
+///           backed `src->name`.
+/// FAILURE : Aborts via `LOG_FATAL` if either pointer is NULL.
 ///
 DirEntry *DirEntryInitCopy(DirEntry *dst, DirEntry *src);
 
 ///
-/// Deinitialize a copied directory entry.
+/// Deinitialize a directory entry previously produced by
+/// `DirEntryInitCopy`. Releases the owned `name` buffer and zeroes the
+/// `type` slot.
+///
+/// copy[in,out] : Entry to release.
+///
+/// SUCCESS : Returns `copy` with `name` freed (length and data cleared)
+///           and `type` set to 0; the struct itself is left for the
+///           caller to release.
+/// FAILURE : Aborts via `LOG_FATAL` if `copy` is NULL.
 ///
 DirEntry *DirEntryDeinitCopy(DirEntry *copy);
 
@@ -75,7 +95,7 @@ typedef Vec(DirEntry) DirContents;
 ///
 /// TAGS: System, FileSystem, Directory
 ///
-DirContents dir_get_contents(const char *path, Allocator *alloc);
+DirContents dir_get_contents(Zstr path, Allocator *alloc);
 #define DirGetContents(...) MISRA_OVERLOAD(DirGetContents, __VA_ARGS__)
 #define DirGetContents_1(path)                                                                                         \
     _Generic(                                                                                                          \
@@ -102,7 +122,7 @@ DirContents dir_get_contents(const char *path, Allocator *alloc);
 ///
 /// TAGS: System, File, Metadata
 ///
-i64 file_get_size(const char *filename);
+i64 file_get_size(Zstr filename);
 #define FileGetSize(path)                                                                                              \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
@@ -130,7 +150,7 @@ i64 file_get_size(const char *filename);
 ///
 /// TAGS: System, File, FileSystem
 ///
-i8 file_remove(const char *path);
+i8 file_remove(Zstr path);
 #define FileRemove(path)                                                                                               \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
@@ -153,7 +173,7 @@ i8 file_remove(const char *path);
 ///
 /// TAGS: System, Directory, FileSystem
 ///
-i8 dir_remove(const char *path);
+i8 dir_remove(Zstr path);
 #define DirRemove(path)                                                                                                \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
@@ -176,7 +196,7 @@ i8 dir_remove(const char *path);
 ///
 /// TAGS: System, Directory, FileSystem
 ///
-i8 dir_create(const char *path);
+i8 dir_create(Zstr path);
 #define DirCreate(path)                                                                                                \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
@@ -198,7 +218,7 @@ i8 dir_create(const char *path);
 ///
 /// TAGS: System, Directory, FileSystem
 ///
-i8 dir_create_all(const char *path);
+i8 dir_create_all(Zstr path);
 #define DirCreateAll(path)                                                                                             \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
@@ -219,7 +239,7 @@ i8 dir_create_all(const char *path);
 ///
 /// TAGS: System, Directory, FileSystem
 ///
-i8 dir_remove_all(const char *path);
+i8 dir_remove_all(Zstr path);
 #define DirRemoveAll(path)                                                                                             \
     _Generic(                                                                                                          \
         (path),                                                                                                        \

@@ -78,10 +78,6 @@ enum {
 // Helpers
 // ---------------------------------------------------------------------------
 
-static u32 read_u32_le(const u8 *p) {
-    return (u32)p[0] | (u32)p[1] << 8 | (u32)p[2] << 16 | (u32)p[3] << 24;
-}
-
 static u32 div_ceil_u32(u32 a, u32 b) {
     return (a + b - 1u) / b;
 }
@@ -200,8 +196,13 @@ static bool reconstruct_directory(Pdb *self, u32 num_dir_bytes, u32 block_map_ad
         return false;
 
     for (u32 i = 0; i < num_dir_blocks; ++i) {
-        u32       block_id = read_u32_le((const u8 *)&self->dir_stream_blocks[i]);
-        const u8 *src      = block_ptr(self, block_id);
+        BufIter blk_iter = BufIterFromMemory((const u8 *)&self->dir_stream_blocks[i], sizeof(u32));
+        u32     block_id;
+        if (!BufReadU32LE(&blk_iter, &block_id)) {
+            LOG_ERROR("PDB: directory block map truncated");
+            return false;
+        }
+        const u8 *src = block_ptr(self, block_id);
         if (!src) {
             LOG_ERROR("PDB: directory block id {} out of range", block_id);
             return false;
@@ -535,8 +536,10 @@ static bool walk_publics(
 
     u32 cur = 0;
     while (cur + 4 <= sz) {
-        u16 rec_len  = (u16)buf[cur] | (u16)buf[cur + 1] << 8;
-        u16 rec_kind = (u16)buf[cur + 2] | (u16)buf[cur + 3] << 8;
+        BufIter rec_iter = BufIterFromMemory(buf + cur, 4);
+        u16     rec_len, rec_kind;
+        if (!BufReadU16LE(&rec_iter, &rec_len) || !BufReadU16LE(&rec_iter, &rec_kind))
+            break;
         if (rec_len < 2)
             break; // malformed
         u32 next = cur + 2 + rec_len;
@@ -731,7 +734,7 @@ bool pdb_open_from_memory_copy(Pdb *out, const u8 *data, size data_size, Allocat
     return pdb_open_from_memory(out, &copy);
 }
 
-bool pdb_open(Pdb *out, const char *path, Allocator *alloc) {
+bool pdb_open(Pdb *out, Zstr path, Allocator *alloc) {
     if (!out || !path || !alloc) {
         LOG_FATAL("PdbOpen: NULL argument (contract violation)");
     }
@@ -766,20 +769,20 @@ void PdbDeinit(Pdb *self) {
 }
 
 const PdbFunction *PdbResolveRva(const Pdb *self, u32 rva) {
-    if (!self || self->functions.length == 0)
+    if (!self || VecLen(&self->functions) == 0)
         return NULL;
     // Binary search for the largest rva <= input.
-    size lo = 0, hi = self->functions.length;
+    size lo = 0, hi = VecLen(&self->functions);
     while (lo < hi) {
         size mid = lo + (hi - lo) / 2;
-        if (self->functions.data[mid].rva <= rva)
+        if (((const PdbFunction *)VecPtrAt(&self->functions, mid))->rva <= rva)
             lo = mid + 1;
         else
             hi = mid;
     }
     if (lo == 0)
         return NULL;
-    const PdbFunction *f = &self->functions.data[lo - 1];
+    const PdbFunction *f = VecPtrAt(&self->functions, lo - 1);
     // size == 0 means "until next entry"; we already accept that case.
     // Widen to u64 to avoid u32 wrap: rva and size are both u32, so a
     // crafted size near u32 max would let a stale entry match.

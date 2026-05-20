@@ -459,7 +459,7 @@ void arg_register(
 /* Lifecycle + run                                                     */
 /* ------------------------------------------------------------------ */
 
-ArgParse arg_parse_init(const char *name, const char *about, Allocator *alloc) {
+ArgParse arg_parse_init(Zstr name, Zstr about, Allocator *alloc) {
     if (!name)
         LOG_FATAL("ArgParseInit: name is required");
     if (!alloc)

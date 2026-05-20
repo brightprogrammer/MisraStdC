@@ -440,7 +440,7 @@ bool macho_open_from_memory_copy(Macho *out, const u8 *data, size data_size, All
     return macho_open_from_memory(out, &copy);
 }
 
-bool macho_open(Macho *out, const char *path, Allocator *alloc) {
+bool macho_open(Macho *out, Zstr path, Allocator *alloc) {
     if (!out || !path || !alloc) {
         LOG_FATAL("MachoOpen: NULL argument (contract violation)");
     }
@@ -463,11 +463,11 @@ void MachoDeinit(Macho *self) {
     MemSet(self, 0, sizeof(*self));
 }
 
-const MachoSection *MachoFindSection(const Macho *self, const char *segment, const char *section) {
+const MachoSection *MachoFindSection(const Macho *self, Zstr segment, Zstr section) {
     if (!self || !segment || !section)
         return NULL;
-    for (size i = 0; i < self->sections.length; ++i) {
-        const MachoSection *s = &self->sections.data[i];
+    for (size i = 0; i < VecLen(&self->sections); ++i) {
+        const MachoSection *s = VecPtrAt(&self->sections, i);
         if (ZstrCompare(s->segment, segment) == 0 && ZstrCompare(s->section, section) == 0) {
             return s;
         }
@@ -480,7 +480,7 @@ const MachoSection *MachoFindSection(const Macho *self, const char *segment, con
 // same section (or the section end). N_STAB entries are skipped:
 // stab iff any of the high three bits of n_type is set.
 const MachoSymbol *MachoResolveAddress(const Macho *self, u64 vaddr) {
-    if (!self || self->symbols.length == 0)
+    if (!self || VecLen(&self->symbols) == 0)
         return NULL;
     enum {
         N_STAB_MASK = 0xE0
@@ -491,8 +491,8 @@ const MachoSymbol *MachoResolveAddress(const Macho *self, u64 vaddr) {
     const MachoSymbol *next_above = NULL;
     u64                next_value = (u64)-1;
 
-    for (size i = 0; i < self->symbols.length; ++i) {
-        const MachoSymbol *s = &self->symbols.data[i];
+    for (size i = 0; i < VecLen(&self->symbols); ++i) {
+        const MachoSymbol *s = VecPtrAt(&self->symbols, i);
         if (s->type & N_STAB_MASK)
             continue; // any high bit set => STAB (debug) entry
         if (s->section_index == 0)

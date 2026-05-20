@@ -19,6 +19,7 @@
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Vec.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
 
 typedef enum PeMachine {
@@ -117,7 +118,7 @@ typedef struct Pe {
 ///
 /// TAGS: Parser, PE, File
 ///
-bool pe_open(Pe *out, const char *path, Allocator *alloc);
+bool pe_open(Pe *out, Zstr path, Allocator *alloc);
 #define PeOpen(...) MISRA_OVERLOAD(PeOpen, __VA_ARGS__)
 #define PeOpen_2(out, path)                                                                                            \
     _Generic(                                                                                                          \
@@ -184,7 +185,7 @@ void PeDeinit(Pe *self);
 /// Find a section by name (first match; PE allows duplicates but
 /// they're vanishingly rare).
 ///
-const PeSection *PeFindSection(const Pe *self, const char *name);
+const PeSection *PeFindSection(const Pe *self, Zstr name);
 
 ///
 /// Convert an RVA (offset from `ImageBase`) to a file offset by

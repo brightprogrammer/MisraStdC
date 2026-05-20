@@ -117,14 +117,37 @@ extern "C" {
 #if FEATURE_ALLOC_STATS
     ///
     /// Snapshot the current stats off `self`. Returns the struct by
-    /// value; reading does not perturb the counters.
+    /// value; reading does not perturb the counters. `self` is run
+    /// through `ValidateAllocator` first, so a structurally invalid
+    /// allocator aborts before the read.
+    ///
+    /// self[in] : Allocator base to query.
+    ///
+    /// SUCCESS: Returns a by-value copy of `self->stats`. Counter
+    ///          state on `self` is unchanged.
+    /// FAILURE: Does not return - `ValidateAllocator` aborts via
+    ///          `LOG_FATAL` when `self` is NULL or structurally invalid.
+    ///
+    /// TAGS: Allocator, Stats, Observability
     ///
     AllocatorStats AllocatorGetStats(const Allocator *self);
 
     ///
     /// Zero every counter on `self`. `peak_bytes_in_use` is reset to
     /// the current `bytes_in_use` so subsequent peak tracking is
-    /// monotonically correct from this point forward.
+    /// monotonically correct from this point forward. `self` is run
+    /// through `ValidateAllocator` first, so a structurally invalid
+    /// allocator aborts before any state is touched.
+    ///
+    /// self[in,out] : Allocator base whose counters are reset.
+    ///
+    /// SUCCESS: Function returns. All counters except `bytes_in_use`
+    ///          and `peak_bytes_in_use` are zero; both of those equal
+    ///          the pre-call `bytes_in_use`.
+    /// FAILURE: Does not return - `ValidateAllocator` aborts via
+    ///          `LOG_FATAL` when `self` is NULL or structurally invalid.
+    ///
+    /// TAGS: Allocator, Stats, Observability
     ///
     void AllocatorResetStats(Allocator *self);
 #endif

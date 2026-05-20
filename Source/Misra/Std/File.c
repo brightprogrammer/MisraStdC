@@ -71,7 +71,7 @@ static bool parse_open_mode(const char *mode, int *out_flags) {
 // Open / close
 // ---------------------------------------------------------------------------
 
-File file_open(const char *path, const char *mode) {
+File file_open(Zstr path, Zstr mode) {
     File f = {0};
 #if PLATFORM_WINDOWS
     f.handle = INVALID_HANDLE_VALUE;
@@ -409,7 +409,9 @@ i64 file_read_to_buf(File *f, Buf *out) {
     }
     // Reset out so repeated calls overwrite previous content. The
     // backing allocator stays; capacity is reused.
-    out->length = 0;
+    if (!BufResize(out, 0)) {
+        return -1;
+    }
 
     i64 remaining = file_remaining_size(f);
     if (remaining > 0) {
@@ -426,25 +428,27 @@ i64 file_read_to_buf(File *f, Buf *out) {
         // ourselves. VecReserve only touches capacity; the read
         // syscall is what advances length. After the pre-sized
         // reserve above this is a no-op until we hit the upfront cap.
-        if (!VecReserve(out, out->length + FILE_READ_CHUNK)) {
-            LOG_ERROR("file_read_to_buf: VecReserve failed at length {}", (u64)out->length);
+        if (!VecReserve(out, BufLength(out) + FILE_READ_CHUNK)) {
+            LOG_ERROR("file_read_to_buf: VecReserve failed at length {}", (u64)BufLength(out));
             return -1;
         }
-        i64 got = file_read(f, out->data + out->length, FILE_READ_CHUNK);
+        i64 got = file_read(f, BufData(out) + BufLength(out), FILE_READ_CHUNK);
         if (got < 0) {
             return -1;
         }
         if (got == 0) {
             break; // EOF
         }
-        out->length += (size)got;
-        total       += got;
+        if (!BufResize(out, BufLength(out) + (size)got)) {
+            return -1;
+        }
+        total += got;
     }
     // Vec's reserved sentinel slot at data[capacity] is always
     // present after a successful VecReserve. Buf callers get a benign
     // sentinel byte past `length` they never observe; Str delegates
     // through and gets the NUL terminator it expects.
-    out->data[out->length] = 0;
+    BufData(out)[BufLength(out)] = 0;
     return total;
 }
 
@@ -463,7 +467,7 @@ i64 file_read_to_str(File *f, Str *out) {
 // the easy-to-forget close-on-error path.
 // ---------------------------------------------------------------------------
 
-i64 file_read_and_close_to_buf(const char *path, Buf *out) {
+i64 file_read_and_close_to_buf(Zstr path, Buf *out) {
     if (!path || !out) {
         LOG_FATAL("FileReadAndClose: NULL argument (contract violation)");
     }
@@ -476,11 +480,11 @@ i64 file_read_and_close_to_buf(const char *path, Buf *out) {
     return got;
 }
 
-i64 file_read_and_close_to_str(const char *path, Str *out) {
+i64 file_read_and_close_to_str(Zstr path, Str *out) {
     return file_read_and_close_to_buf(path, (Buf *)out);
 }
 
-i64 file_write_and_close_from_bytes(const char *path, const void *buf, u64 n) {
+i64 file_write_and_close_from_bytes(Zstr path, const void *buf, u64 n) {
     if (!path || (!buf && n > 0)) {
         LOG_FATAL("FileWriteAndClose: NULL argument (contract violation)");
     }
@@ -493,18 +497,18 @@ i64 file_write_and_close_from_bytes(const char *path, const void *buf, u64 n) {
     return wrote;
 }
 
-i64 file_write_and_close_from_buf(const char *path, const Buf *in) {
+i64 file_write_and_close_from_buf(Zstr path, const Buf *in) {
     if (!in) {
         LOG_FATAL("FileWriteAndClose: NULL Buf (contract violation)");
     }
     return file_write_and_close_from_bytes(path, BufData(in), (u64)BufLength(in));
 }
 
-i64 file_write_and_close_from_str(const char *path, const Str *in) {
+i64 file_write_and_close_from_str(Zstr path, const Str *in) {
     if (!in) {
         LOG_FATAL("FileWriteAndClose: NULL Str (contract violation)");
     }
-    return file_write_and_close_from_bytes(path, in->data, (u64)in->length);
+    return file_write_and_close_from_bytes(path, StrBegin(in), (u64)StrLen(in));
 }
 
 // ---------------------------------------------------------------------------

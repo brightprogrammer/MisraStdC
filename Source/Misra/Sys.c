@@ -339,7 +339,7 @@ __declspec(dllimport) extern char *__cdecl getenv(const char *name);
 extern char *getenv(const char *name) __attribute__((weak));
 #endif
 
-const char *EnvGet(const char *name) {
+Zstr EnvGet(Zstr name) {
     if (!name) {
         return NULL;
     }

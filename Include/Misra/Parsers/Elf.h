@@ -21,6 +21,7 @@
 #include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Str.h>
 #include <Misra/Std/Container/Vec.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
 
 // ---------------------------------------------------------------------------
@@ -201,7 +202,7 @@ typedef struct Elf {
 ///
 /// TAGS: Parser, ELF, File
 ///
-bool elf_open(Elf *out, const char *path, Allocator *alloc);
+bool elf_open(Elf *out, Zstr path, Allocator *alloc);
 #define ElfOpen(...) MISRA_OVERLOAD(ElfOpen, __VA_ARGS__)
 #define ElfOpen_2(out, path)                                                                                           \
     _Generic(                                                                                                          \
@@ -309,6 +310,6 @@ const ElfSymbol *ElfResolveAddress(const Elf *self, u64 vaddr);
 ///
 /// Find a section by name (first match). Returns NULL if absent.
 ///
-const ElfSection *ElfFindSection(const Elf *self, const char *name);
+const ElfSection *ElfFindSection(const Elf *self, Zstr name);
 
 #endif // MISRA_PARSERS_ELF_H

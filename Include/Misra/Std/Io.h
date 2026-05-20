@@ -215,6 +215,10 @@ Float:                                                                          
 #    define IOFMT_FLOAT_CASE_(x, addr)
 #endif
 
+// The `default:` arm below is a runtime sentinel, not a silent cast:
+// `_write_UnsupportedType` / `_read_UnsupportedType` LOG_FATAL on
+// dispatch so a wrong-typed argument surfaces immediately instead of
+// being coerced into one of the known writers.
 #if defined(_MSC_VER) || defined(__MSC_VER)
 #    define IOFMT(x)                                                                                                   \
         _Generic(                                                                                                      \
@@ -250,6 +254,10 @@ Float:                                                                          
 /// FAILURE: Returns unsupported type handler for unknown types
 ///
 /// TAGS: Macro, TypeDispatch, Generic, I/O, Format
+// The `default:` arm below is a runtime sentinel, not a silent cast:
+// `_write_UnsupportedType` / `_read_UnsupportedType` LOG_FATAL on
+// dispatch so a wrong-typed argument surfaces immediately instead of
+// being coerced into one of the known writers.
 #    define IOFMT(x)                                                                                                   \
         _Generic(                                                                                                      \
             (x),                                                                                                       \

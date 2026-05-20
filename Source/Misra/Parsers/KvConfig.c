@@ -365,7 +365,7 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg) {
     return si;
 }
 
-Str *KvConfigGetPtr(KvConfig *cfg, const char *key) {
+Str *KvConfigGetPtr(KvConfig *cfg, Zstr key) {
     Str  lookup = {0};
     Str *value  = NULL;
 
@@ -387,7 +387,7 @@ Str *KvConfigGetPtr(KvConfig *cfg, const char *key) {
     return value;
 }
 
-Str KvConfigGet(KvConfig *cfg, const char *key) {
+Str KvConfigGet(KvConfig *cfg, Zstr key) {
     Str *value = KvConfigGetPtr(cfg, key);
 
     if (!value) {
@@ -397,7 +397,7 @@ Str KvConfigGet(KvConfig *cfg, const char *key) {
     return StrInitFromCstr(StrBegin(value), StrLen(value), cfg->allocator);
 }
 
-bool KvConfigContains(KvConfig *cfg, const char *key) {
+bool KvConfigContains(KvConfig *cfg, Zstr key) {
     return KvConfigGetPtr(cfg, key) != NULL;
 }
 

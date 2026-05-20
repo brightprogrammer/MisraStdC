@@ -159,7 +159,7 @@ void str_deinit(void *copy, const Allocator *alloc) {
     StrDeinit((Str *)copy);
 }
 
-StrIters StrSplitToIters(Str *s, const char *key) {
+StrIters StrSplitToIters(Str *s, Zstr key) {
     ValidateStr(s);
 
     StrIters    sv     = (StrIters)VecInit(s->allocator);
@@ -183,7 +183,7 @@ StrIters StrSplitToIters(Str *s, const char *key) {
     return sv;
 }
 
-Strs StrSplit(Str *s, const char *key) {
+Strs StrSplit(Str *s, Zstr key) {
     ValidateStr(s);
 
     Strs sv            = (Strs)VecInit(s->allocator);
@@ -247,7 +247,7 @@ bool StrContains(const Str *s, const Str *key) {
     return StrContainsCstr(s, key->data, key->length);
 }
 
-size StrIndexOfZstr(const Str *s, const char *key) {
+size StrIndexOfZstr(const Str *s, Zstr key) {
     if (!key) {
         LOG_FATAL("Invalid arguments");
     }
@@ -273,7 +273,7 @@ size StrIndexOf(const Str *s, const Str *key) {
     return str_index_of_cstr(s, key->data, key->length);
 }
 
-bool StrContainsZstr(const Str *s, const char *key) {
+bool StrContainsZstr(const Str *s, Zstr key) {
     return StrIndexOfZstr(s, key) != SIZE_MAX;
 }
 
@@ -295,7 +295,7 @@ static inline bool is_strip_char(char c, const char *strip_chars) {
 // split direction = 0 means both sides
 //                 = -1 means from left
 //                 = 1 means from right
-Str strip_str(Str *s, const char *chars_to_strip, int split_direction) {
+Str strip_str(Str *s, Zstr chars_to_strip, int split_direction) {
     ValidateStr(s);
 
     const char *strip_chars = chars_to_strip ? chars_to_strip : " \t\n\r\v\f";
@@ -328,12 +328,12 @@ static inline bool ends_with(const char *data, size data_len, const char *suffix
     return data_len >= suffix_len && MemCompare(data + data_len - suffix_len, suffix, suffix_len) == 0;
 }
 
-bool StrStartsWithZstr(const Str *s, const char *prefix) {
+bool StrStartsWithZstr(const Str *s, Zstr prefix) {
     ValidateStr(s);
     return starts_with(s->data, s->length, prefix, ZstrLen(prefix));
 }
 
-bool StrEndsWithZstr(const Str *s, const char *suffix) {
+bool StrEndsWithZstr(const Str *s, Zstr suffix) {
     ValidateStr(s);
     return ends_with(s->data, s->length, suffix, ZstrLen(suffix));
 }
@@ -377,7 +377,7 @@ static void
     }
 }
 
-void StrReplaceZstr(Str *s, const char *match, const char *replacement, size count) {
+void StrReplaceZstr(Str *s, Zstr match, Zstr replacement, size count) {
     ValidateStr(s);
     str_replace(s, match, ZstrLen(match), replacement, ZstrLen(replacement), count);
 }

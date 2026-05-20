@@ -486,7 +486,7 @@ bool FloatToInt(Int *result, Float *value) {
     return true;
 }
 
-bool FloatTryFromStr(Float *out, const char *text) {
+bool FloatTryFromStr(Float *out, Zstr text) {
     Float result;
     Str   digits;
     size  pos          = 0;
@@ -591,7 +591,7 @@ fail:
     return false;
 }
 
-Float float_from_str(const char *text, Allocator *alloc) {
+Float float_from_str(Zstr text, Allocator *alloc) {
     Float result = FloatInit(alloc);
 
     (void)FloatTryFromStr(&result, text);

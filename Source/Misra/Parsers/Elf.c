@@ -361,10 +361,12 @@ static void elf_decode_build_id(Elf *self, const ElfSection *note) {
     if ((u64)(end - p) < 12)
         return;
 
-    u32 namesz  = (u32)p[0] | ((u32)p[1] << 8) | ((u32)p[2] << 16) | ((u32)p[3] << 24);
-    u32 descsz  = (u32)p[4] | ((u32)p[5] << 8) | ((u32)p[6] << 16) | ((u32)p[7] << 24);
-    u32 type    = (u32)p[8] | ((u32)p[9] << 8) | ((u32)p[10] << 16) | ((u32)p[11] << 24);
-    p          += 12;
+    BufIter hdr = BufIterFromMemory(p, 12);
+    u32     namesz, descsz, type;
+    if (!BufReadU32LE(&hdr, &namesz) || !BufReadU32LE(&hdr, &descsz) || !BufReadU32LE(&hdr, &type)) {
+        return;
+    }
+    p += 12;
 
     if (type != NT_GNU_BUILD_ID)
         return;
@@ -398,7 +400,11 @@ static void elf_decode_debug_link(Elf *self, const ElfSection *dl) {
     }
     // CRC is in the last 4 bytes.
     const u8 *crc_bytes = BufData(&self->data) + dl->offset + dl->size - 4;
-    u32 crc = (u32)crc_bytes[0] | ((u32)crc_bytes[1] << 8) | ((u32)crc_bytes[2] << 16) | ((u32)crc_bytes[3] << 24);
+    BufIter   crc_iter  = BufIterFromMemory(crc_bytes, 4);
+    u32       crc;
+    if (!BufReadU32LE(&crc_iter, &crc)) {
+        return;
+    }
 
     self->debuglink_name = base;
     self->debuglink_crc  = crc;
@@ -468,7 +474,7 @@ bool elf_open_from_memory_copy(Elf *out, const u8 *data, size data_size, Allocat
     return elf_open_from_memory(out, &copy);
 }
 
-bool elf_open(Elf *out, const char *path, Allocator *alloc) {
+bool elf_open(Elf *out, Zstr path, Allocator *alloc) {
     if (!out || !path || !alloc) {
         LOG_FATAL("ElfOpen: NULL argument (contract violation)");
     }
@@ -527,11 +533,11 @@ const ElfSymbol *ElfResolveAddress(const Elf *self, u64 vaddr) {
     return elf_search_symbols(&self->dynamic_symbols, vaddr);
 }
 
-const ElfSection *ElfFindSection(const Elf *self, const char *name) {
+const ElfSection *ElfFindSection(const Elf *self, Zstr name) {
     if (!self || !name)
         return NULL;
-    for (u64 i = 0; i < self->sections.length; ++i) {
-        const ElfSection *s = &self->sections.data[i];
+    for (u64 i = 0; i < VecLen(&self->sections); ++i) {
+        const ElfSection *s = VecPtrAt(&self->sections, i);
         if (s->name && ZstrCompare(s->name, name) == 0) {
             return s;
         }

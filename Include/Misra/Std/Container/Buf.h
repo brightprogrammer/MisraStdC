@@ -25,13 +25,20 @@ typedef Iter(const u8) BufIter;
 // Construction / lifecycle
 // ---------------------------------------------------------------------------
 
-#define BufInit(...)     VecInit(__VA_ARGS__)
-#define BufDeinit(b)     VecDeinit(b)
-#define BufClear(b)      VecClear(b)
-#define BufLength(b)     ((b)->length)
-#define BufData(b)       ((b)->data)
-#define BufAllocator(b)  ((b)->allocator)
+#define BufInit(...) VecInit(__VA_ARGS__)
+#define BufDeinit(b) VecDeinit(b)
+#define BufClear(b)  VecClear(b)
+
+// Read-only accessors. The leading `((void)0, ...)` makes each macro a
+// comma expression, and the result of a C comma expression is not an
+// lvalue -- so `BufLength(b) = n` (or the same for Data / Allocator)
+// fails at compile time. Length changes go through `BufResize`; there
+// is no setter macro by design.
+#define BufLength(b)     ((void)0, (b)->length)
+#define BufData(b)       ((void)0, (b)->data)
+#define BufAllocator(b)  ((void)0, (b)->allocator)
 #define BufReserve(b, n) VecReserve((b), (n))
+#define BufResize(b, n)  VecResize((b), (n))
 
 /// Construct a BufIter over `[data, data + length)`.
 #define BufIterFromMemory(data_, length_)                                                                              \

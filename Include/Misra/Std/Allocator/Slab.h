@@ -43,6 +43,21 @@ extern "C" {
     void *slab_allocator_remap(Allocator *self, void *ptr, size new_size);
     size  slab_allocator_deallocate(Allocator *self, void *ptr);
 
+    ///
+    /// Release every chunk currently owned by `self` through the
+    /// embedded `PageAllocator`, then zero the struct so any
+    /// post-deinit dispatch trips `ValidateAllocator` on the cleared
+    /// `__magic`. The intrusive free list dies with the chunks.
+    ///
+    /// self[in,out] : SlabAllocator instance, or NULL.
+    ///
+    /// SUCCESS: Function returns. Every slot previously handed out by
+    ///          this slab is invalid; the struct is fully zeroed and
+    ///          cannot be used until re-initialised.
+    /// FAILURE: No action when `self` is NULL.
+    ///
+    /// TAGS: Allocator, Slab, Cleanup
+    ///
     void SlabAllocatorDeinit(SlabAllocator *self);
 
 #ifdef __cplusplus

@@ -75,8 +75,8 @@ extern "C" {
     /// Create an integer from little-endian bytes.
     ///
     Int int_from_bytes_le(const u8 *bytes, u64 len, Allocator *alloc);
-#define IntFromBytesLE(...)                MISRA_OVERLOAD(IntFromBytesLE, __VA_ARGS__)
-#define IntFromBytesLE_2(bytes, len)       int_from_bytes_le((bytes), (len), MisraScope)
+#define IntFromBytesLE(...)                 MISRA_OVERLOAD(IntFromBytesLE, __VA_ARGS__)
+#define IntFromBytesLE_2(bytes, len)        int_from_bytes_le((bytes), (len), MisraScope)
 #define IntFromBytesLE_3(bytes, len, alloc) int_from_bytes_le((bytes), (len), ALLOCATOR_OF(alloc))
 
     ///
@@ -100,16 +100,33 @@ extern "C" {
     ///
     /// Parse digits in the given radix into an integer.
     /// Supports radices from 2 through 36 and ignores underscore separators.
+    /// An optional leading `+` sign is consumed by callers; this entry
+    /// point itself does not accept a sign.
     ///
-    bool IntTryFromStrRadix(Int *out, const char *digits, u8 radix);
+    /// out[in,out] : Int to overwrite with the parsed value. Must already
+    ///               be a valid initialised Int; its allocator is reused
+    ///               for the parsed result.
+    /// digits[in]  : Null-terminated digit string (no base prefix).
+    /// radix[in]   : Output radix in the range `2..36`.
+    ///
+    /// SUCCESS : Returns `true`. `*out` is deinitialised and replaced with
+    ///           the normalised parsed value.
+    /// FAILURE : Returns `false` on an invalid radix, an invalid digit
+    ///           for the radix, an empty digit run, or an allocation
+    ///           failure during accumulation. `*out` retains its
+    ///           pre-call value.
+    ///
+    /// TAGS: Int, Convert, Parse, Radix
+    ///
+    bool IntTryFromStrRadix(Int *out, Zstr digits, u8 radix);
 
     ///
     /// Compatibility wrapper for `IntTryFromStrRadix(...)`.
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int int_from_str_radix(const char *digits, u8 radix, Allocator *alloc);
-#define IntFromStrRadix(...)                  MISRA_OVERLOAD(IntFromStrRadix, __VA_ARGS__)
+    Int int_from_str_radix(Zstr digits, u8 radix, Allocator *alloc);
+#define IntFromStrRadix(...)                    MISRA_OVERLOAD(IntFromStrRadix, __VA_ARGS__)
 #define IntFromStrRadix_2(digits, radix)        int_from_str_radix((digits), (radix), MisraScope)
 #define IntFromStrRadix_3(digits, radix, alloc) int_from_str_radix((digits), (radix), ALLOCATOR_OF(alloc))
 
@@ -131,18 +148,33 @@ extern "C" {
 
     ///
     /// Parse a decimal string into an integer.
-    /// An optional leading `+` is accepted.
+    /// An optional leading `+` is accepted; underscore separators between
+    /// digits are silently skipped.
     ///
-    bool IntTryFromStr(Int *out, const char *decimal);
+    /// out[in,out] : Int to overwrite with the parsed value. Must already
+    ///               be a valid initialised Int; its allocator is reused
+    ///               for the parsed result.
+    /// decimal[in] : Null-terminated decimal string, optionally prefixed
+    ///               with `+`.
+    ///
+    /// SUCCESS : Returns `true`. `*out` is deinitialised and replaced with
+    ///           the normalised parsed value.
+    /// FAILURE : Returns `false` on a non-decimal character, an empty
+    ///           digit run, or an allocation failure during accumulation.
+    ///           `*out` retains its pre-call value.
+    ///
+    /// TAGS: Int, Convert, Parse, Decimal
+    ///
+    bool IntTryFromStr(Int *out, Zstr decimal);
 
     ///
     /// Compatibility wrapper for `IntTryFromStr(...)`.
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int int_from_str(const char *decimal, Allocator *alloc);
-#define IntFromStr(...)             MISRA_OVERLOAD(IntFromStr, __VA_ARGS__)
-#define IntFromStr_1(decimal)       int_from_str((decimal), MisraScope)
+    Int int_from_str(Zstr decimal, Allocator *alloc);
+#define IntFromStr(...)              MISRA_OVERLOAD(IntFromStr, __VA_ARGS__)
+#define IntFromStr_1(decimal)        int_from_str((decimal), MisraScope)
 #define IntFromStr_2(decimal, alloc) int_from_str((decimal), ALLOCATOR_OF(alloc))
 
     ///
@@ -161,18 +193,33 @@ extern "C" {
 
     ///
     /// Parse a binary string into an integer.
-    /// Accepts an optional `0b` or `0B` prefix.
+    /// Accepts an optional `0b` or `0B` prefix; underscore separators
+    /// between digits are silently skipped.
     ///
-    bool IntTryFromBinary(Int *out, const char *binary);
+    /// out[in,out] : Int to overwrite with the parsed value. Must already
+    ///               be a valid initialised Int; its allocator is reused
+    ///               for the parsed result.
+    /// binary[in]  : Null-terminated binary string, optionally prefixed
+    ///               with `0b` / `0B`.
+    ///
+    /// SUCCESS : Returns `true`. `*out` is deinitialised and replaced with
+    ///           the normalised parsed value.
+    /// FAILURE : Returns `false` on a non-binary character, an empty digit
+    ///           run, or an allocation failure during accumulation.
+    ///           `*out` retains its pre-call value.
+    ///
+    /// TAGS: Int, Convert, Parse, Binary
+    ///
+    bool IntTryFromBinary(Int *out, Zstr binary);
 
     ///
     /// Compatibility wrapper for `IntTryFromBinary(...)`.
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int int_from_binary(const char *binary, Allocator *alloc);
-#define IntFromBinary(...)            MISRA_OVERLOAD(IntFromBinary, __VA_ARGS__)
-#define IntFromBinary_1(binary)       int_from_binary((binary), MisraScope)
+    Int int_from_binary(Zstr binary, Allocator *alloc);
+#define IntFromBinary(...)             MISRA_OVERLOAD(IntFromBinary, __VA_ARGS__)
+#define IntFromBinary_1(binary)        int_from_binary((binary), MisraScope)
 #define IntFromBinary_2(binary, alloc) int_from_binary((binary), ALLOCATOR_OF(alloc))
 
     ///
@@ -182,18 +229,33 @@ extern "C" {
 
     ///
     /// Parse an octal string into an integer.
-    /// Accepts an optional `0o` or `0O` prefix.
+    /// Accepts an optional `0o` or `0O` prefix; underscore separators
+    /// between digits are silently skipped.
     ///
-    bool IntTryFromOctStr(Int *out, const char *octal);
+    /// out[in,out] : Int to overwrite with the parsed value. Must already
+    ///               be a valid initialised Int; its allocator is reused
+    ///               for the parsed result.
+    /// octal[in]   : Null-terminated octal string, optionally prefixed
+    ///               with `0o` / `0O`.
+    ///
+    /// SUCCESS : Returns `true`. `*out` is deinitialised and replaced with
+    ///           the normalised parsed value.
+    /// FAILURE : Returns `false` on a non-octal character, an empty digit
+    ///           run, or an allocation failure during accumulation.
+    ///           `*out` retains its pre-call value.
+    ///
+    /// TAGS: Int, Convert, Parse, Octal
+    ///
+    bool IntTryFromOctStr(Int *out, Zstr octal);
 
     ///
     /// Compatibility wrapper for `IntTryFromOctStr(...)`.
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int int_from_oct_str(const char *octal, Allocator *alloc);
-#define IntFromOctStr(...)           MISRA_OVERLOAD(IntFromOctStr, __VA_ARGS__)
-#define IntFromOctStr_1(octal)       int_from_oct_str((octal), MisraScope)
+    Int int_from_oct_str(Zstr octal, Allocator *alloc);
+#define IntFromOctStr(...)            MISRA_OVERLOAD(IntFromOctStr, __VA_ARGS__)
+#define IntFromOctStr_1(octal)        int_from_oct_str((octal), MisraScope)
 #define IntFromOctStr_2(octal, alloc) int_from_oct_str((octal), ALLOCATOR_OF(alloc))
 
     ///
@@ -203,18 +265,35 @@ extern "C" {
 
     ///
     /// Parse a hexadecimal string into an integer.
-    /// This parser expects hexadecimal digits only and does not accept a `0x` prefix.
+    /// This parser expects hexadecimal digits only and does not accept a
+    /// `0x` prefix. Underscore separators are NOT skipped (radix 16 path
+    /// does not allow underscores).
     ///
-    bool IntTryFromHexStr(Int *out, const char *hex);
+    /// out[in,out] : Int to overwrite with the parsed value. Must already
+    ///               be a valid initialised Int; its allocator is reused
+    ///               for the parsed result.
+    /// hex[in]     : Null-terminated string of hexadecimal digits
+    ///               (`0-9`, `a-f`, `A-F`), with no base prefix.
+    ///
+    /// SUCCESS : Returns `true`. `*out` is deinitialised and replaced with
+    ///           the normalised parsed value.
+    /// FAILURE : Returns `false` on a non-hex character (including
+    ///           underscore or a `0x` prefix), an empty digit run, or an
+    ///           allocation failure during accumulation. `*out` retains
+    ///           its pre-call value.
+    ///
+    /// TAGS: Int, Convert, Parse, Hex
+    ///
+    bool IntTryFromHexStr(Int *out, Zstr hex);
 
     ///
     /// Compatibility wrapper for `IntTryFromHexStr(...)`.
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int int_from_hex_str(const char *hex, Allocator *alloc);
-#define IntFromHexStr(...)         MISRA_OVERLOAD(IntFromHexStr, __VA_ARGS__)
-#define IntFromHexStr_1(hex)       int_from_hex_str((hex), MisraScope)
+    Int int_from_hex_str(Zstr hex, Allocator *alloc);
+#define IntFromHexStr(...)          MISRA_OVERLOAD(IntFromHexStr, __VA_ARGS__)
+#define IntFromHexStr_1(hex)        int_from_hex_str((hex), MisraScope)
 #define IntFromHexStr_2(hex, alloc) int_from_hex_str((hex), ALLOCATOR_OF(alloc))
 
     ///

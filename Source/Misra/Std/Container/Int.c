@@ -617,7 +617,7 @@ u64 IntToBytesBE(Int *value, u8 *bytes, u64 max_len) {
     return bytes_to_copy;
 }
 
-bool IntTryFromStr(Int *out, const char *decimal) {
+bool IntTryFromStr(Int *out, Zstr decimal) {
     u64 start = 0;
 
     if (!out || !decimal) {
@@ -631,7 +631,7 @@ bool IntTryFromStr(Int *out, const char *decimal) {
     return int_try_from_str_radix_impl(out, decimal, start, 10, true);
 }
 
-Int int_from_str(const char *decimal, Allocator *alloc) {
+Int int_from_str(Zstr decimal, Allocator *alloc) {
     Int out = IntInit(alloc);
 
     (void)IntTryFromStr(&out, decimal);
@@ -654,7 +654,7 @@ Str int_to_str(Int *value, Allocator *alloc) {
     return result;
 }
 
-bool IntTryFromStrRadix(Int *out, const char *digits, u8 radix) {
+bool IntTryFromStrRadix(Int *out, Zstr digits, u8 radix) {
     u64 start = 0;
 
     if (!out || !digits) {
@@ -667,7 +667,7 @@ bool IntTryFromStrRadix(Int *out, const char *digits, u8 radix) {
     return int_try_from_str_radix_impl(out, digits, start, radix, true);
 }
 
-Int int_from_str_radix(const char *digits, u8 radix, Allocator *alloc) {
+Int int_from_str_radix(Zstr digits, u8 radix, Allocator *alloc) {
     Int out = IntInit(alloc);
 
     (void)IntTryFromStrRadix(&out, digits, radix);
@@ -739,7 +739,7 @@ Str int_to_str_radix(Int *value, u8 radix, bool uppercase, Allocator *alloc) {
     return result;
 }
 
-bool IntTryFromBinary(Int *out, const char *binary) {
+bool IntTryFromBinary(Int *out, Zstr binary) {
     u64 start = 0;
     u64 len   = 0;
 
@@ -755,7 +755,7 @@ bool IntTryFromBinary(Int *out, const char *binary) {
     return int_try_from_str_radix_impl(out, binary, start, 2, true);
 }
 
-Int int_from_binary(const char *binary, Allocator *alloc) {
+Int int_from_binary(Zstr binary, Allocator *alloc) {
     Int out = IntInit(alloc);
 
     (void)IntTryFromBinary(&out, binary);
@@ -766,7 +766,7 @@ Str IntToBinary(Int *value) {
     return IntToStrRadix(value, 2, false);
 }
 
-bool IntTryFromOctStr(Int *out, const char *octal) {
+bool IntTryFromOctStr(Int *out, Zstr octal) {
     u64 start = 0;
     u64 len   = 0;
 
@@ -782,7 +782,7 @@ bool IntTryFromOctStr(Int *out, const char *octal) {
     return int_try_from_str_radix_impl(out, octal, start, 8, true);
 }
 
-Int int_from_oct_str(const char *octal, Allocator *alloc) {
+Int int_from_oct_str(Zstr octal, Allocator *alloc) {
     Int out = IntInit(alloc);
 
     (void)IntTryFromOctStr(&out, octal);
@@ -793,7 +793,7 @@ Str IntToOctStr(Int *value) {
     return IntToStrRadix(value, 8, false);
 }
 
-bool IntTryFromHexStr(Int *out, const char *hex) {
+bool IntTryFromHexStr(Int *out, Zstr hex) {
     if (!out || !hex) {
         LOG_FATAL("Invalid arguments");
     }
@@ -801,7 +801,7 @@ bool IntTryFromHexStr(Int *out, const char *hex) {
     return int_try_from_str_radix_impl(out, hex, 0, 16, false);
 }
 
-Int int_from_hex_str(const char *hex, Allocator *alloc) {
+Int int_from_hex_str(Zstr hex, Allocator *alloc) {
     Int out = IntInit(alloc);
 
     (void)IntTryFromHexStr(&out, hex);

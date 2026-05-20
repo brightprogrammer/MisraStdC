@@ -162,6 +162,15 @@ typedef enum LogMessageType {
 /// msg[in]  : Pre-formatted message string (no trailing newline; the
 ///            implementation adds one). NULL-safe (no-op).
 ///
-void LogWrite(LogMessageType type, const char *tag, u64 line, const char *msg);
+/// SUCCESS : Formats one line ("[LEVEL] [tag:line] msg\n") through a
+///           stack-local `HeapAllocator`, writes it via a single
+///           `FileWrite` to fd 1 (INFO) or fd 2 (ERROR / FATAL), and
+///           for FATAL appends a captured backtrace; releases the
+///           transient Str + allocator and returns.
+/// FAILURE : Returns without writing if `msg` is NULL. Underlying
+///           `FileWrite` errors are dropped (the logger is best-effort
+///           by design; there is no upstream reporter to surface to).
+///
+void LogWrite(LogMessageType type, Zstr tag, u64 line, Zstr msg);
 
 #endif // MISRA_STD_LOG_H

@@ -73,7 +73,7 @@ bool http_header_init_copy(void *dst, const void *src, const Allocator *alloc);
 /// SUCCESS : Pointer to the matching header inside the vector.
 /// FAILURE : NULL if no header matches.
 ///
-HttpHeader *HttpHeadersFind(HttpHeaders *headers, const char *key);
+HttpHeader *HttpHeadersFind(HttpHeaders *headers, Zstr key);
 
 typedef enum HttpResponseCode {
     HTTP_RESPONSE_CODE_INVALID = 0,
@@ -226,7 +226,7 @@ typedef struct HttpRequest {
 ///           (start of the body).
 /// FAILURE : Returns `in` unchanged when the input is malformed.
 ///
-const char *HttpRequestParse(HttpRequest *req, const char *in);
+const char *HttpRequestParse(HttpRequest *req, Zstr in);
 
 ///
 /// Release storage owned by `req` and zero the struct. Safe to call on
@@ -280,12 +280,8 @@ HttpResponse *HttpRespondWithHtml(HttpResponse *response, HttpResponseCode statu
 /// SUCCESS : Returns `response` with body filled.
 /// FAILURE : Returns NULL on I/O or allocation failure.
 ///
-HttpResponse *HttpRespondWithFile(
-    HttpResponse    *response,
-    HttpResponseCode status,
-    HttpContentType  content_type,
-    const char      *filepath
-);
+HttpResponse *
+    HttpRespondWithFile(HttpResponse *response, HttpResponseCode status, HttpContentType content_type, Zstr filepath);
 #endif
 
 ///

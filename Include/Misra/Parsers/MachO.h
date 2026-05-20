@@ -25,6 +25,7 @@
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Vec.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
 
 typedef enum MachoType {
@@ -120,7 +121,7 @@ typedef struct Macho {
 ///
 /// TAGS: Parser, MachO, File
 ///
-bool macho_open(Macho *out, const char *path, Allocator *alloc);
+bool macho_open(Macho *out, Zstr path, Allocator *alloc);
 #define MachoOpen(...) MISRA_OVERLOAD(MachoOpen, __VA_ARGS__)
 #define MachoOpen_2(out, path)                                                                                         \
     _Generic(                                                                                                          \
@@ -192,7 +193,7 @@ void MachoDeinit(Macho *self);
 /// Find a section by (segment, section) name pair. Returns NULL if
 /// absent.
 ///
-const MachoSection *MachoFindSection(const Macho *self, const char *segment, const char *section);
+const MachoSection *MachoFindSection(const Macho *self, Zstr segment, Zstr section);
 
 ///
 /// Look up the symbol whose `value` is closest-not-greater than

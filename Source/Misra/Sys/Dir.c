@@ -24,7 +24,7 @@
 
 #include "../_Syscall.h"
 
-const char *DirEntryTypeToZstr(DirEntryType type) {
+Zstr DirEntryTypeToZstr(DirEntryType type) {
     switch (type) {
         case SYS_DIR_ENTRY_TYPE_UNKNOWN :
             return "Unknown";
@@ -71,7 +71,7 @@ DirEntry *DirEntryDeinitCopy(DirEntry *copy) {
 
 #if PLATFORM_WINDOWS
 // Windows-specific implementation using FindFirstFile/FindNextFile
-DirContents dir_get_contents(const char *path, Allocator *alloc) {
+DirContents dir_get_contents(Zstr path, Allocator *alloc) {
     if (!path || !alloc) {
         LOG_FATAL("Invalid argument");
     }
@@ -194,7 +194,7 @@ static DirEntryType dirent_type_to_misra(u8 dt) {
     }
 }
 
-DirContents dir_get_contents(const char *path, Allocator *alloc) {
+DirContents dir_get_contents(Zstr path, Allocator *alloc) {
     if (!path || !alloc) {
         LOG_FATAL("invalid arguments.");
     }
@@ -279,7 +279,7 @@ DirContents dir_get_contents(const char *path, Allocator *alloc) {
 }
 #else
 // APPLE or other Unix-based system implementation using opendir/readdir.
-DirContents dir_get_contents(const char *path, Allocator *alloc) {
+DirContents dir_get_contents(Zstr path, Allocator *alloc) {
     if (!path || !alloc) {
         LOG_FATAL("invalid arguments.");
     }
@@ -344,7 +344,7 @@ DirContents dir_get_contents(const char *path, Allocator *alloc) {
 #endif
 
 // Cross-platform function to get file size
-i64 file_get_size(const char *filename) {
+i64 file_get_size(Zstr filename) {
 #if PLATFORM_WINDOWS
     // Windows-specific code using GetFileSizeEx
     HANDLE file = CreateFileA(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
@@ -412,7 +412,7 @@ i64 file_get_size(const char *filename) {
 // `DeleteFileA` / `RemoveDirectoryA`.
 // ---------------------------------------------------------------------------
 
-i8 file_remove(const char *path) {
+i8 file_remove(Zstr path) {
     if (!path) {
         LOG_FATAL("FileRemove: NULL path");
     }
@@ -441,7 +441,7 @@ i8 file_remove(const char *path) {
 #endif
 }
 
-i8 dir_remove(const char *path) {
+i8 dir_remove(Zstr path) {
     if (!path) {
         LOG_FATAL("DirRemove: NULL path");
     }
@@ -482,7 +482,7 @@ i8 dir_remove(const char *path) {
 // umask, which the kernel applies after we pass `mode`.
 #define DIR_CREATE_MODE 0755
 
-i8 dir_create(const char *path) {
+i8 dir_create(Zstr path) {
     if (!path) {
         LOG_FATAL("DirCreate: NULL path");
     }
@@ -535,7 +535,7 @@ static bool dir_already_exists(const char *path) {
 #endif
 }
 
-i8 dir_create_all(const char *path) {
+i8 dir_create_all(Zstr path) {
     if (!path) {
         LOG_FATAL("DirCreateAll: NULL path");
     }
@@ -588,7 +588,7 @@ i8 dir_create_all(const char *path) {
 // prefix; overflow spills through `StrInitStack`'s fallback allocator.
 #define DIR_REMOVE_ALL_PATH_CAP 512
 
-i8 dir_remove_all(const char *path) {
+i8 dir_remove_all(Zstr path) {
     if (!path) {
         LOG_FATAL("DirRemoveAll: NULL path");
     }

@@ -145,6 +145,15 @@ extern "C" {
     /// itself is then released and the struct is zeroed -- post-deinit
     /// dispatch trips `ValidateAllocator` on the zeroed `__magic`.
     ///
+    /// self[in,out] : PageAllocator instance, or NULL.
+    ///
+    /// SUCCESS: Function returns. Every live mapping owned by this
+    ///          allocator has been released; the struct is fully
+    ///          zeroed and cannot be used until re-initialised.
+    /// FAILURE: No action when `self` is NULL.
+    ///
+    /// TAGS: Allocator, Page, Cleanup
+    ///
     void PageAllocatorDeinit(PageAllocator *self);
 
 #ifdef __cplusplus

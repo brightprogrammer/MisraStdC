@@ -12,6 +12,7 @@
 #include <Misra/Std/Allocator.h>
 #include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Container/Str.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Sys.h>
 #include <Misra/Types.h>
 
@@ -69,7 +70,7 @@ typedef enum FileWhence {
 /// SUCCESS : Returns a File where `FileIsOpen(&out)` is true.
 /// FAILURE : Returns a File where `FileIsOpen(&out)` is false.
 ///
-File file_open(const char *path, const char *mode);
+File file_open(Zstr path, Zstr mode);
 #define FileOpen(path, mode)                                                                                           \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
@@ -165,8 +166,8 @@ i64 file_read_to_buf(File *f, Buf *out);
 ///
 /// TAGS: File, Read
 ///
-i64 file_read_and_close_to_buf(const char *path, Buf *out);
-i64 file_read_and_close_to_str(const char *path, Str *out);
+i64 file_read_and_close_to_buf(Zstr path, Buf *out);
+i64 file_read_and_close_to_str(Zstr path, Str *out);
 #define FileReadAndClose(path, out)                                                                                    \
     _Generic(                                                                                                          \
         (out),                                                                                                         \
@@ -212,9 +213,9 @@ i64 FileWrite(File *f, const void *buf, u64 n);
 ///
 /// TAGS: File, Write
 ///
-i64 file_write_and_close_from_buf(const char *path, const Buf *in);
-i64 file_write_and_close_from_str(const char *path, const Str *in);
-i64 file_write_and_close_from_bytes(const char *path, const void *buf, u64 n);
+i64 file_write_and_close_from_buf(Zstr path, const Buf *in);
+i64 file_write_and_close_from_str(Zstr path, const Str *in);
+i64 file_write_and_close_from_bytes(Zstr path, const void *buf, u64 n);
 #define FileWriteAndClose(...) MISRA_OVERLOAD(FileWriteAndClose, __VA_ARGS__)
 #define FileWriteAndClose_2(path, container)                                                                           \
     _Generic(                                                                                                          \

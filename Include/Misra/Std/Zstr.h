@@ -13,7 +13,12 @@
 #include <Misra/Std/Container/Vec/Type.h>
 #include <Misra/Types.h>
 
-typedef Vec(const char *) Zstrs;
+/// Read-only NUL-terminated C string -- the project name for what
+/// libc calls `const char *`. Public API surface uses this typedef so
+/// the intent ("read a borrowed C-string here") is visible at a
+/// glance; internal helpers may keep raw `const char *`.
+typedef const char *Zstr;
+typedef Vec(Zstr) Zstrs;
 
 ///
 /// Get length of a null-terminated string.
