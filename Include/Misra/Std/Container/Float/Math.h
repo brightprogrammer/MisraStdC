@@ -44,6 +44,10 @@ extern "C" {
     /// a[in]       : Left operand
     /// b[in]       : Right operand
     ///
+    /// SUCCESS : Returns `true`. `*result` holds the sum.
+    /// FAILURE : Returns `false` on allocator OOM while growing
+    ///           `result`'s significand. `*result` is left untouched.
+    ///
     /// USAGE:
     ///   FloatAdd(&sum, &a, &b);
     ///
@@ -57,6 +61,10 @@ extern "C" {
     /// a[in]       : Minuend
     /// b[in]       : Subtrahend
     ///
+    /// SUCCESS : Returns `true`. `*result` holds `a - b`.
+    /// FAILURE : Returns `false` on allocator OOM while growing
+    ///           `result`'s significand. `*result` is left untouched.
+    ///
     /// USAGE:
     ///   FloatSub(&diff, &a, &b);
     ///
@@ -69,6 +77,10 @@ extern "C" {
     /// result[out] : Destination for the product
     /// a[in]       : Left operand
     /// b[in]       : Right operand
+    ///
+    /// SUCCESS : Returns `true`. `*result` holds the product.
+    /// FAILURE : Returns `false` on allocator OOM while growing
+    ///           `result`'s significand. `*result` is left untouched.
     ///
     /// USAGE:
     ///   FloatMul(&product, &a, &b);

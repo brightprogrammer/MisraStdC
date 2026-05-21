@@ -127,20 +127,33 @@ extern "C" {
     ///
     /// Block until the child exits.
     ///
-    /// RETURNS: `SYS_PROC_STATUS_COMPLETED`, `SYS_PROC_STATUS_TERMINATED`,
-    ///          or `SYS_PROC_STATUS_ERROR`.
+    /// SUCCESS : Returns `SYS_PROC_STATUS_COMPLETED` when the child
+    ///           exits normally, or `SYS_PROC_STATUS_TERMINATED` when
+    ///           the child was killed by a signal / external action.
+    /// FAILURE : Returns `SYS_PROC_STATUS_ERROR`; the cause is logged.
     ///
     ProcStatus ProcWait(Proc *proc);
 
     ///
     /// Block for up to `timeout_ms` milliseconds waiting for the child.
-    /// Pass 0 for infinite wait. Returns current status; if the child is
-    /// still running after the timeout, returns `SYS_PROC_STATUS_RUNNING`.
+    /// Pass 0 for infinite wait.
+    ///
+    /// SUCCESS : Returns `SYS_PROC_STATUS_COMPLETED`,
+    ///           `SYS_PROC_STATUS_TERMINATED`, or
+    ///           `SYS_PROC_STATUS_RUNNING` if the timeout elapsed first.
+    /// FAILURE : Returns `SYS_PROC_STATUS_ERROR`; the cause is logged.
     ///
     ProcStatus ProcWaitFor(Proc *proc, u64 timeout_ms);
 
     ///
-    /// Terminate the child process.
+    /// Terminate the child process. Sends `SIGKILL` on POSIX,
+    /// `TerminateProcess` on Windows.
+    ///
+    /// SUCCESS : Returns to the caller. The child has been signalled
+    ///           (the kernel reaps it asynchronously; pair with
+    ///           `ProcWait` if you need the exit status).
+    /// FAILURE : Returns to the caller. Any kill error is logged but
+    ///           not surfaced; this call is best-effort.
     ///
     void ProcTerminate(Proc *proc);
 
@@ -153,32 +166,62 @@ extern "C" {
     i32 ProcWriteToStdin(Proc *proc, Str *buf);
 
     ///
-    /// Exit code of the child. Only meaningful after `ProcWait`.
+    /// Exit code of the child. Only meaningful after `ProcWait` /
+    /// `ProcWaitFor` reports completion.
+    ///
+    /// SUCCESS : Returns the child's exit code.
+    /// FAILURE : Returns -1 if the child has not yet exited or `proc`
+    ///           is invalid.
     ///
     i32 ProcGetExitCode(Proc *proc);
 
     ///
-    /// Blocking read from child's stdout into `buf` (appended).
+    /// Blocking read from the child's stdout into `buf` (appended).
+    ///
+    /// SUCCESS : Returns the number of bytes appended to `buf` (>= 0).
+    ///           Zero indicates EOF on the pipe.
+    /// FAILURE : Returns -1. `buf` is left in its pre-call state; the
+    ///           failure cause is logged.
     ///
     i32 ProcReadFromStdout(Proc *proc, Str *buf);
 
     ///
-    /// Blocking read from child's stderr into `buf` (appended).
+    /// Blocking read from the child's stderr into `buf` (appended).
+    ///
+    /// SUCCESS : Returns the number of bytes appended to `buf` (>= 0).
+    ///           Zero indicates EOF on the pipe.
+    /// FAILURE : Returns -1. `buf` is left in its pre-call state; the
+    ///           failure cause is logged.
     ///
     i32 ProcReadFromStderr(Proc *proc, Str *buf);
 
     ///
-    /// Returns the OS process ID of the child, or -1 if `proc` is invalid.
+    /// OS process ID of the child.
+    ///
+    /// SUCCESS : Returns a positive pid.
+    /// FAILURE : Returns -1 if `proc` is invalid or not yet spawned.
     ///
     i32 ProcGetId(Proc *proc);
 
     ///
-    /// Returns the current status of the child.
+    /// Current status of the child without blocking. Useful for
+    /// polling alongside `ProcWaitFor`.
+    ///
+    /// SUCCESS : Returns one of `SYS_PROC_STATUS_RUNNING`,
+    ///           `SYS_PROC_STATUS_COMPLETED`, or
+    ///           `SYS_PROC_STATUS_TERMINATED`.
+    /// FAILURE : Returns `SYS_PROC_STATUS_ERROR` if `proc` is invalid
+    ///           or the OS query failed (logged).
     ///
     ProcStatus ProcGetStatus(Proc *proc);
 
     ///
-    /// Get the path to the current executable.
+    /// Resolve the path of the currently running executable. Appends
+    /// into `exe_path` (caller initialises the Str).
+    ///
+    /// SUCCESS : Returns `exe_path` with the resolved path appended.
+    /// FAILURE : Returns NULL. `exe_path` may have been partially
+    ///           written; the cause is logged.
     ///
     Str *GetCurrentExecutablePath(Str *exe_path);
 

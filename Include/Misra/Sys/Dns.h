@@ -74,11 +74,17 @@ extern "C" {
     /// SUCCESS : Returns true. `out` is populated.
     /// FAILURE : Returns false on allocator OOM.
     ///
-    bool DnsResolverInit(DnsResolver *out, Allocator *alloc);
+    bool dns_resolver_init(DnsResolver *out, Allocator *alloc);
+#define DnsResolverInit(...)          MISRA_OVERLOAD(DnsResolverInit, __VA_ARGS__)
+#define DnsResolverInit_1(out)        dns_resolver_init((out), MisraScope)
+#define DnsResolverInit_2(out, alloc) dns_resolver_init((out), ALLOCATOR_OF(alloc))
 
     ///
     /// Release every owned string / Vec. Safe on a partially-initialised
     /// resolver.
+    ///
+    /// SUCCESS : Returns to the caller. `self` is zeroed.
+    /// FAILURE : Function cannot fail.
     ///
     void DnsResolverDeinit(DnsResolver *self);
 

@@ -35,7 +35,7 @@
 ///
 /// Per-resolve output. All string fields are borrowed from internal
 /// state and remain valid until the next call (which may rebuild the
-/// cache) or `SymbolResolverDestroy`.
+/// cache) or `SymbolResolverDeinit`.
 ///
 /// FIELDS:
 /// - module_path  : Backing file of the loaded ELF that contains
@@ -73,14 +73,14 @@ typedef struct ResolvedSymbol {
 typedef struct ResolverCacheEntry {
     const char *path; // borrowed from ProcMaps.raw
     u64         load_base;
-    Elf     elf;
+    Elf         elf;
     // Sidecar debug file found via .gnu_debuglink or .note.gnu.build-id.
     // Populated lazily for stripped binaries that have an installed
     // -dbg package or a debug file alongside them. When `has_sidecar`
     // is true, the sidecar's symbol tables (and DWARF lines, below)
     // are searched after the main file's.
-    Elf sidecar;
-    bool    has_sidecar;
+    Elf  sidecar;
+    bool has_sidecar;
 #if FEATURE_PARSER_DWARF
     DwarfLines dwarf;
     bool       dwarf_built;
@@ -128,13 +128,16 @@ typedef struct SymbolResolver {
 /// TAGS: Sys, Symbol, Resolver
 ///
 bool symbol_resolver_init(SymbolResolver *out, Allocator *alloc);
-#define SymbolResolverInit(...)         MISRA_OVERLOAD(SymbolResolverInit, __VA_ARGS__)
-#define SymbolResolverInit_1(out)       symbol_resolver_init((out), MisraScope)
+#define SymbolResolverInit(...)          MISRA_OVERLOAD(SymbolResolverInit, __VA_ARGS__)
+#define SymbolResolverInit_1(out)        symbol_resolver_init((out), MisraScope)
 #define SymbolResolverInit_2(out, alloc) symbol_resolver_init((out), ALLOCATOR_OF(alloc))
 
 ///
 /// Tear down the resolver, closing every cached `Elf` and freeing
 /// the cache + ProcMaps. Safe on a zeroed struct.
+///
+/// SUCCESS : Returns to the caller. `self` is zeroed.
+/// FAILURE : Function cannot fail.
 ///
 void SymbolResolverDeinit(SymbolResolver *self);
 

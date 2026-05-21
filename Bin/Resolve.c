@@ -45,9 +45,10 @@ int main(int argc, char **argv) {
             Str s = SocketAddrFormat(a, alloc);
             // Strip the trailing ":0" since we resolve with port=0; keep
             // bracket form on v6 to round-trip through SocketAddrParse.
-            if (s.length >= 2 && s.data[s.length - 1] == '0' && s.data[s.length - 2] == ':') {
-                s.length         -= 2;
-                s.data[s.length]  = '\0';
+            size        n = StrLen(&s);
+            const char *p = StrBegin(&s);
+            if (n >= 2 && p[n - 1] == '0' && p[n - 2] == ':') {
+                StrMustResize(&s, n - 2);
             }
             WriteFmtLn("{}", s);
             StrDeinit(&s);

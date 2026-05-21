@@ -30,9 +30,9 @@
 typedef struct MachoCacheEntry {
     char          *module_path;
     u64            slide;
-    Macho      main;
+    Macho          main;
     bool           main_open;
-    Macho      dsym;
+    Macho          dsym;
     bool           dsym_open;
     DwarfFunctions fns;
     bool           fns_built;
@@ -46,10 +46,28 @@ typedef struct MachoCache {
     MachoCacheEntries entries;
 } MachoCache;
 
+///
+/// Initialise an empty Mach-O symbol cache.
+///
+/// out[out]   : Cache to initialise.
+/// alloc[in]  : Allocator used for the entries vector and for
+///              every Mach-O / DWARF table the cache grows lazily.
+///
+/// SUCCESS : Returns true. `out` is a usable empty cache.
+/// FAILURE : Returns false on allocator OOM. `out` is left zeroed.
+///
 bool macho_cache_init(MachoCache *out, Allocator *alloc);
-#define MachoCacheInit(...)         MISRA_OVERLOAD(MachoCacheInit, __VA_ARGS__)
-#define MachoCacheInit_1(out)       macho_cache_init((out), MisraScope)
+#define MachoCacheInit(...)          MISRA_OVERLOAD(MachoCacheInit, __VA_ARGS__)
+#define MachoCacheInit_1(out)        macho_cache_init((out), MisraScope)
 #define MachoCacheInit_2(out, alloc) macho_cache_init((out), ALLOCATOR_OF(alloc))
+
+///
+/// Release every cached Mach-O / DWARF table and the entries vector.
+/// Safe on a partially-initialised cache.
+///
+/// SUCCESS : Returns to the caller. `self` is zeroed.
+/// FAILURE : Function cannot fail.
+///
 void MachoCacheDeinit(MachoCache *self);
 
 ///

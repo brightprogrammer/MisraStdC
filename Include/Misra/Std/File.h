@@ -17,11 +17,10 @@
 #include <Misra/Types.h>
 
 ///
-/// Cross-platform file handle. Replaces stdio `FILE *` in the
-/// project: Linux uses an fd through direct syscalls, macOS uses an
-/// fd through libSystem, Windows uses a `HANDLE`. The API surface
-/// (`FileOpen` / `Close` / `Read` / `Write` / `Seek` / `Tell` /
-/// `Flush` / `Eof`) is identical across platforms.
+/// Cross-platform file handle. Linux uses an fd through direct
+/// syscalls, macOS uses an fd through libSystem, Windows uses a
+/// `HANDLE`. The API surface (`FileOpen` / `Close` / `Read` / `Write`
+/// / `Seek` / `Tell` / `Flush` / `Eof`) is identical across platforms.
 ///
 /// Value type -- caller stack-allocates and passes by pointer. A
 /// failed open leaves `fd` (or `handle`) negative / INVALID; check
@@ -38,9 +37,8 @@ typedef struct File {
 } File;
 
 ///
-/// Whence values for `FileSeek`, matching the libc `SEEK_*` constants
-/// (numerically identical so a caller that's used to stdio
-/// transitions cleanly).
+/// Whence values for `FileSeek`. `SET` anchors to the file start,
+/// `CUR` to the current position, `END` to the file end.
 ///
 typedef enum FileWhence {
     FILE_SEEK_SET = 0,
@@ -58,7 +56,7 @@ typedef enum FileWhence {
 // a dispatch helper across APIs.
 
 ///
-/// Open a file. `mode` is libc-compatible: `"r"`/`"rb"`, `"w"`/`"wb"`,
+/// Open a file. `mode` accepts: `"r"`/`"rb"`, `"w"`/`"wb"`,
 /// `"a"`/`"ab"`, `"r+"`, `"w+"`, `"a+"`. Binary is always implied;
 /// the `"b"` suffix is accepted but has no effect on the
 /// implementation.
@@ -82,14 +80,15 @@ File file_open(Zstr path, Zstr mode);
 ///
 /// Borrow a file handle wrapping an already-open fd / HANDLE. The
 /// returned File has `owns = false` so `FileClose` is a no-op on it.
-/// Use for wrapping stdin / stdout / stderr or fds you got from
-/// elsewhere.
+/// Use for wrapping the well-known standard streams or fds you got
+/// from elsewhere.
 ///
 File FileFromFd(i32 fd);
 
 ///
-/// stdin / stdout / stderr accessors. Wrapping the well-known fds
-/// 0/1/2 on POSIX, the GetStdHandle() values on Windows.
+/// Standard input / output / error accessors. Wrapping the
+/// well-known fds 0/1/2 on POSIX, the GetStdHandle() values on
+/// Windows.
 ///
 File FileStdin(void);
 File FileStdout(void);
@@ -281,8 +280,8 @@ bool FileIsEof(const File *f);
 i32 FileFd(const File *f);
 
 ///
-/// Open a unique temporary file for read+write. Replaces libc
-/// `mkstemp`. The name is the 16-hex-digit of `Prng64()` -- no
+/// Open a unique temporary file for read+write. The name is the
+/// 16-hex-digit of `Prng64()` -- no
 /// caller-supplied prefix, no kernel entropy per call. Open is
 /// `O_RDWR | O_CREAT | O_EXCL | 0600`, so two callers racing can
 /// never collide -- one wins, the other retries with a new draw.

@@ -407,7 +407,7 @@ static void parse_resolv_conf(DnsAddrs *out, Allocator *alloc) {
 // Lifecycle
 // ---------------------------------------------------------------------------
 
-bool DnsResolverInit(DnsResolver *out, Allocator *alloc) {
+bool dns_resolver_init(DnsResolver *out, Allocator *alloc) {
     if (!out || !alloc) {
         return false;
     }

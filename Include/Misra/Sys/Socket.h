@@ -271,20 +271,65 @@ void SocketClose(Socket *self);
 //
 // Options are exposed as free-standing functions taking a raw fd, so a
 // caller can apply them to either a `Socket` or a `Listener` without an
-// extra wrapper. All return true on success / false on syscall failure
-// (logged).
-//
-// Note: `SocketSetReuseAddr` maps to `SO_REUSEADDR` on POSIX but to
-// `SO_EXCLUSIVEADDRUSE` on Windows — Windows's `SO_REUSEADDR` lets
-// other processes hijack the port, which is the opposite of what
-// callers want. The shim normalises both to "let me restart the
-// server quickly without ADDRINUSE from TIME_WAIT" semantics.
+// extra wrapper.
 
+///
+/// Toggle non-blocking mode on a socket fd.
+///
+/// SUCCESS : Returns true. The fd is in the requested mode.
+/// FAILURE : Returns false. The fd is unchanged; the failing syscall
+///           is logged.
+///
 bool SocketSetNonBlocking(SockFd fd, bool nonblock);
-bool SocketSetNoDelay(SockFd fd, bool nodelay);     // TCP_NODELAY (Nagle off)
-bool SocketSetKeepAlive(SockFd fd, bool keepalive); // SO_KEEPALIVE
-bool SocketSetReuseAddr(SockFd fd, bool reuse);     // POSIX SO_REUSEADDR / Win SO_EXCLUSIVEADDRUSE
+
+///
+/// Toggle `TCP_NODELAY` (Nagle off when true).
+///
+/// SUCCESS : Returns true. The fd has the requested setting.
+/// FAILURE : Returns false. The fd is unchanged; the failing syscall
+///           is logged.
+///
+bool SocketSetNoDelay(SockFd fd, bool nodelay);
+
+///
+/// Toggle `SO_KEEPALIVE`.
+///
+/// SUCCESS : Returns true. The fd has the requested setting.
+/// FAILURE : Returns false. The fd is unchanged; the failing syscall
+///           is logged.
+///
+bool SocketSetKeepAlive(SockFd fd, bool keepalive);
+
+///
+/// Allow a listening socket to reclaim a port still in TIME_WAIT.
+/// Maps to `SO_REUSEADDR` on POSIX and `SO_EXCLUSIVEADDRUSE` on
+/// Windows -- Windows's `SO_REUSEADDR` lets other processes hijack
+/// the port, which is the opposite of what callers want. The shim
+/// normalises both to "let me restart the server quickly without
+/// ADDRINUSE from TIME_WAIT" semantics.
+///
+/// SUCCESS : Returns true. The fd has the requested setting.
+/// FAILURE : Returns false. The fd is unchanged; the failing syscall
+///           is logged.
+///
+bool SocketSetReuseAddr(SockFd fd, bool reuse);
+
+///
+/// Cap how long a single recv call may block, in milliseconds.
+///
+/// SUCCESS : Returns true. The fd has the requested timeout.
+/// FAILURE : Returns false. The fd is unchanged; the failing syscall
+///           is logged.
+///
 bool SocketSetRecvTimeoutMs(SockFd fd, u32 ms);
+
+///
+/// Cap how long a single send call may block, in milliseconds.
+///
+/// SUCCESS : Returns true. The fd has the requested timeout.
+/// FAILURE : Returns false. The fd is unchanged; the failing syscall
+///           is logged.
+///
 bool SocketSetSendTimeoutMs(SockFd fd, u32 ms);
 
 // --- Multiplexing -----------------------------------------------------------

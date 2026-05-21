@@ -36,7 +36,7 @@ typedef enum {
     ENDIAN_NATIVE = ALIGN_CENTER,
     ENDIAN_LITTLE = ALIGN_LEFT,
     ENDIAN_BIG    = ALIGN_RIGHT
-} Alignment, Endinanness;
+} Alignment, Endianness;
 
 ///
 /// Format flags for text output.
@@ -85,8 +85,8 @@ typedef u32 FormatFlags;
 /// TAGS: Formatting, Text, Configuration
 typedef struct {
     union {
-        Alignment   align;
-        Endinanness endian;
+        Alignment  align;
+        Endianness endian;
     };
     u32         width; /// Alignment width or raw read/write size
     u32         precision;
@@ -427,7 +427,7 @@ Float:                                                                          
 ///
 /// Read formatted data from a file stream. This is a macro wrapper around f_read_fmt.
 ///
-/// stream[in]  : Pointer to the `FILE` stream to read from.
+/// stream[in]  : Pointer to the `File` to read from.
 /// fmtstr[in]  : Format string to be used for reading. This must exactly describe the
 ///               expected input format in the stream.
 /// ...[in]     : Variable number of arguments that will receive the read values. Each
@@ -461,7 +461,7 @@ Float:                                                                          
 /// Write formatted output to a file stream. This macro internally uses str_write_fmt
 /// to format the string and then writes it to the stream.
 ///
-/// stream[in]  : Pointer to the `FILE` stream to write to.
+/// stream[in]  : Pointer to the `File` to write to.
 /// fmtstr[in]  : Format string with `{}` placeholders.
 /// ...[in]     : Variable number of arguments to replace the placeholders. Each argument
 ///               should be wrapped with `variable`.
@@ -469,8 +469,8 @@ Float:                                                                          
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
 ///           resulting formatted string is written to the specified `stream`.
 /// FAILURE : Failure might occur during memory allocation for the temporary string
-///           or during the write operation to the stream (handled by `fputs`). Errors
-///           from `str_write_fmt` (logging messages) might also occur.
+///           or during the write operation to the stream. Errors from `str_write_fmt`
+///           (logging messages) might also occur.
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
@@ -491,7 +491,7 @@ Float:                                                                          
 /// This macro internally uses str_write_fmt to format the string and then writes
 /// it to the stream followed by a newline.
 ///
-/// stream[in]  : Pointer to the `FILE` stream to write to.
+/// stream[in]  : Pointer to the `File` to write to.
 /// fmtstr[in]  : Format string with `{}` placeholders.
 /// ...[in]     : Variable number of arguments to replace the placeholders. Each argument
 ///               should be wrapped with `variable`.
@@ -499,8 +499,8 @@ Float:                                                                          
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
 ///           resulting formatted string followed by a newline is written to the `stream`.
 /// FAILURE : Failure might occur during memory allocation for the temporary string
-///           or during the write operation to the stream (`fputs` or `fputc`). Errors
-///           from `str_write_fmt` (logging messages) might also occur.
+///           or during the write operation to the stream. Errors from `str_write_fmt`
+///           (logging messages) might also occur.
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
@@ -517,18 +517,18 @@ Float:                                                                          
     f_write_fmt((stream), (fmtstr), &(varr)[0], (sizeof(varr) / sizeof(TypeSpecificIO)) - 1, true)
 
 ///
-/// Write formatted output to the standard output stream (`stdout`).
-/// This is a convenience macro calling FWriteFmt with `stdout`.
+/// Write formatted output to the standard output stream (`FileStdout()`).
+/// This is a convenience macro calling FWriteFmt with `FileStdout()`.
 ///
 /// fmtstr[in]  : Format string with `{}` placeholders.
 /// ...[in]     : Variable number of arguments to replace the placeholders. Each argument
 ///               should be wrapped with `variable`.
 ///
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
-///           resulting formatted string is written to `stdout`.
+///           resulting formatted string is written to standard output.
 /// FAILURE : Failure might occur during memory allocation for the temporary string
-///           or during the write operation to `stdout` (handled by `fputs`). Errors
-///           from `str_write_fmt` (logging messages) might also occur.
+///           or during the write operation. Errors from `str_write_fmt` (logging
+///           messages) might also occur.
 ///
 /// TAGS: Macro, Convenience, Stdout, I/O
 ///
@@ -539,18 +539,18 @@ Float:                                                                          
     } while (0)
 
 ///
-/// Write formatted output to the standard output stream (`stdout`) followed by a newline.
-/// This is a convenience macro calling FWriteFmtLn with `stdout`.
+/// Write formatted output to the standard output stream (`FileStdout()`) followed by a newline.
+/// This is a convenience macro calling FWriteFmtLn with `FileStdout()`.
 ///
 /// fmtstr[in]  : Format string with `{}` placeholders.
 /// ...[in]     : Variable number of arguments to replace the placeholders. Each argument
 ///               should be wrapped with `variable`.
 ///
 /// SUCCESS : Placeholders in `fmtstr` are replaced by the passed arguments, and the
-///           resulting formatted string followed by a newline is written to `stdout`.
+///           resulting formatted string followed by a newline is written to standard output.
 /// FAILURE : Failure might occur during memory allocation for the temporary string
-///           or during the write operation to `stdout` (`fputs` or `fputc`). Errors
-///           from `str_write_fmt` (logging messages) might also occur.
+///           or during the write operation. Errors from `str_write_fmt` (logging
+///           messages) might also occur.
 ///
 /// TAGS: Macro, Convenience, Stdout, I/O
 ///
@@ -561,16 +561,16 @@ Float:                                                                          
     } while (0)
 
 ///
-/// Read formatted input from the standard input stream (`stdin`).
-/// This is a convenience macro calling FReadFmt with `stdin`.
+/// Read formatted input from the standard input stream (`FileStdin()`).
+/// This is a convenience macro calling FReadFmt with `FileStdin()`.
 ///
 /// fmtstr[in]  : Format string to be used for reading. This must exactly describe the
-///               expected input format from `stdin`.
+///               expected input format from standard input.
 /// ...[in]     : Variable number of arguments that will receive the read values. Each
 ///               argument should be a modifiable l-value wrapped with `&variable`.
 ///
-/// SUCCESS : Attempts to match `fmtstr` with the input from `stdin` and reads values
-///           into the provided arguments wrapped with ``.
+/// SUCCESS : Attempts to match `fmtstr` with the input from standard input and reads
+///           values into the provided arguments wrapped with ``.
 /// FAILURE : Failure occurs within `f_read_fmt`. Refer to its documentation for
 ///           details on failure behavior (logs error message and returns, may rollback
 ///           read data, or abort in unexpected situations).

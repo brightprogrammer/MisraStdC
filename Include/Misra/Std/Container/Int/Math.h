@@ -19,6 +19,10 @@ extern "C" {
     /// value[in]      : Integer to modify
     /// positions[in]  : Number of zero bits to append on the right
     ///
+    /// SUCCESS : Returns `true`. `*value` has been shifted in place.
+    /// FAILURE : Returns `false` on allocator OOM while growing the
+    ///           significand. `*value` is left untouched.
+    ///
     /// USAGE:
     ///   IntShiftLeft(&value, 8);
     ///
@@ -30,6 +34,10 @@ extern "C" {
     ///
     /// value[in]      : Integer to modify
     /// positions[in]  : Number of low bits to discard
+    ///
+    /// SUCCESS : Returns `true`. `*value` has been shifted in place.
+    /// FAILURE : Returns `false` on allocator OOM while trimming the
+    ///           significand. `*value` is left untouched.
     ///
     /// USAGE:
     ///   IntShiftRight(&value, 1);
@@ -43,6 +51,10 @@ extern "C" {
     /// result[out] : Destination for the sum
     /// a[in]       : Left operand
     /// b[in]       : Right operand
+    ///
+    /// SUCCESS : Returns `true`. `*result` holds `a + b`.
+    /// FAILURE : Returns `false` on allocator OOM while growing
+    ///           `result`. `*result` is left untouched.
     ///
     /// USAGE:
     ///   IntAdd(&sum, &a, &b);
@@ -75,6 +87,10 @@ extern "C" {
     /// a[in]       : Left operand
     /// b[in]       : Right operand
     ///
+    /// SUCCESS : Returns `true`. `*result` holds `a * b`.
+    /// FAILURE : Returns `false` on allocator OOM while growing
+    ///           `result`. `*result` is left untouched.
+    ///
     /// USAGE:
     ///   IntMul(&product, &a, &b);
     ///
@@ -86,6 +102,10 @@ extern "C" {
     ///
     /// result[out] : Destination for the square
     /// value[in]   : Value to square
+    ///
+    /// SUCCESS : Returns `true`. `*result` holds `value * value`.
+    /// FAILURE : Returns `false` on allocator OOM while growing
+    ///           `result`. `*result` is left untouched.
     ///
     /// USAGE:
     ///   IntSquare(&square, &value);

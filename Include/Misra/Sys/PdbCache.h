@@ -30,12 +30,12 @@
 #include <Misra/Types.h>
 
 typedef struct PdbCacheEntry {
-    char   *module_path; // owned copy
-    u64     module_base; // last-seen runtime load base
-    Pe  pe;
-    Pdb pdb;
-    bool    pe_open;
-    bool    pdb_open;
+    char *module_path; // owned copy
+    u64   module_base; // last-seen runtime load base
+    Pe    pe;
+    Pdb   pdb;
+    bool  pe_open;
+    bool  pdb_open;
 } PdbCacheEntry;
 
 typedef Vec(PdbCacheEntry) PdbCacheEntries;
@@ -52,13 +52,16 @@ typedef struct PdbCache {
 /// FAILURE : Returns false on NULL arg.
 ///
 bool pdb_cache_init(PdbCache *out, Allocator *alloc);
-#define PdbCacheInit(...)         MISRA_OVERLOAD(PdbCacheInit, __VA_ARGS__)
-#define PdbCacheInit_1(out)       pdb_cache_init((out), MisraScope)
+#define PdbCacheInit(...)          MISRA_OVERLOAD(PdbCacheInit, __VA_ARGS__)
+#define PdbCacheInit_1(out)        pdb_cache_init((out), MisraScope)
 #define PdbCacheInit_2(out, alloc) pdb_cache_init((out), ALLOCATOR_OF(alloc))
 
 ///
 /// Tear down the cache, releasing every cached `Pe` and `Pdb`.
 /// Safe on a zeroed struct.
+///
+/// SUCCESS : Returns to the caller. `self` is zeroed.
+/// FAILURE : Function cannot fail.
 ///
 void PdbCacheDeinit(PdbCache *self);
 

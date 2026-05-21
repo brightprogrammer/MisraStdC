@@ -10,8 +10,8 @@
  * modification, is strictly prohibited without prior written permission.
  */
 
-#ifndef MISRA_STD_UILITY_H
-#define MISRA_STD_UILITY_H
+#ifndef MISRA_STD_UTILITY_H
+#define MISRA_STD_UTILITY_H
 
 #include <Misra/Types.h>
 
@@ -23,4 +23,4 @@
 #    include <Misra/Std/Utility/Iter.h>
 #endif
 
-#endif // MISRA_STD_UILITY_H
+#endif // MISRA_STD_UTILITY_H
