@@ -415,13 +415,13 @@ Float:                                                                          
             APPLY_MACRO_FOREACH(IOFMT_APPEND_COMMA, __VA_ARGS__) {NULL, NULL, NULL}                                    \
     })                                                                                                             \
     )
-#define StrReadFmt_IMPL2(input, fmtstr, varr)                                                                          \
-    do {                                                                                                               \
-        TypeSpecificIO *argv_     = &(varr)[0];                                                                        \
-        char          **_p_input_ = (char **)(&(input));                                                               \
-        u64             argc_     = sizeof(varr) / sizeof(TypeSpecificIO);                                             \
-        const char     *_input_   = str_read_fmt((const char *)*(_p_input_), (fmtstr), argv_, argc_ - 1);              \
-        (*_p_input_)              = (char *)(_input_) ? (char *)(_input_) : (*_p_input_);                              \
+#define StrReadFmt_IMPL2(input, fmtstr, varr)                                                                           \
+    do {                                                                                                                \
+        TypeSpecificIO *UNPL(argv)    = &(varr)[0];                                                                     \
+        char          **UNPL(p_input) = (char **)(&(input));                                                            \
+        u64             UNPL(argc)    = sizeof(varr) / sizeof(TypeSpecificIO);                                          \
+        const char     *UNPL(out) = str_read_fmt((const char *)*(UNPL(p_input)), (fmtstr), UNPL(argv), UNPL(argc) - 1); \
+        (*UNPL(p_input))          = (char *)(UNPL(out)) ? (char *)(UNPL(out)) : (*UNPL(p_input));                       \
     } while (0)
 
 ///
@@ -452,9 +452,9 @@ Float:                                                                          
     )
 #define FReadFmt_IMPL2(file, fmtstr, varr)                                                                             \
     do {                                                                                                               \
-        TypeSpecificIO *argv_ = &(varr)[0];                                                                            \
-        u64             argc_ = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                             \
-        f_read_fmt((file), (fmtstr), argv_, argc_);                                                                    \
+        TypeSpecificIO *UNPL(argv) = &(varr)[0];                                                                       \
+        u64             UNPL(argc) = sizeof(varr) / sizeof(TypeSpecificIO) - 1;                                        \
+        f_read_fmt((file), (fmtstr), UNPL(argv), UNPL(argc));                                                          \
     } while (0)
 
 ///
@@ -534,8 +534,8 @@ Float:                                                                          
 ///
 #define WriteFmt(...)                                                                                                  \
     do {                                                                                                               \
-        File __misra_out__ = FileStdout();                                                                             \
-        FWriteFmt(&__misra_out__, __VA_ARGS__);                                                                        \
+        File UNPL(out) = FileStdout();                                                                                 \
+        FWriteFmt(&UNPL(out), __VA_ARGS__);                                                                            \
     } while (0)
 
 ///
@@ -556,8 +556,8 @@ Float:                                                                          
 ///
 #define WriteFmtLn(...)                                                                                                \
     do {                                                                                                               \
-        File __misra_out__ = FileStdout();                                                                             \
-        FWriteFmtLn(&__misra_out__, __VA_ARGS__);                                                                      \
+        File UNPL(out) = FileStdout();                                                                                 \
+        FWriteFmtLn(&UNPL(out), __VA_ARGS__);                                                                          \
     } while (0)
 
 ///
@@ -579,8 +579,8 @@ Float:                                                                          
 ///
 #define ReadFmt(...)                                                                                                   \
     do {                                                                                                               \
-        File __misra_in__ = FileStdin();                                                                               \
-        FReadFmt(&__misra_in__, __VA_ARGS__);                                                                          \
+        File UNPL(in) = FileStdin();                                                                                   \
+        FReadFmt(&UNPL(in), __VA_ARGS__);                                                                              \
     } while (0)
 
 // not for direct use
