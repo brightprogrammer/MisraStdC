@@ -8,20 +8,31 @@
 /// in allocator-owned descriptor arrays acquired separately from
 /// PageAllocator.
 ///
-/// The allocator partitions sizes into four classes:
+/// Sizes route into one of 17 size classes plus an XL passthrough.
+/// One slot size per user page (no co-located sub-bins): a page that
+/// holds 128-byte slots only holds 128-byte slots, never mixed with
+/// 256-byte slots on the same page. This trades the old "mixed page"
+/// pack density for the right to add many more class sizes without
+/// the per-page alignment-waste cascading.
 ///
-///   class S  -- 16 / 32 / 64 byte requests
-///   class M  -- 128 / 256 / 512 byte requests
-///   class L  -- 1024 / 2048 byte requests
-///   class XL -- anything larger
+/// Class set (bytes):
 ///
-/// One user page (HEAP_PAGE_SIZE bytes, fixed at 4096) is split into
-/// three (S, M) or two (L) fixed-size sub-regions, each dedicated to
-/// one of the class's sub-bin sizes. The exact split is laid out by
-/// the HEAP_*_OFFSET / HEAP_*_COUNT macros below and never changes.
+///   S  -- 16, 24, 32, 48, 64
+///   M  -- 80, 96, 128, 160, 192, 256, 384, 512
+///   L  -- 768, 1024, 1536, 2048
+///   XL -- anything larger (one page-aligned mmap per allocation)
 ///
-/// Class XL allocations occupy contiguous page-rounded mmap regions
-/// and are tracked one-per-allocation.
+/// HEAP_PAGE_SIZE is fixed at 4096. macOS-aarch64 has 16 KiB OS pages
+/// and asks PageAllocator for one OS page per grow; that mmap is then
+/// carved into HEAP_PAGES_PER_OS_PAGE heap pages, each with its own
+/// descriptor. The reclaim-when-empty path skips macOS-aarch64 for
+/// now (a heap page can't be returned without its mmap siblings).
+///
+/// Every per-page descriptor stores: page base, class index, in-use
+/// slot count, and a 256-bit bitmap (the widest any class needs).
+/// The "S/M/L" tier names are a documentation convenience; internally
+/// every descriptor is the same type and lives in a single sorted-by-
+/// address array, so free is one binary search regardless of class.
 
 #ifndef MISRA_STD_ALLOCATOR_HEAP_H
 #define MISRA_STD_ALLOCATOR_HEAP_H
@@ -43,82 +54,67 @@
 
 #define HEAP_ALLOCATOR_MAGIC MAKE_NEW_MAGIC_VALUE("heapallc")
 
-// --- Class S layout (16/32/64) -------------------------------------------
-// Three sub-regions, three separate bitmap fields.
-#define HEAP_S_16_OFFSET 0u
-#define HEAP_S_16_COUNT  64u
-#define HEAP_S_32_OFFSET 1024u
-#define HEAP_S_32_COUNT  32u
-#define HEAP_S_64_OFFSET 2048u
-#define HEAP_S_64_COUNT  32u
+// Number of S/M/L size classes. Indexed 0..HEAP_NUM_CLASSES-1.
+// XL is "class HEAP_NUM_CLASSES" by convention -- it has its own
+// descriptor type and its own array.
+#define HEAP_NUM_CLASSES 17u
 
-// --- Class M layout (128/256/512) ----------------------------------------
-// Three sub-regions packed into one u16 bitmap.
-#define HEAP_M_128_OFFSET 0u
-#define HEAP_M_128_COUNT  8u
-#define HEAP_M_128_SHIFT  0u
-#define HEAP_M_256_OFFSET 1024u
-#define HEAP_M_256_COUNT  4u
-#define HEAP_M_256_SHIFT  8u
-#define HEAP_M_512_OFFSET 2048u
-#define HEAP_M_512_COUNT  4u
-#define HEAP_M_512_SHIFT  12u
-
-// --- Class L layout (1024/2048) ------------------------------------------
-// Two sub-regions packed into one u8 bitmap.
-#define HEAP_L_1024_OFFSET 0u
-#define HEAP_L_1024_COUNT  2u
-#define HEAP_L_1024_SHIFT  0u
-#define HEAP_L_2048_OFFSET 2048u
-#define HEAP_L_2048_COUNT  1u
-#define HEAP_L_2048_SHIFT  2u
+// Max slots in any single class's page. The 16-byte class fits 256
+// slots in 4 KiB; bitmaps are sized to cover this and unused tail
+// bits are pre-set to 1 at descriptor init so ctz never reports them.
+#define HEAP_MAX_SLOTS_PER_PAGE 256u
+#define HEAP_BITMAP_WORDS       4u
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-    typedef struct HeapPageS {
-        void *page;      // user page; descriptor lives outside it
-        u64   bitmap_16; // 64 bits, 1 = in use
-        u32   bitmap_32; // 32 bits
-        u32   bitmap_64; // 32 bits
-    } HeapPageS;
-
-    typedef struct HeapPageM {
+    /// Per-heap-page descriptor. One per user page across every S/M/L
+    /// size class. Unified type keeps the per-class arrays from
+    /// multiplying. 48 bytes, naturally aligned for the u64 bitmap.
+    ///
+    /// FIELDS:
+    /// - page       : User page base (4 KiB-aligned within an OS page).
+    ///                Sort key for the allocator's descriptor array.
+    /// - bitmap     : Per-slot in-use mask, 1 bit per slot, LSB-first
+    ///                within each word. Unused tail bits (slots >=
+    ///                class slot count) are pre-set to 1 at insert
+    ///                time so the alloc-side ctz(~word) never finds
+    ///                them as free.
+    /// - used_count : Live slot count. Reclaim when 0 (and the class
+    ///                still has another warm page parked).
+    /// - class_idx  : Index into heap_class_size[] (0..HEAP_NUM_CLASSES-1).
+    typedef struct HeapPage {
         void *page;
-        u16   bitmap; // 8+4+4 bits packed by HEAP_M_*_SHIFT
-    } HeapPageM;
-
-    typedef struct HeapPageL {
-        void *page;
-        u8    bitmap; // 2+1 bits packed by HEAP_L_*_SHIFT
-    } HeapPageL;
+        u64   bitmap[HEAP_BITMAP_WORDS];
+        u16   used_count;
+        u8    class_idx;
+        u8    _pad;
+    } HeapPage;
 
     typedef struct HeapPageXL {
         void *page;
         u32   num_pages; // in HEAP_PAGE_SIZE units
     } HeapPageXL;
 
-    /// HeapAllocator carries four descriptor arrays (one per class).
-    /// Each array is page-backed via the embedded PageAllocator and
-    /// stays sorted by page address so free() can find the descriptor
-    /// for a given pointer in O(log N).
+    /// HeapAllocator carries one unified descriptor array for every
+    /// S/M/L page (sorted by page address for binary-search on free)
+    /// plus a separate XL array. `class_count` tracks how many pages
+    /// of each class are live, used by the reclaim path to keep one
+    /// warm page per class.
     struct HeapAllocator {
         Allocator     base;
         PageAllocator page;
 
-        HeapPageS  *s;
-        u32         s_len;
-        u32         s_cap;
-        HeapPageM  *m;
-        u32         m_len;
-        u32         m_cap;
-        HeapPageL  *l;
-        u32         l_len;
-        u32         l_cap;
+        HeapPage *pages;
+        u32       pages_len;
+        u32       pages_cap;
+
         HeapPageXL *xl;
         u32         xl_len;
         u32         xl_cap;
+
+        u32 class_count[HEAP_NUM_CLASSES];
     };
 
     void *heap_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
@@ -128,10 +124,10 @@ extern "C" {
 
     ///
     /// Release every user page and descriptor array owned by `self`,
-    /// across all four size classes (S/M/L/XL). The four descriptor
-    /// arrays themselves are also released through the embedded
-    /// `PageAllocator`, then the struct is zeroed so any post-deinit
-    /// dispatch trips `ValidateAllocator` on the cleared `__magic`.
+    /// across every size class. The descriptor arrays themselves are
+    /// also released through the embedded `PageAllocator`, then the
+    /// struct is zeroed so any post-deinit dispatch trips
+    /// `ValidateAllocator` on the cleared `__magic`.
     ///
     /// self[in,out] : HeapAllocator instance, or NULL.
     ///
@@ -148,6 +144,11 @@ extern "C" {
 }
 #endif
 
+// Designated init for the class_count[] array. Done as a macro so
+// init macros below stay readable. C99 allows omitted designators
+// for elements; everything not named here implicitly zero-initialises.
+#define HEAP_CLASS_COUNT_ZERO {0}
+
 #define HeapAllocatorInit()                                                                                            \
     ((HeapAllocator) {                                                                                                 \
         .base =                                                                                                        \
@@ -159,19 +160,14 @@ extern "C" {
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
                    .__magic     = HEAP_ALLOCATOR_MAGIC},                                                                         \
-        .page   = PageAllocatorInit(),                                                                                 \
-        .s      = NULL,                                                                                                \
-        .s_len  = 0,                                                                                                   \
-        .s_cap  = 0,                                                                                                   \
-        .m      = NULL,                                                                                                \
-        .m_len  = 0,                                                                                                   \
-        .m_cap  = 0,                                                                                                   \
-        .l      = NULL,                                                                                                \
-        .l_len  = 0,                                                                                                   \
-        .l_cap  = 0,                                                                                                   \
-        .xl     = NULL,                                                                                                \
-        .xl_len = 0,                                                                                                   \
-        .xl_cap = 0                                                                                                    \
+        .page        = PageAllocatorInit(),                                                                            \
+        .pages       = NULL,                                                                                           \
+        .pages_len   = 0,                                                                                              \
+        .pages_cap   = 0,                                                                                              \
+        .xl          = NULL,                                                                                           \
+        .xl_len      = 0,                                                                                              \
+        .xl_cap      = 0,                                                                                              \
+        .class_count = HEAP_CLASS_COUNT_ZERO                                                                           \
     })
 
 #define HeapAllocatorInitAligned(N)                                                                                    \
@@ -185,19 +181,14 @@ extern "C" {
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
                    .__magic     = HEAP_ALLOCATOR_MAGIC},                                                                         \
-        .page   = PageAllocatorInit(),                                                                                 \
-        .s      = NULL,                                                                                                \
-        .s_len  = 0,                                                                                                   \
-        .s_cap  = 0,                                                                                                   \
-        .m      = NULL,                                                                                                \
-        .m_len  = 0,                                                                                                   \
-        .m_cap  = 0,                                                                                                   \
-        .l      = NULL,                                                                                                \
-        .l_len  = 0,                                                                                                   \
-        .l_cap  = 0,                                                                                                   \
-        .xl     = NULL,                                                                                                \
-        .xl_len = 0,                                                                                                   \
-        .xl_cap = 0                                                                                                    \
+        .page        = PageAllocatorInit(),                                                                            \
+        .pages       = NULL,                                                                                           \
+        .pages_len   = 0,                                                                                              \
+        .pages_cap   = 0,                                                                                              \
+        .xl          = NULL,                                                                                           \
+        .xl_len      = 0,                                                                                              \
+        .xl_cap      = 0,                                                                                              \
+        .class_count = HEAP_CLASS_COUNT_ZERO                                                                           \
     })
 
 #endif // MISRA_STD_ALLOCATOR_HEAP_H

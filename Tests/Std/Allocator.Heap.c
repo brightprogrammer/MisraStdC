@@ -146,14 +146,13 @@ static bool test_free_then_alloc_recycles(void) {
 }
 
 static bool test_fill_class_grows_new_page(void) {
-    // Class S/32 holds HEAP_S_32_COUNT slots per heap page. One mmap
-    // grow creates HEAP_PAGES_PER_OS_PAGE descriptors, so the first
-    // allocation provisions HEAP_PAGES_PER_OS_PAGE × HEAP_S_32_COUNT
-    // 32-byte slots total. Allocating one more than that must trigger
-    // a second mmap-grow and produce > HEAP_PAGES_PER_OS_PAGE
-    // descriptors.
+    // A 32 B page holds 4096/32 = 128 slots. One mmap grow creates
+    // HEAP_PAGES_PER_OS_PAGE descriptors, so the first allocation
+    // provisions HEAP_PAGES_PER_OS_PAGE * 128 slots total. Allocating
+    // one more than that must trigger a second mmap-grow.
     enum {
-        N = HEAP_PAGES_PER_OS_PAGE * HEAP_S_32_COUNT + 1
+        SLOTS_PER_32_PAGE = 4096u / 32u,
+        N = HEAP_PAGES_PER_OS_PAGE * SLOTS_PER_32_PAGE + 1
     };
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
@@ -169,9 +168,9 @@ static bool test_fill_class_grows_new_page(void) {
         if (!ptrs[i])
             ok = false;
     }
-    // s_len must be > one batch worth of descriptors -> a second
+    // pages_len must be > one batch worth of descriptors -> a second
     // mmap-grow definitely happened.
-    ok = ok && (heap.s_len > HEAP_PAGES_PER_OS_PAGE);
+    ok = ok && (heap.pages_len > HEAP_PAGES_PER_OS_PAGE);
 
     for (u32 i = 0; i < N; i++) {
         if (ptrs[i])
@@ -202,8 +201,11 @@ static bool test_alloc_across_every_sub_bin(void) {
                 ok = false;
         }
     }
-    // All four classes must have at least one descriptor.
-    ok = ok && (heap.s_len >= 1) && (heap.m_len >= 1) && (heap.l_len >= 1);
+    // Pages list now mixes S/M/L; each of the 8 sizes lands in a
+    // distinct class so the unified pages array has >= 8 descriptors
+    // after the loop (and possibly more if HEAP_PAGES_PER_OS_PAGE > 1
+    // since each grow creates that many siblings).
+    ok = ok && (heap.pages_len >= 8u);
 
     for (u32 i = 0; i < 8; i++) {
         if (ptrs[i])
@@ -255,11 +257,13 @@ static bool test_realloc_same_bin_keeps_pointer(void) {
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
 
-    char *p  = (char *)AllocatorAlloc(alloc, 24, true);
+    // 28 and 30 both round up to the 32-byte class in the current
+    // bin layout, so realloc must succeed in place.
+    char *p  = (char *)AllocatorAlloc(alloc, 28, true);
     bool  ok = (p != NULL);
     if (ok) {
         p[0]        = 'x';
-        char *grown = (char *)AllocatorRealloc(alloc, p, 28);
+        char *grown = (char *)AllocatorRealloc(alloc, p, 30);
         ok          = (grown == p) && (grown[0] == 'x');
         AllocatorFree(alloc, grown);
     }
@@ -297,7 +301,8 @@ static bool test_independent_heaps(void) {
 
     void *a  = AllocatorAlloc(alloc1, 32, true);
     void *b  = AllocatorAlloc(alloc2, 32, true);
-    bool  ok = (a != NULL) && (b != NULL) && (a != b) && (h1.s != h2.s) && (h1.s_len > 0) && (h2.s_len > 0);
+    bool  ok = (a != NULL) && (b != NULL) && (a != b) && (h1.pages != h2.pages) && (h1.pages_len > 0) &&
+               (h2.pages_len > 0);
 
     AllocatorFree(alloc1, a);
     AllocatorFree(alloc2, b);
