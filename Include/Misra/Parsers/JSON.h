@@ -215,9 +215,9 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_STR(si, str)                                                                                                \
     do {                                                                                                               \
-        Str my_str = StrInit();                                                                                        \
-        si         = JReadString((si), &my_str);                                                                       \
-        (str)      = my_str;                                                                                           \
+        Str UNPL(my_str) = StrInit();                                                                                  \
+        si               = JReadString((si), &UNPL(my_str));                                                           \
+        (str)            = UNPL(my_str);                                                                               \
     } while (0)
 
 ///
@@ -238,9 +238,9 @@ StrIter JSkipValue(StrIter si);
 #define JR_STR_KV(si, k, str)                                                                                          \
     do {                                                                                                               \
         if (!StrCmpZstr(&key, (k))) {                                                                                  \
-            Str my_str = StrInit();                                                                                    \
-            si         = JReadString((si), &my_str);                                                                   \
-            (str)      = my_str;                                                                                       \
+            Str UNPL(my_str) = StrInit();                                                                              \
+            si               = JReadString((si), &UNPL(my_str));                                                       \
+            (str)            = UNPL(my_str);                                                                           \
         }                                                                                                              \
     } while (0)
 
@@ -260,9 +260,9 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_INT(si, i)                                                                                                  \
     do {                                                                                                               \
-        i64 my_int = 0;                                                                                                \
-        si         = JReadInteger((si), &my_int);                                                                      \
-        (i)        = my_int;                                                                                           \
+        i64 UNPL(my_int) = 0;                                                                                          \
+        si               = JReadInteger((si), &UNPL(my_int));                                                          \
+        (i)              = UNPL(my_int);                                                                               \
     } while (0)
 
 ///
@@ -283,9 +283,9 @@ StrIter JSkipValue(StrIter si);
 #define JR_INT_KV(si, k, i)                                                                                            \
     do {                                                                                                               \
         if (!StrCmpZstr(&key, (k))) {                                                                                  \
-            i64 my_int = 0;                                                                                            \
-            si         = JReadInteger((si), &my_int);                                                                  \
-            (i)        = my_int;                                                                                       \
+            i64 UNPL(my_int) = 0;                                                                                      \
+            si               = JReadInteger((si), &UNPL(my_int));                                                      \
+            (i)              = UNPL(my_int);                                                                           \
         }                                                                                                              \
     } while (0)
 
@@ -305,9 +305,9 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_FLT(si, f)                                                                                                  \
     do {                                                                                                               \
-        f64 my_flt = 0;                                                                                                \
-        si         = JReadFloat((si), &my_flt);                                                                        \
-        (f)        = my_flt;                                                                                           \
+        f64 UNPL(my_flt) = 0;                                                                                          \
+        si               = JReadFloat((si), &UNPL(my_flt));                                                            \
+        (f)              = UNPL(my_flt);                                                                               \
     } while (0)
 
 ///
@@ -328,9 +328,9 @@ StrIter JSkipValue(StrIter si);
 #define JR_FLT_KV(si, k, f)                                                                                            \
     do {                                                                                                               \
         if (!StrCmpZstr(&key, (k))) {                                                                                  \
-            f64 my_flt = 0;                                                                                            \
-            si         = JReadFloat((si), &my_flt);                                                                    \
-            (f)        = my_flt;                                                                                       \
+            f64 UNPL(my_flt) = 0;                                                                                      \
+            si               = JReadFloat((si), &UNPL(my_flt));                                                        \
+            (f)              = UNPL(my_flt);                                                                           \
         }                                                                                                              \
     } while (0)
 
@@ -350,9 +350,9 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_BOOL(si, b)                                                                                                 \
     do {                                                                                                               \
-        bool my_b = 0;                                                                                                 \
-        si        = JReadBool((si), &my_b);                                                                            \
-        (b)       = my_b;                                                                                              \
+        bool UNPL(my_b) = 0;                                                                                           \
+        si              = JReadBool((si), &UNPL(my_b));                                                                \
+        (b)             = UNPL(my_b);                                                                                  \
     } while (0)
 
 ///
@@ -373,9 +373,9 @@ StrIter JSkipValue(StrIter si);
 #define JR_BOOL_KV(si, k, b)                                                                                           \
     do {                                                                                                               \
         if (!StrCmpZstr(&key, (k))) {                                                                                  \
-            bool my_b = 0;                                                                                             \
-            si        = JReadBool((si), &my_b);                                                                        \
-            (b)       = my_b;                                                                                          \
+            bool UNPL(my_b) = 0;                                                                                       \
+            si              = JReadBool((si), &UNPL(my_b));                                                            \
+            (b)             = UNPL(my_b);                                                                              \
         }                                                                                                              \
     } while (0)
 
@@ -409,29 +409,29 @@ StrIter JSkipValue(StrIter si);
             break;                                                                                                     \
         }                                                                                                              \
                                                                                                                        \
-        StrIter saved_si = si;                                                                                         \
-        si               = JSkipWhitespace(si);                                                                        \
+        StrIter UNPL(saved_si) = si;                                                                                   \
+        si                     = JSkipWhitespace(si);                                                                  \
                                                                                                                        \
         /* starting of an array */                                                                                     \
-        char jr_c;                                                                                                     \
-        if (!StrIterPeek(&si, &jr_c) || jr_c != '[') {                                                                 \
+        char UNPL(jr_c);                                                                                               \
+        if (!StrIterPeek(&si, &UNPL(jr_c)) || UNPL(jr_c) != '[') {                                                     \
             LOG_ERROR("Invalid array start. Expected '['.");                                                           \
-            si = saved_si;                                                                                             \
+            si = UNPL(saved_si);                                                                                       \
             break;                                                                                                     \
         }                                                                                                              \
         StrIterMustNext(&si);                                                                                          \
         si = JSkipWhitespace(si);                                                                                      \
                                                                                                                        \
-        bool expect_comma = false;                                                                                     \
-        bool failed       = false;                                                                                     \
+        bool UNPL(expect_comma) = false;                                                                               \
+        bool UNPL(failed)       = false;                                                                               \
                                                                                                                        \
         /* while not at the end of array. */                                                                           \
-        while (StrIterPeek(&si, &jr_c) && jr_c != ']') {                                                               \
-            if (expect_comma) {                                                                                        \
-                if (jr_c != ',') {                                                                                     \
+        while (StrIterPeek(&si, &UNPL(jr_c)) && UNPL(jr_c) != ']') {                                                   \
+            if (UNPL(expect_comma)) {                                                                                  \
+                if (UNPL(jr_c) != ',') {                                                                               \
                     LOG_ERROR("Expected ',' between values in array. Invalid JSON array.");                            \
-                    failed = true;                                                                                     \
-                    si     = saved_si;                                                                                 \
+                    UNPL(failed) = true;                                                                               \
+                    si           = UNPL(saved_si);                                                                     \
                     break;                                                                                             \
                 }                                                                                                      \
                 StrIterMustNext(&si); /* skip comma */                                                                 \
@@ -439,36 +439,36 @@ StrIter JSkipValue(StrIter si);
             }                                                                                                          \
                                                                                                                        \
             /* try reading using user provided reader */                                                               \
-            StrIter si_before_read = si;                                                                               \
+            StrIter UNPL(si_before_read) = si;                                                                         \
             { reader }                                                                                                 \
                                                                                                                        \
             /* if no advancement in read position */                                                                   \
-            if (si_before_read.pos == si.pos) {                                                                        \
+            if (UNPL(si_before_read).pos == si.pos) {                                                                  \
                 /* skip the value */                                                                                   \
-                StrIter read_si = JSkipValue(si);                                                                      \
+                StrIter UNPL(read_si) = JSkipValue(si);                                                                \
                                                                                                                        \
                 /* if still no advancement in read position */                                                         \
-                if (read_si.pos == si.pos) {                                                                           \
+                if (UNPL(read_si).pos == si.pos) {                                                                     \
                     LOG_ERROR("Failed to parse value. Invalid JSON.");                                                 \
                     StrDeinit(&key);                                                                                   \
-                    failed = true;                                                                                     \
-                    si     = saved_si;                                                                                 \
+                    UNPL(failed) = true;                                                                               \
+                    si           = UNPL(saved_si);                                                                     \
                     break;                                                                                             \
                 }                                                                                                      \
-                si = read_si;                                                                                          \
+                si = UNPL(read_si);                                                                                    \
             }                                                                                                          \
             si = JSkipWhitespace(si);                                                                                  \
                                                                                                                        \
             /* expect a comma after a successful value read in array */                                                \
-            expect_comma = true;                                                                                       \
+            UNPL(expect_comma) = true;                                                                                 \
         }                                                                                                              \
                                                                                                                        \
         /* end of array */                                                                                             \
-        if (!failed) {                                                                                                 \
-            if (!StrIterPeek(&si, &jr_c) || jr_c != ']') {                                                             \
+        if (!UNPL(failed)) {                                                                                           \
+            if (!StrIterPeek(&si, &UNPL(jr_c)) || UNPL(jr_c) != ']') {                                                 \
                 LOG_ERROR("Invalid end of array. Expected ']'.");                                                      \
-                failed = true;                                                                                         \
-                si     = saved_si;                                                                                     \
+                UNPL(failed) = true;                                                                                   \
+                si           = UNPL(saved_si);                                                                         \
                 break;                                                                                                 \
             }                                                                                                          \
                                                                                                                        \
@@ -496,36 +496,40 @@ StrIter JSkipValue(StrIter si);
 ///
 /// TAGS: JSON, Macro, Reader, Object
 ///
+// Cross-macro convention: `key` is intentionally NOT UNPL-wrapped. The
+// inner JR_*_KV macros expanded by `reader` reference `&key` directly,
+// so the name has to be reachable across macro boundaries. Don't rename
+// it without updating every JR_*_KV macro to take the key as an arg.
 #define JR_OBJ(si, reader)                                                                                             \
     do {                                                                                                               \
         if (!StrIterRemainingLength(&si)) {                                                                            \
             break;                                                                                                     \
         }                                                                                                              \
                                                                                                                        \
-        StrIter saved_si = si;                                                                                         \
-        si               = JSkipWhitespace(si);                                                                        \
+        StrIter UNPL(saved_si) = si;                                                                                   \
+        si                     = JSkipWhitespace(si);                                                                  \
                                                                                                                        \
         /* starting of an object */                                                                                    \
-        char jr_c;                                                                                                     \
-        if (!StrIterPeek(&si, &jr_c) || jr_c != '{') {                                                                 \
+        char UNPL(jr_c);                                                                                               \
+        if (!StrIterPeek(&si, &UNPL(jr_c)) || UNPL(jr_c) != '{') {                                                     \
             LOG_ERROR("Invalid object start. Expected '{'.");                                                          \
-            si = saved_si;                                                                                             \
+            si = UNPL(saved_si);                                                                                       \
             break;                                                                                                     \
         }                                                                                                              \
         StrIterMustNext(&si);                                                                                          \
         si = JSkipWhitespace(si);                                                                                      \
                                                                                                                        \
-        StrIter read_si;                                                                                               \
-        bool    expect_comma = false;                                                                                  \
-        bool    failed       = false;                                                                                  \
+        StrIter UNPL(read_si);                                                                                         \
+        bool    UNPL(expect_comma) = false;                                                                            \
+        bool    UNPL(failed)       = false;                                                                            \
                                                                                                                        \
         /* while not at the end of object. */                                                                          \
-        while (StrIterPeek(&si, &jr_c) && jr_c != '}') {                                                               \
-            if (expect_comma) {                                                                                        \
-                if (jr_c != ',') {                                                                                     \
+        while (StrIterPeek(&si, &UNPL(jr_c)) && UNPL(jr_c) != '}') {                                                   \
+            if (UNPL(expect_comma)) {                                                                                  \
+                if (UNPL(jr_c) != ',') {                                                                               \
                     LOG_ERROR("Expected ',' after key/value pairs in object. Invalid JSON object.");                   \
-                    failed = true;                                                                                     \
-                    si     = saved_si;                                                                                 \
+                    UNPL(failed) = true;                                                                               \
+                    si           = UNPL(saved_si);                                                                     \
                     break;                                                                                             \
                 }                                                                                                      \
                 StrIterMustNext(&si); /* skip comma */                                                                 \
@@ -536,24 +540,24 @@ StrIter JSkipValue(StrIter si);
             Str key = StrInit();                                                                                       \
                                                                                                                        \
             /* key start */                                                                                            \
-            read_si = JReadString(si, &key);                                                                           \
-            if (read_si.pos == si.pos) {                                                                               \
+            UNPL(read_si) = JReadString(si, &key);                                                                     \
+            if (UNPL(read_si).pos == si.pos) {                                                                         \
                 LOG_ERROR("Failed to read string key in object. Invalid JSON");                                        \
                 StrDeinit(&key);                                                                                       \
-                failed = true;                                                                                         \
-                si     = saved_si;                                                                                     \
+                UNPL(failed) = true;                                                                                   \
+                si           = UNPL(saved_si);                                                                         \
                 break;                                                                                                 \
             }                                                                                                          \
                                                                                                                        \
-            si = read_si;                                                                                              \
+            si = UNPL(read_si);                                                                                        \
             si = JSkipWhitespace(si);                                                                                  \
                                                                                                                        \
                                                                                                                        \
-            if (!StrIterPeek(&si, &jr_c) || jr_c != ':') {                                                             \
+            if (!StrIterPeek(&si, &UNPL(jr_c)) || UNPL(jr_c) != ':') {                                                 \
                 LOG_ERROR("Expected ':' after key string. Failed to read JSON");                                       \
                 StrDeinit(&key);                                                                                       \
-                failed = true;                                                                                         \
-                si     = saved_si;                                                                                     \
+                UNPL(failed) = true;                                                                                   \
+                si           = UNPL(saved_si);                                                                         \
                 break;                                                                                                 \
             }                                                                                                          \
             StrIterMustNext(&si);                                                                                      \
@@ -561,40 +565,40 @@ StrIter JSkipValue(StrIter si);
                                                                                                                        \
                                                                                                                        \
             /* try reading using user provided reader */                                                               \
-            StrIter si_before_read = si;                                                                               \
+            StrIter UNPL(si_before_read) = si;                                                                         \
             { reader }                                                                                                 \
                                                                                                                        \
             /* if no advancement in read position */                                                                   \
-            if (si_before_read.pos == si.pos) {                                                                        \
+            if (UNPL(si_before_read).pos == si.pos) {                                                                  \
                 /* skip the value */                                                                                   \
-                StrIter read_si = JSkipValue(si);                                                                      \
+                UNPL(read_si) = JSkipValue(si);                                                                        \
                                                                                                                        \
                                                                                                                        \
                 /* if still no advancement in read position */                                                         \
-                if (read_si.pos == si.pos) {                                                                           \
+                if (UNPL(read_si).pos == si.pos) {                                                                     \
                     LOG_ERROR("Failed to parse value. Invalid JSON.");                                                 \
                     StrDeinit(&key);                                                                                   \
-                    failed = true;                                                                                     \
-                    si     = saved_si;                                                                                 \
+                    UNPL(failed) = true;                                                                               \
+                    si           = UNPL(saved_si);                                                                     \
                     break;                                                                                             \
                 }                                                                                                      \
                                                                                                                        \
                 LOG_INFO("User skipped reading of '{}' field in JSON object.", key);                                   \
-                si = read_si;                                                                                          \
+                si = UNPL(read_si);                                                                                    \
             }                                                                                                          \
             StrDeinit(&key);                                                                                           \
             si = JSkipWhitespace(si);                                                                                  \
                                                                                                                        \
                                                                                                                        \
             /* expect a comma after a successful key-value pair read */                                                \
-            expect_comma = true;                                                                                       \
+            UNPL(expect_comma) = true;                                                                                 \
         }                                                                                                              \
                                                                                                                        \
-        if (!failed) {                                                                                                 \
-            if (!StrIterPeek(&si, &jr_c) || jr_c != '}') {                                                             \
-                LOG_ERROR("Expected end of object '}' but found '{c}'", jr_c);                                         \
-                failed = true;                                                                                         \
-                si     = saved_si;                                                                                     \
+        if (!UNPL(failed)) {                                                                                           \
+            if (!StrIterPeek(&si, &UNPL(jr_c)) || UNPL(jr_c) != '}') {                                                 \
+                LOG_ERROR("Expected end of object '}' but found '{c}'", UNPL(jr_c));                                   \
+                UNPL(failed) = true;                                                                                   \
+                si           = UNPL(saved_si);                                                                         \
                 break;                                                                                                 \
             }                                                                                                          \
                                                                                                                        \
@@ -669,6 +673,10 @@ StrIter JSkipValue(StrIter si);
 ///
 /// TAGS: JSON, Macro, Writer, Object, Structure
 ///
+// Cross-macro convention: `___is_first___` is intentionally NOT
+// UNPL-wrapped. The inner JW_*_KV macros toggle it to decide whether
+// to emit a leading comma between entries. Don't rename it without
+// updating every JW_*_KV macro that reads it.
 #define JW_OBJ(j, writer)                                                                                              \
     do {                                                                                                               \
         bool ___is_first___ = true;                                                                                    \
