@@ -173,6 +173,38 @@ static void heap_remove_at(void *arr, u32 *len_ptr, u32 idx, u32 entry_size) {
     *len_ptr -= 1;
 }
 
+// Reclaim a now-empty heap page: hand the user page back to
+// PageAllocator and remove the descriptor at `idx` from the per-class
+// sorted array. Only safe when HEAP_PAGES_PER_OS_PAGE == 1; otherwise
+// the user page is one of several sub-pages in a single PageAllocator
+// mmap and we'd have to wait for all siblings before freeing the
+// underlying mmap. Linux, Windows, and macOS-x86_64 all hit the
+// single-page branch; macOS-aarch64 (16 KiB OS pages, 4 heap pages
+// each) falls through and keeps the page until Deinit, same behaviour
+// as before this change.
+//
+// Guard: keep at least one descriptor per class so the next alloc of
+// that class doesn't have to mmap a fresh page. Without this guard a
+// workload that hovers near "single page worth of slots, freeing and
+// re-allocating" would churn one Heap page through PageAllocator on
+// every cycle. With the guard the page stays parked, gets a free slot,
+// gets a new alloc -- O(1).
+//
+// Caller has already cleared the freed bit and verified all sub-bin
+// bitmaps in `*d` are zero. `arr / arr_len / entry_size` describe the
+// per-class descriptor array so the helper can drive heap_remove_at
+// without per-class duplication.
+#if HEAP_PAGES_PER_OS_PAGE == 1u
+static FORCE_INLINE void heap_reclaim_empty_page(HeapAllocator *heap, void *user_page, void *arr, u32 *arr_len,
+                                                 u32 entry_size, u32 idx) {
+    if (*arr_len <= 1u) {
+        return; // keep one warm page per class
+    }
+    AllocatorFree(&heap->page.base, user_page);
+    heap_remove_at(arr, arr_len, idx, entry_size);
+}
+#endif
+
 static u32 heap_find_by_page(const void *arr, u32 len, u32 entry_size, void *page_addr) {
     const char *base = (const char *)arr;
     u64         key  = (u64)page_addr;
@@ -333,21 +365,29 @@ static void heap_free_s(HeapAllocator *heap, void *ptr, u32 slot_size, u32 idx) 
             return;
         }
         d->bitmap_16 &= ~((u64)1 << bit);
-        return;
-    }
-    if (slot_size == 32) {
+    } else if (slot_size == 32) {
         if (!(d->bitmap_32 & ((u32)1 << bit))) {
             LOG_FATAL("heap_free: double-free of {x} (S/32 bit {})", (u64)ptr, (u64)bit);
             return;
         }
         d->bitmap_32 &= ~((u32)1 << bit);
-        return;
+    } else {
+        if (!(d->bitmap_64 & ((u32)1 << bit))) {
+            LOG_FATAL("heap_free: double-free of {x} (S/64 bit {})", (u64)ptr, (u64)bit);
+            return;
+        }
+        d->bitmap_64 &= ~((u32)1 << bit);
     }
-    if (!(d->bitmap_64 & ((u32)1 << bit))) {
-        LOG_FATAL("heap_free: double-free of {x} (S/64 bit {})", (u64)ptr, (u64)bit);
-        return;
+    // If every sub-bin in this page is now empty, return the page to
+    // PageAllocator so a later S/M/L grow (any class) can pick it up.
+    // Without this the page stays parked in the S array even if it
+    // never gets another slot allocated -- the source of most of the
+    // Lifetime mix bench's 12x footprint.
+#if HEAP_PAGES_PER_OS_PAGE == 1u
+    if (d->bitmap_16 == 0u && d->bitmap_32 == 0u && d->bitmap_64 == 0u) {
+        heap_reclaim_empty_page(heap, d->page, heap->s, &heap->s_len, sizeof(HeapPageS), idx);
     }
-    d->bitmap_64 &= ~((u32)1 << bit);
+#endif
 }
 
 // =============================================================================
@@ -452,6 +492,11 @@ static void heap_free_m(HeapAllocator *heap, void *ptr, u32 slot_size, u32 idx) 
         return;
     }
     d->bitmap &= (u16)~mask;
+#if HEAP_PAGES_PER_OS_PAGE == 1u
+    if (d->bitmap == 0u) {
+        heap_reclaim_empty_page(heap, d->page, heap->m, &heap->m_len, sizeof(HeapPageM), idx);
+    }
+#endif
 }
 
 // =============================================================================
@@ -548,6 +593,11 @@ static void heap_free_l(HeapAllocator *heap, void *ptr, u32 slot_size, u32 idx) 
         return;
     }
     d->bitmap &= (u8)~mask;
+#if HEAP_PAGES_PER_OS_PAGE == 1u
+    if (d->bitmap == 0u) {
+        heap_reclaim_empty_page(heap, d->page, heap->l, &heap->l_len, sizeof(HeapPageL), idx);
+    }
+#endif
 }
 
 // =============================================================================
