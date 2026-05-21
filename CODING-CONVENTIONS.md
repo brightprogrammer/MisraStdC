@@ -116,6 +116,22 @@ of the codebase to see them in action.
   ones. Direct field access is reserved for the container's own
   implementation.
 
+## Macro hygiene
+
+- **Any macro-local temporary that lives in the caller's scope must be
+  named with `UNPL(base)`** (`<Misra/Types.h>`). This applies to every
+  macro, not just `for`-chain foreach helpers: swap scratch slots,
+  saved pointers, range bounds, single-shot guards, anything the macro
+  introduces that the caller might also have named. `UNPL` pastes
+  `__LINE__` onto the base so each expansion gets a fresh identifier;
+  without it, a macro that declares `tmp` will collide with a caller's
+  own `tmp` and silently shadow it, or break compilation in the lucky
+  cases.
+- Names the caller passes in (loop variable, index variable, output
+  parameter) are part of the macro's contract — those stay as-is.
+  `UNPL` is only for identifiers the macro mints for its own
+  bookkeeping.
+
 ## Sub-range iteration
 
 - Use `BufIter` (or the generic `Iter(T)`) for cursor-style reads.
