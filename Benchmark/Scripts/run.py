@@ -72,6 +72,21 @@ BENCHMARK_FILTERS = {
     #     bound. These are workloads arena isn't built for; the table
     #     shows n/a for arena on those rows.
     "misra-arena": "BM_(AllocFreePair|AllocTouchFree|ArenaBumpReset|ReallocGrow)",
+
+    # PageAllocator's contract is "one mmap per alloc, page-rounded".
+    # Testing it on sub-page allocations measures mmap dispatch + the
+    # rounding waste (a 64 B request gets a whole 4 KiB page), not
+    # anything a real PageAllocator user would see. Restrict to the
+    # benches where page-granular requests actually make sense:
+    #   AllocFreePair at page sizes and up.
+    #   AllocTouchFree at page sizes and up.
+    # Excluded:
+    #   BatchAllocFree / MixedPareto / ReallocGrow / ArenaBumpReset /
+    #   AllocFreePair sub-page / AllocTouchFree sub-page / Frag_* --
+    #   all sub-page or many-live-allocs workloads that would have a
+    #   real user reach for Heap or Slab instead. Same framing as the
+    #   arena filter above: specialised backend, specialised workload.
+    "misra-page":  "BM_AllocFreePair/(4096|16384|65536)$|BM_AllocTouchFree/(4096|65536)$",
 }
 
 # Per-test column groups. Each entry: (template-placeholder, list of

@@ -10,12 +10,12 @@ Single alloc/free pair, 16 B:
 
 | backend | time |
 |---|---:|
-| tcmalloc           | 3.6 ns |
-| glibc              | 4.9 ns |
+| tcmalloc           | 3.4 ns |
+| glibc              | 4.6 ns |
 | jemalloc           | 3.6 ns |
-| mimalloc           | 7.3 ns |
-| misra (Heap only)  | 18.7 ns |
-| misra-correct (Slab) | 15.3 ns |
+| mimalloc           | 7.2 ns |
+| misra (Heap only)  | 17.6 ns |
+| misra-correct (Slab) | 14.3 ns |
 
 ## Timing
 
@@ -25,13 +25,13 @@ One `alloc(size)` immediately followed by `free(ptr)`, repeated. Hot reuse — t
 
 | benchmark | glibc | jemalloc | mimalloc | tcmalloc | misra | misra-correct | misra-arena | misra-page |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| 16 B | 4.9 | 3.6 | 7.3 | 3.6 | 18.7 | 15.3 | 11.5 | 19.1 |
-| 64 B | 4.7 | 3.7 | 7.4 | 3.5 | 19.2 | 15.5 | 11.5 | 18.9 |
-| 256 B | 4.6 | 4.1 | 9.2 | 3.5 | 19.2 | 14.9 | 11.6 | 18.9 |
-| 1 KiB | 4.6 | 5.8 | 10.9 | 3.5 | 19.9 | 14.9 | 11.6 | 18.8 |
-| 4 KiB | 15.8 | 11.0 | 12.2 | 3.7 | 77.6 | 14.9 | 11.5 | 18.7 |
-| 16 KiB | 16.0 | 18.7 | 20.6 | 3.7 | 80.9 | 44.1 | 11.5 | 18.9 |
-| 64 KiB | 16.1 | 270.8 | 20.5 | 3.8 | 82.6 | 44.8 | 11.7 | 18.8 |
+| 16 B | 4.6 | 3.6 | 7.2 | 3.4 | 17.6 | 14.3 | 11.4 | n/a |
+| 64 B | 4.6 | 3.8 | 7.2 | 3.4 | 18.3 | 14.3 | 11.3 | n/a |
+| 256 B | 4.7 | 4.2 | 9.1 | 3.5 | 18.3 | 14.3 | 11.4 | n/a |
+| 1 KiB | 4.8 | 5.9 | 10.4 | 8.6 | 18.9 | 14.3 | 11.4 | n/a |
+| 4 KiB | 16.2 | 10.8 | 11.8 | 3.6 | 74.6 | 14.3 | 11.4 | 18.6 |
+| 16 KiB | 15.3 | 18.4 | 20.2 | 3.6 | 77.5 | 42.7 | 11.4 | 18.4 |
+| 64 KiB | 15.4 | 265.4 | 20.1 | 3.7 | 77.3 | 42.7 | 11.1 | 18.2 |
 
 _Values in ns._
 
@@ -41,9 +41,9 @@ _Values in ns._
 
 | benchmark | glibc | jemalloc | mimalloc | tcmalloc | misra | misra-correct | misra-arena | misra-page |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| 128 × 64 B | 1.0 | 1.0 | 0.7 | 0.5 | 2.7 | 2.1 | n/a | 66.3 |
-| 1024 × 64 B | 8.3 | 11.4 | 5.7 | 4.0 | 25.2 | 22.6 | n/a | 3800.4 |
-| 8192 × 64 B | 67.3 | 92.4 | 52.0 | 39.9 | 346.1 | 464.3 | n/a | 241868.1 |
+| 128 × 64 B | 1.0 | 1.0 | 0.7 | 0.5 | 2.5 | 2.0 | n/a | n/a |
+| 1024 × 64 B | 8.0 | 11.0 | 5.4 | 3.8 | 23.9 | 21.2 | n/a | n/a |
+| 8192 × 64 B | 63.9 | 90.0 | 50.3 | 39.1 | 335.0 | 443.8 | n/a | n/a |
 
 _Values in us._
 
@@ -53,9 +53,9 @@ Same shape as the pair test but writes every byte of the allocation before freei
 
 | benchmark | glibc | jemalloc | mimalloc | tcmalloc | misra | misra-correct | misra-arena | misra-page |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| 64 B | 5.0 | 4.7 | 8.5 | 4.5 | 24.7 | 18.0 | 14.1 | 21.2 |
-| 4 KiB | 27.7 | 23.1 | 27.6 | 20.3 | 894.7 | 48.1 | 67.2 | 52.5 |
-| 64 KiB | 860.8 | 1068.6 | 863.6 | 841.9 | 1124.8 | 880.1 | 1131.1 | 858.9 |
+| 64 B | 4.8 | 4.6 | 8.1 | 4.4 | 24.3 | 16.9 | 13.9 | n/a |
+| 4 KiB | 37.3 | 24.3 | 26.7 | 19.8 | 857.5 | 46.6 | 65.8 | 50.5 |
+| 64 KiB | 856.2 | 1055.4 | 862.7 | 841.8 | 1110.0 | 861.9 | 1135.9 | 850.6 |
 
 _Values in ns._
 
@@ -65,7 +65,7 @@ _Values in ns._
 
 | benchmark | glibc | jemalloc | mimalloc | tcmalloc | misra | misra-correct | misra-arena | misra-page |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Pareto(1.16, 24) | 28.8 | 11.8 | 13.6 | 12.1 | 46.8 | 44.5 | n/a | 858.8 |
+| Pareto(1.16, 24) | 28.2 | 11.4 | 13.4 | 11.8 | 45.3 | 42.8 | n/a | n/a |
 
 _Values in us._
 
@@ -75,7 +75,7 @@ Geometric realloc ladder from 8 B up to 1 MiB. Time per full ladder, lower is be
 
 | benchmark | glibc | jemalloc | mimalloc | tcmalloc | misra | misra-correct | misra-arena | misra-page |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| 8 B → 1 MiB | 5248.8 | 4279.4 | 17154.3 | 15153.7 | 19803.7 | 19334.9 | 138.9 | 52918.8 |
+| 8 B → 1 MiB | 3316.4 | 3757.2 | 17018.6 | 15114.2 | 19284.8 | 18675.9 | 130.3 | n/a |
 
 _Values in ns._
 
@@ -85,9 +85,9 @@ Allocate N small (32 B) objects, then release them all. Arena does this as one O
 
 | benchmark | glibc | jemalloc | mimalloc | tcmalloc | misra | misra-correct | misra-arena | misra-page |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| 128 × 32 B | 1.0 | 0.5 | 0.7 | 0.5 | 3.1 | 2.6 | 0.8 | 257.1 |
-| 1024 × 32 B | 8.5 | 9.8 | 5.0 | 3.9 | 31.0 | 27.6 | 6.4 | 3087.2 |
-| 8192 × 32 B | 72.7 | 84.7 | 47.0 | 32.3 | 317.0 | 308.3 | 51.2 | 168137.7 |
+| 128 × 32 B | 0.9 | 0.5 | 0.6 | 0.5 | 2.4 | 2.6 | 0.8 | n/a |
+| 1024 × 32 B | 7.9 | 9.3 | 4.9 | 3.8 | 28.6 | 26.6 | 6.1 | n/a |
+| 8192 × 32 B | 65.1 | 81.6 | 45.3 | 31.0 | 302.3 | 293.9 | 49.5 | n/a |
 
 _Values in us._
 
@@ -97,11 +97,11 @@ Each allocator's own introspection API reports committed bytes after the workloa
 
 | benchmark | live MB | glibc MB | jemalloc MB | mimalloc MB | tcmalloc MB | misra MB | misra-correct MB | misra-arena MB | misra-page MB |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Checkerboard (4 K small) | 0.6 | 2.4 | 9.1 | n/a | 7.0 | 0.8 | 0.8 | n/a | 16.0 |
-| Checkerboard (16 K small) | 2.5 | 4.1 | 11.9 | n/a | 7.0 | 3.1 | 3.0 | n/a | 64.0 |
-| Checkerboard (64 K small) | 10.0 | 15.3 | 21.9 | n/a | 16.0 | 12.2 | 12.2 | n/a | 256.0 |
-| Lifetime mix | 4.0 | 5.0 | 20.4 | n/a | 16.0 | 4.3 | 4.2 | n/a | 64.0 |
-| Page overhang | 18.2 | 20.5 | 36.0 | n/a | 29.0 | 32.9 | 32.9 | n/a | 256.0 |
+| Checkerboard (4 K small) | 0.6 | 2.2 | 9.2 | n/a | 7.0 | 0.8 | 0.8 | n/a | n/a |
+| Checkerboard (16 K small) | 2.5 | 4.1 | 11.8 | n/a | 7.0 | 3.1 | 3.0 | n/a | n/a |
+| Checkerboard (64 K small) | 10.0 | 15.3 | 21.9 | n/a | 16.0 | 12.2 | 12.2 | n/a | n/a |
+| Lifetime mix | 4.0 | 5.0 | 19.9 | n/a | 16.0 | 4.3 | 4.3 | n/a | n/a |
+| Page overhang | 18.2 | 20.5 | 38.7 | n/a | 29.0 | 32.9 | 32.9 | n/a | n/a |
 
 ## How to read
 
@@ -126,8 +126,8 @@ Regenerates this file with measurements from the host.
 
 | | |
 |---|---|
-| timestamp | 2026-05-21 06:17:54 UTC |
-| git rev   | a1876289691d (perf/heap-finer-bins) |
+| timestamp | 2026-05-21 08:22:57 UTC |
+| git rev   | c7d2ee76300e (master) |
 | host CPU  | Intel(R) Core(TM) Ultra 7 165U |
 | kernel    | Linux 6.18.25 |
 | compiler  | gcc 15.2.0 |
