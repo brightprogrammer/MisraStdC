@@ -227,37 +227,37 @@ extern "C" {
 
 #define ProcReadFromStdoutFmt(p, ...)                                                                                  \
     do {                                                                                                               \
-        Str b_ = StrInit();                                                                                            \
-        ProcReadFromStdout((p), &b_);                                                                                  \
-        const char *in_ = b_.data;                                                                                     \
-        StrReadFmt(in_, __VA_ARGS__);                                                                                  \
-        StrDeinit(&b_);                                                                                                \
+        Str UNPL(buf) = StrInit();                                                                                     \
+        ProcReadFromStdout((p), &UNPL(buf));                                                                           \
+        const char *UNPL(in) = UNPL(buf).data;                                                                         \
+        StrReadFmt(UNPL(in), __VA_ARGS__);                                                                             \
+        StrDeinit(&UNPL(buf));                                                                                         \
     } while (0)
 
 #define ProcReadFromStderrFmt(p, ...)                                                                                  \
     do {                                                                                                               \
-        Str b_ = StrInit();                                                                                            \
-        ProcReadFromStderr((p), &b_);                                                                                  \
-        const char *in_ = b_.data;                                                                                     \
-        StrReadFmt(in_, __VA_ARGS__);                                                                                  \
-        StrDeinit(&b_);                                                                                                \
+        Str UNPL(buf) = StrInit();                                                                                     \
+        ProcReadFromStderr((p), &UNPL(buf));                                                                           \
+        const char *UNPL(in) = UNPL(buf).data;                                                                         \
+        StrReadFmt(UNPL(in), __VA_ARGS__);                                                                             \
+        StrDeinit(&UNPL(buf));                                                                                         \
     } while (0)
 
 #define ProcWriteToStdinFmt(p, ...)                                                                                    \
     do {                                                                                                               \
-        Str b_ = StrInit();                                                                                            \
-        StrAppendFmt(&b_, __VA_ARGS__);                                                                                \
-        ProcWriteToStdin((p), &b_);                                                                                    \
-        StrDeinit(&b_);                                                                                                \
+        Str UNPL(buf) = StrInit();                                                                                     \
+        StrAppendFmt(&UNPL(buf), __VA_ARGS__);                                                                         \
+        ProcWriteToStdin((p), &UNPL(buf));                                                                             \
+        StrDeinit(&UNPL(buf));                                                                                         \
     } while (0)
 
 #define ProcWriteToStdinFmtLn(p, ...)                                                                                  \
     do {                                                                                                               \
-        Str b_ = StrInit();                                                                                            \
-        StrAppendFmt(&b_, __VA_ARGS__);                                                                                \
-        StrPushBack(&b_, '\n');                                                                                        \
-        ProcWriteToStdin((p), &b_);                                                                                    \
-        StrDeinit(&b_);                                                                                                \
+        Str UNPL(buf) = StrInit();                                                                                     \
+        StrAppendFmt(&UNPL(buf), __VA_ARGS__);                                                                         \
+        StrPushBack(&UNPL(buf), '\n');                                                                                 \
+        ProcWriteToStdin((p), &UNPL(buf));                                                                             \
+        StrDeinit(&UNPL(buf));                                                                                         \
     } while (0)
 
 #ifdef __cplusplus
