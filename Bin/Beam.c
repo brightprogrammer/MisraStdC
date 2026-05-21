@@ -23,7 +23,7 @@
 #include <Misra/Sys/Dns.h>
 #include <Misra/Sys/Socket.h>
 
-#if defined(_WIN32)
+#if PLATFORM_WINDOWS
 // Windows: use SetConsoleCtrlHandler (kernel32) instead of signal()
 // (UCRT). SetConsoleCtrlHandler runs the registered callback on a
 // dedicated thread when the user hits Ctrl-C / Ctrl-Break / the
@@ -31,7 +31,7 @@
 // to swallow the event. No UCRT signal() means the freestanding
 // Windows build can drop UCRT entirely.
 #    include <windows.h>
-#elif (defined(__linux__) || defined(__APPLE__)) && (defined(__x86_64__) || defined(__aarch64__))
+#elif (PLATFORM_LINUX || PLATFORM_DARWIN) && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
 // POSIX direct-syscall path: hand-roll sigaction so Beam doesn't drag
 // libc's sigaction/sigemptyset/signal into the link. The kernel
 // sigaction ABI is per-OS and per-arch:
@@ -56,7 +56,7 @@
 #    define MISRA_SIGTERM         15
 #    define MISRA_SIG_IGN_HANDLER ((void (*)(int))1) // SIG_IGN
 
-#    if defined(__linux__)
+#    if PLATFORM_LINUX
 
 #        define MISRA_SA_RESTORER 0x04000000UL
 
@@ -67,7 +67,7 @@ struct misra_kernel_sigaction {
     unsigned long sa_mask; // single-word: covers all 64 standard signals
 };
 
-#        if defined(__x86_64__)
+#        if ARCHITECTURE_X86_64
 // x86_64 kernel jumps to this on signal return. We must issue
 // rt_sigreturn ourselves; the kernel doesn't restore for us. `naked`
 // keeps the compiler from emitting a prologue that'd clobber the
@@ -85,7 +85,7 @@ __attribute__((naked)) static void misra_sigreturn_restorer(void) {
 static void install_signal(int signum, void (*handler)(int)) {
     struct misra_kernel_sigaction sa = {0};
     sa.sa_handler                    = handler;
-#        if defined(__x86_64__)
+#        if ARCHITECTURE_X86_64
     sa.sa_flags    = MISRA_SA_RESTORER;
     sa.sa_restorer = misra_sigreturn_restorer;
 #        endif
@@ -94,7 +94,7 @@ static void install_signal(int signum, void (*handler)(int)) {
     misra_sys4(MISRA_SYS_rt_sigaction, (long)signum, (long)(u64)&sa, 0, 8);
 }
 
-#    else     // __APPLE__
+#    else     // PLATFORM_DARWIN
 
 // Darwin's struct __sigaction (what SYS_sigaction wants). Field
 // layout per <sys/signal.h>: handler / tramp / mask / flags. We use
@@ -115,7 +115,7 @@ struct misra_kernel_sigaction {
 // void(*)(int) -- so sa_flags stays 0 and the trampoline routes
 // through the UC_TRAD branch (handler(sig), no siginfo/uctx args).
 
-#        if defined(__aarch64__)
+#        if ARCHITECTURE_AARCH64
 // Darwin aarch64 signal trampoline.
 //   Entry registers (kernel-provided, per dyld/libplatform sigtramp):
 //     x0 = handler           (sa_handler or sa_sigaction, per sigstyle)
@@ -146,7 +146,7 @@ __attribute__((naked)) static void misra_darwin_sigtramp(void) {
         "udf #0\n"
     );
 }
-#        else // __x86_64__
+#        else // ARCHITECTURE_X86_64
 // Darwin x86_64 signal trampoline. Same shape as aarch64 above.
 //   Entry registers:
 //     %rdi = handler
@@ -185,7 +185,7 @@ static void install_signal(int signum, void (*handler)(int)) {
     misra_sys3(MISRA_SYS_rt_sigaction, (long)signum, (long)(u64)&sa, 0);
 }
 
-#    endif    // __linux__ / __APPLE__
+#    endif    // PLATFORM_LINUX / PLATFORM_DARWIN
 #else
 #    include <signal.h>
 #endif
@@ -200,7 +200,7 @@ static void on_signal(int signum) {
     g_stop = 1;
 }
 
-#if defined(_WIN32)
+#if PLATFORM_WINDOWS
 // Windows console control callback. Runs in a dedicated thread the
 // system spins up when the user hits Ctrl-C / Ctrl-Break, or the
 // console window is closed / user logs off / system shuts down. We
@@ -224,9 +224,9 @@ static BOOL WINAPI on_console_ctrl(DWORD ctrl_type) {
 #endif
 
 static void install_signal_handlers(void) {
-#if defined(_WIN32)
+#if PLATFORM_WINDOWS
     SetConsoleCtrlHandler(on_console_ctrl, TRUE);
-#elif (defined(__linux__) || defined(__APPLE__)) && (defined(__x86_64__) || defined(__aarch64__))
+#elif (PLATFORM_LINUX || PLATFORM_DARWIN) && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
     install_signal(MISRA_SIGINT, on_signal);
     install_signal(MISRA_SIGTERM, on_signal);
     // SIGPIPE on a hung-up peer would terminate us; mask it and rely
@@ -252,8 +252,8 @@ static void log_request_summary(Allocator *alloc, const char *client_addr, const
         StrPushBackZstr(&raw, prefix_bytes);
 
         HttpRequest req = HttpRequestInit(scope);
-        const char *end = HttpRequestParse(&req, raw.data);
-        if (end == raw.data) {
+        const char *end = HttpRequestParse(&req, StrBegin(&raw));
+        if (end == StrBegin(&raw)) {
             LOG_INFO("[{}] (unparseable request, {} bytes)", client_addr, (u64)prefix_len);
         } else {
             const char *method = "?";
@@ -369,7 +369,7 @@ static void handle_connection(Allocator *alloc, Socket *client, const SocketAddr
     // parser scans a NUL-terminated buffer.
     if ((size)first_n < sizeof(first)) {
         first[first_n] = 0;
-        log_request_summary(alloc, peer_str.data, first, (size)first_n);
+        log_request_summary(alloc, StrBegin(&peer_str), first, (size)first_n);
     } else {
         LOG_INFO("[{}] (request larger than {} bytes, not logging line)", peer_str, (u64)sizeof(first));
     }

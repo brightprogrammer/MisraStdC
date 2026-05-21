@@ -31,7 +31,7 @@
 
 #include "_Syscall.h"
 
-#if PLATFORM_LINUX && (defined(__x86_64__) || defined(__aarch64__))
+#if PLATFORM_LINUX && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
 
 extern int main(int argc, char **argv);
 
@@ -112,7 +112,7 @@ __attribute__((used, noreturn)) static void misra_start_c(long *kernel_sp) {
 // stack as described above. We hand the raw SP to `misra_start_c`,
 // which decodes argc/argv/envp and dispatches to `main`.
 __attribute__((naked, used, noreturn)) void _start(void) {
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     __asm__(
         "xor %ebp, %ebp\n"
         "mov %rsp, %rdi\n" // kernel_sp (1st arg)
@@ -120,7 +120,7 @@ __attribute__((naked, used, noreturn)) void _start(void) {
         "call misra_start_c\n"
         "ud2\n"            // unreachable
     );
-#    elif defined(__aarch64__)
+#    elif ARCHITECTURE_AARCH64
     __asm__(
         "mov x29, #0\n"
         "mov x30, #0\n"
@@ -131,4 +131,4 @@ __attribute__((naked, used, noreturn)) void _start(void) {
 #    endif
 }
 
-#endif // PLATFORM_LINUX && (__x86_64__ || __aarch64__)
+#endif // PLATFORM_LINUX && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)

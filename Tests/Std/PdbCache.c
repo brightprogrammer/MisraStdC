@@ -22,7 +22,7 @@
 // borrowed (env-var lifetime) or a static literal -- caller must not
 // free.
 static const char *tmp_dir_path(void) {
-#ifdef _WIN32
+#if PLATFORM_WINDOWS
     const char *p = EnvGet("TEMP");
     if (p && *p)
         return p;

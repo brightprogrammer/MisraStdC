@@ -23,13 +23,13 @@
 
 #include <Misra/Types.h>
 
-#if PLATFORM_LINUX && (defined(__x86_64__) || defined(__aarch64__))
+#if PLATFORM_LINUX && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
 
 #    define FEATURE_DIRECT_SYSCALL 1
 
 static inline long misra_sys0(long nr) {
     long ret;
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     __asm__ volatile("syscall"
                      : "=a"(ret)
                      : "0"(nr)
@@ -48,7 +48,7 @@ static inline long misra_sys0(long nr) {
 
 static inline long misra_sys1(long nr, long a) {
     long ret;
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     __asm__ volatile("syscall"
                      : "=a"(ret)
                      : "0"(nr), "D"(a)
@@ -67,7 +67,7 @@ static inline long misra_sys1(long nr, long a) {
 
 static inline long misra_sys2(long nr, long a, long b) {
     long ret;
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     __asm__ volatile("syscall"
                      : "=a"(ret)
                      : "0"(nr), "D"(a), "S"(b)
@@ -87,7 +87,7 @@ static inline long misra_sys2(long nr, long a, long b) {
 
 static inline long misra_sys3(long nr, long a, long b, long c) {
     long ret;
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     __asm__ volatile("syscall"
                      : "=a"(ret)
                      : "0"(nr), "D"(a), "S"(b), "d"(c)
@@ -108,7 +108,7 @@ static inline long misra_sys3(long nr, long a, long b, long c) {
 
 static inline long misra_sys4(long nr, long a, long b, long c, long d) {
     long ret;
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     register long r10 __asm__("r10") = d;
     __asm__ volatile("syscall"
                      : "=a"(ret)
@@ -131,7 +131,7 @@ static inline long misra_sys4(long nr, long a, long b, long c, long d) {
 
 static inline long misra_sys5(long nr, long a, long b, long c, long d, long e) {
     long ret;
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     register long r10 __asm__("r10") = d;
     register long r8 __asm__("r8")   = e;
     __asm__ volatile("syscall"
@@ -156,7 +156,7 @@ static inline long misra_sys5(long nr, long a, long b, long c, long d, long e) {
 
 static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, long f) {
     long ret;
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     register long r10 __asm__("r10") = d;
     register long r8 __asm__("r8")   = e;
     register long r9 __asm__("r9")   = f;
@@ -183,7 +183,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 
 // Linux syscall numbers we use (per arch). The standard reference
 // is asm/unistd_64.h (x86_64) and asm-generic/unistd.h (aarch64).
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
 #        define MISRA_SYS_read          0
 #        define MISRA_SYS_write         1
 #        define MISRA_SYS_open          2
@@ -233,7 +233,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #        define MISRA_SYS_newfstatat    262
 #        define MISRA_SYS_getdents64    217
 #        define MISRA_SYS_getrandom     318
-#    else // __aarch64__
+#    else // ARCHITECTURE_AARCH64
 // aarch64 only has the "modern" syscall set: no SYS_open (use openat),
 // no SYS_stat (use newfstatat), no SYS_pipe (use pipe2), no SYS_fork
 // (use clone), no SYS_dup2 (use dup3), no SYS_getdents (use getdents64).
@@ -282,7 +282,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 #        define MISRA_SYS_getrandom     278
 #    endif
 
-#elif PLATFORM_DARWIN && (defined(__x86_64__) || defined(__aarch64__))
+#elif PLATFORM_DARWIN && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
 
 // Darwin direct-syscall path. Apple "deprecates" raw syscalls -- the
 // stable Apple-supported ABI is libSystem.dylib -- but they still
@@ -306,7 +306,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 
 #    define FEATURE_DIRECT_SYSCALL 1
 
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
 #        define MISRA_DARWIN_SC(n) ((long)((n) | 0x2000000L)) // BSD class
 #    else
 #        define MISRA_DARWIN_SC(n) ((long)(n))
@@ -314,7 +314,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 
 static inline long misra_sys0(long nr) {
     long ret;
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     __asm__ volatile(
         "syscall\n\t"
         "jnc 1f\n\t"
@@ -343,7 +343,7 @@ static inline long misra_sys0(long nr) {
 
 static inline long misra_sys1(long nr, long a) {
     long ret;
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     __asm__ volatile(
         "syscall\n\t"
         "jnc 1f\n\t"
@@ -372,7 +372,7 @@ static inline long misra_sys1(long nr, long a) {
 
 static inline long misra_sys2(long nr, long a, long b) {
     long ret;
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     __asm__ volatile(
         "syscall\n\t"
         "jnc 1f\n\t"
@@ -402,7 +402,7 @@ static inline long misra_sys2(long nr, long a, long b) {
 
 static inline long misra_sys3(long nr, long a, long b, long c) {
     long ret;
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     __asm__ volatile(
         "syscall\n\t"
         "jnc 1f\n\t"
@@ -433,7 +433,7 @@ static inline long misra_sys3(long nr, long a, long b, long c) {
 
 static inline long misra_sys4(long nr, long a, long b, long c, long d) {
     long ret;
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     register long r10 __asm__("r10") = d;
     __asm__ volatile(
         "syscall\n\t"
@@ -466,7 +466,7 @@ static inline long misra_sys4(long nr, long a, long b, long c, long d) {
 
 static inline long misra_sys5(long nr, long a, long b, long c, long d, long e) {
     long ret;
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     register long r10 __asm__("r10") = d;
     register long r8 __asm__("r8")   = e;
     __asm__ volatile(
@@ -501,7 +501,7 @@ static inline long misra_sys5(long nr, long a, long b, long c, long d, long e) {
 
 static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, long f) {
     long ret;
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     register long r10 __asm__("r10") = d;
     register long r8 __asm__("r8")   = e;
     register long r9 __asm__("r9")   = f;
@@ -608,7 +608,7 @@ static inline long misra_sys6(long nr, long a, long b, long c, long d, long e, l
 // x0 = read fd, x1 = write fd on aarch64). Wrap so callers can use
 // the Linux-style fds[] buffer convention.
 static inline long misra_darwin_pipe(int fds[2]) {
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     long fd0, fd1;
     __asm__ volatile(
         "syscall\n\t"
@@ -649,6 +649,6 @@ static inline long misra_darwin_pipe(int fds[2]) {
 
 #    define FEATURE_DIRECT_SYSCALL 0
 
-#endif // PLATFORM_LINUX && (__x86_64__ || __aarch64__)
+#endif // PLATFORM_LINUX && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
 
 #endif // MISRA__SYSCALL_H

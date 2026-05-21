@@ -34,7 +34,7 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Types.h>
 
-#if (PLATFORM_LINUX || PLATFORM_DARWIN || PLATFORM_WINDOWS) && (defined(__x86_64__) || defined(__aarch64__))
+#if (PLATFORM_LINUX || PLATFORM_DARWIN || PLATFORM_WINDOWS) && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
 
 // Darwin's <string.h> macro-expands memcpy/memmove/memset to
 // __builtin___memcpy_chk(...) under FORTIFY_SOURCE -- which is on by
@@ -225,20 +225,20 @@ __attribute__((weak, used, noreturn)) void __stack_chk_fail(void) {
 // "___chkstk_darwin" (three underscores) which is the Mach-O encoding
 // of "__chkstk_darwin" (two underscores) at C level. asm() rename
 // pins the symbol.
-#if PLATFORM_DARWIN && (defined(__x86_64__) || defined(__aarch64__))
+#if PLATFORM_DARWIN && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
 __attribute__((naked, used)) void __chkstk_darwin(void) __asm__("___chkstk_darwin");
 __attribute__((naked, used)) void __chkstk_darwin(void) {
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
     __asm__("ret\n");
-#    else // __aarch64__
+#    else // ARCHITECTURE_AARCH64
     __asm__("ret\n");
 #    endif
 }
 #endif
 
-#if PLATFORM_LINUX && (defined(__x86_64__) || defined(__aarch64__))
+#if PLATFORM_LINUX && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
 
-#    if defined(__x86_64__)
+#    if ARCHITECTURE_X86_64
 
 // Layout (each slot 8 bytes):
 //   0: rbx   1: rbp   2: r12   3: r13   4: r14   5: r15   6: rsp   7: rip
@@ -292,7 +292,7 @@ __attribute__((naked, used, noreturn)) void longjmp(void *env, int val) {
     );
 }
 
-#    else  // __aarch64__
+#    else  // ARCHITECTURE_AARCH64
 
 // Layout (each slot 8 bytes):
 //   0..9: x19..x28   10: x29 (fp)   11: x30 (lr)   12: sp
@@ -344,4 +344,4 @@ __attribute__((naked, used, noreturn)) void longjmp(void *env, int val) {
 
 #    endif // arch
 
-#endif     // PLATFORM_LINUX && (__x86_64__ || __aarch64__)
+#endif     // PLATFORM_LINUX && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)

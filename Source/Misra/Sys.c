@@ -277,11 +277,11 @@ void Abort(void) {
     // `brk` on ARM/ARM64. EXCEPTION_BREAKPOINT terminates the process
     // when no debugger is attached.
     __debugbreak();
-#elif defined(__x86_64__) || defined(__i386__)
+#elif ARCHITECTURE_X86_64 || ARCHITECTURE_X86_32
     __asm__ volatile("ud2");
-#elif defined(__aarch64__)
+#elif ARCHITECTURE_AARCH64
     __asm__ volatile("brk #0");
-#elif defined(__arm__)
+#elif ARCHITECTURE_ARM32
     __asm__ volatile("udf #0");
 #else
     // Last-resort for unknown arches: NULL deref. Generates SIGSEGV

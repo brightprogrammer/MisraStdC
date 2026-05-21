@@ -124,7 +124,7 @@ bool test_macho_parses_synthetic_blob(void) {
     build_macho_blob();
 
     Macho m;
-    bool      ok = MachoOpenFromMemoryCopy(&m, blob, sizeof(blob), base);
+    bool  ok = MachoOpenFromMemoryCopy(&m, blob, sizeof(blob), base);
     if (!ok) {
         DefaultAllocatorDeinit(&alloc);
         return false;
@@ -184,13 +184,13 @@ bool test_macho_rejects_fat_binary(void) {
     wr_u32(&fat[0], 0xCAFEBABEu);
 
     Macho m;
-    bool      ok = !MachoOpenFromMemoryCopy(&m, fat, sizeof(fat), base);
+    bool  ok = !MachoOpenFromMemoryCopy(&m, fat, sizeof(fat), base);
 
     DefaultAllocatorDeinit(&alloc);
     return ok;
 }
 
-#if defined(__APPLE__)
+#if PLATFORM_DARWIN
 
 // Forward-declare instead of `#include <mach-o/dyld.h>` to keep
 // Misra's `bool = i8` invariant intact (system stdbool.h would
@@ -264,7 +264,7 @@ bool test_macho_resolves_running_binary_symbol(void) {
     return ok;
 }
 
-#endif // __APPLE__
+#endif // PLATFORM_DARWIN
 
 int main(void) {
     WriteFmt("[INFO] Starting MachO tests\n\n");
@@ -273,7 +273,7 @@ int main(void) {
         test_macho_parses_synthetic_blob,
         test_macho_resolves_address,
         test_macho_rejects_fat_binary,
-#if defined(__APPLE__)
+#if PLATFORM_DARWIN
         test_macho_parses_running_binary,
         test_macho_resolves_running_binary_symbol,
 #endif

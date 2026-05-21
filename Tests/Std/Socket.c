@@ -1,4 +1,4 @@
-#if !defined(_WIN32)
+#if !PLATFORM_WINDOWS
 #    define _DEFAULT_SOURCE
 #    define _POSIX_C_SOURCE 200809L
 #endif

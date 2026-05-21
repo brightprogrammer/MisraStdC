@@ -117,7 +117,7 @@ bool test_backtrace_format_with_shared_resolver(void) {
 }
 #endif
 
-#if FEATURE_PARSER_DWARF && FEATURE_SYS_SYMRESOLVE && defined(__x86_64__)
+#if FEATURE_PARSER_DWARF && FEATURE_SYS_SYMRESOLVE && ARCHITECTURE_X86_64
 
 // Same nested-call shape as the FP-walk tests, but routes through the
 // CFI walker. The walker does not depend on -fno-omit-frame-pointer;
@@ -218,7 +218,7 @@ bool test_backtrace_cfi_agrees_with_fp(void) {
     return ok;
 }
 
-#endif // FEATURE_PARSER_DWARF && FEATURE_SYS_SYMRESOLVE && __x86_64__
+#endif // FEATURE_PARSER_DWARF && FEATURE_SYS_SYMRESOLVE && ARCHITECTURE_X86_64
 
 int main(void) {
     WriteFmt("[INFO] Starting Backtrace tests\n\n");
@@ -230,7 +230,7 @@ int main(void) {
 #if FEATURE_SYS_SYMRESOLVE
         test_backtrace_format_with_shared_resolver,
 #endif
-#if FEATURE_PARSER_DWARF && FEATURE_SYS_SYMRESOLVE && defined(__x86_64__)
+#if FEATURE_PARSER_DWARF && FEATURE_SYS_SYMRESOLVE && ARCHITECTURE_X86_64
         test_backtrace_cfi_walks_multi_frame,
         test_backtrace_cfi_agrees_with_fp,
 #endif
