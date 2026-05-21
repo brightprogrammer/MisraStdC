@@ -46,6 +46,11 @@ void bench_teardown(void) {
 // (pair-style workloads where bench_free is a no-op by arena design)
 // at least starts each new bench with a fresh arena, bounding the
 // per-bench memory growth to that single bench's iteration count.
+// Tear down + reinit the arena between benches. ArenaAllocatorReset
+// rewinds the bump pointer and frees every chunk except the most
+// recent; that's enough between benches. (Full Deinit + reinit is
+// also fine but slightly more work and not measurably different at
+// the bench cadence.)
 void bench_use_fixed_size(size_t slot) {
     (void)slot;
     if (g_arena_live) ArenaAllocatorReset(&g_arena);

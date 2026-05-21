@@ -37,8 +37,24 @@ void bench_teardown(void) {
     }
 }
 
-void bench_use_fixed_size(size_t slot) { (void)slot; }
-void bench_use_general(void)           {}
+// Tear down + reinit the PageAllocator between benches. The retain-on-
+// free policy means free_entries[] grows monotonically across bench
+// runs unless we reset between them; without this, a bench that holds
+// thousands of pages live (BatchAllocFree/8192) pollutes the
+// free_entries[] sorted-by-size table for every subsequent bench,
+// inflating the next bench's per-call cost with O(N) memmove. The
+// Allocator.h doc on bench_use_fixed_size/general specifies exactly
+// this teardown-and-reinit behaviour.
+static void page_reset(void) {
+    if (g_page_live) {
+        PageAllocatorDeinit(&g_page);
+    }
+    g_page      = PageAllocatorInit();
+    g_page_live = true;
+}
+
+void bench_use_fixed_size(size_t slot) { (void)slot; page_reset(); }
+void bench_use_general(void)           { page_reset(); }
 int  bench_can_reset(void)             { return 0; }
 void bench_reset(void)                 {}
 

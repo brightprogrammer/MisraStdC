@@ -44,15 +44,33 @@ extern "C" {
     /// `(Allocator *)&page` is well-defined.
     ///
     /// FIELDS:
-    /// - base             : Generic allocator base (function pointers, alignment, ...).
-    /// - cached_page_size : Lazily-cached system page size in bytes, 0 until first query.
-    /// - entries          : Descriptor array for live mmap'd regions; managed via
-    ///                      raw page_map/page_unmap calls (not through the public
-    ///                      Allocator dispatch -- would recurse).
-    /// - len              : Number of live entries.
-    /// - cap              : Capacity of `entries` in entries (geometric growth).
-    /// - entries_bytes    : Rounded mmap length of the `entries` table itself,
-    ///                      retained so PageAllocatorDeinit can unmap it.
+    /// - base                : Generic allocator base (function pointers, alignment, ...).
+    /// - cached_page_size    : Lazily-cached system page size in bytes, 0 until first query.
+    /// - entries             : Descriptor array for live mmap'd regions, sorted by `ptr`
+    ///                         ascending; managed via raw page_map/page_unmap calls (not
+    ///                         through the public Allocator dispatch -- would recurse).
+    /// - len                 : Number of live entries.
+    /// - cap                 : Capacity of `entries` (geometric growth).
+    /// - entries_bytes       : Rounded mmap length of the `entries` table itself,
+    ///                         retained so PageAllocatorDeinit can unmap it.
+    /// - free_entries        : Retained (user-freed but not yet returned to the OS)
+    ///                         descriptor array, sorted by `bytes` ascending so the
+    ///                         alloc-side exact-size match is a binary search.
+    ///                         Page-level release policy is: once mmap'd, regions are
+    ///                         kept until `PageAllocatorDeinit`; deallocate moves an
+    ///                         entry from `entries[]` to `free_entries[]`, allocate
+    ///                         first searches `free_entries[]` for an exact-size match
+    ///                         before going to the kernel. The freed mmap regions
+    ///                         themselves are never written into (allocator data lives
+    ///                         in this sibling table only -- see CODING-CONVENTIONS:
+    ///                         user-handed memory is opaque even after reclaim).
+    ///                         Double-free detection on this table reduces to "ptr is
+    ///                         missing from entries[]"; the error message is the
+    ///                         combined "foreign or already-freed", same as before.
+    /// - free_len            : Number of retained entries.
+    /// - free_cap            : Capacity of `free_entries` (geometric growth, separate
+    ///                         from `cap` since the two tables grow independently).
+    /// - free_entries_bytes  : Rounded mmap length of the `free_entries` table itself.
     ///
     /// TAGS: Allocator, Page, Memory
     ///
@@ -63,6 +81,10 @@ extern "C" {
         u32        len;
         u32        cap;
         size       entries_bytes;
+        PageEntry *free_entries;
+        u32        free_len;
+        u32        free_cap;
+        size       free_entries_bytes;
     } PageAllocator;
 
     void *page_allocator_allocate(Allocator *self, size bytes, i8 zeroed);
@@ -180,11 +202,15 @@ extern "C" {
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
                    .__magic     = PAGE_ALLOCATOR_MAGIC},                                                                         \
-        .cached_page_size = 0,                                                                                         \
-        .entries          = NULL,                                                                                      \
-        .len              = 0,                                                                                         \
-        .cap              = 0,                                                                                         \
-        .entries_bytes    = 0,                                                                                         \
+        .cached_page_size   = 0,                                                                                       \
+        .entries            = NULL,                                                                                    \
+        .len                = 0,                                                                                       \
+        .cap                = 0,                                                                                       \
+        .entries_bytes      = 0,                                                                                       \
+        .free_entries       = NULL,                                                                                    \
+        .free_len           = 0,                                                                                       \
+        .free_cap           = 0,                                                                                       \
+        .free_entries_bytes = 0,                                                                                       \
     })
 
 ///
@@ -203,11 +229,15 @@ extern "C" {
                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                     \
                    .retry_limit = 0,                                                                                         \
                    .__magic     = PAGE_ALLOCATOR_MAGIC},                                                                         \
-        .cached_page_size = 0,                                                                                         \
-        .entries          = NULL,                                                                                      \
-        .len              = 0,                                                                                         \
-        .cap              = 0,                                                                                         \
-        .entries_bytes    = 0,                                                                                         \
+        .cached_page_size   = 0,                                                                                       \
+        .entries            = NULL,                                                                                    \
+        .len                = 0,                                                                                       \
+        .cap                = 0,                                                                                       \
+        .entries_bytes      = 0,                                                                                       \
+        .free_entries       = NULL,                                                                                    \
+        .free_len           = 0,                                                                                       \
+        .free_cap           = 0,                                                                                       \
+        .free_entries_bytes = 0,                                                                                       \
     })
 
 #endif // MISRA_STD_ALLOCATOR_PAGE_H
