@@ -539,18 +539,16 @@ extern "C" {
 /// TAGS: Allocator, Scope, Lifetime
 ///
 #define Scope(name, AllocType)                                                                                         \
-    for (AllocType _scope_user_##name     = AllocType##Init(),                                                         \
-                   _scope_internal_##name = AllocType##Init(),                                                         \
-                   *_scope_loop_##name    = &_scope_user_##name;                                                       \
-         _scope_loop_##name;                                                                                           \
-         AllocType##Deinit(&_scope_internal_##name),                                                                   \
-                   AllocType##Deinit(&_scope_user_##name),                                                             \
-                   _scope_loop_##name = NULL)                                                                          \
-        for (Allocator *name               = &_scope_user_##name.base,                                                 \
-                       *MisraScope         = &_scope_internal_##name.base,                                             \
-                       *_scope_done_##name = name;                                                                     \
-             _scope_done_##name;                                                                                       \
-             _scope_done_##name = NULL)
+    for (AllocType UNPL(scope_user)     = AllocType##Init(),                                                           \
+                   UNPL(scope_internal) = AllocType##Init(),                                                           \
+                   *UNPL(scope_loop)    = &UNPL(scope_user);                                                           \
+         UNPL(scope_loop);                                                                                             \
+         AllocType##Deinit(&UNPL(scope_internal)), AllocType##Deinit(&UNPL(scope_user)), UNPL(scope_loop) = NULL)      \
+        for (Allocator *name             = &UNPL(scope_user).base,                                                     \
+                       *MisraScope       = &UNPL(scope_internal).base,                                                 \
+                       *UNPL(scope_done) = name;                                                                       \
+             UNPL(scope_done);                                                                                         \
+             UNPL(scope_done) = NULL)
 
 ///
 /// Open a scope that borrows an already-initialized allocator pointer.
@@ -570,7 +568,8 @@ extern "C" {
 /// TAGS: Allocator, Scope, Lifetime
 ///
 #define ScopeWith(alloc_ptr)                                                                                           \
-    for (Allocator *MisraScope = (alloc_ptr), *_scope_with_done = MisraScope; _scope_with_done; _scope_with_done = NULL)
+    for (Allocator *MisraScope = (alloc_ptr), *UNPL(scope_with_done) = MisraScope; UNPL(scope_with_done);              \
+         UNPL(scope_with_done) = NULL)
 
 ///
 /// Early-exit the nearest enclosing `Scope` / `ScopeWith` block, running
