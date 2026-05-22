@@ -67,10 +67,10 @@ typedef Vec(PeSection) PeSections;
 ///              Valid until `PeDeinit`.
 ///
 typedef struct PeCodeViewInfo {
-    bool        present;
-    u8          guid[16];
-    u32         age;
-    const char *pdb_path;
+    bool present;
+    u8   guid[16];
+    u32  age;
+    Zstr pdb_path;
 } PeCodeViewInfo;
 
 ///

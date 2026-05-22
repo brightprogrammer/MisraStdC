@@ -112,7 +112,7 @@ extern "C" {
     ///           configured, no answer from any nameserver, NXDOMAIN,
     ///           transport error, response with no A/AAAA).
     ///
-    bool DnsResolve_5(DnsResolver *self, const char *hostname, u16 port, SocketKind kind, DnsAddrs *out);
+    bool DnsResolve_5(DnsResolver *self, Zstr hostname, u16 port, SocketKind kind, DnsAddrs *out);
 
     ///
     /// Spec-based overload (vec form). Accepts a single `"host:port"`
@@ -126,7 +126,7 @@ extern "C" {
     /// SUCCESS : Returns true. `out` has at least one new entry.
     /// FAILURE : Returns false. Logs the failure cause.
     ///
-    bool DnsResolve_4_vec(DnsResolver *self, const char *spec, SocketKind kind, DnsAddrs *out);
+    bool DnsResolve_4_vec(DnsResolver *self, Zstr spec, SocketKind kind, DnsAddrs *out);
 
     ///
     /// Spec-based overload (single-addr form). Same parse path as the
@@ -138,7 +138,7 @@ extern "C" {
     /// SUCCESS : Returns true; `out` populated.
     /// FAILURE : Returns false; `out` untouched.
     ///
-    bool DnsResolve_4_one(DnsResolver *self, const char *spec, SocketKind kind, SocketAddr *out);
+    bool DnsResolve_4_one(DnsResolver *self, Zstr spec, SocketKind kind, SocketAddr *out);
 
     ///
     /// `DnsResolve` dispatches by argument count. The 4-arg form

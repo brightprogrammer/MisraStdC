@@ -93,7 +93,7 @@ extern "C" {
     ///
     /// TAGS: Sys, Proc, Spawn
     ///
-    Proc proc_init(const char *path, char **argv, char **envp, Allocator *alloc);
+    Proc proc_init(Zstr path, char **argv, char **envp, Allocator *alloc);
 
 #define ProcInit(...)                       MISRA_OVERLOAD(ProcInit, __VA_ARGS__)
 #define ProcInit_3(path, argv, envp)        proc_init((path), (argv), (envp), MisraScope)
@@ -238,7 +238,7 @@ extern "C" {
     do {                                                                                                               \
         Str UNPL(buf) = StrInit();                                                                                     \
         ProcReadFromStdout((p), &UNPL(buf));                                                                           \
-        const char *UNPL(in) = UNPL(buf).data;                                                                         \
+        Zstr UNPL(in) = UNPL(buf).data;                                                                                \
         StrReadFmt(UNPL(in), __VA_ARGS__);                                                                             \
         StrDeinit(&UNPL(buf));                                                                                         \
     } while (0)
@@ -247,7 +247,7 @@ extern "C" {
     do {                                                                                                               \
         Str UNPL(buf) = StrInit();                                                                                     \
         ProcReadFromStderr((p), &UNPL(buf));                                                                           \
-        const char *UNPL(in) = UNPL(buf).data;                                                                         \
+        Zstr UNPL(in) = UNPL(buf).data;                                                                                \
         StrReadFmt(UNPL(in), __VA_ARGS__);                                                                             \
         StrDeinit(&UNPL(buf));                                                                                         \
     } while (0)

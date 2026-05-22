@@ -30,12 +30,12 @@
 #include <Misra/Types.h>
 
 typedef struct PdbCacheEntry {
-    char *module_path; // owned copy
-    u64   module_base; // last-seen runtime load base
-    Pe    pe;
-    Pdb   pdb;
-    bool  pe_open;
-    bool  pdb_open;
+    Zstr module_path; // owned copy
+    u64  module_base; // last-seen runtime load base
+    Pe   pe;
+    Pdb  pdb;
+    bool pe_open;
+    bool pdb_open;
 } PdbCacheEntry;
 
 typedef Vec(PdbCacheEntry) PdbCacheEntries;
@@ -86,12 +86,12 @@ void PdbCacheDeinit(PdbCache *self);
 ///           function.
 ///
 bool PdbCacheResolve(
-    PdbCache    *self,
-    const char  *module_path,
-    u64          module_base,
-    u64          runtime_ip,
-    const char **out_name,
-    u32         *out_offset
+    PdbCache *self,
+    Zstr      module_path,
+    u64       module_base,
+    u64       runtime_ip,
+    Zstr     *out_name,
+    u32      *out_offset
 );
 
 #endif // MISRA_SYS_PDB_CACHE_H

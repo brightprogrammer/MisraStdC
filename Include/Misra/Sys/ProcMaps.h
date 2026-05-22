@@ -33,11 +33,11 @@ typedef enum ProcMapPerms {
 /// be empty for anonymous mappings (heap, stacks, vdso, etc.).
 ///
 typedef struct ProcMapEntry {
-    u64         start;       // runtime virtual address (inclusive)
-    u64         end;         // runtime virtual address (exclusive)
-    u32         perms;       // bitmask of ProcMapPerms
-    u64         file_offset; // offset within the backing file
-    const char *path;        // backing file path, or "" if anonymous
+    u64  start;       // runtime virtual address (inclusive)
+    u64  end;         // runtime virtual address (exclusive)
+    u32  perms;       // bitmask of ProcMapPerms
+    u64  file_offset; // offset within the backing file
+    Zstr path;        // backing file path, or "" if anonymous
 } ProcMapEntry;
 
 typedef Vec(ProcMapEntry) ProcMapEntries;

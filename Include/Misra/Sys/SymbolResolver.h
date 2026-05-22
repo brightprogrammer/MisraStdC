@@ -58,22 +58,22 @@
 /// - source_column: 1-based source column, or 0 if unknown.
 ///
 typedef struct ResolvedSymbol {
-    const char *module_path;
-    u64         module_base;
-    const char *symbol_name;
-    u64         symbol_value;
-    u64         symbol_size;
-    u64         offset;
-    const char *source_file;
-    const char *source_dir;
-    u32         source_line;
-    u32         source_column;
+    Zstr module_path;
+    u64  module_base;
+    Zstr symbol_name;
+    u64  symbol_value;
+    u64  symbol_size;
+    u64  offset;
+    Zstr source_file;
+    Zstr source_dir;
+    u32  source_line;
+    u32  source_column;
 } ResolvedSymbol;
 
 typedef struct ResolverCacheEntry {
-    const char *path; // borrowed from ProcMaps.raw
-    u64         load_base;
-    Elf         elf;
+    Zstr path; // borrowed from ProcMaps.raw
+    u64  load_base;
+    Elf  elf;
     // Sidecar debug file found via .gnu_debuglink or .note.gnu.build-id.
     // Populated lazily for stripped binaries that have an installed
     // -dbg package or a debug file alongside them. When `has_sidecar`

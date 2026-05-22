@@ -28,7 +28,7 @@
 #include <Misra/Types.h>
 
 typedef struct MachoCacheEntry {
-    char          *module_path;
+    Zstr           module_path;
     u64            slide;
     Macho          main;
     bool           main_open;
@@ -90,13 +90,6 @@ void MachoCacheDeinit(MachoCache *self);
 /// FAILURE : Returns false if the module can't be opened or the IP
 ///           falls outside any symbol / function.
 ///
-bool MachoCacheResolve(
-    MachoCache  *self,
-    const char  *module_path,
-    u64          slide,
-    u64          runtime_ip,
-    const char **out_name,
-    u32         *out_offset
-);
+bool MachoCacheResolve(MachoCache *self, Zstr module_path, u64 slide, u64 runtime_ip, Zstr *out_name, u32 *out_offset);
 
 #endif // MISRA_SYS_MACHO_CACHE_H

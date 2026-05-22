@@ -45,13 +45,13 @@
 ///                 range. Lookups never return such a row.
 ///
 typedef struct DwarfLineEntry {
-    u64         address;
-    const char *file;
-    const char *dir;
-    u32         line;
-    u32         column;
-    bool        is_stmt;
-    bool        end_sequence;
+    u64  address;
+    Zstr file;
+    Zstr dir;
+    u32  line;
+    u32  column;
+    bool is_stmt;
+    bool end_sequence;
 } DwarfLineEntry;
 
 typedef Vec(DwarfLineEntry) DwarfLineEntries;
@@ -311,9 +311,9 @@ bool DwarfCfiBuildRow(const DwarfCfi *cfi, const DwarfFde *fde, u64 target_pc, D
 // preserves the lot, but some homemade strip flows are less generous).
 
 typedef struct DwarfFunction {
-    u64         low_pc;  // file-relative virtual address (same space as ElfSymbol.value)
-    u64         high_pc; // exclusive end
-    const char *name;    // borrowed from `string_pool`
+    u64  low_pc;  // file-relative virtual address (same space as ElfSymbol.value)
+    u64  high_pc; // exclusive end
+    Zstr name;    // borrowed from `string_pool`
 } DwarfFunction;
 
 typedef Vec(DwarfFunction) DwarfFunctionEntries;

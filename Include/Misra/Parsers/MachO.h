@@ -69,10 +69,10 @@ typedef struct MachoSection {
 /// string table (LC_SYMTAB.stroff).
 ///
 typedef struct MachoSymbol {
-    const char *name;
-    u64         value;         // virtual address
-    u8          type;          // n_type bitfield
-    u8          section_index; // n_sect, 1-based (0 = NO_SECT)
+    Zstr name;
+    u64  value;         // virtual address
+    u8   type;          // n_type bitfield
+    u8   section_index; // n_sect, 1-based (0 = NO_SECT)
 } MachoSymbol;
 
 typedef Vec(MachoSegment) MachoSegments;

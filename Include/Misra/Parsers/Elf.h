@@ -106,15 +106,15 @@ typedef struct ElfHeader {
 /// `.shstrtab` and stays valid until `ElfDeinit`.
 ///
 typedef struct ElfSection {
-    const char *name;
-    u32         type;       // ElfSectionType plus arch-specific extensions
-    u64         flags;
-    u64         addr;       // runtime virtual address, if SHF_ALLOC
-    u64         offset;     // file offset of section data
-    u64         size;       // bytes
-    u32         link;       // section-specific cross-reference
-    u32         info;       // section-specific
-    u64         entry_size; // for table-shaped sections
+    Zstr name;
+    u32  type;       // ElfSectionType plus arch-specific extensions
+    u64  flags;
+    u64  addr;       // runtime virtual address, if SHF_ALLOC
+    u64  offset;     // file offset of section data
+    u64  size;       // bytes
+    u32  link;       // section-specific cross-reference
+    u32  info;       // section-specific
+    u64  entry_size; // for table-shaped sections
 } ElfSection;
 
 ///
@@ -122,7 +122,7 @@ typedef struct ElfSection {
 /// `.strtab` (for `symbols`) or `.dynstr` (for `dynamic_symbols`).
 ///
 typedef struct ElfSymbol {
-    const char   *name;
+    Zstr          name;
     ElfSymbolBind bind;
     ElfSymbolType type;
     u16           section_index;
@@ -183,7 +183,7 @@ typedef struct Elf {
     ElfSymbols  dynamic_symbols;
     const u8   *build_id;
     u32         build_id_size;
-    const char *debuglink_name;
+    Zstr        debuglink_name;
     u32         debuglink_crc;
 } Elf;
 

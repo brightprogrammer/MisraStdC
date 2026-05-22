@@ -237,7 +237,7 @@ typedef struct HttpRequest {
 ///           (start of the body).
 /// FAILURE : Returns `in` unchanged when the input is malformed.
 ///
-const char *HttpRequestParse(HttpRequest *req, Zstr in);
+Zstr HttpRequestParse(HttpRequest *req, Zstr in);
 
 ///
 /// Release storage owned by `req` and zero the struct. Safe to call on
@@ -278,8 +278,8 @@ typedef struct HttpResponse {
 /// FAILURE : Returns `"Unknown"` for codes / content types outside the
 ///           recognised enum range. Cannot fail.
 ///
-const char *HttpResponseCodeToZstr(HttpResponseCode code);
-const char *HttpContentTypeToZstr(HttpContentType content_type);
+Zstr HttpResponseCodeToZstr(HttpResponseCode code);
+Zstr HttpContentTypeToZstr(HttpContentType content_type);
 
 ///
 /// Populate `response` as an HTML reply. The body is a deep copy of
