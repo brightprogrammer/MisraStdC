@@ -154,8 +154,7 @@ void zstr_deinit(void *zs, const Allocator *alloc);
 /// FAILURE: Returns -1 when `c` is not a valid hex / decimal digit.
 ///
 /// TAGS: Zstr, Parse, Hex
-int zstr_hex_digit_value(char c);
-#define ZstrHexDigitValue(c) zstr_hex_digit_value(c)
+int ZstrHexDigitValue(char c);
 
 ///
 /// Decode one escape sequence starting at `*str`. `*str` must point at
@@ -173,8 +172,7 @@ int zstr_hex_digit_value(char c);
 ///          partially advanced.
 ///
 /// TAGS: Zstr, Parse, Escape
-char zstr_process_escape(Zstr *str);
-#define ZstrProcessEscape(str) zstr_process_escape(str)
+char ZstrProcessEscape(Zstr *str);
 
 ///
 /// Parse a signed decimal integer from a null-terminated string.

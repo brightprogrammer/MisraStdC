@@ -131,6 +131,17 @@ typedef struct SocketPollItem {
 /// TAGS: Socket, Address
 ///
 bool socket_addr_parse_zstr(SocketAddr *out, Zstr spec, SocketKind kind);
+
+///
+/// `Str` overload of `SocketAddrParse`. Identical contract to the Zstr
+/// arm above; provided so callers holding a `Str` don't have to reach
+/// into `.data`. The `_Generic` macro below routes through this for
+/// `Str *` / `const Str *` inputs.
+///
+/// SUCCESS : Returns true; `*out` populated.
+/// FAILURE : Returns false; `*out` zeroed. Silent (no log) — caller is
+///           expected to chain into DNS for the hostname case.
+///
 bool socket_addr_parse_str(SocketAddr *out, const Str *spec, SocketKind kind);
 #define SocketAddrParse(out, spec, kind)                                                                                                                      \
     _Generic((spec), Str *: socket_addr_parse_str, const Str *: socket_addr_parse_str, char *: socket_addr_parse_zstr, const char *: socket_addr_parse_zstr)( \

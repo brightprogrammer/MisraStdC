@@ -102,6 +102,12 @@ bool capture_stack_trace_vec(StackFrames *out, size skip_frames);
 /// variants but routes through DWARF `.eh_frame` rules, so it works
 /// on `-fomit-frame-pointer` builds.
 ///
+/// SUCCESS : `_raw` returns number of frames written (<= max_frames);
+///           `_vec` returns true and grows `out` through its allocator.
+/// FAILURE : `_raw` returns 0; `_vec` returns false. Triggered by an
+///           unwind step that the CFI rules can't resolve or an OOM
+///           inside `_vec`.
+///
 size capture_stack_trace_cfi_raw(StackFrame *out, size max_frames, size skip_frames, SymbolResolver *resolver);
 bool capture_stack_trace_cfi_vec(StackFrames *out, size skip_frames, SymbolResolver *resolver);
 #endif
@@ -110,10 +116,20 @@ bool capture_stack_trace_cfi_vec(StackFrames *out, size skip_frames, SymbolResol
 /// Raw formatter: walks `(frames, count)`, appends one line per frame
 /// to `out`. Creates a fresh `SymbolResolver` internally per call.
 ///
+/// SUCCESS : Returns to the caller; `out` is appended to (one line per
+///           input frame). Unresolved frames render as `#N 0x<ip>`.
+/// FAILURE : Cannot fail. Allocator OOM during the append is logged via
+///           the underlying StrAppendFmt and silently truncates; the
+///           formatter never reports failure to the caller.
+///
 void format_stack_trace_raw(Str *out, const StackFrame *frames, size count, Allocator *alloc);
 
 ///
 /// Vec formatter: same as raw but consumes a `StackFrames *`.
+///
+/// SUCCESS : Returns to the caller; `out` is appended to.
+/// FAILURE : Cannot fail. See `format_stack_trace_raw` for the OOM
+///           behaviour.
 ///
 void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *alloc);
 
@@ -121,6 +137,11 @@ void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *allo
 ///
 /// Resolver-sharing variants -- cheaper when formatting many traces in
 /// a loop. Linux only (only platform with an in-tree SymbolResolver).
+///
+/// SUCCESS : Returns to the caller; `out` is appended to using
+///           `resolver`'s already-built symbol tables.
+/// FAILURE : Cannot fail. OOM during append is logged + silently
+///           truncates; the formatter never reports failure.
 ///
 void format_stack_trace_with_raw(Str *out, const StackFrame *frames, size count, SymbolResolver *resolver);
 void format_stack_trace_with_vec(Str *out, const StackFrames *frames, SymbolResolver *resolver);

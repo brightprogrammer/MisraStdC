@@ -1270,7 +1270,7 @@ static inline bool write_char_internal(Str *o, FormatFlags flags, const char *vs
     return true;
 }
 
-int zstr_hex_digit_value(char c) {
+int ZstrHexDigitValue(char c) {
     if (c >= '0' && c <= '9') {
         return c - '0';
     }
@@ -1286,7 +1286,7 @@ int zstr_hex_digit_value(char c) {
 
 #if FEATURE_INT
 static bool int_fmt_digit_matches_radix(char c, u8 radix) {
-    int digit = zstr_hex_digit_value(c);
+    int digit = ZstrHexDigitValue(c);
 
     return digit >= 0 && digit < radix;
 }
@@ -2198,13 +2198,13 @@ bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
 }
 #endif // FEATURE_FLOAT
 
-char zstr_process_escape(Zstr *str) {
+char ZstrProcessEscape(Zstr *str) {
     if (!str || !*str)
         return 0;
 
     Zstr s = *str;
     if (*s != '\\') {
-        LOG_ERROR("zstr_process_escape called on non-escape sequence");
+        LOG_ERROR("ZstrProcessEscape called on non-escape sequence");
         return 0;
     }
 
@@ -2295,7 +2295,7 @@ const char *_read_Str(const char *i, FmtInfo *fmt_info, Str *s) {
             // Quoted string mode
             if (*i == '\\') {
                 const char *curr = i;
-                char        c    = zstr_process_escape(&curr);
+                char        c    = ZstrProcessEscape(&curr);
                 if (c == 0) { // Error in escape sequence
                     StrDeinit(s);
                     return NULL;
@@ -2336,7 +2336,7 @@ const char *_read_Str(const char *i, FmtInfo *fmt_info, Str *s) {
 
             if (*i == '\\') {
                 const char *curr = i;
-                char        c    = zstr_process_escape(&curr);
+                char        c    = ZstrProcessEscape(&curr);
                 if (c == 0) { // Error in escape sequence
                     StrDeinit(s);
                     return NULL;
@@ -3383,7 +3383,10 @@ const char *_read_ZstrAlloc(const char *i, FmtInfo *fmt_info, ZstrIOArg *arg) {
         return i;
     }
 
-    result = ZstrDupN(temp.data, temp.length, allocator_ptr);
+    // Cast off const: the ZstrIO `out` parameter is `char **`, signalling
+    // the caller owns and may mutate the returned buffer. ZstrDupN's Zstr
+    // return is just the project-wide convention for fresh allocations.
+    result = (char *)ZstrDupN(temp.data, temp.length, allocator_ptr);
     if (!result) {
         LOG_ERROR("Failed to allocate memory for string");
         StrDeinit(&temp);
