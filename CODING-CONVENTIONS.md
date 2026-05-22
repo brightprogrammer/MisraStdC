@@ -23,13 +23,13 @@ of the codebase to see them in action.
   `Str`, `Vec`, `Elf` — not `MisraBuf`, not `ElfFile`.
 - **Tool binaries** ship with a single short word as their name
   (see `Bin/Beam.c`, `Bin/Resolve.c`).
-- **C-strings in public API surface use `Zstr`**, not `char *` /
-  `const char *`. `Zstr` (`<Misra/Std/Zstr.h>`) is the project's name
-  for a NUL-terminated C-string parameter. Internal helpers (`static`
-  in a `.c` file) may use `char *` / `const char *` directly. In
-  `_Generic` dispatch the underlying `char *` and `const char *`
-  branches are still listed explicitly, because string literals and
-  `const`-returning callers each need their own match.
+- **C-strings everywhere use `Zstr`**, not `char *` / `const char *`.
+  `Zstr` (`<Misra/Std/Zstr.h>`) is the project's name for a
+  NUL-terminated C-string. This applies to internal helpers too — `Zstr`
+  is the *only* C-string type in the codebase. The one exception is
+  `_Generic` dispatch arms, where the underlying `char *` and
+  `const char *` branches are still listed explicitly because string
+  literals and `const`-returning callers each need their own match.
 
 ## API shape
 
@@ -131,6 +131,15 @@ of the codebase to see them in action.
   parameter) are part of the macro's contract — those stay as-is.
   `UNPL` is only for identifiers the macro mints for its own
   bookkeeping.
+- **Macros only earn their keep through transformation or code
+  generation.** A `#define Foo(a, b) foo((a), (b))` that just renames
+  a function and forwards its arguments unchanged is deadweight —
+  delete the macro and let users call `foo` directly. Reach for a
+  macro only when you're doing something a function call can't:
+  stamping `__LINE__` (`UNPL`), arg-count dispatch (`MISRA_OVERLOAD`),
+  `_Generic` type dispatch, generating a `for`-chain body, etc.
+  Think of macros as a code generator, not as the default ergonomics
+  layer.
 
 ## Sub-range iteration
 
@@ -158,6 +167,12 @@ of the codebase to see them in action.
   reference the current PR, ticket number, or caller — those rot.
 - Default to no in-code comment. Add one only when removing it would
   confuse a future reader.
+- **Public docs reference only the public surface.** When you document
+  a `PascalCase` macro or function, don't name the underlying
+  `snake_case` backend in the prose ("calls `foo_init_inner` to ...").
+  The backend is an implementation detail and rots when internals
+  change. The public API is the user's contract; the helper it
+  happens to expand to is not.
 
 ## Commits and pre-commit
 
