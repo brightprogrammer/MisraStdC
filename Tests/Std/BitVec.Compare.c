@@ -1,4 +1,5 @@
 #include <Misra/Std/Container/BitVec.h>
+#include <Misra/Std/Container/Map.h>
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Types.h>
@@ -9,6 +10,9 @@
 // Function prototypes
 bool test_bitvec_equals(void);
 bool test_bitvec_compare(void);
+bool test_bitvec_hash_determinism(void);
+bool test_bitvec_hash_distinguishes(void);
+bool test_bitvec_hash_as_map_key(void);
 bool test_bitvec_lex_compare(void);
 bool test_bitvec_numerical_compare(void);
 bool test_bitvec_weight_compare(void);
@@ -947,6 +951,117 @@ bool test_bitvec_sorted_null_failures(void) {
     return false;
 }
 
+// Two bitvectors built the same way must hash identically.
+bool test_bitvec_hash_determinism(void) {
+    WriteFmt("Testing bitvec_hash determinism\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec a = BitVecInit(base);
+    BitVec b = BitVecInit(base);
+    for (int i = 0; i < 11; i++) {
+        BitVecPush(&a, (i % 2) == 0);
+        BitVecPush(&b, (i % 2) == 0);
+    }
+
+    BitVec empty1 = BitVecInit(base);
+    BitVec empty2 = BitVecInit(base);
+
+    bool result = (bitvec_hash(&a, 0) == bitvec_hash(&b, 0));
+    result      = result && (bitvec_hash(&empty1, 0) == bitvec_hash(&empty2, 0));
+
+    BitVecDeinit(&a);
+    BitVecDeinit(&b);
+    BitVecDeinit(&empty1);
+    BitVecDeinit(&empty2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Bit pattern AND length both feed the hash, so two BitVecs that
+// share a byte prefix but differ in length must still distinguish.
+bool test_bitvec_hash_distinguishes(void) {
+    WriteFmt("Testing bitvec_hash sensitivity to bits and length\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    BitVec a = BitVecInit(base);
+    BitVec b = BitVecInit(base);
+    BitVec c = BitVecInit(base);
+
+    BitVecPush(&a, true);
+    BitVecPush(&a, false);
+    BitVecPush(&a, true);
+
+    BitVecPush(&b, true);
+    BitVecPush(&b, false);
+    BitVecPush(&b, false);
+
+    // c shares the byte-prefix with a but is longer.
+    BitVecPush(&c, true);
+    BitVecPush(&c, false);
+    BitVecPush(&c, true);
+    BitVecPush(&c, false);
+    BitVecPush(&c, false);
+
+    bool result = (bitvec_hash(&a, 0) != bitvec_hash(&b, 0));
+    result      = result && (bitvec_hash(&a, 0) != bitvec_hash(&c, 0));
+
+    BitVecDeinit(&a);
+    BitVecDeinit(&b);
+    BitVecDeinit(&c);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// End-to-end: BitVec as a Map key via the typed-then-cast pattern.
+bool test_bitvec_hash_as_map_key(void) {
+    WriteFmt("Testing bitvec_hash as Map<BitVec, u64> key\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    Map(BitVec, u64) counts = MapInit(bitvec_hash, BitVecCompare, &alloc);
+
+    BitVec k1 = BitVecInit(base);
+    BitVecPush(&k1, true);
+    BitVecPush(&k1, false);
+    BitVecPush(&k1, true);
+
+    BitVec k2 = BitVecInit(base);
+    BitVecPush(&k2, false);
+    BitVecPush(&k2, true);
+
+    MapInsertR(&counts, k1, 1u);
+    MapInsertR(&counts, k2, 2u);
+
+    BitVec probe = BitVecInit(base);
+    BitVecPush(&probe, true);
+    BitVecPush(&probe, false);
+    BitVecPush(&probe, true);
+
+    u64 *got = MapTryGetPtr(&counts, probe);
+
+    BitVec missing = BitVecInit(base);
+    BitVecPush(&missing, true);
+    BitVecPush(&missing, true);
+    u64 *gone = MapTryGetPtr(&counts, missing);
+
+    bool result = (got != NULL && *got == 1u);
+    result      = result && (gone == NULL);
+    result      = result && (MapPairCount(&counts) == 2);
+
+    BitVecDeinit(&k1);
+    BitVecDeinit(&k2);
+    BitVecDeinit(&probe);
+    BitVecDeinit(&missing);
+    MapDeinit(&counts);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 // Main function that runs all tests
 int main(void) {
     WriteFmt("[INFO] Starting BitVec.Compare tests\n\n");
@@ -955,6 +1070,9 @@ int main(void) {
     TestFunction tests[] = {
         test_bitvec_equals,
         test_bitvec_compare,
+        test_bitvec_hash_determinism,
+        test_bitvec_hash_distinguishes,
+        test_bitvec_hash_as_map_key,
         test_bitvec_lex_compare,
         test_bitvec_numerical_compare,
         test_bitvec_weight_compare,

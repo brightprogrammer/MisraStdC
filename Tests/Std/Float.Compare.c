@@ -1,6 +1,7 @@
 #include <Misra/Std/Allocator/Default.h>
 #include <Misra/Std/Container/Float.h>
 #include <Misra/Std/Container/Int.h>
+#include <Misra/Std/Container/Map.h>
 #include <Misra/Std/Log.h>
 
 #include "../Util/FloatTestData.h"
@@ -11,6 +12,9 @@ bool test_float_compare_very_large_large(void);
 bool test_float_compare_very_large_small(void);
 bool test_float_compare_wrappers(void);
 bool test_float_compare_generic(void);
+bool test_float_hash_determinism(void);
+bool test_float_hash_distinguishes(void);
+bool test_float_hash_as_map_key(void);
 
 bool test_float_compare_small_small(void) {
     WriteFmt("Testing FloatCompare with small floats\n");
@@ -129,6 +133,94 @@ bool test_float_compare_generic(void) {
     return result;
 }
 
+// Two construction paths for the same value must hash to the same bucket.
+bool test_float_hash_determinism(void) {
+    WriteFmt("Testing float_hash determinism\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float a = FloatFromStr("1.23", &alloc.base);
+    Float b = FloatFromStr("123e-2", &alloc.base);
+    Float zero1 = FloatFromStr("0", &alloc.base);
+    Float zero2 = FloatFromStr("0", &alloc.base);
+
+    bool result = (float_hash(&a, 0) == float_hash(&b, 0));
+    result      = result && (float_hash(&zero1, 0) == float_hash(&zero2, 0));
+
+    FloatDeinit(&a);
+    FloatDeinit(&b);
+    FloatDeinit(&zero1);
+    FloatDeinit(&zero2);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// Sign, exponent, and magnitude must each pull the hash apart, so
+// +1.5e3 / -1.5e3 / 1.5e2 all land in distinct buckets.
+bool test_float_hash_distinguishes(void) {
+    WriteFmt("Testing float_hash sensitivity to sign / exponent / magnitude\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Float pos  = FloatFromStr("1.5e3", &alloc.base);
+    Float neg  = FloatFromStr("-1.5e3", &alloc.base);
+    Float small = FloatFromStr("1.5e2", &alloc.base);
+    Float zero = FloatFromStr("0", &alloc.base);
+    Float one  = FloatFromStr("1", &alloc.base);
+
+    u64 h_pos   = float_hash(&pos, 0);
+    u64 h_neg   = float_hash(&neg, 0);
+    u64 h_small = float_hash(&small, 0);
+    u64 h_zero  = float_hash(&zero, 0);
+    u64 h_one   = float_hash(&one, 0);
+
+    bool result = (h_pos != h_neg);     // sign matters
+    result      = result && (h_pos != h_small); // exponent matters
+    result      = result && (h_neg != h_small);
+    result      = result && (h_zero != h_one);
+    result      = result && (h_zero != h_pos);
+
+    FloatDeinit(&pos);
+    FloatDeinit(&neg);
+    FloatDeinit(&small);
+    FloatDeinit(&zero);
+    FloatDeinit(&one);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
+// End-to-end: plug float_hash + float_compare into a Map and verify
+// the GenericHash / GenericCompare cast through MapInit works.
+bool test_float_hash_as_map_key(void) {
+    WriteFmt("Testing float_hash as Map<Float, u64> key\n");
+
+    DefaultAllocator alloc = DefaultAllocatorInit();
+
+    Map(Float, u64) counts = MapInit(float_hash, float_compare, &alloc);
+
+    Float k1 = FloatFromStr("3.14", &alloc.base);
+    Float k2 = FloatFromStr("2.71", &alloc.base);
+    MapInsertR(&counts, k1, 1u);
+    MapInsertR(&counts, k2, 2u);
+
+    Float probe   = FloatFromStr("314e-2", &alloc.base); // same value as k1
+    u64  *got     = MapTryGetPtr(&counts, probe);
+    Float missing = FloatFromStr("9.99", &alloc.base);
+    u64  *gone    = MapTryGetPtr(&counts, missing);
+
+    bool result = (got != NULL && *got == 1u);
+    result      = result && (gone == NULL);
+    result      = result && (MapPairCount(&counts) == 2);
+
+    FloatDeinit(&k1);
+    FloatDeinit(&k2);
+    FloatDeinit(&probe);
+    FloatDeinit(&missing);
+    MapDeinit(&counts);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 int main(void) {
     WriteFmt("[INFO] Starting Float.Compare tests\n\n");
 
@@ -138,6 +230,9 @@ int main(void) {
         test_float_compare_very_large_small,
         test_float_compare_wrappers,
         test_float_compare_generic,
+        test_float_hash_determinism,
+        test_float_hash_distinguishes,
+        test_float_hash_as_map_key,
     };
 
     int total_tests = sizeof(tests) / sizeof(tests[0]);
