@@ -106,6 +106,22 @@ extern "C" {
 ///
 #define StrReverse(str) VecReverse((str))
 
+///
+/// Sort the characters of the string in place using the provided comparator.
+/// Same contract as VecSort, specialised for the char element.
+///
+/// str[in,out]  : Str handle.
+/// compare[in]  : Comparator with `strcmp`-style return.
+///
+/// SUCCESS : Characters are now in non-decreasing order according to `compare`.
+///           The string's length is unchanged.
+/// FAILURE : Function cannot fail. A NULL comparator or invalid string is a
+///           caller bug and aborts via `LOG_FATAL`.
+///
+/// TAGS: Str, Ops, Sort
+///
+#define StrSort(str, compare) VecSort((str), (compare))
+
 #ifdef __cplusplus
 }
 #endif

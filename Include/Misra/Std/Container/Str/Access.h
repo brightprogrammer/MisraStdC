@@ -115,6 +115,61 @@ extern "C" {
 ///
 #define StrCharPtrAt(str, idx) VecPtrAt(str, idx)
 
+///
+/// Aligned byte offset of character `idx` from the start of the string's
+/// storage buffer. Same contract as VecAlignedOffsetAt, specialised for the
+/// char element.
+///
+/// str[in] : String to query.
+/// idx[in] : Character index.
+///
+/// TAGS: Str, Access, Alignment
+///
+#define StrAlignedOffsetAt(str, idx) VecAlignedOffsetAt(str, idx)
+
+///
+/// Total used storage in bytes for the string. Same contract as VecSize,
+/// specialised for the char element.
+///
+/// str[in] : String to query.
+///
+/// TAGS: Str, Access, Size, Bytes
+///
+#define StrSize(str) VecSize(str)
+
+///
+/// Find the first character in the string equal to the value at `chr_ptr`,
+/// using the provided comparator. Same contract as VecFind, specialised for
+/// the char element.
+///
+/// str[in]      : String to search.
+/// chr_ptr[in]  : Pointer to the character value to search for.
+/// compare[in]  : Comparator returning `0` for equality.
+///
+/// SUCCESS : Returns the zero-based index of the first matching character.
+///           The string is not modified.
+/// FAILURE : Returns `SIZE_MAX` when no character matches. The string is not
+///           modified.
+///
+/// TAGS: Str, Find, Search, Compare
+///
+#define StrFind(str, chr_ptr, compare) VecFind((str), (chr_ptr), (compare))
+
+///
+/// Check whether the string contains a matching character. Same contract as
+/// VecContains, specialised for the char element.
+///
+/// str[in]      : String to search.
+/// chr_ptr[in]  : Pointer to the character value to search for.
+/// compare[in]  : Comparator returning `0` for equality.
+///
+/// SUCCESS : Returns `true` when at least one matching character exists.
+/// FAILURE : Returns `false` when no character matches.
+///
+/// TAGS: Str, Contains, Search, Compare
+///
+#define StrContainsChar(str, chr_ptr, compare) VecContains((str), (chr_ptr), (compare))
+
 #ifdef __cplusplus
 }
 #endif
