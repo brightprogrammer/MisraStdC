@@ -43,7 +43,15 @@ u64 Prng64(void);
 ///
 /// Lower 32 / 16 / 8 bits of the next sample. Faster at the call
 /// site than masking `Prng64` by hand; the underlying state is the
-/// same so they consume the same PRNG sequence.
+/// same so each call still consumes one position in the PRNG
+/// sequence.
+///
+/// SUCCESS : Returns the truncated low bits of the next sample (32 /
+///           16 / 8 bits respectively). The shared PRNG state advances
+///           by one position per call.
+/// FAILURE : Aborts via `LOG_FATAL` on first PRNG use if the OS
+///           entropy source is unavailable (same fatal-on-bad-OS
+///           contract as `Prng64`; no safe fallback exists).
 ///
 /// TAGS: Prng, Random
 ///
