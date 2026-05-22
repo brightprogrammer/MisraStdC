@@ -50,7 +50,8 @@ extern "C" {
 /// str[in] : String to query.
 ///
 /// SUCCESS : Returns `true` when string length is 0.
-/// FAILURE : Returns `false`
+/// FAILURE : Returns `false` when the string contains at least one
+///           character. The string is not modified.
 ///
 /// TAGS: Str, Empty, Query
 ///
