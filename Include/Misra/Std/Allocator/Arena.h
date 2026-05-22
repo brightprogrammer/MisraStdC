@@ -32,7 +32,7 @@ extern "C" {
         Allocator     base;
         ArenaChunk   *head;
         ArenaChunk   *tail;
-        char         *last_ptr;
+        u8           *last_ptr;
         size          last_size;
         PageAllocator page;
     } ArenaAllocator;

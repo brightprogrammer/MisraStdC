@@ -73,11 +73,11 @@ extern "C" {
     ///
     typedef struct BudgetAllocator {
         Allocator base;
-        char     *buf;
+        u8       *buf;
         size      buf_bytes;
         u64      *bitmap;
         u32       bitmap_words;
-        char     *slots;
+        u8       *slots;
         size      slot_size;
         size      slot_count;
     } BudgetAllocator;
@@ -162,7 +162,7 @@ extern "C" {
                     .effort      = ALLOCATOR_EFFORT_ONCE,                                                                    \
                     .retry_limit = 0,                                                                                        \
                     .__magic     = BUDGET_ALLOCATOR_MAGIC},                                                                      \
-         .buf          = (char *)(buf_ptr),                                                                            \
+         .buf          = (u8 *)(buf_ptr),                                                                              \
          .buf_bytes    = (total_bytes),                                                                                \
          .bitmap       = (u64 *)PTR_ALIGN_UP_POW2((buf_ptr), 8u),                                                      \
          .bitmap_words = (u32)CEIL_DIV(                                                                                \
@@ -170,7 +170,7 @@ extern "C" {
                  ALIGN_UP_POW2((slot_size_bytes), (alignment_value)),                                                  \
              64u                                                                                                       \
          ),                                                                                                            \
-         .slots = (char *)ALIGN_UP_POW2(                                                                               \
+         .slots = (u8 *)ALIGN_UP_POW2(                                                                                 \
              ALIGN_UP_POW2((u64)(buf_ptr), 8u) +                                                                       \
                  CEIL_DIV(                                                                                             \
                      ((size)(total_bytes) - (size)(ALIGN_UP_POW2((u64)(buf_ptr), 8u) - (u64)(buf_ptr))) /              \

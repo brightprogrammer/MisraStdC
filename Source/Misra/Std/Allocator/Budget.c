@@ -74,8 +74,8 @@ static void budget_validate_self(const Allocator *self) {
         );
     }
     // Slots and bitmap both lie inside [buf, buf + buf_bytes).
-    const char *buf_end = b->buf + b->buf_bytes;
-    if ((const char *)b->bitmap < b->buf || (const char *)b->bitmap >= buf_end) {
+    const u8 *buf_end = b->buf + b->buf_bytes;
+    if ((const u8 *)b->bitmap < b->buf || (const u8 *)b->bitmap >= buf_end) {
         LOG_FATAL("BudgetAllocator: bitmap pointer outside buf region");
     }
     if (b->slots < b->buf || b->slots > buf_end) {
@@ -89,7 +89,7 @@ static void budget_validate_self(const Allocator *self) {
         );
     }
     // Bitmap region must precede the slot region (init lays them out that way).
-    if ((const char *)b->bitmap >= b->slots) {
+    if ((const u8 *)b->bitmap >= b->slots) {
         LOG_FATAL("BudgetAllocator: bitmap region must precede slot region");
     }
 }
@@ -165,8 +165,8 @@ size budget_allocator_deallocate(Allocator *self, void *ptr) {
     if (!ptr)
         return 0;
 
-    char *p   = (char *)ptr;
-    char *end = bp->slots + bp->slot_count * bp->slot_size;
+    u8 *p   = (u8 *)ptr;
+    u8 *end = bp->slots + bp->slot_count * bp->slot_size;
 
     if (p < bp->slots || p >= end) {
         LOG_FATAL("budget_free: foreign ptr {x} not in slot region", (u64)p);

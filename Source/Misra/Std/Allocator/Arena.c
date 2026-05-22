@@ -47,7 +47,7 @@ static void arena_validate_self(const Allocator *self) {
 
 struct ArenaChunk {
     struct ArenaChunk *next;
-    char              *base;
+    u8                *base;
     size               capacity;
     size               used;
     size               raw_size;
@@ -63,8 +63,8 @@ static size arena_effective_alignment(const Allocator *self) {
 static bool arena_owns_pointer(const ArenaAllocator *arena, const void *ptr) {
     const ArenaChunk *chunk = arena->head;
     while (chunk) {
-        const char *base = chunk->base;
-        if ((const char *)ptr >= base && (const char *)ptr < base + chunk->capacity) {
+        const u8 *base = chunk->base;
+        if ((const u8 *)ptr >= base && (const u8 *)ptr < base + chunk->capacity) {
             return true;
         }
         chunk = chunk->next;
@@ -83,8 +83,8 @@ static size arena_chunk_size_for(ArenaAllocator *arena, size need_bytes) {
 }
 
 static ArenaChunk *arena_new_chunk(ArenaAllocator *arena, size need_bytes) {
-    size  chunk_bytes = arena_chunk_size_for(arena, need_bytes + sizeof(ArenaChunk));
-    char *raw         = (char *)AllocatorAlloc(&arena->page.base, chunk_bytes, true);
+    size chunk_bytes = arena_chunk_size_for(arena, need_bytes + sizeof(ArenaChunk));
+    u8  *raw         = (u8 *)AllocatorAlloc(&arena->page.base, chunk_bytes, true);
     if (!raw) {
         return NULL;
     }
@@ -114,7 +114,7 @@ void *arena_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
         u64  aligned_addr = (free_addr + (u64)(align - 1)) & ~(u64)(align - 1);
         size aligned_used = (size)(aligned_addr - base_addr);
         if (aligned_used + padded <= chunk->capacity) {
-            char *result     = chunk->base + aligned_used;
+            u8 *result       = chunk->base + aligned_used;
             chunk->used      = aligned_used + padded;
             arena->last_ptr  = result;
             arena->last_size = padded;
@@ -133,13 +133,13 @@ void *arena_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     }
     arena->tail = chunk;
 
-    u64   base_addr    = (u64)chunk->base;
-    u64   aligned_addr = (base_addr + (u64)(align - 1)) & ~(u64)(align - 1);
-    size  aligned_used = (size)(aligned_addr - base_addr);
-    char *result       = chunk->base + aligned_used;
-    chunk->used        = aligned_used + padded;
-    arena->last_ptr    = result;
-    arena->last_size   = padded;
+    u64  base_addr    = (u64)chunk->base;
+    u64  aligned_addr = (base_addr + (u64)(align - 1)) & ~(u64)(align - 1);
+    size aligned_used = (size)(aligned_addr - base_addr);
+    u8  *result       = chunk->base + aligned_used;
+    chunk->used       = aligned_used + padded;
+    arena->last_ptr   = result;
+    arena->last_size  = padded;
     return result;
 }
 
@@ -159,7 +159,7 @@ i8 arena_allocator_resize(Allocator *self, void *ptr, size new_size) {
     }
     ArenaChunk *chunk      = arena->tail;
     size        padded_new = ALIGN_UP_POW2(new_size, align);
-    size        last_off   = (size)((char *)ptr - chunk->base);
+    size        last_off   = (size)((u8 *)ptr - chunk->base);
     if (last_off + padded_new > chunk->capacity) {
         return 0; // grow doesn't fit in this chunk
     }
