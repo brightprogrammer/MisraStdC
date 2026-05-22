@@ -185,15 +185,14 @@ bool test_str_init_stack(void) {
             result = false;
         }
 
-        // Check capacity is as expected (no public capacity accessor — reading field directly)
-        if (stack_str.capacity != 20) {
+        // Check capacity is as expected
+        if (StrCapacity(&stack_str) != 20) {
             result = false;
         }
     });
 
     // After the scope, stack_str should be zeroed out
-    // (no public capacity accessor — reading .capacity directly)
-    if (StrBegin(&stack_str) != NULL || StrLen(&stack_str) != 0 || stack_str.capacity != 0) {
+    if (StrBegin(&stack_str) != NULL || StrLen(&stack_str) != 0 || StrCapacity(&stack_str) != 0) {
         result = false;
     }
 

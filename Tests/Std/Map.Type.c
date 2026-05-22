@@ -57,14 +57,13 @@ static bool test_map_type_defaults(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
-    // (no public accessors for .capacity / .tombstones / .entries / .states — reading directly)
-    bool result = MapPairCount(&map) == 0 && map.capacity == 0 && map.tombstones == 0 && map.entries == NULL &&
-                  map.states == NULL && map.key_compare == i32_compare && map.value_compare == NULL &&
-                  map.key_hash == i32_hash && map.policy.should_rehash == MapPolicyLinear.should_rehash &&
-                  map.policy.next_capacity == MapPolicyLinear.next_capacity &&
-                  map.policy.first_index == MapPolicyLinear.first_index &&
-                  map.policy.next_index == MapPolicyLinear.next_index &&
-                  map.policy.max_probe_count == MapPolicyLinear.max_probe_count;
+    bool result =
+        MapPairCount(&map) == 0 && MapCapacity(&map) == 0 && MapTombstones(&map) == 0 && MapEntries(&map) == NULL &&
+        MapStates(&map) == NULL && map.key_compare == i32_compare && map.value_compare == NULL &&
+        map.key_hash == i32_hash && map.policy.should_rehash == MapPolicyLinear.should_rehash &&
+        map.policy.next_capacity == MapPolicyLinear.next_capacity &&
+        map.policy.first_index == MapPolicyLinear.first_index && map.policy.next_index == MapPolicyLinear.next_index &&
+        map.policy.max_probe_count == MapPolicyLinear.max_probe_count;
 
     MapDeinit(&map);
     DefaultAllocatorDeinit(&alloc);

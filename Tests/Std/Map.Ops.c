@@ -142,10 +142,10 @@ static bool test_map_compact_and_swap(void) {
     MapInsertR(&second, 9, 90);
     MapInsertR(&second, 10, 100);
 
-    bool result = (first.tombstones == 1);
+    bool result = (MapTombstones(&first) == 1);
     MapCompact(&first);
 
-    result = result && (first.tombstones == 0);
+    result = result && (MapTombstones(&first) == 0);
     result = result && MapContainsPair(&first, 1, 11);
     result = result && MapContainsPair(&first, 2, 20);
     result = result && (MapPairCount(&first) == 2);

@@ -3,10 +3,6 @@
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
 
-// NOTE: Map has no public accessor for .capacity; tests in this file read
-// that field directly. Treat each occurrence as equivalent to an inline
-// "no public capacity accessor" comment.
-
 static u64 i32_hash(const void *data, u32 size) {
     u64 x = (u64)(u32)(*(const int *)data);
     (void)size;
@@ -61,7 +57,7 @@ static bool test_map_reserve_and_clear(void) {
     size             reserved_capacity;
 
     MapReserve(&map, 32);
-    reserved_capacity = (size)map.capacity;
+    reserved_capacity = (size)MapCapacity(&map);
 
     MapInsertR(&map, 1, 10);
     MapInsertR(&map, 1, 11);
@@ -69,7 +65,7 @@ static bool test_map_reserve_and_clear(void) {
     MapRemoveFirst(&map, 1);
     MapClear(&map);
 
-    bool result = (reserved_capacity >= 32) && (map.capacity == reserved_capacity) && (map.tombstones == 0) &&
+    bool result = (reserved_capacity >= 32) && (MapCapacity(&map) == reserved_capacity) && (MapTombstones(&map) == 0) &&
                   (MapPairCount(&map) == 0) && MapEmpty(&map) && !MapContainsKey(&map, 1) && !MapContainsKey(&map, 2);
 
     MapSetOnlyR(&map, 7, 70);
@@ -125,7 +121,7 @@ static bool test_map_custom_policy_growth(void) {
         MapSetOnlyR(&map, i, i + 100);
     }
 
-    result = result && (map.capacity == 10);
+    result = result && (MapCapacity(&map) == 10);
     result = result && (map.policy.next_capacity == custom_next_capacity);
 
     for (int i = 0; i < 6; i++) {

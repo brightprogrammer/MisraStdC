@@ -9,10 +9,6 @@
 // Include test utilities
 #include "../Util/TestRunner.h"
 
-// NOTE: Vec has no public accessor for .capacity; tests in this file read
-// that field directly. Treat each occurrence as equivalent to an inline
-// "no public capacity accessor" comment.
-
 // File-scoped HeapAllocator backing every fixture-owned `name` / `values`
 // allocation. The fixture deliberately keeps `name` as a raw `char *` and
 // `values` as a raw `int *` so the test exercises Vec's deep-copy
@@ -187,7 +183,7 @@ bool test_complex_vec_init(void) {
 
     // Check initial state
     bool result =
-        (VecLen(&vec) == 0 && vec.capacity == 0 && VecBegin(&vec) == NULL &&
+        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL &&
          vec.copy_init == (GenericCopyInit)ComplexItemCopyInit &&
          vec.copy_deinit == (GenericCopyDeinit)ComplexItemDeinit);
 
@@ -651,7 +647,7 @@ bool test_edge_cases(void) {
 
     // Reserve zero capacity
     VecReserve(&vec, 0);
-    result = result && (vec.capacity == 0);
+    result = result && (VecCapacity(&vec) == 0);
 
     // Push an element (should auto-resize)
     VecPushBackR(&vec, 42);

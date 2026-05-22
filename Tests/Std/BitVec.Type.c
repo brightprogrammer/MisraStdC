@@ -21,8 +21,9 @@ bool test_bitvec_type_basic(void) {
     BitVec bitvec = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Check initial state
-    // (no public capacity/data accessors — reading fields directly)
-    bool result = (BitVecLen(&bitvec) == 0 && bitvec.capacity == 0 && bitvec.data == NULL && bitvec.byte_size == 0);
+    bool result =
+        (BitVecLen(&bitvec) == 0 && BitVecCapacity(&bitvec) == 0 && BitVecData(&bitvec) == NULL &&
+         bitvec.byte_size == 0);
 
     // Clean up
     BitVecDeinit(&bitvec);

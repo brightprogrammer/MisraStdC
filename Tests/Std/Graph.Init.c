@@ -18,13 +18,12 @@ static bool test_graph_reserve_clear(void) {
     GraphReserve(&graph, 8);
     ValidateGraph(&graph);
 
-    // (no public capacity accessor on inner Vec — reading .capacity directly)
-    bool        result            = graph.slots.capacity >= 8;
+    bool        result            = VecCapacity(&graph.slots) >= 8;
     GraphNodeId first_id          = GraphAddNodeR(&graph, 10);
     GraphNodeId second_id         = GraphAddNodeR(&graph, 20);
     GraphNodeId third_id          = GraphAddNodeR(&graph, 30);
     u64         slot_count        = VecLen(&graph.slots);
-    size        slot_capacity     = graph.slots.capacity; // no public capacity accessor
+    size        slot_capacity     = VecCapacity(&graph.slots);
     u32         first_generation  = GraphNodeIdGeneration(first_id);
     u32         second_generation = GraphNodeIdGeneration(second_id);
     u32         third_generation  = GraphNodeIdGeneration(third_id);
@@ -44,8 +43,7 @@ static bool test_graph_reserve_clear(void) {
     result = result && !GraphContainsNode(&graph, first_id) && !GraphContainsNode(&graph, second_id);
     result = result && !GraphContainsNode(&graph, third_id);
     result = result && VecLen(&graph.slots) == slot_count && VecLen(&graph.free_indices) == slot_count;
-    // (no public capacity accessor on inner Vec — reading .capacity directly)
-    result = result && graph.slots.capacity == slot_capacity && graph.free_indices.capacity >= slot_count;
+    result = result && VecCapacity(&graph.slots) == slot_capacity && VecCapacity(&graph.free_indices) >= slot_count;
     result = result && graph.pending_delete_count == 0 && VecLen(&graph.pending_edge_removals) == 0;
 
     for (slot_index = 0; slot_index < VecLen(&graph.slots); slot_index++) {

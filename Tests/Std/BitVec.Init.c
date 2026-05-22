@@ -6,10 +6,6 @@
 // Include test utilities
 #include "../Util/TestRunner.h"
 
-// NOTE: BitVec has no public accessor for .capacity / .data; tests in this
-// file therefore read those fields directly. Treat each occurrence as
-// equivalent to an inline "no public capacity/data accessor" comment.
-
 // Function prototypes
 bool test_bitvec_init(void);
 bool test_bitvec_deinit(void);
@@ -33,10 +29,9 @@ bool test_bitvec_init(void) {
     BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Check initial state
-    // (no public capacity accessor, no public data accessor — reading fields directly)
     bool result = (BitVecLen(&bv) == 0);
-    result      = result && (bv.capacity == 0);
-    result      = result && (bv.data == NULL);
+    result      = result && (BitVecCapacity(&bv) == 0);
+    result      = result && (BitVecData(&bv) == NULL);
     result      = result && (bv.byte_size == 0);
 
     // Clean up
@@ -61,7 +56,7 @@ bool test_bitvec_deinit(void) {
     BitVecPush(&bv, true);
 
     // Check that data was allocated
-    bool result = (BitVecLen(&bv) == 3) && (bv.data != NULL);
+    bool result = (BitVecLen(&bv) == 3) && (BitVecData(&bv) != NULL);
 
     // Deinitialize
     BitVecDeinit(&bv);
@@ -70,8 +65,8 @@ bool test_bitvec_deinit(void) {
     // Note: We can't easily test that memory was freed without causing issues,
     // but we can check that the structure is reset to safe values
     result = result && (BitVecLen(&bv) == 0);
-    result = result && (bv.capacity == 0);
-    result = result && (bv.data == NULL);
+    result = result && (BitVecCapacity(&bv) == 0);
+    result = result && (BitVecData(&bv) == NULL);
     result = result && (bv.byte_size == 0);
 
     DefaultAllocatorDeinit(&alloc);
@@ -91,9 +86,9 @@ bool test_bitvec_reserve(void) {
     BitVecReserve(&bv, 50);
 
     // Check that capacity was increased
-    bool result = (bv.capacity >= 50);
-    result      = result && (BitVecLen(&bv) == 0); // Length should still be 0
-    result      = result && (bv.data != NULL);     // Memory should be allocated
+    bool result = (BitVecCapacity(&bv) >= 50);
+    result      = result && (BitVecLen(&bv) == 0);     // Length should still be 0
+    result      = result && (BitVecData(&bv) != NULL); // Memory should be allocated
 
     // Add some bits to make sure the reserved space works
     for (int i = 0; i < 10; i++) {
@@ -101,12 +96,12 @@ bool test_bitvec_reserve(void) {
     }
 
     result = result && (BitVecLen(&bv) == 10);
-    result = result && (bv.capacity >= 50); // Should still have the reserved capacity
+    result = result && (BitVecCapacity(&bv) >= 50); // Should still have the reserved capacity
 
     // Test reserving less than current capacity (should be no-op)
-    u64 original_capacity = bv.capacity;
+    u64 original_capacity = BitVecCapacity(&bv);
     BitVecReserve(&bv, 25);
-    result = result && (bv.capacity == original_capacity);
+    result = result && (BitVecCapacity(&bv) == original_capacity);
 
     // Clean up
     BitVecDeinit(&bv);
@@ -131,16 +126,16 @@ bool test_bitvec_clear(void) {
     BitVecPush(&bv, false);
 
     // Check initial state
-    bool result            = (BitVecLen(&bv) == 4) && (bv.data != NULL);
-    u64  original_capacity = bv.capacity;
+    bool result            = (BitVecLen(&bv) == 4) && (BitVecData(&bv) != NULL);
+    u64  original_capacity = BitVecCapacity(&bv);
 
     // Clear the bitvector
     BitVecClear(&bv);
 
     // Check that length is 0 but capacity and memory allocation remain
     result = result && (BitVecLen(&bv) == 0);
-    result = result && (bv.capacity == original_capacity);
-    result = result && (bv.data != NULL); // Memory should still be allocated
+    result = result && (BitVecCapacity(&bv) == original_capacity);
+    result = result && (BitVecData(&bv) != NULL); // Memory should still be allocated
 
     // Test that we can still add data after clearing
     BitVecPush(&bv, true);
@@ -212,7 +207,7 @@ bool test_bitvec_init_edge_cases(void) {
     BitVec bv3 = BitVecInit(ALLOCATOR_OF(&alloc));
 
     bool result = (BitVecLen(&bv1) == 0) && (BitVecLen(&bv2) == 0) && (BitVecLen(&bv3) == 0);
-    result      = result && (bv1.data == NULL) && (bv2.data == NULL) && (bv3.data == NULL);
+    result      = result && (BitVecData(&bv1) == NULL) && (BitVecData(&bv2) == NULL) && (BitVecData(&bv3) == NULL);
 
     // Clean up all
     BitVecDeinit(&bv1);
@@ -234,21 +229,21 @@ bool test_bitvec_reserve_edge_cases(void) {
 
     // Test reserving 0 (should be safe no-op)
     BitVecReserve(&bv, 0);
-    result = result && (bv.capacity == 0) && (bv.data == NULL);
+    result = result && (BitVecCapacity(&bv) == 0) && (BitVecData(&bv) == NULL);
 
     // Test reserving 1 bit (minimum meaningful size)
     BitVecReserve(&bv, 1);
-    result = result && (bv.capacity >= 1) && (bv.data != NULL);
+    result = result && (BitVecCapacity(&bv) >= 1) && (BitVecData(&bv) != NULL);
 
     // Test very large but reasonable reservation
     BitVecReserve(&bv, 10000);
-    result = result && (bv.capacity >= 10000);
+    result = result && (BitVecCapacity(&bv) >= 10000);
 
     // Test reserving same u64 repeatedly (should be no-op)
-    u64 cap_before = bv.capacity;
-    BitVecReserve(&bv, bv.capacity);
-    BitVecReserve(&bv, bv.capacity);
-    result = result && (bv.capacity == cap_before);
+    u64 cap_before = BitVecCapacity(&bv);
+    BitVecReserve(&bv, BitVecCapacity(&bv));
+    BitVecReserve(&bv, BitVecCapacity(&bv));
+    result = result && (BitVecCapacity(&bv) == cap_before);
 
     BitVecDeinit(&bv);
     DefaultAllocatorDeinit(&alloc);

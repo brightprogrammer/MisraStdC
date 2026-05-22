@@ -6,10 +6,6 @@
 // Include test utilities
 #include "../Util/TestRunner.h"
 
-// NOTE: BitVec has no public accessor for .capacity; tests in this file
-// therefore read that field directly. Treat each occurrence as equivalent
-// to an inline "no public capacity accessor" comment.
-
 // Function prototypes
 bool test_bitvec_shrink_to_fit(void);
 bool test_bitvec_set_capacity(void);
@@ -42,15 +38,15 @@ bool test_bitvec_shrink_to_fit(void) {
     BitVecReserve(&bv, 100);
 
     // Check that capacity is larger than length
-    u64  initial_capacity = bv.capacity;
+    u64  initial_capacity = BitVecCapacity(&bv);
     bool result           = (initial_capacity >= 100) && (BitVecLen(&bv) == 3);
 
     // Shrink to fit
     BitVecShrinkToFit(&bv);
 
     // Check that capacity is now closer to length
-    result = result && (bv.capacity < initial_capacity);
-    result = result && (bv.capacity >= BitVecLen(&bv));
+    result = result && (BitVecCapacity(&bv) < initial_capacity);
+    result = result && (BitVecCapacity(&bv) >= BitVecLen(&bv));
 
     // Check that data is still intact
     result = result && (BitVecLen(&bv) == 3);
@@ -82,7 +78,7 @@ bool test_bitvec_set_capacity(void) {
     BitVecReserve(&bv, 50);
 
     // Check that capacity was set correctly
-    bool result = (bv.capacity >= 50) && (BitVecLen(&bv) == 2);
+    bool result = (BitVecCapacity(&bv) >= 50) && (BitVecLen(&bv) == 2);
 
     // Check that data is still intact
     result = result && (BitVecGet(&bv, 0) == true);
@@ -92,7 +88,7 @@ bool test_bitvec_set_capacity(void) {
     BitVecReserve(&bv, 1);
 
     // Capacity should still accommodate at least the current length
-    result = result && (bv.capacity >= BitVecLen(&bv));
+    result = result && (BitVecCapacity(&bv) >= BitVecLen(&bv));
     result = result && (BitVecLen(&bv) == 2);
 
     // Data should still be intact
@@ -222,7 +218,7 @@ bool test_bitvec_clone_inherits_allocator_config(void) {
 
     // Clone should share the same Allocator* and therefore see identical
     // configuration fields on the base allocator.
-    bool result = BitVecLen(&clone) == BitVecLen(&original) && clone.capacity >= BitVecLen(&original) &&
+    bool result = BitVecLen(&clone) == BitVecLen(&original) && BitVecCapacity(&clone) >= BitVecLen(&original) &&
                   clone.allocator == original.allocator && clone.allocator->allocate == original.allocator->allocate &&
                   clone.allocator->remap == original.allocator->remap &&
                   clone.allocator->deallocate == original.allocator->deallocate &&
@@ -247,12 +243,12 @@ bool test_bitvec_shrink_to_fit_edge_cases(void) {
 
     // Test shrink on empty bitvec
     BitVecShrinkToFit(&bv);
-    result = result && (BitVecLen(&bv) == 0) && (bv.capacity >= 0);
+    result = result && (BitVecLen(&bv) == 0) && (BitVecCapacity(&bv) >= 0);
 
     // Test shrink on single element
     BitVecPush(&bv, true);
     BitVecShrinkToFit(&bv);
-    result = result && (BitVecLen(&bv) == 1) && (bv.capacity >= 1);
+    result = result && (BitVecLen(&bv) == 1) && (BitVecCapacity(&bv) >= 1);
     result = result && (BitVecGet(&bv, 0) == true);
 
     // Test multiple shrinks (should be safe)
@@ -281,7 +277,7 @@ bool test_bitvec_set_capacity_edge_cases(void) {
 
     // Test set capacity on empty bitvec
     BitVecReserve(&bv, 100);
-    result = result && (bv.capacity >= 100) && (BitVecLen(&bv) == 0);
+    result = result && (BitVecCapacity(&bv) >= 100) && (BitVecLen(&bv) == 0);
 
     // Test set capacity to 0
     // BitVecReserve doesn't support shrinking to 0, use BitVecClear instead
@@ -304,7 +300,7 @@ bool test_bitvec_set_capacity_edge_cases(void) {
 
     // Test setting very large capacity
     BitVecReserve(&bv, 10000);
-    result = result && (bv.capacity >= 10000);
+    result = result && (BitVecCapacity(&bv) >= 10000);
 
     BitVecDeinit(&bv);
     DefaultAllocatorDeinit(&alloc);

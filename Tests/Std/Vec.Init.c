@@ -49,9 +49,8 @@ bool test_vec_init_basic(void) {
     IntVec vec = VecInit(&alloc);
 
     // Check initial state
-    // .capacity has no public accessor; field access retained intentionally.
     bool result =
-        (VecLen(&vec) == 0 && vec.capacity == 0 && VecBegin(&vec) == NULL && vec.allocator->alignment == 1 &&
+        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL && vec.allocator->alignment == 1 &&
          vec.copy_init == NULL && vec.copy_deinit == NULL);
 
     // Clean up
@@ -62,9 +61,8 @@ bool test_vec_init_basic(void) {
     TestVec test_vec = VecInit(&alloc);
 
     // Check initial state
-    // .capacity has no public accessor; field access retained intentionally.
     result =
-        result && (VecLen(&test_vec) == 0 && test_vec.capacity == 0 && VecBegin(&test_vec) == NULL &&
+        result && (VecLen(&test_vec) == 0 && VecCapacity(&test_vec) == 0 && VecBegin(&test_vec) == NULL &&
                    test_vec.allocator->alignment == 1 && test_vec.copy_init == NULL && test_vec.copy_deinit == NULL);
 
     // Clean up
@@ -85,9 +83,8 @@ bool test_vec_init_aligned(void) {
     IntVec vec = VecInit(&aligned4);
 
     // Check initial state
-    // .capacity has no public accessor; field access retained intentionally.
     bool result =
-        (VecLen(&vec) == 0 && vec.capacity == 0 && VecBegin(&vec) == NULL && vec.allocator->alignment == 4 &&
+        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL && vec.allocator->alignment == 4 &&
          vec.copy_init == NULL && vec.copy_deinit == NULL);
 
     // Clean up
@@ -98,9 +95,8 @@ bool test_vec_init_aligned(void) {
     TestVec test_vec = VecInit(&aligned16);
 
     // Check initial state
-    // .capacity has no public accessor; field access retained intentionally.
     result =
-        result && (VecLen(&test_vec) == 0 && test_vec.capacity == 0 && VecBegin(&test_vec) == NULL &&
+        result && (VecLen(&test_vec) == 0 && VecCapacity(&test_vec) == 0 && VecBegin(&test_vec) == NULL &&
                    test_vec.allocator->alignment == 16 && test_vec.copy_init == NULL && test_vec.copy_deinit == NULL);
 
     // Clean up
@@ -120,9 +116,8 @@ bool test_vec_init_with_deep_copy(void) {
     TestVec vec = VecInitWithDeepCopy(TestItemCopyInit, TestItemDeinit, &alloc);
 
     // Check initial state
-    // .capacity has no public accessor; field access retained intentionally.
     bool result =
-        (VecLen(&vec) == 0 && vec.capacity == 0 && VecBegin(&vec) == NULL && vec.allocator->alignment == 1 &&
+        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL && vec.allocator->alignment == 1 &&
          vec.copy_init == (GenericCopyInit)TestItemCopyInit && vec.copy_deinit == (GenericCopyDeinit)TestItemDeinit);
 
     // Clean up
@@ -142,9 +137,8 @@ bool test_vec_init_aligned_with_deep_copy(void) {
     TestVec vec = VecInitWithDeepCopy(TestItemCopyInit, TestItemDeinit, &aligned8);
 
     // Check initial state
-    // .capacity has no public accessor; field access retained intentionally.
     bool result =
-        (VecLen(&vec) == 0 && vec.capacity == 0 && VecBegin(&vec) == NULL && vec.allocator->alignment == 8 &&
+        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL && vec.allocator->alignment == 8 &&
          vec.copy_init == (GenericCopyInit)TestItemCopyInit && vec.copy_deinit == (GenericCopyDeinit)TestItemDeinit);
 
     // Clean up
@@ -224,8 +218,7 @@ bool test_vec_init_stack(void) {
         // Inside the scope where the stack vector is valid
 
         // Check initial state
-        // .capacity has no public accessor; field access retained intentionally.
-        if (VecLen(&vec) != 0 || vec.capacity != 10 || VecBegin(&vec) == NULL || vec.allocator->alignment != 1 ||
+        if (VecLen(&vec) != 0 || VecCapacity(&vec) != 10 || VecBegin(&vec) == NULL || vec.allocator->alignment != 1 ||
             vec.copy_init != NULL || vec.copy_deinit != NULL) {
             result = false;
         }
@@ -244,8 +237,7 @@ bool test_vec_init_stack(void) {
     });
 
     // After the scope, vec should be zeroed out
-    // .capacity has no public accessor; field access retained intentionally.
-    if (VecBegin(&vec) != NULL || VecLen(&vec) != 0 || vec.capacity != 0) {
+    if (VecBegin(&vec) != NULL || VecLen(&vec) != 0 || VecCapacity(&vec) != 0) {
         result = false;
     }
 
@@ -257,8 +249,7 @@ bool test_vec_init_stack(void) {
         // Inside the scope where the stack vector is valid
 
         // Check initial state
-        // .capacity has no public accessor; field access retained intentionally.
-        if (VecLen(&test_vec) != 0 || test_vec.capacity != 5 || VecBegin(&test_vec) == NULL ||
+        if (VecLen(&test_vec) != 0 || VecCapacity(&test_vec) != 5 || VecBegin(&test_vec) == NULL ||
             test_vec.allocator->alignment != 1 || test_vec.copy_init != NULL || test_vec.copy_deinit != NULL) {
             result = false;
         }
@@ -278,8 +269,7 @@ bool test_vec_init_stack(void) {
     });
 
     // After the scope, test_vec should be zeroed out
-    // .capacity has no public accessor; field access retained intentionally.
-    if (VecBegin(&test_vec) != NULL || VecLen(&test_vec) != 0 || test_vec.capacity != 0) {
+    if (VecBegin(&test_vec) != NULL || VecLen(&test_vec) != 0 || VecCapacity(&test_vec) != 0) {
         result = false;
     }
 
@@ -306,9 +296,8 @@ bool test_vec_init_clone(void) {
     VecPushBackArrR(&clone, VecBegin(&src), VecLen(&src));
 
     // Check that the clone has the same data but different memory
-    // .capacity has no public accessor; field access retained intentionally.
     bool result =
-        (VecLen(&clone) == VecLen(&src) && clone.capacity >= VecLen(&src) && VecBegin(&clone) != VecBegin(&src) &&
+        (VecLen(&clone) == VecLen(&src) && VecCapacity(&clone) >= VecLen(&src) && VecBegin(&clone) != VecBegin(&src) &&
          clone.allocator->alignment == src.allocator->alignment);
 
     // Check the actual data

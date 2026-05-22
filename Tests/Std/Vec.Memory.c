@@ -32,14 +32,13 @@ bool test_vec_try_reduce_space(void) {
     }
 
     // Original capacity should be at least 100
-    // (no public capacity accessor — reading field directly)
-    bool result = (vec.capacity >= 100);
+    bool result = (VecCapacity(&vec) >= 100);
 
     // Try to reduce space
     VecTryReduceSpace(&vec);
 
     // Capacity should now be closer to the actual length
-    result = result && (vec.capacity < 100) && (vec.capacity >= VecLen(&vec));
+    result = result && (VecCapacity(&vec) < 100) && (VecCapacity(&vec) >= VecLen(&vec));
 
     // Check that the data is still intact
     for (size i = 0; i < VecLen(&vec); i++) {
@@ -112,14 +111,13 @@ bool test_vec_reserve(void) {
     IntVec vec = VecInit(&alloc);
 
     // Initial capacity should be 0
-    // (no public capacity accessor — reading field directly)
-    bool result = (vec.capacity == 0);
+    bool result = (VecCapacity(&vec) == 0);
 
     // Reserve space for 50 elements
     VecReserve(&vec, 50);
 
     // Capacity should now be at least 50
-    result = result && (vec.capacity >= 50);
+    result = result && (VecCapacity(&vec) >= 50);
 
     // Length should still be 0
     result = result && (VecLen(&vec) == 0);
@@ -131,7 +129,7 @@ bool test_vec_reserve(void) {
     }
 
     // Capacity should still be at least 50
-    result = result && (vec.capacity >= 50);
+    result = result && (VecCapacity(&vec) >= 50);
 
     // Length should now be 5
     result = result && (VecLen(&vec) == 5);
@@ -140,7 +138,7 @@ bool test_vec_reserve(void) {
     VecReserve(&vec, 20);
 
     // Capacity should still be at least 50
-    result = result && (vec.capacity >= 50);
+    result = result && (VecCapacity(&vec) >= 50);
 
     // Clean up
     VecDeinit(&vec);
@@ -168,8 +166,8 @@ bool test_vec_clear(void) {
     // Initial length should be 5
     bool result = (VecLen(&vec) == 5);
 
-    // Remember the capacity (no public capacity accessor — reading field directly)
-    size original_capacity = vec.capacity;
+    // Remember the capacity
+    size original_capacity = VecCapacity(&vec);
 
     // Clear the vector
     VecClear(&vec);
@@ -178,7 +176,7 @@ bool test_vec_clear(void) {
     result = result && (VecLen(&vec) == 0);
 
     // Capacity should remain the same
-    result = result && (vec.capacity == original_capacity);
+    result = result && (VecCapacity(&vec) == original_capacity);
 
     // Data pointer should still be valid
     result = result && (VecBegin(&vec) != NULL);

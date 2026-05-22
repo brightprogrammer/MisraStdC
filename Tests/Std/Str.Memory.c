@@ -6,10 +6,6 @@
 // Include test utilities
 #include "../Util/TestRunner.h"
 
-// NOTE: Str has no public accessor for .capacity; tests in this file read
-// that field directly. Treat each occurrence as equivalent to an inline
-// "no public capacity accessor" comment.
-
 // Function prototypes
 bool test_str_try_reduce_space(void);
 bool test_str_swap_char_at(void);
@@ -33,13 +29,13 @@ bool test_str_try_reduce_space(void) {
     StrPushBackZstr(&s, "Hello");
 
     // Original capacity should be at least 100
-    bool result = (s.capacity >= 100);
+    bool result = (StrCapacity(&s) >= 100);
 
     // Try to reduce space
     StrTryReduceSpace(&s);
 
     // Capacity should now be closer to the actual length
-    result = result && (s.capacity < 100) && (s.capacity >= StrLen(&s));
+    result = result && (StrCapacity(&s) < 100) && (StrCapacity(&s) >= StrLen(&s));
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -112,7 +108,7 @@ bool test_str_reserve(void) {
     StrReserve(&s, 100);
 
     // Capacity should now be at least 100
-    bool result = (s.capacity >= 100);
+    bool result = (StrCapacity(&s) >= 100);
 
     // Length should still be 0
     result = result && (StrLen(&s) == 0);
@@ -121,7 +117,7 @@ bool test_str_reserve(void) {
     StrReserve(&s, 50);
 
     // Capacity should still be at least 100
-    result = result && (s.capacity >= 100);
+    result = result && (StrCapacity(&s) >= 100);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -143,7 +139,7 @@ bool test_str_clear(void) {
     StrClear(&s);
 
     // Length should now be 0, but capacity should remain
-    result = result && (StrLen(&s) == 0) && (s.capacity >= 13);
+    result = result && (StrLen(&s) == 0) && (StrCapacity(&s) >= 13);
 
     // Data pointer should still be valid
     result = result && (StrBegin(&s) != NULL);
