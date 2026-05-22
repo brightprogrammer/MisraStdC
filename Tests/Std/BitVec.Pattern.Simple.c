@@ -250,6 +250,46 @@ bool test_bitvec_find_all_pattern(void) {
     return result;
 }
 
+// Test BitVecFindAllPattern in its 3-arg Vec form. Same source/pattern as the
+// raw-buffer test above (5 hits in 10101010101), but we feed the matches into
+// a BitVecMatchIndices and check the full match list. The Vec form never
+// truncates -- proves we get all 5 hits without pre-sizing.
+bool test_bitvec_find_all_pattern_vec(void) {
+    DefaultAllocator alloc = DefaultAllocatorInit();
+    Allocator       *base  = ALLOCATOR_OF(&alloc);
+
+    WriteFmt("Testing BitVecFindAllPattern Vec form\n");
+
+    BitVec source  = BitVecInit(base);
+    BitVec pattern = BitVecInit(base);
+    bool   result  = true;
+
+    // Source: 10101010101 (11 bits)
+    for (int i = 0; i < 11; i++)
+        BitVecPush(&source, i % 2 == 0);
+    // Pattern: 101
+    BitVecPush(&pattern, true);
+    BitVecPush(&pattern, false);
+    BitVecPush(&pattern, true);
+
+    BitVecMatchIndices matches = VecInitT(matches, base);
+    result                     = result && BitVecFindAllPattern(&source, &pattern, &matches);
+    result                     = result && VecLen(&matches) == 5;
+    if (result) {
+        result = result && VecAt(&matches, 0) == 0;
+        result = result && VecAt(&matches, 1) == 2;
+        result = result && VecAt(&matches, 2) == 4;
+        result = result && VecAt(&matches, 3) == 6;
+        result = result && VecAt(&matches, 4) == 8;
+    }
+
+    VecDeinit(&matches);
+    BitVecDeinit(&source);
+    BitVecDeinit(&pattern);
+    DefaultAllocatorDeinit(&alloc);
+    return result;
+}
+
 // Test edge cases for pattern functions
 bool test_bitvec_pattern_edge_cases(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
@@ -982,7 +1022,8 @@ int main(void) {
     // Array of test functions
     TestFunction tests[] = {
         test_bitvec_basic_pattern_functions, test_bitvec_find_pattern,           test_bitvec_find_last_pattern,
-        test_bitvec_find_all_pattern,        test_bitvec_pattern_edge_cases,     test_bitvec_pattern_stress_tests,
+        test_bitvec_find_all_pattern,        test_bitvec_find_all_pattern_vec,   test_bitvec_pattern_edge_cases,
+        test_bitvec_pattern_stress_tests,
         test_bitvec_starts_with_basic,       test_bitvec_starts_with_edge_cases, test_bitvec_ends_with_basic,
         test_bitvec_ends_with_edge_cases,    test_bitvec_contains_basic,         test_bitvec_contains_at_basic,
         test_bitvec_contains_at_edge_cases,  test_bitvec_count_pattern_basic,    test_bitvec_rfind_pattern_basic,
