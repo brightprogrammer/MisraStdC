@@ -919,6 +919,26 @@ Str IntToHexStr(Int *value) {
     return IntToStrRadix(value, 16, false);
 }
 
+// FNV-1a over the significant magnitude bytes. `size` is the
+// GenericHash callback's value-slot size; ignored since Int's real
+// length lives inside the value itself. `Int` is unsigned by design,
+// so there's no sign byte to mix in.
+u64 int_hash(Int *value, u32 size) {
+    u64 hash = 1469598103934665603ULL;
+
+    (void)size;
+    ValidateInt(value);
+
+    u64       bits      = IntBitLength(value);
+    u64       bytes     = bits == 0 ? 0 : CEIL_DIV(bits, 8u);
+    const u8 *magnitude = (const u8 *)BitVecData(INT_BITS(value));
+    for (u64 i = 0; i < bytes; i++) {
+        hash ^= (u64)magnitude[i];
+        hash *= 1099511628211ULL;
+    }
+    return hash;
+}
+
 int int_compare(Int *lhs, Int *rhs) {
     ValidateInt(lhs);
     ValidateInt(rhs);

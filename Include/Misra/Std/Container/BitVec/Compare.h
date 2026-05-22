@@ -145,6 +145,25 @@ extern "C" {
     int BitVecCompare(BitVec *bv1, BitVec *bv2);
 
     ///
+    /// Hash a `BitVec` for use as a map key. FNV-1a over the live bits
+    /// with the bit length mixed in at the tail, so two bitvectors that
+    /// share a byte prefix but differ in length still land in different
+    /// buckets. Typed signature; cast to `GenericHash` at the `Map` /
+    /// `Vec` callback site.
+    ///
+    /// bv[in]   : BitVec to hash.
+    /// size[in] : Ignored. Included for `GenericHash`-cast compatibility.
+    ///
+    /// SUCCESS : Returns a stable hash of the bit pattern + length.
+    ///
+    /// USAGE:
+    ///   Map(BitVec, u64) counts = MapInit(bitvec_hash, BitVecCompare, alloc);
+    ///
+    /// TAGS: BitVec, Hash, GenericHash
+    ///
+    u64 bitvec_hash(BitVec *bv, u32 size);
+
+    ///
     /// Compare two bitvectors as unsigned integers.
     /// Treats bitvectors as unsigned binary numbers (LSB first).
     ///

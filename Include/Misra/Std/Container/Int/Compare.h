@@ -28,6 +28,24 @@ extern "C" {
     ///
     int int_compare(Int *lhs, Int *rhs);
 
+    ///
+    /// Hash an `Int` for use as a map key. FNV-1a over the magnitude
+    /// bytes. Typed signature; cast to `GenericHash` at the
+    /// `Map` / `Vec` callback site (the standard pattern -- see
+    /// `MapInitFull_9` and `VecFind`).
+    ///
+    /// value[in] : Int to hash.
+    /// size[in]  : Ignored. Included for `GenericHash`-cast compatibility.
+    ///
+    /// SUCCESS : Returns a stable hash of the integer's magnitude.
+    ///
+    /// USAGE:
+    ///   Map(Int, u64) counts = MapInit(int_hash, int_compare, alloc);
+    ///
+    /// TAGS: Int, Hash, GenericHash
+    ///
+    u64 int_hash(Int *value, u32 size);
+
 #ifndef __cplusplus
 #    define INT_COMPARE_DISPATCH(rhs)                                                                                  \
         _Generic(                                                                                                      \

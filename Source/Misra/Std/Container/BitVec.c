@@ -654,6 +654,30 @@ bool BitVecEqualsRange(BitVec *bv1, u64 start1, BitVec *bv2, u64 start2, u64 len
     return true;
 }
 
+// FNV-1a over the live bit-vector bytes plus a length tail-mix so two
+// bitvectors that share a byte prefix but differ in length still hash
+// to distinct buckets. Typed signature -- callers cast to GenericHash
+// at the Map / Vec callback site.
+u64 bitvec_hash(BitVec *bv, u32 size) {
+    u64 hash = 1469598103934665603ULL;
+
+    (void)size;
+    ValidateBitVec(bv);
+
+    u64       bit_count  = bv->length;
+    u64       byte_count = bit_count == 0 ? 0 : BYTES_FOR_BITS(bit_count);
+    const u8 *bytes      = (const u8 *)bv->data;
+    for (u64 i = 0; i < byte_count; i++) {
+        hash ^= (u64)bytes[i];
+        hash *= 1099511628211ULL;
+    }
+    for (u64 i = 0; i < sizeof(bit_count); i++) {
+        hash ^= (bit_count >> (i * 8u)) & 0xFFu;
+        hash *= 1099511628211ULL;
+    }
+    return hash;
+}
+
 int BitVecCompare(BitVec *bv1, BitVec *bv2) {
     ValidateBitVec(bv1);
     ValidateBitVec(bv2);

@@ -28,6 +28,25 @@ extern "C" {
     ///
     int float_compare_with_error(Float *lhs, Float *rhs, bool *error);
     int float_compare(Float *lhs, Float *rhs);
+
+    ///
+    /// Hash a `Float` for use as a map key. FNV-1a over the significand
+    /// magnitude bytes, the exponent, and the sign so `+1.5e3`,
+    /// `-1.5e3`, and `1.5e2` land in different buckets. Typed signature;
+    /// cast to `GenericHash` at the `Map` / `Vec` callback site.
+    ///
+    /// value[in] : Float to hash.
+    /// size[in]  : Ignored. Included for `GenericHash`-cast compatibility.
+    ///
+    /// SUCCESS : Returns a stable hash of the float's representation.
+    ///
+    /// USAGE:
+    ///   Map(Float, u64) counts = MapInit(float_hash, float_compare, alloc);
+    ///
+    /// TAGS: Float, Hash, GenericHash
+    ///
+    u64 float_hash(Float *value, u32 size);
+
 #ifndef __cplusplus
 #    define FLOAT_COMPARE_DISPATCH(rhs)                                                                                \
         _Generic(                                                                                                      \

@@ -759,6 +759,34 @@ int float_compare(Float *lhs, Float *rhs) {
     return float_compare_with_error(lhs, rhs, NULL);
 }
 
+// FNV-1a over significand magnitude bytes, exponent, and sign. Typed
+// signature -- callers cast to GenericHash at the Map/Vec callback
+// site (see MapInitFull_9 / VecFind for the pattern).
+u64 float_hash(Float *value, u32 size) {
+    u64 hash = 1469598103934665603ULL;
+
+    (void)size;
+    ValidateFloat(value);
+
+    u64       bits      = IntBitLength(&value->significand);
+    u64       bytes     = bits == 0 ? 0 : CEIL_DIV(bits, 8u);
+    const u8 *magnitude = (const u8 *)BitVecData(&value->significand.bits);
+    for (u64 i = 0; i < bytes; i++) {
+        hash ^= (u64)magnitude[i];
+        hash *= 1099511628211ULL;
+    }
+    // Mix exponent bytes (little-endian view of the signed i64).
+    i64 exp = value->exponent;
+    for (u64 i = 0; i < sizeof(exp); i++) {
+        hash ^= ((u64)exp >> (i * 8u)) & 0xFFu;
+        hash *= 1099511628211ULL;
+    }
+    // Sign byte so +N and -N hash differently.
+    hash ^= (u64)(value->negative ? 1u : 0u);
+    hash *= 1099511628211ULL;
+    return hash;
+}
+
 int float_compare_int_with_error(Float *lhs, Int *rhs, bool *error) {
     Float rhs_value = FloatInit(lhs->significand.bits.allocator);
     int   cmp       = 0;
