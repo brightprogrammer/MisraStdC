@@ -30,6 +30,14 @@ of the codebase to see them in action.
   `_Generic` dispatch arms, where the underlying `char *` and
   `const char *` branches are still listed explicitly because string
   literals and `const`-returning callers each need their own match.
+- **Raw byte buffers use `u8 *`**, not `char *`. When a pointer holds
+  bytes you'll do byte-grain arithmetic on (allocator chunks, owned
+  memory regions, packed-record cursors), the type is `u8 *`. `char *`
+  is reserved for the C-string dispatch arms above; `void *` only
+  appears at API boundaries that genuinely accept opaque buffers.
+  `Arena.last_ptr`, `Budget.buf`/`slots`, `ArenaChunk.base` follow this
+  rule. The honest type matters: signed/unsigned, plain-char/typed-char
+  divergence between platforms has bitten this codebase before.
 
 ## API shape
 
@@ -61,6 +69,15 @@ of the codebase to see them in action.
   cases where the caller is genuinely working with a bare C-string —
   string literals, argv, kernel-boundary parameters — and knows the
   no-length view is what they want.
+- **Owned strings must be `Str`.** If a struct *owns* the storage of a
+  NUL-terminated string — allocates it, frees it on `Deinit` — the
+  field is a `Str` (which carries its allocator and self-cleans). A
+  `Zstr` field is acceptable only as a borrowed view, where someone
+  else owns the lifetime. The fix when you find owned `Zstr`: switch
+  the field to `Str`, replace the manual `AllocatorAlloc + MemCopy`
+  with `StrTryInitFromCstr` (or similar), and the Deinit loop becomes
+  `StrDeinit(&field)`. `MachoCacheEntry.module_path` and
+  `PdbCacheEntry.module_path` are the canonical references.
 - **A `(Zstr, length)` API always ships with a `Str` overload.** If a
   function takes a Zstr together with an explicit length (i.e. it's
   basically a Str minus the wrapper), provide a `Str` / `const Str *`
@@ -82,6 +99,30 @@ of the codebase to see them in action.
   stays there. Adding the `Str` overload is also a chance to surface
   cases where the function should really be Str-only: if no caller
   ever wants the Zstr form, you don't need it.
+- **Accessor macros are read-only.** `VecLen`, `VecCapacity`,
+  `StrCapacity`, `MapPairCount`, `ListHead`, `BitVecData`, etc. expose
+  state for inspection; they don't mutate. Mutation always goes through
+  a dedicated mutator (`VecResize`, `VecReserve`, `VecTryReduceSpace`,
+  `MapInsertR`, `ListPushBack`, ...). There is no `SetCapacity` /
+  `SetLength` / `SetHead` shape anywhere in the codebase, and there
+  shouldn't be — adjusting state has invariants the mutators enforce.
+  Intentional-corruption tests that need to bypass an invariant (to
+  verify that a validator catches it) write the field directly, with
+  an inline comment noting the bypass.
+- **Container key types ship `*_hash` and `*_compare`.** Any type
+  meant to be a `Map` key (or `Vec`/`List` element with comparison
+  semantics) must expose two snake_case helpers in the
+  `GenericHash` / `GenericCompare` shapes:
+
+  ```c
+  u64 foo_hash(const void *data, u32 size);     // size is ignored;
+                                                // length lives in the type
+  i32 foo_compare(const void *lhs, const void *rhs);
+  ```
+
+  These drop straight into `MapInitWithDeepCopy` / `VecSort` /
+  `MapPolicyLinear`-style slots. `str_hash` / `str_compare` in
+  `<Misra/Std/Container/Str/Ops.h>` are the canonical references.
 
 ## Allocators
 
@@ -114,6 +155,13 @@ of the codebase to see them in action.
   the libc header.
 - Don't speak libc in design, naming, or comments. No `stderr`, no
   `FILE`, no `errno`, no `fopen` vocabulary leaking into the API surface.
+- **Kernel-boundary signatures keep their OS-native shape.** When a
+  function is forwarding straight into a syscall or Win32 entry point,
+  the parameter list matches whatever that boundary expects — `Zstr`
+  rules don't override `execve`'s `char **argv` / `char **envp`, and
+  the Zstr-everywhere rule doesn't override `int main(int argc, char
+  **argv)`. The boundary is the carve-out; everything that wraps it
+  is fair game for Misra-native types.
 
 ## `_Generic` dispatch
 
@@ -160,6 +208,14 @@ of the codebase to see them in action.
   parameter) are part of the macro's contract — those stay as-is.
   `UNPL` is only for identifiers the macro mints for its own
   bookkeeping.
+- **Cross-macro protocol names are exempt from `UNPL`.** When an outer
+  macro stamps a fixed identifier that inner macros are expected to
+  read by name (e.g. `key` inside `JR_OBJ` / `JR_OBJ_KV`,
+  `___is_first___` inside `JW_OBJ` / `JW_OBJ_KV`), `UNPL` would break
+  the protocol — the outer's mint and the inner's lookup have to agree
+  on the spelling. The protocol identifiers should be obvious-looking
+  enough to flag at a reader's first glance, and a comment in the
+  defining header should call them out.
 - **Macros only earn their keep through transformation or code
   generation.** A `#define Foo(a, b) foo((a), (b))` that just renames
   a function and forwards its arguments unchanged is deadweight —
@@ -169,6 +225,18 @@ of the codebase to see them in action.
   `_Generic` type dispatch, generating a `for`-chain body, etc.
   Think of macros as a code generator, not as the default ergonomics
   layer.
+- **Namespace-inheritance aliases are not deadweight.** When a type is
+  a typedef'd specialisation of another container (`Str` is a
+  `Vec(char)`), the specialisation's own headers carry forwarding
+  aliases for the parent container's ops — `StrForeach` →
+  `VecForeach`, `StrResize` → `VecResize`, `StrAlignedOffsetAt` →
+  `VecAlignedOffsetAt`, the full Insert / Remove / Memory / Access
+  surface. These look like 1:1 renames but are the specialisation's
+  own public API: callers should never have to know that `Str` is
+  implemented as a `Vec(char)` to iterate it, and the alias is what
+  enforces that. The alias's doc reframes the contract in the
+  specialised vocabulary (string / character) rather than echoing the
+  generic one (vector / element).
 
 ## Sub-range iteration
 
@@ -191,6 +259,15 @@ of the codebase to see them in action.
   and **`FAILURE:`** lines. Both lines describe the full behaviour —
   return value, control flow, and state effects — not just what the
   function returns.
+- **Simple field-accessor macros are exempt.** A macro whose body is a
+  single field read — `VecLen(v) -> (v)->length`, `MapCapacity(m) ->
+  (m)->capacity`, `ListHead(l) -> (l)->head`, `BitVecData(bv) ->
+  (bv)->data` — needs only the one-line description and a `TAGS` line.
+  These cannot fail, don't mutate, and the `SUCCESS:` / `FAILURE:`
+  block would be pure boilerplate. The exemption is narrow: anything
+  that branches, validates, allocates, or otherwise has observable
+  failure modes (`StrEmpty` does, despite being short) keeps the
+  full `SUCCESS:` / `FAILURE:` block.
 - **Comments explain *why*, not *what*.** A well-named identifier
   already says what; comments should add the non-obvious reason. Don't
   reference the current PR, ticket number, or caller — those rot.
@@ -202,6 +279,31 @@ of the codebase to see them in action.
   The backend is an implementation detail and rots when internals
   change. The public API is the user's contract; the helper it
   happens to expand to is not.
+
+## Testing
+
+- **Tests live outside every container's namespace.** That means
+  tests read `Str` / `Buf` / `Vec` / `BitVec` / `Map` / `List` state
+  through the public accessor macros (`StrBegin` / `StrLen` /
+  `VecBegin` / `VecLength` / `VecAt` / `VecPtrAt` / `BitVecLen` /
+  `BitVecData` / `MapPairCount` / `MapCapacity` / `ListHead` /
+  `ListTail` / ...), never by indexing into `.data` / `.length` /
+  `.capacity` / `.head` / etc. directly. Adding a new accessor is the
+  right answer when a test wants something the accessors don't cover
+  yet.
+- **`.Deadend` tests are the carve-out.** Files in
+  `Tests/Std/*.Deadend.c` and other intentional-corruption tests
+  exercise the validators by violating an invariant — bypassing
+  capacity bookkeeping, scrambling a magic value, overrunning a buffer.
+  These tests write fields directly because that's the whole point of
+  the test; mark each such site with an inline comment so it doesn't
+  get swept on the next pass.
+- **Fixture-local owned storage** (e.g. `Vec.Complex.c`'s `char *name`
+  / `int *values` inside a `ComplexItem` that exercises
+  `VecInitWithDeepCopy` callbacks) is fine as raw pointers because the
+  whole point of the fixture is to model an arbitrary T whose nested
+  allocations are managed *outside* the container. A comment in the
+  fixture explains the intent.
 
 ## Commits and pre-commit
 
