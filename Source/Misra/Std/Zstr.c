@@ -8,18 +8,18 @@
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Zstr.h>
 
-size ZstrLen(const char *str) {
+size ZstrLen(Zstr str) {
     if (!str) {
         LOG_FATAL("Invalid arguments");
     }
 
-    const char *s = str;
+    Zstr s = str;
     while (*s)
         s++;
     return s - str;
 }
 
-i32 ZstrCompare(const char *s1, const char *s2) {
+i32 ZstrCompare(Zstr s1, Zstr s2) {
     if (!s1 || !s2) {
         LOG_FATAL("Invalid arguments");
     }
@@ -31,7 +31,7 @@ i32 ZstrCompare(const char *s1, const char *s2) {
     return *(const u8 *)s1 - *(const u8 *)s2;
 }
 
-i32 ZstrCompareN(const char *s1, const char *s2, size n) {
+i32 ZstrCompareN(Zstr s1, Zstr s2, size n) {
     if (!s1 || !s2) {
         LOG_FATAL("Invalid arguments");
     }
@@ -53,7 +53,7 @@ static inline u8 zstr_ascii_lower(u8 c) {
     return (c >= 'A' && c <= 'Z') ? (u8)(c - 'A' + 'a') : c;
 }
 
-i32 ZstrCompareIgnoreCase(const char *s1, const char *s2) {
+i32 ZstrCompareIgnoreCase(Zstr s1, Zstr s2) {
     if (!s1 || !s2) {
         LOG_FATAL("Invalid arguments");
     }
@@ -69,7 +69,7 @@ i32 ZstrCompareIgnoreCase(const char *s1, const char *s2) {
     return -(i32)zstr_ascii_lower((u8)*s2);
 }
 
-i32 ZstrCompareNIgnoreCase(const char *s1, const char *s2, size n) {
+i32 ZstrCompareNIgnoreCase(Zstr s1, Zstr s2, size n) {
     if (!s1 || !s2) {
         LOG_FATAL("Invalid arguments");
     }
@@ -88,21 +88,21 @@ i32 ZstrCompareNIgnoreCase(const char *s1, const char *s2, size n) {
     return s1[i] ? 1 : -1;
 }
 
-char *ZstrFindChar(const char *str, char ch) {
+Zstr ZstrFindChar(Zstr str, char ch) {
     if (!str) {
         LOG_FATAL("Invalid arguments");
     }
 
     do {
         if (*str == ch) {
-            return (char *)str;
+            return str;
         }
     } while (*str++);
 
     return NULL;
 }
 
-char *zstr_dup_n(const char *src, size n, Allocator *alloc) {
+Zstr zstr_dup_n(Zstr src, size n, Allocator *alloc) {
     if (!src || !alloc) {
         LOG_FATAL("Invalid arguments");
     }
@@ -125,7 +125,7 @@ char *zstr_dup_n(const char *src, size n, Allocator *alloc) {
     return new_str;
 }
 
-char *zstr_dup(const char *src, Allocator *alloc) {
+Zstr zstr_dup(Zstr src, Allocator *alloc) {
     if (!src) {
         LOG_FATAL("Invalid arguments");
     }
@@ -133,8 +133,8 @@ char *zstr_dup(const char *src, Allocator *alloc) {
 }
 
 bool zstr_init_clone(void *dst_ptr, const void *src_ptr, const Allocator *alloc) {
-    const char       **dst = (const char **)dst_ptr;
-    const char *const *src = (const char *const *)src_ptr;
+    Zstr       *dst = (Zstr *)dst_ptr;
+    const Zstr *src = (const Zstr *)src_ptr;
 
     if (!dst || !src || !*src || !alloc) {
         LOG_FATAL("Invalid arguments.");
@@ -145,7 +145,7 @@ bool zstr_init_clone(void *dst_ptr, const void *src_ptr, const Allocator *alloc)
 }
 
 void zstr_deinit(void *zs_ptr, const Allocator *alloc) {
-    const char **zs = (const char **)zs_ptr;
+    Zstr *zs = (Zstr *)zs_ptr;
 
     if (!zs || !alloc) {
         LOG_FATAL("Invalid arguments");
@@ -161,7 +161,7 @@ static inline bool zstr_is_ws(char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f';
 }
 
-i64 ZstrToI64(const char *s, char **endptr) {
+i64 ZstrToI64(Zstr s, Zstr *endptr) {
     if (!s) {
         if (endptr)
             *endptr = NULL;
@@ -180,10 +180,10 @@ i64 ZstrToI64(const char *s, char **endptr) {
     // INT64_MAX for positive, INT64_MAX+1 (= 2^63) for negative.
     // Overflow saturates so callers see a pinned value rather than a
     // silent wrap.
-    const char *digit_start = s;
-    const u64   bound       = neg ? ((u64)1 << 63) : (u64)0x7FFFFFFFFFFFFFFFULL;
-    u64         val         = 0;
-    bool        saturated   = false;
+    Zstr      digit_start = s;
+    const u64 bound       = neg ? ((u64)1 << 63) : (u64)0x7FFFFFFFFFFFFFFFULL;
+    u64       val         = 0;
+    bool      saturated   = false;
     while (*s >= '0' && *s <= '9') {
         u64 digit = (u64)(*s - '0');
         if (!saturated) {
@@ -197,7 +197,7 @@ i64 ZstrToI64(const char *s, char **endptr) {
         s++;
     }
     if (endptr) {
-        *endptr = (char *)(s == digit_start ? digit_start : s);
+        *endptr = s == digit_start ? digit_start : s;
     }
     if (s == digit_start) {
         return 0;
@@ -207,7 +207,7 @@ i64 ZstrToI64(const char *s, char **endptr) {
     return neg ? (i64)(0u - val) : (i64)val;
 }
 
-f64 ZstrToF64(const char *s, char **endptr) {
+f64 ZstrToF64(Zstr s, Zstr *endptr) {
     if (!s) {
         if (endptr)
             *endptr = NULL;
@@ -222,8 +222,8 @@ f64 ZstrToF64(const char *s, char **endptr) {
         neg = true;
         s++;
     }
-    const char *digit_start = s;
-    f64         val         = 0.0;
+    Zstr digit_start = s;
+    f64  val         = 0.0;
     while (*s >= '0' && *s <= '9') {
         val = val * 10.0 + (f64)(*s - '0');
         s++;
@@ -239,7 +239,7 @@ f64 ZstrToF64(const char *s, char **endptr) {
     }
     if (s == digit_start && (s[-1] != '.' || (digit_start == s))) {
         if (endptr) {
-            *endptr = (char *)digit_start;
+            *endptr = digit_start;
         }
         return 0.0;
     }
@@ -268,24 +268,24 @@ f64 ZstrToF64(const char *s, char **endptr) {
         }
     }
     if (endptr) {
-        *endptr = (char *)s;
+        *endptr = s;
     }
     return neg ? -val : val;
 }
 
-char *ZstrFindSubstring(const char *haystack, const char *needle) {
+Zstr ZstrFindSubstring(Zstr haystack, Zstr needle) {
     if (!needle) {
         LOG_FATAL("Invalid arguments");
     }
     return ZstrFindSubstringN(haystack, needle, ZstrLen(needle));
 }
 
-char *ZstrFindSubstringN(const char *haystack, const char *needle, size needle_len) {
+Zstr ZstrFindSubstringN(Zstr haystack, Zstr needle, size needle_len) {
     if (!haystack || !needle) {
         LOG_FATAL("Invalid arguments");
     }
     if (needle_len == 0) {
-        return (char *)haystack;
+        return haystack;
     }
     size haystack_len = ZstrLen(haystack);
     if (needle_len > haystack_len) {
@@ -299,7 +299,7 @@ char *ZstrFindSubstringN(const char *haystack, const char *needle, size needle_l
             continue;
         }
         if (MemCompare(haystack + pos, needle, needle_len) == 0) {
-            return (char *)(haystack + pos);
+            return haystack + pos;
         }
         pos++;
     }

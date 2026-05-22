@@ -392,7 +392,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
     }
 
     // convert to number
-    char *end = NULL;
+    Zstr end = NULL;
     if (is_flt) {
         num->f = ZstrToF64(ns.data, &end);
     } else {

@@ -538,7 +538,7 @@ bool FloatTryFromStr(Float *out, Zstr text) {
         }
 
         if (ch == 'e' || ch == 'E') {
-            char     *endptr = NULL;
+            Zstr      endptr = NULL;
             long long parsed = 0;
 
             pos++;

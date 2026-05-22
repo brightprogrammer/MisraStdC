@@ -14,9 +14,10 @@
 #include <Misra/Types.h>
 
 /// Read-only NUL-terminated C string -- the project name for what
-/// libc calls `const char *`. Public API surface uses this typedef so
-/// the intent ("read a borrowed C-string here") is visible at a
-/// glance; internal helpers may keep raw `const char *`.
+/// libc calls `const char *`. The whole codebase uses this typedef;
+/// raw `char *` / `const char *` appear only inside `_Generic` dispatch
+/// arms where string literals and `const`-returning callers each need
+/// their own match.
 typedef const char *Zstr;
 typedef Vec(Zstr) Zstrs;
 
@@ -29,7 +30,7 @@ typedef Vec(Zstr) Zstrs;
 /// FAILURE: Function cannot fail if str is valid.
 ///
 /// TAGS: Zstr, Length
-size ZstrLen(const char *str);
+size ZstrLen(Zstr str);
 
 ///
 /// Compare two strings lexicographically (case-sensitive).
@@ -41,7 +42,7 @@ size ZstrLen(const char *str);
 /// FAILURE: Function cannot fail if strings are valid.
 ///
 /// TAGS: Zstr, Comparison
-i32 ZstrCompare(const char *s1, const char *s2);
+i32 ZstrCompare(Zstr s1, Zstr s2);
 
 ///
 /// Compare two strings lexicographically up to n characters
@@ -51,7 +52,7 @@ i32 ZstrCompare(const char *s1, const char *s2);
 /// FAILURE: Function cannot fail if strings are valid.
 ///
 /// TAGS: Zstr, Comparison
-i32 ZstrCompareN(const char *s1, const char *s2, size n);
+i32 ZstrCompareN(Zstr s1, Zstr s2, size n);
 
 ///
 /// Compare two strings lexicographically, ignoring ASCII case.
@@ -62,7 +63,7 @@ i32 ZstrCompareN(const char *s1, const char *s2, size n);
 /// FAILURE: Function cannot fail if strings are valid.
 ///
 /// TAGS: Zstr, Comparison, IgnoreCase
-i32 ZstrCompareIgnoreCase(const char *s1, const char *s2);
+i32 ZstrCompareIgnoreCase(Zstr s1, Zstr s2);
 
 ///
 /// Compare two strings up to n characters, ignoring ASCII case.
@@ -72,7 +73,7 @@ i32 ZstrCompareIgnoreCase(const char *s1, const char *s2);
 /// FAILURE: Function cannot fail if strings are valid.
 ///
 /// TAGS: Zstr, Comparison, IgnoreCase
-i32 ZstrCompareNIgnoreCase(const char *s1, const char *s2, size n);
+i32 ZstrCompareNIgnoreCase(Zstr s1, Zstr s2, size n);
 
 ///
 /// Find the first occurrence of a character in a null-terminated string.
@@ -81,7 +82,7 @@ i32 ZstrCompareNIgnoreCase(const char *s1, const char *s2, size n);
 /// FAILURE: Function cannot fail if `str` is valid.
 ///
 /// TAGS: Zstr, Search
-char *ZstrFindChar(const char *str, char ch);
+Zstr ZstrFindChar(Zstr str, char ch);
 
 ///
 /// Find first occurrence of `needle` in `haystack`.
@@ -90,7 +91,7 @@ char *ZstrFindChar(const char *str, char ch);
 /// FAILURE: Returns NULL if either string is invalid.
 ///
 /// TAGS: Zstr, Search
-char *ZstrFindSubstring(const char *haystack, const char *needle);
+Zstr ZstrFindSubstring(Zstr haystack, Zstr needle);
 
 ///
 /// Find first occurrence of a substring of specified length.
@@ -99,7 +100,7 @@ char *ZstrFindSubstring(const char *haystack, const char *needle);
 /// FAILURE: Returns NULL if haystack is invalid or needle is NULL.
 ///
 /// TAGS: Zstr, Search
-char *ZstrFindSubstringN(const char *haystack, const char *needle, size needle_len);
+Zstr ZstrFindSubstringN(Zstr haystack, Zstr needle, size needle_len);
 
 ///
 /// Duplicates a string up to the specified length. Allocates a new
@@ -111,7 +112,7 @@ char *ZstrFindSubstringN(const char *haystack, const char *needle, size needle_l
 /// FAILURE : Returns NULL if memory allocation fails.
 ///
 /// TAGS: Zstr, Allocation
-char *zstr_dup_n(const char *src, size n, Allocator *alloc);
+Zstr zstr_dup_n(Zstr src, size n, Allocator *alloc);
 #define ZstrDupN(...)             MISRA_OVERLOAD(ZstrDupN, __VA_ARGS__)
 #define ZstrDupN_2(src, n)        zstr_dup_n((src), (n), MisraScope)
 #define ZstrDupN_3(src, n, alloc) zstr_dup_n((src), (n), ALLOCATOR_OF(alloc))
@@ -125,13 +126,13 @@ char *zstr_dup_n(const char *src, size n, Allocator *alloc);
 /// FAILURE : Returns NULL if memory allocation fails or `src` is NULL.
 ///
 /// TAGS: Zstr, Allocation
-char *zstr_dup(const char *src, Allocator *alloc);
+Zstr zstr_dup(Zstr src, Allocator *alloc);
 #define ZstrDup(...)          MISRA_OVERLOAD(ZstrDup, __VA_ARGS__)
 #define ZstrDup_1(src)        zstr_dup((src), MisraScope)
 #define ZstrDup_2(src, alloc) zstr_dup((src), ALLOCATOR_OF(alloc))
 
 ///
-/// Clone callback for `Zstrs` (= `Vec(const char *)`).
+/// Clone callback for `Zstrs` (= `Vec(Zstr)`).
 ///
 /// NOTE: Meant to be installed as the init handler on a `Zstrs` vector
 ///       so that VecInitCopy / element-level operations duplicate the
@@ -140,7 +141,7 @@ char *zstr_dup(const char *src, Allocator *alloc);
 bool zstr_init_clone(void *dst, const void *src, const Allocator *alloc);
 
 ///
-/// Deinit callback for `Zstrs` (= `Vec(const char *)`). Releases the
+/// Deinit callback for `Zstrs` (= `Vec(Zstr)`). Releases the
 /// buffer that `zstr_init_clone` allocated, then NULLs the slot.
 ///
 void zstr_deinit(void *zs, const Allocator *alloc);
@@ -164,7 +165,7 @@ int zstr_hex_digit_value(char c);
 /// hex escapes (`\\xNN`), and `\\u{...}` Unicode escapes that fit in a
 /// single byte.
 ///
-/// str[in,out] : Address of a `const char *` cursor. Advanced past the
+/// str[in,out] : Address of a `Zstr` cursor. Advanced past the
 ///               consumed escape on success.
 ///
 /// SUCCESS: Returns the decoded byte; `*str` is advanced past the escape.
@@ -172,7 +173,7 @@ int zstr_hex_digit_value(char c);
 ///          partially advanced.
 ///
 /// TAGS: Zstr, Parse, Escape
-char zstr_process_escape(const char **str);
+char zstr_process_escape(Zstr *str);
 #define ZstrProcessEscape(str) zstr_process_escape(str)
 
 ///
@@ -186,7 +187,7 @@ char zstr_process_escape(const char **str);
 /// FAILURE: Returns 0 when no digits are present.
 ///
 /// TAGS: Zstr, Parse, Integer
-i64 ZstrToI64(const char *s, char **endptr);
+i64 ZstrToI64(Zstr s, Zstr *endptr);
 
 ///
 /// Parse a decimal floating-point value. Accepts
@@ -197,6 +198,6 @@ i64 ZstrToI64(const char *s, char **endptr);
 /// FAILURE: Returns 0.0 when no digits are present.
 ///
 /// TAGS: Zstr, Parse, Float
-f64 ZstrToF64(const char *s, char **endptr);
+f64 ZstrToF64(Zstr s, Zstr *endptr);
 
 #endif // MISRA_STD_ZSTR_H

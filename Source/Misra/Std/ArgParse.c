@@ -58,11 +58,11 @@ static bool zstr_eq(const char *a, const char *b) {
 // Decimal integer parse that requires the entire input to be consumed.
 // Returns false on empty input, non-digit content, or trailing junk.
 // Signed range checked against the caller-supplied lo/hi.
-static bool parse_signed(const char *s, i64 lo, i64 hi, i64 *out) {
+static bool parse_signed(Zstr s, i64 lo, i64 hi, i64 *out) {
     if (!s || !*s)
         return false;
-    char *end = NULL;
-    i64   v   = ZstrToI64(s, &end);
+    Zstr end = NULL;
+    i64  v   = ZstrToI64(s, &end);
     if (!end || end == s || *end != '\0')
         return false;
     if (v < lo || v > hi)
@@ -73,11 +73,11 @@ static bool parse_signed(const char *s, i64 lo, i64 hi, i64 *out) {
 
 // Same shape, unsigned. ZstrToI64 doesn't span the unsigned-64 range
 // past 0x7fffffffffffffff so we walk decimal digits ourselves.
-static bool parse_unsigned(const char *s, u64 hi, u64 *out) {
+static bool parse_unsigned(Zstr s, u64 hi, u64 *out) {
     if (!s || !*s)
         return false;
-    const char *p = s;
-    u64         v = 0;
+    Zstr p = s;
+    u64  v = 0;
     while (*p >= '0' && *p <= '9') {
         u64 d = (u64)(*p - '0');
         if (v > (~(u64)0 - d) / 10)
@@ -93,7 +93,7 @@ static bool parse_unsigned(const char *s, u64 hi, u64 *out) {
     return true;
 }
 
-static bool parse_bool(const char *s, bool *out) {
+static bool parse_bool(Zstr s, bool *out) {
     if (zstr_eq(s, "true") || zstr_eq(s, "1") || zstr_eq(s, "yes") || zstr_eq(s, "on")) {
         *out = true;
         return true;
@@ -105,11 +105,11 @@ static bool parse_bool(const char *s, bool *out) {
     return false;
 }
 
-static bool parse_f64_full(const char *s, f64 *out) {
+static bool parse_f64_full(Zstr s, f64 *out) {
     if (!s || !*s)
         return false;
-    char *end = NULL;
-    f64   v   = ZstrToF64(s, &end);
+    Zstr end = NULL;
+    f64  v   = ZstrToF64(s, &end);
     if (!end || end == s || *end != '\0')
         return false;
     *out = v;

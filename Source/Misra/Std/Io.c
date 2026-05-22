@@ -2198,11 +2198,11 @@ bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
 }
 #endif // FEATURE_FLOAT
 
-char zstr_process_escape(const char **str) {
+char zstr_process_escape(Zstr *str) {
     if (!str || !*str)
         return 0;
 
-    const char *s = *str;
+    Zstr s = *str;
     if (*s != '\\') {
         LOG_ERROR("zstr_process_escape called on non-escape sequence");
         return 0;
