@@ -153,8 +153,7 @@ bool pe_open(Pe *out, Zstr path, Allocator *alloc);
 ///
 /// TAGS: Parser, PE, Memory, Ownership
 ///
-bool pe_open_from_memory(Pe *out, Buf *in);
-#define PeOpenFromMemory(out, in) pe_open_from_memory((out), (in))
+bool PeOpenFromMemory(Pe *out, Buf *in);
 
 ///
 /// Parse a PE image from an in-memory byte range -- **R-value /

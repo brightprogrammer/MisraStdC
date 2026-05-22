@@ -688,7 +688,7 @@ static bool parse_pdb_functions(Pdb *self) {
 
 // L-value form. `data` is `u8 **` -- ownership of the pointer moves
 // from caller to parser. On exit `*data == NULL` (success or failure).
-bool pdb_open_from_memory(Pdb *out, Buf *in) {
+bool PdbOpenFromMemory(Pdb *out, Buf *in) {
     if (!out || !in || !in->data || !in->allocator) {
         LOG_FATAL("PdbOpenFromMemory: NULL argument (contract violation)");
     }
@@ -731,7 +731,7 @@ bool pdb_open_from_memory_copy(Pdb *out, const u8 *data, size data_size, Allocat
     }
     MemCopy(BufData(&copy), data, data_size);
     copy.length = (size)data_size;
-    return pdb_open_from_memory(out, &copy);
+    return PdbOpenFromMemory(out, &copy);
 }
 
 bool pdb_open(Pdb *out, Zstr path, Allocator *alloc) {
@@ -744,7 +744,7 @@ bool pdb_open(Pdb *out, Zstr path, Allocator *alloc) {
         LOG_ERROR("PdbOpen: failed to read {}", path);
         return false;
     }
-    return pdb_open_from_memory(out, &data);
+    return PdbOpenFromMemory(out, &data);
 }
 
 void PdbDeinit(Pdb *self) {

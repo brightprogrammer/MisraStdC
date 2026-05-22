@@ -430,7 +430,7 @@ static void elf_decode_debug_metadata(Elf *self) {
 // any post-call use is a clean empty Buf rather than a stale alias.
 // Anything that fails past the snapshot cleans up via ElfDeinit,
 // so the buffer never leaks.
-bool elf_open_from_memory(Elf *out, Buf *in) {
+bool ElfOpenFromMemory(Elf *out, Buf *in) {
     if (!out || !in || !in->data || !in->allocator) {
         LOG_FATAL("ElfOpenFromMemory: NULL argument (contract violation)");
     }
@@ -471,7 +471,7 @@ bool elf_open_from_memory_copy(Elf *out, const u8 *data, size data_size, Allocat
     copy.length = (size)data_size;
     // Hand `&copy` to the L-form -- it consumes the local and zeros
     // it. The local goes out of scope right after.
-    return elf_open_from_memory(out, &copy);
+    return ElfOpenFromMemory(out, &copy);
 }
 
 bool elf_open(Elf *out, Zstr path, Allocator *alloc) {
@@ -484,7 +484,7 @@ bool elf_open(Elf *out, Zstr path, Allocator *alloc) {
         LOG_ERROR("ElfOpen: failed to read {}", path);
         return false;
     }
-    return elf_open_from_memory(out, &data);
+    return ElfOpenFromMemory(out, &data);
 }
 
 void ElfDeinit(Elf *self) {

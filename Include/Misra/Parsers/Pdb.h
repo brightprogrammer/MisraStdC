@@ -151,8 +151,7 @@ bool pdb_open(Pdb *out, Zstr path, Allocator *alloc);
 ///
 /// TAGS: Parser, PDB, Memory, Ownership
 ///
-bool pdb_open_from_memory(Pdb *out, Buf *in);
-#define PdbOpenFromMemory(out, in) pdb_open_from_memory((out), (in))
+bool PdbOpenFromMemory(Pdb *out, Buf *in);
 
 ///
 /// Open and parse a PDB from an in-memory byte range -- **R-value /

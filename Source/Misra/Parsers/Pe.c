@@ -495,7 +495,7 @@ static void pe_decode_codeview(PeContext *ctx) {
 // L-value form. Takes the caller's `Buf` by pointer, snapshots it,
 // MemSets the caller's view. Anything that fails past the snapshot
 // cleans up via PeDeinit -- the buffer never leaks.
-bool pe_open_from_memory(Pe *out, Buf *in) {
+bool PeOpenFromMemory(Pe *out, Buf *in) {
     if (!out || !in || !in->data || !in->allocator) {
         LOG_FATAL("PeOpenFromMemory: NULL argument (contract violation)");
     }
@@ -542,7 +542,7 @@ bool pe_open_from_memory_copy(Pe *out, const u8 *data, size data_size, Allocator
     }
     MemCopy(BufData(&copy), data, data_size);
     copy.length = (size)data_size;
-    return pe_open_from_memory(out, &copy);
+    return PeOpenFromMemory(out, &copy);
 }
 
 bool pe_open(Pe *out, Zstr path, Allocator *alloc) {
@@ -555,7 +555,7 @@ bool pe_open(Pe *out, Zstr path, Allocator *alloc) {
         LOG_ERROR("PeOpen: failed to read {}", path);
         return false;
     }
-    return pe_open_from_memory(out, &data);
+    return PeOpenFromMemory(out, &data);
 }
 
 void PeDeinit(Pe *self) {

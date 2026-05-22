@@ -159,8 +159,7 @@ bool macho_open(Macho *out, Zstr path, Allocator *alloc);
 ///
 /// TAGS: Parser, MachO, Memory, Ownership
 ///
-bool macho_open_from_memory(Macho *out, Buf *in);
-#define MachoOpenFromMemory(out, in) macho_open_from_memory((out), (in))
+bool MachoOpenFromMemory(Macho *out, Buf *in);
 
 ///
 /// Parse a Mach-O image from an in-memory byte range -- **R-value /

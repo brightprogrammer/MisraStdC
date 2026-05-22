@@ -398,7 +398,7 @@ static bool decode_symbols(MachoContext *ctx) {
 // L-value form. Takes the caller's `Buf` by pointer, snapshots it,
 // MemSets the caller's view to zero. Anything that fails past the
 // snapshot cleans up via MachoDeinit -- the buffer never leaks.
-bool macho_open_from_memory(Macho *out, Buf *in) {
+bool MachoOpenFromMemory(Macho *out, Buf *in) {
     if (!out || !in || !in->data || !in->allocator) {
         LOG_FATAL("MachoOpenFromMemory: NULL argument (contract violation)");
     }
@@ -437,7 +437,7 @@ bool macho_open_from_memory_copy(Macho *out, const u8 *data, size data_size, All
     }
     MemCopy(copy.data, data, data_size);
     copy.length = (size)data_size;
-    return macho_open_from_memory(out, &copy);
+    return MachoOpenFromMemory(out, &copy);
 }
 
 bool macho_open(Macho *out, Zstr path, Allocator *alloc) {
@@ -450,7 +450,7 @@ bool macho_open(Macho *out, Zstr path, Allocator *alloc) {
         LOG_ERROR("MachoOpen: failed to read {}", path);
         return false;
     }
-    return macho_open_from_memory(out, &data);
+    return MachoOpenFromMemory(out, &data);
 }
 
 void MachoDeinit(Macho *self) {

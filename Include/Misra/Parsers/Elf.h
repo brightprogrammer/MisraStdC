@@ -248,8 +248,7 @@ bool elf_open(Elf *out, Zstr path, Allocator *alloc);
 ///
 /// TAGS: Parser, ELF, Memory, Ownership
 ///
-bool elf_open_from_memory(Elf *out, Buf *in);
-#define ElfOpenFromMemory(out, in) elf_open_from_memory((out), (in))
+bool ElfOpenFromMemory(Elf *out, Buf *in);
 
 ///
 /// Parse an ELF object from an in-memory byte range -- **R-value /
