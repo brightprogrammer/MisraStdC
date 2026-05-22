@@ -115,8 +115,6 @@ extern "C" {
         ALLOCATOR_OF(alloc)                                                                                                                       \
     )
 
-    /// Snake_case runtime helpers. User code calls the PascalCase macros
-    /// below, which dispatch to these via MISRA_OVERLOAD.
     bool float_try_to_str(Str *out, Float *value, Allocator *alloc);
     Str  float_to_str(Float *value, Allocator *alloc);
 

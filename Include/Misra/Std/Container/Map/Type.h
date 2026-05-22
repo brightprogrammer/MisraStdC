@@ -9,6 +9,7 @@
 
 
 #include <Misra/Std/Container/Common.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
 
 typedef struct GenericMap GenericMap;
@@ -70,7 +71,7 @@ typedef bool (*MapPredicateFn)(const void *key, const void *value, void *ctx);
 /// TAGS: Map, Policy, Hashing, Probing, Configuration
 ///
 typedef struct {
-    const char             *name;
+    Zstr                    name;
     MapPolicyShouldRehashFn should_rehash;
     MapPolicyNextCapacityFn next_capacity;
     MapPolicyFirstIndexFn   first_index;
@@ -107,7 +108,7 @@ struct GenericMap {
     GenericCompare    key_compare;
     GenericCompare    value_compare;
     GenericHash       key_hash;
-    char             *entries;
+    u8               *entries;
     u8               *states;
     MapPolicy         policy;
     Allocator        *allocator;

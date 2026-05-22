@@ -22,15 +22,15 @@ extern "C" {
     typedef struct TypeSpecificIO TypeSpecificIO;
 
     ///
-    /// Append the formatted result of `fmt` + `args` to the end of `o`.
-    /// Existing bytes are preserved. Backs the `StrAppendFmt` macro.
+    /// Implementation backend for `StrAppendFmt`. Appends the formatted
+    /// result of `fmt` + `args` to the end of `o`; existing bytes are
+    /// preserved.
     ///
     bool str_append_fmt(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc);
 
     ///
-    /// Write the formatted result to `o` from scratch: equivalent to
-    /// `StrClear(o)` followed by `str_append_fmt(o, ...)`. Backs the
-    /// `StrWriteFmt` macro.
+    /// Implementation backend for `StrWriteFmt`. Clears `o` first, then
+    /// appends the formatted result.
     ///
     bool str_write_fmt(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc);
 
