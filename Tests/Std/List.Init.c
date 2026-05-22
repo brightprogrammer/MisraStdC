@@ -41,8 +41,8 @@ static bool test_list_init_variants(void) {
     ValidateList(&list_c);
     ValidateList(&list_d);
 
-    bool result = (list_a.copy_init == NULL) && (list_a.copy_deinit == NULL) && (list_a.length == 0);
-    result      = result && (list_b.copy_init == NULL) && (list_b.copy_deinit == NULL) && (list_b.length == 0);
+    bool result = (list_a.copy_init == NULL) && (list_a.copy_deinit == NULL) && (ListLen(&list_a) == 0);
+    result      = result && (list_b.copy_init == NULL) && (list_b.copy_deinit == NULL) && (ListLen(&list_b) == 0);
     result      = result && (list_c.copy_init == tracked_copy_init) && (list_c.copy_deinit == tracked_copy_deinit);
     result      = result && (list_d.copy_init == tracked_copy_init) && (list_d.copy_deinit == tracked_copy_deinit);
 
@@ -102,7 +102,7 @@ static bool test_list_deinit_with_deep_copy(void) {
     ListDeinit(&list);
 
     result = result && (g_copy_deinit_count == 2);
-    result = result && (list.head == NULL) && (list.tail == NULL) && (list.length == 0);
+    result = result && (list.head == NULL) && (list.tail == NULL) && (ListLen(&list) == 0);
     result = result && (list.copy_init == NULL) && (list.copy_deinit == NULL);
     DefaultAllocatorDeinit(&alloc);
     return result;

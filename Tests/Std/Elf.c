@@ -18,11 +18,11 @@ bool test_elf_self_exe_parse(void) {
     }
 
     bool ok = elf.header.class == ELF_CLASS_64 && elf.header.data == ELF_DATA_LSB &&
-              (elf.header.type == ELF_TYPE_EXEC || elf.header.type == ELF_TYPE_DYN) && elf.sections.length > 0;
+              (elf.header.type == ELF_TYPE_EXEC || elf.header.type == ELF_TYPE_DYN) && VecLen(&elf.sections) > 0;
 
     // A test binary built with sanitizers should have both static and
     // dynamic symbol tables.
-    ok = ok && elf.symbols.length > 0;
+    ok = ok && VecLen(&elf.symbols) > 0;
 
     ElfDeinit(&elf);
     DefaultAllocatorDeinit(&alloc);

@@ -58,7 +58,7 @@ bool test_float_clone(void) {
     FloatAbs(&original);
 
     bool result = FloatEQ(&clone, &expected);
-    result      = result && (ZstrCompare(text.data, "-12.5") == 0);
+    result      = result && (ZstrCompare(StrBegin(&text), "-12.5") == 0);
     result      = result && !FloatEQ(&clone, &original);
 
     StrDeinit(&text);
@@ -87,7 +87,7 @@ bool test_float_clone_inherits_allocator_config(void) {
     Float clone = FloatClone(&original);
 
     bool result = clone.negative == original.negative && clone.exponent == original.exponent &&
-                  clone.significand.bits.length == original.significand.bits.length &&
+                  BitVecLen(&clone.significand.bits) == BitVecLen(&original.significand.bits) &&
                   clone.significand.bits.allocator == original.significand.bits.allocator &&
                   clone.significand.bits.allocator->allocate == original.significand.bits.allocator->allocate &&
                   clone.significand.bits.allocator->remap == original.significand.bits.allocator->remap &&

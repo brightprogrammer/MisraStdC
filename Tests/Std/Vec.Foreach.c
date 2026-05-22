@@ -56,7 +56,7 @@ bool test_vec_foreach(void) {
     }
 
     // Check that the values in the vector are unchanged (foreach uses value, not reference)
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == values[i]);
     }
 
@@ -123,7 +123,7 @@ bool test_vec_foreach_ptr(void) {
 
     // Check that the values in the vector are doubled
     bool result = true;
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == values[i] * 2);
     }
 
@@ -164,7 +164,7 @@ bool test_vec_foreach_ptr_idx(void) {
 
     // Check that the values in the vector are set to their indices
     bool result = true;
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == i);
     }
 
@@ -258,7 +258,7 @@ bool test_vec_foreach_ptr_reverse(void) {
     // (50+1, 40+2, 30+3, 20+4, 10+5)
     int  expected[] = {15, 24, 33, 42, 51};
     bool result     = true;
-    for (size i = 0; i < vec.length; i++) {
+    for (size i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
 
@@ -293,7 +293,7 @@ bool test_vec_foreach_ptr_reverse_idx(void) {
     // Final vector: [100, 101, 102, 103, 104]
     int  expected[] = {100, 101, 102, 103, 104};
     bool result     = true;
-    for (size i = 0; i < vec.length; i++) {
+    for (size i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
 
@@ -318,12 +318,12 @@ bool test_vec_foreach_out_of_bounds_access(void) {
     // VecForeach doesn't use an explicit index but we can still cause issues
     int iteration_count = 0;
     VecForeach(&vec, val) {
-        WriteFmt("Iteration {} (vec.length={}): {}\n", iteration_count, vec.length, val);
+        WriteFmt("Iteration {} (vec.length={}): {}\n", iteration_count, VecLen(&vec), val);
 
         // After 2nd iteration, shrink the vector dramatically
         if (iteration_count == 2) {
             VecResize(&vec, 2); // Shrink to only 2 elements
-            WriteFmt("Vector resized to length {} during foreach iteration...\n", vec.length);
+            WriteFmt("Vector resized to length {} during foreach iteration...\n", VecLen(&vec));
         }
 
         // This will eventually cause bounds checking to trigger
@@ -357,13 +357,13 @@ bool test_vec_foreach_idx_out_of_bounds_access(void) {
 
     // VecForeachIdx has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
     VecForeachIdx(&vec, val, idx) {
-        WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, vec.length, val);
+        WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, VecLen(&vec), val);
 
         // When we reach idx=2, drastically shrink the vector to make the current idx invalid
         // The bounds check happens after the body, so it will check if idx=2 >= new_length
         if (idx == 2) {
             VecResize(&vec, 2); // Shrink so that idx=2 becomes out of bounds (valid indices: 0,1)
-            WriteFmt("Vector resized to length {}, current idx={} is now out of bounds...\n", vec.length, idx);
+            WriteFmt("Vector resized to length {}, current idx={} is now out of bounds...\n", VecLen(&vec), idx);
         }
 
         // When idx >= vec.length, the bounds check will trigger:
@@ -395,14 +395,14 @@ bool test_vec_foreach_reverse_idx_out_of_bounds_access(void) {
 
     // VecForeachReverseIdx has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
     VecForeachReverseIdx(&vec, val, idx) {
-        WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, vec.length, val);
+        WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, VecLen(&vec), val);
 
         // When we reach idx=4, drastically shrink the vector
         // This will make subsequent iterations invalid since idx will still decrement
         // but the vector length is now smaller
         if (idx == 4) {
             VecResize(&vec, 2); // Shrink to only 2 elements
-            WriteFmt("Vector resized to length {} during reverse iteration...\n", vec.length);
+            WriteFmt("Vector resized to length {} during reverse iteration...\n", VecLen(&vec));
         }
 
         // When idx == 4 (> vec.length = 2), the bounds check will trigger:
@@ -434,13 +434,13 @@ bool test_vec_foreach_ptr_idx_out_of_bounds_access(void) {
 
     // VecForeachPtrIdx has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
     VecForeachPtrIdx(&vec, val_ptr, idx) {
-        WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, vec.length, *val_ptr);
+        WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, VecLen(&vec), *val_ptr);
 
         // When we reach idx=3, shrink the vector to make the CURRENT idx invalid
         // The bounds check happens after the body, so it will check if idx=3 >= new_length
         if (idx == 3) {
             VecResize(&vec, 3); // Shrink so that idx=3 becomes out of bounds (valid indices: 0,1,2)
-            WriteFmt("Vector resized to length {}, current idx={} is now out of bounds...\n", vec.length, idx);
+            WriteFmt("Vector resized to length {}, current idx={} is now out of bounds...\n", VecLen(&vec), idx);
         }
 
         // When idx >= vec.length, the bounds check will trigger:
@@ -472,12 +472,12 @@ bool test_vec_foreach_ptr_reverse_idx_out_of_bounds_access(void) {
 
     // VecForeachPtrReverseIdx has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
     VecForeachPtrReverseIdx(&vec, val_ptr, idx) {
-        WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, vec.length, *val_ptr);
+        WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, VecLen(&vec), *val_ptr);
 
         // When we reach idx=5, shrink the vector significantly
         if (idx == 5) {
             VecResize(&vec, 3); // Shrink to only 3 elements
-            WriteFmt("Vector resized to length {} during reverse ptr iteration...\n", vec.length);
+            WriteFmt("Vector resized to length {} during reverse ptr iteration...\n", VecLen(&vec));
         }
 
         // When idx == 5 (> vec.length), the bounds check will trigger:
@@ -508,20 +508,20 @@ bool test_vec_foreach_ptr_in_range_idx_out_of_bounds_access(void) {
     }
 
     // Use VecForeachPtrInRangeIdx with a fixed range that becomes invalid when we modify the vector
-    size original_length = vec.length; // Capture this as 9
+    size original_length = VecLen(&vec); // Capture this as 9
     VecForeachPtrInRangeIdx(&vec, val_ptr, idx, 0, original_length) {
-        WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, vec.length, *val_ptr);
+        WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, VecLen(&vec), *val_ptr);
 
         // When we reach idx=3, delete several elements
         if (idx == 3) {
             VecDeleteRange(&vec, 0, 6); // Remove first 6 elements
-            WriteFmt("Deleted first 6 elements, new length={}, idx = {}\n", vec.length, original_length, idx);
+            WriteFmt("Deleted first 6 elements, new length={}, idx = {}\n", VecLen(&vec), original_length, idx);
         }
 
         // When idx >= vec.length, the bounds check will trigger:
         // loop will automatically terminate
 
-        if (idx > vec.length) {
+        if (idx > VecLen(&vec)) {
             LOG_ERROR("Should've terminated");
             VecDeinit(&vec);
             return false;
@@ -547,13 +547,13 @@ bool test_vec_foreach_idx_basic_out_of_bounds_access(void) {
 
     // Basic VecForeachIdx now has explicit bounds checking: if ((idx) >= (v)->length) LOG_FATAL(...)
     VecForeachIdx(&vec, val, idx) {
-        WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, vec.length, val);
+        WriteFmt("Accessing idx {} (vec.length={}): {}\n", idx, VecLen(&vec), val);
 
         // When we reach idx=2, drastically shrink the vector
         // This will make subsequent iterations invalid
         if (idx == 2) {
             VecResize(&vec, 1); // Shrink to only 1 element
-            WriteFmt("Vector resized to length {}, current index={}\n", vec.length, idx);
+            WriteFmt("Vector resized to length {}, current index={}\n", VecLen(&vec), idx);
         }
 
         // When idx >= vec.length, the bounds check will trigger:

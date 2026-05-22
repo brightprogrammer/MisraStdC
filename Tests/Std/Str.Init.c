@@ -33,7 +33,7 @@ bool test_str_init(void) {
 
     // Check that it's initialized correctly
     // A newly initialized string may have NULL data if capacity is 0
-    bool result = (s.length == 0);
+    bool result = (StrLen(&s) == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -74,7 +74,7 @@ bool test_str_init_from_zstr(void) {
     ValidateStr(&s);
 
     // Check that it's initialized correctly
-    bool result = (s.length == ZstrLen(test_str) && ZstrCompare(s.data, test_str) == 0);
+    bool result = (StrLen(&s) == ZstrLen(test_str) && ZstrCompare(StrBegin(&s), test_str) == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -92,7 +92,7 @@ bool test_str_z_alias(void) {
 
     ValidateStr(&s);
 
-    bool result = (s.length == ZstrLen(test_str) && ZstrCompare(s.data, test_str) == 0);
+    bool result = (StrLen(&s) == ZstrLen(test_str) && ZstrCompare(StrBegin(&s), test_str) == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -113,7 +113,7 @@ bool test_str_init_from_str(void) {
     ValidateStr(&dst);
 
     // Check that dst is initialized correctly
-    bool result = (dst.length == src.length && ZstrCompare(dst.data, src.data) == 0);
+    bool result = (StrLen(&dst) == StrLen(&src) && ZstrCompare(StrBegin(&dst), StrBegin(&src)) == 0);
 
     StrDeinit(&src);
     StrDeinit(&dst);
@@ -135,7 +135,7 @@ bool test_str_dup(void) {
     ValidateStr(&dst);
 
     // Check that dst is initialized correctly
-    bool result = (dst.length == src.length && ZstrCompare(dst.data, src.data) == 0);
+    bool result = (StrLen(&dst) == StrLen(&src) && ZstrCompare(StrBegin(&dst), StrBegin(&src)) == 0);
 
     StrDeinit(&src);
     StrDeinit(&dst);
@@ -156,7 +156,7 @@ bool test_str_WriteFmt(void) {
     ValidateStr(&s);
 
     // Check that it's initialized correctly
-    bool result = (ZstrCompare(s.data, "Hello, World!") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "Hello, World!") == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -181,18 +181,19 @@ bool test_str_init_stack(void) {
         ValidateStr(&stack_str);
 
         // Check that it works correctly
-        if (ZstrCompare(stack_str.data, "Hello, Stack!") != 0) {
+        if (ZstrCompare(StrBegin(&stack_str), "Hello, Stack!") != 0) {
             result = false;
         }
 
-        // Check capacity is as expected
+        // Check capacity is as expected (no public capacity accessor — reading field directly)
         if (stack_str.capacity != 20) {
             result = false;
         }
     });
 
     // After the scope, stack_str should be zeroed out
-    if (stack_str.data != NULL || stack_str.length != 0 || stack_str.capacity != 0) {
+    // (no public capacity accessor — reading .capacity directly)
+    if (StrBegin(&stack_str) != NULL || StrLen(&stack_str) != 0 || stack_str.capacity != 0) {
         result = false;
     }
 
@@ -217,7 +218,7 @@ bool test_str_init_copy(void) {
     ValidateStr(&dst);
 
     // Check that the copy was successful
-    bool result = (success && dst.length == src.length && ZstrCompare(dst.data, src.data) == 0);
+    bool result = (success && StrLen(&dst) == StrLen(&src) && ZstrCompare(StrBegin(&dst), StrBegin(&src)) == 0);
 
     StrDeinit(&src);
     StrDeinit(&dst);
@@ -244,9 +245,9 @@ bool test_str_clone_inherits_allocator_config(void) {
     bool dup_allocator_matches = (dup.allocator == src.allocator);
     bool dst_allocator_matches = copied && (dst.allocator == src.allocator);
 
-    bool result = copied && dup.length == src.length && dst.length == src.length &&
-                  ZstrCompare(dup.data, src.data) == 0 && ZstrCompare(dst.data, src.data) == 0 &&
-                  dup_allocator_matches && dst_allocator_matches;
+    bool result = copied && StrLen(&dup) == StrLen(&src) && StrLen(&dst) == StrLen(&src) &&
+                  ZstrCompare(StrBegin(&dup), StrBegin(&src)) == 0 &&
+                  ZstrCompare(StrBegin(&dst), StrBegin(&src)) == 0 && dup_allocator_matches && dst_allocator_matches;
 
     StrDeinit(&src);
     StrDeinit(&dup);

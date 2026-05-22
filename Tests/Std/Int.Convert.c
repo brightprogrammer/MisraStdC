@@ -46,7 +46,7 @@ bool test_int_from_unsigned_integer(void) {
 
     bool result = IntBitLength(&value) == 4;
     result      = result && (IntToU64(&value) == 13);
-    result      = result && (ZstrCompare(text.data, "1101") == 0);
+    result      = result && (ZstrCompare(StrBegin(&text), "1101") == 0);
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -67,7 +67,7 @@ bool test_int_bytes_le_round_trip(void) {
 
     bool result = written == 4;
     result      = result && (MemCompare(out, bytes, sizeof(bytes)) == 0);
-    result      = result && (ZstrCompare(text.data, "cdef1234") == 0);
+    result      = result && (ZstrCompare(StrBegin(&text), "cdef1234") == 0);
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -88,7 +88,7 @@ bool test_int_bytes_be_round_trip(void) {
 
     bool result = written == 4;
     result      = result && (MemCompare(out, bytes, sizeof(bytes)) == 0);
-    result      = result && (ZstrCompare(text.data, "12345678") == 0);
+    result      = result && (ZstrCompare(StrBegin(&text), "12345678") == 0);
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -105,7 +105,7 @@ bool test_int_binary_round_trip(void) {
     Str text  = IntToBinary(&value);
 
     bool result = IntToU64(&value) == 11;
-    result      = result && (ZstrCompare(text.data, "1011") == 0);
+    result      = result && (ZstrCompare(StrBegin(&text), "1011") == 0);
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -122,7 +122,7 @@ bool test_int_decimal_round_trip(void) {
     Int  value  = IntFromStr(digits, &alloc.base);
     Str  text   = IntToStr(&value);
 
-    bool result = ZstrCompare(text.data, digits) == 0;
+    bool result = ZstrCompare(StrBegin(&text), digits) == 0;
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -139,7 +139,7 @@ bool test_int_radix_round_trip(void) {
     Str text  = IntToStrRadix(&value, 36, false);
 
     bool result = IntToU64(&value) == 1295;
-    result      = result && (ZstrCompare(text.data, "zz") == 0);
+    result      = result && (ZstrCompare(StrBegin(&text), "zz") == 0);
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -155,7 +155,7 @@ bool test_int_upper_hex_radix(void) {
     Int value = IntFrom(0xBEEF, &alloc.base);
     Str text  = IntToStrRadix(&value, 16, true);
 
-    bool result = ZstrCompare(text.data, "BEEF") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "BEEF") == 0;
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -177,7 +177,7 @@ bool test_int_try_to_str_allocator_inheritance(void) {
 
     ok = int_try_to_str_radix(&text, &value, 16, true, &alloc.base);
 
-    bool result = ok && (ZstrCompare(text.data, "BEEF") == 0) && (text.allocator->effort == alloc.base.effort) &&
+    bool result = ok && (ZstrCompare(StrBegin(&text), "BEEF") == 0) && (text.allocator->effort == alloc.base.effort) &&
                   (text.allocator->retry_limit == alloc.base.retry_limit);
 
     StrDeinit(&text);
@@ -216,7 +216,7 @@ bool test_int_zero_binary(void) {
     result      = result && IntIsZero(&zero);
     result      = result && (IntToU64(&zero, &error) == 0);
     result      = result && !error;
-    result      = result && (ZstrCompare(text.data, "0") == 0);
+    result      = result && (ZstrCompare(StrBegin(&text), "0") == 0);
 
     StrDeinit(&text);
     IntDeinit(&zero);
@@ -248,7 +248,7 @@ bool test_int_octal_round_trip(void) {
     Str text  = IntToOctStr(&value);
 
     bool result = IntToU64(&value) == 493;
-    result      = result && (ZstrCompare(text.data, "755") == 0);
+    result      = result && (ZstrCompare(StrBegin(&text), "755") == 0);
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -265,7 +265,7 @@ bool test_int_hex_round_trip(void) {
     Int  value = IntFromHexStr(hex, &alloc.base);
     Str  text  = IntToHexStr(&value);
 
-    bool result = ZstrCompare(text.data, hex) == 0;
+    bool result = ZstrCompare(StrBegin(&text), hex) == 0;
 
     StrDeinit(&text);
     IntDeinit(&value);
@@ -392,7 +392,7 @@ bool test_int_to_str_radix_invalid_radix(void) {
     Int value = IntFrom(255, &alloc.base);
     Str text  = IntToStrRadix(&value, 37, false);
 
-    bool result = text.length == 0;
+    bool result = StrLen(&text) == 0;
 
     StrDeinit(&text);
     IntDeinit(&value);

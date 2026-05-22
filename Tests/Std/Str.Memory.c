@@ -6,6 +6,10 @@
 // Include test utilities
 #include "../Util/TestRunner.h"
 
+// NOTE: Str has no public accessor for .capacity; tests in this file read
+// that field directly. Treat each occurrence as equivalent to an inline
+// "no public capacity accessor" comment.
+
 // Function prototypes
 bool test_str_try_reduce_space(void);
 bool test_str_swap_char_at(void);
@@ -35,7 +39,7 @@ bool test_str_try_reduce_space(void) {
     StrTryReduceSpace(&s);
 
     // Capacity should now be closer to the actual length
-    result = result && (s.capacity < 100) && (s.capacity >= s.length);
+    result = result && (s.capacity < 100) && (s.capacity >= StrLen(&s));
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -76,20 +80,20 @@ bool test_str_resize(void) {
     Str s = StrInitFromZstr("Hello", &alloc);
 
     // Initial length should be 5
-    bool result = (s.length == 5);
+    bool result = (StrLen(&s) == 5);
 
     // Resize to a smaller length
     StrResize(&s, 3);
 
     // Length should now be 3 and content should be "Hel"
-    result = result && (s.length == 3) && (ZstrCompareN(s.data, "Hel", 3) == 0);
+    result = result && (StrLen(&s) == 3) && (ZstrCompareN(StrBegin(&s), "Hel", 3) == 0);
 
     // Resize to a larger length
     StrResize(&s, 8);
 
     // Length should now be 8, and the first 3 characters should still be "Hel"
     // The rest will be filled with zeros
-    result = result && (s.length == 8) && (ZstrCompareN(s.data, "Hel", 3) == 0);
+    result = result && (StrLen(&s) == 8) && (ZstrCompareN(StrBegin(&s), "Hel", 3) == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -111,7 +115,7 @@ bool test_str_reserve(void) {
     bool result = (s.capacity >= 100);
 
     // Length should still be 0
-    result = result && (s.length == 0);
+    result = result && (StrLen(&s) == 0);
 
     // Reserve less space (should be a no-op)
     StrReserve(&s, 50);
@@ -133,16 +137,16 @@ bool test_str_clear(void) {
     Str s = StrInitFromZstr("Hello, World!", &alloc);
 
     // Initial length should be 13
-    bool result = (s.length == 13);
+    bool result = (StrLen(&s) == 13);
 
     // Clear the string
     StrClear(&s);
 
     // Length should now be 0, but capacity should remain
-    result = result && (s.length == 0) && (s.capacity >= 13);
+    result = result && (StrLen(&s) == 0) && (s.capacity >= 13);
 
     // Data pointer should still be valid
-    result = result && (s.data != NULL);
+    result = result && (StrBegin(&s) != NULL);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -161,7 +165,7 @@ bool test_str_reverse(void) {
     StrReverse(&s);
 
     // Check that the string was reversed
-    bool result = (ZstrCompare(s.data, "olleH") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "olleH") == 0);
 
     // Test with an even-length string
     StrDeinit(&s);
@@ -171,7 +175,7 @@ bool test_str_reverse(void) {
     StrReverse(&s);
 
     // Check that the string was reversed
-    result = result && (ZstrCompare(s.data, "dcba") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "dcba") == 0);
 
     // Test with a single-character string
     StrDeinit(&s);
@@ -181,7 +185,7 @@ bool test_str_reverse(void) {
     StrReverse(&s);
 
     // Check that the string is unchanged
-    result = result && (ZstrCompare(s.data, "a") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "a") == 0);
 
     // Test with an empty string
     StrDeinit(&s);
@@ -191,7 +195,7 @@ bool test_str_reverse(void) {
     StrReverse(&s);
 
     // Check that the string is still empty
-    result = result && (s.length == 0);
+    result = result && (StrLen(&s) == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);

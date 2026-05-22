@@ -25,7 +25,7 @@ bool test_dwarf_lines_load_self(void) {
 
     DwarfLines lines;
     bool       built = DwarfLinesBuildFromElf(&lines, &elf, ALLOCATOR_OF(&alloc));
-    bool       ok    = built && lines.entries.length > 0;
+    bool       ok    = built && VecLen(&lines.entries) > 0;
 
     if (built)
         DwarfLinesDeinit(&lines);
@@ -168,7 +168,7 @@ bool test_dwarf_functions_resolves_helper_to_name(void) {
     DwarfFunctions fns;
     bool           built = DwarfFunctionsBuildFromElf(&fns, &elf, base);
     bool           ok    = false;
-    if (built && fns.entries.length > 0) {
+    if (built && VecLen(&fns.entries) > 0) {
         const DwarfFunction *f = DwarfFunctionsResolve(&fns, file_relative);
         ok = f != NULL && f->name != NULL && ZstrFindSubstring(f->name, "dwarf_marker_helper") != NULL;
         DwarfFunctionsDeinit(&fns);

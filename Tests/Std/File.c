@@ -87,7 +87,8 @@ bool test_file_read_grows_str(void) {
     FileClose(&f);
 
     Zstr expected = "this is longer than the initial buffer";
-    bool result   = (got == (i64)ZstrLen(expected)) && (StrLen(&body) == (size)ZstrLen(expected)) &&
+    // (no public capacity accessor on Str — reading body.capacity directly)
+    bool result = (got == (i64)ZstrLen(expected)) && (StrLen(&body) == (size)ZstrLen(expected)) &&
                   ZstrCompare(StrBegin(&body), expected) == 0 && body.capacity >= StrLen(&body) + 1;
 
     StrDeinit(&body);

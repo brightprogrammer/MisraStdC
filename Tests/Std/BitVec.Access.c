@@ -362,7 +362,7 @@ bool test_bitvec_access_large_patterns(void) {
     // Verify pattern integrity at various points
     for (int check = 0; check < 50; check++) {
         u64 base_idx = check * 80; // Check every 80 bits
-        if (base_idx + 7 < bv.length) {
+        if (base_idx + 7 < BitVecLen(&bv)) {
             for (int bit = 0; bit < 8; bit++) {
                 bool expected = (pattern & (1u << bit)) != 0;
                 bool actual   = BitVecGet(&bv, base_idx + bit);
@@ -372,9 +372,9 @@ bool test_bitvec_access_large_patterns(void) {
     }
 
     // Test random access across the large dataset
-    result = result && (BitVecGet(&bv, 0) == false);            // First bit of pattern
-    result = result && (BitVecGet(&bv, 2) == true);             // Third bit of pattern
-    result = result && (BitVecGet(&bv, bv.length - 1) == true); // Last bit
+    result = result && (BitVecGet(&bv, 0) == false);                 // First bit of pattern
+    result = result && (BitVecGet(&bv, 2) == true);                  // Third bit of pattern
+    result = result && (BitVecGet(&bv, BitVecLen(&bv) - 1) == true); // Last bit
 
     BitVecDeinit(&bv);
     DefaultAllocatorDeinit(&alloc);

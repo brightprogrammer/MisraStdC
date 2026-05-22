@@ -16,10 +16,10 @@ static bool test_graph_type_defaults(void) {
     ValidateGraph(&graph);
 
     bool result = GraphNodeCount(&graph) == 0 && GraphEdgeCount(&graph) == 0 && GraphEmpty(&graph) &&
-                  graph.slots.data == NULL && graph.free_indices.data == NULL &&
-                  graph.pending_edge_removals.data == NULL && graph.copy_init == NULL && graph.copy_deinit == NULL &&
-                  graph.live_count == 0 && graph.pending_delete_count == 0 && graph.mutation_epoch == 0 &&
-                  graph.allocator->alignment == 1;
+                  VecBegin(&graph.slots) == NULL && VecBegin(&graph.free_indices) == NULL &&
+                  VecBegin(&graph.pending_edge_removals) == NULL && graph.copy_init == NULL &&
+                  graph.copy_deinit == NULL && graph.live_count == 0 && graph.pending_delete_count == 0 &&
+                  graph.mutation_epoch == 0 && graph.allocator->alignment == 1;
 
     GraphDeinit(&graph);
     DefaultAllocatorDeinit(&alloc);

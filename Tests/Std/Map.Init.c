@@ -3,6 +3,10 @@
 #include <Misra/Std/Log.h>
 #include "../Util/TestRunner.h"
 
+// NOTE: Map has no public accessor for .capacity; tests in this file read
+// that field directly. Treat each occurrence as equivalent to an inline
+// "no public capacity accessor" comment.
+
 static u64 i32_hash(const void *data, u32 size) {
     u64 x = (u64)(u32)(*(const int *)data);
     (void)size;

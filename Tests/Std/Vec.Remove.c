@@ -42,7 +42,7 @@ bool test_vec_pop_back(void) {
     }
 
     // Initial length should be 5
-    bool result = (vec.length == 5);
+    bool result = (VecLen(&vec) == 5);
 
     // Pop from the back
     int popped;
@@ -52,10 +52,10 @@ bool test_vec_pop_back(void) {
     result = result && (popped == 50);
 
     // Check new length
-    result = result && (vec.length == 4);
+    result = result && (VecLen(&vec) == 4);
 
     // Check remaining elements
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == values[i]);
     }
 
@@ -66,7 +66,7 @@ bool test_vec_pop_back(void) {
     result = result && (popped == 40);
 
     // Check new length
-    result = result && (vec.length == 3);
+    result = result && (VecLen(&vec) == 3);
 
     // Clean up
     VecDeinit(&vec);
@@ -90,7 +90,7 @@ bool test_vec_pop_front(void) {
     }
 
     // Initial length should be 5
-    bool result = (vec.length == 5);
+    bool result = (VecLen(&vec) == 5);
 
     // Pop from the front
     int popped;
@@ -100,10 +100,10 @@ bool test_vec_pop_front(void) {
     result = result && (popped == 10);
 
     // Check new length
-    result = result && (vec.length == 4);
+    result = result && (VecLen(&vec) == 4);
 
     // Check remaining elements
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == values[i + 1]);
     }
 
@@ -114,7 +114,7 @@ bool test_vec_pop_front(void) {
     result = result && (popped == 20);
 
     // Check new length
-    result = result && (vec.length == 3);
+    result = result && (VecLen(&vec) == 3);
 
     // Clean up
     VecDeinit(&vec);
@@ -138,17 +138,17 @@ bool test_vec_delete(void) {
     }
 
     // Initial length should be 5
-    bool result = (vec.length == 5);
+    bool result = (VecLen(&vec) == 5);
 
     // Delete element at index 2 (value 30)
     VecDelete(&vec, 2);
 
     // Check new length
-    result = result && (vec.length == 4);
+    result = result && (VecLen(&vec) == 4);
 
     // Check remaining elements (should be [10, 20, 40, 50])
     int expected1[] = {10, 20, 40, 50};
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == expected1[i]);
     }
 
@@ -156,11 +156,11 @@ bool test_vec_delete(void) {
     VecDelete(&vec, 0);
 
     // Check new length
-    result = result && (vec.length == 3);
+    result = result && (VecLen(&vec) == 3);
 
     // Check remaining elements (should be [20, 40, 50])
     int expected2[] = {20, 40, 50};
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == expected2[i]);
     }
 
@@ -186,18 +186,18 @@ bool test_vec_delete_fast(void) {
     }
 
     // Initial length should be 5
-    bool result = (vec.length == 5);
+    bool result = (VecLen(&vec) == 5);
 
     // Delete element at index 1 (value 20) using fast delete
     VecDeleteFast(&vec, 1);
 
     // Check new length
-    result = result && (vec.length == 4);
+    result = result && (VecLen(&vec) == 4);
 
     // With fast delete, the last element is moved to the deleted position
     // So the vector should now be [10, 50, 30, 40]
     int expected[] = {10, 50, 30, 40};
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
 
@@ -223,17 +223,17 @@ bool test_vec_delete_range(void) {
     }
 
     // Initial length should be 7
-    bool result = (vec.length == 7);
+    bool result = (VecLen(&vec) == 7);
 
     // Delete range from index 2 to 4 (values 30, 40, 50)
     VecDeleteRange(&vec, 2, 3);
 
     // Check new length
-    result = result && (vec.length == 4);
+    result = result && (VecLen(&vec) == 4);
 
     // Check remaining elements (should be [10, 20, 60, 70])
     int expected[] = {10, 20, 60, 70};
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
 
@@ -258,11 +258,11 @@ bool test_vec_delete_range_fast(void) {
     }
 
     // Initial length should be 10
-    bool result = (vec.length == 10);
+    bool result = (VecLen(&vec) == 10);
 
     // Print before state
     WriteFmt("Before fast range delete: ");
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
     WriteFmt("\n");
@@ -274,20 +274,20 @@ bool test_vec_delete_range_fast(void) {
     // Remember the values that will be moved from the end
     int end_values[3];
     for (int i = 0; i < count; i++) {
-        end_values[i] = VecAt(&vec, vec.length - count + i);
+        end_values[i] = VecAt(&vec, VecLen(&vec) - count + i);
     }
 
     VecDeleteRangeFast(&vec, start_index, count);
 
     // Print after state
     WriteFmt("After fast range delete: ");
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
     WriteFmt("\n");
 
     // Check length after deletion
-    result = result && (vec.length == 7);
+    result = result && (VecLen(&vec) == 7);
 
     // Check that the last 3 elements moved to the deleted positions
     for (int i = 0; i < count; i++) {
@@ -296,7 +296,7 @@ bool test_vec_delete_range_fast(void) {
 
     // Verify all values that should still be present
     bool values_found[10] = {false};
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         int val   = VecAt(&vec, i);
         int index = val / 10;
         if (index >= 0 && index < 10) {
@@ -335,16 +335,16 @@ bool test_vec_delete_last(void) {
     }
 
     // Initial length should be 5
-    bool result = (vec.length == 5);
+    bool result = (VecLen(&vec) == 5);
 
     // Delete the last element
     VecDeleteLast(&vec);
 
     // Check new length
-    result = result && (vec.length == 4);
+    result = result && (VecLen(&vec) == 4);
 
     // Check remaining elements
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == values[i]);
     }
 
@@ -352,10 +352,10 @@ bool test_vec_delete_last(void) {
     VecDeleteLast(&vec);
 
     // Check new length
-    result = result && (vec.length == 3);
+    result = result && (VecLen(&vec) == 3);
 
     // Check remaining elements
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == values[i]);
     }
 
@@ -380,18 +380,18 @@ bool test_lvalue_delete_operations(void) {
     }
 
     // Initial length should be 5
-    bool result = (vec.length == 5);
+    bool result = (VecLen(&vec) == 5);
 
     // Test L-value delete operation
     int index_to_delete = 2; // Delete 30
     VecDelete(&vec, index_to_delete);
 
     // Check vector after L-value deletion
-    result = result && (vec.length == 4);
+    result = result && (VecLen(&vec) == 4);
 
     // Check remaining elements (should be [10, 20, 40, 50])
     int expected[] = {10, 20, 40, 50};
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
 
@@ -416,17 +416,17 @@ bool test_rvalue_delete_operations(void) {
     }
 
     // Initial length should be 5
-    bool result = (vec.length == 5);
+    bool result = (VecLen(&vec) == 5);
 
     // Test R-value delete operation
     VecDelete(&vec, 2); // Delete 30
 
     // Check vector after deletion
-    result = result && (vec.length == 4);
+    result = result && (VecLen(&vec) == 4);
 
     // Check remaining elements (should be [10, 20, 40, 50])
     int expected[] = {10, 20, 40, 50};
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
 
@@ -451,34 +451,34 @@ bool test_lvalue_fast_delete_operations(void) {
     }
 
     // Initial length should be 5
-    bool result = (vec.length == 5);
+    bool result = (VecLen(&vec) == 5);
 
     // Print before state
     WriteFmt("Before L-value fast delete: ");
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
     WriteFmt("\n");
 
     // Test L-value fast delete operation
-    int fast_index       = 2;                           // Delete 30
+    int fast_index       = 2;                             // Delete 30
     int valueToBeDeleted = VecAt(&vec, fast_index);
-    int lastValue        = VecAt(&vec, vec.length - 1); // Should move to deleted position
+    int lastValue        = VecAt(&vec, VecLen(&vec) - 1); // Should move to deleted position
     VecDeleteFast(&vec, fast_index);
 
     // Print after state
     WriteFmt("After L-value fast delete: ");
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
     WriteFmt("\n");
 
     // Check vector after L-value fast deletion
-    result = result && (vec.length == 4);
+    result = result && (VecLen(&vec) == 4);
 
     // Verify the deleted value is no longer present
     bool containsValue = false;
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         if (VecAt(&vec, i) == valueToBeDeleted) {
             containsValue = true;
             break;
@@ -499,7 +499,7 @@ bool test_lvalue_fast_delete_operations(void) {
     int expected_values[] = {10, 20, 40}; // 30 was deleted, 50 was moved
     for (int i = 0; i < 3; i++) {
         bool found = false;
-        for (u64 j = 0; j < vec.length; j++) {
+        for (u64 j = 0; j < VecLen(&vec); j++) {
             if (VecAt(&vec, j) == expected_values[i]) {
                 found = true;
                 break;
@@ -532,35 +532,35 @@ bool test_rvalue_fast_delete_operations(void) {
     }
 
     // Initial length should be 5
-    bool result = (vec.length == 5);
+    bool result = (VecLen(&vec) == 5);
 
     // Print before state
     WriteFmt("Before R-value fast delete: ");
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
     WriteFmt("\n");
 
     // Remember the value to be deleted and the last value
-    int valueToBeDeleted = VecAt(&vec, 2);              // 30
-    int lastValue        = VecAt(&vec, vec.length - 1); // Should move to deleted position
+    int valueToBeDeleted = VecAt(&vec, 2);                // 30
+    int lastValue        = VecAt(&vec, VecLen(&vec) - 1); // Should move to deleted position
 
     // Test R-value fast delete operation
     VecDeleteFast(&vec, 2);
 
     // Print after state
     WriteFmt("After R-value fast delete: ");
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
     WriteFmt("\n");
 
     // Check length
-    result = result && (vec.length == 4);
+    result = result && (VecLen(&vec) == 4);
 
     // Verify the deleted value is no longer present
     bool containsValue = false;
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         if (VecAt(&vec, i) == valueToBeDeleted) {
             containsValue = true;
             break;
@@ -576,7 +576,7 @@ bool test_rvalue_fast_delete_operations(void) {
     int expected_values[] = {10, 20, 40}; // 30 was deleted, 50 was moved
     for (int i = 0; i < 3; i++) {
         bool found = false;
-        for (u64 j = 0; j < vec.length; j++) {
+        for (u64 j = 0; j < VecLen(&vec); j++) {
             if (VecAt(&vec, j) == expected_values[i]) {
                 found = true;
                 break;
@@ -609,7 +609,7 @@ bool test_lvalue_delete_range_operations(void) {
     }
 
     // Initial length should be 7
-    bool result = (vec.length == 7);
+    bool result = (VecLen(&vec) == 7);
 
     // Test L-value delete range operation
     int start_index = 2;
@@ -617,11 +617,11 @@ bool test_lvalue_delete_range_operations(void) {
     VecDeleteRange(&vec, start_index, count); // Delete 30, 40, 50
 
     // Check vector after L-value range deletion
-    result = result && (vec.length == 4);
+    result = result && (VecLen(&vec) == 4);
 
     // Expected result: [10, 20, 60, 70]
     int expected[] = {10, 20, 60, 70};
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
 
@@ -646,17 +646,17 @@ bool test_rvalue_delete_range_operations(void) {
     }
 
     // Initial length should be 7
-    bool result = (vec.length == 7);
+    bool result = (VecLen(&vec) == 7);
 
     // Test R-value delete range operation
     VecDeleteRange(&vec, 2, 3); // Delete 30, 40, 50
 
     // Check vector after R-value range deletion
-    result = result && (vec.length == 4);
+    result = result && (VecLen(&vec) == 4);
 
     // Expected result: [10, 20, 60, 70]
     int expected[] = {10, 20, 60, 70};
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
 
@@ -681,11 +681,11 @@ bool test_lvalue_fast_delete_range_operations(void) {
     }
 
     // Initial length should be 7
-    bool result = (vec.length == 7);
+    bool result = (VecLen(&vec) == 7);
 
     // Print before state
     WriteFmt("Before L-value fast range delete: ");
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
     WriteFmt("\n");
@@ -700,18 +700,18 @@ bool test_lvalue_fast_delete_range_operations(void) {
 
     // Print after state
     WriteFmt("After L-value fast range delete: ");
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
     WriteFmt("\n");
 
     // Check vector after L-value fast range deletion
-    result = result && (vec.length == 4);
+    result = result && (VecLen(&vec) == 4);
 
     // Verify the deleted values are no longer present
     for (int i = 0; i < 3; i++) {
         bool found = false;
-        for (u64 j = 0; j < vec.length; j++) {
+        for (u64 j = 0; j < VecLen(&vec); j++) {
             if (VecAt(&vec, j) == valuesToDelete[i]) {
                 found = true;
                 break;
@@ -727,7 +727,7 @@ bool test_lvalue_fast_delete_range_operations(void) {
     int remainingValues[] = {10, 20, 60, 70};
     for (int i = 0; i < 4; i++) {
         bool found = false;
-        for (u64 j = 0; j < vec.length; j++) {
+        for (u64 j = 0; j < VecLen(&vec); j++) {
             if (VecAt(&vec, j) == remainingValues[i]) {
                 found = true;
                 break;
@@ -760,11 +760,11 @@ bool test_rvalue_fast_delete_range_operations(void) {
     }
 
     // Initial length should be 7
-    bool result = (vec.length == 7);
+    bool result = (VecLen(&vec) == 7);
 
     // Print before state
     WriteFmt("Before R-value fast range delete: ");
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
     WriteFmt("\n");
@@ -777,18 +777,18 @@ bool test_rvalue_fast_delete_range_operations(void) {
 
     // Print after state
     WriteFmt("After R-value fast range delete: ");
-    for (u64 i = 0; i < vec.length; i++) {
+    for (u64 i = 0; i < VecLen(&vec); i++) {
         WriteFmt("{} ", VecAt(&vec, i));
     }
     WriteFmt("\n");
 
     // Check vector after R-value fast range deletion
-    result = result && (vec.length == 4);
+    result = result && (VecLen(&vec) == 4);
 
     // Verify the deleted values are no longer present
     for (int i = 0; i < 3; i++) {
         bool found = false;
-        for (u64 j = 0; j < vec.length; j++) {
+        for (u64 j = 0; j < VecLen(&vec); j++) {
             if (VecAt(&vec, j) == valuesToDelete[i]) {
                 found = true;
                 break;
@@ -804,7 +804,7 @@ bool test_rvalue_fast_delete_range_operations(void) {
     int remainingValues[] = {10, 20, 60, 70};
     for (int i = 0; i < 4; i++) {
         bool found = false;
-        for (u64 j = 0; j < vec.length; j++) {
+        for (u64 j = 0; j < VecLen(&vec); j++) {
             if (VecAt(&vec, j) == remainingValues[i]) {
                 found = true;
                 break;

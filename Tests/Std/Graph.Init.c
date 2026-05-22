@@ -18,12 +18,13 @@ static bool test_graph_reserve_clear(void) {
     GraphReserve(&graph, 8);
     ValidateGraph(&graph);
 
+    // (no public capacity accessor on inner Vec — reading .capacity directly)
     bool        result            = graph.slots.capacity >= 8;
     GraphNodeId first_id          = GraphAddNodeR(&graph, 10);
     GraphNodeId second_id         = GraphAddNodeR(&graph, 20);
     GraphNodeId third_id          = GraphAddNodeR(&graph, 30);
-    u64         slot_count        = graph.slots.length;
-    size        slot_capacity     = graph.slots.capacity;
+    u64         slot_count        = VecLen(&graph.slots);
+    size        slot_capacity     = graph.slots.capacity; // no public capacity accessor
     u32         first_generation  = GraphNodeIdGeneration(first_id);
     u32         second_generation = GraphNodeIdGeneration(second_id);
     u32         third_generation  = GraphNodeIdGeneration(third_id);
@@ -42,19 +43,20 @@ static bool test_graph_reserve_clear(void) {
     result = result && GraphNodeCount(&graph) == 0 && GraphEdgeCount(&graph) == 0 && GraphEmpty(&graph);
     result = result && !GraphContainsNode(&graph, first_id) && !GraphContainsNode(&graph, second_id);
     result = result && !GraphContainsNode(&graph, third_id);
-    result = result && graph.slots.length == slot_count && graph.free_indices.length == slot_count;
+    result = result && VecLen(&graph.slots) == slot_count && VecLen(&graph.free_indices) == slot_count;
+    // (no public capacity accessor on inner Vec — reading .capacity directly)
     result = result && graph.slots.capacity == slot_capacity && graph.free_indices.capacity >= slot_count;
-    result = result && graph.pending_delete_count == 0 && graph.pending_edge_removals.length == 0;
+    result = result && graph.pending_delete_count == 0 && VecLen(&graph.pending_edge_removals) == 0;
 
-    for (slot_index = 0; slot_index < graph.slots.length; slot_index++) {
+    for (slot_index = 0; slot_index < VecLen(&graph.slots); slot_index++) {
         // `graph.slots` is the typed `Vec(GraphSlot(int))`, so iterate via
         // the runtime-shared layout to avoid an anonymous-struct annotation.
         GenericGraphSlot *slot = (GenericGraphSlot *)VecPtrAt(&GENERIC_GRAPH(&graph)->slots, slot_index);
         result                 = result && (slot->data == NULL);
         result                 = result && (slot->visit_count == 0);
         result                 = result && (slot->flags == 0);
-        result                 = result && (slot->out_neighbors.length == 0);
-        result                 = result && (slot->in_neighbors.length == 0);
+        result                 = result && (VecLen(&slot->out_neighbors) == 0);
+        result                 = result && (VecLen(&slot->in_neighbors) == 0);
     }
 
     result = result && (VecPtrAt(&graph.slots, GraphNodeIdIndex(first_id))->generation == (first_generation + 1));
@@ -82,8 +84,8 @@ static bool test_graph_node_deep_copy(void) {
     node        = GraphGetNode(&graph, node_id);
     stored_name = GraphNodeDataPtr(&graph, node);
 
-    bool result = GraphNodeIdIndex(node_id) == 0 && name.data != NULL && GraphNodeCount(&graph) == 1 &&
-                  ZstrCompare(stored_name->data, "alpha") == 0 && stored_name->data != name.data;
+    bool result = GraphNodeIdIndex(node_id) == 0 && StrBegin(&name) != NULL && GraphNodeCount(&graph) == 1 &&
+                  ZstrCompare(StrBegin(stored_name), "alpha") == 0 && StrBegin(stored_name) != StrBegin(&name);
 
     StrDeinit(&name);
     GraphDeinit(&graph);

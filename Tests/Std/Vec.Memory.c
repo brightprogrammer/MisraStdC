@@ -32,16 +32,17 @@ bool test_vec_try_reduce_space(void) {
     }
 
     // Original capacity should be at least 100
+    // (no public capacity accessor — reading field directly)
     bool result = (vec.capacity >= 100);
 
     // Try to reduce space
     VecTryReduceSpace(&vec);
 
     // Capacity should now be closer to the actual length
-    result = result && (vec.capacity < 100) && (vec.capacity >= vec.length);
+    result = result && (vec.capacity < 100) && (vec.capacity >= VecLen(&vec));
 
     // Check that the data is still intact
-    for (size i = 0; i < vec.length; i++) {
+    for (size i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == values[i]);
     }
 
@@ -69,13 +70,13 @@ bool test_vec_resize(void) {
     }
 
     // Initial length should be 5
-    bool result = (vec.length == 5);
+    bool result = (VecLen(&vec) == 5);
 
     // Resize to a smaller length
     VecResize(&vec, 3);
 
     // Length should now be 3
-    result = result && (vec.length == 3);
+    result = result && (VecLen(&vec) == 3);
 
     // First 3 elements should be unchanged
     for (size i = 0; i < 3; i++) {
@@ -86,7 +87,7 @@ bool test_vec_resize(void) {
     VecResize(&vec, 8);
 
     // Length should now be 8
-    result = result && (vec.length == 8);
+    result = result && (VecLen(&vec) == 8);
 
     // First 3 elements should still be the same
     for (size i = 0; i < 3; i++) {
@@ -111,6 +112,7 @@ bool test_vec_reserve(void) {
     IntVec vec = VecInit(&alloc);
 
     // Initial capacity should be 0
+    // (no public capacity accessor — reading field directly)
     bool result = (vec.capacity == 0);
 
     // Reserve space for 50 elements
@@ -120,7 +122,7 @@ bool test_vec_reserve(void) {
     result = result && (vec.capacity >= 50);
 
     // Length should still be 0
-    result = result && (vec.length == 0);
+    result = result && (VecLen(&vec) == 0);
 
     // Add some data
     int values[] = {10, 20, 30, 40, 50};
@@ -132,7 +134,7 @@ bool test_vec_reserve(void) {
     result = result && (vec.capacity >= 50);
 
     // Length should now be 5
-    result = result && (vec.length == 5);
+    result = result && (VecLen(&vec) == 5);
 
     // Reserve less space (should be a no-op)
     VecReserve(&vec, 20);
@@ -164,22 +166,22 @@ bool test_vec_clear(void) {
     }
 
     // Initial length should be 5
-    bool result = (vec.length == 5);
+    bool result = (VecLen(&vec) == 5);
 
-    // Remember the capacity
+    // Remember the capacity (no public capacity accessor — reading field directly)
     size original_capacity = vec.capacity;
 
     // Clear the vector
     VecClear(&vec);
 
     // Length should now be 0
-    result = result && (vec.length == 0);
+    result = result && (VecLen(&vec) == 0);
 
     // Capacity should remain the same
     result = result && (vec.capacity == original_capacity);
 
     // Data pointer should still be valid
-    result = result && (vec.data != NULL);
+    result = result && (VecBegin(&vec) != NULL);
 
     // Clean up
     VecDeinit(&vec);

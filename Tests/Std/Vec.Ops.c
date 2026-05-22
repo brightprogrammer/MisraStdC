@@ -81,7 +81,7 @@ bool test_vec_reverse(void) {
 
     // Check that the elements are reversed
     bool result = true;
-    for (size i = 0; i < vec.length; i++) {
+    for (size i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == values[4 - i]);
     }
 
@@ -89,7 +89,7 @@ bool test_vec_reverse(void) {
     VecReverse(&vec);
 
     // Check that the elements are back in the original order
-    for (size i = 0; i < vec.length; i++) {
+    for (size i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == values[i]);
     }
 
@@ -104,7 +104,7 @@ bool test_vec_reverse(void) {
     VecReverse(&vec);
 
     // Check that the elements are reversed
-    for (size i = 0; i < vec.length; i++) {
+    for (size i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == even_values[3 - i]);
     }
 
@@ -134,7 +134,7 @@ bool test_vec_sort(void) {
     // Check that the elements are sorted
     bool result       = true;
     int  sorted_asc[] = {10, 20, 30, 40, 50};
-    for (size i = 0; i < vec.length; i++) {
+    for (size i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == sorted_asc[i]);
     }
 
@@ -143,7 +143,7 @@ bool test_vec_sort(void) {
 
     // Check that the elements are sorted in descending order
     int sorted_desc[] = {50, 40, 30, 20, 10};
-    for (size i = 0; i < vec.length; i++) {
+    for (size i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == sorted_desc[i]);
     }
 

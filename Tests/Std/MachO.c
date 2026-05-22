@@ -220,9 +220,9 @@ bool test_macho_parses_running_binary(void) {
 
     bool ok = m.filetype == MACHO_FILE_TYPE_EXECUTE;
     ok      = ok && m.has_uuid;
-    ok      = ok && m.segments.length > 0;
+    ok      = ok && VecLen(&m.segments) > 0;
     ok      = ok && MachoFindSection(&m, "__TEXT", "__text") != NULL;
-    ok      = ok && m.symbols.length > 0;
+    ok      = ok && VecLen(&m.symbols) > 0;
 
     MachoDeinit(&m);
     DefaultAllocatorDeinit(&alloc);

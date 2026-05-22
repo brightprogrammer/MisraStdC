@@ -120,10 +120,10 @@ bool test_debug_report_leaks_emits_traces(void) {
     Str out = StrInit(ALLOCATOR_OF(&dbg.meta));
     DebugAllocatorReportLeaks(&dbg, &out);
 
-    bool ok = out.length > 0;
-    ok      = ok && (ZstrFindSubstring(out.data, "leak:") != NULL);
-    ok      = ok && (ZstrFindSubstring(out.data, "24 bytes") != NULL);
-    ok      = ok && (ZstrFindSubstring(out.data, "40 bytes") != NULL);
+    bool ok = StrLen(&out) > 0;
+    ok      = ok && (ZstrFindSubstring(StrBegin(&out), "leak:") != NULL);
+    ok      = ok && (ZstrFindSubstring(StrBegin(&out), "24 bytes") != NULL);
+    ok      = ok && (ZstrFindSubstring(StrBegin(&out), "40 bytes") != NULL);
 
     StrDeinit(&out);
     if (p1)
@@ -199,7 +199,7 @@ bool test_debug_freed_history_disabled(void) {
         }
         AllocatorFree(adbg, p);
     }
-    ok = ok && (dbg.freed.length == 0);
+    ok = ok && (VecLen(&dbg.freed) == 0);
     ok = ok && (DebugAllocatorLiveCount(&dbg) == 0);
 
     DebugAllocatorDeinit(&dbg);

@@ -28,7 +28,7 @@ bool test_float_from_unsigned_integer(void) {
     Float value = float_from_u64(42, &alloc.base);
     Str   text  = FloatToStr(&value);
 
-    bool result = ZstrCompare(text.data, "42") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "42") == 0;
     result      = result && !FloatIsNegative(&value);
 
     StrDeinit(&text);
@@ -45,7 +45,7 @@ bool test_float_from_signed_integer(void) {
     Float value = float_from_i64(-42, &alloc.base);
     Str   text  = FloatToStr(&value);
 
-    bool result = ZstrCompare(text.data, "-42") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "-42") == 0;
     result      = result && FloatIsNegative(&value);
 
     StrDeinit(&text);
@@ -63,7 +63,7 @@ bool test_float_from_int_container(void) {
     Float value   = float_from_int(&integer, &alloc.base);
     Str   text    = FloatToStr(&value);
 
-    bool result = ZstrCompare(text.data, "12345678901234567890") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "12345678901234567890") == 0;
 
     IntDeinit(&integer);
     StrDeinit(&text);
@@ -83,7 +83,7 @@ bool test_float_to_int_exact(void) {
 
     bool result = FloatToInt(&result_value, &value);
     text        = IntToStr(&result_value);
-    result      = result && (ZstrCompare(text.data, "12345") == 0);
+    result      = result && (ZstrCompare(StrBegin(&text), "12345") == 0);
 
     FloatDeinit(&value);
     IntDeinit(&result_value);
@@ -134,7 +134,7 @@ bool test_float_string_round_trip(void) {
     Float value = FloatFromStr("-123.45", &alloc.base);
     Str   text  = FloatToStr(&value);
 
-    bool result = ZstrCompare(text.data, "-123.45") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "-123.45") == 0;
 
     StrDeinit(&text);
     FloatDeinit(&value);
@@ -156,7 +156,8 @@ bool test_float_try_to_str_allocator_inheritance(void) {
 
     ok = float_try_to_str(&text, &value, &alloc.base);
 
-    bool result = ok && (ZstrCompare(text.data, "-123.45") == 0) && (text.allocator->effort == alloc.base.effort) &&
+    bool result = ok && (ZstrCompare(StrBegin(&text), "-123.45") == 0) &&
+                  (text.allocator->effort == alloc.base.effort) &&
                   (text.allocator->retry_limit == alloc.base.retry_limit);
 
     StrDeinit(&text);
@@ -173,7 +174,7 @@ bool test_float_very_large_string_round_trip(void) {
     Float value = FloatFromStr(FLOAT_TEST_VERY_LARGE_ONES, &alloc.base);
     Str   text  = FloatToStr(&value);
 
-    bool result = ZstrCompare(text.data, FLOAT_TEST_VERY_LARGE_ONES) == 0;
+    bool result = ZstrCompare(StrBegin(&text), FLOAT_TEST_VERY_LARGE_ONES) == 0;
 
     StrDeinit(&text);
     FloatDeinit(&value);
@@ -189,7 +190,7 @@ bool test_float_scientific_parse(void) {
     Float value = FloatFromStr("1.2300e3", &alloc.base);
     Str   text  = FloatToStr(&value);
 
-    bool result = ZstrCompare(text.data, "1230") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "1230") == 0;
 
     StrDeinit(&text);
     FloatDeinit(&value);

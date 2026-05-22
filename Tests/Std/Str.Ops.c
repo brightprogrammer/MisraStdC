@@ -169,19 +169,19 @@ bool test_str_replace(void) {
     // Test StrReplaceZstr
     Str s1 = StrInitFromZstr("Hello World", &alloc);
     StrReplaceZstr(&s1, "World", "Universe", 1);
-    bool result = (ZstrCompare(s1.data, "Hello Universe") == 0);
+    bool result = (ZstrCompare(StrBegin(&s1), "Hello Universe") == 0);
 
     // Test multiple replacements
     StrDeinit(&s1);
     s1 = StrInitFromZstr("Hello Hello Hello", &alloc);
     StrReplaceZstr(&s1, "Hello", "Hi", 2);
-    result = result && (ZstrCompare(s1.data, "Hi Hi Hello") == 0);
+    result = result && (ZstrCompare(StrBegin(&s1), "Hi Hi Hello") == 0);
 
     // Test StrReplaceCstr - use the full "World" string instead of just "Wo"
     StrDeinit(&s1);
     s1 = StrInitFromZstr("Hello World", &alloc);
     StrReplaceCstr(&s1, "World", 5, "Universe", 8, 1);
-    result = result && (ZstrCompare(s1.data, "Hello Universe") == 0);
+    result = result && (ZstrCompare(StrBegin(&s1), "Hello Universe") == 0);
 
     // Test StrReplace
     StrDeinit(&s1);
@@ -189,7 +189,7 @@ bool test_str_replace(void) {
     Str find    = StrInitFromZstr("World", &alloc);
     Str replace = StrInitFromZstr("Universe", &alloc);
     StrReplace(&s1, &find, &replace, 1);
-    result = result && (ZstrCompare(s1.data, "Hello Universe") == 0);
+    result = result && (ZstrCompare(StrBegin(&s1), "Hello Universe") == 0);
 
     StrDeinit(&s1);
     StrDeinit(&find);
@@ -256,17 +256,17 @@ bool test_str_strip(void) {
     // Test StrLStrip
     Str  s1       = StrInitFromZstr("  Hello  ", &alloc);
     Str  stripped = StrLStrip(&s1, NULL);
-    bool result   = (ZstrCompare(stripped.data, "Hello  ") == 0);
+    bool result   = (ZstrCompare(StrBegin(&stripped), "Hello  ") == 0);
     StrDeinit(&stripped);
 
     // Test StrRStrip
     stripped = StrRStrip(&s1, NULL);
-    result   = result && (ZstrCompare(stripped.data, "  Hello") == 0);
+    result   = result && (ZstrCompare(StrBegin(&stripped), "  Hello") == 0);
     StrDeinit(&stripped);
 
     // Test StrStrip
     stripped = StrStrip(&s1, NULL);
-    result   = result && (ZstrCompare(stripped.data, "Hello") == 0);
+    result   = result && (ZstrCompare(StrBegin(&stripped), "Hello") == 0);
     StrDeinit(&stripped);
 
     // Test with custom strip characters
@@ -274,15 +274,15 @@ bool test_str_strip(void) {
     s1 = StrInitFromZstr("***Hello***", &alloc);
 
     stripped = StrLStrip(&s1, "*");
-    result   = result && (ZstrCompare(stripped.data, "Hello***") == 0);
+    result   = result && (ZstrCompare(StrBegin(&stripped), "Hello***") == 0);
     StrDeinit(&stripped);
 
     stripped = StrRStrip(&s1, "*");
-    result   = result && (ZstrCompare(stripped.data, "***Hello") == 0);
+    result   = result && (ZstrCompare(StrBegin(&stripped), "***Hello") == 0);
     StrDeinit(&stripped);
 
     stripped = StrStrip(&s1, "*");
-    result   = result && (ZstrCompare(stripped.data, "Hello") == 0);
+    result   = result && (ZstrCompare(StrBegin(&stripped), "Hello") == 0);
     StrDeinit(&stripped);
 
     StrDeinit(&s1);

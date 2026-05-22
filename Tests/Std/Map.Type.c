@@ -57,7 +57,8 @@ static bool test_map_type_defaults(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
-    bool result = map.length == 0 && map.capacity == 0 && map.tombstones == 0 && map.entries == NULL &&
+    // (no public accessors for .capacity / .tombstones / .entries / .states — reading directly)
+    bool result = MapPairCount(&map) == 0 && map.capacity == 0 && map.tombstones == 0 && map.entries == NULL &&
                   map.states == NULL && map.key_compare == i32_compare && map.value_compare == NULL &&
                   map.key_hash == i32_hash && map.policy.should_rehash == MapPolicyLinear.should_rehash &&
                   map.policy.next_capacity == MapPolicyLinear.next_capacity &&

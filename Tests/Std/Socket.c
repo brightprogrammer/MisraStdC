@@ -44,7 +44,7 @@ bool test_socket_loopback_round_trip(void) {
     }
     Str        local_str = SocketAddrFormat(&local, a);
     SocketAddr connect_addr;
-    bool       parsed = SocketAddrParse(&connect_addr, local_str.data, SOCKET_KIND_TCP);
+    bool       parsed = SocketAddrParse(&connect_addr, StrBegin(&local_str), SOCKET_KIND_TCP);
     StrDeinit(&local_str);
     if (!parsed) {
         ListenerClose(&listener);
@@ -99,7 +99,7 @@ bool test_socket_addr_format_round_trip(void) {
             return false;
         }
         Str rendered = SocketAddrFormat(&addr, alloc_base);
-        ok           = ok && rendered.length > 0 && ZstrCompare(rendered.data, "127.0.0.1:8080") == 0;
+        ok           = ok && StrLen(&rendered) > 0 && ZstrCompare(StrBegin(&rendered), "127.0.0.1:8080") == 0;
         StrDeinit(&rendered);
     }
 
@@ -110,7 +110,7 @@ bool test_socket_addr_format_round_trip(void) {
             return false;
         }
         Str rendered = SocketAddrFormat(&addr, alloc_base);
-        ok           = ok && rendered.length > 0 && ZstrCompare(rendered.data, "[::1]:8080") == 0;
+        ok           = ok && StrLen(&rendered) > 0 && ZstrCompare(StrBegin(&rendered), "[::1]:8080") == 0;
         StrDeinit(&rendered);
     }
 

@@ -36,10 +36,10 @@ bool test_vec_push_back(void) {
     }
 
     // Check length
-    bool result = (vec.length == 5);
+    bool result = (VecLen(&vec) == 5);
 
     // Check elements in order
-    for (size i = 0; i < vec.length; i++) {
+    for (size i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == values[i]);
     }
 
@@ -64,10 +64,10 @@ bool test_vec_push_front(void) {
     }
 
     // Check length
-    bool result = (vec.length == 5);
+    bool result = (VecLen(&vec) == 5);
 
     // Check elements in reverse order (since we pushed to front)
-    for (size i = 0; i < vec.length; i++) {
+    for (size i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == values[4 - i]);
     }
 
@@ -89,19 +89,19 @@ bool test_vec_insert(void) {
     VecInsertR(&vec, 10, 0);
 
     // Check first element
-    bool result = (vec.length == 1 && VecAt(&vec, 0) == 10);
+    bool result = (VecLen(&vec) == 1 && VecAt(&vec, 0) == 10);
 
     // Insert at the end
     VecInsertR(&vec, 30, 1);
 
     // Check elements
-    result = result && (vec.length == 2 && VecAt(&vec, 0) == 10 && VecAt(&vec, 1) == 30);
+    result = result && (VecLen(&vec) == 2 && VecAt(&vec, 0) == 10 && VecAt(&vec, 1) == 30);
 
     // Insert in the middle
     VecInsertR(&vec, 20, 1);
 
     // Check all elements
-    result = result && (vec.length == 3);
+    result = result && (VecLen(&vec) == 3);
     result = result && (VecAt(&vec, 0) == 10);
     result = result && (VecAt(&vec, 1) == 20);
     result = result && (VecAt(&vec, 2) == 30);
@@ -125,10 +125,10 @@ bool test_vec_push_back_arr(void) {
     VecPushBackArrR(&vec, values, 5);
 
     // Check length
-    bool result = (vec.length == 5);
+    bool result = (VecLen(&vec) == 5);
 
     // Check elements in order
-    for (size i = 0; i < vec.length; i++) {
+    for (size i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == values[i]);
     }
 
@@ -137,7 +137,7 @@ bool test_vec_push_back_arr(void) {
     VecPushBackArrR(&vec, more_values, 3);
 
     // Check length
-    result = result && (vec.length == 8);
+    result = result && (VecLen(&vec) == 8);
 
     // Check all elements
     for (size i = 0; i < 5; i++) {
@@ -166,10 +166,10 @@ bool test_vec_push_front_arr(void) {
     VecPushFrontArrR(&vec, values, 5);
 
     // Check length
-    bool result = (vec.length == 5);
+    bool result = (VecLen(&vec) == 5);
 
     // Check elements in order
-    for (size i = 0; i < vec.length; i++) {
+    for (size i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == values[i]);
     }
 
@@ -178,7 +178,7 @@ bool test_vec_push_front_arr(void) {
     VecPushFrontArrR(&vec, more_values, 3);
 
     // Check length
-    result = result && (vec.length == 8);
+    result = result && (VecLen(&vec) == 8);
 
     // Check all elements
     for (size i = 0; i < 3; i++) {
@@ -211,13 +211,13 @@ bool test_vec_push_arr(void) {
     VecInsertRangeR(&vec, values, 1, 3);
 
     // Check length
-    bool result = (vec.length == 5);
+    bool result = (VecLen(&vec) == 5);
 
     // Expected result: [10, 30, 40, 50, 20]
     int expected[] = {10, 30, 40, 50, 20};
 
     // Check all elements
-    for (size i = 0; i < vec.length; i++) {
+    for (size i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
 
@@ -245,16 +245,16 @@ bool test_vec_insert_range(void) {
     VecPushBackArrR(&src, src_values, 3);
 
     // Insert range in the middle
-    VecInsertRangeR(&vec, src.data, 1, src.length);
+    VecInsertRangeR(&vec, VecBegin(&src), 1, VecLen(&src));
 
     // Check length
-    bool result = (vec.length == 6);
+    bool result = (VecLen(&vec) == 6);
 
     // Expected result: [10, 40, 50, 60, 20, 30]
     int expected[] = {10, 40, 50, 60, 20, 30};
 
     // Check all elements
-    for (size i = 0; i < vec.length; i++) {
+    for (size i = 0; i < VecLen(&vec); i++) {
         result = result && (VecAt(&vec, i) == expected[i]);
     }
 
@@ -288,14 +288,14 @@ bool test_vec_merge(void) {
     VecMergeR(&vec1, &vec2);
 
     // Check lengths
-    bool result = (vec1.length == 6);
-    result      = result && (vec2.length == 3); // VecMergeR doesn't modify source vector
+    bool result = (VecLen(&vec1) == 6);
+    result      = result && (VecLen(&vec2) == 3); // VecMergeR doesn't modify source vector
 
     // Expected result in vec1: [10, 20, 30, 40, 50, 60]
     int expected[] = {10, 20, 30, 40, 50, 60};
 
     // Check all elements in vec1
-    for (size i = 0; i < vec1.length; i++) {
+    for (size i = 0; i < VecLen(&vec1); i++) {
         result = result && (VecAt(&vec1, i) == expected[i]);
     }
 
@@ -331,14 +331,14 @@ bool test_vec_init_clone_inherits_allocator_config(void) {
     IntVec dst      = VecInit(src.allocator);
     dst.copy_init   = src.copy_init;
     dst.copy_deinit = src.copy_deinit;
-    bool cloned     = VecPushBackArrR(&dst, src.data, src.length);
+    bool cloned     = VecPushBackArrR(&dst, VecBegin(&src), VecLen(&src));
 
     bool allocator_matches = dst.allocator == src.allocator;
 
     bool result = cloned && dst.copy_init == src.copy_init && dst.copy_deinit == src.copy_deinit &&
                   dst.allocator->effort == ALLOCATOR_EFFORT_RETRY_FALLBACK && dst.allocator->retry_limit == 11 &&
-                  allocator_matches && src.length == 3 && VecAt(&src, 0) == 10 && VecAt(&src, 1) == 20 &&
-                  VecAt(&src, 2) == 30 && dst.length == 3 && VecAt(&dst, 0) == 10 && VecAt(&dst, 1) == 20 &&
+                  allocator_matches && VecLen(&src) == 3 && VecAt(&src, 0) == 10 && VecAt(&src, 1) == 20 &&
+                  VecAt(&src, 2) == 30 && VecLen(&dst) == 3 && VecAt(&dst, 0) == 10 && VecAt(&dst, 1) == 20 &&
                   VecAt(&dst, 2) == 30;
 
     VecDeinit(&src);
@@ -359,20 +359,20 @@ bool test_lvalue_rvalue_operations(void) {
     VecPushBackR(&vec, LVAL(42));
 
     // Check that the element was added
-    bool result = (vec.length == 1 && VecAt(&vec, 0) == 42);
+    bool result = (VecLen(&vec) == 1 && VecAt(&vec, 0) == 42);
 
     // Test L-value insert operations
     int l_value = 100;
     VecPushBackL(&vec, l_value);
 
     // Check that the element was added
-    result = result && (vec.length == 2 && VecAt(&vec, 1) == 100);
+    result = result && (VecLen(&vec) == 2 && VecAt(&vec, 1) == 100);
 
     // Test R-value insert at index
     VecInsertR(&vec, LVAL(50), 1);
 
     // Check that the element was inserted
-    result = result && (vec.length == 3);
+    result = result && (VecLen(&vec) == 3);
     result = result && (VecAt(&vec, 0) == 42);
     result = result && (VecAt(&vec, 1) == 50);
     result = result && (VecAt(&vec, 2) == 100);
@@ -382,7 +382,7 @@ bool test_lvalue_rvalue_operations(void) {
     VecInsertL(&vec, insert_value, 2);
 
     // Check that the element was inserted
-    result = result && (vec.length == 4);
+    result = result && (VecLen(&vec) == 4);
     result = result && (VecAt(&vec, 0) == 42);
     result = result && (VecAt(&vec, 1) == 50);
     result = result && (VecAt(&vec, 2) == 75);
@@ -392,7 +392,7 @@ bool test_lvalue_rvalue_operations(void) {
     VecInsertFastR(&vec, LVAL(60), 1);
 
     // Check that the element was inserted
-    result = result && (vec.length == 5);
+    result = result && (VecLen(&vec) == 5);
     result = result && (VecAt(&vec, 1) == 60);
 
     // Test L-value fast insert
@@ -400,7 +400,7 @@ bool test_lvalue_rvalue_operations(void) {
     VecInsertFastL(&vec, fast_value, 3);
 
     // Check that the element was inserted
-    result = result && (vec.length == 6);
+    result = result && (VecLen(&vec) == 6);
     result = result && (VecAt(&vec, 3) == 80);
 
     // Test array operations with L-values and R-values
@@ -410,7 +410,7 @@ bool test_lvalue_rvalue_operations(void) {
     VecPushBackArrR(&vec, arr, 3);
 
     // Check that the elements were added
-    result = result && (vec.length == 9);
+    result = result && (VecLen(&vec) == 9);
     result = result && (VecAt(&vec, 6) == 200);
     result = result && (VecAt(&vec, 7) == 300);
     result = result && (VecAt(&vec, 8) == 400);
@@ -419,7 +419,7 @@ bool test_lvalue_rvalue_operations(void) {
     VecPushFrontArrL(&vec, arr, 3);
 
     // Check that the elements were added
-    result = result && (vec.length == 12);
+    result = result && (VecLen(&vec) == 12);
     result = result && (VecAt(&vec, 0) == 200);
     result = result && (VecAt(&vec, 1) == 300);
     result = result && (VecAt(&vec, 2) == 400);
@@ -496,8 +496,8 @@ bool test_lvalue_memset_after_insertion(void) {
     VecMergeL(&vec, &vec2);
 
     // Check that the source vector is cleared
-    result = result && (vec2.length == 0);
-    result = result && (vec2.data == NULL);
+    result = result && (VecLen(&vec2) == 0);
+    result = result && (VecBegin(&vec2) == NULL);
 
     // Clean up
     VecDeinit(&vec);

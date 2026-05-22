@@ -107,7 +107,7 @@ bool test_int_add(void) {
     text = IntToBinary(&result_value);
 
     bool result = IntToU64(&result_value) == 256;
-    result      = result && (ZstrCompare(text.data, "100000000") == 0);
+    result      = result && (ZstrCompare(StrBegin(&text), "100000000") == 0);
 
     StrDeinit(&text);
     IntDeinit(&a);
@@ -139,7 +139,7 @@ bool test_int_add_generic(void) {
 
     IntAdd(&result_value, &huge, 10);
     text   = IntToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "123456789012345678901234567900") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "123456789012345678901234567900") == 0);
 
     IntDeinit(&base);
     IntDeinit(&rhs);
@@ -192,7 +192,7 @@ bool test_int_sub_generic(void) {
 
     result = result && IntSub(&result_value, &huge, 90);
     text   = IntToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "12345678901234567800") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "12345678901234567800") == 0);
 
     result = result && !IntSub(&preserved, &base, 50);
     result = result && (IntToU64(&preserved) == 99);
@@ -258,7 +258,7 @@ bool test_int_mul_scalar(void) {
     IntMul(&result_value, &value, 25u);
     text = IntToStr(&result_value);
 
-    bool result = ZstrCompare(text.data, "308641972530864197250") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "308641972530864197250") == 0;
 
     IntDeinit(&value);
     IntDeinit(&result_value);
@@ -318,12 +318,12 @@ bool test_int_pow_generic(void) {
 
     IntPow(&result_value, &base, 20u);
     text        = IntToStr(&result_value);
-    bool result = ZstrCompare(text.data, "79792266297612001") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "79792266297612001") == 0;
 
     StrDeinit(&text);
     IntPow(&result_value, &base, &exponent);
     text   = IntToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "79792266297612001") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "79792266297612001") == 0);
 
     IntDeinit(&base);
     IntDeinit(&exponent);
@@ -346,7 +346,7 @@ bool test_int_div_mod(void) {
     IntDivMod(&quotient, &remainder, &dividend, 97u);
     qtext = IntToStr(&quotient);
 
-    bool result = ZstrCompare(qtext.data, "127275040218913071") == 0;
+    bool result = ZstrCompare(StrBegin(&qtext), "127275040218913071") == 0;
     result      = result && (IntToU64(&remainder) == 3);
 
     StrDeinit(&qtext);
@@ -386,7 +386,7 @@ bool test_int_div_exact(void) {
 
     bool result = IntDivExact(&result_value, &dividend, 90u);
     text        = IntToStr(&result_value);
-    result      = result && (ZstrCompare(text.data, "137174210013717421") == 0);
+    result      = result && (ZstrCompare(StrBegin(&text), "137174210013717421") == 0);
 
     IntDeinit(&dividend);
     IntDeinit(&result_value);
@@ -427,7 +427,7 @@ bool test_int_div_mod_scalar(void) {
     IntDivMod(&quotient, &remainder, &dividend, 97);
     text = IntToStr(&quotient);
 
-    bool result = ZstrCompare(text.data, "127275040218913071") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "127275040218913071") == 0;
     result      = result && (IntToU64(&remainder) == 3);
 
     IntDeinit(&dividend);
@@ -897,7 +897,7 @@ bool test_int_next_prime(void) {
     bool ok = IntNextPrime(&next, &value);
     text    = IntToStr(&next);
 
-    bool result = ok && ZstrCompare(text.data, "1000000007") == 0;
+    bool result = ok && ZstrCompare(StrBegin(&text), "1000000007") == 0;
 
     IntDeinit(&value);
     IntDeinit(&next);

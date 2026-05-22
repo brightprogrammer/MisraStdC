@@ -171,7 +171,7 @@ static bool test_dns_resolve_spec_single_addr(void) {
     bool ok = got && one.family == SOCKET_FAMILY_INET;
     if (ok) {
         Str s = SocketAddrFormat(&one, a);
-        ok    = (s.length > 0) && ZstrCompare(s.data, "127.0.0.1:80") == 0;
+        ok    = (StrLen(&s) > 0) && ZstrCompare(StrBegin(&s), "127.0.0.1:80") == 0;
         StrDeinit(&s);
     }
 
@@ -191,7 +191,7 @@ static bool test_dns_resolve_spec_no_port(void) {
     DnsAddrs out = VecInitT(out, a);
     bool     got = DnsResolve(&r, "localhost", SOCKET_KIND_TCP, &out);
 
-    bool ok = !got && out.length == 0;
+    bool ok = !got && VecLen(&out) == 0;
 
     VecDeinit(&out);
     DnsResolverDeinit(&r);

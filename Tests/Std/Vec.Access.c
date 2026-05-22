@@ -188,9 +188,9 @@ bool test_vec_size_len(void) {
     // Check size and length after adding elements
     vec_size            = VecSize(&vec);
     vec_len             = VecLen(&vec);
-    size aligned_offset = VecAlignedOffsetAt(&vec, vec.length);
+    size aligned_offset = VecAlignedOffsetAt(&vec, VecLen(&vec));
     result              = result && (vec_size == aligned_offset);
-    result              = result && (vec_len == vec.length);
+    result              = result && (vec_len == VecLen(&vec));
 
     // Clean up
     VecDeinit(&vec);
@@ -206,9 +206,9 @@ bool test_vec_size_len(void) {
     // Check size and length with alignment
     size aligned_vec_size  = VecSize(&aligned_vec);
     size aligned_vec_len   = VecLen(&aligned_vec);
-    size aligned_offset_at = VecAlignedOffsetAt(&aligned_vec, aligned_vec.length);
+    size aligned_offset_at = VecAlignedOffsetAt(&aligned_vec, VecLen(&aligned_vec));
     result                 = result && (aligned_vec_size == aligned_offset_at);
-    result                 = result && (aligned_vec_len == aligned_vec.length);
+    result                 = result && (aligned_vec_len == VecLen(&aligned_vec));
 
     // Clean up
     VecDeinit(&aligned_vec);

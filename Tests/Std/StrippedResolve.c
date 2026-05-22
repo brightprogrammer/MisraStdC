@@ -79,7 +79,7 @@ static bool resolve_through_stripped(void (*func)(void), Zstr expect_name) {
     DwarfFunctions fns;
     bool           built = DwarfFunctionsBuildFromElf(&fns, &stripped, base);
     bool           ok    = false;
-    if (built && fns.entries.length > 0) {
+    if (built && VecLen(&fns.entries) > 0) {
         const DwarfFunction *f = DwarfFunctionsResolve(&fns, file_relative);
         ok                     = f && f->name && ZstrFindSubstring(f->name, expect_name) != NULL;
         DwarfFunctionsDeinit(&fns);

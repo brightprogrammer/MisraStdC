@@ -9,6 +9,10 @@
 // Include test utilities
 #include "../Util/TestRunner.h"
 
+// NOTE: Vec has no public accessor for .capacity; tests in this file read
+// that field directly. Treat each occurrence as equivalent to an inline
+// "no public capacity accessor" comment.
+
 // File-scoped HeapAllocator backing every fixture-owned `name` / `values`
 // allocation. The fixture deliberately keeps `name` as a raw `char *` and
 // `values` as a raw `int *` so the test exercises Vec's deep-copy
@@ -183,7 +187,7 @@ bool test_complex_vec_init(void) {
 
     // Check initial state
     bool result =
-        (vec.length == 0 && vec.capacity == 0 && vec.data == NULL &&
+        (VecLen(&vec) == 0 && vec.capacity == 0 && VecBegin(&vec) == NULL &&
          vec.copy_init == (GenericCopyInit)ComplexItemCopyInit &&
          vec.copy_deinit == (GenericCopyDeinit)ComplexItemDeinit);
 
@@ -195,7 +199,7 @@ bool test_complex_vec_init(void) {
     VecPushBackR(&vec, item);
 
     // Check that the vector now has one item
-    result = result && (vec.length == 1);
+    result = result && (VecLen(&vec) == 1);
 
     // Check that the item was copied correctly
     result = result && ComplexItemsEqual(&VecAt(&vec, 0), &item);
@@ -239,7 +243,7 @@ bool test_complex_vec_push(void) {
     VecPushBackR(&vec, item3);
 
     // Check vector length
-    bool result = (vec.length == 3);
+    bool result = (VecLen(&vec) == 3);
 
     // Check items order: item2, item1, item3
     result = result && (ZstrCompare(VecAt(&vec, 0).name, "Item 2") == 0);
@@ -287,7 +291,7 @@ bool test_complex_vec_insert(void) {
     VecInsertR(&vec, item3, 1);
 
     // Check vector length
-    bool result = (vec.length == 3);
+    bool result = (VecLen(&vec) == 3);
 
     // Check items order: item2, item3, item1
     result = result && (ZstrCompare(VecAt(&vec, 0).name, "Item 2") == 0);
@@ -330,8 +334,8 @@ bool test_complex_vec_merge(void) {
     VecMergeR(&vec1, &vec2);
 
     // Check vector lengths
-    bool result = (vec1.length == 3);
-    result      = result && (vec2.length == 2); // VecMergeR doesn't modify source vector
+    bool result = (VecLen(&vec1) == 3);
+    result      = result && (VecLen(&vec2) == 2); // VecMergeR doesn't modify source vector
 
     // Check items in vec1: item1, item2, item3
     result = result && (ZstrCompare(VecAt(&vec1, 0).name, "Item 1") == 0);
@@ -361,9 +365,9 @@ bool test_complex_vec_merge(void) {
     VecMergeL(&vec3, &vec4);
 
     // Check vector lengths
-    result = result && (vec3.length == 2);
-    result = result && (vec4.length == 0); // VecMergeL resets source vector
-    result = result && (vec4.data == NULL);
+    result = result && (VecLen(&vec3) == 2);
+    result = result && (VecLen(&vec4) == 0); // VecMergeL resets source vector
+    result = result && (VecBegin(&vec4) == NULL);
 
     // Check items in vec3: item4, item5
     result = result && (ZstrCompare(VecAt(&vec3, 0).name, "Item 4") == 0);
@@ -402,7 +406,7 @@ bool test_lvalue_operations(void) {
     VecInsertL(&vec, val3, 1);
 
     // Check vector length
-    bool result = (vec.length == 3);
+    bool result = (VecLen(&vec) == 3);
 
     // Check items order: val2, val3, val1
     result = result && (VecAt(&vec, 0) == 20);
@@ -416,7 +420,7 @@ bool test_lvalue_operations(void) {
     VecPushBackArrL(&vec, arr, 3);
 
     // Check vector length
-    result = result && (vec.length == 6);
+    result = result && (VecLen(&vec) == 6);
 
     // Check items: val2, val3, val1, arr[0], arr[1], arr[2]
     result = result && (VecAt(&vec, 3) == 40);
@@ -448,7 +452,7 @@ bool test_fast_operations(void) {
     VecInsertFastR(&vec, temp, 2);
 
     // Check vector length
-    bool result = (vec.length == 6);
+    bool result = (VecLen(&vec) == 6);
 
     // Check that the element was inserted
     result = result && (VecAt(&vec, 2) == 99);
@@ -459,7 +463,7 @@ bool test_fast_operations(void) {
     VecInsertRange(&vec, arr, 1, 3);
 
     // Check vector length
-    result = result && (vec.length == 9);
+    result = result && (VecLen(&vec) == 9);
 
     // Check that the array was inserted
     result = result && (VecAt(&vec, 1) == 100);
@@ -478,13 +482,13 @@ bool test_fast_operations(void) {
     }
 
     // Ensure we have enough capacity to avoid reallocation during the test
-    VecReserve(&vec2, vec2.length + 10);
+    VecReserve(&vec2, VecLen(&vec2) + 10);
 
     // Try inserting just one element first with fast insert
     int single_val = 42;
     VecInsertFastR(&vec2, single_val, 2);
 
-    result = result && (vec2.length == 6);
+    result = result && (VecLen(&vec2) == 6);
     result = result && (VecAt(&vec2, 2) == 42);
 
     // Now try the range insert with a small array
@@ -494,7 +498,7 @@ bool test_fast_operations(void) {
     VecInsertRangeFastR(&vec2, small_arr, 1, 2);
 
     // Check vector length
-    result = result && (vec2.length == 8);
+    result = result && (VecLen(&vec2) == 8);
 
     // Check that the array was inserted
     result = result && (VecAt(&vec2, 1) == 111);
@@ -522,7 +526,7 @@ bool test_delete_operations(void) {
     VecDelete(&vec, 2); // Delete 30
 
     // Check vector length after deletion
-    bool result = (vec.length == 8);
+    bool result = (VecLen(&vec) == 8);
 
     // Check that the element was deleted and elements shifted
     result = result && (VecAt(&vec, 0) == 10);
@@ -533,7 +537,7 @@ bool test_delete_operations(void) {
     VecDeleteRange(&vec, 0, 2); // Delete 10 and 20
 
     // Check vector length after range deletion
-    result = result && (vec.length == 6);
+    result = result && (VecLen(&vec) == 6);
 
     // Check that elements were deleted and remaining elements shifted
     result = result && (VecAt(&vec, 0) == 40);
@@ -553,7 +557,7 @@ bool test_delete_operations(void) {
     VecDeleteFast(&vec, 2); // Delete 30
 
     // Check vector length after fast deletion
-    result = result && (vec.length == 8);
+    result = result && (VecLen(&vec) == 8);
 
     // Check that the element was deleted and replaced with the last element (90)
     result = result && (VecAt(&vec, 0) == 10);
@@ -565,7 +569,7 @@ bool test_delete_operations(void) {
     VecDeleteRangeFast(&vec, 0, 2); // Delete 10 and 20
 
     // Check vector length after fast range deletion
-    result = result && (vec.length == 6);
+    result = result && (VecLen(&vec) == 6);
 
     // Check that elements were deleted and replaced with elements from the end
     // The exact order depends on the implementation, but length should be correct
@@ -586,7 +590,7 @@ bool test_delete_operations(void) {
     VecDelete(&vec, index_to_delete);
 
     // Check vector length after deletion
-    result = result && (vec.length == 8);
+    result = result && (VecLen(&vec) == 8);
 
     // Check that the element was deleted
     result = result && (VecAt(&vec, 3) == 50); // 40 was deleted, so now 50 is at index 3
@@ -607,17 +611,17 @@ bool test_edge_cases(void) {
 
     // Test pushing to empty vector
     VecPushBackR(&vec, 10);
-    bool result = (vec.length == 1 && VecAt(&vec, 0) == 10);
+    bool result = (VecLen(&vec) == 1 && VecAt(&vec, 0) == 10);
 
     // Test pushing with zero count
     // Create a small array and use count=0
     int small_arr[1] = {42};
     VecPushBackArrR(&vec, small_arr, 0);
-    result = result && (vec.length == 1); // Length should not change
+    result = result && (VecLen(&vec) == 1); // Length should not change
 
     // Test inserting at end index
-    VecInsertR(&vec, 20, vec.length);
-    result = result && (vec.length == 2 && VecAt(&vec, 1) == 20);
+    VecInsertR(&vec, 20, VecLen(&vec));
+    result = result && (VecLen(&vec) == 2 && VecAt(&vec, 1) == 20);
 
     // Test with large number of elements
     VecDeinit(&vec);
@@ -629,7 +633,7 @@ bool test_edge_cases(void) {
         VecPushBackR(&vec, i);
     }
 
-    result = result && (vec.length == large_count);
+    result = result && (VecLen(&vec) == large_count);
 
     // Verify all elements
     bool all_correct = true;
@@ -651,7 +655,7 @@ bool test_edge_cases(void) {
 
     // Push an element (should auto-resize)
     VecPushBackR(&vec, 42);
-    result = result && (vec.length == 1 && VecAt(&vec, 0) == 42);
+    result = result && (VecLen(&vec) == 1 && VecAt(&vec, 0) == 42);
 
     // Clean up
     VecDeinit(&vec);
@@ -770,7 +774,7 @@ bool test_lvalue_memset_fast_insert(void) {
     // Test 3: Insert at the end (this is actually an append operation)
     int         values3[] = {70, 80, 90};
     ComplexItem item3     = CreateComplexItem("Fast Item 3", values3, 3);
-    VecInsertFastL(&vec, item3, vec.length);
+    VecInsertFastL(&vec, item3, VecLen(&vec));
 
     // Check that the item was memset to 0
     result = result && (item3.name == NULL);
@@ -778,7 +782,7 @@ bool test_lvalue_memset_fast_insert(void) {
     result = result && (item3.num_values == 0);
 
     // Verify vector integrity - should have 6 items now
-    result = result && (vec.length == 6);
+    result = result && (VecLen(&vec) == 6);
 
     // Clean up the vector
     VecDeinit(&vec);
@@ -845,8 +849,8 @@ bool test_lvalue_memset_merge(void) {
     VecMergeL(&vec1, &vec2);
 
     // Check that vec2 is now empty (data has been transferred)
-    result = result && (vec2.length == 0);
-    result = result && (vec2.data == NULL);
+    result = result && (VecLen(&vec2) == 0);
+    result = result && (VecBegin(&vec2) == NULL);
 
     // Clean up
     VecDeinit(&vec1);

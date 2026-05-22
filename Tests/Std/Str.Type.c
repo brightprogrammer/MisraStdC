@@ -33,7 +33,7 @@ bool test_str_type(void) {
     StrPushBack(&s, 'l');
     StrPushBack(&s, 'o');
 
-    bool result = (s.length == 5 && ZstrCompare(s.data, "Hello") == 0);
+    bool result = (StrLen(&s) == 5 && ZstrCompare(StrBegin(&s), "Hello") == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -57,15 +57,15 @@ bool test_strs_type(void) {
     VecPushBack(&sv, s2);
 
     // Check that it behaves like a Vec of Str objects
-    bool result = (sv.length == 2);
+    bool result = (VecLen(&sv) == 2);
 
     // Check the content of the strings
     if (result) {
         Str *str1 = &VecAt(&sv, 0);
         Str *str2 = &VecAt(&sv, 1);
 
-        result = result && (ZstrCompare(str1->data, "Hello") == 0);
-        result = result && (ZstrCompare(str2->data, "World") == 0);
+        result = result && (ZstrCompare(StrBegin(str1), "Hello") == 0);
+        result = result && (ZstrCompare(StrBegin(str2), "World") == 0);
     }
 
     VecDeinit(&sv); // This should call StrDeinit on each element
@@ -128,6 +128,7 @@ bool test_validate_invalid_str(void) {
     Str s = StrInit(&alloc);
 
     // Corrupt the string to make it invalid
+    // (intentional direct-field writes; no public capacity accessor either)
     s.length   = 100; // Set length much larger than actual capacity
     s.capacity = 5;   // Small capacity
     // s.data remains valid but length/capacity are inconsistent
@@ -149,6 +150,7 @@ bool test_validate_invalid_strs(void) {
     Strs sv = VecInit(&alloc);
 
     // Corrupt the vector to make it invalid
+    // (intentional direct-field writes; no public capacity accessor either)
     sv.length   = 50; // Set length much larger than actual capacity
     sv.capacity = 2;  // Small capacity
     // sv.data remains valid but length/capacity are inconsistent

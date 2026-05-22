@@ -6,6 +6,10 @@
 // Include test utilities
 #include "../Util/TestRunner.h"
 
+// NOTE: BitVec has no public accessor for .capacity / .data; tests in this
+// file therefore read those fields directly. Treat each occurrence as
+// equivalent to an inline "no public capacity/data accessor" comment.
+
 // Function prototypes
 bool test_bitvec_init(void);
 bool test_bitvec_deinit(void);
@@ -29,7 +33,8 @@ bool test_bitvec_init(void) {
     BitVec bv = BitVecInit(ALLOCATOR_OF(&alloc));
 
     // Check initial state
-    bool result = (bv.length == 0);
+    // (no public capacity accessor, no public data accessor — reading fields directly)
+    bool result = (BitVecLen(&bv) == 0);
     result      = result && (bv.capacity == 0);
     result      = result && (bv.data == NULL);
     result      = result && (bv.byte_size == 0);
@@ -56,7 +61,7 @@ bool test_bitvec_deinit(void) {
     BitVecPush(&bv, true);
 
     // Check that data was allocated
-    bool result = (bv.length == 3) && (bv.data != NULL);
+    bool result = (BitVecLen(&bv) == 3) && (bv.data != NULL);
 
     // Deinitialize
     BitVecDeinit(&bv);
@@ -64,7 +69,7 @@ bool test_bitvec_deinit(void) {
     // After deinitialization, the bitvector should be in a safe state
     // Note: We can't easily test that memory was freed without causing issues,
     // but we can check that the structure is reset to safe values
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
     result = result && (bv.capacity == 0);
     result = result && (bv.data == NULL);
     result = result && (bv.byte_size == 0);
@@ -87,15 +92,15 @@ bool test_bitvec_reserve(void) {
 
     // Check that capacity was increased
     bool result = (bv.capacity >= 50);
-    result      = result && (bv.length == 0);  // Length should still be 0
-    result      = result && (bv.data != NULL); // Memory should be allocated
+    result      = result && (BitVecLen(&bv) == 0); // Length should still be 0
+    result      = result && (bv.data != NULL);     // Memory should be allocated
 
     // Add some bits to make sure the reserved space works
     for (int i = 0; i < 10; i++) {
         BitVecPush(&bv, (i % 2 == 0));
     }
 
-    result = result && (bv.length == 10);
+    result = result && (BitVecLen(&bv) == 10);
     result = result && (bv.capacity >= 50); // Should still have the reserved capacity
 
     // Test reserving less than current capacity (should be no-op)
@@ -126,20 +131,20 @@ bool test_bitvec_clear(void) {
     BitVecPush(&bv, false);
 
     // Check initial state
-    bool result            = (bv.length == 4) && (bv.data != NULL);
+    bool result            = (BitVecLen(&bv) == 4) && (bv.data != NULL);
     u64  original_capacity = bv.capacity;
 
     // Clear the bitvector
     BitVecClear(&bv);
 
     // Check that length is 0 but capacity and memory allocation remain
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
     result = result && (bv.capacity == original_capacity);
     result = result && (bv.data != NULL); // Memory should still be allocated
 
     // Test that we can still add data after clearing
     BitVecPush(&bv, true);
-    result = result && (bv.length == 1);
+    result = result && (BitVecLen(&bv) == 1);
     result = result && (BitVecGet(&bv, 0) == true);
 
     // Clean up
@@ -167,7 +172,7 @@ bool test_bitvec_resize(void) {
     BitVecResize(&bv, 6);
 
     // Check that length was increased and new bits have the default value
-    bool result = (bv.length == 6);
+    bool result = (BitVecLen(&bv) == 6);
     result      = result && (BitVecGet(&bv, 0) == true);  // Original data
     result      = result && (BitVecGet(&bv, 1) == false); // Original data
     result      = result && (BitVecGet(&bv, 2) == true);  // Original data
@@ -179,13 +184,13 @@ bool test_bitvec_resize(void) {
     BitVecResize(&bv, 2);
 
     // Check that length was decreased and data was truncated
-    result = result && (bv.length == 2);
+    result = result && (BitVecLen(&bv) == 2);
     result = result && (BitVecGet(&bv, 0) == true);  // Original data preserved
     result = result && (BitVecGet(&bv, 1) == false); // Original data preserved
 
     // Test resizing to same size (should be no-op)
     BitVecResize(&bv, 2);
-    result = result && (bv.length == 2);
+    result = result && (BitVecLen(&bv) == 2);
 
     // Clean up
     BitVecDeinit(&bv);
@@ -206,7 +211,7 @@ bool test_bitvec_init_edge_cases(void) {
     BitVec bv2 = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVec bv3 = BitVecInit(ALLOCATOR_OF(&alloc));
 
-    bool result = (bv1.length == 0) && (bv2.length == 0) && (bv3.length == 0);
+    bool result = (BitVecLen(&bv1) == 0) && (BitVecLen(&bv2) == 0) && (BitVecLen(&bv3) == 0);
     result      = result && (bv1.data == NULL) && (bv2.data == NULL) && (bv3.data == NULL);
 
     // Clean up all
@@ -262,11 +267,11 @@ bool test_bitvec_resize_edge_cases(void) {
     BitVecPush(&bv, true);
     BitVecPush(&bv, false);
     BitVecResize(&bv, 0);
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
 
     // Test reu64 from 0 to non-zero
     BitVecResize(&bv, 5);
-    result = result && (bv.length == 5);
+    result = result && (BitVecLen(&bv) == 5);
     // New bits should be false
     for (u64 i = 0; i < 5; i++) {
         result = result && (BitVecGet(&bv, i) == false);
@@ -274,15 +279,15 @@ bool test_bitvec_resize_edge_cases(void) {
 
     // Test reu64 to same size
     BitVecResize(&bv, 5);
-    result = result && (bv.length == 5);
+    result = result && (BitVecLen(&bv) == 5);
 
     // Test large resize
     BitVecResize(&bv, 1000);
-    result = result && (bv.length == 1000);
+    result = result && (BitVecLen(&bv) == 1000);
 
     // Test shrinking from large size
     BitVecResize(&bv, 10);
-    result = result && (bv.length == 10);
+    result = result && (BitVecLen(&bv) == 10);
 
     BitVecDeinit(&bv);
     DefaultAllocatorDeinit(&alloc);
@@ -299,24 +304,24 @@ bool test_bitvec_clear_edge_cases(void) {
 
     // Test clear on empty bitvec
     BitVecClear(&bv);
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
 
     // Test clear after single bit
     BitVecPush(&bv, true);
     BitVecClear(&bv);
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
 
     // Test multiple clears
     BitVecClear(&bv);
     BitVecClear(&bv);
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
 
     // Test clear after large data
     for (int i = 0; i < 1000; i++) {
         BitVecPush(&bv, i % 2);
     }
     BitVecClear(&bv);
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
 
     BitVecDeinit(&bv);
     DefaultAllocatorDeinit(&alloc);
@@ -339,7 +344,7 @@ bool test_bitvec_multiple_cycles(void) {
             BitVecPush(&bv, i % 2);
         }
 
-        result = result && (bv.length == (size)(cycle % 10));
+        result = result && (BitVecLen(&bv) == (size)(cycle % 10));
         BitVecDeinit(&bv);
     }
 

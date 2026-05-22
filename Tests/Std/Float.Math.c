@@ -33,12 +33,12 @@ bool test_float_negate_abs(void) {
     FloatNegate(&value);
     text = FloatToStr(&value);
 
-    bool result = ZstrCompare(text.data, "-12.5") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "-12.5") == 0;
 
     StrDeinit(&text);
     FloatAbs(&value);
     text   = FloatToStr(&value);
-    result = result && (ZstrCompare(text.data, "12.5") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "12.5") == 0);
 
     StrDeinit(&text);
     FloatDeinit(&value);
@@ -59,7 +59,7 @@ bool test_float_add_small_small(void) {
     FloatAdd(&result_value, &a, &b);
     text = FloatToStr(&result_value);
 
-    bool result = ZstrCompare(text.data, "1.23") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "1.23") == 0;
 
     StrDeinit(&text);
     FloatDeinit(&a);
@@ -82,7 +82,7 @@ bool test_float_add_very_large_large(void) {
     FloatAdd(&result_value, &a, &b);
     text = FloatToStr(&result_value);
 
-    bool result = ZstrCompare(text.data, FLOAT_TEST_VERY_LARGE_THREES) == 0;
+    bool result = ZstrCompare(StrBegin(&text), FLOAT_TEST_VERY_LARGE_THREES) == 0;
 
     StrDeinit(&text);
     FloatDeinit(&a);
@@ -105,32 +105,32 @@ bool test_float_add_generic(void) {
 
     FloatAdd(&result_value, &a, &b);
     text        = FloatToStr(&result_value);
-    bool result = ZstrCompare(text.data, "2") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "2") == 0;
 
     StrDeinit(&text);
     FloatAdd(&result_value, &a, &whole);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "3.25") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "3.25") == 0);
 
     StrDeinit(&text);
     FloatAdd(&result_value, &a, 2u);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "3.25") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "3.25") == 0);
 
     StrDeinit(&text);
     FloatAdd(&result_value, &a, -1);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "0.25") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "0.25") == 0);
 
     StrDeinit(&text);
     FloatAdd(&result_value, &a, 0.75f);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "2") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "2") == 0);
 
     StrDeinit(&text);
     FloatAdd(&result_value, &a, 0.75);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "2") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "2") == 0);
 
     FloatDeinit(&a);
     FloatDeinit(&b);
@@ -154,7 +154,7 @@ bool test_float_sub_small_small(void) {
     FloatSub(&result_value, &a, &b);
     text = FloatToStr(&result_value);
 
-    bool result = ZstrCompare(text.data, "-0.5") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "-0.5") == 0;
 
     StrDeinit(&text);
     FloatDeinit(&a);
@@ -177,7 +177,7 @@ bool test_float_sub_very_large_large(void) {
     FloatSub(&result_value, &a, &b);
     text = FloatToStr(&result_value);
 
-    bool result = ZstrCompare(text.data, FLOAT_TEST_VERY_LARGE_TWOS) == 0;
+    bool result = ZstrCompare(StrBegin(&text), FLOAT_TEST_VERY_LARGE_TWOS) == 0;
 
     StrDeinit(&text);
     FloatDeinit(&a);
@@ -200,27 +200,27 @@ bool test_float_sub_generic(void) {
 
     FloatSub(&result_value, &a, &b);
     text        = FloatToStr(&result_value);
-    bool result = ZstrCompare(text.data, "5") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "5") == 0;
 
     StrDeinit(&text);
     FloatSub(&result_value, &a, &whole);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "3.5") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "3.5") == 0);
 
     StrDeinit(&text);
     FloatSub(&result_value, &a, 2u);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "3.5") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "3.5") == 0);
 
     StrDeinit(&text);
     FloatSub(&result_value, &a, -2);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "7.5") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "7.5") == 0);
 
     StrDeinit(&text);
     FloatSub(&result_value, &a, 0.5f);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "5") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "5") == 0);
 
     FloatDeinit(&a);
     FloatDeinit(&b);
@@ -244,7 +244,7 @@ bool test_float_mul_small_small(void) {
     FloatMul(&result_value, &a, &b);
     text = FloatToStr(&result_value);
 
-    bool result = ZstrCompare(text.data, "-2.5") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "-2.5") == 0;
 
     StrDeinit(&text);
     FloatDeinit(&a);
@@ -267,7 +267,7 @@ bool test_float_mul_very_large_small(void) {
     FloatMul(&result_value, &a, &b);
     text = FloatToStr(&result_value);
 
-    bool result = ZstrCompare(text.data, FLOAT_TEST_VERY_LARGE_TWOS) == 0;
+    bool result = ZstrCompare(StrBegin(&text), FLOAT_TEST_VERY_LARGE_TWOS) == 0;
 
     StrDeinit(&text);
     FloatDeinit(&a);
@@ -290,27 +290,27 @@ bool test_float_mul_generic(void) {
 
     FloatMul(&result_value, &a, &b);
     text        = FloatToStr(&result_value);
-    bool result = ZstrCompare(text.data, "3") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "3") == 0;
 
     StrDeinit(&text);
     FloatMul(&result_value, &a, &whole);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "3") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "3") == 0);
 
     StrDeinit(&text);
     FloatMul(&result_value, &a, 2u);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "3") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "3") == 0);
 
     StrDeinit(&text);
     FloatMul(&result_value, &a, -2);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "-3") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "-3") == 0);
 
     StrDeinit(&text);
     FloatMul(&result_value, &a, 0.5f);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "0.75") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "0.75") == 0);
 
     FloatDeinit(&a);
     FloatDeinit(&b);
@@ -334,7 +334,7 @@ bool test_float_div_small_small(void) {
     FloatDiv(&result_value, &a, &b, 3);
     text = FloatToStr(&result_value);
 
-    bool result = ZstrCompare(text.data, "0.125") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "0.125") == 0;
 
     StrDeinit(&text);
     FloatDeinit(&a);
@@ -357,7 +357,7 @@ bool test_float_div_very_large_small(void) {
     FloatDiv(&result_value, &a, &b, 0);
     text = FloatToStr(&result_value);
 
-    bool result = ZstrCompare(text.data, FLOAT_TEST_VERY_LARGE_ONES) == 0;
+    bool result = ZstrCompare(StrBegin(&text), FLOAT_TEST_VERY_LARGE_ONES) == 0;
 
     StrDeinit(&text);
     FloatDeinit(&a);
@@ -380,32 +380,32 @@ bool test_float_div_generic(void) {
 
     FloatDiv(&result_value, &a, &b, 1);
     text        = FloatToStr(&result_value);
-    bool result = ZstrCompare(text.data, "3") == 0;
+    bool result = ZstrCompare(StrBegin(&text), "3") == 0;
 
     StrDeinit(&text);
     FloatDiv(&result_value, &a, &whole, 1);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "2.5") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "2.5") == 0);
 
     StrDeinit(&text);
     FloatDiv(&result_value, &a, 3u, 1);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "2.5") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "2.5") == 0);
 
     StrDeinit(&text);
     FloatDiv(&result_value, &a, -3, 1);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "-2.5") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "-2.5") == 0);
 
     StrDeinit(&text);
     FloatDiv(&result_value, &a, 0.5f, 1);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "15") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "15") == 0);
 
     StrDeinit(&text);
     FloatDiv(&result_value, &a, 0.5, 1);
     text   = FloatToStr(&result_value);
-    result = result && (ZstrCompare(text.data, "15") == 0);
+    result = result && (ZstrCompare(StrBegin(&text), "15") == 0);
 
     FloatDeinit(&a);
     FloatDeinit(&b);

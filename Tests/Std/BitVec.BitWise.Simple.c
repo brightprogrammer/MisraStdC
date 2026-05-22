@@ -54,7 +54,7 @@ bool test_bitvec_and(void) {
     BitVecAnd(&result, &bv1, &bv2);
 
     // Expected result: 1000 (1101 AND 1010)
-    bool test_result = (result.length == 4);
+    bool test_result = (BitVecLen(&result) == 4);
     test_result      = test_result && (BitVecGet(&result, 0) == true);
     test_result      = test_result && (BitVecGet(&result, 1) == false);
     test_result      = test_result && (BitVecGet(&result, 2) == false);
@@ -96,7 +96,7 @@ bool test_bitvec_or(void) {
     BitVecOr(&result, &bv1, &bv2);
 
     // Expected result: 1110 (1100 OR 1010)
-    bool test_result = (result.length == 4);
+    bool test_result = (BitVecLen(&result) == 4);
     test_result      = test_result && (BitVecGet(&result, 0) == true);
     test_result      = test_result && (BitVecGet(&result, 1) == true);
     test_result      = test_result && (BitVecGet(&result, 2) == true);
@@ -138,7 +138,7 @@ bool test_bitvec_xor(void) {
     BitVecXor(&result, &bv1, &bv2);
 
     // Expected result: 0110 (1100 XOR 1010)
-    bool test_result = (result.length == 4);
+    bool test_result = (BitVecLen(&result) == 4);
     test_result      = test_result && (BitVecGet(&result, 0) == false);
     test_result      = test_result && (BitVecGet(&result, 1) == true);
     test_result      = test_result && (BitVecGet(&result, 2) == true);
@@ -173,7 +173,7 @@ bool test_bitvec_not(void) {
     BitVecNot(&result, &bv);
 
     // Expected result: 0101 (NOT 1010)
-    bool test_result = (result.length == 4);
+    bool test_result = (BitVecLen(&result) == 4);
     test_result      = test_result && (BitVecGet(&result, 0) == false);
     test_result      = test_result && (BitVecGet(&result, 1) == true);
     test_result      = test_result && (BitVecGet(&result, 2) == false);
@@ -210,7 +210,7 @@ bool test_bitvec_shift_left(void) {
 
     // After shift left by 2, implementation should clear bits that shift out
     // and fill lower positions with 0
-    bool test_result = (bv.length == 4);
+    bool test_result = (BitVecLen(&bv) == 4);
 
     // Let me trace through the implementation:
     // Original: bit[0]=1, bit[1]=0, bit[2]=1, bit[3]=1
@@ -257,7 +257,7 @@ bool test_bitvec_shift_right(void) {
     // Expected result: 1100
     BitVecShiftRight(&bv, 2);
 
-    bool test_result = (bv.length == 4);
+    bool test_result = (BitVecLen(&bv) == 4);
     test_result      = test_result && (BitVecGet(&bv, 0) == true);
     test_result      = test_result && (BitVecGet(&bv, 1) == true);
     test_result      = test_result && (BitVecGet(&bv, 2) == false);
@@ -289,7 +289,7 @@ bool test_bitvec_rotate_left(void) {
     BitVecRotateLeft(&bv, 2);
 
     // Expected result: 1110 (1011 rotated left by 2)
-    bool test_result = (bv.length == 4);
+    bool test_result = (BitVecLen(&bv) == 4);
     test_result      = test_result && (BitVecGet(&bv, 0) == true);
     test_result      = test_result && (BitVecGet(&bv, 1) == true);
     test_result      = test_result && (BitVecGet(&bv, 2) == true);
@@ -321,7 +321,7 @@ bool test_bitvec_rotate_right(void) {
     BitVecRotateRight(&bv, 1);
 
     // Expected result: 1101 (1011 rotated right by 1)
-    bool test_result = (bv.length == 4);
+    bool test_result = (BitVecLen(&bv) == 4);
     test_result      = test_result && (BitVecGet(&bv, 0) == true);
     test_result      = test_result && (BitVecGet(&bv, 1) == true);
     test_result      = test_result && (BitVecGet(&bv, 2) == false);
@@ -353,7 +353,7 @@ bool test_bitvec_reverse(void) {
     BitVecReverse(&bv);
 
     // Expected result: 1101 (1011 reversed)
-    bool test_result = (bv.length == 4);
+    bool test_result = (BitVecLen(&bv) == 4);
     test_result      = test_result && (BitVecGet(&bv, 0) == true);
     test_result      = test_result && (BitVecGet(&bv, 1) == true);
     test_result      = test_result && (BitVecGet(&bv, 2) == false);
@@ -378,21 +378,21 @@ bool test_bitvec_shift_edge_cases(void) {
 
     // Test shift empty bitvec
     BitVecShiftLeft(&bv, 5);
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
 
     BitVecShiftRight(&bv, 3);
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
 
     // Test shift by 0 (should be no-op)
     BitVecPush(&bv, true);
     BitVecPush(&bv, false);
     BitVecShiftLeft(&bv, 0);
-    result = result && (bv.length == 2);
+    result = result && (BitVecLen(&bv) == 2);
     result = result && (BitVecGet(&bv, 0) == true);
 
     // Test shift larger than length (should clear all bits)
     BitVecShiftLeft(&bv, 10);
-    result = result && (bv.length == 0); // Should clear when shifting everything out
+    result = result && (BitVecLen(&bv) == 0); // Should clear when shifting everything out
 
     // Test large data shift
     BitVecClear(&bv);
@@ -400,7 +400,7 @@ bool test_bitvec_shift_edge_cases(void) {
         BitVecPush(&bv, i % 2 == 0);
     }
     BitVecShiftLeft(&bv, 1);
-    result = result && (bv.length == 1000);
+    result = result && (BitVecLen(&bv) == 1000);
 
     BitVecDeinit(&bv);
     DefaultAllocatorDeinit(&alloc);
@@ -417,7 +417,7 @@ bool test_bitvec_rotate_edge_cases(void) {
 
     // Test rotate empty bitvec
     BitVecRotateLeft(&bv, 5);
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
 
     // Test rotate by 0
     BitVecPush(&bv, true);
@@ -427,11 +427,11 @@ bool test_bitvec_rotate_edge_cases(void) {
     // Test rotate by length (should be no-op)
     BitVecPush(&bv, false);
     BitVecRotateLeft(&bv, 2);
-    result = result && (bv.length == 2);
+    result = result && (BitVecLen(&bv) == 2);
 
     // Test large rotate amount
     BitVecRotateRight(&bv, 1000);
-    result = result && (bv.length == 2);
+    result = result && (BitVecLen(&bv) == 2);
 
     BitVecDeinit(&bv);
     DefaultAllocatorDeinit(&alloc);
@@ -450,10 +450,10 @@ bool test_bitvec_bitwise_ops_edge_cases(void) {
     // Test operations on empty bitvecs
     BitVec result_bv = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecAnd(&result_bv, &bv1, &bv2);
-    result = result && (result_bv.length == 0);
+    result = result && (BitVecLen(&result_bv) == 0);
 
     BitVecOr(&result_bv, &bv1, &bv2);
-    result = result && (result_bv.length == 0);
+    result = result && (BitVecLen(&result_bv) == 0);
 
     // Test operations with different lengths
     BitVecPush(&bv1, true);
@@ -461,12 +461,12 @@ bool test_bitvec_bitwise_ops_edge_cases(void) {
     BitVecPush(&bv2, false);
 
     BitVecAnd(&result_bv, &bv1, &bv2);
-    result = result && (result_bv.length >= 1); // Should handle gracefully
+    result = result && (BitVecLen(&result_bv) >= 1); // Should handle gracefully
 
     // Test NOT on various sizes
     BitVecClear(&bv1);
     BitVecNot(&result_bv, &bv1);
-    result = result && (result_bv.length == 0);
+    result = result && (BitVecLen(&result_bv) == 0);
 
     BitVecPush(&bv1, true);
     BitVecNot(&result_bv, &bv1);
@@ -490,12 +490,12 @@ bool test_bitvec_reverse_edge_cases(void) {
 
     // Test reverse empty bitvec
     BitVecReverse(&bv);
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
 
     // Test reverse single bit
     BitVecPush(&bv, true);
     BitVecReverse(&bv);
-    result = result && (bv.length == 1);
+    result = result && (BitVecLen(&bv) == 1);
     result = result && (BitVecGet(&bv, 0) == true);
 
     // Test reverse even length
@@ -539,15 +539,15 @@ bool test_bitvec_bitwise_comprehensive(void) {
 
     // Test AND with different lengths (result should be min length)
     BitVecAnd(&result, &bv1, &bv2);
-    test_result = test_result && (result.length == 4);
+    test_result = test_result && (BitVecLen(&result) == 4);
 
     // Test OR with different lengths (result should be max length)
     BitVecOr(&result, &bv1, &bv2);
-    test_result = test_result && (result.length == 8);
+    test_result = test_result && (BitVecLen(&result) == 8);
 
     // Test XOR with different lengths
     BitVecXor(&result, &bv1, &bv2);
-    test_result = test_result && (result.length == 8);
+    test_result = test_result && (BitVecLen(&result) == 8);
 
     // Test with single bit operands
     BitVecClear(&bv1);
@@ -556,7 +556,7 @@ bool test_bitvec_bitwise_comprehensive(void) {
     BitVecPush(&bv2, false);
 
     BitVecAnd(&result, &bv1, &bv2);
-    test_result = test_result && (result.length == 1);
+    test_result = test_result && (BitVecLen(&result) == 1);
     test_result = test_result && (BitVecGet(&result, 0) == false);
 
     BitVecOr(&result, &bv1, &bv2);
@@ -569,7 +569,7 @@ bool test_bitvec_bitwise_comprehensive(void) {
     }
 
     BitVecNot(&result, &bv1);
-    test_result = test_result && (result.length == 100);
+    test_result = test_result && (BitVecLen(&result) == 100);
 
     // Verify NOT correctness
     for (int i = 0; i < 100; i++) {
@@ -610,7 +610,7 @@ bool test_bitvec_shift_comprehensive(void) {
 
     // Should be different from original (lost MSB, gained LSB zero)
     bool changed = false;
-    for (int i = 0; i < (int)original.length; i++) {
+    for (int i = 0; i < (int)BitVecLen(&original); i++) {
         if (BitVecGet(&bv, i) != BitVecGet(&original, i)) {
             changed = true;
             break;
@@ -625,7 +625,7 @@ bool test_bitvec_shift_comprehensive(void) {
     }
 
     BitVecShiftLeft(&bv, 8);
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
 
     // Test shifting by more than length
     BitVecClear(&bv);
@@ -634,7 +634,7 @@ bool test_bitvec_shift_comprehensive(void) {
     }
 
     BitVecShiftRight(&bv, 10);
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
 
     // Test boundary conditions - shift by length-1
     BitVecClear(&bv);
@@ -643,7 +643,7 @@ bool test_bitvec_shift_comprehensive(void) {
     BitVecPush(&bv, false);
 
     BitVecShiftLeft(&bv, 2);
-    result = result && (bv.length == 3);
+    result = result && (BitVecLen(&bv) == 3);
     result = result && (BitVecGet(&bv, 0) == false); // filled with 0
     result = result && (BitVecGet(&bv, 1) == false); // filled with 0
     result = result && (BitVecGet(&bv, 2) == true);  // original bit 0
@@ -759,7 +759,7 @@ bool test_bitvec_bitwise_identity_operations(void) {
 
     // Test A XOR A = 0
     BitVecXor(&result, &bv1, &bv1);
-    test_result = test_result && (result.length == 16);
+    test_result = test_result && (BitVecLen(&result) == 16);
     for (int i = 0; i < 16; i++) {
         test_result = test_result && (BitVecGet(&result, i) == false);
     }
@@ -900,7 +900,7 @@ bool test_bitvec_bitwise_large_patterns(void) {
 
     // Test AND on large data
     BitVecAnd(&result, &bv1, &bv2);
-    test_result = test_result && (result.length == 1000);
+    test_result = test_result && (BitVecLen(&result) == 1000);
 
     // Verify result integrity - spot check a few positions
     for (int i = 0; i < 1000; i += 77) { // Check every 77th bit
@@ -911,11 +911,11 @@ bool test_bitvec_bitwise_large_patterns(void) {
 
     // Test XOR on large data
     BitVecXor(&result, &bv1, &bv2);
-    test_result = test_result && (result.length == 1000);
+    test_result = test_result && (BitVecLen(&result) == 1000);
 
     // Test NOT on large data
     BitVecNot(&result, &bv1);
-    test_result = test_result && (result.length == 1000);
+    test_result = test_result && (BitVecLen(&result) == 1000);
 
     // Verify NOT correctness on sample
     for (int i = 0; i < 1000; i += 123) {
@@ -931,7 +931,7 @@ bool test_bitvec_bitwise_large_patterns(void) {
     }
 
     BitVecShiftLeft(&result, 100);
-    test_result = test_result && (result.length == 1000);
+    test_result = test_result && (BitVecLen(&result) == 1000);
 
     // First 100 bits should be 0
     for (int i = 0; i < 100; i++) {

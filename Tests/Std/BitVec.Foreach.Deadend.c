@@ -90,6 +90,7 @@ bool test_bitvec_foreach_invalid_usage(void) {
     WriteFmt("Testing BitVec foreach with invalid bitvec\n");
 
     // Test foreach with invalid bitvec (length > 0 but data is NULL)
+    // (intentional direct-field writes to corrupt; no public length/capacity setters)
     BitVec bv   = BitVecInit(ALLOCATOR_OF(&alloc));
     bv.length   = 5;
     bv.capacity = 10;

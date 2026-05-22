@@ -35,7 +35,7 @@ bool test_bitvec_push(void) {
     BitVecPush(&bv, false);
 
     // Check length
-    bool result = (bv.length == 5);
+    bool result = (BitVecLen(&bv) == 5);
 
     // Check each bit
     result = result && (BitVecGet(&bv, 0) == true);
@@ -64,13 +64,13 @@ bool test_bitvec_insert_single(void) {
     BitVecInsert(&bv, 0, true);
 
     // Check first bit
-    bool result = (bv.length == 1 && BitVecGet(&bv, 0) == true);
+    bool result = (BitVecLen(&bv) == 1 && BitVecGet(&bv, 0) == true);
 
     // Insert at the end
     BitVecInsert(&bv, 1, false);
 
     // Check bits
-    result = result && (bv.length == 2);
+    result = result && (BitVecLen(&bv) == 2);
     result = result && (BitVecGet(&bv, 0) == true);
     result = result && (BitVecGet(&bv, 1) == false);
 
@@ -78,7 +78,7 @@ bool test_bitvec_insert_single(void) {
     BitVecInsert(&bv, 1, true);
 
     // Check all bits
-    result = result && (bv.length == 3);
+    result = result && (BitVecLen(&bv) == 3);
     result = result && (BitVecGet(&bv, 0) == true);
     result = result && (BitVecGet(&bv, 1) == true);
     result = result && (BitVecGet(&bv, 2) == false);
@@ -107,7 +107,7 @@ bool test_bitvec_insert_range(void) {
     BitVecInsertRange(&bv, 1, 3, true);
 
     // Check result: false, true, true, true, false
-    bool result = (bv.length == 5);
+    bool result = (BitVecLen(&bv) == 5);
     result      = result && (BitVecGet(&bv, 0) == false);
     result      = result && (BitVecGet(&bv, 1) == true);
     result      = result && (BitVecGet(&bv, 2) == true);
@@ -144,7 +144,7 @@ bool test_bitvec_insert_multiple(void) {
     BitVecInsertMultiple(&bv, 1, &source);
 
     // Check result: true, true, true, true, false
-    bool result = (bv.length == 5);
+    bool result = (BitVecLen(&bv) == 5);
     result      = result && (BitVecGet(&bv, 0) == true);
     result      = result && (BitVecGet(&bv, 1) == true);
     result      = result && (BitVecGet(&bv, 2) == true);
@@ -178,7 +178,7 @@ bool test_bitvec_insert_pattern(void) {
 
     // Check result: false, true, false, true, true, false
     // Pattern 1011 gets inserted as individual bits
-    bool result = (bv.length == 6);
+    bool result = (BitVecLen(&bv) == 6);
     result      = result && (BitVecGet(&bv, 0) == false); // original
     result      = result && (BitVecGet(&bv, 1) == true);  // bit 0 of pattern (LSB)
     result      = result && (BitVecGet(&bv, 2) == true);  // bit 1 of pattern
@@ -194,7 +194,7 @@ bool test_bitvec_insert_pattern(void) {
     BitVecInsertPattern(&bv2, 0, pattern2, 3);
 
     // Check result: true, false, true, true (3 bits: 101)
-    result = result && (bv2.length == 4);
+    result = result && (BitVecLen(&bv2) == 4);
     result = result && (BitVecGet(&bv2, 0) == true);  // bit 0 of pattern (LSB)
     result = result && (BitVecGet(&bv2, 1) == false); // bit 1 of pattern
     result = result && (BitVecGet(&bv2, 2) == true);  // bit 2 of pattern
@@ -220,19 +220,19 @@ bool test_bitvec_insert_range_edge_cases(void) {
 
     // Test inserting 0 bits (should be no-op)
     BitVecInsertRange(&bv, 0, 0, true);
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
 
     // Test inserting at end
     BitVecPush(&bv, true);
     BitVecInsertRange(&bv, 1, 2, false);
-    result = result && (bv.length == 3);
+    result = result && (BitVecLen(&bv) == 3);
     result = result && (BitVecGet(&bv, 1) == false);
     result = result && (BitVecGet(&bv, 2) == false);
 
     // Test large range insertion
     BitVecClear(&bv);
     BitVecInsertRange(&bv, 0, 1000, true);
-    result = result && (bv.length == 1000);
+    result = result && (BitVecLen(&bv) == 1000);
     result = result && (BitVecGet(&bv, 0) == true);
     result = result && (BitVecGet(&bv, 999) == true);
 
@@ -253,12 +253,12 @@ bool test_bitvec_insert_multiple_edge_cases(void) {
 
     // Test inserting empty bitvec
     BitVecInsertMultiple(&bv, 0, &empty);
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
 
     // Test inserting single bit bitvec
     BitVecPush(&source, true);
     BitVecInsertMultiple(&bv, 0, &source);
-    result = result && (bv.length == 1) && (BitVecGet(&bv, 0) == true);
+    result = result && (BitVecLen(&bv) == 1) && (BitVecGet(&bv, 0) == true);
 
     // Test inserting large bitvec
     BitVecClear(&source);
@@ -266,7 +266,7 @@ bool test_bitvec_insert_multiple_edge_cases(void) {
         BitVecPush(&source, false);
     }
     BitVecInsertMultiple(&bv, 1, &source);
-    result = result && (bv.length == 501);
+    result = result && (BitVecLen(&bv) == 501);
     result = result && (BitVecGet(&bv, 1) == false);
     result = result && (BitVecGet(&bv, 500) == false);
 
@@ -287,16 +287,16 @@ bool test_bitvec_insert_pattern_edge_cases(void) {
 
     // Test inserting empty pattern (should be no-op)
     BitVecInsertPattern(&bv, 0, 0x00, 0);
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
 
     // Test inserting single bit pattern
     BitVecInsertPattern(&bv, 0, 0x01, 1); // 1 bit pattern
-    result = result && (bv.length == 1);
+    result = result && (BitVecLen(&bv) == 1);
 
     // Test inserting 8-bit pattern
     BitVecClear(&bv);
     BitVecInsertPattern(&bv, 0, 0xAA, 8);            // 10101010 pattern
-    result = result && (bv.length == 8);
+    result = result && (BitVecLen(&bv) == 8);
     result = result && (BitVecGet(&bv, 0) == false); // First bit of 0xAA
     result = result && (BitVecGet(&bv, 1) == true);  // Second bit
 
