@@ -115,6 +115,9 @@ const DwarfLineEntry *DwarfLinesResolve(const DwarfLines *self, u64 vaddr);
 ///
 /// Release storage owned by a `DwarfLines`. Safe on a zeroed struct.
 ///
+/// SUCCESS : Returns to the caller. `*self` is zeroed.
+/// FAILURE : Function cannot fail. NULL `self` is a no-op.
+///
 void DwarfLinesDeinit(DwarfLines *self);
 
 // ===========================================================================

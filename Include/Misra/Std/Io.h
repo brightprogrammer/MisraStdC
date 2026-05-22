@@ -4,8 +4,8 @@
 ///
 /// formatted reading/writing and other magical stuff
 
-#ifndef MISRA_STD_IO
-#define MISRA_STD_IO
+#ifndef MISRA_STD_IO_H
+#define MISRA_STD_IO_H
 
 #include <Misra/Std/Container.h>
 #include <Misra/Std/Container/Buf.h>
@@ -702,4 +702,4 @@ bool buf_patch_fmt(Buf *out, size offset, const char *fmtstr, TypeSpecificIO *ar
 #define BufPatchFmt_IMPL2(buf, offset, fmtstr, varr)                                                                   \
     buf_patch_fmt((buf), (offset), (fmtstr), &(varr)[0], sizeof(varr) / sizeof(TypeSpecificIO) - 1)
 
-#endif // MISRA_STD_IO
+#endif // MISRA_STD_IO_H

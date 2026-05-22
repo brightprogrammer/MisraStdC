@@ -120,6 +120,10 @@ extern "C" {
     /// base[in]      : Base value
     /// exponent[in]  : Non-negative exponent
     ///
+    /// SUCCESS : Returns `true`. `*result` holds `base^exponent`.
+    /// FAILURE : Returns `false` on negative `exponent` or allocator
+    ///           OOM. `*result` is left untouched.
+    ///
     /// USAGE:
     ///   IntPow(&power, &base, &exp);
     ///
@@ -461,6 +465,10 @@ extern "C" {
     /// exponent[in]   : Exponent value
     /// modulus[in]    : Modulus
     ///
+    /// SUCCESS : Returns `true`. `*result` holds `(base^exponent) mod modulus`.
+    /// FAILURE : Returns `false` on `modulus == 0`, negative `exponent`,
+    ///           or allocator OOM. `*result` is left untouched.
+    ///
     /// USAGE:
     ///   IntPowMod(&result, &base, &exp, &modulus);
     ///
@@ -522,6 +530,12 @@ extern "C" {
     ///
     /// result[out] : Destination for the prime
     /// value[in]   : Starting point
+    ///
+    /// SUCCESS : Returns `true`. `*result` holds the smallest probable
+    ///           prime >= `*value`.
+    /// FAILURE : Returns `false` on allocator OOM during the witness
+    ///           loop, or if the primality oracle gives up. `*result`
+    ///           is left untouched.
     ///
     /// USAGE:
     ///   bool ok = IntNextPrime(&prime, &value);

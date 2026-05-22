@@ -140,7 +140,7 @@
 ///
 /// TAGS: Foreach, Vec, Iteration, Loop, Reverse, Pointer
 ///
-#define VecForeachPtrReverse(v, var) VecForeachPtrReverseIdx((v), (var), (____iter___))
+#define VecForeachPtrReverse(v, var) VecForeachPtrReverseIdx((v), (var), UNPL(iter))
 
 ///
 /// Iterate over elements in a specific range of the given vector `v` at each index `idx`.
@@ -176,7 +176,7 @@
 ///
 /// TAGS: Foreach, Vec, Iteration, Loop, Range
 ///
-#define VecForeachInRange(v, var, start, end) VecForeachInRangeIdx((v), (var), (____iter___), (start), (end))
+#define VecForeachInRange(v, var, start, end) VecForeachInRangeIdx((v), (var), UNPL(iter), (start), (end))
 
 ///
 /// Iterate over elements in a specific range of the given vector `v` at each index `idx` (as pointers).
@@ -213,6 +213,6 @@
 ///
 /// TAGS: Foreach, Vec, Iteration, Loop, Range, Pointer
 ///
-#define VecForeachPtrInRange(v, var, start, end) VecForeachPtrInRangeIdx((v), (var), (____iter___), (start), (end))
+#define VecForeachPtrInRange(v, var, start, end) VecForeachPtrInRangeIdx((v), (var), UNPL(iter), (start), (end))
 
 #endif // MISRA_STD_CONTAINER_VEC_FOREACH_H

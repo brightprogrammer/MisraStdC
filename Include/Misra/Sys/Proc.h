@@ -115,8 +115,12 @@ extern "C" {
     void ProcDeinit(Proc *p);
 
     ///
-    /// Returns true if `p` represents a successfully-spawned child.
-    /// Returns false if `proc_init` failed (or `p` is NULL).
+    /// Check whether `p` represents a successfully-spawned child.
+    ///
+    /// SUCCESS : Returns true when the child was spawned and the OS
+    ///           handle / pid is valid.
+    /// FAILURE : Returns false when `proc_init` failed or `p` is NULL.
+    ///           Cannot fail.
     ///
     static inline bool ProcOk(const Proc *p) {
         if (!p) {

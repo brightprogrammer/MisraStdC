@@ -93,6 +93,9 @@ extern int *__errno_location(void);
     /// need to know which libc they're linked against, and there is
     /// no second symbol to keep in sync with this one.
     ///
+    /// SUCCESS : Returns the current thread's errno value.
+    /// FAILURE : Function cannot fail.
+    ///
     /// TAGS: Errno
     ///
     static inline i32 Errno(void) {

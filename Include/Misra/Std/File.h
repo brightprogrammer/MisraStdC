@@ -4,8 +4,8 @@
 ///
 /// File helper utilities
 
-#ifndef MISRA_FILE_H
-#define MISRA_FILE_H
+#ifndef MISRA_STD_FILE_H
+#define MISRA_STD_FILE_H
 
 
 // decompiler
@@ -327,4 +327,4 @@ File file_open_temp(Str *out_path, Allocator *alloc);
 #define FileOpenTemp_1(out_path)        file_open_temp((out_path), MisraScope)
 #define FileOpenTemp_2(out_path, alloc) file_open_temp((out_path), ALLOCATOR_OF(alloc))
 
-#endif // MISRA_FILE_H
+#endif // MISRA_STD_FILE_H

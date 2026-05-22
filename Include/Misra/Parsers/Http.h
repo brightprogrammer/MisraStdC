@@ -243,6 +243,9 @@ const char *HttpRequestParse(HttpRequest *req, Zstr in);
 /// Release storage owned by `req` and zero the struct. Safe to call on
 /// a partially-parsed request.
 ///
+/// SUCCESS : Returns to the caller. `*req` is zeroed.
+/// FAILURE : Function cannot fail. NULL `req` is a no-op.
+///
 void HttpRequestDeinit(HttpRequest *req);
 
 ///

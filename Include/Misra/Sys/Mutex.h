@@ -60,6 +60,9 @@ extern "C" {
 ///     MutexUnlock(&m);
 ///     MutexDeinit(&m);
 ///
+/// SUCCESS : Returns a usable, unlocked `Mutex` by value.
+/// FAILURE : Function cannot fail (pure literal expansion).
+///
 /// TAGS: Sys, Mutex, Init
 ///
 #if PLATFORM_WINDOWS

@@ -58,6 +58,9 @@ typedef u64 ProcId;
 /// uniformly across platforms and -- critically -- avoids touching
 /// `__errno_location` on the direct-syscall path.
 ///
+/// SUCCESS : Returns the errno code (>= 0) corresponding to `ret`.
+/// FAILURE : Function cannot fail.
+///
 /// USAGE:
 ///   long pid = misra_sys0(MISRA_SYS_fork);
 ///   if (pid < 0) {
