@@ -43,7 +43,6 @@ typedef struct ProcMapEntry {
 typedef Vec(ProcMapEntry) ProcMapEntries;
 
 typedef struct ProcMaps {
-    Allocator     *allocator;
     Str            raw;     // owns the raw /proc/self/maps bytes
     ProcMapEntries entries; // pointers into `raw`
 } ProcMaps;
@@ -62,12 +61,17 @@ typedef struct ProcMaps {
 /// TAGS: Sys, Linux, ProcMaps
 ///
 bool proc_maps_load(ProcMaps *out, Allocator *alloc);
-#define ProcMapsLoad(...)         MISRA_OVERLOAD(ProcMapsLoad, __VA_ARGS__)
-#define ProcMapsLoad_1(out)       proc_maps_load((out), MisraScope)
+#define ProcMapsLoad(...)          MISRA_OVERLOAD(ProcMapsLoad, __VA_ARGS__)
+#define ProcMapsLoad_1(out)        proc_maps_load((out), MisraScope)
 #define ProcMapsLoad_2(out, alloc) proc_maps_load((out), ALLOCATOR_OF(alloc))
 
 ///
 /// Release storage owned by a ProcMaps. Safe on a zeroed struct.
+/// Storage is reclaimed through each container's inline allocator —
+/// no separate allocator argument is needed.
+///
+/// SUCCESS : Returns to the caller. `*self` is zeroed.
+/// FAILURE : Function cannot fail. NULL `self` is a no-op.
 ///
 void ProcMapsDeinit(ProcMaps *self);
 

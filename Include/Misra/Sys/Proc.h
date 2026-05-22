@@ -103,7 +103,12 @@ extern "C" {
     /// Tear down a `Proc`. Closes any open fds / HANDLEs the parent held
     /// open for the child's stdin/stdout/stderr pipes. Does NOT terminate
     /// the child -- call `ProcTerminate` first if you want that. Safe on
-    /// a zeroed (never-spawned) `Proc`.
+    /// a zeroed (never-spawned) `Proc`. No allocator argument: the
+    /// allocator handed to `proc_init` is used transiently during spawn
+    /// (only on Windows, for the cmdline buffer) and is not retained.
+    ///
+    /// SUCCESS : Returns to the caller. `*p` is zeroed.
+    /// FAILURE : Function cannot fail. NULL `p` is a no-op.
     ///
     /// TAGS: Sys, Proc, Deinit
     ///
