@@ -10,11 +10,11 @@
 #include "../Util/TestRunner.h"
 
 // File-scoped HeapAllocator backing every fixture-owned `name` / `values`
-// allocation. The fixture predates Stage 3 (when ZstrDup routed through
-// libc); now ZstrDup lives on the library heap, so we have nothing to
-// dogfood against -- a project-side HeapAllocator is the natural choice
-// for the fixture's lifetime-tracked buffers. Initialised on first use,
-// released by the test runner via the OS at process exit.
+// allocation. The fixture deliberately keeps `name` as a raw `char *` and
+// `values` as a raw `int *` so the test exercises Vec's deep-copy
+// (`copy_init`) / `copy_deinit` callbacks on a type whose nested storage
+// the container itself doesn't own. Initialised on first use; released
+// by the OS at process exit.
 static HeapAllocator g_fixture_heap;
 static bool          g_fixture_heap_ready = false;
 
@@ -29,8 +29,12 @@ static Allocator *fixture_alloc(void) {
 #define fixture_malloc(n) AllocatorAlloc(fixture_alloc(), (n), false)
 #define fixture_free(p)   AllocatorFree(fixture_alloc(), (p))
 
+// Cast off const: `zstr_dup` returns a `Zstr` because the project convention
+// treats freshly-allocated strings as read-only by default. This test fixture
+// owns the storage and needs a writable handle to feed into a raw `char *`
+// struct field, so the cast is correct here.
 static inline char *ZstrDupAlloc(Zstr s) {
-    return zstr_dup(s, fixture_alloc());
+    return (char *)zstr_dup(s, fixture_alloc());
 }
 
 
