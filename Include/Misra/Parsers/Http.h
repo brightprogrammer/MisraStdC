@@ -29,9 +29,9 @@ typedef enum HttpRequestMethod {
 ///
 /// A single `Key: Value` HTTP header. `key` and `value` are both `Str`
 /// objects that own their backing storage through their stored
-/// allocator. When kept inside a `Vec(HttpHeader)`, the vec's deep-copy
-/// callbacks (`http_header_init_copy` / `http_header_deinit`) handle
-/// duplication and cleanup automatically.
+/// allocator. When kept inside a `Vec(HttpHeader)`, the deep-copy
+/// callbacks installed via `HttpHeaderInit` handle duplication and
+/// cleanup automatically.
 ///
 typedef struct HttpHeader {
     Str key;

@@ -130,8 +130,8 @@ extern "C" {
     ///
     /// Change the protection of a range of pages. `ptr` and `bytes` must
     /// be page-aligned and page-sized respectively; the typical pattern
-    /// is to apply this to a region returned by
-    /// `page_allocator_allocate` (which is always page-grain).
+    /// is to apply this to a region returned by `PageAllocator` allocation
+    /// (which is always page-grain).
     ///
     /// ptr[in,out] : First byte of the region; must be page-aligned.
     /// bytes[in]   : Region size; must be a multiple of the OS page size.
