@@ -272,11 +272,11 @@ static BudgetAllocator budget_build(void *buf_in, size buf_bytes, size slot_size
     };
 }
 
-BudgetAllocator BudgetAllocatorInit(void *buf, size buf_bytes, size slot_size) {
+BudgetAllocator budget_allocator_init(void *buf, size buf_bytes, size slot_size) {
     return budget_build(buf, buf_bytes, slot_size, sizeof(void *));
 }
 
-BudgetAllocator BudgetAllocatorInitAligned(void *buf, size buf_bytes, size slot_size, size alignment) {
+BudgetAllocator budget_allocator_init_aligned(void *buf, size buf_bytes, size slot_size, size alignment) {
     return budget_build(buf, buf_bytes, slot_size, alignment);
 }
 

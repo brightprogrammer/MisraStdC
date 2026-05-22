@@ -104,7 +104,8 @@ extern "C" {
     ///
     /// TAGS: Allocator, Budget, Init
     ///
-    BudgetAllocator BudgetAllocatorInit(void *buf, size buf_bytes, size slot_size);
+    BudgetAllocator budget_allocator_init(void *buf, size buf_bytes, size slot_size);
+#define BudgetAllocatorInit(buf, buf_bytes, slot_size) budget_allocator_init((buf), (buf_bytes), (slot_size))
 
     ///
     /// Initialize a `BudgetAllocator` with an alignment floor. Slot size
@@ -118,7 +119,9 @@ extern "C" {
     ///
     /// TAGS: Allocator, Budget, Init, Alignment
     ///
-    BudgetAllocator BudgetAllocatorInitAligned(void *buf, size buf_bytes, size slot_size, size alignment);
+    BudgetAllocator budget_allocator_init_aligned(void *buf, size buf_bytes, size slot_size, size alignment);
+#define BudgetAllocatorInitAligned(buf, buf_bytes, slot_size, alignment)                                               \
+    budget_allocator_init_aligned((buf), (buf_bytes), (slot_size), (alignment))
 
     ///
     /// Tear down a `BudgetAllocator`. No-op for the backing memory (the
