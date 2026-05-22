@@ -146,6 +146,36 @@ bool zstr_init_clone(void *dst, const void *src, const Allocator *alloc);
 void zstr_deinit(void *zs, const Allocator *alloc);
 
 ///
+/// Convert a hex / decimal digit character to its numeric value.
+/// Accepts `0`..`9`, `a`..`f`, `A`..`F` (case-insensitive for hex).
+///
+/// SUCCESS: Returns the digit value 0..15.
+/// FAILURE: Returns -1 when `c` is not a valid hex / decimal digit.
+///
+/// TAGS: Zstr, Parse, Hex
+int zstr_hex_digit_value(char c);
+#define ZstrHexDigitValue(c) zstr_hex_digit_value(c)
+
+///
+/// Decode one escape sequence starting at `*str`. `*str` must point at
+/// the leading `\\`; on success the pointer is advanced past the
+/// consumed escape. Handles single-character escapes
+/// (`\\n`/`\\r`/`\\t`/`\\b`/`\\f`/`\\v`/`\\a`/`\\\\`/`\\"`/`\\'`/`\\0`),
+/// hex escapes (`\\xNN`), and `\\u{...}` Unicode escapes that fit in a
+/// single byte.
+///
+/// str[in,out] : Address of a `const char *` cursor. Advanced past the
+///               consumed escape on success.
+///
+/// SUCCESS: Returns the decoded byte; `*str` is advanced past the escape.
+/// FAILURE: Returns 0; logs the malformed escape; `*str` may have been
+///          partially advanced.
+///
+/// TAGS: Zstr, Parse, Escape
+char zstr_process_escape(const char **str);
+#define ZstrProcessEscape(str) zstr_process_escape(str)
+
+///
 /// Parse a signed decimal integer from a null-terminated string.
 /// Skips ASCII whitespace, accepts an optional leading sign, then
 /// consumes the longest run of `0..9`. Drops the libc `strtoll`

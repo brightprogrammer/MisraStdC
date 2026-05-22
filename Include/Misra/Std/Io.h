@@ -291,6 +291,81 @@ Float:                                                                          
 // dispatch to them without exposing internal entry points as public API.
 
 ///
+/// Pad `o` with ASCII spaces so its total length reaches `width`.
+/// `content_len` is the length already considered "content" (typically
+/// `StrLen(o)` at call time, or the length the caller plans to fill in
+/// afterwards). Padding lands on the left, right, or both sides
+/// depending on `align`. If `content_len >= width` the call is a no-op.
+///
+/// o[in,out]      : Str to pad. Grows through its inline allocator.
+/// width[in]      : Target minimum width.
+/// align[in]      : `ALIGN_LEFT` / `ALIGN_RIGHT` / `ALIGN_CENTER`.
+/// content_len[in]: Current content length to anchor padding against.
+///
+/// SUCCESS : Returns `true`. `o` carries the requested padding.
+/// FAILURE : Returns `false` on allocator OOM mid-pad. `o` may be left
+///           partially padded.
+///
+/// TAGS: Str, Format, Pad
+///
+bool str_pad(Str *o, size width, Alignment align, size content_len);
+#define StrPad(o, width, align, content_len) str_pad((o), (width), (align), (content_len))
+
+#if FEATURE_FLOAT
+///
+/// Render `value` as a decimal-notation string into `*out`. When
+/// `has_precision` is true, `precision` decimal digits are emitted
+/// (padded with trailing zeros when needed); otherwise the canonical
+/// form of the float is used (no truncation, no padding).
+///
+/// out[out]         : Receives a freshly-initialised `Str`. Caller
+///                    `StrDeinit`s on either path.
+/// value[in]        : Float to render.
+/// precision[in]    : Number of fractional digits, used only when
+///                    `has_precision` is true.
+/// has_precision[in]: Whether `precision` should be applied.
+/// alloc[in]        : Allocator backing `*out`.
+///
+/// SUCCESS : Returns `true`. `*out` carries the decimal rendering.
+/// FAILURE : Returns `false` on allocator OOM. `*out` is left zeroed.
+///
+/// TAGS: Float, Format, Decimal
+///
+bool float_try_to_decimal_str(Str *out, Float *value, u32 precision, bool has_precision, Allocator *alloc);
+#    define FloatTryToDecimalStr(out, value, precision, has_precision, alloc)                                          \
+        float_try_to_decimal_str((out), (value), (precision), (has_precision), ALLOCATOR_OF(alloc))
+
+///
+/// Render `value` as a scientific-notation string into `*out`
+/// (`mantissa[.fraction]e[+-]exponent`). `uppercase` chooses `E` vs `e`.
+///
+/// out[out]         : Receives a freshly-initialised `Str`. Caller
+///                    `StrDeinit`s on either path.
+/// value[in]        : Float to render.
+/// precision[in]    : Number of digits after the leading mantissa digit,
+///                    used only when `has_precision` is true.
+/// has_precision[in]: Whether `precision` should be applied.
+/// uppercase[in]    : `true` -> `E+NN`, `false` -> `e+NN`.
+/// alloc[in]        : Allocator backing `*out`.
+///
+/// SUCCESS : Returns `true`. `*out` carries the scientific rendering.
+/// FAILURE : Returns `false` on allocator OOM. `*out` is left zeroed.
+///
+/// TAGS: Float, Format, Scientific
+///
+bool float_try_to_scientific_str(
+    Str       *out,
+    Float     *value,
+    u32        precision,
+    bool       has_precision,
+    bool       uppercase,
+    Allocator *alloc
+);
+#    define FloatTryToScientificStr(out, value, precision, has_precision, uppercase, alloc)                            \
+        float_try_to_scientific_str((out), (value), (precision), (has_precision), (uppercase), ALLOCATOR_OF(alloc))
+#endif // FEATURE_FLOAT
+
+///
 /// Helper macro to append a comma after wrapping given argument in IOFMT
 /// Used in following macros
 ///

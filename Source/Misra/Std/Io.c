@@ -136,9 +136,9 @@ static inline u64 count_leading_zeros_u64(u64 value) {
 
 // Helper function to parse format specifiers
 // {[(alignment/endianness)[alignment-width/raw-read-width]](specifier)}
-static bool ParseFormatSpec(const char *spec, u32 len, FmtInfo *fi) {
+static bool parse_format_spec(const char *spec, u32 len, FmtInfo *fi) {
     if (!spec || !fi) {
-        LOG_FATAL("Invalid arguments to ParseFormatSpec");
+        LOG_FATAL("Invalid arguments to parse_format_spec");
         return false;
     }
     // Empty format specifier is allowed, but spec pointer must not be NULL
@@ -286,8 +286,7 @@ static bool pad_numeric_zeros(Str *o, size content_start, size width, size conte
     return true;
 }
 
-// Helper function to pad string with spaces
-static bool PadString(Str *o, size width, Alignment align, size content_len) {
+bool str_pad(Str *o, size width, Alignment align, size content_len) {
     if (content_len >= width)
         return true;
 
@@ -372,7 +371,7 @@ bool str_append_fmt(Str *o, const char *fmt, TypeSpecificIO *args, u64 argc) {
             if (spec_len == 0) {
                 // Empty format specifier {} is allowed, initialize with defaults
                 fmt_info = (FmtInfo) {.align = ALIGN_RIGHT, .width = 0, .precision = 6, .flags = FMT_FLAG_NONE};
-            } else if (!ParseFormatSpec(fmt + brace_start + 1, spec_len, &fmt_info)) {
+            } else if (!parse_format_spec(fmt + brace_start + 1, spec_len, &fmt_info)) {
                 return false;
             }
 
@@ -664,9 +663,9 @@ const char *str_read_fmt(const char *input, const char *fmtstr, TypeSpecificIO *
 
             // Validate format specifier
             FmtInfo fmt_info = {0};
-            if (!ParseFormatSpec(spec_buf, spec_len, &fmt_info)) {
+            if (!parse_format_spec(spec_buf, spec_len, &fmt_info)) {
                 LOG_ERROR("Failed to parse format specifier");
-                return NULL; // Error already logged by ParseFormatSpec
+                return NULL; // Error already logged by parse_format_spec
             }
             fmt_info.max_read_len = rem_in;
 
@@ -872,9 +871,9 @@ bool buf_read_fmt(BufIter *iter, const char *fmtstr, TypeSpecificIO *argv, u64 a
         u32 spec_len = (u32)(spec_end - spec_start);
 
         FmtInfo fmt_info = {0};
-        if (!ParseFormatSpec(spec_start, spec_len, &fmt_info)) {
+        if (!parse_format_spec(spec_start, spec_len, &fmt_info)) {
             iter->pos = start_pos;
-            return false; // ParseFormatSpec already logged
+            return false; // parse_format_spec already logged
         }
         if (!(fmt_info.flags & FMT_FLAG_RAW)) {
             LOG_FATAL("buf_read_fmt: only raw ({{<Nr}}/{{>Nr}}) specs allowed");
@@ -1049,7 +1048,7 @@ static bool render_binary_fmt(Str *out, const char *fmtstr, TypeSpecificIO *argv
         u32 spec_len = (u32)(spec_end - spec_start);
 
         FmtInfo fmt_info = {0};
-        if (!ParseFormatSpec(spec_start, spec_len, &fmt_info)) {
+        if (!parse_format_spec(spec_start, spec_len, &fmt_info)) {
             return false;
         }
         if (!(fmt_info.flags & FMT_FLAG_RAW)) {
@@ -1271,8 +1270,7 @@ static inline bool write_char_internal(Str *o, FormatFlags flags, const char *vs
     return true;
 }
 
-#if FEATURE_INT
-static int IntFmtDigitValue(char c) {
+int zstr_hex_digit_value(char c) {
     if (c >= '0' && c <= '9') {
         return c - '0';
     }
@@ -1286,13 +1284,14 @@ static int IntFmtDigitValue(char c) {
     return -1;
 }
 
-static bool IntFmtDigitMatchesRadix(char c, u8 radix) {
-    int digit = IntFmtDigitValue(c);
+#if FEATURE_INT
+static bool int_fmt_digit_matches_radix(char c, u8 radix) {
+    int digit = zstr_hex_digit_value(c);
 
     return digit >= 0 && digit < radix;
 }
 
-static u8 IntFmtRadixFromFlags(FmtInfo *fmt_info) {
+static u8 int_fmt_radix_from_flags(FmtInfo *fmt_info) {
     if (fmt_info && (fmt_info->flags & FMT_FLAG_HEX)) {
         return 16;
     }
@@ -1308,12 +1307,12 @@ static u8 IntFmtRadixFromFlags(FmtInfo *fmt_info) {
 #endif // FEATURE_INT
 
 #if FEATURE_FLOAT
-static bool FloatFmtUsesUnsupportedFlags(FmtInfo *fmt_info) {
+static bool float_fmt_uses_unsupported_flags(FmtInfo *fmt_info) {
     return fmt_info && (fmt_info->flags & (FMT_FLAG_CHAR | FMT_FLAG_HEX | FMT_FLAG_BINARY | FMT_FLAG_OCTAL |
                                            FMT_FLAG_RAW | FMT_FLAG_STRING)) != 0;
 }
 
-static bool FloatFmtAppendExponent(Str *out, i64 exponent, bool uppercase) {
+static bool float_fmt_append_exponent(Str *out, i64 exponent, bool uppercase) {
     char sign        = exponent < 0 ? '-' : '+';
     u64  magnitude   = exponent < 0 ? (u64)(-(exponent + 1)) + 1 : (u64)exponent;
     char digits[32]  = {0};
@@ -1351,7 +1350,7 @@ static bool FloatFmtAppendExponent(Str *out, i64 exponent, bool uppercase) {
     return true;
 }
 
-static bool FloatFmtTryToDecimalStr(Str *out, Float *value, u32 precision, bool has_precision, Allocator *alloc) {
+bool float_try_to_decimal_str(Str *out, Float *value, u32 precision, bool has_precision, Allocator *alloc) {
     Str canonical;
     Str result;
 
@@ -1438,7 +1437,7 @@ fail:
     return false;
 }
 
-static bool FloatFmtTryToScientificStr(
+bool float_try_to_scientific_str(
     Str       *out,
     Float     *value,
     u32        precision,
@@ -1482,7 +1481,7 @@ static bool FloatFmtTryToScientificStr(
                 }
             }
         }
-        if (!FloatFmtAppendExponent(&result, 0, uppercase)) {
+        if (!float_fmt_append_exponent(&result, 0, uppercase)) {
             goto fail;
         }
         StrDeinit(&digits);
@@ -1519,7 +1518,7 @@ static bool FloatFmtTryToScientificStr(
         }
     }
 
-    if (!FloatFmtAppendExponent(&result, exponent, uppercase)) {
+    if (!float_fmt_append_exponent(&result, exponent, uppercase)) {
         goto fail;
     }
     StrDeinit(&digits);
@@ -1532,7 +1531,7 @@ fail:
     return false;
 }
 
-static size FloatFmtTokenLength(const char *input) {
+static size float_fmt_token_length(const char *input) {
     size pos            = 0;
     bool saw_digit      = false;
     bool saw_decimal    = false;
@@ -1719,7 +1718,7 @@ bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+        if (!str_pad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -1811,7 +1810,7 @@ bool _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s) {
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+        if (!str_pad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -1883,7 +1882,7 @@ bool _write_u64(Str *o, FmtInfo *fmt_info, u64 *v) {
             if (!pad_numeric_zeros(o, start_len, fmt_info->width, content_len)) {
                 return false;
             }
-        } else if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+        } else if (!str_pad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -1988,7 +1987,7 @@ bool _write_i64(Str *o, FmtInfo *fmt_info, i64 *v) {
             if (!pad_numeric_zeros(o, start_len, fmt_info->width, content_len)) {
                 return false;
             }
-        } else if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+        } else if (!str_pad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -2115,7 +2114,7 @@ bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+        if (!str_pad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -2154,13 +2153,13 @@ bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
     ValidateStr(o);
     ValidateFloat(value);
 
-    if (FloatFmtUsesUnsupportedFlags(fmt_info)) {
+    if (float_fmt_uses_unsupported_flags(fmt_info)) {
         LOG_FATAL("Float only supports decimal and scientific formatting");
     }
 
     start_len = o->length;
     if (fmt_info->flags & FMT_FLAG_SCIENTIFIC) {
-        if (!FloatFmtTryToScientificStr(
+        if (!float_try_to_scientific_str(
                 &temp,
                 value,
                 fmt_info->precision,
@@ -2171,7 +2170,7 @@ bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
             return false;
         }
     } else {
-        if (!FloatFmtTryToDecimalStr(
+        if (!float_try_to_decimal_str(
                 &temp,
                 value,
                 fmt_info->precision,
@@ -2190,7 +2189,7 @@ bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
 
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+        if (!str_pad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -2199,14 +2198,13 @@ bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
 }
 #endif // FEATURE_FLOAT
 
-// Helper function to handle escape sequences
-static char ProcessEscape(const char **str) {
+char zstr_process_escape(const char **str) {
     if (!str || !*str)
         return 0;
 
     const char *s = *str;
     if (*s != '\\') {
-        LOG_ERROR("ProcessEscape called on non-escape sequence");
+        LOG_ERROR("zstr_process_escape called on non-escape sequence");
         return 0;
     }
 
@@ -2297,7 +2295,7 @@ const char *_read_Str(const char *i, FmtInfo *fmt_info, Str *s) {
             // Quoted string mode
             if (*i == '\\') {
                 const char *curr = i;
-                char        c    = ProcessEscape(&curr);
+                char        c    = zstr_process_escape(&curr);
                 if (c == 0) { // Error in escape sequence
                     StrDeinit(s);
                     return NULL;
@@ -2338,7 +2336,7 @@ const char *_read_Str(const char *i, FmtInfo *fmt_info, Str *s) {
 
             if (*i == '\\') {
                 const char *curr = i;
-                char        c    = ProcessEscape(&curr);
+                char        c    = zstr_process_escape(&curr);
                 if (c == 0) { // Error in escape sequence
                     StrDeinit(s);
                     return NULL;
@@ -2382,7 +2380,7 @@ const char *_read_Str(const char *i, FmtInfo *fmt_info, Str *s) {
 }
 
 // Helper function to check if a character is valid for number parsing
-static bool IsValidNumberChar(char c, bool is_first_char, bool allow_decimal) {
+static bool is_valid_number_char(char c, bool is_first_char, bool allow_decimal) {
     // Allow digits
     if (IS_DIGIT(c))
         return true;
@@ -2422,7 +2420,7 @@ static bool IsValidNumberChar(char c, bool is_first_char, bool allow_decimal) {
 }
 
 // Create a helper function to check if the parsed string contains only valid numeric characters
-static bool IsValidNumericString(const Str *str, bool allow_float) {
+static bool is_valid_numeric_string(const Str *str, bool allow_float) {
     if (!str || !str->data)
         return false;
 
@@ -2646,7 +2644,7 @@ const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v) {
         }
 
         // Check if character is valid for a number
-        if (!IsValidNumberChar(i[pos], pos == 0, true)) {
+        if (!is_valid_number_char(i[pos], pos == 0, true)) {
             break;
         }
 
@@ -2657,7 +2655,7 @@ const char *_read_f64(const char *i, FmtInfo *fmt_info, f64 *v) {
     Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Validate the string is a proper floating point number
-    if (!IsValidNumericString(&temp, true)) {
+    if (!is_valid_numeric_string(&temp, true)) {
         LOG_ERROR("Invalid floating point format");
         StrDeinit(&temp);
         DefaultAllocatorDeinit(&scratch);
@@ -2710,7 +2708,7 @@ const char *_read_u8(const char *i, FmtInfo *fmt_info, u8 *v) {
     // Parse character by character
     while (i[pos]) {
         // Check if character is valid for a number
-        if (!IsValidNumberChar(i[pos], pos == 0, false)) {
+        if (!is_valid_number_char(i[pos], pos == 0, false)) {
             break;
         }
 
@@ -2731,7 +2729,7 @@ const char *_read_u8(const char *i, FmtInfo *fmt_info, u8 *v) {
     }
 
     // Validate the string is a proper number
-    if (!IsValidNumericString(&temp, false)) {
+    if (!is_valid_numeric_string(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
         DefaultAllocatorDeinit(&scratch);
@@ -2796,7 +2794,7 @@ const char *_read_u16(const char *i, FmtInfo *fmt_info, u16 *v) {
     // Parse character by character
     while (i[pos]) {
         // Check if character is valid for a number
-        if (!IsValidNumberChar(i[pos], pos == 0, false)) {
+        if (!is_valid_number_char(i[pos], pos == 0, false)) {
             break;
         }
 
@@ -2817,7 +2815,7 @@ const char *_read_u16(const char *i, FmtInfo *fmt_info, u16 *v) {
     }
 
     // Validate the string is a proper number
-    if (!IsValidNumericString(&temp, false)) {
+    if (!is_valid_numeric_string(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
         DefaultAllocatorDeinit(&scratch);
@@ -2881,7 +2879,7 @@ const char *_read_u32(const char *i, FmtInfo *fmt_info, u32 *v) {
     // Parse character by character
     while (i[pos]) {
         // Check if character is valid for a number
-        if (!IsValidNumberChar(i[pos], pos == 0, false)) {
+        if (!is_valid_number_char(i[pos], pos == 0, false)) {
             break;
         }
 
@@ -2902,7 +2900,7 @@ const char *_read_u32(const char *i, FmtInfo *fmt_info, u32 *v) {
     }
 
     // Validate the string is a proper number
-    if (!IsValidNumericString(&temp, false)) {
+    if (!is_valid_numeric_string(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
         DefaultAllocatorDeinit(&scratch);
@@ -2967,7 +2965,7 @@ const char *_read_u64(const char *i, FmtInfo *fmt_info, u64 *v) {
     // Parse character by character
     while (i[pos]) {
         // Check if character is valid for a number
-        if (!IsValidNumberChar(i[pos], pos == 0, false)) {
+        if (!is_valid_number_char(i[pos], pos == 0, false)) {
             break;
         }
 
@@ -2988,7 +2986,7 @@ const char *_read_u64(const char *i, FmtInfo *fmt_info, u64 *v) {
     }
 
     // Validate the string is a proper number
-    if (!IsValidNumericString(&temp, false)) {
+    if (!is_valid_numeric_string(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
         DefaultAllocatorDeinit(&scratch);
@@ -3042,7 +3040,7 @@ const char *_read_i8(const char *i, FmtInfo *fmt_info, i8 *v) {
     // Parse character by character
     while (i[pos]) {
         // Check if character is valid for a number
-        if (!IsValidNumberChar(i[pos], pos == 0, false)) {
+        if (!is_valid_number_char(i[pos], pos == 0, false)) {
             break;
         }
 
@@ -3063,7 +3061,7 @@ const char *_read_i8(const char *i, FmtInfo *fmt_info, i8 *v) {
     }
 
     // Validate the string is a proper number
-    if (!IsValidNumericString(&temp, false)) {
+    if (!is_valid_numeric_string(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
         DefaultAllocatorDeinit(&scratch);
@@ -3128,7 +3126,7 @@ const char *_read_i16(const char *i, FmtInfo *fmt_info, i16 *v) {
     // Parse character by character
     while (i[pos]) {
         // Check if character is valid for a number
-        if (!IsValidNumberChar(i[pos], pos == 0, false)) {
+        if (!is_valid_number_char(i[pos], pos == 0, false)) {
             break;
         }
 
@@ -3149,7 +3147,7 @@ const char *_read_i16(const char *i, FmtInfo *fmt_info, i16 *v) {
     }
 
     // Validate the string is a proper number
-    if (!IsValidNumericString(&temp, false)) {
+    if (!is_valid_numeric_string(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
         DefaultAllocatorDeinit(&scratch);
@@ -3214,7 +3212,7 @@ const char *_read_i32(const char *i, FmtInfo *fmt_info, i32 *v) {
     // Parse character by character
     while (i[pos]) {
         // Check if character is valid for a number
-        if (!IsValidNumberChar(i[pos], pos == 0, false)) {
+        if (!is_valid_number_char(i[pos], pos == 0, false)) {
             break;
         }
 
@@ -3235,7 +3233,7 @@ const char *_read_i32(const char *i, FmtInfo *fmt_info, i32 *v) {
     }
 
     // Validate the string is a proper number
-    if (!IsValidNumericString(&temp, false)) {
+    if (!is_valid_numeric_string(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
         DefaultAllocatorDeinit(&scratch);
@@ -3300,7 +3298,7 @@ const char *_read_i64(const char *i, FmtInfo *fmt_info, i64 *v) {
     // Parse character by character
     while (i[pos]) {
         // Check if character is valid for a number
-        if (!IsValidNumberChar(i[pos], pos == 0, false)) {
+        if (!is_valid_number_char(i[pos], pos == 0, false)) {
             break;
         }
 
@@ -3321,7 +3319,7 @@ const char *_read_i64(const char *i, FmtInfo *fmt_info, i64 *v) {
     }
 
     // Validate the string is a proper number
-    if (!IsValidNumericString(&temp, false)) {
+    if (!is_valid_numeric_string(&temp, false)) {
         LOG_ERROR("Invalid numeric format");
         StrDeinit(&temp);
         DefaultAllocatorDeinit(&scratch);
@@ -3462,7 +3460,7 @@ bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+        if (!str_pad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -3506,7 +3504,7 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
 
     size start_len = o->length;
     Str  temp;
-    u8   radix = IntFmtRadixFromFlags(fmt_info);
+    u8   radix = int_fmt_radix_from_flags(fmt_info);
 
     if (radix == 10) {
         if (!int_try_to_str(&temp, value, o->allocator)) {
@@ -3526,7 +3524,7 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
 
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        if (!PadString(o, fmt_info->width, fmt_info->align, content_len)) {
+        if (!str_pad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -3685,7 +3683,7 @@ const char *_read_Int(const char *i, FmtInfo *fmt_info, Int *value) {
 
     const char *start        = i;
     const char *digits_start = i;
-    u8          radix        = IntFmtRadixFromFlags(fmt_info);
+    u8          radix        = int_fmt_radix_from_flags(fmt_info);
 
     if (*digits_start == '+') {
         digits_start++;
@@ -3705,7 +3703,7 @@ const char *_read_Int(const char *i, FmtInfo *fmt_info, Int *value) {
         return start;
     }
 
-    while (*i && IntFmtDigitMatchesRadix(*i, radix)) {
+    while (*i && int_fmt_digit_matches_radix(*i, radix)) {
         i++;
     }
 
@@ -3750,7 +3748,7 @@ const char *_read_Float(const char *i, FmtInfo *fmt_info, Float *value) {
     temp   = StrInit(value->significand.bits.allocator);
     parsed = FloatInit(value->significand.bits.allocator);
 
-    if (FloatFmtUsesUnsupportedFlags(fmt_info)) {
+    if (float_fmt_uses_unsupported_flags(fmt_info)) {
         LOG_ERROR("Float only supports decimal and scientific reading");
         StrDeinit(&temp);
         FloatDeinit(&parsed);
@@ -3771,7 +3769,7 @@ const char *_read_Float(const char *i, FmtInfo *fmt_info, Float *value) {
     }
 
     start     = i;
-    token_len = FloatFmtTokenLength(start);
+    token_len = float_fmt_token_length(start);
 
     if (token_len == 0) {
         LOG_ERROR("Failed to parse Float");
@@ -3892,7 +3890,7 @@ const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v) {
         }
 
         // Check if character is valid for a number
-        if (!IsValidNumberChar(i[pos], pos == 0, true)) {
+        if (!is_valid_number_char(i[pos], pos == 0, true)) {
             break;
         }
 
@@ -3903,7 +3901,7 @@ const char *_read_f32(const char *i, FmtInfo *fmt_info, f32 *v) {
     Str temp = StrInitFromCstr(start, pos, &scratch);
 
     // Validate the string is a proper floating point number
-    if (!IsValidNumericString(&temp, true)) {
+    if (!is_valid_numeric_string(&temp, true)) {
         LOG_ERROR("Invalid floating point format");
         StrDeinit(&temp);
         DefaultAllocatorDeinit(&scratch);
