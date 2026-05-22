@@ -19,7 +19,7 @@ typedef struct {
 
 static void int_normalize(Int *value);
 static bool int_validate_radix(u8 radix);
-static bool int_try_from_str_radix_impl(Int *out, const char *digits, u64 start, u8 radix, bool allow_underscores);
+static bool int_try_from_str_radix_impl(Int *out, Zstr digits, u64 start, u8 radix, bool allow_underscores);
 static bool int_try_init_with_capacity(Int *out, u64 capacity, Allocator *alloc);
 static bool int_try_from_u64_with_allocator(Int *out, u64 value, Allocator *alloc);
 static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator *alloc);
@@ -314,7 +314,7 @@ static char int_radix_char(u8 digit, bool uppercase) {
     return (char)('a' + (digit - 10));
 }
 
-static bool int_try_from_str_radix_impl(Int *out, const char *digits, u64 start, u8 radix, bool allow_underscores) {
+static bool int_try_from_str_radix_impl(Int *out, Zstr digits, u64 start, u8 radix, bool allow_underscores) {
     Int  result;
     bool saw_digit = false;
 
