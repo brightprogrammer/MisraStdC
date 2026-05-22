@@ -47,8 +47,9 @@ extern "C" {
     /// - base                : Generic allocator base (function pointers, alignment, ...).
     /// - cached_page_size    : Lazily-cached system page size in bytes, 0 until first query.
     /// - entries             : Descriptor array for live mmap'd regions, sorted by `ptr`
-    ///                         ascending; managed via raw page_map/page_unmap calls (not
-    ///                         through the public Allocator dispatch -- would recurse).
+    ///                         ascending; managed via direct `mmap`/`munmap` (POSIX) or
+    ///                         `VirtualAlloc`/`VirtualFree` (Windows) -- not through the
+    ///                         public `Allocator` dispatch, which would recurse.
     /// - len                 : Number of live entries.
     /// - cap                 : Capacity of `entries` (geometric growth).
     /// - entries_bytes       : Rounded mmap length of the `entries` table itself,

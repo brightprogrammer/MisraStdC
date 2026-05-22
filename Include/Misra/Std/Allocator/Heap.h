@@ -83,7 +83,7 @@ extern "C" {
     ///                them as free.
     /// - used_count : Live slot count. Reclaim when 0 (and the class
     ///                still has another warm page parked).
-    /// - class_idx  : Index into heap_class_size[] (0..HEAP_NUM_CLASSES-1).
+    /// - class_idx  : Size-class index in `0..HEAP_NUM_CLASSES-1`.
     typedef struct HeapPage {
         void *page;
         u64   bitmap[HEAP_BITMAP_WORDS];
