@@ -55,16 +55,15 @@ static size custom_next_index(u64 hash, size capacity, size previous_index, size
 static bool test_map_type_defaults(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
-    bool result =
-        map.length == 0 && map.capacity == 0 && map.tombstones == 0 && map.entries == NULL && map.states == NULL &&
-        map.key_compare == i32_compare && map.value_compare == NULL && map.key_hash == i32_hash &&
-        map.policy.should_rehash == MapPolicyLinear.should_rehash &&
-        map.policy.next_capacity == MapPolicyLinear.next_capacity &&
-        map.policy.first_index == MapPolicyLinear.first_index &&
-        map.policy.next_index == MapPolicyLinear.next_index &&
-        map.policy.max_probe_count == MapPolicyLinear.max_probe_count;
+    bool result = map.length == 0 && map.capacity == 0 && map.tombstones == 0 && map.entries == NULL &&
+                  map.states == NULL && map.key_compare == i32_compare && map.value_compare == NULL &&
+                  map.key_hash == i32_hash && map.policy.should_rehash == MapPolicyLinear.should_rehash &&
+                  map.policy.next_capacity == MapPolicyLinear.next_capacity &&
+                  map.policy.first_index == MapPolicyLinear.first_index &&
+                  map.policy.next_index == MapPolicyLinear.next_index &&
+                  map.policy.max_probe_count == MapPolicyLinear.max_probe_count;
 
     MapDeinit(&map);
     DefaultAllocatorDeinit(&alloc);
@@ -74,7 +73,7 @@ static bool test_map_type_defaults(void) {
 static bool test_map_type_with_value_compare(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
+    IntIntMap        map   = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
 
     bool result = map.key_compare == i32_compare && map.value_compare == i32_compare && map.key_hash == i32_hash;
 
@@ -85,14 +84,14 @@ static bool test_map_type_with_value_compare(void) {
 
 static bool test_map_policy_copy(void) {
     typedef Map(int, int) IntIntMap;
-    DefaultAllocator alloc = DefaultAllocatorInit();
-    MapPolicy custom_policy = {
-        .name            = "custom-linear",
-        .should_rehash   = custom_should_rehash_snapshot,
-        .next_capacity   = custom_next_capacity,
-        .first_index     = custom_first_index,
-        .next_index      = custom_next_index,
-        .max_probe_count = 11,
+    DefaultAllocator alloc         = DefaultAllocatorInit();
+    MapPolicy        custom_policy = {
+               .name            = "custom-linear",
+               .should_rehash   = custom_should_rehash_snapshot,
+               .next_capacity   = custom_next_capacity,
+               .first_index     = custom_first_index,
+               .next_index      = custom_next_index,
+               .max_probe_count = 11,
     };
     IntIntMap map = MapInitWithPolicy(i32_hash, i32_compare, custom_policy, &alloc);
 

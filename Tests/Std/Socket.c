@@ -65,8 +65,8 @@ bool test_socket_loopback_round_trip(void) {
         return false;
     }
 
-    const char *payload = "hello from socket test";
-    size        n       = (size)ZstrLen(payload);
+    Zstr payload = "hello from socket test";
+    size n       = (size)ZstrLen(payload);
     if (SocketSend(&client, payload, n) != (i64)n) {
         SocketClose(&server);
         SocketClose(&client);

@@ -70,7 +70,7 @@ void SearchResultDeinit(SearchResult *result) {
 }
 
 // Helper function to compare JSON output (removes whitespace for comparison)
-bool compare_json_output(const Str *output, const char *expected, DefaultAllocator *alloc) {
+bool compare_json_output(const Str *output, Zstr expected, DefaultAllocator *alloc) {
     Str expected_str   = StrInitFromZstr(expected, alloc);
     Str output_clean   = StrInit(alloc);
     Str expected_clean = StrInit(alloc);
@@ -156,7 +156,7 @@ bool test_two_level_nesting_writing(void) {
         JW_STR_KV(json, "status", data.status);
     });
 
-    const char *expected = "{\"user\":{\"id\":123,\"profile\":{\"name\":\"Alice\",\"age\":30}},\"status\":\"active\"}";
+    Zstr expected = "{\"user\":{\"id\":123,\"profile\":{\"name\":\"Alice\",\"age\":30}},\"status\":\"active\"}";
     if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
@@ -205,7 +205,7 @@ bool test_three_level_nesting_writing(void) {
         });
     });
 
-    const char *expected =
+    Zstr expected =
         "{\"company\":{\"departments\":{\"engineering\":{\"head\":\"John\",\"count\":25,\"budget\":150000.000000}},"
         "\"name\":\"TechCorp\"}}";
     if (!compare_json_output(&json, expected, &alloc)) {
@@ -282,7 +282,7 @@ bool test_complex_api_response_writing(void) {
         });
     });
 
-    const char *expected =
+    Zstr expected =
         "{\"status\":true,\"message\":\"Success\",\"data\":{\"12345\":{\"67890\":{\"distance\":0.850000,\"nearest_"
         "neighbor_analysis_id\":999,\"nearest_neighbor_binary_id\":888,\"nearest_neighbor_analysis_name\":\"test_"
         "analysis\",\"nearest_neighbor_function_name\":\"main_func\",\"nearest_neighbor_sha_256_hash\":\"abc123\","
@@ -325,7 +325,7 @@ bool test_function_info_array_writing(void) {
         });
     });
 
-    const char *expected =
+    Zstr expected =
         "{\"functions\":[{\"id\":12345,\"name\":\"test_func\",\"size\":1024,\"vaddr\":4096},{\"id\":54321,\"name\":"
         "\"helper_func\",\"size\":512,\"vaddr\":8192}]}";
     if (!compare_json_output(&json, expected, &alloc)) {
@@ -378,7 +378,7 @@ bool test_search_results_with_tags_writing(void) {
         JW_STR_KV(json, "owned_by", result.owned_by);
     });
 
-    const char *expected =
+    Zstr expected =
         "{\"binary_id\":888,\"binary_name\":\"test_binary\",\"analysis_id\":999,\"sha256\":\"abc123\",\"tags\":["
         "\"malware\",\"x86\"],\"created_at\":\"2024-04-01\",\"model_id\":12345,\"model_name\":\"test_model\",\"owned_"
         "by\":\"user1\"}";
@@ -446,7 +446,7 @@ bool test_dynamic_object_keys_writing(void) {
 });
 });
 
-const char *expected =
+Zstr expected =
     "{\"functions\":{\"111\":{\"222\":{\"distance\":0.900000,\"name\":\"func1\"}},\"333\":{\"444\":{\"distance\":0."
     "800000,\"name\":\"func2\"}}}}";
 if (!compare_json_output(&json, expected, &alloc)) {
@@ -484,7 +484,7 @@ bool test_deeply_nested_structure_writing(void) {
         });
     });
 
-    const char *expected =
+    Zstr expected =
         "{\"level1\":{\"level2\":{\"level3\":{\"message\":\"deep\",\"value\":42},\"flag\":true},\"name\":\"test\"}}";
     if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
@@ -535,7 +535,7 @@ bool test_mixed_array_types_writing(void) {
         JW_ARR_KV(json, "booleans", booleans, b, { JW_BOOL(json, b); });
     });
 
-    const char *expected = "{\"numbers\":[1,2,3],\"strings\":[\"a\",\"b\",\"c\"],\"booleans\":[true,false,true]}";
+    Zstr expected = "{\"numbers\":[1,2,3],\"strings\":[\"a\",\"b\",\"c\"],\"booleans\":[true,false,true]}";
     if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }

@@ -46,9 +46,9 @@ bool test_str_init_from_cstr(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    const char *test_str = "Hello, World!";
-    size_t      len      = 5; // Just "Hello"
-    Str         s        = StrInitFromCstr(test_str, len, &alloc);
+    Zstr   test_str = "Hello, World!";
+    size_t len      = 5; // Just "Hello"
+    Str    s        = StrInitFromCstr(test_str, len, &alloc);
 
     // Validate the string
     ValidateStr(&s);
@@ -67,8 +67,8 @@ bool test_str_init_from_zstr(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    const char *test_str = "Hello, World!";
-    Str         s        = StrInitFromZstr(test_str, &alloc);
+    Zstr test_str = "Hello, World!";
+    Str  s        = StrInitFromZstr(test_str, &alloc);
 
     // Validate the string
     ValidateStr(&s);
@@ -87,8 +87,8 @@ bool test_str_z_alias(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    const char *test_str = "Alias Test";
-    Str         s        = StrZ(test_str, &alloc);
+    Zstr test_str = "Alias Test";
+    Str  s        = StrZ(test_str, &alloc);
 
     ValidateStr(&s);
 

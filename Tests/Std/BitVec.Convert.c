@@ -71,9 +71,9 @@ bool test_bitvec_from_string(void) {
     WriteFmt("Testing BitVecFromStr\n");
 
     // Convert from string
-    const char *str = "1011";
-    BitVec      bv;
-    bool        ok = BitVecTryFromStr(&bv, str, ALLOCATOR_OF(&alloc));
+    Zstr   str = "1011";
+    BitVec bv;
+    bool   ok = BitVecTryFromStr(&bv, str, ALLOCATOR_OF(&alloc));
 
     // Check result
     bool result = ok && (bv.length == 4);
@@ -420,7 +420,7 @@ bool test_bitvec_round_trip_conversions(void) {
     bool result = true;
 
     // Test string round-trip
-    const char *patterns[] = {"101", "1111000011110000", "1", "0", "10101010", "01010101"};
+    Zstr patterns[] = {"101", "1111000011110000", "1", "0", "10101010", "01010101"};
 
     for (size_t i = 0; i < sizeof(patterns) / sizeof(patterns[0]); i++) {
         BitVec bv  = BitVecFromStr(patterns[i], ALLOCATOR_OF(&alloc));
@@ -533,10 +533,10 @@ bool test_bitvec_conversion_comprehensive(void) {
 
     // Test specific bit patterns with exact expectations
     struct {
-        const char *pattern;
-        u64         expected_value;
-        u8          expected_bytes[8];
-        size_t      byte_count;
+        Zstr   pattern;
+        u64    expected_value;
+        u8     expected_bytes[8];
+        size_t byte_count;
     } test_cases[] = {
         {        "10000000",   0x01,       {0x01}, 1}, // MSB set
         {        "00000001",   0x80,       {0x80}, 1}, // LSB set

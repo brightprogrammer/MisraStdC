@@ -1,12 +1,24 @@
 #ifndef MISRA_TEST_FLOAT_DATA_H
 #define MISRA_TEST_FLOAT_DATA_H
 
-#define FLOAT_TEST_DIGITS_1x50                                                                                            \
-    "1111111111" "1111111111" "1111111111" "1111111111" "1111111111"
-#define FLOAT_TEST_DIGITS_2x50                                                                                            \
-    "2222222222" "2222222222" "2222222222" "2222222222" "2222222222"
-#define FLOAT_TEST_DIGITS_3x50                                                                                            \
-    "3333333333" "3333333333" "3333333333" "3333333333" "3333333333"
+#define FLOAT_TEST_DIGITS_1x50                                                                                         \
+    "1111111111"                                                                                                       \
+    "1111111111"                                                                                                       \
+    "1111111111"                                                                                                       \
+    "1111111111"                                                                                                       \
+    "1111111111"
+#define FLOAT_TEST_DIGITS_2x50                                                                                         \
+    "2222222222"                                                                                                       \
+    "2222222222"                                                                                                       \
+    "2222222222"                                                                                                       \
+    "2222222222"                                                                                                       \
+    "2222222222"
+#define FLOAT_TEST_DIGITS_3x50                                                                                         \
+    "3333333333"                                                                                                       \
+    "3333333333"                                                                                                       \
+    "3333333333"                                                                                                       \
+    "3333333333"                                                                                                       \
+    "3333333333"
 
 #define FLOAT_TEST_DIGITS_1x100 FLOAT_TEST_DIGITS_1x50 FLOAT_TEST_DIGITS_1x50
 #define FLOAT_TEST_DIGITS_2x100 FLOAT_TEST_DIGITS_2x50 FLOAT_TEST_DIGITS_2x50

@@ -39,7 +39,7 @@ static void wr_u64(u8 *p, u64 v) {
         p[i] = (u8)((v >> (i * 8)) & 0xff);
 }
 
-static bool write_file(const char *path, const u8 *data, u64 size) {
+static bool write_file(Zstr path, const u8 *data, u64 size) {
     File f = FileOpen(path, "wb");
     if (!FileIsOpen(&f))
         return false;
@@ -71,8 +71,8 @@ enum {
 // `syms` is an array of (vmaddr, name) pairs; `nsyms` is its length.
 // Returns the total bytes written into `out`.
 typedef struct SymSpec {
-    u64         vmaddr;
-    const char *name;
+    u64  vmaddr;
+    Zstr name;
 } SymSpec;
 
 static u64 build_macho_image(u8 *out, const u8 uuid[16], const SymSpec *syms, u32 nsyms) {
@@ -88,8 +88,8 @@ static u64 build_macho_image(u8 *out, const u8 uuid[16], const SymSpec *syms, u3
     // Build a tiny string table: leading NUL, then NUL-terminated names.
     u32 str_size = 1;
     for (u32 i = 0; i < nsyms; ++i) {
-        const char *s = syms[i].name;
-        u32         n = 0;
+        Zstr s = syms[i].name;
+        u32  n = 0;
         while (s[n])
             ++n;
         str_size += n + 1;
@@ -150,8 +150,8 @@ static u64 build_macho_image(u8 *out, const u8 uuid[16], const SymSpec *syms, u3
         wr_u16(&n[6], 0);
         wr_u64(&n[8], syms[i].vmaddr);
 
-        const char *s    = syms[i].name;
-        u32         nlen = 0;
+        Zstr s    = syms[i].name;
+        u32  nlen = 0;
         while (s[nlen])
             ++nlen;
         MemCopy(&out[str_off + cur_strx], s, nlen);
@@ -177,9 +177,9 @@ bool test_macho_cache_resolves_via_main_symtab(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Allocator       *base  = ALLOCATOR_OF(&alloc);
 
-    const char *bin_path = "/tmp/misra_macho_main.bin";
-    SymSpec     sym      = {.vmaddr = 0x100000100ull, .name = "real_main_proc"};
-    u64         bin_size = build_macho_image(bin_buf, kUuid, &sym, 1);
+    Zstr    bin_path = "/tmp/misra_macho_main.bin";
+    SymSpec sym      = {.vmaddr = 0x100000100ull, .name = "real_main_proc"};
+    u64     bin_size = build_macho_image(bin_buf, kUuid, &sym, 1);
     if (!write_file(bin_path, bin_buf, bin_size)) {
         DefaultAllocatorDeinit(&alloc);
         return false;
@@ -190,12 +190,12 @@ bool test_macho_cache_resolves_via_main_symtab(void) {
 
     // slide chosen so runtime_ip - slide = 0x100000110 (10 bytes past
     // function start)
-    const u64   slide      = 0x100;
-    const u64   runtime_ip = 0x100000100ull + 0x10 + slide;
-    const char *name       = NULL;
-    u32         offset     = 0;
-    bool        ok         = MachoCacheResolve(&cache, bin_path, slide, runtime_ip, &name, &offset);
-    ok                     = ok && name && ZstrCompare(name, "real_main_proc") == 0 && offset == 0x10;
+    const u64 slide      = 0x100;
+    const u64 runtime_ip = 0x100000100ull + 0x10 + slide;
+    Zstr      name       = NULL;
+    u32       offset     = 0;
+    bool      ok         = MachoCacheResolve(&cache, bin_path, slide, runtime_ip, &name, &offset);
+    ok                   = ok && name && ZstrCompare(name, "real_main_proc") == 0 && offset == 0x10;
 
     MachoCacheDeinit(&cache);
     DefaultAllocatorDeinit(&alloc);
@@ -207,9 +207,9 @@ bool test_macho_cache_falls_through_to_dsym(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Allocator       *base  = ALLOCATOR_OF(&alloc);
 
-    const char *bin_path  = "/tmp/misra_macho_stripped";
-    const char *dsym_dir  = "/tmp/misra_macho_stripped.dSYM/Contents/Resources/DWARF";
-    const char *dsym_path = "/tmp/misra_macho_stripped.dSYM/Contents/Resources/DWARF/misra_macho_stripped";
+    Zstr bin_path  = "/tmp/misra_macho_stripped";
+    Zstr dsym_dir  = "/tmp/misra_macho_stripped.dSYM/Contents/Resources/DWARF";
+    Zstr dsym_path = "/tmp/misra_macho_stripped.dSYM/Contents/Resources/DWARF/misra_macho_stripped";
 
     // Make the dSYM bundle directory.
     DirCreateAll("/tmp/misra_macho_stripped.dSYM/Contents/Resources/DWARF");
@@ -228,12 +228,12 @@ bool test_macho_cache_falls_through_to_dsym(void) {
     MachoCache cache;
     MachoCacheInit(&cache, base);
 
-    const u64   slide      = 0;
-    const u64   runtime_ip = 0x100000208ull; // 8 bytes into dsym_only_fn
-    const char *name       = NULL;
-    u32         offset     = 0;
-    bool        ok         = MachoCacheResolve(&cache, bin_path, slide, runtime_ip, &name, &offset);
-    ok                     = ok && name && ZstrCompare(name, "dsym_only_fn") == 0 && offset == 0x8;
+    const u64 slide      = 0;
+    const u64 runtime_ip = 0x100000208ull; // 8 bytes into dsym_only_fn
+    Zstr      name       = NULL;
+    u32       offset     = 0;
+    bool      ok         = MachoCacheResolve(&cache, bin_path, slide, runtime_ip, &name, &offset);
+    ok                   = ok && name && ZstrCompare(name, "dsym_only_fn") == 0 && offset == 0x8;
 
     MachoCacheDeinit(&cache);
     DefaultAllocatorDeinit(&alloc);
@@ -249,8 +249,8 @@ bool test_macho_cache_rejects_uuid_mismatch(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Allocator       *base  = ALLOCATOR_OF(&alloc);
 
-    const char *bin_path  = "/tmp/misra_macho_uuidmiss";
-    const char *dsym_path = "/tmp/misra_macho_uuidmiss.dSYM/Contents/Resources/DWARF/misra_macho_uuidmiss";
+    Zstr bin_path  = "/tmp/misra_macho_uuidmiss";
+    Zstr dsym_path = "/tmp/misra_macho_uuidmiss.dSYM/Contents/Resources/DWARF/misra_macho_uuidmiss";
 
     DirCreateAll("/tmp/misra_macho_uuidmiss.dSYM/Contents/Resources/DWARF");
 
@@ -267,8 +267,8 @@ bool test_macho_cache_rejects_uuid_mismatch(void) {
     MachoCache cache;
     MachoCacheInit(&cache, base);
 
-    const char *name = NULL;
-    bool        ok   = !MachoCacheResolve(&cache, bin_path, 0, 0x100000208ull, &name, NULL);
+    Zstr name = NULL;
+    bool ok   = !MachoCacheResolve(&cache, bin_path, 0, 0x100000208ull, &name, NULL);
 
     MachoCacheDeinit(&cache);
     DefaultAllocatorDeinit(&alloc);

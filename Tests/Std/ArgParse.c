@@ -24,7 +24,7 @@ static bool test_required_long_space(void) {
     Allocator       *A = ALLOCATOR_OF(&a);
     ArgParse         p = ArgParseInit("prog", NULL, A);
 
-    const char *listen = NULL;
+    Zstr listen = NULL;
     ArgRequired(&p, "-l", "--listen", &listen, "host:port");
 
     char  *argv[] = {(char *)"prog", (char *)"--listen", (char *)"0.0.0.0:8080"};
@@ -41,7 +41,7 @@ static bool test_required_long_equals(void) {
     Allocator       *A = ALLOCATOR_OF(&a);
     ArgParse         p = ArgParseInit("prog", NULL, A);
 
-    const char *listen = NULL;
+    Zstr listen = NULL;
     ArgRequired(&p, "-l", "--listen", &listen, "host:port");
 
     char  *argv[] = {(char *)"prog", (char *)"--listen=0.0.0.0:8080"};
@@ -58,7 +58,7 @@ static bool test_required_short(void) {
     Allocator       *A = ALLOCATOR_OF(&a);
     ArgParse         p = ArgParseInit("prog", NULL, A);
 
-    const char *listen = NULL;
+    Zstr listen = NULL;
     ArgRequired(&p, "-l", "--listen", &listen, "host:port");
 
     char  *argv[] = {(char *)"prog", (char *)"-l", (char *)"127.0.0.1:9"};
@@ -177,8 +177,8 @@ static bool test_positional_order(void) {
     Allocator       *A = ALLOCATOR_OF(&a);
     ArgParse         p = ArgParseInit("cp", NULL, A);
 
-    const char *src = NULL;
-    const char *dst = NULL;
+    Zstr src = NULL;
+    Zstr dst = NULL;
     ArgPositional(&p, "source", &src, "from");
     ArgPositional(&p, "dest", &dst, "to");
 
@@ -196,9 +196,9 @@ static bool test_positional_with_interleaved_flag(void) {
     Allocator       *A = ALLOCATOR_OF(&a);
     ArgParse         p = ArgParseInit("cp", NULL, A);
 
-    const char *src     = NULL;
-    const char *dst     = NULL;
-    bool        verbose = false;
+    Zstr src     = NULL;
+    Zstr dst     = NULL;
+    bool verbose = false;
     ArgPositional(&p, "source", &src, "from");
     ArgPositional(&p, "dest", &dst, "to");
     ArgFlag(&p, "-v", "--verbose", &verbose, "v");
@@ -294,7 +294,7 @@ static bool test_missing_required(void) {
     Allocator       *A = ALLOCATOR_OF(&a);
     ArgParse         p = ArgParseInit("prog", NULL, A);
 
-    const char *listen = NULL;
+    Zstr listen = NULL;
     ArgRequired(&p, "-l", "--listen", &listen, "");
 
     char  *argv[] = {(char *)"prog"};
@@ -311,8 +311,8 @@ static bool test_missing_positional(void) {
     Allocator       *A = ALLOCATOR_OF(&a);
     ArgParse         p = ArgParseInit("cp", NULL, A);
 
-    const char *src = NULL;
-    const char *dst = NULL;
+    Zstr src = NULL;
+    Zstr dst = NULL;
     ArgPositional(&p, "source", &src, "");
     ArgPositional(&p, "dest", &dst, "");
 
@@ -381,7 +381,7 @@ static bool test_too_many_positionals(void) {
     Allocator       *A = ALLOCATOR_OF(&a);
     ArgParse         p = ArgParseInit("prog", NULL, A);
 
-    const char *x = NULL;
+    Zstr x = NULL;
     ArgPositional(&p, "x", &x, "");
 
     char  *argv[] = {(char *)"prog", (char *)"first", (char *)"extra"};
@@ -402,7 +402,7 @@ static bool test_double_dash_separator(void) {
     Allocator       *A = ALLOCATOR_OF(&a);
     ArgParse         p = ArgParseInit("cat", NULL, A);
 
-    const char *file = NULL;
+    Zstr file = NULL;
     ArgPositional(&p, "file", &file, "input file");
 
     // "--unusual-name" would normally be parsed as an option; "--"
@@ -427,7 +427,7 @@ static bool test_help_returns_help_code(void) {
     Allocator       *A = ALLOCATOR_OF(&a);
     ArgParse         p = ArgParseInit("prog", "test prog", A);
 
-    const char *required = NULL;
+    Zstr required = NULL;
     ArgRequired(&p, "-l", "--listen", &required, "host:port");
 
     char  *argv[] = {(char *)"prog", (char *)"--help"};

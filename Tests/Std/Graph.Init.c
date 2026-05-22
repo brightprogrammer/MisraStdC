@@ -122,13 +122,13 @@ static bool test_graph_init_optional_allocator(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     alloc.base.retry_limit = 31;
 
-    HeapAllocator aligned_8 = HeapAllocatorInitAligned(8);
-    aligned_8.base.retry_limit = 31;
-    HeapAllocator aligned_16 = HeapAllocatorInitAligned(16);
+    HeapAllocator aligned_8     = HeapAllocatorInitAligned(8);
+    aligned_8.base.retry_limit  = 31;
+    HeapAllocator aligned_16    = HeapAllocatorInitAligned(16);
     aligned_16.base.retry_limit = 31;
-    HeapAllocator aligned_32 = HeapAllocatorInitAligned(32);
+    HeapAllocator aligned_32    = HeapAllocatorInitAligned(32);
     aligned_32.base.retry_limit = 31;
-    HeapAllocator aligned_64 = HeapAllocatorInitAligned(64);
+    HeapAllocator aligned_64    = HeapAllocatorInitAligned(64);
     aligned_64.base.retry_limit = 31;
 
     StrGraph graph_a = GraphInit(&alloc);

@@ -53,8 +53,8 @@ static size custom_next_index(u64 hash, size capacity, size previous_index, size
 static bool test_map_reserve_and_clear(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
-    size      reserved_capacity;
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
+    size             reserved_capacity;
 
     MapReserve(&map, 32);
     reserved_capacity = (size)map.capacity;
@@ -80,7 +80,7 @@ static bool test_map_reserve_and_clear(void) {
 static bool test_map_rehash_policy_switch(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
     for (int i = 0; i < 24; i++) {
         MapSetOnlyR(&map, i, i * 10);
@@ -105,14 +105,14 @@ static bool test_map_rehash_policy_switch(void) {
 
 static bool test_map_custom_policy_growth(void) {
     typedef Map(int, int) IntIntMap;
-    DefaultAllocator alloc = DefaultAllocatorInit();
-    MapPolicy custom_policy = {
-        .name            = "five-step",
-        .should_rehash   = custom_should_rehash,
-        .next_capacity   = custom_next_capacity,
-        .first_index     = custom_first_index,
-        .next_index      = custom_next_index,
-        .max_probe_count = 32,
+    DefaultAllocator alloc         = DefaultAllocatorInit();
+    MapPolicy        custom_policy = {
+               .name            = "five-step",
+               .should_rehash   = custom_should_rehash,
+               .next_capacity   = custom_next_capacity,
+               .first_index     = custom_first_index,
+               .next_index      = custom_next_index,
+               .max_probe_count = 32,
     };
     IntIntMap map    = MapInitWithPolicy(i32_hash, i32_compare, custom_policy, &alloc);
     bool      result = true;

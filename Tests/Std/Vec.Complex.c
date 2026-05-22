@@ -29,7 +29,7 @@ static Allocator *fixture_alloc(void) {
 #define fixture_malloc(n) AllocatorAlloc(fixture_alloc(), (n), false)
 #define fixture_free(p)   AllocatorFree(fixture_alloc(), (p))
 
-static inline char *ZstrDupAlloc(const char *s) {
+static inline char *ZstrDupAlloc(Zstr s) {
     return zstr_dup(s, fixture_alloc());
 }
 
@@ -100,7 +100,7 @@ void ComplexItemDeinit(ComplexItem *item) {
 // `ZstrDup` is not used here because it routes through the library's
 // allocator, which (since Stage 3) no longer uses libc - that would mean
 // pointers handed to libc `free` below would not be libc-managed.
-ComplexItem CreateComplexItem(const char *name, int *values, size num_values) {
+ComplexItem CreateComplexItem(Zstr name, int *values, size num_values) {
     ComplexItem item = {0};
 
     if (name) {

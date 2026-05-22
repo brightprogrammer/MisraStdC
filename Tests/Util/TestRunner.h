@@ -7,6 +7,7 @@
 #ifndef MISRA_TEST_RUNNER_H
 #define MISRA_TEST_RUNNER_H
 
+#include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
 
 ///
@@ -78,7 +79,7 @@ int run_test_suite(
     int           normal_count,
     TestFunction *deadend_tests,
     int           deadend_count,
-    const char   *test_name
+    Zstr          test_name
 );
 
 #endif // MISRA_TEST_RUNNER_H

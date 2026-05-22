@@ -242,7 +242,7 @@ void *debug_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     return user_p;
 }
 
-static void debug_emit_trace(const StackFrame *frames, size count, const char *label, Allocator *meta) {
+static void debug_emit_trace(const StackFrame *frames, size count, Zstr label, Allocator *meta) {
     if (!count) {
         LOG_ERROR("    {} trace: (none captured)", label);
         return;

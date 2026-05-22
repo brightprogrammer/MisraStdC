@@ -52,7 +52,7 @@ static bool test_graph_mark_delete_commit_and_reuse(void) {
         }
     }
 
-    bool result = GraphContainsNode(&graph, b) && (graph.pending_delete_count == 1);
+    bool result  = GraphContainsNode(&graph, b) && (graph.pending_delete_count == 1);
     u64  removed = GraphCommitChanges(&graph);
 
     result = result && (removed == 1);
@@ -286,8 +286,8 @@ static bool test_graph_external_indexed_state_requires_reset_on_reuse(void) {
     typedef Graph(int) IntGraph;
     IntGraph graph = GraphInit(&alloc);
 
-    GraphNodeId a = GraphAddNodeR(&graph, 10);
-    GraphNodeId b = GraphAddNodeR(&graph, 20);
+    GraphNodeId a         = GraphAddNodeR(&graph, 10);
+    GraphNodeId b         = GraphAddNodeR(&graph, 20);
     u64         counts[2] = {0};
 
     counts[GraphNodeIdIndex(a)] = 11;
@@ -304,9 +304,9 @@ static bool test_graph_external_indexed_state_requires_reset_on_reuse(void) {
     result = result && (counts[GraphNodeIdIndex(reused)] == 29);
 
     counts[GraphNodeIdIndex(reused)] = 0;
-    result = result && (counts[GraphNodeIdIndex(reused)] == 0);
-    result = result && (counts[GraphNodeIdIndex(a)] == 11);
-    result = result && (GraphNodeAt(&graph, reused) == 99);
+    result                           = result && (counts[GraphNodeIdIndex(reused)] == 0);
+    result                           = result && (counts[GraphNodeIdIndex(a)] == 11);
+    result                           = result && (GraphNodeAt(&graph, reused) == 99);
 
     GraphDeinit(&graph);
     DefaultAllocatorDeinit(&alloc);

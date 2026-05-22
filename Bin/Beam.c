@@ -245,18 +245,18 @@ static void install_signal_handlers(void) {
 #endif
 }
 
-static void log_request_summary(Allocator *alloc, const char *client_addr, const char *prefix_bytes, size prefix_len) {
+static void log_request_summary(Allocator *alloc, Zstr client_addr, Zstr prefix_bytes, size prefix_len) {
     Scope(scope, DefaultAllocator) {
         (void)alloc;
         Str raw = StrInit(scope);
         StrPushBackZstr(&raw, prefix_bytes);
 
         HttpRequest req = HttpRequestInit(scope);
-        const char *end = HttpRequestParse(&req, StrBegin(&raw));
+        Zstr        end = HttpRequestParse(&req, StrBegin(&raw));
         if (end == StrBegin(&raw)) {
             LOG_INFO("[{}] (unparseable request, {} bytes)", client_addr, (u64)prefix_len);
         } else {
-            const char *method = "?";
+            Zstr method = "?";
             switch (req.method) {
                 case HTTP_REQUEST_METHOD_GET :
                     method = "GET";
@@ -299,7 +299,7 @@ static void log_request_summary(Allocator *alloc, const char *client_addr, const
 // Pump bytes between `a` and `b` until either side errors or both
 // directions close. `first_chunk` (if non-NULL) is sent toward `b`
 // before the poll loop runs, so the initial client read isn't lost.
-static void proxy_pump(Socket *a, Socket *b, const char *first_chunk, size first_len) {
+static void proxy_pump(Socket *a, Socket *b, Zstr first_chunk, size first_len) {
     if (first_chunk && first_len > 0) {
         if (SocketSend(b, first_chunk, first_len) < 0) {
             return;
@@ -385,8 +385,8 @@ int main(int argc, char **argv) {
     install_signal_handlers();
 
     Scope(alloc, DefaultAllocator) {
-        const char *listen_spec   = NULL;
-        const char *upstream_spec = NULL;
+        Zstr listen_spec   = NULL;
+        Zstr upstream_spec = NULL;
 
         ArgParse ap = ArgParseInit("beam", "small reverse-proxy");
         ArgRequired(&ap, "-l", "--listen", &listen_spec, "host:port to listen on");

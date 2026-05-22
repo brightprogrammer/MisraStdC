@@ -206,6 +206,6 @@ int main(void) {
         test_int_log2_zero,
     };
 
-    int total_tests         = sizeof(tests) / sizeof(tests[0]);
+    int total_tests = sizeof(tests) / sizeof(tests[0]);
     return run_test_suite(tests, total_tests, NULL, 0, "Int.Access");
 }

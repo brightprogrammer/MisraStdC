@@ -152,7 +152,7 @@ static bool test_fill_class_grows_new_page(void) {
     // one more than that must trigger a second mmap-grow.
     enum {
         SLOTS_PER_32_PAGE = 4096u / 32u,
-        N = HEAP_PAGES_PER_OS_PAGE * SLOTS_PER_32_PAGE + 1
+        N                 = HEAP_PAGES_PER_OS_PAGE * SLOTS_PER_32_PAGE + 1
     };
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
@@ -299,10 +299,10 @@ static bool test_independent_heaps(void) {
     Allocator    *alloc1 = ALLOCATOR_OF(&h1);
     Allocator    *alloc2 = ALLOCATOR_OF(&h2);
 
-    void *a  = AllocatorAlloc(alloc1, 32, true);
-    void *b  = AllocatorAlloc(alloc2, 32, true);
-    bool  ok = (a != NULL) && (b != NULL) && (a != b) && (h1.pages != h2.pages) && (h1.pages_len > 0) &&
-               (h2.pages_len > 0);
+    void *a = AllocatorAlloc(alloc1, 32, true);
+    void *b = AllocatorAlloc(alloc2, 32, true);
+    bool  ok =
+        (a != NULL) && (b != NULL) && (a != b) && (h1.pages != h2.pages) && (h1.pages_len > 0) && (h2.pages_len > 0);
 
     AllocatorFree(alloc1, a);
     AllocatorFree(alloc2, b);

@@ -32,13 +32,13 @@ static __attribute__((noinline)) void marker_beta(void) {
     sink += 2;
 }
 
-static const char *stripped_path_arg = NULL;
+static Zstr stripped_path_arg = NULL;
 
 // Open the stripped sibling and try to resolve `func_addr` (a runtime
 // pointer into THIS process) to a name. The function's file-relative
 // address is the same in both copies because objcopy -R only removes
 // non-allocated sections.
-static bool resolve_through_stripped(void (*func)(void), const char *expect_name) {
+static bool resolve_through_stripped(void (*func)(void), Zstr expect_name) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Allocator       *base  = ALLOCATOR_OF(&alloc);
 

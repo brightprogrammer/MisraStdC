@@ -9,7 +9,7 @@
 #include "../Util/TestRunner.h"
 
 static u64 zstr_hash(const void *data, u32 size) {
-    const char          *str  = *(const char *const *)data;
+    const char          *str  = *(Zstr const *)data;
     const unsigned char *ptr  = (const unsigned char *)str;
     u64                  hash = 1469598103934665603ULL;
     (void)size;
@@ -23,8 +23,8 @@ static u64 zstr_hash(const void *data, u32 size) {
 }
 
 static i32 zstr_compare_ptr(const void *lhs, const void *rhs) {
-    const char *a = *(const char *const *)lhs;
-    const char *b = *(const char *const *)rhs;
+    Zstr a = *(Zstr const *)lhs;
+    Zstr b = *(Zstr const *)rhs;
     return ZstrCompare(a, b);
 }
 
@@ -46,10 +46,10 @@ static i32 node_id_compare(const void *lhs, const void *rhs) {
     return (a > b) - (a < b);
 }
 
-typedef Graph(Str)                 CityGraph;
+typedef Graph(Str) CityGraph;
 typedef Map(const char *, GraphNodeId) CityIndex;
 
-static GraphNodeId city_add_intersection(CityGraph *graph, CityIndex *index, const char *name, DefaultAllocator *alloc) {
+static GraphNodeId city_add_intersection(CityGraph *graph, CityIndex *index, Zstr name, DefaultAllocator *alloc) {
     GraphNodeId id = GraphAddNodeR(graph, StrZ(name, alloc));
 
     MapInsertR(index, name, id);
@@ -81,7 +81,7 @@ static bool city_reachable_from(GraphNode node, GraphNodeId goal_id) {
     return false;
 }
 
-static bool city_reachable(CityGraph *graph, CityIndex *index, const char *from, const char *to) {
+static bool city_reachable(CityGraph *graph, CityIndex *index, Zstr from, Zstr to) {
     GraphNodeId *from_id = MapTryGetPtr(index, from);
     GraphNodeId *to_id   = MapTryGetPtr(index, to);
 
@@ -99,7 +99,8 @@ static bool test_graph_city_reachability(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
     CityGraph graph = GraphInitWithDeepCopy(NULL, str_deinit, &alloc);
-    CityIndex index = MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, zstr_init_clone, zstr_deinit, NULL, NULL, &alloc);
+    CityIndex index =
+        MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, zstr_init_clone, zstr_deinit, NULL, NULL, &alloc);
 
     GraphNodeId alpha = city_add_intersection(&graph, &index, "Alpha", &alloc);
     GraphNodeId beta  = city_add_intersection(&graph, &index, "Beta", &alloc);
@@ -153,8 +154,8 @@ static bool test_graph_foreach_with_external_map_counts(void) {
     GraphForeachNode(&graph, node) {
         (void)MapEnsurePtr(&counts, GraphNodeGetId(node), 0);
         GraphNodeForeachNeighbor(node, neighbor) {
-            u64 *count = MapEnsurePtr(&counts, GraphNodeGetId(neighbor), 0);
-            *count += 1;
+            u64 *count  = MapEnsurePtr(&counts, GraphNodeGetId(neighbor), 0);
+            *count     += 1;
         }
     }
 
@@ -187,11 +188,11 @@ static bool test_graph_foreach_predecessors(void) {
     GraphAddEdge(&graph, c, d);
     GraphAddEdge(&graph, a, b);
 
-    u64 predecessor_sum = 0;
+    u64 predecessor_sum   = 0;
     u64 predecessor_count = 0;
 
     GraphNodeForeachPredecessor(GraphGetNode(&graph, d), predecessor) {
-        predecessor_sum += GraphNodeData(&graph, predecessor);
+        predecessor_sum   += GraphNodeData(&graph, predecessor);
         predecessor_count += 1;
     }
 

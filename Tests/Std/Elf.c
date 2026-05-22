@@ -9,7 +9,7 @@
 // symbol table (debug builds aren't stripped).
 bool test_elf_self_exe_parse(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
-    Elf          elf;
+    Elf              elf;
 
     bool opened = ElfOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc));
     if (!opened) {
@@ -32,7 +32,7 @@ bool test_elf_self_exe_parse(void) {
 // Find a section by name and verify it's the right shape.
 bool test_elf_find_text_section(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
-    Elf          elf;
+    Elf              elf;
 
     if (!ElfOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc))) {
         DefaultAllocatorDeinit(&alloc);
@@ -56,7 +56,7 @@ bool test_elf_find_text_section(void) {
 // production binaries.
 bool test_elf_build_id_present(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
-    Elf          elf;
+    Elf              elf;
     if (!ElfOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc))) {
         DefaultAllocatorDeinit(&alloc);
         return false;
@@ -69,7 +69,7 @@ bool test_elf_build_id_present(void) {
 
 bool test_elf_some_function_symbol(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
-    Elf          elf;
+    Elf              elf;
 
     if (!ElfOpen(&elf, "/proc/self/exe", ALLOCATOR_OF(&alloc))) {
         DefaultAllocatorDeinit(&alloc);

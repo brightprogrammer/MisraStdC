@@ -52,7 +52,7 @@ enum {
 static u8       blob[BLOB_SIZE];
 static const u8 kGuid[16] =
     {0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99};
-static const char *const kPdbPath = "C:\\build\\test.pdb";
+static Zstr const kPdbPath = "C:\\build\\test.pdb";
 
 static void build_pe_blob(void) {
     MemSet(blob, 0, sizeof(blob));
@@ -158,8 +158,8 @@ bool test_pe_parses_synthetic_blob(void) {
 
     build_pe_blob();
 
-    Pe pe;
-    bool   ok = PeOpenFromMemoryCopy(&pe, blob, sizeof(blob), base);
+    Pe   pe;
+    bool ok = PeOpenFromMemoryCopy(&pe, blob, sizeof(blob), base);
     if (!ok) {
         DefaultAllocatorDeinit(&alloc);
         return false;
@@ -212,8 +212,8 @@ bool test_pe_rejects_bad_magic(void) {
     garbage[0] = 'X';
     garbage[1] = 'X';
 
-    Pe pe;
-    bool   ok = !PeOpenFromMemoryCopy(&pe, garbage, sizeof(garbage), base);
+    Pe   pe;
+    bool ok = !PeOpenFromMemoryCopy(&pe, garbage, sizeof(garbage), base);
 
     DefaultAllocatorDeinit(&alloc);
     return ok;

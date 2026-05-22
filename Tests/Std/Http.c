@@ -10,7 +10,7 @@ bool test_http_request_parse_get_with_headers(void) {
     DefaultAllocator alloc      = DefaultAllocatorInit();
     Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
 
-    const char *raw =
+    Zstr raw =
         "GET /index.html HTTP/1.1\r\n"
         "Host: example.com\r\n"
         "User-Agent: misra-test/1.0\r\n"
@@ -18,7 +18,7 @@ bool test_http_request_parse_get_with_headers(void) {
         "body-bytes";
 
     HttpRequest req  = HttpRequestInit(alloc_base);
-    const char *next = HttpRequestParse(&req, raw);
+    Zstr        next = HttpRequestParse(&req, raw);
 
     bool ok = (next != raw) && (req.method == HTTP_REQUEST_METHOD_GET) && (req.url.length == 11) &&
               (ZstrCompare(req.url.data, "/index.html") == 0) && (req.headers.length == 2) &&

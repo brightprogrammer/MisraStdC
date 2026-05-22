@@ -21,7 +21,7 @@ static i32 i32_compare(const void *lhs, const void *rhs) {
 static bool test_map_remove_value(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
     MapSetOnlyR(&map, 1, 10);
     MapInsertR(&map, 1, 11);
@@ -41,7 +41,7 @@ static bool test_map_remove_value(void) {
 static bool test_map_remove_pair(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
+    IntIntMap        map   = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
 
     MapInsertR(&map, 5, 50);
     MapInsertR(&map, 5, 51);
@@ -67,7 +67,7 @@ static bool remove_even_values(const void *key, const void *value, void *ctx) {
 static bool test_map_remove_if(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
     MapInsertR(&map, 1, 10);
     MapInsertR(&map, 1, 11);
@@ -89,7 +89,7 @@ static bool test_map_remove_if(void) {
 static bool test_map_remove_all(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
     MapInsertR(&map, 5, 50);
     MapInsertR(&map, 5, 51);
@@ -110,7 +110,7 @@ static bool test_map_remove_all(void) {
 static bool test_map_tombstone_reuse(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
     for (int i = 0; i < 12; i++) {
         MapSetOnlyR(&map, i, i + 100);

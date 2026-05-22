@@ -23,24 +23,24 @@ static bool test_graph_access_helpers(void) {
 
     ValidateGraph(&graph);
 
-    node_b = GraphGetNode(&graph, b);
+    node_b                            = GraphGetNode(&graph, b);
     *GraphNodeDataPtr(&graph, node_b) = 25;
 
     bool result = GraphNodeCount(&graph) == 3 && GraphEdgeCount(&graph) == 3 && !GraphEmpty(&graph);
-    result      = result && GraphContainsNode(&graph, a) && GraphContainsNode(&graph, b) && GraphContainsNode(&graph, c);
-    result      = result && GraphNodeAt(&graph, b) == 25;
-    result      = result && GraphNodeData(&graph, node_b) == 25;
-    result      = result && GraphNodeGetId(node_b) == b;
-    result      = result && GraphNodeIndex(node_b) == GraphNodeIdIndex(b);
-    result      = result && GraphOutDegree(&graph, a) == 2;
-    result      = result && GraphInDegree(&graph, a) == 1;
-    result      = result && GraphInDegree(&graph, b) == 1;
-    result      = result && GraphInDegree(&graph, c) == 1;
-    result      = result && GraphNeighborAt(&graph, a, 0) == b && GraphNeighborAt(&graph, a, 1) == c;
-    result      = result && GraphNeighborAt(&graph, c, 0) == a;
-    result      = result && GraphPredecessorAt(&graph, a, 0) == c;
-    result      = result && GraphPredecessorAt(&graph, b, 0) == a;
-    result      = result && GraphPredecessorAt(&graph, c, 0) == a;
+    result = result && GraphContainsNode(&graph, a) && GraphContainsNode(&graph, b) && GraphContainsNode(&graph, c);
+    result = result && GraphNodeAt(&graph, b) == 25;
+    result = result && GraphNodeData(&graph, node_b) == 25;
+    result = result && GraphNodeGetId(node_b) == b;
+    result = result && GraphNodeIndex(node_b) == GraphNodeIdIndex(b);
+    result = result && GraphOutDegree(&graph, a) == 2;
+    result = result && GraphInDegree(&graph, a) == 1;
+    result = result && GraphInDegree(&graph, b) == 1;
+    result = result && GraphInDegree(&graph, c) == 1;
+    result = result && GraphNeighborAt(&graph, a, 0) == b && GraphNeighborAt(&graph, a, 1) == c;
+    result = result && GraphNeighborAt(&graph, c, 0) == a;
+    result = result && GraphPredecessorAt(&graph, a, 0) == c;
+    result = result && GraphPredecessorAt(&graph, b, 0) == a;
+    result = result && GraphPredecessorAt(&graph, c, 0) == a;
 
     GraphDeinit(&graph);
     DefaultAllocatorDeinit(&alloc);
@@ -79,9 +79,9 @@ static bool test_graph_cross_graph_node_handle_deadend(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
     typedef Graph(int) IntGraph;
-    IntGraph graph_a = GraphInit(&alloc);
-    IntGraph graph_b = GraphInit(&alloc);
-    GraphNode node   = GraphGetNode(&graph_a, GraphAddNodeR(&graph_a, 10));
+    IntGraph  graph_a = GraphInit(&alloc);
+    IntGraph  graph_b = GraphInit(&alloc);
+    GraphNode node    = GraphGetNode(&graph_a, GraphAddNodeR(&graph_a, 10));
 
     (void)GraphNodeData(&graph_b, node);
 

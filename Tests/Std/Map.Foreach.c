@@ -20,10 +20,10 @@ static i32 i32_compare(const void *lhs, const void *rhs) {
 
 static bool test_map_foreach_ptr(void) {
     typedef Map(int, int) IntIntMap;
-    DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map       = MapInit(i32_hash, i32_compare, &alloc);
-    int       key_sum   = 0;
-    int       value_sum = 0;
+    DefaultAllocator alloc     = DefaultAllocatorInit();
+    IntIntMap        map       = MapInit(i32_hash, i32_compare, &alloc);
+    int              key_sum   = 0;
+    int              value_sum = 0;
 
     for (int i = 1; i <= 4; i++) {
         MapSetOnlyR(&map, i, i * 10);
@@ -44,11 +44,11 @@ static bool test_map_foreach_ptr(void) {
 
 static bool test_map_foreach_multimap_iterators(void) {
     typedef Map(int, int) IntIntMap;
-    DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map            = MapInit(i32_hash, i32_compare, &alloc);
-    int       unique_key_sum = 0;
-    int       all_value_sum  = 0;
-    int       key_two_sum    = 0;
+    DefaultAllocator alloc          = DefaultAllocatorInit();
+    IntIntMap        map            = MapInit(i32_hash, i32_compare, &alloc);
+    int              unique_key_sum = 0;
+    int              all_value_sum  = 0;
+    int              key_two_sum    = 0;
 
     MapInsertR(&map, 1, 10);
     MapInsertR(&map, 1, 11);

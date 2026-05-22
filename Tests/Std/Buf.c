@@ -134,11 +134,11 @@ bool test_buf_read_cstr_round_trip(void) {
     BufWriteCstr(&b, "hello");
     BufWriteCstr(&b, "world");
 
-    BufIter     it = BufIterFromBuf(&b);
-    const char *s1 = BufReadCstr(&it);
-    const char *s2 = BufReadCstr(&it);
-    bool        ok = s1 && s2 && s1[0] == 'h' && s2[0] == 'w';
-    ok             = ok && IterRemainingLength(&it) == 0;
+    BufIter it = BufIterFromBuf(&b);
+    Zstr    s1 = BufReadCstr(&it);
+    Zstr    s2 = BufReadCstr(&it);
+    bool    ok = s1 && s2 && s1[0] == 'h' && s2[0] == 'w';
+    ok         = ok && IterRemainingLength(&it) == 0;
 
     BufDeinit(&b);
     DefaultAllocatorDeinit(&alloc);

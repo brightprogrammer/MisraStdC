@@ -118,9 +118,9 @@ bool test_int_decimal_round_trip(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    const char *digits = "123456789012345678901234567890";
-    Int         value  = IntFromStr(digits, &alloc.base);
-    Str         text   = IntToStr(&value);
+    Zstr digits = "123456789012345678901234567890";
+    Int  value  = IntFromStr(digits, &alloc.base);
+    Str  text   = IntToStr(&value);
 
     bool result = ZstrCompare(text.data, digits) == 0;
 
@@ -261,9 +261,9 @@ bool test_int_hex_round_trip(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    const char *hex   = "deadbeefcafebabe1234";
-    Int         value = IntFromHexStr(hex, &alloc.base);
-    Str         text  = IntToHexStr(&value);
+    Zstr hex   = "deadbeefcafebabe1234";
+    Int  value = IntFromHexStr(hex, &alloc.base);
+    Str  text  = IntToHexStr(&value);
 
     bool result = ZstrCompare(text.data, hex) == 0;
 

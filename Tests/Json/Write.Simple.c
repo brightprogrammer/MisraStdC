@@ -54,7 +54,7 @@ bool test_simple_nested_object_writing(void);
 bool test_simple_product_with_tags_writing(void);
 
 // Helper function to compare expected JSON strings (removes spaces for comparison)
-bool compare_json_output(const Str *output, const char *expected, DefaultAllocator *alloc) {
+bool compare_json_output(const Str *output, Zstr expected, DefaultAllocator *alloc) {
     // Create a copy of expected without spaces for comparison
     Str expected_str   = StrInitFromZstr(expected, alloc);
     Str output_clean   = StrInit(alloc);
@@ -114,7 +114,7 @@ bool test_simple_string_writing(void) {
         JW_STR_KV(json, "city", city);
     });
 
-    const char *expected = "{\"name\":\"Alice\",\"city\":\"New York\"}";
+    Zstr expected = "{\"name\":\"Alice\",\"city\":\"New York\"}";
     if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
@@ -145,7 +145,7 @@ bool test_simple_numbers_writing(void) {
         JW_INT_KV(json, "year", year);
     });
 
-    const char *expected = "{\"count\":42,\"score\":95.500000,\"year\":2024}";
+    Zstr expected = "{\"count\":42,\"score\":95.500000,\"year\":2024}";
     if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
@@ -172,7 +172,7 @@ bool test_simple_boolean_writing(void) {
         JW_BOOL_KV(json, "visible", visible);
     });
 
-    const char *expected = "{\"enabled\":true,\"visible\":false}";
+    Zstr expected = "{\"enabled\":true,\"visible\":false}";
     if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
@@ -201,7 +201,7 @@ bool test_simple_person_object_writing(void) {
         JW_FLT_KV(json, "salary", person.salary);
     });
 
-    const char *expected = "{\"id\":1001,\"name\":\"Bob\",\"age\":25,\"is_active\":true,\"salary\":50000.000000}";
+    Zstr expected = "{\"id\":1001,\"name\":\"Bob\",\"age\":25,\"is_active\":true,\"salary\":50000.000000}";
     if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
@@ -229,7 +229,7 @@ bool test_simple_config_object_writing(void) {
         JW_STR_KV(json, "log_level", config.log_level);
     });
 
-    const char *expected = "{\"debug_mode\":false,\"timeout\":30,\"log_level\":\"INFO\"}";
+    Zstr expected = "{\"debug_mode\":false,\"timeout\":30,\"log_level\":\"INFO\"}";
     if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
@@ -262,7 +262,7 @@ bool test_simple_array_of_strings_writing(void) {
 
     JW_OBJ(json, { JW_ARR_KV(json, "languages", languages, lang, { JW_STR(json, lang); }); });
 
-    const char *expected = "{\"languages\":[\"C\",\"Python\",\"Rust\"]}";
+    Zstr expected = "{\"languages\":[\"C\",\"Python\",\"Rust\"]}";
     if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
@@ -301,7 +301,7 @@ bool test_simple_nested_object_writing(void) {
         JW_BOOL_KV(json, "active", data.active);
     });
 
-    const char *expected = "{\"user\":{\"name\":\"Charlie\",\"email\":\"charlie@example.com\"},\"active\":true}";
+    Zstr expected = "{\"user\":{\"name\":\"Charlie\",\"email\":\"charlie@example.com\"},\"active\":true}";
     if (!compare_json_output(&json, expected, &alloc)) {
         success = false;
     }
@@ -344,7 +344,7 @@ bool test_simple_product_with_tags_writing(void) {
         JW_ARR_KV(json, "tags", product.tags, tag, { JW_STR(json, tag); });
     });
 
-    const char *expected =
+    Zstr expected =
         "{\"id\":12345,\"name\":\"Laptop\",\"price\":999.990000,\"tags\":[\"electronics\",\"computers\",\"portable\"]}";
     if (!compare_json_output(&json, expected, &alloc)) {
         success = false;

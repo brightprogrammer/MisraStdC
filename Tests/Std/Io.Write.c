@@ -73,13 +73,13 @@ bool test_string_formatting(void) {
     bool success = true;
 
     // Test basic string
-    const char *str = "Hello";
+    Zstr str = "Hello";
     StrAppendFmt(&output, "{}", str);
     success = success && (ZstrCompare(output.data, "Hello") == 0);
     StrClear(&output);
 
     // Test empty string
-    const char *empty = "";
+    Zstr empty = "";
     StrAppendFmt(&output, "{}", empty);
     success = success && (output.length == 0);
     StrClear(&output);
@@ -347,7 +347,7 @@ bool test_width_alignment_formatting(void) {
     StrClear(&output);
 
     // Test with strings
-    const char *str = "abc";
+    Zstr str = "abc";
     StrAppendFmt(&output, "{5}", str);
     success = success && (ZstrCompare(output.data, "  abc") == 0);
     StrClear(&output);
@@ -373,9 +373,9 @@ bool test_multiple_arguments(void) {
     Str  output  = StrInit(&alloc);
     bool success = true;
 
-    const char *hello = "Hello";
-    i32         num   = 42;
-    f64         pi    = 3.14;
+    Zstr hello = "Hello";
+    i32  num   = 42;
+    f64  pi    = 3.14;
 
     StrAppendFmt(&output, "{} {} {}", hello, num, pi);
     success = success && (ZstrCompare(output.data, "Hello 42 3.140000") == 0);
@@ -400,7 +400,7 @@ bool test_char_formatting(void) {
     bool success = true;
 
     // Test mixed case string with :c (preserve case)
-    const char *mixed_case = "MiXeD CaSe";
+    Zstr mixed_case = "MiXeD CaSe";
     StrAppendFmt(&output, "{c}", mixed_case);
     success = success && (ZstrCompare(output.data, "MiXeD CaSe") == 0);
     StrClear(&output);

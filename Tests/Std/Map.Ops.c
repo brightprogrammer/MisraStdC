@@ -22,7 +22,7 @@ static i32 i32_compare(const void *lhs, const void *rhs) {
 }
 
 static u64 zstr_hash(const void *data, u32 size) {
-    const char          *str  = *(const char *const *)data;
+    const char          *str  = *(Zstr const *)data;
     const unsigned char *ptr  = (const unsigned char *)str;
     u64                  hash = 1469598103934665603ULL;
     (void)size;
@@ -36,16 +36,23 @@ static u64 zstr_hash(const void *data, u32 size) {
 }
 
 static i32 zstr_compare_ptr(const void *lhs, const void *rhs) {
-    const char *a = *(const char *const *)lhs;
-    const char *b = *(const char *const *)rhs;
+    Zstr a = *(Zstr const *)lhs;
+    Zstr b = *(Zstr const *)rhs;
     return ZstrCompare(a, b);
 }
 
 static bool test_map_deep_copy_zstrs(void) {
     typedef Map(const char *, const char *) ZstrMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    ZstrMap map =
-        MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, zstr_init_clone, zstr_deinit, zstr_init_clone, zstr_deinit, &alloc);
+    ZstrMap          map   = MapInitWithDeepCopy(
+        zstr_hash,
+        zstr_compare_ptr,
+        zstr_init_clone,
+        zstr_deinit,
+        zstr_init_clone,
+        zstr_deinit,
+        &alloc
+    );
     char         key_buf[]          = "alpha";
     char         value_buf[]        = "first";
     char         second_value_buf[] = "second";
@@ -83,8 +90,15 @@ static bool test_map_deep_copy_zstrs(void) {
 static bool test_map_policy_switch_preserves_entries(void) {
     typedef Map(const char *, const char *) ZstrMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    ZstrMap map =
-        MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, zstr_init_clone, zstr_deinit, zstr_init_clone, zstr_deinit, &alloc);
+    ZstrMap          map   = MapInitWithDeepCopy(
+        zstr_hash,
+        zstr_compare_ptr,
+        zstr_init_clone,
+        zstr_deinit,
+        zstr_init_clone,
+        zstr_deinit,
+        &alloc
+    );
 
     int red_count = 0;
 
@@ -116,9 +130,9 @@ static bool test_map_policy_switch_preserves_entries(void) {
 
 static bool test_map_compact_and_swap(void) {
     typedef Map(int, int) IntIntMap;
-    DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap first  = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
-    IntIntMap second = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    IntIntMap        first  = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
+    IntIntMap        second = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
 
     MapInsertR(&first, 1, 10);
     MapInsertR(&first, 1, 11);
@@ -161,9 +175,9 @@ static bool retain_values_above_threshold(const void *key, const void *value, vo
 
 static bool test_map_retain_if(void) {
     typedef Map(int, int) IntIntMap;
-    DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map       = MapInit(i32_hash, i32_compare, &alloc);
-    int       threshold = 30;
+    DefaultAllocator alloc     = DefaultAllocatorInit();
+    IntIntMap        map       = MapInit(i32_hash, i32_compare, &alloc);
+    int              threshold = 30;
 
     MapInsertR(&map, 1, 10);
     MapInsertR(&map, 2, 20);

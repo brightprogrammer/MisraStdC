@@ -33,7 +33,7 @@ static bool test_map_contains_pair_without_value_compare_fails(void) {
 
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
     MapContainsPair(&map, 1, 10);
 
@@ -47,7 +47,7 @@ static bool test_map_remove_pair_without_value_compare_fails(void) {
 
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
     MapRemovePair(&map, 1, 10);
 
@@ -61,7 +61,7 @@ static bool test_map_remove_if_without_predicate_fails(void) {
 
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
     MapRemoveIf(&map, NULL, NULL);
 
@@ -75,7 +75,7 @@ static bool test_map_retain_if_without_predicate_fails(void) {
 
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
     MapRetainIf(&map, NULL, NULL);
 

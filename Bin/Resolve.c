@@ -18,7 +18,7 @@
 
 int main(int argc, char **argv) {
     Scope(alloc, DefaultAllocator) {
-        const char *hostname = NULL;
+        Zstr hostname = NULL;
 
         ArgParse ap = ArgParseInit("resolve", "look up a hostname via /etc/hosts and DNS");
         ArgPositional(&ap, "hostname", &hostname, "name to resolve");
@@ -45,8 +45,8 @@ int main(int argc, char **argv) {
             Str s = SocketAddrFormat(a, alloc);
             // Strip the trailing ":0" since we resolve with port=0; keep
             // bracket form on v6 to round-trip through SocketAddrParse.
-            size        n = StrLen(&s);
-            const char *p = StrBegin(&s);
+            size n = StrLen(&s);
+            Zstr p = StrBegin(&s);
             if (n >= 2 && p[n - 1] == '0' && p[n - 2] == ':') {
                 StrMustResize(&s, n - 2);
             }

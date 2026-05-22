@@ -551,9 +551,9 @@ bool test_str_edge_case_conversions(void) {
 
     // Test prefix handling
     struct {
-        const char *input;
-        u64         expected;
-        u8          base;
+        Zstr input;
+        u64  expected;
+        u8   base;
     } prefix_tests[] = {
         {  "0x1A",  26,  0}, // Auto-detect hex
         {"0b1010",  10,  0}, // Auto-detect binary

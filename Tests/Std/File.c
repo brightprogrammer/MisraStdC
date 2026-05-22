@@ -12,7 +12,7 @@
 // = atomic O_CREAT|O_EXCL + Prng64 16-hex name in CWD). `out_path`
 // is the caller's Str; on success it holds the resolved name so the
 // caller can read it back and remove it.
-static bool write_test_file(const char *text, Str *out_path, Allocator *alloc) {
+static bool write_test_file(Zstr text, Str *out_path, Allocator *alloc) {
     File f = FileOpenTemp(out_path, alloc);
     if (!FileIsOpen(&f)) {
         return false;
@@ -86,8 +86,8 @@ bool test_file_read_grows_str(void) {
     i64 got  = FileRead(&f, &body);
     FileClose(&f);
 
-    const char *expected = "this is longer than the initial buffer";
-    bool        result   = (got == (i64)ZstrLen(expected)) && (body.length == (size)ZstrLen(expected)) &&
+    Zstr expected = "this is longer than the initial buffer";
+    bool result   = (got == (i64)ZstrLen(expected)) && (body.length == (size)ZstrLen(expected)) &&
                   ZstrCompare(body.data, expected) == 0 && body.capacity >= body.length + 1;
 
     StrDeinit(&body);

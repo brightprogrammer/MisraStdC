@@ -21,7 +21,7 @@ static i32 i32_compare(const void *lhs, const void *rhs) {
 static bool test_map_contains_and_find(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
+    IntIntMap        map   = MapInitWithValueCompare(i32_hash, i32_compare, i32_compare, &alloc);
 
     MapSetOnlyR(&map, 7, 70);
     MapInsertR(&map, 7, 71);
@@ -46,7 +46,7 @@ static bool test_map_contains_and_find(void) {
 static bool test_map_get_ptr(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
     MapSetOnlyR(&map, 11, 110);
     MapInsertR(&map, 11, 111);
@@ -63,7 +63,7 @@ static bool test_map_get_ptr(void) {
 static bool test_map_try_get_ptr(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
     MapSetOnlyR(&map, 11, 110);
     MapInsertR(&map, 11, 111);
@@ -80,7 +80,7 @@ static bool test_map_try_get_ptr(void) {
 static bool test_map_get_or_default(void) {
     typedef Map(int, int) IntIntMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap map = MapInit(i32_hash, i32_compare, &alloc);
+    IntIntMap        map   = MapInit(i32_hash, i32_compare, &alloc);
 
     MapSetOnlyR(&map, 11, 110);
     MapInsertR(&map, 11, 111);
@@ -98,11 +98,11 @@ static bool test_map_get_or_default(void) {
 
 static bool test_map_value_cursor_query(void) {
     typedef Map(int, int) IntIntMap;
-    DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap      map       = MapInit(i32_hash, i32_compare, &alloc);
-    MapValueCursor cursor    = MapValueCursorInvalid();
-    int            value_sum = 0;
-    int            seen      = 0;
+    DefaultAllocator alloc     = DefaultAllocatorInit();
+    IntIntMap        map       = MapInit(i32_hash, i32_compare, &alloc);
+    MapValueCursor   cursor    = MapValueCursorInvalid();
+    int              value_sum = 0;
+    int              seen      = 0;
 
     MapInsertR(&map, 4, 40);
     MapInsertR(&map, 4, 41);
@@ -134,9 +134,9 @@ static bool test_map_value_cursor_query(void) {
 
 static bool test_map_cursor_invalidated_after_removal(void) {
     typedef Map(int, int) IntIntMap;
-    DefaultAllocator alloc = DefaultAllocatorInit();
-    IntIntMap      map    = MapInit(i32_hash, i32_compare, &alloc);
-    MapValueCursor cursor = MapValueCursorInvalid();
+    DefaultAllocator alloc  = DefaultAllocatorInit();
+    IntIntMap        map    = MapInit(i32_hash, i32_compare, &alloc);
+    MapValueCursor   cursor = MapValueCursorInvalid();
 
     MapInsertR(&map, 5, 50);
     MapInsertR(&map, 5, 51);

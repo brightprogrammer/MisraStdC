@@ -21,9 +21,9 @@
 // vars; POSIX uses TMPDIR with a /tmp fallback. Returned string is
 // borrowed (env-var lifetime) or a static literal -- caller must not
 // free.
-static const char *tmp_dir_path(void) {
+static Zstr tmp_dir_path(void) {
 #if PLATFORM_WINDOWS
-    const char *p = EnvGet("TEMP");
+    Zstr p = EnvGet("TEMP");
     if (p && *p)
         return p;
     p = EnvGet("TMP");
@@ -31,7 +31,7 @@ static const char *tmp_dir_path(void) {
         return p;
     return "C:/Windows/Temp";
 #else
-    const char *p = EnvGet("TMPDIR");
+    Zstr p = EnvGet("TMPDIR");
     if (p && *p)
         return p;
     return "/tmp";
@@ -40,9 +40,9 @@ static const char *tmp_dir_path(void) {
 
 // Compose `<tmp_dir>/<name>` into `out`. Forward slash works on both
 // POSIX and Win32 (CRT + kernel APIs accept either separator).
-static void tmp_path_join(char *out, size out_size, const char *name) {
-    const char *base    = tmp_dir_path();
-    size        baselen = 0;
+static void tmp_path_join(char *out, size out_size, Zstr name) {
+    Zstr base    = tmp_dir_path();
+    size baselen = 0;
     while (base[baselen])
         ++baselen;
     size namelen = 0;
@@ -81,7 +81,7 @@ static const u8 kGuid[16] =
     {0xde, 0xad, 0xbe, 0xef, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb};
 static const u32 kAge = 7;
 
-static bool write_file(const char *path, const u8 *data, u64 size) {
+static bool write_file(Zstr path, const u8 *data, u64 size) {
     // Use Misra's File API so this test runs under -nostdlib too
     // (no libc fopen/fwrite/fclose).
     File f = FileOpen(path, "w");
@@ -112,7 +112,7 @@ enum {
 
 static u8 pe_blob[PE_BLOB_SIZE];
 
-static void build_pe_blob(const char *pdb_path) {
+static void build_pe_blob(Zstr pdb_path) {
     MemSet(pe_blob, 0, sizeof(pe_blob));
 
     pe_blob[0] = 'M';
@@ -190,7 +190,7 @@ static const u8 kPdbMsfMagic[32] = {'M', 'i', 'c',  'r',  'o',  's', 'o', 'f',  
 
 static u8 pdb_blob[PDB_BLOB_SIZE];
 
-static void build_pdb_blob(const char *func_name, u32 func_rva) {
+static void build_pdb_blob(Zstr func_name, u32 func_rva) {
     MemSet(pdb_blob, 0, sizeof(pdb_blob));
 
     // Compute S_PUB32 record size based on function name length.
@@ -293,12 +293,12 @@ bool test_pdb_cache_resolves_via_codeview(void) {
 
     // module_base = 0x140000000 -> RVA = (ip - base). For func at
     // RVA 0x1100, ip = module_base + 0x1100.
-    const u64   module_base = 0x140000000ull;
-    const u64   ip          = module_base + 0x1100;
-    const char *name        = NULL;
-    u32         offset      = 0;
-    bool        ok          = PdbCacheResolve(&cache, pe_path, module_base, ip, &name, &offset);
-    ok                      = ok && name && ZstrCompare(name, "winproc") == 0 && offset == 0;
+    const u64 module_base = 0x140000000ull;
+    const u64 ip          = module_base + 0x1100;
+    Zstr      name        = NULL;
+    u32       offset      = 0;
+    bool      ok          = PdbCacheResolve(&cache, pe_path, module_base, ip, &name, &offset);
+    ok                    = ok && name && ZstrCompare(name, "winproc") == 0 && offset == 0;
 
     // Second resolution should hit the cache (not strictly verifiable
     // from outside, but at least confirm correctness is stable).
@@ -325,8 +325,8 @@ bool test_pdb_cache_rejects_unknown_module(void) {
 
     PdbCache cache;
     PdbCacheInit(&cache, base);
-    const char *name = NULL;
-    bool        ok   = !PdbCacheResolve(&cache, missing, 0, 0x1000, &name, NULL);
+    Zstr name = NULL;
+    bool ok   = !PdbCacheResolve(&cache, missing, 0, 0x1000, &name, NULL);
     PdbCacheDeinit(&cache);
     DefaultAllocatorDeinit(&alloc);
     return ok;

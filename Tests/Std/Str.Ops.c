@@ -68,24 +68,24 @@ bool test_str_find(void) {
     Str needle3  = StrInitFromZstr("NotFound", &alloc);
 
     // Test StrFindStr with match at end
-    const char *found1 = StrFindStr(&haystack, &needle1);
-    bool        result = (found1 != NULL && ZstrCompare(found1, "World") == 0);
+    Zstr found1 = StrFindStr(&haystack, &needle1);
+    bool result = (found1 != NULL && ZstrCompare(found1, "World") == 0);
 
     // Test StrFindStr with match at beginning
-    const char *found2 = StrFindStr(&haystack, &needle2);
-    result             = result && (found2 != NULL && ZstrCompare(found2, "Hello World") == 0);
+    Zstr found2 = StrFindStr(&haystack, &needle2);
+    result      = result && (found2 != NULL && ZstrCompare(found2, "Hello World") == 0);
 
     // Test StrFindStr with no match
-    const char *found3 = StrFindStr(&haystack, &needle3);
-    result             = result && (found3 == NULL);
+    Zstr found3 = StrFindStr(&haystack, &needle3);
+    result      = result && (found3 == NULL);
 
     // Test StrFindZstr
-    const char *found4 = StrFindZstr(&haystack, "World");
-    result             = result && (found4 != NULL && ZstrCompare(found4, "World") == 0);
+    Zstr found4 = StrFindZstr(&haystack, "World");
+    result      = result && (found4 != NULL && ZstrCompare(found4, "World") == 0);
 
     // Test StrFindCstr
-    const char *found5 = StrFindCstr(&haystack, "Wor", 3);
-    result             = result && (found5 != NULL && ZstrCompareN(found5, "World", 3) == 0);
+    Zstr found5 = StrFindCstr(&haystack, "Wor", 3);
+    result      = result && (found5 != NULL && ZstrCompareN(found5, "World", 3) == 0);
 
     StrDeinit(&haystack);
     StrDeinit(&needle1);

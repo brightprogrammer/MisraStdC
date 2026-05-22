@@ -47,7 +47,7 @@ bool test_float_reading(void);
 bool test_integer_decimal_reading(void) {
     WriteFmt("Testing integer decimal reading\n");
 
-    const char *z = NULL;
+    Zstr z = NULL;
 
     bool success = true;
 
@@ -148,7 +148,7 @@ bool test_integer_decimal_reading(void) {
 bool test_integer_hex_reading(void) {
     WriteFmt("Testing integer hexadecimal reading\n");
 
-    const char *z = NULL;
+    Zstr z = NULL;
 
     bool success = true;
 
@@ -185,7 +185,7 @@ bool test_integer_hex_reading(void) {
 bool test_integer_binary_reading(void) {
     WriteFmt("Testing integer binary reading\n");
 
-    const char *z = NULL;
+    Zstr z = NULL;
 
     bool success = true;
 
@@ -212,7 +212,7 @@ bool test_integer_binary_reading(void) {
 bool test_integer_octal_reading(void) {
     WriteFmt("Testing integer octal reading\n");
 
-    const char *z = NULL;
+    Zstr z = NULL;
 
     bool success = true;
 
@@ -244,7 +244,7 @@ bool test_integer_octal_reading(void) {
 bool test_float_basic_reading(void) {
     WriteFmt("Testing basic float reading\n");
 
-    const char *z = NULL;
+    Zstr z = NULL;
 
     bool success = true;
 
@@ -289,7 +289,7 @@ bool test_float_basic_reading(void) {
 bool test_float_scientific_reading(void) {
     WriteFmt("Testing scientific notation reading\n");
 
-    const char *z = NULL;
+    Zstr z = NULL;
 
     bool success = true;
 
@@ -339,7 +339,7 @@ bool test_string_reading(void) {
     DefaultAllocator alloc      = DefaultAllocatorInit();
     Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
 
-    const char *z = NULL;
+    Zstr z = NULL;
 
     bool success = true;
 
@@ -386,7 +386,7 @@ bool test_multiple_arguments_reading(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    const char *z = NULL;
+    Zstr z = NULL;
 
     bool success = true;
 
@@ -423,7 +423,7 @@ bool test_multiple_arguments_reading(void) {
 bool test_error_handling_reading(void) {
     WriteFmt("Testing error handling for reading\n");
 
-    const char *z = NULL;
+    Zstr z = NULL;
 
     // For error handling tests, we'll just verify that the variables don't change
     // when invalid input is provided
@@ -457,7 +457,7 @@ bool test_character_ordinal_reading(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    const char *z = NULL;
+    Zstr z = NULL;
 
     bool success = true;
 
@@ -640,14 +640,14 @@ bool test_string_case_conversion_reading(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    const char *z = NULL;
+    Zstr z = NULL;
 
     bool success = true;
 
     // Test 1: :a (lowercase) conversion
     {
-        Str         result = StrInit(&alloc);
-        const char *in     = "Hello World";
+        Str  result = StrInit(&alloc);
+        Zstr in     = "Hello World";
 
         z = in;
         StrReadFmt(z, "{a}", result);
@@ -671,8 +671,8 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 1.1: :a (lowercase) conversion
     {
-        Str         result = StrInit(&alloc);
-        const char *in     = "Hello World";
+        Str  result = StrInit(&alloc);
+        Zstr in     = "Hello World";
 
         z = in;
         StrReadFmt(z, "{as}", result);
@@ -696,8 +696,8 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 2: :A (uppercase) conversion
     {
-        Str         result = StrInit(&alloc);
-        const char *in     = "hello world";
+        Str  result = StrInit(&alloc);
+        Zstr in     = "hello world";
 
         z = in;
         StrReadFmt(z, "{A}", result);
@@ -721,9 +721,9 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 2.1: :A (uppercase) conversion
     {
-        Str         result1 = StrInit(&alloc);
-        Str         result2 = StrInit(&alloc);
-        const char *in      = "hello world";
+        Str  result1 = StrInit(&alloc);
+        Str  result2 = StrInit(&alloc);
+        Zstr in      = "hello world";
 
         z = in;
         StrReadFmt(z, "{A} {A}", result1, result2);
@@ -742,9 +742,9 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 2.2: :A (uppercase) conversion
     {
-        Str         result1 = StrInit(&alloc);
-        Str         result2 = StrInit(&alloc);
-        const char *in      = "hello world mighty misra";
+        Str  result1 = StrInit(&alloc);
+        Str  result2 = StrInit(&alloc);
+        Zstr in      = "hello world mighty misra";
 
         z = in;
         StrReadFmt(z, "{As}{A}", result1, result2);
@@ -765,8 +765,8 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 3: :a with quoted string
     {
-        Str         result = StrInit(&alloc);
-        const char *in     = "\"MiXeD CaSe\"";
+        Str  result = StrInit(&alloc);
+        Zstr in     = "\"MiXeD CaSe\"";
 
         z = in;
         StrReadFmt(z, "{as}", result);
@@ -790,8 +790,8 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 4: :A with quoted string containing special characters
     {
-        Str         result = StrInit(&alloc);
-        const char *in     = "\"abc123XYZ\"";
+        Str  result = StrInit(&alloc);
+        Zstr in     = "\"abc123XYZ\"";
 
         z = in;
         StrReadFmt(z, "{As}", result);
@@ -815,8 +815,8 @@ bool test_string_case_conversion_reading(void) {
 
     // Test 5: Regular :c format (no case conversion) for comparison
     {
-        Str         result = StrInit(&alloc);
-        const char *in     = "Hello World";
+        Str  result = StrInit(&alloc);
+        Zstr in     = "Hello World";
 
         z = in;
         StrReadFmt(z, "{c}", result);
@@ -850,7 +850,7 @@ bool test_bitvec_reading(void) {
     DefaultAllocator alloc      = DefaultAllocatorInit();
     Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
 
-    const char *z = NULL;
+    Zstr z = NULL;
 
     bool success = true;
 
@@ -921,8 +921,8 @@ bool test_int_reading(void) {
     DefaultAllocator alloc      = DefaultAllocatorInit();
     Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
 
-    const char *z       = NULL;
-    bool        success = true;
+    Zstr z       = NULL;
+    bool success = true;
 
     Int dec = IntInit(alloc_base);
     Int hex = IntInit(alloc_base);
@@ -973,8 +973,8 @@ bool test_float_reading(void) {
     DefaultAllocator alloc      = DefaultAllocatorInit();
     Allocator       *alloc_base = ALLOCATOR_OF(&alloc);
 
-    const char *z       = NULL;
-    bool        success = true;
+    Zstr z       = NULL;
+    bool success = true;
 
     Float dec = FloatInit(alloc_base);
     Float sci = FloatInit(alloc_base);
