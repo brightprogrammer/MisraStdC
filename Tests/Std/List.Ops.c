@@ -60,7 +60,7 @@ static bool test_list_clear_and_reuse(void) {
     ListPushBackR(&list, 3);
     ListClear(&list);
 
-    bool result = (ListLen(&list) == 0) && (list.head == NULL) && (list.tail == NULL);
+    bool result = (ListLen(&list) == 0) && (ListHead(&list) == NULL) && (ListTail(&list) == NULL);
 
     ListPushBackR(&list, 9);
     result = result && list_matches(GENERIC_LIST(&list), (const int[]) {9}, 1);
@@ -110,7 +110,7 @@ static bool test_list_sort_and_reverse_edge_cases(void) {
     ListSort(&singleton, compare_ints);
     ListReverse(&singleton);
 
-    bool result = (ListLen(&empty) == 0) && (empty.head == NULL) && (empty.tail == NULL);
+    bool result = (ListLen(&empty) == 0) && (ListHead(&empty) == NULL) && (ListTail(&empty) == NULL);
     result      = result && list_matches(GENERIC_LIST(&singleton), (const int[]) {42}, 1);
 
     ListDeinit(&empty);
@@ -135,7 +135,7 @@ static bool test_list_clear_with_deep_copy(void) {
 
     ListClear(&list);
     result = result && (g_copy_deinit_count == 2);
-    result = result && (ListLen(&list) == 0) && (list.head == NULL) && (list.tail == NULL);
+    result = result && (ListLen(&list) == 0) && (ListHead(&list) == NULL) && (ListTail(&list) == NULL);
 
     ListPushBackR(&list, 9);
     result = result && (g_copy_init_count == 3);

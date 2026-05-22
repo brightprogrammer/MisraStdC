@@ -158,7 +158,7 @@ static bool test_list_merge_l_preserves_source_hooks_for_reuse(void) {
 
     bool result = (g_copy_init_count == 2);
     result      = result && list_matches(GENERIC_LIST(&dest), (const int[]) {1003, 1004}, 2);
-    result      = result && (ListLen(&src) == 0) && (src.head == NULL) && (src.tail == NULL);
+    result      = result && (ListLen(&src) == 0) && (ListHead(&src) == NULL) && (ListTail(&src) == NULL);
     result      = result && (src.copy_init == tracked_copy_init) && (src.copy_deinit == tracked_copy_deinit);
 
     ListPushBackR(&src, 5);
@@ -202,11 +202,11 @@ static bool test_list_merge_variants(void) {
     ListMerge(&dest_a, &src_a);
 
     bool result = list_matches(GENERIC_LIST(&dest_l), (const int[]) {1, 2, 3, 4}, 4);
-    result      = result && (ListLen(&src_l) == 0) && (src_l.head == NULL) && (src_l.tail == NULL);
+    result      = result && (ListLen(&src_l) == 0) && (ListHead(&src_l) == NULL) && (ListTail(&src_l) == NULL);
     result      = result && list_matches(GENERIC_LIST(&dest_r), (const int[]) {1, 2, 3, 4}, 4);
     result      = result && list_matches(GENERIC_LIST(&src_r), (const int[]) {3, 4}, 2);
     result      = result && list_matches(GENERIC_LIST(&dest_a), (const int[]) {5, 6}, 2);
-    result      = result && (ListLen(&src_a) == 0) && (src_a.head == NULL) && (src_a.tail == NULL);
+    result      = result && (ListLen(&src_a) == 0) && (ListHead(&src_a) == NULL) && (ListTail(&src_a) == NULL);
 
     ListDeinit(&dest_l);
     ListDeinit(&src_l);

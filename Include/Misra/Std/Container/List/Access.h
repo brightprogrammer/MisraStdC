@@ -21,6 +21,42 @@
 #define ListLen(l) ((l)->length)
 
 ///
+/// Allocator backing the list's nodes.
+///
+/// l[in] : List to query.
+///
+/// TAGS: List, Access, Allocator
+///
+#define ListAllocator(l) ((l)->allocator)
+
+///
+/// Direct O(1) reference to the head node, or `NULL` when the list is
+/// empty. Unlike `ListNodeBegin` (which aborts on empty), this is safe
+/// to call on an empty list and is meant for invariant checks like
+/// `ListHead(&l) == NULL`.
+///
+/// l[in] : List to query.
+///
+/// SUCCESS : Returns the head-node pointer. `NULL` iff the list is empty.
+///
+/// TAGS: List, Access, Head
+///
+#define ListHead(l) ((l)->head)
+
+///
+/// Direct O(1) reference to the tail node, or `NULL` when the list is
+/// empty. Unlike `ListNodeEnd` (which aborts on empty), this is safe
+/// to call on an empty list.
+///
+/// l[in] : List to query.
+///
+/// SUCCESS : Returns the tail-node pointer. `NULL` iff the list is empty.
+///
+/// TAGS: List, Access, Tail
+///
+#define ListTail(l) ((l)->tail)
+
+///
 /// Check whether list has no items.
 ///
 /// l[in] : List to query.

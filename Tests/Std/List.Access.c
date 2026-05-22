@@ -46,7 +46,7 @@ static bool test_list_len_empty(void) {
     ListClear(&list);
     result = result && (ListLen(&list) == 0);
     result = result && ListEmpty(&list);
-    result = result && (list.head == NULL) && (list.tail == NULL);
+    result = result && (ListHead(&list) == NULL) && (ListTail(&list) == NULL);
 
     ListPushBackR(&list, 30);
     result = result && list_matches(GENERIC_LIST(&list), (const int[]) {30}, 1);

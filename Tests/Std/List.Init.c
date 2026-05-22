@@ -102,7 +102,7 @@ static bool test_list_deinit_with_deep_copy(void) {
     ListDeinit(&list);
 
     result = result && (g_copy_deinit_count == 2);
-    result = result && (list.head == NULL) && (list.tail == NULL) && (ListLen(&list) == 0);
+    result = result && (ListHead(&list) == NULL) && (ListTail(&list) == NULL) && (ListLen(&list) == 0);
     result = result && (list.copy_init == NULL) && (list.copy_deinit == NULL);
     DefaultAllocatorDeinit(&alloc);
     return result;

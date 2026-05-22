@@ -66,8 +66,8 @@ static bool test_list_remove_and_pop(void) {
     ListPopBack(&list, &removed);
     result = result && (removed == 40);
     result = result && list_matches(GENERIC_LIST(&list), (const int[]) {30}, 1);
-    result = result && list.head && list.head->data && (*list.head->data == 30);
-    result = result && list.tail && list.tail->data && (*list.tail->data == 30);
+    result = result && ListHead(&list) && ListHead(&list)->data && (*ListHead(&list)->data == 30);
+    result = result && ListTail(&list) && ListTail(&list)->data && (*ListTail(&list)->data == 30);
 
     ListDeinit(&list);
     DefaultAllocatorDeinit(&alloc);
@@ -101,7 +101,7 @@ static bool test_list_remove_range_and_delete_aliases(void) {
     result = result && list_matches(GENERIC_LIST(&list), (const int[]) {1, 5}, 2);
 
     ListDeleteRange(&list, 0, 2);
-    result = result && (ListLen(&list) == 0) && (list.head == NULL) && (list.tail == NULL);
+    result = result && (ListLen(&list) == 0) && (ListHead(&list) == NULL) && (ListTail(&list) == NULL);
 
     ListDeinit(&list);
     DefaultAllocatorDeinit(&alloc);
@@ -132,8 +132,8 @@ static bool test_list_remove_range_prefix_suffix_edges(void) {
     ListRemoveRange(&list, suffix, 2, 2);
     result = result && (suffix[0] == 5) && (suffix[1] == 6);
     result = result && list_matches(GENERIC_LIST(&list), (const int[]) {3, 4}, 2);
-    result = result && list.head && list.head->data && (*list.head->data == 3);
-    result = result && list.tail && list.tail->data && (*list.tail->data == 4);
+    result = result && ListHead(&list) && ListHead(&list)->data && (*ListHead(&list)->data == 3);
+    result = result && ListTail(&list) && ListTail(&list)->data && (*ListTail(&list)->data == 4);
 
     ListDeinit(&list);
     DefaultAllocatorDeinit(&alloc);
@@ -155,7 +155,7 @@ static bool test_list_remove_range_whole_list_to_buffer(void) {
     ListRemoveRange(&list, removed, 0, 3);
 
     bool result = (removed[0] == 7) && (removed[1] == 8) && (removed[2] == 9);
-    result      = result && (ListLen(&list) == 0) && (list.head == NULL) && (list.tail == NULL);
+    result      = result && (ListLen(&list) == 0) && (ListHead(&list) == NULL) && (ListTail(&list) == NULL);
 
     ListDeinit(&list);
     DefaultAllocatorDeinit(&alloc);
@@ -194,7 +194,7 @@ static bool test_list_remove_zero_count_and_deep_copy_delete(void) {
 
     ListClear(&list);
     result = result && (g_copy_deinit_count == 2);
-    result = result && (ListLen(&list) == 0) && (list.head == NULL) && (list.tail == NULL);
+    result = result && (ListLen(&list) == 0) && (ListHead(&list) == NULL) && (ListTail(&list) == NULL);
 
     ListDeinit(&list);
     DefaultAllocatorDeinit(&alloc);
