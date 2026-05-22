@@ -13,6 +13,8 @@ fuzz-outputs
 Fuzz/outputs/
 .refactor-todo.md
 .subagent-reports.md
+.audit-questions.md
+.phase2-report.md
 core
 core.*
 .claude/
