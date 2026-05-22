@@ -46,15 +46,22 @@ extern "C" {
 //
 
 ///
-/// Compare two Str objects
+/// Compare two Str objects lexicographically, length-aware.
 ///
-/// str[in]  : First string
-/// ostr[in] : Other string
+/// Thin alias for `str_compare` above (the generic-callback shape).
+/// Both arms are read through `StrBegin` / `StrLen`, so a Str with an
+/// embedded NUL still compares correctly -- unlike a `Zstr`-based
+/// compare that would stop at the first NUL byte.
 ///
-/// RETURN : +ve or -ve depending on above or below in lexical ordering
-/// RETURN : 0 if both are equal
+/// str[in]  : First string.
+/// ostr[in] : Other string.
 ///
-#define StrCmp(str, ostr) ZstrCompare((str)->data, (ostr)->data)
+/// SUCCESS : Returns `0` when equal, `<0` when `str < ostr`, `>0` when
+///           `str > ostr`. Neither string is modified.
+///
+/// TAGS: Str, Compare
+///
+#define StrCmp(str, ostr) str_compare((str), (ostr))
 
 ///
 /// Compare string with another const char* of specified length
