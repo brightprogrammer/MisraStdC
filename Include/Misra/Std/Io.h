@@ -331,7 +331,10 @@ bool StrPad(Str *o, size width, Alignment align, size content_len);
 /// TAGS: Float, Format, Decimal
 ///
 bool float_try_to_decimal_str(Str *out, Float *value, u32 precision, bool has_precision, Allocator *alloc);
-#    define FloatTryToDecimalStr(out, value, precision, has_precision, alloc)                                          \
+#    define FloatTryToDecimalStr(...) MISRA_OVERLOAD(FloatTryToDecimalStr, __VA_ARGS__)
+#    define FloatTryToDecimalStr_4(out, value, precision, has_precision)                                               \
+        float_try_to_decimal_str((out), (value), (precision), (has_precision), MisraScope)
+#    define FloatTryToDecimalStr_5(out, value, precision, has_precision, alloc)                                        \
         float_try_to_decimal_str((out), (value), (precision), (has_precision), ALLOCATOR_OF(alloc))
 
 ///
@@ -360,7 +363,10 @@ bool float_try_to_scientific_str(
     bool       uppercase,
     Allocator *alloc
 );
-#    define FloatTryToScientificStr(out, value, precision, has_precision, uppercase, alloc)                            \
+#    define FloatTryToScientificStr(...) MISRA_OVERLOAD(FloatTryToScientificStr, __VA_ARGS__)
+#    define FloatTryToScientificStr_5(out, value, precision, has_precision, uppercase)                                 \
+        float_try_to_scientific_str((out), (value), (precision), (has_precision), (uppercase), MisraScope)
+#    define FloatTryToScientificStr_6(out, value, precision, has_precision, uppercase, alloc)                          \
         float_try_to_scientific_str((out), (value), (precision), (has_precision), (uppercase), ALLOCATOR_OF(alloc))
 #endif // FEATURE_FLOAT
 

@@ -211,9 +211,14 @@ the default build. Adding `int` automatically pulls in `bitvec`; adding
 | `sys_dir`                         | `DirGetContents(...)` and friends                                                                                   | —                                |
 | `sys_proc`                        | `ProcCreate(...)` / spawn / wait                                                                                    | —                                |
 | `sys_socket`                      | BSD-sockets API (`Listener`, `Socket`, `SocketPoll`)                                                                | —                                |
+| `sys_dns`                         | `DnsResolver` (in-tree A/AAAA + getaddrinfo-free name resolution)                                                   | `sys_socket`, `parser_dns`       |
+| `sys_procmaps`                    | `ProcMaps` (process module-map snapshot for the symbolizer chain)                                                   | —                                |
+| `sys_symresolve`                  | `SymbolResolver` (cross-platform module + address-to-name chain)                                                    | `sys_procmaps`                   |
 | `sys_backtrace`                   | `CaptureStackTrace` / `FormatStackTrace`, plus the in-tree symbolizer chain on Linux                                | `parser_elf`, `parser_dwarf` (Linux); `parser_macho` (macOS); `parser_pdb`, `parser_pe` (Windows) |
 | `parser_json`                     | JSON read/write                                                                                                     | —                                |
 | `parser_kvconfig`                 | Key-value config parser                                                                                             | `map`                            |
+| `parser_http`                     | HTTP/1.1 request + response parsing / serialization (transport-agnostic)                                            | —                                |
+| `parser_dns`                      | DNS wire-format encode/decode per RFC 1035                                                                          | —                                |
 
 Every enabled feature also defines `MISRA_HAVE_<NAME>` (= 1) in the
 generated `Misra/Config.h`. User code can `#if MISRA_HAVE_BITVEC` to compile
@@ -1089,10 +1094,12 @@ for function lookup by image-relative address.
 
 ## System Utilities
 
-Cross-platform wrappers for subprocesses, directories, mutexes, environment
-access. The subprocess example demonstrates the explicit-allocator-handoff
-pattern: the caller passes the same allocator to `ProcCreate` and
-`ProcDestroy`.
+Cross-platform wrappers for the OS surface: subprocesses (`Sys/Proc`),
+directory walks (`Sys/Dir`), mutexes (`Sys/Mutex`), errno translation
+(`Sys/Errno`), BSD sockets (`Sys/Socket`), in-tree DNS resolution
+(`Sys/Dns`), process module maps (`Sys/ProcMaps`), the
+symbolizer-resolver chain (`Sys/SymbolResolver`), and stack-trace
+capture / formatting (`Sys/Backtrace`).
 
 ```c
 // Verified with /bin/head: writes a value to the child, expects the same
@@ -1100,16 +1107,32 @@ pattern: the caller passes the same allocator to `ProcCreate` and
 int main(int argc, char **argv, char **envp) {
     (void)argc;
     Scope(alloc, DefaultAllocator) {
-        Proc *proc = ProcCreate(argv[1], argv + 1, envp, alloc);
-        ProcWriteToStdinFmtLn(proc, "value = {}", 42);
+        Proc proc;
+        ProcInit(&proc, argv[1], argv + 1, envp);  // alloc defaulted via Scope
+        ProcWriteToStdinFmtLn(&proc, "value = {}", 42);
 
         i32 val = 0;
-        ProcReadFromStdoutFmt(proc, "value = {}", val);
+        ProcReadFromStdoutFmt(&proc, "value = {}", val);
         WriteFmtLn("got value = {}", val);
 
-        ProcWaitFor(proc, 1000);
-        ProcDestroy(proc, alloc);
+        ProcWaitFor(&proc, 1000);
+        ProcDeinit(&proc);
     }
+}
+```
+
+Backtrace capture works the same way and routes through the in-tree
+ELF / Mach-O / PE / PDB / DWARF parsers — no `libunwind`, no `addr2line`:
+
+```c
+Scope(alloc, DefaultAllocator) {
+    StackFrames frames = VecInitT(frames, alloc);
+    CaptureStackTrace(&frames, /*skip=*/0);
+    Str rendered = StrInit(alloc);
+    FormatStackTrace(&rendered, &frames, alloc);
+    WriteFmtLn("{}", &rendered);
+    StrDeinit(&rendered);
+    VecDeinit(&frames);
 }
 ```
 
@@ -1119,6 +1142,10 @@ int main(int argc, char **argv, char **envp) {
 
 Contributions are welcome.
 
+Read [`CODING-CONVENTIONS.md`](CODING-CONVENTIONS.md) first — it captures
+the project's rules on naming, allocator handling, the libc-free mindset,
+`_Generic` dispatch, macro hygiene, Zstr-vs-Str preference, testing,
+documentation, and the smaller carve-outs that come up in code review.
 Match the existing style in the files you touch. Run the test suite
 (`ninja -C builddir test`) and `python Scripts/clang-format.py` before
 sending a change. The default build (all features on) is what CI runs;
