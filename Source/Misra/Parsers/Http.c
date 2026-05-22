@@ -58,7 +58,7 @@ bool http_header_init_copy(void *dst_ptr, const void *src_ptr, const Allocator *
     return true;
 }
 
-HttpHeader *HttpHeadersFind(HttpHeaders *headers, Zstr key) {
+HttpHeader *http_headers_find_zstr(HttpHeaders *headers, Zstr key) {
     if (!headers || !key) {
         LOG_FATAL("invalid arguments");
     }
@@ -68,6 +68,15 @@ HttpHeader *HttpHeadersFind(HttpHeaders *headers, Zstr key) {
         }
     }
     return NULL;
+}
+
+HttpHeader *http_headers_find_str(HttpHeaders *headers, const Str *key) {
+    if (!headers || !key) {
+        LOG_FATAL("invalid arguments");
+    }
+    // Str values are NUL-terminated by construction; comparison scans
+    // to '\0', so forward the .data view.
+    return http_headers_find_zstr(headers, key->data);
 }
 
 // ---------------------------------------------------------------------------
@@ -99,7 +108,7 @@ static HttpRequestMethod http_request_method_from_str(const Str *mstr) {
     return HTTP_REQUEST_METHOD_UNKNOWN;
 }
 
-const char *HttpRequestParse(HttpRequest *req, Zstr in) {
+const char *http_request_parse_zstr(HttpRequest *req, Zstr in) {
     if (!req || !req->allocator || !in) {
         LOG_FATAL("invalid arguments");
     }
@@ -156,6 +165,16 @@ const char *HttpRequestParse(HttpRequest *req, Zstr in) {
     }
 
     return cursor;
+}
+
+const char *http_request_parse_str(HttpRequest *req, const Str *in) {
+    if (!req || !in) {
+        LOG_FATAL("invalid arguments");
+    }
+    // Str values are NUL-terminated by construction; the underlying
+    // parser scans format-by-format with NUL-aware readers, so the
+    // .data view is sufficient.
+    return http_request_parse_zstr(req, in->data);
 }
 
 void HttpRequestDeinit(HttpRequest *req) {

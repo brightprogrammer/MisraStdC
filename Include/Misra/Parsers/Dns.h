@@ -116,7 +116,15 @@ extern "C" {
     ///           violations, or Vec growth failure. `out` is left
     ///           with whatever was written.
     ///
-    bool DnsBuildQuery(DnsWireBuf *out, u16 id, Zstr name, DnsType type);
+    bool dns_build_query_zstr(DnsWireBuf *out, u16 id, Zstr name, DnsType type);
+    bool dns_build_query_str(DnsWireBuf *out, u16 id, const Str *name, DnsType type);
+#define DnsBuildQuery(out, id, name, type)                                                                                                            \
+    _Generic((name), Str *: dns_build_query_str, const Str *: dns_build_query_str, char *: dns_build_query_zstr, const char *: dns_build_query_zstr)( \
+        (out),                                                                                                                                        \
+        (id),                                                                                                                                         \
+        (name),                                                                                                                                       \
+        (type)                                                                                                                                        \
+    )
 
     ///
     /// Parse a wire-format response into `out`. The caller is

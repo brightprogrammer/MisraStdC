@@ -176,7 +176,13 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg);
 /// SUCCESS : Newly allocated copy of stored `Str` value. Caller must `StrDeinit(...)` it.
 /// FAILURE : Empty `Str` if key does not exist.
 ///
-Str KvConfigGet(KvConfig *cfg, Zstr key);
+Str kvconfig_get_zstr(KvConfig *cfg, Zstr key);
+Str kvconfig_get_str(KvConfig *cfg, const Str *key);
+#define KvConfigGet(cfg, key)                                                                                                            \
+    _Generic((key), Str *: kvconfig_get_str, const Str *: kvconfig_get_str, char *: kvconfig_get_zstr, const char *: kvconfig_get_zstr)( \
+        (cfg),                                                                                                                           \
+        (key)                                                                                                                            \
+    )
 
 ///
 /// Get stored value for `key` by internal reference.
@@ -187,7 +193,13 @@ Str KvConfigGet(KvConfig *cfg, Zstr key);
 /// SUCCESS : Pointer to stored `Str` value. Do not deinitialize or mutate through ownership-sensitive APIs.
 /// FAILURE : `NULL` if key does not exist.
 ///
-Str *KvConfigGetPtr(KvConfig *cfg, Zstr key);
+Str *kvconfig_get_ptr_zstr(KvConfig *cfg, Zstr key);
+Str *kvconfig_get_ptr_str(KvConfig *cfg, const Str *key);
+#define KvConfigGetPtr(cfg, key)                                                                                                                         \
+    _Generic((key), Str *: kvconfig_get_ptr_str, const Str *: kvconfig_get_ptr_str, char *: kvconfig_get_ptr_zstr, const char *: kvconfig_get_ptr_zstr)( \
+        (cfg),                                                                                                                                           \
+        (key)                                                                                                                                            \
+    )
 
 ///
 /// Check whether a key exists in config.
@@ -198,7 +210,13 @@ Str *KvConfigGetPtr(KvConfig *cfg, Zstr key);
 /// SUCCESS : `true` if key exists.
 /// FAILURE : `false`
 ///
-bool KvConfigContains(KvConfig *cfg, Zstr key);
+bool kvconfig_contains_zstr(KvConfig *cfg, Zstr key);
+bool kvconfig_contains_str(KvConfig *cfg, const Str *key);
+#define KvConfigContains(cfg, key)                                                                                                                           \
+    _Generic((key), Str *: kvconfig_contains_str, const Str *: kvconfig_contains_str, char *: kvconfig_contains_zstr, const char *: kvconfig_contains_zstr)( \
+        (cfg),                                                                                                                                               \
+        (key)                                                                                                                                                \
+    )
 
 ///
 /// Parse and fetch a boolean config value.
@@ -212,7 +230,14 @@ bool KvConfigContains(KvConfig *cfg, Zstr key);
 /// SUCCESS : `true` if key exists and value is a valid boolean.
 /// FAILURE : `false`
 ///
-bool KvConfigGetBool(KvConfig *cfg, Zstr key, bool *value);
+bool kvconfig_get_bool_zstr(KvConfig *cfg, Zstr key, bool *value);
+bool kvconfig_get_bool_str(KvConfig *cfg, const Str *key, bool *value);
+#define KvConfigGetBool(cfg, key, value)                                                                                                                     \
+    _Generic((key), Str *: kvconfig_get_bool_str, const Str *: kvconfig_get_bool_str, char *: kvconfig_get_bool_zstr, const char *: kvconfig_get_bool_zstr)( \
+        (cfg),                                                                                                                                               \
+        (key),                                                                                                                                               \
+        (value)                                                                                                                                              \
+    )
 
 ///
 /// Parse and fetch a signed 64-bit integer config value.
@@ -224,7 +249,14 @@ bool KvConfigGetBool(KvConfig *cfg, Zstr key, bool *value);
 /// SUCCESS : `true` if key exists and value is a valid integer.
 /// FAILURE : `false`
 ///
-bool KvConfigGetI64(KvConfig *cfg, Zstr key, i64 *value);
+bool kvconfig_get_i64_zstr(KvConfig *cfg, Zstr key, i64 *value);
+bool kvconfig_get_i64_str(KvConfig *cfg, const Str *key, i64 *value);
+#define KvConfigGetI64(cfg, key, value)                                                                                                                  \
+    _Generic((key), Str *: kvconfig_get_i64_str, const Str *: kvconfig_get_i64_str, char *: kvconfig_get_i64_zstr, const char *: kvconfig_get_i64_zstr)( \
+        (cfg),                                                                                                                                           \
+        (key),                                                                                                                                           \
+        (value)                                                                                                                                          \
+    )
 
 ///
 /// Parse and fetch a double-precision floating config value.
@@ -236,6 +268,13 @@ bool KvConfigGetI64(KvConfig *cfg, Zstr key, i64 *value);
 /// SUCCESS : `true` if key exists and value is a valid float.
 /// FAILURE : `false`
 ///
-bool KvConfigGetF64(KvConfig *cfg, Zstr key, f64 *value);
+bool kvconfig_get_f64_zstr(KvConfig *cfg, Zstr key, f64 *value);
+bool kvconfig_get_f64_str(KvConfig *cfg, const Str *key, f64 *value);
+#define KvConfigGetF64(cfg, key, value)                                                                                                                  \
+    _Generic((key), Str *: kvconfig_get_f64_str, const Str *: kvconfig_get_f64_str, char *: kvconfig_get_f64_zstr, const char *: kvconfig_get_f64_zstr)( \
+        (cfg),                                                                                                                                           \
+        (key),                                                                                                                                           \
+        (value)                                                                                                                                          \
+    )
 
 #endif // MISRA_PARSERS_KVCONFIG_H

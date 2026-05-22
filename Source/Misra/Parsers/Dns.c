@@ -60,7 +60,7 @@ static bool encode_qname(DnsWireBuf *out, const char *name) {
     return BufWriteU8(out, 0);
 }
 
-bool DnsBuildQuery(DnsWireBuf *out, u16 id, const char *name, DnsType type) {
+bool dns_build_query_zstr(DnsWireBuf *out, u16 id, const char *name, DnsType type) {
     if (!out || !name) {
         return false;
     }
@@ -75,6 +75,15 @@ bool DnsBuildQuery(DnsWireBuf *out, u16 id, const char *name, DnsType type) {
     u16 qtype  = (u16)type;
     u16 qclass = 1u;
     return BufAppendFmt(out, "{>2r}{>2r}", qtype, qclass);
+}
+
+bool dns_build_query_str(DnsWireBuf *out, u16 id, const Str *name, DnsType type) {
+    if (!out || !name) {
+        return false;
+    }
+    // Str values are NUL-terminated by construction; encode_qname scans
+    // to '\0', so forward the .data view directly.
+    return dns_build_query_zstr(out, id, name->data, type);
 }
 
 // Decode a domain name starting at the iter's current position,

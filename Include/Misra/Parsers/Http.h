@@ -81,10 +81,22 @@ bool http_header_init_copy(void *dst, const void *src, const Allocator *alloc);
 ///
 /// Find a header by key (case-sensitive zero-terminated comparison).
 ///
-/// SUCCESS : Pointer to the matching header inside the vector.
-/// FAILURE : NULL if no header matches.
+/// headers[in] : Caller's `Vec(HttpHeader)` to search.
+/// key[in]     : Key to look up.
 ///
-HttpHeader *HttpHeadersFind(HttpHeaders *headers, Zstr key);
+/// SUCCESS : Returns a pointer to the matching header inside the
+///           vector. The pointer is valid until `*headers` is mutated
+///           or deinitialized.
+/// FAILURE : Returns `NULL` if no header matches; `*headers` is
+///           unchanged.
+///
+HttpHeader *http_headers_find_zstr(HttpHeaders *headers, Zstr key);
+HttpHeader *http_headers_find_str(HttpHeaders *headers, const Str *key);
+#define HttpHeadersFind(headers, key)                                                                                                                        \
+    _Generic((key), Str *: http_headers_find_str, const Str *: http_headers_find_str, char *: http_headers_find_zstr, const char *: http_headers_find_zstr)( \
+        (headers),                                                                                                                                           \
+        (key)                                                                                                                                                \
+    )
 
 typedef enum HttpResponseCode {
     HTTP_RESPONSE_CODE_INVALID = 0,
@@ -233,7 +245,13 @@ typedef struct HttpRequest {
 ///           (start of the body).
 /// FAILURE : Returns `in` unchanged when the input is malformed.
 ///
-Zstr HttpRequestParse(HttpRequest *req, Zstr in);
+Zstr http_request_parse_zstr(HttpRequest *req, Zstr in);
+Zstr http_request_parse_str(HttpRequest *req, const Str *in);
+#define HttpRequestParse(req, in)                                                                                                                               \
+    _Generic((in), Str *: http_request_parse_str, const Str *: http_request_parse_str, char *: http_request_parse_zstr, const char *: http_request_parse_zstr)( \
+        (req),                                                                                                                                                  \
+        (in)                                                                                                                                                    \
+    )
 
 ///
 /// Release storage owned by `req` and zero the struct. Safe to call on
