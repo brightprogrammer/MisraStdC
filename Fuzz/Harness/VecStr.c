@@ -344,7 +344,7 @@ void fuzz_str_vec(
 
         case VEC_STR_END : {
             if (VecLen(vec) > 0) {
-                char *end = VecEnd(vec);
+                Str *end = VecEnd(vec);
                 (void)end; // Use the result to avoid warnings
             }
             break;

@@ -24,7 +24,9 @@ static bool test_validate_corrupt_empty_list_fails(void) {
     WriteFmt("Testing ValidateList on corrupt empty list\n");
 
     List(int) list = ListInit(get_test_alloc());
-    list.head      = (void *)1;
+    // intentional corruption: bypass ListHead (read-only accessor) to plant
+    // a bogus head pointer so ValidateList trips its empty-but-head-set check.
+    list.head = (void *)1;
     ValidateList(&list);
 
     return false;
@@ -41,7 +43,9 @@ static bool test_validate_invalid_magic_fails(void) {
     WriteFmt("Testing ValidateList on invalid magic\n");
 
     List(int) list = ListInit(get_test_alloc());
-    list.__magic   = 0;
+    // intentional corruption: scramble the magic sentinel so ValidateList
+    // catches the type-confusion / uninitialised-handle path.
+    list.__magic = 0;
     ValidateList(&list);
 
     return false;
@@ -54,6 +58,8 @@ static bool test_validate_corrupt_nonempty_list_fails(void) {
     List(int) list       = ListInit(get_test_alloc());
     GenericList *g       = GENERIC_LIST(&list);
 
+    // intentional corruption: head set but tail null with length 1 -- proves
+    // ValidateList catches the head/tail consistency invariant.
     g->head   = &node;
     g->length = 1;
     g->tail   = NULL;
@@ -70,6 +76,8 @@ static bool test_validate_nonempty_head_null_fails(void) {
     List(int) list        = ListInit(get_test_alloc());
     GenericList *g        = GENERIC_LIST(&list);
 
+    // intentional corruption: length>0 with NULL head -- proves the
+    // empty-length-must-match-empty-list-pointer invariant fires.
     g->head   = NULL;
     g->tail   = &node;
     g->length = 1;

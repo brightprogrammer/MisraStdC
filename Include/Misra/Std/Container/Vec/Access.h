@@ -81,7 +81,7 @@
 ///
 /// TAGS: Vec, Access, Iterator, End
 ///
-#define VecEnd(v) ((char *)(v)->data + VecAlignedOffsetAt((v), (v)->length))
+#define VecEnd(v) ((VEC_DATATYPE(v) *)((char *)(v)->data + VecAlignedOffsetAt((v), (v)->length)))
 
 ///
 /// Total used storage in bytes (aligned element size times length). Use this

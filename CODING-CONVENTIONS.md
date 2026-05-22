@@ -38,6 +38,17 @@ of the codebase to see them in action.
   `Arena.last_ptr`, `Budget.buf`/`slots`, `ArenaChunk.base` follow this
   rule. The honest type matters: signed/unsigned, plain-char/typed-char
   divergence between platforms has bitten this codebase before.
+- **Pointers returned by macros over a typed container return the
+  contained type.** A macro that fishes an element pointer out of
+  `Vec(T)` / `Str` / `List(T)` / `BitVec` / ... returns `T *`, not
+  `char *` / `u8 *` / `void *`. `VecPtrAt`, `VecBegin`, `VecEnd`,
+  `VecAt`, `ListNodePtrAt`, etc. all cast their final result to
+  `VEC_DATATYPE(v) *` (or the equivalent type accessor) before
+  handing it back; the internal byte-arithmetic is `char *` so that
+  `Str` (a `Vec(char)`) proxies cleanly without `-Wpointer-sign`,
+  but the macro's *return* type is always the contained `T *`.
+  Callers receive a fully typed pointer they can deref / index
+  without a cast.
 
 ## API shape
 

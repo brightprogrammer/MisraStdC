@@ -35,7 +35,7 @@
 #define VecRemove(v, ptr, idx)                                                                                         \
     do {                                                                                                               \
         VEC_DATATYPE(v) *p = (ptr);                                                                                    \
-        remove_range_vec(GENERIC_VEC(v), (char *)p, sizeof(VEC_DATATYPE(v)), (idx), 1);                                \
+        remove_range_vec(GENERIC_VEC(v), p, sizeof(VEC_DATATYPE(v)), (idx), 1);                                \
     } while (0)
 
 ///
@@ -62,7 +62,7 @@
 #define VecRemoveFast(v, ptr, idx)                                                                                     \
     do {                                                                                                               \
         VEC_DATATYPE(v) *p = (ptr);                                                                                    \
-        fast_remove_range_vec(GENERIC_VEC(v), (char *)(p), sizeof(VEC_DATATYPE(v)), (idx), 1);                         \
+        fast_remove_range_vec(GENERIC_VEC(v), (p), sizeof(VEC_DATATYPE(v)), (idx), 1);                         \
     } while (0)
 
 ///
@@ -91,7 +91,7 @@
 #define VecRemoveRange(v, ptr, start, count)                                                                           \
     do {                                                                                                               \
         VEC_DATATYPE(v) *p = (ptr);                                                                                    \
-        remove_range_vec(GENERIC_VEC(v), (char *)p, sizeof(VEC_DATATYPE(v)), (start), (count));                        \
+        remove_range_vec(GENERIC_VEC(v), p, sizeof(VEC_DATATYPE(v)), (start), (count));                        \
     } while (0)
 
 ///
@@ -119,7 +119,7 @@
 #define VecRemoveRangeFast(v, ptr, start, count)                                                                       \
     do {                                                                                                               \
         VEC_DATATYPE(v) *p = (ptr);                                                                                    \
-        fast_remove_range_vec(GENERIC_VEC(v), (char *)p, sizeof(VEC_DATATYPE(v)), (start), (count));                   \
+        fast_remove_range_vec(GENERIC_VEC(v), p, sizeof(VEC_DATATYPE(v)), (start), (count));                   \
     } while (0)
 
 

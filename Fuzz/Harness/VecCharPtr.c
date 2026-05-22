@@ -370,7 +370,7 @@ void fuzz_char_ptr_vec(
 
         case VEC_CHAR_PTR_END : {
             if (VecLen(vec) > 0) {
-                char *end = VecEnd(vec);
+                char **end = VecEnd(vec);
                 (void)end; // Use the result to avoid warnings
             }
             break;
