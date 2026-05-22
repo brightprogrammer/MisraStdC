@@ -879,7 +879,7 @@ Str bitvec_to_str(BitVec *bv, Allocator *alloc) {
     return result;
 }
 
-bool bitvec_try_from_str(BitVec *out, const char *str, Allocator *alloc) {
+static bool bitvec_try_from_str_impl(BitVec *out, const char *str, u64 str_len, Allocator *alloc) {
     if (!str) {
         LOG_FATAL("str is NULL");
     }
@@ -889,7 +889,6 @@ bool bitvec_try_from_str(BitVec *out, const char *str, Allocator *alloc) {
 
     *out = BitVecInit(alloc);
 
-    u64 str_len = ZstrLen(str);
     if (!BitVecReserve(out, str_len)) {
         return false;
     }
@@ -914,10 +913,34 @@ bool bitvec_try_from_str(BitVec *out, const char *str, Allocator *alloc) {
     return true;
 }
 
-BitVec bitvec_from_str(const char *str, Allocator *alloc) {
+bool bitvec_try_from_str_zstr(BitVec *out, Zstr str, Allocator *alloc) {
+    if (!str) {
+        LOG_FATAL("str is NULL");
+    }
+    return bitvec_try_from_str_impl(out, str, (u64)ZstrLen(str), alloc);
+}
+
+bool bitvec_try_from_str_str(BitVec *out, const Str *str, Allocator *alloc) {
+    if (!str) {
+        LOG_FATAL("str is NULL");
+    }
+    return bitvec_try_from_str_impl(out, str->data, str->length, alloc);
+}
+
+BitVec bitvec_from_str_zstr(Zstr str, Allocator *alloc) {
     BitVec result;
 
-    if (!bitvec_try_from_str(&result, str, alloc)) {
+    if (!bitvec_try_from_str_zstr(&result, str, alloc)) {
+        result = BitVecInit(alloc);
+    }
+
+    return result;
+}
+
+BitVec bitvec_from_str_str(const Str *str, Allocator *alloc) {
+    BitVec result;
+
+    if (!bitvec_try_from_str_str(&result, str, alloc)) {
         result = BitVecInit(alloc);
     }
 
@@ -1862,7 +1885,7 @@ u64 BitVecFuzzyMatch(BitVec *bv, BitVec *pattern, u64 max_errors) {
     return SIZE_MAX;
 }
 
-bool BitVecRegexMatch(BitVec *bv, const char *pattern) {
+bool bitvec_regex_match_zstr(BitVec *bv, Zstr pattern) {
     ValidateBitVec(bv);
     if (!pattern) {
         LOG_FATAL("pattern is NULL");
@@ -1878,6 +1901,23 @@ bool BitVecRegexMatch(BitVec *bv, const char *pattern) {
 
     // Very basic pattern matching - just check if pattern is substring
     if (ZstrFindSubstring(bv_str.data, pattern) != NULL) {
+        result = true;
+    }
+
+    StrDeinit(&bv_str);
+    return result;
+}
+
+bool bitvec_regex_match_str(BitVec *bv, const Str *pattern) {
+    ValidateBitVec(bv);
+    if (!pattern) {
+        LOG_FATAL("pattern is NULL");
+    }
+
+    Str  bv_str = BitVecToStr(bv);
+    bool result = false;
+
+    if (ZstrFindSubstringN(bv_str.data, pattern->data, pattern->length) != NULL) {
         result = true;
     }
 

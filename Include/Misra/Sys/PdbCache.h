@@ -26,6 +26,7 @@
 #include <Misra/Parsers/Pdb.h>
 #include <Misra/Parsers/Pe.h>
 #include <Misra/Std/Allocator.h>
+#include <Misra/Std/Container/Str/Type.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Types.h>
 
@@ -85,7 +86,7 @@ void PdbCacheDeinit(PdbCache *self);
 ///           pairs with it, or the RVA falls outside every public
 ///           function.
 ///
-bool PdbCacheResolve(
+bool pdb_cache_resolve_zstr(
     PdbCache *self,
     Zstr      module_path,
     u64       module_base,
@@ -93,5 +94,22 @@ bool PdbCacheResolve(
     Zstr     *out_name,
     u32      *out_offset
 );
+bool pdb_cache_resolve_str(
+    PdbCache  *self,
+    const Str *module_path,
+    u64        module_base,
+    u64        runtime_ip,
+    Zstr      *out_name,
+    u32       *out_offset
+);
+#define PdbCacheResolve(self, module_path, module_base, runtime_ip, out_name, out_offset)                                                                            \
+    _Generic((module_path), Str *: pdb_cache_resolve_str, const Str *: pdb_cache_resolve_str, char *: pdb_cache_resolve_zstr, const char *: pdb_cache_resolve_zstr)( \
+        (self),                                                                                                                                                      \
+        (module_path),                                                                                                                                               \
+        (module_base),                                                                                                                                               \
+        (runtime_ip),                                                                                                                                                \
+        (out_name),                                                                                                                                                  \
+        (out_offset)                                                                                                                                                 \
+    )
 
 #endif // MISRA_SYS_PDB_CACHE_H

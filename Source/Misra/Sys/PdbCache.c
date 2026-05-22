@@ -188,7 +188,7 @@ void PdbCacheDeinit(PdbCache *self) {
     MemSet(self, 0, sizeof(*self));
 }
 
-bool PdbCacheResolve(
+bool pdb_cache_resolve_zstr(
     PdbCache    *self,
     const char  *module_path,
     u64          module_base,
@@ -221,4 +221,18 @@ bool PdbCacheResolve(
     if (out_offset)
         *out_offset = rva - f->rva;
     return true;
+}
+
+bool pdb_cache_resolve_str(
+    PdbCache    *self,
+    const Str   *module_path,
+    u64          module_base,
+    u64          runtime_ip,
+    const char **out_name,
+    u32         *out_offset
+) {
+    if (!module_path) {
+        return false;
+    }
+    return pdb_cache_resolve_zstr(self, module_path->data, module_base, runtime_ip, out_name, out_offset);
 }

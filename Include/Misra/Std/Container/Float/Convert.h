@@ -88,17 +88,32 @@ extern "C" {
     ///
     /// TAGS: Float, Convert, Parse, Decimal
     ///
-    bool FloatTryFromStr(Float *out, Zstr text);
+    bool float_try_from_str_zstr(Float *out, Zstr text);
+    bool float_try_from_str_str(Float *out, const Str *text);
+#define FloatTryFromStr(out, text)                                                                                                                                \
+    _Generic((text), Str *: float_try_from_str_str, const Str *: float_try_from_str_str, char *: float_try_from_str_zstr, const char *: float_try_from_str_zstr)( \
+        (out),                                                                                                                                                    \
+        (text)                                                                                                                                                    \
+    )
 
     ///
     /// Compatibility wrapper for `FloatTryFromStr(...)`.
     ///
     /// SUCCESS : Returns Parsed floating-point value, or zero on failure.
     ///
-    Float float_from_str(Zstr text, Allocator *alloc);
-#define FloatFromStr(...)           MISRA_OVERLOAD(FloatFromStr, __VA_ARGS__)
-#define FloatFromStr_1(text)        float_from_str((text), MisraScope)
-#define FloatFromStr_2(text, alloc) float_from_str((text), ALLOCATOR_OF(alloc))
+    Float float_from_str_zstr(Zstr text, Allocator *alloc);
+    Float float_from_str_str(const Str *text, Allocator *alloc);
+#define FloatFromStr(...) MISRA_OVERLOAD(FloatFromStr, __VA_ARGS__)
+#define FloatFromStr_1(text)                                                                                                                      \
+    _Generic((text), Str *: float_from_str_str, const Str *: float_from_str_str, char *: float_from_str_zstr, const char *: float_from_str_zstr)( \
+        (text),                                                                                                                                   \
+        MisraScope                                                                                                                                \
+    )
+#define FloatFromStr_2(text, alloc)                                                                                                               \
+    _Generic((text), Str *: float_from_str_str, const Str *: float_from_str_str, char *: float_from_str_zstr, const char *: float_from_str_zstr)( \
+        (text),                                                                                                                                   \
+        ALLOCATOR_OF(alloc)                                                                                                                       \
+    )
 
     /// Snake_case runtime helpers. User code calls the PascalCase macros
     /// below, which dispatch to these via MISRA_OVERLOAD.

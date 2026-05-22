@@ -112,7 +112,16 @@ extern "C" {
     ///           configured, no answer from any nameserver, NXDOMAIN,
     ///           transport error, response with no A/AAAA).
     ///
-    bool DnsResolve_5(DnsResolver *self, Zstr hostname, u16 port, SocketKind kind, DnsAddrs *out);
+    bool dns_resolve_5_zstr(DnsResolver *self, Zstr hostname, u16 port, SocketKind kind, DnsAddrs *out);
+    bool dns_resolve_5_str(DnsResolver *self, const Str *hostname, u16 port, SocketKind kind, DnsAddrs *out);
+#define DnsResolve_5(self, hostname, port, kind, out)                                                                                             \
+    _Generic((hostname), Str *: dns_resolve_5_str, const Str *: dns_resolve_5_str, char *: dns_resolve_5_zstr, const char *: dns_resolve_5_zstr)( \
+        (self),                                                                                                                                   \
+        (hostname),                                                                                                                               \
+        (port),                                                                                                                                   \
+        (kind),                                                                                                                                   \
+        (out)                                                                                                                                     \
+    )
 
     ///
     /// Spec-based overload (vec form). Accepts a single `"host:port"`
@@ -126,7 +135,15 @@ extern "C" {
     /// SUCCESS : Returns true. `out` has at least one new entry.
     /// FAILURE : Returns false. Logs the failure cause.
     ///
-    bool DnsResolve_4_vec(DnsResolver *self, Zstr spec, SocketKind kind, DnsAddrs *out);
+    bool dns_resolve_4_vec_zstr(DnsResolver *self, Zstr spec, SocketKind kind, DnsAddrs *out);
+    bool dns_resolve_4_vec_str(DnsResolver *self, const Str *spec, SocketKind kind, DnsAddrs *out);
+#define DnsResolve_4_vec(self, spec, kind, out)                                                                                                                \
+    (_Generic((spec), Str *: dns_resolve_4_vec_str, const Str *: dns_resolve_4_vec_str, char *: dns_resolve_4_vec_zstr, const char *: dns_resolve_4_vec_zstr)( \
+        (self),                                                                                                                                                \
+        (spec),                                                                                                                                                \
+        (kind),                                                                                                                                                \
+        (out)                                                                                                                                                  \
+    ))
 
     ///
     /// Spec-based overload (single-addr form). Same parse path as the
@@ -147,8 +164,13 @@ extern "C" {
     /// single-addr form.
     ///
 #define DnsResolve(...) MISRA_OVERLOAD(DnsResolve, __VA_ARGS__)
-#define DnsResolve_4(self, spec, kind, out)                                                                            \
-    _Generic((out), DnsAddrs *: DnsResolve_4_vec, SocketAddr *: DnsResolve_4_one)((self), (spec), (kind), (out))
+#define DnsResolve_4(self, spec, kind, out)                                                                                                                                                                                \
+    _Generic((out), DnsAddrs *: _Generic((spec), Str *: dns_resolve_4_vec_str, const Str *: dns_resolve_4_vec_str, char *: dns_resolve_4_vec_zstr, const char *: dns_resolve_4_vec_zstr), SocketAddr *: DnsResolve_4_one)( \
+        (self),                                                                                                                                                                                                            \
+        (spec),                                                                                                                                                                                                            \
+        (kind),                                                                                                                                                                                                            \
+        (out)                                                                                                                                                                                                              \
+    )
 
 #ifdef __cplusplus
 }

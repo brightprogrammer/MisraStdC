@@ -735,7 +735,7 @@ bool test_bitvec_from_string_null_failures(void) {
     WriteFmt("Testing BitVec from string NULL handling\n");
 
     // Test NULL string - should abort
-    BitVecFromStr(NULL, ALLOCATOR_OF(&alloc));
+    BitVecFromStr((Zstr)NULL, ALLOCATOR_OF(&alloc));
 
     DefaultAllocatorDeinit(&alloc);
 

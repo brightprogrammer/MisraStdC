@@ -8,6 +8,7 @@
 #define MISRA_STD_CONTAINER_BITVEC_PATTERN_H
 
 #include "Type.h"
+#include <Misra/Std/Container/Str/Type.h>
 #include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
 
@@ -237,7 +238,13 @@ extern "C" {
     ///
     /// TAGS: BitVec, Pattern, Regex, Match
     ///
-    bool BitVecRegexMatch(BitVec *bv, Zstr pattern);
+    bool bitvec_regex_match_zstr(BitVec *bv, Zstr pattern);
+    bool bitvec_regex_match_str(BitVec *bv, const Str *pattern);
+#define BitVecRegexMatch(bv, pattern)                                                                                                                                \
+    _Generic((pattern), Str *: bitvec_regex_match_str, const Str *: bitvec_regex_match_str, char *: bitvec_regex_match_zstr, const char *: bitvec_regex_match_zstr)( \
+        (bv),                                                                                                                                                        \
+        (pattern)                                                                                                                                                    \
+    )
 
     ///
     /// Match bitvector against an array of prefix patterns.

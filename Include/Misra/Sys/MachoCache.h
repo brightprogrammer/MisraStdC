@@ -24,6 +24,7 @@
 #include <Misra/Parsers/Dwarf.h>
 #include <Misra/Parsers/MachO.h>
 #include <Misra/Std/Allocator.h>
+#include <Misra/Std/Container/Str/Type.h>
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Types.h>
 
@@ -90,6 +91,30 @@ void MachoCacheDeinit(MachoCache *self);
 /// FAILURE : Returns false if the module can't be opened or the IP
 ///           falls outside any symbol / function.
 ///
-bool MachoCacheResolve(MachoCache *self, Zstr module_path, u64 slide, u64 runtime_ip, Zstr *out_name, u32 *out_offset);
+bool macho_cache_resolve_zstr(
+    MachoCache *self,
+    Zstr        module_path,
+    u64         slide,
+    u64         runtime_ip,
+    Zstr       *out_name,
+    u32        *out_offset
+);
+bool macho_cache_resolve_str(
+    MachoCache *self,
+    const Str  *module_path,
+    u64         slide,
+    u64         runtime_ip,
+    Zstr       *out_name,
+    u32        *out_offset
+);
+#define MachoCacheResolve(self, module_path, slide, runtime_ip, out_name, out_offset)                                                                                        \
+    _Generic((module_path), Str *: macho_cache_resolve_str, const Str *: macho_cache_resolve_str, char *: macho_cache_resolve_zstr, const char *: macho_cache_resolve_zstr)( \
+        (self),                                                                                                                                                              \
+        (module_path),                                                                                                                                                       \
+        (slide),                                                                                                                                                             \
+        (runtime_ip),                                                                                                                                                        \
+        (out_name),                                                                                                                                                          \
+        (out_offset)                                                                                                                                                         \
+    )
 
 #endif // MISRA_SYS_MACHO_CACHE_H

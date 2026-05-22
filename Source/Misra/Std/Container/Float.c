@@ -486,7 +486,7 @@ bool FloatToInt(Int *result, Float *value) {
     return true;
 }
 
-bool FloatTryFromStr(Float *out, Zstr text) {
+static bool float_try_from_str_impl(Float *out, const char *text, size length) {
     Float result;
     Str   digits;
     size  pos          = 0;
@@ -504,12 +504,12 @@ bool FloatTryFromStr(Float *out, Zstr text) {
     result = FloatInit(out->significand.bits.allocator);
     digits = StrInit(out->significand.bits.allocator);
 
-    if (text[pos] == '+' || text[pos] == '-') {
+    if (pos < length && (text[pos] == '+' || text[pos] == '-')) {
         negative = text[pos] == '-';
         pos++;
     }
 
-    for (; text[pos] != '\0'; pos++) {
+    for (; pos < length; pos++) {
         char ch = text[pos];
 
         if (ch >= '0' && ch <= '9') {
@@ -538,23 +538,38 @@ bool FloatTryFromStr(Float *out, Zstr text) {
         }
 
         if (ch == 'e' || ch == 'E') {
-            Zstr      endptr = NULL;
-            long long parsed = 0;
+            const char *endptr     = NULL;
+            const char *exp_start  = NULL;
+            long long   parsed     = 0;
+            size        exp_offset = 0;
 
             pos++;
-            if (text[pos] == '\0') {
+            if (pos >= length) {
                 LOG_ERROR("Invalid Float exponent");
                 goto fail;
             }
 
-            parsed = ZstrToI64(text + pos, &endptr);
-            if (endptr == text + pos || *endptr != '\0') {
+            // ZstrToI64 needs a NUL-terminated string. Within the Str-arm
+            // we have a length-bounded view; the Str values in this
+            // codebase are NUL-terminated by construction, so reading via
+            // text+pos as a Zstr is safe. We additionally require the
+            // parsed exponent to consume to the end of the bounded view
+            // for validity.
+            exp_start = text + pos;
+            parsed    = ZstrToI64(exp_start, &endptr);
+            if (endptr == exp_start) {
+                LOG_ERROR("Invalid Float exponent");
+                goto fail;
+            }
+
+            exp_offset = (size)(endptr - text);
+            if (exp_offset != length) {
                 LOG_ERROR("Invalid Float exponent");
                 goto fail;
             }
 
             explicit_exp = (i64)parsed;
-            pos          = (size)(endptr - text);
+            pos          = exp_offset;
             break;
         }
 
@@ -567,7 +582,7 @@ bool FloatTryFromStr(Float *out, Zstr text) {
         goto fail;
     }
 
-    if (!IntTryFromStr(&result.significand, digits.data)) {
+    if (!IntTryFromStr(&result.significand, &digits)) {
         goto fail;
     }
 
@@ -591,10 +606,31 @@ fail:
     return false;
 }
 
-Float float_from_str(Zstr text, Allocator *alloc) {
+bool float_try_from_str_zstr(Float *out, Zstr text) {
+    if (!out || !text) {
+        LOG_FATAL("Invalid arguments");
+    }
+    return float_try_from_str_impl(out, text, (size)ZstrLen(text));
+}
+
+bool float_try_from_str_str(Float *out, const Str *text) {
+    if (!out || !text) {
+        LOG_FATAL("Invalid arguments");
+    }
+    return float_try_from_str_impl(out, text->data, text->length);
+}
+
+Float float_from_str_zstr(Zstr text, Allocator *alloc) {
     Float result = FloatInit(alloc);
 
-    (void)FloatTryFromStr(&result, text);
+    (void)float_try_from_str_zstr(&result, text);
+    return result;
+}
+
+Float float_from_str_str(const Str *text, Allocator *alloc) {
+    Float result = FloatInit(alloc);
+
+    (void)float_try_from_str_str(&result, text);
     return result;
 }
 

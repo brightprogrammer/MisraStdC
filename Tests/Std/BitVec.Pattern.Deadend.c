@@ -277,7 +277,7 @@ bool test_bitvec_regex_match_null_pattern(void) {
     WriteFmt("Testing BitVecRegexMatch(source, NULL) - should fatal\n");
     BitVec source = BitVecInit(ALLOCATOR_OF(&alloc));
     BitVecPush(&source, true);
-    BitVecRegexMatch(&source, NULL);
+    BitVecRegexMatch(&source, (Zstr)NULL);
     BitVecDeinit(&source);
     DefaultAllocatorDeinit(&alloc);
     return true;

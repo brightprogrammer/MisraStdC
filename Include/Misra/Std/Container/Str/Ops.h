@@ -315,7 +315,13 @@ extern "C" {
     /// SUCCESS : StrIters vector of non-zero length
     /// FAILURE : StrIters vector of zero-length
     ///
-    StrIters StrSplitToIters(Str *s, Zstr key);
+    StrIters str_split_to_iters_zstr(Str *s, Zstr key);
+    StrIters str_split_to_iters_str(Str *s, const Str *key);
+#define StrSplitToIters(s, key)                                                                                                                                  \
+    _Generic((key), Str *: str_split_to_iters_str, const Str *: str_split_to_iters_str, char *: str_split_to_iters_zstr, const char *: str_split_to_iters_zstr)( \
+        (s),                                                                                                                                                     \
+        (key)                                                                                                                                                    \
+    )
 
     ///
     /// Split the given Str object into multiple Str objects stored in a vector
@@ -332,7 +338,13 @@ extern "C" {
     /// SUCCESS : Strs vector of non-zero length
     /// FAILURE : Strs vector of zero-length
     ///
-    Strs StrSplit(Str *s, Zstr key);
+    Strs str_split_zstr(Str *s, Zstr key);
+    Strs str_split_str(Str *s, const Str *key);
+#define StrSplit(s, key)                                                                                                     \
+    _Generic((key), Str *: str_split_str, const Str *: str_split_str, char *: str_split_zstr, const char *: str_split_zstr)( \
+        (s),                                                                                                                 \
+        (key)                                                                                                                \
+    )
 
     //
     // Strip Operations

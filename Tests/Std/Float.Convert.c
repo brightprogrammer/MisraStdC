@@ -220,9 +220,9 @@ bool test_float_from_str_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Float parsed = FloatFromStr(NULL, &alloc.base);
+    Float parsed = FloatFromStr((Zstr)NULL, &alloc.base);
     Float value  = FloatInit(&alloc.base);
-    bool  result = !FloatTryFromStr(&value, NULL);
+    bool  result = !FloatTryFromStr(&value, (Zstr)NULL);
 
     result = result && FloatIsZero(&parsed);
     result = result && FloatIsZero(&value);

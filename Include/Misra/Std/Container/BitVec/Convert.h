@@ -66,10 +66,21 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, String, Allocator
     ///
-    bool bitvec_try_from_str(BitVec *out, Zstr str, Allocator *alloc);
-#define BitVecTryFromStr(...)               MISRA_OVERLOAD(BitVecTryFromStr, __VA_ARGS__)
-#define BitVecTryFromStr_2(out, str)        bitvec_try_from_str((out), (str), MisraScope)
-#define BitVecTryFromStr_3(out, str, alloc) bitvec_try_from_str((out), (str), ALLOCATOR_OF(alloc))
+    bool bitvec_try_from_str_zstr(BitVec *out, Zstr str, Allocator *alloc);
+    bool bitvec_try_from_str_str(BitVec *out, const Str *str, Allocator *alloc);
+#define BitVecTryFromStr(...) MISRA_OVERLOAD(BitVecTryFromStr, __VA_ARGS__)
+#define BitVecTryFromStr_2(out, str)                                                                                                                                 \
+    _Generic((str), Str *: bitvec_try_from_str_str, const Str *: bitvec_try_from_str_str, char *: bitvec_try_from_str_zstr, const char *: bitvec_try_from_str_zstr)( \
+        (out),                                                                                                                                                       \
+        (str),                                                                                                                                                       \
+        MisraScope                                                                                                                                                   \
+    )
+#define BitVecTryFromStr_3(out, str, alloc)                                                                                                                          \
+    _Generic((str), Str *: bitvec_try_from_str_str, const Str *: bitvec_try_from_str_str, char *: bitvec_try_from_str_zstr, const char *: bitvec_try_from_str_zstr)( \
+        (out),                                                                                                                                                       \
+        (str),                                                                                                                                                       \
+        ALLOCATOR_OF(alloc)                                                                                                                                          \
+    )
 
     ///
     /// Parse a bitvector from a null-terminated string using an explicit allocator.
@@ -82,10 +93,19 @@ extern "C" {
     ///
     /// TAGS: BitVec, Convert, String, Allocator
     ///
-    BitVec bitvec_from_str(Zstr str, Allocator *alloc);
-#define BitVecFromStr(...)          MISRA_OVERLOAD(BitVecFromStr, __VA_ARGS__)
-#define BitVecFromStr_1(str)        bitvec_from_str((str), MisraScope)
-#define BitVecFromStr_2(str, alloc) bitvec_from_str((str), ALLOCATOR_OF(alloc))
+    BitVec bitvec_from_str_zstr(Zstr str, Allocator *alloc);
+    BitVec bitvec_from_str_str(const Str *str, Allocator *alloc);
+#define BitVecFromStr(...) MISRA_OVERLOAD(BitVecFromStr, __VA_ARGS__)
+#define BitVecFromStr_1(str)                                                                                                                         \
+    _Generic((str), Str *: bitvec_from_str_str, const Str *: bitvec_from_str_str, char *: bitvec_from_str_zstr, const char *: bitvec_from_str_zstr)( \
+        (str),                                                                                                                                       \
+        MisraScope                                                                                                                                   \
+    )
+#define BitVecFromStr_2(str, alloc)                                                                                                                  \
+    _Generic((str), Str *: bitvec_from_str_str, const Str *: bitvec_from_str_str, char *: bitvec_from_str_zstr, const char *: bitvec_from_str_zstr)( \
+        (str),                                                                                                                                       \
+        ALLOCATOR_OF(alloc)                                                                                                                          \
+    )
 
     ///
     /// Export bitvector to byte array.

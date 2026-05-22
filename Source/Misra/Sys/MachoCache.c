@@ -187,7 +187,7 @@ void MachoCacheDeinit(MachoCache *self) {
     MemSet(self, 0, sizeof(*self));
 }
 
-bool MachoCacheResolve(
+bool macho_cache_resolve_zstr(
     MachoCache  *self,
     const char  *module_path,
     u64          slide,
@@ -242,4 +242,18 @@ bool MachoCacheResolve(
     }
 
     return false;
+}
+
+bool macho_cache_resolve_str(
+    MachoCache  *self,
+    const Str   *module_path,
+    u64          slide,
+    u64          runtime_ip,
+    const char **out_name,
+    u32         *out_offset
+) {
+    if (!module_path) {
+        return false;
+    }
+    return macho_cache_resolve_zstr(self, module_path->data, slide, runtime_ip, out_name, out_offset);
 }

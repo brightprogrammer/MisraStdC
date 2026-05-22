@@ -118,17 +118,35 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, Parse, Radix
     ///
-    bool IntTryFromStrRadix(Int *out, Zstr digits, u8 radix);
+    bool int_try_from_str_radix_zstr(Int *out, Zstr digits, u8 radix);
+    bool int_try_from_str_radix_str(Int *out, const Str *digits, u8 radix);
+#define IntTryFromStrRadix(out, digits, radix)                                                                                                                                      \
+    _Generic((digits), Str *: int_try_from_str_radix_str, const Str *: int_try_from_str_radix_str, char *: int_try_from_str_radix_zstr, const char *: int_try_from_str_radix_zstr)( \
+        (out),                                                                                                                                                                      \
+        (digits),                                                                                                                                                                   \
+        (radix)                                                                                                                                                                     \
+    )
 
     ///
     /// Compatibility wrapper for `IntTryFromStrRadix(...)`.
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int int_from_str_radix(Zstr digits, u8 radix, Allocator *alloc);
-#define IntFromStrRadix(...)                    MISRA_OVERLOAD(IntFromStrRadix, __VA_ARGS__)
-#define IntFromStrRadix_2(digits, radix)        int_from_str_radix((digits), (radix), MisraScope)
-#define IntFromStrRadix_3(digits, radix, alloc) int_from_str_radix((digits), (radix), ALLOCATOR_OF(alloc))
+    Int int_from_str_radix_zstr(Zstr digits, u8 radix, Allocator *alloc);
+    Int int_from_str_radix_str(const Str *digits, u8 radix, Allocator *alloc);
+#define IntFromStrRadix(...) MISRA_OVERLOAD(IntFromStrRadix, __VA_ARGS__)
+#define IntFromStrRadix_2(digits, radix)                                                                                                                            \
+    _Generic((digits), Str *: int_from_str_radix_str, const Str *: int_from_str_radix_str, char *: int_from_str_radix_zstr, const char *: int_from_str_radix_zstr)( \
+        (digits),                                                                                                                                                   \
+        (radix),                                                                                                                                                    \
+        MisraScope                                                                                                                                                  \
+    )
+#define IntFromStrRadix_3(digits, radix, alloc)                                                                                                                     \
+    _Generic((digits), Str *: int_from_str_radix_str, const Str *: int_from_str_radix_str, char *: int_from_str_radix_zstr, const char *: int_from_str_radix_zstr)( \
+        (digits),                                                                                                                                                   \
+        (radix),                                                                                                                                                    \
+        ALLOCATOR_OF(alloc)                                                                                                                                         \
+    )
 
     ///
     /// Convert an integer to text in the given radix using an explicit allocator.
@@ -165,17 +183,32 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, Parse, Decimal
     ///
-    bool IntTryFromStr(Int *out, Zstr decimal);
+    bool int_try_from_str_zstr(Int *out, Zstr decimal);
+    bool int_try_from_str_str(Int *out, const Str *decimal);
+#define IntTryFromStr(out, decimal)                                                                                                                          \
+    _Generic((decimal), Str *: int_try_from_str_str, const Str *: int_try_from_str_str, char *: int_try_from_str_zstr, const char *: int_try_from_str_zstr)( \
+        (out),                                                                                                                                               \
+        (decimal)                                                                                                                                            \
+    )
 
     ///
     /// Compatibility wrapper for `IntTryFromStr(...)`.
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int int_from_str(Zstr decimal, Allocator *alloc);
-#define IntFromStr(...)              MISRA_OVERLOAD(IntFromStr, __VA_ARGS__)
-#define IntFromStr_1(decimal)        int_from_str((decimal), MisraScope)
-#define IntFromStr_2(decimal, alloc) int_from_str((decimal), ALLOCATOR_OF(alloc))
+    Int int_from_str_zstr(Zstr decimal, Allocator *alloc);
+    Int int_from_str_str(const Str *decimal, Allocator *alloc);
+#define IntFromStr(...) MISRA_OVERLOAD(IntFromStr, __VA_ARGS__)
+#define IntFromStr_1(decimal)                                                                                                                \
+    _Generic((decimal), Str *: int_from_str_str, const Str *: int_from_str_str, char *: int_from_str_zstr, const char *: int_from_str_zstr)( \
+        (decimal),                                                                                                                           \
+        MisraScope                                                                                                                           \
+    )
+#define IntFromStr_2(decimal, alloc)                                                                                                         \
+    _Generic((decimal), Str *: int_from_str_str, const Str *: int_from_str_str, char *: int_from_str_zstr, const char *: int_from_str_zstr)( \
+        (decimal),                                                                                                                           \
+        ALLOCATOR_OF(alloc)                                                                                                                  \
+    )
 
     ///
     /// Convert an integer to a decimal string using an explicit allocator.
@@ -210,17 +243,32 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, Parse, Binary
     ///
-    bool IntTryFromBinary(Int *out, Zstr binary);
+    bool int_try_from_binary_zstr(Int *out, Zstr binary);
+    bool int_try_from_binary_str(Int *out, const Str *binary);
+#define IntTryFromBinary(out, binary)                                                                                                                                   \
+    _Generic((binary), Str *: int_try_from_binary_str, const Str *: int_try_from_binary_str, char *: int_try_from_binary_zstr, const char *: int_try_from_binary_zstr)( \
+        (out),                                                                                                                                                          \
+        (binary)                                                                                                                                                        \
+    )
 
     ///
     /// Compatibility wrapper for `IntTryFromBinary(...)`.
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int int_from_binary(Zstr binary, Allocator *alloc);
-#define IntFromBinary(...)             MISRA_OVERLOAD(IntFromBinary, __VA_ARGS__)
-#define IntFromBinary_1(binary)        int_from_binary((binary), MisraScope)
-#define IntFromBinary_2(binary, alloc) int_from_binary((binary), ALLOCATOR_OF(alloc))
+    Int int_from_binary_zstr(Zstr binary, Allocator *alloc);
+    Int int_from_binary_str(const Str *binary, Allocator *alloc);
+#define IntFromBinary(...) MISRA_OVERLOAD(IntFromBinary, __VA_ARGS__)
+#define IntFromBinary_1(binary)                                                                                                                         \
+    _Generic((binary), Str *: int_from_binary_str, const Str *: int_from_binary_str, char *: int_from_binary_zstr, const char *: int_from_binary_zstr)( \
+        (binary),                                                                                                                                       \
+        MisraScope                                                                                                                                      \
+    )
+#define IntFromBinary_2(binary, alloc)                                                                                                                  \
+    _Generic((binary), Str *: int_from_binary_str, const Str *: int_from_binary_str, char *: int_from_binary_zstr, const char *: int_from_binary_zstr)( \
+        (binary),                                                                                                                                       \
+        ALLOCATOR_OF(alloc)                                                                                                                             \
+    )
 
     ///
     /// Convert an integer to a binary string.
@@ -246,17 +294,32 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, Parse, Octal
     ///
-    bool IntTryFromOctStr(Int *out, Zstr octal);
+    bool int_try_from_oct_str_zstr(Int *out, Zstr octal);
+    bool int_try_from_oct_str_str(Int *out, const Str *octal);
+#define IntTryFromOctStr(out, octal)                                                                                                                                       \
+    _Generic((octal), Str *: int_try_from_oct_str_str, const Str *: int_try_from_oct_str_str, char *: int_try_from_oct_str_zstr, const char *: int_try_from_oct_str_zstr)( \
+        (out),                                                                                                                                                             \
+        (octal)                                                                                                                                                            \
+    )
 
     ///
     /// Compatibility wrapper for `IntTryFromOctStr(...)`.
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int int_from_oct_str(Zstr octal, Allocator *alloc);
-#define IntFromOctStr(...)            MISRA_OVERLOAD(IntFromOctStr, __VA_ARGS__)
-#define IntFromOctStr_1(octal)        int_from_oct_str((octal), MisraScope)
-#define IntFromOctStr_2(octal, alloc) int_from_oct_str((octal), ALLOCATOR_OF(alloc))
+    Int int_from_oct_str_zstr(Zstr octal, Allocator *alloc);
+    Int int_from_oct_str_str(const Str *octal, Allocator *alloc);
+#define IntFromOctStr(...) MISRA_OVERLOAD(IntFromOctStr, __VA_ARGS__)
+#define IntFromOctStr_1(octal)                                                                                                                             \
+    _Generic((octal), Str *: int_from_oct_str_str, const Str *: int_from_oct_str_str, char *: int_from_oct_str_zstr, const char *: int_from_oct_str_zstr)( \
+        (octal),                                                                                                                                           \
+        MisraScope                                                                                                                                         \
+    )
+#define IntFromOctStr_2(octal, alloc)                                                                                                                      \
+    _Generic((octal), Str *: int_from_oct_str_str, const Str *: int_from_oct_str_str, char *: int_from_oct_str_zstr, const char *: int_from_oct_str_zstr)( \
+        (octal),                                                                                                                                           \
+        ALLOCATOR_OF(alloc)                                                                                                                                \
+    )
 
     ///
     /// Convert an integer to an octal string.
@@ -284,17 +347,32 @@ extern "C" {
     ///
     /// TAGS: Int, Convert, Parse, Hex
     ///
-    bool IntTryFromHexStr(Int *out, Zstr hex);
+    bool int_try_from_hex_str_zstr(Int *out, Zstr hex);
+    bool int_try_from_hex_str_str(Int *out, const Str *hex);
+#define IntTryFromHexStr(out, hex)                                                                                                                                       \
+    _Generic((hex), Str *: int_try_from_hex_str_str, const Str *: int_try_from_hex_str_str, char *: int_try_from_hex_str_zstr, const char *: int_try_from_hex_str_zstr)( \
+        (out),                                                                                                                                                           \
+        (hex)                                                                                                                                                            \
+    )
 
     ///
     /// Compatibility wrapper for `IntTryFromHexStr(...)`.
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
     ///
-    Int int_from_hex_str(Zstr hex, Allocator *alloc);
-#define IntFromHexStr(...)          MISRA_OVERLOAD(IntFromHexStr, __VA_ARGS__)
-#define IntFromHexStr_1(hex)        int_from_hex_str((hex), MisraScope)
-#define IntFromHexStr_2(hex, alloc) int_from_hex_str((hex), ALLOCATOR_OF(alloc))
+    Int int_from_hex_str_zstr(Zstr hex, Allocator *alloc);
+    Int int_from_hex_str_str(const Str *hex, Allocator *alloc);
+#define IntFromHexStr(...) MISRA_OVERLOAD(IntFromHexStr, __VA_ARGS__)
+#define IntFromHexStr_1(hex)                                                                                                                             \
+    _Generic((hex), Str *: int_from_hex_str_str, const Str *: int_from_hex_str_str, char *: int_from_hex_str_zstr, const char *: int_from_hex_str_zstr)( \
+        (hex),                                                                                                                                           \
+        MisraScope                                                                                                                                       \
+    )
+#define IntFromHexStr_2(hex, alloc)                                                                                                                      \
+    _Generic((hex), Str *: int_from_hex_str_str, const Str *: int_from_hex_str_str, char *: int_from_hex_str_zstr, const char *: int_from_hex_str_zstr)( \
+        (hex),                                                                                                                                           \
+        ALLOCATOR_OF(alloc)                                                                                                                              \
+    )
 
     ///
     /// Convert an integer to a hexadecimal string.

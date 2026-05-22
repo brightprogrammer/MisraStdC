@@ -572,7 +572,7 @@ static bool try_one_query(
     return found;
 }
 
-bool DnsResolve_5(DnsResolver *self, const char *hostname, u16 port, SocketKind kind, DnsAddrs *out) {
+bool dns_resolve_5_zstr(DnsResolver *self, const char *hostname, u16 port, SocketKind kind, DnsAddrs *out) {
     (void)kind; // protocol byte doesn't affect resolution
     if (!self || !hostname || !out) {
         return false;
@@ -637,7 +637,7 @@ next_qtype:;
     return found;
 }
 
-bool DnsResolve_4_vec(DnsResolver *self, const char *spec, SocketKind kind, DnsAddrs *out) {
+bool dns_resolve_4_vec_zstr(DnsResolver *self, const char *spec, SocketKind kind, DnsAddrs *out) {
     if (!self || !spec || !out) {
         return false;
     }
@@ -696,7 +696,21 @@ bool DnsResolve_4_vec(DnsResolver *self, const char *spec, SocketKind kind, DnsA
         return false;
     }
 
-    return DnsResolve_5(self, host, port, kind, out);
+    return dns_resolve_5_zstr(self, host, port, kind, out);
+}
+
+bool dns_resolve_5_str(DnsResolver *self, const Str *hostname, u16 port, SocketKind kind, DnsAddrs *out) {
+    if (!self || !hostname || !out) {
+        return false;
+    }
+    return dns_resolve_5_zstr(self, hostname->data, port, kind, out);
+}
+
+bool dns_resolve_4_vec_str(DnsResolver *self, const Str *spec, SocketKind kind, DnsAddrs *out) {
+    if (!self || !spec || !out) {
+        return false;
+    }
+    return dns_resolve_4_vec_zstr(self, spec->data, kind, out);
 }
 
 bool DnsResolve_4_one(DnsResolver *self, const char *spec, SocketKind kind, SocketAddr *out) {
@@ -704,7 +718,7 @@ bool DnsResolve_4_one(DnsResolver *self, const char *spec, SocketKind kind, Sock
         return false;
     }
     DnsAddrs addrs    = VecInitT(addrs, self->alloc);
-    bool     ok       = DnsResolve_4_vec(self, spec, kind, &addrs);
+    bool     ok       = dns_resolve_4_vec_zstr(self, spec, kind, &addrs);
     bool     have_one = ok && addrs.length > 0;
     if (have_one) {
         *out = addrs.data[0];

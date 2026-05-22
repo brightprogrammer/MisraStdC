@@ -405,9 +405,9 @@ bool test_int_from_binary_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromBinary(NULL, &alloc.base);
+    Int  parsed = IntFromBinary((Zstr)NULL, &alloc.base);
     Int  value  = IntInit(&alloc.base);
-    bool result = !IntTryFromBinary(&value, NULL);
+    bool result = !IntTryFromBinary(&value, (Zstr)NULL);
 
     result = result && IntIsZero(&parsed);
     result = result && IntIsZero(&value);
@@ -423,9 +423,9 @@ bool test_int_from_decimal_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromStr(NULL, &alloc.base);
+    Int  parsed = IntFromStr((Zstr)NULL, &alloc.base);
     Int  value  = IntInit(&alloc.base);
-    bool result = !IntTryFromStr(&value, NULL);
+    bool result = !IntTryFromStr(&value, (Zstr)NULL);
 
     result = result && IntIsZero(&parsed);
     result = result && IntIsZero(&value);
@@ -441,9 +441,9 @@ bool test_int_from_radix_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromStrRadix(NULL, 10, &alloc.base);
+    Int  parsed = IntFromStrRadix((Zstr)NULL, 10, &alloc.base);
     Int  value  = IntInit(&alloc.base);
-    bool result = !IntTryFromStrRadix(&value, NULL, 10);
+    bool result = !IntTryFromStrRadix(&value, (Zstr)NULL, 10);
 
     result = result && IntIsZero(&parsed);
     result = result && IntIsZero(&value);
@@ -459,9 +459,9 @@ bool test_int_from_octal_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromOctStr(NULL, &alloc.base);
+    Int  parsed = IntFromOctStr((Zstr)NULL, &alloc.base);
     Int  value  = IntInit(&alloc.base);
-    bool result = !IntTryFromOctStr(&value, NULL);
+    bool result = !IntTryFromOctStr(&value, (Zstr)NULL);
 
     result = result && IntIsZero(&parsed);
     result = result && IntIsZero(&value);
@@ -477,9 +477,9 @@ bool test_int_from_hex_null(void) {
 
     DefaultAllocator alloc = DefaultAllocatorInit();
 
-    Int  parsed = IntFromHexStr(NULL, &alloc.base);
+    Int  parsed = IntFromHexStr((Zstr)NULL, &alloc.base);
     Int  value  = IntInit(&alloc.base);
-    bool result = !IntTryFromHexStr(&value, NULL);
+    bool result = !IntTryFromHexStr(&value, (Zstr)NULL);
 
     result = result && IntIsZero(&parsed);
     result = result && IntIsZero(&value);

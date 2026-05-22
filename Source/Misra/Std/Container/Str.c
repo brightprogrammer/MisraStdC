@@ -159,16 +159,15 @@ void str_deinit(void *copy, const Allocator *alloc) {
     StrDeinit((Str *)copy);
 }
 
-StrIters StrSplitToIters(Str *s, Zstr key) {
+static StrIters str_split_to_iters_impl(Str *s, const char *key, size keylen) {
     ValidateStr(s);
 
-    StrIters sv     = (StrIters)VecInit(s->allocator);
-    size     keylen = ZstrLen(key);
-    Zstr     prev   = s->data;
-    Zstr     end    = s->data + s->length;
+    StrIters sv   = (StrIters)VecInit(s->allocator);
+    Zstr     prev = s->data;
+    Zstr     end  = s->data + s->length;
 
     while (prev <= end) {
-        Zstr next = ZstrFindSubstring(prev, key);
+        Zstr next = ZstrFindSubstringN(prev, key, keylen);
         if (next) {
             StrIter si = {.data = (char *)prev, .length = next - prev, .pos = 0, .alignment = 1};
             VecPushBack(&sv, si);
@@ -183,18 +182,28 @@ StrIters StrSplitToIters(Str *s, Zstr key) {
     return sv;
 }
 
-Strs StrSplit(Str *s, Zstr key) {
+StrIters str_split_to_iters_zstr(Str *s, Zstr key) {
+    return str_split_to_iters_impl(s, key, ZstrLen(key));
+}
+
+StrIters str_split_to_iters_str(Str *s, const Str *key) {
+    if (!key) {
+        LOG_FATAL("Invalid arguments");
+    }
+    return str_split_to_iters_impl(s, key->data, key->length);
+}
+
+static Strs str_split_impl(Str *s, const char *key, size keylen) {
     ValidateStr(s);
 
     Strs sv        = (Strs)VecInit(s->allocator);
     sv.copy_deinit = (GenericCopyDeinit)str_deinit;
-    size keylen    = ZstrLen(key);
     Zstr prev      = s->data;
 
     if (prev) {
         Zstr end = s->data + s->length;
         while (prev <= end) {
-            Zstr next = ZstrFindSubstring(prev, key);
+            Zstr next = ZstrFindSubstringN(prev, key, keylen);
             if (next) {
                 Str tmp = StrInitFromCstr(prev, next - prev, s->allocator);
                 VecPushBack(&sv, tmp);
@@ -210,6 +219,17 @@ Strs StrSplit(Str *s, Zstr key) {
     }
 
     return sv;
+}
+
+Strs str_split_zstr(Str *s, Zstr key) {
+    return str_split_impl(s, key, ZstrLen(key));
+}
+
+Strs str_split_str(Str *s, const Str *key) {
+    if (!key) {
+        LOG_FATAL("Invalid arguments");
+    }
+    return str_split_impl(s, key->data, key->length);
 }
 
 static size str_index_of_cstr(const Str *s, Zstr key, size key_len) {

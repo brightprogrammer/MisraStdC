@@ -550,7 +550,7 @@ static void fill_socket_addr_from_sockaddr(SocketAddr *out, const struct sockadd
 // SocketAddr
 // ---------------------------------------------------------------------------
 
-bool SocketAddrParse(SocketAddr *out, const char *spec, SocketKind kind) {
+bool socket_addr_parse_zstr(SocketAddr *out, const char *spec, SocketKind kind) {
     if (!out) {
         LOG_FATAL("SocketAddrParse: out is NULL");
     }
@@ -599,6 +599,24 @@ bool SocketAddrParse(SocketAddr *out, const char *spec, SocketKind kind) {
     }
 
     return false;
+}
+
+bool socket_addr_parse_str(SocketAddr *out, const Str *spec, SocketKind kind) {
+    if (!out) {
+        LOG_FATAL("SocketAddrParse: out is NULL");
+    }
+    MemSet(out, 0, sizeof(*out));
+
+    if (!spec) {
+        return false;
+    }
+
+    // Str values in this codebase are NUL-terminated by construction; the
+    // numeric parsers (parse_ipv4 / parse_ipv6) and split_host_port scan
+    // until ']' / ':' / '\0', so dispatching via .data preserves identical
+    // semantics for non-degenerate input. The empty-spec edge case is
+    // already handled by the zstr arm (returns false on no colon).
+    return socket_addr_parse_zstr(out, spec->data, kind);
 }
 
 Str socket_addr_format(const SocketAddr *addr, Allocator *alloc) {

@@ -130,7 +130,14 @@ typedef struct SocketPollItem {
 ///
 /// TAGS: Socket, Address
 ///
-bool SocketAddrParse(SocketAddr *out, Zstr spec, SocketKind kind);
+bool socket_addr_parse_zstr(SocketAddr *out, Zstr spec, SocketKind kind);
+bool socket_addr_parse_str(SocketAddr *out, const Str *spec, SocketKind kind);
+#define SocketAddrParse(out, spec, kind)                                                                                                                      \
+    _Generic((spec), Str *: socket_addr_parse_str, const Str *: socket_addr_parse_str, char *: socket_addr_parse_zstr, const char *: socket_addr_parse_zstr)( \
+        (out),                                                                                                                                                \
+        (spec),                                                                                                                                               \
+        (kind)                                                                                                                                                \
+    )
 
 ///
 /// Render a `SocketAddr` back into a "ip:port" string. IPv6 addresses
