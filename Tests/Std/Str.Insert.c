@@ -37,19 +37,19 @@ bool test_str_insert_char_at(void) {
     StrInsertCharAt(&s, '!', 2);
 
     // Check that the character was inserted correctly
-    bool result = (ZstrCompare(s.data, "He!llo") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "He!llo") == 0);
 
     // Insert a character at the beginning
     StrInsertCharAt(&s, '?', 0);
 
     // Check that the character was inserted correctly
-    result = result && (ZstrCompare(s.data, "?He!llo") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "?He!llo") == 0);
 
     // Insert a character at the end
-    StrInsertCharAt(&s, '.', s.length);
+    StrInsertCharAt(&s, '.', StrLen(&s));
 
     // Check that the character was inserted correctly
-    result = result && (ZstrCompare(s.data, "?He!llo.") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "?He!llo.") == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -68,7 +68,7 @@ bool test_str_insert_cstr(void) {
     StrInsertCstr(&s, " World", 2, 6);
 
     // Check that the string was inserted correctly
-    bool result = (ZstrCompare(s.data, "He Worldllo") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "He Worldllo") == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -87,7 +87,7 @@ bool test_str_insert_zstr(void) {
     StrInsertZstr(&s, " World", 2);
 
     // Check that the string was inserted correctly
-    bool result = (ZstrCompare(s.data, "He Worldllo") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "He Worldllo") == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -107,7 +107,7 @@ bool test_str_insert(void) {
     StrInsert(&s1, &s2, 2);
 
     // Check that the string was inserted correctly
-    bool result = (ZstrCompare(s1.data, "He Worldllo") == 0);
+    bool result = (ZstrCompare(StrBegin(&s1), "He Worldllo") == 0);
 
     StrDeinit(&s1);
     StrDeinit(&s2);
@@ -127,7 +127,7 @@ bool test_str_push_cstr(void) {
     StrPushCstr(&s, " World", 6, 2);
 
     // Check that the string was inserted correctly
-    bool result = (ZstrCompare(s.data, "He Worldllo") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "He Worldllo") == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -146,7 +146,7 @@ bool test_str_push_zstr(void) {
     StrPushZstr(&s, " World", 2);
 
     // Check that the string was inserted correctly
-    bool result = (ZstrCompare(s.data, "He Worldllo") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "He Worldllo") == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -165,7 +165,7 @@ bool test_str_push_back_cstr(void) {
     StrPushBackCstr(&s, " World", 6);
 
     // Check that the string was inserted correctly
-    bool result = (ZstrCompare(s.data, "Hello World") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "Hello World") == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -184,7 +184,7 @@ bool test_str_push_back_zstr(void) {
     StrPushBackZstr(&s, " World");
 
     // Check that the string was inserted correctly
-    bool result = (ZstrCompare(s.data, "Hello World") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "Hello World") == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -203,7 +203,7 @@ bool test_str_push_front_cstr(void) {
     StrPushFrontCstr(&s, "Hello ", 6);
 
     // Check that the string was inserted correctly
-    bool result = (ZstrCompare(s.data, "Hello World") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "Hello World") == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -222,7 +222,7 @@ bool test_str_push_front_zstr(void) {
     StrPushFrontZstr(&s, "Hello ");
 
     // Check that the string was inserted correctly
-    bool result = (ZstrCompare(s.data, "Hello World") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "Hello World") == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -246,7 +246,7 @@ bool test_str_push_back(void) {
     StrPushBack(&s, 'd');
 
     // Check that the characters were inserted correctly
-    bool result = (ZstrCompare(s.data, "Hello World") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "Hello World") == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -270,7 +270,7 @@ bool test_str_push_front(void) {
     StrPushFront(&s, 'H');
 
     // Check that the characters were inserted correctly
-    bool result = (ZstrCompare(s.data, "Hello World") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "Hello World") == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -294,10 +294,10 @@ bool test_str_merge_l(void) {
     ValidateVec(&s2);
 
     // Check that the strings were merged correctly
-    bool result = (ZstrCompare(s1.data, "Hello World") == 0);
+    bool result = (ZstrCompare(StrBegin(&s1), "Hello World") == 0);
 
     // Check that s2 was reset - data should be NULL, length should be 0
-    result = result && (s2.length == 0 && s2.data == NULL);
+    result = result && (StrLen(&s2) == 0 && StrBegin(&s2) == NULL);
 
     StrDeinit(&s1);
     StrDeinit(&s2);
@@ -318,10 +318,10 @@ bool test_str_merge_r(void) {
     StrMergeR(&s1, &s2);
 
     // Check that the strings were merged correctly
-    bool result = (ZstrCompare(s1.data, "Hello World") == 0);
+    bool result = (ZstrCompare(StrBegin(&s1), "Hello World") == 0);
 
     // Check that s2 was not reset
-    result = result && (s2.length == 6 && ZstrCompare(s2.data, " World") == 0);
+    result = result && (StrLen(&s2) == 6 && ZstrCompare(StrBegin(&s2), " World") == 0);
 
     StrDeinit(&s1);
     StrDeinit(&s2);
@@ -342,10 +342,10 @@ bool test_str_merge(void) {
     StrMerge(&s1, &s2);
 
     // Check that the strings were merged correctly
-    bool result = (ZstrCompare(s1.data, "Hello World") == 0);
+    bool result = (ZstrCompare(StrBegin(&s1), "Hello World") == 0);
 
     // Check that s2 was not reset (since StrMerge is an alias for StrMergeR)
-    result = result && (s2.length == 6 && ZstrCompare(s2.data, " World") == 0);
+    result = result && (StrLen(&s2) == 6 && ZstrCompare(StrBegin(&s2), " World") == 0);
 
     StrDeinit(&s1);
     StrDeinit(&s2);
@@ -366,7 +366,7 @@ bool test_str_write_fmt_append(void) {
     StrAppendFmt(&s, " {} {}", (const char *)"World", (u32)2023);
 
     // Check that the string was appended correctly
-    bool result = (ZstrCompare(s.data, "Hello World 2023") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "Hello World 2023") == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
