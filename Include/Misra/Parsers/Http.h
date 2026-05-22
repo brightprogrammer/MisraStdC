@@ -216,10 +216,6 @@ typedef struct HttpRequest {
 /// Initialize an empty `HttpRequest`. Inside a `Scope` the allocator
 /// argument may be omitted (uses `MisraScope`).
 ///
-/// Inner calls use the numbered overloads (`StrInit_1`,
-/// `VecInitWithDeepCopy_3`) directly so the outer `MISRA_OVERLOAD`
-/// blue-paint rule doesn't suppress the inner dispatch.
-///
 #define HttpRequestInit(...) MISRA_OVERLOAD(HttpRequestInit, __VA_ARGS__)
 #define HttpRequestInit_0()  HttpRequestInit_1(MisraScope)
 #define HttpRequestInit_1(alloc_ptr)                                                                                   \

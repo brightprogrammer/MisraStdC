@@ -351,8 +351,8 @@ extern "C" {
     //
 
     ///
-    /// Internal implementation for strip functions.
-    /// Used by StrStrip, StrLStrip, and StrRStrip macros.
+    /// Internal implementation for the `StrStrip` / `StrLStrip` /
+    /// `StrRStrip` public macros. Not part of the public API.
     ///
     Str strip_str(Str *s, Zstr key, int split_direction);
 

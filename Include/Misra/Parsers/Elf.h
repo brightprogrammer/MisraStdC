@@ -310,7 +310,18 @@ void ElfDeinit(Elf *self);
 const ElfSymbol *ElfResolveAddress(const Elf *self, u64 vaddr);
 
 ///
-/// Find a section by name (first match). Returns NULL if absent.
+/// Find a section by name (first match) within the parsed ELF.
+///
+/// self[in] : Parsed Elf object.
+/// name[in] : NUL-terminated section name to look up (case-sensitive).
+///
+/// SUCCESS : Returns a pointer to the first matching `ElfSection` in
+///           `self->sections`. The pointer is borrowed and valid until
+///           `ElfDeinit(self)`.
+/// FAILURE : Returns NULL when no section name matches. `self` is
+///           untouched.
+///
+/// TAGS: Parser, ELF, Section, Query
 ///
 const ElfSection *ElfFindSection(const Elf *self, Zstr name);
 
