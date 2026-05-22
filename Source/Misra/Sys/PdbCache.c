@@ -97,7 +97,7 @@ static bool find_pdb(const Pe *pe, const char *pe_path, Str *out_path) {
 // of the same module doesn't retry the misses.
 static bool entry_open(PdbCacheEntry *entry, Allocator *alloc) {
     if (!entry->pe_open) {
-        if (!PeOpen(&entry->pe, entry->module_path, alloc))
+        if (!PeOpen(&entry->pe, entry->module_path.data, alloc))
             return false;
         entry->pe_open = true;
     }
@@ -105,7 +105,7 @@ static bool entry_open(PdbCacheEntry *entry, Allocator *alloc) {
         return true;
 
     Str pdb_path = StrInit(alloc);
-    if (!find_pdb(&entry->pe, entry->module_path, &pdb_path)) {
+    if (!find_pdb(&entry->pe, entry->module_path.data, &pdb_path)) {
         StrDeinit(&pdb_path);
         return false;
     }
@@ -130,26 +130,19 @@ static bool entry_open(PdbCacheEntry *entry, Allocator *alloc) {
 static PdbCacheEntry *cache_find_or_open(PdbCache *self, const char *module_path) {
     for (size i = 0; i < self->entries.length; ++i) {
         PdbCacheEntry *e = &self->entries.data[i];
-        if (e->module_path && ZstrCompare(e->module_path, module_path) == 0) {
+        if (e->module_path.data && ZstrCompare(e->module_path.data, module_path) == 0) {
             return e;
         }
     }
     PdbCacheEntry entry;
     MemSet(&entry, 0, sizeof(entry));
 
-    u64         path_len = 0;
-    const char *p        = module_path;
-    while (*p) {
-        ++path_len;
-        ++p;
-    }
-    entry.module_path = AllocatorAlloc(self->allocator, path_len + 1, /*zeroed=*/0);
-    if (!entry.module_path)
+    if (!StrTryInitFromCstr(&entry.module_path, module_path, ZstrLen(module_path), self->allocator)) {
         return NULL;
-    MemCopy(entry.module_path, module_path, path_len + 1);
+    }
 
     if (!VecPushBackR(&self->entries, entry)) {
-        AllocatorFree(self->allocator, entry.module_path);
+        StrDeinit(&entry.module_path);
         return NULL;
     }
     return &self->entries.data[self->entries.length - 1];
@@ -177,12 +170,7 @@ void PdbCacheDeinit(PdbCache *self) {
             PdbDeinit(&e->pdb);
         if (e->pe_open)
             PeDeinit(&e->pe);
-        if (e->module_path && self->allocator) {
-            u64 n = 0;
-            for (const char *p = e->module_path; *p; ++p)
-                ++n;
-            AllocatorFree(self->allocator, e->module_path);
-        }
+        StrDeinit(&e->module_path);
     }
     VecDeinit(&self->entries);
     MemSet(self, 0, sizeof(*self));

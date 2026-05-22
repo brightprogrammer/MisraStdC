@@ -61,26 +61,19 @@ static bool compose_dsym_path(const char *binary_path, Str *out) {
 static MachoCacheEntry *cache_find_or_create(MachoCache *self, const char *module_path) {
     for (size i = 0; i < self->entries.length; ++i) {
         MachoCacheEntry *e = &self->entries.data[i];
-        if (e->module_path && ZstrCompare(e->module_path, module_path) == 0) {
+        if (e->module_path.data && ZstrCompare(e->module_path.data, module_path) == 0) {
             return e;
         }
     }
     MachoCacheEntry entry;
     MemSet(&entry, 0, sizeof(entry));
 
-    u64         path_len = 0;
-    const char *p        = module_path;
-    while (*p) {
-        ++path_len;
-        ++p;
-    }
-    entry.module_path = AllocatorAlloc(self->allocator, path_len + 1, 0);
-    if (!entry.module_path)
+    if (!StrTryInitFromCstr(&entry.module_path, module_path, ZstrLen(module_path), self->allocator)) {
         return NULL;
-    MemCopy(entry.module_path, module_path, path_len + 1);
+    }
 
     if (!VecPushBackR(&self->entries, entry)) {
-        AllocatorFree(self->allocator, entry.module_path);
+        StrDeinit(&entry.module_path);
         return NULL;
     }
     return &self->entries.data[self->entries.length - 1];
@@ -91,7 +84,7 @@ static MachoCacheEntry *cache_find_or_create(MachoCache *self, const char *modul
 static bool entry_open_main(MachoCacheEntry *e, Allocator *alloc) {
     if (e->main_open)
         return true;
-    if (!MachoOpen(&e->main, e->module_path, alloc))
+    if (!MachoOpen(&e->main, e->module_path.data, alloc))
         return false;
     e->main_open = true;
     return true;
@@ -110,7 +103,7 @@ static bool entry_open_dsym(MachoCacheEntry *e, Allocator *alloc) {
     }
 
     Str path = StrInit(alloc);
-    if (!compose_dsym_path(e->module_path, &path)) {
+    if (!compose_dsym_path(e->module_path.data, &path)) {
         StrDeinit(&path);
         return false;
     }
@@ -176,12 +169,7 @@ void MachoCacheDeinit(MachoCache *self) {
             MachoDeinit(&e->dsym);
         if (e->main_open)
             MachoDeinit(&e->main);
-        if (e->module_path && self->allocator) {
-            u64 n = 0;
-            for (const char *p = e->module_path; *p; ++p)
-                ++n;
-            AllocatorFree(self->allocator, e->module_path);
-        }
+        StrDeinit(&e->module_path);
     }
     VecDeinit(&self->entries);
     MemSet(self, 0, sizeof(*self));

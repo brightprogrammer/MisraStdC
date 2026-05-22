@@ -29,7 +29,7 @@
 #include <Misra/Types.h>
 
 typedef struct MachoCacheEntry {
-    Zstr           module_path;
+    Str            module_path;
     u64            slide;
     Macho          main;
     bool           main_open;

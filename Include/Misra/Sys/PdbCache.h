@@ -31,7 +31,7 @@
 #include <Misra/Types.h>
 
 typedef struct PdbCacheEntry {
-    Zstr module_path; // owned copy
+    Str  module_path; // owned; cleaned via StrDeinit
     u64  module_base; // last-seen runtime load base
     Pe   pe;
     Pdb  pdb;
