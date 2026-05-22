@@ -61,15 +61,15 @@ bool compare_json_output(const Str *output, const char *expected, DefaultAllocat
     Str expected_clean = StrInit(alloc);
 
     // Remove spaces and newlines from both strings for comparison
-    for (size i = 0; i < output->length; i++) {
-        char c = output->data[i];
+    for (size i = 0; i < StrLen(output); i++) {
+        char c = StrBegin(output)[i];
         if (c != ' ' && c != '\n' && c != '\r' && c != '\t') {
             StrPushBack(&output_clean, c);
         }
     }
 
-    for (size i = 0; i < expected_str.length; i++) {
-        char c = expected_str.data[i];
+    for (size i = 0; i < StrLen(&expected_str); i++) {
+        char c = StrBegin(&expected_str)[i];
         if (c != ' ' && c != '\n' && c != '\r' && c != '\t') {
             StrPushBack(&expected_clean, c);
         }
@@ -80,13 +80,13 @@ bool compare_json_output(const Str *output, const char *expected, DefaultAllocat
     if (!result) {
         WriteFmt("[DEBUG] JSON comparison failed\n");
         WriteFmt("[DEBUG] Expected: '");
-        for (size i = 0; i < expected_clean.length; i++) {
-            WriteFmt("{c}", expected_clean.data[i]);
+        for (size i = 0; i < StrLen(&expected_clean); i++) {
+            WriteFmt("{c}", StrBegin(&expected_clean)[i]);
         }
         WriteFmt("'\n");
         WriteFmt("[DEBUG] Got: '");
-        for (size i = 0; i < output_clean.length; i++) {
-            WriteFmt("{c}", output_clean.data[i]);
+        for (size i = 0; i < StrLen(&output_clean); i++) {
+            WriteFmt("{c}", StrBegin(&output_clean)[i]);
         }
         WriteFmt("'\n");
     }

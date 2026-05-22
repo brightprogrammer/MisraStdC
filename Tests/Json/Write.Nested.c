@@ -76,15 +76,15 @@ bool compare_json_output(const Str *output, const char *expected, DefaultAllocat
     Str expected_clean = StrInit(alloc);
 
     // Remove whitespace from both strings for comparison
-    for (u64 i = 0; i < output->length; i++) {
-        char c = output->data[i];
+    for (u64 i = 0; i < StrLen(output); i++) {
+        char c = StrBegin(output)[i];
         if (c != ' ' && c != '\n' && c != '\r' && c != '\t') {
             StrPushBack(&output_clean, c);
         }
     }
 
-    for (u64 i = 0; i < expected_str.length; i++) {
-        char c = expected_str.data[i];
+    for (u64 i = 0; i < StrLen(&expected_str); i++) {
+        char c = StrBegin(&expected_str)[i];
         if (c != ' ' && c != '\n' && c != '\r' && c != '\t') {
             StrPushBack(&expected_clean, c);
         }
@@ -95,13 +95,13 @@ bool compare_json_output(const Str *output, const char *expected, DefaultAllocat
     if (!result) {
         WriteFmt("[DEBUG] JSON comparison failed\n");
         WriteFmt("[DEBUG] Expected: '");
-        for (u64 i = 0; i < expected_clean.length; i++) {
-            WriteFmt("{c}", expected_clean.data[i]);
+        for (u64 i = 0; i < StrLen(&expected_clean); i++) {
+            WriteFmt("{c}", StrBegin(&expected_clean)[i]);
         }
         WriteFmt("'\n");
         WriteFmt("[DEBUG] Got: '");
-        for (u64 i = 0; i < output_clean.length; i++) {
-            WriteFmt("%c", output_clean.data[i]);
+        for (u64 i = 0; i < StrLen(&output_clean); i++) {
+            WriteFmt("%c", StrBegin(&output_clean)[i]);
         }
         WriteFmt("'\n");
     }
@@ -254,16 +254,16 @@ bool test_complex_api_response_writing(void) {
         JW_OBJ_KV(json, "data", {
             // Write dynamic key for source function ID
             Str source_key = StrInit(&alloc);
-            u64 source_id  = response.data.length > 0 ? VecAt(&response.data, 0).source_function_id : 0;
+            u64 source_id  = VecLen(&response.data) > 0 ? VecAt(&response.data, 0).source_function_id : 0;
             StrAppendFmt(&source_key, "{}", source_id);
 
-            JW_OBJ_KV(json, source_key.data, {
-                if (response.data.length > 0) {
+            JW_OBJ_KV(json, StrBegin(&source_key), {
+                if (VecLen(&response.data) > 0) {
                     AnnSymbol *s          = &VecAt(&response.data, 0);
                     Str        target_key = StrInit(&alloc);
                     StrAppendFmt(&target_key, "{}", s->target_function_id);
 
-                    JW_OBJ_KV(json, target_key.data, {
+                    JW_OBJ_KV(json, StrBegin(&target_key), {
                         JW_FLT_KV(json, "distance", s->distance);
                         JW_INT_KV(json, "nearest_neighbor_analysis_id", s->analysis_id);
                         JW_INT_KV(json, "nearest_neighbor_binary_id", s->binary_id);
@@ -429,11 +429,11 @@ bool test_dynamic_object_keys_writing(void) {
                 Str source_key = StrInit(&alloc);
                 StrAppendFmt(&source_key, "{}", symbol.source_function_id);
 
-                JW_OBJ_KV(json, source_key.data, {
+                JW_OBJ_KV(json, StrBegin(&source_key), {
             Str target_key = StrInit(&alloc);
             StrAppendFmt(&target_key, "{}", symbol.target_function_id);
 
-            JW_OBJ_KV(json, target_key.data, {
+            JW_OBJ_KV(json, StrBegin(&target_key), {
                 JW_FLT_KV(json, "distance", symbol.distance);
                 JW_STR_KV(json, "name", symbol.function_name);
             });

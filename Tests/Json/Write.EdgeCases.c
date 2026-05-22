@@ -15,15 +15,15 @@ bool compare_json_output(const Str *output, const char *expected, DefaultAllocat
     Str expected_clean = StrInit(alloc);
 
     // Remove spaces and newlines from both strings for comparison
-    for (size i = 0; i < output->length; i++) {
-        char c = output->data[i];
+    for (size i = 0; i < StrLen(output); i++) {
+        char c = StrBegin(output)[i];
         if (c != ' ' && c != '\n' && c != '\r' && c != '\t') {
             StrPushBack(&output_clean, c);
         }
     }
 
-    for (size i = 0; i < expected_str.length; i++) {
-        char c = expected_str.data[i];
+    for (size i = 0; i < StrLen(&expected_str); i++) {
+        char c = StrBegin(&expected_str)[i];
         if (c != ' ' && c != '\n' && c != '\r' && c != '\t') {
             StrPushBack(&expected_clean, c);
         }
@@ -34,14 +34,14 @@ bool compare_json_output(const Str *output, const char *expected, DefaultAllocat
     if (!result) {
         WriteFmtLn("[DEBUG] JSON comparison failed");
         WriteFmt("[DEBUG] Expected: '");
-        for (u64 i = 0; i < expected_clean.length; i++) {
-            WriteFmt("{c}", expected_clean.data[i]);
+        for (u64 i = 0; i < StrLen(&expected_clean); i++) {
+            WriteFmt("{c}", StrBegin(&expected_clean)[i]);
         }
         WriteFmtLn("'");
 
         WriteFmt("[DEBUG] Got: '");
-        for (u64 i = 0; i < output_clean.length; i++) {
-            WriteFmt("{c}", output_clean.data[i]);
+        for (u64 i = 0; i < StrLen(&output_clean); i++) {
+            WriteFmt("{c}", StrBegin(&output_clean)[i]);
         }
         WriteFmtLn("'");
     }
@@ -201,7 +201,7 @@ bool test_large_numbers_writing(void) {
     });
 
     // For large numbers, just check that valid JSON was produced
-    if (json.length > 0 && json.data[0] == '{' && json.data[json.length - 1] == '}') {
+    if (StrLen(&json) > 0 && StrBegin(&json)[0] == '{' && StrBegin(&json)[StrLen(&json) - 1] == '}') {
         WriteFmtLn("[DEBUG] Large numbers test passed - produced valid JSON structure");
     } else {
         WriteFmtLn("[DEBUG] Large numbers test FAILED - invalid JSON structure");
@@ -267,7 +267,7 @@ bool test_special_characters_writing(void) {
     WriteFmtLn("[DEBUG] Special characters JSON: {}", json);
 
     // Just verify that valid JSON structure was produced
-    if (json.length > 0 && json.data[0] == '{' && json.data[json.length - 1] == '}') {
+    if (StrLen(&json) > 0 && StrBegin(&json)[0] == '{' && StrBegin(&json)[StrLen(&json) - 1] == '}') {
         WriteFmtLn("[DEBUG] Special characters test passed - produced valid JSON");
     } else {
         WriteFmtLn("[DEBUG] Special characters test FAILED - invalid JSON structure");
@@ -307,7 +307,7 @@ bool test_escape_sequences_writing(void) {
     WriteFmtLn("[DEBUG] Escape sequences JSON: {}", json);
 
     // Verify valid JSON structure was produced
-    if (json.length > 0 && json.data[0] == '{' && json.data[json.length - 1] == '}') {
+    if (StrLen(&json) > 0 && StrBegin(&json)[0] == '{' && StrBegin(&json)[StrLen(&json) - 1] == '}') {
         WriteFmtLn("[DEBUG] Escape sequences test passed - produced valid JSON");
     } else {
         WriteFmtLn("[DEBUG] Escape sequences test FAILED - invalid JSON structure");
@@ -460,7 +460,7 @@ bool test_boundary_floats_writing(void) {
     });
 
     // Check for reasonable float formatting (exact precision may vary)
-    if (json.length > 0 && json.data[0] == '{' && json.data[json.length - 1] == '}') {
+    if (StrLen(&json) > 0 && StrBegin(&json)[0] == '{' && StrBegin(&json)[StrLen(&json) - 1] == '}') {
         WriteFmtLn("[DEBUG] Boundary floats test passed - JSON: {}", json);
     } else {
         WriteFmtLn("[DEBUG] Boundary floats test FAILED");

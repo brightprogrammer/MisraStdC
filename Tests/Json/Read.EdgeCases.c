@@ -174,13 +174,13 @@ bool test_empty_string_reading(void) {
         JR_STR_KV(si, "description", obj.description);
     });
 
-    if (obj.name.length == 0 && obj.description.length == 0) {
+    if (StrLen(&obj.name) == 0 && StrLen(&obj.description) == 0) {
         WriteFmt("[DEBUG] Empty string test passed - both strings empty\n");
     } else {
         WriteFmt(
             "[DEBUG] Empty string test FAILED - name len: {}, desc len: {}\n",
-            obj.name.length,
-            obj.description.length
+            StrLen(&obj.name),
+            StrLen(&obj.description)
         );
         success = false;
     }
@@ -362,7 +362,7 @@ bool test_special_characters_in_strings(void) {
     WriteFmt("[DEBUG] Special chars - data: '{}'\n", obj.data);
 
     // Check if strings were parsed (exact content may vary based on escape handling)
-    if (obj.path.length > 0 && obj.message.length > 0 && obj.data.length > 0) {
+    if (StrLen(&obj.path) > 0 && StrLen(&obj.message) > 0 && StrLen(&obj.data) > 0) {
         WriteFmt("[DEBUG] Special characters test passed - all strings parsed\n");
     } else {
         WriteFmt("[DEBUG] Special characters test FAILED - some strings empty\n");
@@ -407,11 +407,11 @@ bool test_escape_sequences_reading(void) {
 
     WriteFmtLn("[DEBUG] Escape sequences - escaped: '{}'\n", obj.escaped);
     WriteFmtLn("[DEBUG] Escape sequences - backslash: '{}'\n", obj.backslash);
-    WriteFmtLn("[DEBUG] Escape sequences - newline length: {}\n", obj.newline.length);
-    WriteFmtLn("[DEBUG] Escape sequences - tab length: {}\n", obj.tab.length);
+    WriteFmtLn("[DEBUG] Escape sequences - newline length: {}\n", StrLen(&obj.newline));
+    WriteFmtLn("[DEBUG] Escape sequences - tab length: {}\n", StrLen(&obj.tab));
 
     // Basic validation that strings were parsed
-    if (obj.escaped.length > 0 && obj.backslash.length > 0 && obj.newline.length > 0 && obj.tab.length > 0) {
+    if (StrLen(&obj.escaped) > 0 && StrLen(&obj.backslash) > 0 && StrLen(&obj.newline) > 0 && StrLen(&obj.tab) > 0) {
         WriteFmt("[DEBUG] Escape sequences test passed\n");
     } else {
         WriteFmt("[DEBUG] Escape sequences test FAILED\n");
@@ -454,14 +454,14 @@ bool test_whitespace_variations_reading(void) {
     if (StrCmpCstr(&obj.name, "test", 4) == 0 && obj.value == 42 && obj.flag == true) {
         WriteFmt(
             "[DEBUG] Whitespace variations test passed - name: {}, value: {}, flag: {}\n",
-            obj.name.data,
+            StrBegin(&obj.name),
             obj.value,
             obj.flag ? "true" : "false"
         );
     } else {
         WriteFmt(
             "[DEBUG] Whitespace variations test FAILED - name: {}, value: {}, flag: {}\n",
-            obj.name.data,
+            StrBegin(&obj.name),
             obj.value,
             obj.flag ? "true" : "false"
         );
