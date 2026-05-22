@@ -160,23 +160,23 @@ bool test_debug_freed_history_grows_on_free(void) {
     DebugAllocator dbg  = DebugAllocatorInit();
     Allocator     *adbg = ALLOCATOR_OF(&dbg);
 
-    bool  ok = (dbg.freed.length == 0);
+    bool  ok = (VecLen(&dbg.freed) == 0);
     void *p1 = AllocatorAlloc(adbg, 16, false);
     void *p2 = AllocatorAlloc(adbg, 32, false);
     void *p3 = AllocatorAlloc(adbg, 64, false);
-    ok       = ok && (dbg.freed.length == 0); // alloc doesn't push
+    ok       = ok && (VecLen(&dbg.freed) == 0); // alloc doesn't push
 
     AllocatorFree(adbg, p1);
-    ok = ok && (dbg.freed.length == 1);
+    ok = ok && (VecLen(&dbg.freed) == 1);
 
     AllocatorFree(adbg, p2);
     AllocatorFree(adbg, p3);
-    ok = ok && (dbg.freed.length == 3);
+    ok = ok && (VecLen(&dbg.freed) == 3);
 
     // Each freed entry carries the ptr + both traces.
-    ok = ok && (dbg.freed.data[0].ptr == p1) && (dbg.freed.data[0].requested_size == 16);
-    ok = ok && (dbg.freed.data[0].alloc_trace_n > 0) && (dbg.freed.data[0].free_trace_n > 0);
-    ok = ok && (dbg.freed.data[2].ptr == p3) && (dbg.freed.data[2].requested_size == 64);
+    ok = ok && (VecPtrAt(&dbg.freed, 0)->ptr == p1) && (VecPtrAt(&dbg.freed, 0)->requested_size == 16);
+    ok = ok && (VecPtrAt(&dbg.freed, 0)->alloc_trace_n > 0) && (VecPtrAt(&dbg.freed, 0)->free_trace_n > 0);
+    ok = ok && (VecPtrAt(&dbg.freed, 2)->ptr == p3) && (VecPtrAt(&dbg.freed, 2)->requested_size == 64);
 
     DebugAllocatorDeinit(&dbg);
     return ok;

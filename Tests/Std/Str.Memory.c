@@ -54,13 +54,13 @@ bool test_str_swap_char_at(void) {
     StrSwapCharAt(&s, 0, 4);
 
     // Check that the characters were swapped
-    bool result = (s.data[0] == 'o' && s.data[4] == 'H');
+    bool result = (StrBegin(&s)[0] == 'o' && StrBegin(&s)[4] == 'H');
 
     // Swap 'e' and 'l'
     StrSwapCharAt(&s, 1, 2);
 
     // Check that the characters were swapped
-    result = result && (s.data[1] == 'l' && s.data[2] == 'e');
+    result = result && (StrBegin(&s)[1] == 'l' && StrBegin(&s)[2] == 'e');
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);

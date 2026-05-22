@@ -538,13 +538,13 @@ bool test_bitvec_run_lengths_vec(void) {
 
     BitVecRuns runs   = VecInitT(runs, base);
     bool       result = BitVecRunLengths(&bv, &runs);
-    result            = result && runs.length == 5;
+    result            = result && VecLen(&runs) == 5;
     if (result) {
-        result = result && runs.data[0].length == 3 && runs.data[0].value == true;
-        result = result && runs.data[1].length == 2 && runs.data[1].value == false;
-        result = result && runs.data[2].length == 1 && runs.data[2].value == true;
-        result = result && runs.data[3].length == 1 && runs.data[3].value == false;
-        result = result && runs.data[4].length == 1 && runs.data[4].value == true;
+        result = result && VecPtrAt(&runs, 0)->length == 3 && VecPtrAt(&runs, 0)->value == true;
+        result = result && VecPtrAt(&runs, 1)->length == 2 && VecPtrAt(&runs, 1)->value == false;
+        result = result && VecPtrAt(&runs, 2)->length == 1 && VecPtrAt(&runs, 2)->value == true;
+        result = result && VecPtrAt(&runs, 3)->length == 1 && VecPtrAt(&runs, 3)->value == false;
+        result = result && VecPtrAt(&runs, 4)->length == 1 && VecPtrAt(&runs, 4)->value == true;
     }
 
     VecDeinit(&runs);

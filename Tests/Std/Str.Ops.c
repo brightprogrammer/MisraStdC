@@ -208,34 +208,34 @@ bool test_str_split(void) {
     Str  s     = StrInitFromZstr("Hello,World,Test", &alloc);
     Strs split = StrSplit(&s, ",");
 
-    bool result = (split.length == 3);
-    if (split.length >= 3) {
-        result = result && (ZstrCompare(split.data[0].data, "Hello") == 0);
-        result = result && (ZstrCompare(split.data[1].data, "World") == 0);
-        result = result && (ZstrCompare(split.data[2].data, "Test") == 0);
+    bool result = (VecLen(&split) == 3);
+    if (VecLen(&split) >= 3) {
+        result = result && (ZstrCompare(StrBegin(VecPtrAt(&split, 0)), "Hello") == 0);
+        result = result && (ZstrCompare(StrBegin(VecPtrAt(&split, 1)), "World") == 0);
+        result = result && (ZstrCompare(StrBegin(VecPtrAt(&split, 2)), "Test") == 0);
     }
 
     VecDeinit(&split);
 
     // Test StrSplitToIters
     StrIters iters = StrSplitToIters(&s, ",");
-    result         = result && (iters.length == 3);
+    result         = result && (VecLen(&iters) == 3);
 
-    if (iters.length >= 3) {
-        // Check first iterator
-        StrIter *iter1       = &iters.data[0];
+    if (VecLen(&iters) >= 3) {
+        // Check first iterator (StrIter fields are Iter contract, not Str/Vec internals).
+        StrIter *iter1       = VecPtrAt(&iters, 0);
         char     buffer1[10] = {0};
         MemCopy(buffer1, iter1->data, iter1->length);
         result = result && (ZstrCompare(buffer1, "Hello") == 0);
 
         // Check second iterator
-        StrIter *iter2       = &iters.data[1];
+        StrIter *iter2       = VecPtrAt(&iters, 1);
         char     buffer2[10] = {0};
         MemCopy(buffer2, iter2->data, iter2->length);
         result = result && (ZstrCompare(buffer2, "World") == 0);
 
         // Check third iterator
-        StrIter *iter3       = &iters.data[2];
+        StrIter *iter3       = VecPtrAt(&iters, 2);
         char     buffer3[10] = {0};
         MemCopy(buffer3, iter3->data, iter3->length);
         result = result && (ZstrCompare(buffer3, "Test") == 0);

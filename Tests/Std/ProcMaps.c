@@ -14,13 +14,13 @@ bool test_procmaps_load(void) {
     }
 
     // We expect many mappings — at least the binary itself plus libc.
-    bool ok = maps.entries.length > 5;
+    bool ok = VecLen(&maps.entries) > 5;
 
     // At least one entry should be executable (the code section of
     // either the test binary or libc).
     bool any_exec = false;
-    for (u64 i = 0; i < maps.entries.length; ++i) {
-        if (maps.entries.data[i].perms & PROC_MAP_PERM_EXEC) {
+    for (u64 i = 0; i < VecLen(&maps.entries); ++i) {
+        if (VecPtrAt(&maps.entries, i)->perms & PROC_MAP_PERM_EXEC) {
             any_exec = true;
             break;
         }

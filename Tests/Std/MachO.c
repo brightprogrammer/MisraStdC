@@ -132,14 +132,14 @@ bool test_macho_parses_synthetic_blob(void) {
 
     ok = m.cputype == 0x01000007u && m.filetype == MACHO_FILE_TYPE_EXECUTE;
     ok = ok && m.has_uuid && MemCompare(m.uuid, kUuid, 16) == 0;
-    ok = ok && m.segments.length == 1;
-    ok = ok && ZstrCompare(m.segments.data[0].name, "__TEXT") == 0;
-    ok = ok && m.sections.length == 1;
-    ok = ok && ZstrCompare(m.sections.data[0].section, "__text") == 0;
-    ok = ok && ZstrCompare(m.sections.data[0].segment, "__TEXT") == 0;
-    ok = ok && m.symbols.length == 1;
-    ok = ok && m.symbols.data[0].name && ZstrCompare(m.symbols.data[0].name, "my_function") == 0;
-    ok = ok && m.symbols.data[0].value == 0x100000010ull;
+    ok = ok && VecLen(&m.segments) == 1;
+    ok = ok && ZstrCompare(VecPtrAt(&m.segments, 0)->name, "__TEXT") == 0;
+    ok = ok && VecLen(&m.sections) == 1;
+    ok = ok && ZstrCompare(VecPtrAt(&m.sections, 0)->section, "__text") == 0;
+    ok = ok && ZstrCompare(VecPtrAt(&m.sections, 0)->segment, "__TEXT") == 0;
+    ok = ok && VecLen(&m.symbols) == 1;
+    ok = ok && VecPtrAt(&m.symbols, 0)->name && ZstrCompare(VecPtrAt(&m.symbols, 0)->name, "my_function") == 0;
+    ok = ok && VecPtrAt(&m.symbols, 0)->value == 0x100000010ull;
 
     MachoDeinit(&m);
     DefaultAllocatorDeinit(&alloc);

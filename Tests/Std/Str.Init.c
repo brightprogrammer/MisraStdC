@@ -54,7 +54,7 @@ bool test_str_init_from_cstr(void) {
     ValidateStr(&s);
 
     // Check that it's initialized correctly
-    bool result = (s.length == len && ZstrCompareN(s.data, test_str, len) == 0 && s.data[len] == '\0');
+    bool result = (StrLen(&s) == len && ZstrCompareN(StrBegin(&s), test_str, len) == 0 && StrBegin(&s)[len] == '\0');
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);

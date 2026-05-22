@@ -41,22 +41,22 @@ bool test_basic_formatting(void) {
 
     // Test empty format string
     StrAppendFmt(&output, "");
-    success = success && (output.length == 0);
+    success = success && (StrLen(&output) == 0);
     StrClear(&output);
 
     // Test literal text
     StrAppendFmt(&output, "Hello, world!");
-    success = success && (ZstrCompare(output.data, "Hello, world!") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "Hello, world!") == 0);
     StrClear(&output);
 
     // Test escaped braces
     StrAppendFmt(&output, "{{Hello}}");
-    success = success && (ZstrCompare(output.data, "{Hello}") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "{Hello}") == 0);
     StrClear(&output);
 
     // Test double escaped braces
     StrAppendFmt(&output, "{{{{");
-    success = success && (ZstrCompare(output.data, "{{") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "{{") == 0);
 
     StrDeinit(&output);
     DefaultAllocatorDeinit(&alloc);
@@ -75,32 +75,32 @@ bool test_string_formatting(void) {
     // Test basic string
     Zstr str = "Hello";
     StrAppendFmt(&output, "{}", str);
-    success = success && (ZstrCompare(output.data, "Hello") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "Hello") == 0);
     StrClear(&output);
 
     // Test empty string
     Zstr empty = "";
     StrAppendFmt(&output, "{}", empty);
-    success = success && (output.length == 0);
+    success = success && (StrLen(&output) == 0);
     StrClear(&output);
 
     // Test string with width and alignment
     StrAppendFmt(&output, "{>10}", str);
-    success = success && (ZstrCompare(output.data, "     Hello") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "     Hello") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{<10}", str);
-    success = success && (ZstrCompare(output.data, "Hello     ") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "Hello     ") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{^10}", str);
-    success = success && (ZstrCompare(output.data, "  Hello   ") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "  Hello   ") == 0);
     StrClear(&output);
 
     // Test Str object
     Str s = StrInitFromZstr("World", &alloc);
     StrAppendFmt(&output, "{}", s);
-    success = success && (ZstrCompare(output.data, "World") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "World") == 0);
     StrDeinit(&s);
 
     StrDeinit(&output);
@@ -120,64 +120,64 @@ bool test_integer_decimal_formatting(void) {
     // Test signed integers
     i8 i8_val = -42;
     StrAppendFmt(&output, "{}", i8_val);
-    success = success && (ZstrCompare(output.data, "-42") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "-42") == 0);
     StrClear(&output);
 
     i16 i16_val = -1234;
     StrAppendFmt(&output, "{}", i16_val);
-    success = success && (ZstrCompare(output.data, "-1234") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "-1234") == 0);
     StrClear(&output);
 
     i32 i32_val = -123456;
     StrAppendFmt(&output, "{}", i32_val);
-    success = success && (ZstrCompare(output.data, "-123456") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "-123456") == 0);
     StrClear(&output);
 
     i64 i64_val = -1234567890LL;
     StrAppendFmt(&output, "{}", i64_val);
-    success = success && (ZstrCompare(output.data, "-1234567890") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "-1234567890") == 0);
     StrClear(&output);
 
     // Test unsigned integers
     u8 u8_val = 42;
     StrAppendFmt(&output, "{}", u8_val);
-    success = success && (ZstrCompare(output.data, "42") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "42") == 0);
     StrClear(&output);
 
     u16 u16_val = 1234;
     StrAppendFmt(&output, "{}", u16_val);
-    success = success && (ZstrCompare(output.data, "1234") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "1234") == 0);
     StrClear(&output);
 
     u32 u32_val = 123456;
     StrAppendFmt(&output, "{}", u32_val);
-    success = success && (ZstrCompare(output.data, "123456") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "123456") == 0);
     StrClear(&output);
 
     u64 u64_val = 1234567890ULL;
     StrAppendFmt(&output, "{}", u64_val);
-    success = success && (ZstrCompare(output.data, "1234567890") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "1234567890") == 0);
     StrClear(&output);
 
     // Test edge cases
     i8 i8_max = 127;
     StrAppendFmt(&output, "{}", i8_max);
-    success = success && (ZstrCompare(output.data, "127") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "127") == 0);
     StrClear(&output);
 
     i8 i8_min = -128;
     StrAppendFmt(&output, "{}", i8_min);
-    success = success && (ZstrCompare(output.data, "-128") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "-128") == 0);
     StrClear(&output);
 
     u8 u8_max = 255;
     StrAppendFmt(&output, "{}", u8_max);
-    success = success && (ZstrCompare(output.data, "255") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "255") == 0);
     StrClear(&output);
 
     u8 u8_min = 0;
     StrAppendFmt(&output, "{}", u8_min);
-    success = success && (ZstrCompare(output.data, "0") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "0") == 0);
 
     StrDeinit(&output);
     DefaultAllocatorDeinit(&alloc);
@@ -195,11 +195,11 @@ bool test_integer_hex_formatting(void) {
 
     u32 val = 0xDEADBEEF;
     StrAppendFmt(&output, "{x}", val);
-    success = success && (ZstrCompare(output.data, "0xdeadbeef") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "0xdeadbeef") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{X}", val);
-    success = success && (ZstrCompare(output.data, "0xDEADBEEF") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "0xDEADBEEF") == 0);
 
     StrDeinit(&output);
     DefaultAllocatorDeinit(&alloc);
@@ -217,7 +217,7 @@ bool test_integer_binary_formatting(void) {
 
     u8 val = 0xA5; // 10100101 in binary
     StrAppendFmt(&output, "{b}", val);
-    success = success && (ZstrCompare(output.data, "0b10100101") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "0b10100101") == 0);
 
     StrDeinit(&output);
     DefaultAllocatorDeinit(&alloc);
@@ -235,7 +235,7 @@ bool test_integer_octal_formatting(void) {
 
     u16 val = 0777;
     StrAppendFmt(&output, "{o}", val);
-    success = success && (ZstrCompare(output.data, "0o777") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "0o777") == 0);
 
     StrDeinit(&output);
     DefaultAllocatorDeinit(&alloc);
@@ -253,12 +253,12 @@ bool test_float_basic_formatting(void) {
 
     f32 f32_val = 3.14159f;
     StrAppendFmt(&output, "{}", f32_val);
-    success = success && (ZstrCompare(output.data, "3.141590") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "3.141590") == 0);
     StrClear(&output);
 
     f64 f64_val = 2.71828;
     StrAppendFmt(&output, "{}", f64_val);
-    success = success && (ZstrCompare(output.data, "2.718280") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "2.718280") == 0);
 
     StrDeinit(&output);
     DefaultAllocatorDeinit(&alloc);
@@ -278,15 +278,15 @@ bool test_float_precision_formatting(void) {
 
     // Test different precisions
     StrAppendFmt(&output, "{.2}", val);
-    success = success && (ZstrCompare(output.data, "3.14") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "3.14") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{.0}", val);
-    success = success && (ZstrCompare(output.data, "3") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "3") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{.10}", val);
-    success = success && (ZstrCompare(output.data, "3.1415926536") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "3.1415926536") == 0);
 
     StrDeinit(&output);
     DefaultAllocatorDeinit(&alloc);
@@ -305,18 +305,18 @@ bool test_float_special_values(void) {
     // Test infinity
     f64 pos_inf = F64_INFINITY;
     StrAppendFmt(&output, "{}", pos_inf);
-    success = success && (ZstrCompare(output.data, "inf") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "inf") == 0);
     StrClear(&output);
 
     f64 neg_inf = -F64_INFINITY;
     StrAppendFmt(&output, "{}", neg_inf);
-    success = success && (ZstrCompare(output.data, "-inf") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "-inf") == 0);
     StrClear(&output);
 
     // Test NaN
     f64 nan_val = F64_NAN;
     StrAppendFmt(&output, "{}", nan_val);
-    success = success && (ZstrCompare(output.data, "nan") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "nan") == 0);
 
     StrDeinit(&output);
     DefaultAllocatorDeinit(&alloc);
@@ -335,29 +335,29 @@ bool test_width_alignment_formatting(void) {
     // Test with integers
     i32 val = 42;
     StrAppendFmt(&output, "{5}", val);
-    success = success && (ZstrCompare(output.data, "   42") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "   42") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{<5}", val);
-    success = success && (ZstrCompare(output.data, "42   ") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "42   ") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{^5}", val);
-    success = success && (ZstrCompare(output.data, " 42  ") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), " 42  ") == 0);
     StrClear(&output);
 
     // Test with strings
     Zstr str = "abc";
     StrAppendFmt(&output, "{5}", str);
-    success = success && (ZstrCompare(output.data, "  abc") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "  abc") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{<5}", str);
-    success = success && (ZstrCompare(output.data, "abc  ") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "abc  ") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{^5}", str);
-    success = success && (ZstrCompare(output.data, " abc ") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), " abc ") == 0);
 
     StrDeinit(&output);
     DefaultAllocatorDeinit(&alloc);
@@ -378,12 +378,12 @@ bool test_multiple_arguments(void) {
     f64  pi    = 3.14;
 
     StrAppendFmt(&output, "{} {} {}", hello, num, pi);
-    success = success && (ZstrCompare(output.data, "Hello 42 3.140000") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "Hello 42 3.140000") == 0);
     StrClear(&output);
 
     // Instead of using positional arguments, we'll just reorder the arguments themselves
     StrAppendFmt(&output, "{} {} {}", pi, hello, num);
-    success = success && (ZstrCompare(output.data, "3.140000 Hello 42") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "3.140000 Hello 42") == 0);
 
     StrDeinit(&output);
     DefaultAllocatorDeinit(&alloc);
@@ -402,17 +402,17 @@ bool test_char_formatting(void) {
     // Test mixed case string with :c (preserve case)
     Zstr mixed_case = "MiXeD CaSe";
     StrAppendFmt(&output, "{c}", mixed_case);
-    success = success && (ZstrCompare(output.data, "MiXeD CaSe") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "MiXeD CaSe") == 0);
     StrClear(&output);
 
     // Test mixed case string with :a (lowercase)
     StrAppendFmt(&output, "{a}", mixed_case);
-    success = success && (ZstrCompare(output.data, "mixed case") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "mixed case") == 0);
     StrClear(&output);
 
     // Test mixed case string with :A (uppercase)
     StrAppendFmt(&output, "{A}", mixed_case);
-    success = success && (ZstrCompare(output.data, "MIXED CASE") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "MIXED CASE") == 0);
     StrClear(&output);
 
     // Test with Str object
@@ -420,17 +420,17 @@ bool test_char_formatting(void) {
 
     // Test with :c (preserve case)
     StrAppendFmt(&output, "{c}", s);
-    success = success && (ZstrCompare(output.data, "MiXeD CaSe") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "MiXeD CaSe") == 0);
     StrClear(&output);
 
     // Test with :a (lowercase)
     StrAppendFmt(&output, "{a}", s);
-    success = success && (ZstrCompare(output.data, "mixed case") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "mixed case") == 0);
     StrClear(&output);
 
     // Test with :A (uppercase)
     StrAppendFmt(&output, "{A}", s);
-    success = success && (ZstrCompare(output.data, "MIXED CASE") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "MIXED CASE") == 0);
     StrClear(&output);
 
     // Test with character values (u8)
@@ -439,17 +439,17 @@ bool test_char_formatting(void) {
 
     // Test uppercase char with :c (preserve case)
     StrAppendFmt(&output, "{c}", upper_char);
-    success = success && (ZstrCompare(output.data, "M") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "M") == 0);
     StrClear(&output);
 
     // Test uppercase char with :a (lowercase)
     StrAppendFmt(&output, "{a}", upper_char);
-    success = success && (ZstrCompare(output.data, "m") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "m") == 0);
     StrClear(&output);
 
     // Test lowercase char with :A (uppercase)
     StrAppendFmt(&output, "{A}", lower_char);
-    success = success && (ZstrCompare(output.data, "M") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "M") == 0);
     StrClear(&output);
 
     // Test with u16 (containing ASCII values)
@@ -457,17 +457,17 @@ bool test_char_formatting(void) {
 
     // Test u16 with :c (preserve case)
     StrAppendFmt(&output, "{c}", u16_value);
-    success = success && (output.length == 2 && output.data[0] == 'A' && output.data[1] == 'B');
+    success = success && (StrLen(&output) == 2 && StrBegin(&output)[0] == 'A' && StrBegin(&output)[1] == 'B');
     StrClear(&output);
 
     // Test u16 with :a (lowercase)
     StrAppendFmt(&output, "{a}", u16_value);
-    success = success && (output.length == 2 && output.data[0] == 'a' && output.data[1] == 'b');
+    success = success && (StrLen(&output) == 2 && StrBegin(&output)[0] == 'a' && StrBegin(&output)[1] == 'b');
     StrClear(&output);
 
     // Test u16 with :A (uppercase)
     StrAppendFmt(&output, "{A}", u16_value);
-    success = success && (output.length == 2 && output.data[0] == 'A' && output.data[1] == 'B');
+    success = success && (StrLen(&output) == 2 && StrBegin(&output)[0] == 'A' && StrBegin(&output)[1] == 'B');
     StrClear(&output);
 
     // Test with i16 (containing ASCII values)
@@ -475,17 +475,17 @@ bool test_char_formatting(void) {
 
     // Test i16 with :c (preserve case)
     StrAppendFmt(&output, "{c}", i16_value);
-    success = success && (output.length == 2 && output.data[0] == 'C' && output.data[1] == 'd');
+    success = success && (StrLen(&output) == 2 && StrBegin(&output)[0] == 'C' && StrBegin(&output)[1] == 'd');
     StrClear(&output);
 
     // Test i16 with :a (lowercase)
     StrAppendFmt(&output, "{a}", i16_value);
-    success = success && (output.length == 2 && output.data[0] == 'c' && output.data[1] == 'd');
+    success = success && (StrLen(&output) == 2 && StrBegin(&output)[0] == 'c' && StrBegin(&output)[1] == 'd');
     StrClear(&output);
 
     // Test i16 with :A (uppercase)
     StrAppendFmt(&output, "{A}", i16_value);
-    success = success && (output.length == 2 && output.data[0] == 'C' && output.data[1] == 'D');
+    success = success && (StrLen(&output) == 2 && StrBegin(&output)[0] == 'C' && StrBegin(&output)[1] == 'D');
     StrClear(&output);
 
     // Test with u32 (containing ASCII values)
@@ -493,20 +493,20 @@ bool test_char_formatting(void) {
 
     // Test u32 with :c (preserve case)
     StrAppendFmt(&output, "{c}", u32_value);
-    success = success && (output.length == 4 && output.data[0] == 'E' && output.data[1] == 'f' &&
-                          output.data[2] == 'G' && output.data[3] == 'h');
+    success = success && (StrLen(&output) == 4 && StrBegin(&output)[0] == 'E' && StrBegin(&output)[1] == 'f' &&
+                          StrBegin(&output)[2] == 'G' && StrBegin(&output)[3] == 'h');
     StrClear(&output);
 
     // Test u32 with :a (lowercase)
     StrAppendFmt(&output, "{a}", u32_value);
-    success = success && (output.length == 4 && output.data[0] == 'e' && output.data[1] == 'f' &&
-                          output.data[2] == 'g' && output.data[3] == 'h');
+    success = success && (StrLen(&output) == 4 && StrBegin(&output)[0] == 'e' && StrBegin(&output)[1] == 'f' &&
+                          StrBegin(&output)[2] == 'g' && StrBegin(&output)[3] == 'h');
     StrClear(&output);
 
     // Test u32 with :A (uppercase)
     StrAppendFmt(&output, "{A}", u32_value);
-    success = success && (output.length == 4 && output.data[0] == 'E' && output.data[1] == 'F' &&
-                          output.data[2] == 'G' && output.data[3] == 'H');
+    success = success && (StrLen(&output) == 4 && StrBegin(&output)[0] == 'E' && StrBegin(&output)[1] == 'F' &&
+                          StrBegin(&output)[2] == 'G' && StrBegin(&output)[3] == 'H');
     StrClear(&output);
 
     // Test with i32 (containing ASCII values)
@@ -514,20 +514,20 @@ bool test_char_formatting(void) {
 
     // Test i32 with :c (preserve case)
     StrAppendFmt(&output, "{c}", i32_value);
-    success = success && (output.length == 4 && output.data[0] == 'I' && output.data[1] == 'j' &&
-                          output.data[2] == 'K' && output.data[3] == 'l');
+    success = success && (StrLen(&output) == 4 && StrBegin(&output)[0] == 'I' && StrBegin(&output)[1] == 'j' &&
+                          StrBegin(&output)[2] == 'K' && StrBegin(&output)[3] == 'l');
     StrClear(&output);
 
     // Test i32 with :a (lowercase)
     StrAppendFmt(&output, "{a}", i32_value);
-    success = success && (output.length == 4 && output.data[0] == 'i' && output.data[1] == 'j' &&
-                          output.data[2] == 'k' && output.data[3] == 'l');
+    success = success && (StrLen(&output) == 4 && StrBegin(&output)[0] == 'i' && StrBegin(&output)[1] == 'j' &&
+                          StrBegin(&output)[2] == 'k' && StrBegin(&output)[3] == 'l');
     StrClear(&output);
 
     // Test i32 with :A (uppercase)
     StrAppendFmt(&output, "{A}", i32_value);
-    success = success && (output.length == 4 && output.data[0] == 'I' && output.data[1] == 'J' &&
-                          output.data[2] == 'K' && output.data[3] == 'L');
+    success = success && (StrLen(&output) == 4 && StrBegin(&output)[0] == 'I' && StrBegin(&output)[1] == 'J' &&
+                          StrBegin(&output)[2] == 'K' && StrBegin(&output)[3] == 'L');
     StrClear(&output);
 
     // Test with u64 (containing ASCII values)
@@ -536,23 +536,23 @@ bool test_char_formatting(void) {
 
     // Test u64 with :c (preserve case)
     StrAppendFmt(&output, "{c}", u64_value);
-    success = success && (output.length == 8 && output.data[0] == 'M' && output.data[1] == 'n' &&
-                          output.data[2] == 'O' && output.data[3] == 'p' && output.data[4] == 'Q' &&
-                          output.data[5] == 'r' && output.data[6] == 'S' && output.data[7] == 't');
+    success = success && (StrLen(&output) == 8 && StrBegin(&output)[0] == 'M' && StrBegin(&output)[1] == 'n' &&
+                          StrBegin(&output)[2] == 'O' && StrBegin(&output)[3] == 'p' && StrBegin(&output)[4] == 'Q' &&
+                          StrBegin(&output)[5] == 'r' && StrBegin(&output)[6] == 'S' && StrBegin(&output)[7] == 't');
     StrClear(&output);
 
     // Test u64 with :a (lowercase)
     StrAppendFmt(&output, "{a}", u64_value);
-    success = success && (output.length == 8 && output.data[0] == 'm' && output.data[1] == 'n' &&
-                          output.data[2] == 'o' && output.data[3] == 'p' && output.data[4] == 'q' &&
-                          output.data[5] == 'r' && output.data[6] == 's' && output.data[7] == 't');
+    success = success && (StrLen(&output) == 8 && StrBegin(&output)[0] == 'm' && StrBegin(&output)[1] == 'n' &&
+                          StrBegin(&output)[2] == 'o' && StrBegin(&output)[3] == 'p' && StrBegin(&output)[4] == 'q' &&
+                          StrBegin(&output)[5] == 'r' && StrBegin(&output)[6] == 's' && StrBegin(&output)[7] == 't');
     StrClear(&output);
 
     // Test u64 with :A (uppercase)
     StrAppendFmt(&output, "{A}", u64_value);
-    success = success && (output.length == 8 && output.data[0] == 'M' && output.data[1] == 'N' &&
-                          output.data[2] == 'O' && output.data[3] == 'P' && output.data[4] == 'Q' &&
-                          output.data[5] == 'R' && output.data[6] == 'S' && output.data[7] == 'T');
+    success = success && (StrLen(&output) == 8 && StrBegin(&output)[0] == 'M' && StrBegin(&output)[1] == 'N' &&
+                          StrBegin(&output)[2] == 'O' && StrBegin(&output)[3] == 'P' && StrBegin(&output)[4] == 'Q' &&
+                          StrBegin(&output)[5] == 'R' && StrBegin(&output)[6] == 'S' && StrBegin(&output)[7] == 'T');
     StrClear(&output);
 
     // Test with i64 (containing ASCII values)
@@ -561,23 +561,23 @@ bool test_char_formatting(void) {
 
     // Test i64 with :c (preserve case)
     StrAppendFmt(&output, "{c}", i64_value);
-    success = success && (output.length == 8 && output.data[0] == 'U' && output.data[1] == 'v' &&
-                          output.data[2] == 'W' && output.data[3] == 'x' && output.data[4] == 'Y' &&
-                          output.data[5] == 'z' && output.data[6] == '1' && output.data[7] == '2');
+    success = success && (StrLen(&output) == 8 && StrBegin(&output)[0] == 'U' && StrBegin(&output)[1] == 'v' &&
+                          StrBegin(&output)[2] == 'W' && StrBegin(&output)[3] == 'x' && StrBegin(&output)[4] == 'Y' &&
+                          StrBegin(&output)[5] == 'z' && StrBegin(&output)[6] == '1' && StrBegin(&output)[7] == '2');
     StrClear(&output);
 
     // Test i64 with :a (lowercase)
     StrAppendFmt(&output, "{a}", i64_value);
-    success = success && (output.length == 8 && output.data[0] == 'u' && output.data[1] == 'v' &&
-                          output.data[2] == 'w' && output.data[3] == 'x' && output.data[4] == 'y' &&
-                          output.data[5] == 'z' && output.data[6] == '1' && output.data[7] == '2');
+    success = success && (StrLen(&output) == 8 && StrBegin(&output)[0] == 'u' && StrBegin(&output)[1] == 'v' &&
+                          StrBegin(&output)[2] == 'w' && StrBegin(&output)[3] == 'x' && StrBegin(&output)[4] == 'y' &&
+                          StrBegin(&output)[5] == 'z' && StrBegin(&output)[6] == '1' && StrBegin(&output)[7] == '2');
     StrClear(&output);
 
     // Test i64 with :A (uppercase)
     StrAppendFmt(&output, "{A}", i64_value);
-    success = success && (output.length == 8 && output.data[0] == 'U' && output.data[1] == 'V' &&
-                          output.data[2] == 'W' && output.data[3] == 'X' && output.data[4] == 'Y' &&
-                          output.data[5] == 'Z' && output.data[6] == '1' && output.data[7] == '2');
+    success = success && (StrLen(&output) == 8 && StrBegin(&output)[0] == 'U' && StrBegin(&output)[1] == 'V' &&
+                          StrBegin(&output)[2] == 'W' && StrBegin(&output)[3] == 'X' && StrBegin(&output)[4] == 'Y' &&
+                          StrBegin(&output)[5] == 'Z' && StrBegin(&output)[6] == '1' && StrBegin(&output)[7] == '2');
 
     StrDeinit(&output);
     StrDeinit(&s);
@@ -598,53 +598,53 @@ bool test_bitvec_formatting(void) {
     // Test 1: Basic binary formatting
     BitVec bv1 = BitVecFromStr("10110", alloc_base);
     StrAppendFmt(&output, "{}", bv1);
-    success = success && (ZstrCompare(output.data, "10110") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "10110") == 0);
     StrClear(&output);
 
     // Test 2: Empty BitVec
     BitVec bv_empty = BitVecInit(alloc_base);
     StrAppendFmt(&output, "{}", bv_empty);
-    success = success && (output.length == 0);
+    success = success && (StrLen(&output) == 0);
     StrClear(&output);
 
     // Test 3: Hex formatting
     BitVec bv2 = BitVecFromInteger(0xABCD, 16, alloc_base);
     StrAppendFmt(&output, "{x}", bv2);
-    success = success && (ZstrCompare(output.data, "0xabcd") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "0xabcd") == 0);
     StrClear(&output);
 
     // Test 4: Uppercase hex formatting
     StrAppendFmt(&output, "{X}", bv2);
-    success = success && (ZstrCompare(output.data, "0xABCD") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "0xABCD") == 0);
     StrClear(&output);
 
     // Test 5: Octal formatting
     BitVec bv3 = BitVecFromInteger(0755, 10, alloc_base);
     StrAppendFmt(&output, "{o}", bv3);
-    success = success && (ZstrCompare(output.data, "0o755") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "0o755") == 0);
     StrClear(&output);
 
     // Test 6: Width and alignment
     StrAppendFmt(&output, "{>10}", bv1);
-    success = success && (ZstrCompare(output.data, "     10110") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "     10110") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{<10}", bv1);
-    success = success && (ZstrCompare(output.data, "10110     ") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "10110     ") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{^10}", bv1);
-    success = success && (ZstrCompare(output.data, "  10110   ") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "  10110   ") == 0);
     StrClear(&output);
 
     // Test 7: Zero value
     BitVec bv_zero = BitVecFromInteger(0, 1, alloc_base);
     StrAppendFmt(&output, "{x}", bv_zero);
-    success = success && (ZstrCompare(output.data, "0x0") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "0x0") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{o}", bv_zero);
-    success = success && (ZstrCompare(output.data, "0o0") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "0o0") == 0);
     StrClear(&output);
 
     // Cleanup
@@ -673,27 +673,27 @@ bool test_int_formatting(void) {
     Int oct_val = IntFrom(493, alloc_base);
 
     StrAppendFmt(&output, "{}", big_dec);
-    success = success && (ZstrCompare(output.data, "123456789012345678901234567890") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "123456789012345678901234567890") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{x}", hex_val);
-    success = success && (ZstrCompare(output.data, "deadbeefcafebabe1234") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "deadbeefcafebabe1234") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{X}", hex_val);
-    success = success && (ZstrCompare(output.data, "DEADBEEFCAFEBABE1234") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "DEADBEEFCAFEBABE1234") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{b}", bin_val);
-    success = success && (ZstrCompare(output.data, "10100011") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "10100011") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{o}", oct_val);
-    success = success && (ZstrCompare(output.data, "755") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "755") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{>34}", big_dec);
-    success = success && (ZstrCompare(output.data, "    123456789012345678901234567890") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "    123456789012345678901234567890") == 0);
 
     IntDeinit(&big_dec);
     IntDeinit(&hex_val);
@@ -717,23 +717,23 @@ bool test_float_formatting(void) {
     Float short_v = FloatFromStr("1.2", alloc_base);
 
     StrAppendFmt(&output, "{}", exact);
-    success = success && (ZstrCompare(output.data, "1234567890.012345") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "1234567890.012345") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{e}", sci);
-    success = success && (ZstrCompare(output.data, "1.234567e+04") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "1.234567e+04") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{E}", sci);
-    success = success && (ZstrCompare(output.data, "1.234567E+04") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "1.234567E+04") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{.3}", short_v);
-    success = success && (ZstrCompare(output.data, "1.200") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "1.200") == 0);
     StrClear(&output);
 
     StrAppendFmt(&output, "{>18}", sci);
-    success = success && (ZstrCompare(output.data, "          12345.67") == 0);
+    success = success && (ZstrCompare(StrBegin(&output), "          12345.67") == 0);
 
     FloatDeinit(&exact);
     FloatDeinit(&sci);
@@ -769,7 +769,7 @@ bool test_str_write_fmt_clears(void) {
     Str              s     = StrInit(&alloc);
     StrAppendFmt(&s, "old prefix ");
     StrWriteFmt(&s, "fresh {}", LVAL(42));
-    bool ok = (s.length == 8) && (s.data[0] == 'f') && (s.data[s.length - 1] == '2');
+    bool ok = (StrLen(&s) == 8) && (StrBegin(&s)[0] == 'f') && (StrBegin(&s)[StrLen(&s) - 1] == '2');
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
     return ok;
@@ -783,17 +783,17 @@ bool test_str_patch_fmt(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Str              s     = StrInit(&alloc);
     StrAppendFmt(&s, "AAAAAAAA");
-    size before_length = s.length;
+    size before_length = StrLen(&s);
     bool ok            = StrPatchFmt(&s, 2, "{}", LVAL(1234));
-    ok                 = ok && s.length == before_length;
-    ok                 = ok && s.data[0] == 'A' && s.data[1] == 'A';
-    ok                 = ok && s.data[2] == '1' && s.data[3] == '2' && s.data[4] == '3' && s.data[5] == '4';
-    ok                 = ok && s.data[6] == 'A' && s.data[7] == 'A';
+    ok                 = ok && StrLen(&s) == before_length;
+    ok                 = ok && StrBegin(&s)[0] == 'A' && StrBegin(&s)[1] == 'A';
+    ok = ok && StrBegin(&s)[2] == '1' && StrBegin(&s)[3] == '2' && StrBegin(&s)[4] == '3' && StrBegin(&s)[5] == '4';
+    ok = ok && StrBegin(&s)[6] == 'A' && StrBegin(&s)[7] == 'A';
 
     // Patch that would extend past the end must fail.
     ok = ok && !StrPatchFmt(&s, 6, "{}", LVAL(9999));
-    ok = ok && s.length == before_length;
-    ok = ok && s.data[6] == 'A' && s.data[7] == 'A';
+    ok = ok && StrLen(&s) == before_length;
+    ok = ok && StrBegin(&s)[6] == 'A' && StrBegin(&s)[7] == 'A';
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);

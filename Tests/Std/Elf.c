@@ -77,8 +77,8 @@ bool test_elf_some_function_symbol(void) {
     }
 
     bool ok = false;
-    for (u64 i = 0; i < elf.symbols.length; ++i) {
-        const ElfSymbol *s = &elf.symbols.data[i];
+    for (u64 i = 0; i < VecLen(&elf.symbols); ++i) {
+        const ElfSymbol *s = VecPtrAt(&elf.symbols, i);
         if (s->type == ELF_SYMBOL_TYPE_FUNC && s->size > 0 && s->name && s->name[0] != '\0') {
             ok = true;
             break;

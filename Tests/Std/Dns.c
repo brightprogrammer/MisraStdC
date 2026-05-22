@@ -22,9 +22,9 @@ static bool test_dns_build_query_basic(void) {
     static const u8 expected[] = {0x12, 0x34, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
                                   0x00, 0x00, 0x07, 'e',  'x',  'a',  'm',  'p',  'l',  'e',
                                   0x03, 'c',  'o',  'm',  0x00, 0x00, 0x01, 0x00, 0x01};
-    bool            match      = ok && buf.length == sizeof(expected);
+    bool            match      = ok && BufLength(&buf) == sizeof(expected);
     for (u64 i = 0; match && i < sizeof(expected); ++i) {
-        if (buf.data[i] != expected[i]) {
+        if (BufData(&buf)[i] != expected[i]) {
             match = false;
         }
     }
@@ -43,9 +43,9 @@ static bool test_dns_build_query_trailing_dot(void) {
     DnsWireBuf w_dot  = VecInitT(w_dot, a);
     bool ok = DnsBuildQuery(&no_dot, 1, "a.b.c", DNS_TYPE_AAAA) && DnsBuildQuery(&w_dot, 1, "a.b.c.", DNS_TYPE_AAAA);
 
-    bool match = ok && no_dot.length == w_dot.length;
-    for (u64 i = 0; match && i < no_dot.length; ++i) {
-        if (no_dot.data[i] != w_dot.data[i]) {
+    bool match = ok && BufLength(&no_dot) == BufLength(&w_dot);
+    for (u64 i = 0; match && i < BufLength(&no_dot); ++i) {
+        if (BufData(&no_dot)[i] != BufData(&w_dot)[i]) {
             match = false;
         }
     }
@@ -153,16 +153,16 @@ static bool test_dns_parse_response_a_and_aaaa(void) {
     bool        ok   = DnsParseResponse(&resp, wire, sizeof(wire), a);
 
     bool match = ok && resp.id == 0x1234 && resp.is_response && resp.recursion_desired && resp.recursion_avail &&
-                 resp.rcode == DNS_RCODE_NOERROR && resp.answers.length == 2;
+                 resp.rcode == DNS_RCODE_NOERROR && VecLen(&resp.answers) == 2;
 
     if (match) {
-        DnsRecord *r0 = &resp.answers.data[0];
+        DnsRecord *r0 = VecPtrAt(&resp.answers, 0);
         match         = r0->type == DNS_TYPE_A && r0->ttl == 300 && r0->ipv4[0] == 93 && r0->ipv4[1] == 184 &&
-                r0->ipv4[2] == 216 && r0->ipv4[3] == 34 && r0->name.length > 0 &&
-                ZstrCompare(r0->name.data, "example.com") == 0;
+                r0->ipv4[2] == 216 && r0->ipv4[3] == 34 && StrLen(&r0->name) > 0 &&
+                ZstrCompare(StrBegin(&r0->name), "example.com") == 0;
     }
     if (match) {
-        DnsRecord *r1 = &resp.answers.data[1];
+        DnsRecord *r1 = VecPtrAt(&resp.answers, 1);
         match = r1->type == DNS_TYPE_AAAA && r1->ipv6[0] == 0x26 && r1->ipv6[1] == 0x06 && r1->ipv6[14] == 0x19 &&
                 r1->ipv6[15] == 0x46;
     }
@@ -218,7 +218,7 @@ static bool test_dns_parse_response_nxdomain(void) {
 
     DnsResponse resp  = {0};
     bool        ok    = DnsParseResponse(&resp, wire, sizeof(wire), a);
-    bool        match = ok && resp.rcode == DNS_RCODE_NXDOMAIN && resp.answers.length == 0;
+    bool        match = ok && resp.rcode == DNS_RCODE_NXDOMAIN && VecLen(&resp.answers) == 0;
 
     DnsResponseDeinit(&resp);
     DefaultAllocatorDeinit(&alloc);
@@ -289,10 +289,11 @@ static bool test_dns_parse_response_cname(void) {
 
     DnsResponse resp  = {0};
     bool        ok    = DnsParseResponse(&resp, wire, sizeof(wire), a);
-    bool        match = ok && resp.answers.length == 1;
+    bool        match = ok && VecLen(&resp.answers) == 1;
     if (match) {
-        DnsRecord *r = &resp.answers.data[0];
-        match = r->type == DNS_TYPE_CNAME && r->target.length > 0 && ZstrCompare(r->target.data, "example.com") == 0;
+        DnsRecord *r = VecPtrAt(&resp.answers, 0);
+        match        = r->type == DNS_TYPE_CNAME && StrLen(&r->target) > 0 &&
+                ZstrCompare(StrBegin(&r->target), "example.com") == 0;
     }
 
     DnsResponseDeinit(&resp);

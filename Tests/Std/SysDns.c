@@ -88,10 +88,10 @@ static bool test_dns_resolve_spec_numeric_v4(void) {
     DnsAddrs out = VecInitT(out, a);
     bool     got = DnsResolve(&r, "203.0.113.7:9999", SOCKET_KIND_TCP, &out);
 
-    bool ok = got && out.length == 1 && out.data[0].family == SOCKET_FAMILY_INET;
+    bool ok = got && VecLen(&out) == 1 && VecPtrAt(&out, 0)->family == SOCKET_FAMILY_INET;
     if (ok) {
-        Str s = SocketAddrFormat(&out.data[0], a);
-        ok    = (s.length > 0) && ZstrCompare(s.data, "203.0.113.7:9999") == 0;
+        Str s = SocketAddrFormat(VecPtrAt(&out, 0), a);
+        ok    = (StrLen(&s) > 0) && ZstrCompare(StrBegin(&s), "203.0.113.7:9999") == 0;
         StrDeinit(&s);
     }
 
@@ -112,11 +112,11 @@ static bool test_dns_resolve_spec_numeric_v6(void) {
     DnsAddrs out = VecInitT(out, a);
     bool     got = DnsResolve(&r, "[::1]:443", SOCKET_KIND_TCP, &out);
 
-    bool ok = got && out.length == 1 && out.data[0].family == SOCKET_FAMILY_INET6;
+    bool ok = got && VecLen(&out) == 1 && VecPtrAt(&out, 0)->family == SOCKET_FAMILY_INET6;
     if (ok) {
-        Str s = SocketAddrFormat(&out.data[0], a);
+        Str s = SocketAddrFormat(VecPtrAt(&out, 0), a);
         // SocketAddrFormat emits the bracketed form for IPv6.
-        ok = (s.length > 0) && ZstrCompare(s.data, "[::1]:443") == 0;
+        ok = (StrLen(&s) > 0) && ZstrCompare(StrBegin(&s), "[::1]:443") == 0;
         StrDeinit(&s);
     }
 
@@ -138,12 +138,12 @@ static bool test_dns_resolve_spec_hostname(void) {
     bool     got = DnsResolve(&r, "localhost:53", SOCKET_KIND_TCP, &out);
 
     // Sanity: each returned address should format with ":53" suffix.
-    bool ok = got && out.length > 0;
+    bool ok = got && VecLen(&out) > 0;
     if (ok) {
         VecForeachPtr(&out, ad) {
             Str s = SocketAddrFormat(ad, a);
-            u64 L = s.length;
-            if (L < 3 || s.data[L - 1] != '3' || s.data[L - 2] != '5' || s.data[L - 3] != ':') {
+            u64 L = StrLen(&s);
+            if (L < 3 || StrBegin(&s)[L - 1] != '3' || StrBegin(&s)[L - 2] != '5' || StrBegin(&s)[L - 3] != ':') {
                 ok = false;
             }
             StrDeinit(&s);

@@ -104,7 +104,7 @@ extern "C" {
     /// open for the child's stdin/stdout/stderr pipes. Does NOT terminate
     /// the child -- call `ProcTerminate` first if you want that. Safe on
     /// a zeroed (never-spawned) `Proc`. No allocator argument: the
-    /// allocator handed to `proc_init` is used transiently during spawn
+    /// allocator handed to `ProcInit` is used transiently during spawn
     /// (only on Windows, for the cmdline buffer) and is not retained.
     ///
     /// SUCCESS : Returns to the caller. `*p` is zeroed.
@@ -119,7 +119,7 @@ extern "C" {
     ///
     /// SUCCESS : Returns true when the child was spawned and the OS
     ///           handle / pid is valid.
-    /// FAILURE : Returns false when `proc_init` failed or `p` is NULL.
+    /// FAILURE : Returns false when `ProcInit` failed or `p` is NULL.
     ///           Cannot fail.
     ///
     static inline bool ProcOk(const Proc *p) {

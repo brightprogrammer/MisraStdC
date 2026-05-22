@@ -49,11 +49,11 @@ bool test_bitvec_to_string(void) {
     bool ok = BitVecTryToStr(&str, &bv);
 
     // Check result
-    bool result = ok && (str.length == 4);
-    result      = result && (str.data[0] == '1');
-    result      = result && (str.data[1] == '0');
-    result      = result && (str.data[2] == '1');
-    result      = result && (str.data[3] == '1');
+    bool result = ok && (StrLen(&str) == 4);
+    result      = result && (StrBegin(&str)[0] == '1');
+    result      = result && (StrBegin(&str)[1] == '0');
+    result      = result && (StrBegin(&str)[2] == '1');
+    result      = result && (StrBegin(&str)[3] == '1');
 
     // Clean up
     StrDeinit(&str);
@@ -612,13 +612,13 @@ bool test_bitvec_large_scale_conversions(void) {
 
     // Test string conversion
     Str large_str = BitVecToStr(&large_bv);
-    result        = result && (large_str.length == 1000);
+    result        = result && (StrLen(&large_str) == 1000);
 
     // Verify pattern consistency
     bool pattern_correct = true;
-    for (u64 i = 0; i < large_str.length; i++) {
+    for (u64 i = 0; i < StrLen(&large_str); i++) {
         bool expected = (i % 3) == 0;
-        bool actual   = (large_str.data[i] == '1');
+        bool actual   = (StrBegin(&large_str)[i] == '1');
         if (expected != actual) {
             pattern_correct = false;
             break;
