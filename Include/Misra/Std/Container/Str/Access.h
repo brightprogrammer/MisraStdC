@@ -26,6 +26,25 @@ extern "C" {
 #define StrLen(str) VecLen(str)
 
 ///
+/// Capacity in characters: the most the string can hold before the next
+/// reallocation. Always `>= StrLen(str)`.
+///
+/// str[in] : String to query.
+///
+/// TAGS: Str, Access, Capacity
+///
+#define StrCapacity(str) VecCapacity(str)
+
+///
+/// Allocator backing the string's storage.
+///
+/// str[in] : String to query.
+///
+/// TAGS: Str, Access, Allocator
+///
+#define StrAllocator(str) VecAllocator(str)
+
+///
 /// Check whether string is empty.
 ///
 /// str[in] : String to query.

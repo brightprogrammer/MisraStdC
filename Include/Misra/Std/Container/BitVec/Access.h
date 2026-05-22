@@ -101,6 +101,22 @@ extern "C" {
 #define BitVecCapacity(bv) ((bv)->capacity)
 
 ///
+/// Pointer to the raw u64-packed storage backing the bitvector. The
+/// caller MUST NOT free this pointer or write past `BitVecByteSize(bv)`
+/// bytes. Useful for serialising the underlying bits or for hand-rolled
+/// bit-level routines outside the standard `BitVecGet`/`Set`/`Flip`
+/// access pattern.
+///
+/// bv[in] : Bitvector to query.
+///
+/// RETURNS : Pointer to the backing u64 array, or NULL when the
+///           bitvector has never been allocated into.
+///
+/// TAGS: BitVec, Access, Data
+///
+#define BitVecData(bv) ((bv)->data)
+
+///
 /// Check if bitvector is empty.
 ///
 /// bv[in] : Bitvector to check

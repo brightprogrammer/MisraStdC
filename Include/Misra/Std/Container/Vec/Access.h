@@ -104,6 +104,25 @@
 #define VecLen(v) ((v)->length)
 
 ///
+/// Capacity in elements: the most the vector can hold before the next
+/// reallocation. Always `>= VecLen(v)`.
+///
+/// v[in] : Vector to query.
+///
+/// TAGS: Vec, Access, Capacity
+///
+#define VecCapacity(v) ((v)->capacity)
+
+///
+/// Allocator backing the vector's storage.
+///
+/// v[in] : Vector to query.
+///
+/// TAGS: Vec, Access, Allocator
+///
+#define VecAllocator(v) ((v)->allocator)
+
+///
 /// Check whether vector has no elements.
 ///
 /// v[in] : Vector to query.

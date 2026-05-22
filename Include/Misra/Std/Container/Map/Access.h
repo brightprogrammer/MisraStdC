@@ -18,6 +18,58 @@
 #define MapPairCount(m) ((m)->length)
 
 ///
+/// Probe-table slot count: the size of the underlying open-addressed
+/// hash table, including occupied slots, tombstones, and empty slots.
+/// Grows with the policy's `next_capacity`. Always `>= MapPairCount(m)`.
+///
+/// m[in] : Map.
+///
+/// TAGS: Map, Access, Capacity
+///
+#define MapCapacity(m) ((m)->capacity)
+
+///
+/// Tombstone count: slots that previously held a key but are now
+/// reserved for probe-chain continuity. Reset to zero by rehash.
+///
+/// m[in] : Map.
+///
+/// TAGS: Map, Access, Tombstones
+///
+#define MapTombstones(m) ((m)->tombstones)
+
+///
+/// Allocator backing the map's storage.
+///
+/// m[in] : Map.
+///
+/// TAGS: Map, Access, Allocator
+///
+#define MapAllocator(m) ((m)->allocator)
+
+///
+/// Raw pointer to the entries array. For diagnostic inspection only -
+/// the layout is `MAP_ENTRY_TYPE(m)[MapCapacity(m)]` interpreted via
+/// `MAP_ENTRY_TYPE(m)` and gated by the state array. Use the value /
+/// cursor APIs above for the supported lookup path.
+///
+/// m[in] : Map.
+///
+/// TAGS: Map, Access, Internal
+///
+#define MapEntries(m) ((m)->entries)
+
+///
+/// Per-slot state array (occupied / empty / tombstone). One byte per
+/// slot, `MapCapacity(m)` entries long. Diagnostic inspection only.
+///
+/// m[in] : Map.
+///
+/// TAGS: Map, Access, Internal
+///
+#define MapStates(m) ((m)->states)
+
+///
 /// Number of distinct keys stored in the multimap.
 ///
 /// m[in] : Map.
