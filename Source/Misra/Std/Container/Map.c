@@ -179,7 +179,7 @@ const MapPolicy MapPolicyQuadratic = {
     .max_probe_count = 128,
 };
 
-static inline char *map_entry_ptr(const GenericMap *map, size entry_size, size idx) {
+static inline u8 *map_entry_ptr(const GenericMap *map, size entry_size, size idx) {
     return map->entries + (idx * entry_size);
 }
 
@@ -217,7 +217,7 @@ static void map_deinit_slot(GenericMap *map, size entry_size, size key_offset, s
 
 static bool map_copy_into_entry(
     GenericMap *map,
-    char       *entry,
+    u8         *entry,
     size        entry_size,
     size        key_offset,
     size        key_size,
@@ -493,10 +493,10 @@ bool rehash_map(
     size        n,
     MapPolicy   policy
 ) {
-    char *old_entries;
-    u8   *old_states;
-    char *new_entries;
-    u8   *new_states;
+    u8 *old_entries;
+    u8 *old_states;
+    u8 *new_entries;
+    u8 *new_states;
     size  old_capacity;
     size  new_capacity;
     size  idx;
@@ -1036,7 +1036,7 @@ bool map_set_only(
     size        value_size,
     size        hash_offset
 ) {
-    char *temp_entry;
+    u8   *temp_entry;
     size  existing_idx;
     u64   hash;
 

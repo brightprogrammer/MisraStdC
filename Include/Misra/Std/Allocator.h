@@ -547,7 +547,7 @@ extern "C" {
         for (Allocator *name             = &UNPL(scope_user).base,                                                     \
                        *MisraScope       = &UNPL(scope_internal).base,                                                 \
                        *UNPL(scope_done) = name;                                                                       \
-             UNPL(scope_done);                                                                                         \
+             (UNUSED(MisraScope), UNPL(scope_done));                                                                   \
              UNPL(scope_done) = NULL)
 
 ///
@@ -568,7 +568,8 @@ extern "C" {
 /// TAGS: Allocator, Scope, Lifetime
 ///
 #define ScopeWith(alloc_ptr)                                                                                           \
-    for (Allocator *MisraScope = (alloc_ptr), *UNPL(scope_with_done) = MisraScope; UNPL(scope_with_done);              \
+    for (Allocator *MisraScope = (alloc_ptr), *UNPL(scope_with_done) = MisraScope;                                     \
+         (UNUSED(MisraScope), UNPL(scope_with_done));                                                                  \
          UNPL(scope_with_done) = NULL)
 
 ///

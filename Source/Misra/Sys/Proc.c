@@ -123,17 +123,21 @@ static inline long misra_proc_waitpid(int pid, int *status, int options) {
 // Macro shims so the existing POSIX call sites use our direct-syscall
 // wrappers without per-line edits. Each returns the kernel's value
 // (negative = -errno, otherwise success), and the callers already
-// handle the "< 0" failure shape that POSIX wrappers expose.
-#    define close(fd)                  ((int)misra_proc_close(fd))
-#    define read(fd, buf, n)           ((long)misra_proc_read((fd), (buf), (n)))
-#    define write(fd, buf, n)          ((long)misra_proc_write((fd), (buf), (n)))
-#    define pipe(fds)                  ((int)misra_proc_pipe(fds))
-#    define dup2(oldfd, newfd)         ((int)misra_proc_dup2((oldfd), (newfd)))
-#    define fork()                     ((pid_t)misra_proc_fork())
-#    define execve(p, a, e)            ((int)misra_proc_execve((p), (a), (e)))
-#    define kill(pid, sig)             ((int)misra_proc_kill((pid), (sig)))
-#    define readlink(p, b, n)          ((long)misra_proc_readlink((p), (b), (n)))
-#    define waitpid(pid, status, opts) ((pid_t)misra_proc_waitpid((pid), (status), (opts)))
+// handle the "< 0" failure shape that POSIX wrappers expose. No outer
+// cast: callers that bind the result get the implicit conversion
+// (long -> int / pid_t / etc.), and callers that discard the result
+// don't get `-Wunused-value` from a cast in expression-statement
+// position.
+#    define close(fd)                  misra_proc_close(fd)
+#    define read(fd, buf, n)           misra_proc_read((fd), (buf), (n))
+#    define write(fd, buf, n)          misra_proc_write((fd), (buf), (n))
+#    define pipe(fds)                  misra_proc_pipe(fds)
+#    define dup2(oldfd, newfd)         misra_proc_dup2((oldfd), (newfd))
+#    define fork()                     misra_proc_fork()
+#    define execve(p, a, e)            misra_proc_execve((p), (a), (e))
+#    define kill(pid, sig)             misra_proc_kill((pid), (sig))
+#    define readlink(p, b, n)          misra_proc_readlink((p), (b), (n))
+#    define waitpid(pid, status, opts) misra_proc_waitpid((pid), (status), (opts))
 #endif
 
 #ifndef STDIN_FILENO

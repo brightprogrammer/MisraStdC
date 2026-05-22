@@ -142,16 +142,15 @@ extern "C" {
                                     ALIGN_UP_POW2((slot_size_bytes), (alignment_value)) + ((alignment_value) - 1),     \
          "BudgetAllocatorInit: buffer too small for bitmap + one padded slot"                                          \
      ),                                                                                                                \
-     (MemSet(                                                                                                          \
-          PTR_ALIGN_UP_POW2((buf_ptr), 8u),                                                                            \
-          0,                                                                                                           \
-          CEIL_DIV(                                                                                                    \
-              ((size)(total_bytes) - (size)(ALIGN_UP_POW2((u64)(buf_ptr), 8u) - (u64)(buf_ptr))) /                     \
-                  ALIGN_UP_POW2((slot_size_bytes), (alignment_value)),                                                 \
-              64u                                                                                                      \
-          ) * sizeof(u64)                                                                                              \
-      ),                                                                                                               \
-      0),                                                                                                              \
+     MemSet(                                                                                                           \
+         PTR_ALIGN_UP_POW2((buf_ptr), 8u),                                                                             \
+         0,                                                                                                            \
+         CEIL_DIV(                                                                                                     \
+             ((size)(total_bytes) - (size)(ALIGN_UP_POW2((u64)(buf_ptr), 8u) - (u64)(buf_ptr))) /                      \
+                 ALIGN_UP_POW2((slot_size_bytes), (alignment_value)),                                                  \
+             64u                                                                                                       \
+         ) * sizeof(u64)                                                                                               \
+     ),                                                                                                                \
      ((BudgetAllocator) {                                                                                              \
          .base =                                                                                                       \
              {.allocate    = budget_allocator_allocate,                                                                \

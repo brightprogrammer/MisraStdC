@@ -205,6 +205,25 @@ typedef i8 bool;
 #endif
 
 ///
+/// Mark `x` as deliberately unused at this point. Expands to the
+/// canonical `(void)(x)` cast -- works on every C compiler (no
+/// `__attribute__` / `__pragma` dispatch needed). Use it to silence
+/// `-Wunused-variable` / `-Wunused-parameter` on a name that the
+/// surrounding code legitimately doesn't touch, and to mark a
+/// scope-default like `MisraScope` as "read" when the body never
+/// references it.
+///
+/// USAGE:
+///   void cb(int reason, void *ctx) {
+///       UNUSED(reason);
+///       UNUSED(ctx);
+///       ...
+///   }
+///
+/// TAGS: Codegen, Compiler-Portability, Utility
+#define UNUSED(x) ((void)(x))
+
+///
 /// Count trailing zero bits in a 64-bit word. Undefined for `x == 0`
 /// (matches the underlying compiler builtin's contract); callers must
 /// pre-check.
