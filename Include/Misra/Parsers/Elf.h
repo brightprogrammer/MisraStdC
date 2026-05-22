@@ -285,6 +285,9 @@ bool elf_open_from_memory_copy(Elf *out, const u8 *data, size data_size, Allocat
 /// sole owner of `data`, so this is unconditional. Safe to call on
 /// a zeroed struct.
 ///
+/// SUCCESS : Returns to the caller. `*self` is zeroed.
+/// FAILURE : Function cannot fail. NULL `self` is a no-op.
+///
 void ElfDeinit(Elf *self);
 
 ///

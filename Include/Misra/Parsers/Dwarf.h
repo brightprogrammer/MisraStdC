@@ -198,15 +198,30 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const Elf *elf, Allocator *alloc);
 
 ///
 /// Find the FDE whose `[pc_begin, pc_begin + pc_range)` range contains
-/// `vaddr` (file-relative). Returns NULL if no FDE covers the address.
+/// `vaddr` (file-relative).
+///
+/// SUCCESS : Returns a pointer to the matching FDE, borrowed from
+///           `self` (valid until `DwarfCfiDeinit`).
+/// FAILURE : Returns NULL when no FDE covers `vaddr`.
 ///
 const DwarfFde *DwarfCfiFindFde(const DwarfCfi *self, u64 vaddr);
 
 ///
 /// Find a CIE by its `.eh_frame` offset (used to link FDE -> CIE).
 ///
+/// SUCCESS : Returns a pointer to the CIE at `cie_offset`, borrowed
+///           from `self` (valid until `DwarfCfiDeinit`).
+/// FAILURE : Returns NULL when no CIE sits at that offset.
+///
 const DwarfCie *DwarfCfiFindCie(const DwarfCfi *self, u64 cie_offset);
 
+///
+/// Release every CIE / FDE table the CFI parser allocated. Safe on a
+/// zeroed struct.
+///
+/// SUCCESS : Returns to the caller. `*self` is zeroed.
+/// FAILURE : Function cannot fail. NULL `self` is a no-op.
+///
 void DwarfCfiDeinit(DwarfCfi *self);
 
 // ---------------------------------------------------------------------------
@@ -346,6 +361,12 @@ bool dwarf_functions_build_from_elf(DwarfFunctions *out, const Elf *elf, Allocat
 /// Any of `info_bytes` / `abbrev_bytes` / `str_bytes` may be NULL when
 /// the corresponding section is absent; an empty `info_bytes` is
 /// treated as "no debug info" (success with empty table).
+///
+/// SUCCESS : Returns `true`. `*out` is populated; empty when there is
+///           no `.debug_info` to parse.
+/// FAILURE : Returns `false` on allocator OOM or malformed DWARF.
+///           `*out` is left in the partial state it had reached;
+///           caller should `DwarfFunctionsDeinit` to release it.
 ///
 /// TAGS: Parser, DWARF, Info, Bytes
 ///

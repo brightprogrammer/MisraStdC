@@ -175,6 +175,9 @@ bool pdb_open_from_memory_copy(Pdb *out, const u8 *data, size data_size, Allocat
 ///
 /// Release storage owned by a `Pdb`. Safe on a zeroed struct.
 ///
+/// SUCCESS : Returns to the caller. `*self` is zeroed.
+/// FAILURE : Function cannot fail. NULL `self` is a no-op.
+///
 void PdbDeinit(Pdb *self);
 
 ///

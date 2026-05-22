@@ -83,12 +83,22 @@ File file_open(Zstr path, Zstr mode);
 /// Use for wrapping the well-known standard streams or fds you got
 /// from elsewhere.
 ///
+/// SUCCESS : Returns a `File` whose underlying handle aliases `fd` and
+///           whose `owns` flag is false. `FileIsOpen` is true unless
+///           `fd` was negative.
+/// FAILURE : Function cannot fail; an invalid `fd` produces a `File`
+///           that simply reports as not-open.
+///
 File FileFromFd(i32 fd);
 
 ///
 /// Standard input / output / error accessors. Wrapping the
 /// well-known fds 0/1/2 on POSIX, the GetStdHandle() values on
 /// Windows.
+///
+/// SUCCESS : Returns a borrowed `File` (owns = false) referring to
+///           the corresponding standard stream.
+/// FAILURE : Function cannot fail.
 ///
 File FileStdin(void);
 File FileStdout(void);
@@ -105,7 +115,10 @@ File FileStderr(void);
 bool FileClose(File *f);
 
 ///
-/// True if the underlying handle is currently open.
+/// Check whether the file handle currently holds an open fd / HANDLE.
+///
+/// SUCCESS : Returns true when the handle is open.
+/// FAILURE : Returns false otherwise (closed or never opened). Cannot fail.
 ///
 bool FileIsOpen(const File *f);
 
@@ -269,13 +282,19 @@ i64 FileTell(File *f);
 bool FileFlush(File *f);
 
 ///
-/// True if a previous FileRead returned 0 bytes.
+/// Check whether a previous `FileRead` reported end-of-file.
+///
+/// SUCCESS : Returns true when the last read returned 0 bytes.
+/// FAILURE : Returns false otherwise. Cannot fail.
 ///
 bool FileIsEof(const File *f);
 
 ///
-/// Return the underlying fd. POSIX-only; on Windows this returns -1.
-/// Useful for syscalls that need a raw fd (e.g. isatty checks).
+/// Return the underlying fd. POSIX-only; on Windows the handle is a
+/// `HANDLE` and there is no fd to surface.
+///
+/// SUCCESS : Returns the fd (>= 0) on POSIX.
+/// FAILURE : Returns -1 on Windows, or for a `File` that isn't open.
 ///
 i32 FileFd(const File *f);
 

@@ -62,9 +62,44 @@ extern "C" {
 ///
 #define StrInitStack(str, alloc_ptr, ne, scoped_body) VecInitStack(str, alloc_ptr, ne, scoped_body)
 
+    ///
+    /// Release the backing storage of `str` through its inline allocator
+    /// and zero the handle so a later double-Deinit is a no-op.
+    ///
+    /// SUCCESS : Returns to the caller. `*str` is zeroed.
+    /// FAILURE : Function cannot fail. NULL `str` is a no-op.
+    ///
     void StrDeinit(Str *str);
+
+    ///
+    /// Deep-copy callback used by `Map<Str, ...>` / `Vec<Str>` etc. to
+    /// release an owned `Str` element. Mirrors `StrDeinit` but takes the
+    /// erased-type signature container deep-copy slots expect.
+    ///
+    /// SUCCESS : Returns to the caller. `*(Str *)copy` is zeroed.
+    /// FAILURE : Function cannot fail. NULL `copy` is a no-op.
+    ///
     void str_deinit(void *copy, const Allocator *alloc);
+
+    ///
+    /// Deep-copy `src` into a freshly initialised `dst`, allocating
+    /// through `src`'s inline allocator. Both ends carry independent
+    /// backing storage afterwards.
+    ///
+    /// SUCCESS : Returns `true`. `*dst` is a usable Str with the same
+    ///           contents and allocator as `*src`.
+    /// FAILURE : Returns `false` on allocator OOM. `*dst` is left zeroed.
+    ///
     bool StrInitCopy(Str *dst, const Str *src);
+
+    ///
+    /// Deep-copy callback used by `Map<..., Str>` / `Vec<Str>` etc. to
+    /// duplicate an owned `Str` value. Mirrors `StrInitCopy` but takes
+    /// the erased-type signature container deep-copy slots expect.
+    ///
+    /// SUCCESS : Returns `true`. `*(Str *)dst` is a deep copy of `*(const Str *)src`.
+    /// FAILURE : Returns `false` on allocator OOM. `*(Str *)dst` is left zeroed.
+    ///
     bool str_init_copy(void *dst, const void *src, const Allocator *alloc);
 
 #ifdef __cplusplus

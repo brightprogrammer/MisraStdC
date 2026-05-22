@@ -204,6 +204,10 @@ extern "C" {
     /// a[in]       : First operand
     /// b[in]       : Second operand
     ///
+    /// SUCCESS : Returns `true`. `*result` holds `gcd(a, b)`.
+    /// FAILURE : Returns `false` on allocator OOM while growing
+    ///           `result`. `*result` is left untouched.
+    ///
     /// USAGE:
     ///   IntGCD(&gcd, &a, &b);
     ///
@@ -217,6 +221,10 @@ extern "C" {
     /// a[in]       : First operand
     /// b[in]       : Second operand
     ///
+    /// SUCCESS : Returns `true`. `*result` holds `lcm(a, b)`.
+    /// FAILURE : Returns `false` on allocator OOM while growing
+    ///           `result`. `*result` is left untouched.
+    ///
     /// USAGE:
     ///   IntLCM(&lcm, &a, &b);
     ///
@@ -224,11 +232,15 @@ extern "C" {
     ///
     bool IntLCM(Int *result, Int *a, Int *b);
     ///
-    /// Compute the integer `degree`-th root of a value.
+    /// Compute the integer `degree`-th root of a value (floor).
     ///
     /// result[out]  : Destination for the root
     /// value[in]    : Input value
     /// degree[in]   : Root degree
+    ///
+    /// SUCCESS : Returns `true`. `*result` holds `floor(value^(1/degree))`.
+    /// FAILURE : Returns `false` on `degree == 0` or allocator OOM.
+    ///           `*result` is left untouched.
     ///
     /// USAGE:
     ///   IntRoot(&root, &value, 3);
@@ -244,6 +256,11 @@ extern "C" {
     /// value[in]       : Input value
     /// degree[in]      : Root degree
     ///
+    /// SUCCESS : Returns `true`. `*root` holds `floor(value^(1/degree))`,
+    ///           `*remainder` holds `value - root^degree`.
+    /// FAILURE : Returns `false` on `degree == 0` or allocator OOM.
+    ///           `*root` / `*remainder` are left untouched.
+    ///
     /// USAGE:
     ///   IntRootRem(&root, &rem, &value, 3);
     ///
@@ -251,10 +268,13 @@ extern "C" {
     ///
     bool IntRootRem(Int *root, Int *remainder, Int *value, u64 degree);
     ///
-    /// Compute the integer square root.
+    /// Compute the integer square root (floor).
     ///
     /// result[out] : Destination for the root
     /// value[in]   : Input value
+    ///
+    /// SUCCESS : Returns `true`. `*result` holds `floor(sqrt(value))`.
+    /// FAILURE : Returns `false` on allocator OOM. `*result` is left untouched.
     ///
     /// USAGE:
     ///   IntSqrt(&root, &value);
@@ -268,6 +288,11 @@ extern "C" {
     /// root[out]       : Destination for the root
     /// remainder[out]  : Destination for the remainder
     /// value[in]       : Input value
+    ///
+    /// SUCCESS : Returns `true`. `*root` holds `floor(sqrt(value))`,
+    ///           `*remainder` holds `value - root^2`.
+    /// FAILURE : Returns `false` on allocator OOM. `*root` / `*remainder`
+    ///           are left untouched.
     ///
     /// USAGE:
     ///   IntSqrtRem(&root, &rem, &value);
@@ -346,6 +371,10 @@ extern "C" {
     /// value[in]     : Value to square
     /// modulus[in]   : Modulus
     ///
+    /// SUCCESS : Returns `true`. `*result` holds `(value * value) mod modulus`.
+    /// FAILURE : Returns `false` on `modulus == 0` or allocator OOM.
+    ///           `*result` is left untouched.
+    ///
     /// USAGE:
     ///   IntSquareMod(&result, &value, &modulus);
     ///
@@ -359,6 +388,10 @@ extern "C" {
     /// a[in]         : Left operand
     /// b[in]         : Right operand
     /// modulus[in]   : Modulus
+    ///
+    /// SUCCESS : Returns `true`. `*result` holds `(a + b) mod modulus`.
+    /// FAILURE : Returns `false` on `modulus == 0` or allocator OOM.
+    ///           `*result` is left untouched.
     ///
     /// USAGE:
     ///   IntModAdd(&result, &a, &b, &modulus);
@@ -374,6 +407,11 @@ extern "C" {
     /// b[in]         : Right operand
     /// modulus[in]   : Modulus
     ///
+    /// SUCCESS : Returns `true`. `*result` holds `(a - b) mod modulus`,
+    ///           normalised into `[0, modulus)`.
+    /// FAILURE : Returns `false` on `modulus == 0` or allocator OOM.
+    ///           `*result` is left untouched.
+    ///
     /// USAGE:
     ///   IntModSub(&result, &a, &b, &modulus);
     ///
@@ -387,6 +425,10 @@ extern "C" {
     /// a[in]         : Left operand
     /// b[in]         : Right operand
     /// modulus[in]   : Modulus
+    ///
+    /// SUCCESS : Returns `true`. `*result` holds `(a * b) mod modulus`.
+    /// FAILURE : Returns `false` on `modulus == 0` or allocator OOM.
+    ///           `*result` is left untouched.
     ///
     /// USAGE:
     ///   IntModMul(&result, &a, &b, &modulus);

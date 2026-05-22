@@ -4,8 +4,8 @@
 ///
 /// Test utilities for running potentially failing tests using setjmp/longjmp
 
-#ifndef TEST_RUNNER_H
-#define TEST_RUNNER_H
+#ifndef MISRA_TEST_RUNNER_H
+#define MISRA_TEST_RUNNER_H
 
 #include <Misra/Types.h>
 
@@ -81,4 +81,4 @@ int run_test_suite(
     const char   *test_name
 );
 
-#endif // TEST_RUNNER_H
+#endif // MISRA_TEST_RUNNER_H

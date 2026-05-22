@@ -179,11 +179,18 @@ bool pe_open_from_memory_copy(Pe *out, const u8 *data, size data_size, Allocator
 /// `allocator` (unconditional -- parser always owns its bytes) and
 /// tears down the sections vector. Safe on a zeroed struct.
 ///
+/// SUCCESS : Returns to the caller. `*self` is zeroed.
+/// FAILURE : Function cannot fail. NULL `self` is a no-op.
+///
 void PeDeinit(Pe *self);
 
 ///
 /// Find a section by name (first match; PE allows duplicates but
 /// they're vanishingly rare).
+///
+/// SUCCESS : Returns a pointer to the matching `PeSection`, borrowed
+///           from `self` (valid until `PeDeinit`).
+/// FAILURE : Returns NULL when no section matches.
 ///
 const PeSection *PeFindSection(const Pe *self, Zstr name);
 

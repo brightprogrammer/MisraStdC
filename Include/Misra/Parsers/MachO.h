@@ -187,11 +187,17 @@ bool macho_open_from_memory_copy(Macho *out, const u8 *data, size data_size, All
 /// `allocator` (unconditional -- the parser always owns its bytes)
 /// and tears down the vectors. Safe on a zeroed struct.
 ///
+/// SUCCESS : Returns to the caller. `*self` is zeroed.
+/// FAILURE : Function cannot fail. NULL `self` is a no-op.
+///
 void MachoDeinit(Macho *self);
 
 ///
-/// Find a section by (segment, section) name pair. Returns NULL if
-/// absent.
+/// Find a section by (segment, section) name pair.
+///
+/// SUCCESS : Returns a pointer to the matching `MachoSection`,
+///           borrowed from `self` (valid until `MachoDeinit`).
+/// FAILURE : Returns NULL when no section matches.
 ///
 const MachoSection *MachoFindSection(const Macho *self, Zstr segment, Zstr section);
 

@@ -52,6 +52,9 @@ typedef Vec(HttpHeader) HttpHeaders;
 /// User-facing deinit. Releases the backing storage owned by
 /// `header->key` and `header->value`, then zeros the struct.
 ///
+/// SUCCESS : Returns to the caller. `*header` is zeroed.
+/// FAILURE : Function cannot fail. NULL `header` is a no-op.
+///
 void HttpHeaderDeinit(HttpHeader *header);
 
 ///
@@ -59,11 +62,19 @@ void HttpHeaderDeinit(HttpHeader *header);
 /// `GenericCopyDeinit`. Plumb this into `VecInitWithDeepCopy` so a
 /// `Vec(HttpHeader)` automatically deinits each entry on removal.
 ///
+/// SUCCESS : Returns to the caller. `*(HttpHeader *)header` is zeroed.
+/// FAILURE : Function cannot fail. NULL `header` is a no-op.
+///
 void http_header_deinit(void *header, const Allocator *alloc);
 
 ///
 /// Container-callback for deep copy. Used as the `copy_init` half of a
 /// deeply-copying `Vec(HttpHeader)`.
+///
+/// SUCCESS : Returns `true`. `*(HttpHeader *)dst` is a deep copy of
+///           `*(const HttpHeader *)src` allocated through `alloc`.
+/// FAILURE : Returns `false` on allocator OOM. `*(HttpHeader *)dst` is
+///           left zeroed.
 ///
 bool http_header_init_copy(void *dst, const void *src, const Allocator *alloc);
 
@@ -258,6 +269,12 @@ typedef struct HttpResponse {
 ///
 /// Wire-format lookup tables.
 ///
+/// SUCCESS : Returns the canonical HTTP/1.1 reason-phrase string for
+///           the given code / content type. The pointer is to static
+///           storage and is valid for the lifetime of the program.
+/// FAILURE : Returns `"Unknown"` for codes / content types outside the
+///           recognised enum range. Cannot fail.
+///
 const char *HttpResponseCodeToZstr(HttpResponseCode code);
 const char *HttpContentTypeToZstr(HttpContentType content_type);
 
@@ -301,6 +318,9 @@ Str http_response_serialize(const HttpResponse *response, Allocator *alloc);
 
 ///
 /// Release storage owned by `response` and zero the struct.
+///
+/// SUCCESS : Returns to the caller. `*response` is zeroed.
+/// FAILURE : Function cannot fail. NULL `response` is a no-op.
 ///
 void HttpResponseDeinit(HttpResponse *response);
 
