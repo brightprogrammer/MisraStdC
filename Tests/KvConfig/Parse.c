@@ -21,14 +21,14 @@ static bool test_kvconfig_basic_parse(void) {
     bool    result = true;
 
     result = result && (si.pos == si.length);
-    result = result && (KvConfigLen(&cfg) == 3);
+    result = result && (MapPairCount(&cfg) == 3);
     result = result && KvConfigContains(&cfg, "host");
     result = result && host && StrCmpZstr(host, "localhost") == 0;
     result = result && KvConfigGetI64(&cfg, "port", &port) && (port == 8080);
     result = result && KvConfigGetBool(&cfg, "debug", &debug) && debug;
 
     StrDeinit(&src);
-    KvConfigDeinit(&cfg);
+    MapDeinit(&cfg);
     DefaultAllocatorDeinit(&alloc);
     return result;
 }
@@ -55,14 +55,14 @@ static bool test_kvconfig_comments_quotes_and_duplicates(void) {
     bool    result = true;
 
     result = result && (si.pos == si.length);
-    result = result && (KvConfigLen(&cfg) == 4);
+    result = result && (MapPairCount(&cfg) == 4);
     result = result && path && StrCmpZstr(path, "/srv/my app") == 0;
     result = result && user && StrCmpZstr(user, "root") == 0;
     result = result && greet && StrCmpZstr(greet, "hello world") == 0;
     result = result && empty && (empty->length == 0);
 
     StrDeinit(&src);
-    KvConfigDeinit(&cfg);
+    MapDeinit(&cfg);
     DefaultAllocatorDeinit(&alloc);
     return result;
 }
@@ -95,7 +95,7 @@ static bool test_kvconfig_get_returns_copy(void) {
 
     StrDeinit(&host_copy);
     StrDeinit(&src);
-    KvConfigDeinit(&cfg);
+    MapDeinit(&cfg);
     DefaultAllocatorDeinit(&alloc);
     return result;
 }
@@ -129,7 +129,7 @@ static bool test_kvconfig_numeric_and_bool_accessors(void) {
     result = result && !KvConfigGetF64(&cfg, "missing", &pi);
 
     StrDeinit(&src);
-    KvConfigDeinit(&cfg);
+    MapDeinit(&cfg);
     DefaultAllocatorDeinit(&alloc);
     return result;
 }
@@ -153,7 +153,7 @@ static bool test_kvconfig_invalid_line_fails(void) {
     result = result && !KvConfigContains(&cfg, "later");
 
     StrDeinit(&src);
-    KvConfigDeinit(&cfg);
+    MapDeinit(&cfg);
     DefaultAllocatorDeinit(&alloc);
     return result;
 }

@@ -308,8 +308,7 @@ Float:                                                                          
 ///
 /// TAGS: Str, Format, Pad
 ///
-bool str_pad(Str *o, size width, Alignment align, size content_len);
-#define StrPad(o, width, align, content_len) str_pad((o), (width), (align), (content_len))
+bool StrPad(Str *o, size width, Alignment align, size content_len);
 
 #if FEATURE_FLOAT
 ///

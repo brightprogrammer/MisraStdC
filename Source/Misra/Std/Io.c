@@ -286,7 +286,7 @@ static bool pad_numeric_zeros(Str *o, size content_start, size width, size conte
     return true;
 }
 
-bool str_pad(Str *o, size width, Alignment align, size content_len) {
+bool StrPad(Str *o, size width, Alignment align, size content_len) {
     if (content_len >= width)
         return true;
 
@@ -1718,7 +1718,7 @@ bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        if (!str_pad(o, fmt_info->width, fmt_info->align, content_len)) {
+        if (!StrPad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -1810,7 +1810,7 @@ bool _write_Zstr(Str *o, FmtInfo *fmt_info, const char **s) {
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        if (!str_pad(o, fmt_info->width, fmt_info->align, content_len)) {
+        if (!StrPad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -1882,7 +1882,7 @@ bool _write_u64(Str *o, FmtInfo *fmt_info, u64 *v) {
             if (!pad_numeric_zeros(o, start_len, fmt_info->width, content_len)) {
                 return false;
             }
-        } else if (!str_pad(o, fmt_info->width, fmt_info->align, content_len)) {
+        } else if (!StrPad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -1987,7 +1987,7 @@ bool _write_i64(Str *o, FmtInfo *fmt_info, i64 *v) {
             if (!pad_numeric_zeros(o, start_len, fmt_info->width, content_len)) {
                 return false;
             }
-        } else if (!str_pad(o, fmt_info->width, fmt_info->align, content_len)) {
+        } else if (!StrPad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -2114,7 +2114,7 @@ bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        if (!str_pad(o, fmt_info->width, fmt_info->align, content_len)) {
+        if (!StrPad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -2189,7 +2189,7 @@ bool _write_Float(Str *o, FmtInfo *fmt_info, Float *value) {
 
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        if (!str_pad(o, fmt_info->width, fmt_info->align, content_len)) {
+        if (!StrPad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -3460,7 +3460,7 @@ bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
     // Apply padding if width is specified
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        if (!str_pad(o, fmt_info->width, fmt_info->align, content_len)) {
+        if (!StrPad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }
@@ -3524,7 +3524,7 @@ bool _write_Int(Str *o, FmtInfo *fmt_info, Int *value) {
 
     if (fmt_info->width > 0) {
         size content_len = o->length - start_len;
-        if (!str_pad(o, fmt_info->width, fmt_info->align, content_len)) {
+        if (!StrPad(o, fmt_info->width, fmt_info->align, content_len)) {
             return false;
         }
     }

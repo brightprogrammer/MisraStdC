@@ -60,26 +60,11 @@ typedef Map(Str, Str) KvConfig;
         (allocator_ptr)                                                                                                \
     )
 
-///
-/// Deinitialize config storage.
-///
-/// cfg[in,out] : Config object.
-///
-#define KvConfigDeinit(cfg) MapDeinit(cfg)
-
-///
-/// Clear all parsed entries while retaining capacity.
-///
-/// cfg[in,out] : Config object.
-///
-#define KvConfigClear(cfg) MapClear(cfg)
-
-///
-/// Number of stored entries.
-///
-/// cfg[in] : Config object.
-///
-#define KvConfigLen(cfg) MapPairCount(cfg)
+// `KvConfig` is a thin typedef alias for `Map<Str, Str>`; use the Map
+// API directly for lifecycle and inspection -- `MapDeinit(&cfg)`,
+// `MapClear(&cfg)`, `MapPairCount(&cfg)`. The previous KvConfigDeinit /
+// KvConfigClear / KvConfigLen macros were pure pass-throughs and have
+// been removed (deadweight macro convention).
 
 ///
 /// Hash a `Str` for use as config key.
