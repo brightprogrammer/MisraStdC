@@ -166,9 +166,9 @@ bool test_pe_parses_synthetic_blob(void) {
     }
 
     ok = pe.machine == PE_MACHINE_X86_64 && pe.is_pe32_plus && pe.image_base == 0x140000000ull;
-    ok = ok && pe.sections.length == 1;
-    ok = ok && ZstrCompare(pe.sections.data[0].name, ".debug") == 0;
-    ok = ok && pe.sections.data[0].virtual_address == SECTION_VA;
+    ok = ok && VecLen(&pe.sections) == 1;
+    ok = ok && ZstrCompare(VecPtrAt(&pe.sections, 0)->name, ".debug") == 0;
+    ok = ok && VecPtrAt(&pe.sections, 0)->virtual_address == SECTION_VA;
     ok = ok && pe.codeview.present;
     ok = ok && pe.codeview.age == 0x2a;
     ok = ok && MemCompare(pe.codeview.guid, kGuid, 16) == 0;

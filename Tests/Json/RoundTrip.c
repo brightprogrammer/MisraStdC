@@ -138,14 +138,14 @@ bool test_simple_roundtrip(void) {
             original.count,
             original.temperature,
             original.enabled ? "true" : "false",
-            original.message.data
+            StrBegin(&original.message)
         );
         WriteFmtLn(
             "[DEBUG] Parsed: count={}, temp={}, enabled={}, msg='{}'",
             parsed.count,
             parsed.temperature,
             parsed.enabled ? "true" : "false",
-            parsed.message.data
+            StrBegin(&parsed.message)
         );
         success = false;
     }
@@ -334,7 +334,7 @@ bool test_string_roundtrip(void) {
     });
 
     // Compare values
-    if (parsed.empty.length == original.empty.length && StrCmp(&original.simple, &parsed.simple) == 0 &&
+    if (StrLen(&parsed.empty) == StrLen(&original.empty) && StrCmp(&original.simple, &parsed.simple) == 0 &&
         StrCmp(&original.with_spaces, &parsed.with_spaces) == 0 &&
         StrCmp(&original.with_special, &parsed.with_special) == 0) {
         WriteFmtLn("[DEBUG] String round-trip test passed");
@@ -425,9 +425,9 @@ bool test_array_roundtrip(void) {
     bool strings_match = (VecLen(&original_strings) == VecLen(&parsed_strings));
     if (strings_match) {
         for (size i = 0; i < VecLen(&original_strings); i++) {
-            if (VecAt(&original_strings, i).length != VecAt(&parsed_strings, i).length ||
-                (VecAt(&original_strings, i).length &&
-                 StrCmp(&VecAt(&original_strings, i), &VecAt(&parsed_strings, i)) != 0)) {
+            if (StrLen(VecPtrAt(&original_strings, i)) != StrLen(VecPtrAt(&parsed_strings, i)) ||
+                (StrLen(VecPtrAt(&original_strings, i)) &&
+                 StrCmp(VecPtrAt(&original_strings, i), VecPtrAt(&parsed_strings, i)) != 0)) {
                 strings_match = false;
                 break;
             }
@@ -713,14 +713,14 @@ bool test_empty_containers_roundtrip(void) {
     });
 
     // Compare empty containers
-    if (parsed_str.length == 0 && VecLen(&parsed_numbers) == 0 && VecLen(&parsed_strings) == 0 &&
+    if (StrLen(&parsed_str) == 0 && VecLen(&parsed_numbers) == 0 && VecLen(&parsed_strings) == 0 &&
         !found_empty_object) { // Empty object should not execute the content
         WriteFmtLn("[DEBUG] Empty containers round-trip test passed");
     } else {
         WriteFmtLn("[DEBUG] Empty containers round-trip test FAILED");
         WriteFmtLn(
             "[DEBUG] String length: {}, numbers: {}, strings: {}, found_obj: {}\n",
-            parsed_str.length,
+            StrLen(&parsed_str),
             VecLen(&parsed_numbers),
             VecLen(&parsed_strings),
             found_empty_object ? "true" : "false"

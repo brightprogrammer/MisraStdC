@@ -654,8 +654,8 @@ bool test_string_case_conversion_reading(void) {
 
         WriteFmt("Test 1 - :a (lowercase)\n");
         WriteFmt("Input: '{}', Output: '", in);
-        for (size_t i = 0; i < result.length; i++) {
-            WriteFmt("{c}", result.data[i]);
+        for (size_t i = 0; i < StrLen(&result); i++) {
+            WriteFmt("{c}", StrBegin(&result)[i]);
         }
         WriteFmt("'\n");
 
@@ -679,8 +679,8 @@ bool test_string_case_conversion_reading(void) {
 
         WriteFmt("Test 1.1 - :as (lowercase string single word)\n");
         WriteFmt("Input: '{}', Output: '", in);
-        for (size_t i = 0; i < result.length; i++) {
-            WriteFmt("{c}", result.data[i]);
+        for (size_t i = 0; i < StrLen(&result); i++) {
+            WriteFmt("{c}", StrBegin(&result)[i]);
         }
         WriteFmt("'\n");
 
@@ -704,8 +704,8 @@ bool test_string_case_conversion_reading(void) {
 
         WriteFmt("Test 2 - :A (uppercase)\n");
         WriteFmt("Input: '{}', Output: '", in);
-        for (size_t i = 0; i < result.length; i++) {
-            WriteFmt("{c}", result.data[i]);
+        for (size_t i = 0; i < StrLen(&result); i++) {
+            WriteFmt("{c}", StrBegin(&result)[i]);
         }
         WriteFmt("'\n");
 
@@ -773,8 +773,8 @@ bool test_string_case_conversion_reading(void) {
 
         WriteFmt("Test 3 - :a with quoted string\n");
         WriteFmt("Input: '{}', Output: '", in);
-        for (size_t i = 0; i < result.length; i++) {
-            WriteFmt("{c}", result.data[i]);
+        for (size_t i = 0; i < StrLen(&result); i++) {
+            WriteFmt("{c}", StrBegin(&result)[i]);
         }
         WriteFmt("'\n");
 
@@ -798,8 +798,8 @@ bool test_string_case_conversion_reading(void) {
 
         WriteFmt("Test 4 - :A with mixed alphanumeric\n");
         WriteFmt("Input: '{}', Output: '", in);
-        for (size_t i = 0; i < result.length; i++) {
-            WriteFmt("{c}", result.data[i]);
+        for (size_t i = 0; i < StrLen(&result); i++) {
+            WriteFmt("{c}", StrBegin(&result)[i]);
         }
         WriteFmt("'\n");
 
@@ -823,8 +823,8 @@ bool test_string_case_conversion_reading(void) {
 
         WriteFmt("Test 5 - :c (no case conversion)\n");
         WriteFmt("Input: '{}', Output: '", in);
-        for (size_t i = 0; i < result.length; i++) {
-            WriteFmt("{c}", result.data[i]);
+        for (size_t i = 0; i < StrLen(&result); i++) {
+            WriteFmt("{c}", StrBegin(&result)[i]);
         }
         WriteFmt("'\n");
 
@@ -859,11 +859,11 @@ bool test_bitvec_reading(void) {
     z          = "10110";
     StrReadFmt(z, "{}", bv1);
     Str result1 = BitVecToStr(&bv1);
-    success     = success && (ZstrCompare(result1.data, "10110") == 0);
+    success     = success && (ZstrCompare(StrBegin(&result1), "10110") == 0);
     WriteFmt(
         "Test 1 - Binary: {}, Success: {}\n",
         result1,
-        (ZstrCompare(result1.data, "10110") == 0) ? "true" : "false"
+        (ZstrCompare(StrBegin(&result1), "10110") == 0) ? "true" : "false"
     );
     StrDeinit(&result1);
     BitVecDeinit(&bv1);
@@ -891,11 +891,11 @@ bool test_bitvec_reading(void) {
     z          = "   1101";
     StrReadFmt(z, "{}", bv4);
     Str result4 = BitVecToStr(&bv4);
-    success     = success && (ZstrCompare(result4.data, "1101") == 0);
+    success     = success && (ZstrCompare(StrBegin(&result4), "1101") == 0);
     WriteFmt(
         "Test 4 - Whitespace: {}, Success: {}\n",
         result4,
-        (ZstrCompare(result4.data, "1101") == 0) ? "true" : "false"
+        (ZstrCompare(StrBegin(&result4), "1101") == 0) ? "true" : "false"
     );
     StrDeinit(&result4);
     BitVecDeinit(&bv4);
@@ -905,8 +905,12 @@ bool test_bitvec_reading(void) {
     z          = "0";
     StrReadFmt(z, "{}", bv5);
     Str result5 = BitVecToStr(&bv5);
-    success     = success && (ZstrCompare(result5.data, "0") == 0);
-    WriteFmt("Test 5 - Zero: {}, Success: {}\n", result5, (ZstrCompare(result5.data, "0") == 0) ? "true" : "false");
+    success     = success && (ZstrCompare(StrBegin(&result5), "0") == 0);
+    WriteFmt(
+        "Test 5 - Zero: {}, Success: {}\n",
+        result5,
+        (ZstrCompare(StrBegin(&result5), "0") == 0) ? "true" : "false"
+    );
     StrDeinit(&result5);
     BitVecDeinit(&bv5);
 
@@ -937,22 +941,22 @@ bool test_int_reading(void) {
     z = "123456789012345678901234567890";
     StrReadFmt(z, "{}", dec);
     dec_text = IntToStr(&dec);
-    success  = success && (ZstrCompare(dec_text.data, "123456789012345678901234567890") == 0);
+    success  = success && (ZstrCompare(StrBegin(&dec_text), "123456789012345678901234567890") == 0);
 
     z = "deadbeefcafebabe1234";
     StrReadFmt(z, "{x}", hex);
     hex_text = IntToHexStr(&hex);
-    success  = success && (ZstrCompare(hex_text.data, "deadbeefcafebabe1234") == 0);
+    success  = success && (ZstrCompare(StrBegin(&hex_text), "deadbeefcafebabe1234") == 0);
 
     z = "10100011";
     StrReadFmt(z, "{b}", bin);
     bin_text = IntToBinary(&bin);
-    success  = success && (ZstrCompare(bin_text.data, "10100011") == 0);
+    success  = success && (ZstrCompare(StrBegin(&bin_text), "10100011") == 0);
 
     z = "755";
     StrReadFmt(z, "{o}", oct);
     oct_text = IntToOctStr(&oct);
-    success  = success && (ZstrCompare(oct_text.data, "755") == 0);
+    success  = success && (ZstrCompare(StrBegin(&oct_text), "755") == 0);
 
     StrDeinit(&dec_text);
     StrDeinit(&hex_text);
@@ -987,17 +991,17 @@ bool test_float_reading(void) {
     z = "1234567890.012345";
     StrReadFmt(z, "{}", dec);
     dec_text = FloatToStr(&dec);
-    success  = success && (ZstrCompare(dec_text.data, "1234567890.012345") == 0);
+    success  = success && (ZstrCompare(StrBegin(&dec_text), "1234567890.012345") == 0);
 
     z = "1.234567e+04";
     StrReadFmt(z, "{e}", sci);
     sci_text = FloatToStr(&sci);
-    success  = success && (ZstrCompare(sci_text.data, "12345.67") == 0);
+    success  = success && (ZstrCompare(StrBegin(&sci_text), "12345.67") == 0);
 
     z = "-0.00125";
     StrReadFmt(z, "{}", neg);
     neg_text = FloatToStr(&neg);
-    success  = success && (ZstrCompare(neg_text.data, "-0.00125") == 0);
+    success  = success && (ZstrCompare(StrBegin(&neg_text), "-0.00125") == 0);
 
     StrDeinit(&dec_text);
     StrDeinit(&sci_text);

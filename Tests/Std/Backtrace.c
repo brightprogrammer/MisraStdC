@@ -38,14 +38,14 @@ bool test_backtrace_format_resolves_helper(void) {
     // We expect both helper names to appear in the rendered trace.
     // (Apple's C mangling prepends `_`; substring search matches both
     // "bt_capture_with_helper" and "_bt_capture_with_helper".)
-    bool ok = rendered.length > 0 && ZstrFindSubstring(rendered.data, "bt_capture_with_helper") != NULL &&
-              ZstrFindSubstring(rendered.data, "bt_capture_outer") != NULL;
+    bool ok = StrLen(&rendered) > 0 && ZstrFindSubstring(StrBegin(&rendered), "bt_capture_with_helper") != NULL &&
+              ZstrFindSubstring(StrBegin(&rendered), "bt_capture_outer") != NULL;
 
 #if FEATURE_SYS_SYMRESOLVE
     // With -gdwarf-4 the source location should be in there too. Only
     // the Linux backend emits source filenames today (via DwarfLines);
     // macOS / Windows only emit names + offsets.
-    ok = ok && ZstrFindSubstring(rendered.data, "Backtrace.c") != NULL;
+    ok = ok && ZstrFindSubstring(StrBegin(&rendered), "Backtrace.c") != NULL;
 #endif
 
     StrDeinit(&rendered);
@@ -72,14 +72,14 @@ bool test_backtrace_vec_form_resolves_helper(void) {
 
     StackFrames frames = VecInitT(frames, alloc_base);
     bool        ok     = bt_vec_capture_outer(&frames);
-    ok                 = ok && frames.length >= 2;
+    ok                 = ok && VecLen(&frames) >= 2;
 
     Str rendered = StrInit(alloc_base);
     FormatStackTrace(&rendered, &frames, alloc_base);
 
-    ok = ok && rendered.length > 0;
-    ok = ok && ZstrFindSubstring(rendered.data, "bt_vec_capture_with_helper") != NULL;
-    ok = ok && ZstrFindSubstring(rendered.data, "bt_vec_capture_outer") != NULL;
+    ok = ok && StrLen(&rendered) > 0;
+    ok = ok && ZstrFindSubstring(StrBegin(&rendered), "bt_vec_capture_with_helper") != NULL;
+    ok = ok && ZstrFindSubstring(StrBegin(&rendered), "bt_vec_capture_outer") != NULL;
 
     StrDeinit(&rendered);
     VecDeinit(&frames);
@@ -108,7 +108,7 @@ bool test_backtrace_format_with_shared_resolver(void) {
     FormatStackTraceWith(&out, frames, n, &res);
 
     // Should also contain the helper name through the shared resolver.
-    bool ok = out.length > 0 && ZstrFindSubstring(out.data, "bt_capture_with_helper") != NULL;
+    bool ok = StrLen(&out) > 0 && ZstrFindSubstring(StrBegin(&out), "bt_capture_with_helper") != NULL;
 
     StrDeinit(&out);
     SymbolResolverDeinit(&res);
@@ -150,9 +150,9 @@ bool test_backtrace_cfi_walks_multi_frame(void) {
     // The two named helpers must show up: the CFI walker successfully
     // unwound across at least two real-code frames.
     bool ok = n >= 2;
-    ok      = ok && rendered.length > 0;
-    ok      = ok && ZstrFindSubstring(rendered.data, "cfi_capture_inner") != NULL;
-    ok      = ok && ZstrFindSubstring(rendered.data, "cfi_capture_outer") != NULL;
+    ok      = ok && StrLen(&rendered) > 0;
+    ok      = ok && ZstrFindSubstring(StrBegin(&rendered), "cfi_capture_inner") != NULL;
+    ok      = ok && ZstrFindSubstring(StrBegin(&rendered), "cfi_capture_outer") != NULL;
 
     StrDeinit(&rendered);
     SymbolResolverDeinit(&res);

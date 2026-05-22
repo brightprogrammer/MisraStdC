@@ -52,8 +52,8 @@ bool test_file_read_into_str(void) {
     i64 got  = FileRead(&f, &body);
     FileClose(&f);
 
-    bool result = (got == (i64)ZstrLen("hello from file")) && (body.length == (size)ZstrLen("hello from file")) &&
-                  ZstrCompare(body.data, "hello from file") == 0;
+    bool result = (got == (i64)ZstrLen("hello from file")) && (StrLen(&body) == (size)ZstrLen("hello from file")) &&
+                  ZstrCompare(StrBegin(&body), "hello from file") == 0;
 
     StrDeinit(&body);
     FileRemove(&path);
@@ -87,8 +87,8 @@ bool test_file_read_grows_str(void) {
     FileClose(&f);
 
     Zstr expected = "this is longer than the initial buffer";
-    bool result   = (got == (i64)ZstrLen(expected)) && (body.length == (size)ZstrLen(expected)) &&
-                  ZstrCompare(body.data, expected) == 0 && body.capacity >= body.length + 1;
+    bool result   = (got == (i64)ZstrLen(expected)) && (StrLen(&body) == (size)ZstrLen(expected)) &&
+                  ZstrCompare(StrBegin(&body), expected) == 0 && body.capacity >= StrLen(&body) + 1;
 
     StrDeinit(&body);
     FileRemove(&path);

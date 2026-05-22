@@ -290,9 +290,9 @@ bool test_pdb_extracts_pub32_function_name(void) {
         return false;
     }
 
-    ok = pdb.functions.length == 1;
+    ok = VecLen(&pdb.functions) == 1;
     if (ok) {
-        const PdbFunction *f = &pdb.functions.data[0];
+        const PdbFunction *f = VecPtrAt(&pdb.functions, 0);
         ok                   = ok && f->rva == 0x1100 && f->name && ZstrCompare(f->name, "my_function") == 0;
     }
 

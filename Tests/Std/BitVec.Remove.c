@@ -40,18 +40,18 @@ bool test_bitvec_pop(void) {
     bool popped = BitVecPop(&bv);
 
     // Check result
-    bool result = (popped == true) && (bv.length == 2);
+    bool result = (popped == true) && (BitVecLen(&bv) == 2);
     result      = result && (BitVecGet(&bv, 0) == true);
     result      = result && (BitVecGet(&bv, 1) == false);
 
     // Pop another bit
     popped = BitVecPop(&bv);
-    result = result && (popped == false) && (bv.length == 1);
+    result = result && (popped == false) && (BitVecLen(&bv) == 1);
     result = result && (BitVecGet(&bv, 0) == true);
 
     // Pop the last bit
     popped = BitVecPop(&bv);
-    result = result && (popped == true) && (bv.length == 0);
+    result = result && (popped == true) && (BitVecLen(&bv) == 0);
 
     // Clean up
     BitVecDeinit(&bv);
@@ -80,7 +80,7 @@ bool test_bitvec_remove_single(void) {
     bool removed = BitVecRemove(&bv, 2);
 
     // Check result: true, false, false, true
-    bool result = (removed == true) && (bv.length == 4);
+    bool result = (removed == true) && (BitVecLen(&bv) == 4);
     result      = result && (BitVecGet(&bv, 0) == true);
     result      = result && (BitVecGet(&bv, 1) == false);
     result      = result && (BitVecGet(&bv, 2) == false);
@@ -88,7 +88,7 @@ bool test_bitvec_remove_single(void) {
 
     // Remove bit at index 0 (first bit)
     removed = BitVecRemove(&bv, 0);
-    result  = result && (removed == true) && (bv.length == 3);
+    result  = result && (removed == true) && (BitVecLen(&bv) == 3);
     result  = result && (BitVecGet(&bv, 0) == false);
     result  = result && (BitVecGet(&bv, 1) == false);
     result  = result && (BitVecGet(&bv, 2) == true);
@@ -121,7 +121,7 @@ bool test_bitvec_remove_range(void) {
     BitVecRemoveRange(&bv, 1, 3);
 
     // Check result: true, false, true (removed false, true, true)
-    bool result = (bv.length == 3);
+    bool result = (BitVecLen(&bv) == 3);
     result      = result && (BitVecGet(&bv, 0) == true);
     result      = result && (BitVecGet(&bv, 1) == false);
     result      = result && (BitVecGet(&bv, 2) == true);
@@ -153,7 +153,7 @@ bool test_bitvec_remove_first(void) {
     bool found = BitVecRemoveFirst(&bv, false);
 
     // Check result: true, true, false, true (removed first false at index 1)
-    bool result = (found == true) && (bv.length == 4);
+    bool result = (found == true) && (BitVecLen(&bv) == 4);
     result      = result && (BitVecGet(&bv, 0) == true);
     result      = result && (BitVecGet(&bv, 1) == true);
     result      = result && (BitVecGet(&bv, 2) == false);
@@ -165,7 +165,7 @@ bool test_bitvec_remove_first(void) {
 
     // Now try to remove false from a bitvector with only trues
     found  = BitVecRemoveFirst(&bv, false);
-    result = result && (found == false) && (bv.length == 3);
+    result = result && (found == false) && (BitVecLen(&bv) == 3);
 
     // Clean up
     BitVecDeinit(&bv);
@@ -194,7 +194,7 @@ bool test_bitvec_remove_last(void) {
     bool found = BitVecRemoveLast(&bv, false);
 
     // Check result: true, false, true, true (removed last false at index 3)
-    bool result = (found == true) && (bv.length == 4);
+    bool result = (found == true) && (BitVecLen(&bv) == 4);
     result      = result && (BitVecGet(&bv, 0) == true);
     result      = result && (BitVecGet(&bv, 1) == false);
     result      = result && (BitVecGet(&bv, 2) == true);
@@ -204,7 +204,7 @@ bool test_bitvec_remove_last(void) {
     found = BitVecRemoveLast(&bv, true);
 
     // Check result: true, false, true (removed last true at index 3)
-    result = result && (found == true) && (bv.length == 3);
+    result = result && (found == true) && (BitVecLen(&bv) == 3);
     result = result && (BitVecGet(&bv, 0) == true);
     result = result && (BitVecGet(&bv, 1) == false);
     result = result && (BitVecGet(&bv, 2) == true);
@@ -237,18 +237,18 @@ bool test_bitvec_remove_all(void) {
     u64 removed_count = BitVecRemoveAll(&bv, false);
 
     // Check result: true, true, true (all false bits removed)
-    bool result = (removed_count == 3) && (bv.length == 3);
+    bool result = (removed_count == 3) && (BitVecLen(&bv) == 3);
     result      = result && (BitVecGet(&bv, 0) == true);
     result      = result && (BitVecGet(&bv, 1) == true);
     result      = result && (BitVecGet(&bv, 2) == true);
 
     // Try to remove all false bits again (should return 0)
     removed_count = BitVecRemoveAll(&bv, false);
-    result        = result && (removed_count == 0) && (bv.length == 3);
+    result        = result && (removed_count == 0) && (BitVecLen(&bv) == 3);
 
     // Remove all true bits
     removed_count = BitVecRemoveAll(&bv, true);
-    result        = result && (removed_count == 3) && (bv.length == 0);
+    result        = result && (removed_count == 3) && (BitVecLen(&bv) == 0);
 
     // Clean up
     BitVecDeinit(&bv);
@@ -270,7 +270,7 @@ bool test_bitvec_pop_edge_cases(void) {
     // Test pop single element
     BitVecPush(&bv, true);
     bool popped = BitVecPop(&bv);
-    result      = result && (popped == true) && (bv.length == 0);
+    result      = result && (popped == true) && (BitVecLen(&bv) == 0);
 
     // Test multiple pops in sequence
     for (int i = 0; i < 100; i++) {
@@ -279,7 +279,7 @@ bool test_bitvec_pop_edge_cases(void) {
     for (int i = 99; i >= 0; i--) {
         popped = BitVecPop(&bv);
         result = result && (popped == (i % 2 == 0));
-        result = result && (bv.length == (size)i);
+        result = result && (BitVecLen(&bv) == (size)i);
     }
 
     BitVecDeinit(&bv);
@@ -298,7 +298,7 @@ bool test_bitvec_remove_single_edge_cases(void) {
     // Test remove last element
     BitVecPush(&bv, true);
     bool removed = BitVecRemove(&bv, 0);
-    result       = result && (removed == true) && (bv.length == 0);
+    result       = result && (removed == true) && (BitVecLen(&bv) == 0);
 
     // Test remove from large bitvec
     for (int i = 0; i < 1000; i++) {
@@ -308,7 +308,7 @@ bool test_bitvec_remove_single_edge_cases(void) {
     // Remove middle element
     removed = BitVecRemove(&bv, 500);
     result  = result && (removed == (500 % 3 == 0)); // Should return the value of the removed bit
-    result  = result && (bv.length == 999);
+    result  = result && (BitVecLen(&bv) == 999);
 
     BitVecDeinit(&bv);
     DefaultAllocatorDeinit(&alloc);
@@ -326,7 +326,7 @@ bool test_bitvec_remove_range_edge_cases(void) {
     // Test remove 0 elements (should be no-op)
     BitVecPush(&bv, true);
     BitVecRemoveRange(&bv, 0, 0);
-    result = result && (bv.length == 1);
+    result = result && (BitVecLen(&bv) == 1);
 
     // Test remove entire bitvec
     BitVecClear(&bv);
@@ -334,14 +334,14 @@ bool test_bitvec_remove_range_edge_cases(void) {
         BitVecPush(&bv, i % 2 == 0);
     }
     BitVecRemoveRange(&bv, 0, 10);
-    result = result && (bv.length == 0);
+    result = result && (BitVecLen(&bv) == 0);
 
     // Test remove partial range
     for (int i = 0; i < 10; i++) {
         BitVecPush(&bv, i % 2 == 0);
     }
-    BitVecRemoveRange(&bv, 1, 5);        // Remove 5 elements starting at index 1
-    result = result && (bv.length == 5); // Should have 5 elements left
+    BitVecRemoveRange(&bv, 1, 5);             // Remove 5 elements starting at index 1
+    result = result && (BitVecLen(&bv) == 5); // Should have 5 elements left
 
     BitVecDeinit(&bv);
     DefaultAllocatorDeinit(&alloc);
@@ -358,29 +358,29 @@ bool test_bitvec_remove_first_last_edge_cases(void) {
 
     // Test remove from empty bitvec
     bool found = BitVecRemoveFirst(&bv, true);
-    result     = result && (found == false) && (bv.length == 0);
+    result     = result && (found == false) && (BitVecLen(&bv) == 0);
 
     found  = BitVecRemoveLast(&bv, false);
-    result = result && (found == false) && (bv.length == 0);
+    result = result && (found == false) && (BitVecLen(&bv) == 0);
 
     // Test remove when value doesn't exist
     BitVecPush(&bv, true);
     BitVecPush(&bv, true);
     found  = BitVecRemoveFirst(&bv, false);
-    result = result && (found == false) && (bv.length == 2);
+    result = result && (found == false) && (BitVecLen(&bv) == 2);
 
     // Test remove single occurrence
     BitVecClear(&bv);
     BitVecPush(&bv, false);
     found  = BitVecRemoveFirst(&bv, false);
-    result = result && (found == true) && (bv.length == 0);
+    result = result && (found == true) && (BitVecLen(&bv) == 0);
 
     // Test remove from large uniform data
     for (int i = 0; i < 1000; i++) {
         BitVecPush(&bv, true);
     }
     found  = BitVecRemoveFirst(&bv, true);
-    result = result && (found == true) && (bv.length == 999);
+    result = result && (found == true) && (BitVecLen(&bv) == 999);
 
     BitVecDeinit(&bv);
     DefaultAllocatorDeinit(&alloc);
@@ -397,13 +397,13 @@ bool test_bitvec_remove_all_edge_cases(void) {
 
     // Test remove all from empty bitvec
     u64 count = BitVecRemoveAll(&bv, true);
-    result    = result && (count == 0) && (bv.length == 0);
+    result    = result && (count == 0) && (BitVecLen(&bv) == 0);
 
     // Test remove all when value doesn't exist
     BitVecPush(&bv, true);
     BitVecPush(&bv, true);
     count  = BitVecRemoveAll(&bv, false);
-    result = result && (count == 0) && (bv.length == 2);
+    result = result && (count == 0) && (BitVecLen(&bv) == 2);
 
     // Test remove all of uniform data
     BitVecClear(&bv);
@@ -411,14 +411,14 @@ bool test_bitvec_remove_all_edge_cases(void) {
         BitVecPush(&bv, true);
     }
     count  = BitVecRemoveAll(&bv, true);
-    result = result && (count == 100) && (bv.length == 0);
+    result = result && (count == 100) && (BitVecLen(&bv) == 0);
 
     // Test remove all mixed data
     for (int i = 0; i < 1000; i++) {
         BitVecPush(&bv, i % 2 == 0);
     }
     count  = BitVecRemoveAll(&bv, false); // Remove odds
-    result = result && (count == 500) && (bv.length == 500);
+    result = result && (count == 500) && (BitVecLen(&bv) == 500);
 
     BitVecDeinit(&bv);
     DefaultAllocatorDeinit(&alloc);

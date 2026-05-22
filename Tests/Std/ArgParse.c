@@ -278,7 +278,7 @@ static bool test_type_inferred_str(void) {
     char  *argv[] = {(char *)"prog", (char *)"--name", (char *)"alice"};
     ArgRun rc     = ArgParseRun(&p, 3, argv);
 
-    bool ok = (rc == ARG_RUN_OK) && name.length == 5 && name.data[0] == 'a' && name.data[4] == 'e';
+    bool ok = (rc == ARG_RUN_OK) && StrLen(&name) == 5 && StrBegin(&name)[0] == 'a' && StrBegin(&name)[4] == 'e';
     ArgParseDeinit(&p);
     StrDeinit(&name);
     DefaultAllocatorDeinit(&a);

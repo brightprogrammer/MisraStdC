@@ -59,7 +59,7 @@ static bool test_kvconfig_comments_quotes_and_duplicates(void) {
     result = result && path && StrCmpZstr(path, "/srv/my app") == 0;
     result = result && user && StrCmpZstr(user, "root") == 0;
     result = result && greet && StrCmpZstr(greet, "hello world") == 0;
-    result = result && empty && (empty->length == 0);
+    result = result && empty && (StrLen(empty) == 0);
 
     StrDeinit(&src);
     MapDeinit(&cfg);
@@ -82,13 +82,13 @@ static bool test_kvconfig_get_returns_copy(void) {
     host_copy   = KvConfigGet(&cfg, "host");
 
     result = result && stored_host;
-    result = result && (host_copy.data != NULL);
-    result = result && (host_copy.length > 0);
-    result = result && (host_copy.data != stored_host->data);
+    result = result && (StrBegin(&host_copy) != NULL);
+    result = result && (StrLen(&host_copy) > 0);
+    result = result && (StrBegin(&host_copy) != StrBegin(stored_host));
     result = result && (StrCmpZstr(&host_copy, "localhost") == 0);
     result = result && (StrCmpZstr(stored_host, "localhost") == 0);
 
-    host_copy.data[0] = 'L';
+    StrBegin(&host_copy)[0] = 'L';
 
     result = result && (StrCmpZstr(&host_copy, "Localhost") == 0);
     result = result && (StrCmpZstr(stored_host, "localhost") == 0);

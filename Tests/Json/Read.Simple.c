@@ -77,8 +77,8 @@ bool test_simple_string_parsing(void) {
 
     if (StrCmpCstr(&name, "Alice", 5) != 0) {
         WriteFmt("[DEBUG] Name check failed: expected 'Alice', got '");
-        for (size i = 0; i < name.length; i++) {
-            WriteFmt("{c}", name.data[i]);
+        for (size i = 0; i < StrLen(&name); i++) {
+            WriteFmt("{c}", StrBegin(&name)[i]);
         }
         WriteFmt("'\n");
         success = false;
@@ -86,8 +86,8 @@ bool test_simple_string_parsing(void) {
 
     if (StrCmpCstr(&city, "New York", 8) != 0) {
         WriteFmt("[DEBUG] City check failed: expected 'New York', got '");
-        for (size i = 0; i < city.length; i++) {
-            WriteFmt("{c}", city.data[i]);
+        for (size i = 0; i < StrLen(&city); i++) {
+            WriteFmt("{c}", StrBegin(&city)[i]);
         }
         WriteFmt("'\n");
         success = false;
@@ -204,8 +204,8 @@ bool test_simple_person_object(void) {
 
     if (StrCmpCstr(&person.name, "Bob", 3) != 0) {
         WriteFmt("[DEBUG] Person name check failed: expected 'Bob', got '");
-        for (size i = 0; i < person.name.length; i++) {
-            WriteFmt("{c}", person.name.data[i]);
+        for (size i = 0; i < StrLen(&person.name); i++) {
+            WriteFmt("{c}", StrBegin(&person.name)[i]);
         }
         WriteFmt("'\n");
         success = false;
@@ -263,8 +263,8 @@ bool test_simple_config_object(void) {
 
     if (StrCmpCstr(&config.log_level, "INFO", 4) != 0) {
         WriteFmt("[DEBUG] Log level check failed: expected 'INFO', got '");
-        for (size i = 0; i < config.log_level.length; i++) {
-            WriteFmt("{c}", config.log_level.data[i]);
+        for (size i = 0; i < StrLen(&config.log_level); i++) {
+            WriteFmt("{c}", StrBegin(&config.log_level)[i]);
         }
         WriteFmt("'\n");
         success = false;
@@ -296,20 +296,20 @@ bool test_simple_array_of_strings(void) {
         });
     });
 
-    if (languages.length != 3) {
-        WriteFmt("[DEBUG] Languages length check failed: expected 3, got {}\n", languages.length);
+    if (VecLen(&languages) != 3) {
+        WriteFmt("[DEBUG] Languages length check failed: expected 3, got {}\n", VecLen(&languages));
         success = false;
     }
 
-    if (languages.length >= 3) {
+    if (VecLen(&languages) >= 3) {
         Str *lang1 = &VecAt(&languages, 0);
         Str *lang2 = &VecAt(&languages, 1);
         Str *lang3 = &VecAt(&languages, 2);
 
         if (StrCmpCstr(lang1, "C", 1) != 0) {
             WriteFmt("[DEBUG] Language 1 check failed: expected 'C', got '");
-            for (size i = 0; i < lang1->length; i++) {
-                WriteFmt("{c}", lang1->data[i]);
+            for (size i = 0; i < StrLen(lang1); i++) {
+                WriteFmt("{c}", StrBegin(lang1)[i]);
             }
             WriteFmt("'\n");
             success = false;
@@ -317,8 +317,8 @@ bool test_simple_array_of_strings(void) {
 
         if (StrCmpCstr(lang2, "Python", 6) != 0) {
             WriteFmt("[DEBUG] Language 2 check failed: expected 'Python', got '");
-            for (size i = 0; i < lang2->length; i++) {
-                WriteFmt("{c}", lang2->data[i]);
+            for (size i = 0; i < StrLen(lang2); i++) {
+                WriteFmt("{c}", StrBegin(lang2)[i]);
             }
             WriteFmt("'\n");
             success = false;
@@ -326,8 +326,8 @@ bool test_simple_array_of_strings(void) {
 
         if (StrCmpCstr(lang3, "Rust", 4) != 0) {
             WriteFmt("[DEBUG] Language 3 check failed: expected 'Rust', got '");
-            for (size i = 0; i < lang3->length; i++) {
-                WriteFmt("{c}", lang3->data[i]);
+            for (size i = 0; i < StrLen(lang3); i++) {
+                WriteFmt("{c}", StrBegin(lang3)[i]);
             }
             WriteFmt("'\n");
             success = false;
@@ -374,8 +374,8 @@ bool test_simple_nested_object(void) {
 
     if (StrCmpCstr(&data.user.name, "Charlie", 7) != 0) {
         WriteFmt("[DEBUG] User name check failed: expected 'Charlie', got '");
-        for (size i = 0; i < data.user.name.length; i++) {
-            WriteFmt("{c}", data.user.name.data[i]);
+        for (size i = 0; i < StrLen(&data.user.name); i++) {
+            WriteFmt("{c}", StrBegin(&data.user.name)[i]);
         }
         WriteFmt("'\n");
         success = false;
@@ -383,8 +383,8 @@ bool test_simple_nested_object(void) {
 
     if (StrCmpCstr(&data.user.email, "charlie@example.com", 19) != 0) {
         WriteFmt("[DEBUG] User email check failed: expected 'charlie@example.com', got '");
-        for (size i = 0; i < data.user.email.length; i++) {
-            WriteFmt("{c}", data.user.email.data[i]);
+        for (size i = 0; i < StrLen(&data.user.email); i++) {
+            WriteFmt("{c}", StrBegin(&data.user.email)[i]);
         }
         WriteFmt("'\n");
         success = false;
@@ -438,8 +438,8 @@ bool test_simple_product_with_tags(void) {
 
     if (StrCmpCstr(&product.name, "Laptop", 6) != 0) {
         WriteFmt("[DEBUG] Product name check failed: expected 'Laptop', got '");
-        for (size i = 0; i < product.name.length; i++) {
-            WriteFmt("{c}", product.name.data[i]);
+        for (size i = 0; i < StrLen(&product.name); i++) {
+            WriteFmt("{c}", StrBegin(&product.name)[i]);
         }
         WriteFmt("'\n");
         success = false;
@@ -450,20 +450,20 @@ bool test_simple_product_with_tags(void) {
         success = false;
     }
 
-    if (product.tags.length != 3) {
-        WriteFmt("[DEBUG] Product tags length check failed: expected 3, got {}\n", product.tags.length);
+    if (VecLen(&product.tags) != 3) {
+        WriteFmt("[DEBUG] Product tags length check failed: expected 3, got {}\n", VecLen(&product.tags));
         success = false;
     }
 
-    if (product.tags.length >= 3) {
+    if (VecLen(&product.tags) >= 3) {
         Str *tag1 = &VecAt(&product.tags, 0);
         Str *tag2 = &VecAt(&product.tags, 1);
         Str *tag3 = &VecAt(&product.tags, 2);
 
         if (StrCmpCstr(tag1, "electronics", 11) != 0) {
             WriteFmt("[DEBUG] Tag 1 check failed: expected 'electronics', got '");
-            for (size i = 0; i < tag1->length; i++) {
-                WriteFmt("{c}", tag1->data[i]);
+            for (size i = 0; i < StrLen(tag1); i++) {
+                WriteFmt("{c}", StrBegin(tag1)[i]);
             }
             WriteFmt("'\n");
             success = false;
@@ -471,8 +471,8 @@ bool test_simple_product_with_tags(void) {
 
         if (StrCmpCstr(tag2, "computers", 9) != 0) {
             WriteFmt("[DEBUG] Tag 2 check failed: expected 'computers', got '");
-            for (size i = 0; i < tag2->length; i++) {
-                WriteFmt("{c}", tag2->data[i]);
+            for (size i = 0; i < StrLen(tag2); i++) {
+                WriteFmt("{c}", StrBegin(tag2)[i]);
             }
             WriteFmt("'\n");
             success = false;
@@ -480,8 +480,8 @@ bool test_simple_product_with_tags(void) {
 
         if (StrCmpCstr(tag3, "portable", 8) != 0) {
             WriteFmt("[DEBUG] Tag 3 check failed: expected 'portable', got '");
-            for (size i = 0; i < tag3->length; i++) {
-                WriteFmt("{c}", tag3->data[i]);
+            for (size i = 0; i < StrLen(tag3); i++) {
+                WriteFmt("{c}", StrBegin(tag3)[i]);
             }
             WriteFmt("'\n");
             success = false;

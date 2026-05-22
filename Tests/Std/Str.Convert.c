@@ -36,7 +36,7 @@ bool test_str_from_u64(void) {
     // Test decimal conversion
     StrIntFormat config = {.base = 10, .uppercase = false};
     StrFromU64(&s, 12345, &config);
-    bool result = (ZstrCompare(s.data, "12345") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "12345") == 0);
     if (!result) {
         WriteFmt("    FAIL: Expected '12345', got '{}'\n", s);
     }
@@ -45,7 +45,7 @@ bool test_str_from_u64(void) {
     StrClear(&s);
     config = (StrIntFormat) {.base = 16, .uppercase = false, .use_prefix = true};
     StrFromU64(&s, 0xABCD, &config);
-    result = result && (ZstrCompare(s.data, "0xabcd") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "0xabcd") == 0);
     if (!result) {
         WriteFmt("    FAIL: Expected '0xabcd', got '{}'\n", s);
     }
@@ -54,7 +54,7 @@ bool test_str_from_u64(void) {
     StrClear(&s);
     config = (StrIntFormat) {.base = 16, .uppercase = true, .use_prefix = true};
     StrFromU64(&s, 0xABCD, &config);
-    result = result && (ZstrCompare(s.data, "0xABCD") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "0xABCD") == 0);
     if (!result) {
         WriteFmt("    FAIL: Expected '0xABCD', got '{}'\n", s);
     }
@@ -63,7 +63,7 @@ bool test_str_from_u64(void) {
     StrClear(&s);
     config = (StrIntFormat) {.base = 2, .uppercase = false, .use_prefix = true};
     StrFromU64(&s, 42, &config);
-    result = result && (ZstrCompare(s.data, "0b101010") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "0b101010") == 0);
     if (!result) {
         WriteFmt("    FAIL: Expected '0b101010', got '{}'\n", s);
     }
@@ -72,7 +72,7 @@ bool test_str_from_u64(void) {
     StrClear(&s);
     config = (StrIntFormat) {.base = 8, .uppercase = false, .use_prefix = true};
     StrFromU64(&s, 42, &config);
-    result = result && (ZstrCompare(s.data, "0o52") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "0o52") == 0);
     if (!result) {
         WriteFmt("    FAIL: Expected '0o52', got '{}'\n", s);
     }
@@ -81,7 +81,7 @@ bool test_str_from_u64(void) {
     StrClear(&s);
     config = (StrIntFormat) {.base = 10, .uppercase = false};
     StrFromU64(&s, 0, &config);
-    result = result && (ZstrCompare(s.data, "0") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "0") == 0);
     if (!result) {
         WriteFmt("    FAIL: Expected '0', got '{}'\n", s);
     }
@@ -102,18 +102,18 @@ bool test_str_from_i64(void) {
     // Test positive decimal conversion
     StrIntFormat config = {.base = 10, .uppercase = false};
     StrFromI64(&s, 12345, &config);
-    bool result = (ZstrCompare(s.data, "12345") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "12345") == 0);
     if (!result) {
-        WriteFmt("    FAIL: Expected '12345', got '{}'\n", s.data);
+        WriteFmt("    FAIL: Expected '12345', got '{}'\n", StrBegin(&s));
     }
 
     // Test negative decimal conversion (only decimal supports negative sign)
     StrClear(&s);
     config = (StrIntFormat) {.base = 10, .uppercase = false};
     StrFromI64(&s, -12345, &config);
-    result = result && (ZstrCompare(s.data, "-12345") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "-12345") == 0);
     if (!result) {
-        WriteFmt("    FAIL: Expected '-12345', got '{}'\n", s.data);
+        WriteFmt("    FAIL: Expected '-12345', got '{}'\n", StrBegin(&s));
     }
 
     // Test hexadecimal conversion of negative number (negative non-decimal treated as unsigned)
@@ -122,27 +122,27 @@ bool test_str_from_i64(void) {
     StrFromI64(&s, -0xABCD, &config);
     // For negative numbers in non-decimal bases, it uses unsigned representation
     // -0xABCD = -(43981) = large positive number when treated as unsigned
-    result = result && (ZstrCompareN(s.data, "0x", 2) == 0);
+    result = result && (ZstrCompareN(StrBegin(&s), "0x", 2) == 0);
     if (!result) {
-        WriteFmt("    FAIL: Expected hex prefix '0x', got '{}'\n", s.data);
+        WriteFmt("    FAIL: Expected hex prefix '0x', got '{}'\n", StrBegin(&s));
     }
 
     // Test zero
     StrClear(&s);
     config = (StrIntFormat) {.base = 10, .uppercase = false};
     StrFromI64(&s, 0, &config);
-    result = result && (ZstrCompare(s.data, "0") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "0") == 0);
     if (!result) {
-        WriteFmt("    FAIL: Expected '0', got '{}'\n", s.data);
+        WriteFmt("    FAIL: Expected '0', got '{}'\n", StrBegin(&s));
     }
 
     // Test binary conversion
     StrClear(&s);
     config = (StrIntFormat) {.base = 2, .uppercase = false, .use_prefix = true};
     StrFromI64(&s, 42, &config);
-    result = result && (ZstrCompare(s.data, "0b101010") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "0b101010") == 0);
     if (!result) {
-        WriteFmt("    FAIL: Expected '0b101010', got '{}'\n", s.data);
+        WriteFmt("    FAIL: Expected '0b101010', got '{}'\n", StrBegin(&s));
     }
 
     StrDeinit(&s);
@@ -161,73 +161,73 @@ bool test_str_from_f64(void) {
     // Test integer conversion
     StrFloatFormat config = {.precision = 2, .force_sci = false, .uppercase = false};
     StrFromF64(&s, 123.0, &config);
-    bool result = (ZstrCompare(s.data, "123.00") == 0);
+    bool result = (ZstrCompare(StrBegin(&s), "123.00") == 0);
     if (!result) {
-        WriteFmt("    FAIL: Expected '123.00', got '{}'\n", s.data);
+        WriteFmt("    FAIL: Expected '123.00', got '{}'\n", StrBegin(&s));
     }
 
     // Test fractional conversion
     StrClear(&s);
     config = (StrFloatFormat) {.precision = 3, .force_sci = false, .uppercase = false};
     StrFromF64(&s, 123.456, &config);
-    result = result && (ZstrCompare(s.data, "123.456") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "123.456") == 0);
     if (!result) {
-        WriteFmt("    FAIL: Expected '123.456', got '{}'\n", s.data);
+        WriteFmt("    FAIL: Expected '123.456', got '{}'\n", StrBegin(&s));
     }
 
     // Test negative number
     StrClear(&s);
     config = (StrFloatFormat) {.precision = 3, .force_sci = false, .uppercase = false};
     StrFromF64(&s, -123.456, &config);
-    result = result && (ZstrCompare(s.data, "-123.456") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "-123.456") == 0);
 
     // Test scientific notation (forced)
     StrClear(&s);
     config = (StrFloatFormat) {.precision = 3, .force_sci = true, .uppercase = false};
     StrFromF64(&s, 123.456, &config);
-    result = result && (ZstrCompare(s.data, "1.235e+02") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "1.235e+02") == 0);
 
     // Test scientific notation (uppercase)
     StrClear(&s);
     config = (StrFloatFormat) {.precision = 3, .force_sci = true, .uppercase = true};
     StrFromF64(&s, 123.456, &config);
-    result = result && (ZstrCompare(s.data, "1.235E+02") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "1.235E+02") == 0);
 
     // Test very small number (auto scientific notation)
     StrClear(&s);
     config = (StrFloatFormat) {.precision = 3, .force_sci = false, .uppercase = false};
     StrFromF64(&s, 0.0000123, &config);
-    result = result && (ZstrCompare(s.data, "1.230e-05") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "1.230e-05") == 0);
 
     // Test very large number (auto scientific notation)
     StrClear(&s);
     config = (StrFloatFormat) {.precision = 2, .force_sci = false, .uppercase = false};
     StrFromF64(&s, 1234567890123.0, &config);
-    result = result && (ZstrCompare(s.data, "1.23e+12") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "1.23e+12") == 0);
 
     // Test zero
     StrClear(&s);
     config = (StrFloatFormat) {.precision = 2, .force_sci = false, .uppercase = false};
     StrFromF64(&s, 0.0, &config);
-    result = result && (ZstrCompare(s.data, "0.00") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "0.00") == 0);
 
     // Test infinity
     StrClear(&s);
     config = (StrFloatFormat) {.precision = 2, .force_sci = false, .uppercase = false};
     StrFromF64(&s, F64_INFINITY, &config);
-    result = result && (ZstrCompare(s.data, "inf") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "inf") == 0);
 
     // Test negative infinity
     StrClear(&s);
     config = (StrFloatFormat) {.precision = 2, .force_sci = false, .uppercase = false};
     StrFromF64(&s, -F64_INFINITY, &config);
-    result = result && (ZstrCompare(s.data, "-inf") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "-inf") == 0);
 
     // Test NaN
     StrClear(&s);
     config = (StrFloatFormat) {.precision = 2, .force_sci = false, .uppercase = false};
     StrFromF64(&s, F64_NAN, &config);
-    result = result && (ZstrCompare(s.data, "nan") == 0);
+    result = result && (ZstrCompare(StrBegin(&s), "nan") == 0);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -594,7 +594,7 @@ bool test_str_precision_limits(void) {
         StrFromF64(&s, test_value, &config);
 
         // String should have expected decimal places
-        char *dot_pos = ZstrFindChar(s.data, '.');
+        char *dot_pos = ZstrFindChar(StrBegin(&s), '.');
         if (dot_pos) {
             size_t decimal_places = ZstrLen(dot_pos + 1);
             // Allow for trailing zeros being omitted in some cases
@@ -613,14 +613,14 @@ bool test_str_precision_limits(void) {
         // Force scientific notation
         StrFloatFormat config = {.precision = 3, .force_sci = true, .uppercase = false};
         StrFromF64(&s, sci_values[i], &config);
-        bool has_e = (ZstrFindChar(s.data, 'e') != NULL);
+        bool has_e = (ZstrFindChar(StrBegin(&s), 'e') != NULL);
         result     = result && has_e;
 
         // Test uppercase E
         StrClear(&s);
         config = (StrFloatFormat) {.precision = 3, .force_sci = true, .uppercase = true};
         StrFromF64(&s, sci_values[i], &config);
-        bool has_E = (ZstrFindChar(s.data, 'E') != NULL);
+        bool has_E = (ZstrFindChar(StrBegin(&s), 'E') != NULL);
         result     = result && has_E;
 
         StrDeinit(&s);
