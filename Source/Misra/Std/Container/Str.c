@@ -159,6 +159,49 @@ void str_deinit(void *copy, const Allocator *alloc) {
     StrDeinit((Str *)copy);
 }
 
+// FNV-1a over the string's byte view. `ignored_size` is the generic-callback
+// shape (sizeof the value-type slot), not the Str's character count -- the
+// real length lives inside the Str header itself.
+u64 str_hash(const void *data, u32 ignored_size) {
+    const Str *str  = (const Str *)data;
+    u64        hash = 1469598103934665603ULL;
+    size       idx  = 0;
+
+    (void)ignored_size;
+    ValidateStr(str);
+
+    for (idx = 0; idx < StrLen(str); idx++) {
+        hash ^= (u64)(unsigned char)StrCharAt(str, idx);
+        hash *= 1099511628211ULL;
+    }
+
+    return hash;
+}
+
+i32 str_compare(const void *lhs, const void *rhs) {
+    const Str *a   = (const Str *)lhs;
+    const Str *b   = (const Str *)rhs;
+    size       min = 0;
+    i32        cmp = 0;
+
+    ValidateStr(a);
+    ValidateStr(b);
+
+    min = StrLen(a) < StrLen(b) ? StrLen(a) : StrLen(b);
+    cmp = MemCompare(StrBegin(a), StrBegin(b), min);
+
+    if (cmp != 0) {
+        return cmp;
+    }
+    if (StrLen(a) < StrLen(b)) {
+        return -1;
+    }
+    if (StrLen(a) > StrLen(b)) {
+        return 1;
+    }
+    return 0;
+}
+
 static StrIters str_split_to_iters_impl(Str *s, const char *key, size keylen) {
     ValidateStr(s);
 

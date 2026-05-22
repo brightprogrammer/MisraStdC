@@ -15,6 +15,32 @@
 extern "C" {
 #endif
 
+    //
+    // Generic-callback helpers (used as Map / Vec callback slots).
+    //
+
+    ///
+    /// Hash a `Str` for use as a generic map key. FNV-1a over the byte view.
+    ///
+    /// data[in] : Pointer to a `Str`.
+    /// size[in] : Ignored. Included for `GenericHash` callback compatibility.
+    ///
+    /// SUCCESS : Returns a stable hash of the string's bytes.
+    ///
+    u64 str_hash(const void *data, u32 size);
+
+    ///
+    /// Compare two `Str` values lexicographically. Shape matches
+    /// `GenericCompare` so it can drop into map / vec compare slots.
+    ///
+    /// lhs[in] : Pointer to the left `Str`.
+    /// rhs[in] : Pointer to the right `Str`.
+    ///
+    /// SUCCESS : Returns `0` when equal, `<0` when `lhs < rhs`, `>0` when
+    ///           `lhs > rhs`.
+    ///
+    i32 str_compare(const void *lhs, const void *rhs);
+
 //
 // Comparison Operations
 //

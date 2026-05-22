@@ -8,26 +8,6 @@
 
 #include "../Util/TestRunner.h"
 
-static u64 zstr_hash(const void *data, u32 size) {
-    const char          *str  = *(Zstr const *)data;
-    const unsigned char *ptr  = (const unsigned char *)str;
-    u64                  hash = 1469598103934665603ULL;
-    (void)size;
-
-    while (*ptr) {
-        hash ^= (u64)(*ptr++);
-        hash *= 1099511628211ULL;
-    }
-
-    return hash;
-}
-
-static i32 zstr_compare_ptr(const void *lhs, const void *rhs) {
-    Zstr a = *(Zstr const *)lhs;
-    Zstr b = *(Zstr const *)rhs;
-    return ZstrCompare(a, b);
-}
-
 static u64 node_id_hash(const void *data, u32 size) {
     u64 x = *(const GraphNodeId *)data;
     (void)size;
@@ -47,12 +27,13 @@ static i32 node_id_compare(const void *lhs, const void *rhs) {
 }
 
 typedef Graph(Str) CityGraph;
-typedef Map(const char *, GraphNodeId) CityIndex;
+typedef Map(Str, GraphNodeId) CityIndex;
 
-static GraphNodeId city_add_intersection(CityGraph *graph, CityIndex *index, Zstr name, DefaultAllocator *alloc) {
-    GraphNodeId id = GraphAddNodeR(graph, StrZ(name, alloc));
+static GraphNodeId city_add_intersection(CityGraph *graph, CityIndex *index, const Str *name, DefaultAllocator *alloc) {
+    GraphNodeId id = GraphAddNodeR(graph, StrInitFromCstr(StrBegin(name), StrLen(name), alloc));
 
-    MapInsertR(index, name, id);
+    Str key_copy = StrInitFromCstr(StrBegin(name), StrLen(name), alloc);
+    MapInsertR(index, key_copy, id);
     return id;
 }
 
@@ -81,9 +62,9 @@ static bool city_reachable_from(GraphNode node, GraphNodeId goal_id) {
     return false;
 }
 
-static bool city_reachable(CityGraph *graph, CityIndex *index, Zstr from, Zstr to) {
-    GraphNodeId *from_id = MapTryGetPtr(index, from);
-    GraphNodeId *to_id   = MapTryGetPtr(index, to);
+static bool city_reachable(CityGraph *graph, CityIndex *index, const Str *from, const Str *to) {
+    GraphNodeId *from_id = MapTryGetPtr(index, *from);
+    GraphNodeId *to_id   = MapTryGetPtr(index, *to);
 
     if (!from_id || !to_id) {
         return false;
@@ -99,14 +80,23 @@ static bool test_graph_city_reachability(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
     CityGraph graph = GraphInitWithDeepCopy(NULL, str_deinit, &alloc);
-    CityIndex index =
-        MapInitWithDeepCopy(zstr_hash, zstr_compare_ptr, zstr_init_clone, zstr_deinit, NULL, NULL, &alloc);
+    CityIndex index = MapInitWithDeepCopy(str_hash, str_compare, str_init_copy, str_deinit, NULL, NULL, &alloc);
 
-    GraphNodeId alpha = city_add_intersection(&graph, &index, "Alpha", &alloc);
-    GraphNodeId beta  = city_add_intersection(&graph, &index, "Beta", &alloc);
-    GraphNodeId gamma = city_add_intersection(&graph, &index, "Gamma", &alloc);
-    GraphNodeId delta = city_add_intersection(&graph, &index, "Delta", &alloc);
-    GraphNodeId echo  = city_add_intersection(&graph, &index, "Echo", &alloc);
+    // The helpers take const Str *. Build one stack Str per literal and
+    // hand its address through; the helpers + Map / Graph deep-copy
+    // callbacks own the resulting clones.
+    Str s_alpha   = StrInitFromZstr("Alpha", &alloc);
+    Str s_beta    = StrInitFromZstr("Beta", &alloc);
+    Str s_gamma   = StrInitFromZstr("Gamma", &alloc);
+    Str s_delta   = StrInitFromZstr("Delta", &alloc);
+    Str s_echo    = StrInitFromZstr("Echo", &alloc);
+    Str s_unknown = StrInitFromZstr("Unknown", &alloc);
+
+    GraphNodeId alpha = city_add_intersection(&graph, &index, &s_alpha, &alloc);
+    GraphNodeId beta  = city_add_intersection(&graph, &index, &s_beta, &alloc);
+    GraphNodeId gamma = city_add_intersection(&graph, &index, &s_gamma, &alloc);
+    GraphNodeId delta = city_add_intersection(&graph, &index, &s_delta, &alloc);
+    GraphNodeId echo  = city_add_intersection(&graph, &index, &s_echo, &alloc);
 
     GraphAddEdge(&graph, alpha, beta);
     GraphAddEdge(&graph, beta, gamma);
@@ -114,10 +104,17 @@ static bool test_graph_city_reachability(void) {
     GraphAddEdge(&graph, gamma, echo);
     GraphAddEdge(&graph, echo, beta);
 
-    bool result = city_reachable(&graph, &index, "Alpha", "Delta");
-    result      = result && city_reachable(&graph, &index, "Echo", "Gamma");
-    result      = result && !city_reachable(&graph, &index, "Delta", "Alpha");
-    result      = result && !city_reachable(&graph, &index, "Unknown", "Alpha");
+    bool result = city_reachable(&graph, &index, &s_alpha, &s_delta);
+    result      = result && city_reachable(&graph, &index, &s_echo, &s_gamma);
+    result      = result && !city_reachable(&graph, &index, &s_delta, &s_alpha);
+    result      = result && !city_reachable(&graph, &index, &s_unknown, &s_alpha);
+
+    StrDeinit(&s_alpha);
+    StrDeinit(&s_beta);
+    StrDeinit(&s_gamma);
+    StrDeinit(&s_delta);
+    StrDeinit(&s_echo);
+    StrDeinit(&s_unknown);
 
     city_reset_visits(&graph);
     GraphForeachNode(&graph, node) {

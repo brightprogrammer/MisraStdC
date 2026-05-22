@@ -83,42 +83,11 @@ static StrIter kvconfig_consume_line_end(StrIter si) {
 }
 
 u64 KvConfigHash(const void *data, u32 ignored_size) {
-    const Str *str  = data;
-    u64        hash = 1469598103934665603ULL;
-    size       idx;
-
-    (void)ignored_size;
-    ValidateStr(str);
-
-    for (idx = 0; idx < StrLen(str); idx++) {
-        hash ^= (u64)(unsigned char)StrCharAt(str, idx);
-        hash *= 1099511628211ULL;
-    }
-
-    return hash;
+    return str_hash(data, ignored_size);
 }
 
 i32 KvConfigCompare(const void *lhs, const void *rhs) {
-    const Str *a   = lhs;
-    const Str *b   = rhs;
-    size       min = 0;
-    i32        cmp = 0;
-
-    ValidateStr(a);
-    ValidateStr(b);
-
-    min = StrLen(a) < StrLen(b) ? StrLen(a) : StrLen(b);
-    cmp = MemCompare(StrBegin(a), StrBegin(b), min);
-
-    if (cmp != 0) {
-        return cmp;
-    }
-
-    if (StrLen(a) == StrLen(b)) {
-        return 0;
-    }
-
-    return StrLen(a) < StrLen(b) ? -1 : 1;
+    return str_compare(lhs, rhs);
 }
 
 StrIter KvConfigSkipWhitespace(StrIter si) {

@@ -97,7 +97,7 @@
 #define MapContainsKey(m, lookup_key)                                                                                  \
     map_contains(                                                                                                      \
         GENERIC_MAP(m),                                                                                                \
-        &((MAP_KEY_TYPE(m)) {(lookup_key)}),                                                                           \
+        &LVAL_AS(MAP_KEY_TYPE(m), lookup_key),                                                                         \
         sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
         offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
         sizeof(MAP_KEY_TYPE(m)),                                                                                       \
@@ -120,7 +120,7 @@
 #define MapContainsPair(m, lookup_key, lookup_value)                                                                   \
     map_contains_pair(                                                                                                 \
         GENERIC_MAP(m),                                                                                                \
-        &((MAP_KEY_TYPE(m)) {(lookup_key)}),                                                                           \
+        &LVAL_AS(MAP_KEY_TYPE(m), lookup_key),                                                                         \
         &((MAP_VALUE_TYPE(m)) {(lookup_value)}),                                                                       \
         sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
         offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
@@ -143,7 +143,7 @@
 #define MapValueCountForKey(m, lookup_key)                                                                             \
     map_value_count(                                                                                                   \
         GENERIC_MAP(m),                                                                                                \
-        &((MAP_KEY_TYPE(m)) {(lookup_key)}),                                                                           \
+        &LVAL_AS(MAP_KEY_TYPE(m), lookup_key),                                                                         \
         sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
         offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
         sizeof(MAP_KEY_TYPE(m)),                                                                                       \
@@ -165,7 +165,7 @@
 #define MapGetFirstPtr(m, lookup_key)                                                                                  \
     ((MAP_VALUE_TYPE(m) *)map_get_value_ptr(                                                                           \
         GENERIC_MAP(m),                                                                                                \
-        &((MAP_KEY_TYPE(m)) {(lookup_key)}),                                                                           \
+        &LVAL_AS(MAP_KEY_TYPE(m), lookup_key),                                                                         \
         sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
         offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
         sizeof(MAP_KEY_TYPE(m)),                                                                                       \
@@ -207,7 +207,7 @@
 #define MapGetOrDefault(m, lookup_key, default_value)                                                                  \
     (*(MAP_VALUE_TYPE(m) *)map_get_value_or_default(                                                                   \
         GENERIC_MAP(m),                                                                                                \
-        &((MAP_KEY_TYPE(m)) {(lookup_key)}),                                                                           \
+        &LVAL_AS(MAP_KEY_TYPE(m), lookup_key),                                                                         \
         &((MAP_VALUE_TYPE(m)) {(default_value)}),                                                                      \
         sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
         offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
@@ -245,7 +245,7 @@
 #define MapFindFirstForKey(m, lookup_key)                                                                              \
     map_find_first_cursor(                                                                                             \
         GENERIC_MAP(m),                                                                                                \
-        &((MAP_KEY_TYPE(m)) {(lookup_key)}),                                                                           \
+        &LVAL_AS(MAP_KEY_TYPE(m), lookup_key),                                                                         \
         sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
         offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
         sizeof(MAP_KEY_TYPE(m)),                                                                                       \
@@ -268,7 +268,7 @@
 #define MapFindNextForKey(m, lookup_key, cursor)                                                                       \
     map_find_next_cursor(                                                                                              \
         GENERIC_MAP(m),                                                                                                \
-        &((MAP_KEY_TYPE(m)) {(lookup_key)}),                                                                           \
+        &LVAL_AS(MAP_KEY_TYPE(m), lookup_key),                                                                         \
         (cursor),                                                                                                      \
         sizeof(MAP_ENTRY_TYPE(m)),                                                                                     \
         offsetof(MAP_ENTRY_TYPE(m), key),                                                                              \
