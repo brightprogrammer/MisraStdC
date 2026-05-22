@@ -256,10 +256,25 @@ def extract_symbols_and_store_content(file_path: Path):
 
                     symbol_name, inferred_kind = symbol_info
                     internal_reason = internal_documentation_symbol_reason(symbol_name)
-                    if internal_reason == "private":
-                        line_index = definition_index + declaration_line_count
-                        break
-                    if internal_reason == "plumbing":
+                    # Walk past both `private` (snake_case impl helpers) and
+                    # `plumbing` (numbered MISRA_OVERLOAD arms, `_HAS_ARGS`,
+                    # etc.) until either a public PascalCase symbol absorbs
+                    # the doc block or the run of non-blank declarations
+                    # ends. The Phase-2 / R2 pattern is:
+                    #
+                    #     /// doc block
+                    #     T snake_zstr(...);
+                    #     T snake_str(...);
+                    #     #define PascalName(...) MISRA_OVERLOAD(PascalName, ...)
+                    #     #define PascalName_1(...) _Generic(...)
+                    #     #define PascalName_2(...) _Generic(...)
+                    #
+                    # where the public surface is `PascalName` and the doc
+                    # is meant for it; the snake_case decls are skipped and
+                    # the numbered overloads are plumbing. Treating private
+                    # the same as plumbing lets the doc walk past both to
+                    # land on PascalName.
+                    if internal_reason in ("private", "plumbing"):
                         definition_index += declaration_line_count
                         continue
 
