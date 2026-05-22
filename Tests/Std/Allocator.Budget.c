@@ -166,11 +166,12 @@ static bool test_alignment_honored(void) {
 }
 
 static bool test_tiny_buffer_rejects(void) {
+    // Tiny buffer -> BudgetAllocatorInit fires LOG_FATAL at the caller's
+    // line. A passing deadend is one where the abort fired.
     u8              buf[4] = {0};
     BudgetAllocator bp     = BudgetAllocatorInit(buf, sizeof(buf), sizeof(Node));
-    bool            ok     = (bp.slot_count == 0);
     BudgetAllocatorDeinit(&bp);
-    return ok;
+    return false;
 }
 
 // =============================================================================
@@ -232,9 +233,9 @@ int main(void) {
         // Init edges
         test_oversized_request_fails,
         test_alignment_honored,
-        test_tiny_buffer_rejects,
     };
     TestFunction deadend[] = {
+        test_tiny_buffer_rejects,
         test_reject_foreign_pointer,
         test_reject_pointer_before_slot_region,
         test_reject_misaligned_pointer,

@@ -396,7 +396,8 @@ struct check_type_eq<true> {
 /// FAILURE: Function cannot fail - returns original value if alignment <= 1.
 ///
 /// TAGS: Memory, Alignment, PowerOfTwo
-#define ALIGN_UP_POW2(value, alignment) ((alignment) > 1 ? (((value) + (alignment) - 1) & ~((alignment) - 1)) : (value))
+#define ALIGN_UP_POW2(value, alignment)                                                                                \
+    ((alignment) > 1 ? (((value) + (alignment) - 1) & ~(TYPE_OF(value))((alignment) - 1)) : (value))
 
 ///
 /// Aligns the given `value` down to the nearest power-of-two multiple.
@@ -408,7 +409,7 @@ struct check_type_eq<true> {
 /// FAILURE: Function cannot fail - returns original value if alignment <= 1.
 ///
 /// TAGS: Memory, Alignment, PowerOfTwo
-#define ALIGN_DOWN_POW2(value, alignment) ((alignment) > 1 ? ((value) & ~((alignment) - 1)) : (value))
+#define ALIGN_DOWN_POW2(value, alignment) ((alignment) > 1 ? ((value) & ~(TYPE_OF(value))((alignment) - 1)) : (value))
 
 ///
 /// Round `ptr` up to a power-of-two alignment boundary, preserving

@@ -94,10 +94,6 @@ static void budget_validate_self(const Allocator *self) {
     }
 }
 
-static bool budget_alignment_is_pow2(size alignment) {
-    return alignment != 0 && ((alignment & (alignment - 1)) == 0);
-}
-
 // ---------------------------------------------------------------------------
 // Bitmap helpers. Each u64 word covers 64 slots.
 
@@ -193,92 +189,11 @@ size budget_allocator_deallocate(Allocator *self, void *ptr) {
 }
 
 // ---------------------------------------------------------------------------
-// Init. Carves the user buffer into [bitmap | pad | slots]. The bitmap
-// is sized for the upper bound of how many slots could fit if there
-// were no bitmap; in practice we then have fewer slots than the bitmap
-// covers (the tail bits stay forever 0, harmlessly).
-
-static BudgetAllocator budget_build(void *buf_in, size buf_bytes, size slot_size, size alignment) {
-    BudgetAllocator empty = {0};
-    if (!buf_in || !slot_size)
-        return empty;
-
-    if (!budget_alignment_is_pow2(alignment))
-        alignment = sizeof(void *);
-    if (alignment < sizeof(void *))
-        alignment = sizeof(void *);
-
-    size padded_slot = ALIGN_UP_POW2(slot_size, alignment);
-
-    // Bitmap lives at the front of the buffer, u64-aligned.
-    u64  buf_addr        = (u64)buf_in;
-    u64  bitmap_addr     = (buf_addr + 7u) & ~(u64)7u;
-    size bitmap_head_pad = (size)(bitmap_addr - buf_addr);
-    if (bitmap_head_pad >= buf_bytes)
-        return empty;
-
-    size avail_after_pad = buf_bytes - bitmap_head_pad;
-
-    // Upper bound on slot count (if bitmap took zero bytes). Used to
-    // size the bitmap; the final slot count is recomputed once the
-    // bitmap-size is known and may be a few slots less.
-    size max_slots_ub = avail_after_pad / padded_slot;
-    if (max_slots_ub == 0)
-        return empty;
-
-    size bitmap_words_full = (max_slots_ub + 63u) / 64u;
-    // `bitmap_words` on the BudgetAllocator struct is u32. Refuse
-    // buffers large enough to overflow that field (>~32 GiB at a
-    // 1-byte slot size). Without this the cast at the bottom
-    // silently truncates and the alloc-side scan skips the high
-    // half of the bitmap.
-    if (bitmap_words_full > (size)(u32)-1)
-        return empty;
-    size bitmap_bytes = bitmap_words_full * 8u;
-    if (bitmap_bytes >= avail_after_pad)
-        return empty;
-
-    // Slots come after the bitmap, aligned to slot alignment.
-    u64  slot_addr_raw     = bitmap_addr + bitmap_bytes;
-    u64  slot_addr_aligned = (slot_addr_raw + (u64)(alignment - 1)) & ~(u64)(alignment - 1);
-    size slot_head_pad     = (size)(slot_addr_aligned - slot_addr_raw);
-    if (bitmap_bytes + slot_head_pad >= avail_after_pad)
-        return empty;
-
-    size slot_count = (avail_after_pad - bitmap_bytes - slot_head_pad) / padded_slot;
-    if (slot_count == 0)
-        return empty;
-
-    char *bitmap = (char *)(void *)bitmap_addr;
-    MemSet(bitmap, 0, bitmap_bytes);
-
-    return (BudgetAllocator) {
-        .base =
-            {.allocate    = budget_allocator_allocate,
-                   .resize      = budget_allocator_resize,
-                   .remap       = budget_allocator_remap,
-                   .deallocate  = budget_allocator_deallocate,
-                   .alignment   = alignment,
-                   .effort      = ALLOCATOR_EFFORT_ONCE,
-                   .retry_limit = 0,
-                   .__magic     = BUDGET_ALLOCATOR_MAGIC},
-        .buf          = (char *)buf_in,
-        .buf_bytes    = buf_bytes,
-        .bitmap       = (u64 *)(void *)bitmap,
-        .bitmap_words = (u32)bitmap_words_full,
-        .slots        = (char *)(void *)slot_addr_aligned,
-        .slot_size    = padded_slot,
-        .slot_count   = slot_count,
-    };
-}
-
-BudgetAllocator budget_allocator_init(void *buf, size buf_bytes, size slot_size) {
-    return budget_build(buf, buf_bytes, slot_size, sizeof(void *));
-}
-
-BudgetAllocator budget_allocator_init_aligned(void *buf, size buf_bytes, size slot_size, size alignment) {
-    return budget_build(buf, buf_bytes, slot_size, alignment);
-}
+// Init lives entirely in the BudgetAllocatorInit / BudgetAllocatorInitAligned
+// macros in Budget.h. The macros expand to a designated-initializer literal
+// gated by ASSERT_OR_FATAL preconditions, with a MemSet call in the comma
+// chain pre-zeroing the bitmap region inside the caller's buffer. Layout
+// follows the same scheme the function form used: [bitmap | pad | slots].
 
 void BudgetAllocatorDeinit(BudgetAllocator *self) {
     if (!self)

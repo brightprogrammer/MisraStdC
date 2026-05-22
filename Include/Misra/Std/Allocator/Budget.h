@@ -32,6 +32,8 @@
 #define MISRA_STD_ALLOCATOR_BUDGET_H
 
 #include <Misra/Std/Allocator.h>
+#include <Misra/Std/Log.h>
+#include <Misra/Std/Memory.h>
 
 ///
 /// Per-type magic for `BudgetAllocator`. Stamped into
@@ -85,43 +87,123 @@ extern "C" {
     void *budget_allocator_remap(Allocator *self, void *ptr, size new_size);
     size  budget_allocator_deallocate(Allocator *self, void *ptr);
 
-    ///
-    /// Initialize a `BudgetAllocator` over a caller-owned memory region.
-    /// Carves `buf` into `floor(buf_bytes / padded_slot_size)` slots and
-    /// builds an intrusive free list over them. `padded_slot_size` is
-    /// `slot_size` rounded up to `sizeof(void *)` so each free slot can
-    /// hold the intrusive next pointer.
-    ///
-    /// buf[in,out]      : Caller-owned memory region used as backing storage.
-    /// buf_bytes[in]    : Size of `buf` in bytes.
-    /// slot_size[in]    : Allocation size class served by this allocator.
-    ///
-    /// SUCCESS: Returns a fully-initialized `BudgetAllocator` value.
-    /// FAILURE: Returns a zero-initialized allocator whose `__magic` is 0
-    ///          when `buf` is NULL, `slot_size` is 0, or the buffer is too
-    ///          small to hold a single padded slot. Calling
-    ///          `AllocatorAlloc` on it will abort via `ValidateAllocator`.
-    ///
-    /// TAGS: Allocator, Budget, Init
-    ///
-    BudgetAllocator budget_allocator_init(void *buf, size buf_bytes, size slot_size);
-#define BudgetAllocatorInit(buf, buf_bytes, slot_size) budget_allocator_init((buf), (buf_bytes), (slot_size))
+///
+/// Initialize a `BudgetAllocator` over a caller-owned memory region.
+/// Carves `buf` into a `[bitmap | pad | slots]` layout: the bitmap is
+/// u64-aligned at the head; slots are `sizeof(void *)`-aligned and
+/// padded up to `sizeof(void *)`. The bitmap region is zeroed in place
+/// as part of init.
+///
+/// Side-effect-free args only -- `buf`, `buf_bytes`, and `slot_size`
+/// are each evaluated multiple times inside the layout arithmetic.
+///
+/// buf[in,out]   : Caller-owned memory region used as backing storage.
+/// buf_bytes[in] : Size of `buf` in bytes.
+/// slot_size[in] : Allocation size class served by this allocator.
+///
+/// SUCCESS : Returns a fully-initialized `BudgetAllocator` value with
+///           bitmap zeroed.
+/// FAILURE : Aborts via `LOG_FATAL` when `buf` is NULL, `buf_bytes`
+///           or `slot_size` is 0, or the buffer is too small for the
+///           bitmap word plus one padded slot. The fatal log points at
+///           the caller's source line.
+///
+/// TAGS: Allocator, Budget, Init
+///
+#define BudgetAllocatorInit(buf_ptr, total_bytes, slot_size_bytes)                                                     \
+    BudgetAllocatorInitAligned((buf_ptr), (total_bytes), (slot_size_bytes), sizeof(void *))
 
-    ///
-    /// Initialize a `BudgetAllocator` with an alignment floor. Slot size
-    /// is rounded up to the larger of `alignment` and `sizeof(void *)`,
-    /// and the first slot is positioned so that every slot satisfies the
-    /// requested alignment.
-    ///
-    /// alignment[in] : Required slot alignment in bytes (power of two).
-    ///
-    /// Otherwise identical to `BudgetAllocatorInit`.
-    ///
-    /// TAGS: Allocator, Budget, Init, Alignment
-    ///
-    BudgetAllocator budget_allocator_init_aligned(void *buf, size buf_bytes, size slot_size, size alignment);
-#define BudgetAllocatorInitAligned(buf, buf_bytes, slot_size, alignment)                                               \
-    budget_allocator_init_aligned((buf), (buf_bytes), (slot_size), (alignment))
+///
+/// Initialize a `BudgetAllocator` with a caller-supplied alignment.
+/// `alignment` must be a power of two and at least `sizeof(void *)`;
+/// slot size is rounded up to it. Otherwise identical to
+/// `BudgetAllocatorInit`.
+///
+/// alignment[in] : Required slot alignment in bytes (power of two).
+///
+/// SUCCESS : Returns a fully-initialized `BudgetAllocator` value with
+///           bitmap zeroed.
+/// FAILURE : Aborts via `LOG_FATAL` on bad arguments (see
+///           `BudgetAllocatorInit`) or when `alignment` is not a
+///           power-of-two or is below `sizeof(void *)`.
+///
+/// TAGS: Allocator, Budget, Init, Alignment
+///
+#define BudgetAllocatorInitAligned(buf_ptr, total_bytes, slot_size_bytes, alignment_value)                             \
+    (ASSERT_OR_FATAL((buf_ptr) != NULL, "BudgetAllocatorInit: NULL buf"),                                              \
+     ASSERT_OR_FATAL((total_bytes) > 0, "BudgetAllocatorInit: zero buf_bytes"),                                        \
+     ASSERT_OR_FATAL((slot_size_bytes) > 0, "BudgetAllocatorInit: zero slot_size"),                                    \
+     ASSERT_OR_FATAL(                                                                                                  \
+         (alignment_value) >= sizeof(void *) && ((alignment_value) & ((alignment_value) - 1)) == 0,                    \
+         "BudgetAllocatorInit: alignment must be a power of two >= sizeof(void *)"                                     \
+     ),                                                                                                                \
+     ASSERT_OR_FATAL(                                                                                                  \
+         (size)(total_bytes) >= (size)(ALIGN_UP_POW2((u64)(buf_ptr), 8u) - (u64)(buf_ptr)) + sizeof(u64) +             \
+                                    ALIGN_UP_POW2((slot_size_bytes), (alignment_value)) + ((alignment_value) - 1),     \
+         "BudgetAllocatorInit: buffer too small for bitmap + one padded slot"                                          \
+     ),                                                                                                                \
+     (MemSet(                                                                                                          \
+          PTR_ALIGN_UP_POW2((buf_ptr), 8u),                                                                            \
+          0,                                                                                                           \
+          CEIL_DIV(                                                                                                    \
+              ((size)(total_bytes) - (size)(ALIGN_UP_POW2((u64)(buf_ptr), 8u) - (u64)(buf_ptr))) /                     \
+                  ALIGN_UP_POW2((slot_size_bytes), (alignment_value)),                                                 \
+              64u                                                                                                      \
+          ) * sizeof(u64)                                                                                              \
+      ),                                                                                                               \
+      0),                                                                                                              \
+     ((BudgetAllocator) {                                                                                              \
+         .base =                                                                                                       \
+             {.allocate    = budget_allocator_allocate,                                                                \
+                    .resize      = budget_allocator_resize,                                                                  \
+                    .remap       = budget_allocator_remap,                                                                   \
+                    .deallocate  = budget_allocator_deallocate,                                                              \
+                    .alignment   = (alignment_value),                                                                        \
+                    .effort      = ALLOCATOR_EFFORT_ONCE,                                                                    \
+                    .retry_limit = 0,                                                                                        \
+                    .__magic     = BUDGET_ALLOCATOR_MAGIC},                                                                      \
+         .buf          = (char *)(buf_ptr),                                                                            \
+         .buf_bytes    = (total_bytes),                                                                                \
+         .bitmap       = (u64 *)PTR_ALIGN_UP_POW2((buf_ptr), 8u),                                                      \
+         .bitmap_words = (u32)CEIL_DIV(                                                                                \
+             ((size)(total_bytes) - (size)(ALIGN_UP_POW2((u64)(buf_ptr), 8u) - (u64)(buf_ptr))) /                      \
+                 ALIGN_UP_POW2((slot_size_bytes), (alignment_value)),                                                  \
+             64u                                                                                                       \
+         ),                                                                                                            \
+         .slots = (char *)ALIGN_UP_POW2(                                                                               \
+             ALIGN_UP_POW2((u64)(buf_ptr), 8u) +                                                                       \
+                 CEIL_DIV(                                                                                             \
+                     ((size)(total_bytes) - (size)(ALIGN_UP_POW2((u64)(buf_ptr), 8u) - (u64)(buf_ptr))) /              \
+                         ALIGN_UP_POW2((slot_size_bytes), (alignment_value)),                                          \
+                     64u                                                                                               \
+                 ) * sizeof(u64),                                                                                      \
+             (alignment_value)                                                                                         \
+         ),                                                                                                            \
+         .slot_size = ALIGN_UP_POW2((slot_size_bytes), (alignment_value)),                                             \
+         .slot_count =                                                                                                 \
+             ((size)(total_bytes) - (size)(ALIGN_UP_POW2((u64)(buf_ptr), 8u) - (u64)(buf_ptr)) -                       \
+              CEIL_DIV(                                                                                                \
+                  ((size)(total_bytes) - (size)(ALIGN_UP_POW2((u64)(buf_ptr), 8u) - (u64)(buf_ptr))) /                 \
+                      ALIGN_UP_POW2((slot_size_bytes), (alignment_value)),                                             \
+                  64u                                                                                                  \
+              ) * sizeof(u64) -                                                                                        \
+              (size)(ALIGN_UP_POW2(                                                                                    \
+                         ALIGN_UP_POW2((u64)(buf_ptr), 8u) +                                                           \
+                             CEIL_DIV(                                                                                 \
+                                 ((size)(total_bytes) - (size)(ALIGN_UP_POW2((u64)(buf_ptr), 8u) - (u64)(buf_ptr))) /  \
+                                     ALIGN_UP_POW2((slot_size_bytes), (alignment_value)),                              \
+                                 64u                                                                                   \
+                             ) * sizeof(u64),                                                                          \
+                         (alignment_value)                                                                             \
+                     ) -                                                                                               \
+                     ALIGN_UP_POW2((u64)(buf_ptr), 8u) -                                                               \
+                     CEIL_DIV(                                                                                         \
+                         ((size)(total_bytes) - (size)(ALIGN_UP_POW2((u64)(buf_ptr), 8u) - (u64)(buf_ptr))) /          \
+                             ALIGN_UP_POW2((slot_size_bytes), (alignment_value)),                                      \
+                         64u                                                                                           \
+                     ) * sizeof(u64))) /                                                                               \
+             ALIGN_UP_POW2((slot_size_bytes), (alignment_value)),                                                      \
+    }))
 
     ///
     /// Tear down a `BudgetAllocator`. No-op for the backing memory (the
