@@ -53,6 +53,35 @@ of the codebase to see them in action.
   In both cases the zero-on-take invariant holds on success AND failure.
 - **R-form (`*FromMemoryCopy` / `VecInsertR`)** copies; the caller's data
   is untouched and remains theirs.
+- **Prefer `Str` to `Zstr`.** `Str` carries its length and allocator
+  inline; `Zstr` is a raw NUL-terminated pointer. For stored fields,
+  parameters the function needs a length for, and anywhere the caller's
+  life is easier with the length already attached, use `Str` (or
+  `const Str *` when the function only reads). `Zstr` is reserved for
+  cases where the caller is genuinely working with a bare C-string —
+  string literals, argv, kernel-boundary parameters — and knows the
+  no-length view is what they want.
+- **A `(Zstr, length)` API always ships with a `Str` overload.** If a
+  function takes a Zstr together with an explicit length (i.e. it's
+  basically a Str minus the wrapper), provide a `Str` / `const Str *`
+  variant alongside via `_Generic` or `MISRA_OVERLOAD` so callers
+  holding a Str don't have to reach inside for `.length` and `.data`.
+  The `Cstr` / `Zstr` / unsuffixed naming pattern in the codebase is
+  the canonical shape:
+
+  ```c
+  bool StrStartsWithCstr(const Str *s, Zstr prefix, size prefix_len);
+  bool StrStartsWithZstr(const Str *s, Zstr prefix);
+  bool StrStartsWith(const Str *s, const Str *prefix);
+  ```
+
+  All three exist so the caller can pass whichever shape they have on
+  hand without juggling fields. Same applies whenever a `Zstr`
+  parameter shows up — add a `Str` overload (by value or by pointer,
+  whichever fits the call shape) so user code that lives in `Str`-land
+  stays there. Adding the `Str` overload is also a chance to surface
+  cases where the function should really be Str-only: if no caller
+  ever wants the Zstr form, you don't need it.
 
 ## Allocators
 
