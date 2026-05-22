@@ -87,7 +87,7 @@ static f64 pow10_f64(int exp) {
     return r;
 }
 
-bool str_try_init_from_cstr(Str *out, const char *cstr, size len, Allocator *alloc) {
+bool str_try_init_from_cstr(Str *out, Zstr cstr, size len, Allocator *alloc) {
     if (!out || !cstr) {
         LOG_FATAL("Invalid arguments");
     }
@@ -107,7 +107,7 @@ bool str_try_init_from_cstr(Str *out, const char *cstr, size len, Allocator *all
     return true;
 }
 
-Str str_init_from_cstr(const char *cstr, size len, Allocator *alloc) {
+Str str_init_from_cstr(Zstr cstr, size len, Allocator *alloc) {
     Str result = StrInit(alloc);
 
     if (!str_try_init_from_cstr(&result, cstr, len, alloc)) {
@@ -162,13 +162,13 @@ void str_deinit(void *copy, const Allocator *alloc) {
 StrIters StrSplitToIters(Str *s, Zstr key) {
     ValidateStr(s);
 
-    StrIters    sv     = (StrIters)VecInit(s->allocator);
-    size        keylen = ZstrLen(key);
-    const char *prev   = s->data;
-    const char *end    = s->data + s->length;
+    StrIters sv     = (StrIters)VecInit(s->allocator);
+    size     keylen = ZstrLen(key);
+    Zstr     prev   = s->data;
+    Zstr     end    = s->data + s->length;
 
     while (prev <= end) {
-        const char *next = ZstrFindSubstring(prev, key);
+        Zstr next = ZstrFindSubstring(prev, key);
         if (next) {
             StrIter si = {.data = (char *)prev, .length = next - prev, .pos = 0, .alignment = 1};
             VecPushBack(&sv, si);
@@ -186,15 +186,15 @@ StrIters StrSplitToIters(Str *s, Zstr key) {
 Strs StrSplit(Str *s, Zstr key) {
     ValidateStr(s);
 
-    Strs sv            = (Strs)VecInit(s->allocator);
-    sv.copy_deinit     = (GenericCopyDeinit)str_deinit;
-    size        keylen = ZstrLen(key);
-    const char *prev   = s->data;
+    Strs sv        = (Strs)VecInit(s->allocator);
+    sv.copy_deinit = (GenericCopyDeinit)str_deinit;
+    size keylen    = ZstrLen(key);
+    Zstr prev      = s->data;
 
     if (prev) {
-        const char *end = s->data + s->length;
+        Zstr end = s->data + s->length;
         while (prev <= end) {
-            const char *next = ZstrFindSubstring(prev, key);
+            Zstr next = ZstrFindSubstring(prev, key);
             if (next) {
                 Str tmp = StrInitFromCstr(prev, next - prev, s->allocator);
                 VecPushBack(&sv, tmp);
@@ -212,8 +212,8 @@ Strs StrSplit(Str *s, Zstr key) {
     return sv;
 }
 
-static size str_index_of_cstr(const Str *s, const char *key, size key_len) {
-    const char *found = NULL;
+static size str_index_of_cstr(const Str *s, Zstr key, size key_len) {
+    Zstr found = NULL;
 
     ValidateStr(s);
 
@@ -255,7 +255,7 @@ size StrIndexOfZstr(const Str *s, Zstr key) {
     return str_index_of_cstr(s, key, ZstrLen(key));
 }
 
-size StrIndexOfCstr(const Str *s, const char *key, size key_len) {
+size StrIndexOfCstr(const Str *s, Zstr key, size key_len) {
     return str_index_of_cstr(s, key, key_len);
 }
 
@@ -277,13 +277,13 @@ bool StrContainsZstr(const Str *s, Zstr key) {
     return StrIndexOfZstr(s, key) != SIZE_MAX;
 }
 
-bool StrContainsCstr(const Str *s, const char *key, size key_len) {
+bool StrContainsCstr(const Str *s, Zstr key, size key_len) {
     return StrIndexOfCstr(s, key, key_len) != SIZE_MAX;
 }
 
 // Helper function to check if char is in strip_chars
-static inline bool is_strip_char(char c, const char *strip_chars) {
-    const char *p = strip_chars;
+static inline bool is_strip_char(char c, Zstr strip_chars) {
+    Zstr p = strip_chars;
     while (*p) {
         if (c == *p)
             return true;
@@ -298,9 +298,9 @@ static inline bool is_strip_char(char c, const char *strip_chars) {
 Str strip_str(Str *s, Zstr chars_to_strip, int split_direction) {
     ValidateStr(s);
 
-    const char *strip_chars = chars_to_strip ? chars_to_strip : " \t\n\r\v\f";
-    const char *start       = s->data;
-    const char *end         = s->data + s->length - 1;
+    Zstr strip_chars = chars_to_strip ? chars_to_strip : " \t\n\r\v\f";
+    Zstr start       = s->data;
+    Zstr end         = s->data + s->length - 1;
 
     // Trim from the left
     if (split_direction <= 0) {
@@ -320,11 +320,11 @@ Str strip_str(Str *s, Zstr chars_to_strip, int split_direction) {
     return StrInitFromCstr(start, new_len, s->allocator);
 }
 
-static inline bool starts_with(const char *data, size data_len, const char *prefix, size prefix_len) {
+static inline bool starts_with(Zstr data, size data_len, Zstr prefix, size prefix_len) {
     return data_len >= prefix_len && MemCompare(data, prefix, prefix_len) == 0;
 }
 
-static inline bool ends_with(const char *data, size data_len, const char *suffix, size suffix_len) {
+static inline bool ends_with(Zstr data, size data_len, Zstr suffix, size suffix_len) {
     return data_len >= suffix_len && MemCompare(data + data_len - suffix_len, suffix, suffix_len) == 0;
 }
 
@@ -338,12 +338,12 @@ bool StrEndsWithZstr(const Str *s, Zstr suffix) {
     return ends_with(s->data, s->length, suffix, ZstrLen(suffix));
 }
 
-bool StrStartsWithCstr(const Str *s, const char *prefix, size prefix_len) {
+bool StrStartsWithCstr(const Str *s, Zstr prefix, size prefix_len) {
     ValidateStr(s);
     return starts_with(s->data, s->length, prefix, prefix_len);
 }
 
-bool StrEndsWithCstr(const Str *s, const char *suffix, size suffix_len) {
+bool StrEndsWithCstr(const Str *s, Zstr suffix, size suffix_len) {
     ValidateStr(s);
     return ends_with(s->data, s->length, suffix, suffix_len);
 }
@@ -359,8 +359,7 @@ bool StrEndsWith(const Str *s, const Str *suffix) {
 }
 
 // Helper: replace in-place all `match` → `replacement` up to `count`
-static void
-    str_replace(Str *s, const char *match, size match_len, const char *replacement, size replacement_len, size count) {
+static void str_replace(Str *s, Zstr match, size match_len, Zstr replacement, size replacement_len, size count) {
     ValidateStr(s);
     size i        = 0;
     size replaced = 0;
@@ -382,14 +381,7 @@ void StrReplaceZstr(Str *s, Zstr match, Zstr replacement, size count) {
     str_replace(s, match, ZstrLen(match), replacement, ZstrLen(replacement), count);
 }
 
-void StrReplaceCstr(
-    Str        *s,
-    const char *match,
-    size        match_len,
-    const char *replacement,
-    size        replacement_len,
-    size        count
-) {
+void StrReplaceCstr(Str *s, Zstr match, size match_len, Zstr replacement, size replacement_len, size count) {
     ValidateStr(s);
     str_replace(s, match, match_len, replacement, replacement_len, count);
 }
@@ -576,7 +568,7 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
 
     // Handle special cases
     if (isnan_f64(value)) {
-        const char *nan_str = config->uppercase ? "NAN" : "nan";
+        Zstr nan_str = config->uppercase ? "NAN" : "nan";
         for (size_t i = 0; i < 3; i++) {
             if (!StrPushBack(str, nan_str[i])) {
                 return NULL;
@@ -595,7 +587,7 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
                 return NULL;
             }
         }
-        const char *inf_str = config->uppercase ? "INF" : "inf";
+        Zstr inf_str = config->uppercase ? "INF" : "inf";
         for (size_t i = 0; i < 3; i++) {
             if (!StrPushBack(str, inf_str[i])) {
                 return NULL;

@@ -13,6 +13,7 @@
 #include <Misra/Std/Container/Vec.h>
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Utility/Iter.h>
+#include <Misra/Std/Zstr.h>
 #include <Misra/Types.h>
 
 typedef Vec(u8) Buf;
@@ -188,8 +189,8 @@ static inline bool BufReadSLeb128(BufIter *c, i64 *out) {
 
 /// NUL-terminated string starting at the cursor. Returns the start;
 /// advances past the terminator. NULL on truncation.
-static inline const char *BufReadCstr(BufIter *c) {
-    const char *s = (const char *)(c->data + c->pos);
+static inline Zstr BufReadCstr(BufIter *c) {
+    Zstr s = (Zstr)(c->data + c->pos);
     while (c->pos < c->length && c->data[c->pos] != 0) {
         c->pos++;
     }
@@ -288,7 +289,7 @@ static inline bool BufWriteSLeb128(Buf *b, i64 v) {
 }
 
 /// Write a NUL-terminated string + the terminator.
-static inline bool BufWriteCstr(Buf *b, const char *s) {
+static inline bool BufWriteCstr(Buf *b, Zstr s) {
     while (*s) {
         if (!VecPushBackR(b, (u8)*s)) {
             return false;

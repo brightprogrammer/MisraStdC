@@ -137,7 +137,7 @@ extern "C" {
     ///
     /// TAGS: Str, IndexOf, Search
     ///
-    size StrIndexOfCstr(const Str *s, const char *key, size key_len);
+    size StrIndexOfCstr(const Str *s, Zstr key, size key_len);
 
     ///
     /// Find the index of first occurrence of another Str.
@@ -177,7 +177,7 @@ extern "C" {
     ///
     /// TAGS: Str, Contains, Search
     ///
-    bool StrContainsCstr(const Str *s, const char *key, size key_len);
+    bool StrContainsCstr(const Str *s, Zstr key, size key_len);
 
     //
     // Prefix/Suffix Operations
@@ -215,7 +215,7 @@ extern "C" {
     /// SUCCESS : Returns `true` when `s` starts with `prefix`.
     /// FAILURE : Returns `false`. The string is not modified.
     ///
-    bool StrStartsWithCstr(const Str *s, const char *prefix, size prefix_len);
+    bool StrStartsWithCstr(const Str *s, Zstr prefix, size prefix_len);
 
     ///
     /// Check if string ends with a fixed-length C-style string (Cstr).
@@ -227,7 +227,7 @@ extern "C" {
     /// SUCCESS : Returns `true` when `s` ends with `suffix`.
     /// FAILURE : Returns `false`. The string is not modified.
     ///
-    bool StrEndsWithCstr(const Str *s, const char *suffix, size suffix_len);
+    bool StrEndsWithCstr(const Str *s, Zstr suffix, size suffix_len);
 
     ///
     /// Check if string starts with another Str object.
@@ -281,14 +281,7 @@ extern "C" {
     /// SUCCESS : Modifies `s` in place.
     /// FAILURE : No replacement if `match` not found.
     ///
-    void StrReplaceCstr(
-        Str        *s,
-        const char *match,
-        size        match_len,
-        const char *replacement,
-        size        replacement_len,
-        size        count
-    );
+    void StrReplaceCstr(Str *s, Zstr match, size match_len, Zstr replacement, size replacement_len, size count);
 
     ///
     /// Replace occurrences of a Str in string with another Str.

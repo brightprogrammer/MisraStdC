@@ -16,8 +16,8 @@
 extern "C" {
 #endif
 
-    bool str_try_init_from_cstr(Str *out, const char *cstr, size len, Allocator *alloc);
-    Str  str_init_from_cstr(const char *cstr, size len, Allocator *alloc);
+    bool str_try_init_from_cstr(Str *out, Zstr cstr, size len, Allocator *alloc);
+    Str  str_init_from_cstr(Zstr cstr, size len, Allocator *alloc);
 
 #define StrTryInitFromCstr(out, cstr, len, allocator_ptr)                                                              \
     str_try_init_from_cstr((out), (cstr), (len), ALLOCATOR_OF(allocator_ptr))
