@@ -368,7 +368,7 @@ u64 IntBitLength(Int *value) {
 
 u64 IntByteLength(Int *value) {
     u64 bits = IntBitLength(value);
-    return bits == 0 ? 0 : (bits + 7) / 8;
+    return bits == 0 ? 0 : CEIL_DIV(bits, 8u);
 }
 
 bool IntTryLog2(Int *value, u64 *out) {

@@ -149,6 +149,28 @@ typedef enum LogMessageType {
 } LogMessageType;
 
 ///
+/// Expression-form fatal assertion. When `cond` is false, logs `msg` at
+/// the caller's `__func__` / `__LINE__` at FATAL severity and aborts;
+/// otherwise evaluates to `0`. Designed for use inside designated-
+/// initializer literals and comma expressions where the statement-style
+/// `LOG_FATAL(...)` (`do { ... } while (0)`) does not fit.
+///
+/// Args are evaluated as a normal C ternary: `cond` once; `msg` only on
+/// the failure path. The whole macro has type `int`, so it composes
+/// inside ternaries and comma chains without further casting.
+///
+/// cond[in] : Boolean condition that must hold.
+/// msg[in]  : Constant `Zstr` (string literal preferred).
+///
+/// SUCCESS : Evaluates to `0` when `cond` is true.
+/// FAILURE : `LogWrite(...)` then `Abort()`; never returns.
+///
+/// TAGS: Logging, Assert, Macro, Expression
+///
+#define ASSERT_OR_FATAL(cond, msg)                                                                                     \
+    ((cond) ? 0 : (LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, (msg)), Abort(), 0))
+
+///
 /// Direct log message writer. Stateless: no setup, no teardown, no
 /// globals. INFO lines go to the normal output channel (fd 1 on
 /// POSIX); ERROR and FATAL go to the diagnostic channel (fd 2). FATAL

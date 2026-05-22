@@ -65,8 +65,11 @@ static void slab_validate_self_full(const Allocator *self) {
         LOG_FATAL("SlabAllocator: slot_size {} below 16-byte minimum", (u64)s->slot_size);
     }
     if (s->slot_size_shift == 0 || ((size)1 << s->slot_size_shift) != s->slot_size) {
-        LOG_FATAL("SlabAllocator: slot_size_shift {} disagrees with slot_size {}", (u64)s->slot_size_shift,
-                  (u64)s->slot_size);
+        LOG_FATAL(
+            "SlabAllocator: slot_size_shift {} disagrees with slot_size {}",
+            (u64)s->slot_size_shift,
+            (u64)s->slot_size
+        );
     }
     if ((s->slabs == NULL) != (s->slabs_cap == 0)) {
         LOG_FATAL("SlabAllocator: slabs / slabs_cap mismatch ({x} / {})", (u64)s->slabs, (u64)s->slabs_cap);
@@ -113,11 +116,14 @@ static void slab_finalize_runtime_consts(SlabAllocator *slab) {
         LOG_FATAL("SlabAllocator: slot_size {} is not a power of two", (u64)slab->slot_size);
     }
     if (slab->slot_size_shift == 0 || ((size)1u << slab->slot_size_shift) != slab->slot_size) {
-        LOG_FATAL("SlabAllocator: slot_size_shift {} disagrees with slot_size {}", (u64)slab->slot_size_shift,
-                  (u64)slab->slot_size);
+        LOG_FATAL(
+            "SlabAllocator: slot_size_shift {} disagrees with slot_size {}",
+            (u64)slab->slot_size_shift,
+            (u64)slab->slot_size
+        );
     }
     size slots_per_slab = page_size >> slab->slot_size_shift;
-    size words          = (slots_per_slab + 63u) / 64u;
+    size words          = CEIL_DIV(slots_per_slab, 64u);
     if (words == 0u) {
         words = 1u; // one slot fits in one bitmap bit; still need one word.
     }
@@ -156,8 +162,7 @@ static bool slab_grow_caps(SlabAllocator *slab) {
 
     if (slab->slabs && old_cap) {
         MemCopy(new_slabs, slab->slabs, (size)old_cap * sizeof(void *));
-        MemCopy(new_bitmaps, slab->bitmaps,
-                (size)old_cap * (size)slab->bitmap_words_per_slab * sizeof(u64));
+        MemCopy(new_bitmaps, slab->bitmaps, (size)old_cap * (size)slab->bitmap_words_per_slab * sizeof(u64));
         AllocatorFree(&slab->page.base, slab->slabs);
         AllocatorFree(&slab->page.base, slab->bitmaps);
     }
@@ -185,15 +190,18 @@ static u32 slab_insert_sorted(SlabAllocator *slab, void *page_base) {
             hi = mid;
         }
     }
-    u32  ins      = lo;
-    u32  bw       = slab->bitmap_words_per_slab;
-    u32  to_move  = slab->slabs_len - ins;
+    u32 ins     = lo;
+    u32 bw      = slab->bitmap_words_per_slab;
+    u32 to_move = slab->slabs_len - ins;
     if (to_move > 0u) {
         // Shift slabs[ins..len] right by one.
         MemMove(&slab->slabs[ins + 1u], &slab->slabs[ins], (size)to_move * sizeof(void *));
         // Shift bitmaps[ins..len] (each bw u64 words) right by one entry.
-        MemMove(&slab->bitmaps[(size)(ins + 1u) * (size)bw], &slab->bitmaps[(size)ins * (size)bw],
-                (size)to_move * (size)bw * sizeof(u64));
+        MemMove(
+            &slab->bitmaps[(size)(ins + 1u) * (size)bw],
+            &slab->bitmaps[(size)ins * (size)bw],
+            (size)to_move * (size)bw * sizeof(u64)
+        );
     }
     slab->slabs[ins] = page_base;
     // Zero the new bitmap entry, then set the tail bits (bits >=
@@ -218,8 +226,8 @@ static u32 slab_insert_sorted(SlabAllocator *slab, void *page_base) {
 static FORCE_INLINE u32 slab_find_by_page(const SlabAllocator *slab, void *page_base) {
     u32 lo = 0, hi = slab->slabs_len;
     while (lo < hi) {
-        u32   mid     = lo + (hi - lo) / 2u;
-        void *mid_pg  = slab->slabs[mid];
+        u32   mid    = lo + (hi - lo) / 2u;
+        void *mid_pg = slab->slabs[mid];
         if (mid_pg == page_base) {
             return mid;
         }
@@ -286,10 +294,10 @@ void *slab_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
             if (inv == 0u) {
                 continue;
             }
-            u32 bit = CTZ64(inv);
-            bm[w] |= ((u64)1 << bit);
-            u32   slot_idx = w * 64u + bit;
-            void *slot     = (char *)slab->slabs[i] + ((size)slot_idx << slab->slot_size_shift);
+            u32 bit         = CTZ64(inv);
+            bm[w]          |= ((u64)1 << bit);
+            u32   slot_idx  = w * 64u + bit;
+            void *slot      = (char *)slab->slabs[i] + ((size)slot_idx << slab->slot_size_shift);
             if (zeroed) {
                 MemSet(slot, 0, slab->slot_size);
             }
@@ -304,10 +312,10 @@ void *slab_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
     }
     // bitmap_words_per_slab might have just been set by the first
     // grow; re-read.
-    bw      = slab->bitmap_words_per_slab;
-    u64 *bm = &slab->bitmaps[(size)idx * (size)bw];
-    bm[0] |= 1u;
-    void *slot = slab->slabs[idx];
+    bw          = slab->bitmap_words_per_slab;
+    u64 *bm     = &slab->bitmaps[(size)idx * (size)bw];
+    bm[0]      |= 1u;
+    void *slot  = slab->slabs[idx];
     if (zeroed) {
         MemSet(slot, 0, slab->slot_size);
     }

@@ -411,6 +411,38 @@ struct check_type_eq<true> {
 #define ALIGN_DOWN_POW2(value, alignment) ((alignment) > 1 ? ((value) & ~((alignment) - 1)) : (value))
 
 ///
+/// Round `ptr` up to a power-of-two alignment boundary, preserving
+/// pointer type via a `void *` round-trip. The pointer's underlying
+/// integer goes through `u64` so the bit-math doesn't truncate on
+/// 64-bit targets.
+///
+/// ptr[in]       : Pointer to align up. Any pointer type accepted.
+/// alignment[in] : Power-of-two alignment boundary. Caller's contract.
+///
+/// SUCCESS: Returns a `void *` whose address is the smallest
+///          alignment-multiple at or above `ptr`.
+/// FAILURE: Function cannot fail. Behaviour is undefined when
+///          `alignment` is not a power of two.
+///
+/// TAGS: Memory, Alignment, PowerOfTwo, Pointer
+#define PTR_ALIGN_UP_POW2(ptr, alignment) ((void *)ALIGN_UP_POW2((u64)(ptr), (alignment)))
+
+///
+/// Ceiling division: divide `num` by `den` rounding up. Equivalent to
+/// `ceil(num / den)` for non-negative inputs. Side-effect-free args
+/// only -- `num` is evaluated twice.
+///
+/// num[in] : Dividend.
+/// den[in] : Divisor (non-zero).
+///
+/// SUCCESS: Returns the ceiling quotient.
+/// FAILURE: Function cannot fail. Behaviour is undefined when
+///          `den` is zero.
+///
+/// TAGS: Math, Division, Ceiling
+#define CEIL_DIV(num, den) (((num) + (den) - 1) / (den))
+
+///
 /// Checks if the value `x` is within the inclusive range [`lo`, `hi`].
 ///
 /// x[in]  : The value to check.
