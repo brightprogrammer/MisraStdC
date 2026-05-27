@@ -103,7 +103,7 @@ bool pdb_cache_resolve_str(
     u32       *out_offset
 );
 #define PdbCacheResolve(self, module_path, module_base, runtime_ip, out_name, out_offset)                                                                            \
-    _Generic((module_path), Str *: pdb_cache_resolve_str, Zstr: pdb_cache_resolve_zstr)( \
+    _Generic((module_path), Str *: pdb_cache_resolve_str, Zstr: pdb_cache_resolve_zstr, char *: pdb_cache_resolve_zstr)( \
         (self),                                                                                                                                                      \
         (module_path),                                                                                                                                               \
         (module_base),                                                                                                                                               \

@@ -108,7 +108,7 @@ bool macho_cache_resolve_str(
     u32        *out_offset
 );
 #define MachoCacheResolve(self, module_path, slide, runtime_ip, out_name, out_offset)                                                                                        \
-    _Generic((module_path), Str *: macho_cache_resolve_str, Zstr: macho_cache_resolve_zstr)( \
+    _Generic((module_path), Str *: macho_cache_resolve_str, Zstr: macho_cache_resolve_zstr, char *: macho_cache_resolve_zstr)( \
         (self),                                                                                                                                                              \
         (module_path),                                                                                                                                                       \
         (slide),                                                                                                                                                             \

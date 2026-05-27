@@ -101,13 +101,15 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: dir_get_contents((Zstr)StrBegin((Str *)(path)), MisraScope),                                                    \
-        Zstr: dir_get_contents((Zstr)(path), MisraScope)                                               \
+        Zstr: dir_get_contents((Zstr)(path), MisraScope),                                               \
+        char *: dir_get_contents((Zstr)(path), MisraScope)                                               \
     )
 #define DirGetContents_2(path, alloc)                                                                                  \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: dir_get_contents((Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                           \
-        Zstr: dir_get_contents((Zstr)(path), ALLOCATOR_OF(alloc))                                      \
+        Zstr: dir_get_contents((Zstr)(path), ALLOCATOR_OF(alloc)),                                      \
+        char *: dir_get_contents((Zstr)(path), ALLOCATOR_OF(alloc))                                      \
     )
 
 ///
@@ -125,7 +127,8 @@ i64 file_get_size(Zstr filename);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: file_get_size((Zstr)StrBegin((Str *)(path))),                                                                   \
-        Zstr: file_get_size((Zstr)(path))                                                              \
+        Zstr: file_get_size((Zstr)(path)),                                                              \
+        char *: file_get_size((Zstr)(path))                                                              \
     )
 
 ///
@@ -152,7 +155,8 @@ i8 file_remove(Zstr path);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: file_remove((Zstr)StrBegin((Str *)(path))),                                                                     \
-        Zstr: file_remove((Zstr)(path))                                                                \
+        Zstr: file_remove((Zstr)(path)),                                                                \
+        char *: file_remove((Zstr)(path))                                                                \
     )
 
 ///
@@ -174,7 +178,8 @@ i8 dir_remove(Zstr path);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: dir_remove((Zstr)StrBegin((Str *)(path))),                                                                      \
-        Zstr: dir_remove((Zstr)(path))                                                                 \
+        Zstr: dir_remove((Zstr)(path)),                                                                 \
+        char *: dir_remove((Zstr)(path))                                                                 \
     )
 
 ///
@@ -196,7 +201,8 @@ i8 dir_create(Zstr path);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: dir_create((Zstr)StrBegin((Str *)(path))),                                                                      \
-        Zstr: dir_create((Zstr)(path))                                                                 \
+        Zstr: dir_create((Zstr)(path)),                                                                 \
+        char *: dir_create((Zstr)(path))                                                                 \
     )
 
 ///
@@ -217,7 +223,8 @@ i8 dir_create_all(Zstr path);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: dir_create_all((Zstr)StrBegin((Str *)(path))),                                                                  \
-        Zstr: dir_create_all((Zstr)(path))                                                             \
+        Zstr: dir_create_all((Zstr)(path)),                                                             \
+        char *: dir_create_all((Zstr)(path))                                                             \
     )
 
 ///
@@ -237,7 +244,8 @@ i8 dir_remove_all(Zstr path);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: dir_remove_all((Zstr)StrBegin((Str *)(path))),                                                                  \
-        Zstr: dir_remove_all((Zstr)(path))                                                             \
+        Zstr: dir_remove_all((Zstr)(path)),                                                             \
+        char *: dir_remove_all((Zstr)(path))                                                             \
     )
 
 #endif // MISRA_SYS_DIR_H

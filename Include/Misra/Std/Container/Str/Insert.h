@@ -82,9 +82,9 @@ extern "C" {
 ///
 #define StrInsertMany(...) MISRA_OVERLOAD(StrInsertMany, __VA_ARGS__)
 #define StrInsertMany_3(str, zstr, idx)                                                                            \
-    _Generic((zstr), Zstr: VecInsertRangeR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))))
+    _Generic((zstr), Zstr: VecInsertRangeR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))), char *: VecInsertRangeR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))))
 #define StrInsertMany_4(str, cstr, cstr_len, idx)                                                                  \
-    _Generic((cstr), Zstr: VecInsertRangeR((str), (Zstr)(cstr), (idx), (cstr_len)))
+    _Generic((cstr), Zstr: VecInsertRangeR((str), (Zstr)(cstr), (idx), (cstr_len)), char *: VecInsertRangeR((str), (Zstr)(cstr), (idx), (cstr_len)))
 
 ///
 /// Aborting variant of `StrInsertMany`. Same shapes; calls `LOG_FATAL`
@@ -97,9 +97,9 @@ extern "C" {
 ///
 #define StrMustInsertMany(...) MISRA_OVERLOAD(StrMustInsertMany, __VA_ARGS__)
 #define StrMustInsertMany_3(str, zstr, idx)                                                                        \
-    _Generic((zstr), Zstr: VecMustInsertRangeR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))))
+    _Generic((zstr), Zstr: VecMustInsertRangeR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))), char *: VecMustInsertRangeR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))))
 #define StrMustInsertMany_4(str, cstr, cstr_len, idx)                                                              \
-    _Generic((cstr), Zstr: VecMustInsertRangeR((str), (Zstr)(cstr), (idx), (cstr_len)))
+    _Generic((cstr), Zstr: VecMustInsertRangeR((str), (Zstr)(cstr), (idx), (cstr_len)), char *: VecMustInsertRangeR((str), (Zstr)(cstr), (idx), (cstr_len)))
 
 ///
 /// Fast (order-not-preserving) variant of `StrInsertMany`. Same shapes
@@ -115,9 +115,9 @@ extern "C" {
 ///
 #define StrInsertManyFast(...) MISRA_OVERLOAD(StrInsertManyFast, __VA_ARGS__)
 #define StrInsertManyFast_3(str, zstr, idx)                                                                        \
-    _Generic((zstr), Zstr: VecInsertRangeFastR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))))
+    _Generic((zstr), Zstr: VecInsertRangeFastR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))), char *: VecInsertRangeFastR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))))
 #define StrInsertManyFast_4(str, cstr, cstr_len, idx)                                                              \
-    _Generic((cstr), Zstr: VecInsertRangeFastR((str), (Zstr)(cstr), (idx), (cstr_len)))
+    _Generic((cstr), Zstr: VecInsertRangeFastR((str), (Zstr)(cstr), (idx), (cstr_len)), char *: VecInsertRangeFastR((str), (Zstr)(cstr), (idx), (cstr_len)))
 
 ///
 /// Aborting variant of `StrInsertManyFast`.
@@ -129,9 +129,9 @@ extern "C" {
 ///
 #define StrMustInsertManyFast(...) MISRA_OVERLOAD(StrMustInsertManyFast, __VA_ARGS__)
 #define StrMustInsertManyFast_3(str, zstr, idx)                                                                    \
-    _Generic((zstr), Zstr: VecMustInsertRangeFastR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))))
+    _Generic((zstr), Zstr: VecMustInsertRangeFastR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))), char *: VecMustInsertRangeFastR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))))
 #define StrMustInsertManyFast_4(str, cstr, cstr_len, idx)                                                          \
-    _Generic((cstr), Zstr: VecMustInsertRangeFastR((str), (Zstr)(cstr), (idx), (cstr_len)))
+    _Generic((cstr), Zstr: VecMustInsertRangeFastR((str), (Zstr)(cstr), (idx), (cstr_len)), char *: VecMustInsertRangeFastR((str), (Zstr)(cstr), (idx), (cstr_len)))
 
 // ---------------------------------------------------------------------------
 // PushBack -- append to the tail.
@@ -204,9 +204,9 @@ extern "C" {
 ///
 #define StrPushBackMany(...) MISRA_OVERLOAD(StrPushBackMany, __VA_ARGS__)
 #define StrPushBackMany_2(str, zstr)                                                                               \
-    _Generic((zstr), Zstr: VecPushBackArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
+    _Generic((zstr), Zstr: VecPushBackArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))), char *: VecPushBackArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
 #define StrPushBackMany_3(str, cstr, cstr_len)                                                                     \
-    _Generic((cstr), Zstr: VecPushBackArrR((str), (Zstr)(cstr), (cstr_len)))
+    _Generic((cstr), Zstr: VecPushBackArrR((str), (Zstr)(cstr), (cstr_len)), char *: VecPushBackArrR((str), (Zstr)(cstr), (cstr_len)))
 
 ///
 /// Aborting variant of `StrPushBackMany`.
@@ -218,9 +218,9 @@ extern "C" {
 ///
 #define StrMustPushBackMany(...) MISRA_OVERLOAD(StrMustPushBackMany, __VA_ARGS__)
 #define StrMustPushBackMany_2(str, zstr)                                                                           \
-    _Generic((zstr), Zstr: VecMustPushBackArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
+    _Generic((zstr), Zstr: VecMustPushBackArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))), char *: VecMustPushBackArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
 #define StrMustPushBackMany_3(str, cstr, cstr_len)                                                                 \
-    _Generic((cstr), Zstr: VecMustPushBackArrR((str), (Zstr)(cstr), (cstr_len)))
+    _Generic((cstr), Zstr: VecMustPushBackArrR((str), (Zstr)(cstr), (cstr_len)), char *: VecMustPushBackArrR((str), (Zstr)(cstr), (cstr_len)))
 
 // ---------------------------------------------------------------------------
 // PushFront -- prepend at the head.
@@ -284,9 +284,9 @@ extern "C" {
 ///
 #define StrPushFrontMany(...) MISRA_OVERLOAD(StrPushFrontMany, __VA_ARGS__)
 #define StrPushFrontMany_2(str, zstr)                                                                              \
-    _Generic((zstr), Zstr: VecPushFrontArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
+    _Generic((zstr), Zstr: VecPushFrontArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))), char *: VecPushFrontArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
 #define StrPushFrontMany_3(str, cstr, cstr_len)                                                                    \
-    _Generic((cstr), Zstr: VecPushFrontArrR((str), (Zstr)(cstr), (cstr_len)))
+    _Generic((cstr), Zstr: VecPushFrontArrR((str), (Zstr)(cstr), (cstr_len)), char *: VecPushFrontArrR((str), (Zstr)(cstr), (cstr_len)))
 
 ///
 /// Aborting variant of `StrPushFrontMany`.
@@ -298,9 +298,9 @@ extern "C" {
 ///
 #define StrMustPushFrontMany(...) MISRA_OVERLOAD(StrMustPushFrontMany, __VA_ARGS__)
 #define StrMustPushFrontMany_2(str, zstr)                                                                          \
-    _Generic((zstr), Zstr: VecMustPushFrontArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
+    _Generic((zstr), Zstr: VecMustPushFrontArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))), char *: VecMustPushFrontArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
 #define StrMustPushFrontMany_3(str, cstr, cstr_len)                                                                \
-    _Generic((cstr), Zstr: VecMustPushFrontArrR((str), (Zstr)(cstr), (cstr_len)))
+    _Generic((cstr), Zstr: VecMustPushFrontArrR((str), (Zstr)(cstr), (cstr_len)), char *: VecMustPushFrontArrR((str), (Zstr)(cstr), (cstr_len)))
 
 ///
 /// Fast (order-not-preserving) variant of `StrPushFrontMany`. The
@@ -316,9 +316,9 @@ extern "C" {
 ///
 #define StrPushFrontManyFast(...) MISRA_OVERLOAD(StrPushFrontManyFast, __VA_ARGS__)
 #define StrPushFrontManyFast_2(str, zstr)                                                                          \
-    _Generic((zstr), Zstr: VecPushFrontArrFastR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
+    _Generic((zstr), Zstr: VecPushFrontArrFastR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))), char *: VecPushFrontArrFastR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
 #define StrPushFrontManyFast_3(str, cstr, cstr_len)                                                                \
-    _Generic((cstr), Zstr: VecPushFrontArrFastR((str), (Zstr)(cstr), (cstr_len)))
+    _Generic((cstr), Zstr: VecPushFrontArrFastR((str), (Zstr)(cstr), (cstr_len)), char *: VecPushFrontArrFastR((str), (Zstr)(cstr), (cstr_len)))
 
 ///
 /// Aborting variant of `StrPushFrontManyFast`.
@@ -330,9 +330,9 @@ extern "C" {
 ///
 #define StrMustPushFrontManyFast(...) MISRA_OVERLOAD(StrMustPushFrontManyFast, __VA_ARGS__)
 #define StrMustPushFrontManyFast_2(str, zstr)                                                                      \
-    _Generic((zstr), Zstr: VecMustPushFrontArrFastR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
+    _Generic((zstr), Zstr: VecMustPushFrontArrFastR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))), char *: VecMustPushFrontArrFastR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
 #define StrMustPushFrontManyFast_3(str, cstr, cstr_len)                                                            \
-    _Generic((cstr), Zstr: VecMustPushFrontArrFastR((str), (Zstr)(cstr), (cstr_len)))
+    _Generic((cstr), Zstr: VecMustPushFrontArrFastR((str), (Zstr)(cstr), (cstr_len)), char *: VecMustPushFrontArrFastR((str), (Zstr)(cstr), (cstr_len)))
 
 ///
 /// Merge `str2` into the end of `str` with L-value (ownership-transfer)

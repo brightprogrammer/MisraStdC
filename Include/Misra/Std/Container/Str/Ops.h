@@ -72,7 +72,8 @@ extern "C" {
     _Generic(                                                                                                          \
         (other),                                                                                                       \
         Str *: str_cmp_str ((s), (const Str *)(other)),                                                                \
-        Zstr:  str_cmp_zstr((s), (Zstr)(other))                                                                        \
+        Zstr:  str_cmp_zstr((s), (Zstr)(other)),                                                                        \
+        char *: str_cmp_zstr((s), (Zstr)(other))                                                                        \
     )
 #define StrCmp_3(s, other, other_len) str_cmp_cstr((s), (Zstr)(other), (other_len))
 
@@ -102,7 +103,8 @@ extern "C" {
     _Generic(                                                                                                          \
         (other),                                                                                                       \
         Str *: str_cmp_str_ignore_case ((s), (const Str *)(other)),                                                    \
-        Zstr:  str_cmp_zstr_ignore_case((s), (Zstr)(other))                                                            \
+        Zstr:  str_cmp_zstr_ignore_case((s), (Zstr)(other)),                                                            \
+        char *: str_cmp_zstr_ignore_case((s), (Zstr)(other))                                                            \
     )
 #define StrCmpIgnoreCase_3(s, other, other_len) str_cmp_cstr_ignore_case((s), (Zstr)(other), (other_len))
 
@@ -137,7 +139,8 @@ extern "C" {
     _Generic(                                                                                                          \
         (key),                                                                                                         \
         Str *: str_find_str ((s), (const Str *)(key)),                                                                 \
-        Zstr:  str_find_zstr((s), (Zstr)(key))                                                                         \
+        Zstr:  str_find_zstr((s), (Zstr)(key)),                                                                         \
+        char *: str_find_zstr((s), (Zstr)(key))                                                                         \
     )
 #define StrFind_3(s, key, key_len) str_find_cstr((s), (Zstr)(key), (key_len))
 
@@ -166,7 +169,8 @@ extern "C" {
     _Generic(                                                                                                          \
         (key),                                                                                                         \
         Str *: str_index_of_str ((s), (const Str *)(key)),                                                             \
-        Zstr:  str_index_of_zstr((s), (Zstr)(key))                                                                     \
+        Zstr:  str_index_of_zstr((s), (Zstr)(key)),                                                                     \
+        char *: str_index_of_zstr((s), (Zstr)(key))                                                                     \
     )
 #define StrIndexOf_3(s, key, key_len) str_index_of_cstr((s), (Zstr)(key), (key_len))
 
@@ -194,7 +198,8 @@ extern "C" {
     _Generic(                                                                                                          \
         (key),                                                                                                         \
         Str *: str_contains_str ((s), (const Str *)(key)),                                                             \
-        Zstr:  str_contains_zstr((s), (Zstr)(key))                                                                     \
+        Zstr:  str_contains_zstr((s), (Zstr)(key)),                                                                     \
+        char *: str_contains_zstr((s), (Zstr)(key))                                                                     \
     )
 #define StrContains_3(s, key, key_len) str_contains_cstr((s), (Zstr)(key), (key_len))
 
@@ -228,7 +233,8 @@ extern "C" {
     _Generic(                                                                                                          \
         (prefix),                                                                                                      \
         Str *: str_starts_with_str ((s), (const Str *)(prefix)),                                                       \
-        Zstr:  str_starts_with_zstr((s), (Zstr)(prefix))                                                               \
+        Zstr:  str_starts_with_zstr((s), (Zstr)(prefix)),                                                               \
+        char *: str_starts_with_zstr((s), (Zstr)(prefix))                                                               \
     )
 #define StrStartsWith_3(s, prefix, prefix_len) str_starts_with_cstr((s), (Zstr)(prefix), (prefix_len))
 
@@ -258,7 +264,8 @@ extern "C" {
     _Generic(                                                                                                          \
         (suffix),                                                                                                      \
         Str *: str_ends_with_str ((s), (const Str *)(suffix)),                                                         \
-        Zstr:  str_ends_with_zstr((s), (Zstr)(suffix))                                                                 \
+        Zstr:  str_ends_with_zstr((s), (Zstr)(suffix)),                                                                 \
+        char *: str_ends_with_zstr((s), (Zstr)(suffix))                                                                 \
     )
 #define StrEndsWith_3(s, suffix, suffix_len) str_ends_with_cstr((s), (Zstr)(suffix), (suffix_len))
 
@@ -295,7 +302,8 @@ extern "C" {
     _Generic(                                                                                                          \
         (match),                                                                                                       \
         Str *: str_replace_str ((s), (const Str *)(match), (const Str *)(replacement), (count)),                       \
-        Zstr:  str_replace_zstr((s), (Zstr)(match), (Zstr)(replacement), (count))                                      \
+        Zstr:  str_replace_zstr((s), (Zstr)(match), (Zstr)(replacement), (count)),                                      \
+        char *: str_replace_zstr((s), (Zstr)(match), (Zstr)(replacement), (count))                                      \
     )
 #define StrReplace_6(s, match, match_len, replacement, replacement_len, count)                                         \
     str_replace_cstr((s), (Zstr)(match), (match_len), (Zstr)(replacement), (replacement_len), (count))
@@ -328,7 +336,8 @@ extern "C" {
     _Generic(                                                                                                          \
         (key),                                                                                                         \
         Str *: str_split_to_iters_str ((s), (const Str *)(key)),                                                       \
-        Zstr:  str_split_to_iters_zstr((s), (Zstr)(key))                                                               \
+        Zstr:  str_split_to_iters_zstr((s), (Zstr)(key)),                                                               \
+        char *: str_split_to_iters_zstr((s), (Zstr)(key))                                                               \
     )
 
 ///
@@ -353,7 +362,8 @@ extern "C" {
     _Generic(                                                                                                          \
         (key),                                                                                                         \
         Str *: str_split_str ((s), (const Str *)(key)),                                                                \
-        Zstr:  str_split_zstr((s), (Zstr)(key))                                                                        \
+        Zstr:  str_split_zstr((s), (Zstr)(key)),                                                                        \
+        char *: str_split_zstr((s), (Zstr)(key))                                                                        \
     )
 
 //

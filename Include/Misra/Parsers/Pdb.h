@@ -122,13 +122,15 @@ bool pdb_open(Pdb *out, Zstr path, Allocator *alloc);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: pdb_open((out), (Zstr)StrBegin((Str *)(path)), MisraScope),                                                     \
-        Zstr: pdb_open((out), (Zstr)(path), MisraScope)                                                \
+        Zstr: pdb_open((out), (Zstr)(path), MisraScope),                                                \
+        char *: pdb_open((out), (Zstr)(path), MisraScope)                                                \
     )
 #define PdbOpen_3(out, path, alloc)                                                                                    \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: pdb_open((out), (Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                            \
-        Zstr: pdb_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                       \
+        Zstr: pdb_open((out), (Zstr)(path), ALLOCATOR_OF(alloc)),                                       \
+        char *: pdb_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                       \
     )
 
 ///

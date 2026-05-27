@@ -179,7 +179,7 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg);
 Str kvconfig_get_zstr(KvConfig *cfg, Zstr key);
 Str kvconfig_get_str(KvConfig *cfg, const Str *key);
 #define KvConfigGet(cfg, key)                                                                                                            \
-    _Generic((key), Str *: kvconfig_get_str, Zstr: kvconfig_get_zstr)( \
+    _Generic((key), Str *: kvconfig_get_str, Zstr: kvconfig_get_zstr, char *: kvconfig_get_zstr)( \
         (cfg),                                                                                                                           \
         (key)                                                                                                                            \
     )
@@ -196,7 +196,7 @@ Str kvconfig_get_str(KvConfig *cfg, const Str *key);
 Str *kvconfig_get_ptr_zstr(KvConfig *cfg, Zstr key);
 Str *kvconfig_get_ptr_str(KvConfig *cfg, const Str *key);
 #define KvConfigGetPtr(cfg, key)                                                                                                                         \
-    _Generic((key), Str *: kvconfig_get_ptr_str, Zstr: kvconfig_get_ptr_zstr)( \
+    _Generic((key), Str *: kvconfig_get_ptr_str, Zstr: kvconfig_get_ptr_zstr, char *: kvconfig_get_ptr_zstr)( \
         (cfg),                                                                                                                                           \
         (key)                                                                                                                                            \
     )
@@ -213,7 +213,7 @@ Str *kvconfig_get_ptr_str(KvConfig *cfg, const Str *key);
 bool kvconfig_contains_zstr(KvConfig *cfg, Zstr key);
 bool kvconfig_contains_str(KvConfig *cfg, const Str *key);
 #define KvConfigContains(cfg, key)                                                                                                                           \
-    _Generic((key), Str *: kvconfig_contains_str, Zstr: kvconfig_contains_zstr)( \
+    _Generic((key), Str *: kvconfig_contains_str, Zstr: kvconfig_contains_zstr, char *: kvconfig_contains_zstr)( \
         (cfg),                                                                                                                                               \
         (key)                                                                                                                                                \
     )
@@ -233,7 +233,7 @@ bool kvconfig_contains_str(KvConfig *cfg, const Str *key);
 bool kvconfig_get_bool_zstr(KvConfig *cfg, Zstr key, bool *value);
 bool kvconfig_get_bool_str(KvConfig *cfg, const Str *key, bool *value);
 #define KvConfigGetBool(cfg, key, value)                                                                                                                     \
-    _Generic((key), Str *: kvconfig_get_bool_str, Zstr: kvconfig_get_bool_zstr)( \
+    _Generic((key), Str *: kvconfig_get_bool_str, Zstr: kvconfig_get_bool_zstr, char *: kvconfig_get_bool_zstr)( \
         (cfg),                                                                                                                                               \
         (key),                                                                                                                                               \
         (value)                                                                                                                                              \
@@ -252,7 +252,7 @@ bool kvconfig_get_bool_str(KvConfig *cfg, const Str *key, bool *value);
 bool kvconfig_get_i64_zstr(KvConfig *cfg, Zstr key, i64 *value);
 bool kvconfig_get_i64_str(KvConfig *cfg, const Str *key, i64 *value);
 #define KvConfigGetI64(cfg, key, value)                                                                                                                  \
-    _Generic((key), Str *: kvconfig_get_i64_str, Zstr: kvconfig_get_i64_zstr)( \
+    _Generic((key), Str *: kvconfig_get_i64_str, Zstr: kvconfig_get_i64_zstr, char *: kvconfig_get_i64_zstr)( \
         (cfg),                                                                                                                                           \
         (key),                                                                                                                                           \
         (value)                                                                                                                                          \
@@ -271,7 +271,7 @@ bool kvconfig_get_i64_str(KvConfig *cfg, const Str *key, i64 *value);
 bool kvconfig_get_f64_zstr(KvConfig *cfg, Zstr key, f64 *value);
 bool kvconfig_get_f64_str(KvConfig *cfg, const Str *key, f64 *value);
 #define KvConfigGetF64(cfg, key, value)                                                                                                                  \
-    _Generic((key), Str *: kvconfig_get_f64_str, Zstr: kvconfig_get_f64_zstr)( \
+    _Generic((key), Str *: kvconfig_get_f64_str, Zstr: kvconfig_get_f64_zstr, char *: kvconfig_get_f64_zstr)( \
         (cfg),                                                                                                                                           \
         (key),                                                                                                                                           \
         (value)                                                                                                                                          \

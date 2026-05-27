@@ -23,13 +23,12 @@ foreach arg : [
     '-Werror=uninitialized',
     '-Werror=maybe-uninitialized',
     # Force string literals to type `const char *` (a.k.a. Zstr), not
-    # bare `char *`. Required by the project convention that Zstr is
-    # the ONLY C-string type -- no bare `char *` or `const char *`
-    # appears anywhere, including `_Generic` arms. Under this flag
-    # `_Generic((literal), Zstr: ...)` matches literals directly and
-    # `_Generic` dispatch on string types never needs a `char *` arm.
-    # MSVC / clang-cl counterpart is `/Zc:strictStrings` (set in the
-    # MSVC branch below).
+    # bare `char *`. Catches `char *p = "literal"` and similar smells
+    # at the call site. There is no MSVC C equivalent -- the C
+    # standard types literals as `char[N]` decaying to `char *`, and
+    # `/Zc:strictStrings` is a C++-only flag. To stay portable, every
+    # `_Generic` arm that matches `Zstr` also inlines a `char *`
+    # synonym arm with the same body; that's the project convention.
     '-Wwrite-strings',
 ]
     if cc.has_argument(arg)
@@ -38,12 +37,13 @@ foreach arg : [
 endforeach
 if cc.get_id() == 'msvc' or cc.get_id() == 'clang-cl'
     common_c_args += '/wd4090'
-    # MSVC / clang-cl counterpart of `-Wwrite-strings`: makes string
-    # literals 'array of const char' so the same `_Generic` arms
-    # (Zstr only, no `char *`) match cleanly. Implied by `/permissive-`,
-    # but we set it explicitly so the dispatch convention does not
-    # depend on whether `/permissive-` is in effect.
-    common_c_args += '/Zc:strictStrings'
+    # NOTE: `/Zc:strictStrings` is intentionally not set. Microsoft's
+    # docs are explicit that the flag enforces C++ const qualifications
+    # on string literals and has NO effect in C mode. MSVC's C
+    # compiler follows the C standard, which types literals as
+    # `char[N]` decaying to `char *`. The codebase handles this by
+    # giving every `_Generic` Zstr-arm a `char *` synonym -- see
+    # CODING-CONVENTIONS.md and Zstr.h for the rule.
 endif
 
 math_dep = cc.find_library('m', required: false)

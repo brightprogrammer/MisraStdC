@@ -119,7 +119,7 @@ extern "C" {
     bool dns_build_query_zstr(DnsWireBuf *out, u16 id, Zstr name, DnsType type);
     bool dns_build_query_str(DnsWireBuf *out, u16 id, const Str *name, DnsType type);
 #define DnsBuildQuery(out, id, name, type)                                                                                                            \
-    _Generic((name), Str *: dns_build_query_str, Zstr: dns_build_query_zstr)( \
+    _Generic((name), Str *: dns_build_query_str, Zstr: dns_build_query_zstr, char *: dns_build_query_zstr)( \
         (out),                                                                                                                                        \
         (id),                                                                                                                                         \
         (name),                                                                                                                                       \

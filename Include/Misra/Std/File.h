@@ -74,7 +74,8 @@ File file_open(Zstr path, Zstr mode);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: file_open((Zstr)StrBegin((Str *)(path)), (mode)),                                                       \
-        Zstr:  file_open((Zstr)(path), (mode))                                                                         \
+        Zstr:  file_open((Zstr)(path), (mode)),                                                                         \
+        char *: file_open((Zstr)(path), (mode))                                                                         \
     )
 
 ///
@@ -186,12 +187,14 @@ i64 file_read_and_close_to_str(Zstr path, Str *out);
         Buf *: _Generic(                                                                                               \
             (path),                                                                                                    \
             Str *: file_read_and_close_to_buf((Zstr)StrBegin((Str *)(path)), (Buf *)(out)),                            \
-            Zstr:  file_read_and_close_to_buf((Zstr)(path), (Buf *)(out))                                              \
+            Zstr:  file_read_and_close_to_buf((Zstr)(path), (Buf *)(out)),                                              \
+            char *: file_read_and_close_to_buf((Zstr)(path), (Buf *)(out))                                              \
         ),                                                                                                             \
         Str *: _Generic(                                                                                               \
             (path),                                                                                                    \
             Str *: file_read_and_close_to_str((Zstr)StrBegin((Str *)(path)), (Str *)(out)),                            \
-            Zstr:  file_read_and_close_to_str((Zstr)(path), (Str *)(out))                                              \
+            Zstr:  file_read_and_close_to_str((Zstr)(path), (Str *)(out)),                                              \
+            char *: file_read_and_close_to_str((Zstr)(path), (Str *)(out))                                              \
         )                                                                                                              \
     )
 
@@ -233,19 +236,22 @@ i64 file_write_and_close_from_bytes(Zstr path, const void *buf, u64 n);
         Buf *: _Generic(                                                                                               \
             (path),                                                                                                    \
             Str *: file_write_and_close_from_buf((Zstr)StrBegin((Str *)(path)), (const Buf *)(container)),             \
-            Zstr:  file_write_and_close_from_buf((Zstr)(path), (const Buf *)(container))                               \
+            Zstr:  file_write_and_close_from_buf((Zstr)(path), (const Buf *)(container)),                               \
+            char *: file_write_and_close_from_buf((Zstr)(path), (const Buf *)(container))                               \
         ),                                                                                                             \
         Str *: _Generic(                                                                                               \
             (path),                                                                                                    \
             Str *: file_write_and_close_from_str((Zstr)StrBegin((Str *)(path)), (const Str *)(container)),             \
-            Zstr:  file_write_and_close_from_str((Zstr)(path), (const Str *)(container))                               \
+            Zstr:  file_write_and_close_from_str((Zstr)(path), (const Str *)(container)),                               \
+            char *: file_write_and_close_from_str((Zstr)(path), (const Str *)(container))                               \
         )                                                                                                              \
     )
 #define FileWriteAndClose_3(path, buf, n)                                                                              \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: file_write_and_close_from_bytes((Zstr)StrBegin((Str *)(path)), (buf), (n)),                             \
-        Zstr:  file_write_and_close_from_bytes((Zstr)(path), (buf), (n))                                               \
+        Zstr:  file_write_and_close_from_bytes((Zstr)(path), (buf), (n)),                                               \
+        char *: file_write_and_close_from_bytes((Zstr)(path), (buf), (n))                                               \
     )
 
 ///

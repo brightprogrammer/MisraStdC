@@ -204,10 +204,13 @@ extern int _NSGetExecutablePath(char *buf, unsigned int *bufsize);
 // `__TEXT,__text` section present, LC_UUID present, LC_SYMTAB
 // non-empty (debug builds aren't stripped).
 bool test_macho_parses_running_binary(void) {
-    char         path[4096];
-    unsigned int pathsize = sizeof(path);
-    if (_NSGetExecutablePath(path, &pathsize) != 0)
+    char         path_buf[4096];
+    unsigned int pathsize = sizeof(path_buf);
+    if (_NSGetExecutablePath(path_buf, &pathsize) != 0)
         return false;
+    // `_NSGetExecutablePath` wants `char *`; everything past this
+    // point reads it through the project's `Zstr` (const char *).
+    Zstr path = path_buf;
 
     DefaultAllocator alloc = DefaultAllocatorInit();
     Allocator       *base  = ALLOCATOR_OF(&alloc);
@@ -237,10 +240,11 @@ bool test_macho_parses_running_binary(void) {
 extern intptr_t _dyld_get_image_vmaddr_slide(uint32_t image_index);
 
 bool test_macho_resolves_running_binary_symbol(void) {
-    char         path[4096];
-    unsigned int pathsize = sizeof(path);
-    if (_NSGetExecutablePath(path, &pathsize) != 0)
+    char         path_buf[4096];
+    unsigned int pathsize = sizeof(path_buf);
+    if (_NSGetExecutablePath(path_buf, &pathsize) != 0)
         return false;
+    Zstr path = path_buf;
 
     DefaultAllocator alloc = DefaultAllocatorInit();
     Allocator       *base  = ALLOCATOR_OF(&alloc);

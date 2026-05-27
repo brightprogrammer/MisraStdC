@@ -23,16 +23,28 @@ of the codebase to see them in action.
   `Str`, `Vec`, `Elf` — not `MisraBuf`, not `ElfFile`.
 - **Tool binaries** ship with a single short word as their name
   (see `Bin/Beam.c`, `Bin/Resolve.c`).
-- **C-strings everywhere use `Zstr`**, not `char *` / `const char *`.
-  `Zstr` (`<Misra/Std/Zstr.h>`) is the project's name for a
-  NUL-terminated C-string. This applies to internal helpers too — `Zstr`
-  is the *only* C-string type in the codebase, *including* in `_Generic`
-  dispatch arms. There is no `char *` / `const char *` carve-out. The
-  build sets `-Wwrite-strings` (gcc/clang/clang-cl) and
-  `/Zc:strictStrings` (msvc/clang-cl) so string literals carry type
-  `const char *` (= `Zstr`), which lets `_Generic((literal), Zstr: ...)`
-  match literals directly without a bare-`char *` arm. See the
-  *Compiler flags* section below.
+- **C-strings everywhere use `Zstr`**, not `char *` / `const char *`,
+  in declarations / parameters / return types / fields. `Zstr`
+  (`<Misra/Std/Zstr.h>`) is the project's name for a NUL-terminated
+  C-string. The build sets `-Wwrite-strings` (gcc/clang/clang-cl) so
+  string literals carry type `const char *` (= `Zstr`) and `char *`
+  variables get rejected at the call site.
+- **`_Generic` dispatch arms have a `char *` synonym next to every
+  `Zstr` arm.** This is the one carve-out, and it exists because
+  MSVC's C `_Generic` follows the C standard (string literals are
+  `char[N]` decaying to `char *`); `/Zc:strictStrings` is a C++-only
+  flag with no effect in C mode. Every site that dispatches on a
+  string-shaped argument inlines both arms with identical bodies:
+
+      _Generic((s),
+          Zstr:   foo_zstr((Zstr)(s)),
+          char *: foo_zstr((Zstr)(s)))
+
+  Inline the pair at every site; do NOT introduce a wrapper macro
+  that hides the `_Generic`. The library's read-only invariant for
+  `Zstr` parameters is preserved -- the `char *` arm casts to `Zstr`
+  before dispatching, and `Zstr` is `const char *`, so the input
+  cannot be mutated through the parameter.
 - **`Cstr` is a naming-suffix, not a type.** The `Cstr` form of an API
   takes `(Zstr, size)` — a non-NUL-terminated view of memory, or a
   NUL-terminated string truncated at an explicit length. See
@@ -139,11 +151,15 @@ of the codebase to see them in action.
   #define StrStartsWith(...) MISRA_OVERLOAD(StrStartsWith, __VA_ARGS__)
   #define StrStartsWith_2(s, prefix)                                       \
       _Generic((prefix),                                                   \
-          Str *: str_starts_with_str ((s), (const Str *)(prefix)),         \
-          Zstr:  str_starts_with_zstr((s), (Zstr)(prefix)))
+          Str *:  str_starts_with_str ((s), (const Str *)(prefix)),        \
+          Zstr:   str_starts_with_zstr((s), (Zstr)(prefix)),               \
+          char *: str_starts_with_zstr((s), (Zstr)(prefix)))
   #define StrStartsWith_3(s, prefix, prefix_len)                           \
       str_starts_with_cstr((s), (Zstr)(prefix), (prefix_len))
   ```
+
+  The `char *` arm is the MSVC-portability synonym for `Zstr` — see
+  the "C-strings everywhere use `Zstr`" rule above.
 
   The user-facing surface is just `StrStartsWith` — callers never type
   `*Cstr` / `*Zstr` suffixes. Same applies whenever a `Zstr` parameter
@@ -273,19 +289,23 @@ of the codebase to see them in action.
   `default:` arm that silently casts a wrong type to the function's
   expected one. Any other input type should trigger a compile-time
   `_Generic` mismatch.
-  - Path / string dispatch: `Str *` and `Zstr` only — no bare `char *`
-    or `const char *` arms. The mandatory `-Wwrite-strings` /
-    `/Zc:strictStrings` build flags make string literals match the
-    `Zstr` arm directly.
+  - Path / string dispatch: `Str *` plus the `Zstr` + `char *` pair
+    (the two share a body — see the "C-strings everywhere use `Zstr`"
+    rule for why MSVC C requires the `char *` synonym). No
+    `const char *` arms.
   - Container-out dispatch: `Buf *`, `Str *`.
 
   Skeleton:
   ```c
   #define FileGetSize(path)                                      \
       _Generic((path),                                           \
-          Str *: file_get_size(StrBegin((Str *)(path))),         \
-          Zstr:  file_get_size((Zstr)(path)))
+          Str *:  file_get_size(StrBegin((Str *)(path))),        \
+          Zstr:   file_get_size((Zstr)(path)),                   \
+          char *: file_get_size((Zstr)(path)))
   ```
+
+  The `char *` arm is the MSVC-portability synonym for `Zstr` — see
+  the "C-strings everywhere use `Zstr`" rule.
 
   For functions that already have an arg-count variant of the API
   (`*Cstr` form taking `(Zstr, size)`), combine the type dispatch
@@ -431,23 +451,34 @@ These are baked into `meson.build`'s `common_c_args`; downstream consumers
 that bypass the meson build must enable equivalents themselves or the
 `_Generic` dispatch the convention relies on will silently mis-match.
 
-- **`-Wwrite-strings`** (gcc, clang, clang-cl) and
-  **`/Zc:strictStrings`** (msvc, clang-cl) — gives string literals the
-  type `const char *` (= `Zstr`) instead of bare `char *`. Required so
-  `_Generic` dispatch on string types can list `Zstr` as a match arm
-  and still accept literal callers. Without these flags, `"foo"` has
-  type `char *` and the `Zstr`-only dispatch misses.
+- **`-Wwrite-strings`** (gcc, clang, clang-cl) — gives string literals
+  the type `const char *` (= `Zstr`) on these toolchains so a `char *`
+  variable or parameter cannot be silently initialised from a literal.
+  This catches code-smell ("I have a mutable buffer where a `Zstr`
+  belongs") at the call site rather than at runtime.
+- **`/Zc:strictStrings` is NOT useful in C mode.** Microsoft's docs are
+  explicit: the flag enforces C++ const qualifications on string
+  literals and has no effect on C compilation. Pure-C MSVC therefore
+  follows the C standard, which types literals as `char[N]` decaying
+  to `char *`. To stay portable across gcc/clang/MSVC, every
+  `_Generic` dispatch on a string-shaped argument inlines a `char *`
+  synonym arm next to the `Zstr` arm — see the "C-strings everywhere
+  use `Zstr`" rule.
 - **`-Wuninitialized` / `-Wmaybe-uninitialized` / `-Werror=` on both** —
   enforces the "initialise at declaration" convention. Listed for
   completeness; not new in this section.
 
-Verified compiler behaviour at the time these flags were locked in:
+Verified compiler behaviour:
 
-- GCC and Clang: empirically tested. `_Generic((literal), Zstr: ...)`
-  matches under `-Wwrite-strings` and does not match without it.
-- MSVC: docs-confirmed (`/Zc:strictStrings`) — Windows-CI smoke test
-  is what locks this in for production. clang-cl honours both `-W`
-  and `/Zc` spellings; we pass both in the MSVC branch.
+- GCC and Clang: empirically tested. With `-Wwrite-strings`,
+  `_Generic((literal), Zstr: ...)` matches; without it, the literal
+  is `char *` and only the `char *` arm matches.
+- MSVC (cl) in C mode: empirically observed. String literal is
+  `char *` regardless of `/Zc:strictStrings`. The `char *` arm is the
+  only one that matches; the `Zstr` arm is unreachable for literals
+  but still useful for `Zstr`-typed locals / parameters.
+- clang-cl honours both `-W` and `/Zc` spellings; the codebase passes
+  both for parity.
 
 ## Commits and pre-commit
 

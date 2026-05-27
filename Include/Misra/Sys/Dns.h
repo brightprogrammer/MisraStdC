@@ -115,7 +115,7 @@ extern "C" {
     bool dns_resolve_5_zstr(DnsResolver *self, Zstr hostname, u16 port, SocketKind kind, DnsAddrs *out);
     bool dns_resolve_5_str(DnsResolver *self, const Str *hostname, u16 port, SocketKind kind, DnsAddrs *out);
 #define DnsResolve_5(self, hostname, port, kind, out)                                                                                             \
-    _Generic((hostname), Str *: dns_resolve_5_str, Zstr: dns_resolve_5_zstr)( \
+    _Generic((hostname), Str *: dns_resolve_5_str, Zstr: dns_resolve_5_zstr, char *: dns_resolve_5_zstr)( \
         (self),                                                                                                                                   \
         (hostname),                                                                                                                               \
         (port),                                                                                                                                   \
@@ -138,7 +138,7 @@ extern "C" {
     bool dns_resolve_4_vec_zstr(DnsResolver *self, Zstr spec, SocketKind kind, DnsAddrs *out);
     bool dns_resolve_4_vec_str(DnsResolver *self, const Str *spec, SocketKind kind, DnsAddrs *out);
 #define DnsResolve_4_vec(self, spec, kind, out)                                                                                                                \
-    (_Generic((spec), Str *: dns_resolve_4_vec_str, Zstr: dns_resolve_4_vec_zstr)( \
+    (_Generic((spec), Str *: dns_resolve_4_vec_str, Zstr: dns_resolve_4_vec_zstr, char *: dns_resolve_4_vec_zstr)( \
         (self),                                                                                                                                                \
         (spec),                                                                                                                                                \
         (kind),                                                                                                                                                \
@@ -165,7 +165,7 @@ extern "C" {
     ///
 #define DnsResolve(...) MISRA_OVERLOAD(DnsResolve, __VA_ARGS__)
 #define DnsResolve_4(self, spec, kind, out)                                                                                                                                                                                \
-    _Generic((out), DnsAddrs *: _Generic((spec), Str *: dns_resolve_4_vec_str, Zstr: dns_resolve_4_vec_zstr), SocketAddr *: DnsResolve_4_one)( \
+    _Generic((out), DnsAddrs *: _Generic((spec), Str *: dns_resolve_4_vec_str, Zstr: dns_resolve_4_vec_zstr, char *: dns_resolve_4_vec_zstr), SocketAddr *: DnsResolve_4_one)( \
         (self),                                                                                                                                                                                                            \
         (spec),                                                                                                                                                                                                            \
         (kind),                                                                                                                                                                                                            \

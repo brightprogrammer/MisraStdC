@@ -14,13 +14,18 @@
 #include <Misra/Types.h>
 
 /// Read-only NUL-terminated C string -- the project name for what
-/// libc spells `const char *`. Zstr is the ONLY C-string type in
-/// the codebase: raw `char *` and `const char *` do not appear
-/// anywhere as spellings, including in `_Generic` dispatch arms.
-/// The build enables `-Wwrite-strings` (gcc/clang/clang-cl) and
-/// `/Zc:strictStrings` (msvc) so string literals carry type
-/// `const char *` (= `Zstr`), which lets `_Generic((literal),
-/// Zstr: ...)` match literals directly without a bare-`char *` arm.
+/// libc spells `const char *`. Zstr is the canonical C-string type
+/// in the codebase for declarations, parameters, return types, and
+/// fields. `-Wwrite-strings` (gcc/clang) types string literals as
+/// `const char *` (= `Zstr`) and rejects `char *p = "literal"`.
+///
+/// `_Generic` dispatch has one carve-out: every arm matching `Zstr`
+/// also has a `char *` synonym arm with the same body. MSVC's C
+/// `_Generic` follows the C standard, which types string literals
+/// as `char[N]` decaying to `char *`; `/Zc:strictStrings` is a
+/// C++-only flag with no effect in C mode. Inlining both arms at
+/// every dispatch site is what keeps the codebase portable to
+/// MSVC. See CODING-CONVENTIONS.md for the canonical shape.
 ///
 /// `Cstr` is not a type but a naming-suffix for the `(Zstr, size)`
 /// form -- a non-NUL-terminated view, or a NUL-terminated string

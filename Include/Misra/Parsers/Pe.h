@@ -124,13 +124,15 @@ bool pe_open(Pe *out, Zstr path, Allocator *alloc);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: pe_open((out), (Zstr)StrBegin((Str *)(path)), MisraScope),                                                      \
-        Zstr: pe_open((out), (Zstr)(path), MisraScope)                                                 \
+        Zstr: pe_open((out), (Zstr)(path), MisraScope),                                                 \
+        char *: pe_open((out), (Zstr)(path), MisraScope)                                                 \
     )
 #define PeOpen_3(out, path, alloc)                                                                                     \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: pe_open((out), (Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                             \
-        Zstr: pe_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                        \
+        Zstr: pe_open((out), (Zstr)(path), ALLOCATOR_OF(alloc)),                                        \
+        char *: pe_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                        \
     )
 
 ///

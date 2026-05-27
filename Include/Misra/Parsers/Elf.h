@@ -208,13 +208,15 @@ bool elf_open(Elf *out, Zstr path, Allocator *alloc);
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: elf_open((out), (Zstr)StrBegin((Str *)(path)), MisraScope),                                             \
-        Zstr:  elf_open((out), (Zstr)(path), MisraScope)                                                               \
+        Zstr:  elf_open((out), (Zstr)(path), MisraScope),                                                               \
+        char *: elf_open((out), (Zstr)(path), MisraScope)                                                               \
     )
 #define ElfOpen_3(out, path, alloc)                                                                                    \
     _Generic(                                                                                                          \
         (path),                                                                                                        \
         Str *: elf_open((out), (Zstr)StrBegin((Str *)(path)), ALLOCATOR_OF(alloc)),                                    \
-        Zstr:  elf_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                                      \
+        Zstr:  elf_open((out), (Zstr)(path), ALLOCATOR_OF(alloc)),                                                      \
+        char *: elf_open((out), (Zstr)(path), ALLOCATOR_OF(alloc))                                                      \
     )
 
 ///
