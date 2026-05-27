@@ -737,7 +737,7 @@ bool int_try_to_str_radix(Str *out, Int *value, u8 radix, bool uppercase, Alloca
     }
 
     if (IntIsZero(value)) {
-        return StrPushBack(out, '0');
+        return StrPushBackR(out, '0');
     }
 
     current = IntClone(value);
@@ -752,7 +752,7 @@ bool int_try_to_str_radix(Str *out, Int *value, u8 radix, bool uppercase, Alloca
         u64 digit    = 0;
 
         digit = int_div_u64_rem(&quotient, &current, radix);
-        if (!StrPushBack(&result, int_radix_char((u8)digit, uppercase))) {
+        if (!StrPushBackR(&result, int_radix_char((u8)digit, uppercase))) {
             IntDeinit(&quotient);
             IntDeinit(&current);
             StrDeinit(&result);

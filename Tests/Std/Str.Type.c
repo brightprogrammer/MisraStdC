@@ -27,11 +27,11 @@ bool test_str_type(void) {
     Str s = StrInit(&alloc);
 
     // Check that it behaves like a Vec of chars
-    StrPushBack(&s, 'H');
-    StrPushBack(&s, 'e');
-    StrPushBack(&s, 'l');
-    StrPushBack(&s, 'l');
-    StrPushBack(&s, 'o');
+    StrPushBackR(&s, 'H');
+    StrPushBackR(&s, 'e');
+    StrPushBackR(&s, 'l');
+    StrPushBackR(&s, 'l');
+    StrPushBackR(&s, 'o');
 
     bool result = (StrLen(&s) == 5 && ZstrCompare(StrBegin(&s), "Hello") == 0);
 

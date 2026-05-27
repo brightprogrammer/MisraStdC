@@ -301,7 +301,7 @@ bool test_bitvec_convert_edge_cases(void) {
     BitVecPush(&bv, true);
     str_obj = BitVecToStr(&bv);
     result  = result && (StrLen(&str_obj) == 1);
-    result  = result && (StrCmpCstr(&str_obj, "1", 1) == 0);
+    result  = result && (StrCmp(&str_obj, "1", 1) == 0);
     StrDeinit(&str_obj);
 
     // Test large conversions

@@ -53,11 +53,11 @@ enum {
 static bool pool_append(Str *pool, Zstr s, u64 *out_offset) {
     u64 start = pool->length;
     while (*s) {
-        if (!StrPushBack(pool, *s))
+        if (!StrPushBackR(pool, *s))
             return false;
         ++s;
     }
-    if (!StrPushBack(pool, '\0'))
+    if (!StrPushBackR(pool, '\0'))
         return false;
     *out_offset = start;
     return true;

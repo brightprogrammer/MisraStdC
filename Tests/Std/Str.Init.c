@@ -171,30 +171,21 @@ bool test_str_init_stack(void) {
 
     bool result = true;
 
-    // Test with the actual StrInitStack macro
-    Str stack_str;
-    StrInitStack(stack_str, &alloc, 20, {
-        // Inside the scope where the stack string is valid
-        StrPushBackZstr(&stack_str, "Hello, Stack!");
-
-        // Validate the string
+    // StrInitStack declares and scopes `stack_str` itself (for-chain idiom).
+    StrInitStack(stack_str, 20) {
+        StrPushBackMany(&stack_str, "Hello, Stack!");
         ValidateStr(&stack_str);
 
-        // Check that it works correctly
         if (ZstrCompare(StrBegin(&stack_str), "Hello, Stack!") != 0) {
             result = false;
         }
-
-        // Check capacity is as expected
         if (StrCapacity(&stack_str) != 20) {
             result = false;
         }
-    });
-
-    // After the scope, stack_str should be zeroed out
-    if (StrBegin(&stack_str) != NULL || StrLen(&stack_str) != 0 || StrCapacity(&stack_str) != 0) {
-        result = false;
     }
+
+    // `stack_str` is out of scope here; the macro's exit-update zeroed
+    // its backing storage and the Str handle inside the scope.
 
     DefaultAllocatorDeinit(&alloc);
     return result;
@@ -241,8 +232,8 @@ bool test_str_clone_inherits_allocator_config(void) {
     ValidateStr(&dup);
     ValidateStr(&dst);
 
-    bool dup_allocator_matches = (dup.allocator == src.allocator);
-    bool dst_allocator_matches = copied && (dst.allocator == src.allocator);
+    bool dup_allocator_matches = (StrAllocator(&dup) == StrAllocator(&src));
+    bool dst_allocator_matches = copied && (StrAllocator(&dst) == StrAllocator(&src));
 
     bool result = copied && StrLen(&dup) == StrLen(&src) && StrLen(&dst) == StrLen(&src) &&
                   ZstrCompare(StrBegin(&dup), StrBegin(&src)) == 0 &&

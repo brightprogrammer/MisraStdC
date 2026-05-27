@@ -65,19 +65,20 @@ bool test_edge_cases_roundtrip(void);
 
 // Helper function to compare persons
 bool compare_persons(const TestPerson *a, const TestPerson *b) {
-    return a->id == b->id && StrCmp(&a->name, &b->name) == 0 && a->age == b->age && a->is_active == b->is_active &&
-           a->salary == b->salary;
+    return a->id == b->id && StrCmp((Str *)&a->name, (Str *)&b->name) == 0 && a->age == b->age &&
+           a->is_active == b->is_active && a->salary == b->salary;
 }
 
 // Helper function to compare configs
 bool compare_configs(const TestConfig *a, const TestConfig *b) {
-    if (a->debug_mode != b->debug_mode || a->timeout != b->timeout || StrCmp(&a->log_level, &b->log_level) != 0 ||
+    if (a->debug_mode != b->debug_mode || a->timeout != b->timeout ||
+        StrCmp((Str *)&a->log_level, (Str *)&b->log_level) != 0 ||
         VecLen(&a->features) != VecLen(&b->features)) {
         return false;
     }
 
     for (size i = 0; i < VecLen(&a->features); i++) {
-        if (StrCmp(&VecAt(&a->features, i), &VecAt(&b->features, i)) != 0) {
+        if (StrCmp((Str *)&VecAt(&a->features, i), (Str *)&VecAt(&b->features, i)) != 0) {
             return false;
         }
     }

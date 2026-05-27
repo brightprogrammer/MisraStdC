@@ -32,12 +32,12 @@ static void append_build_id_path(Str *out, const u8 *id, u32 n) {
     static const char hex[] = "0123456789abcdef";
     if (n == 0)
         return;
-    StrPushBack(out, hex[id[0] >> 4]);
-    StrPushBack(out, hex[id[0] & 0xf]);
-    StrPushBack(out, '/');
+    StrPushBackR(out, hex[id[0] >> 4]);
+    StrPushBackR(out, hex[id[0] & 0xf]);
+    StrPushBackR(out, '/');
     for (u32 i = 1; i < n; ++i) {
-        StrPushBack(out, hex[id[i] >> 4]);
-        StrPushBack(out, hex[id[i] & 0xf]);
+        StrPushBackR(out, hex[id[i] >> 4]);
+        StrPushBackR(out, hex[id[i] & 0xf]);
     }
 }
 
@@ -55,7 +55,7 @@ static void append_dirname(Str *out, Zstr path) {
         return;
     u64 len = (u64)(last_slash - path);
     for (u64 i = 0; i < len; ++i) {
-        StrPushBack(out, path[i]);
+        StrPushBackR(out, path[i]);
     }
 }
 
@@ -99,9 +99,9 @@ static bool try_open_sidecar(Zstr main_path, const Elf *main, Elf *out, Allocato
     // (1) Build-ID
     if (main->build_id && main->build_id_size > 0) {
         path.length = 0;
-        StrPushBackZstr(&path, "/usr/lib/debug/.build-id/");
+        StrPushBackMany(&path, "/usr/lib/debug/.build-id/");
         append_build_id_path(&path, main->build_id, main->build_id_size);
-        StrPushBackZstr(&path, ".debug");
+        StrPushBackMany(&path, ".debug");
         if (path_exists(StrBegin(&path)) && ElfOpen(out, &path, alloc)) {
             if (sidecar_matches(main, out, /*by_build_id*/ true)) {
                 StrDeinit(&path);
@@ -119,8 +119,8 @@ static bool try_open_sidecar(Zstr main_path, const Elf *main, Elf *out, Allocato
         // (2) {dir}/{name}
         path.length = 0;
         append_dirname(&path, main_path);
-        StrPushBack(&path, '/');
-        StrPushBackZstr(&path, main->debuglink_name);
+        StrPushBackR(&path, '/');
+        StrPushBackMany(&path, main->debuglink_name);
         if (path_exists(StrBegin(&path)) && ElfOpen(out, &path, alloc)) {
             if (sidecar_matches(main, out, /*by_build_id*/ false)) {
                 StrDeinit(&path);
@@ -132,8 +132,8 @@ static bool try_open_sidecar(Zstr main_path, const Elf *main, Elf *out, Allocato
         // (3) {dir}/.debug/{name}
         path.length = 0;
         append_dirname(&path, main_path);
-        StrPushBackZstr(&path, "/.debug/");
-        StrPushBackZstr(&path, main->debuglink_name);
+        StrPushBackMany(&path, "/.debug/");
+        StrPushBackMany(&path, main->debuglink_name);
         if (path_exists(StrBegin(&path)) && ElfOpen(out, &path, alloc)) {
             if (sidecar_matches(main, out, /*by_build_id*/ false)) {
                 StrDeinit(&path);
@@ -144,10 +144,10 @@ static bool try_open_sidecar(Zstr main_path, const Elf *main, Elf *out, Allocato
 
         // (4) /usr/lib/debug{dir}/{name}
         path.length = 0;
-        StrPushBackZstr(&path, cand_prefix);
+        StrPushBackMany(&path, cand_prefix);
         append_dirname(&path, main_path);
-        StrPushBack(&path, '/');
-        StrPushBackZstr(&path, main->debuglink_name);
+        StrPushBackR(&path, '/');
+        StrPushBackMany(&path, main->debuglink_name);
         if (path_exists(StrBegin(&path)) && ElfOpen(out, &path, alloc)) {
             if (sidecar_matches(main, out, /*by_build_id*/ false)) {
                 StrDeinit(&path);

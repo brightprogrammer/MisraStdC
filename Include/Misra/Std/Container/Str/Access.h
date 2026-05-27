@@ -139,24 +139,6 @@ extern "C" {
 #define StrSize(str) VecSize(str)
 
 ///
-/// Find the first character in the string equal to the value at `chr_ptr`,
-/// using the provided comparator. Same contract as VecFind, specialised for
-/// the char element.
-///
-/// str[in]      : String to search.
-/// chr_ptr[in]  : Pointer to the character value to search for.
-/// compare[in]  : Comparator returning `0` for equality.
-///
-/// SUCCESS : Returns the zero-based index of the first matching character.
-///           The string is not modified.
-/// FAILURE : Returns `SIZE_MAX` when no character matches. The string is not
-///           modified.
-///
-/// TAGS: Str, Find, Search, Compare
-///
-#define StrFind(str, chr_ptr, compare) VecFind((str), (chr_ptr), (compare))
-
-///
 /// Check whether the string contains a matching character. Same contract as
 /// VecContains, specialised for the char element.
 ///

@@ -7,6 +7,7 @@
 #ifndef MISRA_STD_CONTAINER_STR_OPS_H
 #define MISRA_STD_CONTAINER_STR_OPS_H
 
+#include "Access.h"
 #include "Private.h"
 #include "Type.h"
 #include <Misra/Std/Utility/StrIter.h>
@@ -47,91 +48,98 @@ extern "C" {
 //
 
 ///
-/// Compare two Str objects lexicographically, length-aware.
+/// Compare a `Str` against another string lexicographically.
 ///
-/// Thin alias for `str_compare` above (the generic-callback shape).
-/// Both arms are read through `StrBegin` / `StrLen`, so a Str with an
-/// embedded NUL still compares correctly -- unlike a `Zstr`-based
-/// compare that would stop at the first NUL byte.
+/// Three call shapes via `MISRA_OVERLOAD` + `_Generic` on `other`:
+///   `StrCmp(s, other)`              -- `other` is `Str *` or `Zstr`.
+///   `StrCmp(s, other, other_len)`   -- `other` is a fixed-length view
+///                                      (`Zstr`, `size`).
+/// The `Str *` overload is length-aware on both sides, so a string with
+/// an embedded NUL still compares correctly.
 ///
-/// str[in]  : First string.
-/// ostr[in] : Other string.
+/// s[in]         : Str to compare.
+/// other[in]     : Other string (`Str *` / `Zstr`).
+/// other_len[in] : Length of `other` for the 3-arg fixed-length form.
 ///
-/// SUCCESS : Returns `0` when equal, `<0` when `str < ostr`, `>0` when
-///           `str > ostr`. Neither string is modified.
+/// SUCCESS : Returns `0` when equal, `<0` when `s < other`, `>0` when
+///           `s > other`. Neither string is modified.
+/// FAILURE : Function cannot fail; the return value carries the order.
 ///
 /// TAGS: Str, Compare
 ///
-#define StrCmp(str, ostr) str_compare((str), (ostr))
+#define StrCmp(...) MISRA_OVERLOAD(StrCmp, __VA_ARGS__)
+#define StrCmp_2(s, other)                                                                                             \
+    _Generic(                                                                                                          \
+        (other),                                                                                                       \
+        Str *: str_cmp_str ((s), (const Str *)(other)),                                                                \
+        Zstr:  str_cmp_zstr((s), (Zstr)(other))                                                                        \
+    )
+#define StrCmp_3(s, other, other_len) str_cmp_cstr((s), (Zstr)(other), (other_len))
 
 ///
-/// Compare string with another const char* of specified length
+/// Case-insensitive (ASCII) comparison of a `Str` against another string.
+/// Non-ASCII bytes are compared verbatim; there is no Unicode case folding.
 ///
-/// str[in]      : Pointer to Str object to compare with.
-/// cstr[in]     : String to compare with.
-/// cstr_len[in] : Length of the C string to compare.
+/// Three call shapes via `MISRA_OVERLOAD` + `_Generic` on `other`:
+///   `StrCmpIgnoreCase(s, other)`              -- `other` is `Str *` or
+///                                                `Zstr`.
+///   `StrCmpIgnoreCase(s, other, other_len)`   -- `other` is a
+///                                                fixed-length view
+///                                                (`Zstr`, `size`).
 ///
-/// RETURN : +ve or -ve depending on above or below in lexical ordering
-/// RETURN : 0 if both are equal
+/// s[in]         : Str to compare.
+/// other[in]     : Other string (`Str *` / `Zstr`).
+/// other_len[in] : Length of `other` for the 3-arg fixed-length form.
 ///
-#define StrCmpCstr(str, cstr, cstr_len) ZstrCompareN((str)->data, cstr, cstr_len)
-
+/// SUCCESS : Returns `0` when equal, `<0` when `s < other`, `>0` when
+///           `s > other` (ASCII case-folded). Neither string is modified.
+/// FAILURE : Function cannot fail; the return value carries the order.
 ///
-/// Compare string with a null-terminated const char* string
+/// TAGS: Str, Compare, IgnoreCase
 ///
-/// str[in]  : Pointer to Str object to compare with.
-/// zstr[in] : Null-terminated string to compare with.
-///
-/// RETURN : +ve or -ve depending on above or below in lexical ordering
-/// RETURN : 0 if both are equal
-///
-#define StrCmpZstr(str, zstr) ZstrCompare((str)->data, (zstr))
-
-///
-/// Case-insensitive (ASCII) variants of the StrCmp family. Non-ASCII
-/// bytes are compared verbatim; there is no Unicode case folding.
-///
-#define StrCmpIgnoreCase(str, ostr)               ZstrCompareIgnoreCase((str)->data, (ostr)->data)
-#define StrCmpZstrIgnoreCase(str, zstr)           ZstrCompareIgnoreCase((str)->data, (zstr))
-#define StrCmpCstrIgnoreCase(str, cstr, cstr_len) ZstrCompareNIgnoreCase((str)->data, (cstr), (cstr_len))
+#define StrCmpIgnoreCase(...) MISRA_OVERLOAD(StrCmpIgnoreCase, __VA_ARGS__)
+#define StrCmpIgnoreCase_2(s, other)                                                                                   \
+    _Generic(                                                                                                          \
+        (other),                                                                                                       \
+        Str *: str_cmp_str_ignore_case ((s), (const Str *)(other)),                                                    \
+        Zstr:  str_cmp_zstr_ignore_case((s), (Zstr)(other))                                                            \
+    )
+#define StrCmpIgnoreCase_3(s, other, other_len) str_cmp_cstr_ignore_case((s), (Zstr)(other), (other_len))
 
 //
 // Find Operations
 //
 
 ///
-/// Find a key in a Str object.
+/// Find the first occurrence of `key` inside `s` and return a pointer
+/// into `s`'s buffer.
 ///
-/// str[in] : Str object to find str into.
-/// key[in] : Str object to find in `str`
+/// Three call shapes via `MISRA_OVERLOAD` + `_Generic` on `key`:
+///   `StrFind(s, key)`              -- `key` is `Str *` or `Zstr`.
+///   `StrFind(s, key, key_len)`     -- `key` is a fixed-length view
+///                                     (`Zstr`, `size`).
+/// Differs from `StrIndexOf` (which returns a `size` index); this
+/// returns a `Zstr` pointer into `s`'s storage at the match.
 ///
-/// SUCCESS : char* providing position of found string. Pointer is inside `str`
-/// FAILURE : Returns `NULL`.
+/// s[in]       : Str to search in.
+/// key[in]     : Substring to search for (`Str *` / `Zstr`).
+/// key_len[in] : Length of `key` when using the 3-arg fixed-length form.
 ///
-#define StrFindStr(str, key) ZstrFindSubstring((str)->data, (key)->data)
-
+/// SUCCESS : Returns a `Zstr` pointing at the first match inside `s`.
+///           The string is not modified.
+/// FAILURE : Returns `NULL` when no match is found. The string is not
+///           modified.
 ///
-/// Find a key in a Str object.
+/// TAGS: Str, Find, Search
 ///
-/// str[in] : Str object to find str into.
-/// key[in] : const char* string to look for
-///
-/// SUCCESS : char* providing position of found string. Pointer is inside `str`.
-/// FAILURE : Returns `NULL`.
-///
-#define StrFindZstr(str, key) ZstrFindSubstring((str)->data, (key))
-
-///
-/// Find a fixed-length substring in a Str object.
-///
-/// str[in]     : Str object to find str into.
-/// key[in]     : Substring to look for.
-/// key_len[in] : Length of the substring to look for.
-///
-/// SUCCESS : char* providing position of found string. Pointer is inside `str`.
-/// FAILURE : Returns `NULL`.
-///
-#define StrFindCstr(str, key, key_len) ZstrFindSubstringN((str)->data, (key), (key_len))
+#define StrFind(...) MISRA_OVERLOAD(StrFind, __VA_ARGS__)
+#define StrFind_2(s, key)                                                                                              \
+    _Generic(                                                                                                          \
+        (key),                                                                                                         \
+        Str *: str_find_str ((s), (const Str *)(key)),                                                                 \
+        Zstr:  str_find_zstr((s), (Zstr)(key))                                                                         \
+    )
+#define StrFind_3(s, key, key_len) str_find_cstr((s), (Zstr)(key), (key_len))
 
 ///
 /// Find the index of the first occurrence of a key inside a `Str`.
@@ -292,105 +300,117 @@ extern "C" {
 #define StrReplace_6(s, match, match_len, replacement, replacement_len, count)                                         \
     str_replace_cstr((s), (Zstr)(match), (match_len), (Zstr)(replacement), (replacement_len), (count))
 
-    //
-    // Split Operations
-    //
+//
+// Split Operations
+//
 
-    ///
-    /// Split given string into multiple StrIter into the same string.
-    /// This way the split operation can be performed without creating new strings,
-    /// but instead just having an iterated view into the Str object.
-    ///
-    /// This is best used when user never needs to make modifications and save
-    /// the modifications. In other words, best used when only need iteration
-    /// over string with some delimiters.
-    ///
-    /// str[in] : Str object to split
-    /// key[in] : Zero-terminated char pointer value to split based on
-    ///
-    /// SUCCESS : StrIters vector of non-zero length
-    /// FAILURE : StrIters vector of zero-length
-    ///
-    StrIters str_split_to_iters_zstr(Str *s, Zstr key);
-    StrIters str_split_to_iters_str(Str *s, const Str *key);
-#define StrSplitToIters(s, key)                                                                                                                                  \
-    _Generic((key), Str *: str_split_to_iters_str, Zstr: str_split_to_iters_zstr)( \
-        (s),                                                                                                                                                     \
-        (key)                                                                                                                                                    \
+///
+/// Split `s` into a vector of `StrIter` views over the original `s`
+/// buffer, delimited by `key`. No new strings are allocated -- each
+/// iterator borrows a slice of `s`. Best used when the caller only
+/// needs to iterate the pieces without mutating them.
+///
+/// Two call shapes via `_Generic` on `key`:
+///   `StrSplitToIters(s, key)`     -- `key` is `Str *` or `Zstr`.
+///
+/// s[in]   : Str to split.
+/// key[in] : Delimiter (`Str *` / `Zstr`).
+///
+/// SUCCESS : Returns a non-empty `StrIters` vector whose entries view
+///           slices of `s`. Caller owns the vector and must `VecDeinit`
+///           it. `s` is not modified.
+/// FAILURE : Returns a zero-length `StrIters` vector. `s` is not
+///           modified.
+///
+/// TAGS: Str, Split, Iter
+///
+#define StrSplitToIters(s, key)                                                                                        \
+    _Generic(                                                                                                          \
+        (key),                                                                                                         \
+        Str *: str_split_to_iters_str ((s), (const Str *)(key)),                                                       \
+        Zstr:  str_split_to_iters_zstr((s), (Zstr)(key))                                                               \
     )
 
-    ///
-    /// Split the given Str object into multiple Str objects stored in a vector
-    /// of Str objects. Each Str object in returned vector is a new Str object
-    /// and hence must be deinited after use. Calling `VecDeinit()` on the returned
-    /// vector will do that for you automatically for all the objects.
-    ///
-    /// This is best used when iterating over a delimited data is not the only goal,
-    /// but also other modifications like stripping over whitespaces from returned Str objects.
-    ///
-    /// str[in] : Str object to split
-    /// key[in] : Zero-terminated char pointer value to split based on
-    ///
-    /// SUCCESS : Strs vector of non-zero length
-    /// FAILURE : Strs vector of zero-length
-    ///
-    Strs str_split_zstr(Str *s, Zstr key);
-    Strs str_split_str(Str *s, const Str *key);
-#define StrSplit(s, key)                                                                                                     \
-    _Generic((key), Str *: str_split_str, Zstr: str_split_zstr)( \
-        (s),                                                                                                                 \
-        (key)                                                                                                                \
+///
+/// Split `s` into a vector of new `Str` objects delimited by `key`.
+/// Each returned `Str` owns its own storage and is independently
+/// modifiable. Use when callers will further mutate the pieces.
+///
+/// Two call shapes via `_Generic` on `key`:
+///   `StrSplit(s, key)`     -- `key` is `Str *` or `Zstr`.
+///
+/// s[in]   : Str to split.
+/// key[in] : Delimiter (`Str *` / `Zstr`).
+///
+/// SUCCESS : Returns a non-empty `Strs` vector. Caller owns the vector
+///           and must `VecDeinit` it; that releases each contained
+///           `Str` as well. `s` is not modified.
+/// FAILURE : Returns a zero-length `Strs` vector. `s` is not modified.
+///
+/// TAGS: Str, Split
+///
+#define StrSplit(s, key)                                                                                               \
+    _Generic(                                                                                                          \
+        (key),                                                                                                         \
+        Str *: str_split_str ((s), (const Str *)(key)),                                                                \
+        Zstr:  str_split_zstr((s), (Zstr)(key))                                                                        \
     )
 
-    //
-    // Strip Operations
-    //
-
-    ///
-    /// Internal implementation for the `StrStrip` / `StrLStrip` /
-    /// `StrRStrip` public macros. Not part of the public API.
-    ///
-    Str strip_str(Str *s, Zstr key, int split_direction);
+//
+// Strip Operations
+//
 
 ///
-/// Strip leading and trailing whitespace (or optional custom characters) from
-/// the given Str object. Returns a new Str object. Original is unmodified.
-/// The returned Str must be deinited after use.
+/// Strip leading and trailing characters from `s`, returning a new
+/// `Str`. The original `s` is unmodified. The returned `Str` owns its
+/// storage and must be deinited after use.
 ///
-/// str[in]            : Str object to strip
-/// chars_to_strip[in] : Optional zero-terminated char pointer specifying which characters to strip.
-///                      If NULL, standard ASCII whitespace is stripped.
+/// s[in]              : Str to strip.
+/// chars_to_strip[in] : Optional `Zstr` listing characters to strip.
+///                      `NULL` strips standard ASCII whitespace.
 ///
-/// SUCCESS : A new Str object with surrounding characters removed
-/// FAILURE : A zero-length Str object
+/// SUCCESS : Returns a new `Str` with surrounding characters removed.
+///           `s` is not modified.
+/// FAILURE : Returns a zero-length `Str` when the whole input strips
+///           away or on allocator OOM.
 ///
-#define StrStrip(str, chars_to_strip) strip_str(str, chars_to_strip, 0)
+/// TAGS: Str, Strip
+///
+#define StrStrip(s, chars_to_strip) strip_str((s), (chars_to_strip), 0)
 
 ///
-/// Strip only leading whitespace (or optional custom characters) from the
-/// given Str object. Returns a new Str object. Original is unmodified.
+/// Strip only leading characters from `s`, returning a new `Str`.
+/// The original `s` is unmodified.
 ///
-/// str[in]            : Str object to strip
-/// chars_to_strip[in] : Optional zero-terminated char pointer specifying which characters to strip.
-///                      If NULL, standard ASCII whitespace is stripped.
+/// s[in]              : Str to strip.
+/// chars_to_strip[in] : Optional `Zstr` listing characters to strip.
+///                      `NULL` strips standard ASCII whitespace.
 ///
-/// SUCCESS : A new Str object with leading characters removed
-/// FAILURE : A zero-length Str object
+/// SUCCESS : Returns a new `Str` with leading characters removed.
+///           `s` is not modified.
+/// FAILURE : Returns a zero-length `Str` when the whole input strips
+///           away or on allocator OOM.
 ///
-#define StrLStrip(str, chars_to_strip) strip_str(str, chars_to_strip, -1)
+/// TAGS: Str, Strip, LStrip
+///
+#define StrLStrip(s, chars_to_strip) strip_str((s), (chars_to_strip), -1)
 
 ///
-/// Strip only trailing whitespace (or optional custom characters) from the
-/// given Str object. Returns a new Str object. Original is unmodified.
+/// Strip only trailing characters from `s`, returning a new `Str`.
+/// The original `s` is unmodified.
 ///
-/// str[in]            : Str object to strip
-/// chars_to_strip[in] : Optional zero-terminated char pointer specifying which characters to strip.
-///                      If NULL, standard ASCII whitespace is stripped.
+/// s[in]              : Str to strip.
+/// chars_to_strip[in] : Optional `Zstr` listing characters to strip.
+///                      `NULL` strips standard ASCII whitespace.
 ///
-/// SUCCESS : A new Str object with trailing characters removed
-/// FAILURE : A zero-length Str object
+/// SUCCESS : Returns a new `Str` with trailing characters removed.
+///           `s` is not modified.
+/// FAILURE : Returns a zero-length `Str` when the whole input strips
+///           away or on allocator OOM.
 ///
-#define StrRStrip(str, chars_to_strip) strip_str(str, chars_to_strip, 1)
+/// TAGS: Str, Strip, RStrip
+///
+#define StrRStrip(s, chars_to_strip) strip_str((s), (chars_to_strip), 1)
 
 #ifdef __cplusplus
 }

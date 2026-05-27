@@ -26,8 +26,8 @@ bool test_str_len_empty(void) {
     bool result = (StrLen(&s) == 0);
     result      = result && StrEmpty(&s);
 
-    StrPushBack(&s, 'H');
-    StrPushBack(&s, 'i');
+    StrPushBackR(&s, 'H');
+    StrPushBackR(&s, 'i');
 
     result = result && (StrLen(&s) == 2);
     result = result && !StrEmpty(&s);

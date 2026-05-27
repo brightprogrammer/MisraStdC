@@ -214,42 +214,42 @@ StrIter JReadString(StrIter si, Str *str) {
                     switch (c) {
                         // escape sequence
                         case '\\' :
-                            StrPushBack(str, '\\');
+                            StrPushBackR(str, '\\');
                             StrIterMustNext(&si);
                             break;
 
                         case '"' :
-                            StrPushBack(str, '"');
+                            StrPushBackR(str, '"');
                             StrIterMustNext(&si);
                             break;
 
                         case '/' :
-                            StrPushBack(str, '/');
+                            StrPushBackR(str, '/');
                             StrIterMustNext(&si);
                             break;
 
                         case 'b' :
-                            StrPushBack(str, '\b');
+                            StrPushBackR(str, '\b');
                             StrIterMustNext(&si);
                             break;
 
                         case 'f' :
-                            StrPushBack(str, '\f');
+                            StrPushBackR(str, '\f');
                             StrIterMustNext(&si);
                             break;
 
                         case 'n' :
-                            StrPushBack(str, '\n');
+                            StrPushBackR(str, '\n');
                             StrIterMustNext(&si);
                             break;
 
                         case 'r' :
-                            StrPushBack(str, '\r');
+                            StrPushBackR(str, '\r');
                             StrIterMustNext(&si);
                             break;
 
                         case 't' :
-                            StrPushBack(str, '\t');
+                            StrPushBackR(str, '\t');
                             StrIterMustNext(&si);
                             break;
 
@@ -271,7 +271,7 @@ StrIter JReadString(StrIter si, Str *str) {
 
                 // default allowed characters
                 default :
-                    StrPushBack(str, c);
+                    StrPushBackR(str, c);
                     StrIterMustNext(&si);
                     break;
             }
@@ -322,7 +322,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
                 }
                 has_exp = true;
                 is_flt  = true;
-                StrPushBack(&ns, c);
+                StrPushBackR(&ns, c);
                 StrIterMustNext(&si);
                 break;
 
@@ -334,7 +334,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
                     return saved_si;
                 }
                 is_flt = true;
-                StrPushBack(&ns, c);
+                StrPushBackR(&ns, c);
                 StrIterMustNext(&si);
                 break;
 
@@ -348,7 +348,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
             case '7' :
             case '8' :
             case '9' :
-                StrPushBack(&ns, c);
+                StrPushBackR(&ns, c);
                 StrIterMustNext(&si);
                 break;
 
@@ -374,7 +374,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
                     return saved_si;
                 }
                 has_exp_plus_minus = true;
-                StrPushBack(&ns, c);
+                StrPushBackR(&ns, c);
                 StrIterMustNext(&si);
                 break;
 

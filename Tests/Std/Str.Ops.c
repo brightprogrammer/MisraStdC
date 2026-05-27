@@ -20,7 +20,7 @@ bool test_str_contains_index(void);
 
 // Test string comparison functions
 bool test_str_cmp(void) {
-    WriteFmt("Testing StrCmp and StrCmpCstr\n");
+    WriteFmt("Testing StrCmp variants\n");
     DefaultAllocator alloc = DefaultAllocatorInit();
 
 
@@ -41,11 +41,11 @@ bool test_str_cmp(void) {
     int cmp3 = StrCmp(&s1, &s4);
     result   = result && (cmp3 < 0); // "Hello" comes before "Hello World" lexicographically
 
-    // Test StrCmpCstr
-    int cmp4 = StrCmpCstr(&s1, "Hello", 5);
+    // Test StrCmp (Cstr key, key_len)
+    int cmp4 = StrCmp(&s1, "Hello", 5);
     result   = result && (cmp4 == 0);
 
-    int cmp5 = StrCmpCstr(&s1, "World", 5);
+    int cmp5 = StrCmp(&s1, "World", 5);
     result   = result && (cmp5 != 0);
 
     StrDeinit(&s1);
@@ -58,7 +58,7 @@ bool test_str_cmp(void) {
 
 // Test string find functions
 bool test_str_find(void) {
-    WriteFmt("Testing StrFindStr, StrFindZstr, and StrFindCstr\n");
+    WriteFmt("Testing StrFind variants\n");
     DefaultAllocator alloc = DefaultAllocatorInit();
 
 
@@ -67,24 +67,24 @@ bool test_str_find(void) {
     Str needle2  = StrInitFromZstr("Hello", &alloc);
     Str needle3  = StrInitFromZstr("NotFound", &alloc);
 
-    // Test StrFindStr with match at end
-    Zstr found1 = StrFindStr(&haystack, &needle1);
+    // Test StrFind (Str * key) with match at end
+    Zstr found1 = StrFind(&haystack, &needle1);
     bool result = (found1 != NULL && ZstrCompare(found1, "World") == 0);
 
-    // Test StrFindStr with match at beginning
-    Zstr found2 = StrFindStr(&haystack, &needle2);
+    // Test StrFind (Str * key) with match at beginning
+    Zstr found2 = StrFind(&haystack, &needle2);
     result      = result && (found2 != NULL && ZstrCompare(found2, "Hello World") == 0);
 
-    // Test StrFindStr with no match
-    Zstr found3 = StrFindStr(&haystack, &needle3);
+    // Test StrFind (Str * key) with no match
+    Zstr found3 = StrFind(&haystack, &needle3);
     result      = result && (found3 == NULL);
 
-    // Test StrFindZstr
-    Zstr found4 = StrFindZstr(&haystack, "World");
+    // Test StrFind (Zstr key)
+    Zstr found4 = StrFind(&haystack, "World");
     result      = result && (found4 != NULL && ZstrCompare(found4, "World") == 0);
 
-    // Test StrFindCstr
-    Zstr found5 = StrFindCstr(&haystack, "Wor", 3);
+    // Test StrFind (Cstr key, key_len)
+    Zstr found5 = StrFind(&haystack, "Wor", 3);
     result      = result && (found5 != NULL && ZstrCompareN(found5, "World", 3) == 0);
 
     StrDeinit(&haystack);
@@ -313,10 +313,10 @@ bool test_str_cmp_ignore_case(void) {
     ok = ok && StrCmpIgnoreCase(&hello_lc, &hello_x) < 0;
 
     // Cstr / Zstr variants share the same underlying helper.
-    ok = ok && StrCmpZstrIgnoreCase(&hello_lc, "HELLO") == 0;
-    ok = ok && StrCmpZstrIgnoreCase(&hello_uc, "world") < 0;
-    ok = ok && StrCmpCstrIgnoreCase(&hello_lc, "HELLO_extra", 5) == 0;
-    ok = ok && StrCmpCstrIgnoreCase(&hello_lc, "HellX", 5) != 0;
+    ok = ok && StrCmpIgnoreCase(&hello_lc, "HELLO") == 0;
+    ok = ok && StrCmpIgnoreCase(&hello_uc, "world") < 0;
+    ok = ok && StrCmpIgnoreCase(&hello_lc, "HELLO_extra", 5) == 0;
+    ok = ok && StrCmpIgnoreCase(&hello_lc, "HellX", 5) != 0;
 
     // Non-ASCII bytes pass through verbatim (no Unicode folding).
     Str non_ascii_a = StrInitFromZstr("ABC\xC0", &alloc);

@@ -160,7 +160,7 @@ bool test_simple_json_object(void) {
         success = false;
     }
 
-    if (StrCmpCstr(&data.name, "test", 4) != 0) {
+    if (StrCmp(&data.name, "test", 4) != 0) {
         WriteFmt("[DEBUG] Name check failed: expected 'test', got '");
         for (size i = 0; i < StrLen(&data.name); i++) {
             WriteFmt("{c}", StrBegin(&data.name)[i]);
@@ -228,7 +228,7 @@ bool test_two_level_nesting(void) {
         success = false;
     }
 
-    if (StrCmpCstr(&data.user.profile.name, "Alice", 5) != 0) {
+    if (StrCmp(&data.user.profile.name, "Alice", 5) != 0) {
         WriteFmt("[DEBUG] Profile name check failed: expected 'Alice', got '");
         for (u64 i = 0; i < StrLen(&data.user.profile.name); i++) {
             WriteFmt("{}", StrBegin(&data.user.profile.name)[i]);
@@ -242,7 +242,7 @@ bool test_two_level_nesting(void) {
         success = false;
     }
 
-    if (StrCmpCstr(&data.status, "active", 6) != 0) {
+    if (StrCmp(&data.status, "active", 6) != 0) {
         WriteFmt("[DEBUG] Status check failed: expected 'active', got '");
         for (size i = 0; i < StrLen(&data.status); i++) {
             WriteFmt("{}", StrBegin(&data.status)[i]);
@@ -300,7 +300,7 @@ bool test_three_level_nesting(void) {
         });
     });
 
-    if (StrCmpCstr(&data.company.departments.engineering.head, "John", 4) != 0) {
+    if (StrCmp(&data.company.departments.engineering.head, "John", 4) != 0) {
         WriteFmt("[DEBUG] Engineering head check failed: expected 'John', got '");
         for (size i = 0; i < StrLen(&data.company.departments.engineering.head); i++) {
             WriteFmt("{c}", StrBegin(&data.company.departments.engineering.head)[i]);
@@ -325,7 +325,7 @@ bool test_three_level_nesting(void) {
         success = false;
     }
 
-    if (StrCmpCstr(&data.company.name, "TechCorp", 8) != 0) {
+    if (StrCmp(&data.company.name, "TechCorp", 8) != 0) {
         WriteFmt("[DEBUG] Company name check failed: expected 'TechCorp', got '");
         for (size i = 0; i < StrLen(&data.company.name); i++) {
             WriteFmt("{c}", StrBegin(&data.company.name)[i]);
@@ -503,7 +503,7 @@ bool test_complex_api_response(void) {
     }
 
     // Debug message check
-    if (StrCmpCstr(&response.message, "Success", 7) != 0) {
+    if (StrCmp(&response.message, "Success", 7) != 0) {
         WriteFmt("[DEBUG] Message check failed: expected 'Success', got '");
         for (size i = 0; i < StrLen(&response.message); i++) {
             WriteFmt("{c}", StrBegin(&response.message)[i]);
@@ -547,7 +547,7 @@ bool test_complex_api_response(void) {
             success = false;
         }
 
-        if (StrCmpCstr(&sym->analysis_name, "test_analysis", 13) != 0) {
+        if (StrCmp(&sym->analysis_name, "test_analysis", 13) != 0) {
             WriteFmt("[DEBUG] Analysis name check failed: expected 'test_analysis', got '");
             for (size i = 0; i < StrLen(&sym->analysis_name); i++) {
                 WriteFmt("{c}", StrBegin(&sym->analysis_name)[i]);
@@ -556,7 +556,7 @@ bool test_complex_api_response(void) {
             success = false;
         }
 
-        if (StrCmpCstr(&sym->function_name, "main_func", 9) != 0) {
+        if (StrCmp(&sym->function_name, "main_func", 9) != 0) {
             WriteFmt(
                 "[DEBUG] Function name check failed: expected 'main_func', got string of length {}\n",
                 StrLen(&sym->function_name)
@@ -564,7 +564,7 @@ bool test_complex_api_response(void) {
             success = false;
         }
 
-        if (StrCmpCstr(&sym->sha256, "abc123", 6) != 0) {
+        if (StrCmp(&sym->sha256, "abc123", 6) != 0) {
             WriteFmt("[DEBUG] SHA256 check failed: expected 'abc123', got '");
             for (size i = 0; i < StrLen(&sym->sha256); i++) {
                 WriteFmt("{c}", StrBegin(&sym->sha256)[i]);
@@ -578,7 +578,7 @@ bool test_complex_api_response(void) {
             success = false;
         }
 
-        if (StrCmpCstr(&sym->function_mangled_name, "_Z4main", 7) != 0) {
+        if (StrCmp(&sym->function_mangled_name, "_Z4main", 7) != 0) {
             WriteFmt("[DEBUG] Mangled name check failed: expected '_Z4main', got '");
             for (size i = 0; i < StrLen(&sym->function_mangled_name); i++) {
                 WriteFmt("{c}", StrBegin(&sym->function_mangled_name)[i]);
@@ -620,7 +620,7 @@ bool test_function_info_parsing(void) {
         success = false;
     }
 
-    if (StrCmpCstr(&info.name, "test_func", 9) != 0) {
+    if (StrCmp(&info.name, "test_func", 9) != 0) {
         WriteFmt("[DEBUG] Function name check failed: expected 'test_func', got '");
         for (size i = 0; i < StrLen(&info.name); i++) {
             WriteFmt("{}", StrBegin(&info.name)[i]);
@@ -668,7 +668,7 @@ bool test_model_info_parsing(void) {
         success = false;
     }
 
-    if (StrCmpCstr(&info.name, "test_model", 10) != 0) {
+    if (StrCmp(&info.name, "test_model", 10) != 0) {
         WriteFmt("[DEBUG] Model name check failed: expected 'test_model', got '");
         for (size i = 0; i < StrLen(&info.name); i++) {
             WriteFmt("{}", StrBegin(&info.name)[i]);
@@ -721,7 +721,7 @@ bool test_search_results_with_tags(void) {
         success = false;
     }
 
-    if (StrCmpCstr(&result.binary_name, "test_binary", 11) != 0) {
+    if (StrCmp(&result.binary_name, "test_binary", 11) != 0) {
         WriteFmt("[DEBUG] Binary name check failed: expected 'test_binary', got '");
         for (size i = 0; i < StrLen(&result.binary_name); i++) {
             WriteFmt("{c}", StrBegin(&result.binary_name)[i]);
@@ -735,7 +735,7 @@ bool test_search_results_with_tags(void) {
         success = false;
     }
 
-    if (StrCmpCstr(&result.sha256, "abc123", 6) != 0) {
+    if (StrCmp(&result.sha256, "abc123", 6) != 0) {
         WriteFmt("[DEBUG] SHA256 check failed: expected 'abc123', got '");
         for (size i = 0; i < StrLen(&result.sha256); i++) {
             WriteFmt("{c}", StrBegin(&result.sha256)[i]);
@@ -749,7 +749,7 @@ bool test_search_results_with_tags(void) {
         success = false;
     }
 
-    if (StrCmpCstr(&result.model_name, "test_model", 10) != 0) {
+    if (StrCmp(&result.model_name, "test_model", 10) != 0) {
         WriteFmt("[DEBUG] Model name check failed: expected 'test_model', got '");
         for (size i = 0; i < StrLen(&result.model_name); i++) {
             WriteFmt("{c}", StrBegin(&result.model_name)[i]);
@@ -758,7 +758,7 @@ bool test_search_results_with_tags(void) {
         success = false;
     }
 
-    if (StrCmpCstr(&result.owned_by, "user1", 5) != 0) {
+    if (StrCmp(&result.owned_by, "user1", 5) != 0) {
         WriteFmt("[DEBUG] Owned by check failed: expected 'user1', got '");
         for (size i = 0; i < StrLen(&result.owned_by); i++) {
             WriteFmt("{c}", StrBegin(&result.owned_by)[i]);
@@ -856,7 +856,7 @@ bool test_conditional_parsing(void) {
         success = false;
     }
 
-    if (StrCmpCstr(&response.message, "Success", 7) != 0) {
+    if (StrCmp(&response.message, "Success", 7) != 0) {
         WriteFmt("[DEBUG] Message check failed: expected 'Success', got '");
         for (size i = 0; i < StrLen(&response.message); i++) {
             WriteFmt("{c}", StrBegin(&response.message)[i]);
@@ -898,7 +898,7 @@ bool test_conditional_parsing(void) {
             success = false;
         }
 
-        if (StrCmpCstr(&sym->analysis_name, "test_analysis", 13) != 0) {
+        if (StrCmp(&sym->analysis_name, "test_analysis", 13) != 0) {
             WriteFmt("[DEBUG] Analysis name check failed: expected 'test_analysis', got '");
             for (size i = 0; i < StrLen(&sym->analysis_name); i++) {
                 WriteFmt("{c}", StrBegin(&sym->analysis_name)[i]);
@@ -907,7 +907,7 @@ bool test_conditional_parsing(void) {
             success = false;
         }
 
-        if (StrCmpCstr(&sym->function_name, "main_func", 9) != 0) {
+        if (StrCmp(&sym->function_name, "main_func", 9) != 0) {
             WriteFmt(
                 "[DEBUG] Function name check failed: expected 'main_func', got string of length {}\n",
                 StrLen(&sym->function_name)
@@ -915,7 +915,7 @@ bool test_conditional_parsing(void) {
             success = false;
         }
 
-        if (StrCmpCstr(&sym->sha256, "abc123", 6) != 0) {
+        if (StrCmp(&sym->sha256, "abc123", 6) != 0) {
             WriteFmt("[DEBUG] SHA256 check failed: expected 'abc123', got '");
             for (size i = 0; i < StrLen(&sym->sha256); i++) {
                 WriteFmt("{c}", StrBegin(&sym->sha256)[i]);
@@ -929,7 +929,7 @@ bool test_conditional_parsing(void) {
             success = false;
         }
 
-        if (StrCmpCstr(&sym->function_mangled_name, "_Z4main", 7) != 0) {
+        if (StrCmp(&sym->function_mangled_name, "_Z4main", 7) != 0) {
             WriteFmt("[DEBUG] Mangled name check failed: expected '_Z4main', got '");
             for (size i = 0; i < StrLen(&sym->function_mangled_name); i++) {
                 WriteFmt("{c}", StrBegin(&sym->function_mangled_name)[i]);
@@ -1029,7 +1029,7 @@ bool test_status_response_pattern(void) {
         success = false;
     }
 
-    if (StrCmpCstr(&response.message, "Success", 7) != 0) {
+    if (StrCmp(&response.message, "Success", 7) != 0) {
         WriteFmt("[DEBUG] Message check failed: expected 'Success', got '");
         for (u64 i = 0; i < StrLen(&response.message); i++) {
             WriteFmt("{c}", StrBegin(&response.message)[i]);
@@ -1071,7 +1071,7 @@ bool test_status_response_pattern(void) {
             success = false;
         }
 
-        if (StrCmpCstr(&sym->analysis_name, "test_analysis", 13) != 0) {
+        if (StrCmp(&sym->analysis_name, "test_analysis", 13) != 0) {
             WriteFmt("[DEBUG] Analysis name check failed: expected 'test_analysis', got '");
             for (size i = 0; i < StrLen(&sym->analysis_name); i++) {
                 WriteFmt("{}", StrBegin(&sym->analysis_name)[i]);
@@ -1080,7 +1080,7 @@ bool test_status_response_pattern(void) {
             success = false;
         }
 
-        if (StrCmpCstr(&sym->function_name, "main_func", 9) != 0) {
+        if (StrCmp(&sym->function_name, "main_func", 9) != 0) {
             WriteFmt("[DEBUG] Function name check failed: expected 'main_func', got '");
             for (size i = 0; i < StrLen(&sym->function_name); i++) {
                 WriteFmt("{c}", StrBegin(&sym->function_name)[i]);
@@ -1089,7 +1089,7 @@ bool test_status_response_pattern(void) {
             success = false;
         }
 
-        if (StrCmpCstr(&sym->sha256, "abc123", 6) != 0) {
+        if (StrCmp(&sym->sha256, "abc123", 6) != 0) {
             WriteFmt("[DEBUG] SHA256 check failed: expected 'abc123', got '");
             for (size i = 0; i < StrLen(&sym->sha256); i++) {
                 WriteFmt("{}", StrBegin(&sym->sha256)[i]);
@@ -1103,7 +1103,7 @@ bool test_status_response_pattern(void) {
             success = false;
         }
 
-        if (StrCmpCstr(&sym->function_mangled_name, "_Z4main", 7) != 0) {
+        if (StrCmp(&sym->function_mangled_name, "_Z4main", 7) != 0) {
             WriteFmt("[DEBUG] Mangled name check failed: expected '_Z4main', got '");
             for (size i = 0; i < StrLen(&sym->function_mangled_name); i++) {
                 WriteFmt("{c}", StrBegin(&sym->function_mangled_name)[i]);

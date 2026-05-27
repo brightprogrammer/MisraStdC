@@ -13,14 +13,22 @@
 /// vector data buffer. The vector applies per-element alignment internally so
 /// that arbitrarily-typed payloads are correctly aligned.
 ///
+/// Stride is taken from `allocator->alignment` when an allocator is
+/// present; for stack-init vecs (NULL allocator -- see
+/// `VecInitStack` / `StrInitStack`) the stride collapses to
+/// `sizeof(VEC_DATATYPE(v))` because the macro backs storage with an
+/// `_Alignas(T) char[]`, giving every slot T's natural alignment
+/// without padding.
+///
 /// v[in]   : Vector to query.
 /// idx[in] : Element index.
 ///
 /// TAGS: Vec, Access, Alignment
 ///
 #define VecAlignedOffsetAt(v, idx)                                                                                     \
-    ((idx) * ((v)->allocator->alignment > 1 ? ALIGN_UP_POW2(sizeof(VEC_DATATYPE(v)), (v)->allocator->alignment) :      \
-                                              sizeof(VEC_DATATYPE(v))))
+    ((idx) * (((v)->allocator && (v)->allocator->alignment > 1) ?                                                      \
+                  ALIGN_UP_POW2(sizeof(VEC_DATATYPE(v)), (v)->allocator->alignment) :                                  \
+                  sizeof(VEC_DATATYPE(v))))
 
 ///
 /// Element at `idx` accessed by value. Use this rather than indexing `data`
@@ -121,6 +129,26 @@
 /// TAGS: Vec, Access, Allocator
 ///
 #define VecAllocator(v) ((v)->allocator)
+
+///
+/// Deep-copy `init` callback wired into the vector, or `NULL` if the
+/// vector was initialised without deep-copy semantics.
+///
+/// v[in] : Vector to query.
+///
+/// TAGS: Vec, Access, DeepCopy
+///
+#define VecCopyInit(v) ((v)->copy_init)
+
+///
+/// Deep-copy `deinit` callback wired into the vector, or `NULL` if the
+/// vector was initialised without deep-copy semantics.
+///
+/// v[in] : Vector to query.
+///
+/// TAGS: Vec, Access, DeepCopy
+///
+#define VecCopyDeinit(v) ((v)->copy_deinit)
 
 ///
 /// Check whether vector has no elements.

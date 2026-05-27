@@ -7,6 +7,7 @@
 #ifndef MISRA_STD_CONTAINER_STR_INIT_H
 #define MISRA_STD_CONTAINER_STR_INIT_H
 
+#include "Access.h"
 #include "Type.h"
 #include <Misra/Std/Memory.h>
 #include <Misra/Std/Zstr.h>
@@ -35,8 +36,8 @@ extern "C" {
 #define StrZ_2(zstr, a) StrInitFromZstr_2((zstr), (a))
 
 #define StrInitFromStr(...)      MISRA_OVERLOAD(StrInitFromStr, __VA_ARGS__)
-#define StrInitFromStr_1(str)    StrInitFromCstr_2((str)->data, (str)->length)
-#define StrInitFromStr_2(str, a) StrInitFromCstr_3((str)->data, (str)->length, (a))
+#define StrInitFromStr_1(str)    StrInitFromCstr_2(StrBegin(str), StrLen(str))
+#define StrInitFromStr_2(str, a) StrInitFromCstr_3(StrBegin(str), StrLen(str), (a))
 
 #define StrDup(...)      MISRA_OVERLOAD(StrDup, __VA_ARGS__)
 #define StrDup_1(str)    StrInitFromStr_1((str))
@@ -57,10 +58,69 @@ extern "C" {
 #endif
 
 ///
-/// Initialize a `Str` using stack-allocated backing storage.
-/// Such strings cannot be dynamically resized.
+/// Open a scope that declares a `Str` named `name`, backed by a
+/// fixed-capacity stack array of `ne` characters. The body that
+/// follows the macro call (NOT a macro argument) sees `name` as an
+/// initialised, empty `Str` with capacity `ne`. `name`'s lexical
+/// scope is exactly the body: outside the macro the identifier is
+/// no longer bound.
 ///
-#define StrInitStack(str, alloc_ptr, ne, scoped_body) VecInitStack(str, alloc_ptr, ne, scoped_body)
+/// No allocator -- the backing storage is the stack. The body is
+/// responsible for keeping content bounded by `ne`. Any operation
+/// that would grow `name` past `ne` lands in `reserve_vec`, sees
+/// the NULL allocator, and aborts via
+/// `LOG_FATAL("vector not growable, no allocator assigned, probably stack inited")`.
+/// Use a heap-backed `Str` if you need spill behaviour.
+///
+/// The macro uses the for-chain scope idiom -- the body is regular
+/// code below the macro, not a brace-delimited argument:
+///
+///     StrInitStack(buf, 1024) {
+///         ssize_t n = read(fd, StrBegin(&buf), 1023);
+///         StrResize(&buf, (size)n);
+///         StrMergeR(out, &buf);
+///     }
+///
+/// SUCCESS : Body runs once; `name` is valid for the body's scope.
+///           On normal fall-through both `name` and the backing
+///           array are zeroed by the macro's exit updates before
+///           `name` falls out of scope.
+/// FAILURE : The macro itself cannot fail. Operations inside the
+///           body that try to grow `name` past `ne` abort.
+///
+/// CAVEAT  : `return` / `goto` leaving the body skip ALL exit
+///           updates (the same C-level limitation that applies to
+///           `Scope`). `break` exits the innermost for cleanly: the
+///           backing array is still zeroed by the outer for's
+///           update, but the `name` handle's MemSet is skipped --
+///           harmless because `name`'s scope is the body anyway and
+///           the identifier is no longer reachable after the macro.
+///           `continue` inside the body does NOT restart -- it
+///           jumps to the inner for's update clause, which zeroes
+///           `name` and then re-checks the (already-false)
+///           condition, exiting the scope. Treat it as a silent
+///           early-exit, not a loop control.
+///           `ne` is evaluated three times (the `+1` for the array
+///           dimension, the `sizeof` against the resulting array
+///           through `_d`, and the capacity assignment); pass a
+///           side-effect-free expression (literal or simple
+///           variable).
+///
+/// TAGS: Str, Init, Stack, Scope
+///
+#define StrInitStack(name, ne)                                                                                         \
+    for (char UNPL(_d)[(ne) + 1] = {0}, *UNPL(_loop) = UNPL(_d); UNPL(_loop);                                          \
+         MemSet(UNPL(_d), 0, sizeof(UNPL(_d))), UNPL(_loop) = NULL)                                                    \
+        for (Str name = {.length      = 0,                                                                             \
+                         .capacity    = (ne),                                                                          \
+                         .data        = UNPL(_d),                                                                      \
+                         .allocator   = NULL,                                                                          \
+                         .copy_init   = NULL,                                                                          \
+                         .copy_deinit = NULL,                                                                          \
+                         .__magic     = VEC_MAGIC},                                                                    \
+                 *UNPL(_done) = &name;                                                                                  \
+             UNPL(_done);                                                                                              \
+             MemSet(&name, 0, sizeof(name)), UNPL(_done) = NULL)
 
     ///
     /// Release the backing storage of `str` through its inline allocator

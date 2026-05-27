@@ -79,14 +79,14 @@ bool compare_json_output(const Str *output, Zstr expected, DefaultAllocator *all
     for (u64 i = 0; i < StrLen(output); i++) {
         char c = StrBegin(output)[i];
         if (c != ' ' && c != '\n' && c != '\r' && c != '\t') {
-            StrPushBack(&output_clean, c);
+            StrPushBackR(&output_clean, c);
         }
     }
 
     for (u64 i = 0; i < StrLen(&expected_str); i++) {
         char c = StrBegin(&expected_str)[i];
         if (c != ' ' && c != '\n' && c != '\r' && c != '\t') {
-            StrPushBack(&expected_clean, c);
+            StrPushBackR(&expected_clean, c);
         }
     }
 

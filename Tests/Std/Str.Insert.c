@@ -11,7 +11,6 @@
 bool test_str_insert_char_at(void);
 bool test_str_insert_cstr(void);
 bool test_str_insert_zstr(void);
-bool test_str_insert(void);
 bool test_str_push_cstr(void);
 bool test_str_push_zstr(void);
 bool test_str_push_back_cstr(void);
@@ -25,28 +24,28 @@ bool test_str_merge_r(void);
 bool test_str_merge(void);
 bool test_str_write_fmt_append(void);
 
-// Test StrInsertCharAt function
+// Test StrInsertR function
 bool test_str_insert_char_at(void) {
-    WriteFmt("Testing StrInsertCharAt\n");
+    WriteFmt("Testing StrInsertR\n");
     DefaultAllocator alloc = DefaultAllocatorInit();
 
 
     Str s = StrInitFromZstr("Hello", &alloc);
 
     // Insert a character in the middle
-    StrInsertCharAt(&s, '!', 2);
+    StrInsertR(&s, '!', 2);
 
     // Check that the character was inserted correctly
     bool result = (ZstrCompare(StrBegin(&s), "He!llo") == 0);
 
     // Insert a character at the beginning
-    StrInsertCharAt(&s, '?', 0);
+    StrInsertR(&s, '?', 0);
 
     // Check that the character was inserted correctly
     result = result && (ZstrCompare(StrBegin(&s), "?He!llo") == 0);
 
     // Insert a character at the end
-    StrInsertCharAt(&s, '.', StrLen(&s));
+    StrInsertR(&s, '.', StrLen(&s));
 
     // Check that the character was inserted correctly
     result = result && (ZstrCompare(StrBegin(&s), "?He!llo.") == 0);
@@ -56,16 +55,16 @@ bool test_str_insert_char_at(void) {
     return result;
 }
 
-// Test StrInsert 4-arg (Cstr) form
+// Test StrInsertMany 4-arg (Cstr) form
 bool test_str_insert_cstr(void) {
-    WriteFmt("Testing StrInsert (Cstr form)\n");
+    WriteFmt("Testing StrInsertMany (Cstr form)\n");
     DefaultAllocator alloc = DefaultAllocatorInit();
 
 
     Str s = StrInitFromZstr("Hello", &alloc);
 
-    // Insert a string in the middle
-    StrInsert(&s, " World", 2, 6);
+    // Insert a string in the middle: (cstr, cstr_len) adjacent, then idx
+    StrInsertMany(&s, " World", 6, 2);
 
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(StrBegin(&s), "He Worldllo") == 0);
@@ -75,9 +74,9 @@ bool test_str_insert_cstr(void) {
     return result;
 }
 
-// Test StrInsert 3-arg Zstr form
+// Test StrInsertMany 3-arg Zstr form
 bool test_str_insert_zstr(void) {
-    WriteFmt("Testing StrInsert (Zstr form)\n");
+    WriteFmt("Testing StrInsertMany (Zstr form)\n");
     DefaultAllocator alloc = DefaultAllocatorInit();
 
 
@@ -85,7 +84,7 @@ bool test_str_insert_zstr(void) {
 
     // Insert a string in the middle
     Zstr w = " World";
-    StrInsert(&s, w, 2);
+    StrInsertMany(&s, w, 2);
 
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(StrBegin(&s), "He Worldllo") == 0);
@@ -95,37 +94,16 @@ bool test_str_insert_zstr(void) {
     return result;
 }
 
-// Test StrInsert function
-bool test_str_insert(void) {
-    WriteFmt("Testing StrInsert\n");
-    DefaultAllocator alloc = DefaultAllocatorInit();
-
-
-    Str s1 = StrInitFromZstr("Hello", &alloc);
-    Str s2 = StrInitFromZstr(" World", &alloc);
-
-    // Insert s2 into s1 in the middle
-    StrInsert(&s1, &s2, 2);
-
-    // Check that the string was inserted correctly
-    bool result = (ZstrCompare(StrBegin(&s1), "He Worldllo") == 0);
-
-    StrDeinit(&s1);
-    StrDeinit(&s2);
-    DefaultAllocatorDeinit(&alloc);
-    return result;
-}
-
-// Test StrPushCstr function
+// Test StrInsertMany function
 bool test_str_push_cstr(void) {
-    WriteFmt("Testing StrPushCstr\n");
+    WriteFmt("Testing StrInsertMany\n");
     DefaultAllocator alloc = DefaultAllocatorInit();
 
 
     Str s = StrInitFromZstr("Hello", &alloc);
 
     // Push a string at position 2
-    StrPushCstr(&s, " World", 6, 2);
+    StrInsertMany(&s, " World", 6, 2);
 
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(StrBegin(&s), "He Worldllo") == 0);
@@ -135,16 +113,16 @@ bool test_str_push_cstr(void) {
     return result;
 }
 
-// Test StrPushZstr function
+// Test StrInsertMany function
 bool test_str_push_zstr(void) {
-    WriteFmt("Testing StrPushZstr\n");
+    WriteFmt("Testing StrInsertMany\n");
     DefaultAllocator alloc = DefaultAllocatorInit();
 
 
     Str s = StrInitFromZstr("Hello", &alloc);
 
     // Push a string at position 2
-    StrPushZstr(&s, " World", 2);
+    StrInsertMany(&s, " World", 2);
 
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(StrBegin(&s), "He Worldllo") == 0);
@@ -154,16 +132,16 @@ bool test_str_push_zstr(void) {
     return result;
 }
 
-// Test StrPushBackCstr function
+// Test StrPushBackMany function
 bool test_str_push_back_cstr(void) {
-    WriteFmt("Testing StrPushBackCstr\n");
+    WriteFmt("Testing StrPushBackMany\n");
     DefaultAllocator alloc = DefaultAllocatorInit();
 
 
     Str s = StrInitFromZstr("Hello", &alloc);
 
     // Push a string at the back
-    StrPushBackCstr(&s, " World", 6);
+    StrPushBackMany(&s, " World", 6);
 
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(StrBegin(&s), "Hello World") == 0);
@@ -173,16 +151,16 @@ bool test_str_push_back_cstr(void) {
     return result;
 }
 
-// Test StrPushBackZstr function
+// Test StrPushBackMany function
 bool test_str_push_back_zstr(void) {
-    WriteFmt("Testing StrPushBackZstr\n");
+    WriteFmt("Testing StrPushBackMany\n");
     DefaultAllocator alloc = DefaultAllocatorInit();
 
 
     Str s = StrInitFromZstr("Hello", &alloc);
 
     // Push a string at the back
-    StrPushBackZstr(&s, " World");
+    StrPushBackMany(&s, " World");
 
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(StrBegin(&s), "Hello World") == 0);
@@ -192,16 +170,16 @@ bool test_str_push_back_zstr(void) {
     return result;
 }
 
-// Test StrPushFrontCstr function
+// Test StrPushFrontMany function
 bool test_str_push_front_cstr(void) {
-    WriteFmt("Testing StrPushFrontCstr\n");
+    WriteFmt("Testing StrPushFrontMany\n");
     DefaultAllocator alloc = DefaultAllocatorInit();
 
 
     Str s = StrInitFromZstr("World", &alloc);
 
     // Push a string at the front
-    StrPushFrontCstr(&s, "Hello ", 6);
+    StrPushFrontMany(&s, "Hello ", 6);
 
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(StrBegin(&s), "Hello World") == 0);
@@ -211,16 +189,16 @@ bool test_str_push_front_cstr(void) {
     return result;
 }
 
-// Test StrPushFrontZstr function
+// Test StrPushFrontMany function
 bool test_str_push_front_zstr(void) {
-    WriteFmt("Testing StrPushFrontZstr\n");
+    WriteFmt("Testing StrPushFrontMany\n");
     DefaultAllocator alloc = DefaultAllocatorInit();
 
 
     Str s = StrInitFromZstr("World", &alloc);
 
     // Push a string at the front
-    StrPushFrontZstr(&s, "Hello ");
+    StrPushFrontMany(&s, "Hello ");
 
     // Check that the string was inserted correctly
     bool result = (ZstrCompare(StrBegin(&s), "Hello World") == 0);
@@ -239,12 +217,12 @@ bool test_str_push_back(void) {
     Str s = StrInitFromZstr("Hello", &alloc);
 
     // Push characters at the back
-    StrPushBack(&s, ' ');
-    StrPushBack(&s, 'W');
-    StrPushBack(&s, 'o');
-    StrPushBack(&s, 'r');
-    StrPushBack(&s, 'l');
-    StrPushBack(&s, 'd');
+    StrPushBackR(&s, ' ');
+    StrPushBackR(&s, 'W');
+    StrPushBackR(&s, 'o');
+    StrPushBackR(&s, 'r');
+    StrPushBackR(&s, 'l');
+    StrPushBackR(&s, 'd');
 
     // Check that the characters were inserted correctly
     bool result = (ZstrCompare(StrBegin(&s), "Hello World") == 0);
@@ -263,12 +241,12 @@ bool test_str_push_front(void) {
     Str s = StrInitFromZstr("World", &alloc);
 
     // Push characters at the front
-    StrPushFront(&s, ' ');
-    StrPushFront(&s, 'o');
-    StrPushFront(&s, 'l');
-    StrPushFront(&s, 'l');
-    StrPushFront(&s, 'e');
-    StrPushFront(&s, 'H');
+    StrPushFrontR(&s, ' ');
+    StrPushFrontR(&s, 'o');
+    StrPushFrontR(&s, 'l');
+    StrPushFrontR(&s, 'l');
+    StrPushFrontR(&s, 'e');
+    StrPushFrontR(&s, 'H');
 
     // Check that the characters were inserted correctly
     bool result = (ZstrCompare(StrBegin(&s), "Hello World") == 0);
@@ -330,7 +308,7 @@ bool test_str_merge_r(void) {
     return result;
 }
 
-// Test StrMerge function (alias for StrMergeR)
+// Test StrMerge function (unsuffixed = L-form per convention; src zeroed).
 bool test_str_merge(void) {
     WriteFmt("Testing StrMerge\n");
     DefaultAllocator alloc = DefaultAllocatorInit();
@@ -339,14 +317,14 @@ bool test_str_merge(void) {
     Str s1 = StrInitFromZstr("Hello", &alloc);
     Str s2 = StrInitFromZstr(" World", &alloc);
 
-    // Merge s2 into s1
+    // Merge s2 into s1 (L-form; ownership of s2's storage transfers to s1)
     StrMerge(&s1, &s2);
 
     // Check that the strings were merged correctly
     bool result = (ZstrCompare(StrBegin(&s1), "Hello World") == 0);
 
-    // Check that s2 was not reset (since StrMerge is an alias for StrMergeR)
-    result = result && (StrLen(&s2) == 6 && ZstrCompare(StrBegin(&s2), " World") == 0);
+    // s2 was zeroed on take per L-form contract
+    result = result && (StrLen(&s2) == 0 && StrBegin(&s2) == NULL);
 
     StrDeinit(&s1);
     StrDeinit(&s2);
@@ -383,7 +361,6 @@ int main(void) {
         test_str_insert_char_at,
         test_str_insert_cstr,
         test_str_insert_zstr,
-        test_str_insert,
         test_str_push_cstr,
         test_str_push_zstr,
         test_str_push_back_cstr,

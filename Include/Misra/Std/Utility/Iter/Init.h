@@ -40,23 +40,47 @@
 
 ///
 /// Initialize `Iter` from vector data to iterate in forward direction.
+/// Alignment is taken from the vector's allocator; stack-init vecs
+/// (NULL allocator) have no alignment requirement on the data layout
+/// and collapse to alignment 1, which gives an unpadded
+/// `sizeof(T)` stride that matches the `_Alignas(T) char[]` backing
+/// buffer planted by `VecInitStack`.
 ///
-/// v[in] : Source vector
+/// v[in] : Source vector (by value -- the resulting iter holds a
+///         non-owning pointer into `v`'s buffer).
+///
+/// SUCCESS : Always succeeds; returns a struct-literal `Iter` that
+///           reads `v.length` elements starting at `v.data`.
+/// FAILURE : Macro cannot fail. Reading from the resulting iter
+///           when `v.data == NULL` simply has remaining-length 0.
 ///
 /// TAGS: Initialization, Container, Vector
 ///
 #define IterInitFromVec(v)                                                                                             \
-    {.data = (v).data, .length = (v).length, .pos = 0, .alignment = (v).allocator->alignment, .dir = 1}
+    {.data      = (v).data,                                                                                            \
+     .length    = (v).length,                                                                                          \
+     .pos       = 0,                                                                                                   \
+     .alignment = (v).allocator ? (v).allocator->alignment : 1,                                                        \
+     .dir       = 1}
 
 ///
 /// Initialize `Iter` from vector data to iterate in reverse direction.
+/// See `IterInitFromVec` for the NULL-allocator handling.
 ///
 /// v[in] : Source vector
+///
+/// SUCCESS : Always succeeds; returns a struct-literal `Iter` whose
+///           cursor advances backwards through `v`.
+/// FAILURE : Macro cannot fail.
 ///
 /// TAGS: Initialization, Container, Vector
 ///
 #define IterInitRevFromVec(v)                                                                                          \
-    {.data = (v).data, .length = (v).length, .pos = 0, .alignment = (v).allocator->alignment, .dir = -1}
+    {.data      = (v).data,                                                                                            \
+     .length    = (v).length,                                                                                          \
+     .pos       = 0,                                                                                                   \
+     .alignment = (v).allocator ? (v).allocator->alignment : 1,                                                        \
+     .dir       = -1}
 
 ///
 /// Initialize default `Iter` object to iterate in forward direction.
@@ -97,26 +121,44 @@
 #define IterInitRevAlignedT(i, aln) ((TYPE_OF(i)) {.data = NULL, .length = 0, .pos = 0, .alignment = (aln), .dir = -1})
 
 ///
-/// Initialize `Iter` from vector data to iterate in forward direction.
+/// Typed-cast variant of `IterInitFromVec` for assigning into a typed
+/// iter variable. See `IterInitFromVec` for the NULL-allocator handling
+/// and overall semantics.
 ///
 /// i[in] : Variable or Type to be initialized.
 /// v[in] : Source vector
+///
+/// SUCCESS : Always succeeds; returns a typed compound-literal `Iter`.
+/// FAILURE : Macro cannot fail.
 ///
 /// TAGS: Initialization, Container, Vector
 ///
 #define IterInitFromVecT(i, v)                                                                                         \
-    ((TYPE_OF(i)) {.data = (v).data, .length = (v).length, .pos = 0, .alignment = (v).allocator->alignment, .dir = 1})
+    ((TYPE_OF(i)) {.data      = (v).data,                                                                              \
+                   .length    = (v).length,                                                                            \
+                   .pos       = 0,                                                                                     \
+                   .alignment = (v).allocator ? (v).allocator->alignment : 1,                                          \
+                   .dir       = 1})
 
 ///
-/// Initialize `Iter` from vector data starting at back
+/// Typed-cast variant of `IterInitRevFromVec`. See `IterInitFromVec`
+/// for the NULL-allocator handling.
 ///
 /// i[in] : Variable or Type to be initialized.
 /// v[in] : Source vector
 ///
+/// SUCCESS : Always succeeds; returns a typed compound-literal `Iter`
+///           that iterates backwards.
+/// FAILURE : Macro cannot fail.
+///
 /// TAGS: Initialization, Container, Vector
 ///
 #define IterInitRevFromVecT(i, v)                                                                                      \
-    ((TYPE_OF(i)) {.data = (v).data, .length = (v).length, .pos = 0, .alignment = (v).allocator->alignment, .dir = -1})
+    ((TYPE_OF(i)) {.data      = (v).data,                                                                              \
+                   .length    = (v).length,                                                                            \
+                   .pos       = 0,                                                                                     \
+                   .alignment = (v).allocator ? (v).allocator->alignment : 1,                                          \
+                   .dir       = -1})
 
 ///
 /// Carve a child iterator from a parent. The child starts at the

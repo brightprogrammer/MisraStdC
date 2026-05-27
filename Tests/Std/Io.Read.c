@@ -731,8 +731,8 @@ bool test_string_case_conversion_reading(void) {
         WriteFmt("Test 2 - :A (uppercase with split format)\n");
         WriteFmt("Input: '{}', Output: '{} {}'", in, result1, result2);
 
-        bool test2_pass  = (StrCmpZstr(&result1, "HELLO") == 0);
-        test2_pass      &= (StrCmpZstr(&result2, "WORLD") == 0);
+        bool test2_pass  = (StrCmp(&result1, "HELLO") == 0);
+        test2_pass      &= (StrCmp(&result2, "WORLD") == 0);
         WriteFmt("Expected: 'HELLO WORLD', Pass: {}\n\n", test2_pass ? "true" : "false");
         success = success && test2_pass;
 
@@ -754,8 +754,8 @@ bool test_string_case_conversion_reading(void) {
         WriteFmt("Test 2 - :A (uppercase with split format)\n");
         WriteFmt("Input: '{}', Output: '{}{}'", in, result1, result2);
 
-        bool test2_pass  = (StrCmpZstr(&result1, "HELLO") == 0);
-        test2_pass      &= (StrCmpZstr(&result2, " WORLD MIGHTY MISRA") == 0); // notice the extra space
+        bool test2_pass  = (StrCmp(&result1, "HELLO") == 0);
+        test2_pass      &= (StrCmp(&result2, " WORLD MIGHTY MISRA") == 0); // notice the extra space
         WriteFmt("Expected: 'HELLO WORLD MIGHTY MISRA', Pass: {}\n\n", test2_pass ? "true" : "false");
         success = success && test2_pass;
 

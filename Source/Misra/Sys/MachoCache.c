@@ -48,9 +48,9 @@ static bool compose_dsym_path(Zstr binary_path, Str *out) {
     if (base[0] == '\0')
         return false;
     out->length = 0;
-    StrPushBackZstr(out, binary_path);
-    StrPushBackZstr(out, ".dSYM/Contents/Resources/DWARF/");
-    StrPushBackZstr(out, base);
+    StrPushBackMany(out, binary_path);
+    StrPushBackMany(out, ".dSYM/Contents/Resources/DWARF/");
+    StrPushBackMany(out, base);
     return true;
 }
 

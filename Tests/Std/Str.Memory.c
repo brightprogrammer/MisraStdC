@@ -26,7 +26,7 @@ bool test_str_try_reduce_space(void) {
     StrReserve(&s, 100);
 
     // Add some data
-    StrPushBackZstr(&s, "Hello");
+    StrPushBackMany(&s, "Hello");
 
     // Original capacity should be at least 100
     bool result = (StrCapacity(&s) >= 100);

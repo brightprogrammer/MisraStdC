@@ -221,7 +221,7 @@ static void format_walk_win(Str *out, const StackFrame *frames, size count, Allo
             Zstr fname = basename_of(line.FileName);
             StrAppendFmt(out, " ({}:{})", fname, (u32)line.LineNumber);
         }
-        StrPushBack(out, '\n');
+        StrPushBackR(out, '\n');
     }
 
 #    if FEATURE_PARSER_PDB
@@ -512,7 +512,7 @@ static void emit_resolved_line(Str *out, u32 idx, const ResolvedSymbol *r, void 
             StrAppendFmt(out, " ({})", file);
         }
     }
-    StrPushBack(out, '\n');
+    StrPushBackR(out, '\n');
 }
 
 static void format_walk_with(Str *out, const StackFrame *frames, size count, SymbolResolver *resolver) {

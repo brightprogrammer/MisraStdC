@@ -264,7 +264,7 @@ extern "C" {
     do {                                                                                                               \
         Str UNPL(buf) = StrInit();                                                                                     \
         StrAppendFmt(&UNPL(buf), __VA_ARGS__);                                                                         \
-        StrPushBack(&UNPL(buf), '\n');                                                                                 \
+        StrPushBackR(&UNPL(buf), '\n');                                                                                 \
         ProcWriteToStdin((p), &UNPL(buf));                                                                             \
         StrDeinit(&UNPL(buf));                                                                                         \
     } while (0)

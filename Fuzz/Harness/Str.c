@@ -193,7 +193,7 @@ void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, s
             if (VecLen(str) > 0 && *offset + 1 <= size) {
                 char *cstr = generate_cstring(data, offset, size, 20);
                 if (cstr) {
-                    int result = StrCmpCstr(str, cstr, strlen(cstr));
+                    int result = StrCmp(str, cstr, strlen(cstr));
                     (void)result; // Suppress unused variable warning
                     free(cstr);
                 }
@@ -205,7 +205,7 @@ void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, s
             if (VecLen(str) > 0 && *offset + 1 <= size) {
                 char *zstr = generate_cstring(data, offset, size, 20);
                 if (zstr) {
-                    int result = StrCmpZstr(str, zstr);
+                    int result = StrCmp(str, zstr);
                     (void)result; // Suppress unused variable warning
                     free(zstr);
                 }
@@ -216,7 +216,7 @@ void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, s
         case STR_FIND_STR : {
             if (VecLen(str) > 0) {
                 Str   temp  = generate_str_from_input(data, offset, size, 10, alloc);
-                char *found = StrFindStr(str, &temp);
+                char *found = StrFind(str, &temp);
                 (void)found; // Suppress unused variable warning
                 StrDeinit(&temp);
             }
@@ -227,7 +227,7 @@ void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, s
             if (VecLen(str) > 0 && *offset + 1 <= size) {
                 char *zstr = generate_cstring(data, offset, size, 10);
                 if (zstr) {
-                    char *found = StrFindZstr(str, zstr);
+                    char *found = StrFind(str, zstr);
                     (void)found; // Suppress unused variable warning
                     free(zstr);
                 }
@@ -239,7 +239,7 @@ void fuzz_str(Str *str, StrFunction func, const uint8_t *data, size_t *offset, s
             if (VecLen(str) > 0 && *offset + 1 <= size) {
                 char *cstr = generate_cstring(data, offset, size, 10);
                 if (cstr) {
-                    char *found = StrFindCstr(str, cstr, strlen(cstr));
+                    char *found = StrFind(str, cstr, strlen(cstr));
                     (void)found; // Suppress unused variable warning
                     free(cstr);
                 }

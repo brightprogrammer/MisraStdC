@@ -513,7 +513,7 @@ static bool float_try_from_str_impl(Float *out, Zstr text, size length) {
         char ch = text[pos];
 
         if (ch >= '0' && ch <= '9') {
-            if (!StrPushBack(&digits, ch)) {
+            if (!StrPushBackR(&digits, ch)) {
                 goto fail;
             }
             saw_digit = true;
@@ -646,7 +646,7 @@ bool float_try_to_str(Str *out, Float *value, Allocator *alloc) {
     *out = StrInit(alloc);
 
     if (FloatIsZero(value)) {
-        return StrPushBack(out, '0');
+        return StrPushBackR(out, '0');
     }
 
     if (!int_try_to_str(&digits, &value->significand, alloc)) {
@@ -656,7 +656,7 @@ bool float_try_to_str(Str *out, Float *value, Allocator *alloc) {
     result = StrInit(alloc);
 
     if (value->negative) {
-        if (!StrPushBack(&result, '-')) {
+        if (!StrPushBackR(&result, '-')) {
             goto fail;
         }
     }
@@ -667,7 +667,7 @@ bool float_try_to_str(Str *out, Float *value, Allocator *alloc) {
         }
 
         for (i64 i = 0; i < value->exponent; i++) {
-            if (!StrPushBack(&result, '0')) {
+            if (!StrPushBackR(&result, '0')) {
                 goto fail;
             }
         }
@@ -676,27 +676,27 @@ bool float_try_to_str(Str *out, Float *value, Allocator *alloc) {
 
         if (split > 0) {
             for (i64 i = 0; i < split; i++) {
-                if (!StrPushBack(&result, digits.data[i])) {
+                if (!StrPushBackR(&result, digits.data[i])) {
                     goto fail;
                 }
             }
 
-            if (!StrPushBack(&result, '.')) {
+            if (!StrPushBackR(&result, '.')) {
                 goto fail;
             }
 
             for (u64 i = (u64)split; i < digits.length; i++) {
-                if (!StrPushBack(&result, digits.data[i])) {
+                if (!StrPushBackR(&result, digits.data[i])) {
                     goto fail;
                 }
             }
         } else {
-            if (!StrPushBackZstr(&result, "0.")) {
+            if (!StrPushBackMany(&result, "0.")) {
                 goto fail;
             }
 
             for (i64 i = 0; i < -split; i++) {
-                if (!StrPushBack(&result, '0')) {
+                if (!StrPushBackR(&result, '0')) {
                     goto fail;
                 }
             }

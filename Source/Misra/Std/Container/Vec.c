@@ -19,9 +19,12 @@
 
 static inline size vec_aligned_size(GenericVec *v, size item_size) {
     ValidateVec(v);
-    // Default allocator alignment of 1 leaves element stride at sizeof(T).
-    // Stronger allocator alignment requests pad each element so that every
-    // slot lies on the requested boundary.
+    // Stack-init vecs (no allocator) keep element stride at
+    // `sizeof(T)`: their backing buffer is a `_Alignas(T) char[]`,
+    // so every slot already lies on T's natural boundary.
+    if (!v->allocator) {
+        return item_size;
+    }
     return v->allocator->alignment > 1 ? ALIGN_UP_POW2(item_size, v->allocator->alignment) : item_size;
 }
 
@@ -46,6 +49,15 @@ void deinit_vec(GenericVec *vec, size item_size) {
     size aligned_size;
 
     ValidateVec(vec);
+
+    // Stack-init vecs have no allocator and own no heap storage:
+    // the InitStack scope macro is the only correct teardown. Calling
+    // `VecDeinit` on one would route through `AllocatorFree(NULL, ...)`
+    // and crash with a generic "NULL allocator" message; surface the
+    // real cause instead.
+    if (!vec->allocator) {
+        LOG_FATAL("vector not growable, no allocator assigned, probably stack inited");
+    }
 
     aligned_size = vec_aligned_size(vec, item_size);
     if (vec->data) {
@@ -94,6 +106,9 @@ bool reserve_vec(GenericVec *vec, size item_size, size n) {
 
     aligned_size = vec_aligned_size(vec, item_size);
     if (n > vec->capacity) {
+        if (!vec->allocator) {
+            LOG_FATAL("vector not growable, no allocator assigned, probably stack inited");
+        }
         size  old_capacity = (size)vec->capacity;
         char *ptr          = (char *)AllocatorRealloc(vec->allocator, vec->data, aligned_size * (n + 1));
 
@@ -135,6 +150,12 @@ bool reduce_space_vec(GenericVec *vec, size item_size) {
     size aligned_size;
 
     ValidateVec(vec);
+
+    // Same rationale as `deinit_vec`: a stack-init vec has no
+    // allocator to free into / shrink through.
+    if (!vec->allocator) {
+        LOG_FATAL("vector not growable, no allocator assigned, probably stack inited");
+    }
 
     aligned_size = vec_aligned_size(vec, item_size);
     if (vec->length == 0) {
@@ -504,7 +525,14 @@ void validate_vec(const GenericVec *v) {
     if ((v)->length > (v)->capacity) {
         LOG_FATAL("Invalid vec object.");
     }
-    if (!(v)->allocator->allocate || !(v)->allocator->resize || !(v)->allocator->remap || !(v)->allocator->deallocate) {
+    // A NULL allocator marks a non-growable vec (`StrInitStack` /
+    // `VecInitStack` etc.). Any operation that would actually need
+    // an allocator (`reserve_vec`, `deinit_vec`, ...) traps with a
+    // dedicated message instead. When an allocator is present, its
+    // method table must be sound.
+    if ((v)->allocator &&
+        (!(v)->allocator->allocate || !(v)->allocator->resize || !(v)->allocator->remap ||
+         !(v)->allocator->deallocate)) {
         LOG_FATAL("Invalid vec allocator.");
     }
     // Force-read a byte from data so a freed/garbage pointer faults

@@ -482,10 +482,10 @@ static SectionRva *load_section_table(const Pdb *self, u16 section_hdr_stream, u
 static bool pool_append_cstr(Str *pool, Zstr s, u64 *out_offset) {
     *out_offset = pool->length;
     for (; *s; ++s) {
-        if (!StrPushBack(pool, *s))
+        if (!StrPushBackR(pool, *s))
             return false;
     }
-    return StrPushBack(pool, '\0');
+    return StrPushBackR(pool, '\0');
 }
 
 // Walk the SymRecord stream, picking out S_PUB32 entries and pushing

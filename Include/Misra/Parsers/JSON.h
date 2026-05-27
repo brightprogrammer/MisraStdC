@@ -237,7 +237,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_STR_KV(si, k, str)                                                                                          \
     do {                                                                                                               \
-        if (!StrCmpZstr(&key, (k))) {                                                                                  \
+        if (!StrCmp(&key, (k))) {                                                                                  \
             Str UNPL(my_str) = StrInit();                                                                              \
             si               = JReadString((si), &UNPL(my_str));                                                       \
             (str)            = UNPL(my_str);                                                                           \
@@ -282,7 +282,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_INT_KV(si, k, i)                                                                                            \
     do {                                                                                                               \
-        if (!StrCmpZstr(&key, (k))) {                                                                                  \
+        if (!StrCmp(&key, (k))) {                                                                                  \
             i64 UNPL(my_int) = 0;                                                                                      \
             si               = JReadInteger((si), &UNPL(my_int));                                                      \
             (i)              = UNPL(my_int);                                                                           \
@@ -327,7 +327,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_FLT_KV(si, k, f)                                                                                            \
     do {                                                                                                               \
-        if (!StrCmpZstr(&key, (k))) {                                                                                  \
+        if (!StrCmp(&key, (k))) {                                                                                  \
             f64 UNPL(my_flt) = 0;                                                                                      \
             si               = JReadFloat((si), &UNPL(my_flt));                                                        \
             (f)              = UNPL(my_flt);                                                                           \
@@ -372,7 +372,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_BOOL_KV(si, k, b)                                                                                           \
     do {                                                                                                               \
-        if (!StrCmpZstr(&key, (k))) {                                                                                  \
+        if (!StrCmp(&key, (k))) {                                                                                  \
             bool UNPL(my_b) = 0;                                                                                       \
             si              = JReadBool((si), &UNPL(my_b));                                                            \
             (b)             = UNPL(my_b);                                                                              \
@@ -625,7 +625,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_OBJ_KV(si, k, reader)                                                                                       \
     do {                                                                                                               \
-        if (!StrCmpZstr(&key, (k))) {                                                                                  \
+        if (!StrCmp(&key, (k))) {                                                                                  \
             JR_OBJ(si, reader);                                                                                        \
         }                                                                                                              \
     } while (0)
@@ -650,7 +650,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JR_ARR_KV(si, k, reader)                                                                                       \
     do {                                                                                                               \
-        if (!StrCmpZstr(&key, (k))) {                                                                                  \
+        if (!StrCmp(&key, (k))) {                                                                                  \
             JR_ARR(si, reader);                                                                                        \
         }                                                                                                              \
     } while (0)
@@ -681,9 +681,9 @@ StrIter JSkipValue(StrIter si);
     do {                                                                                                               \
         bool ___is_first___ = true;                                                                                    \
         (void)___is_first___;                                                                                          \
-        StrPushBack(&(j), '{');                                                                                        \
+        StrPushBackR(&(j), '{');                                                                                        \
         {writer};                                                                                                      \
-        StrPushBack(&(j), '}');                                                                                        \
+        StrPushBackR(&(j), '}');                                                                                        \
     } while (0)
 
 ///
@@ -709,7 +709,7 @@ StrIter JSkipValue(StrIter si);
         if (___is_first___) {                                                                                          \
             ___is_first___ = false;                                                                                    \
         } else {                                                                                                       \
-            StrPushBack(&(j), ',');                                                                                    \
+            StrPushBackR(&(j), ',');                                                                                    \
         }                                                                                                              \
         StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                              \
         JW_OBJ(j, writer);                                                                                             \
@@ -738,16 +738,16 @@ StrIter JSkipValue(StrIter si);
     do {                                                                                                               \
         bool ___is_first___ = true;                                                                                    \
         (void)___is_first___;                                                                                          \
-        StrPushBack(&(j), '[');                                                                                        \
+        StrPushBackR(&(j), '[');                                                                                        \
         VecForeach(&(arr), item) {                                                                                     \
             if (___is_first___) {                                                                                      \
                 ___is_first___ = false;                                                                                \
             } else {                                                                                                   \
-                StrPushBack(&(j), ',');                                                                                \
+                StrPushBackR(&(j), ',');                                                                                \
             }                                                                                                          \
             { writer }                                                                                                 \
         }                                                                                                              \
-        StrPushBack(&(j), ']');                                                                                        \
+        StrPushBackR(&(j), ']');                                                                                        \
     } while (0)
 
 ///
@@ -775,7 +775,7 @@ StrIter JSkipValue(StrIter si);
         if (___is_first___) {                                                                                          \
             ___is_first___ = false;                                                                                    \
         } else {                                                                                                       \
-            StrPushBack(&(j), ',');                                                                                    \
+            StrPushBackR(&(j), ',');                                                                                    \
         }                                                                                                              \
         StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                              \
         JW_ARR(j, arr, item, writer);                                                                                  \
@@ -821,7 +821,7 @@ StrIter JSkipValue(StrIter si);
         if (___is_first___) {                                                                                          \
             ___is_first___ = false;                                                                                    \
         } else {                                                                                                       \
-            StrPushBack(&(j), ',');                                                                                    \
+            StrPushBackR(&(j), ',');                                                                                    \
         }                                                                                                              \
         StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                              \
         JW_INT(j, i);                                                                                                  \
@@ -867,7 +867,7 @@ StrIter JSkipValue(StrIter si);
         if (___is_first___) {                                                                                          \
             ___is_first___ = false;                                                                                    \
         } else {                                                                                                       \
-            StrPushBack(&(j), ',');                                                                                    \
+            StrPushBackR(&(j), ',');                                                                                    \
         }                                                                                                              \
         StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                              \
         JW_FLT(j, f);                                                                                                  \
@@ -889,7 +889,7 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JW_STR(j, s)                                                                                                   \
     do {                                                                                                               \
-        StrAppendFmt(&(j), "\"{}\"", (Zstr)((s).length ? (s).data : ""));                                      \
+        StrAppendFmt(&(j), "\"{}\"", StrLen(&(s)) ? (Zstr)StrBegin(&(s)) : (Zstr)"");                                  \
     } while (0)
 
 ///
@@ -912,7 +912,7 @@ StrIter JSkipValue(StrIter si);
         if (___is_first___) {                                                                                          \
             ___is_first___ = false;                                                                                    \
         } else {                                                                                                       \
-            StrPushBack(&(j), ',');                                                                                    \
+            StrPushBackR(&(j), ',');                                                                                    \
         }                                                                                                              \
         StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                              \
         JW_STR(j, s);                                                                                                  \
@@ -957,7 +957,7 @@ StrIter JSkipValue(StrIter si);
         if (___is_first___) {                                                                                          \
             ___is_first___ = false;                                                                                    \
         } else {                                                                                                       \
-            StrPushBack(&(j), ',');                                                                                    \
+            StrPushBackR(&(j), ',');                                                                                    \
         }                                                                                                              \
         StrAppendFmt(&(j), "\"{}\":", (Zstr)(k));                                                              \
         JW_BOOL(j, b);                                                                                                 \

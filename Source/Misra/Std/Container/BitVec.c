@@ -883,7 +883,7 @@ bool bitvec_try_to_str(Str *out, BitVec *bv, Allocator *alloc) {
     // Convert each bit to '0' or '1'
     for (u64 i = 0; i < bv->length; i++) {
         char bit_char = BitVecGet(bv, i) ? '1' : '0';
-        if (!StrPushBack(out, bit_char)) {
+        if (!StrPushBackR(out, bit_char)) {
             StrDeinit(out);
             *out = StrInit(alloc);
             return false;

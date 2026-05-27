@@ -235,7 +235,7 @@ static bool slurp_file(Zstr path, Str *out) {
         if (n == 0)
             break;
         for (i64 i = 0; i < n; ++i) {
-            StrPushBack(out, chunk[i]);
+            StrPushBackR(out, chunk[i]);
         }
     }
     FileClose(&f);
@@ -251,6 +251,26 @@ static bool slurp_file(Zstr path, Str *out) {
 // comments; blank lines and trailing `#`-comments are ignored.
 // ---------------------------------------------------------------------------
 
+// Advance `si` over a run of horizontal whitespace at the cursor.
+static void skip_hspace_iter(StrIter *si) {
+    char c;
+    while (StrIterPeek(si, &c) && is_hspace(c)) {
+        StrIterMustNext(si);
+    }
+}
+
+// Eat the rest of the current line, including the terminating '\n' if
+// one is present.
+static void skip_to_eol_iter(StrIter *si) {
+    char c;
+    while (StrIterPeek(si, &c) && c != '\n') {
+        StrIterMustNext(si);
+    }
+    if (StrIterRemainingLength(si) > 0) {
+        StrIterMustNext(si);
+    }
+}
+
 static void parse_hosts_table(HostsTable *table, Allocator *alloc) {
     Str buf = StrInit(alloc);
     if (!slurp_file(HOSTS_FILE_PATH, &buf)) {
@@ -258,66 +278,64 @@ static void parse_hosts_table(HostsTable *table, Allocator *alloc) {
         return;
     }
 
-    Zstr p   = buf.data;
-    Zstr end = buf.data ? buf.data + buf.length : NULL;
-    while (p && p < end) {
-        // Skip leading horizontal whitespace.
-        while (p < end && is_hspace(*p))
-            ++p;
-        // Comment / blank line -> skip to newline.
-        if (p >= end || *p == '#' || *p == '\n' || *p == '\r') {
-            while (p < end && *p != '\n')
-                ++p;
-            if (p < end)
-                ++p;
+    StrIter si = StrIterFromStr(buf);
+    char    c;
+    while (StrIterRemainingLength(&si)) {
+        skip_hspace_iter(&si);
+
+        // Comment / blank line -> eat the whole line.
+        if (!StrIterPeek(&si, &c) || c == '#' || c == '\n' || c == '\r') {
+            skip_to_eol_iter(&si);
             continue;
         }
 
         // First token: IP literal.
-        Zstr ip_start = p;
-        while (p < end && !is_hspace(*p) && *p != '\n')
-            ++p;
-        u64 ip_len = (u64)(p - ip_start);
+        size ip_start = si.pos;
+        while (StrIterPeek(&si, &c) && !is_hspace(c) && c != '\n') {
+            StrIterMustNext(&si);
+        }
+        u64 ip_len = (u64)(si.pos - ip_start);
 
-        char ip_buf[64];
         bool got_v4 = false;
         bool got_v6 = false;
         u8   v4[4]  = {0};
         u8   v6[16] = {0};
-        if (ip_len > 0 && ip_len < sizeof(ip_buf)) {
-            MemCopy(ip_buf, ip_start, ip_len);
-            ip_buf[ip_len] = '\0';
-            got_v4         = parse_ipv4(ip_buf, v4);
-            if (!got_v4) {
-                got_v6 = parse_ipv6(ip_buf, v6);
+        if (ip_len > 0 && ip_len < 64) {
+            // Stack-backed NUL-terminated copy so the Zstr-API
+            // `parse_ipv4` / `parse_ipv6` can scan it. Cap matches
+            // the longest reasonable IPv6-with-zone-id literal.
+            StrInitStack(ip_buf, 64) {
+                StrPushBackMany(&ip_buf, (Zstr)(si.data + ip_start), ip_len);
+                got_v4 = parse_ipv4(StrBegin(&ip_buf), v4);
+                if (!got_v4) {
+                    got_v6 = parse_ipv6(StrBegin(&ip_buf), v6);
+                }
             }
         }
 
         if (!got_v4 && !got_v6) {
-            // Garbled line; skip past newline.
-            while (p < end && *p != '\n')
-                ++p;
-            if (p < end)
-                ++p;
+            skip_to_eol_iter(&si);
             continue;
         }
 
         // Subsequent tokens: name + aliases.
-        while (p < end && *p != '\n') {
-            while (p < end && is_hspace(*p))
-                ++p;
-            if (p >= end || *p == '\n' || *p == '#')
+        while (StrIterPeek(&si, &c) && c != '\n') {
+            skip_hspace_iter(&si);
+            if (!StrIterPeek(&si, &c) || c == '\n' || c == '#') {
                 break;
-            Zstr nm_start = p;
-            while (p < end && !is_hspace(*p) && *p != '\n' && *p != '#')
-                ++p;
-            u64 nm_len = (u64)(p - nm_start);
-            if (nm_len == 0)
+            }
+            size nm_start = si.pos;
+            while (StrIterPeek(&si, &c) && !is_hspace(c) && c != '\n' && c != '#') {
+                StrIterMustNext(&si);
+            }
+            u64 nm_len = (u64)(si.pos - nm_start);
+            if (nm_len == 0) {
                 break;
+            }
 
             HostsEntry e = {0};
-            e.name       = StrInitFromCstr(nm_start, nm_len, alloc);
-            ascii_lower(e.name.data, e.name.length);
+            e.name       = StrInitFromCstr((Zstr)(si.data + nm_start), nm_len, alloc);
+            ascii_lower(StrBegin(&e.name), StrLen(&e.name));
             if (got_v4) {
                 MemCopy(e.ip, v4, 4);
                 e.is_ipv6 = false;
@@ -328,11 +346,8 @@ static void parse_hosts_table(HostsTable *table, Allocator *alloc) {
             VecPushBackR(table, e);
         }
 
-        // Skip trailing `# ...` comment + the newline.
-        while (p < end && *p != '\n')
-            ++p;
-        if (p < end)
-            ++p;
+        // Trailing `# ...` comment (if any) plus the newline.
+        skip_to_eol_iter(&si);
     }
 
     StrDeinit(&buf);
@@ -355,49 +370,48 @@ static void parse_resolv_conf(DnsAddrs *out, Allocator *alloc) {
     static const char NS_KEYWORD[] = "nameserver";
     u64               kw_len       = sizeof(NS_KEYWORD) - 1;
 
-    Zstr p   = buf.data;
-    Zstr end = buf.data ? buf.data + buf.length : NULL;
-    while (p && p < end) {
-        while (p < end && is_hspace(*p))
-            ++p;
-        if (p >= end || *p == '#' || *p == ';' || *p == '\n' || *p == '\r') {
-            while (p < end && *p != '\n')
-                ++p;
-            if (p < end)
-                ++p;
+    StrIter si = StrIterFromStr(buf);
+    char    c;
+    while (StrIterRemainingLength(&si)) {
+        skip_hspace_iter(&si);
+
+        if (!StrIterPeek(&si, &c) || c == '#' || c == ';' || c == '\n' || c == '\r') {
+            skip_to_eol_iter(&si);
             continue;
         }
 
-        // Match "nameserver" + whitespace at the line head.
-        if ((u64)(end - p) > kw_len && MemCompare(p, NS_KEYWORD, kw_len) == 0 &&
-            (p[kw_len] == ' ' || p[kw_len] == '\t')) {
-            p += kw_len;
-            while (p < end && is_hspace(*p))
-                ++p;
-            Zstr ip_start = p;
-            while (p < end && !is_hspace(*p) && *p != '\n' && *p != '#')
-                ++p;
-            u64  ip_len = (u64)(p - ip_start);
-            char ip_buf[64];
-            if (ip_len > 0 && ip_len < sizeof(ip_buf)) {
-                MemCopy(ip_buf, ip_start, ip_len);
-                ip_buf[ip_len] = '\0';
-                u8 v4[4]       = {0};
-                u8 v6[16]      = {0};
-                if (parse_ipv4(ip_buf, v4)) {
-                    SocketAddr a = sockaddr_v4(v4, 53);
-                    VecPushBackR(out, a);
-                } else if (parse_ipv6(ip_buf, v6)) {
-                    SocketAddr a = sockaddr_v6(v6, 53);
-                    VecPushBackR(out, a);
+        // Match "nameserver" + whitespace at the line head. Use
+        // `MemCompare` over the in-iter window plus a peek at offset
+        // `kw_len` for the required separator -- both bounds-checked.
+        char sep;
+        if (StrIterRemainingLength(&si) > kw_len &&
+            MemCompare(si.data + si.pos, NS_KEYWORD, kw_len) == 0 &&
+            StrIterPeekAt(&si, (i64)kw_len, &sep) && (sep == ' ' || sep == '\t')) {
+            StrIterMustMove(&si, (i64)kw_len);
+            skip_hspace_iter(&si);
+
+            size ip_start = si.pos;
+            while (StrIterPeek(&si, &c) && !is_hspace(c) && c != '\n' && c != '#') {
+                StrIterMustNext(&si);
+            }
+            u64 ip_len = (u64)(si.pos - ip_start);
+            if (ip_len > 0 && ip_len < 64) {
+                StrInitStack(ip_buf, 64) {
+                    StrPushBackMany(&ip_buf, (Zstr)(si.data + ip_start), ip_len);
+                    u8 v4[4]  = {0};
+                    u8 v6[16] = {0};
+                    if (parse_ipv4(StrBegin(&ip_buf), v4)) {
+                        SocketAddr a = sockaddr_v4(v4, 53);
+                        VecPushBackR(out, a);
+                    } else if (parse_ipv6(StrBegin(&ip_buf), v6)) {
+                        SocketAddr a = sockaddr_v6(v6, 53);
+                        VecPushBackR(out, a);
+                    }
                 }
             }
         }
 
-        while (p < end && *p != '\n')
-            ++p;
-        if (p < end)
-            ++p;
+        skip_to_eol_iter(&si);
     }
 
     StrDeinit(&buf);
@@ -427,13 +441,21 @@ void DnsResolverDeinit(DnsResolver *self) {
     if (!self) {
         return;
     }
-    if (self->hosts.data) {
+    // Tolerate `DnsResolver r = {0}; DnsResolverDeinit(&r);` (e.g. a
+    // failed `DnsResolverInit` left both vecs zeroed): a zero-init
+    // Vec has `data == NULL` AND `__magic == 0`, so `validate_vec`
+    // would abort. Skip the teardown when there's nothing to tear
+    // down. `VecBegin` is a `NULL`-safe field read that does not
+    // call into the validator.
+    if (VecBegin(&self->hosts)) {
         VecForeachPtr(&self->hosts, e) {
             StrDeinit(&e->name);
         }
         VecDeinit(&self->hosts);
     }
-    VecDeinit(&self->nameservers);
+    if (VecBegin(&self->nameservers)) {
+        VecDeinit(&self->nameservers);
+    }
     self->alloc = NULL;
 }
 
@@ -455,7 +477,7 @@ static void normalize_hostname(Zstr name, Str *out) {
         if (c >= 'A' && c <= 'Z') {
             c = (char)(c + ('a' - 'A'));
         }
-        StrPushBack(out, c);
+        StrPushBackR(out, c);
     }
 }
 
@@ -517,12 +539,13 @@ static i64 udp_round_trip(const SocketAddr *ns, const u8 *query, u64 qlen, u8 *r
 
 // Try one (server, qtype) combo. Appends matching A/AAAA records to
 // `out` as SocketAddrs. Returns true if at least one record was
-// extracted with NOERROR rcode; false otherwise. `id_in` must match
-// the response's transaction id.
+// extracted with NOERROR rcode; false otherwise. The transaction id
+// is generated locally per call (see `random_query_id`) and the
+// response's id is checked to match before the records are extracted.
 static bool try_one_query(
     DnsResolver      *self,
     const SocketAddr *ns,
-    const char       *hostname,
+    Zstr              hostname,
     DnsType           qtype,
     u16               port,
     DnsAddrs         *out
@@ -544,7 +567,8 @@ static bool try_one_query(
     }
 
     u8  resp_buf[1232]; // safe UDP payload (avoids IP fragmentation)
-    i64 got = udp_round_trip(ns, query.data, query.length, resp_buf, sizeof(resp_buf), self->timeout_ms);
+    i64 got =
+        udp_round_trip(ns, VecBegin(&query), VecLen(&query), resp_buf, sizeof(resp_buf), self->timeout_ms);
     VecDeinit(&query);
     if (got <= 0) {
         ArenaAllocatorDeinit(&scratch);
@@ -578,61 +602,58 @@ bool dns_resolve_5_zstr(DnsResolver *self, Zstr hostname, u16 port, SocketKind k
         return false;
     }
 
-    // Normalize the input: strip trailing dot, lowercase. Hostnames are
-    // capped by DNS at 253 chars, so pre-check the raw input and then
-    // back the working Str with a 256-byte stack buffer via StrInitStack.
-    // The spillover allocator is wired up but unreachable -- the bound
-    // check above guarantees we stay inside the cap.
-    char buf[256];
-    if (ZstrLen(hostname) >= sizeof(buf)) {
-        LOG_ERROR("DnsResolve: hostname \"{}\" exceeds 255 bytes", (Zstr)hostname);
+    // Hostnames are capped by DNS at 253 chars; the stack-backed
+    // `Str` below holds 256 to keep the bound check and the buffer
+    // aligned with one literal.
+    if (ZstrLen(hostname) >= 256) {
+        LOG_ERROR("DnsResolve: hostname \"{}\" exceeds 255 bytes", hostname);
         return false;
     }
-    HeapAllocator spill = HeapAllocatorInit();
-    Str           norm;
-    StrInitStack(norm, &spill, sizeof(buf), {
-        normalize_hostname(hostname, &norm);
-        MemCopy(buf, norm.data, norm.length);
-        buf[norm.length] = '\0';
-    });
-    HeapAllocatorDeinit(&spill);
 
-    // 1. /etc/hosts fast path.
     bool found = false;
-    VecForeachPtr(&self->hosts, e) {
-        if (e->name.length > 0 && ZstrCompare(e->name.data, buf) == 0) {
-            SocketAddr a = e->is_ipv6 ? sockaddr_v6(e->ip, port) : sockaddr_v4(e->ip, port);
-            VecPushBackR(out, a);
-            found = true;
-        }
-    }
-    if (found) {
-        return true;
-    }
+    StrInitStack(norm, 256) {
+        // `normalize_hostname` strips trailing dots and lowercases;
+        // `StrInitStack` zero-fills the trailing slot so `StrBegin`
+        // is a valid Zstr for the matchers / DNS query below.
+        normalize_hostname(hostname, &norm);
+        Zstr nq = StrBegin(&norm);
 
-    // 2. Nameserver query path.
-    if (self->nameservers.length == 0) {
-        LOG_ERROR("DnsResolve: no nameservers configured (read /etc/resolv.conf at init)");
-        return false;
-    }
-
-    static const DnsType QUERY_TYPES[] = {DNS_TYPE_A, DNS_TYPE_AAAA};
-    for (u32 i = 0; i < sizeof(QUERY_TYPES) / sizeof(QUERY_TYPES[0]); ++i) {
-        DnsType qtype = QUERY_TYPES[i];
-        // Iterate nameservers; each gets up to `retries` attempts.
-        VecForeachPtr(&self->nameservers, ns) {
-            for (u32 attempt = 0; attempt < self->retries + 1; ++attempt) {
-                if (try_one_query(self, ns, buf, qtype, port, out)) {
-                    found = true;
-                    goto next_qtype;
-                }
+        // 1. /etc/hosts fast path.
+        VecForeachPtr(&self->hosts, e) {
+            if (StrLen(&e->name) > 0 && ZstrCompare(StrBegin(&e->name), nq) == 0) {
+                SocketAddr a = e->is_ipv6 ? sockaddr_v6(e->ip, port) : sockaddr_v4(e->ip, port);
+                VecPushBackR(out, a);
+                found = true;
             }
         }
-next_qtype:;
-    }
+        if (found) {
+            break;
+        }
 
-    if (!found) {
-        LOG_ERROR("DnsResolve: no A/AAAA records found for \"{}\"", (Zstr)hostname);
+        // 2. Nameserver query path.
+        if (VecLen(&self->nameservers) == 0) {
+            LOG_ERROR("DnsResolve: no nameservers configured (read /etc/resolv.conf at init)");
+            break;
+        }
+
+        static const DnsType QUERY_TYPES[] = {DNS_TYPE_A, DNS_TYPE_AAAA};
+        for (u32 i = 0; i < sizeof(QUERY_TYPES) / sizeof(QUERY_TYPES[0]); ++i) {
+            DnsType qtype = QUERY_TYPES[i];
+            // Iterate nameservers; each gets up to `retries` attempts.
+            VecForeachPtr(&self->nameservers, ns) {
+                for (u32 attempt = 0; attempt < self->retries + 1; ++attempt) {
+                    if (try_one_query(self, ns, nq, qtype, port, out)) {
+                        found = true;
+                        goto next_qtype;
+                    }
+                }
+            }
+next_qtype:;
+        }
+
+        if (!found) {
+            LOG_ERROR("DnsResolve: no A/AAAA records found for \"{}\"", hostname);
+        }
     }
     return found;
 }
@@ -665,52 +686,58 @@ bool dns_resolve_4_vec_zstr(DnsResolver *self, Zstr spec, SocketKind kind, DnsAd
         }
     }
     if (colon_at >= spec_len) {
-        LOG_ERROR("DnsResolve: spec \"{}\" has no \":port\"", (Zstr)spec);
+        LOG_ERROR("DnsResolve: spec \"{}\" has no \":port\"", spec);
         return false;
     }
-    char host[256];
-    if (colon_at >= sizeof(host)) {
-        LOG_ERROR("DnsResolve: host portion of \"{}\" exceeds 255 bytes", (Zstr)spec);
+    if (colon_at >= 256) {
+        LOG_ERROR("DnsResolve: host portion of \"{}\" exceeds 255 bytes", spec);
         return false;
     }
-    MemCopy(host, spec, colon_at);
-    host[colon_at] = '\0';
 
+    // Parse and validate the port first so we can fail loudly without
+    // touching the host buffer.
     u16 port = 0;
     for (u64 i = colon_at + 1; i < spec_len; ++i) {
         char c = spec[i];
         if (c < '0' || c > '9') {
-            LOG_ERROR("DnsResolve: non-numeric port in \"{}\"", (Zstr)spec);
+            LOG_ERROR("DnsResolve: non-numeric port in \"{}\"", spec);
             return false;
         }
         u32 next = (u32)port * 10u + (u32)(c - '0');
         if (next > 0xFFFFu) {
-            LOG_ERROR("DnsResolve: port in \"{}\" out of range", (Zstr)spec);
+            LOG_ERROR("DnsResolve: port in \"{}\" out of range", spec);
             return false;
         }
         port = (u16)next;
     }
     // A bare "host:" with no digits after the colon is malformed.
     if (colon_at + 1 == spec_len) {
-        LOG_ERROR("DnsResolve: empty port in \"{}\"", (Zstr)spec);
+        LOG_ERROR("DnsResolve: empty port in \"{}\"", spec);
         return false;
     }
 
-    return dns_resolve_5_zstr(self, host, port, kind, out);
+    // Hold the host slice in a stack-backed Str so the trailing
+    // NUL lives next to the bytes, with no parallel `char host[]`.
+    bool ok = false;
+    StrInitStack(host, 256) {
+        StrPushBackMany(&host, spec, colon_at);
+        ok = dns_resolve_5_zstr(self, StrBegin(&host), port, kind, out);
+    }
+    return ok;
 }
 
 bool dns_resolve_5_str(DnsResolver *self, const Str *hostname, u16 port, SocketKind kind, DnsAddrs *out) {
     if (!self || !hostname || !out) {
         return false;
     }
-    return dns_resolve_5_zstr(self, hostname->data, port, kind, out);
+    return dns_resolve_5_zstr(self, StrBegin(hostname), port, kind, out);
 }
 
 bool dns_resolve_4_vec_str(DnsResolver *self, const Str *spec, SocketKind kind, DnsAddrs *out) {
     if (!self || !spec || !out) {
         return false;
     }
-    return dns_resolve_4_vec_zstr(self, spec->data, kind, out);
+    return dns_resolve_4_vec_zstr(self, StrBegin(spec), kind, out);
 }
 
 bool DnsResolve_4_one(DnsResolver *self, Zstr spec, SocketKind kind, SocketAddr *out) {
@@ -719,9 +746,9 @@ bool DnsResolve_4_one(DnsResolver *self, Zstr spec, SocketKind kind, SocketAddr 
     }
     DnsAddrs addrs    = VecInitT(addrs, self->alloc);
     bool     ok       = dns_resolve_4_vec_zstr(self, spec, kind, &addrs);
-    bool     have_one = ok && addrs.length > 0;
+    bool     have_one = ok && VecLen(&addrs) > 0;
     if (have_one) {
-        *out = addrs.data[0];
+        *out = VecAt(&addrs, 0);
     }
     VecDeinit(&addrs);
     return have_one;

@@ -80,6 +80,28 @@ of the codebase to see them in action.
   In both cases the zero-on-take invariant holds on success AND failure.
 - **R-form (`*FromMemoryCopy` / `VecInsertR`)** copies; the caller's data
   is untouched and remains theirs.
+- **Unsuffixed default = L.** When a family has both `*L` and `*R`
+  variants, the bare unsuffixed name aliases to L: `VecInsert` ≡
+  `VecInsertL`, `ElfOpenFromMemory` is the L-form (`ElfOpenFromMemoryCopy`
+  is the explicit R counterpart). Don't dispatch an unsuffixed macro to
+  an R primitive — that inverts the convention and surprises callers.
+- **L primitives are strict-typed; R primitives are permissive-typed.**
+  L's internal `CHECK_TYPE_EQUIVALENCE` requires the source element
+  type to match the container's element type *exactly* (no const
+  promotion, no integer narrowing) — because L zeroes the source on
+  success, and that's only safe on writeable storage of the right
+  element type. R uses `CHECK_TYPE_CONVERTIBLE`, which accepts any
+  initialization-compatible source (e.g. `int` literal → `char`,
+  `char *` → `const char *`). Two consequences:
+  - Read-only / const sources (`Zstr`, `Cstr`-shaped `(Zstr, size)`)
+    *cannot* ride an L-form macro. The L primitive's strict-type
+    check rejects `const T *` for a `Vec(T)`. So a family whose
+    inputs are only ever const surfaces only R-form variants; there
+    is no L-form and no unsuffixed default — callers spell out `*R`.
+  - Integer literals like `'-'` (type `int` in C11) compile with R's
+    `CHECK_TYPE_CONVERTIBLE` but fail L's `CHECK_TYPE_EQUIVALENCE`.
+    Callers who want L semantics with literals must bind to a typed
+    lvalue first (`char c = '-'; VecInsertL(&v, c, 0)`).
 - **Prefer `Str` to `Zstr`.** `Str` carries its length and allocator
   inline; `Zstr` is a raw NUL-terminated pointer. For stored fields,
   parameters the function needs a length for, and anywhere the caller's
@@ -166,9 +188,56 @@ of the codebase to see them in action.
 - **Allocators fail loud.** Bad free, foreign pointer, state-machine
   violation → `LOG_FATAL` with a backtrace. Soft no-op returns hide bugs;
   this project would rather you crash on the spot.
-- **Stack-promote transient strings** with `StrInitStack(str, alloc, n,
-  body)` and a rough capacity. Don't spin up a fresh `HeapAllocator` to
-  hold a short-lived string.
+- **Stack-promote transient containers** with `*InitStack` (`StrInitStack`,
+  `VecInitStack`, ...) -- see the dedicated section below.
+
+## Stack-init APIs
+
+- **Stack means stack.** `*InitStack` macros take **no allocator**.
+  The backing storage is a stack array sized by the `ne` argument;
+  the container's inline allocator slot is `NULL`. If you would have
+  written `char buf[N]` and tracked its length yourself, use
+  `StrInitStack(name, N) { ... }` instead -- the lifetime, capacity,
+  and zero-on-exit are all expressed by the macro.
+- **Overflow is a contract violation, not a fallback.** Any
+  operation that would grow the container past `ne` lands in the
+  realloc path with a NULL allocator; the runtime aborts with
+  `LOG_FATAL("vector not growable, no allocator assigned, probably
+  stack inited")`. There is no spill / overflow / upstream allocator
+  argument. If a caller legitimately needs spill behaviour, that
+  caller wants an allocator-backed container, not `*InitStack`.
+- **No deep-copy callbacks on stack-init.** `copy_init` / `copy_deinit`
+  hooks take an `Allocator *` for the inner resources they own. A
+  stack-init container has no allocator and so can't pair with deep
+  copies. If you need deep-copy ownership for elements, switch to a
+  heap-backed container -- there is no `*InitStackWithDeepCopy`.
+- **For-chain scope idiom.** The body is regular code below the
+  macro, not a brace-delimited macro argument. This keeps `return` /
+  `break` / `continue` from being macro-mangled and matches `Scope(...)`
+  in `<Misra/Std/Allocator.h>`:
+
+      StrInitStack(buf, 1024) {
+          ssize_t n = read(fd, StrBegin(&buf), 1023);
+          StrResize(&buf, (size)n);
+          StrMergeR(out, &buf);
+      }
+
+  `return` / `goto` leaving the body skip the zero-on-exit cleanup
+  (a C-level limitation, not a bug). Use `break` to leave cleanly.
+- **When to use vs heap container.** Reach for `*InitStack` when the
+  size is bounded by something you control (a syscall buffer, a
+  formatted line, a per-iteration scratch space). Reach for a heap
+  container when the size is caller-controlled or unbounded
+  (parsing arbitrary input, accumulating across iterations whose
+  total is unknown). Don't paper over an unknown-size case with a
+  guessed `ne`.
+- **Don't call `Deinit` on a stack-backed handle inside the scope.**
+  The scope macro zeroes both the backing buffer and the container
+  handle on exit, which invalidates the magic value; after the
+  scope, any operation on the handle (including a stray
+  `StrDeinit` / `VecDeinit`) trips `validate_vec` with the
+  `Either uninitialized or corrupted!` message. Inside the scope,
+  there is no separate teardown to run -- the macro IS the teardown.
 
 ## Libc-free mindset
 
@@ -229,6 +298,20 @@ of the codebase to see them in action.
   (`<Misra/Std/Container/Str/Access.h>`), and the corresponding `Vec`
   ones. Direct field access is reserved for the container's own
   implementation.
+- **`_Generic` arm bodies must have uniform shape.** C11 type-checks
+  *every* arm's body (not just the selected one). An arm that
+  dereferences (`((T *)(val))->field`) and an arm that treats `val`
+  as a value (`(char)(val)`) cannot coexist in the same `_Generic`:
+  when `val` has the *other* arm's type, the non-selected arm fails
+  to type-check (CHECK_TYPE_EQUIVALENCE / CHECK_TYPE_CONVERTIBLE
+  fires inside the unreached arm's macro expansion). Concretely:
+  do not mix single-value arms (`char:`, `int:`) with pointer-deref
+  arms (`Str *:`, `Zstr:`) in one `_Generic`. Split into two macros
+  — one for the single-value shape, one for the range / pointer
+  shape — and give them distinct names (e.g. `*Insert` for single,
+  `*InsertMany` for range). The unified-macro-with-mixed-shapes
+  pattern only works when every arm body has the same pointer-deref
+  or pointer-cast shape.
 
 ## Macro hygiene
 

@@ -249,7 +249,7 @@ static void log_request_summary(Allocator *alloc, Zstr client_addr, Zstr prefix_
     Scope(scope, DefaultAllocator) {
         (void)alloc;
         Str raw = StrInit(scope);
-        StrPushBackZstr(&raw, prefix_bytes);
+        StrPushBackMany(&raw, prefix_bytes);
 
         HttpRequest req = HttpRequestInit(scope);
         Zstr end = HttpRequestParse(&req, (Zstr)StrBegin(&raw));

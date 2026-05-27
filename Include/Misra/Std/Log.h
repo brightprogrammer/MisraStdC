@@ -37,7 +37,7 @@ void Abort(void);
         HeapAllocator UNPL(log_alloc) = HeapAllocatorInit();                                                           \
         Str           UNPL(m)         = StrInit(&UNPL(log_alloc));                                                     \
         StrAppendFmt(&UNPL(m), __VA_ARGS__);                                                                           \
-        LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, UNPL(m).data);                                            \
+        LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, StrBegin(&UNPL(m)));                                            \
         StrDeinit(&UNPL(m));                                                                                           \
         HeapAllocatorDeinit(&UNPL(log_alloc));                                                                         \
         Abort();                                                                                                       \
@@ -51,7 +51,7 @@ void Abort(void);
         HeapAllocator UNPL(log_alloc) = HeapAllocatorInit();                                                           \
         Str           UNPL(m)         = StrInit(&UNPL(log_alloc));                                                     \
         StrAppendFmt(&UNPL(m), __VA_ARGS__);                                                                           \
-        LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, UNPL(m).data);                                            \
+        LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, StrBegin(&UNPL(m)));                                            \
         StrDeinit(&UNPL(m));                                                                                           \
         HeapAllocatorDeinit(&UNPL(log_alloc));                                                                         \
     } while (0)
@@ -64,7 +64,7 @@ void Abort(void);
         HeapAllocator UNPL(log_alloc) = HeapAllocatorInit();                                                           \
         Str           UNPL(m)         = StrInit(&UNPL(log_alloc));                                                     \
         StrAppendFmt(&UNPL(m), __VA_ARGS__);                                                                           \
-        LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, UNPL(m).data);                                             \
+        LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, StrBegin(&UNPL(m)));                                             \
         StrDeinit(&UNPL(m));                                                                                           \
         HeapAllocatorDeinit(&UNPL(log_alloc));                                                                         \
     } while (0)
@@ -87,12 +87,11 @@ void Abort(void);
         HeapAllocator UNPL(log_alloc) = HeapAllocatorInit();                                                           \
         Str           UNPL(m)         = StrInit(&UNPL(log_alloc));                                                     \
         StrAppendFmt(&UNPL(m), __VA_ARGS__);                                                                           \
-        Str UNPL(syserr);                                                                                              \
-        StrInitStack(UNPL(syserr), &UNPL(log_alloc), 256, {                                                            \
+        StrInitStack(UNPL(syserr), 256) {                                                                              \
             StrError(UNPL(sys_eno), &UNPL(syserr));                                                                    \
             StrAppendFmt(&UNPL(m), " : {}", UNPL(syserr));                                                             \
-        });                                                                                                            \
-        LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, UNPL(m).data);                                            \
+        }                                                                                                              \
+        LogWrite(LOG_MESSAGE_TYPE_FATAL, __func__, __LINE__, StrBegin(&UNPL(m)));                                            \
         StrDeinit(&UNPL(m));                                                                                           \
         HeapAllocatorDeinit(&UNPL(log_alloc));                                                                         \
         Abort();                                                                                                       \
@@ -109,12 +108,11 @@ void Abort(void);
         HeapAllocator UNPL(log_alloc) = HeapAllocatorInit();                                                           \
         Str           UNPL(m)         = StrInit(&UNPL(log_alloc));                                                     \
         StrAppendFmt(&UNPL(m), __VA_ARGS__);                                                                           \
-        Str UNPL(syserr);                                                                                              \
-        StrInitStack(UNPL(syserr), &UNPL(log_alloc), 256, {                                                            \
+        StrInitStack(UNPL(syserr), 256) {                                                                              \
             StrError(UNPL(sys_eno), &UNPL(syserr));                                                                    \
             StrAppendFmt(&UNPL(m), " : {}", UNPL(syserr));                                                             \
-        });                                                                                                            \
-        LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, UNPL(m).data);                                            \
+        }                                                                                                              \
+        LogWrite(LOG_MESSAGE_TYPE_ERROR, __func__, __LINE__, StrBegin(&UNPL(m)));                                            \
         StrDeinit(&UNPL(m));                                                                                           \
         HeapAllocatorDeinit(&UNPL(log_alloc));                                                                         \
     } while (0)
@@ -129,12 +127,11 @@ void Abort(void);
         HeapAllocator UNPL(log_alloc) = HeapAllocatorInit();                                                           \
         Str           UNPL(m)         = StrInit(&UNPL(log_alloc));                                                     \
         StrAppendFmt(&UNPL(m), __VA_ARGS__);                                                                           \
-        Str UNPL(syserr);                                                                                              \
-        StrInitStack(UNPL(syserr), &UNPL(log_alloc), 256, {                                                            \
+        StrInitStack(UNPL(syserr), 256) {                                                                              \
             StrError(UNPL(sys_eno), &UNPL(syserr));                                                                    \
             StrAppendFmt(&UNPL(m), " : {}", UNPL(syserr));                                                             \
-        });                                                                                                            \
-        LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, UNPL(m).data);                                             \
+        }                                                                                                              \
+        LogWrite(LOG_MESSAGE_TYPE_INFO, __func__, __LINE__, StrBegin(&UNPL(m)));                                             \
         StrDeinit(&UNPL(m));                                                                                           \
         HeapAllocatorDeinit(&UNPL(log_alloc));                                                                         \
     } while (0)

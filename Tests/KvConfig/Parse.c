@@ -23,7 +23,7 @@ static bool test_kvconfig_basic_parse(void) {
     result = result && (si.pos == si.length);
     result = result && (MapPairCount(&cfg) == 3);
     result = result && KvConfigContains(&cfg, "host");
-    result = result && host && StrCmpZstr(host, "localhost") == 0;
+    result = result && host && StrCmp(host, "localhost") == 0;
     result = result && KvConfigGetI64(&cfg, "port", &port) && (port == 8080);
     result = result && KvConfigGetBool(&cfg, "debug", &debug) && debug;
 
@@ -56,9 +56,9 @@ static bool test_kvconfig_comments_quotes_and_duplicates(void) {
 
     result = result && (si.pos == si.length);
     result = result && (MapPairCount(&cfg) == 4);
-    result = result && path && StrCmpZstr(path, "/srv/my app") == 0;
-    result = result && user && StrCmpZstr(user, "root") == 0;
-    result = result && greet && StrCmpZstr(greet, "hello world") == 0;
+    result = result && path && StrCmp(path, "/srv/my app") == 0;
+    result = result && user && StrCmp(user, "root") == 0;
+    result = result && greet && StrCmp(greet, "hello world") == 0;
     result = result && empty && (StrLen(empty) == 0);
 
     StrDeinit(&src);
@@ -85,13 +85,13 @@ static bool test_kvconfig_get_returns_copy(void) {
     result = result && (StrBegin(&host_copy) != NULL);
     result = result && (StrLen(&host_copy) > 0);
     result = result && (StrBegin(&host_copy) != StrBegin(stored_host));
-    result = result && (StrCmpZstr(&host_copy, "localhost") == 0);
-    result = result && (StrCmpZstr(stored_host, "localhost") == 0);
+    result = result && (StrCmp(&host_copy, "localhost") == 0);
+    result = result && (StrCmp(stored_host, "localhost") == 0);
 
     StrBegin(&host_copy)[0] = 'L';
 
-    result = result && (StrCmpZstr(&host_copy, "Localhost") == 0);
-    result = result && (StrCmpZstr(stored_host, "localhost") == 0);
+    result = result && (StrCmp(&host_copy, "Localhost") == 0);
+    result = result && (StrCmp(stored_host, "localhost") == 0);
 
     StrDeinit(&host_copy);
     StrDeinit(&src);

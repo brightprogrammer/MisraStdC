@@ -104,7 +104,7 @@
 #undef JR_STR_KV
 #define JR_STR_KV(si, k, str)                                                                                          \
     do {                                                                                                               \
-        if (!StrCmpZstr(&key, (k))) {                                                                                  \
+        if (!StrCmp(&key, (k))) {                                                                                  \
             Str UNPL(my_str) = StrInit(&alloc);                                                                        \
             si               = JReadString((si), &UNPL(my_str));                                                       \
             (str)            = UNPL(my_str);                                                                           \

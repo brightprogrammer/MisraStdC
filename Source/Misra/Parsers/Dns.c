@@ -82,8 +82,8 @@ bool dns_build_query_str(DnsWireBuf *out, u16 id, const Str *name, DnsType type)
         return false;
     }
     // Str values are NUL-terminated by construction; encode_qname scans
-    // to '\0', so forward the .data view directly.
-    return dns_build_query_zstr(out, id, name->data, type);
+    // to '\0', so forward the Str's data view directly.
+    return dns_build_query_zstr(out, id, StrBegin(name), type);
 }
 
 // Decode a domain name starting at the iter's current position,
@@ -150,11 +150,11 @@ static bool decode_name(BufIter *it, Str *out_name) {
             return false;
         }
         if (label_idx > 0) {
-            StrPushBack(out_name, '.');
+            StrPushBackR(out_name, '.');
             ++name_len;
         }
         for (u64 i = 0; i < label_len; ++i) {
-            StrPushBack(out_name, (char)it->data[cur + 1 + i]);
+            StrPushBackR(out_name, (char)it->data[cur + 1 + i]);
         }
         name_len += label_len;
         cur      += 1 + label_len;

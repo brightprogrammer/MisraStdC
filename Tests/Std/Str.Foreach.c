@@ -154,7 +154,7 @@ bool test_str_foreach(void) {
     Str result = StrInit(&alloc);
     StrForeach(&s, chr) {
         // Append the character to the result string
-        StrPushBack(&result, chr);
+        StrPushBackR(&result, chr);
     }
 
     // The result should be "Hello"
@@ -180,7 +180,7 @@ bool test_str_foreach_reverse(void) {
 
     StrForeachReverse(&s, chr) {
         // Append the character to the result string
-        StrPushBack(&result, chr);
+        StrPushBackR(&result, chr);
         char_count++;
     }
 
@@ -212,7 +212,7 @@ bool test_str_foreach_ptr(void) {
     Str result = StrInit(&alloc);
     StrForeachPtr(&s, chrptr) {
         // Append the character (via pointer) to the result string
-        StrPushBack(&result, *chrptr);
+        StrPushBackR(&result, *chrptr);
 
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {
@@ -246,7 +246,7 @@ bool test_str_foreach_ptr_reverse(void) {
 
     StrForeachPtrReverse(&s, chrptr) {
         // Append the character (via pointer) to the result string
-        StrPushBack(&result, *chrptr);
+        StrPushBackR(&result, *chrptr);
 
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {
@@ -296,7 +296,7 @@ bool test_str_foreach_in_range_idx(void) {
     Str empty_result = StrInit(&alloc);
     StrForeachInRangeIdx(&s, chr, idx, 3, 3) {
         // This block should not execute
-        StrPushBack(&empty_result, chr);
+        StrPushBackR(&empty_result, chr);
     }
 
     // The empty_result should remain empty
@@ -321,7 +321,7 @@ bool test_str_foreach_in_range(void) {
     Str result = StrInit(&alloc);
     StrForeachInRange(&s, chr, 0, 5) {
         // Append the character to the result string
-        StrPushBack(&result, chr);
+        StrPushBackR(&result, chr);
     }
 
     // The result should be "Hello" (first 5 characters)
@@ -331,7 +331,7 @@ bool test_str_foreach_in_range(void) {
     Str end_result = StrInit(&alloc);
     StrForeachInRange(&s, chr, 6, 11) {
         // Append the character to the result string
-        StrPushBack(&end_result, chr);
+        StrPushBackR(&end_result, chr);
     }
 
     // The end_result should be "World" (last 5 characters)
@@ -388,7 +388,7 @@ bool test_str_foreach_ptr_in_range(void) {
     Str result = StrInit(&alloc);
     StrForeachPtrInRange(&s, chrptr, 0, 5) {
         // Append the character to the result string
-        StrPushBack(&result, *chrptr);
+        StrPushBackR(&result, *chrptr);
 
         // Modify the original string by converting to uppercase
         if (*chrptr >= 'a' && *chrptr <= 'z') {

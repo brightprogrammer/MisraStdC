@@ -44,7 +44,7 @@ static void append_dirname(Str *out, Zstr path) {
         return;
     u64 len = (u64)(last_sep - path);
     for (u64 i = 0; i < len; ++i)
-        StrPushBack(out, path[i]);
+        StrPushBackR(out, path[i]);
 }
 
 // Return the basename portion (last component) of `path`. The returned
@@ -72,7 +72,7 @@ static bool find_pdb(const Pe *pe, Zstr pe_path, Str *out_path) {
 
     // (1) exact CodeView path
     *out_path = StrInit(out_path->allocator);
-    StrPushBackZstr(out_path, pe->codeview.pdb_path);
+    StrPushBackMany(out_path, pe->codeview.pdb_path);
     if (path_exists(out_path->data))
         return true;
 
@@ -84,8 +84,8 @@ static bool find_pdb(const Pe *pe, Zstr pe_path, Str *out_path) {
     out_path->length = 0;
     append_dirname(out_path, pe_path);
     if (out_path->length > 0)
-        StrPushBack(out_path, '/');
-    StrPushBackZstr(out_path, pdb_base);
+        StrPushBackR(out_path, '/');
+    StrPushBackMany(out_path, pdb_base);
     if (path_exists(out_path->data))
         return true;
 

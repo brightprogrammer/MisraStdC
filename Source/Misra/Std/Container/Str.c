@@ -203,6 +203,54 @@ i32 str_compare(const void *lhs, const void *rhs) {
     return 0;
 }
 
+i32 str_cmp_str(const Str *s, const Str *other) {
+    ValidateStr(s);
+    ValidateStr(other);
+    return str_compare(s, other);
+}
+
+i32 str_cmp_zstr(const Str *s, Zstr other) {
+    ValidateStr(s);
+    return ZstrCompare(StrBegin(s), other);
+}
+
+i32 str_cmp_cstr(const Str *s, Zstr other, size other_len) {
+    ValidateStr(s);
+    return ZstrCompareN(StrBegin(s), other, other_len);
+}
+
+i32 str_cmp_str_ignore_case(const Str *s, const Str *other) {
+    ValidateStr(s);
+    ValidateStr(other);
+    return ZstrCompareIgnoreCase(StrBegin(s), StrBegin(other));
+}
+
+i32 str_cmp_zstr_ignore_case(const Str *s, Zstr other) {
+    ValidateStr(s);
+    return ZstrCompareIgnoreCase(StrBegin(s), other);
+}
+
+i32 str_cmp_cstr_ignore_case(const Str *s, Zstr other, size other_len) {
+    ValidateStr(s);
+    return ZstrCompareNIgnoreCase(StrBegin(s), other, other_len);
+}
+
+Zstr str_find_cstr(const Str *s, Zstr key, size key_len) {
+    ValidateStr(s);
+    return ZstrFindSubstringN(StrBegin(s), key, key_len);
+}
+
+Zstr str_find_zstr(const Str *s, Zstr key) {
+    ValidateStr(s);
+    return ZstrFindSubstring(StrBegin(s), key);
+}
+
+Zstr str_find_str(const Str *s, const Str *key) {
+    ValidateStr(s);
+    ValidateStr(key);
+    return ZstrFindSubstringN(StrBegin(s), StrBegin(key), StrLen(key));
+}
+
 static StrIters str_split_to_iters_impl(Str *s, Zstr key, size keylen) {
     ValidateStr(s);
 
@@ -426,7 +474,7 @@ void str_replace_cstr(Str *s, Zstr match, size match_len, Zstr replacement, size
     while (i + match_len <= s->length && replaced < count) {
         if (MemCompare(s->data + i, match, match_len) == 0) {
             StrDeleteRange(s, i, match_len);
-            StrInsert(s, replacement, i, replacement_len);
+            StrInsertMany(s, replacement, replacement_len, i);
             i        += replacement_len;
             replaced += 1;
         } else {
@@ -525,19 +573,19 @@ Str *StrFromU64(Str *str, u64 value, const StrIntFormat *config) {
 
     // Add prefix if requested
     if (config->use_prefix) {
-        if (!StrPushBack(str, '0')) {
+        if (!StrPushBackR(str, '0')) {
             return NULL;
         }
         if (config->base == 2) {
-            if (!StrPushBack(str, 'b')) {
+            if (!StrPushBackR(str, 'b')) {
                 return NULL;
             }
         } else if (config->base == 8) {
-            if (!StrPushBack(str, 'o')) {
+            if (!StrPushBackR(str, 'o')) {
                 return NULL;
             }
         } else if (config->base == 16) {
-            if (!StrPushBack(str, 'x')) {
+            if (!StrPushBackR(str, 'x')) {
                 return NULL;
             }
         }
@@ -545,7 +593,7 @@ Str *StrFromU64(Str *str, u64 value, const StrIntFormat *config) {
 
     // Convert number to string
     if (value == 0) {
-        if (!StrPushBack(str, '0')) {
+        if (!StrPushBackR(str, '0')) {
             return NULL;
         }
     } else {
@@ -559,7 +607,7 @@ Str *StrFromU64(Str *str, u64 value, const StrIntFormat *config) {
 
         // Add digits in correct order
         while (pos > 0) {
-            if (!StrPushBack(str, buffer[--pos])) {
+            if (!StrPushBackR(str, buffer[--pos])) {
                 return NULL;
             }
         }
@@ -598,7 +646,7 @@ Str *StrFromI64(Str *str, i64 value, const StrIntFormat *config) {
     // Add sign for negative decimal numbers AFTER conversion
     if (is_negative && config->base == 10) {
         // Insert the negative sign at the beginning
-        if (!StrInsertCharAt(str, '-', 0)) {
+        if (!StrInsertR(str, '-', 0)) {
             return NULL;
         }
     }
@@ -624,7 +672,7 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
     if (isnan_f64(value)) {
         Zstr nan_str = config->uppercase ? "NAN" : "nan";
         for (size_t i = 0; i < 3; i++) {
-            if (!StrPushBack(str, nan_str[i])) {
+            if (!StrPushBackR(str, nan_str[i])) {
                 return NULL;
             }
         }
@@ -633,17 +681,17 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
 
     if (isinf_f64(value)) {
         if (value < 0) {
-            if (!StrPushBack(str, '-')) {
+            if (!StrPushBackR(str, '-')) {
                 return NULL;
             }
         } else if (config->always_sign) {
-            if (!StrPushBack(str, '+')) {
+            if (!StrPushBackR(str, '+')) {
                 return NULL;
             }
         }
         Zstr inf_str = config->uppercase ? "INF" : "inf";
         for (size_t i = 0; i < 3; i++) {
-            if (!StrPushBack(str, inf_str[i])) {
+            if (!StrPushBackR(str, inf_str[i])) {
                 return NULL;
             }
         }
@@ -652,12 +700,12 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
 
     // Handle sign
     if (value < 0) {
-        if (!StrPushBack(str, '-')) {
+        if (!StrPushBackR(str, '-')) {
             return NULL;
         }
         value = -value;
     } else if (config->always_sign) {
-        if (!StrPushBack(str, '+')) {
+        if (!StrPushBackR(str, '+')) {
             return NULL;
         }
     }
@@ -682,12 +730,12 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
 
         // Format mantissa with proper rounding
         i64 int_part = (i64)mantissa;
-        if (!StrPushBack(str, '0' + int_part)) {
+        if (!StrPushBackR(str, '0' + int_part)) {
             return NULL;
         }
 
         if (config->precision > 0) {
-            if (!StrPushBack(str, '.')) {
+            if (!StrPushBackR(str, '.')) {
                 return NULL;
             }
             f64 frac_part = mantissa - int_part;
@@ -697,7 +745,7 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
                 int digit  = (int)(frac_part + 0.5); // Round each digit individually
                 if (digit >= 10)
                     digit = 9;                       // Clamp to prevent overflow
-                if (!StrPushBack(str, '0' + digit)) {
+                if (!StrPushBackR(str, '0' + digit)) {
                     return NULL;
                 }
                 frac_part -= (int)frac_part; // Remove the integer part
@@ -705,15 +753,15 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
         }
 
         // Add exponent
-        if (!StrPushBack(str, config->uppercase ? 'E' : 'e')) {
+        if (!StrPushBackR(str, config->uppercase ? 'E' : 'e')) {
             return NULL;
         }
         if (exp >= 0) {
-            if (!StrPushBack(str, '+')) {
+            if (!StrPushBackR(str, '+')) {
                 return NULL;
             }
         } else {
-            if (!StrPushBack(str, '-')) {
+            if (!StrPushBackR(str, '-')) {
                 return NULL;
             }
             exp = -exp;
@@ -721,7 +769,7 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
 
         // Format exponent digits (always at least 2 digits)
         if (exp == 0) {
-            if (!StrPushBack(str, '0') || !StrPushBack(str, '0')) {
+            if (!StrPushBackR(str, '0') || !StrPushBackR(str, '0')) {
                 return NULL;
             }
         } else {
@@ -736,7 +784,7 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
                 exp_buf[exp_pos++] = '0';
             }
             while (exp_pos > 0) {
-                if (!StrPushBack(str, exp_buf[--exp_pos])) {
+                if (!StrPushBackR(str, exp_buf[--exp_pos])) {
                     return NULL;
                 }
             }
@@ -747,7 +795,7 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
 
         // Format integer part
         if (int_part == 0) {
-            if (!StrPushBack(str, '0')) {
+            if (!StrPushBackR(str, '0')) {
                 return NULL;
             }
         } else {
@@ -758,7 +806,7 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
                 int_part           /= 10;
             }
             while (int_pos > 0) {
-                if (!StrPushBack(str, int_buf[--int_pos])) {
+                if (!StrPushBackR(str, int_buf[--int_pos])) {
                     return NULL;
                 }
             }
@@ -766,7 +814,7 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
 
         // Format fractional part
         if (config->precision > 0) {
-            if (!StrPushBack(str, '.')) {
+            if (!StrPushBackR(str, '.')) {
                 return NULL;
             }
 
@@ -787,7 +835,7 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
                     digit++;
                 }
 
-                if (!StrPushBack(str, '0' + digit)) {
+                if (!StrPushBackR(str, '0' + digit)) {
                     return NULL;
                 }
                 frac_part -= digit;

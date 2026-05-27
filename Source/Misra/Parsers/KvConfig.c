@@ -20,14 +20,14 @@ static bool kvconfig_parse_bool_value(const Str *value, bool *out) {
 
     ValidateStr(value);
 
-    if (StrCmpZstrIgnoreCase(value, "true") == 0 || StrCmpZstrIgnoreCase(value, "yes") == 0 ||
-        StrCmpZstrIgnoreCase(value, "on") == 0 || StrCmpZstrIgnoreCase(value, "1") == 0) {
+    if (StrCmpIgnoreCase(value, "true") == 0 || StrCmpIgnoreCase(value, "yes") == 0 ||
+        StrCmpIgnoreCase(value, "on") == 0 || StrCmpIgnoreCase(value, "1") == 0) {
         *out = true;
         return true;
     }
 
-    if (StrCmpZstrIgnoreCase(value, "false") == 0 || StrCmpZstrIgnoreCase(value, "no") == 0 ||
-        StrCmpZstrIgnoreCase(value, "off") == 0 || StrCmpZstrIgnoreCase(value, "0") == 0) {
+    if (StrCmpIgnoreCase(value, "false") == 0 || StrCmpIgnoreCase(value, "no") == 0 ||
+        StrCmpIgnoreCase(value, "off") == 0 || StrCmpIgnoreCase(value, "0") == 0) {
         *out = false;
         return true;
     }
@@ -121,7 +121,7 @@ StrIter KvConfigReadKey(StrIter si, Str *key) {
             break;
         }
 
-        StrPushBack(key, c);
+        StrPushBackR(key, c);
         StrIterMustNext(&si);
     }
 
@@ -168,17 +168,17 @@ StrIter KvConfigReadValue(StrIter si, Str *value) {
 
                 switch (c) {
                     case 'n' :
-                        StrPushBack(value, '\n');
+                        StrPushBackR(value, '\n');
                         break;
                     case 'r' :
-                        StrPushBack(value, '\r');
+                        StrPushBackR(value, '\r');
                         break;
                     case 't' :
-                        StrPushBack(value, '\t');
+                        StrPushBackR(value, '\t');
                         break;
                     default :
                         // Pass any other escaped character through verbatim.
-                        StrPushBack(value, c);
+                        StrPushBackR(value, c);
                         break;
                 }
 
@@ -186,7 +186,7 @@ StrIter KvConfigReadValue(StrIter si, Str *value) {
                 continue;
             }
 
-            StrPushBack(value, c);
+            StrPushBackR(value, c);
             StrIterMustNext(&si);
         }
 
@@ -209,7 +209,7 @@ StrIter KvConfigReadValue(StrIter si, Str *value) {
             return si;
         }
 
-        StrPushBack(value, c);
+        StrPushBackR(value, c);
         StrIterMustNext(&si);
     }
 

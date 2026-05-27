@@ -273,13 +273,13 @@ Proc proc_init(Zstr filepath, char **argv, char **envp, Allocator *alloc) {
     PROCESS_INFORMATION pi = {0};
 
     Str cmdline = StrInit(alloc);
-    StrPushBackZstr(&cmdline, filepath);
+    StrPushBackMany(&cmdline, filepath);
     for (char **arg = argv + 1; *arg; ++arg) {
-        StrPushBack(&cmdline, ' ');
-        StrPushBackZstr(&cmdline, *arg);
+        StrPushBackR(&cmdline, ' ');
+        StrPushBackMany(&cmdline, *arg);
     }
 
-    if (!CreateProcessA(NULL, cmdline.data, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
+    if (!CreateProcessA(NULL, StrBegin(&cmdline), NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
         LOG_ERROR("CreateProcessA() failed (GetLastError={})", (i32)GetLastError());
         StrDeinit(&cmdline);
         CloseHandle(hStdinRead);
@@ -517,10 +517,10 @@ i32 ProcWriteToStdin(Proc *proc, Str *buf) {
     }
 
 #if PLATFORM_UNIX
-    return write(proc->_stdin_fd, buf->data, buf->length);
+    return write(proc->_stdin_fd, StrBegin(buf), StrLen(buf));
 #else
     DWORD written = 0;
-    if (!WriteFile(proc->_hStdinWrite, buf->data, buf->length, &written, NULL))
+    if (!WriteFile(proc->_hStdinWrite, StrBegin(buf), StrLen(buf), &written, NULL))
         return -1;
     return (int)written;
 #endif
@@ -535,87 +535,72 @@ i32 sys_proc_read_internal(Proc *proc, Str *buf, bool is_stdout) {
     // to the function's i32 return type doesn't have to round-trip
     // through u64. A subprocess producing >2 GiB on a single stream
     // still saturates the i32 return -- documented limitation.
-    i64  total_read   = 0;
-    char tmpbuf[1024] = {0};
+    i64 total_read = 0;
 
+    // Stack-backed staging buffer: `read`/`ReadFile` writes into
+    // `StrBegin(&tmpbuf)`, `StrResize` records the actual byte count,
+    // then `StrMergeR` copies into the caller's `buf`. The
+    // `StrInitStack` scope owns `tmpbuf`'s lifetime end-to-end.
+    StrInitStack(tmpbuf, 1024) {
 #if PLATFORM_UNIX
-    i32 rfd = is_stdout ? proc->_stdout_fd : proc->_stderr_fd;
+        i32 rfd = is_stdout ? proc->_stdout_fd : proc->_stderr_fd;
 
-    // // Save original flags and switch to blocking
-    // int flags = fcntl(rfd, F_GETFL, 0);
-    // if (flags == -1) {
-    //     LOG_SYS_ERROR("fcntl get failed");
-    //     return -1;
-    // }
-
-    // // set to non-blocking read
-    // if (flags & O_NONBLOCK) {
-    //     if (fcntl(rfd, F_SETFL, flags & ~O_NONBLOCK) == -1) {
-    //         LOG_SYS_ERROR("fcntl set blocking failed");
-    //         return -1;
-    //     }
-    // }
-
-    while (true) {
-        ssize_t n = read(rfd, tmpbuf, 1023);
-        if (n > 0) {
-            StrPushBackCstr(buf, tmpbuf, n);
-            total_read += n;
-        } else if (n == 0) {
-            // EOF
-            break;
-        } else {
-            // Direct-syscall path returns -EINTR; libc returns -1 + sets errno.
+        while (true) {
+            ssize_t n = read(rfd, StrBegin(&tmpbuf), 1023);
+            if (n > 0) {
+                StrResize(&tmpbuf, (size)n);
+                StrMergeR(buf, &tmpbuf);
+                total_read += n;
+            } else if (n == 0) {
+                // EOF
+                break;
+            } else {
+                // Direct-syscall path returns -EINTR; libc returns -1 + sets errno.
 #    if FEATURE_DIRECT_SYSCALL
-            if (n == -EINTR)
-                continue;
+                if (n == -EINTR)
+                    continue;
 #    else
-            if (Errno() == EINTR)
-                continue;
+                if (Errno() == EINTR)
+                    continue;
 #    endif
-            LOG_SYS_ERROR(ErrnoOf(n), "read failed");
-            total_read = -1;
-            break;
+                LOG_SYS_ERROR(ErrnoOf(n), "read failed");
+                total_read = -1;
+                break;
+            }
         }
-    }
-
-    // // Restore non-blocking mode if it was set
-    // if (flags & O_NONBLOCK) {
-    //     if (fcntl(rfd, F_SETFL, flags) == -1) {
-    //         LOG_SYS_ERROR("fcntl restore");
-    //         return -1;
-    //     }
-    // }
 #else
-    while (true) {
-        DWORD  available = 0;
-        HANDLE rhandle   = is_stdout ? proc->_hStdoutRead : proc->_hStderrRead;
+        while (true) {
+            DWORD  available = 0;
+            HANDLE rhandle   = is_stdout ? proc->_hStdoutRead : proc->_hStderrRead;
 
-        if (!PeekNamedPipe(rhandle, NULL, 0, NULL, &available, NULL)) {
-            LOG_ERROR("PeekNamedPipe failed (GetLastError={})", (i32)GetLastError());
-            return -1;
+            if (!PeekNamedPipe(rhandle, NULL, 0, NULL, &available, NULL)) {
+                LOG_ERROR("PeekNamedPipe failed (GetLastError={})", (i32)GetLastError());
+                total_read = -1;
+                break;
+            }
+
+            if (available == 0) {
+                // EOF or no data
+                break;
+            }
+
+            DWORD bytes_read = 0;
+            if (!ReadFile(rhandle, StrBegin(&tmpbuf), 1023, &bytes_read, NULL)) {
+                LOG_ERROR("ReadFile failed (GetLastError={})", (i32)GetLastError());
+                total_read = -1;
+                break;
+            }
+
+            if (bytes_read == 0) {
+                break;
+            }
+
+            StrResize(&tmpbuf, bytes_read);
+            StrMergeR(buf, &tmpbuf);
+            total_read += bytes_read;
         }
-
-        if (available == 0) {
-            // EOF or no data
-            break;
-        }
-
-        DWORD bytes_read = 0;
-
-        if (!ReadFile(rhandle, tmpbuf, 1023, &bytes_read, NULL)) {
-            LOG_ERROR("ReadFile failed (GetLastError={})", (i32)GetLastError());
-            return -1;
-        }
-
-        if (bytes_read == 0) {
-            break;
-        }
-
-        StrPushBackCstr(buf, tmpbuf, bytes_read);
-        total_read += bytes_read;
-    }
 #endif
+    }
 
     return (i32)total_read;
 }

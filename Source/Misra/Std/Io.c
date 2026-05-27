@@ -279,7 +279,7 @@ static bool pad_numeric_zeros(Str *o, size content_start, size width, size conte
         insert_pos += 1;
     }
     for (size i = 0; i < pad_len; i++) {
-        if (!StrInsertCharAt(o, '0', insert_pos)) {
+        if (!StrInsertR(o, '0', insert_pos)) {
             return false;
         }
     }
@@ -295,14 +295,14 @@ bool StrPad(Str *o, size width, Alignment align, size content_len) {
     if (align == ALIGN_RIGHT) {
         // Pad on left
         for (size i = 0; i < pad_len; i++) {
-            if (!StrPushFront(o, ' ')) {
+            if (!StrPushFrontR(o, ' ')) {
                 return false;
             }
         }
     } else if (align == ALIGN_LEFT) {
         // Pad on right
         for (size i = 0; i < pad_len; i++) {
-            if (!StrPushBack(o, ' ')) {
+            if (!StrPushBackR(o, ' ')) {
                 return false;
             }
         }
@@ -312,14 +312,14 @@ bool StrPad(Str *o, size width, Alignment align, size content_len) {
 
         // Pad on left
         for (size i = 0; i < left_pad; i++) {
-            if (!StrPushFront(o, ' ')) {
+            if (!StrPushFrontR(o, ' ')) {
                 return false;
             }
         }
 
         // Pad on right
         for (size i = 0; i < right_pad; i++) {
-            if (!StrPushBack(o, ' ')) {
+            if (!StrPushBackR(o, ' ')) {
                 return false;
             }
         }
@@ -343,7 +343,7 @@ bool str_append_fmt(Str *o, Zstr fmt, TypeSpecificIO *args, u64 argc) {
         if (fmt[i] == '{') {
             // Check for escaped brace
             if (i + 1 < fmt_len && fmt[i + 1] == '{') {
-                if (!StrPushBack(o, '{')) {
+                if (!StrPushBackR(o, '{')) {
                     return false;
                 }
                 i++; // Skip next brace
@@ -498,7 +498,7 @@ bool str_append_fmt(Str *o, Zstr fmt, TypeSpecificIO *args, u64 argc) {
         } else if (fmt[i] == '}') {
             // Check for escaped brace
             if (i + 1 < fmt_len && fmt[i + 1] == '}') {
-                if (!StrPushBack(o, '}')) {
+                if (!StrPushBackR(o, '}')) {
                     return false;
                 }
                 i++; // Skip next brace
@@ -507,7 +507,7 @@ bool str_append_fmt(Str *o, Zstr fmt, TypeSpecificIO *args, u64 argc) {
             LOG_ERROR("Unmatched closing brace");
             return false;
         } else {
-            if (!StrPushBack(o, fmt[i])) {
+            if (!StrPushBackR(o, fmt[i])) {
                 return false;
             }
         }
@@ -582,7 +582,7 @@ bool f_write_fmt(File *stream, Zstr fmtstr, TypeSpecificIO *argv, u64 argc, bool
     // (4096) are atomic on POSIX, so concurrent threads don't shred
     // each other's output.
     if (ok && append_newline) {
-        StrPushBack(&out, '\n');
+        StrPushBackR(&out, '\n');
     }
 
     if (ok && out.length > 0 && FileWrite(stream, out.data, out.length) != (i64)out.length) {
@@ -1139,7 +1139,7 @@ void f_read_fmt(File *file, Zstr fmtstr, TypeSpecificIO *argv, u64 argc) {
         LOG_INFO("Reading from non-seekable channel.");
         char buf_byte = 0;
         while (FileRead(file, &buf_byte, 1) == 1) {
-            StrPushBack(&buffer, buf_byte);
+            StrPushBackR(&buffer, buf_byte);
         }
         str_read_fmt(buffer.data, fmtstr, argv, argc);
     } else {
@@ -1205,11 +1205,11 @@ static inline bool write_int_as_chars(Str *o, FormatFlags flags, u64 value, size
             // For 'a'/'A' format specifier (force_case), apply case conversion
             // For 'c' format specifier, preserve the original case
             if (force_case) {
-                if (!StrPushBack(o, is_caps ? TO_UPPER(byte) : TO_LOWER(byte))) {
+                if (!StrPushBackR(o, is_caps ? TO_UPPER(byte) : TO_LOWER(byte))) {
                     return false;
                 }
             } else {
-                if (!StrPushBack(o, byte)) {
+                if (!StrPushBackR(o, byte)) {
                     return false;
                 }
             }
@@ -1220,7 +1220,7 @@ static inline bool write_int_as_chars(Str *o, FormatFlags flags, u64 value, size
             char c1  = hiw < 10 ? '0' + hiw : is_caps ? 'A' + (hiw - 10) : 'a' + (hiw - 10);
             char c2  = low < 10 ? '0' + low : is_caps ? 'A' + (low - 10) : 'a' + (low - 10);
 
-            if (!StrPushBackZstr(o, "\\x") || !StrPushBack(o, c1) || !StrPushBack(o, c2)) {
+            if (!StrPushBackMany(o, "\\x") || !StrPushBackR(o, c1) || !StrPushBackR(o, c2)) {
                 return false;
             }
         }
@@ -1242,25 +1242,26 @@ static inline bool write_char_internal(Str *o, FormatFlags flags, Zstr vs, size 
             // For 'a'/'A' format specifier (force_case), apply case conversion
             // For 'c' format specifier, preserve the original case
             if (force_case) {
-                if (!StrPushBack(o, is_caps ? TO_UPPER(*vs) : TO_LOWER(*vs))) {
+                if (!StrPushBackR(o, is_caps ? TO_UPPER(*vs) : TO_LOWER(*vs))) {
                     return false;
                 }
             } else {
-                if (!StrPushBack(o, *vs)) {
+                if (!StrPushBackR(o, *vs)) {
                     return false;
                 }
             }
         } else {
-            if (!StrPushBackZstr(o, "\\x")) {
-                return false;
-            }
-            u8   c     = *vs;
-            u8   low   = c & 0xf;
-            u8   hiw   = (c >> 4) & 0xf;
-            char c1    = hiw < 10 ? '0' + hiw : is_caps ? 'A' + (hiw - 10) : 'a' + (hiw - 10);
-            char c2    = low < 10 ? '0' + low : is_caps ? 'A' + (low - 10) : 'a' + (low - 10);
-            char cs[3] = {'\\', c1, c2};
-            if (!StrPushBackCstr(o, cs, 3)) {
+            // Non-printable byte -> "\xHH" escape. Same pattern as the
+            // hex-escape branch in the byte-loop above; the previous
+            // version here used an intermediate `char cs[3] = {'\\',
+            // c1, c2}` after already pushing "\\x", duplicating the
+            // backslash, and decayed `char *` couldn't satisfy Zstr.
+            u8   c   = *vs;
+            u8   low = c & 0xf;
+            u8   hiw = (c >> 4) & 0xf;
+            char c1  = hiw < 10 ? '0' + hiw : is_caps ? 'A' + (hiw - 10) : 'a' + (hiw - 10);
+            char c2  = low < 10 ? '0' + low : is_caps ? 'A' + (low - 10) : 'a' + (low - 10);
+            if (!StrPushBackMany(o, "\\x") || !StrPushBackR(o, c1) || !StrPushBackR(o, c2)) {
                 return false;
             }
         }
@@ -1331,18 +1332,18 @@ static bool float_fmt_append_exponent(Str *out, i64 exponent, bool uppercase) {
         }
     }
 
-    if (!StrPushBack(out, uppercase ? 'E' : 'e') || !StrPushBack(out, sign)) {
+    if (!StrPushBackR(out, uppercase ? 'E' : 'e') || !StrPushBackR(out, sign)) {
         return false;
     }
 
     if (digit_count < 2) {
-        if (!StrPushBack(out, '0')) {
+        if (!StrPushBackR(out, '0')) {
             return false;
         }
     }
 
     while (digit_count > 0) {
-        if (!StrPushBack(out, digits[--digit_count])) {
+        if (!StrPushBackR(out, digits[--digit_count])) {
             return false;
         }
     }
@@ -1378,7 +1379,7 @@ bool float_try_to_decimal_str(Str *out, Float *value, u32 precision, bool has_pr
         result = StrInit(alloc);
 
         if (canonical.data[0] == '-') {
-            if (!StrPushBack(&result, '-')) {
+            if (!StrPushBackR(&result, '-')) {
                 goto fail;
             }
             body++;
@@ -1386,16 +1387,16 @@ bool float_try_to_decimal_str(Str *out, Float *value, u32 precision, bool has_pr
 
         dot = ZstrFindChar(body, '.');
         if (!dot) {
-            if (!StrPushBackCstr(&result, body, ZstrLen(body))) {
+            if (!StrPushBackMany(&result, body, ZstrLen(body))) {
                 goto fail;
             }
 
             if (precision > 0) {
-                if (!StrPushBack(&result, '.')) {
+                if (!StrPushBackR(&result, '.')) {
                     goto fail;
                 }
                 for (u32 i = 0; i < precision; i++) {
-                    if (!StrPushBack(&result, '0')) {
+                    if (!StrPushBackR(&result, '0')) {
                         goto fail;
                     }
                 }
@@ -1409,18 +1410,18 @@ bool float_try_to_decimal_str(Str *out, Float *value, u32 precision, bool has_pr
         prefix = (u64)(dot - body);
         frac   = (u64)ZstrLen(dot + 1);
 
-        if (!StrPushBackCstr(&result, body, prefix)) {
+        if (!StrPushBackMany(&result, body, prefix)) {
             goto fail;
         }
         if (precision > 0) {
-            if (!StrPushBack(&result, '.')) {
+            if (!StrPushBackR(&result, '.')) {
                 goto fail;
             }
-            if (!StrPushBackCstr(&result, dot + 1, MIN2(frac, (u64)precision))) {
+            if (!StrPushBackMany(&result, dot + 1, MIN2(frac, (u64)precision))) {
                 goto fail;
             }
             for (u32 i = (u32)MIN2(frac, (u64)precision); i < precision; i++) {
-                if (!StrPushBack(&result, '0')) {
+                if (!StrPushBackR(&result, '0')) {
                     goto fail;
                 }
             }
@@ -1464,19 +1465,19 @@ bool float_try_to_scientific_str(
 
     if (FloatIsZero(value)) {
         if (value->negative) {
-            if (!StrPushBack(&result, '-')) {
+            if (!StrPushBackR(&result, '-')) {
                 goto fail;
             }
         }
-        if (!StrPushBack(&result, '0')) {
+        if (!StrPushBackR(&result, '0')) {
             goto fail;
         }
         if (has_precision && precision > 0) {
-            if (!StrPushBack(&result, '.')) {
+            if (!StrPushBackR(&result, '.')) {
                 goto fail;
             }
             for (u32 i = 0; i < precision; i++) {
-                if (!StrPushBack(&result, '0')) {
+                if (!StrPushBackR(&result, '0')) {
                     goto fail;
                 }
             }
@@ -1490,28 +1491,28 @@ bool float_try_to_scientific_str(
     }
 
     if (value->negative) {
-        if (!StrPushBack(&result, '-')) {
+        if (!StrPushBackR(&result, '-')) {
             goto fail;
         }
     }
 
     exponent = value->exponent + (i64)digits.length - 1;
-    if (!StrPushBack(&result, digits.data[0])) {
+    if (!StrPushBackR(&result, digits.data[0])) {
         goto fail;
     }
 
     frac_digits = has_precision ? precision : (digits.length > 0 ? digits.length - 1 : 0);
     if (frac_digits > 0) {
-        if (!StrPushBack(&result, '.')) {
+        if (!StrPushBackR(&result, '.')) {
             goto fail;
         }
         for (u64 i = 0; i < frac_digits; i++) {
             if (i + 1 < digits.length) {
-                if (!StrPushBack(&result, digits.data[i + 1])) {
+                if (!StrPushBackR(&result, digits.data[i + 1])) {
                     goto fail;
                 }
             } else {
-                if (!StrPushBack(&result, '0')) {
+                if (!StrPushBackR(&result, '0')) {
                     goto fail;
                 }
             }
@@ -1657,7 +1658,7 @@ bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
             StrIntFormat config = {.base = 16, .uppercase = (fmt_info->flags & FMT_FLAG_CAPS) != 0};
             StrForeachIdx(s, c, i) {
                 if (i > 0) {
-                    if (!StrPushBack(o, ' ')) {
+                    if (!StrPushBackR(o, ' ')) {
                         return false;
                     }
                 }
@@ -1669,12 +1670,12 @@ bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
                 }
                 // Ensure 2 digits with leading zero
                 if (hex.length == 1) {
-                    if (!StrPushFront(&hex, '0')) {
+                    if (!StrPushFrontR(&hex, '0')) {
                         StrDeinit(&hex);
                         return false;
                     }
                 }
-                if (!StrPushBackZstr(o, "0x") || !StrMerge(o, &hex)) {
+                if (!StrPushBackMany(o, "0x") || !StrMerge(o, &hex)) {
                     StrDeinit(&hex);
                     return false;
                 }
@@ -1700,13 +1701,13 @@ bool _write_Str(Str *o, FmtInfo *fmt_info, Str *s) {
             } else {
                 StrForeachInRange(s, c, 0, len) {
                     if (IS_PRINTABLE(c)) {
-                        if (!StrPushBack(o, c)) {
+                        if (!StrPushBackR(o, c)) {
                             return false;
                         }
                     } else {
                         Zstr digits = "0123456789abcdef";
-                        if (!StrPushBackZstr(o, "\\x") || !StrPushBack(o, digits[(c >> 4) & 0xf]) ||
-                            !StrPushBack(o, digits[c & 0xf])) {
+                        if (!StrPushBackMany(o, "\\x") || !StrPushBackR(o, digits[(c >> 4) & 0xf]) ||
+                            !StrPushBackR(o, digits[c & 0xf])) {
                             return false;
                         }
                     }
@@ -1745,7 +1746,7 @@ bool _write_Zstr(Str *o, FmtInfo *fmt_info, Zstr *s) {
             size i = 0;
             while (xs[i]) {
                 if (i > 0) {
-                    if (!StrPushBack(o, ' ')) {
+                    if (!StrPushBackR(o, ' ')) {
                         return false;
                     }
                 }
@@ -1758,12 +1759,12 @@ bool _write_Zstr(Str *o, FmtInfo *fmt_info, Zstr *s) {
                 }
                 // Ensure 2 digits with leading zero
                 if (hex.length == 1) {
-                    if (!StrPushFront(&hex, '0')) {
+                    if (!StrPushFrontR(&hex, '0')) {
                         StrDeinit(&hex);
                         return false;
                     }
                 }
-                if (!StrPushBackZstr(o, "0x") || !StrMerge(o, &hex)) {
+                if (!StrPushBackMany(o, "0x") || !StrMerge(o, &hex)) {
                     StrDeinit(&hex);
                     return false;
                 }
@@ -1792,13 +1793,13 @@ bool _write_Zstr(Str *o, FmtInfo *fmt_info, Zstr *s) {
             } else {
                 for (size i = 0; i < len; i++) {
                     if (IS_PRINTABLE(xs[i])) {
-                        if (!StrPushBack(o, xs[i])) {
+                        if (!StrPushBackR(o, xs[i])) {
                             return false;
                         }
                     } else {
                         Zstr digits = "0123456789abcdef";
-                        if (!StrPushBackZstr(o, "\\x") || !StrPushBack(o, digits[(xs[i] >> 4) & 0xf]) ||
-                            !StrPushBack(o, digits[xs[i] & 0xf])) {
+                        if (!StrPushBackMany(o, "\\x") || !StrPushBackR(o, digits[(xs[i] >> 4) & 0xf]) ||
+                            !StrPushBackR(o, digits[xs[i] & 0xf])) {
                             return false;
                         }
                     }
@@ -2061,28 +2062,28 @@ bool _write_f64(Str *o, FmtInfo *fmt_info, f64 *v) {
     if (F64IsNan(*v)) {
         // Direct string append for NaN
         if (fmt_info->flags & FMT_FLAG_CAPS) {
-            if (!StrPushBackZstr(o, "F64_NAN")) {
+            if (!StrPushBackMany(o, "F64_NAN")) {
                 return false;
             }
         } else {
-            if (!StrPushBackZstr(o, "nan")) {
+            if (!StrPushBackMany(o, "nan")) {
                 return false;
             }
         }
     } else if (F64IsInf(*v)) {
         // Direct string append for infinity
         if (*v < 0) {
-            if (!StrPushBack(o, '-')) {
+            if (!StrPushBackR(o, '-')) {
                 return false;
             }
         }
 
         if (fmt_info->flags & FMT_FLAG_CAPS) {
-            if (!StrPushBackZstr(o, "INF")) {
+            if (!StrPushBackMany(o, "INF")) {
                 return false;
             }
         } else {
-            if (!StrPushBackZstr(o, "inf")) {
+            if (!StrPushBackMany(o, "inf")) {
                 return false;
             }
         }
@@ -2312,7 +2313,7 @@ Zstr _read_Str(Zstr i, FmtInfo *fmt_info, Str *s) {
                     c = is_caps ? TO_UPPER(c) : TO_LOWER(c);
                 }
 
-                StrPushBack(s, c);
+                StrPushBackR(s, c);
             } else if (*i == quote) {
                 i++;      // Skip closing quote
                 r--;
@@ -2326,7 +2327,7 @@ Zstr _read_Str(Zstr i, FmtInfo *fmt_info, Str *s) {
                     c = is_caps ? TO_UPPER(c) : TO_LOWER(c);
                 }
 
-                StrPushBack(s, c);
+                StrPushBackR(s, c);
             }
         } else {
             // Unquoted string mode - read until whitespace
@@ -2353,7 +2354,7 @@ Zstr _read_Str(Zstr i, FmtInfo *fmt_info, Str *s) {
                     c = is_caps ? TO_UPPER(c) : TO_LOWER(c);
                 }
 
-                StrPushBack(s, c);
+                StrPushBackR(s, c);
             } else {
                 char c = *i++;
                 r--;
@@ -2363,7 +2364,7 @@ Zstr _read_Str(Zstr i, FmtInfo *fmt_info, Str *s) {
                     c = is_caps ? TO_UPPER(c) : TO_LOWER(c);
                 }
 
-                StrPushBack(s, c);
+                StrPushBackR(s, c);
             }
         }
     }
@@ -3418,7 +3419,7 @@ bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
     if (fmt_info->flags & FMT_FLAG_HEX) {
         // Format as hexadecimal
         if (bv->length == 0) {
-            if (!StrPushBackZstr(o, "0x0")) {
+            if (!StrPushBackMany(o, "0x0")) {
                 return false;
             }
         } else {
@@ -3432,7 +3433,7 @@ bool _write_BitVec(Str *o, FmtInfo *fmt_info, BitVec *bv) {
     } else if (fmt_info->flags & FMT_FLAG_OCTAL) {
         // Format as octal
         if (bv->length == 0) {
-            if (!StrPushBackZstr(o, "0o0")) {
+            if (!StrPushBackMany(o, "0o0")) {
                 return false;
             }
         } else {
@@ -3932,7 +3933,7 @@ static bool _write_r8(Str *o, FmtInfo *fmt_info, u8 *v) {
         return false;
     }
 
-    return StrPushBack(o, *v);
+    return StrPushBackR(o, *v);
 }
 
 static bool _write_r16(Str *o, FmtInfo *fmt_info, u16 *v) {
@@ -3949,10 +3950,10 @@ static bool _write_r16(Str *o, FmtInfo *fmt_info, u16 *v) {
     u16 x = *v;
     switch (fmt_info->endian) {
         case ENDIAN_BIG : {
-            return StrPushBack(o, ((x >> 8) & 0xff)) && StrPushBack(o, (x & 0xff));
+            return StrPushBackR(o, ((x >> 8) & 0xff)) && StrPushBackR(o, (x & 0xff));
         }
         case ENDIAN_LITTLE : {
-            return StrPushBack(o, (x & 0xff)) && StrPushBack(o, ((x >> 8) & 0xff));
+            return StrPushBackR(o, (x & 0xff)) && StrPushBackR(o, ((x >> 8) & 0xff));
         }
         case ENDIAN_NATIVE :
         default : {
@@ -3977,12 +3978,12 @@ static bool _write_r32(Str *o, FmtInfo *fmt_info, u32 *v) {
     u32 x = *v;
     switch (fmt_info->endian) {
         case ENDIAN_BIG : {
-            return StrPushBack(o, ((x >> 24) & 0xff)) && StrPushBack(o, (x >> 16) & 0xff) &&
-                   StrPushBack(o, (x >> 8) & 0xff) && StrPushBack(o, (x & 0xff));
+            return StrPushBackR(o, ((x >> 24) & 0xff)) && StrPushBackR(o, (x >> 16) & 0xff) &&
+                   StrPushBackR(o, (x >> 8) & 0xff) && StrPushBackR(o, (x & 0xff));
         }
         case ENDIAN_LITTLE : {
-            return StrPushBack(o, (x & 0xff)) && StrPushBack(o, (x >> 8) & 0xff) && StrPushBack(o, (x >> 16) & 0xff) &&
-                   StrPushBack(o, ((x >> 24) & 0xff));
+            return StrPushBackR(o, (x & 0xff)) && StrPushBackR(o, (x >> 8) & 0xff) && StrPushBackR(o, (x >> 16) & 0xff) &&
+                   StrPushBackR(o, ((x >> 24) & 0xff));
         }
         case ENDIAN_NATIVE :
         default : {
@@ -4007,16 +4008,16 @@ static bool _write_r64(Str *o, FmtInfo *fmt_info, u64 *v) {
     u64 x = *v;
     switch (fmt_info->endian) {
         case ENDIAN_BIG : {
-            return StrPushBack(o, ((x >> 56) & 0xff)) && StrPushBack(o, (x >> 48) & 0xff) &&
-                   StrPushBack(o, (x >> 40) & 0xff) && StrPushBack(o, (x >> 32) & 0xff) &&
-                   StrPushBack(o, (x >> 24) & 0xff) && StrPushBack(o, (x >> 16) & 0xff) &&
-                   StrPushBack(o, (x >> 8) & 0xff) && StrPushBack(o, (x & 0xff));
+            return StrPushBackR(o, ((x >> 56) & 0xff)) && StrPushBackR(o, (x >> 48) & 0xff) &&
+                   StrPushBackR(o, (x >> 40) & 0xff) && StrPushBackR(o, (x >> 32) & 0xff) &&
+                   StrPushBackR(o, (x >> 24) & 0xff) && StrPushBackR(o, (x >> 16) & 0xff) &&
+                   StrPushBackR(o, (x >> 8) & 0xff) && StrPushBackR(o, (x & 0xff));
         }
         case ENDIAN_LITTLE : {
-            return StrPushBack(o, (x & 0xff)) && StrPushBack(o, (x >> 8) & 0xff) && StrPushBack(o, (x >> 16) & 0xff) &&
-                   StrPushBack(o, (x >> 24) & 0xff) && StrPushBack(o, (x >> 32) & 0xff) &&
-                   StrPushBack(o, (x >> 40) & 0xff) && StrPushBack(o, (x >> 48) & 0xff) &&
-                   StrPushBack(o, ((x >> 56) & 0xff));
+            return StrPushBackR(o, (x & 0xff)) && StrPushBackR(o, (x >> 8) & 0xff) && StrPushBackR(o, (x >> 16) & 0xff) &&
+                   StrPushBackR(o, (x >> 24) & 0xff) && StrPushBackR(o, (x >> 32) & 0xff) &&
+                   StrPushBackR(o, (x >> 40) & 0xff) && StrPushBackR(o, (x >> 48) & 0xff) &&
+                   StrPushBackR(o, ((x >> 56) & 0xff));
         }
         case ENDIAN_NATIVE :
         default : {

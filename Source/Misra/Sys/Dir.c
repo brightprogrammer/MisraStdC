@@ -308,7 +308,7 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc) {
             StrAppendFmt(&entry_path, "{}/{}", path, dir_name);
 
             struct stat path_stat;
-            stat(entry_path.data, &path_stat);
+            stat(StrBegin(&entry_path), &path_stat);
 
             StrDeinit(&entry_path);
 
@@ -585,7 +585,9 @@ i8 dir_create_all(Zstr path) {
 // `dir_remove_all` recurses one frame per directory level -- a 4 KiB
 // buffer per frame would compound into deep-tree stack pressure.
 // 512 covers any realistic single path component plus the parent
-// prefix; overflow spills through `StrInitStack`'s fallback allocator.
+// prefix. `StrInitStack` is stack-only by design (no spill
+// allocator); a path that combines with an entry to exceed this cap
+// will trip the realloc-side `LOG_FATAL`.
 #define DIR_REMOVE_ALL_PATH_CAP 512
 
 i8 dir_remove_all(Zstr path) {
@@ -608,23 +610,26 @@ i8 dir_remove_all(Zstr path) {
     bool ok        = true;
     size path_len  = ZstrLen(path);
     bool trail_sep = (path_len > 0 && path[path_len - 1] == '/');
-    for (size i = 0; i < dc.length; ++i) {
-        DirEntry *e = &dc.data[i];
-        if (ZstrCompare(e->name.data, ".") == 0 || ZstrCompare(e->name.data, "..") == 0) {
+    for (size i = 0; i < VecLen(&dc); ++i) {
+        DirEntry *e         = VecPtrAt(&dc, i);
+        Zstr      entry_nm  = StrBegin(&e->name);
+        if (ZstrCompare(entry_nm, ".") == 0 || ZstrCompare(entry_nm, "..") == 0) {
             continue;
         }
-        // Per-iteration "parent/child" path. Stack-backed buffer so we
-        // don't allocate; `al` is the overflow-fallback only.
+        // Per-iteration "parent/child" path. Stack-backed buffer so
+        // we don't allocate. `DIR_REMOVE_ALL_PATH_CAP` is the hard
+        // cap -- callers passing a path that combines with any entry
+        // to exceed it trip the stack-init `LOG_FATAL` in
+        // `reserve_vec`.
         bool inner_ok = false;
-        Str  child;
-        StrInitStack(child, al, DIR_REMOVE_ALL_PATH_CAP, {
-            StrAppendFmt(&child, trail_sep ? "{}{}" : "{}/{}", path, e->name.data);
+        StrInitStack(child, DIR_REMOVE_ALL_PATH_CAP) {
+            StrAppendFmt(&child, trail_sep ? "{}{}" : "{}/{}", path, entry_nm);
             if (e->type == SYS_DIR_ENTRY_TYPE_DIRECTORY) {
                 inner_ok = DirRemoveAll(&child);
             } else {
                 inner_ok = FileRemove(&child);
             }
-        });
+        }
         ok = ok && inner_ok;
         if (!ok) {
             break;

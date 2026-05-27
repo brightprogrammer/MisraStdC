@@ -451,7 +451,7 @@ bool test_whitespace_variations_reading(void) {
         JR_BOOL_KV(si, "flag", obj.flag);
     });
 
-    if (StrCmpCstr(&obj.name, "test", 4) == 0 && obj.value == 42 && obj.flag == true) {
+    if (StrCmp(&obj.name, "test", 4) == 0 && obj.value == 42 && obj.flag == true) {
         WriteFmt(
             "[DEBUG] Whitespace variations test passed - name: {}, value: {}, flag: {}\n",
             StrBegin(&obj.name),

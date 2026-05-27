@@ -129,7 +129,7 @@ static bool store_value(ArgKind kind, void *target, Zstr value) {
         case ARG_KIND_STR : {
             Str *s = (Str *)target;
             StrClear(s);
-            StrPushBackZstr(s, value);
+            StrPushBackMany(s, value);
             return true;
         }
         case ARG_KIND_BOOL :
@@ -261,7 +261,7 @@ static ArgSpec *find_short(ArgParse *self, Zstr short_name) {
 static void append_metavar(Str *out, const ArgSpec *sp) {
     Zstr src = sp->long_name;
     if (!src) {
-        StrPushBackZstr(out, "VALUE");
+        StrPushBackMany(out, "VALUE");
         return;
     }
     // skip leading "--"
@@ -273,7 +273,7 @@ static void append_metavar(Str *out, const ArgSpec *sp) {
             c = '_';
         if (c >= 'a' && c <= 'z')
             c = (char)(c - 'a' + 'A');
-        StrPushBack(out, c);
+        StrPushBackR(out, c);
     }
 }
 
@@ -281,26 +281,26 @@ static void append_metavar(Str *out, const ArgSpec *sp) {
 // the visible width so the caller can pad to a shared right margin.
 static u64 spec_format_left(const ArgSpec *sp, Str *out) {
     u64 start = out->length;
-    StrPushBackZstr(out, "  ");
+    StrPushBackMany(out, "  ");
     if (sp->role == ARG_ROLE_POSITIONAL) {
-        StrPushBack(out, '<');
-        StrPushBackZstr(out, sp->long_name);
-        StrPushBack(out, '>');
+        StrPushBackR(out, '<');
+        StrPushBackMany(out, sp->long_name);
+        StrPushBackR(out, '>');
     } else {
         if (sp->short_name) {
-            StrPushBackZstr(out, sp->short_name);
+            StrPushBackMany(out, sp->short_name);
             if (sp->long_name)
-                StrPushBackZstr(out, ", ");
+                StrPushBackMany(out, ", ");
         } else {
-            StrPushBackZstr(out, "    ");
+            StrPushBackMany(out, "    ");
         }
         if (sp->long_name)
-            StrPushBackZstr(out, sp->long_name);
+            StrPushBackMany(out, sp->long_name);
         if (sp->role == ARG_ROLE_REQUIRED || sp->role == ARG_ROLE_OPTIONAL) {
-            StrPushBack(out, ' ');
-            StrPushBack(out, '<');
+            StrPushBackR(out, ' ');
+            StrPushBackR(out, '<');
             append_metavar(out, sp);
-            StrPushBack(out, '>');
+            StrPushBackR(out, '>');
         }
     }
     return out->length - start;
@@ -319,8 +319,8 @@ static void print_help(ArgParse *self) {
 
     // Usage line: "usage: name [OPTIONS] --req <REQ>... <POS>..."
     Str usage = StrInit(self->alloc);
-    StrPushBackZstr(&usage, "usage: ");
-    StrPushBackZstr(&usage, self->name);
+    StrPushBackMany(&usage, "usage: ");
+    StrPushBackMany(&usage, self->name);
 
     bool any_option = false;
     VecForeachPtr(&self->specs, sp) {
@@ -330,26 +330,26 @@ static void print_help(ArgParse *self) {
         }
     }
     if (any_option)
-        StrPushBackZstr(&usage, " [OPTIONS]");
+        StrPushBackMany(&usage, " [OPTIONS]");
 
     VecForeachPtr(&self->specs, sp) {
         if (sp->role != ARG_ROLE_REQUIRED)
             continue;
-        StrPushBack(&usage, ' ');
+        StrPushBackR(&usage, ' ');
         if (sp->long_name)
-            StrPushBackZstr(&usage, sp->long_name);
+            StrPushBackMany(&usage, sp->long_name);
         else if (sp->short_name)
-            StrPushBackZstr(&usage, sp->short_name);
-        StrPushBackZstr(&usage, " <");
+            StrPushBackMany(&usage, sp->short_name);
+        StrPushBackMany(&usage, " <");
         append_metavar(&usage, sp);
-        StrPushBack(&usage, '>');
+        StrPushBackR(&usage, '>');
     }
     VecForeachPtr(&self->specs, sp) {
         if (sp->role != ARG_ROLE_POSITIONAL)
             continue;
-        StrPushBackZstr(&usage, " <");
-        StrPushBackZstr(&usage, sp->long_name);
-        StrPushBack(&usage, '>');
+        StrPushBackMany(&usage, " <");
+        StrPushBackMany(&usage, sp->long_name);
+        StrPushBackR(&usage, '>');
     }
 
     FWriteFmtLn(&err, "{}", usage);

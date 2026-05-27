@@ -49,9 +49,8 @@ bool test_vec_init_basic(void) {
     IntVec vec = VecInit(&alloc);
 
     // Check initial state
-    bool result =
-        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL && vec.allocator->alignment == 1 &&
-         vec.copy_init == NULL && vec.copy_deinit == NULL);
+    bool result = (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL &&
+                   VecAllocator(&vec)->alignment == 1 && VecCopyInit(&vec) == NULL && VecCopyDeinit(&vec) == NULL);
 
     // Clean up
     VecDeinit(&vec);
@@ -61,9 +60,10 @@ bool test_vec_init_basic(void) {
     TestVec test_vec = VecInit(&alloc);
 
     // Check initial state
-    result =
-        result && (VecLen(&test_vec) == 0 && VecCapacity(&test_vec) == 0 && VecBegin(&test_vec) == NULL &&
-                   test_vec.allocator->alignment == 1 && test_vec.copy_init == NULL && test_vec.copy_deinit == NULL);
+    result = result &&
+             (VecLen(&test_vec) == 0 && VecCapacity(&test_vec) == 0 && VecBegin(&test_vec) == NULL &&
+              VecAllocator(&test_vec)->alignment == 1 && VecCopyInit(&test_vec) == NULL &&
+              VecCopyDeinit(&test_vec) == NULL);
 
     // Clean up
     VecDeinit(&test_vec);
@@ -83,9 +83,8 @@ bool test_vec_init_aligned(void) {
     IntVec vec = VecInit(&aligned4);
 
     // Check initial state
-    bool result =
-        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL && vec.allocator->alignment == 4 &&
-         vec.copy_init == NULL && vec.copy_deinit == NULL);
+    bool result = (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL &&
+                   VecAllocator(&vec)->alignment == 4 && VecCopyInit(&vec) == NULL && VecCopyDeinit(&vec) == NULL);
 
     // Clean up
     VecDeinit(&vec);
@@ -95,9 +94,10 @@ bool test_vec_init_aligned(void) {
     TestVec test_vec = VecInit(&aligned16);
 
     // Check initial state
-    result =
-        result && (VecLen(&test_vec) == 0 && VecCapacity(&test_vec) == 0 && VecBegin(&test_vec) == NULL &&
-                   test_vec.allocator->alignment == 16 && test_vec.copy_init == NULL && test_vec.copy_deinit == NULL);
+    result = result &&
+             (VecLen(&test_vec) == 0 && VecCapacity(&test_vec) == 0 && VecBegin(&test_vec) == NULL &&
+              VecAllocator(&test_vec)->alignment == 16 && VecCopyInit(&test_vec) == NULL &&
+              VecCopyDeinit(&test_vec) == NULL);
 
     // Clean up
     VecDeinit(&test_vec);
@@ -117,8 +117,9 @@ bool test_vec_init_with_deep_copy(void) {
 
     // Check initial state
     bool result =
-        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL && vec.allocator->alignment == 1 &&
-         vec.copy_init == (GenericCopyInit)TestItemCopyInit && vec.copy_deinit == (GenericCopyDeinit)TestItemDeinit);
+        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL &&
+         VecAllocator(&vec)->alignment == 1 && VecCopyInit(&vec) == (GenericCopyInit)TestItemCopyInit &&
+         VecCopyDeinit(&vec) == (GenericCopyDeinit)TestItemDeinit);
 
     // Clean up
     VecDeinit(&vec);
@@ -138,8 +139,9 @@ bool test_vec_init_aligned_with_deep_copy(void) {
 
     // Check initial state
     bool result =
-        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL && vec.allocator->alignment == 8 &&
-         vec.copy_init == (GenericCopyInit)TestItemCopyInit && vec.copy_deinit == (GenericCopyDeinit)TestItemDeinit);
+        (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL &&
+         VecAllocator(&vec)->alignment == 8 && VecCopyInit(&vec) == (GenericCopyInit)TestItemCopyInit &&
+         VecCopyDeinit(&vec) == (GenericCopyDeinit)TestItemDeinit);
 
     // Clean up
     VecDeinit(&vec);
@@ -178,14 +180,14 @@ bool test_vec_init_optional_allocator(void) {
     TestVec vec_g = VecInitWithDeepCopy(TestItemCopyInit, TestItemDeinit, &h32);
     TestVec vec_h = VecInitWithDeepCopyT(vec_h, TestItemCopyInit, TestItemDeinit, &h64);
 
-    bool result = (vec_a.allocator->retry_limit == 17) && (vec_b.allocator->retry_limit == 17);
-    result      = result && (vec_c.allocator->retry_limit == 17) && (vec_d.allocator->retry_limit == 17);
-    result      = result && (vec_e.allocator->retry_limit == 17) && (vec_f.allocator->retry_limit == 17);
-    result      = result && (vec_g.allocator->retry_limit == 17) && (vec_h.allocator->retry_limit == 17);
-    result      = result && (vec_e.allocator->alignment == 8) && (vec_f.allocator->alignment == 16);
-    result      = result && (vec_g.allocator->alignment == 32) && (vec_h.allocator->alignment == 64);
-    result      = result && (vec_c.copy_init == (GenericCopyInit)TestItemCopyInit);
-    result      = result && (vec_d.copy_deinit == (GenericCopyDeinit)TestItemDeinit);
+    bool result = (VecAllocator(&vec_a)->retry_limit == 17) && (VecAllocator(&vec_b)->retry_limit == 17);
+    result      = result && (VecAllocator(&vec_c)->retry_limit == 17) && (VecAllocator(&vec_d)->retry_limit == 17);
+    result      = result && (VecAllocator(&vec_e)->retry_limit == 17) && (VecAllocator(&vec_f)->retry_limit == 17);
+    result      = result && (VecAllocator(&vec_g)->retry_limit == 17) && (VecAllocator(&vec_h)->retry_limit == 17);
+    result      = result && (VecAllocator(&vec_e)->alignment == 8) && (VecAllocator(&vec_f)->alignment == 16);
+    result      = result && (VecAllocator(&vec_g)->alignment == 32) && (VecAllocator(&vec_h)->alignment == 64);
+    result      = result && (VecCopyInit(&vec_c) == (GenericCopyInit)TestItemCopyInit);
+    result      = result && (VecCopyDeinit(&vec_d) == (GenericCopyDeinit)TestItemDeinit);
 
     VecDeinit(&vec_a);
     VecDeinit(&vec_b);
@@ -210,67 +212,67 @@ bool test_vec_init_stack(void) {
 
     bool result = true;
 
-    // Test with basic int type
-    typedef Vec(int) IntVec;
-    IntVec vec;
-
-    VecInitStack(vec, &alloc, 10, {
-        // Inside the scope where the stack vector is valid
-
-        // Check initial state
-        if (VecLen(&vec) != 0 || VecCapacity(&vec) != 10 || VecBegin(&vec) == NULL || vec.allocator->alignment != 1 ||
-            vec.copy_init != NULL || vec.copy_deinit != NULL) {
+    // VecInitStack declares and scopes `vec` itself (for-chain idiom),
+    // matching StrInitStack.
+    VecInitStack(int, vec, 10) {
+        // Stack-init: NULL allocator distinguishes from heap-init.
+        if (VecLen(&vec) != 0 || VecCapacity(&vec) != 10 || VecBegin(&vec) == NULL ||
+            VecAllocator(&vec) != NULL) {
             result = false;
         }
 
-        // Add some data
         VecPushBackR(&vec, 10);
         VecPushBackR(&vec, 20);
         VecPushBackR(&vec, 30);
 
-        // Check that the data was added correctly
         if (VecLen(&vec) != 3 || VecAt(&vec, 0) != 10 || VecAt(&vec, 1) != 20 || VecAt(&vec, 2) != 30) {
             result = false;
         }
-
-        // No need to call VecDeinit for stack-based vectors
-    });
-
-    // After the scope, vec should be zeroed out
-    if (VecBegin(&vec) != NULL || VecLen(&vec) != 0 || VecCapacity(&vec) != 0) {
-        result = false;
     }
 
     // Test with struct type
-    typedef Vec(TestItem) TestVec;
-    TestVec test_vec;
-
-    VecInitStack(test_vec, &alloc, 5, {
-        // Inside the scope where the stack vector is valid
-
-        // Check initial state
+    VecInitStack(TestItem, test_vec, 5) {
         if (VecLen(&test_vec) != 0 || VecCapacity(&test_vec) != 5 || VecBegin(&test_vec) == NULL ||
-            test_vec.allocator->alignment != 1 || test_vec.copy_init != NULL || test_vec.copy_deinit != NULL) {
+            VecAllocator(&test_vec) != NULL) {
             result = false;
         }
 
-        // Add a test item
         TestItem item = {0};
         item.id       = 1;
         item.value    = 3.14;
         VecPushBackR(&test_vec, item);
 
-        // Check that the item was added correctly
         if (VecLen(&test_vec) != 1 || VecAt(&test_vec, 0).id != 1 || VecAt(&test_vec, 0).value != 3.14f) {
             result = false;
         }
+    }
 
-        // No need to call VecDeinit for stack-based vectors
-    });
+    // High-alignment struct: confirm the macro's `_Alignas(T)` actually
+    // gives the backing buffer `_Alignof(T)`-byte alignment. `double`
+    // forces an 8-byte alignment requirement on the slot layout.
+    typedef struct {
+        i32 a;
+        f64 b;
+    } AlignedItem;
+    VecInitStack(AlignedItem, av, 4) {
+        if ((size)(void *)VecBegin(&av) % _Alignof(AlignedItem) != 0) {
+            result = false;
+        }
+        AlignedItem item = {.a = 7, .b = 2.71828};
+        VecPushBackR(&av, item);
+        if (VecLen(&av) != 1 || VecAt(&av, 0).a != 7 || VecAt(&av, 0).b != 2.71828) {
+            result = false;
+        }
+    }
 
-    // After the scope, test_vec should be zeroed out
-    if (VecBegin(&test_vec) != NULL || VecLen(&test_vec) != 0 || VecCapacity(&test_vec) != 0) {
-        result = false;
+    // `break` exit path: the body breaks early; the backing buffer's
+    // outer-for update still runs.
+    VecInitStack(int, breakable, 8) {
+        VecPushBackR(&breakable, 1);
+        if (VecLen(&breakable) != 1) {
+            result = false;
+        }
+        break; // exits cleanly; backing array still zeroed by outer update
     }
 
     return result;
@@ -298,7 +300,7 @@ bool test_vec_init_clone(void) {
     // Check that the clone has the same data but different memory
     bool result =
         (VecLen(&clone) == VecLen(&src) && VecCapacity(&clone) >= VecLen(&src) && VecBegin(&clone) != VecBegin(&src) &&
-         clone.allocator->alignment == src.allocator->alignment);
+         VecAllocator(&clone)->alignment == VecAllocator(&src)->alignment);
 
     // Check the actual data
     if (result) {

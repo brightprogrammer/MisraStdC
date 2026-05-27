@@ -8,6 +8,7 @@
 #define MISRA_STD_CONTAINER_STR_INSERT_H
 
 #include "Type.h"
+#include <Misra/Std/Container/Vec/Insert.h>
 #include <Misra/Std/Zstr.h>
 
 #ifdef __cplusplus
@@ -15,240 +16,359 @@ extern "C" {
 #endif
 
 ///
-/// Insert a single character at `idx`, shifting trailing characters right.
+/// Insert a single character into `str` at position `idx`, shifting
+/// trailing characters right. Three shapes:
 ///
-/// str[in,out] : Str handle.
-/// chr[in]     : Character to insert.
-/// idx[in]     : Position in [0, length].
+///   `StrInsertL(str, chr, idx)`  - L-form. `chr` must be a writeable
+///                                  `char` lvalue (`VecInsertL` zeroes
+///                                  it on success). Character literals
+///                                  (`'x'` -- type `int`) cannot be
+///                                  used here; bind to a `char` first.
+///   `StrInsertR(str, chr, idx)`  - R-form. `chr` may be a `char` lvalue
+///                                  or any value implicitly convertible
+///                                  to `char` (in particular, `int`
+///                                  character literals like `'x'`).
+///   `StrInsert(str, chr, idx)`   - Unsuffixed default = L-form.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure. The string is unchanged.
+/// Multi-character insertion is `StrInsertMany` (Zstr / Cstr), below.
+/// Merging another `Str` is `StrMergeL` / `StrMergeR`.
+///
+/// SUCCESS : Returns `true`; one character inserted; trailing
+///           characters shifted right by one.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
 ///
 /// TAGS: Str, Insert, Char
 ///
-#define StrInsertCharAt(str, chr, idx) VecInsertR((str), (chr), (idx))
+#define StrInsertL(str, lval, idx) VecInsertL((str), (lval), (idx))
+#define StrInsertR(str, rval, idx) VecInsertR((str), (rval), (idx))
+#define StrInsert(str, val, idx)   StrInsertL((str), (val), (idx))
 
 ///
-/// Aborting variant of `StrInsertCharAt`. Calls `LOG_FATAL` on allocation
-/// failure.
-///
-/// TAGS: Str, Insert, Char, Must, Abort
-///
-#define StrMustInsertCharAt(str, chr, idx) VecMustInsertR((str), (chr), (idx))
-
-///
-/// Insert a contiguous run of characters into `str` at position `idx`,
-/// shifting the trailing tail right. Three shapes are accepted via
-/// arg-count + `_Generic` dispatch:
-///
-///   `StrInsert(str, src:Str *, idx)`           - copies all of `src`'s chars
-///   `StrInsert(str, zstr:Zstr, idx)`           - copies up to the NUL terminator
-///   `StrInsert(str, cstr:Zstr, idx, cstr_len)` - copies exactly `cstr_len` bytes
-///
-/// str[in,out]  : Destination Str.
-/// src/zstr/cstr: Source bytes (Str / Zstr / raw counted view).
-/// idx[in]      : Position in [0, length].
-/// cstr_len[in] : Number of bytes (Cstr form only).
-///
-/// SUCCESS : Returns `true`; bytes are inserted, trailing characters are
-///           shifted right by the inserted length.
-/// FAILURE : Returns `false` on allocation failure. `str` is unchanged.
-///
-/// TAGS: Str, Insert, Range
-///
-#define StrInsert(...) MISRA_OVERLOAD(StrInsert, __VA_ARGS__)
-#define StrInsert_3(str, src, idx)                                                                                     \
-    _Generic(                                                                                                          \
-        (src),                                                                                                         \
-        Str *: VecInsertRangeR((str), (Zstr)StrBegin((Str *)(src)), (idx), StrLen((Str *)(src))),                      \
-        Zstr:  VecInsertRangeR((str), (Zstr)(src), (idx), ZstrLen((Zstr)(src)))                                        \
-    )
-#define StrInsert_4(str, cstr, idx, cstr_len) VecInsertRangeR((str), (cstr), (idx), (cstr_len))
-
-///
-/// Aborting variant of `StrInsert`. Same shapes; calls `LOG_FATAL` on
-/// allocation failure instead of returning `false`.
+/// Aborting variant of the single-char insert family. Same shapes as
+/// `StrInsert` / `StrInsertL` / `StrInsertR`.
 ///
 /// SUCCESS : Returns `true`.
 /// FAILURE : Does not return; `LOG_FATAL` aborts the process.
 ///
-/// TAGS: Str, Insert, Range, Must, Abort
+/// TAGS: Str, Insert, Char, Must, Abort
 ///
-#define StrMustInsert(...) MISRA_OVERLOAD(StrMustInsert, __VA_ARGS__)
-#define StrMustInsert_3(str, src, idx)                                                                                 \
-    _Generic(                                                                                                          \
-        (src),                                                                                                         \
-        Str *: VecMustInsertRangeR((str), (Zstr)StrBegin((Str *)(src)), (idx), StrLen((Str *)(src))),                  \
-        Zstr:  VecMustInsertRangeR((str), (Zstr)(src), (idx), ZstrLen((Zstr)(src)))                                    \
-    )
-#define StrMustInsert_4(str, cstr, idx, cstr_len) VecMustInsertRangeR((str), (cstr), (idx), (cstr_len))
+#define StrMustInsertL(str, lval, idx) VecMustInsertL((str), (lval), (idx))
+#define StrMustInsertR(str, rval, idx) VecMustInsertR((str), (rval), (idx))
+#define StrMustInsert(str, val, idx)   StrMustInsertL((str), (val), (idx))
 
 ///
-/// Push a counted byte range into the string at an arbitrary position.
-/// Equivalent to `StrInsert` 4-arg (Cstr) form with the argument order suited for streaming
-/// emitters that keep `(cstr, len, pos)` triples around.
+/// Insert MANY characters into `str` at position `idx`. R-form (copy);
+/// the source bytes are read-only / borrowed. Two arities via
+/// `MISRA_OVERLOAD`:
+///
+///   `StrInsertMany(str, zstr, idx)`            - 3 args; `zstr` is
+///                                                NUL-terminated; length
+///                                                derived via `ZstrLen`.
+///   `StrInsertMany(str, cstr, cstr_len, idx)`  - 4 args; counted view.
+///                                                The `(Zstr, size)`
+///                                                pair sits adjacent.
+///
+/// For `Str *` → `Str` use `StrMergeL` / `StrMergeR`.
+///
+/// No L-form: const source bytes (Zstr / Cstr) cannot carry ownership-
+/// transfer semantics. For writeable-source range insert (with L-form
+/// ownership transfer) use `StrInsertRangeL`.
+///
+/// SUCCESS : Returns `true`; bytes copied at `idx`; trailing characters
+///           shifted right by the inserted length.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
+///
+/// TAGS: Str, Insert, Range, Zstr, Cstr
+///
+#define StrInsertMany(...) MISRA_OVERLOAD(StrInsertMany, __VA_ARGS__)
+#define StrInsertMany_3(str, zstr, idx)                                                                            \
+    _Generic((zstr), Zstr: VecInsertRangeR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))))
+#define StrInsertMany_4(str, cstr, cstr_len, idx)                                                                  \
+    _Generic((cstr), Zstr: VecInsertRangeR((str), (Zstr)(cstr), (idx), (cstr_len)))
+
+///
+/// Aborting variant of `StrInsertMany`. Same shapes; calls `LOG_FATAL`
+/// on allocation failure instead of returning `false`.
 ///
 /// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
 ///
-/// TAGS: Str, Push, Cstr, Range
+/// TAGS: Str, Insert, Range, Zstr, Cstr, Must, Abort
 ///
-#define StrPushCstr(str, cstr, len, pos) VecInsertRangeR((str), (cstr), (pos), (len))
+#define StrMustInsertMany(...) MISRA_OVERLOAD(StrMustInsertMany, __VA_ARGS__)
+#define StrMustInsertMany_3(str, zstr, idx)                                                                        \
+    _Generic((zstr), Zstr: VecMustInsertRangeR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))))
+#define StrMustInsertMany_4(str, cstr, cstr_len, idx)                                                              \
+    _Generic((cstr), Zstr: VecMustInsertRangeR((str), (Zstr)(cstr), (idx), (cstr_len)))
 
 ///
-/// Aborting variant of `StrPushCstr`.
+/// Fast (order-not-preserving) variant of `StrInsertMany`. Same shapes
+/// as `StrInsertMany`; the trailing-character preservation is
+/// sacrificed for an O(1) at-position write. Use when the relative
+/// order of trailing characters after the insertion is irrelevant.
 ///
-/// TAGS: Str, Push, Cstr, Range, Must, Abort
+/// SUCCESS : Returns `true`; bytes copied at `idx`; characters at and
+///           after `idx` are moved to the new tail (order not preserved).
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
 ///
-#define StrMustPushCstr(str, cstr, len, pos) VecMustInsertRangeR((str), (cstr), (pos), (len))
+/// TAGS: Str, Insert, Range, Zstr, Cstr, Fast, Unordered
+///
+#define StrInsertManyFast(...) MISRA_OVERLOAD(StrInsertManyFast, __VA_ARGS__)
+#define StrInsertManyFast_3(str, zstr, idx)                                                                        \
+    _Generic((zstr), Zstr: VecInsertRangeFastR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))))
+#define StrInsertManyFast_4(str, cstr, cstr_len, idx)                                                              \
+    _Generic((cstr), Zstr: VecInsertRangeFastR((str), (Zstr)(cstr), (idx), (cstr_len)))
 
 ///
-/// Push a null-terminated string into the Str at the given position.
+/// Aborting variant of `StrInsertManyFast`.
 ///
 /// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
 ///
-/// TAGS: Str, Push, Zstr
+/// TAGS: Str, Insert, Range, Zstr, Cstr, Fast, Unordered, Must, Abort
 ///
-#define StrPushZstr(str, zstr, pos) StrPushCstr((str), (zstr), ZstrLen(zstr), (pos))
+#define StrMustInsertManyFast(...) MISRA_OVERLOAD(StrMustInsertManyFast, __VA_ARGS__)
+#define StrMustInsertManyFast_3(str, zstr, idx)                                                                    \
+    _Generic((zstr), Zstr: VecMustInsertRangeFastR((str), (Zstr)(zstr), (idx), ZstrLen((Zstr)(zstr))))
+#define StrMustInsertManyFast_4(str, cstr, cstr_len, idx)                                                          \
+    _Generic((cstr), Zstr: VecMustInsertRangeFastR((str), (Zstr)(cstr), (idx), (cstr_len)))
+
+// ---------------------------------------------------------------------------
+// PushBack -- append to the tail.
+// ---------------------------------------------------------------------------
 
 ///
-/// Aborting variant of `StrPushZstr`.
+/// Append a single character to the end of `str`. L-form (ownership-
+/// transfer); on success the source `char` lvalue is zeroed.
 ///
-/// TAGS: Str, Push, Zstr, Must, Abort
+/// SUCCESS : Returns `true`; the character is appended at the tail.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
 ///
-#define StrMustPushZstr(str, zstr, pos) StrMustPushCstr((str), (zstr), ZstrLen(zstr), (pos))
+/// TAGS: Str, PushBack, Char, LValue
+///
+#define StrPushBackL(str, lval) VecPushBackL((str), (lval))
 
 ///
-/// Append a counted byte range to the end of the Str.
+/// R-form sibling of `StrPushBackL`: appends a single character by
+/// copy. The source is not modified. Accepts any value implicitly
+/// convertible to `char` (in particular, `int` character literals
+/// like `'x'`).
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// SUCCESS : Returns `true`; the character is appended at the tail.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
 ///
-/// TAGS: Str, PushBack, Cstr, Range
+/// TAGS: Str, PushBack, Char, RValue
 ///
-#define StrPushBackCstr(str, cstr, len) VecPushBackArrR((str), (cstr), (len))
+#define StrPushBackR(str, rval) VecPushBackR((str), (rval))
 
 ///
-/// Aborting variant of `StrPushBackCstr`.
+/// Unsuffixed default -- alias for `StrPushBackL`.
 ///
-/// TAGS: Str, PushBack, Cstr, Range, Must, Abort
-///
-#define StrMustPushBackCstr(str, cstr, len) VecMustPushBackArrR((str), (cstr), (len))
-
-///
-/// Append a null-terminated string to the end of the Str.
-///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
-///
-/// TAGS: Str, PushBack, Zstr
-///
-#define StrPushBackZstr(str, zstr) StrPushBackCstr((str), (zstr), ZstrLen((zstr)))
-
-///
-/// Aborting variant of `StrPushBackZstr`.
-///
-/// TAGS: Str, PushBack, Zstr, Must, Abort
-///
-#define StrMustPushBackZstr(str, zstr) StrMustPushBackCstr((str), (zstr), ZstrLen((zstr)))
-
-///
-/// Prepend a counted byte range at the front of the Str.
-///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
-///
-/// TAGS: Str, PushFront, Cstr, Range
-///
-#define StrPushFrontCstr(str, cstr, len) VecPushFrontArrR((str), (cstr), (len))
-
-///
-/// Aborting variant of `StrPushFrontCstr`.
-///
-/// TAGS: Str, PushFront, Cstr, Range, Must, Abort
-///
-#define StrMustPushFrontCstr(str, cstr, len) VecMustPushFrontArrR((str), (cstr), (len))
-
-///
-/// Prepend a null-terminated string at the front of the Str.
-///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
-///
-/// TAGS: Str, PushFront, Zstr
-///
-#define StrPushFrontZstr(str, zstr) StrPushFrontCstr((str), (zstr), ZstrLen((zstr)))
-
-///
-/// Aborting variant of `StrPushFrontZstr`.
-///
-/// TAGS: Str, PushFront, Zstr, Must, Abort
-///
-#define StrMustPushFrontZstr(str, zstr) StrMustPushFrontCstr((str), (zstr), ZstrLen((zstr)))
-
-///
-/// Append a single character to the end of the Str.
-///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// SUCCESS : Returns `true`; the character is appended at the tail; the
+///           source `char` lvalue is zeroed-on-take per the L-form invariant.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
 ///
 /// TAGS: Str, PushBack, Char
 ///
-#define StrPushBack(str, chr) VecPushBackR((str), (chr))
+#define StrPushBack(str, val) StrPushBackL((str), (val))
 
 ///
-/// Aborting variant of `StrPushBack`.
+/// Aborting variants of the single-char PushBack family.
+///
+/// SUCCESS : Returns `true`.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
 ///
 /// TAGS: Str, PushBack, Char, Must, Abort
 ///
-#define StrMustPushBack(str, chr) VecMustPushBackR((str), (chr))
+#define StrMustPushBackL(str, lval) VecMustPushBackL((str), (lval))
+#define StrMustPushBackR(str, rval) VecMustPushBackR((str), (rval))
+#define StrMustPushBack(str, val)   StrMustPushBackL((str), (val))
 
 ///
-/// Prepend a single character at the front of the Str.
+/// Append MANY characters to the end of `str`. R-form (the source bytes
+/// are read-only / borrowed). Two arities via `MISRA_OVERLOAD`:
+///
+///   `StrPushBackMany(str, zstr)`            - 2 args; `zstr` is
+///                                             NUL-terminated.
+///   `StrPushBackMany(str, cstr, cstr_len)`  - 3 args; counted view.
+///                                             `(Zstr, size)` adjacent.
+///
+/// No Fast variant: tail append is naturally O(1) amortised; the
+/// "Fast" semantics only matter for operations that would otherwise
+/// shift elements.
+///
+/// SUCCESS : Returns `true`; bytes copied at the tail.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
+///
+/// TAGS: Str, PushBack, Range, Zstr, Cstr
+///
+#define StrPushBackMany(...) MISRA_OVERLOAD(StrPushBackMany, __VA_ARGS__)
+#define StrPushBackMany_2(str, zstr)                                                                               \
+    _Generic((zstr), Zstr: VecPushBackArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
+#define StrPushBackMany_3(str, cstr, cstr_len)                                                                     \
+    _Generic((cstr), Zstr: VecPushBackArrR((str), (Zstr)(cstr), (cstr_len)))
+
+///
+/// Aborting variant of `StrPushBackMany`.
 ///
 /// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
+/// TAGS: Str, PushBack, Range, Zstr, Cstr, Must, Abort
+///
+#define StrMustPushBackMany(...) MISRA_OVERLOAD(StrMustPushBackMany, __VA_ARGS__)
+#define StrMustPushBackMany_2(str, zstr)                                                                           \
+    _Generic((zstr), Zstr: VecMustPushBackArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
+#define StrMustPushBackMany_3(str, cstr, cstr_len)                                                                 \
+    _Generic((cstr), Zstr: VecMustPushBackArrR((str), (Zstr)(cstr), (cstr_len)))
+
+// ---------------------------------------------------------------------------
+// PushFront -- prepend at the head.
+// ---------------------------------------------------------------------------
+
+///
+/// Prepend a single character at the head of `str`. L-form (ownership-
+/// transfer); on success the source `char` lvalue is zeroed.
+///
+/// SUCCESS : Returns `true`; the character is prepended at the head.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
+///
+/// TAGS: Str, PushFront, Char, LValue
+///
+#define StrPushFrontL(str, lval) VecPushFrontL((str), (lval))
+
+///
+/// R-form sibling of `StrPushFrontL`.
+///
+/// SUCCESS : Returns `true`; the character is prepended at the head.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
+///
+/// TAGS: Str, PushFront, Char, RValue
+///
+#define StrPushFrontR(str, rval) VecPushFrontR((str), (rval))
+
+///
+/// Unsuffixed default -- alias for `StrPushFrontL`.
+///
+/// SUCCESS : Returns `true`; the character is prepended at the head; the
+///           source `char` lvalue is zeroed-on-take per the L-form invariant.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
 ///
 /// TAGS: Str, PushFront, Char
 ///
-#define StrPushFront(str, chr) VecPushFrontR((str), (chr))
+#define StrPushFront(str, val) StrPushFrontL((str), (val))
 
 ///
-/// Aborting variant of `StrPushFront`.
+/// Aborting variants of the single-char PushFront family.
+///
+/// SUCCESS : Returns `true`.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
 ///
 /// TAGS: Str, PushFront, Char, Must, Abort
 ///
-#define StrMustPushFront(str, chr) VecMustPushFrontR((str), (chr))
+#define StrMustPushFrontL(str, lval) VecMustPushFrontL((str), (lval))
+#define StrMustPushFrontR(str, rval) VecMustPushFrontR((str), (rval))
+#define StrMustPushFront(str, val)   StrMustPushFrontL((str), (val))
+
+///
+/// Prepend MANY characters at the head of `str`. R-form. Two arities:
+///
+///   `StrPushFrontMany(str, zstr)`            - 2 args; NUL-terminated.
+///   `StrPushFrontMany(str, cstr, cstr_len)`  - 3 args; counted view.
+///
+/// SUCCESS : Returns `true`; bytes copied at the head; existing
+///           characters shifted right by the prepended length.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
+///
+/// TAGS: Str, PushFront, Range, Zstr, Cstr
+///
+#define StrPushFrontMany(...) MISRA_OVERLOAD(StrPushFrontMany, __VA_ARGS__)
+#define StrPushFrontMany_2(str, zstr)                                                                              \
+    _Generic((zstr), Zstr: VecPushFrontArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
+#define StrPushFrontMany_3(str, cstr, cstr_len)                                                                    \
+    _Generic((cstr), Zstr: VecPushFrontArrR((str), (Zstr)(cstr), (cstr_len)))
+
+///
+/// Aborting variant of `StrPushFrontMany`.
+///
+/// SUCCESS : Returns `true`.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
+/// TAGS: Str, PushFront, Range, Zstr, Cstr, Must, Abort
+///
+#define StrMustPushFrontMany(...) MISRA_OVERLOAD(StrMustPushFrontMany, __VA_ARGS__)
+#define StrMustPushFrontMany_2(str, zstr)                                                                          \
+    _Generic((zstr), Zstr: VecMustPushFrontArrR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
+#define StrMustPushFrontMany_3(str, cstr, cstr_len)                                                                \
+    _Generic((cstr), Zstr: VecMustPushFrontArrR((str), (Zstr)(cstr), (cstr_len)))
+
+///
+/// Fast (order-not-preserving) variant of `StrPushFrontMany`. The
+/// existing head characters are moved to the tail; the new bytes
+/// occupy the head. O(1) when the prepended length is small.
+///
+/// SUCCESS : Returns `true`; bytes copied at the head; previous
+///           head characters relocated to the tail (order not
+///           preserved).
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
+///
+/// TAGS: Str, PushFront, Range, Zstr, Cstr, Fast, Unordered
+///
+#define StrPushFrontManyFast(...) MISRA_OVERLOAD(StrPushFrontManyFast, __VA_ARGS__)
+#define StrPushFrontManyFast_2(str, zstr)                                                                          \
+    _Generic((zstr), Zstr: VecPushFrontArrFastR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
+#define StrPushFrontManyFast_3(str, cstr, cstr_len)                                                                \
+    _Generic((cstr), Zstr: VecPushFrontArrFastR((str), (Zstr)(cstr), (cstr_len)))
+
+///
+/// Aborting variant of `StrPushFrontManyFast`.
+///
+/// SUCCESS : Returns `true`.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
+/// TAGS: Str, PushFront, Range, Zstr, Cstr, Fast, Unordered, Must, Abort
+///
+#define StrMustPushFrontManyFast(...) MISRA_OVERLOAD(StrMustPushFrontManyFast, __VA_ARGS__)
+#define StrMustPushFrontManyFast_2(str, zstr)                                                                      \
+    _Generic((zstr), Zstr: VecMustPushFrontArrFastR((str), (Zstr)(zstr), ZstrLen((Zstr)(zstr))))
+#define StrMustPushFrontManyFast_3(str, cstr, cstr_len)                                                            \
+    _Generic((cstr), Zstr: VecMustPushFrontArrFastR((str), (Zstr)(cstr), (cstr_len)))
 
 ///
 /// Merge `str2` into the end of `str` with L-value (ownership-transfer)
-/// semantics. When `str` has no `copy_init` handler, `str2`'s storage is
-/// adopted and `str2` is left in a clean empty state on success.
+/// semantics. On success `str2`'s storage is taken into `str` and `str2`
+/// is left zeroed.
 ///
 /// str[in,out]  : Destination Str.
-/// str2[in,out] : Source Str. May be emptied on success.
+/// str2[in,out] : Source Str. Zeroed on success.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure. Both strings are unchanged.
+/// SUCCESS : Returns `true`; `str` grew by `str2->length`; `str2` is zeroed.
+/// FAILURE : Returns `false` on allocation failure; `str2` was already
+///           zeroed-on-take per the L-form invariant, `str` is unchanged.
 ///
 /// TAGS: Str, Merge, LValue, Ownership
 ///
 #define StrMergeL(str, str2) VecMergeL((str), (str2))
 
 ///
-/// Aborting variant of `StrMergeL`.
+/// Aborting variant of `StrMergeL`. Calls `LOG_FATAL` on allocation
+/// failure instead of returning `false`.
+///
+/// SUCCESS : Returns to the caller; `str2` is empty (ownership taken).
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process. `str2`
+///           is left in its zero-on-take state per the L-form invariant.
 ///
 /// TAGS: Str, Merge, LValue, Must, Abort
 ///
 #define StrMustMergeL(str, str2) VecMustMergeL((str), (str2))
 
 ///
-/// Merge a copy of `str2` into the end of `str` with R-value (read-only-source)
-/// semantics. The source is never emptied.
+/// Merge a copy of `str2` into the end of `str` with R-value (read-only-
+/// source) semantics. The source is never emptied.
 ///
-/// SUCCESS : Returns `true`.
-/// FAILURE : Returns `false` on allocation failure.
+/// SUCCESS : Returns `true`; `str` grows by `str2->length` characters;
+///           `str2` is untouched.
+/// FAILURE : Returns `false` on allocation failure. Both strings unchanged.
 ///
 /// TAGS: Str, Merge, RValue
 ///
@@ -257,95 +377,53 @@ extern "C" {
 ///
 /// Aborting variant of `StrMergeR`.
 ///
+/// SUCCESS : Returns to the caller; `str` grew by `str2->length`;
+///           `str2` is untouched.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, Merge, RValue, Must, Abort
 ///
 #define StrMustMergeR(str, str2) VecMustMergeR((str), (str2))
 
 ///
-/// Default merge alias for `StrMergeR` - preserves the source string.
-/// Use `StrMergeL` when you want ownership transfer.
+/// Unsuffixed merge -- alias for `StrMergeL` (L-form), per the project
+/// convention that an unsuffixed name lands on the L-form. Callers
+/// that need to preserve the source must spell out `StrMergeR`.
+///
+/// SUCCESS : Returns `true`; `str` grew by `str2->length` characters;
+///           `str2` is in its zero-on-take state (ownership taken).
+/// FAILURE : Returns `false` on allocation failure; `str2` was already
+///           zeroed-on-take, `str` is unchanged.
 ///
 /// TAGS: Str, Merge
 ///
-#define StrMerge(str, str2) StrMergeR((str), (str2))
+#define StrMerge(str, str2) StrMergeL((str), (str2))
 
 ///
 /// Aborting variant of `StrMerge`.
 ///
+/// SUCCESS : Returns to the caller; `str2` is empty.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, Merge, Must, Abort
 ///
-#define StrMustMerge(str, str2) StrMustMergeR((str), (str2))
+#define StrMustMerge(str, str2) StrMustMergeL((str), (str2))
 
 //
-// Generic Vec-shape passthrough aliases. These mirror every public VecInsert*
-// / VecPushBack* / VecPushFront* / VecMerge* / VecInitClone macro under the
-// Str namespace; the contracts are identical to the underlying Vec macros,
-// just specialised to the char element type.
+// Character-specialised aliases for the underlying container operations.
+// Use the `Str*` form throughout; the `Vec` machinery is an implementation
+// detail.
 //
 
 ///
-/// Insert a single character at the given index, L-value (ownership-transfer)
-/// form. Same contract as VecInsertL, specialised for the char element.
+/// Insert a single character at `idx` using fast (order-not-preserving)
+/// placement: the element previously at `idx` is moved to the new tail
+/// before the new character occupies `idx`. L-form: the source `char`
+/// lvalue is zeroed on success per the L-form invariant.
 ///
-/// str[in,out] : Str handle.
-/// lval[in]    : Addressable char to insert.
-/// idx[in]     : Position in [0, length].
-///
-/// SUCCESS : Returns `true`; the character was inserted and trailing characters
-///           shifted right by one. When the string has no `copy_init` handler,
-///           `lval` has been zeroed.
-/// FAILURE : Returns `false` on allocation failure. Neither string nor `lval`
-///           is modified.
-///
-/// TAGS: Str, Insert, Char, LValue
-///
-#define StrInsertL(str, lval, idx) VecInsertL((str), (lval), (idx))
-
-///
-/// Aborting variant of `StrInsertL`.
-///
-/// TAGS: Str, Insert, Char, LValue, Must, Abort
-///
-#define StrMustInsertL(str, lval, idx) VecMustInsertL((str), (lval), (idx))
-
-///
-/// Insert a single character at the given index, R-value form. Same contract
-/// as VecInsertR, specialised for the char element.
-///
-/// SUCCESS : Returns `true`; the character was inserted, trailing characters
-///           shifted right by one.
-/// FAILURE : Returns `false` on allocation failure; the string is unchanged.
-///
-/// TAGS: Str, Insert, Char, RValue
-///
-#define StrInsertR(str, rval, idx) VecInsertR((str), (rval), (idx))
-
-///
-/// Aborting variant of `StrInsertR`.
-///
-/// TAGS: Str, Insert, Char, RValue, Must, Abort
-///
-#define StrMustInsertR(str, rval, idx) VecMustInsertR((str), (rval), (idx))
-
-///
-/// Default character-insert alias for `StrInsertL`. Same contract as VecInsert,
-/// specialised for the char element.
-///
-/// TAGS: Str, Insert, Char
-///
-#define StrInsertChar(str, lval, idx) VecInsert((str), (lval), (idx))
-
-///
-/// Aborting variant of `StrInsertChar`.
-///
-/// TAGS: Str, Insert, Char, Must, Abort
-///
-#define StrMustInsertChar(str, lval, idx) VecMustInsert((str), (lval), (idx))
-
-///
-/// Insert a single character using fast (order-not-preserving) placement.
-/// L-value form. Same contract as VecInsertFastL, specialised for the char
-/// element.
+/// SUCCESS : Returns `true`; the new character occupies `idx`; the
+///           character that previously occupied `idx` is at the new tail.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
 ///
 /// TAGS: Str, Insert, Char, LValue, Fast, Unordered
 ///
@@ -354,14 +432,20 @@ extern "C" {
 ///
 /// Aborting variant of `StrInsertFastL`.
 ///
+/// SUCCESS : Returns to the caller; new character at `idx`.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, Insert, Char, LValue, Fast, Must, Abort
 ///
 #define StrMustInsertFastL(str, lval, idx) VecMustInsertFastL((str), (lval), (idx))
 
 ///
-/// Insert a single character using fast (order-not-preserving) placement.
-/// R-value form. Same contract as VecInsertFastR, specialised for the char
-/// element.
+/// R-form sibling of `StrInsertFastL`: same fast (order-not-preserving)
+/// insertion at `idx`, but the source is copied by value (not zeroed).
+///
+/// SUCCESS : Returns `true`; the new character occupies `idx`; the
+///           previous character at `idx` is now at the tail.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
 ///
 /// TAGS: Str, Insert, Char, RValue, Fast, Unordered
 ///
@@ -370,29 +454,46 @@ extern "C" {
 ///
 /// Aborting variant of `StrInsertFastR`.
 ///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, Insert, Char, RValue, Fast, Must, Abort
 ///
 #define StrMustInsertFastR(str, rval, idx) VecMustInsertFastR((str), (rval), (idx))
 
 ///
-/// Default fast character-insert alias. Same contract as VecInsertFast,
-/// specialised for the char element.
+/// Unsuffixed default fast insert -- alias for `StrInsertFastL`.
+///
+/// SUCCESS : Returns `true`; new character at `idx`; previous occupant
+///           relocated to the tail.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
 ///
 /// TAGS: Str, Insert, Char, Fast, Unordered
 ///
-#define StrInsertFast(str, lval, idx) VecInsertFast((str), (lval), (idx))
+#define StrInsertFast(str, lval, idx) StrInsertFastL((str), (lval), (idx))
 
 ///
 /// Aborting variant of `StrInsertFast`.
 ///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, Insert, Char, Fast, Must, Abort
 ///
-#define StrMustInsertFast(str, lval, idx) VecMustInsertFast((str), (lval), (idx))
+#define StrMustInsertFast(str, lval, idx) StrMustInsertFastL((str), (lval), (idx))
 
 ///
-/// Insert a contiguous range of characters at the given index, preserving
-/// order of trailing characters. L-value (ownership-transfer) form. Same
-/// contract as VecInsertRangeL, specialised for the char element.
+/// Insert a contiguous range of characters at `idx`, preserving the
+/// order of trailing characters. L-form (ownership-transfer); source
+/// range zeroed-on-take per the L-form invariant.
+///
+/// For Zstr/Cstr (const) source ranges use `StrInsertMany`.
+///
+/// SUCCESS : Returns `true`; `str` grew by `count` characters at `idx`;
+///           trailing characters shifted right by `count`; source range
+///           zeroed-on-take per the L-form invariant.
+/// FAILURE : Returns `false` on allocation failure; source range was
+///           already zeroed-on-take, `str` is unchanged.
 ///
 /// TAGS: Str, Insert, Range, LValue
 ///
@@ -401,13 +502,21 @@ extern "C" {
 ///
 /// Aborting variant of `StrInsertRangeL`.
 ///
+/// SUCCESS : Returns to the caller; `str` grew by `count`; source range
+///           zeroed-on-take.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, Insert, Range, LValue, Must, Abort
 ///
 #define StrMustInsertRangeL(str, varr, idx, count) VecMustInsertRangeL((str), (varr), (idx), (count))
 
 ///
-/// Insert a contiguous range of characters at the given index. R-value form.
-/// Same contract as VecInsertRangeR, specialised for the char element.
+/// R-form sibling of `StrInsertRangeL`: range insert at `idx` with
+/// source bytes copied (not zeroed).
+///
+/// SUCCESS : Returns `true`; `str` grew by `count`; trailing characters
+///           shifted right by `count`. Source untouched.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
 ///
 /// TAGS: Str, Insert, Range, RValue
 ///
@@ -416,29 +525,45 @@ extern "C" {
 ///
 /// Aborting variant of `StrInsertRangeR`.
 ///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, Insert, Range, RValue, Must, Abort
 ///
 #define StrMustInsertRangeR(str, varr, idx, count) VecMustInsertRangeR((str), (varr), (idx), (count))
 
 ///
-/// Default character-range-insert alias. Same contract as VecInsertRange,
-/// specialised for the char element.
+/// Unsuffixed default range insert -- alias for `StrInsertRangeL`.
+///
+/// SUCCESS : Returns `true`; `str` grew by `count`; trailing characters
+///           shifted right; source zeroed-on-take.
+/// FAILURE : Returns `false` on allocation failure. `str` and source
+///           unchanged.
 ///
 /// TAGS: Str, Insert, Range
 ///
-#define StrInsertRange(str, varr, idx, count) VecInsertRange((str), (varr), (idx), (count))
+#define StrInsertRange(str, varr, idx, count) StrInsertRangeL((str), (varr), (idx), (count))
 
 ///
 /// Aborting variant of `StrInsertRange`.
 ///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, Insert, Range, Must, Abort
 ///
-#define StrMustInsertRange(str, varr, idx, count) VecMustInsertRange((str), (varr), (idx), (count))
+#define StrMustInsertRange(str, varr, idx, count) StrMustInsertRangeL((str), (varr), (idx), (count))
 
 ///
-/// Insert a range of characters using fast (order-not-preserving) placement.
-/// L-value form. Same contract as VecInsertRangeFastL, specialised for the
-/// char element.
+/// Fast (order-not-preserving) range insert at `idx`. L-form. The
+/// existing characters at and after `idx` are relocated to the new
+/// tail (order not preserved) before the new range occupies `idx`.
+/// Source range zeroed-on-take.
+///
+/// SUCCESS : Returns `true`; new range at `idx`; previous occupants
+///           relocated to the new tail (unordered).
+/// FAILURE : Returns `false` on allocation failure. `str` and source
+///           unchanged.
 ///
 /// TAGS: Str, Insert, Range, LValue, Fast, Unordered
 ///
@@ -447,13 +572,20 @@ extern "C" {
 ///
 /// Aborting variant of `StrInsertRangeFastL`.
 ///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, Insert, Range, LValue, Fast, Must, Abort
 ///
 #define StrMustInsertRangeFastL(str, varr, idx, count) VecMustInsertRangeFastL((str), (varr), (idx), (count))
 
 ///
-/// Insert a range of characters using fast placement. R-value form. Same
-/// contract as VecInsertRangeFastR, specialised for the char element.
+/// R-form sibling of `StrInsertRangeFastL`: fast unordered range
+/// insert with source copied (not zeroed).
+///
+/// SUCCESS : Returns `true`; new range at `idx`; previous occupants
+///           relocated to the new tail.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
 ///
 /// TAGS: Str, Insert, Range, RValue, Fast, Unordered
 ///
@@ -462,29 +594,43 @@ extern "C" {
 ///
 /// Aborting variant of `StrInsertRangeFastR`.
 ///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, Insert, Range, RValue, Fast, Must, Abort
 ///
 #define StrMustInsertRangeFastR(str, varr, idx, count) VecMustInsertRangeFastR((str), (varr), (idx), (count))
 
 ///
-/// Default fast character-range-insert alias. Same contract as
-/// VecInsertRangeFast, specialised for the char element.
+/// Unsuffixed default fast range insert -- alias for `StrInsertRangeFastL`.
+///
+/// SUCCESS : Returns `true`; new range at `idx`; previous occupants
+///           relocated to the new tail (unordered); source zeroed-on-take.
+/// FAILURE : Returns `false` on allocation failure. `str` and source
+///           unchanged.
 ///
 /// TAGS: Str, Insert, Range, Fast, Unordered
 ///
-#define StrInsertRangeFast(str, varr, idx, count) VecInsertRangeFast((str), (varr), (idx), (count))
+#define StrInsertRangeFast(str, varr, idx, count) StrInsertRangeFastL((str), (varr), (idx), (count))
 
 ///
 /// Aborting variant of `StrInsertRangeFast`.
 ///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, Insert, Range, Fast, Must, Abort
 ///
-#define StrMustInsertRangeFast(str, varr, idx, count) VecMustInsertRangeFast((str), (varr), (idx), (count))
+#define StrMustInsertRangeFast(str, varr, idx, count) StrMustInsertRangeFastL((str), (varr), (idx), (count))
 
 ///
-/// Append a contiguous range of characters to the end of the string. L-value
-/// (ownership-transfer) form. Same contract as VecPushBackArrL, specialised
-/// for the char element.
+/// Append a contiguous range of characters to the tail of `str`. L-form
+/// (ownership-transfer); source range zeroed-on-take.
+///
+/// SUCCESS : Returns `true`; `str` grew by `count` at the tail; source
+///           range zeroed-on-take per the L-form invariant.
+/// FAILURE : Returns `false` on allocation failure. `str` and source
+///           unchanged.
 ///
 /// TAGS: Str, PushBack, Range, LValue
 ///
@@ -493,13 +639,18 @@ extern "C" {
 ///
 /// Aborting variant of `StrPushBackArrL`.
 ///
+/// SUCCESS : Returns to the caller; source range zeroed-on-take.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, PushBack, Range, LValue, Must, Abort
 ///
 #define StrMustPushBackArrL(str, arr, count) VecMustPushBackArrL((str), (arr), (count))
 
 ///
-/// Append a contiguous range of characters to the end of the string. R-value
-/// form. Same contract as VecPushBackArrR, specialised for the char element.
+/// R-form sibling: append range with source copied (not zeroed).
+///
+/// SUCCESS : Returns `true`; `str` grew by `count` at the tail.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
 ///
 /// TAGS: Str, PushBack, Range, RValue
 ///
@@ -508,29 +659,43 @@ extern "C" {
 ///
 /// Aborting variant of `StrPushBackArrR`.
 ///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, PushBack, Range, RValue, Must, Abort
 ///
 #define StrMustPushBackArrR(str, arr, count) VecMustPushBackArrR((str), (arr), (count))
 
 ///
-/// Default tail-append alias for `StrPushBackArrL`. Same contract as
-/// VecPushBackArr, specialised for the char element.
+/// Unsuffixed default range append -- alias for `StrPushBackArrL`.
+///
+/// SUCCESS : Returns `true`; `str` grew by `count` at the tail; source
+///           zeroed-on-take.
+/// FAILURE : Returns `false` on allocation failure. `str` and source
+///           unchanged.
 ///
 /// TAGS: Str, PushBack, Range
 ///
-#define StrPushBackArr(str, arr, count) VecPushBackArr((str), (arr), (count))
+#define StrPushBackArr(str, arr, count) StrPushBackArrL((str), (arr), (count))
 
 ///
 /// Aborting variant of `StrPushBackArr`.
 ///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, PushBack, Range, Must, Abort
 ///
-#define StrMustPushBackArr(str, arr, count) VecMustPushBackArr((str), (arr), (count))
+#define StrMustPushBackArr(str, arr, count) StrMustPushBackArrL((str), (arr), (count))
 
 ///
-/// Prepend a contiguous range of characters at the front of the string.
-/// L-value (ownership-transfer) form. Same contract as VecPushFrontArrL,
-/// specialised for the char element.
+/// Prepend a contiguous range of characters at the head of `str`. L-form
+/// (ownership-transfer); source range zeroed-on-take.
+///
+/// SUCCESS : Returns `true`; `str` grew by `count` at the head; existing
+///           characters shifted right; source range zeroed-on-take.
+/// FAILURE : Returns `false` on allocation failure. `str` and source
+///           unchanged.
 ///
 /// TAGS: Str, PushFront, Range, LValue
 ///
@@ -539,14 +704,19 @@ extern "C" {
 ///
 /// Aborting variant of `StrPushFrontArrL`.
 ///
+/// SUCCESS : Returns to the caller; source range zeroed-on-take.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, PushFront, Range, LValue, Must, Abort
 ///
 #define StrMustPushFrontArrL(str, arr, count) VecMustPushFrontArrL((str), (arr), (count))
 
 ///
-/// Prepend a contiguous range of characters at the front of the string.
-/// R-value form. Same contract as VecPushFrontArrR, specialised for the char
-/// element.
+/// R-form sibling: prepend range with source copied (not zeroed).
+///
+/// SUCCESS : Returns `true`; `str` grew by `count` at the head; existing
+///           characters shifted right.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
 ///
 /// TAGS: Str, PushFront, Range, RValue
 ///
@@ -555,28 +725,45 @@ extern "C" {
 ///
 /// Aborting variant of `StrPushFrontArrR`.
 ///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, PushFront, Range, RValue, Must, Abort
 ///
 #define StrMustPushFrontArrR(str, arr, count) VecMustPushFrontArrR((str), (arr), (count))
 
 ///
-/// Default front-prepend alias for `StrPushFrontArrL`. Same contract as
-/// VecPushFrontArr, specialised for the char element.
+/// Unsuffixed default range prepend -- alias for `StrPushFrontArrL`.
+///
+/// SUCCESS : Returns `true`; `str` grew by `count` at the head; existing
+///           characters shifted right; source zeroed-on-take.
+/// FAILURE : Returns `false` on allocation failure. `str` and source
+///           unchanged.
 ///
 /// TAGS: Str, PushFront, Range
 ///
-#define StrPushFrontArr(str, arr, count) VecPushFrontArr((str), (arr), (count))
+#define StrPushFrontArr(str, arr, count) StrPushFrontArrL((str), (arr), (count))
 
 ///
 /// Aborting variant of `StrPushFrontArr`.
 ///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, PushFront, Range, Must, Abort
 ///
-#define StrMustPushFrontArr(str, arr, count) VecMustPushFrontArr((str), (arr), (count))
+#define StrMustPushFrontArr(str, arr, count) StrMustPushFrontArrL((str), (arr), (count))
 
 ///
-/// Prepend a range using fast (order-not-preserving) placement. L-value form.
-/// Same contract as VecPushFrontArrFastL, specialised for the char element.
+/// Fast (order-not-preserving) range prepend. L-form. The existing head
+/// characters are moved to the new tail (order not preserved) before
+/// the new range occupies the head. Source range zeroed-on-take.
+///
+/// SUCCESS : Returns `true`; new range at the head; existing head
+///           characters relocated to the tail (unordered); source
+///           zeroed-on-take.
+/// FAILURE : Returns `false` on allocation failure. `str` and source
+///           unchanged.
 ///
 /// TAGS: Str, PushFront, Range, LValue, Fast, Unordered
 ///
@@ -585,13 +772,19 @@ extern "C" {
 ///
 /// Aborting variant of `StrPushFrontArrFastL`.
 ///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, PushFront, Range, LValue, Fast, Must, Abort
 ///
 #define StrMustPushFrontArrFastL(str, arr, count) VecMustPushFrontArrFastL((str), (arr), (count))
 
 ///
-/// Prepend a range using fast (order-not-preserving) placement. R-value form.
-/// Same contract as VecPushFrontArrFastR, specialised for the char element.
+/// R-form sibling: fast unordered range prepend with source copied.
+///
+/// SUCCESS : Returns `true`; new range at the head; existing head
+///           characters relocated to the tail.
+/// FAILURE : Returns `false` on allocation failure. `str` unchanged.
 ///
 /// TAGS: Str, PushFront, Range, RValue, Fast, Unordered
 ///
@@ -600,86 +793,35 @@ extern "C" {
 ///
 /// Aborting variant of `StrPushFrontArrFastR`.
 ///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, PushFront, Range, RValue, Fast, Must, Abort
 ///
 #define StrMustPushFrontArrFastR(str, arr, count) VecMustPushFrontArrFastR((str), (arr), (count))
 
 ///
-/// Default fast front-prepend alias for `StrPushFrontArrFastL`. Same contract
-/// as VecPushFrontArrFast, specialised for the char element.
+/// Unsuffixed default fast range prepend -- alias for `StrPushFrontArrFastL`.
+///
+/// SUCCESS : Returns `true`; new range at the head; existing head
+///           characters relocated to the tail (unordered); source
+///           zeroed-on-take.
+/// FAILURE : Returns `false` on allocation failure. `str` and source
+///           unchanged.
 ///
 /// TAGS: Str, PushFront, Range, Fast, Unordered
 ///
-#define StrPushFrontArrFast(str, arr, count) VecPushFrontArrFast((str), (arr), (count))
+#define StrPushFrontArrFast(str, arr, count) StrPushFrontArrFastL((str), (arr), (count))
 
 ///
 /// Aborting variant of `StrPushFrontArrFast`.
 ///
+/// SUCCESS : Returns to the caller.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
+///
 /// TAGS: Str, PushFront, Range, Fast, Must, Abort
 ///
-#define StrMustPushFrontArrFast(str, arr, count) VecMustPushFrontArrFast((str), (arr), (count))
-
-///
-/// Append a single character to the end of the string. L-value
-/// (ownership-transfer) form. Same contract as VecPushBackL, specialised for
-/// the char element.
-///
-/// TAGS: Str, PushBack, Char, LValue
-///
-#define StrPushBackL(str, val) VecPushBackL((str), (val))
-
-///
-/// Aborting variant of `StrPushBackL`.
-///
-/// TAGS: Str, PushBack, Char, LValue, Must, Abort
-///
-#define StrMustPushBackL(str, val) VecMustPushBackL((str), (val))
-
-///
-/// Append a single character to the end of the string. R-value form. Same
-/// contract as VecPushBackR, specialised for the char element.
-///
-/// TAGS: Str, PushBack, Char, RValue
-///
-#define StrPushBackR(str, val) VecPushBackR((str), (val))
-
-///
-/// Aborting variant of `StrPushBackR`.
-///
-/// TAGS: Str, PushBack, Char, RValue, Must, Abort
-///
-#define StrMustPushBackR(str, val) VecMustPushBackR((str), (val))
-
-///
-/// Prepend a single character at the front of the string. L-value
-/// (ownership-transfer) form. Same contract as VecPushFrontL, specialised for
-/// the char element.
-///
-/// TAGS: Str, PushFront, Char, LValue
-///
-#define StrPushFrontL(str, val) VecPushFrontL((str), (val))
-
-///
-/// Aborting variant of `StrPushFrontL`.
-///
-/// TAGS: Str, PushFront, Char, LValue, Must, Abort
-///
-#define StrMustPushFrontL(str, val) VecMustPushFrontL((str), (val))
-
-///
-/// Prepend a single character at the front of the string. R-value form. Same
-/// contract as VecPushFrontR, specialised for the char element.
-///
-/// TAGS: Str, PushFront, Char, RValue
-///
-#define StrPushFrontR(str, val) VecPushFrontR((str), (val))
-
-///
-/// Aborting variant of `StrPushFrontR`.
-///
-/// TAGS: Str, PushFront, Char, RValue, Must, Abort
-///
-#define StrMustPushFrontR(str, val) VecMustPushFrontR((str), (val))
+#define StrMustPushFrontArrFast(str, arr, count) StrMustPushFrontArrFastL((str), (arr), (count))
 
 ///
 /// Reinitialise `strd` as a deep clone of `strs`. Same contract as
@@ -699,6 +841,9 @@ extern "C" {
 
 ///
 /// Aborting variant of `StrInitClone`.
+///
+/// SUCCESS : Returns to the caller; `strd` is a deep copy of `strs`.
+/// FAILURE : Does not return; `LOG_FATAL` aborts the process.
 ///
 /// TAGS: Str, Clone, Init, DeepCopy, Must, Abort
 ///

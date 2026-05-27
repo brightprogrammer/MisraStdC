@@ -476,10 +476,10 @@ static bool walk_cu_dies(
                 if (nlen > 0 && nlen < src_max) {
                     u64 offset = pool->length;
                     for (u64 i = 0; i < nlen; ++i) {
-                        if (!StrPushBack(pool, src[i]))
+                        if (!StrPushBackR(pool, src[i]))
                             return false;
                     }
-                    if (!StrPushBack(pool, '\0'))
+                    if (!StrPushBackR(pool, '\0'))
                         return false;
                     PendingFn pf = {.low_pc = low_pc, .high_pc = hi, .name_offset_in_pool = offset};
                     if (!VecPushBackR(pending, pf))
