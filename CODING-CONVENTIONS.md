@@ -402,6 +402,41 @@ of the codebase to see them in action.
   `{<Nr}` (little-endian) and `{>Nr}` (big-endian), with `N` in
   `{1, 2, 4, 8}`.
 
+## `*Must*` APIs and runtime input
+
+- The `*Must*` family (`StrIterMustNext`, `StrIterMustMove`,
+  `IterMustMove`, `IterMustRead`, `StrMustResize`, `VecMustInsert`,
+  `BufMustRead*`, …) calls `LOG_FATAL` when its precondition fails.
+  That is a process abort, not a recoverable error — it is the
+  callsite's job to prove the precondition holds before invoking the
+  `Must*`.
+- **Safe usage:** the precondition is statically dominated by code
+  immediately above the call. The two canonical shapes:
+  - **peek-then-Must:** `StrIterPeek(&si, &c)` (or `StrIterRead`)
+    succeeded in the surrounding control flow, proving ≥1 byte
+    remains, and then `StrIterMustNext(&si)` consumes that byte.
+  - **bounds-then-Must:** `if (StrIterRemainingLength(&si) >= N) { ...
+    StrIterMustMove(&si, N); ... }` (or the same shape with
+    `IterRemainingLength`). The `if` is the proof; the `Must` is the
+    payoff.
+- **Unsafe usage:** any `*Must*` whose precondition depends on
+  runtime / attacker-controlled data (parsed file content, network
+  bytes, `/proc` or `/etc` text, CLI argv, JSON / KvConfig values)
+  without a preceding bounds check that statically dominates the
+  call. Crafted truncated input becomes a denial-of-service: the
+  process aborts on data, not bugs. Use the non-`Must` variant and
+  bail (`LOG_ERROR` + return `saved_si` / sentinel) instead.
+- **Format strings are an exception by policy, not by type.** The
+  `Fmt` parsers in `Io.c` use `*Must*` over the format string and
+  rely on every caller passing a C string literal. The day a `Fmt`
+  API grows a caller that pipes runtime text into the format
+  argument, those `*Must*` sites become DoS vectors — flag and
+  convert them.
+- **Audit hook:** when adding a `*Must*` callsite, name in a comment
+  *what* proves the precondition (the peek above, the
+  `RemainingLength` guard, the `elf_range_ok` / `cmdsize` window).
+  If you cannot name it, you are introducing an UNSAFE site.
+
 ## Documentation
 
 - Every public function and macro gets a doc comment with **`SUCCESS:`**

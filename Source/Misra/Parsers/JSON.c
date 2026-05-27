@@ -255,6 +255,16 @@ StrIter JReadString(StrIter si, Str *str) {
 
                         // espaced unicode sequence
                         case 'u' :
+                            // Peek above proved 1 byte (the 'u'); `\uXXXX`
+                            // needs 4 more. Bail on truncation instead of
+                            // letting StrIterMustMove abort -- attacker
+                            // JSON like `"\u"` / `"\u12"` would DoS the
+                            // process otherwise.
+                            if (StrIterRemainingLength(&si) < 5) {
+                                LOG_ERROR("Truncated \\uXXXX escape in JSON string.");
+                                StrClear(str);
+                                return saved_si;
+                            }
                             LOG_ERROR(
                                 "No unicode support '{.6}'. Unicode sequence will be skipped.",
                                 LVAL(si.data + si.pos - 1)
