@@ -644,6 +644,15 @@ def generate_markdown_file(symbol_name, symbol_data, usages, output_dir: Path):
 
                 indented_code = '\n'.join(
                     ["    " + line.rstrip() for line in usage_item['code'].splitlines()])
+                # Hugo parses `{{< name >}}` shortcodes even inside fenced
+                # code blocks. Some C source strings (e.g. `Io.c`'s
+                # format-spec error messages with `{{<Nr}}` / `{{>Nr}}`)
+                # collide with that syntax and make Hugo fail with
+                # "shortcode not found". Break the `{{` token by
+                # inserting a zero-width space so the rendered code
+                # still reads `{{<Nr}}` to the eye but the shortcode
+                # tokenizer no longer matches.
+                indented_code = indented_code.replace('{{', '{​{')
 
                 markdown_file.write(
                     f'* In [`{usage_file_path.name}:{usage_item["lineno"]}`]({github_link}):\n\n')
