@@ -731,8 +731,8 @@ Scope(alloc, DefaultAllocator) {
 
     StrWriteFmt(&text, "{}{}\n", hello, world);
 
-    bool starts = StrStartsWithZstr(&text, "Hello");
-    bool ends   = StrEndsWithZstr(&text, "!\n");
+    bool starts = StrStartsWith(&text, "Hello");
+    bool ends   = StrEndsWith(&text, "!\n");
 
     Str  csv   = StrInitFromZstr("one,two,three");
     Strs parts = StrSplit(&csv, ",");

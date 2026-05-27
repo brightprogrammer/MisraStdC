@@ -99,25 +99,37 @@ of the codebase to see them in action.
   `PdbCacheEntry.module_path` are the canonical references.
 - **A `(Zstr, length)` API always ships with a `Str` overload.** If a
   function takes a Zstr together with an explicit length (i.e. it's
-  basically a Str minus the wrapper), provide a `Str` / `const Str *`
-  variant alongside via `_Generic` or `MISRA_OVERLOAD` so callers
-  holding a Str don't have to reach inside for `.length` and `.data`.
-  The `Cstr` / `Zstr` / unsuffixed naming pattern in the codebase is
-  the canonical shape:
+  basically a Str minus the wrapper), provide a `Str` overload
+  alongside so callers holding a `Str` don't have to reach inside for
+  `.length` and `.data`. The canonical shape is the `Cstr` / `Zstr` /
+  unsuffixed-Str naming pattern as **private snake_case backends in
+  a `Private.h`** (one file per namespace) plus a **single public
+  `PascalCase` macro** on top, dispatching via `MISRA_OVERLOAD`
+  (arg count for the Cstr variant) and `_Generic` (`Str *` vs `Zstr`):
 
   ```c
-  bool StrStartsWithCstr(const Str *s, Zstr prefix, size prefix_len);
-  bool StrStartsWithZstr(const Str *s, Zstr prefix);
-  bool StrStartsWith(const Str *s, const Str *prefix);
+  // Private — Std/Container/Str/Private.h (one backend per shape).
+  bool str_starts_with_str  (const Str *s, const Str *prefix);
+  bool str_starts_with_zstr (const Str *s, Zstr prefix);
+  bool str_starts_with_cstr (const Str *s, Zstr prefix, size prefix_len);
+
+  // Public — Std/Container/Str/Ops.h (single unified entry point).
+  #define StrStartsWith(...) MISRA_OVERLOAD(StrStartsWith, __VA_ARGS__)
+  #define StrStartsWith_2(s, prefix)                                       \
+      _Generic((prefix),                                                   \
+          Str *: str_starts_with_str ((s), (const Str *)(prefix)),         \
+          Zstr:  str_starts_with_zstr((s), (Zstr)(prefix)))
+  #define StrStartsWith_3(s, prefix, prefix_len)                           \
+      str_starts_with_cstr((s), (Zstr)(prefix), (prefix_len))
   ```
 
-  All three exist so the caller can pass whichever shape they have on
-  hand without juggling fields. Same applies whenever a `Zstr`
-  parameter shows up — add a `Str` overload (by value or by pointer,
-  whichever fits the call shape) so user code that lives in `Str`-land
-  stays there. Adding the `Str` overload is also a chance to surface
-  cases where the function should really be Str-only: if no caller
-  ever wants the Zstr form, you don't need it.
+  The user-facing surface is just `StrStartsWith` — callers never type
+  `*Cstr` / `*Zstr` suffixes. Same applies whenever a `Zstr` parameter
+  shows up: add the `Str` overload (or surface that the function
+  should be `Str`-only — if no caller ever wants the `Zstr` form, you
+  don't need it). The reference implementations are
+  `Std/Container/Str/Ops.h`'s `StrStartsWith`, `StrEndsWith`,
+  `StrIndexOf`, `StrContains`, `StrReplace` families.
 - **Accessor macros are read-only.** `VecLen`, `VecCapacity`,
   `StrCapacity`, `MapPairCount`, `ListHead`, `BitVecData`, etc. expose
   state for inspection; they don't mutate. Mutation always goes through
