@@ -24,6 +24,7 @@
 /// section (1) for the full design.
 
 #include <Misra/Config.h>
+#include <Misra/Std/Zstr.h>
 
 #if PLATFORM_WINDOWS
 
