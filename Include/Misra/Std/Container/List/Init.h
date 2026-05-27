@@ -13,12 +13,16 @@
 /// may be omitted (`MisraScope` is used). Otherwise pass a typed
 /// allocator handle or a raw `Allocator *`.
 ///
+/// TAGS: List, Init, API
+///
 #define ListInit(...)               MISRA_OVERLOAD(ListInit, __VA_ARGS__)
 #define ListInit_0()                ListInitWithDeepCopy_3(NULL, NULL, MisraScope)
 #define ListInit_1(typed_alloc_ptr) ListInitWithDeepCopy_3(NULL, NULL, typed_alloc_ptr)
 
 ///
 /// Typed-cast variant of `ListInit`.
+///
+/// TAGS: List, Init, API
 ///
 #define ListInitT(l, ...)               MISRA_OVERLOAD(ListInitT, l, __VA_ARGS__)
 #define ListInitT_1(l)                  ListInitWithDeepCopyT_4(l, NULL, NULL, MisraScope)
@@ -27,6 +31,8 @@
 ///
 /// Initialize a list with copy init and deinit callbacks. The
 /// allocator argument is optional inside a `Scope` block.
+///
+/// TAGS: List, Init, DeepCopy, Copy
 ///
 #define ListInitWithDeepCopy(...)      MISRA_OVERLOAD(ListInitWithDeepCopy, __VA_ARGS__)
 #define ListInitWithDeepCopy_2(ci, cd) ListInitWithDeepCopy_3(ci, cd, MisraScope)

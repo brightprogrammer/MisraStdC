@@ -73,7 +73,7 @@ static bool find_pdb(const Pe *pe, Zstr pe_path, Str *out_path) {
     // (1) exact CodeView path
     *out_path = StrInit(out_path->allocator);
     StrPushBackMany(out_path, pe->codeview.pdb_path);
-    if (path_exists(out_path->data))
+    if (path_exists(StrBegin(out_path)))
         return true;
 
     // (2) basename alongside PE
@@ -81,12 +81,12 @@ static bool find_pdb(const Pe *pe, Zstr pe_path, Str *out_path) {
     if (pdb_base[0] == '\0')
         return false;
 
-    out_path->length = 0;
+    StrResize(out_path, 0);
     append_dirname(out_path, pe_path);
-    if (out_path->length > 0)
+    if (StrLen(out_path) > 0)
         StrPushBackR(out_path, '/');
     StrPushBackMany(out_path, pdb_base);
-    if (path_exists(out_path->data))
+    if (path_exists(StrBegin(out_path)))
         return true;
 
     return false;
@@ -105,7 +105,7 @@ static bool entry_open(PdbCacheEntry *entry, Allocator *alloc) {
         return true;
 
     Str pdb_path = StrInit(alloc);
-    if (!find_pdb(&entry->pe, entry->module_path.data, &pdb_path)) {
+    if (!find_pdb(&entry->pe, StrBegin(&entry->module_path), &pdb_path)) {
         StrDeinit(&pdb_path);
         return false;
     }
@@ -128,9 +128,9 @@ static bool entry_open(PdbCacheEntry *entry, Allocator *alloc) {
 
 // Find an existing entry for `module_path` or create a fresh one.
 static PdbCacheEntry *cache_find_or_open(PdbCache *self, Zstr module_path) {
-    for (size i = 0; i < self->entries.length; ++i) {
-        PdbCacheEntry *e = &self->entries.data[i];
-        if (e->module_path.data && ZstrCompare(e->module_path.data, module_path) == 0) {
+    for (size i = 0; i < VecLen(&self->entries); ++i) {
+        PdbCacheEntry *e = VecPtrAt(&self->entries, i);
+        if (StrBegin(&e->module_path) && ZstrCompare(StrBegin(&e->module_path), module_path) == 0) {
             return e;
         }
     }
@@ -145,7 +145,7 @@ static PdbCacheEntry *cache_find_or_open(PdbCache *self, Zstr module_path) {
         StrDeinit(&entry.module_path);
         return NULL;
     }
-    return &self->entries.data[self->entries.length - 1];
+    return VecPtrAt(&self->entries, VecLen(&self->entries) - 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -164,8 +164,8 @@ bool pdb_cache_init(PdbCache *out, Allocator *alloc) {
 void PdbCacheDeinit(PdbCache *self) {
     if (!self)
         return;
-    for (size i = 0; i < self->entries.length; ++i) {
-        PdbCacheEntry *e = &self->entries.data[i];
+    for (size i = 0; i < VecLen(&self->entries); ++i) {
+        PdbCacheEntry *e = VecPtrAt(&self->entries, i);
         if (e->pdb_open)
             PdbDeinit(&e->pdb);
         if (e->pe_open)
@@ -178,7 +178,7 @@ void PdbCacheDeinit(PdbCache *self) {
 
 bool pdb_cache_resolve_zstr(
     PdbCache    *self,
-    const char  *module_path,
+    Zstr         module_path,
     u64          module_base,
     u64          runtime_ip,
     Zstr *out_name,
@@ -222,5 +222,5 @@ bool pdb_cache_resolve_str(
     if (!module_path) {
         return false;
     }
-    return pdb_cache_resolve_zstr(self, module_path->data, module_base, runtime_ip, out_name, out_offset);
+    return pdb_cache_resolve_zstr(self, StrBegin(module_path), module_base, runtime_ip, out_name, out_offset);
 }

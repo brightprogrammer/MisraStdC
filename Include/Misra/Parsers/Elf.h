@@ -287,6 +287,8 @@ bool elf_open_from_memory_copy(Elf *out, const u8 *data, size data_size, Allocat
 /// SUCCESS : Returns to the caller. `*self` is zeroed.
 /// FAILURE : Function cannot fail. NULL `self` is a no-op.
 ///
+/// TAGS: Parser, ELF, Deinit, Lifecycle
+///
 void ElfDeinit(Elf *self);
 
 ///

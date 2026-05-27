@@ -328,18 +328,19 @@ bool test_vec_init_clone_inherits_allocator_config(void) {
     // so alignment must be 1 (default) for src.data to be a contiguous
     // int[]. Stronger alignment is exercised separately - it's not what
     // this test is asserting.
-    IntVec dst      = VecInit(src.allocator);
+    IntVec dst      = VecInit(VecAllocator(&src));
+    // intentional bypass: testing hook propagation; no public VecSetCopyHooks mutator exists
     dst.copy_init   = src.copy_init;
     dst.copy_deinit = src.copy_deinit;
     bool cloned     = VecPushBackArrR(&dst, VecBegin(&src), VecLen(&src));
 
-    bool allocator_matches = dst.allocator == src.allocator;
+    bool allocator_matches = VecAllocator(&dst) == VecAllocator(&src);
 
-    bool result = cloned && dst.copy_init == src.copy_init && dst.copy_deinit == src.copy_deinit &&
-                  dst.allocator->effort == ALLOCATOR_EFFORT_RETRY_FALLBACK && dst.allocator->retry_limit == 11 &&
-                  allocator_matches && VecLen(&src) == 3 && VecAt(&src, 0) == 10 && VecAt(&src, 1) == 20 &&
-                  VecAt(&src, 2) == 30 && VecLen(&dst) == 3 && VecAt(&dst, 0) == 10 && VecAt(&dst, 1) == 20 &&
-                  VecAt(&dst, 2) == 30;
+    bool result = cloned && VecCopyInit(&dst) == VecCopyInit(&src) && VecCopyDeinit(&dst) == VecCopyDeinit(&src) &&
+                  VecAllocator(&dst)->effort == ALLOCATOR_EFFORT_RETRY_FALLBACK &&
+                  VecAllocator(&dst)->retry_limit == 11 && allocator_matches && VecLen(&src) == 3 &&
+                  VecAt(&src, 0) == 10 && VecAt(&src, 1) == 20 && VecAt(&src, 2) == 30 && VecLen(&dst) == 3 &&
+                  VecAt(&dst, 0) == 10 && VecAt(&dst, 1) == 20 && VecAt(&dst, 2) == 30;
 
     VecDeinit(&src);
     VecDeinit(&dst);

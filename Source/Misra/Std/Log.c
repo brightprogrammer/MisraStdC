@@ -54,7 +54,7 @@ void LogWrite(LogMessageType type, Zstr tag, u64 line, Zstr msg) {
     StrAppendFmt(&full, "[{}] [{}:{}] {}\n", (Zstr)NAMES[type], (Zstr)tag, line, (Zstr)msg);
 
     File out = (type == LOG_MESSAGE_TYPE_INFO) ? FileFromFd(1) : FileFromFd(2);
-    (void)FileWrite(&out, full.data, full.length);
+    (void)FileWrite(&out, StrBegin(&full), StrLen(&full));
 
 #if !defined(MISRA_LOG_NO_BACKTRACE) || !MISRA_LOG_NO_BACKTRACE
     if (type == LOG_MESSAGE_TYPE_FATAL) {
@@ -65,7 +65,7 @@ void LogWrite(LogMessageType type, Zstr tag, u64 line, Zstr msg) {
         size       n     = CaptureStackTrace(frames, 32, 1);
         Str        trace = StrInit(a);
         FormatStackTrace(&trace, frames, n, a);
-        (void)FileWrite(&out, trace.data, trace.length);
+        (void)FileWrite(&out, StrBegin(&trace), StrLen(&trace));
         StrDeinit(&trace);
     }
 #else

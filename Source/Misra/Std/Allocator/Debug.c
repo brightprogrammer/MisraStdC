@@ -160,7 +160,7 @@ static DebugAllocator *debug_validate_self(const Allocator *self) {
     // bytes_in_use must be consistent with live: if live is non-empty
     // bytes_in_use is non-zero; conversely zero live entries means
     // every byte has been returned.
-    if (dbg->live.length == 0 && dbg->bytes_in_use != 0) {
+    if (MapPairCount(&dbg->live) == 0 && dbg->bytes_in_use != 0) {
         LOG_FATAL("DebugAllocator: bytes_in_use {} with no live records", (u64)dbg->bytes_in_use);
     }
     u64 cur_tid = debug_current_tid();
@@ -172,6 +172,7 @@ static DebugAllocator *debug_validate_self(const Allocator *self) {
             cur_tid
         );
     }
+    // intentional bypass: Debug allocator swap; no public MapSetAllocator mutator.
     if (!dbg->live.allocator) {
         dbg->live.allocator = ALLOCATOR_OF(&dbg->meta);
     }
@@ -193,9 +194,9 @@ static DebugAllocator *debug_validate_self(const Allocator *self) {
 // want the bookkeeping cost.
 
 static const DebugFreedEntry *debug_freed_find(const DebugAllocator *dbg, void *ptr) {
-    for (u32 i = 0; i < dbg->freed.length; i++) {
-        if (dbg->freed.data[i].ptr == ptr)
-            return &dbg->freed.data[i];
+    for (u32 i = 0; i < VecLen(&dbg->freed); i++) {
+        if (VecPtrAt(&dbg->freed, i)->ptr == ptr)
+            return VecPtrAt(&dbg->freed, i);
     }
     return NULL;
 }
@@ -419,8 +420,8 @@ void DebugAllocatorDeinit(DebugAllocator *self) {
     }
 
     // Report leaks for anything still in `live`.
-    if (self->live.allocator && self->live.length > 0) {
-        LOG_ERROR("DebugAllocator: {} live allocation(s) at deinit time:", (u64)self->live.length);
+    if (MapAllocator(&self->live) && MapPairCount(&self->live) > 0) {
+        LOG_ERROR("DebugAllocator: {} live allocation(s) at deinit time:", (u64)MapPairCount(&self->live));
         MapForeachPairPtr(&self->live, key_ptr, val_ptr) {
             LOG_ERROR("  leaked {x} ({} bytes)", (u64)*key_ptr, (u64)val_ptr->requested_size);
             debug_emit_trace(val_ptr->alloc_trace, val_ptr->alloc_trace_n, "alloc", ALLOCATOR_OF(&self->meta));
@@ -451,7 +452,7 @@ void DebugAllocatorDeinit(DebugAllocator *self) {
 size DebugAllocatorLiveCount(const DebugAllocator *self) {
     if (!self)
         return 0;
-    return (size)self->live.length;
+    return (size)MapPairCount(&self->live);
 }
 
 size DebugAllocatorLiveBytes(const DebugAllocator *self) {
@@ -469,10 +470,10 @@ size DebugAllocatorOverflows(const DebugAllocator *self) {
 void DebugAllocatorReportLeaks(DebugAllocator *self, Str *out) {
     if (!self || !out)
         return;
-    if (self->live.length == 0)
+    if (MapPairCount(&self->live) == 0)
         return;
 
-    StrAppendFmt(out, "DebugAllocator: {} live allocation(s):\n", (u64)self->live.length);
+    StrAppendFmt(out, "DebugAllocator: {} live allocation(s):\n", (u64)MapPairCount(&self->live));
     MapForeachPairPtr(&self->live, key_ptr, val_ptr) {
         StrAppendFmt(out, "  leak: {x} ({} bytes)\n", (u64)*key_ptr, (u64)val_ptr->requested_size);
         if (val_ptr->alloc_trace_n > 0) {

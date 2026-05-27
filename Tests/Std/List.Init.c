@@ -41,10 +41,10 @@ static bool test_list_init_variants(void) {
     ValidateList(&list_c);
     ValidateList(&list_d);
 
-    bool result = (list_a.copy_init == NULL) && (list_a.copy_deinit == NULL) && (ListLen(&list_a) == 0);
-    result      = result && (list_b.copy_init == NULL) && (list_b.copy_deinit == NULL) && (ListLen(&list_b) == 0);
-    result      = result && (list_c.copy_init == tracked_copy_init) && (list_c.copy_deinit == tracked_copy_deinit);
-    result      = result && (list_d.copy_init == tracked_copy_init) && (list_d.copy_deinit == tracked_copy_deinit);
+    bool result = (ListCopyInit(&list_a) == NULL) && (ListCopyDeinit(&list_a) == NULL) && (ListLen(&list_a) == 0);
+    result      = result && (ListCopyInit(&list_b) == NULL) && (ListCopyDeinit(&list_b) == NULL) && (ListLen(&list_b) == 0);
+    result      = result && (ListCopyInit(&list_c) == tracked_copy_init) && (ListCopyDeinit(&list_c) == tracked_copy_deinit);
+    result      = result && (ListCopyInit(&list_d) == tracked_copy_init) && (ListCopyDeinit(&list_d) == tracked_copy_deinit);
 
     ListDeinit(&list_a);
     ListDeinit(&list_b);
@@ -71,9 +71,9 @@ static bool test_list_init_optional_allocator(void) {
     ValidateList(&list_c);
     ValidateList(&list_d);
 
-    bool result = (list_a.allocator->retry_limit == 23) && (list_b.allocator->retry_limit == 23);
-    result      = result && (list_c.allocator->retry_limit == 23) && (list_d.allocator->retry_limit == 23);
-    result      = result && (list_c.copy_init == tracked_copy_init) && (list_d.copy_deinit == tracked_copy_deinit);
+    bool result = (ListAllocator(&list_a)->retry_limit == 23) && (ListAllocator(&list_b)->retry_limit == 23);
+    result      = result && (ListAllocator(&list_c)->retry_limit == 23) && (ListAllocator(&list_d)->retry_limit == 23);
+    result      = result && (ListCopyInit(&list_c) == tracked_copy_init) && (ListCopyDeinit(&list_d) == tracked_copy_deinit);
 
     ListDeinit(&list_a);
     ListDeinit(&list_b);
@@ -103,7 +103,8 @@ static bool test_list_deinit_with_deep_copy(void) {
 
     result = result && (g_copy_deinit_count == 2);
     result = result && (ListHead(&list) == NULL) && (ListTail(&list) == NULL) && (ListLen(&list) == 0);
-    result = result && (list.copy_init == NULL) && (list.copy_deinit == NULL);
+    // Verifying ListDeinit clears the hook fields.
+    result = result && (ListCopyInit(&list) == NULL) && (ListCopyDeinit(&list) == NULL);
     DefaultAllocatorDeinit(&alloc);
     return result;
 }

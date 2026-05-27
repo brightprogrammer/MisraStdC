@@ -617,7 +617,7 @@ bool float_try_from_str_str(Float *out, const Str *text) {
     if (!out || !text) {
         LOG_FATAL("Invalid arguments");
     }
-    return float_try_from_str_impl(out, text->data, text->length);
+    return float_try_from_str_impl(out, StrBegin(text), StrLen(text));
 }
 
 Float float_from_str_zstr(Zstr text, Allocator *alloc) {
@@ -672,11 +672,11 @@ bool float_try_to_str(Str *out, Float *value, Allocator *alloc) {
             }
         }
     } else {
-        i64 split = (i64)digits.length + value->exponent;
+        i64 split = (i64)StrLen(&digits) + value->exponent;
 
         if (split > 0) {
             for (i64 i = 0; i < split; i++) {
-                if (!StrPushBackR(&result, digits.data[i])) {
+                if (!StrPushBackR(&result, StrCharAt(&digits, i))) {
                     goto fail;
                 }
             }
@@ -685,8 +685,8 @@ bool float_try_to_str(Str *out, Float *value, Allocator *alloc) {
                 goto fail;
             }
 
-            for (u64 i = (u64)split; i < digits.length; i++) {
-                if (!StrPushBackR(&result, digits.data[i])) {
+            for (u64 i = (u64)split; i < StrLen(&digits); i++) {
+                if (!StrPushBackR(&result, StrCharAt(&digits, i))) {
                     goto fail;
                 }
             }

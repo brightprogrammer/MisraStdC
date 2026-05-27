@@ -67,7 +67,7 @@ static void page_validate_self(const Allocator *self) {
     // Force-read first byte of the descriptor table so a freed mapping
     // faults at the validate site, not downstream.
     if (pg->entries) {
-        (void)(*(const volatile char *)(const void *)pg->entries);
+        (void)(*(const volatile u8 *)(const void *)pg->entries);
     }
     // Same invariants for the retention table.
     if (pg->free_len > pg->free_cap) {
@@ -84,7 +84,7 @@ static void page_validate_self(const Allocator *self) {
         LOG_FATAL("PageAllocator: free_entries / free_entries_bytes mismatch");
     }
     if (pg->free_entries) {
-        (void)(*(const volatile char *)(const void *)pg->free_entries);
+        (void)(*(const volatile u8 *)(const void *)pg->free_entries);
     }
 }
 

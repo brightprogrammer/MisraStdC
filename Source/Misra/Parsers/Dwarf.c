@@ -51,12 +51,9 @@ enum {
 // Append `s` (NUL-terminated) including its terminator into `pool` and
 // return the offset at which it was inserted.
 static bool pool_append(Str *pool, Zstr s, u64 *out_offset) {
-    u64 start = pool->length;
-    while (*s) {
-        if (!StrPushBackR(pool, *s))
-            return false;
-        ++s;
-    }
+    u64 start = StrLen(pool);
+    if (!StrPushBackMany(pool, s))
+        return false;
     if (!StrPushBackR(pool, '\0'))
         return false;
     *out_offset = start;
@@ -170,14 +167,14 @@ static bool decode_line_program_header(BufIter *cur, LineProgHeader *out) {
 // start of the line number program body.
 static bool skip_line_program_tables(BufIter *cur) {
     while (cur->pos < cur->length && cur->data[cur->pos] != 0) {
-        if (!BufReadCstr(cur))
+        if (!BufReadZstr(cur))
             return false;
     }
     if (cur->pos < cur->length)
         ++cur->pos; // empty terminator
 
     while (cur->pos < cur->length && cur->data[cur->pos] != 0) {
-        if (!BufReadCstr(cur))
+        if (!BufReadZstr(cur))
             return false;
         u64 dir_idx = 0, mtime = 0, length_ = 0;
         if (!BufReadULeb128(cur, &dir_idx))
@@ -224,7 +221,7 @@ static void cu_strings_deinit(CuStrings *cs) {
 static bool collect_cu_strings(BufIter cur, Str *pool, CuStrings *cs) {
     // include_directories
     while (cur.pos < cur.length && cur.data[cur.pos] != 0) {
-        Zstr dir = BufReadCstr(&cur);
+        Zstr dir = BufReadZstr(&cur);
         if (!dir)
             return false;
         u64 off = 0;
@@ -238,7 +235,7 @@ static bool collect_cu_strings(BufIter cur, Str *pool, CuStrings *cs) {
 
     // file_names
     while (cur.pos < cur.length && cur.data[cur.pos] != 0) {
-        Zstr name = BufReadCstr(&cur);
+        Zstr name = BufReadZstr(&cur);
         if (!name)
             return false;
         u64 dir_idx = 0, mtime = 0, length_ = 0;
@@ -306,11 +303,11 @@ static bool lnp_emit(
     // longer grows). For now, stash the offsets in parallel arrays.
     u64 file_off = 0;
     u64 dir_off  = 0;
-    if (st->file >= 1 && st->file - 1 < cs->file_offsets.length) {
-        file_off    = cs->file_offsets.data[st->file - 1];
-        u64 dir_idx = cs->file_dir_idx.data[st->file - 1];
-        if (dir_idx >= 1 && dir_idx - 1 < cs->dir_offsets.length) {
-            dir_off = cs->dir_offsets.data[dir_idx - 1];
+    if (st->file >= 1 && st->file - 1 < VecLen(&cs->file_offsets)) {
+        file_off    = VecAt(&cs->file_offsets, st->file - 1);
+        u64 dir_idx = VecAt(&cs->file_dir_idx, st->file - 1);
+        if (dir_idx >= 1 && dir_idx - 1 < VecLen(&cs->dir_offsets)) {
+            dir_off = VecAt(&cs->dir_offsets, dir_idx - 1);
         }
     }
     if (!VecPushBackR(pending_file_offsets, file_off))
@@ -621,11 +618,13 @@ bool dwarf_lines_build_from_elf(DwarfLines *out, const Elf *elf, Allocator *allo
 
     // Resolve offsets -> pointers now that string_pool won't grow.
     if (ok) {
-        for (u64 i = 0; i < out->entries.length; ++i) {
-            u64 fo                    = pending_file_offsets.data[i];
-            u64 dofs                  = pending_dir_offsets.data[i];
-            out->entries.data[i].file = fo ? (Zstr)(out->string_pool.data + fo) : NULL;
-            out->entries.data[i].dir  = dofs ? (Zstr)(out->string_pool.data + dofs) : NULL;
+        for (u64 i = 0; i < VecLen(&out->entries); ++i) {
+            u64 fo                       = VecAt(&pending_file_offsets, i);
+            u64 dofs                     = VecAt(&pending_dir_offsets, i);
+            VecPtrAt(&out->entries, i)->file =
+                fo ? (Zstr)(StrBegin(&out->string_pool) + fo) : NULL;
+            VecPtrAt(&out->entries, i)->dir =
+                dofs ? (Zstr)(StrBegin(&out->string_pool) + dofs) : NULL;
         }
     }
 
@@ -652,7 +651,7 @@ void DwarfLinesDeinit(DwarfLines *self) {
 // ---------------------------------------------------------------------------
 
 const DwarfLineEntry *DwarfLinesResolve(const DwarfLines *self, u64 vaddr) {
-    if (!self || self->entries.length == 0)
+    if (!self || VecLen(&self->entries) == 0)
         return NULL;
 
     // Linear scan finding the greatest address <= vaddr inside an
@@ -661,8 +660,8 @@ const DwarfLineEntry *DwarfLinesResolve(const DwarfLines *self, u64 vaddr) {
     // closing row.
     const DwarfLineEntry *best     = NULL;
     const DwarfLineEntry *seq_open = NULL;
-    for (u64 i = 0; i < self->entries.length; ++i) {
-        const DwarfLineEntry *e = &self->entries.data[i];
+    for (u64 i = 0; i < VecLen(&self->entries); ++i) {
+        const DwarfLineEntry *e = VecPtrAt(&self->entries, i);
         if (e->end_sequence) {
             // Sequence ends at this row's address (exclusive upper).
             if (seq_open && vaddr >= seq_open->address && vaddr < e->address) {

@@ -47,8 +47,8 @@ bool test_str_init_from_cstr(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
 
     Zstr test_str = "Hello, World!";
-    size_t len      = 5; // Just "Hello"
-    Str    s        = StrInitFromCstr(test_str, len, &alloc);
+    size len      = 5; // Just "Hello"
+    Str  s        = StrInitFromCstr(test_str, len, &alloc);
 
     // Validate the string
     ValidateStr(&s);

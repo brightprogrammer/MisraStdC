@@ -177,8 +177,9 @@ bool test_int_try_to_str_allocator_inheritance(void) {
 
     ok = int_try_to_str_radix(&text, &value, 16, true, &alloc.base);
 
-    bool result = ok && (ZstrCompare(StrBegin(&text), "BEEF") == 0) && (text.allocator->effort == alloc.base.effort) &&
-                  (text.allocator->retry_limit == alloc.base.retry_limit);
+    bool result = ok && (ZstrCompare(StrBegin(&text), "BEEF") == 0) &&
+                  (StrAllocator(&text)->effort == alloc.base.effort) &&
+                  (StrAllocator(&text)->retry_limit == alloc.base.retry_limit);
 
     StrDeinit(&text);
     IntDeinit(&value);

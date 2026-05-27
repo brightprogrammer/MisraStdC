@@ -520,7 +520,7 @@ static inline bool is_valid_base(u8 base) {
 }
 
 // Helper function to skip prefixes for explicit bases
-static inline size_t skip_prefix(const Str *str, size_t pos, u8 base) {
+static inline size skip_prefix(const Str *str, size pos, u8 base) {
     if (pos + 2 > str->length || str->data[pos] != '0') {
         return pos;
     }
@@ -597,19 +597,26 @@ Str *StrFromU64(Str *str, u64 value, const StrIntFormat *config) {
             return NULL;
         }
     } else {
-        char   buffer[65];
-        size_t pos = 0;
+        bool ok = true;
+        StrInitStack(buffer, 65) {
+            char *data = StrBegin(&buffer);
+            size  pos  = 0;
 
-        while (value > 0) {
-            buffer[pos++]  = digit_to_char(value % config->base, config->uppercase);
-            value         /= config->base;
-        }
-
-        // Add digits in correct order
-        while (pos > 0) {
-            if (!StrPushBackR(str, buffer[--pos])) {
-                return NULL;
+            while (value > 0) {
+                data[pos++]  = digit_to_char(value % config->base, config->uppercase);
+                value       /= config->base;
             }
+
+            // Add digits in correct order
+            while (pos > 0) {
+                if (!StrPushBackR(str, data[--pos])) {
+                    ok = false;
+                    break;
+                }
+            }
+        }
+        if (!ok) {
+            return NULL;
         }
     }
 
@@ -671,7 +678,7 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
     // Handle special cases
     if (isnan_f64(value)) {
         Zstr nan_str = config->uppercase ? "NAN" : "nan";
-        for (size_t i = 0; i < 3; i++) {
+        for (size i = 0; i < 3; i++) {
             if (!StrPushBackR(str, nan_str[i])) {
                 return NULL;
             }
@@ -690,7 +697,7 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
             }
         }
         Zstr inf_str = config->uppercase ? "INF" : "inf";
-        for (size_t i = 0; i < 3; i++) {
+        for (size i = 0; i < 3; i++) {
             if (!StrPushBackR(str, inf_str[i])) {
                 return NULL;
             }
@@ -773,20 +780,27 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
                 return NULL;
             }
         } else {
-            char   exp_buf[8];
-            size_t exp_pos = 0;
-            while (exp > 0) {
-                exp_buf[exp_pos++]  = '0' + (exp % 10);
-                exp                /= 10;
-            }
-            // Pad to at least 2 digits
-            while (exp_pos < 2) {
-                exp_buf[exp_pos++] = '0';
-            }
-            while (exp_pos > 0) {
-                if (!StrPushBackR(str, exp_buf[--exp_pos])) {
-                    return NULL;
+            bool ok = true;
+            StrInitStack(exp_buf, 8) {
+                char *data    = StrBegin(&exp_buf);
+                size  exp_pos = 0;
+                while (exp > 0) {
+                    data[exp_pos++]  = '0' + (exp % 10);
+                    exp             /= 10;
                 }
+                // Pad to at least 2 digits
+                while (exp_pos < 2) {
+                    data[exp_pos++] = '0';
+                }
+                while (exp_pos > 0) {
+                    if (!StrPushBackR(str, data[--exp_pos])) {
+                        ok = false;
+                        break;
+                    }
+                }
+            }
+            if (!ok) {
+                return NULL;
             }
         }
     } else {
@@ -799,16 +813,23 @@ Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config) {
                 return NULL;
             }
         } else {
-            char   int_buf[32];
-            size_t int_pos = 0;
-            while (int_part > 0) {
-                int_buf[int_pos++]  = '0' + (int_part % 10);
-                int_part           /= 10;
-            }
-            while (int_pos > 0) {
-                if (!StrPushBackR(str, int_buf[--int_pos])) {
-                    return NULL;
+            bool ok = true;
+            StrInitStack(int_buf, 32) {
+                char *data    = StrBegin(&int_buf);
+                size  int_pos = 0;
+                while (int_part > 0) {
+                    data[int_pos++]  = '0' + (int_part % 10);
+                    int_part        /= 10;
                 }
+                while (int_pos > 0) {
+                    if (!StrPushBackR(str, data[--int_pos])) {
+                        ok = false;
+                        break;
+                    }
+                }
+            }
+            if (!ok) {
+                return NULL;
             }
         }
 
@@ -864,7 +885,7 @@ bool StrToU64(const Str *str, u64 *value, const StrParseConfig *config) {
     }
 
     // Skip whitespace
-    size_t pos = 0;
+    size pos = 0;
     while (pos < str->length && IS_SPACE(str->data[pos]))
         pos++;
 
@@ -947,7 +968,7 @@ bool StrToI64(const Str *str, i64 *value, const StrParseConfig *config) {
     }
 
     // Skip whitespace
-    size_t pos = 0;
+    size pos = 0;
     while (pos < str->length && IS_SPACE(str->data[pos]))
         pos++;
 
@@ -1010,7 +1031,7 @@ bool StrToF64(const Str *str, f64 *value, const StrParseConfig *config) {
     }
 
     // Skip whitespace
-    size_t pos = 0;
+    size pos = 0;
     while (pos < str->length && IS_SPACE(str->data[pos]))
         pos++;
 

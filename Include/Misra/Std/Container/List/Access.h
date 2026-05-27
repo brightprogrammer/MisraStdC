@@ -18,7 +18,7 @@
 ///
 /// TAGS: List, Length, Query
 ///
-#define ListLen(l) ((l)->length)
+#define ListLen(l) ((void)0, (l)->length)
 
 ///
 /// Allocator backing the list's nodes.
@@ -27,7 +27,27 @@
 ///
 /// TAGS: List, Access, Allocator
 ///
-#define ListAllocator(l) ((l)->allocator)
+#define ListAllocator(l) ((void)0, (l)->allocator)
+
+///
+/// Deep-copy `init` callback wired into the list, or `NULL` if the
+/// list was initialised without deep-copy semantics.
+///
+/// l[in] : List to query.
+///
+/// TAGS: List, Access, DeepCopy
+///
+#define ListCopyInit(l) ((void)0, (l)->copy_init)
+
+///
+/// Deep-copy `deinit` callback wired into the list, or `NULL` if the
+/// list was initialised without deep-copy semantics.
+///
+/// l[in] : List to query.
+///
+/// TAGS: List, Access, DeepCopy
+///
+#define ListCopyDeinit(l) ((void)0, (l)->copy_deinit)
 
 ///
 /// Direct O(1) reference to the head node, or `NULL` when the list is
@@ -37,11 +57,13 @@
 ///
 /// l[in] : List to query.
 ///
-/// SUCCESS : Returns the head-node pointer. `NULL` iff the list is empty.
+/// SUCCESS : Returns the head-node pointer.
+/// FAILURE : Returns `NULL` when the list is empty. The list is not
+///           modified.
 ///
 /// TAGS: List, Access, Head
 ///
-#define ListHead(l) ((l)->head)
+#define ListHead(l) ((void)0, (l)->head)
 
 ///
 /// Direct O(1) reference to the tail node, or `NULL` when the list is
@@ -50,19 +72,23 @@
 ///
 /// l[in] : List to query.
 ///
-/// SUCCESS : Returns the tail-node pointer. `NULL` iff the list is empty.
+/// SUCCESS : Returns the tail-node pointer.
+/// FAILURE : Returns `NULL` when the list is empty. The list is not
+///           modified.
 ///
 /// TAGS: List, Access, Tail
 ///
-#define ListTail(l) ((l)->tail)
+#define ListTail(l) ((void)0, (l)->tail)
 
 ///
 /// Check whether list has no items.
 ///
 /// l[in] : List to query.
 ///
-/// SUCCESS: `true` when list length is 0.
-/// FAILURE: `false`
+/// SUCCESS : Returns `true` when the list length is 0. The list is not
+///           modified.
+/// FAILURE : Returns `false` when the list contains at least one node.
+///           The list is not modified.
 ///
 /// TAGS: List, Empty, Query
 ///
@@ -94,6 +120,8 @@
 /// SUCCESS: Pointer to data from node in list at given index
 /// FAILURE: `NULL`
 ///
+/// TAGS: List, Access, API
+///
 #define ListPtrAt(l, idx) ((LIST_DATA_TYPE(l) *)item_ptr_at_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (idx)))
 
 #ifdef __cplusplus
@@ -108,7 +136,9 @@
 /// idx[in] : Index to get data at.
 ///
 /// SUCCESS: Data from node in list at given index.
-/// FAILURE: Emtpy object.
+/// FAILURE: Empty object.
+///
+/// TAGS: List, Access, API
 ///
 #    define ListAt(l, idx) (ListPtrAt((l), (idx)) ? *ListPtrAt((l), (idx)) : ((LIST_DATA_TYPE(l)) {0}))
 #endif
@@ -150,7 +180,9 @@
 /// Better use ListPtrAt instead.
 ///
 /// SUCCESS: Data in head node in list.
-/// FAILURE: Emtpy object.
+/// FAILURE: Empty object.
+///
+/// TAGS: List, First, Access
 ///
 #define ListFirst(l) ListAt((l), 0)
 
@@ -160,7 +192,9 @@
 /// Better use ListPtrAt instead.
 ///
 /// SUCCESS: Data in tail node in list.
-/// FAILURE: Emtpy object.
+/// FAILURE: Empty object.
+///
+/// TAGS: List, Last, Access
 ///
 #define ListLast(l) ListAt((l), (l)->length - 1)
 
@@ -173,6 +207,8 @@
 /// SUCCESS: Reference to node in given list at given index.
 /// FAILURE: `NULL`
 ///
+/// TAGS: List, Node, Access
+///
 #define ListNodePtrAt(l, idx) ((LIST_NODE_TYPE(l) *)(node_at_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (idx))))
 
 ///
@@ -183,6 +219,8 @@
 /// SUCCESS: Reference to head node.
 /// FAILURE: `NULL`
 ///
+/// TAGS: List, Iterator, Begin, Node
+///
 #define ListNodeBegin(l) ListNodePtrAt((l), 0)
 
 ///
@@ -192,6 +230,8 @@
 ///
 /// SUCCESS: Reference to head node.
 /// FAILURE: `NULL`
+///
+/// TAGS: List, Node, Iterator, End
 ///
 #define ListNodeEnd(l) ListNodePtrAt((l), (l)->length - 1)
 
@@ -204,6 +244,8 @@
 /// SUCCESS: Node in given list at given index.
 /// FAILURE: Empty node struct.
 ///
+/// TAGS: List, Node, Access
+///
 #define ListNodeAt(l, idx) (*((LIST_NODE_TYPE(l) *)(node_at_list(GENERIC_LIST(l), sizeof(LIST_DATA_TYPE(l)), (idx)))))
 
 ///
@@ -213,6 +255,8 @@
 ///
 /// SUCCESS: Head node.
 /// FAILURE: Empty node struct.
+///
+/// TAGS: List, First, Node, Access
 ///
 #define ListNodeFirst(l) ListNodeAt((l), 0)
 
@@ -224,7 +268,20 @@
 /// SUCCESS: Tail node.
 /// FAILURE: Empty node struct.
 ///
+/// TAGS: List, Last, Node, Access
+///
 #define ListNodeLast(l) ListNodeAt((l), (l)->length - 1)
+
+///
+/// Payload pointer carried by a list node. Bare field read; the caller
+/// owns the null-check decision (use `ListNodeNext` / `ListNodePrev`
+/// chasing if NULL-tolerant traversal is wanted).
+///
+/// node[in] : List node to query.
+///
+/// TAGS: List, Node, Access, Data
+///
+#define ListNodeData(node) ((void)0, (node)->data)
 
 ///
 /// Get item after (next to) given list item
@@ -233,6 +290,8 @@
 ///
 /// SUCCESS: Node next to given `item` in list.
 /// FAILURE: `NULL`
+///
+/// TAGS: List, Node, Access
 ///
 #define ListNodeNext(item) ((TYPE_OF(item))((item) ? (item)->next : NULL))
 
@@ -243,6 +302,8 @@
 ///
 /// SUCCESS: Node before given `item` in list.
 /// FAILURE: `NULL`
+///
+/// TAGS: List, Node, Access
 ///
 #define ListNodePrev(item) ((TYPE_OF(item))((item) ? (item)->prev : NULL))
 
@@ -256,6 +317,8 @@
 ///
 /// SUCCESS: Node relative to given `item` in list.
 /// FAILURE: `NULL` or abort
+///
+/// TAGS: List, Node, Access
 ///
 #define ListNodeRelative(base_node, ridx) get_node_relative_to_list_node(GENERIC_LIST_NODE(base_node), (i64)(ridx))
 

@@ -52,6 +52,8 @@
 /// assignment target. The allocator argument is optional inside a
 /// `Scope` block.
 ///
+/// TAGS: Vec, Init, API
+///
 #define VecInitT(v, ...) MISRA_OVERLOAD(VecInitT, v, __VA_ARGS__)
 #ifdef __cplusplus
 #    define VecInitT_1(v)            (TYPE_OF(v) VecInit_1(MisraScope))
@@ -65,6 +67,8 @@
 /// Initialize a Vec with deep-copy callbacks. The allocator argument
 /// is optional in the same way as `VecInit` - inside a `Scope` block
 /// you may omit it and `MisraScope` is used automatically.
+///
+/// TAGS: Vec, Init, DeepCopy, Copy
 ///
 #define VecInitWithDeepCopy(...)      MISRA_OVERLOAD(VecInitWithDeepCopy, __VA_ARGS__)
 #define VecInitWithDeepCopy_2(ci, cd) VecInitWithDeepCopy_3(ci, cd, MisraScope)
@@ -159,7 +163,17 @@
              MemSet(&name, 0, sizeof(name)), UNPL(_done) = NULL)
 
 ///
-/// Deinit vec by freeing its backing buffer.
+/// Deinit a vec by freeing its backing buffer. If the vec was built with a deep-copy
+/// `copy_deinit` callback, that callback is invoked on every live element before the
+/// buffer is freed.
+///
+/// v[in,out] : Vec to deinitialize. Must not be used until reinitialized.
+///
+/// SUCCESS : Element deinit callbacks run, backing buffer freed; `v` left in the zeroed
+///           post-deinit state.
+/// FAILURE : Cannot fail; aborts on a corrupted magic via the validator.
+///
+/// TAGS: Vec, Deinit, Memory
 ///
 #define VecDeinit(v) deinit_vec(GENERIC_VEC(v), sizeof(VEC_DATATYPE(v)))
 

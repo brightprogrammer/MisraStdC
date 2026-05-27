@@ -98,7 +98,7 @@ static bool try_open_sidecar(Zstr main_path, const Elf *main, Elf *out, Allocato
 
     // (1) Build-ID
     if (main->build_id && main->build_id_size > 0) {
-        path.length = 0;
+        StrResize(&path, 0);
         StrPushBackMany(&path, "/usr/lib/debug/.build-id/");
         append_build_id_path(&path, main->build_id, main->build_id_size);
         StrPushBackMany(&path, ".debug");
@@ -117,7 +117,7 @@ static bool try_open_sidecar(Zstr main_path, const Elf *main, Elf *out, Allocato
         Zstr cand_prefix  = "/usr/lib/debug";
 
         // (2) {dir}/{name}
-        path.length = 0;
+        StrResize(&path, 0);
         append_dirname(&path, main_path);
         StrPushBackR(&path, '/');
         StrPushBackMany(&path, main->debuglink_name);
@@ -130,7 +130,7 @@ static bool try_open_sidecar(Zstr main_path, const Elf *main, Elf *out, Allocato
         }
 
         // (3) {dir}/.debug/{name}
-        path.length = 0;
+        StrResize(&path, 0);
         append_dirname(&path, main_path);
         StrPushBackMany(&path, "/.debug/");
         StrPushBackMany(&path, main->debuglink_name);
@@ -143,7 +143,7 @@ static bool try_open_sidecar(Zstr main_path, const Elf *main, Elf *out, Allocato
         }
 
         // (4) /usr/lib/debug{dir}/{name}
-        path.length = 0;
+        StrResize(&path, 0);
         StrPushBackMany(&path, cand_prefix);
         append_dirname(&path, main_path);
         StrPushBackR(&path, '/');
@@ -167,8 +167,8 @@ static bool try_open_sidecar(Zstr main_path, const Elf *main, Elf *out, Allocato
 // ---------------------------------------------------------------------------
 
 static ResolverCacheEntry *resolver_cache_find_or_open(SymbolResolver *self, Zstr path, u64 load_base) {
-    for (u64 i = 0; i < self->cache.length; ++i) {
-        ResolverCacheEntry *e = &self->cache.data[i];
+    for (u64 i = 0; i < VecLen(&self->cache); ++i) {
+        ResolverCacheEntry *e = VecPtrAt(&self->cache, i);
         if (e->path == path) {
             return e;
         }
@@ -198,7 +198,7 @@ static ResolverCacheEntry *resolver_cache_find_or_open(SymbolResolver *self, Zst
         ElfDeinit(&entry.elf);
         return NULL;
     }
-    return &self->cache.data[self->cache.length - 1];
+    return VecPtrAt(&self->cache, VecLen(&self->cache) - 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -223,8 +223,8 @@ bool symbol_resolver_init(SymbolResolver *out, Allocator *alloc) {
 void SymbolResolverDeinit(SymbolResolver *self) {
     if (!self)
         return;
-    for (u64 i = 0; i < self->cache.length; ++i) {
-        ResolverCacheEntry *e = &self->cache.data[i];
+    for (u64 i = 0; i < VecLen(&self->cache); ++i) {
+        ResolverCacheEntry *e = VecPtrAt(&self->cache, i);
 #if FEATURE_PARSER_DWARF
         if (e->dwarf_built && e->dwarf_ok) {
             DwarfLinesDeinit(&e->dwarf);

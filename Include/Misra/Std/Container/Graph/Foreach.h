@@ -25,6 +25,10 @@
 /// g[in,out] : Graph to iterate over.
 /// node[in]  : Name of the `GraphNode` loop variable.
 ///
+/// SUCCESS : Loop body runs once per live node; `node` carries a fresh handle each step.
+/// FAILURE : Aborts the traversal on a structural mutation (epoch mismatch) or empty graph;
+///           on validator failure (corrupted magic) the process aborts.
+///
 /// TAGS: Graph, Foreach, Node, Iteration
 ///
 #define GraphForeachNode(g, node)                                                                                      \
@@ -43,6 +47,10 @@
 /// node[in]      : Source node handle.
 /// neighbor[in]  : Name of the `GraphNode` loop variable used for outgoing neighbors.
 ///
+/// SUCCESS : Loop body runs once per outgoing neighbor of `node` in insertion order.
+/// FAILURE : Aborts the traversal on a structural mutation (epoch mismatch) or when `node`
+///           carries no owning graph handle.
+///
 /// TAGS: Graph, Foreach, Neighbor, Iteration
 ///
 #define GraphNodeForeachNeighbor(node, neighbor)                                                                       \
@@ -59,6 +67,10 @@
 ///
 /// node[in]          : Destination node handle.
 /// predecessor[in]   : Name of the `GraphNode` loop variable used for incoming predecessors.
+///
+/// SUCCESS : Loop body runs once per incoming predecessor of `node` in insertion order.
+/// FAILURE : Aborts the traversal on a structural mutation (epoch mismatch) or when `node`
+///           carries no owning graph handle.
 ///
 /// TAGS: Graph, Foreach, Predecessor, Iteration
 ///

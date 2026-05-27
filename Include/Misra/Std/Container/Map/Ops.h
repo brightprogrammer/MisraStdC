@@ -17,6 +17,8 @@
 /// SUCCESS : Returns `true` when the map length is 0. The map is not modified.
 /// FAILURE : Returns `false` when the map contains at least one entry.
 ///
+/// TAGS: Map, Empty, Query, Ops
+///
 #define MapEmpty(m) (MapPairCount(m) == 0)
 
 ///
@@ -30,6 +32,8 @@
 ///           neither map's contents are touched.
 /// FAILURE : Function cannot fail. Validation of either argument is a
 ///           caller bug and aborts via `LOG_FATAL`.
+///
+/// TAGS: Map, Swap, Ops
 ///
 #define MapSwap(lhs, rhs)                                                                                              \
     do {                                                                                                               \
@@ -54,6 +58,8 @@
 ///           shrinks by the returned count.
 /// FAILURE : Function cannot fail. A NULL `predicate_fn` is a caller bug
 ///           and aborts via `LOG_FATAL`.
+///
+/// TAGS: Map, Retain, Predicate, Ops
 ///
 #define MapRetainIf(m, predicate_fn, ctx_ptr)                                                                          \
     map_retain_if(                                                                                                     \

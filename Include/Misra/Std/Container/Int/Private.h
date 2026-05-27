@@ -13,6 +13,15 @@
 extern "C" {
 #endif
 
+    ///
+    /// Snake_case runtime bodies behind the public `Int*` PascalCase API. Direct callers are
+    /// the `_Generic` dispatch tables in `Convert.h`, `Compare.h`, and `Math.h`, plus the
+    /// `MISRA_OVERLOAD` helpers in `Init.h`. End-user code should never name these directly;
+    /// the public surface holds the SUCCESS/FAILURE contracts and routes by argument type.
+    /// `int_compare` is also exposed under its own header for `Map`/`Vec` callback use.
+    ///
+    /// TAGS: Int, Internal, Runtime, Dispatch
+    ///
     Int  int_from_u64(u64 value, Allocator *alloc);
     Int  int_from_i64(i64 value, Allocator *alloc);
     int  int_compare(Int *lhs, Int *rhs);

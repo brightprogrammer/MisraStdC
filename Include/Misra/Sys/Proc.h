@@ -59,6 +59,8 @@ extern "C" {
     /// `_pid` (POSIX) or `_pi.hProcess` (Windows) being zero / NULL means
     /// the init failed -- check with `ProcOk(&p)`.
     ///
+    /// TAGS: Proc, Type, API
+    ///
     typedef struct Proc {
         int  _exit_code;
         bool _completed;
@@ -122,6 +124,8 @@ extern "C" {
     /// FAILURE : Returns false when `ProcInit` failed or `p` is NULL.
     ///           Cannot fail.
     ///
+    /// TAGS: Proc, Query, State
+    ///
     static inline bool ProcOk(const Proc *p) {
         if (!p) {
             return false;
@@ -141,6 +145,8 @@ extern "C" {
     ///           the child was killed by a signal / external action.
     /// FAILURE : Returns `SYS_PROC_STATUS_ERROR`; the cause is logged.
     ///
+    /// TAGS: Proc, Wait, API
+    ///
     ProcStatus ProcWait(Proc *proc);
 
     ///
@@ -151,6 +157,8 @@ extern "C" {
     ///           `SYS_PROC_STATUS_TERMINATED`, or
     ///           `SYS_PROC_STATUS_RUNNING` if the timeout elapsed first.
     /// FAILURE : Returns `SYS_PROC_STATUS_ERROR`; the cause is logged.
+    ///
+    /// TAGS: Proc, Wait, Timeout
     ///
     ProcStatus ProcWaitFor(Proc *proc, u64 timeout_ms);
 
@@ -164,6 +172,8 @@ extern "C" {
     /// FAILURE : Returns to the caller. Any kill error is logged but
     ///           not surfaced; this call is best-effort.
     ///
+    /// TAGS: Proc, Terminate, API
+    ///
     void ProcTerminate(Proc *proc);
 
     ///
@@ -171,6 +181,8 @@ extern "C" {
     ///
     /// SUCCESS: Returns number of bytes written.
     /// FAILURE: Returns -1.
+    ///
+    /// TAGS: Proc, Write, Stdio
     ///
     i32 ProcWriteToStdin(Proc *proc, Str *buf);
 
@@ -182,6 +194,8 @@ extern "C" {
     /// FAILURE : Returns -1 if the child has not yet exited or `proc`
     ///           is invalid.
     ///
+    /// TAGS: Proc, Get, ExitCode
+    ///
     i32 ProcGetExitCode(Proc *proc);
 
     ///
@@ -191,6 +205,8 @@ extern "C" {
     ///           Zero indicates EOF on the pipe.
     /// FAILURE : Returns -1. `buf` is left in its pre-call state; the
     ///           failure cause is logged.
+    ///
+    /// TAGS: Proc, Read, Stdio
     ///
     i32 ProcReadFromStdout(Proc *proc, Str *buf);
 
@@ -202,6 +218,8 @@ extern "C" {
     /// FAILURE : Returns -1. `buf` is left in its pre-call state; the
     ///           failure cause is logged.
     ///
+    /// TAGS: Proc, Read, Stdio
+    ///
     i32 ProcReadFromStderr(Proc *proc, Str *buf);
 
     ///
@@ -209,6 +227,8 @@ extern "C" {
     ///
     /// SUCCESS : Returns a positive pid.
     /// FAILURE : Returns -1 if `proc` is invalid or not yet spawned.
+    ///
+    /// TAGS: Proc, Get, Identity
     ///
     i32 ProcGetId(Proc *proc);
 
@@ -222,6 +242,8 @@ extern "C" {
     /// FAILURE : Returns `SYS_PROC_STATUS_ERROR` if `proc` is invalid
     ///           or the OS query failed (logged).
     ///
+    /// TAGS: Proc, Get, Status
+    ///
     ProcStatus ProcGetStatus(Proc *proc);
 
     ///
@@ -232,26 +254,84 @@ extern "C" {
     /// FAILURE : Returns NULL. `exe_path` may have been partially
     ///           written; the cause is logged.
     ///
+    /// TAGS: Proc, Get, Executable, Path
+    ///
     Str *GetCurrentExecutablePath(Str *exe_path);
 
+///
+/// Blocking read of the child's stdout, then parse the captured bytes
+/// with `StrReadFmt` using the supplied format directives. Convenience
+/// wrapper around `ProcReadFromStdout` + `StrReadFmt` for the common
+/// "drain the pipe, then scan it" pattern; the intermediate `Str` is
+/// owned by the macro and released before return.
+///
+/// p[in]   : Process whose stdout should be drained.
+/// ...[in] : `StrReadFmt`-style format string and output pointers.
+///
+/// SUCCESS : Returns to the caller. The stdout pipe was drained into a
+///           transient `Str`, `StrReadFmt` parsed it into the supplied
+///           outputs, and the transient buffer has been freed.
+/// FAILURE : Returns to the caller. Underlying read/parse errors are
+///           logged by the wrapped calls; outputs whose corresponding
+///           directive did not match remain at their pre-call values.
+///           The transient buffer is freed on every path.
+///
+/// TAGS: Proc, Read, Stdio, Fmt
+///
 #define ProcReadFromStdoutFmt(p, ...)                                                                                  \
     do {                                                                                                               \
         Str UNPL(buf) = StrInit();                                                                                     \
         ProcReadFromStdout((p), &UNPL(buf));                                                                           \
-        Zstr UNPL(in) = UNPL(buf).data;                                                                                \
+        Zstr UNPL(in) = StrBegin(&UNPL(buf));                                                                          \
         StrReadFmt(UNPL(in), __VA_ARGS__);                                                                             \
         StrDeinit(&UNPL(buf));                                                                                         \
     } while (0)
 
+///
+/// Blocking read of the child's stderr, then parse the captured bytes
+/// with `StrReadFmt` using the supplied format directives. Mirror of
+/// `ProcReadFromStdoutFmt` over the stderr pipe.
+///
+/// p[in]   : Process whose stderr should be drained.
+/// ...[in] : `StrReadFmt`-style format string and output pointers.
+///
+/// SUCCESS : Returns to the caller. The stderr pipe was drained into a
+///           transient `Str`, `StrReadFmt` parsed it into the supplied
+///           outputs, and the transient buffer has been freed.
+/// FAILURE : Returns to the caller. Underlying read/parse errors are
+///           logged by the wrapped calls; outputs whose corresponding
+///           directive did not match remain at their pre-call values.
+///           The transient buffer is freed on every path.
+///
+/// TAGS: Proc, Read, Stdio, Fmt
+///
 #define ProcReadFromStderrFmt(p, ...)                                                                                  \
     do {                                                                                                               \
         Str UNPL(buf) = StrInit();                                                                                     \
         ProcReadFromStderr((p), &UNPL(buf));                                                                           \
-        Zstr UNPL(in) = UNPL(buf).data;                                                                                \
+        Zstr UNPL(in) = StrBegin(&UNPL(buf));                                                                          \
         StrReadFmt(UNPL(in), __VA_ARGS__);                                                                             \
         StrDeinit(&UNPL(buf));                                                                                         \
     } while (0)
 
+///
+/// Format a message with `StrAppendFmt` and write the result to the
+/// child's stdin. Convenience wrapper for the common "build a line,
+/// then push it" pattern; the intermediate `Str` is owned by the macro
+/// and released before return.
+///
+/// p[in]   : Process whose stdin should receive the formatted bytes.
+/// ...[in] : `StrAppendFmt`-style format string and arguments.
+///
+/// SUCCESS : Returns to the caller. The formatted bytes were assembled
+///           in a transient `Str`, handed to `ProcWriteToStdin`, and
+///           the transient buffer has been freed.
+/// FAILURE : Returns to the caller. Underlying format/write errors are
+///           logged by the wrapped calls; the transient buffer is
+///           freed on every path.
+///
+/// TAGS: Proc, Write, Stdio, Fmt
+///
 #define ProcWriteToStdinFmt(p, ...)                                                                                    \
     do {                                                                                                               \
         Str UNPL(buf) = StrInit();                                                                                     \
@@ -260,6 +340,23 @@ extern "C" {
         StrDeinit(&UNPL(buf));                                                                                         \
     } while (0)
 
+///
+/// Like `ProcWriteToStdinFmt`, but appends a trailing newline before
+/// writing. Convenience wrapper for line-oriented child stdin protocols.
+///
+/// p[in]   : Process whose stdin should receive the formatted line.
+/// ...[in] : `StrAppendFmt`-style format string and arguments.
+///
+/// SUCCESS : Returns to the caller. The formatted bytes plus a `'\n'`
+///           terminator were assembled in a transient `Str`, handed to
+///           `ProcWriteToStdin`, and the transient buffer has been
+///           freed.
+/// FAILURE : Returns to the caller. Underlying format/write errors are
+///           logged by the wrapped calls; the transient buffer is
+///           freed on every path.
+///
+/// TAGS: Proc, Write, Stdio, Fmt, Line
+///
 #define ProcWriteToStdinFmtLn(p, ...)                                                                                  \
     do {                                                                                                               \
         Str UNPL(buf) = StrInit();                                                                                     \

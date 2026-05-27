@@ -42,7 +42,7 @@ static HeapAllocator g_heap;
 static SlabAllocator g_slab;
 static bench_mode     g_mode = MODE_NONE;
 
-const char *bench_backend_name(void) {
+Zstr bench_backend_name(void) {
 #ifdef BENCH_MISRA_VARIANT_NAME
     return BENCH_MISRA_VARIANT_NAME;
 #else

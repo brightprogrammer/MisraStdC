@@ -213,15 +213,15 @@ bool test_debug_remap_grows(void) {
     DebugAllocator dbg  = DebugAllocatorInit();
     Allocator     *adbg = ALLOCATOR_OF(&dbg);
 
-    char *p  = (char *)AllocatorAlloc(adbg, 16, true);
-    bool  ok = (p != NULL);
+    u8 *p  = (u8 *)AllocatorAlloc(adbg, 16, true);
+    bool ok = (p != NULL);
     if (ok) {
         p[0]  = 'h';
         p[15] = '!';
     }
 
-    char *grown = (char *)AllocatorRealloc(adbg, p, 200);
-    ok          = ok && (grown != NULL) && (grown[0] == 'h') && (grown[15] == '!');
+    u8 *grown = (u8 *)AllocatorRealloc(adbg, p, 200);
+    ok        = ok && (grown != NULL) && (grown[0] == 'h') && (grown[15] == '!');
     ok          = ok && (DebugAllocatorLiveCount(&dbg) == 1);
     ok          = ok && (DebugAllocatorLiveBytes(&dbg) == 200);
 

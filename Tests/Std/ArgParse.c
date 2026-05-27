@@ -21,8 +21,7 @@
 
 static bool test_required_long_space(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     Zstr listen = NULL;
     ArgRequired(&p, "-l", "--listen", &listen, "host:port");
@@ -38,8 +37,7 @@ static bool test_required_long_space(void) {
 
 static bool test_required_long_equals(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     Zstr listen = NULL;
     ArgRequired(&p, "-l", "--listen", &listen, "host:port");
@@ -55,8 +53,7 @@ static bool test_required_long_equals(void) {
 
 static bool test_required_short(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     Zstr listen = NULL;
     ArgRequired(&p, "-l", "--listen", &listen, "host:port");
@@ -72,8 +69,7 @@ static bool test_required_short(void) {
 
 static bool test_optional_default_preserved(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     u32 timeout = 30;
     ArgOptional(&p, NULL, "--timeout", &timeout, "seconds");
@@ -89,8 +85,7 @@ static bool test_optional_default_preserved(void) {
 
 static bool test_optional_overrides_default(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     u32 timeout = 30;
     ArgOptional(&p, NULL, "--timeout", &timeout, "seconds");
@@ -106,8 +101,7 @@ static bool test_optional_overrides_default(void) {
 
 static bool test_flag_presence(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     bool verbose = false;
     ArgFlag(&p, "-v", "--verbose", &verbose, "verbose");
@@ -123,8 +117,7 @@ static bool test_flag_presence(void) {
 
 static bool test_flag_absence(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     bool verbose = false;
     ArgFlag(&p, "-v", "--verbose", &verbose, "verbose");
@@ -140,8 +133,7 @@ static bool test_flag_absence(void) {
 
 static bool test_count_repeated(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     u32 verbose = 0;
     ArgCount(&p, "-v", "--verbose", &verbose, "v");
@@ -157,8 +149,7 @@ static bool test_count_repeated(void) {
 
 static bool test_count_bundled(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     u32 verbose = 0;
     ArgCount(&p, "-v", "--verbose", &verbose, "v");
@@ -174,8 +165,7 @@ static bool test_count_bundled(void) {
 
 static bool test_positional_order(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("cp", NULL, A);
+    ArgParse         p = ArgParseInit("cp", NULL, &a);
 
     Zstr src = NULL;
     Zstr dst = NULL;
@@ -193,8 +183,7 @@ static bool test_positional_order(void) {
 
 static bool test_positional_with_interleaved_flag(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("cp", NULL, A);
+    ArgParse         p = ArgParseInit("cp", NULL, &a);
 
     Zstr src     = NULL;
     Zstr dst     = NULL;
@@ -218,8 +207,7 @@ static bool test_positional_with_interleaved_flag(void) {
 
 static bool test_type_inferred_u32(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     u32 n = 0;
     ArgOptional(&p, NULL, "--n", &n, "count");
@@ -235,8 +223,7 @@ static bool test_type_inferred_u32(void) {
 
 static bool test_type_inferred_i64_negative(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     i64 v = 0;
     ArgOptional(&p, NULL, "--v", &v, "v");
@@ -252,8 +239,7 @@ static bool test_type_inferred_i64_negative(void) {
 
 static bool test_type_inferred_f64(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     f64 ratio = 1.0;
     ArgOptional(&p, NULL, "--ratio", &ratio, "r");
@@ -269,10 +255,9 @@ static bool test_type_inferred_f64(void) {
 
 static bool test_type_inferred_str(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
-    Str name = StrInit(A);
+    Str name = StrInit(&a);
     ArgOptional(&p, NULL, "--name", &name, "n");
 
     char  *argv[] = {(char *)"prog", (char *)"--name", (char *)"alice"};
@@ -291,8 +276,7 @@ static bool test_type_inferred_str(void) {
 
 static bool test_missing_required(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     Zstr listen = NULL;
     ArgRequired(&p, "-l", "--listen", &listen, "");
@@ -308,8 +292,7 @@ static bool test_missing_required(void) {
 
 static bool test_missing_positional(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("cp", NULL, A);
+    ArgParse         p = ArgParseInit("cp", NULL, &a);
 
     Zstr src = NULL;
     Zstr dst = NULL;
@@ -327,8 +310,7 @@ static bool test_missing_positional(void) {
 
 static bool test_unknown_option(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     bool v = false;
     ArgFlag(&p, "-v", "--verbose", &v, "");
@@ -344,8 +326,7 @@ static bool test_unknown_option(void) {
 
 static bool test_invalid_value_for_type(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     u32 n = 0;
     ArgOptional(&p, NULL, "--n", &n, "");
@@ -361,8 +342,7 @@ static bool test_invalid_value_for_type(void) {
 
 static bool test_u8_overflow(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     u8 v = 0;
     ArgOptional(&p, NULL, "--v", &v, "");
@@ -378,8 +358,7 @@ static bool test_u8_overflow(void) {
 
 static bool test_too_many_positionals(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", NULL, A);
+    ArgParse         p = ArgParseInit("prog", NULL, &a);
 
     Zstr x = NULL;
     ArgPositional(&p, "x", &x, "");
@@ -399,8 +378,7 @@ static bool test_too_many_positionals(void) {
 
 static bool test_double_dash_separator(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("cat", NULL, A);
+    ArgParse         p = ArgParseInit("cat", NULL, &a);
 
     Zstr file = NULL;
     ArgPositional(&p, "file", &file, "input file");
@@ -424,8 +402,7 @@ static bool test_double_dash_separator(void) {
 
 static bool test_help_returns_help_code(void) {
     DefaultAllocator a = DefaultAllocatorInit();
-    Allocator       *A = ALLOCATOR_OF(&a);
-    ArgParse         p = ArgParseInit("prog", "test prog", A);
+    ArgParse         p = ArgParseInit("prog", "test prog", &a);
 
     Zstr required = NULL;
     ArgRequired(&p, "-l", "--listen", &required, "host:port");

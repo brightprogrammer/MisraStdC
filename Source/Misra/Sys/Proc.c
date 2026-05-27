@@ -674,22 +674,37 @@ Str *GetCurrentExecutablePath(Str *exe_path) {
     Allocator *alloc = exe_path->allocator;
 
 #if PLATFORM_WINDOWS
-    char  buffer[MAX_PATH];
-    DWORD len = GetModuleFileNameA(NULL, buffer, MAX_PATH);
-    if (len == 0 || len >= MAX_PATH) {
-        LOG_ERROR("Failed to get executable path or buffer too small");
-        return NULL;
+    // Stack-backed staging buffer for `GetModuleFileNameA`. `len` is
+    // the count of bytes written (excluding the NUL), so we use it
+    // directly for `StrResize` before copying out.
+    bool got = false;
+    StrInitStack(buffer, MAX_PATH) {
+        DWORD len = GetModuleFileNameA(NULL, StrBegin(&buffer), MAX_PATH);
+        if (len == 0 || len >= MAX_PATH) {
+            LOG_ERROR("Failed to get executable path or buffer too small");
+            break;
+        }
+        StrResize(&buffer, (size)len);
+        *exe_path = StrInitFromStr(&buffer, alloc);
+        got       = true;
     }
-    *exe_path = StrInitFromCstr(buffer, ZstrLen(buffer), alloc);
-    return exe_path;
+    return got ? exe_path : NULL;
 #else
-    char buffer[4096]; // Large buffer for Unix paths
-
-    // Try /proc/self/exe first (Linux)
-    ssize_t len = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
-    if (len != -1) {
-        buffer[len] = '\0';
-        *exe_path   = StrInitFromCstr(buffer, ZstrLen(buffer), alloc);
+    // Stack-backed staging buffer for `readlink`. The `-1` keeps room
+    // for the NUL we write at `data[len]` before recording the length
+    // via `StrResize`.
+    bool got = false;
+    StrInitStack(buffer, 4096) {
+        char   *data = StrBegin(&buffer);
+        ssize_t len  = readlink("/proc/self/exe", data, 4095);
+        if (len != -1) {
+            data[len] = '\0';
+            StrResize(&buffer, (size)len);
+            *exe_path = StrInitFromStr(&buffer, alloc);
+            got       = true;
+        }
+    }
+    if (got) {
         return exe_path;
     }
 
@@ -704,7 +719,7 @@ Str *GetCurrentExecutablePath(Str *exe_path) {
 // Sys/Backtrace already makes per-frame.
 #    if PLATFORM_DARWIN
     extern Zstr _dyld_get_image_name(u32 image_index);
-    const char        *exe = _dyld_get_image_name(0);
+    Zstr exe = _dyld_get_image_name(0);
     if (exe) {
         *exe_path = StrInitFromCstr(exe, ZstrLen(exe), alloc);
         return exe_path;

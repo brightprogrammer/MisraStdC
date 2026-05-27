@@ -21,7 +21,10 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// SUCCESS : Number of differing bits
+    /// SUCCESS : Returns the number of bit positions at which `bv1` and
+    ///           `bv2` differ. Bits beyond the shorter operand are
+    ///           treated as `0`. Neither operand is modified.
+    /// FAILURE : Function cannot fail.
     ///
     /// USAGE:
     ///   u64 distance = BitVecHammingDistance(&bv1, &bv2);
@@ -37,7 +40,11 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// SUCCESS : Jaccard similarity coefficient (0.0 to 1.0)
+    /// SUCCESS : Returns the Jaccard similarity coefficient in
+    ///           `[0.0, 1.0]`. Neither operand is modified.
+    /// FAILURE : Returns `0.0` when both operands have no set bits
+    ///           (degenerate union); the caller cannot distinguish that
+    ///           from a true zero coefficient.
     ///
     /// USAGE:
     ///   double similarity = BitVecJaccardSimilarity(&bv1, &bv2);
@@ -53,7 +60,11 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// SUCCESS : Cosine similarity coefficient (0.0 to 1.0)
+    /// SUCCESS : Returns the cosine similarity coefficient in
+    ///           `[0.0, 1.0]`. Neither operand is modified.
+    /// FAILURE : Returns `0.0` when either operand has no set bits
+    ///           (degenerate magnitude); the caller cannot distinguish
+    ///           that from a true zero coefficient.
     ///
     /// USAGE:
     ///   double similarity = BitVecCosineSimilarity(&bv1, &bv2);
@@ -69,7 +80,10 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// SUCCESS : Number of positions where both bits are 1
+    /// SUCCESS : Returns the number of positions where both bits are
+    ///           `1`. Bits beyond the shorter operand are treated as
+    ///           `0`. Neither operand is modified.
+    /// FAILURE : Function cannot fail.
     ///
     /// USAGE:
     ///   u64 dot_product = BitVecDotProduct(&bv1, &bv2);
@@ -85,9 +99,12 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// SUCCESS : `true` on success, `false` when scratch allocation fails.
-    ///
-    /// The computed distance is written to `out` on success.
+    /// SUCCESS : Returns `true` and writes the minimum number of
+    ///           single-bit edits to `*out`. Neither operand is
+    ///           modified.
+    /// FAILURE : Returns `false` on allocator OOM while allocating the
+    ///           Wagner-Fischer scratch buffer. `*out` is left
+    ///           untouched.
     ///
     /// USAGE:
     ///   u64 distance;
@@ -105,7 +122,14 @@ extern "C" {
     /// bv2[in]   : Second bitvector
     /// error[out] : Optional pointer set to `true` on failure and `false` on success
     ///
-    /// SUCCESS : Minimum edit distance, or `0` on failure.
+    /// SUCCESS : Returns the minimum number of single-bit edits to
+    ///           transform `bv1` into `bv2`. When `error` is non-NULL,
+    ///           `*error` is set to `false`. Neither operand is
+    ///           modified.
+    /// FAILURE : Returns `0` on allocator OOM during the Wagner-Fischer
+    ///           scratch allocation. When `error` is non-NULL, `*error`
+    ///           is set to `true`; otherwise the caller cannot
+    ///           distinguish failure from a true zero distance.
     ///
     /// USAGE:
     ///   u64 distance = BitVecEditDistance(&bv1, &bv2);
@@ -121,7 +145,11 @@ extern "C" {
     /// bv1[in] : First bitvector
     /// bv2[in] : Second bitvector
     ///
-    /// SUCCESS : Correlation coefficient (-1.0 to 1.0)
+    /// SUCCESS : Returns the Pearson correlation coefficient in
+    ///           `[-1.0, 1.0]`. Neither operand is modified.
+    /// FAILURE : Returns `0.0` when either operand has zero variance
+    ///           (all bits equal); the caller cannot distinguish that
+    ///           from a true zero coefficient.
     ///
     /// USAGE:
     ///   double correlation = BitVecCorrelation(&bv1, &bv2);
@@ -136,7 +164,11 @@ extern "C" {
     ///
     /// bv[in] : Bitvector to analyze
     ///
-    /// SUCCESS : Entropy value in bits (0.0 to 1.0)
+    /// SUCCESS : Returns the Shannon entropy of the bit pattern, in
+    ///           bits, in `[0.0, 1.0]`. The bitvector is not modified.
+    /// FAILURE : Returns `0.0` for an empty bitvector or one whose bits
+    ///           are all equal; the caller cannot distinguish that
+    ///           from a true zero entropy.
     ///
     /// USAGE:
     ///   double entropy = BitVecEntropy(&flags);
@@ -154,7 +186,11 @@ extern "C" {
     /// match[in]    : Score for matching bits
     /// mismatch[in] : Score for mismatching bits
     ///
-    /// SUCCESS : Total alignment score
+    /// SUCCESS : Returns the total alignment score computed as
+    ///           `match * #matches + mismatch * #mismatches` over the
+    ///           overlapping prefix of the two operands. Neither
+    ///           operand is modified.
+    /// FAILURE : Function cannot fail.
     ///
     /// USAGE:
     ///   int score = BitVecAlignmentScore(&seq1, &seq2, 2, -1);
@@ -170,7 +206,12 @@ extern "C" {
     /// bv1[in] : First bitvector (reference)
     /// bv2[in] : Second bitvector (query)
     ///
-    /// SUCCESS : Best alignment offset, or SIZE_MAX if no good alignment
+    /// SUCCESS : Returns the offset in `bv1` at which `bv2` produces
+    ///           the highest alignment score. Neither operand is
+    ///           modified.
+    /// FAILURE : Returns `SIZE_MAX` when either operand is empty or
+    ///           no candidate alignment yields a positive score. The
+    ///           bitvectors are not modified.
     ///
     /// USAGE:
     ///   u64 offset = BitVecBestAlignment(&reference, &query);

@@ -335,15 +335,20 @@ extern "C" {
     ///
     /// Compute the Jacobi symbol `(a/n)`.
     ///
-    /// a[in] : Numerator
-    /// n[in] : Odd positive modulus
+    /// out[out] : Destination for the Jacobi symbol; one of `-1`, `0`,
+    ///            or `1` on success.
+    /// a[in]    : Numerator
+    /// n[in]    : Odd positive modulus
     ///
-    /// error[out] : Optional pointer set to `true` on failure and `false` on success
-    ///
-    /// SUCCESS : Returns `-1`, `0`, or `1`, or `0` on failure.
+    /// SUCCESS : Returns `true` and writes the Jacobi symbol to
+    ///           `*out`. Neither operand is modified.
+    /// FAILURE : Returns `false` when `n` is even, zero, or otherwise
+    ///           invalid for the Jacobi computation. `*out` is left
+    ///           untouched.
     ///
     /// USAGE:
-    ///   int symbol = IntJacobi(&a, &n);
+    ///   int symbol = 0;
+    ///   bool ok = IntTryJacobi(&symbol, &a, &n);
     ///
     /// TAGS: Int, Math, Jacobi, NumberTheory
     ///
@@ -729,6 +734,10 @@ extern "C" {
 /// USAGE:
 ///   IntAdd(&sum, &value, 10u);
 ///
+/// SUCCESS : Returns `true`; `*result` holds `a + b`.
+/// FAILURE : Returns `false` if an intermediate allocation fails;
+///           `*result` is unchanged.
+///
 /// TAGS: Int, Math, Add, Generic
 ///
 #    define IntAdd(result, a, b) INT_ADD_DISPATCH(b)((result), (a), (b))
@@ -740,10 +749,12 @@ extern "C" {
 /// a[in]       : Left operand
 /// b[in]       : Right operand (`Int`, pointer, `u64`, or `i64` compatible type)
 ///
-/// SUCCESS : Returns Result of the selected subtraction overload.
-///
 /// USAGE:
 ///   bool ok = IntSub(&diff, &value, 1u);
+///
+/// SUCCESS : Returns `true`; `*result` holds `a - b`.
+/// FAILURE : Returns `false` if an intermediate allocation fails;
+///           `*result` is unchanged.
 ///
 /// TAGS: Int, Math, Subtract, Generic
 ///
@@ -758,6 +769,10 @@ extern "C" {
 /// USAGE:
 ///   IntMul(&product, &value, 10u);
 ///
+/// SUCCESS : Returns `true`; `*result` holds `a * b`.
+/// FAILURE : Returns `false` if an intermediate allocation fails;
+///           `*result` is unchanged.
+///
 /// TAGS: Int, Math, Multiply, Generic
 ///
 #    define IntMul(result, a, b) INT_MUL_DISPATCH(b)((result), (a), (b))
@@ -771,6 +786,11 @@ extern "C" {
 /// USAGE:
 ///   IntPow(&power, &base, 20u);
 ///
+/// SUCCESS : Returns `true`; `*result` holds `base ** exponent`
+///           computed via repeated-squaring.
+/// FAILURE : Returns `false` if an intermediate allocation fails or
+///           if `exponent` is negative; `*result` is unchanged.
+///
 /// TAGS: Int, Math, Power, Generic
 ///
 #    define IntPow(result, base, exponent) INT_POW_DISPATCH(exponent)((result), (base), (exponent))
@@ -783,6 +803,11 @@ extern "C" {
 ///
 /// USAGE:
 ///   IntDiv(&quotient, &value, 10u);
+///
+/// SUCCESS : Returns `true`; `*result` holds the floor quotient of
+///           `dividend / divisor`.
+/// FAILURE : Returns `false` when `divisor` is zero (logged) or when an
+///           intermediate allocation fails; `*result` is unchanged.
 ///
 /// TAGS: Int, Math, Divide, Generic
 ///
@@ -813,6 +838,11 @@ extern "C" {
 /// USAGE:
 ///   IntMod(&remainder, &value, 97u);
 ///
+/// SUCCESS : Returns `true`; `*result` holds `dividend mod divisor`
+///           in the range `[0, |divisor|)`.
+/// FAILURE : Returns `false` when `divisor` is zero (logged) or when an
+///           intermediate allocation fails; `*result` is unchanged.
+///
 /// TAGS: Int, Math, Modulo, Generic
 ///
 #    define IntMod(result, dividend, divisor) INT_MOD_DISPATCH(divisor)((result), (dividend), (divisor))
@@ -826,6 +856,13 @@ extern "C" {
 ///
 /// USAGE:
 ///   IntDivMod(&q, &r, &value, 97u);
+///
+/// SUCCESS : Returns `true`; `*quotient` and `*remainder` jointly
+///           satisfy `dividend = quotient * divisor + remainder`.
+/// FAILURE : `LOG_FATAL` if `quotient` and `remainder` alias the same
+///           object. Returns `false` when `divisor` is zero (logged) or
+///           when an intermediate allocation fails; `*quotient` and
+///           `*remainder` are unchanged.
 ///
 /// TAGS: Int, Math, Divide, Modulo, Generic
 ///
@@ -841,6 +878,13 @@ extern "C" {
 ///
 /// USAGE:
 ///   IntPowMod(&result, &base, 65537u, &modulus);
+///
+/// SUCCESS : Returns `true`; `*result` holds `base ** exponent mod
+///           modulus` computed via repeated-squaring with intermediate
+///           reduction.
+/// FAILURE : Returns `false` when `modulus` is zero (logged), when
+///           `exponent` is negative, or when an intermediate allocation
+///           fails; `*result` is unchanged.
 ///
 /// TAGS: Int, Math, Modular, Power, Generic
 ///

@@ -541,7 +541,7 @@ bool pe_open_from_memory_copy(Pe *out, const u8 *data, size data_size, Allocator
         return false;
     }
     MemCopy(BufData(&copy), data, data_size);
-    copy.length = (size)data_size;
+    BufResize(&copy, (size)data_size);
     return PeOpenFromMemory(out, &copy);
 }
 

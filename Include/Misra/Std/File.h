@@ -26,6 +26,8 @@
 /// failed open leaves `fd` (or `handle`) negative / INVALID; check
 /// with `FileIsOpen` after open.
 ///
+/// TAGS: File, Type, API
+///
 typedef struct File {
 #if PLATFORM_WINDOWS
     void *handle; // HANDLE (kept as void* so we don't pull <windows.h>)
@@ -39,6 +41,8 @@ typedef struct File {
 ///
 /// Whence values for `FileSeek`. `SET` anchors to the file start,
 /// `CUR` to the current position, `END` to the file end.
+///
+/// TAGS: File, Type, Position
 ///
 typedef enum FileWhence {
     FILE_SEEK_SET = 0,
@@ -69,6 +73,8 @@ typedef enum FileWhence {
 /// SUCCESS : Returns a File where `FileIsOpen(&out)` is true.
 /// FAILURE : Returns a File where `FileIsOpen(&out)` is false.
 ///
+/// TAGS: File, Open, API
+///
 File file_open(Zstr path, Zstr mode);
 #define FileOpen(path, mode)                                                                                           \
     _Generic(                                                                                                          \
@@ -90,6 +96,8 @@ File file_open(Zstr path, Zstr mode);
 /// FAILURE : Function cannot fail; an invalid `fd` produces a `File`
 ///           that simply reports as not-open.
 ///
+/// TAGS: File, FromFd, Wrap, FileDescriptor
+///
 File FileFromFd(i32 fd);
 
 ///
@@ -100,6 +108,8 @@ File FileFromFd(i32 fd);
 /// SUCCESS : Returns a borrowed `File` (owns = false) referring to
 ///           the corresponding standard stream.
 /// FAILURE : Function cannot fail.
+///
+/// TAGS: File, Stdio, API
 ///
 File FileStdin(void);
 File FileStdout(void);
@@ -113,6 +123,8 @@ File FileStderr(void);
 /// SUCCESS : Returns true.
 /// FAILURE : Returns false if the close syscall failed (logged).
 ///
+/// TAGS: File, Close, API
+///
 bool FileClose(File *f);
 
 ///
@@ -120,6 +132,8 @@ bool FileClose(File *f);
 ///
 /// SUCCESS : Returns true when the handle is open.
 /// FAILURE : Returns false otherwise (closed or never opened). Cannot fail.
+///
+/// TAGS: File, Query, State, Open
 ///
 bool FileIsOpen(const File *f);
 
@@ -211,6 +225,8 @@ i64 file_read_and_close_to_str(Zstr path, Str *out);
 /// SUCCESS : Returns the number of bytes written (>= 0).
 /// FAILURE : Returns -1 on error.
 ///
+/// TAGS: File, Write, API
+///
 i64 FileWrite(File *f, const void *buf, u64 n);
 
 ///
@@ -260,6 +276,8 @@ i64 file_write_and_close_from_bytes(Zstr path, const void *buf, u64 n);
 /// SUCCESS : Returns the new absolute file offset (>= 0).
 /// FAILURE : Returns -1 on error (typically ESPIPE for a pipe/tty).
 ///
+/// TAGS: File, Seek, Position
+///
 i64 FileSeek(File *f, i64 offset, FileWhence whence);
 
 ///
@@ -267,6 +285,8 @@ i64 FileSeek(File *f, i64 offset, FileWhence whence);
 ///
 /// SUCCESS : Returns the offset (>= 0).
 /// FAILURE : Returns -1 on error.
+///
+/// TAGS: File, Position, Tell
 ///
 i64 FileTell(File *f);
 
@@ -280,6 +300,8 @@ i64 FileTell(File *f);
 /// SUCCESS : Returns true.
 /// FAILURE : Returns false.
 ///
+/// TAGS: File, Flush, API
+///
 bool FileFlush(File *f);
 
 ///
@@ -287,6 +309,8 @@ bool FileFlush(File *f);
 ///
 /// SUCCESS : Returns true when the last read returned 0 bytes.
 /// FAILURE : Returns false otherwise. Cannot fail.
+///
+/// TAGS: File, EOF, Query
 ///
 bool FileIsEof(const File *f);
 
@@ -296,6 +320,8 @@ bool FileIsEof(const File *f);
 ///
 /// SUCCESS : Returns the fd (>= 0) on POSIX.
 /// FAILURE : Returns -1 on Windows, or for a `File` that isn't open.
+///
+/// TAGS: File, FileDescriptor, API
 ///
 i32 FileFd(const File *f);
 

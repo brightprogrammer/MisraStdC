@@ -36,6 +36,8 @@
 /// real Winsock `SOCKET` (UINT_PTR), `i32` everywhere else so it stays
 /// printf-friendly and matches the POSIX `int` fd.
 ///
+/// TAGS: Socket, Type, FileDescriptor
+///
 #if PLATFORM_WINDOWS
 typedef u64 SockFd;
 #    define SOCKET_FD_INVALID ((SockFd) ~(u64)0) // == INVALID_SOCKET
@@ -63,6 +65,8 @@ typedef enum SocketFamily {
 /// `sockaddr_in6` is identical on Linux, macOS, and Windows, so
 /// `SocketAddr` is platform-portable as a value.
 ///
+/// TAGS: Socket, Type, Address
+///
 typedef struct SocketAddr {
     u8           raw[SOCKET_ADDR_MAX_SIZE];
     u32          length;
@@ -76,6 +80,8 @@ typedef struct SocketAddr {
 /// `ListenerLocalAddr` for the actually-bound address when the caller
 /// asked the kernel to pick the port.
 ///
+/// TAGS: Socket, Type, Listener
+///
 typedef struct Listener {
     SockFd     fd;
     SocketKind kind;
@@ -85,6 +91,8 @@ typedef struct Listener {
 ///
 /// A connected socket: either returned by `ListenerAccept` (server side)
 /// or by `SocketConnect` (client side). `peer` is the remote endpoint.
+///
+/// TAGS: Socket, Type, API
 ///
 typedef struct Socket {
     SockFd     fd;
@@ -102,6 +110,8 @@ typedef enum SocketPollFlags {
 /// One slot in a `SocketPoll` call. Caller fills `fd` (from a
 /// `Listener` or `Socket`) and `events_requested`; `SocketPoll` writes
 /// `events_ready` back.
+///
+/// TAGS: Socket, Type, Poll
 ///
 typedef struct SocketPollItem {
     SockFd fd;
@@ -141,6 +151,8 @@ bool socket_addr_parse_zstr(SocketAddr *out, Zstr spec, SocketKind kind);
 /// SUCCESS : Returns true; `*out` populated.
 /// FAILURE : Returns false; `*out` zeroed. Silent (no log) — caller is
 ///           expected to chain into DNS for the hostname case.
+///
+/// TAGS: Socket, Parse, Address
 ///
 bool socket_addr_parse_str(SocketAddr *out, const Str *spec, SocketKind kind);
 #define SocketAddrParse(out, spec, kind)                                                                                                                      \
@@ -298,6 +310,8 @@ void SocketClose(Socket *self);
 /// FAILURE : Returns false. The fd is unchanged; the failing syscall
 ///           is logged.
 ///
+/// TAGS: Socket, Set, NonBlocking
+///
 bool SocketSetNonBlocking(SockFd fd, bool nonblock);
 
 ///
@@ -307,6 +321,8 @@ bool SocketSetNonBlocking(SockFd fd, bool nonblock);
 /// FAILURE : Returns false. The fd is unchanged; the failing syscall
 ///           is logged.
 ///
+/// TAGS: Socket, Set, NoDelay, Node
+///
 bool SocketSetNoDelay(SockFd fd, bool nodelay);
 
 ///
@@ -315,6 +331,8 @@ bool SocketSetNoDelay(SockFd fd, bool nodelay);
 /// SUCCESS : Returns true. The fd has the requested setting.
 /// FAILURE : Returns false. The fd is unchanged; the failing syscall
 ///           is logged.
+///
+/// TAGS: Socket, Set, KeepAlive
 ///
 bool SocketSetKeepAlive(SockFd fd, bool keepalive);
 
@@ -330,6 +348,8 @@ bool SocketSetKeepAlive(SockFd fd, bool keepalive);
 /// FAILURE : Returns false. The fd is unchanged; the failing syscall
 ///           is logged.
 ///
+/// TAGS: Socket, Set, ReuseAddr, Address
+///
 bool SocketSetReuseAddr(SockFd fd, bool reuse);
 
 ///
@@ -339,6 +359,8 @@ bool SocketSetReuseAddr(SockFd fd, bool reuse);
 /// FAILURE : Returns false. The fd is unchanged; the failing syscall
 ///           is logged.
 ///
+/// TAGS: Socket, Set, Recv, Timeout
+///
 bool SocketSetRecvTimeoutMs(SockFd fd, u32 ms);
 
 ///
@@ -347,6 +369,8 @@ bool SocketSetRecvTimeoutMs(SockFd fd, u32 ms);
 /// SUCCESS : Returns true. The fd has the requested timeout.
 /// FAILURE : Returns false. The fd is unchanged; the failing syscall
 ///           is logged.
+///
+/// TAGS: Socket, Set, Send, Timeout, Iterator, End
 ///
 bool SocketSetSendTimeoutMs(SockFd fd, u32 ms);
 

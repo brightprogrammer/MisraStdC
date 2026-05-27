@@ -162,7 +162,7 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 /// may already own memory that must be freed or replaced through a specific
 /// allocator.
 ///
-/// zstr[in,out]    : `char *` or `Zstr ` variable.
+/// zstr[in,out]    : `Zstr` variable.
 /// alloc_ptr[in]   : Allocator responsible for the pointed-to storage.
 ///
 /// SUCCESS: Returns a `TypeSpecificIO` wrapper suitable for `StrReadFmt(...)`
@@ -171,7 +171,7 @@ static inline TypeSpecificIO TO_TYPE_SPECIFIC_IO_IMPL(TypeSpecificWriter w, Type
 ///
 /// USAGE:
 ///   char *name = NULL;
-///   Allocator alloc = DefaultAllocator();
+///   DefaultAllocator alloc = DefaultAllocatorInit();
 ///   StrReadFmt(text, "{s}", ZstrIO(name, &alloc));
 ///
 /// TAGS: I/O, String, Allocator, Macro
@@ -408,6 +408,13 @@ bool float_try_to_scientific_str(
 /// `StrClear(out)` followed by `StrAppendFmt(out, ...)` -- any prior
 /// contents of `out` are discarded.
 ///
+/// SUCCESS : Returns `true`; `out` holds exactly the rendered output.
+/// FAILURE : Returns `false` if the underlying append fails (allocator
+///           failure or invalid format string). `out` is cleared either
+///           way before the append runs, so a failed call leaves `out`
+///           with whatever bytes were appended before the failure.
+///           `LOG_FATAL` if `out` or the format string is NULL.
+///
 /// TAGS: Str, Write, Format, I/O
 ///
 #define StrWriteFmt(out, ...) StrWriteFmt_IMPL1(out, __VA_ARGS__)
@@ -450,7 +457,8 @@ bool float_try_to_scientific_str(
 
 ///
 /// Parse input string according to format string with rust-style placeholders,
-/// extracting values into provided arguments. This is a macro wrapper around str_read_fmt.
+/// extracting values into provided arguments. Delegates to the in-tree
+/// formatted-read backend.
 ///
 /// NOTE: Provided input string must be an assignable l-value. The macro automatically updates given
 ///       input string to new parse position after a successful parse. If parse fails, the input string
@@ -481,8 +489,9 @@ bool float_try_to_scientific_str(
 ///
 /// SUCCESS : Returns a `const char*` pointing to the beginning of the unparsed portion
 ///           of the `input` string after successful parsing.
-/// FAILURE : Failure occurs within `str_read_fmt`. Refer to its documentation
-///           for details on failure behavior (typically logs error messages and does not return).
+/// FAILURE : Failure occurs within the formatted-read backend (typically
+///           logs error messages and does not return); `input` is left
+///           pointing at its original position.
 ///
 /// TAGS: Macro, Wrapper, Format, Parsing, I/O
 ///
@@ -505,7 +514,8 @@ bool float_try_to_scientific_str(
     } while (0)
 
 ///
-/// Read formatted data from a file stream. This is a macro wrapper around f_read_fmt.
+/// Read formatted data from a file stream. Delegates to the in-tree
+/// file formatted-read backend.
 ///
 /// stream[in]  : Pointer to the `File` to read from.
 /// fmtstr[in]  : Format string to be used for reading. This must exactly describe the
@@ -515,9 +525,9 @@ bool float_try_to_scientific_str(
 ///
 /// SUCCESS : Attempts to match `fmtstr` with the stream of characters in `stream` and
 ///           reads values into the provided arguments wrapped with ``.
-/// FAILURE : Failure occurs within `f_read_fmt`. Refer to its documentation for
-///           details on failure behavior (logs error message and returns, may rollback
-///           read data, or abort in unexpected situations).
+/// FAILURE : Failure occurs within the file formatted-read backend
+///           (logs error message and returns, may roll back read data,
+///           or abort in unexpected situations).
 ///
 /// TAGS: Macro, Wrapper, File, I/O
 ///
@@ -538,8 +548,9 @@ bool float_try_to_scientific_str(
     } while (0)
 
 ///
-/// Write formatted output to a file stream. This macro internally uses str_write_fmt
-/// to format the string and then writes it to the stream.
+/// Write formatted output to a file stream. Formats the rendered
+/// string via the in-tree formatted-write backend and emits the result
+/// to the stream.
 ///
 /// stream[in]  : Pointer to the `File` to write to.
 /// fmtstr[in]  : Format string with `{}` placeholders.
@@ -568,8 +579,8 @@ bool float_try_to_scientific_str(
 
 ///
 /// Write formatted output to a file stream followed by a newline character.
-/// This macro internally uses str_write_fmt to format the string and then writes
-/// it to the stream followed by a newline.
+/// Formats the rendered string via the in-tree formatted-write backend
+/// and emits the result to the stream, then appends a newline.
 ///
 /// stream[in]  : Pointer to the `File` to write to.
 /// fmtstr[in]  : Format string with `{}` placeholders.
@@ -728,11 +739,91 @@ Zstr _read_Int(Zstr i, FmtInfo *fmt_info, Int *value);
 // must match the spec width.
 // ---------------------------------------------------------------------------
 
+///
+/// Backend for `BufReadFmt`. Walks `fmtstr` -- restricted to `{<Nr}`
+/// (LE) and `{>Nr}` (BE) directives with `N` in {1, 2, 4, 8} -- and
+/// reads each matching field from the bytes pointed at by `iter`,
+/// advancing `iter` past every successfully consumed field.
+///
+/// SUCCESS : Returns `true`; `iter` has advanced past the consumed
+///           bytes and every output slot in `argv` is populated.
+/// FAILURE : Returns `false` on format-parse error (malformed
+///           directive, spec width that does not match the destination
+///           argument's natural width) or on cursor overflow (the
+///           remaining bytes pointed at by `iter` are shorter than the
+///           directive demands). `iter` may have advanced partially;
+///           output slots written before the failure retain the
+///           partially decoded value.
+///
+/// TAGS: Buf, Read, Format, I/O
+///
 bool buf_read_fmt(BufIter *iter, Zstr fmtstr, TypeSpecificIO *argv, u64 argc);
+
+///
+/// Backend for `BufAppendFmt`. Encodes each `{<Nr}` / `{>Nr}` directive
+/// in `fmtstr` from the matching `argv` slot and appends the raw bytes
+/// to the end of `*out`, growing `out` through its inline allocator as
+/// needed. Existing contents are preserved.
+///
+/// SUCCESS : Returns `true`; `out->length` has grown by exactly the
+///           number of bytes the directives encode.
+/// FAILURE : Returns `false` on format-parse error (malformed
+///           directive, width mismatch with the source argument) or on
+///           grow-buffer failure during append. `*out` may be left
+///           partially extended -- bytes written before the failure
+///           are kept.
+///
+/// TAGS: Buf, Append, Format, I/O
+///
 bool buf_append_fmt(Buf *out, Zstr fmtstr, TypeSpecificIO *argv, u64 argc);
+
+///
+/// Backend for `BufWriteFmt`. Equivalent to clearing `*out` and then
+/// running the formatted-append path -- any prior contents of `out`
+/// are discarded before encoding starts.
+///
+/// SUCCESS : Returns `true`; `*out` holds exactly the encoded bytes.
+/// FAILURE : Returns `false` on format-parse error or grow-buffer
+///           failure. `out` is cleared either way before the append
+///           runs, so a failed call leaves `out` with whatever bytes
+///           were encoded before the failure (and no leftover prior
+///           content).
+///
+/// TAGS: Buf, Write, Format, I/O
+///
 bool buf_write_fmt(Buf *out, Zstr fmtstr, TypeSpecificIO *argv, u64 argc);
+
+///
+/// Backend for `BufPatchFmt`. Overwrites bytes of `*out` starting at
+/// `offset` with the encoded output. The buffer is NOT grown; the
+/// directive run must fit inside the existing `[offset, out->length)`
+/// window. Useful for back-patching length / checksum fields after the
+/// payload they describe has been computed.
+///
+/// SUCCESS : Returns `true`; bytes `[offset, offset + written)` of
+///           `*out` are replaced.
+/// FAILURE : Returns `false` on format-parse error or if the encoded
+///           output would extend past `out->length`. On overflow,
+///           `*out` is left unchanged.
+///
+/// TAGS: Buf, Patch, Format, I/O
+///
 bool buf_patch_fmt(Buf *out, size offset, Zstr fmtstr, TypeSpecificIO *argv, u64 argc);
 
+///
+/// Read raw bytes from the cursor `iter` according to `fmtstr`. Only
+/// `{<Nr}` (LE) and `{>Nr}` (BE) directives with `N` in {1, 2, 4, 8}
+/// are accepted; the destination variable's natural width must match
+/// the spec width.
+///
+/// SUCCESS : Returns `true`; `iter` advances past the consumed bytes
+///           and every destination variable is filled.
+/// FAILURE : Returns `false` on format-parse error or cursor overflow.
+///           `iter` and destination variables may be left partially
+///           updated by directives that ran before the failure.
+///
+/// TAGS: Buf, Read, Format, I/O
+///
 #define BufReadFmt(iter, ...) BufReadFmt_IMPL1((iter), __VA_ARGS__)
 #define BufReadFmt_IMPL1(iter, fmtstr, ...)                                                                            \
     BufReadFmt_IMPL2(                                                                                                  \
@@ -745,6 +836,18 @@ bool buf_patch_fmt(Buf *out, size offset, Zstr fmtstr, TypeSpecificIO *argv, u64
 #define BufReadFmt_IMPL2(iter, fmtstr, varr)                                                                           \
     buf_read_fmt((iter), (fmtstr), &(varr)[0], sizeof(varr) / sizeof(TypeSpecificIO) - 1)
 
+///
+/// Append encoded bytes to the end of `buf`. Existing contents are
+/// preserved; new bytes land after `buf->length`. Directives are
+/// `{<Nr}` / `{>Nr}` with `N` in {1, 2, 4, 8}.
+///
+/// SUCCESS : Returns `true`; `buf` extended by exactly the encoded
+///           bytes.
+/// FAILURE : Returns `false` on format-parse error or grow-buffer
+///           failure. `buf` may be left partially extended.
+///
+/// TAGS: Buf, Append, Format, I/O
+///
 #define BufAppendFmt(buf, ...) BufAppendFmt_IMPL1((buf), __VA_ARGS__)
 #define BufAppendFmt_IMPL1(buf, fmtstr, ...)                                                                           \
     BufAppendFmt_IMPL2(                                                                                                \
@@ -757,6 +860,19 @@ bool buf_patch_fmt(Buf *out, size offset, Zstr fmtstr, TypeSpecificIO *argv, u64
 #define BufAppendFmt_IMPL2(buf, fmtstr, varr)                                                                          \
     buf_append_fmt((buf), (fmtstr), &(varr)[0], sizeof(varr) / sizeof(TypeSpecificIO) - 1)
 
+///
+/// Write encoded bytes to `buf` from scratch. Equivalent to clearing
+/// `buf` and then `BufAppendFmt(buf, ...)` -- any prior contents are
+/// discarded.
+///
+/// SUCCESS : Returns `true`; `buf` holds exactly the encoded bytes.
+/// FAILURE : Returns `false` on format-parse error or grow-buffer
+///           failure. `buf` is cleared before the append runs, so a
+///           failed call leaves `buf` with whatever bytes were encoded
+///           before the failure.
+///
+/// TAGS: Buf, Write, Format, I/O
+///
 #define BufWriteFmt(buf, ...) BufWriteFmt_IMPL1((buf), __VA_ARGS__)
 #define BufWriteFmt_IMPL1(buf, fmtstr, ...)                                                                            \
     BufWriteFmt_IMPL2(                                                                                                 \
@@ -769,6 +885,20 @@ bool buf_patch_fmt(Buf *out, size offset, Zstr fmtstr, TypeSpecificIO *argv, u64
 #define BufWriteFmt_IMPL2(buf, fmtstr, varr)                                                                           \
     buf_write_fmt((buf), (fmtstr), &(varr)[0], sizeof(varr) / sizeof(TypeSpecificIO) - 1)
 
+///
+/// Overwrite existing bytes of `buf` starting at `offset`. The encoded
+/// output must fit within the current `buf->length`; the buffer is not
+/// grown. Useful for back-patching placeholder fields (lengths,
+/// checksums) after the payload they describe has been built.
+///
+/// SUCCESS : Returns `true`; bytes `[offset, offset + written)` of
+///           `buf` are replaced.
+/// FAILURE : Returns `false` on format-parse error or if the encoded
+///           output would extend past `buf->length`. On overflow,
+///           `buf` is left unchanged.
+///
+/// TAGS: Buf, Patch, Format, I/O
+///
 #define BufPatchFmt(buf, offset, ...) BufPatchFmt_IMPL1((buf), (offset), __VA_ARGS__)
 #define BufPatchFmt_IMPL1(buf, offset, fmtstr, ...)                                                                    \
     BufPatchFmt_IMPL2(                                                                                                 \

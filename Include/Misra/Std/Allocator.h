@@ -507,6 +507,13 @@ extern "C" {
 ///
 /// Do not declare a local variable with this name in user code.
 ///
+/// SUCCESS : Resolves to the `Allocator *` that the enclosing `Scope` /
+///           `ScopeWith` block introduced.
+/// FAILURE : Compile error (undeclared identifier) when used outside any
+///           `Scope` / `ScopeWith` block.
+///
+/// TAGS: Allocator, Scope, Lifetime, Identifier
+///
 #define MisraScope __misra_scope_alloc
 
 ///
@@ -535,6 +542,13 @@ extern "C" {
 /// `continue` at the scope's top level all run the auto-deinit cleanly.
 /// `return` and `goto` out of the scope skip deinit and leak both
 /// allocators - a C-level limitation that has no portable workaround.
+///
+/// SUCCESS : Body runs once with `name` and `MisraScope` bound to the
+///           user-visible and internal allocators respectively; both
+///           allocators are deinitialized on block exit.
+/// FAILURE : Macro cannot fail; the two `AllocType##Init` calls inherit
+///           their own failure behaviour (typically abort-on-OOM for
+///           heap-backed allocators).
 ///
 /// TAGS: Allocator, Scope, Lifetime
 ///
@@ -565,6 +579,12 @@ extern "C" {
 ///       }
 ///   }
 ///
+/// SUCCESS : Body runs once with `MisraScope` bound to `alloc_ptr`; the
+///           pointer is left untouched on block exit (caller still owns
+///           the allocator).
+/// FAILURE : Macro cannot fail. Passing NULL is a usage error -- tier-1
+///           macros will dereference `MisraScope` and crash.
+///
 /// TAGS: Allocator, Scope, Lifetime
 ///
 #define ScopeWith(alloc_ptr)                                                                                           \
@@ -578,6 +598,11 @@ extern "C" {
 /// `break`. Like any C `break`, it escapes only the innermost enclosing
 /// loop - if you are inside a user `for`/`while` inside `Scope`, exit
 /// your loop first and then `ExitScope`.
+///
+/// SUCCESS : Breaks out of the enclosing `Scope`/`ScopeWith` block; for
+///           `Scope` the two allocators are deinitialized on the way out.
+/// FAILURE : Macro cannot fail. Compile error if used outside any loop
+///           or switch (no enclosing `break` target).
 ///
 /// TAGS: Allocator, Scope, Control-Flow
 ///

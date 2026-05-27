@@ -20,7 +20,7 @@
 #  include <gperftools/malloc_extension_c.h>
 #endif
 
-const char *bench_backend_name(void) {
+Zstr bench_backend_name(void) {
     return BENCH_BACKEND_NAME;
 }
 

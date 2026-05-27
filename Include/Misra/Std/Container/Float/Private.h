@@ -13,6 +13,15 @@
 extern "C" {
 #endif
 
+    ///
+    /// Snake_case runtime bodies behind the public `Float*` PascalCase API. Direct callers are
+    /// the `_Generic` dispatch tables in `Convert.h`, `Compare.h`, and `Math.h`, plus the
+    /// `MISRA_OVERLOAD` helpers in `Init.h`. End-user code should never name these directly;
+    /// the public surface holds the SUCCESS/FAILURE contracts and routes by operand type.
+    /// The `*_with_error` variants signal lossy comparisons out-of-band via the `error` flag.
+    ///
+    /// TAGS: Float, Internal, Runtime, Dispatch
+    ///
     Float float_from_u64(u64 value, Allocator *alloc);
     Float float_from_i64(i64 value, Allocator *alloc);
     Float float_from_int(Int *value, Allocator *alloc);

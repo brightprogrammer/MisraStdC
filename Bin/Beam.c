@@ -51,14 +51,14 @@
 //       own trampoline. Struct: handler / sa_tramp / mask / flags.
 #    include "../Source/Misra/_Syscall.h"
 
-#    define MISRA_SIGINT          2
-#    define MISRA_SIGPIPE         13
-#    define MISRA_SIGTERM         15
-#    define MISRA_SIG_IGN_HANDLER ((void (*)(int))1) // SIG_IGN
+#    define BEAM_SIGINT          2
+#    define BEAM_SIGPIPE         13
+#    define BEAM_SIGTERM         15
+#    define BEAM_SIG_IGN_HANDLER ((void (*)(int))1) // SIG_IGN
 
 #    if PLATFORM_LINUX
 
-#        define MISRA_SA_RESTORER 0x04000000UL
+#        define BEAM_SA_RESTORER 0x04000000UL
 
 struct misra_kernel_sigaction {
     void (*sa_handler)(int);
@@ -86,7 +86,7 @@ static void install_signal(int signum, void (*handler)(int)) {
     struct misra_kernel_sigaction sa = {0};
     sa.sa_handler                    = handler;
 #        if ARCHITECTURE_X86_64
-    sa.sa_flags    = MISRA_SA_RESTORER;
+    sa.sa_flags    = BEAM_SA_RESTORER;
     sa.sa_restorer = misra_sigreturn_restorer;
 #        endif
     // 4th arg = sigsetsize in bytes (Linux ABI requires 8 for the
@@ -227,11 +227,11 @@ static void install_signal_handlers(void) {
 #if PLATFORM_WINDOWS
     SetConsoleCtrlHandler(on_console_ctrl, TRUE);
 #elif (PLATFORM_LINUX || PLATFORM_DARWIN) && (ARCHITECTURE_X86_64 || ARCHITECTURE_AARCH64)
-    install_signal(MISRA_SIGINT, on_signal);
-    install_signal(MISRA_SIGTERM, on_signal);
+    install_signal(BEAM_SIGINT, on_signal);
+    install_signal(BEAM_SIGTERM, on_signal);
     // SIGPIPE on a hung-up peer would terminate us; mask it and rely
     // on send() returning EPIPE instead.
-    install_signal(MISRA_SIGPIPE, MISRA_SIG_IGN_HANDLER);
+    install_signal(BEAM_SIGPIPE, BEAM_SIG_IGN_HANDLER);
 #else
     // Other POSIX (BSD on non-x86_64/aarch64 hardware, etc.): fall
     // back to libc sigaction.

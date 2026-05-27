@@ -13,8 +13,8 @@
 static bool test_basic_bump(void) {
     ArenaAllocator arena      = ArenaAllocatorInit();
     Allocator     *alloc_base = ALLOCATOR_OF(&arena);
-    char          *a          = (char *)AllocatorAlloc(alloc_base, 16, true);
-    char          *b          = (char *)AllocatorAlloc(alloc_base, 32, true);
+    u8            *a          = (u8 *)AllocatorAlloc(alloc_base, 16, true);
+    u8            *b          = (u8 *)AllocatorAlloc(alloc_base, 32, true);
     bool           ok         = (a != NULL) && (b != NULL) && (b > a);
 
     if (ok) {
@@ -30,13 +30,13 @@ static bool test_basic_bump(void) {
 static bool test_grow_last_in_place(void) {
     ArenaAllocator arena      = ArenaAllocatorInit();
     Allocator     *alloc_base = ALLOCATOR_OF(&arena);
-    char          *p          = (char *)AllocatorAlloc(alloc_base, 16, true);
+    u8            *p          = (u8 *)AllocatorAlloc(alloc_base, 16, true);
     bool           ok         = (p != NULL);
 
     if (ok) {
-        p[0]        = 'h';
-        p[15]       = 'i';
-        char *grown = (char *)AllocatorRealloc(alloc_base, p, 32);
+        p[0]      = 'h';
+        p[15]     = 'i';
+        u8 *grown = (u8 *)AllocatorRealloc(alloc_base, p, 32);
         // Grew in place at the same address, with content preserved.
         ok = (grown == p) && (grown[0] == 'h') && (grown[15] == 'i');
     }
@@ -52,8 +52,8 @@ static bool test_reject_remap_non_last(void) {
     // is a caller bug and aborts via LOG_FATAL.
     ArenaAllocator arena      = ArenaAllocatorInit();
     Allocator     *alloc_base = ALLOCATOR_OF(&arena);
-    char          *a          = (char *)AllocatorAlloc(alloc_base, 16, true);
-    char          *b          = (char *)AllocatorAlloc(alloc_base, 16, true);
+    u8            *a          = (u8 *)AllocatorAlloc(alloc_base, 16, true);
+    u8            *b          = (u8 *)AllocatorAlloc(alloc_base, 16, true);
     (void)b;
     (void)AllocatorRealloc(alloc_base, a, 64); // -> LOG_FATAL
     return false;                              // unreachable
@@ -90,13 +90,13 @@ static bool test_vec_on_arena(void) {
 static bool test_reset(void) {
     ArenaAllocator arena      = ArenaAllocatorInit();
     Allocator     *alloc_base = ALLOCATOR_OF(&arena);
-    char          *a          = (char *)AllocatorAlloc(alloc_base, 4096, true);
-    char          *b          = (char *)AllocatorAlloc(alloc_base, 4096, true);
+    u8            *a          = (u8 *)AllocatorAlloc(alloc_base, 4096, true);
+    u8            *b          = (u8 *)AllocatorAlloc(alloc_base, 4096, true);
     bool           ok         = (a != NULL) && (b != NULL);
 
     ArenaAllocatorReset(&arena);
-    char *c = (char *)AllocatorAlloc(alloc_base, 4096, true);
-    ok      = ok && (c != NULL) && (c == a); // Reset reuses the first chunk.
+    u8 *c = (u8 *)AllocatorAlloc(alloc_base, 4096, true);
+    ok    = ok && (c != NULL) && (c == a); // Reset reuses the first chunk.
 
     ArenaAllocatorDeinit(&arena);
     return ok;

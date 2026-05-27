@@ -189,6 +189,8 @@ bool macho_open_from_memory_copy(Macho *out, const u8 *data, size data_size, All
 /// SUCCESS : Returns to the caller. `*self` is zeroed.
 /// FAILURE : Function cannot fail. NULL `self` is a no-op.
 ///
+/// TAGS: Parser, MachO, Deinit, Lifecycle
+///
 void MachoDeinit(Macho *self);
 
 ///

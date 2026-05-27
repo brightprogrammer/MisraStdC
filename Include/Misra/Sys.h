@@ -90,9 +90,10 @@ static inline i32 ErrnoOf(long ret) {
 ProcId ProcGetCurrentId(void);
 
 ///
-/// Read an environment variable. Direct wrapper over the OS-supplied
-/// `getenv` (libc on POSIX, `GetEnvironmentVariableA` on Windows) so
-/// that consumers don't have to pull `<stdlib.h>` for the prototype.
+/// Read an environment variable. Returns the value of environment
+/// variable `name`, or NULL if not set. Implementation calls into the
+/// platform env-lookup API so consumers don't have to pull in libc
+/// headers for the prototype.
 ///
 /// name[in] : NUL-terminated environment variable name.
 ///
@@ -126,22 +127,23 @@ Str *StrError(i32 eno, Str *err_str);
 typedef void (*AbortCallback)(void);
 
 ///
-/// Set a custom callback function for Abort.
-/// If no callback is set, Abort will call the standard abort() function.
+/// Register a custom callback function invoked when `Abort` runs.
+/// If no callback is registered, `Abort` traps directly.
 ///
 /// callback[in] : Function to call when Abort is invoked, or NULL to reset to default.
 ///
-/// SUCCESS : Callback is set.
+/// SUCCESS : Callback is registered.
 /// FAILURE : Function cannot fail.
 ///
 /// TAGS: System, Testing, Callback
 ///
-void SetAbortCallback(AbortCallback callback);
+void OnAbort(AbortCallback callback);
 
 ///
 /// Custom abort function that can be redirected for testing purposes.
-/// By default, this calls the standard abort() function.
-/// If a callback is set via SetAbortCallback, it calls the callback instead.
+/// By default, this traps directly via the architecture's native trap
+/// instruction. If a callback is registered via `OnAbort`, it is
+/// invoked instead.
 ///
 /// SUCCESS : Function does not return (either aborts or calls callback).
 /// FAILURE : Function cannot fail.

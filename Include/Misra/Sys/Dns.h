@@ -41,6 +41,8 @@ extern "C" {
     /// its IP address. We store IPv4 addresses in the first four bytes
     /// of `ip[]`; IPv6 uses all 16.
     ///
+    /// TAGS: Dns, Type, Hosts
+    ///
     typedef struct HostsEntry {
         Str  name;
         u8   ip[16];
@@ -55,6 +57,8 @@ extern "C" {
     /// reads `/etc/hosts` and `/etc/resolv.conf` from disk), torn down
     /// via `DnsResolverDeinit`. No globals, no shared cache; create one
     /// per subsystem that needs resolution.
+    ///
+    /// TAGS: Dns, Type, Resolver
     ///
     typedef struct DnsResolver {
         Allocator *alloc;
@@ -74,6 +78,8 @@ extern "C" {
     /// SUCCESS : Returns true. `out` is populated.
     /// FAILURE : Returns false on allocator OOM.
     ///
+    /// TAGS: Dns, Resolve, Init
+    ///
     bool dns_resolver_init(DnsResolver *out, Allocator *alloc);
 #define DnsResolverInit(...)          MISRA_OVERLOAD(DnsResolverInit, __VA_ARGS__)
 #define DnsResolverInit_1(out)        dns_resolver_init((out), MisraScope)
@@ -85,6 +91,8 @@ extern "C" {
     ///
     /// SUCCESS : Returns to the caller. `self` is zeroed.
     /// FAILURE : Function cannot fail.
+    ///
+    /// TAGS: Dns, Resolve, Deinit, Init
     ///
     void DnsResolverDeinit(DnsResolver *self);
 
@@ -112,6 +120,8 @@ extern "C" {
     ///           configured, no answer from any nameserver, NXDOMAIN,
     ///           transport error, response with no A/AAAA).
     ///
+    /// TAGS: Dns, Resolve, API
+    ///
     bool dns_resolve_5_zstr(DnsResolver *self, Zstr hostname, u16 port, SocketKind kind, DnsAddrs *out);
     bool dns_resolve_5_str(DnsResolver *self, const Str *hostname, u16 port, SocketKind kind, DnsAddrs *out);
 #define DnsResolve_5(self, hostname, port, kind, out)                                                                                             \
@@ -135,6 +145,8 @@ extern "C" {
     /// SUCCESS : Returns true. `out` has at least one new entry.
     /// FAILURE : Returns false. Logs the failure cause.
     ///
+    /// TAGS: Dns, Resolve, API
+    ///
     bool dns_resolve_4_vec_zstr(DnsResolver *self, Zstr spec, SocketKind kind, DnsAddrs *out);
     bool dns_resolve_4_vec_str(DnsResolver *self, const Str *spec, SocketKind kind, DnsAddrs *out);
 #define DnsResolve_4_vec(self, spec, kind, out)                                                                                                                \
@@ -155,6 +167,8 @@ extern "C" {
     /// SUCCESS : Returns true; `out` populated.
     /// FAILURE : Returns false; `out` untouched.
     ///
+    /// TAGS: Dns, Resolve, API
+    ///
     bool DnsResolve_4_one(DnsResolver *self, Zstr spec, SocketKind kind, SocketAddr *out);
 
     ///
@@ -162,6 +176,8 @@ extern "C" {
     /// additionally dispatches on the `out` parameter type:
     /// `DnsAddrs *` selects the vec form, `SocketAddr *` selects the
     /// single-addr form.
+    ///
+    /// TAGS: Dns, Resolve, API
     ///
 #define DnsResolve(...) MISRA_OVERLOAD(DnsResolve, __VA_ARGS__)
 #define DnsResolve_4(self, spec, kind, out)                                                                                                                                                                                \

@@ -384,7 +384,7 @@ StrIter JReadNumber(StrIter si, Number *num) {
         }
     }
 
-    if (!ns.length) {
+    if (!StrLen(&ns)) {
         LOG_ERROR("Failed to parse number. '{.8}'", LVAL(saved_si.data + saved_si.pos));
         StrDeinit(&ns);
         DefaultAllocatorDeinit(&scratch);
@@ -394,11 +394,11 @@ StrIter JReadNumber(StrIter si, Number *num) {
     // convert to number
     Zstr end = NULL;
     if (is_flt) {
-        num->f = ZstrToF64(ns.data, &end);
+        num->f = ZstrToF64(StrBegin(&ns), &end);
     } else {
-        num->i = ZstrToI64(ns.data, &end);
+        num->i = ZstrToI64(StrBegin(&ns), &end);
     }
-    if (end == ns.data) {
+    if (end == StrBegin(&ns)) {
         LOG_ERROR("Failed to convert string to number.");
         StrDeinit(&ns);
         DefaultAllocatorDeinit(&scratch);

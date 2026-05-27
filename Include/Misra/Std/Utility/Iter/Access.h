@@ -12,7 +12,7 @@
 ///
 /// TAGS: Memory, Length, Iter
 ///
-#define IterLength(mi) ((mi)->length)
+#define IterLength(mi) ((void)0, (mi)->length)
 
 ///
 /// Bound the iterator so only `n` further elements are reachable from
@@ -21,6 +21,14 @@
 /// past-the-end. Use when a structural field (e.g. a Mach-O
 /// `cmdsize`) tells you the in-memory record ends earlier than the
 /// underlying buffer.
+///
+/// SUCCESS : `mi->length` is set to `mi->pos + n`; subsequent reads
+///           see the new end. The macro evaluates to `void`.
+/// FAILURE : Macro cannot fail. Caller is responsible for not passing
+///           an `n` that extends past the original buffer (no
+///           validation is performed -- the cap can only shrink
+///           reach, but raising `length` past the real allocation
+///           would over-read on the next access).
 ///
 /// TAGS: Memory, Length, Iter
 ///

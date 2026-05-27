@@ -824,8 +824,10 @@ extern "C" {
 #define StrMustPushFrontArrFast(str, arr, count) StrMustPushFrontArrFastL((str), (arr), (count))
 
 ///
-/// Reinitialise `strd` as a deep clone of `strs`. Same contract as
-/// VecInitClone, specialised for the char element.
+/// Reinitialise `strd` as an independent copy of `strs`: same characters in
+/// the same order, with its own freshly allocated character buffer, inheriting
+/// the source string's alignment and allocator configuration. The destination
+/// is deinit'd first, so it must already be a constructed Str.
 ///
 /// strd[out] : Destination Str handle (current contents are deinit'd first).
 /// strs[in]  : Source Str handle.
@@ -834,6 +836,8 @@ extern "C" {
 ///           in `strs` and inherits its copy/alignment/allocator configuration.
 /// FAILURE : Returns `false` on allocation failure; `strd` is left in a valid
 ///           but partially-populated state - call StrDeinit before reuse.
+///
+/// See `VecInitClone` for the full SUCCESS/FAILURE contract.
 ///
 /// TAGS: Str, Clone, Init, DeepCopy
 ///

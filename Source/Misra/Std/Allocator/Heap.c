@@ -172,7 +172,7 @@ static u32
     if (*len_ptr == *cap_ptr && !heap_grow_array(heap, arr_ptr, cap_ptr, entry_size)) {
         return (u32)-1;
     }
-    char *base    = (char *)*arr_ptr;
+    u8   *base    = (u8 *)*arr_ptr;
     u64   new_key = *(void **)entry == NULL ? 0 : (u64) * (void **)entry;
     u32   idx     = *len_ptr;
     while (idx > 0) {
@@ -190,7 +190,7 @@ static u32
 }
 
 static void heap_remove_at(void *arr, u32 *len_ptr, u32 idx, u32 entry_size) {
-    char *base = (char *)arr;
+    u8 *base = (u8 *)arr;
     if (idx + 1 < *len_ptr) {
         MemMove(base + idx * entry_size, base + (idx + 1) * entry_size, (size)(*len_ptr - idx - 1) * entry_size);
     }
@@ -286,7 +286,7 @@ static FORCE_INLINE void *heap_take_slot(HeapPage *d, u8 cls) {
         d->bitmap[w] |= ((u64)1 << bit);
         d->used_count += 1u;
         u32 slot_idx = w * 64u + bit;
-        return (char *)d->page + (size)slot_idx * heap_class_size[cls];
+        return (u8 *)d->page + (size)slot_idx * heap_class_size[cls];
     }
     // Unreachable: caller verified there's a free slot.
     LOG_FATAL("HeapAllocator: take_slot on a full page (class {}, page {x})", (u64)cls, (u64)d->page);
@@ -306,7 +306,7 @@ static u32 heap_grow_class(HeapAllocator *heap, u8 cls) {
     u16 slots         = heap_class_slots[cls];
     u8  bm_words      = heap_class_bm_words[cls];
     for (u32 i = 0; i < HEAP_PAGES_PER_OS_PAGE; i++) {
-        void *page_i = (char *)base + (size)i * HEAP_PAGE_SIZE;
+        void *page_i = (u8 *)base + (size)i * HEAP_PAGE_SIZE;
         HeapPage desc = {
             .page       = page_i,
             .bitmap     = {0, 0, 0, 0},
@@ -320,7 +320,7 @@ static u32 heap_grow_class(HeapAllocator *heap, u8 cls) {
         if (idx == (u32)-1) {
             // Roll back any descriptors already inserted from this base.
             for (u32 j = 0; j < inserted; j++) {
-                void *p_j  = (char *)base + (size)j * HEAP_PAGE_SIZE;
+                void *p_j  = (u8 *)base + (size)j * HEAP_PAGE_SIZE;
                 u32   ix_j = heap_find_by_page(heap->pages, heap->pages_len, sizeof(HeapPage), p_j);
                 if (ix_j != (u32)-1) {
                     heap_remove_at(heap->pages, &heap->pages_len, ix_j, sizeof(HeapPage));

@@ -69,7 +69,8 @@ void *MemSet(void *dst, i32 val, size n);
 /// base[in,out] : Pointer to the first element of the array.
 /// n_items[in]  : Number of items in the array.
 /// item_size[in]: Size of each item in bytes.
-/// cmp[in]      : Comparator returning <0, 0, >0 like `strcmp`.
+/// cmp[in]      : Comparator returning a three-way ordering: negative
+///                when `a < b`, zero when equal, positive when `a > b`.
 ///
 /// SUCCESS: Returns; the array is sorted in ascending order per `cmp`.
 /// FAILURE: No failure mode. If `n_items < 2` or `cmp` is NULL the

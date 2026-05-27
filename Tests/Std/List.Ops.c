@@ -32,7 +32,7 @@ static void reset_counters(void) {
 }
 
 static bool list_matches(GenericList *list, const int *expected, size count) {
-    if (list->length != count) {
+    if (ListLen(list) != count) {
         return false;
     }
 

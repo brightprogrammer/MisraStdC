@@ -74,10 +74,10 @@ bool test_buf_write_leb128(void) {
     return ok;
 }
 
-bool test_buf_write_cstr(void) {
+bool test_buf_write_zstr(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Buf              b     = BufInit(&alloc);
-    BufWriteCstr(&b, "hi");
+    BufWriteZstr(&b, "hi");
     const u8 expect[] = {'h', 'i', 0};
     bool     ok       = BufLength(&b) == sizeof(expect) && MemCompare(BufData(&b), expect, sizeof(expect)) == 0;
     BufDeinit(&b);
@@ -128,15 +128,15 @@ bool test_buf_read_leb128_round_trip(void) {
     return ok;
 }
 
-bool test_buf_read_cstr_round_trip(void) {
+bool test_buf_read_zstr_round_trip(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     Buf              b     = BufInit(&alloc);
-    BufWriteCstr(&b, "hello");
-    BufWriteCstr(&b, "world");
+    BufWriteZstr(&b, "hello");
+    BufWriteZstr(&b, "world");
 
     BufIter it = BufIterFromBuf(&b);
-    Zstr s1 = BufReadCstr(&it);
-    Zstr s2 = BufReadCstr(&it);
+    Zstr s1 = BufReadZstr(&it);
+    Zstr s2 = BufReadZstr(&it);
     bool    ok = s1 && s2 && s1[0] == 'h' && s2[0] == 'w';
     ok         = ok && IterRemainingLength(&it) == 0;
 
@@ -265,10 +265,10 @@ int main(void) {
         test_buf_init_clear,
         test_buf_write_u_le_be,
         test_buf_write_leb128,
-        test_buf_write_cstr,
+        test_buf_write_zstr,
         test_buf_read_round_trip,
         test_buf_read_leb128_round_trip,
-        test_buf_read_cstr_round_trip,
+        test_buf_read_zstr_round_trip,
         test_buf_append_fmt,
         test_buf_write_fmt_clears,
         test_buf_patch_fmt,

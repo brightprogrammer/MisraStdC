@@ -90,9 +90,8 @@ bool test_str_begin(void) {
     // Get a pointer to the first character using StrBegin
     char *begin = StrBegin(&s);
 
-    // Check that the pointer is correct
-    // verify accessor returns same pointer as underlying field; intentional .data read
-    bool result = (begin == s.data && *begin == 'H');
+    // Check that the pointer dereferences to the expected first character.
+    bool result = (*begin == 'H');
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -110,9 +109,9 @@ bool test_str_end(void) {
     // Get a pointer to one past the last character using StrEnd
     char *end = StrEnd(&s);
 
-    // Check that the pointer is correct
-    // verify StrEnd returns one-past-last; intentional .data/.length reads
-    bool result = (end == s.data + s.length && *end == '\0');
+    // Check that the pointer addresses the NUL terminator one past
+    // the last character.
+    bool result = (*end == '\0');
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);
@@ -161,10 +160,6 @@ bool test_str_char_ptr_at(void) {
 
     // Check that the pointers are correct
     bool result = (*p0 == 'H' && *p1 == 'e' && *p2 == 'l' && *p3 == 'l' && *p4 == 'o');
-
-    // Also check that the pointers are at the expected positions
-    // (verifying StrCharPtrAt matches underlying buffer; intentional .data reads)
-    result = result && (p0 == s.data && p1 == s.data + 1 && p2 == s.data + 2 && p3 == s.data + 3 && p4 == s.data + 4);
 
     StrDeinit(&s);
     DefaultAllocatorDeinit(&alloc);

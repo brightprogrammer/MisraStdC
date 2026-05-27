@@ -21,6 +21,10 @@
 ///       ...
 ///   }
 ///
+/// SUCCESS : Returns a numerically-zero `Int` whose backing bitvector is bound to the chosen
+///           allocator.
+/// FAILURE : Cannot fail at construction; first allocator OOM surfaces from later math/grow.
+///
 /// TAGS: Int, Init, Zero, Construct
 ///
 #define IntInit(...)             MISRA_OVERLOAD(IntInit, __VA_ARGS__)
@@ -31,12 +35,12 @@
 /// Release all storage owned by an integer.
 /// The object must not be used again until reinitialized.
 ///
-/// value[in] : Integer to deinitialize
+/// value[in,out] : Integer to deinitialize
 ///
-/// USAGE:
-///   IntDeinit(&value);
+/// SUCCESS : Underlying bitvector freed; `value` left in the zeroed post-deinit state.
+/// FAILURE : Cannot fail; aborts on a corrupted magic via the validator.
 ///
-/// TAGS: Int, Deinit, Destroy, Memory
+/// TAGS: Int, Deinit, Memory
 ///
 static inline void IntDeinit(Int *value) {
     ValidateInt(value);
@@ -46,10 +50,10 @@ static inline void IntDeinit(Int *value) {
 ///
 /// Reset an integer back to zero while preserving the object itself.
 ///
-/// value[in] : Integer to clear
+/// value[in,out] : Integer to clear
 ///
-/// USAGE:
-///   IntClear(&value);
+/// SUCCESS : Numeric value becomes 0; backing bitvector capacity is retained.
+/// FAILURE : Cannot fail; aborts on a corrupted magic via the validator.
 ///
 /// TAGS: Int, Clear, Zero, Reset
 ///

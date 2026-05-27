@@ -18,6 +18,8 @@ typedef struct GenericListNode GenericListNode;
 /// This is not meant to be directly used by user. If you need to use this in user-code
 /// either you're doing something wrong, or we need to improve this design!
 ///
+/// TAGS: List, Type, API
+///
 struct GenericListNode {
     GenericListNode *next;
     GenericListNode *prev;
@@ -27,6 +29,8 @@ struct GenericListNode {
 ///
 /// The generic linked list.
 /// Not meant to be directly used by user code.
+///
+/// TAGS: List, Type, API
 ///
 typedef struct {
     GenericListNode  *head;
@@ -41,10 +45,14 @@ typedef struct {
 ///
 /// Cast any list to a generic list
 ///
+/// TAGS: List, Generic, Cast
+///
 #define GENERIC_LIST(list) ((GenericList *)(void *)(list))
 
 ///
 /// Cast any list node to a generic list node
+///
+/// TAGS: List, Generic, Cast
 ///
 #define GENERIC_LIST_NODE(node) ((GenericListNode *)(void *)(node))
 
@@ -56,6 +64,8 @@ typedef struct {
 /// - prev : Reference to previous node. NULL if no previous node exists (head).
 /// - data : Type specific pointer to data.
 ///
+/// TAGS: List, Node, API
+///
 #define ListNode(T)                                                                                                    \
     struct {                                                                                                           \
         GenericListNode *next;                                                                                         \
@@ -66,10 +76,14 @@ typedef struct {
 ///
 /// Get data type stored by this list
 ///
+/// TAGS: List, Type, TypeOf
+///
 #define LIST_DATA_TYPE(list) TYPE_OF(*((list)->head->data))
 
 ///
 /// Get node type stored by this list
+///
+/// TAGS: List, Type, TypeOf
 ///
 #define LIST_NODE_TYPE(list) ListNode(LIST_DATA_TYPE(list))
 
@@ -82,6 +96,8 @@ typedef struct {
 /// - copy_init   : A user-provided type-specific method to initialize copies of types.
 /// - copy_deinit : A user-provided type-specific method deinitialize already created copies of types.
 /// - length      : Length of this linked list.
+///
+/// TAGS: List, Type, API
 ///
 #define List(T)                                                                                                        \
     struct {                                                                                                           \
@@ -108,6 +124,8 @@ typedef struct {
 ///
 /// SUCCESS: Continue execution, meaning given `List` object is most probably a valid `List`.
 /// FAILURE: `abort` with an error message.
+///
+/// TAGS: List, Validate, API
 ///
 #define ValidateList(l) validate_list((const GenericList *)GENERIC_LIST(l))
 

@@ -56,7 +56,21 @@
      list_insert_one_r(GENERIC_LIST(l), &LVAL_AS(LIST_DATA_TYPE(l), rval), sizeof(LIST_DATA_TYPE(l)), (idx)))
 
 ///
-/// Default insertion alias for `ListInsertL`.
+/// Default insert aliases the L-form: link a new node holding `lval`'s
+/// payload at position `idx`, taking ownership of `lval` when no
+/// deep-copy handler is configured.
+///
+/// l[in,out] : List handle.
+/// lval[in]  : Addressable element to insert. Must match the list's element type.
+/// idx[in]   : Position in [0, length].
+///
+/// SUCCESS : Returns `true`; the list length grows by one.
+/// FAILURE : Returns `false` on allocation failure; the list and `lval`
+///           are unchanged.
+///
+/// See `ListInsertL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: List, Insert, API
 ///
 #define ListInsert(l, lval, idx) ListInsertL((l), (lval), (idx))
 
@@ -85,7 +99,20 @@
 #define ListPushFrontR(l, rval) ListInsertR((l), (rval), 0)
 
 ///
-/// Default head-push alias for `ListPushFrontL`.
+/// Default head-push aliases the L-form: link a new node holding
+/// `lval`'s payload as the new head, taking ownership of `lval` when no
+/// deep-copy handler is configured.
+///
+/// l[in,out] : List handle.
+/// lval[in]  : Addressable element to prepend.
+///
+/// SUCCESS : Returns `true`; the list length grows by one.
+/// FAILURE : Returns `false` on allocation failure; the list and `lval`
+///           are unchanged.
+///
+/// See `ListPushFrontL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: List, PushFront, Insert
 ///
 #define ListPushFront(l, lval) ListPushFrontL((l), (lval))
 
@@ -114,7 +141,20 @@
 #define ListPushBackR(l, rval) ListInsertR((l), (rval), (l)->length)
 
 ///
-/// Default tail-push alias for `ListPushBackL`.
+/// Default tail-push aliases the L-form: link a new node holding
+/// `lval`'s payload as the new tail, taking ownership of `lval` when no
+/// deep-copy handler is configured.
+///
+/// l[in,out] : List handle.
+/// lval[in]  : Addressable element to append.
+///
+/// SUCCESS : Returns `true`; the list length grows by one.
+/// FAILURE : Returns `false` on allocation failure; the list and `lval`
+///           are unchanged.
+///
+/// See `ListPushBackL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: List, PushBack, Insert
 ///
 #define ListPushBack(l, lval) ListPushBackL((l), (lval))
 
@@ -160,7 +200,21 @@
      list_insert_range_r(GENERIC_LIST(l), (const void *)(arr), sizeof(LIST_DATA_TYPE(l)), (count)))
 
 ///
-/// Default range-push alias for `ListPushArrL`.
+/// Default range-push aliases the L-form: link `count` new nodes at the
+/// tail of the list, taking ownership of the source range when no
+/// deep-copy handler is configured.
+///
+/// l[in,out] : List handle.
+/// arr[in]   : Pointer to source array. Must be non-NULL when `count > 0`.
+/// count[in] : Number of elements to append.
+///
+/// SUCCESS : Returns `true`; list length grows by `count`.
+/// FAILURE : Returns `false` on allocation failure during the first node
+///           allocation; the list and source are unchanged.
+///
+/// See `ListPushArrL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: List, PushBack, Range, Insert
 ///
 #define ListPushArr(l, arr, count) ListPushArrL((l), (arr), (count))
 
@@ -205,7 +259,20 @@
      list_merge_r(GENERIC_LIST(l), GENERIC_LIST(l2), sizeof(LIST_DATA_TYPE(l))))
 
 ///
-/// Default merge alias for `ListMergeL`.
+/// Default merge aliases the L-form: append all nodes of `l2` to the
+/// tail of `l`, transferring ownership of `l2`'s nodes when no deep-copy
+/// handler is configured (leaving `l2` empty).
+///
+/// l[in,out]  : Destination list.
+/// l2[in,out] : Source list. May be emptied on success.
+///
+/// SUCCESS : Returns `true`; `l->length` grows by the previous `l2->length`.
+/// FAILURE : Returns `false` on allocation failure; both `l` and `l2` are
+///           unchanged.
+///
+/// See `ListMergeL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: List, Merge, Insert
 ///
 #define ListMerge(l, l2) ListMergeL((l), (l2))
 

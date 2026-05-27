@@ -16,9 +16,12 @@ of the codebase to see them in action.
 - **No project prefix on identifiers.** The include path
   (`<Misra/Std/Container/Buf.h>`) already names the namespace; adding
   `Misra` / `MISRA_` / `misra_` to every symbol is noise. The `MISRA_`
-  prefix is reserved for three things only: include guards, `FEATURE_*`
-  build-config flags surfaced by `meson.build`, and `_MAGIC` struct
-  sentinels (e.g. `HEAP_ALLOCATOR_MAGIC`, `VEC_MAGIC`).
+  prefix is reserved for four things only: include guards, `FEATURE_*`
+  build-config flags surfaced by `meson.build`, `_MAGIC` struct
+  sentinels (e.g. `HEAP_ALLOCATOR_MAGIC`, `VEC_MAGIC`), and
+  direct-syscall wrappers and constants in `Source/Misra/_Syscall.h` /
+  `Bin/Beam.c` (collision-avoidance with libc's `SYS_*` / `sys_*`
+  syscall vocabulary).
 - **Short names where the include path already disambiguates.** `Buf`,
   `Str`, `Vec`, `Elf` — not `MisraBuf`, not `ElfFile`.
 - **Tool binaries** ship with a single short word as their name
@@ -278,6 +281,12 @@ of the codebase to see them in action.
   the Zstr-everywhere rule doesn't override `int main(int argc, char
   **argv)`. The boundary is the carve-out; everything that wraps it
   is fair game for Misra-native types.
+- **Fuzz harnesses and Benchmark drivers are out of scope.** Code under
+  `Fuzz/` and `Benchmark/` (in particular `Bench.cpp` and
+  `Allocator_libc.c`) is allowed to include libc / C++ standard headers —
+  these are harness boundaries that intentionally compare the in-tree
+  implementation against external baselines. `check_no_libc.py` covers
+  the library proper (`Source/`, `Include/`, `Tests/`).
 
 ## `_Generic` dispatch
 

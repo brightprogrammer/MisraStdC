@@ -76,7 +76,7 @@ HttpHeader *http_headers_find_str(HttpHeaders *headers, const Str *key) {
     }
     // Str values are NUL-terminated by construction; comparison scans
     // to '\0', so forward the .data view.
-    return http_headers_find_zstr(headers, key->data);
+    return http_headers_find_zstr(headers, StrBegin(key));
 }
 
 // ---------------------------------------------------------------------------
@@ -174,7 +174,7 @@ Zstr http_request_parse_str(HttpRequest *req, const Str *in) {
     // Str values are NUL-terminated by construction; the underlying
     // parser scans format-by-format with NUL-aware readers, so the
     // .data view is sufficient.
-    return http_request_parse_zstr(req, in->data);
+    return http_request_parse_zstr(req, StrBegin(in));
 }
 
 void HttpRequestDeinit(HttpRequest *req) {
@@ -452,7 +452,7 @@ Str http_response_serialize(const HttpResponse *response, Allocator *alloc) {
         "Content-Length: {}\r\n",
         response_code,
         content_type,
-        response->body.length
+        StrLen(&response->body)
     );
 
     VecForeachPtr(&response->headers, header) {
@@ -461,16 +461,12 @@ Str http_response_serialize(const HttpResponse *response, Allocator *alloc) {
 
     StrAppendFmt(&out, "\r\n");
 
-    if (response->body.length) {
-        u64 head = out.length;
-        if (!StrReserve(&out, head + response->body.length + 1)) {
-            LOG_ERROR("HttpResponseSerialize: failed to reserve buffer");
+    if (StrLen(&response->body)) {
+        if (!StrPushBackMany(&out, StrBegin(&response->body), StrLen(&response->body))) {
+            LOG_ERROR("HttpResponseSerialize: failed to append body");
             StrDeinit(&out);
             return StrInit(alloc);
         }
-        MemCopy(out.data + head, response->body.data, response->body.length);
-        out.length           = head + response->body.length;
-        out.data[out.length] = 0;
     }
     return out;
 }

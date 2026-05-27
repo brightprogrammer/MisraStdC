@@ -40,18 +40,18 @@ static bool test_realloc_grow_then_shrink(void) {
     PageAllocator alloc      = PageAllocatorInit();
     Allocator    *alloc_base = ALLOCATOR_OF(&alloc);
     size          page       = PageAllocatorPageSize(&alloc);
-    char         *ptr        = (char *)AllocatorAlloc(alloc_base, 64, true);
+    u8           *ptr        = (u8 *)AllocatorAlloc(alloc_base, 64, true);
     bool          ok         = (ptr != NULL);
 
     if (ptr) {
-        ptr[0]      = 'a';
-        ptr[63]     = 'z';
-        char *grown = (char *)AllocatorRealloc(alloc_base, ptr, page * 2);
-        ok          = ok && (grown != NULL);
-        ok          = ok && (grown[0] == 'a') && (grown[63] == 'z');
+        ptr[0]    = 'a';
+        ptr[63]   = 'z';
+        u8 *grown = (u8 *)AllocatorRealloc(alloc_base, ptr, page * 2);
+        ok        = ok && (grown != NULL);
+        ok        = ok && (grown[0] == 'a') && (grown[63] == 'z');
         if (grown) {
             grown[page * 2 - 1] = 'q';
-            char *shrunk        = (char *)AllocatorRealloc(alloc_base, grown, 32);
+            u8 *shrunk          = (u8 *)AllocatorRealloc(alloc_base, grown, 32);
             ok                  = ok && (shrunk != NULL) && (shrunk[0] == 'a');
             if (shrunk) {
                 AllocatorFree(&alloc.base, shrunk);

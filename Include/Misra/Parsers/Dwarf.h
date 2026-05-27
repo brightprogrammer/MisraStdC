@@ -118,6 +118,8 @@ const DwarfLineEntry *DwarfLinesResolve(const DwarfLines *self, u64 vaddr);
 /// SUCCESS : Returns to the caller. `*self` is zeroed.
 /// FAILURE : Function cannot fail. NULL `self` is a no-op.
 ///
+/// TAGS: Parser, DWARF, Lines, Deinit, Lifecycle
+///
 void DwarfLinesDeinit(DwarfLines *self);
 
 // ===========================================================================
@@ -224,6 +226,8 @@ const DwarfCie *DwarfCfiFindCie(const DwarfCfi *self, u64 cie_offset);
 ///
 /// SUCCESS : Returns to the caller. `*self` is zeroed.
 /// FAILURE : Function cannot fail. NULL `self` is a no-op.
+///
+/// TAGS: Parser, DWARF, CFI, Deinit, Lifecycle
 ///
 void DwarfCfiDeinit(DwarfCfi *self);
 

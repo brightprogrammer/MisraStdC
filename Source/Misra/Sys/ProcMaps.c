@@ -28,6 +28,7 @@
 #include <Misra/Std/Memory.h>
 
 #include <Misra/Std/File.h>
+#include <Misra/Std/Utility/StrIter.h>
 
 // ---------------------------------------------------------------------------
 // Field parsers
@@ -43,110 +44,120 @@ static int hex_digit_value(char c) {
     return -1;
 }
 
-// Parse a hex run starting at `*p`. Advances `*p` past the digits.
+// Parse a hex run at the cursor. Advances the iter past the digits.
 // Returns false if no digits are consumed.
-static bool parse_hex_u64(Zstr *p, Zstr end, u64 *out) {
-    Zstr s = *p;
-    if (s >= end)
-        return false;
-    u64 v        = 0;
-    int consumed = 0;
-    while (s < end) {
-        int d = hex_digit_value(*s);
+static bool parse_hex_u64(StrIter *si, u64 *out) {
+    u64  v        = 0;
+    int  consumed = 0;
+    char c;
+    while (StrIterPeek(si, &c)) {
+        int d = hex_digit_value(c);
         if (d < 0)
             break;
         v = (v << 4) | (u64)d;
-        ++s;
+        StrIterMustNext(si);
         ++consumed;
     }
     if (!consumed)
         return false;
-    *p   = s;
     *out = v;
     return true;
 }
 
-static bool expect_char(Zstr *p, Zstr end, char c) {
-    if (*p >= end || **p != c)
+static bool expect_char(StrIter *si, char want) {
+    char c;
+    if (!StrIterPeek(si, &c) || c != want)
         return false;
-    *p += 1;
+    StrIterMustNext(si);
     return true;
 }
 
-static void skip_ws(Zstr *p, Zstr end) {
-    while (*p < end && (**p == ' ' || **p == '\t'))
-        ++(*p);
+static void skip_ws(StrIter *si) {
+    char c;
+    while (StrIterPeek(si, &c) && (c == ' ' || c == '\t')) {
+        StrIterMustNext(si);
+    }
 }
 
 // Read one "non-whitespace blob" (the dev/inode tokens). Just skip it.
-static void skip_token(Zstr *p, Zstr end) {
-    while (*p < end && **p != ' ' && **p != '\t' && **p != '\n')
-        ++(*p);
+static void skip_token(StrIter *si) {
+    char c;
+    while (StrIterPeek(si, &c) && c != ' ' && c != '\t' && c != '\n') {
+        StrIterMustNext(si);
+    }
 }
 
 // ---------------------------------------------------------------------------
 // Line decode
 // ---------------------------------------------------------------------------
 
-static bool parse_one_line(char **cursor_inout, char *end, ProcMapEntry *out) {
-    Zstr p          = *cursor_inout;
-    Zstr line_start = p;
-
+// Parses one `/proc/self/maps` line from `si`. On success the path is
+// NUL-terminated in place (the trailing '\n' becomes '\0'), and
+// `out->path` aliases the iter's underlying buffer. The iter is
+// advanced past the line terminator so the next call resumes at the
+// next line.
+static bool parse_one_line(StrIter *si, ProcMapEntry *out) {
     u64 start = 0, ende = 0, offset = 0;
-    if (!parse_hex_u64(&p, end, &start))
+    if (!parse_hex_u64(si, &start))
         return false;
-    if (!expect_char(&p, end, '-'))
+    if (!expect_char(si, '-'))
         return false;
-    if (!parse_hex_u64(&p, end, &ende))
+    if (!parse_hex_u64(si, &ende))
         return false;
-    skip_ws(&p, end);
+    skip_ws(si);
 
     // perms: 4 chars
-    if (end - p < 4)
+    if (StrIterRemainingLength(si) < 4)
         return false;
-    u32 perms = 0;
-    if (p[0] == 'r')
+    u32  perms                  = 0;
+    char p0 = 0, p1 = 0, p2 = 0, p3 = 0;
+    StrIterMustPeekAt(si, 0, &p0);
+    StrIterMustPeekAt(si, 1, &p1);
+    StrIterMustPeekAt(si, 2, &p2);
+    StrIterMustPeekAt(si, 3, &p3);
+    if (p0 == 'r')
         perms |= PROC_MAP_PERM_READ;
-    if (p[1] == 'w')
+    if (p1 == 'w')
         perms |= PROC_MAP_PERM_WRITE;
-    if (p[2] == 'x')
+    if (p2 == 'x')
         perms |= PROC_MAP_PERM_EXEC;
-    if (p[3] == 'p')
+    if (p3 == 'p')
         perms |= PROC_MAP_PERM_PRIVATE;
-    p += 4;
-    skip_ws(&p, end);
+    StrIterMustMove(si, 4);
+    skip_ws(si);
 
-    if (!parse_hex_u64(&p, end, &offset))
+    if (!parse_hex_u64(si, &offset))
         return false;
-    skip_ws(&p, end);
+    skip_ws(si);
 
     // dev_major:dev_minor — we don't care, but the field must be there.
-    skip_token(&p, end);
-    skip_ws(&p, end);
+    skip_token(si);
+    skip_ws(si);
 
     // inode — skip.
-    skip_token(&p, end);
-    skip_ws(&p, end);
+    skip_token(si);
+    skip_ws(si);
 
     // path — optional, runs to end-of-line. We replace the newline
-    // with \0 in place so the path is a usable C string.
-    Zstr path_start = p;
-    while (p < end && *p != '\n')
-        ++p;
-    char *line_terminator = (char *)p;
+    // with \0 in place so the path is a usable C string aliasing the
+    // iter's backing buffer.
+    size path_start_pos = si->pos;
+    char c;
+    while (StrIterPeek(si, &c) && c != '\n') {
+        StrIterMustNext(si);
+    }
+    size line_terminator_pos = si->pos;
 
     out->start       = start;
     out->end         = ende;
     out->perms       = perms;
     out->file_offset = offset;
-    out->path        = path_start; // may be empty if anonymous
+    out->path        = (Zstr)(si->data + path_start_pos); // may be empty if anonymous
 
-    if (line_terminator < end && *line_terminator == '\n') {
-        *line_terminator = '\0';
-        p                = line_terminator + 1;
+    if (line_terminator_pos < si->length && si->data[line_terminator_pos] == '\n') {
+        si->data[line_terminator_pos] = '\0';
+        StrIterMustNext(si);
     }
-    *cursor_inout = (char *)p;
-    (void)line_start;
     return true;
 }
 
@@ -176,42 +187,44 @@ bool proc_maps_load(ProcMaps *out, Allocator *alloc) {
         CHUNK = 4096
     };
     while (true) {
-        u64 grown_to = out->raw.length + CHUNK + 1;
+        u64 grown_to = StrLen(&out->raw) + CHUNK + 1;
         if (!StrReserve(&out->raw, grown_to)) {
             LOG_ERROR("ProcMapsLoad: failed to grow buffer");
             FileClose(&f);
             ProcMapsDeinit(out);
             return false;
         }
-        i64 n = FileRead(&f, out->raw.data + out->raw.length, CHUNK);
+        i64 n = FileRead(&f, StrEnd(&out->raw), CHUNK);
         if (n < 0) {
             LOG_ERROR("ProcMapsLoad: FileRead failed");
             FileClose(&f);
             ProcMapsDeinit(out);
             return false;
         }
-        out->raw.length += (u64)n;
+        StrResize(&out->raw, StrLen(&out->raw) + (u64)n);
         if (n < (i64)CHUNK)
             break; // EOF
     }
     FileClose(&f);
-    if (out->raw.length == 0) {
+    if (StrLen(&out->raw) == 0) {
         LOG_ERROR("ProcMapsLoad: /proc/self/maps was empty");
         ProcMapsDeinit(out);
         return false;
     }
-    out->raw.data[out->raw.length] = '\0';
-
-    char *cursor = out->raw.data;
-    char *end    = out->raw.data + out->raw.length;
-    while (cursor < end) {
+    // `StrResize` already writes a NUL sentinel at index `length`,
+    // so path slices that alias the buffer are usable as `Zstr`.
+    StrIter si = StrIterFromStr(out->raw);
+    while (StrIterRemainingLength(&si)) {
         ProcMapEntry e = {0};
-        if (!parse_one_line(&cursor, end, &e)) {
+        if (!parse_one_line(&si, &e)) {
             // Skip past whatever line we couldn't parse.
-            while (cursor < end && *cursor != '\n')
-                ++cursor;
-            if (cursor < end)
-                ++cursor;
+            char c;
+            while (StrIterPeek(&si, &c) && c != '\n') {
+                StrIterMustNext(&si);
+            }
+            if (StrIterRemainingLength(&si)) {
+                StrIterMustNext(&si);
+            }
             continue;
         }
         if (!VecPushBackR(&out->entries, e)) {
@@ -234,8 +247,8 @@ void ProcMapsDeinit(ProcMaps *self) {
 const ProcMapEntry *ProcMapsFindByAddr(const ProcMaps *self, u64 addr) {
     if (!self)
         return NULL;
-    for (u64 i = 0; i < self->entries.length; ++i) {
-        const ProcMapEntry *e = &self->entries.data[i];
+    for (u64 i = 0; i < VecLen(&self->entries); ++i) {
+        const ProcMapEntry *e = VecPtrAt(&self->entries, i);
         if (addr >= e->start && addr < e->end) {
             return e;
         }

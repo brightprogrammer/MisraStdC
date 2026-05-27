@@ -23,6 +23,8 @@
 /// FAILURE : Returns `false` when no entry exists for the key. The map is
 ///           not modified.
 ///
+/// TAGS: Map, Remove, First
+///
 #define MapRemoveFirst(m, lookup_key)                                                                                  \
     map_remove(                                                                                                        \
         GENERIC_MAP(m),                                                                                                \
@@ -50,6 +52,8 @@
 ///           modified. A NULL `value_compare` is a caller bug and aborts
 ///           via `LOG_FATAL`.
 ///
+/// TAGS: Map, Remove, Pair
+///
 #define MapRemovePair(m, lookup_key, lookup_value)                                                                     \
     map_remove_pair(                                                                                                   \
         GENERIC_MAP(m),                                                                                                \
@@ -74,6 +78,8 @@
 ///           (if configured) have been invoked on each removed entry.
 ///           Map length shrinks by the returned count.
 /// FAILURE : Returns `0` when no entry matches. The map is not modified.
+///
+/// TAGS: Map, Remove, All
 ///
 #define MapRemoveAll(m, lookup_key)                                                                                    \
     map_remove_all(                                                                                                    \
@@ -101,6 +107,8 @@
 ///           shrinks by the returned count.
 /// FAILURE : Function cannot fail. A NULL `predicate_fn` is a caller bug
 ///           and aborts via `LOG_FATAL`.
+///
+/// TAGS: Map, Remove, Predicate
 ///
 #define MapRemoveIf(m, predicate_fn, ctx_ptr)                                                                          \
     map_remove_if(                                                                                                     \

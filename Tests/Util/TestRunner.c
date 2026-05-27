@@ -27,7 +27,7 @@ bool test_deadend(TestFunction test_func, bool expect_failure) {
     }
 
     // Set our custom abort handler
-    SetAbortCallback(test_abort_handler);
+    OnAbort(test_abort_handler);
 
     // For non-deadend tests, run normally
     if (!expect_failure) {
@@ -62,7 +62,7 @@ bool test_deadend(TestFunction test_func, bool expect_failure) {
     }
 
     // Reset abort handler to default
-    SetAbortCallback(NULL);
+    OnAbort(NULL);
 
     return test_result;
 }

@@ -9,12 +9,23 @@
 ///
 /// Initialize default `Iter` object to iterate in forward direction.
 ///
+/// SUCCESS : Always succeeds; returns a designated-initializer
+///           `Iter` with `data = NULL`, `length = 0`, `pos = 0`,
+///           `alignment = 1`, `dir = 1`. Useful as a zero-valued
+///           starting point before binding to a buffer.
+/// FAILURE : Macro cannot fail. Reading from the resulting iter has
+///           remaining-length 0.
+///
 /// TAGS: Initialization, Memory
 ///
 #define IterInit() {.data = NULL, .length = 0, .pos = 0, .alignment = 1, .dir = 1}
 
 ///
 /// Initialize default `Iter` object to iterate in backward direction.
+///
+/// SUCCESS : Always succeeds; returns a designated-initializer `Iter`
+///           with `dir = -1` and everything else zeroed.
+/// FAILURE : Macro cannot fail.
 ///
 /// TAGS: Initialization, Memory
 ///
@@ -25,6 +36,11 @@
 ///
 /// aln[in] : Alignment requirement
 ///
+/// SUCCESS : Always succeeds; returns a designated-initializer `Iter`
+///           with `alignment = aln`, `dir = 1`, and everything else
+///           zeroed.
+/// FAILURE : Macro cannot fail.
+///
 /// TAGS: Initialization, Memory
 ///
 #define IterInitAligned(aln) {.data = NULL, .length = 0, .pos = 0, .alignment = (aln), .dir = 1}
@@ -33,6 +49,11 @@
 /// Initialize `Iter` with custom alignment to iterate in backward direction.
 ///
 /// aln[in] : Alignment requirement
+///
+/// SUCCESS : Always succeeds; returns a designated-initializer `Iter`
+///           with `alignment = aln`, `dir = -1`, and everything else
+///           zeroed.
+/// FAILURE : Macro cannot fail.
 ///
 /// TAGS: Initialization, Memory
 ///
@@ -57,10 +78,10 @@
 /// TAGS: Initialization, Container, Vector
 ///
 #define IterInitFromVec(v)                                                                                             \
-    {.data      = (v).data,                                                                                            \
-     .length    = (v).length,                                                                                          \
+    {.data      = VecBegin(&(v)),                                                                                      \
+     .length    = VecLen(&(v)),                                                                                        \
      .pos       = 0,                                                                                                   \
-     .alignment = (v).allocator ? (v).allocator->alignment : 1,                                                        \
+     .alignment = VecAllocator(&(v)) ? VecAllocator(&(v))->alignment : 1,                                              \
      .dir       = 1}
 
 ///
@@ -76,16 +97,22 @@
 /// TAGS: Initialization, Container, Vector
 ///
 #define IterInitRevFromVec(v)                                                                                          \
-    {.data      = (v).data,                                                                                            \
-     .length    = (v).length,                                                                                          \
+    {.data      = VecBegin(&(v)),                                                                                      \
+     .length    = VecLen(&(v)),                                                                                        \
      .pos       = 0,                                                                                                   \
-     .alignment = (v).allocator ? (v).allocator->alignment : 1,                                                        \
+     .alignment = VecAllocator(&(v)) ? VecAllocator(&(v))->alignment : 1,                                              \
      .dir       = -1}
 
 ///
 /// Initialize default `Iter` object to iterate in forward direction.
 ///
 /// i[in] : Variable or Type to be initialized.
+///
+/// SUCCESS : Always succeeds; returns a typed compound-literal `Iter`
+///           matching `TYPE_OF(i)` with `dir = 1` and everything else
+///           zeroed. Use when an explicit typed cast is needed (e.g.
+///           assigning into a `_Generic`-dispatched slot).
+/// FAILURE : Macro cannot fail.
 ///
 /// TAGS: Initialization, Memory
 ///
@@ -95,6 +122,11 @@
 /// Initialize default `Iter` object to iterate in backward direction.
 ///
 /// i[in] : Variable or Type to be initialized.
+///
+/// SUCCESS : Always succeeds; returns a typed compound-literal `Iter`
+///           matching `TYPE_OF(i)` with `dir = -1` and everything else
+///           zeroed.
+/// FAILURE : Macro cannot fail.
 ///
 /// TAGS: Initialization, Memory
 ///
@@ -106,6 +138,11 @@
 /// i[in] : Variable or Type to be initialized.
 /// aln[in] : Alignment requirement
 ///
+/// SUCCESS : Always succeeds; returns a typed compound-literal `Iter`
+///           matching `TYPE_OF(i)` with `alignment = aln`, `dir = 1`,
+///           and everything else zeroed.
+/// FAILURE : Macro cannot fail.
+///
 /// TAGS: Initialization, Memory
 ///
 #define IterInitAlignedT(i, aln) ((TYPE_OF(i)) {.data = NULL, .length = 0, .pos = 0, .alignment = (aln), .dir = 1})
@@ -115,6 +152,11 @@
 ///
 /// i[in] : Variable or Type to be initialized.
 /// aln[in] : Alignment requirement
+///
+/// SUCCESS : Always succeeds; returns a typed compound-literal `Iter`
+///           matching `TYPE_OF(i)` with `alignment = aln`, `dir = -1`,
+///           and everything else zeroed.
+/// FAILURE : Macro cannot fail.
 ///
 /// TAGS: Initialization, Memory
 ///
@@ -134,10 +176,10 @@
 /// TAGS: Initialization, Container, Vector
 ///
 #define IterInitFromVecT(i, v)                                                                                         \
-    ((TYPE_OF(i)) {.data      = (v).data,                                                                              \
-                   .length    = (v).length,                                                                            \
+    ((TYPE_OF(i)) {.data      = VecBegin(&(v)),                                                                        \
+                   .length    = VecLen(&(v)),                                                                          \
                    .pos       = 0,                                                                                     \
-                   .alignment = (v).allocator ? (v).allocator->alignment : 1,                                          \
+                   .alignment = VecAllocator(&(v)) ? VecAllocator(&(v))->alignment : 1,                                \
                    .dir       = 1})
 
 ///
@@ -154,10 +196,10 @@
 /// TAGS: Initialization, Container, Vector
 ///
 #define IterInitRevFromVecT(i, v)                                                                                      \
-    ((TYPE_OF(i)) {.data      = (v).data,                                                                              \
-                   .length    = (v).length,                                                                            \
+    ((TYPE_OF(i)) {.data      = VecBegin(&(v)),                                                                        \
+                   .length    = VecLen(&(v)),                                                                          \
                    .pos       = 0,                                                                                     \
-                   .alignment = (v).allocator ? (v).allocator->alignment : 1,                                          \
+                   .alignment = VecAllocator(&(v)) ? VecAllocator(&(v))->alignment : 1,                                \
                    .dir       = -1})
 
 ///

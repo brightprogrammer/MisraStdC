@@ -436,7 +436,7 @@ bool macho_open_from_memory_copy(Macho *out, const u8 *data, size data_size, All
         return false;
     }
     MemCopy(copy.data, data, data_size);
-    copy.length = (size)data_size;
+    BufResize(&copy, (size)data_size);
     return MachoOpenFromMemory(out, &copy);
 }
 

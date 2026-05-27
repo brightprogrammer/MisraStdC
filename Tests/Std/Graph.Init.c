@@ -42,6 +42,9 @@ static bool test_graph_reserve_clear(void) {
     result = result && GraphNodeCount(&graph) == 0 && GraphEdgeCount(&graph) == 0 && GraphEmpty(&graph);
     result = result && !GraphContainsNode(&graph, first_id) && !GraphContainsNode(&graph, second_id);
     result = result && !GraphContainsNode(&graph, third_id);
+    // fixture-internal read: no public accessors for `slots`, `free_indices`,
+    // `pending_delete_count`, or `pending_edge_removals`; this test asserts on the
+    // graph's private bookkeeping after GraphClear, which the public surface does not expose.
     result = result && VecLen(&graph.slots) == slot_count && VecLen(&graph.free_indices) == slot_count;
     result = result && VecCapacity(&graph.slots) == slot_capacity && VecCapacity(&graph.free_indices) >= slot_count;
     result = result && graph.pending_delete_count == 0 && VecLen(&graph.pending_edge_removals) == 0;
@@ -106,8 +109,8 @@ static bool test_graph_node_owned_str_rvalue(void) {
     node        = GraphGetNode(&graph, node_id);
     stored_name = GraphNodeDataPtr(&graph, node);
 
-    bool result = GraphNodeIdIndex(node_id) == 0 && GraphNodeCount(&graph) == 1 && stored_name->data != NULL &&
-                  ZstrCompare(stored_name->data, "alpha") == 0;
+    bool result = GraphNodeIdIndex(node_id) == 0 && GraphNodeCount(&graph) == 1 && StrBegin(stored_name) != NULL &&
+                  ZstrCompare(StrBegin(stored_name), "alpha") == 0;
 
     GraphDeinit(&graph);
     DefaultAllocatorDeinit(&alloc);
@@ -140,14 +143,18 @@ static bool test_graph_init_optional_allocator(void) {
     StrGraph graph_g = GraphInitWithDeepCopy(str_init_copy, str_deinit, &aligned_32);
     StrGraph graph_h = GraphInitWithDeepCopyT(graph_h, str_init_copy, str_deinit, &aligned_64);
 
-    bool result = (graph_a.allocator->retry_limit == 31) && (graph_b.allocator->retry_limit == 31);
-    result      = result && (graph_c.allocator->retry_limit == 31) && (graph_d.allocator->retry_limit == 31);
-    result      = result && (graph_e.allocator->retry_limit == 31) && (graph_f.allocator->retry_limit == 31);
-    result      = result && (graph_g.allocator->retry_limit == 31) && (graph_h.allocator->retry_limit == 31);
-    result      = result && (graph_e.allocator->alignment == 8) && (graph_f.allocator->alignment == 16);
-    result      = result && (graph_g.allocator->alignment == 32) && (graph_h.allocator->alignment == 64);
-    result      = result && (graph_c.copy_init == (GenericCopyInit)str_init_copy);
-    result      = result && (graph_d.copy_deinit == (GenericCopyDeinit)str_deinit);
+    // intentional bypass: no public GraphAllocator / GraphCopyInit / GraphCopyDeinit
+    // accessor exists yet; reading the fields directly to verify init-variant propagation.
+    // `slots`, `free_indices`, `pending_edge_removals` are fixture-internal reads --
+    // their inner allocator pointers are not part of the public Graph surface.
+    bool result = (GraphAllocator(&graph_a)->retry_limit == 31) && (GraphAllocator(&graph_b)->retry_limit == 31);
+    result      = result && (GraphAllocator(&graph_c)->retry_limit == 31) && (GraphAllocator(&graph_d)->retry_limit == 31);
+    result      = result && (GraphAllocator(&graph_e)->retry_limit == 31) && (GraphAllocator(&graph_f)->retry_limit == 31);
+    result      = result && (GraphAllocator(&graph_g)->retry_limit == 31) && (GraphAllocator(&graph_h)->retry_limit == 31);
+    result      = result && (GraphAllocator(&graph_e)->alignment == 8) && (GraphAllocator(&graph_f)->alignment == 16);
+    result      = result && (GraphAllocator(&graph_g)->alignment == 32) && (GraphAllocator(&graph_h)->alignment == 64);
+    result      = result && (GraphCopyInit(&graph_c) == (GenericCopyInit)str_init_copy);
+    result      = result && (GraphCopyDeinit(&graph_d) == (GenericCopyDeinit)str_deinit);
     result      = result && (graph_h.slots.allocator->retry_limit == 31);
     result      = result && (graph_h.free_indices.allocator->retry_limit == 31);
     result      = result && (graph_h.pending_edge_removals.allocator->retry_limit == 31);

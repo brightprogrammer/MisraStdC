@@ -758,6 +758,7 @@ bool test_bitvec_foreach_invalid_usage(void) {
     WriteFmt("Testing BitVec foreach with invalid bitvec\n");
 
     // Test foreach with invalid bitvec (length > 0 but data is NULL)
+    // intentional bypass: deliberately-corrupt struct for ValidateBitVec deadend check.
     BitVec bv = {.length = 5, .capacity = 10, .data = NULL, .byte_size = 0};
 
     // This should abort due to ValidateBitVec check

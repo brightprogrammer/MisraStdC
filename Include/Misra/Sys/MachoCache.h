@@ -69,6 +69,8 @@ bool macho_cache_init(MachoCache *out, Allocator *alloc);
 /// SUCCESS : Returns to the caller. `self` is zeroed.
 /// FAILURE : Function cannot fail.
 ///
+/// TAGS: Sys, MachO, Cache, Deinit, Lifecycle
+///
 void MachoCacheDeinit(MachoCache *self);
 
 ///

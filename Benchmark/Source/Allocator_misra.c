@@ -33,7 +33,7 @@ static Allocator    *g_alloc = NULL;
 // build) it's just an unused alias.
 static HeapAllocator *g_heap_typed = NULL;
 
-const char *bench_backend_name(void) {
+Zstr bench_backend_name(void) {
     // Variant name is supplied at compile time by meson so the JSON
     // output identifies which libmisra_std was linked (fast vs full
     // heap_validate_self). Defaults to plain "misra" if undefined,

@@ -48,9 +48,9 @@ static bool test_basic_alloc_free(void) {
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
 
-    char *a  = (char *)AllocatorAlloc(alloc, 32, true);
-    char *b  = (char *)AllocatorAlloc(alloc, 128, true);
-    bool  ok = (a != NULL) && (b != NULL) && (a != b);
+    u8 *a  = (u8 *)AllocatorAlloc(alloc, 32, true);
+    u8 *b  = (u8 *)AllocatorAlloc(alloc, 128, true);
+    bool ok = (a != NULL) && (b != NULL) && (a != b);
 
     if (ok) {
         a[0]   = 'A';
@@ -259,12 +259,12 @@ static bool test_realloc_same_bin_keeps_pointer(void) {
 
     // 28 and 30 both round up to the 32-byte class in the current
     // bin layout, so realloc must succeed in place.
-    char *p  = (char *)AllocatorAlloc(alloc, 28, true);
-    bool  ok = (p != NULL);
+    u8 *p  = (u8 *)AllocatorAlloc(alloc, 28, true);
+    bool ok = (p != NULL);
     if (ok) {
-        p[0]        = 'x';
-        char *grown = (char *)AllocatorRealloc(alloc, p, 30);
-        ok          = (grown == p) && (grown[0] == 'x');
+        p[0]      = 'x';
+        u8 *grown = (u8 *)AllocatorRealloc(alloc, p, 30);
+        ok        = (grown == p) && (grown[0] == 'x');
         AllocatorFree(alloc, grown);
     }
     HeapAllocatorDeinit(&heap);
@@ -275,12 +275,12 @@ static bool test_realloc_cross_bin_copies(void) {
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
 
-    char *p  = (char *)AllocatorAlloc(alloc, 16, true);
-    bool  ok = (p != NULL);
+    u8 *p  = (u8 *)AllocatorAlloc(alloc, 16, true);
+    bool ok = (p != NULL);
     if (ok) {
-        p[0]        = 'h';
-        p[15]       = '!';
-        char *grown = (char *)AllocatorRealloc(alloc, p, 200);
+        p[0]      = 'h';
+        p[15]     = '!';
+        u8 *grown = (u8 *)AllocatorRealloc(alloc, p, 200);
         // Different bin -> heap must copy into a fresh slot.
         ok = (grown != NULL) && (grown != p) && (grown[0] == 'h') && (grown[15] == '!');
         if (grown)
@@ -338,7 +338,7 @@ static bool test_reject_double_free(void) {
 static bool test_reject_misaligned_pointer(void) {
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
-    char         *p     = (char *)AllocatorAlloc(alloc, 64, false);
+    u8           *p     = (u8 *)AllocatorAlloc(alloc, 64, false);
     AllocatorFree(alloc, p + 1); // mis-aligned -> LOG_FATAL
     return false;
 }
@@ -347,7 +347,7 @@ static bool test_reject_mid_xl_pointer(void) {
     HeapAllocator heap  = HeapAllocatorInit();
     Allocator    *alloc = ALLOCATOR_OF(&heap);
     size          n     = 16 * 1024;
-    char         *p     = (char *)AllocatorAlloc(alloc, n, false);
+    u8           *p     = (u8 *)AllocatorAlloc(alloc, n, false);
     AllocatorFree(alloc, p + 128); // mid-allocation -> LOG_FATAL
     return false;
 }

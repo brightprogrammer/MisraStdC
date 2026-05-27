@@ -73,6 +73,8 @@ bool proc_maps_load(ProcMaps *out, Allocator *alloc);
 /// SUCCESS : Returns to the caller. `*self` is zeroed.
 /// FAILURE : Function cannot fail. NULL `self` is a no-op.
 ///
+/// TAGS: Sys, ProcMaps, Deinit, Lifecycle
+///
 void ProcMapsDeinit(ProcMaps *self);
 
 ///

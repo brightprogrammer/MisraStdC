@@ -104,7 +104,7 @@ void ComplexItemDeinit(ComplexItem *item) {
 // `ZstrDup` is not used here because it routes through the library's
 // allocator, which (since Stage 3) no longer uses libc - that would mean
 // pointers handed to libc `free` below would not be libc-managed.
-ComplexItem CreateComplexItem(Zstr name, int *values, size num_values) {
+ComplexItem InitComplexItem(Zstr name, int *values, size num_values) {
     ComplexItem item = {0};
 
     if (name) {
@@ -184,12 +184,12 @@ bool test_complex_vec_init(void) {
     // Check initial state
     bool result =
         (VecLen(&vec) == 0 && VecCapacity(&vec) == 0 && VecBegin(&vec) == NULL &&
-         vec.copy_init == (GenericCopyInit)ComplexItemCopyInit &&
-         vec.copy_deinit == (GenericCopyDeinit)ComplexItemDeinit);
+         VecCopyInit(&vec) == (GenericCopyInit)ComplexItemCopyInit &&
+         VecCopyDeinit(&vec) == (GenericCopyDeinit)ComplexItemDeinit);
 
     // Create a test item
     int         values[] = {1, 2, 3};
-    ComplexItem item     = CreateComplexItem("Test Item", values, 3);
+    ComplexItem item     = InitComplexItem("Test Item", values, 3);
 
     // Add the item to the vector
     VecPushBackR(&vec, item);
@@ -229,9 +229,9 @@ bool test_complex_vec_push(void) {
     int values2[] = {40, 50, 60};
     int values3[] = {70, 80, 90};
 
-    ComplexItem item1 = CreateComplexItem("Item 1", values1, 3);
-    ComplexItem item2 = CreateComplexItem("Item 2", values2, 3);
-    ComplexItem item3 = CreateComplexItem("Item 3", values3, 3);
+    ComplexItem item1 = InitComplexItem("Item 1", values1, 3);
+    ComplexItem item2 = InitComplexItem("Item 2", values2, 3);
+    ComplexItem item3 = InitComplexItem("Item 3", values3, 3);
 
     // Push items to the vector
     VecPushBackR(&vec, item1);
@@ -273,9 +273,9 @@ bool test_complex_vec_insert(void) {
     int values2[] = {40, 50, 60};
     int values3[] = {70, 80, 90};
 
-    ComplexItem item1 = CreateComplexItem("Item 1", values1, 3);
-    ComplexItem item2 = CreateComplexItem("Item 2", values2, 3);
-    ComplexItem item3 = CreateComplexItem("Item 3", values3, 3);
+    ComplexItem item1 = InitComplexItem("Item 1", values1, 3);
+    ComplexItem item2 = InitComplexItem("Item 2", values2, 3);
+    ComplexItem item3 = InitComplexItem("Item 3", values3, 3);
 
     // Add item1 to the vector
     VecPushBackR(&vec, item1);
@@ -317,9 +317,9 @@ bool test_complex_vec_merge(void) {
     int values2[] = {40, 50, 60};
     int values3[] = {70, 80, 90};
 
-    ComplexItem item1 = CreateComplexItem("Item 1", values1, 3);
-    ComplexItem item2 = CreateComplexItem("Item 2", values2, 3);
-    ComplexItem item3 = CreateComplexItem("Item 3", values3, 3);
+    ComplexItem item1 = InitComplexItem("Item 1", values1, 3);
+    ComplexItem item2 = InitComplexItem("Item 2", values2, 3);
+    ComplexItem item3 = InitComplexItem("Item 3", values3, 3);
 
     // Add items to vectors
     VecPushBackR(&vec1, item1);
@@ -346,8 +346,8 @@ bool test_complex_vec_merge(void) {
     int values4[] = {100, 110, 120};
     int values5[] = {130, 140, 150};
 
-    ComplexItem item4 = CreateComplexItem("Item 4", values4, 3);
-    ComplexItem item5 = CreateComplexItem("Item 5", values5, 3);
+    ComplexItem item4 = InitComplexItem("Item 4", values4, 3);
+    ComplexItem item5 = InitComplexItem("Item 5", values5, 3);
 
     // Add items to vectors
     VecPushBackL(&vec3, item4);
@@ -665,7 +665,7 @@ bool test_lvalue_memset_pushback(void) {
 
     // Create a test item
     int         values[] = {10, 20, 30};
-    ComplexItem item     = CreateComplexItem("Test Item", values, 3);
+    ComplexItem item     = InitComplexItem("Test Item", values, 3);
 
     // Create a temporary vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
@@ -691,7 +691,7 @@ bool test_lvalue_memset_insert(void) {
 
     // Create a test item
     int         values[] = {40, 50, 60};
-    ComplexItem item     = CreateComplexItem("Another Item", values, 3);
+    ComplexItem item     = InitComplexItem("Another Item", values, 3);
 
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
@@ -749,7 +749,7 @@ bool test_lvalue_memset_fast_insert(void) {
 
     // Test 1: Insert at the beginning
     int         values1[] = {10, 20, 30};
-    ComplexItem item1     = CreateComplexItem("Fast Item 1", values1, 3);
+    ComplexItem item1     = InitComplexItem("Fast Item 1", values1, 3);
     VecInsertFastL(&vec, item1, 0);
 
     // Check that the item was memset to 0
@@ -759,7 +759,7 @@ bool test_lvalue_memset_fast_insert(void) {
 
     // Test 2: Insert in the middle
     int         values2[] = {40, 50, 60};
-    ComplexItem item2     = CreateComplexItem("Fast Item 2", values2, 3);
+    ComplexItem item2     = InitComplexItem("Fast Item 2", values2, 3);
     VecInsertFastL(&vec, item2, 2);
 
     // Check that the item was memset to 0
@@ -769,7 +769,7 @@ bool test_lvalue_memset_fast_insert(void) {
 
     // Test 3: Insert at the end (this is actually an append operation)
     int         values3[] = {70, 80, 90};
-    ComplexItem item3     = CreateComplexItem("Fast Item 3", values3, 3);
+    ComplexItem item3     = InitComplexItem("Fast Item 3", values3, 3);
     VecInsertFastL(&vec, item3, VecLen(&vec));
 
     // Check that the item was memset to 0
@@ -792,7 +792,7 @@ bool test_lvalue_memset_pushfront(void) {
 
     // Create a test item
     int         values[] = {100, 110, 120};
-    ComplexItem item     = CreateComplexItem("Front Item", values, 3);
+    ComplexItem item     = InitComplexItem("Front Item", values, 3);
 
     // Create a vector with no copy_init but with copy_deinit for proper cleanup
     typedef Vec(ComplexItem) ComplexVec;
@@ -830,8 +830,8 @@ bool test_lvalue_memset_merge(void) {
     int values1[] = {130, 140, 150};
     int values2[] = {160, 170, 180};
 
-    ComplexItem item1 = CreateComplexItem("Merge Item 1", values1, 3);
-    ComplexItem item2 = CreateComplexItem("Merge Item 2", values2, 3);
+    ComplexItem item1 = InitComplexItem("Merge Item 1", values1, 3);
+    ComplexItem item2 = InitComplexItem("Merge Item 2", values2, 3);
 
     // Add items to vec2
     VecPushBackL(&vec2, item1);
@@ -871,9 +871,9 @@ bool test_lvalue_memset_array_ops(void) {
     int values2[] = {40, 50, 60};
     int values3[] = {70, 80, 90};
 
-    items[0] = CreateComplexItem("Array Item 1", values1, 3);
-    items[1] = CreateComplexItem("Array Item 2", values2, 3);
-    items[2] = CreateComplexItem("Array Item 3", values3, 3);
+    items[0] = InitComplexItem("Array Item 1", values1, 3);
+    items[1] = InitComplexItem("Array Item 2", values2, 3);
+    items[2] = InitComplexItem("Array Item 3", values3, 3);
 
     // Test VecPushBackArrL
     VecPushBackArrL(&vec, items, 3);

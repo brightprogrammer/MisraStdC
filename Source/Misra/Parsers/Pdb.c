@@ -318,16 +318,19 @@ static bool parse_pdb_info(Pdb *self) {
         LOG_ERROR("PDB: info stream too small");
         return false;
     }
-    u8 buf[28];
-    if (!stream_read(self, 1, 0, buf, sizeof(buf)))
-        return false;
-    BufIter bi = BufIterFromMemory(buf, sizeof(buf));
-    if (!BufReadFmt(&bi, FMT_PDB_INFO_LE, self->info.version, self->info.signature, self->info.age)) {
-        LOG_ERROR("PDB: info stream prefix truncated");
-        return false;
+    bool ok = false;
+    VecInitStack(u8, buf, 28) {
+        if (!stream_read(self, 1, 0, VecBegin(&buf), VecCapacity(&buf)))
+            break;
+        BufIter bi = BufIterFromMemory(VecBegin(&buf), VecCapacity(&buf));
+        if (!BufReadFmt(&bi, FMT_PDB_INFO_LE, self->info.version, self->info.signature, self->info.age)) {
+            LOG_ERROR("PDB: info stream prefix truncated");
+            break;
+        }
+        MemCopy(self->info.guid, VecBegin(&buf) + 12, 16);
+        ok = true;
     }
-    MemCopy(self->info.guid, buf + 12, 16);
-    return true;
+    return ok;
 }
 
 // ---------------------------------------------------------------------------
@@ -356,40 +359,45 @@ static DbiSubstreamInfo parse_dbi_header(const Pdb *self) {
     if (dbi_size == NIL_STREAM || dbi_size < DBI_HEADER_SIZE)
         return r;
 
-    u8 hdr[DBI_HEADER_SIZE];
-    if (!stream_read(self, DBI_STREAM_INDEX, 0, hdr, DBI_HEADER_SIZE))
-        return r;
+    u32 version_sig = 0, version_hdr = 0, age = 0, mod_size = 0, seccontrib = 0, secmap = 0, srcinfo = 0, tsm = 0,
+        mfc_tsm_idx = 0, optdbg_size = 0, ec_size = 0, padding = 0;
+    u16 global_idx = 0, build_num = 0, public_idx = 0, pdb_dll_ver = 0, pdb_dll_rbld = 0, flags = 0, machine = 0;
+    VecInitStack(u8, hdr, DBI_HEADER_SIZE) {
+        if (!stream_read(self, DBI_STREAM_INDEX, 0, VecBegin(&hdr), VecCapacity(&hdr)))
+            break;
 
-    BufIter bi = BufIterFromMemory(hdr, DBI_HEADER_SIZE);
-    u32 version_sig, version_hdr, age, mod_size, seccontrib, secmap, srcinfo, tsm, mfc_tsm_idx, optdbg_size, ec_size,
-        padding;
-    u16 global_idx, build_num, public_idx, pdb_dll_ver, pdb_dll_rbld, flags, machine;
-    if (!BufReadFmt(
-            &bi,
-            FMT_PDB_DBI_HEADER_LE,
-            version_sig,
-            version_hdr,
-            age,
-            global_idx,
-            build_num,
-            public_idx,
-            pdb_dll_ver,
-            r.symrec_stream,
-            pdb_dll_rbld,
-            mod_size,
-            seccontrib,
-            secmap,
-            srcinfo,
-            tsm,
-            mfc_tsm_idx,
-            optdbg_size,
-            ec_size,
-            flags,
-            machine,
-            padding
-        )) {
-        return r;
+        BufIter bi = BufIterFromMemory(VecBegin(&hdr), VecCapacity(&hdr));
+        if (!BufReadFmt(
+                &bi,
+                FMT_PDB_DBI_HEADER_LE,
+                version_sig,
+                version_hdr,
+                age,
+                global_idx,
+                build_num,
+                public_idx,
+                pdb_dll_ver,
+                r.symrec_stream,
+                pdb_dll_rbld,
+                mod_size,
+                seccontrib,
+                secmap,
+                srcinfo,
+                tsm,
+                mfc_tsm_idx,
+                optdbg_size,
+                ec_size,
+                flags,
+                machine,
+                padding
+            )) {
+            break;
+        }
+        r.ok = true;
     }
+    if (!r.ok)
+        return (DbiSubstreamInfo) {0};
+    r.ok = false;
     (void)version_sig;
     (void)version_hdr;
     (void)age;
@@ -414,12 +422,12 @@ static DbiSubstreamInfo parse_dbi_header(const Pdb *self) {
     if (sec_hdr_off + 2 > optdbg_off + optdbg_size)
         return r;
 
-    u8 sh[2];
-    if (!stream_read(self, DBI_STREAM_INDEX, sec_hdr_off, sh, 2))
-        return r;
-    r.section_hdr_stream = (u16)sh[0] | (u16)sh[1] << 8;
-
-    r.ok = true;
+    VecInitStack(u8, sh, 2) {
+        if (!stream_read(self, DBI_STREAM_INDEX, sec_hdr_off, VecBegin(&sh), 2))
+            break;
+        r.section_hdr_stream = (u16)VecAt(&sh, 0) | (u16)VecAt(&sh, 1) << 8;
+        r.ok                 = true;
+    }
     return r;
 }
 
@@ -480,11 +488,9 @@ static SectionRva *load_section_table(const Pdb *self, u16 section_hdr_stream, u
 // invalidates earlier pointers -- we resolve to pointers in a second
 // pass after the walk completes.
 static bool pool_append_cstr(Str *pool, Zstr s, u64 *out_offset) {
-    *out_offset = pool->length;
-    for (; *s; ++s) {
-        if (!StrPushBackR(pool, *s))
-            return false;
-    }
+    *out_offset = StrLen(pool);
+    if (!StrPushBackMany(pool, s))
+        return false;
     return StrPushBackR(pool, '\0');
 }
 
@@ -627,7 +633,7 @@ static bool parse_pdb_functions(Pdb *self) {
         return false;
     }
 
-    if (pending.length == 0) {
+    if (VecLen(&pending) == 0) {
         VecDeinit(&pending);
         StrDeinit(&name_pool);
         return true;
@@ -640,19 +646,20 @@ static bool parse_pdb_functions(Pdb *self) {
     // (now-stable) pool buffer, push into self->functions, and fill
     // sizes by next-rva diff. Steal the pool's buffer at the end so
     // names stay alive for the lifetime of the Pdb.
-    for (size i = 0; i < pending.length; ++i) {
-        PdbFunction f = {
-            .rva  = pending.data[i].rva,
-            .size = 0,
-            .name = name_pool.data + pending.data[i].name_offset_in_pool,
+    for (size i = 0; i < VecLen(&pending); ++i) {
+        const PendingPub *pp = VecPtrAt(&pending, i);
+        PdbFunction       f  = {
+                  .rva  = pp->rva,
+                  .size = 0,
+                  .name = StrBegin(&name_pool) + pp->name_offset_in_pool,
         };
-        if (i + 1 < pending.length) {
+        if (i + 1 < VecLen(&pending)) {
             // Although `pending` is sorted ascending by rva, treat the
             // u32 subtraction defensively in case a future sort
             // predicate changes or duplicates land in a surprising
             // order. If next.rva < f.rva (impossible today), leave
             // size = 0 rather than wrap.
-            u32 next_rva = pending.data[i + 1].rva;
+            u32 next_rva = VecPtrAt(&pending, i + 1)->rva;
             f.size       = next_rva >= f.rva ? next_rva - f.rva : 0;
         }
         if (!VecPushBackR(&self->functions, f)) {
@@ -670,6 +677,10 @@ static bool parse_pdb_functions(Pdb *self) {
     // Transfer ownership of the name-pool buffer to the Pdb so the
     // function->name pointers stay valid. We stash it in a dedicated
     // field for cleanup; see PdbDeinit.
+    //
+    // Intentional Str-internal bypass: transferring ownership of the Str's
+    // backing buffer into self->name_pool. No public StrTakeBuffer primitive
+    // exists; the assigns below ARE the ownership-extract path.
     self->name_pool      = name_pool.data;
     self->name_pool_size = name_pool.capacity;
     self->name_pool_used = name_pool.length;
@@ -730,7 +741,7 @@ bool pdb_open_from_memory_copy(Pdb *out, const u8 *data, size data_size, Allocat
         return false;
     }
     MemCopy(BufData(&copy), data, data_size);
-    copy.length = (size)data_size;
+    BufResize(&copy, (size)data_size);
     return PdbOpenFromMemory(out, &copy);
 }
 

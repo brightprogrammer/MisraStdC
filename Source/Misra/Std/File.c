@@ -543,7 +543,7 @@ File file_open_temp(Str *out_path, Allocator *alloc) {
         // CREATE_NEW fails with ERROR_FILE_EXISTS on collision. GENERIC_READ|WRITE
         // gives us the equivalent of POSIX O_RDWR.
         HANDLE h = CreateFileA(
-            out_path->data,
+            StrBegin(out_path),
             GENERIC_READ | GENERIC_WRITE,
             0, // no sharing -- mimic POSIX 0600
             NULL,
@@ -576,13 +576,13 @@ File file_open_temp(Str *out_path, Allocator *alloc) {
         long fd;
 #    if FEATURE_DIRECT_SYSCALL
 #        if PLATFORM_DARWIN || ARCHITECTURE_X86_64
-        fd = misra_sys3(MISRA_SYS_open, (long)(u64)out_path->data, (long)flags, 0600L);
+        fd = misra_sys3(MISRA_SYS_open, (long)(u64)StrBegin(out_path), (long)flags, 0600L);
 #        else
-        fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(u64)out_path->data, (long)flags, 0600L);
+        fd = misra_sys4(MISRA_SYS_openat, -100L, (long)(u64)StrBegin(out_path), (long)flags, 0600L);
 #        endif
 #    else
         extern int open(Zstr , int, ...);
-        fd = open(out_path->data, flags, 0600);
+        fd = open(StrBegin(out_path), flags, 0600);
         if (fd < 0) {
             fd = -Errno();
         }

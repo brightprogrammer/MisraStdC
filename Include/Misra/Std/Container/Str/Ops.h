@@ -27,7 +27,11 @@ extern "C" {
     /// data[in] : Pointer to a `Str`.
     /// size[in] : Ignored. Included for `GenericHash` callback compatibility.
     ///
-    /// SUCCESS : Returns a stable hash of the string's bytes.
+    /// SUCCESS : Returns a stable hash of the string's bytes. `data`
+    ///           is not modified.
+    /// FAILURE : Function cannot fail.
+    ///
+    /// TAGS: Str, Hash, Ops
     ///
     u64 str_hash(const void *data, u32 size);
 
@@ -38,8 +42,11 @@ extern "C" {
     /// lhs[in] : Pointer to the left `Str`.
     /// rhs[in] : Pointer to the right `Str`.
     ///
-    /// SUCCESS : Returns `0` when equal, `<0` when `lhs < rhs`, `>0` when
-    ///           `lhs > rhs`.
+    /// SUCCESS : Returns `0` when equal, `<0` when `lhs < rhs`, `>0`
+    ///           when `lhs > rhs`. Neither operand is modified.
+    /// FAILURE : Function cannot fail.
+    ///
+    /// TAGS: Str, Compare, Ops
     ///
     i32 str_compare(const void *lhs, const void *rhs);
 

@@ -66,8 +66,12 @@
      vec_insert_one_r(GENERIC_VEC(v), &LVAL_AS(VEC_DATATYPE(v), rval), sizeof(VEC_DATATYPE(v)), (idx), true))
 
 ///
-/// Default insertion alias for `VecInsertL`. Use when ownership transfer of an
-/// l-value is the intended behaviour.
+/// Insert a single element at `idx`, preserving order and taking
+/// ownership of `lval` when no deep-copy handler is configured. Default
+/// unsuffixed form aliasing to the L (ownership) variant.
+/// See `VecInsertL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: Vec, Insert, LValue
 ///
 #define VecInsert(v, lval, idx) VecInsertL((v), (lval), (idx))
 
@@ -127,7 +131,13 @@
      vec_insert_one_r(GENERIC_VEC(v), &LVAL_AS(VEC_DATATYPE(v), rval), sizeof(VEC_DATATYPE(v)), (idx), false))
 
 ///
-/// Default fast-insertion alias for `VecInsertFastL`.
+/// Insert a single element at `idx` using fast (order-not-preserving)
+/// placement, taking ownership of `lval` when no deep-copy handler is
+/// configured. Default unsuffixed form aliasing to the L (ownership)
+/// variant.
+/// See `VecInsertFastL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: Vec, Insert, Fast
 ///
 #define VecInsertFast(v, lval, idx) VecInsertFastL((v), (lval), (idx))
 
@@ -185,7 +195,13 @@
      vec_insert_range_r(GENERIC_VEC(v), (const void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), true))
 
 ///
-/// Default range-insert alias for `VecInsertRangeL`.
+/// Insert a contiguous range of `count` elements at `idx`, preserving
+/// order and taking ownership of the source range when no deep-copy
+/// handler is configured. Default unsuffixed form aliasing to the L
+/// (ownership) variant.
+/// See `VecInsertRangeL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: Vec, Insert, Range
 ///
 #define VecInsertRange(v, varr, idx, count) VecInsertRangeL((v), (varr), (idx), (count))
 
@@ -225,7 +241,13 @@
      vec_insert_range_r(GENERIC_VEC(v), (const void *)(varr), sizeof(VEC_DATATYPE(v)), (idx), (count), false))
 
 ///
-/// Default fast range-insert alias for `VecInsertRangeFastL`.
+/// Insert a contiguous range of `count` elements at `idx` using fast
+/// (order-not-preserving) placement, taking ownership of the source
+/// range when no deep-copy handler is configured. Default unsuffixed
+/// form aliasing to the L (ownership) variant.
+/// See `VecInsertRangeFastL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: Vec, Insert, Range, Fast
 ///
 #define VecInsertRangeFast(v, varr, idx, count) VecInsertRangeFastL((v), (varr), (idx), (count))
 
@@ -262,7 +284,13 @@
 #define VecPushBackArrR(v, arr, count) VecInsertRangeR((v), (arr), (v)->length, (count))
 
 ///
-/// Default tail-append alias for `VecPushBackArrL`.
+/// Append `count` elements from `arr` to the end of the vector, taking
+/// ownership of the source range when no deep-copy handler is
+/// configured. Default unsuffixed form aliasing to the L (ownership)
+/// variant.
+/// See `VecPushBackArrL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: Vec, PushBack, Range, Insert
 ///
 #define VecPushBackArr(v, arr, count) VecPushBackArrL((v), (arr), (count))
 
@@ -299,7 +327,13 @@
 #define VecPushFrontArrR(v, arr, count) VecInsertRangeR((v), (arr), 0, (count))
 
 ///
-/// Default front-prepend alias for `VecPushFrontArrL`.
+/// Prepend `count` elements from `arr` at the front of the vector,
+/// preserving order and taking ownership of the source range when no
+/// deep-copy handler is configured. Default unsuffixed form aliasing to
+/// the L (ownership) variant.
+/// See `VecPushFrontArrL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: Vec, PushFront, Range, Insert
 ///
 #define VecPushFrontArr(v, arr, count) VecPushFrontArrL((v), (arr), (count))
 
@@ -333,7 +367,13 @@
 #define VecPushFrontArrFastR(v, arr, count) VecInsertRangeFastR((v), (arr), 0, (count))
 
 ///
-/// Default fast front-prepend alias for `VecPushFrontArrFastL`.
+/// Prepend `count` elements from `arr` at the front of the vector using
+/// fast (order-not-preserving) placement, taking ownership of the source
+/// range when no deep-copy handler is configured. Default unsuffixed
+/// form aliasing to the L (ownership) variant.
+/// See `VecPushFrontArrFastL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: Vec, PushFront, Range, Fast
 ///
 #define VecPushFrontArrFast(v, arr, count) VecPushFrontArrFastL((v), (arr), (count))
 
@@ -378,7 +418,13 @@
     (ValidateVec(v), ValidateVec(v2), vec_merge_r(GENERIC_VEC(v), GENERIC_VEC(v2), sizeof(VEC_DATATYPE(v))))
 
 ///
-/// Default merge alias for `VecMergeL`.
+/// Append all elements of `v2` to the end of `v`, transferring
+/// ownership of `v2`'s storage when no deep-copy handler is configured
+/// (leaving `v2` empty). Default unsuffixed form aliasing to the L
+/// (ownership) variant.
+/// See `VecMergeL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: Vec, Merge, Insert
 ///
 #define VecMerge(v, v2) VecMergeL((v), (v2))
 
@@ -407,7 +453,13 @@
 #define VecPushBackR(v, val) VecInsertR((v), (val), (v)->length)
 
 ///
-/// Default tail-push alias for `VecPushBackL`.
+/// Append a single element to the end of the vector, taking ownership
+/// of `val` when no deep-copy handler is configured. Default unsuffixed
+/// form aliasing to the L (ownership) variant; expands through
+/// `VecInsert` at index `length`.
+/// See `VecPushBackL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: Vec, PushBack, Insert
 ///
 #define VecPushBack(v, val) VecInsert((v), (val), (v)->length)
 
@@ -438,7 +490,13 @@
 #define VecPushFrontR(v, val) VecInsertR((v), (val), 0)
 
 ///
-/// Default front-push alias for `VecPushFrontL`.
+/// Prepend a single element at the front of the vector, preserving
+/// order and taking ownership of `val` when no deep-copy handler is
+/// configured. Default unsuffixed form aliasing to the L (ownership)
+/// variant.
+/// See `VecPushFrontL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: Vec, PushFront, Insert
 ///
 #define VecPushFront(v, val) VecPushFrontL((v), (val))
 

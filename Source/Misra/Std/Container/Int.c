@@ -82,7 +82,7 @@ static bool int_try_from_i64_with_allocator(Int *out, i64 value, Allocator *allo
 static u64 int_significant_bits(Int *value) {
     ValidateInt(value);
 
-    for (u64 i = value->bits.length; i > 0; i--) {
+    for (u64 i = BitVecLen(INT_BITS(value)); i > 0; i--) {
         if (BitVecGet(INT_BITS(value), i - 1)) {
             return i;
         }
@@ -223,7 +223,7 @@ static void int_normalize(Int *value) {
 
 static bool int_is_odd(Int *value) {
     ValidateInt(value);
-    return value->bits.length > 0 && BitVecGet(INT_BITS(value), 0);
+    return BitVecLen(INT_BITS(value)) > 0 && BitVecGet(INT_BITS(value), 0);
 }
 
 static bool int_is_one(Int *value) {
@@ -403,7 +403,7 @@ u64 IntLog2WithError(Int *value, bool *error) {
 u64 IntTrailingZeroCount(Int *value) {
     ValidateInt(value);
 
-    for (u64 i = 0; i < value->bits.length; i++) {
+    for (u64 i = 0; i < BitVecLen(INT_BITS(value)); i++) {
         if (BitVecGet(INT_BITS(value), i)) {
             return i;
         }
@@ -554,7 +554,7 @@ u64 IntToBytesLE(Int *value, u8 *bytes, u64 max_len) {
         for (u64 bit = 0; bit < 8; bit++) {
             u64 bit_idx = i * 8 + bit;
 
-            if (bit_idx < value->bits.length && BitVecGet(INT_BITS(value), bit_idx)) {
+            if (bit_idx < BitVecLen(INT_BITS(value)) && BitVecGet(INT_BITS(value), bit_idx)) {
                 byte |= (u8)(1u << bit);
             }
         }
@@ -608,7 +608,7 @@ u64 IntToBytesBE(Int *value, u8 *bytes, u64 max_len) {
         for (u64 bit = 0; bit < 8; bit++) {
             u64 bit_idx = i * 8 + bit;
 
-            if (bit_idx < value->bits.length && BitVecGet(INT_BITS(value), bit_idx)) {
+            if (bit_idx < BitVecLen(INT_BITS(value)) && BitVecGet(INT_BITS(value), bit_idx)) {
                 byte |= (u8)(1u << bit);
             }
         }
@@ -642,11 +642,11 @@ bool int_try_from_str_str(Int *out, const Str *decimal) {
         LOG_FATAL("Invalid arguments");
     }
 
-    if (decimal->length > 0 && decimal->data[0] == '+') {
+    if (StrLen(decimal) > 0 && StrCharAt(decimal, 0) == '+') {
         start = 1;
     }
 
-    return int_try_from_str_radix_impl(out, decimal->data, decimal->length, start, 10, true);
+    return int_try_from_str_radix_impl(out, StrBegin(decimal), StrLen(decimal), start, 10, true);
 }
 
 Int int_from_str_zstr(Zstr decimal, Allocator *alloc) {
@@ -700,11 +700,11 @@ bool int_try_from_str_radix_str(Int *out, const Str *digits, u8 radix) {
     if (!out || !digits) {
         LOG_FATAL("Invalid arguments");
     }
-    if (digits->length > 0 && digits->data[0] == '+') {
+    if (StrLen(digits) > 0 && StrCharAt(digits, 0) == '+') {
         start = 1;
     }
 
-    return int_try_from_str_radix_impl(out, digits->data, digits->length, start, radix, true);
+    return int_try_from_str_radix_impl(out, StrBegin(digits), StrLen(digits), start, radix, true);
 }
 
 Int int_from_str_radix_zstr(Zstr digits, u8 radix, Allocator *alloc) {
@@ -763,10 +763,12 @@ bool int_try_to_str_radix(Str *out, Int *value, u8 radix, bool uppercase, Alloca
         current = quotient;
     }
 
-    for (u64 i = 0; i < result.length / 2; i++) {
-        char tmp                           = result.data[i];
-        result.data[i]                     = result.data[result.length - 1 - i];
-        result.data[result.length - 1 - i] = tmp;
+    for (u64 i = 0; i < StrLen(&result) / 2; i++) {
+        char *lhs = StrCharPtrAt(&result, i);
+        char *rhs = StrCharPtrAt(&result, StrLen(&result) - 1 - i);
+        char  tmp = *lhs;
+        *lhs      = *rhs;
+        *rhs      = tmp;
     }
 
     IntDeinit(&current);
@@ -809,11 +811,11 @@ bool int_try_from_binary_str(Int *out, const Str *binary) {
         LOG_FATAL("Invalid arguments");
     }
 
-    if (binary->length >= 2 && binary->data[0] == '0' && (binary->data[1] == 'b' || binary->data[1] == 'B')) {
+    if (StrLen(binary) >= 2 && StrCharAt(binary, 0) == '0' && (StrCharAt(binary, 1) == 'b' || StrCharAt(binary, 1) == 'B')) {
         start = 2;
     }
 
-    return int_try_from_str_radix_impl(out, binary->data, binary->length, start, 2, true);
+    return int_try_from_str_radix_impl(out, StrBegin(binary), StrLen(binary), start, 2, true);
 }
 
 Int int_from_binary_zstr(Zstr binary, Allocator *alloc) {
@@ -857,11 +859,11 @@ bool int_try_from_oct_str_str(Int *out, const Str *octal) {
         LOG_FATAL("Invalid arguments");
     }
 
-    if (octal->length >= 2 && octal->data[0] == '0' && (octal->data[1] == 'o' || octal->data[1] == 'O')) {
+    if (StrLen(octal) >= 2 && StrCharAt(octal, 0) == '0' && (StrCharAt(octal, 1) == 'o' || StrCharAt(octal, 1) == 'O')) {
         start = 2;
     }
 
-    return int_try_from_str_radix_impl(out, octal->data, octal->length, start, 8, true);
+    return int_try_from_str_radix_impl(out, StrBegin(octal), StrLen(octal), start, 8, true);
 }
 
 Int int_from_oct_str_zstr(Zstr octal, Allocator *alloc) {
@@ -898,7 +900,7 @@ bool int_try_from_hex_str_str(Int *out, const Str *hex) {
         LOG_FATAL("Invalid arguments");
     }
 
-    return int_try_from_str_radix_impl(out, hex->data, hex->length, 0, 16, false);
+    return int_try_from_str_radix_impl(out, StrBegin(hex), StrLen(hex), 0, 16, false);
 }
 
 Int int_from_hex_str_zstr(Zstr hex, Allocator *alloc) {

@@ -17,28 +17,147 @@
 extern "C" {
 #endif
 
+    ///
+    /// Initialise `*out` as a `Str` backed by `alloc` and fill it with
+    /// the first `len` bytes copied from `cstr`. `cstr` is treated as
+    /// an opaque byte range -- a NUL inside `[cstr, cstr + len)` is
+    /// copied as a regular byte; the resulting `Str` is still
+    /// NUL-terminated past `length`. A trailing NUL is written at
+    /// `data[len]` so `StrBegin(out)` is safely usable as a `Zstr`.
+    ///
+    /// `len == 0` is a valid degenerate input -- `*out` becomes an
+    /// empty, capacity-zero `Str` with no allocation performed.
+    ///
+    /// SUCCESS : Returns `true`. `*out` is a usable `Str` holding the
+    ///           copied bytes. Capacity covers at least `len + 1`.
+    /// FAILURE : Returns `false` on allocator OOM (only reachable when
+    ///           `len > 0`). `*out` is left as an empty `Str` bound to
+    ///           `alloc` -- safe to `StrDeinit` but does NOT hold the
+    ///           requested content. `LOG_FATAL` if `out` or `cstr` is
+    ///           NULL.
+    ///
+    /// TAGS: Str, Init, Cstr
+    ///
     bool str_try_init_from_cstr(Str *out, Zstr cstr, size len, Allocator *alloc);
+
+    ///
+    /// By-value `Str` constructor that copies `len` bytes from `cstr`
+    /// into a freshly allocated buffer owned by `alloc`, with a
+    /// trailing NUL placed at `data[len]`. Use this form when the
+    /// caller treats OOM and intentionally empty input the same way;
+    /// use the try-style allocator-explicit init (which returns
+    /// `false` on OOM without aborting) when the distinction matters.
+    ///
+    /// SUCCESS : Returns a usable `Str` holding the copied bytes.
+    /// FAILURE : Returns an empty `Str` bound to `alloc` on allocator
+    ///           OOM (only reachable when `len > 0`). The caller cannot
+    ///           distinguish OOM from an intentionally empty input via
+    ///           the return value alone. `LOG_FATAL` if `cstr` is
+    ///           NULL.
+    ///
+    /// TAGS: Str, Init, Cstr
+    ///
     Str  str_init_from_cstr(Zstr cstr, size len, Allocator *alloc);
 
+///
+/// Initialise `*out` as a `Str` holding `len` bytes copied from `cstr`,
+/// allocated through `allocator_ptr` (accepts a typed allocator handle
+/// or a raw `Allocator *`).
+///
+/// SUCCESS : Returns `true`. `*out` is a usable `Str` holding the
+///           copied bytes; trailing NUL written at `out->data[len]`.
+/// FAILURE : Returns `false` on allocator OOM. `*out` is left as an
+///           empty `Str` bound to the allocator. `LOG_FATAL` if `out`
+///           or `cstr` is NULL.
+///
+/// TAGS: Str, Init, Cstr, API
+///
 #define StrTryInitFromCstr(out, cstr, len, allocator_ptr)                                                              \
     str_try_init_from_cstr((out), (cstr), (len), ALLOCATOR_OF(allocator_ptr))
 
+///
+/// Initialise a `Str` by value from a byte range `[cstr, cstr + len)`.
+/// The 2-arg form uses the enclosing `MisraScope` allocator; the 3-arg
+/// form takes an explicit allocator (typed handle or raw `Allocator *`).
+///
+/// SUCCESS : Returns a usable `Str` holding the copied bytes.
+/// FAILURE : Returns an empty `Str` on allocator OOM. The empty return
+///           is indistinguishable from `len == 0`; use
+///           `StrTryInitFromCstr` when OOM must be detected.
+///           `LOG_FATAL` if `cstr` is NULL.
+///
+/// TAGS: Str, Init, Cstr, API
+///
 #define StrInitFromCstr(...)                MISRA_OVERLOAD(StrInitFromCstr, __VA_ARGS__)
 #define StrInitFromCstr_2(cstr, len)        str_init_from_cstr((cstr), (len), MisraScope)
 #define StrInitFromCstr_3(cstr, len, alloc) str_init_from_cstr((cstr), (len), ALLOCATOR_OF(alloc))
 
+///
+/// Initialise a `Str` by value from a NUL-terminated `Zstr`. Length is
+/// derived from `ZstrLen(zstr)`, so `zstr` is walked once to find the
+/// terminator before the copy is performed. The 1-arg form uses the
+/// enclosing `MisraScope` allocator; the 2-arg form takes an explicit
+/// allocator.
+///
+/// SUCCESS : Returns a usable `Str` holding the bytes of `zstr` up to
+///           (but not including) the terminator.
+/// FAILURE : Returns an empty `Str` on allocator OOM. `LOG_FATAL` if
+///           `zstr` is NULL (via `ZstrLen` / underlying Cstr backend).
+///
+/// TAGS: Str, Init, Zstr, API
+///
 #define StrInitFromZstr(...)       MISRA_OVERLOAD(StrInitFromZstr, __VA_ARGS__)
 #define StrInitFromZstr_1(zstr)    StrInitFromCstr_2((zstr), ZstrLen(zstr))
 #define StrInitFromZstr_2(zstr, a) StrInitFromCstr_3((zstr), ZstrLen(zstr), (a))
 
+///
+/// Short alias for `StrInitFromZstr`. Initialises a `Str` by value from
+/// a NUL-terminated `Zstr`; 1-arg form uses `MisraScope`, 2-arg form
+/// takes an explicit allocator. Intended for terse call sites such as
+/// `Foo(StrZ("literal"))`.
+///
+/// SUCCESS : Returns a usable `Str` holding the bytes of `zstr`.
+/// FAILURE : Returns an empty `Str` on allocator OOM. `LOG_FATAL` if
+///           `zstr` is NULL.
+///
+/// TAGS: Str, Init, Zstr, Alias, API
+///
 #define StrZ(...)       MISRA_OVERLOAD(StrZ, __VA_ARGS__)
 #define StrZ_1(zstr)    StrInitFromZstr_1((zstr))
 #define StrZ_2(zstr, a) StrInitFromZstr_2((zstr), (a))
 
+///
+/// Deep-copy an existing `Str` by value. Length is taken from
+/// `StrLen(str)` and bytes are read via `StrBegin(str)`, so embedded
+/// NULs in the source are preserved. The 1-arg form uses the enclosing
+/// `MisraScope` allocator; the 2-arg form takes an explicit allocator,
+/// which may differ from the source's allocator.
+///
+/// SUCCESS : Returns a usable `Str` holding an independent copy of
+///           `str`'s contents. The returned handle does NOT share
+///           storage with `str`.
+/// FAILURE : Returns an empty `Str` on allocator OOM. `LOG_FATAL` if
+///           the source handle is invalid.
+///
+/// TAGS: Str, Init, Copy, API
+///
 #define StrInitFromStr(...)      MISRA_OVERLOAD(StrInitFromStr, __VA_ARGS__)
 #define StrInitFromStr_1(str)    StrInitFromCstr_2(StrBegin(str), StrLen(str))
 #define StrInitFromStr_2(str, a) StrInitFromCstr_3(StrBegin(str), StrLen(str), (a))
 
+///
+/// Short alias for `StrInitFromStr`. Deep-copies an existing `Str` by
+/// value; 1-arg form uses `MisraScope`, 2-arg form takes an explicit
+/// allocator. Use when reading at the call site as "duplicate this
+/// string" is clearer than the longer name.
+///
+/// SUCCESS : Returns a usable `Str` holding an independent copy of the
+///           source's contents.
+/// FAILURE : Returns an empty `Str` on allocator OOM. `LOG_FATAL` if
+///           the source handle is invalid.
+///
+/// TAGS: Str, Init, Copy, Alias, API
+///
 #define StrDup(...)      MISRA_OVERLOAD(StrDup, __VA_ARGS__)
 #define StrDup_1(str)    StrInitFromStr_1((str))
 #define StrDup_2(str, a) StrInitFromStr_2((str), (a))
@@ -47,6 +166,8 @@ extern "C" {
 /// Initialize a Str. Inside a `Scope` block the allocator argument may
 /// be omitted; the internal `MisraScope` allocator is used. Otherwise
 /// pass a typed allocator handle or a raw `Allocator *`.
+///
+/// TAGS: Str, Init, API
 ///
 #define StrInit(...) MISRA_OVERLOAD(StrInit, __VA_ARGS__)
 #ifdef __cplusplus
@@ -129,6 +250,8 @@ extern "C" {
     /// SUCCESS : Returns to the caller. `*str` is zeroed.
     /// FAILURE : Function cannot fail. NULL `str` is a no-op.
     ///
+    /// TAGS: Str, Deinit, Init
+    ///
     void StrDeinit(Str *str);
 
     ///
@@ -138,6 +261,8 @@ extern "C" {
     ///
     /// SUCCESS : Returns to the caller. `*(Str *)copy` is zeroed.
     /// FAILURE : Function cannot fail. NULL `copy` is a no-op.
+    ///
+    /// TAGS: Str, Deinit, Init
     ///
     void str_deinit(void *copy, const Allocator *alloc);
 
@@ -150,6 +275,8 @@ extern "C" {
     ///           contents and allocator as `*src`.
     /// FAILURE : Returns `false` on allocator OOM. `*dst` is left zeroed.
     ///
+    /// TAGS: Str, Init, Copy
+    ///
     bool StrInitCopy(Str *dst, const Str *src);
 
     ///
@@ -159,6 +286,8 @@ extern "C" {
     ///
     /// SUCCESS : Returns `true`. `*(Str *)dst` is a deep copy of `*(const Str *)src`.
     /// FAILURE : Returns `false` on allocator OOM. `*(Str *)dst` is left zeroed.
+    ///
+    /// TAGS: Str, Init, Copy
     ///
     bool str_init_copy(void *dst, const void *src, const Allocator *alloc);
 

@@ -207,11 +207,11 @@ static bool is_hspace(char c) {
     return c == ' ' || c == '\t';
 }
 
-static void ascii_lower(char *p, u64 n) {
+static void ascii_lower(u8 *p, u64 n) {
     for (u64 i = 0; i < n; ++i) {
-        char c = p[i];
+        u8 c = p[i];
         if (c >= 'A' && c <= 'Z') {
-            p[i] = (char)(c + ('a' - 'A'));
+            p[i] = (u8)(c + ('a' - 'A'));
         }
     }
 }
@@ -225,21 +225,23 @@ static bool slurp_file(Zstr path, Str *out) {
         // Missing config file is fine -- resolver just won't know about it.
         return true;
     }
-    char chunk[4096];
-    for (;;) {
-        i64 n = FileRead(&f, chunk, sizeof(chunk));
-        if (n < 0) {
-            FileClose(&f);
-            return false;
-        }
-        if (n == 0)
-            break;
-        for (i64 i = 0; i < n; ++i) {
-            StrPushBackR(out, chunk[i]);
+    bool ok = true;
+    StrInitStack(chunk, 4096) {
+        char *data = StrBegin(&chunk);
+        for (;;) {
+            i64 n = FileRead(&f, data, 4096);
+            if (n < 0) {
+                ok = false;
+                break;
+            }
+            if (n == 0)
+                break;
+            StrResize(&chunk, (size)n);
+            StrMergeR(out, &chunk);
         }
     }
     FileClose(&f);
-    return true;
+    return ok;
 }
 
 // ---------------------------------------------------------------------------
@@ -335,7 +337,7 @@ static void parse_hosts_table(HostsTable *table, Allocator *alloc) {
 
             HostsEntry e = {0};
             e.name       = StrInitFromCstr((Zstr)(si.data + nm_start), nm_len, alloc);
-            ascii_lower(StrBegin(&e.name), StrLen(&e.name));
+            ascii_lower((u8 *)StrBegin(&e.name), StrLen(&e.name));
             if (got_v4) {
                 MemCopy(e.ip, v4, 4);
                 e.is_ipv6 = false;

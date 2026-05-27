@@ -14,17 +14,28 @@ extern "C" {
 #endif
 
     ///
-    /// Compare two arbitrary-precision floating-point values.
+    /// Compare two arbitrary-precision floating-point values. `float_compare`
+    /// carries a typed signature; cast to `GenericCompare` at the `Map` /
+    /// `Vec` callback site (the standard pattern -- see `MapInitFull_9`
+    /// and `VecFind`).
     ///
-    /// lhs[in] : Left-hand operand
-    /// rhs[in] : Right-hand operand
+    /// lhs[in]    : Left-hand operand
+    /// rhs[in]    : Right-hand operand
+    /// error[out] : (`*_with_error` only) Optional pointer set to
+    ///              `true` on operational failure and `false` on
+    ///              success.
     ///
-    /// SUCCESS : Returns `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
+    /// SUCCESS : Returns `-1` if `lhs < rhs`, `0` if equal, `1` if
+    ///           `lhs > rhs`. Neither operand is modified.
+    /// FAILURE : Returns `0` when an intermediate rescale allocation
+    ///           fails. The `*_with_error` variant sets `*error` to
+    ///           `true` so the caller can distinguish failure from a
+    ///           true equality; the no-error variant cannot.
     ///
     /// USAGE:
     ///   int cmp = FloatCompare(&a, &b);
     ///
-    /// TAGS: Float, Compare, Ordering
+    /// TAGS: Float, Compare, Ordering, GenericCompare
     ///
     int float_compare_with_error(Float *lhs, Float *rhs, bool *error);
     int float_compare(Float *lhs, Float *rhs);
@@ -39,6 +50,8 @@ extern "C" {
     /// size[in]  : Ignored. Included for `GenericHash`-cast compatibility.
     ///
     /// SUCCESS : Returns a stable hash of the float's representation.
+    ///           `value` is not modified.
+    /// FAILURE : Function cannot fail.
     ///
     /// USAGE:
     ///   Map(Float, u64) counts = MapInit(float_hash, float_compare, alloc);
@@ -96,6 +109,10 @@ extern "C" {
 ///              `false` otherwise.
 ///
 /// SUCCESS : Returns `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
+/// FAILURE : Returns `0` when an intermediate conversion of `rhs` to
+///           `Float` fails. With the two-argument form a failure result
+///           is indistinguishable from a true equality; with the
+///           three-argument form `*error` is set to `true`.
 ///
 /// USAGE:
 ///   int cmp = FloatCompare(&value, 1.5);

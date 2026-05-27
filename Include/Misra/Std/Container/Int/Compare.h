@@ -14,17 +14,22 @@ extern "C" {
 #endif
 
     ///
-    /// Compare two arbitrary-precision integers.
+    /// Compare two arbitrary-precision integers. Typed signature; cast to
+    /// `GenericCompare` at the `Map` / `Vec` callback site (the standard
+    /// pattern -- see `MapInitFull_9` and `VecFind`).
     ///
     /// lhs[in] : Left-hand operand
     /// rhs[in] : Right-hand operand
     ///
-    /// SUCCESS : Returns `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
+    /// SUCCESS : Returns `-1` if `lhs < rhs`, `0` if equal, `1` if
+    ///           `lhs > rhs`. Neither operand is modified.
+    /// FAILURE : Function cannot fail. A `NULL` operand is a caller bug
+    ///           and aborts via `LOG_FATAL` from `ValidateInt`.
     ///
     /// USAGE:
     ///   int cmp = IntCompare(&a, &b);
     ///
-    /// TAGS: Int, Compare, Ordering
+    /// TAGS: Int, Compare, Ordering, GenericCompare
     ///
     int int_compare(Int *lhs, Int *rhs);
 
@@ -38,6 +43,8 @@ extern "C" {
     /// size[in]  : Ignored. Included for `GenericHash`-cast compatibility.
     ///
     /// SUCCESS : Returns a stable hash of the integer's magnitude.
+    ///           `value` is not modified.
+    /// FAILURE : Function cannot fail.
     ///
     /// USAGE:
     ///   Map(Int, u64) counts = MapInit(int_hash, int_compare, alloc);
@@ -71,6 +78,9 @@ extern "C" {
 /// rhs[in] : Right-hand operand (`Int`, pointer, `u64`, or `i64` compatible type)
 ///
 /// SUCCESS : Returns `-1` if `lhs < rhs`, `0` if equal, `1` if `lhs > rhs`.
+/// FAILURE : Pure comparison cannot fail. `LOG_FATAL` if either operand
+///           pointer is NULL (propagated from the underlying handler's
+///           `ValidateInt`).
 ///
 /// USAGE:
 ///   int cmp = IntCompare(&value, 42);

@@ -84,12 +84,16 @@ typedef struct {
 ///
 /// INFO: This is the best general-purpose starting point when you do not have a workload-specific reason to choose something else.
 ///
+/// TAGS: Map, Constant, Policy
+///
 extern const MapPolicy MapPolicyLinear;
 
 ///
 /// Built-in quadratic probing policy.
 ///
 /// INFO: This is useful when you want to reduce clustering pressure while keeping the same `Map` API and runtime ownership model.
+///
+/// TAGS: Map, Constant, Policy
 ///
 extern const MapPolicy MapPolicyQuadratic;
 
@@ -124,6 +128,8 @@ struct GenericMap {
 /// - key   : Key stored in this entry.
 /// - value : Value stored in this entry.
 /// - hash  : Cached key hash used for probing.
+///
+/// TAGS: Map, Type, API
 ///
 #define MapEntry(K, V)                                                                                                 \
     struct {                                                                                                           \
@@ -191,6 +197,17 @@ struct GenericMap {
 ///
 /// policy_value[in] : Policy to validate.
 ///
+/// SUCCESS: Continue execution, meaning the policy has a non-empty
+///          name, all required callbacks, a non-zero `max_probe_count`,
+///          and `first_index` / `next_index` return in-range indices
+///          across a fixed set of probe-snapshot inputs.
+/// FAILURE: `abort` via `LOG_FATAL` when any of those invariants is
+///          broken (NULL pointer, missing name, missing callback,
+///          zero `max_probe_count`, or a callback returning an index
+///          past `capacity`).
+///
+/// TAGS: Map, Validate, API
+///
 #define ValidateMapPolicy(policy_value) validate_map_policy(&(policy_value))
 
 ///
@@ -201,6 +218,8 @@ struct GenericMap {
 ///
 /// SUCCESS: Continue execution, meaning given map is most probably valid.
 /// FAILURE: `abort`
+///
+/// TAGS: Map, Validate, API
 ///
 #define ValidateMap(m) validate_map((const GenericMap *)GENERIC_MAP(m))
 

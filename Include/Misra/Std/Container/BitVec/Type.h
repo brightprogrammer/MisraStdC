@@ -44,11 +44,15 @@ typedef Vec(BitVec) BitVecs;
 /// Vec-flavoured handle for a sequence of bit-pattern match indices.
 /// Consumed by the Vec form of `BitVecFindAllPattern`.
 ///
+/// TAGS: BitVec, Type, Match
+///
 typedef Vec(size) BitVecMatchIndices;
 
 ///
 /// One run from a run-length encoding of a BitVec: `length` consecutive
 /// bits, all equal to `value`. Pair produced by `BitVecRunLengths`.
+///
+/// TAGS: BitVec, Type, Run
 ///
 typedef struct BitVecRun {
     u64  length;
@@ -58,6 +62,8 @@ typedef struct BitVecRun {
 ///
 /// Vec-flavoured handle for a sequence of `BitVecRun`s. Consumed by
 /// the Vec form of `BitVecRunLengths`.
+///
+/// TAGS: BitVec, Type, Run
 ///
 typedef Vec(BitVecRun) BitVecRuns;
 
@@ -72,6 +78,8 @@ typedef Vec(BitVecRun) BitVecRuns;
 ///
 /// SUCCESS: Continue execution, meaning given `BitVec` object is most probably valid.
 /// FAILURE: `abort`
+///
+/// TAGS: BitVec, Validate, API
 ///
 void ValidateBitVec(const BitVec *bv);
 

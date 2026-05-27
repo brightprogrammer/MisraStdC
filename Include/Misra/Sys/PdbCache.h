@@ -64,6 +64,8 @@ bool pdb_cache_init(PdbCache *out, Allocator *alloc);
 /// SUCCESS : Returns to the caller. `self` is zeroed.
 /// FAILURE : Function cannot fail.
 ///
+/// TAGS: Sys, PDB, Cache, Deinit, Lifecycle
+///
 void PdbCacheDeinit(PdbCache *self);
 
 ///

@@ -21,6 +21,10 @@
 ///       ...
 ///   }
 ///
+/// SUCCESS : Returns a numerically-zero `Float` (sign positive, significand zero, exponent 0)
+///           bound to the chosen allocator.
+/// FAILURE : Cannot fail at construction; first allocator OOM surfaces from later math/grow.
+///
 /// TAGS: Float, Init, Zero, Construct
 ///
 #define FloatInit(...)             MISRA_OVERLOAD(FloatInit, __VA_ARGS__)
@@ -30,12 +34,12 @@
 ///
 /// Release all storage owned by a floating-point value.
 ///
-/// value[in] : Float to deinitialize
+/// value[in,out] : Float to deinitialize
 ///
-/// USAGE:
-///   FloatDeinit(&value);
+/// SUCCESS : Significand storage released; `value` left in the zeroed post-deinit state.
+/// FAILURE : Cannot fail; aborts on a corrupted magic via the validator.
 ///
-/// TAGS: Float, Deinit, Destroy, Memory
+/// TAGS: Float, Deinit, Memory
 ///
 static inline void FloatDeinit(Float *value) {
     ValidateFloat(value);
@@ -47,10 +51,11 @@ static inline void FloatDeinit(Float *value) {
 ///
 /// Reset a floating-point value to numeric zero.
 ///
-/// value[in] : Float to clear
+/// value[in,out] : Float to clear
 ///
-/// USAGE:
-///   FloatClear(&value);
+/// SUCCESS : Numeric value becomes 0 (positive sign, zero significand, zero exponent);
+///           significand capacity is retained.
+/// FAILURE : Cannot fail; aborts on a corrupted magic via the validator.
 ///
 /// TAGS: Float, Clear, Zero, Reset
 ///

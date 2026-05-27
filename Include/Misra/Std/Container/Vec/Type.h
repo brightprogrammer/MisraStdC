@@ -38,7 +38,7 @@ typedef struct {
 ///   Vec(int) integers; // Vector of integers
 ///   Vec(CustomStruct) my_data; // Vector of CustomStruct
 ///   Vec(float) real_numbers; // Vector of float values
-///   Vec(const char*) names; Vector of c-style null-terminated strings
+///   Vec(Zstr) names; Vector of c-style null-terminated strings
 ///
 /// FIELDS:
 /// - length      : Number of items currently in vector (always <= capacity)
@@ -80,6 +80,8 @@ typedef struct {
 ///
 /// SUCCESS: Continue execution, meaning given `Vec` object is most probably a valid `Vec`.
 /// FAILURE: `abort`
+///
+/// TAGS: Vec, Validate, API
 ///
 #define ValidateVec(v) validate_vec((const GenericVec *)GENERIC_VEC(v))
 

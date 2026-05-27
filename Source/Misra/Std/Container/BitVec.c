@@ -1924,7 +1924,7 @@ bool bitvec_regex_match_zstr(BitVec *bv, Zstr pattern) {
     bool result = false;
 
     // Very basic pattern matching - just check if pattern is substring
-    if (ZstrFindSubstring(bv_str.data, pattern) != NULL) {
+    if (ZstrFindSubstring(StrBegin(&bv_str), pattern) != NULL) {
         result = true;
     }
 
@@ -1941,7 +1941,7 @@ bool bitvec_regex_match_str(BitVec *bv, const Str *pattern) {
     Str  bv_str = BitVecToStr(bv);
     bool result = false;
 
-    if (ZstrFindSubstringN(bv_str.data, pattern->data, pattern->length) != NULL) {
+    if (ZstrFindSubstringN(StrBegin(&bv_str), StrBegin(pattern), StrLen(pattern)) != NULL) {
         result = true;
     }
 

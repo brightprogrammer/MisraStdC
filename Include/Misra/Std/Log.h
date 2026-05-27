@@ -190,6 +190,8 @@ typedef enum LogMessageType {
 ///           `FileWrite` errors are dropped (the logger is best-effort
 ///           by design; there is no upstream reporter to surface to).
 ///
+/// TAGS: Log, Write, Diagnostics, Backtrace, IO
+///
 void LogWrite(LogMessageType type, Zstr tag, u64 line, Zstr msg);
 
 #endif // MISRA_STD_LOG_H

@@ -14,10 +14,14 @@
 ///
 /// The Str type is a specialization of Vec for characters
 ///
+/// TAGS: Str, Type, API
+///
 typedef Vec(char) Str;
 
 ///
 /// Vector of strings
+///
+/// TAGS: Str, Type, Vector
 ///
 typedef Vec(Str) Strs;
 
@@ -31,6 +35,8 @@ typedef Vec(Str) Strs;
 /// SUCCESS: Continue execution, meaning given `Str` object is ___most probably___ valid.
 /// FAILURE: `abort`
 ///
+/// TAGS: Str, Validate, API
+///
 void ValidateStr(const Str *s);
 
 ///
@@ -42,6 +48,8 @@ void ValidateStr(const Str *s);
 ///
 /// SUCCESS: Continue execution, meaning given `Strs` object is ___most probably___ valid.
 /// FAILURE: `abort`
+///
+/// TAGS: Str, Validate, API
 ///
 void ValidateStrs(const Strs *vs);
 

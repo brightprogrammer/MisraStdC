@@ -14,160 +14,123 @@ extern "C" {
 #endif
 
 ///
-/// Iterate over each character `chr` of the given Str `str` at each index `idx`.
-/// This macro is a direct alias for `VecForeachIdx` specialized for Str.
-/// The variables `chr` and `idx` are declared and defined by the underlying macro.
+/// Walk each character of `str` forward, binding `chr` to the character
+/// value at index `idx`. Both `chr` and `idx` are stamped by the macro
+/// and are visible inside the loop body.
+/// See `VecForeachIdx` for the full SUCCESS/FAILURE contract.
 ///
-/// str[in,out] : Str to iterate over.
-/// chr[in]     : Name of the variable to be used which will contain the character
-///               at the iterated index `idx`. The type of `chr` will likely be
-///               the character type used by the `Str` implementation (e.g., `char`).
-/// idx[in]     : Name of the variable to be used for iterating over indices (i64).
+/// TAGS: Str, Foreach, Iterate
 ///
 #define StrForeachIdx(str, chr, idx) VecForeachIdx((str), (chr), idx)
 
 ///
-/// Iterate over each character `chr` of the given Str `str` in reverse order at each index `idx`.
-/// This macro is a direct alias for `VecForeachReverseIdx` specialized for Str.
-/// The variables `chr` and `idx` are declared and defined by the underlying macro.
+/// Walk each character of `str` backward, binding `chr` to the character
+/// value at index `idx` from `length - 1` down to `0`. Both `chr` and
+/// `idx` are stamped by the macro.
+/// See `VecForeachReverseIdx` for the full SUCCESS/FAILURE contract.
 ///
-/// str[in,out] : Str to iterate over.
-/// chr[in]     : Name of the variable to be used which will contain the character
-///               at the iterated index `idx`. The type of `chr` will likely be
-///               the character type used by the `Str` implementation (e.g., `char`).
-/// idx[in]     : Name of the variable to be used for iterating over indices (i64).
+/// TAGS: Str, Foreach, Iterate, Reverse
 ///
 #define StrForeachReverseIdx(str, chr, idx) VecForeachReverseIdx((str), (chr), idx)
 
 ///
-/// Iterate over each character pointer `chrptr` of the given Str `str` at each index `idx`.
-/// This macro is a direct alias for `VecForeachPtrIdx` specialized for Str.
-/// The variables `chrptr` and `idx` are declared and defined by the underlying macro.
+/// Walk each character of `str` forward, binding `chrptr` to a pointer
+/// to the character at index `idx`. Use this form when the body needs
+/// to mutate characters in place. Both `chrptr` and `idx` are stamped
+/// by the macro.
+/// See `VecForeachPtrIdx` for the full SUCCESS/FAILURE contract.
 ///
-/// str[in,out] : Str to iterate over.
-/// chrptr[in]  : Name of the pointer variable to be used which will point to the
-///               character at the iterated index `idx`. The type of `chrptr` will
-///               likely be a pointer to the character type used by the `Str`
-///               implementation (e.g., `char*`).
-/// idx[in]     : Name of the variable to be used for iterating over indices (i64).
+/// TAGS: Str, Foreach, Iterate
 ///
 #define StrForeachPtrIdx(str, chrptr, idx) VecForeachPtrIdx((str), (chrptr), idx)
 
 ///
-/// Iterate over each character pointer `chrptr` of the given Str `str` in reverse order at each index `idx`.
-/// This macro is a direct alias for `VecForeachPtrReverseIdx` specialized for Str.
-/// The variables `chrptr` and `idx` are declared and defined by the underlying macro.
+/// Walk each character of `str` backward, binding `chrptr` to a pointer
+/// to the character at index `idx` from `length - 1` down to `0`. Both
+/// `chrptr` and `idx` are stamped by the macro.
+/// See `VecForeachPtrReverseIdx` for the full SUCCESS/FAILURE contract.
 ///
-/// str[in,out] : Str to iterate over.
-/// chrptr[in]  : Name of the pointer variable to be used which will point to the
-///               character at the iterated index `idx`. The type of `chrptr` will
-///               likely be a pointer to the character type used by the `Str`
-///               implementation (e.g., `char*`).
-/// idx[in]     : Name of the variable to be used for iterating over indices (i64).
+/// TAGS: Str, Foreach, Iterate, Reverse
 ///
 #define StrForeachReversePtrIdx(str, chrptr, idx) VecForeachPtrReverseIdx((str), (chrptr), idx)
 
 ///
-/// Iterate over each character `chr` of the given Str `str`.
-/// This is a convenience macro that iterates forward using an internally managed index.
-/// The variable `chr` is declared and defined by the underlying `VecForeach` macro.
+/// Walk each character of `str` forward, binding `chr` to the current
+/// character value. Convenience wrapper around `StrForeachIdx` with an
+/// internally-managed index.
+/// See `VecForeach` for the full SUCCESS/FAILURE contract.
 ///
-/// str[in,out] : Str to iterate over.
-/// chr[in]     : Name of the variable to be used which will contain the character of the
-///               current element during iteration. The type of `chr` will likely be
-///               the character type used by the `Str` implementation (e.g., `char`).
+/// TAGS: Str, Foreach, Iterate
 ///
 #define StrForeach(str, chr) VecForeach((str), (chr))
 
 ///
-/// Iterate over each character `chr` of the given Str `str` in reverse order.
-/// This is a convenience macro that iterates backward using an internally managed index.
-/// The variable `chr` is declared and defined by the underlying `VecForeachReverse` macro.
+/// Walk each character of `str` backward, binding `chr` to the current
+/// character value. Convenience wrapper around `StrForeachReverseIdx`.
+/// See `VecForeachReverse` for the full SUCCESS/FAILURE contract.
 ///
-/// str[in,out] : Str to iterate over.
-/// chr[in]     : Name of the variable to be used which will contain the character of the
-///               current element during iteration. The type of `chr` will likely be
-///               the character type used by the `Str` implementation (e.g., `char`).
+/// TAGS: Str, Foreach, Iterate, Reverse
 ///
 #define StrForeachReverse(str, chr) VecForeachReverse((str), (chr))
 
 ///
-/// Iterate over each character pointer `chrptr` of the given Str `str`.
-/// This is a convenience macro that iterates forward using an internally managed index
-/// and provides a pointer to each character. The variable `chrptr` is declared and
-/// defined by the underlying `VecForeachPtr` macro as a pointer to the character type.
+/// Walk each character of `str` forward, binding `chrptr` to a pointer
+/// to the current character. Use when the body needs to mutate
+/// characters in place.
+/// See `VecForeachPtr` for the full SUCCESS/FAILURE contract.
 ///
-/// str[in,out] : Str to iterate over.
-/// chrptr[in]  : Name of the pointer variable to be used which will point to the
-///               current character during iteration. The type of `chrptr` will
-///               likely be a pointer to the character type used by the `Str`
-///               implementation (e.g., `char*`).
+/// TAGS: Str, Foreach, Iterate
 ///
 #define StrForeachPtr(str, chrptr) VecForeachPtr((str), (chrptr))
 
 ///
-/// Iterate over each character pointer `chrptr` of the given Str `str` in reverse order.
-/// This is a convenience macro that iterates backward using an internally managed index
-/// and provides a pointer to each character. The variable `chrptr` is declared and
-/// defined by the underlying `VecForeachPtrReverse` macro as a pointer to the character type.
+/// Walk each character of `str` backward, binding `chrptr` to a pointer
+/// to the current character. Use when the body needs to mutate
+/// characters in place.
+/// See `VecForeachPtrReverse` for the full SUCCESS/FAILURE contract.
 ///
-/// str[in,out] : Str to iterate over.
-/// chrptr[in]  : Name of the pointer variable to be used which will point to the
-///               current character during iteration. The type of `chrptr` will
-///               likely be a pointer to the character type used by the `Str`
-///               implementation (e.g., `char*`).
+/// TAGS: Str, Foreach, Iterate, Reverse
 ///
 #define StrForeachPtrReverse(str, chrptr) VecForeachPtrReverse((str), (chrptr))
 
 ///
-/// Iterate over characters in a specific range of the given Str `str` at each index `idx`.
-/// This macro is a direct alias for `VecForeachInRangeIdx` specialized for Str.
-/// The variables `chr` and `idx` are declared and defined by the underlying macro.
+/// Walk characters of `str` in the half-open range `[start, end)`,
+/// binding `chr` to the character value at index `idx`. Both `chr` and
+/// `idx` are stamped by the macro.
+/// See `VecForeachInRangeIdx` for the full SUCCESS/FAILURE contract.
 ///
-/// str[in,out]  : Str to iterate over.
-/// chr[in]      : Name of variable to be used which'll contain character at iterated index `idx`.
-/// idx[in]      : Name of variable to be used for iterating over indices.
-/// start[in]    : Starting index (inclusive).
-/// end[in]      : Ending index (exclusive).
+/// TAGS: Str, Foreach, Iterate, Range
 ///
 #define StrForeachInRangeIdx(str, chr, idx, start, end) VecForeachInRangeIdx((str), (chr), idx, (start), (end))
 
 ///
-/// Iterate over characters in a specific range of the given Str `str`.
-/// This is a convenience macro that iterates over a range using an internally managed index.
-/// The variable `chr` is declared and defined by the underlying `VecForeachInRange` macro.
+/// Walk characters of `str` in the half-open range `[start, end)`,
+/// binding `chr` to the current character value. Convenience wrapper
+/// around `StrForeachInRangeIdx` with an internally-managed index.
+/// See `VecForeachInRange` for the full SUCCESS/FAILURE contract.
 ///
-/// str[in,out]  : Str to iterate over.
-/// chr[in]      : Name of variable to be used which'll contain character of the current element.
-/// start[in]    : Starting index (inclusive).
-/// end[in]      : Ending index (exclusive).
+/// TAGS: Str, Foreach, Iterate, Range
 ///
 #define StrForeachInRange(str, chr, start, end) VecForeachInRange((str), (chr), (start), (end))
 
 ///
-/// Iterate over characters in a specific range of the given Str `str` at each index `idx` (as pointers).
-/// This macro is a direct alias for `VecForeachPtrInRangeIdx` specialized for Str.
-/// The variables `chrptr` and `idx` are declared and defined by the underlying macro.
+/// Walk characters of `str` in the half-open range `[start, end)`,
+/// binding `chrptr` to a pointer to the character at index `idx`. Both
+/// `chrptr` and `idx` are stamped by the macro.
+/// See `VecForeachPtrInRangeIdx` for the full SUCCESS/FAILURE contract.
 ///
-/// str[in,out]  : Str to iterate over.
-/// chrptr[in]   : Name of pointer variable to be used which'll point to character at iterated index `idx`.
-/// idx[in]      : Name of variable to be used for iterating over indices.
-/// start[in]    : Starting index (inclusive).
-/// end[in]      : Ending index (exclusive).
+/// TAGS: Str, Foreach, Iterate, Range
 ///
 #define StrForeachPtrInRangeIdx(str, chrptr, idx, start, end)                                                          \
     VecForeachPtrInRangeIdx((str), (chrptr), idx, (start), (end))
 
 ///
-/// Iterate over characters in a specific range of the given Str `str` (as pointers).
-/// This is a convenience macro that iterates over a range using an internally managed index
-/// and provides a pointer to each character. The variable `chrptr` is declared and defined
-/// by the underlying `VecForeachPtrInRange` macro as a pointer to the character type.
+/// Walk characters of `str` in the half-open range `[start, end)`,
+/// binding `chrptr` to a pointer to the current character. Convenience
+/// wrapper around `StrForeachPtrInRangeIdx`.
+/// See `VecForeachPtrInRange` for the full SUCCESS/FAILURE contract.
 ///
-/// str[in,out]  : Str to iterate over.
-/// chrptr[in]   : Name of pointer variable to be used which'll point to the current character.
-/// start[in]    : Starting index (inclusive).
-/// end[in]      : Ending index (exclusive).
+/// TAGS: Str, Foreach, Iterate, Range
 ///
 #define StrForeachPtrInRange(str, chrptr, start, end) VecForeachPtrInRange((str), (chrptr), (start), (end))
 

@@ -14,8 +14,10 @@ static bool test_list_type_defaults(void) {
 
     ValidateList(&list);
 
-    bool result = (ListHead(&list) == NULL) && (ListTail(&list) == NULL) && (list.copy_init == NULL) &&
-                  (list.copy_deinit == NULL) && (ListLen(&list) == 0) && (list.__magic == LIST_MAGIC);
+    // `__magic` is verifying the private magic-value invariant the validator depends on
+    // (intentional bypass for that field; the rest go through public accessors).
+    bool result = (ListHead(&list) == NULL) && (ListTail(&list) == NULL) && (ListCopyInit(&list) == NULL) &&
+                  (ListCopyDeinit(&list) == NULL) && (ListLen(&list) == 0) && (list.__magic == LIST_MAGIC);
 
     ListDeinit(&list);
     DefaultAllocatorDeinit(&alloc);
@@ -27,6 +29,9 @@ static bool test_list_node_type_layout(void) {
 
     int value          = 42;
     ListNode(int) node = {0};
+    // intentional bypass: building a node literal on the stack and reading its
+    // fields directly to verify the ListNode(T) layout. The list-managed
+    // accessors are designed for nodes owned by a List; this fixture has no list.
     node.data          = &value;
 
     return (node.next == NULL) && (node.prev == NULL) && (node.data == &value) && (*node.data == 42);

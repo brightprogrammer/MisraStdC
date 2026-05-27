@@ -50,6 +50,8 @@ extern "C" {
     /// FAILURE : Returns `false` when `value` is zero. The destination is left
     ///           untouched.
     ///
+    /// TAGS: Int, Math, Log2, Access
+    ///
     bool IntTryLog2(Int *value, u64 *out);
 
     ///
@@ -59,6 +61,10 @@ extern "C" {
     /// error[out] : Optional pointer set to `true` on failure and `false` on success
     ///
     /// SUCCESS : Returns Index of the highest set bit, or `0` on failure.
+    /// FAILURE : Returns `0` when `value` is zero. `*error` (if non-NULL)
+    ///           is set to `true`.
+    ///
+    /// TAGS: Int, Math, Log2, Access
     ///
     u64 IntLog2WithError(Int *value, bool *error);
 

@@ -19,12 +19,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <Misra/Std/Zstr.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // Backend name used in benchmark output (e.g. "glibc", "jemalloc", "misra").
-const char *bench_backend_name(void);
+Zstr bench_backend_name(void);
 
 // One-time init / teardown. For libc-shape backends these are no-ops; for
 // MisraStdC they construct/destruct the HeapAllocator.

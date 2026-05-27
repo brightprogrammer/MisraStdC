@@ -24,6 +24,7 @@ extern "C" {
     /// len[in]   : Number of bits to compare
     ///
     /// SUCCESS : true if ranges are equal
+    /// FAILURE : false if either range exceeds its bitvector's length or any bit differs.
     ///
     /// USAGE:
     ///   bool equal = BitVecEqualsRange(&bv1, 5, &bv2, 10, 8);
@@ -42,6 +43,7 @@ extern "C" {
     /// len[in]   : Number of bits to compare
     ///
     /// SUCCESS : -1 if bv1 < bv2, 0 if equal, 1 if bv1 > bv2
+    /// FAILURE : Aborts via the validator if either range exceeds its bitvector's length.
     ///
     /// USAGE:
     ///   int result = BitVecCompareRange(&bv1, 5, &bv2, 10, 8);
@@ -58,6 +60,7 @@ extern "C" {
     /// bv2[in] : Potential superset bitvector
     ///
     /// SUCCESS : true if bv1 is a subset of bv2
+    /// FAILURE : false when any 1-bit of `bv1` is not also set in `bv2`.
     ///
     /// USAGE:
     ///   bool is_subset = BitVecIsSubset(&small_set, &large_set);
@@ -74,6 +77,7 @@ extern "C" {
     /// bv2[in] : Potential subset bitvector
     ///
     /// SUCCESS : true if bv1 is a superset of bv2
+    /// FAILURE : false when any 1-bit of `bv2` is not also set in `bv1`.
     ///
     /// USAGE:
     ///   bool is_superset = BitVecIsSuperset(&large_set, &small_set);
@@ -89,6 +93,7 @@ extern "C" {
     /// bv2[in] : Second bitvector
     ///
     /// SUCCESS : true if bitvectors have no common 1-bits
+    /// FAILURE : false when any position holds a 1 in both bitvectors.
     ///
     /// USAGE:
     ///   bool disjoint = BitVecDisjoint(&set1, &set2);
@@ -104,6 +109,7 @@ extern "C" {
     /// bv2[in] : Second bitvector
     ///
     /// SUCCESS : true if bitvectors have any common 1-bits
+    /// FAILURE : false when the two bitvectors are disjoint.
     ///
     /// USAGE:
     ///   bool overlaps = BitVecOverlaps(&set1, &set2);
@@ -120,6 +126,7 @@ extern "C" {
     /// bv2[in] : Second bitvector
     ///
     /// SUCCESS : true if bitvectors are equal
+    /// FAILURE : false when lengths differ or any bit position differs.
     ///
     /// USAGE:
     ///   bool equal = BitVecEquals(&flags1, &flags2);
@@ -136,6 +143,7 @@ extern "C" {
     /// bv2[in] : Second bitvector
     ///
     /// SUCCESS : -1 if bv1 < bv2, 0 if equal, 1 if bv1 > bv2
+    /// FAILURE : Cannot fail; aborts on a corrupted magic via the validator.
     ///
     /// USAGE:
     ///   int result = BitVecCompare(&flags1, &flags2);
@@ -155,6 +163,7 @@ extern "C" {
     /// size[in] : Ignored. Included for `GenericHash`-cast compatibility.
     ///
     /// SUCCESS : Returns a stable hash of the bit pattern + length.
+    /// FAILURE : Cannot fail; aborts on a corrupted magic via the validator.
     ///
     /// USAGE:
     ///   Map(BitVec, u64) counts = MapInit(bitvec_hash, BitVecCompare, alloc);
@@ -171,6 +180,7 @@ extern "C" {
     /// bv2[in] : Second bitvector
     ///
     /// SUCCESS : -1 if bv1 < bv2, 0 if equal, 1 if bv1 > bv2
+    /// FAILURE : Cannot fail; aborts on a corrupted magic via the validator.
     ///
     /// USAGE:
     ///   int result = BitVecNumericalCompare(&flags1, &flags2);
@@ -186,6 +196,7 @@ extern "C" {
     /// bv2[in] : Second bitvector
     ///
     /// SUCCESS : -1 if bv1 has fewer 1s, 0 if equal, 1 if bv1 has more 1s
+    /// FAILURE : Cannot fail; aborts on a corrupted magic via the validator.
     ///
     /// USAGE:
     ///   int result = BitVecWeightCompare(&flags1, &flags2);
@@ -201,6 +212,7 @@ extern "C" {
     /// bv2[in] : Second bitvector
     ///
     /// SUCCESS : -1 if bv1 < bv2, 0 if equal, 1 if bv1 > bv2
+    /// FAILURE : Cannot fail; aborts on a corrupted magic via the validator.
     ///
     /// USAGE:
     ///   int result = BitVecSignedCompare(&flags1, &flags2);
@@ -216,6 +228,7 @@ extern "C" {
     /// bv[in] : Bitvector to check
     ///
     /// SUCCESS : true if bits are in non-decreasing order (0s before 1s)
+    /// FAILURE : false when any 0-bit follows a 1-bit in `bv`.
     ///
     /// USAGE:
     ///   bool sorted = BitVecIsSorted(&flags);

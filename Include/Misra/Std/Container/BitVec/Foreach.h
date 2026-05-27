@@ -20,6 +20,11 @@
 /// var[in]    : Name of variable to be used which'll contain bit value at iterated index `idx`
 /// idx[in]    : Name of variable to be used for iterating over indices.
 ///
+/// SUCCESS : Loop body runs once per bit, with `var` holding the bit and `idx` its position.
+/// FAILURE : Loop body never executes when `bv` is empty; validator aborts on corrupted magic.
+///
+/// TAGS: BitVec, Foreach, Forward, Iteration
+///
 #define BitVecForeachIdx(bv, var, idx)                                                                                 \
     for (TYPE_OF(bv) UNPL(pbv) = (bv); UNPL(pbv); UNPL(pbv) = NULL)                                                    \
         if ((ValidateBitVec(UNPL(pbv)), 1) && UNPL(pbv)->length > 0)                                                   \
@@ -35,6 +40,11 @@
 /// bv[in,out] : Bitvector to iterate over.
 /// var[in]    : Name of variable to be used which'll contain bit value at iterated index `idx`
 /// idx[in]    : Name of variable to be used for iterating over indices.
+///
+/// SUCCESS : Loop body runs once per bit in reverse order, with `var`/`idx` set each step.
+/// FAILURE : Loop body never executes when `bv` is empty; validator aborts on corrupted magic.
+///
+/// TAGS: BitVec, Foreach, Reverse, Iteration
 ///
 #define BitVecForeachReverseIdx(bv, var, idx)                                                                          \
     for (TYPE_OF(bv) UNPL(pbv) = (bv); UNPL(pbv); UNPL(pbv) = NULL)                                                    \
@@ -52,6 +62,11 @@
 /// var[in]    : Name of the variable to be used which will contain the value of the
 ///              current bit during iteration. The type of `var` will be `bool`.
 ///
+/// SUCCESS : Loop body runs once per bit; `var` carries the current bit value.
+/// FAILURE : Loop body never executes when `bv` is empty; validator aborts on corrupted magic.
+///
+/// TAGS: BitVec, Foreach, Forward, Iteration
+///
 #define BitVecForeach(bv, var) BitVecForeachIdx((bv), (var), UNPL(iter))
 
 ///
@@ -62,6 +77,11 @@
 /// bv[in,out] : Bitvector to iterate over.
 /// var[in]    : Name of the variable to be used which will contain the value of the
 ///              current bit during iteration. The type of `var` will be `bool`.
+///
+/// SUCCESS : Loop body runs once per bit in reverse order; `var` carries the current bit.
+/// FAILURE : Loop body never executes when `bv` is empty; validator aborts on corrupted magic.
+///
+/// TAGS: BitVec, Foreach, Reverse, Iteration
 ///
 #define BitVecForeachReverse(bv, var) BitVecForeachReverseIdx((bv), (var), UNPL(iter))
 
@@ -76,6 +96,12 @@
 /// idx[in]      : Name of variable to be used for iterating over indices.
 /// start[in]    : Starting index (inclusive).
 /// end[in]      : Ending index (exclusive).
+///
+/// SUCCESS : Loop body runs once for each `idx` in `[start, end)` that is within `bv->length`.
+/// FAILURE : Loop body never executes when the range is empty, inverted, or out of bounds;
+///           validator aborts on corrupted magic.
+///
+/// TAGS: BitVec, Foreach, Range, Iteration
 ///
 #define BitVecForeachInRangeIdx(bv, var, idx, start, end)                                                              \
     for (TYPE_OF(bv) UNPL(pbv) = (bv); UNPL(pbv); UNPL(pbv) = NULL)                                                    \
@@ -95,6 +121,12 @@
 /// var[in]      : Name of variable to be used which'll contain bit value of the current bit.
 /// start[in]    : Starting index (inclusive).
 /// end[in]      : Ending index (exclusive).
+///
+/// SUCCESS : Loop body runs once for each bit in `[start, end)` that lies within `bv->length`.
+/// FAILURE : Loop body never executes when the range is empty, inverted, or out of bounds;
+///           validator aborts on corrupted magic.
+///
+/// TAGS: BitVec, Foreach, Range, Iteration
 ///
 #define BitVecForeachInRange(bv, var, start, end) BitVecForeachInRangeIdx((bv), (var), UNPL(iter), (start), (end))
 

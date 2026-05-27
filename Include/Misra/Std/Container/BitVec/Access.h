@@ -84,7 +84,7 @@ extern "C" {
 ///
 /// TAGS: BitVec, Length, Size
 ///
-#define BitVecLen(bv) ((bv)->length)
+#define BitVecLen(bv) ((void)0, (bv)->length)
 
 ///
 /// Get capacity of bitvector in bits.
@@ -98,7 +98,7 @@ extern "C" {
 ///
 /// TAGS: BitVec, Capacity, Size
 ///
-#define BitVecCapacity(bv) ((bv)->capacity)
+#define BitVecCapacity(bv) ((void)0, (bv)->capacity)
 
 ///
 /// Pointer to the raw u64-packed storage backing the bitvector. The
@@ -114,14 +114,16 @@ extern "C" {
 ///
 /// TAGS: BitVec, Access, Data
 ///
-#define BitVecData(bv) ((bv)->data)
+#define BitVecData(bv) ((void)0, (bv)->data)
 
 ///
-/// Check if bitvector is empty.
+/// Check whether bitvector is empty.
 ///
-/// bv[in] : Bitvector to check
+/// bv[in] : Bitvector to query.
 ///
-/// RETURNS : true if bitvector has no bits, false otherwise
+/// SUCCESS : Returns `true` when bitvector length is 0.
+/// FAILURE : Returns `false` when the bitvector contains at least one
+///           bit. The bitvector is not modified.
 ///
 /// USAGE:
 ///   if (BitVecEmpty(&flags)) { /* handle empty case */ }
@@ -143,14 +145,16 @@ extern "C" {
 ///
 /// TAGS: BitVec, Size, Bytes, Memory
 ///
-#define BitVecByteSize(bv) ((bv)->byte_size)
+#define BitVecByteSize(bv) ((void)0, (bv)->byte_size)
 
     ///
     /// Count number of bits set to 1 in bitvector.
     ///
     /// bv[in] : Bitvector to count ones in
     ///
-    /// RETURNS : Number of bits set to 1
+    /// SUCCESS : Returns the number of bits set to `1`. The bitvector is
+    ///           not modified. Returns `0` for an empty bitvector.
+    /// FAILURE : Function cannot fail.
     ///
     /// USAGE:
     ///   u64 ones = BitVecCountOnes(&flags);
@@ -164,7 +168,9 @@ extern "C" {
     ///
     /// bv[in] : Bitvector to count zeros in
     ///
-    /// RETURNS : Number of bits set to 0
+    /// SUCCESS : Returns the number of bits set to `0`. The bitvector is
+    ///           not modified. Returns `0` for an empty bitvector.
+    /// FAILURE : Function cannot fail.
     ///
     /// USAGE:
     ///   u64 zeros = BitVecCountZeros(&flags);
@@ -179,7 +185,10 @@ extern "C" {
     /// bv[in]    : Bitvector to search in
     /// value[in] : Bit value to find (true or false)
     ///
-    /// RETURNS: Index of first occurrence, or SIZE_MAX if not found
+    /// SUCCESS : Returns the zero-based index of the first bit equal to
+    ///           `value`. The bitvector is not modified.
+    /// FAILURE : Returns `SIZE_MAX` when no bit matches (including an
+    ///           empty bitvector). The bitvector is not modified.
     ///
     /// USAGE:
     ///   u64 index = BitVecFind(&flags, true);
@@ -195,7 +204,10 @@ extern "C" {
     /// bv[in]    : Bitvector to search in
     /// value[in] : Bit value to find (true or false)
     ///
-    /// RETURNS: Index of last occurrence, or SIZE_MAX if not found
+    /// SUCCESS : Returns the zero-based index of the last bit equal to
+    ///           `value`. The bitvector is not modified.
+    /// FAILURE : Returns `SIZE_MAX` when no bit matches (including an
+    ///           empty bitvector). The bitvector is not modified.
     ///
     /// USAGE:
     ///   u64 index = BitVecFindLast(&flags, false);
@@ -210,7 +222,11 @@ extern "C" {
     /// bv[in]    : Bitvector to check
     /// value[in] : Value to check against (true or false)
     ///
-    /// RETURNS: true if all bits match the value
+    /// SUCCESS : Returns `true` when every bit equals `value` (vacuously
+    ///           true on an empty bitvector). The bitvector is not
+    ///           modified.
+    /// FAILURE : Returns `false` when at least one bit differs from
+    ///           `value`. The bitvector is not modified.
     ///
     /// USAGE:
     ///   bool all_set = BitVecAll(&flags, true);
@@ -225,7 +241,10 @@ extern "C" {
     /// bv[in]    : Bitvector to check
     /// value[in] : Value to check for (true or false)
     ///
-    /// RETURNS: true if any bit matches the value
+    /// SUCCESS : Returns `true` when at least one bit equals `value`.
+    ///           The bitvector is not modified.
+    /// FAILURE : Returns `false` when no bit matches (including an empty
+    ///           bitvector). The bitvector is not modified.
     ///
     /// USAGE:
     ///   bool any_set = BitVecAny(&flags, true);
@@ -240,7 +259,11 @@ extern "C" {
     /// bv[in]    : Bitvector to check
     /// value[in] : Value to check against (true or false)
     ///
-    /// RETURNS: true if no bits match the value
+    /// SUCCESS : Returns `true` when no bit equals `value` (vacuously
+    ///           true on an empty bitvector). The bitvector is not
+    ///           modified.
+    /// FAILURE : Returns `false` when at least one bit equals `value`.
+    ///           The bitvector is not modified.
     ///
     /// USAGE:
     ///   bool none_set = BitVecNone(&flags, true);
@@ -255,7 +278,10 @@ extern "C" {
     /// bv[in]    : Bitvector to analyze
     /// value[in] : Bit value to find runs of (true or false)
     ///
-    /// RETURNS: Length of longest consecutive sequence
+    /// SUCCESS : Returns the length of the longest consecutive run of
+    ///           bits equal to `value`. The bitvector is not modified.
+    /// FAILURE : Returns `0` when no bit matches `value` (including an
+    ///           empty bitvector). The bitvector is not modified.
     ///
     /// USAGE:
     ///   u64 longest = BitVecLongestRun(&flags, true);

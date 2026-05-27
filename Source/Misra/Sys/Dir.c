@@ -82,47 +82,52 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc) {
     // don't pull `<stdio.h>` for `snprintf` (libc-free goal; clang-cl
     // with `-Werror=implicit-function-declaration` would also fail
     // the implicit decl).
-    char search_path[MAX_PATH];
-    size path_len = ZstrLen(path);
-    if (path_len + 3 > sizeof(search_path)) {
-        LOG_ERROR("dir_get_contents: path too long for MAX_PATH");
-        return dc;
-    }
-    MemCopy(search_path, path, path_len);
-    search_path[path_len]     = '\\';
-    search_path[path_len + 1] = '*';
-    search_path[path_len + 2] = '\0';
+    HANDLE hFind = INVALID_HANDLE_VALUE;
+    StrInitStack(search_path, MAX_PATH) {
+        size path_len = ZstrLen(path);
+        if (path_len + 3 > MAX_PATH) {
+            LOG_ERROR("dir_get_contents: path too long for MAX_PATH");
+            break;
+        }
+        char *data = StrBegin(&search_path);
+        MemCopy(data, path, path_len);
+        data[path_len]     = '\\';
+        data[path_len + 1] = '*';
+        data[path_len + 2] = '\0';
 
-    WIN32_FIND_DATA findFileData;
-    HANDLE          hFind = FindFirstFile(search_path, &findFileData);
+        WIN32_FIND_DATA findFileData;
+        hFind = FindFirstFile(data, &findFileData);
 
-    if (hFind == INVALID_HANDLE_VALUE) {
-        return dc;
-    }
-
-    do {
-        // Skip "." and ".." entries
-        if (ZstrCompare(findFileData.cFileName, ".") == 0 || ZstrCompare(findFileData.cFileName, "..") == 0) {
-            continue;
+        if (hFind == INVALID_HANDLE_VALUE) {
+            break;
         }
 
-        DirEntry direntry = {0};
-        // Determine file type based on attributes
-        if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            direntry.type = SYS_DIR_ENTRY_TYPE_DIRECTORY;
-        } else if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
-            direntry.type = SYS_DIR_ENTRY_TYPE_SYMBOLIC_LINK;
-        } else if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_NORMAL) {
-            direntry.type = SYS_DIR_ENTRY_TYPE_REGULAR_FILE;
-        } else {
-            direntry.type = SYS_DIR_ENTRY_TYPE_UNKNOWN;
-        }
+        do {
+            // Skip "." and ".." entries
+            if (ZstrCompare(findFileData.cFileName, ".") == 0 || ZstrCompare(findFileData.cFileName, "..") == 0) {
+                continue;
+            }
 
-        direntry.name = StrInitFromCstr(findFileData.cFileName, ZstrLen(findFileData.cFileName), alloc);
-        VecPushBack(&dc, direntry);
-    } while (FindNextFile(hFind, &findFileData) != 0);
+            DirEntry direntry = {0};
+            // Determine file type based on attributes
+            if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+                direntry.type = SYS_DIR_ENTRY_TYPE_DIRECTORY;
+            } else if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
+                direntry.type = SYS_DIR_ENTRY_TYPE_SYMBOLIC_LINK;
+            } else if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_NORMAL) {
+                direntry.type = SYS_DIR_ENTRY_TYPE_REGULAR_FILE;
+            } else {
+                direntry.type = SYS_DIR_ENTRY_TYPE_UNKNOWN;
+            }
 
-    FindClose(hFind);
+            direntry.name = StrInitFromCstr(findFileData.cFileName, ZstrLen(findFileData.cFileName), alloc);
+            VecPushBack(&dc, direntry);
+        } while (FindNextFile(hFind, &findFileData) != 0);
+    }
+
+    if (hFind != INVALID_HANDLE_VALUE) {
+        FindClose(hFind);
+    }
 
     return dc;
 }
@@ -252,7 +257,7 @@ DirContents dir_get_contents(Zstr path, Allocator *alloc) {
         }
         for (long off = 0; off < n;) {
             struct misra_kernel_dirent *de = (struct misra_kernel_dirent *)(void *)(buf + off);
-            const char                 *nm = de->d_name;
+            Zstr                        nm = de->d_name;
 #    if PLATFORM_DARWIN
             // Darwin gives d_namlen explicitly (not null-terminated
             // beyond it).
@@ -549,33 +554,38 @@ i8 dir_create_all(Zstr path) {
     }
     // Walk a stack copy, NUL-terminating at each '/' to create
     // intermediate components. Restores the slash before continuing.
-    char buf[4096];
-    MemCopy(buf, path, n);
-    buf[n] = 0;
-    // Skip leading slash so the loop doesn't try to mkdir("").
-    size i = (buf[0] == '/') ? 1 : 0;
-    for (; i <= n; ++i) {
-        if (i == n || buf[i] == '/') {
-            // Trim duplicate slashes (//) and trailing slash.
-            if (i < n && i > 0 && buf[i - 1] == '/') {
-                continue;
-            }
-            char saved = buf[i];
-            buf[i]     = 0;
-            if (!dir_already_exists(buf)) {
-                if (!DirCreate((Zstr)buf)) {
-                    // DirCreate logged the syscall error; re-check
-                    // in case a concurrent process beat us to it.
-                    if (!dir_already_exists(buf)) {
-                        buf[i] = saved;
-                        return 0;
+    i8 ok = 1;
+    StrInitStack(buf, 4096) {
+        char *data = StrBegin(&buf);
+        MemCopy(data, path, n);
+        data[n] = 0;
+        StrResize(&buf, n);
+        // Skip leading slash so the loop doesn't try to mkdir("").
+        size i = (data[0] == '/') ? 1 : 0;
+        for (; i <= n; ++i) {
+            if (i == n || data[i] == '/') {
+                // Trim duplicate slashes (//) and trailing slash.
+                if (i < n && i > 0 && data[i - 1] == '/') {
+                    continue;
+                }
+                char saved = data[i];
+                data[i]    = 0;
+                if (!dir_already_exists(data)) {
+                    if (!DirCreate((Zstr)data)) {
+                        // DirCreate logged the syscall error; re-check
+                        // in case a concurrent process beat us to it.
+                        if (!dir_already_exists(data)) {
+                            data[i] = saved;
+                            ok      = 0;
+                            break;
+                        }
                     }
                 }
+                data[i] = saved;
             }
-            buf[i] = saved;
         }
     }
-    return 1;
+    return ok;
 }
 
 // Per-entry "parent/child" path buffer cap for the recursive removal

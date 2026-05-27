@@ -11,6 +11,7 @@
 #include <Misra/Std/Io.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
+#include <Misra/Std/Utility/StrIter.h>
 
 /* ------------------------------------------------------------------ */
 /* Small helpers                                                       */
@@ -76,16 +77,17 @@ static bool parse_signed(Zstr s, i64 lo, i64 hi, i64 *out) {
 static bool parse_unsigned(Zstr s, u64 hi, u64 *out) {
     if (!s || !*s)
         return false;
-    Zstr p = s;
-    u64  v = 0;
-    while (*p >= '0' && *p <= '9') {
-        u64 d = (u64)(*p - '0');
+    StrIter si = StrIterFromZstr(s);
+    u64     v  = 0;
+    char    c;
+    while (StrIterPeek(&si, &c) && c >= '0' && c <= '9') {
+        u64 d = (u64)(c - '0');
         if (v > (~(u64)0 - d) / 10)
             return false; // would overflow u64
         v = v * 10 + d;
-        ++p;
+        StrIterMustNext(&si);
     }
-    if (p == s || *p != '\0')
+    if (si.pos == 0 || StrIterRemainingLength(&si) != 0)
         return false;
     if (v > hi)
         return false;
@@ -280,7 +282,7 @@ static void append_metavar(Str *out, const ArgSpec *sp) {
 // Build the "  -l, --listen <LISTEN>" left column for one spec. Returns
 // the visible width so the caller can pad to a shared right margin.
 static u64 spec_format_left(const ArgSpec *sp, Str *out) {
-    u64 start = out->length;
+    u64 start = StrLen(out);
     StrPushBackMany(out, "  ");
     if (sp->role == ARG_ROLE_POSITIONAL) {
         StrPushBackR(out, '<');
@@ -303,7 +305,7 @@ static u64 spec_format_left(const ArgSpec *sp, Str *out) {
             StrPushBackR(out, '>');
         }
     }
-    return out->length - start;
+    return StrLen(out) - start;
 }
 
 static void print_help(ArgParse *self) {
@@ -362,12 +364,12 @@ static void print_help(ArgParse *self) {
     Str left_col[64];
     u64 left_w[64];
     u64 max_w   = 0;
-    u64 n_specs = self->specs.length;
+    u64 n_specs = VecLen(&self->specs);
     if (n_specs > 64)
         n_specs = 64;
     for (u64 i = 0; i < n_specs; ++i) {
         left_col[i] = StrInit(self->alloc);
-        left_w[i]   = spec_format_left(&self->specs.data[i], &left_col[i]);
+        left_w[i]   = spec_format_left(VecPtrAt(&self->specs, i), &left_col[i]);
         if (left_w[i] > max_w)
             max_w = left_w[i];
     }
@@ -376,7 +378,7 @@ static void print_help(ArgParse *self) {
     bool printed_positional_header = false;
     bool printed_options_header    = false;
     for (u64 i = 0; i < n_specs; ++i) {
-        ArgSpec *sp = &self->specs.data[i];
+        ArgSpec *sp = VecPtrAt(&self->specs, i);
         if (sp->role != ARG_ROLE_POSITIONAL)
             continue;
         if (!printed_positional_header) {
@@ -392,7 +394,7 @@ static void print_help(ArgParse *self) {
         FWriteFmtLn(&err, "");
 
     for (u64 i = 0; i < n_specs; ++i) {
-        ArgSpec *sp = &self->specs.data[i];
+        ArgSpec *sp = VecPtrAt(&self->specs, i);
         if (sp->role == ARG_ROLE_POSITIONAL)
             continue;
         if (!printed_options_header) {
@@ -491,91 +493,103 @@ static ArgRun handle_option_token(
 ) {
     bool        is_long  = (tok[0] == '-' && tok[1] == '-');
     Zstr eq       = NULL;
-    Zstr flag     = tok;
     Zstr inline_v = NULL;
 
     if (is_long) {
         eq = ZstrFindChar(tok, '=');
         if (eq) {
             inline_v = eq + 1;
-            // Copy flag part (without the = sign) into a temp buffer
-            // so the lookup uses a clean string.
-            // Buffer big enough for any sane flag name.
-            static char flagbuf[128];
-            u64         n = (u64)(eq - tok);
-            if (n >= sizeof(flagbuf)) {
+        }
+    }
+
+    // Stack-backed scratch holding the flag name when "--name=VAL" is
+    // split off the value. When `eq` is NULL the scratch is unused and
+    // `flag` aliases the caller's `tok` directly.
+    ArgRun result = ARG_RUN_ERROR;
+    StrInitStack(flagbuf, 128) {
+        Zstr flag = tok;
+        if (eq) {
+            u64 n = (u64)(eq - tok);
+            if (n >= 128) {
                 FWriteFmtLn(err, "{}: flag name too long: {}", self->name, tok);
-                return ARG_RUN_ERROR;
+                break;
             }
-            MemCopy(flagbuf, tok, n);
-            flagbuf[n] = '\0';
-            flag       = flagbuf;
+            char *data = StrBegin(&flagbuf);
+            MemCopy(data, tok, n);
+            data[n] = '\0';
+            StrResize(&flagbuf, (size)n);
+            flag = data;
         }
-    }
 
-    ArgSpec *sp = is_long ? find_long(self, flag) : find_short(self, flag);
-    if (!sp) {
-        FWriteFmtLn(err, "{}: unknown option: {}", self->name, flag);
-        FWriteFmtLn(err, "run with --help for usage");
-        return ARG_RUN_ERROR;
-    }
-
-    // --help / -h short-circuit straight to help, before we apply any
-    // side effects (so partial parses don't pollute caller state).
-    if (zstr_eq(sp->long_name, "--help")) {
-        print_help(self);
-        return ARG_RUN_HELP;
-    }
-
-    switch (sp->role) {
-        case ARG_ROLE_FLAG : {
-            if (inline_v) {
-                FWriteFmtLn(err, "{}: flag {} does not take a value", self->name, flag);
-                return ARG_RUN_ERROR;
-            }
-            *(bool *)sp->target = true;
-            sp->seen            = true;
-            return ARG_RUN_OK;
+        ArgSpec *sp = is_long ? find_long(self, flag) : find_short(self, flag);
+        if (!sp) {
+            FWriteFmtLn(err, "{}: unknown option: {}", self->name, flag);
+            FWriteFmtLn(err, "run with --help for usage");
+            break;
         }
-        case ARG_ROLE_COUNT : {
-            if (inline_v) {
-                FWriteFmtLn(err, "{}: counter {} does not take a value", self->name, flag);
-                return ARG_RUN_ERROR;
-            }
-            count_bump(sp->kind, sp->target);
-            sp->seen = true;
-            return ARG_RUN_OK;
+
+        // --help / -h short-circuit straight to help, before we apply
+        // any side effects (so partial parses don't pollute caller state).
+        if (zstr_eq(sp->long_name, "--help")) {
+            print_help(self);
+            result = ARG_RUN_HELP;
+            break;
         }
-        case ARG_ROLE_REQUIRED :
-        case ARG_ROLE_OPTIONAL : {
-            Zstr val = inline_v;
-            if (!val) {
-                if (*i_io + 1 >= argc) {
-                    FWriteFmtLn(err, "{}: option {} requires a value", self->name, flag);
-                    return ARG_RUN_ERROR;
+
+        switch (sp->role) {
+            case ARG_ROLE_FLAG : {
+                if (inline_v) {
+                    FWriteFmtLn(err, "{}: flag {} does not take a value", self->name, flag);
+                    break;
                 }
-                *i_io += 1;
-                val    = argv[*i_io];
+                *(bool *)sp->target = true;
+                sp->seen            = true;
+                result              = ARG_RUN_OK;
+                break;
             }
-            if (!store_value(sp->kind, sp->target, val)) {
-                FWriteFmtLn(
-                    err,
-                    "{}: invalid value '{}' for {}: expected {}",
-                    self->name,
-                    val,
-                    flag,
-                    arg_kind_label(sp->kind)
-                );
-                return ARG_RUN_ERROR;
+            case ARG_ROLE_COUNT : {
+                if (inline_v) {
+                    FWriteFmtLn(err, "{}: counter {} does not take a value", self->name, flag);
+                    break;
+                }
+                count_bump(sp->kind, sp->target);
+                sp->seen = true;
+                result   = ARG_RUN_OK;
+                break;
             }
-            sp->seen = true;
-            return ARG_RUN_OK;
+            case ARG_ROLE_REQUIRED :
+            case ARG_ROLE_OPTIONAL : {
+                Zstr val = inline_v;
+                if (!val) {
+                    if (*i_io + 1 >= argc) {
+                        FWriteFmtLn(err, "{}: option {} requires a value", self->name, flag);
+                        break;
+                    }
+                    *i_io += 1;
+                    val    = argv[*i_io];
+                }
+                if (!store_value(sp->kind, sp->target, val)) {
+                    FWriteFmtLn(
+                        err,
+                        "{}: invalid value '{}' for {}: expected {}",
+                        self->name,
+                        val,
+                        flag,
+                        arg_kind_label(sp->kind)
+                    );
+                    break;
+                }
+                sp->seen = true;
+                result   = ARG_RUN_OK;
+                break;
+            }
+            case ARG_ROLE_POSITIONAL :
+            default :
+                FWriteFmtLn(err, "{}: internal error: positional matched as option", self->name);
+                break;
         }
-        case ARG_ROLE_POSITIONAL :
-        default :
-            FWriteFmtLn(err, "{}: internal error: positional matched as option", self->name);
-            return ARG_RUN_ERROR;
     }
+    return result;
 }
 
 // Bundled-short-flag form: -vvv counts as three uses of -v, and only
@@ -583,25 +597,39 @@ static ArgRun handle_option_token(
 // not supported in v1.
 static ArgRun handle_short_bundle(ArgParse *self, Zstr tok, File *err) {
     // tok looks like "-XYZ..."; verify every char maps to a Flag/Count.
+    ArgRun result = ARG_RUN_OK;
     for (Zstr p = tok + 1; *p; ++p) {
-        char     buf[3] = {'-', *p, 0};
-        ArgSpec *sp     = find_short(self, (Zstr)buf);
-        if (!sp) {
-            FWriteFmtLn(err, "{}: unknown option: {}", self->name, (Zstr)buf);
-            return ARG_RUN_ERROR;
+        bool iter_ok = false;
+        StrInitStack(buf, 3) {
+            char *data = StrBegin(&buf);
+            data[0]    = '-';
+            data[1]    = *p;
+            data[2]    = '\0';
+            StrResize(&buf, 2);
+
+            ArgSpec *sp = find_short(self, (Zstr)data);
+            if (!sp) {
+                FWriteFmtLn(err, "{}: unknown option: {}", self->name, (Zstr)data);
+                break;
+            }
+            if (sp->role == ARG_ROLE_FLAG) {
+                *(bool *)sp->target = true;
+                sp->seen            = true;
+            } else if (sp->role == ARG_ROLE_COUNT) {
+                count_bump(sp->kind, sp->target);
+                sp->seen = true;
+            } else {
+                FWriteFmtLn(err, "{}: option {} requires a value, can't bundle", self->name, (Zstr)data);
+                break;
+            }
+            iter_ok = true;
         }
-        if (sp->role == ARG_ROLE_FLAG) {
-            *(bool *)sp->target = true;
-            sp->seen            = true;
-        } else if (sp->role == ARG_ROLE_COUNT) {
-            count_bump(sp->kind, sp->target);
-            sp->seen = true;
-        } else {
-            FWriteFmtLn(err, "{}: option {} requires a value, can't bundle", self->name, (Zstr)buf);
-            return ARG_RUN_ERROR;
+        if (!iter_ok) {
+            result = ARG_RUN_ERROR;
+            break;
         }
     }
-    return ARG_RUN_OK;
+    return result;
 }
 
 ArgRun ArgParseRun(ArgParse *self, int argc, char **argv) {
@@ -665,22 +693,34 @@ ArgRun ArgParseRun(ArgParse *self, int argc, char **argv) {
                 // (only valid for Flag/Count). Otherwise it's a normal
                 // short option.
                 if (tok[2] != '\0') {
-                    char     two[3] = {'-', tok[1], 0};
-                    ArgSpec *first  = find_short(self, (Zstr)two);
-                    if (first && (first->role == ARG_ROLE_FLAG || first->role == ARG_ROLE_COUNT)) {
+                    enum { BUNDLE_TRY, BUNDLE_REJECT } decision = BUNDLE_REJECT;
+                    StrInitStack(two, 3) {
+                        char *data = StrBegin(&two);
+                        data[0]    = '-';
+                        data[1]    = tok[1];
+                        data[2]    = '\0';
+                        StrResize(&two, 2);
+
+                        ArgSpec *first = find_short(self, (Zstr)data);
+                        if (first && (first->role == ARG_ROLE_FLAG || first->role == ARG_ROLE_COUNT)) {
+                            decision = BUNDLE_TRY;
+                        } else {
+                            FWriteFmtLn(
+                                &err,
+                                "{}: short value option '{}' cannot be bundled; use form '{} VAL' or '{}=VAL'",
+                                self->name,
+                                (Zstr)data,
+                                (Zstr)data,
+                                (Zstr)data
+                            );
+                        }
+                    }
+                    if (decision == BUNDLE_TRY) {
                         ArgRun r = handle_short_bundle(self, tok, &err);
                         if (r != ARG_RUN_OK)
                             return r;
                         continue;
                     }
-                    FWriteFmtLn(
-                        &err,
-                        "{}: short value option '{}' cannot be bundled; use form '{} VAL' or '{}=VAL'",
-                        self->name,
-                        (Zstr)two,
-                        (Zstr)two,
-                        (Zstr)two
-                    );
                     return ARG_RUN_ERROR;
                 }
                 ArgRun r = handle_option_token(self, tok, &i, argc, argv, &err);

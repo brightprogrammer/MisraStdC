@@ -79,7 +79,7 @@
 ///
 /// TAGS: Vec, Access, Iterator, Begin
 ///
-#define VecBegin(v) ((v)->data)
+#define VecBegin(v) ((void)0, (v)->data)
 
 ///
 /// Pointer one past the last element of the vector. Suitable as an iteration
@@ -109,7 +109,7 @@
 ///
 /// TAGS: Vec, Access, Length
 ///
-#define VecLen(v) ((v)->length)
+#define VecLen(v) ((void)0, (v)->length)
 
 ///
 /// Capacity in elements: the most the vector can hold before the next
@@ -119,7 +119,7 @@
 ///
 /// TAGS: Vec, Access, Capacity
 ///
-#define VecCapacity(v) ((v)->capacity)
+#define VecCapacity(v) ((void)0, (v)->capacity)
 
 ///
 /// Allocator backing the vector's storage.
@@ -128,7 +128,7 @@
 ///
 /// TAGS: Vec, Access, Allocator
 ///
-#define VecAllocator(v) ((v)->allocator)
+#define VecAllocator(v) ((void)0, (v)->allocator)
 
 ///
 /// Deep-copy `init` callback wired into the vector, or `NULL` if the
@@ -138,7 +138,7 @@
 ///
 /// TAGS: Vec, Access, DeepCopy
 ///
-#define VecCopyInit(v) ((v)->copy_init)
+#define VecCopyInit(v) ((void)0, (v)->copy_init)
 
 ///
 /// Deep-copy `deinit` callback wired into the vector, or `NULL` if the
@@ -148,7 +148,7 @@
 ///
 /// TAGS: Vec, Access, DeepCopy
 ///
-#define VecCopyDeinit(v) ((v)->copy_deinit)
+#define VecCopyDeinit(v) ((void)0, (v)->copy_deinit)
 
 ///
 /// Check whether vector has no elements.

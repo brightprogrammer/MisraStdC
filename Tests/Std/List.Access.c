@@ -12,7 +12,7 @@ static i32 compare_ints(const void *lhs, const void *rhs) {
 }
 
 static bool list_matches(GenericList *list, const int *expected, size count) {
-    if (list->length != count) {
+    if (ListLen(list) != count) {
         return false;
     }
 
@@ -107,19 +107,19 @@ static bool test_list_node_access_and_navigation(void) {
     GenericListNode *rel_b2  = ListNodeRelative(ListNodeEnd(&list), -2);
     ListNode(int) *null_node = NULL;
 
-    bool result = node1 && node1->data && (*(int *)node1->data == 20);
-    result      = result && begin && begin->data && (*(int *)begin->data == 10);
-    result      = result && end && end->data && (*(int *)end->data == 40);
-    result      = result && ListNodeAt(&list, 2).data && (*ListNodeAt(&list, 2).data == 30);
-    result      = result && ListNodeFirst(&list).data && (*ListNodeFirst(&list).data == 10);
-    result      = result && ListNodeLast(&list).data && (*ListNodeLast(&list).data == 40);
-    result      = result && ListNodeNext(ListNodeBegin(&list)) && ListNodeNext(ListNodeBegin(&list))->data &&
-             (*ListNodeNext(ListNodeBegin(&list))->data == 20);
-    result = result && ListNodePrev(ListNodeEnd(&list)) && ListNodePrev(ListNodeEnd(&list))->data &&
-             (*ListNodePrev(ListNodeEnd(&list))->data == 30);
+    bool result = node1 && ListNodeData(node1) && (*(int *)ListNodeData(node1) == 20);
+    result      = result && begin && ListNodeData(begin) && (*(int *)ListNodeData(begin) == 10);
+    result      = result && end && ListNodeData(end) && (*(int *)ListNodeData(end) == 40);
+    result      = result && ListNodeData(&ListNodeAt(&list, 2)) && (*ListNodeData(&ListNodeAt(&list, 2)) == 30);
+    result      = result && ListNodeData(&ListNodeFirst(&list)) && (*ListNodeData(&ListNodeFirst(&list)) == 10);
+    result      = result && ListNodeData(&ListNodeLast(&list)) && (*ListNodeData(&ListNodeLast(&list)) == 40);
+    result      = result && ListNodeNext(ListNodeBegin(&list)) && ListNodeData(ListNodeNext(ListNodeBegin(&list))) &&
+             (*ListNodeData(ListNodeNext(ListNodeBegin(&list))) == 20);
+    result = result && ListNodePrev(ListNodeEnd(&list)) && ListNodeData(ListNodePrev(ListNodeEnd(&list))) &&
+             (*ListNodeData(ListNodePrev(ListNodeEnd(&list))) == 30);
     result = result && (same == begin);
-    result = result && rel_f2 && rel_f2->data && (*(int *)rel_f2->data == 30);
-    result = result && rel_b2 && rel_b2->data && (*(int *)rel_b2->data == 20);
+    result = result && rel_f2 && ListNodeData(rel_f2) && (*(int *)ListNodeData(rel_f2) == 30);
+    result = result && rel_b2 && ListNodeData(rel_b2) && (*(int *)ListNodeData(rel_b2) == 20);
     result = result && (ListNodeRelative(ListNodeBegin(&list), -1) == NULL);
     result = result && (ListNodeRelative(ListNodeEnd(&list), 1) == NULL);
     result = result && (ListNodeNext(null_node) == NULL);

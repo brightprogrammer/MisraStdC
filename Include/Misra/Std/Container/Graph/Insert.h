@@ -65,7 +65,21 @@
      graph_push_node(GENERIC_GRAPH(g), &LVAL_AS(GRAPH_NODE_TYPE(g), rval), sizeof(GRAPH_NODE_TYPE(g))))
 
 ///
-/// Default node-add alias for `GraphAddNodeL`.
+/// Default node-add aliases the L-form: add a new node to the graph,
+/// taking ownership of `lval`'s payload when no deep-copy handler is
+/// configured.
+///
+/// g[in,out] : Graph handle.
+/// lval[in]  : Addressable node payload to insert.
+///
+/// SUCCESS : Returns the new node's stable `GraphNodeId` (non-zero);
+///           `live_count` grows by one.
+/// FAILURE : Returns `0` on allocation failure; the graph and `lval` are
+///           unchanged.
+///
+/// See `GraphAddNodeL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: Graph, Add, Node, Insert
 ///
 #define GraphAddNode(g, lval) GraphAddNodeL((g), (lval))
 

@@ -264,11 +264,11 @@ static bool elf_decode_symbol_table(Elf *self, const ElfSection *symtab, ElfSymb
     // The link field of a SYMTAB / DYNSYM section is the index of its
     // associated string table.
     u32 strtab_idx = symtab->link;
-    if (strtab_idx >= self->sections.length) {
+    if (strtab_idx >= VecLen(&self->sections)) {
         LOG_ERROR("Elf: symtab link {} out of range", (u32)strtab_idx);
         return false;
     }
-    const ElfSection *strtab = &self->sections.data[strtab_idx];
+    const ElfSection *strtab = VecPtrAt(&self->sections, strtab_idx);
     if (!elf_range_ok(self, strtab->offset, strtab->size)) {
         LOG_ERROR("Elf: strtab out of range");
         return false;
@@ -315,8 +315,8 @@ static bool elf_decode_symbols(Elf *self) {
     const ElfSection *symtab    = NULL;
     const ElfSection *dynsymtab = NULL;
 
-    for (u64 i = 0; i < self->sections.length; ++i) {
-        const ElfSection *s = &self->sections.data[i];
+    for (u64 i = 0; i < VecLen(&self->sections); ++i) {
+        const ElfSection *s = VecPtrAt(&self->sections, i);
         if (s->type == ELF_SECTION_TYPE_SYMTAB) {
             symtab = s;
         } else if (s->type == ELF_SECTION_TYPE_DYNSYM) {
@@ -468,7 +468,7 @@ bool elf_open_from_memory_copy(Elf *out, const u8 *data, size data_size, Allocat
         return false;
     }
     MemCopy(copy.data, data, data_size);
-    copy.length = (size)data_size;
+    BufResize(&copy, (size)data_size);
     // Hand `&copy` to the L-form -- it consumes the local and zeros
     // it. The local goes out of scope right after.
     return ElfOpenFromMemory(out, &copy);
@@ -503,8 +503,8 @@ void ElfDeinit(Elf *self) {
 
 static const ElfSymbol *elf_search_symbols(const ElfSymbols *syms, u64 vaddr) {
     const ElfSymbol *best = NULL;
-    for (u64 i = 0; i < syms->length; ++i) {
-        const ElfSymbol *s = &syms->data[i];
+    for (u64 i = 0; i < VecLen(syms); ++i) {
+        const ElfSymbol *s = VecPtrAt(syms, i);
         if (s->size == 0) {
             // Some symbols (e.g. labels) have zero size — only match
             // when the address equals the symbol exactly.

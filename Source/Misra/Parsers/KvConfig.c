@@ -283,8 +283,8 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg) {
 
     char c;
     while (StrIterPeek(&si, &c)) {
-        Str     key   = StrInit(cfg->allocator);
-        Str     value = StrInit(cfg->allocator);
+        Str     key   = StrInit(MapAllocator(cfg));
+        Str     value = StrInit(MapAllocator(cfg));
         StrIter read_si;
 
         while (StrIterPeek(&si, &c)) {
@@ -358,7 +358,7 @@ Str *kvconfig_get_ptr_zstr(KvConfig *cfg, Zstr key) {
         return NULL;
     }
 
-    lookup = StrInitFromCstr(key, ZstrLen(key), cfg->allocator);
+    lookup = StrInitFromCstr(key, ZstrLen(key), MapAllocator(cfg));
     value  = kvconfig_get_ptr_str(cfg, &lookup);
     StrDeinit(&lookup);
     return value;
@@ -368,20 +368,20 @@ Str kvconfig_get_str(KvConfig *cfg, const Str *key) {
     Str *value = kvconfig_get_ptr_str(cfg, key);
 
     if (!value) {
-        return StrInit(cfg->allocator);
+        return StrInit(MapAllocator(cfg));
     }
 
-    return StrInitFromCstr(StrBegin(value), StrLen(value), cfg->allocator);
+    return StrInitFromCstr(StrBegin(value), StrLen(value), MapAllocator(cfg));
 }
 
 Str kvconfig_get_zstr(KvConfig *cfg, Zstr key) {
     Str *value = kvconfig_get_ptr_zstr(cfg, key);
 
     if (!value) {
-        return StrInit(cfg->allocator);
+        return StrInit(MapAllocator(cfg));
     }
 
-    return StrInitFromCstr(StrBegin(value), StrLen(value), cfg->allocator);
+    return StrInitFromCstr(StrBegin(value), StrLen(value), MapAllocator(cfg));
 }
 
 bool kvconfig_contains_str(KvConfig *cfg, const Str *key) {

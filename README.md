@@ -757,12 +757,12 @@ read/write primitives on top:
 Scope(alloc, DefaultAllocator) {
     Buf bytes = BufInit();
     BufWriteU32LE(&bytes, 0xDEADBEEF);
-    BufWriteCstr (&bytes, "hello");
+    BufWriteZstr (&bytes, "hello");
 
     BufIter it = BufIterFromBuf(&bytes);
     u32     tag = 0;
     BufReadU32LE(&it, &tag);
-    const char *msg = BufReadCstr(&it);
+    const char *msg = BufReadZstr(&it);
     WriteFmtLn("tag=0x{x}, msg={}", tag, msg);
 
     BufDeinit(&bytes);

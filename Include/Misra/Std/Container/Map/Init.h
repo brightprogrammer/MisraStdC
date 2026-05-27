@@ -15,6 +15,8 @@
 /// literal directly; other `MapInit*` variants forward to this with
 /// some arguments preset.
 ///
+/// TAGS: Map, Init, API
+///
 #define MapInitFull_9(                                                                                                 \
     hash_fn,                                                                                                           \
     compare_fn,                                                                                                        \
@@ -51,6 +53,8 @@
 /// user-owned allocator. Uses linear probing. Allocator argument is
 /// optional inside a `Scope` block.
 ///
+/// TAGS: Map, Init, API
+///
 #define MapInit(...)                   MISRA_OVERLOAD(MapInit, __VA_ARGS__)
 #define MapInit_2(hash_fn, compare_fn) MapInit_3(hash_fn, compare_fn, MisraScope)
 #define MapInit_3(hash_fn, compare_fn, typed_alloc_ptr)                                                                \
@@ -58,6 +62,8 @@
 
 ///
 /// Initialize a map with key/value comparators.
+///
+/// TAGS: Map, Compare, Value, Init
 ///
 #define MapInitWithValueCompare(...) MISRA_OVERLOAD(MapInitWithValueCompare, __VA_ARGS__)
 #define MapInitWithValueCompare_3(hash_fn, compare_fn, value_compare_fn)                                               \
@@ -68,6 +74,8 @@
 ///
 /// Initialize a map with key callbacks and an explicit probing policy.
 ///
+/// TAGS: Map, Policy, Init
+///
 #define MapInitWithPolicy(...) MISRA_OVERLOAD(MapInitWithPolicy, __VA_ARGS__)
 #define MapInitWithPolicy_3(hash_fn, compare_fn, policy_value)                                                         \
     MapInitWithPolicy_4(hash_fn, compare_fn, policy_value, MisraScope)
@@ -77,6 +85,8 @@
 ///
 /// Initialize a map with key/value comparators and an explicit probing policy.
 ///
+/// TAGS: Map, Compare, Value, Policy, Init
+///
 #define MapInitWithValueCompareAndPolicy(...) MISRA_OVERLOAD(MapInitWithValueCompareAndPolicy, __VA_ARGS__)
 #define MapInitWithValueCompareAndPolicy_4(hash_fn, compare_fn, value_compare_fn, policy_value)                        \
     MapInitWithValueCompareAndPolicy_5(hash_fn, compare_fn, value_compare_fn, policy_value, MisraScope)
@@ -85,6 +95,8 @@
 
 ///
 /// Initialize a map with deep-copy callbacks for keys and values.
+///
+/// TAGS: Map, Init, DeepCopy, Copy
 ///
 #define MapInitWithDeepCopy(...) MISRA_OVERLOAD(MapInitWithDeepCopy, __VA_ARGS__)
 #define MapInitWithDeepCopy_6(hash_fn, compare_fn, key_ci, key_cd, value_ci, value_cd)                                 \

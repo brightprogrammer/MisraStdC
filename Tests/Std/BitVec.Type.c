@@ -23,7 +23,7 @@ bool test_bitvec_type_basic(void) {
     // Check initial state
     bool result =
         (BitVecLen(&bitvec) == 0 && BitVecCapacity(&bitvec) == 0 && BitVecData(&bitvec) == NULL &&
-         bitvec.byte_size == 0);
+         BitVecByteSize(&bitvec) == 0);
 
     // Clean up
     BitVecDeinit(&bitvec);

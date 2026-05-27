@@ -32,8 +32,8 @@
 /// element values, then write the sorted order back into the list nodes.
 ///
 /// l[in,out]   : List to be sorted.
-/// compare[in] : Compare function with `strcmp`-style return (negative, zero,
-///               positive).
+/// compare[in] : Comparator returning a three-way ordering: negative when
+///               `a < b`, zero when equal, positive when `a > b`.
 ///
 /// SUCCESS : Returns `true`. Elements are now in non-decreasing order
 ///           according to `compare`. The list length and node count are

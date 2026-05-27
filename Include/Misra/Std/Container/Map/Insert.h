@@ -239,7 +239,21 @@ static inline bool map_set_only_r_impl(
      ))
 
 ///
-/// Default insertion alias for `MapInsertL`.
+/// Default insert aliases the L-form: store a new (key, value) entry in
+/// the map, taking ownership of both `in_key` and `in_value` when their
+/// respective `copy_init` handler is absent.
+///
+/// m[in,out]    : Map handle.
+/// in_key[in]   : Addressable key. Must match the map's key type.
+/// in_value[in] : Addressable value. Must match the map's value type.
+///
+/// SUCCESS : Returns `true`; map length grows by one.
+/// FAILURE : Returns `false` on allocation failure or policy violation;
+///           the map and both sources are unchanged.
+///
+/// See `MapInsertL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: Map, Insert, API
 ///
 #define MapInsert(m, in_key, in_value) MapInsertL((m), (in_key), (in_value))
 
@@ -372,7 +386,23 @@ static inline bool map_set_only_r_impl(
      ))
 
 ///
-/// Default replace-set alias for `MapSetOnlyL`.
+/// Default replace-set aliases the L-form of `MapSetOnly`: replace any
+/// and all existing entries for `in_key` with a single (key, value)
+/// mapping, taking ownership of both sources when their respective
+/// `copy_init` handler is absent.
+///
+/// m[in,out]    : Map handle.
+/// in_key[in]   : Addressable key.
+/// in_value[in] : Addressable value.
+///
+/// SUCCESS : Returns `true`; exactly one entry mapping `in_key` to
+///           `in_value` now exists.
+/// FAILURE : Returns `false` on allocation failure; the map and both
+///           sources are unchanged.
+///
+/// See `MapSetOnlyL` for the full SUCCESS/FAILURE contract.
+///
+/// TAGS: Map, Set, Insert
 ///
 #define MapSet(m, in_key, in_value) MapSetOnlyL((m), (in_key), (in_value))
 
@@ -421,6 +451,8 @@ static inline bool map_set_only_r_impl(
 ///
 /// Alias for `MapEnsurePtr` matching the get-or-insert idiom from other
 /// associative container APIs.
+///
+/// TAGS: Map, Insert, Get
 ///
 #define MapGetOrInsertPtr(m, lookup_key, default_value) MapEnsurePtr((m), (lookup_key), (default_value))
 

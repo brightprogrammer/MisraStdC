@@ -219,12 +219,13 @@ bool test_bitvec_clone_inherits_allocator_config(void) {
     // Clone should share the same Allocator* and therefore see identical
     // configuration fields on the base allocator.
     bool result = BitVecLen(&clone) == BitVecLen(&original) && BitVecCapacity(&clone) >= BitVecLen(&original) &&
-                  clone.allocator == original.allocator && clone.allocator->allocate == original.allocator->allocate &&
-                  clone.allocator->remap == original.allocator->remap &&
-                  clone.allocator->deallocate == original.allocator->deallocate &&
-                  clone.allocator->effort == original.allocator->effort &&
-                  clone.allocator->retry_limit == original.allocator->retry_limit && BitVecGet(&clone, 0) == true &&
-                  BitVecGet(&clone, 1) == false && BitVecGet(&clone, 2) == true;
+                  VecAllocator(&clone) == VecAllocator(&original) &&
+                  VecAllocator(&clone)->allocate == VecAllocator(&original)->allocate &&
+                  VecAllocator(&clone)->remap == VecAllocator(&original)->remap &&
+                  VecAllocator(&clone)->deallocate == VecAllocator(&original)->deallocate &&
+                  VecAllocator(&clone)->effort == VecAllocator(&original)->effort &&
+                  VecAllocator(&clone)->retry_limit == VecAllocator(&original)->retry_limit &&
+                  BitVecGet(&clone, 0) == true && BitVecGet(&clone, 1) == false && BitVecGet(&clone, 2) == true;
 
     BitVecDeinit(&original);
     BitVecDeinit(&clone);

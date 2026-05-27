@@ -157,8 +157,8 @@ bool test_float_try_to_str_allocator_inheritance(void) {
     ok = float_try_to_str(&text, &value, &alloc.base);
 
     bool result = ok && (ZstrCompare(StrBegin(&text), "-123.45") == 0) &&
-                  (text.allocator->effort == alloc.base.effort) &&
-                  (text.allocator->retry_limit == alloc.base.retry_limit);
+                  (StrAllocator(&text)->effort == alloc.base.effort) &&
+                  (StrAllocator(&text)->retry_limit == alloc.base.retry_limit);
 
     StrDeinit(&text);
     FloatDeinit(&value);

@@ -16,7 +16,13 @@ extern "C" {
     ///
     /// Negate a floating-point value in place.
     ///
-    /// value[in] : Float to modify
+    /// value[in,out] : Float to modify
+    ///
+    /// SUCCESS : Returns to the caller. The sign of `*value` is
+    ///           flipped unless `*value` is zero, which stays
+    ///           non-negative. Significand and exponent are
+    ///           unchanged.
+    /// FAILURE : Function cannot fail.
     ///
     /// INFO: Zero remains non-negative after normalization.
     ///
@@ -29,7 +35,11 @@ extern "C" {
     ///
     /// Replace a float with its absolute value.
     ///
-    /// value[in] : Float to modify
+    /// value[in,out] : Float to modify
+    ///
+    /// SUCCESS : Returns to the caller. `*value` is now non-negative;
+    ///           significand and exponent are unchanged.
+    /// FAILURE : Function cannot fail.
     ///
     /// USAGE:
     ///   FloatAbs(&value);
@@ -195,6 +205,11 @@ extern "C" {
 /// USAGE:
 ///   FloatAdd(&sum, &value, 1.25);
 ///
+/// SUCCESS : Returns `true`; `*result` holds `a + b` with shared
+///           exponent and normalized significand.
+/// FAILURE : Returns `false` if an intermediate allocation
+///           (clone / rescale / add) fails; `*result` is unchanged.
+///
 /// TAGS: Float, Math, Add, Generic
 ///
 #    define FloatAdd(result, a, b) FLOAT_ADD_DISPATCH(b)((result), (a), (b))
@@ -207,6 +222,11 @@ extern "C" {
 ///
 /// USAGE:
 ///   FloatSub(&diff, &value, 2u);
+///
+/// SUCCESS : Returns `true`; `*result` holds `a - b` with shared
+///           exponent and normalized significand.
+/// FAILURE : Returns `false` if an intermediate allocation
+///           (clone / rescale / subtract) fails; `*result` is unchanged.
 ///
 /// TAGS: Float, Math, Subtract, Generic
 ///
@@ -221,6 +241,12 @@ extern "C" {
 /// USAGE:
 ///   FloatMul(&product, &value, 0.5f);
 ///
+/// SUCCESS : Returns `true`; `*result` holds `a * b` with the
+///           exponents summed and the significand normalized.
+/// FAILURE : Returns `false` if an intermediate allocation
+///           (significand multiply / normalize) fails; `*result` is
+///           unchanged.
+///
 /// TAGS: Float, Math, Multiply, Generic
 ///
 #    define FloatMul(result, a, b) FLOAT_MUL_DISPATCH(b)((result), (a), (b))
@@ -234,6 +260,13 @@ extern "C" {
 ///
 /// USAGE:
 ///   FloatDiv(&quotient, &value, 3.0, 8);
+///
+/// SUCCESS : Returns `true`; `*result` holds `a / b` with `precision`
+///           decimal digits retained. When `a` is zero `*result` is
+///           set to zero without further work.
+/// FAILURE : Returns `false` when `b` is zero (logged) or when any
+///           intermediate allocation (scale / multiply / divide) fails;
+///           `*result` is unchanged.
 ///
 /// TAGS: Float, Math, Divide, Generic
 ///

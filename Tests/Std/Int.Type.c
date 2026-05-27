@@ -82,12 +82,13 @@ bool test_int_clone_inherits_allocator_config(void) {
     Int clone = IntClone(&original);
 
     bool result =
-        BitVecLen(&clone.bits) == BitVecLen(&original.bits) && clone.bits.allocator == original.bits.allocator &&
-        clone.bits.allocator->allocate == original.bits.allocator->allocate &&
-        clone.bits.allocator->remap == original.bits.allocator->remap &&
-        clone.bits.allocator->deallocate == original.bits.allocator->deallocate &&
-        clone.bits.allocator->effort == original.bits.allocator->effort &&
-        clone.bits.allocator->retry_limit == original.bits.allocator->retry_limit &&
+        BitVecLen(&clone.bits) == BitVecLen(&original.bits) &&
+        VecAllocator(&clone.bits) == VecAllocator(&original.bits) &&
+        VecAllocator(&clone.bits)->allocate == VecAllocator(&original.bits)->allocate &&
+        VecAllocator(&clone.bits)->remap == VecAllocator(&original.bits)->remap &&
+        VecAllocator(&clone.bits)->deallocate == VecAllocator(&original.bits)->deallocate &&
+        VecAllocator(&clone.bits)->effort == VecAllocator(&original.bits)->effort &&
+        VecAllocator(&clone.bits)->retry_limit == VecAllocator(&original.bits)->retry_limit &&
         BitVecGet(&clone.bits, 0) == true && BitVecGet(&clone.bits, 1) == false && BitVecGet(&clone.bits, 2) == true;
 
     IntDeinit(&original);

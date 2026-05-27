@@ -139,6 +139,8 @@ bool symbol_resolver_init(SymbolResolver *out, Allocator *alloc);
 /// SUCCESS : Returns to the caller. `self` is zeroed.
 /// FAILURE : Function cannot fail.
 ///
+/// TAGS: Sys, SymbolResolver, Deinit, Lifecycle
+///
 void SymbolResolverDeinit(SymbolResolver *self);
 
 ///

@@ -177,6 +177,8 @@ bool pdb_open_from_memory_copy(Pdb *out, const u8 *data, size data_size, Allocat
 /// SUCCESS : Returns to the caller. `*self` is zeroed.
 /// FAILURE : Function cannot fail. NULL `self` is a no-op.
 ///
+/// TAGS: Parser, PDB, Deinit, Lifecycle
+///
 void PdbDeinit(Pdb *self);
 
 ///

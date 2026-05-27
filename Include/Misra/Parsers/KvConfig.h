@@ -44,6 +44,9 @@ typedef Map(Str, Str) KvConfig;
 ///                 typed allocator handle (`&heap`) or a raw `Allocator *`.
 ///
 /// SUCCESS : Returns initialized config object.
+/// FAILURE : Macro cannot fail.
+///
+/// TAGS: KvConfig, Init, API
 ///
 #define KvConfigInit(...) MISRA_OVERLOAD(KvConfigInit, __VA_ARGS__)
 #define KvConfigInit_0()  KvConfigInit_1(MisraScope)
@@ -73,6 +76,9 @@ typedef Map(Str, Str) KvConfig;
 /// size[in] : Ignored. Included for generic hash compatibility.
 ///
 /// SUCCESS : Stable hash of the string bytes.
+/// FAILURE : Function cannot fail.
+///
+/// TAGS: KvConfig, Hash, API
 ///
 u64 KvConfigHash(const void *data, u32 size);
 
@@ -83,6 +89,9 @@ u64 KvConfigHash(const void *data, u32 size);
 /// rhs[in] : Pointer to right `Str`.
 ///
 /// SUCCESS : `0` if equal, negative if lhs < rhs, positive if lhs > rhs.
+/// FAILURE : Function cannot fail.
+///
+/// TAGS: KvConfig, Compare, API
 ///
 i32 KvConfigCompare(const void *lhs, const void *rhs);
 
@@ -94,6 +103,10 @@ i32 KvConfigCompare(const void *lhs, const void *rhs);
 /// si[in] : Iterator to advance.
 ///
 /// SUCCESS : Returns updated iterator.
+/// FAILURE : Function cannot fail. Returns `si` unchanged when already
+///           at end of input or on a non-whitespace character.
+///
+/// TAGS: KvConfig, Skip, Whitespace
 ///
 StrIter KvConfigSkipWhitespace(StrIter si);
 
@@ -103,6 +116,10 @@ StrIter KvConfigSkipWhitespace(StrIter si);
 /// si[in] : Iterator positioned anywhere on a line.
 ///
 /// SUCCESS : Returns iterator positioned at the first character of the next line.
+/// FAILURE : Function cannot fail. Returns an iterator at end of input
+///           when no trailing newline is present.
+///
+/// TAGS: KvConfig, Skip, Line
 ///
 StrIter KvConfigSkipLine(StrIter si);
 
@@ -116,6 +133,8 @@ StrIter KvConfigSkipLine(StrIter si);
 ///
 /// SUCCESS : Returns iterator advanced to separator or following whitespace.
 /// FAILURE : Returns original iterator on invalid key.
+///
+/// TAGS: KvConfig, Parse, Key, Read
 ///
 StrIter KvConfigReadKey(StrIter si, Str *key);
 
@@ -131,6 +150,8 @@ StrIter KvConfigReadKey(StrIter si, Str *key);
 /// SUCCESS : Returns iterator advanced to line end or end of input.
 /// FAILURE : Returns original iterator on parse error.
 ///
+/// TAGS: KvConfig, Parse, Value, Read
+///
 StrIter KvConfigReadValue(StrIter si, Str *value);
 
 ///
@@ -144,6 +165,8 @@ StrIter KvConfigReadValue(StrIter si, Str *value);
 ///
 /// SUCCESS : Returns iterator advanced past the parsed line.
 /// FAILURE : Returns original iterator on parse error.
+///
+/// TAGS: KvConfig, Parse, Pair, Read
 ///
 StrIter KvConfigReadPair(StrIter si, Str *key, Str *value);
 
@@ -165,6 +188,8 @@ StrIter KvConfigReadPair(StrIter si, Str *key, Str *value);
 /// SUCCESS : Returns iterator advanced to end of parsed config.
 /// FAILURE : Returns original iterator on first invalid line.
 ///
+/// TAGS: KvConfig, Parse, API
+///
 StrIter KvConfigParse(StrIter si, KvConfig *cfg);
 
 ///
@@ -175,6 +200,8 @@ StrIter KvConfigParse(StrIter si, KvConfig *cfg);
 ///
 /// SUCCESS : Newly allocated copy of stored `Str` value. Caller must `StrDeinit(...)` it.
 /// FAILURE : Empty `Str` if key does not exist.
+///
+/// TAGS: KvConfig, Get, API
 ///
 Str kvconfig_get_zstr(KvConfig *cfg, Zstr key);
 Str kvconfig_get_str(KvConfig *cfg, const Str *key);
@@ -193,6 +220,8 @@ Str kvconfig_get_str(KvConfig *cfg, const Str *key);
 /// SUCCESS : Pointer to stored `Str` value. Do not deinitialize or mutate through ownership-sensitive APIs.
 /// FAILURE : `NULL` if key does not exist.
 ///
+/// TAGS: KvConfig, Get, Pointer
+///
 Str *kvconfig_get_ptr_zstr(KvConfig *cfg, Zstr key);
 Str *kvconfig_get_ptr_str(KvConfig *cfg, const Str *key);
 #define KvConfigGetPtr(cfg, key)                                                                                                                         \
@@ -209,6 +238,8 @@ Str *kvconfig_get_ptr_str(KvConfig *cfg, const Str *key);
 ///
 /// SUCCESS : `true` if key exists.
 /// FAILURE : `false`
+///
+/// TAGS: KvConfig, Contains, API
 ///
 bool kvconfig_contains_zstr(KvConfig *cfg, Zstr key);
 bool kvconfig_contains_str(KvConfig *cfg, const Str *key);
@@ -230,6 +261,8 @@ bool kvconfig_contains_str(KvConfig *cfg, const Str *key);
 /// SUCCESS : `true` if key exists and value is a valid boolean.
 /// FAILURE : `false`
 ///
+/// TAGS: KvConfig, Get, Bool
+///
 bool kvconfig_get_bool_zstr(KvConfig *cfg, Zstr key, bool *value);
 bool kvconfig_get_bool_str(KvConfig *cfg, const Str *key, bool *value);
 #define KvConfigGetBool(cfg, key, value)                                                                                                                     \
@@ -249,6 +282,8 @@ bool kvconfig_get_bool_str(KvConfig *cfg, const Str *key, bool *value);
 /// SUCCESS : `true` if key exists and value is a valid integer.
 /// FAILURE : `false`
 ///
+/// TAGS: KvConfig, Get, I64
+///
 bool kvconfig_get_i64_zstr(KvConfig *cfg, Zstr key, i64 *value);
 bool kvconfig_get_i64_str(KvConfig *cfg, const Str *key, i64 *value);
 #define KvConfigGetI64(cfg, key, value)                                                                                                                  \
@@ -267,6 +302,8 @@ bool kvconfig_get_i64_str(KvConfig *cfg, const Str *key, i64 *value);
 ///
 /// SUCCESS : `true` if key exists and value is a valid float.
 /// FAILURE : `false`
+///
+/// TAGS: KvConfig, Get, F64
 ///
 bool kvconfig_get_f64_zstr(KvConfig *cfg, Zstr key, f64 *value);
 bool kvconfig_get_f64_str(KvConfig *cfg, const Str *key, f64 *value);

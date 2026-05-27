@@ -184,6 +184,8 @@ StrIter JReadBool(StrIter si, bool *b);
 /// SUCCESS : Returns `StrIter` advanced past "null"
 /// FAILURE : Returns original `StrIter` if "null" not found
 ///
+/// TAGS: JSON, Parsing, Read, Null, Value
+///
 StrIter JReadNull(StrIter si, bool *is_null);
 
 ///
@@ -797,8 +799,8 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JW_INT(j, i)                                                                                                   \
     do {                                                                                                               \
-        i64 my_int = (i);                                                                                              \
-        StrAppendFmt(&(j), "{}", my_int);                                                                              \
+        i64 UNPL(my_int) = (i);                                                                                        \
+        StrAppendFmt(&(j), "{}", UNPL(my_int));                                                                        \
     } while (0)
 
 ///
@@ -843,8 +845,8 @@ StrIter JSkipValue(StrIter si);
 ///
 #define JW_FLT(j, f)                                                                                                   \
     do {                                                                                                               \
-        f64 my_flt = (f);                                                                                              \
-        StrAppendFmt(&(j), "{}", my_flt);                                                                              \
+        f64 UNPL(my_flt) = (f);                                                                                        \
+        StrAppendFmt(&(j), "{}", UNPL(my_flt));                                                                        \
     } while (0)
 
 ///

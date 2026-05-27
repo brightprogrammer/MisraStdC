@@ -430,7 +430,7 @@ bool test_str_round_trip_conversions(void) {
         INT64_MIN + 1
     }; // Avoid INT64_MIN negation issue
 
-    for (size_t i = 0; i < sizeof(u64_values) / sizeof(u64_values[0]); i++) {
+    for (size i = 0; i < sizeof(u64_values) / sizeof(u64_values[0]); i++) {
         Str s = StrInit(&alloc);
 
         // Test decimal round-trip
@@ -451,7 +451,7 @@ bool test_str_round_trip_conversions(void) {
         StrDeinit(&s);
     }
 
-    for (size_t i = 0; i < sizeof(i64_values) / sizeof(i64_values[0]); i++) {
+    for (size i = 0; i < sizeof(i64_values) / sizeof(i64_values[0]); i++) {
         Str s = StrInit(&alloc);
 
         // Test decimal round-trip
@@ -467,7 +467,7 @@ bool test_str_round_trip_conversions(void) {
     // Test double round-trips with various precisions
     f64 f64_values[] = {0.0, 1.0, -1.0, 3.14159, -3.14159, 1e-10, 1e10, 123.456789};
 
-    for (size_t i = 0; i < sizeof(f64_values) / sizeof(f64_values[0]); i++) {
+    for (size i = 0; i < sizeof(f64_values) / sizeof(f64_values[0]); i++) {
         for (u8 precision = 1; precision <= 6; precision++) {
             Str s = StrInit(&alloc);
 
@@ -563,7 +563,7 @@ bool test_str_edge_case_conversions(void) {
         {  "1010",  10,  2}, // Explicit binary (no prefix)
     };
 
-    for (size_t i = 0; i < sizeof(prefix_tests) / sizeof(prefix_tests[0]); i++) {
+    for (size i = 0; i < sizeof(prefix_tests) / sizeof(prefix_tests[0]); i++) {
         Str            test_str = StrInitFromZstr(prefix_tests[i].input, &alloc);
         u64            value    = 0;
         StrParseConfig config   = {.base = prefix_tests[i].base};
@@ -596,7 +596,7 @@ bool test_str_precision_limits(void) {
         // String should have expected decimal places
         char *dot_pos = ZstrFindChar(StrBegin(&s), '.');
         if (dot_pos) {
-            size_t decimal_places = ZstrLen(dot_pos + 1);
+            size decimal_places = ZstrLen(dot_pos + 1);
             // Allow for trailing zeros being omitted in some cases
             result = result && (decimal_places <= precision);
         }
@@ -607,7 +607,7 @@ bool test_str_precision_limits(void) {
     // Test scientific notation thresholds
     f64 sci_values[] = {1e-5, 1e-4, 1e15, 1e16};
 
-    for (size_t i = 0; i < sizeof(sci_values) / sizeof(sci_values[0]); i++) {
+    for (size i = 0; i < sizeof(sci_values) / sizeof(sci_values[0]); i++) {
         Str s = StrInit(&alloc);
 
         // Force scientific notation
@@ -694,7 +694,7 @@ bool test_str_all_base_support(void) {
     // Test multiple values across all bases
     u64 test_values[] = {0, 1, 10, 100, 255, 1000, 65535};
 
-    for (size_t i = 0; i < sizeof(test_values) / sizeof(test_values[0]); i++) {
+    for (size i = 0; i < sizeof(test_values) / sizeof(test_values[0]); i++) {
         for (u8 base = 2; base <= 36; base++) {
             Str s = StrInit(&alloc);
 

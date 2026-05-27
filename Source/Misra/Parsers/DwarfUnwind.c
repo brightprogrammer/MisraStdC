@@ -22,6 +22,7 @@
 #include <Misra/Std.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
+#include <Misra/Std/Utility/StrIter.h>
 
 // ---------------------------------------------------------------------------
 // DW_EH_PE_* constants and encoded-pointer reader
@@ -192,7 +193,7 @@ static bool parse_cie(BufIter *body, u64 cie_offset, DwarfCie *out) {
     }
     out->version = version;
 
-    Zstr augmentation = BufReadCstr(body);
+    Zstr augmentation = BufReadZstr(body);
     if (!augmentation)
         return false;
 
@@ -239,8 +240,10 @@ static bool parse_cie(BufIter *body, u64 cie_offset, DwarfCie *out) {
             return false;
         size aug_end_pos = body->pos + aug_len;
 
-        for (Zstr a = augmentation + 1; *a; ++a) {
-            switch (*a) {
+        StrIter aug_it = StrIterFromZstr(augmentation + 1);
+        char    a;
+        while (StrIterRead(&aug_it, &a)) {
+            switch (a) {
                 case 'L' : {
                     u8 lsda_enc = 0;
                     if (!BufReadU8(body, &lsda_enc))
@@ -424,9 +427,9 @@ bool dwarf_cfi_build_from_elf(DwarfCfi *out, const Elf *elf, Allocator *alloc) {
 const DwarfCie *DwarfCfiFindCie(const DwarfCfi *self, u64 cie_offset) {
     if (!self)
         return NULL;
-    for (u64 i = 0; i < self->cies.length; ++i) {
-        if (self->cies.data[i].offset == cie_offset) {
-            return &self->cies.data[i];
+    for (u64 i = 0; i < VecLen(&self->cies); ++i) {
+        if (VecPtrAt(&self->cies, i)->offset == cie_offset) {
+            return VecPtrAt(&self->cies, i);
         }
     }
     return NULL;
@@ -436,8 +439,8 @@ const DwarfFde *DwarfCfiFindFde(const DwarfCfi *self, u64 vaddr) {
     if (!self)
         return NULL;
     // Linear scan -- fine up to a few thousand FDEs.
-    for (u64 i = 0; i < self->fdes.length; ++i) {
-        const DwarfFde *f = &self->fdes.data[i];
+    for (u64 i = 0; i < VecLen(&self->fdes); ++i) {
+        const DwarfFde *f = VecPtrAt(&self->fdes, i);
         if (vaddr >= f->pc_begin && vaddr < f->pc_begin + f->pc_range) {
             return f;
         }

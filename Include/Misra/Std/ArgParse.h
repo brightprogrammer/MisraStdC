@@ -153,11 +153,18 @@ extern "C" {
 
 #define ArgParseInit(...)                      MISRA_OVERLOAD(ArgParseInit, __VA_ARGS__)
 #define ArgParseInit_2(name, about)            arg_parse_init((name), (about), MisraScope)
-#define ArgParseInit_3(name, about, alloc_ptr) arg_parse_init((name), (about), (alloc_ptr))
+#define ArgParseInit_3(name, about, alloc_ptr) arg_parse_init((name), (about), ALLOCATOR_OF(alloc_ptr))
 
     ///
     /// Release the spec Vec. Safe on a fully-initialised parser; not
     /// safe on a zero-initialised one.
+    ///
+    /// SUCCESS : Returns to the caller; the spec Vec backing `*self`
+    ///           is freed through its allocator. The rest of `*self`
+    ///           is left as-is and must not be used.
+    /// FAILURE : Function cannot fail. NULL `self` is a no-op.
+    ///
+    /// TAGS: ArgParse, Deinit, Lifecycle
     ///
     void ArgParseDeinit(ArgParse *self);
 
@@ -180,6 +187,19 @@ extern "C" {
     /// after `_Generic` dispatch has tagged the target. Public so the
     /// macros can resolve it from caller TUs; not intended for direct
     /// use.
+    ///
+    /// SUCCESS : Returns to the caller; an `ArgSpec` is appended to
+    ///           `self->specs` recording the role, names, help text,
+    ///           target kind, and target pointer.
+    /// FAILURE : Aborts via `LOG_FATAL` when `self` is NULL, when
+    ///           `target.kind` is `ARG_KIND_INVALID`, when the role
+    ///           is incompatible with the target type (flag without a
+    ///           `bool *`, count without an unsigned-int pointer),
+    ///           when a positional is missing its `long_name`, or
+    ///           when an option has neither `short_name` nor
+    ///           `long_name`.
+    ///
+    /// TAGS: ArgParse, Register, Internal
     ///
     void arg_register(
         ArgParse   *self,
@@ -235,6 +255,14 @@ extern "C" {
     ///   Zstr listen = NULL;
     ///   ArgRequired(&p, "-l", "--listen", &listen, "host:port to listen on");
     ///
+    /// SUCCESS : Appends an `ARG_ROLE_REQUIRED` spec to the parser; the
+    ///           target is recorded for later population by `ArgParseRun`.
+    /// FAILURE : `LOG_FATAL` if `parser` is NULL, if `target` resolves to
+    ///           an unsupported type (`ARG_KIND_INVALID`), or if both
+    ///           `short_` and `long_` are NULL.
+    ///
+    /// TAGS: ArgParse, Register, Required, Option, CLI
+    ///
 #define ArgRequired(parser, short_, long_, target, help_)                                                              \
     arg_register((parser), ARG_ROLE_REQUIRED, (short_), (long_), (help_), ARG_TARGET(target))
 
@@ -247,6 +275,15 @@ extern "C" {
     ///   u32 timeout = 30;
     ///   ArgOptional(&p, NULL, "--timeout", &timeout, "connection timeout in seconds");
     ///
+    /// SUCCESS : Appends an `ARG_ROLE_OPTIONAL` spec to the parser; the
+    ///           target is overwritten only if the option appears on the
+    ///           command line.
+    /// FAILURE : `LOG_FATAL` if `parser` is NULL, if `target` resolves to
+    ///           an unsupported type (`ARG_KIND_INVALID`), or if both
+    ///           `short_` and `long_` are NULL.
+    ///
+    /// TAGS: ArgParse, Register, Optional, Option, CLI
+    ///
 #define ArgOptional(parser, short_, long_, target, help_)                                                              \
     arg_register((parser), ARG_ROLE_OPTIONAL, (short_), (long_), (help_), ARG_TARGET(target))
 
@@ -257,6 +294,13 @@ extern "C" {
     /// USAGE:
     ///   bool verbose = false;
     ///   ArgFlag(&p, "-v", "--verbose", &verbose, "verbose logging");
+    ///
+    /// SUCCESS : Appends an `ARG_ROLE_FLAG` spec; the `bool` target is
+    ///           set to `true` only if the option appears.
+    /// FAILURE : `LOG_FATAL` if `parser` is NULL, if `target` is not a
+    ///           `bool *`, or if both `short_` and `long_` are NULL.
+    ///
+    /// TAGS: ArgParse, Register, Flag, Bool, CLI
     ///
 #define ArgFlag(parser, short_, long_, target, help_)                                                                  \
     arg_register((parser), ARG_ROLE_FLAG, (short_), (long_), (help_), ARG_TARGET(target))
@@ -269,6 +313,14 @@ extern "C" {
     /// USAGE:
     ///   u32 verbose = 0;
     ///   ArgCount(&p, "-v", "--verbose", &verbose, "verbose logging (repeatable)");
+    ///
+    /// SUCCESS : Appends an `ARG_ROLE_COUNT` spec; the unsigned target
+    ///           is incremented once per occurrence at parse time.
+    /// FAILURE : `LOG_FATAL` if `parser` is NULL, if `target` is not one
+    ///           of `u8 *` / `u16 *` / `u32 *` / `u64 *`, or if both
+    ///           `short_` and `long_` are NULL.
+    ///
+    /// TAGS: ArgParse, Register, Count, Repeatable, CLI
     ///
 #define ArgCount(parser, short_, long_, target, help_)                                                                 \
     arg_register((parser), ARG_ROLE_COUNT, (short_), (long_), (help_), ARG_TARGET(target))
@@ -284,6 +336,15 @@ extern "C" {
     /// USAGE:
     ///   Zstr hostname = NULL;
     ///   ArgPositional(&p, "hostname", &hostname, "name to resolve");
+    ///
+    /// SUCCESS : Appends an `ARG_ROLE_POSITIONAL` spec; the target is
+    ///           populated from the next unused positional slot when
+    ///           `ArgParseRun` succeeds.
+    /// FAILURE : `LOG_FATAL` if `parser` is NULL, if `name` is NULL, or
+    ///           if `target` resolves to an unsupported type
+    ///           (`ARG_KIND_INVALID`).
+    ///
+    /// TAGS: ArgParse, Register, Positional, CLI
     ///
 #define ArgPositional(parser, name, target, help_)                                                                     \
     arg_register((parser), ARG_ROLE_POSITIONAL, NULL, (name), (help_), ARG_TARGET(target))

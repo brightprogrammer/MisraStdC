@@ -34,6 +34,13 @@ extern "C" {
     /// True iff `x` is a NaN. Uses the compiler builtin where available;
     /// otherwise the IEEE 754 `(x != x)` identity (NaN is the only
     /// value not equal to itself).
+    ///
+    /// SUCCESS : Returns `true` if `x` is a NaN, `false` otherwise.
+    ///           Pure inspection -- never fails and never mutates state.
+    /// FAILURE : None. The function has no failure mode.
+    ///
+    /// TAGS: Math, Float, Classify, NaN
+    ///
     static inline bool F64IsNan(f64 x) {
 #if defined(__GNUC__) || defined(__clang__)
         return (bool)__builtin_isnan(x);
@@ -42,6 +49,15 @@ extern "C" {
 #endif
     }
 
+    /// True iff `x` is a NaN (f32 variant). Same semantics as
+    /// `F64IsNan`, applied to a single-precision value.
+    ///
+    /// SUCCESS : Returns `true` if `x` is a NaN, `false` otherwise.
+    ///           Pure inspection -- never fails and never mutates state.
+    /// FAILURE : None. The function has no failure mode.
+    ///
+    /// TAGS: Math, Float, Classify, NaN
+    ///
     static inline bool F32IsNan(f32 x) {
 #if defined(__GNUC__) || defined(__clang__)
         return (bool)__builtin_isnan(x);
@@ -51,6 +67,14 @@ extern "C" {
     }
 
     /// True iff `x` is `+inf` or `-inf`.
+    ///
+    /// SUCCESS : Returns `true` if `x` is `+inf` or `-inf`, `false`
+    ///           otherwise (including for NaN and finite values).
+    ///           Pure inspection -- never fails and never mutates state.
+    /// FAILURE : None. The function has no failure mode.
+    ///
+    /// TAGS: Math, Float, Classify, Infinity
+    ///
     static inline bool F64IsInf(f64 x) {
 #if defined(__GNUC__) || defined(__clang__)
         return (bool)__builtin_isinf(x);
@@ -59,6 +83,16 @@ extern "C" {
 #endif
     }
 
+    /// True iff `x` is `+inf` or `-inf` (f32 variant). Same semantics
+    /// as `F64IsInf`, applied to a single-precision value.
+    ///
+    /// SUCCESS : Returns `true` if `x` is `+inf` or `-inf`, `false`
+    ///           otherwise (including for NaN and finite values).
+    ///           Pure inspection -- never fails and never mutates state.
+    /// FAILURE : None. The function has no failure mode.
+    ///
+    /// TAGS: Math, Float, Classify, Infinity
+    ///
     static inline bool F32IsInf(f32 x) {
 #if defined(__GNUC__) || defined(__clang__)
         return (bool)__builtin_isinf(x);
@@ -68,10 +102,26 @@ extern "C" {
     }
 
     /// Absolute value. Plain arithmetic; no libm call.
+    ///
+    /// SUCCESS : Returns `|x|` -- `x` if non-negative, `-x` otherwise.
+    ///           Pure arithmetic -- never fails and never mutates state.
+    /// FAILURE : None. The function has no failure mode.
+    ///
+    /// TAGS: Math, Float, Abs
+    ///
     static inline f64 F64Abs(f64 x) {
         return x < 0.0 ? -x : x;
     }
 
+    /// Absolute value (f32 variant). Same semantics as `F64Abs`,
+    /// applied to a single-precision value.
+    ///
+    /// SUCCESS : Returns `|x|` -- `x` if non-negative, `-x` otherwise.
+    ///           Pure arithmetic -- never fails and never mutates state.
+    /// FAILURE : None. The function has no failure mode.
+    ///
+    /// TAGS: Math, Float, Abs
+    ///
     static inline f32 F32Abs(f32 x) {
         return x < 0.0f ? -x : x;
     }
@@ -82,6 +132,23 @@ extern "C" {
     ///
     /// F64Pow(2.0, 10) == 1024.0
     /// F64Pow(10.0, -3) == 0.001
+    ///
+    /// SUCCESS : Returns `base` raised to `exp`. Negative exponents
+    ///           produce the reciprocal of the positive-exponent
+    ///           result. Pure arithmetic; no allocation.
+    /// FAILURE : No explicit failure return. IEEE 754 edge cases
+    ///           propagate through the underlying floating-point ops:
+    ///           a sufficiently large positive `exp` overflows to
+    ///           `+inf` (or `-inf` if `base` is negative); a negative
+    ///           `exp` whose positive-exponent result overflows to
+    ///           `+/-inf` yields `+/-0.0` after the reciprocal step;
+    ///           `0` raised to a negative `exp` yields `+inf`; `NaN`
+    ///           inputs propagate to a `NaN` return. Callers that
+    ///           care should classify the result with `F64IsInf` /
+    ///           `F64IsNan`.
+    ///
+    /// TAGS: Math, Float, Pow
+    ///
     static inline f64 F64Pow(f64 base, i32 exp) {
         f64  result = 1.0;
         bool neg    = exp < 0;
@@ -100,6 +167,15 @@ extern "C" {
     /// Used by parsers to validate `offset + size` style arithmetic
     /// over attacker-controlled u64 fields, where the older
     /// "if (a + b > bound)" idiom wraps and silently passes.
+    ///
+    /// SUCCESS : Returns `true`; `*out` holds the exact sum `a + b`
+    ///           because the mathematical result fits in 64 bits.
+    /// FAILURE : Returns `false` when the sum would overflow u64;
+    ///           `*out` holds the wrapped (mod 2^64) value and must
+    ///           be treated as garbage by callers.
+    ///
+    /// TAGS: Math, Overflow, Checked, Arithmetic
+    ///
     static inline bool AddOverflow64(u64 a, u64 b, u64 *out) {
 #if defined(__GNUC__) || defined(__clang__)
         return !__builtin_add_overflow(a, b, out);
@@ -110,6 +186,15 @@ extern "C" {
     }
 
     /// Checked-multiply for u64. Same shape as AddOverflow64.
+    ///
+    /// SUCCESS : Returns `true`; `*out` holds the exact product `a * b`
+    ///           because the mathematical result fits in 64 bits.
+    /// FAILURE : Returns `false` when the product would overflow u64;
+    ///           `*out` holds the wrapped (mod 2^64) value and must
+    ///           be treated as garbage by callers.
+    ///
+    /// TAGS: Math, Overflow, Checked, Arithmetic
+    ///
     static inline bool MulOverflow64(u64 a, u64 b, u64 *out) {
 #if defined(__GNUC__) || defined(__clang__)
         return !__builtin_mul_overflow(a, b, out);

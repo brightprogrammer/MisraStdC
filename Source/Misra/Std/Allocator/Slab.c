@@ -297,7 +297,7 @@ void *slab_allocator_allocate(Allocator *self, size bytes, i8 zeroed) {
             u32 bit         = CTZ64(inv);
             bm[w]          |= ((u64)1 << bit);
             u32   slot_idx  = w * 64u + bit;
-            void *slot      = (char *)slab->slabs[i] + ((size)slot_idx << slab->slot_size_shift);
+            void *slot      = (u8 *)slab->slabs[i] + ((size)slot_idx << slab->slot_size_shift);
             if (zeroed) {
                 MemSet(slot, 0, slab->slot_size);
             }

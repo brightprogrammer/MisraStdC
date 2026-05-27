@@ -32,7 +32,7 @@ bool test_bitvec_init(void) {
     bool result = (BitVecLen(&bv) == 0);
     result      = result && (BitVecCapacity(&bv) == 0);
     result      = result && (BitVecData(&bv) == NULL);
-    result      = result && (bv.byte_size == 0);
+    result      = result && (BitVecByteSize(&bv) == 0);
 
     // Clean up
     BitVecDeinit(&bv);
@@ -67,7 +67,7 @@ bool test_bitvec_deinit(void) {
     result = result && (BitVecLen(&bv) == 0);
     result = result && (BitVecCapacity(&bv) == 0);
     result = result && (BitVecData(&bv) == NULL);
-    result = result && (bv.byte_size == 0);
+    result = result && (BitVecByteSize(&bv) == 0);
 
     DefaultAllocatorDeinit(&alloc);
 

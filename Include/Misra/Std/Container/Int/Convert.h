@@ -37,6 +37,10 @@ extern "C" {
 /// value[in] : Signed or unsigned integer source value
 ///
 /// SUCCESS : Returns Integer holding the same non-negative value.
+/// FAILURE : `LOG_FATAL` when a signed `value` is negative (the
+///           non-negative `IntFrom` contract is violated). Allocator
+///           failures on the underlying construction abort through
+///           the allocator's standard failure path.
 ///
 /// WARN: Aborts when a signed input is negative.
 ///
@@ -59,6 +63,8 @@ extern "C" {
     /// FAILURE : Returns `false` when the value does not fit in 64 bits. The destination is left
     ///           untouched.
     ///
+    /// TAGS: Int, Convert, U64
+    ///
     bool IntTryToU64(Int *value, u64 *out);
 
     ///
@@ -68,11 +74,30 @@ extern "C" {
     /// error[out] : Optional pointer set to `true` on failure and `false` on success
     ///
     /// SUCCESS : Returns The numeric value as `u64`, or `0` on failure.
+    /// FAILURE : Returns `0` when the value exceeds 64 bits. `*error` (if
+    ///           non-NULL) is set to `true`.
+    ///
+    /// TAGS: Int, Convert, U64
     ///
     u64 IntToU64WithError(Int *value, bool *error);
 
     ///
     /// Create an integer from little-endian bytes.
+    ///
+    /// bytes[in] : Source byte buffer holding the magnitude in
+    ///             little-endian order (least significant byte first).
+    ///             May be `NULL` when `len == 0`.
+    /// len[in]   : Number of bytes to read from `bytes`.
+    /// alloc[in] : Allocator to bind to the returned integer.
+    ///
+    /// SUCCESS : Returns a normalised `Int` holding the unsigned
+    ///           magnitude packed in `bytes`. `bytes` is not modified.
+    /// FAILURE : Returns a zero-initialised `Int` bound to `alloc` when
+    ///           the underlying bit-vector allocation fails. The caller
+    ///           cannot distinguish that from a true zero result.
+    ///           `LOG_FATAL` when `bytes` is `NULL` and `len != 0`.
+    ///
+    /// TAGS: Int, Convert, Bytes, LE
     ///
     Int int_from_bytes_le(const u8 *bytes, u64 len, Allocator *alloc);
 #define IntFromBytesLE(...)                 MISRA_OVERLOAD(IntFromBytesLE, __VA_ARGS__)
@@ -82,10 +107,41 @@ extern "C" {
     ///
     /// Export an integer into little-endian bytes.
     ///
+    /// value[in]   : Integer to export.
+    /// bytes[out]  : Destination byte buffer. Must be non-NULL and at
+    ///               least `max_len` bytes long.
+    /// max_len[in] : Maximum bytes to write. Must be non-zero.
+    ///
+    /// SUCCESS : Returns the number of bytes written, which is
+    ///           `min(IntByteLength(value), max_len)`. The first byte
+    ///           written holds the least significant 8 bits.
+    ///           `value` is not modified.
+    /// FAILURE : Returns `0` when `value` has zero bytes of
+    ///           magnitude. `LOG_FATAL` when `bytes` is `NULL` or
+    ///           `max_len` is `0`.
+    ///
+    /// TAGS: Int, Convert, Bytes, LE
+    ///
     u64 IntToBytesLE(Int *value, u8 *bytes, u64 max_len);
 
     ///
     /// Create an integer from big-endian bytes.
+    ///
+    /// bytes[in] : Source byte buffer holding the magnitude in
+    ///             big-endian order (most significant byte first).
+    ///             May be `NULL` when `len == 0`.
+    /// len[in]   : Number of bytes to read from `bytes`.
+    /// alloc[in] : Allocator to bind to the returned integer.
+    ///
+    /// SUCCESS : Returns a normalised `Int` holding the unsigned
+    ///           magnitude packed in `bytes`. `bytes` is not modified.
+    /// FAILURE : Returns a zero-initialised `Int` bound to `alloc` when
+    ///           an intermediate shift or add allocation fails. The
+    ///           caller cannot distinguish that from a true zero
+    ///           result. `LOG_FATAL` when `bytes` is `NULL` and
+    ///           `len != 0`.
+    ///
+    /// TAGS: Int, Convert, Bytes, BE
     ///
     Int int_from_bytes_be(const u8 *bytes, u64 len, Allocator *alloc);
 #define IntFromBytesBE(...)                 MISRA_OVERLOAD(IntFromBytesBE, __VA_ARGS__)
@@ -94,6 +150,21 @@ extern "C" {
 
     ///
     /// Export an integer into big-endian bytes.
+    ///
+    /// value[in]   : Integer to export.
+    /// bytes[out]  : Destination byte buffer. Must be non-NULL and at
+    ///               least `max_len` bytes long.
+    /// max_len[in] : Maximum bytes to write. Must be non-zero.
+    ///
+    /// SUCCESS : Returns the number of bytes written, which is
+    ///           `min(IntByteLength(value), max_len)`. The first byte
+    ///           written holds the most significant 8 bits.
+    ///           `value` is not modified.
+    /// FAILURE : Returns `0` when `value` has zero bytes of
+    ///           magnitude. `LOG_FATAL` when `bytes` is `NULL` or
+    ///           `max_len` is `0`.
+    ///
+    /// TAGS: Int, Convert, Bytes, BE
     ///
     u64 IntToBytesBE(Int *value, u8 *bytes, u64 max_len);
 
@@ -131,6 +202,12 @@ extern "C" {
     /// Compatibility wrapper for `IntTryFromStrRadix(...)`.
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
+    /// FAILURE : Returns a zero-initialised `Int` on an invalid radix, an
+    ///           invalid digit, an empty digit run, or an allocation
+    ///           failure. Use `IntTryFromStrRadix(...)` when explicit
+    ///           failure propagation is required.
+    ///
+    /// TAGS: Int, Convert, Radix, String
     ///
     Int int_from_str_radix_zstr(Zstr digits, u8 radix, Allocator *alloc);
     Int int_from_str_radix_str(const Str *digits, u8 radix, Allocator *alloc);
@@ -157,7 +234,12 @@ extern "C" {
     /// uppercase[in] : Use uppercase letters for digits above `9`.
     /// alloc[in]     : Allocator to bind to the produced string.
     ///
-    /// SUCCESS : Returns `true` on success, `false` on allocation or validation failure.
+    /// SUCCESS : Returns `true`; `*out` holds the textual form of
+    ///           `value` in base `radix` (letters uppercased when
+    ///           `uppercase` is `true`).
+    /// FAILURE : Returns `false` when `radix` is outside `2..36` or
+    ///           when an intermediate allocation fails. `*out` is left
+    ///           initialised as an empty `Str` bound to `alloc`.
     ///
     /// TAGS: Int, Convert, String, Radix, Allocator
     ///
@@ -195,6 +277,12 @@ extern "C" {
     /// Compatibility wrapper for `IntTryFromStr(...)`.
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
+    /// FAILURE : Returns a zero-initialised `Int` on a non-decimal
+    ///           character, an empty digit run, or an allocation failure.
+    ///           Use `IntTryFromStr(...)` when explicit failure
+    ///           propagation is required.
+    ///
+    /// TAGS: Int, Convert, String
     ///
     Int int_from_str_zstr(Zstr decimal, Allocator *alloc);
     Int int_from_str_str(const Str *decimal, Allocator *alloc);
@@ -217,7 +305,12 @@ extern "C" {
     /// value[in] : Integer to convert.
     /// alloc[in] : Allocator to bind to the produced string.
     ///
-    /// SUCCESS : Returns `true` on success, `false` on allocation failure.
+    /// SUCCESS : Returns `true`; `*out` holds the base-10 textual form
+    ///           of `value` (leading `-` when negative, `"0"` for
+    ///           zero).
+    /// FAILURE : Returns `false` on allocation failure during the
+    ///           radix conversion. `*out` is left initialised as an
+    ///           empty `Str` bound to `alloc`.
     ///
     /// TAGS: Int, Convert, String, Decimal, Allocator
     ///
@@ -255,6 +348,12 @@ extern "C" {
     /// Compatibility wrapper for `IntTryFromBinary(...)`.
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
+    /// FAILURE : Returns a zero-initialised `Int` on a non-binary
+    ///           character, an empty digit run, or an allocation failure.
+    ///           Use `IntTryFromBinary(...)` when explicit failure
+    ///           propagation is required.
+    ///
+    /// TAGS: Int, Convert, Binary
     ///
     Int int_from_binary_zstr(Zstr binary, Allocator *alloc);
     Int int_from_binary_str(const Str *binary, Allocator *alloc);
@@ -272,6 +371,20 @@ extern "C" {
 
     ///
     /// Convert an integer to a binary string.
+    ///
+    /// value[in] : Integer to convert.
+    ///
+    /// SUCCESS : Returns a `Str` holding the base-2 textual form of
+    ///           `value`, bound to `value`'s allocator. `value` is not
+    ///           modified.
+    /// FAILURE : Returns an empty `Str` bound to `value`'s allocator
+    ///           when the underlying `IntToStrRadix` fails
+    ///           (intermediate allocation failure). The caller cannot
+    ///           distinguish that from a true empty result; use
+    ///           `IntTryToStrRadix` directly when failure detection is
+    ///           required.
+    ///
+    /// TAGS: Int, Convert, Binary
     ///
     Str IntToBinary(Int *value);
 
@@ -306,6 +419,12 @@ extern "C" {
     /// Compatibility wrapper for `IntTryFromOctStr(...)`.
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
+    /// FAILURE : Returns a zero-initialised `Int` on a non-octal
+    ///           character, an empty digit run, or an allocation failure.
+    ///           Use `IntTryFromOctStr(...)` when explicit failure
+    ///           propagation is required.
+    ///
+    /// TAGS: Int, Convert, Oct
     ///
     Int int_from_oct_str_zstr(Zstr octal, Allocator *alloc);
     Int int_from_oct_str_str(const Str *octal, Allocator *alloc);
@@ -323,6 +442,20 @@ extern "C" {
 
     ///
     /// Convert an integer to an octal string.
+    ///
+    /// value[in] : Integer to convert.
+    ///
+    /// SUCCESS : Returns a `Str` holding the base-8 textual form of
+    ///           `value`, bound to `value`'s allocator. `value` is not
+    ///           modified.
+    /// FAILURE : Returns an empty `Str` bound to `value`'s allocator
+    ///           when the underlying `IntToStrRadix` fails
+    ///           (intermediate allocation failure). The caller cannot
+    ///           distinguish that from a true empty result; use
+    ///           `IntTryToStrRadix` directly when failure detection is
+    ///           required.
+    ///
+    /// TAGS: Int, Convert, Oct
     ///
     Str IntToOctStr(Int *value);
 
@@ -359,6 +492,12 @@ extern "C" {
     /// Compatibility wrapper for `IntTryFromHexStr(...)`.
     ///
     /// SUCCESS : Returns Parsed integer value, or zero on failure.
+    /// FAILURE : Returns a zero-initialised `Int` on a non-hex character
+    ///           (including underscore or a `0x` prefix), an empty digit
+    ///           run, or an allocation failure. Use `IntTryFromHexStr(...)`
+    ///           when explicit failure propagation is required.
+    ///
+    /// TAGS: Int, Convert, Hex
     ///
     Int int_from_hex_str_zstr(Zstr hex, Allocator *alloc);
     Int int_from_hex_str_str(const Str *hex, Allocator *alloc);
@@ -376,6 +515,20 @@ extern "C" {
 
     ///
     /// Convert an integer to a hexadecimal string.
+    ///
+    /// value[in] : Integer to convert.
+    ///
+    /// SUCCESS : Returns a `Str` holding the base-16 textual form of
+    ///           `value` with lowercase letters, bound to `value`'s
+    ///           allocator. `value` is not modified.
+    /// FAILURE : Returns an empty `Str` bound to `value`'s allocator
+    ///           when the underlying `IntToStrRadix` fails
+    ///           (intermediate allocation failure). The caller cannot
+    ///           distinguish that from a true empty result; use
+    ///           `IntTryToStrRadix` directly when failure detection is
+    ///           required.
+    ///
+    /// TAGS: Int, Convert, Hex
     ///
     Str IntToHexStr(Int *value);
 
@@ -420,6 +573,13 @@ static inline u64 int_to_u64_no_error(Int *value) {
 /// - `IntTryToStr(out, value)`        - uses `value`'s allocator.
 /// - `IntTryToStr(out, value, alloc)` - uses the explicit allocator.
 ///
+/// SUCCESS : Returns `true`; `*out` holds the base-10 textual form of
+///           `value` (leading `-` when negative, `"0"` for zero).
+/// FAILURE : Returns `false` when an intermediate allocation fails;
+///           `*out` is left initialized as an empty `Str` on `alloc`.
+///
+/// TAGS: Int, Convert, String
+///
 #define IntTryToStr(...)                 MISRA_OVERLOAD(IntTryToStr, __VA_ARGS__)
 #define IntTryToStr_2(out, value)        int_try_to_str((out), (value), (value)->bits.allocator)
 #define IntTryToStr_3(out, value, alloc) int_try_to_str((out), (value), (alloc))
@@ -429,6 +589,16 @@ static inline u64 int_to_u64_no_error(Int *value) {
 ///
 /// - `IntToStr(value)`        - uses `value`'s allocator.
 /// - `IntToStr(value, alloc)` - uses the explicit allocator.
+///
+/// SUCCESS : Returns a `Str` holding the base-10 textual form of
+///           `value`.
+/// FAILURE : Returns an empty `Str` bound to `alloc` when the
+///           underlying `IntTryToStr` fails (intermediate allocation
+///           failure); the caller cannot distinguish that from a true
+///           empty result, so callers that need to detect failure
+///           should use `IntTryToStr` directly.
+///
+/// TAGS: Int, Convert, String
 ///
 #define IntToStr(...)            MISRA_OVERLOAD(IntToStr, __VA_ARGS__)
 #define IntToStr_1(value)        int_to_str((value), (value)->bits.allocator)
@@ -443,6 +613,15 @@ static inline u64 int_to_u64_no_error(Int *value) {
 /// - `IntTryToStrRadix(out, value, radix, uppercase, alloc)`
 ///       uses the explicit allocator.
 ///
+/// SUCCESS : Returns `true`; `*out` holds the textual form of `value`
+///           in base `radix`. Letters are uppercase when `uppercase`
+///           is `true`, lowercase otherwise.
+/// FAILURE : Returns `false` when `radix` is outside the supported
+///           range or when an intermediate allocation fails; `*out` is
+///           left initialized as an empty `Str` on `alloc`.
+///
+/// TAGS: Int, Convert, Radix, String
+///
 #define IntTryToStrRadix(...) MISRA_OVERLOAD(IntTryToStrRadix, __VA_ARGS__)
 #define IntTryToStrRadix_4(out, value, radix, uppercase)                                                               \
     int_try_to_str_radix((out), (value), (radix), (uppercase), (value)->bits.allocator)
@@ -455,6 +634,17 @@ static inline u64 int_to_u64_no_error(Int *value) {
 ///
 /// - `IntToStrRadix(value, radix, uppercase)`        - `value`'s allocator.
 /// - `IntToStrRadix(value, radix, uppercase, alloc)` - explicit allocator.
+///
+/// SUCCESS : Returns a `Str` holding the textual form of `value` in
+///           base `radix`.
+/// FAILURE : Returns an empty `Str` bound to `alloc` when the
+///           underlying `IntTryToStrRadix` fails (unsupported radix
+///           or intermediate allocation failure); the caller cannot
+///           distinguish that from a true empty result, so callers
+///           that need to detect failure should use `IntTryToStrRadix`
+///           directly.
+///
+/// TAGS: Int, Convert, Radix, String
 ///
 #define IntToStrRadix(...) MISRA_OVERLOAD(IntToStrRadix, __VA_ARGS__)
 #define IntToStrRadix_3(value, radix, uppercase)                                                                       \

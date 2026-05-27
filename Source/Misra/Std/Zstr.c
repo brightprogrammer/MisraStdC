@@ -31,6 +31,49 @@ i32 ZstrCompare(Zstr s1, Zstr s2) {
     return *(const u8 *)s1 - *(const u8 *)s2;
 }
 
+// FNV-1a over the bytes of the NUL-terminated string. `ignored_size`
+// is the generic-callback shape (sizeof the Zstr slot, = sizeof(Zstr));
+// the real length is walked here until the NUL.
+u64 zstr_hash(const Zstr *key, u32 ignored_size) {
+    Zstr                 s    = NULL;
+    const unsigned char *ptr  = NULL;
+    u64                  hash = 1469598103934665603ULL;
+
+    (void)ignored_size;
+
+    if (!key || !*key) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    s   = *key;
+    ptr = (const unsigned char *)s;
+    while (*ptr) {
+        hash ^= (u64)(*ptr++);
+        hash *= 1099511628211ULL;
+    }
+
+    return hash;
+}
+
+i32 zstr_compare(const Zstr *a, const Zstr *b, u32 ignored_size) {
+    i32 cmp = 0;
+
+    (void)ignored_size;
+
+    if (!a || !b || !*a || !*b) {
+        LOG_FATAL("Invalid arguments");
+    }
+
+    cmp = ZstrCompare(*a, *b);
+    if (cmp < 0) {
+        return -1;
+    }
+    if (cmp > 0) {
+        return 1;
+    }
+    return 0;
+}
+
 i32 ZstrCompareN(Zstr s1, Zstr s2, size n) {
     if (!s1 || !s2) {
         LOG_FATAL("Invalid arguments");

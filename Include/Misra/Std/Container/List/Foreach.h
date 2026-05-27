@@ -21,6 +21,13 @@
 ///            current element during iteration. The type of var will be the
 ///            data type of the list elements (obtained via LIST_DATA_TYPE(l)).
 ///
+/// SUCCESS : The loop body runs once for each node from head to tail
+///           with `var` bound to a copy of that node's data. The body
+///           is skipped when `l` is empty. The list is not modified by
+///           the macro itself.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateList(l)` when `l` is uninitialised or corrupted.
+///
 /// TAGS: Foreach, List, Iteration, Loop
 ///
 #define ListForeach(l, var)                                                                                                      \
@@ -47,6 +54,13 @@
 /// var[out]  : Name of the pointer variable to be used which will point to the
 ///             current element during iteration. The type of var will be a pointer
 ///             to the data type of the list elements (i.e., LIST_DATA_TYPE(l) *).
+///
+/// SUCCESS : The loop body runs once for each node from head to tail
+///           with `var` bound to the in-node data address. Use this
+///           form when the body mutates elements in place. The body is
+///           skipped when `l` is empty.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateList(l)` when `l` is uninitialised or corrupted.
 ///
 /// TAGS: Foreach, List, Iteration, Loop, Pointer
 ///
@@ -75,6 +89,12 @@
 ///            current element during iteration. The type of var will be the
 ///            data type of the list elements (obtained via LIST_DATA_TYPE(l)).
 ///
+/// SUCCESS : The loop body runs once for each node from tail to head
+///           with `var` bound to a copy of that node's data. The body
+///           is skipped when `l` is empty.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateList(l)` when `l` is uninitialised or corrupted.
+///
 /// TAGS: Foreach, List, Iteration, Loop, Reverse
 ///
 #define ListForeachReverse(l, var)                                                                                               \
@@ -101,6 +121,13 @@
 /// var[out]  : Name of the pointer variable to be used which will point to the
 ///             current element during iteration. The type of var will be a pointer
 ///             to the data type of the list elements (i.e., LIST_DATA_TYPE(l) *).
+///
+/// SUCCESS : The loop body runs once for each node from tail to head
+///           with `var` bound to the in-node data address. Use this
+///           form when the body mutates elements in place. The body is
+///           skipped when `l` is empty.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateList(l)` when `l` is uninitialised or corrupted.
 ///
 /// TAGS: Foreach, List, Iteration, Loop, Reverse, Pointer
 ///
@@ -132,6 +159,13 @@
 /// start[in] : Starting index (inclusive).
 /// end[in]   : Ending index (exclusive).
 ///
+/// SUCCESS : The loop body runs once for each node whose head-relative
+///           index lies in `[start, end)`, with `var` bound to a copy
+///           of that node's data. The body is skipped when the range
+///           is empty or `l` is empty.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateList(l)` when `l` is uninitialised or corrupted.
+///
 /// TAGS: Foreach, List, Iteration, Loop, Range
 ///
 #define ListForeachInRange(l, var, start, end)                                                                                           \
@@ -158,6 +192,14 @@
 ///             current element during iteration.
 /// start[in] : Starting index (inclusive).
 /// end[in]   : Ending index (exclusive).
+///
+/// SUCCESS : The loop body runs once for each node whose head-relative
+///           index lies in `[start, end)`, with `var` bound to the
+///           in-node data address. Use this form when the body mutates
+///           elements in place. The body is skipped when the range or
+///           `l` is empty.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateList(l)` when `l` is uninitialised or corrupted.
 ///
 /// TAGS: Foreach, List, Iteration, Loop, Range, Pointer
 ///
@@ -188,6 +230,13 @@
 /// start[in]     : Starting index from tail (inclusive).
 /// end[in]       : Ending index from tail (exclusive).
 ///
+/// SUCCESS : The loop body runs once for each node whose tail-relative
+///           index lies in `[start, end)` while walking tail-to-head,
+///           with `var` bound to a copy of that node's data. The body
+///           is skipped when the range is empty or `l` is empty.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateList(l)` when `l` is uninitialised or corrupted.
+///
 /// TAGS: Foreach, List, Iteration, Loop, Reverse, Range
 ///
 #define ListForeachReverseInRange(l, var, start, end)                                                                                    \
@@ -217,6 +266,14 @@
 ///             current element during iteration.
 /// start[in] : Starting index from tail (inclusive).
 /// end[in]   : Ending index from tail (exclusive).
+///
+/// SUCCESS : The loop body runs once for each node whose tail-relative
+///           index lies in `[start, end)` while walking tail-to-head,
+///           with `var` bound to the in-node data address. Use this
+///           form when the body mutates elements in place. The body is
+///           skipped when the range or `l` is empty.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateList(l)` when `l` is uninitialised or corrupted.
 ///
 /// TAGS: Foreach, List, Iteration, Loop, Reverse, Range, Pointer
 ///
@@ -249,6 +306,15 @@
 /// l[in]     : List to iterate over.
 /// var[out]  : Name of the variable that will hold the current value during iteration.
 /// idx[out]  : Name of the variable that will hold the current index during iteration.
+///
+/// SUCCESS : The loop body runs once for each node from head to tail
+///           with `idx` advancing from `0` to `l->length - 1` and
+///           `var` bound to a copy of `l[idx]`'s data. The body may
+///           reassign `idx` to perform random access; the macro will
+///           reposition to that node. The body is skipped when `l` is
+///           empty.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateList(l)` when `l` is uninitialised or corrupted.
 ///
 /// TAGS: Foreach, List, Iteration, Loop, Index
 ///
@@ -285,6 +351,15 @@
 /// var[out]  : Pointer variable that will point to the current element.
 /// idx[out]  : Name of the variable that will hold the current index during iteration.
 ///
+/// SUCCESS : The loop body runs once for each node from head to tail
+///           with `idx` advancing from `0` to `l->length - 1` and
+///           `var` bound to the in-node data address. Use this form
+///           when the body mutates elements in place. The body may
+///           reassign `idx` to perform random access. The body is
+///           skipped when `l` is empty.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateList(l)` when `l` is uninitialised or corrupted.
+///
 /// TAGS: Foreach, List, Iteration, Loop, Index, Pointer
 ///
 #define ListForeachPtrIdx(l, var, idx)                                                                                   \
@@ -317,6 +392,14 @@
 /// l[in]     : List to iterate over.
 /// var[out]  : Name of the variable to hold the value during iteration.
 /// idx[out]  : Variable that will track the index from the head.
+///
+/// SUCCESS : The loop body runs once for each node walking tail to
+///           head with `idx` counting down from `l->length - 1` to `0`
+///           and `var` bound to a copy of `l[idx]`'s data. The body may
+///           reassign `idx` to perform random access. The body is
+///           skipped when `l` is empty.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateList(l)` when `l` is uninitialised or corrupted.
 ///
 /// TAGS: Foreach, List, Iteration, Loop, Index, Reverse
 ///
@@ -354,7 +437,16 @@
 /// var[out]  : Name of the variable to hold the pointer to the value during iteration.
 /// idx[out]  : Variable that will track the index from the head.
 ///
-/// TAGS: Foreach, List, Iteration, Loop, Index, Reverse
+/// SUCCESS : The loop body runs once for each node walking tail to
+///           head with `idx` counting down from `l->length - 1` to `0`
+///           and `var` bound to the in-node data address. Use this
+///           form when the body mutates elements in place. The body
+///           may reassign `idx` to perform random access. The body is
+///           skipped when `l` is empty.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateList(l)` when `l` is uninitialised or corrupted.
+///
+/// TAGS: Foreach, List, Iteration, Loop, Index, Reverse, Pointer
 ///
 #define ListForeachPtrReverseIdx(l, var, idx)                                                                            \
     for (TYPE_OF(l) UNPL(pl) = (l); UNPL(pl); UNPL(pl) = NULL)                                                           \

@@ -95,8 +95,8 @@ typedef struct AbbrevEntry {
 typedef Vec(AbbrevEntry) AbbrevTable;
 
 static void abbrev_table_deinit(AbbrevTable *t) {
-    for (size i = 0; i < t->length; ++i) {
-        VecDeinit(&t->data[i].attrs);
+    for (size i = 0; i < VecLen(t); ++i) {
+        VecDeinit(&VecPtrAt(t, i)->attrs);
     }
     VecDeinit(t);
 }
@@ -157,9 +157,9 @@ static bool parse_abbrev_table(BufIter cur, AbbrevTable *out, Allocator *alloc) 
 }
 
 static const AbbrevEntry *abbrev_table_find(const AbbrevTable *t, u64 code) {
-    for (size i = 0; i < t->length; ++i) {
-        if (t->data[i].code == code)
-            return &t->data[i];
+    for (size i = 0; i < VecLen(t); ++i) {
+        if (VecPtrAt(t, i)->code == code)
+            return VecPtrAt(t, i);
     }
     return NULL;
 }
@@ -271,7 +271,7 @@ static bool read_form(BufIter *cur, u32 form, u8 addr_size, AttrVal *out) {
             return true;
         }
         case DW_FORM_string : {
-            Zstr s = BufReadCstr(cur);
+            Zstr s = BufReadZstr(cur);
             if (!s)
                 return false;
             *out = (AttrVal) {.kind = ATTR_VAL_CSTR, .s = s};
@@ -375,8 +375,8 @@ static bool walk_cu_dies(
         u64         name_str_off      = 0;
         bool        name_from_strp    = false;
 
-        for (size ai = 0; ai < e->attrs.length; ++ai) {
-            const AbbrevAttr *a = &e->attrs.data[ai];
+        for (size ai = 0; ai < VecLen(&e->attrs); ++ai) {
+            const AbbrevAttr *a = VecPtrAt(&e->attrs, ai);
             AttrVal           v;
             if (!read_form(&cu_cur, a->form, addr_size, &v))
                 return false;
@@ -474,7 +474,7 @@ static bool walk_cu_dies(
                 while (nlen < src_max && src[nlen] != '\0')
                     ++nlen;
                 if (nlen > 0 && nlen < src_max) {
-                    u64 offset = pool->length;
+                    u64 offset = StrLen(pool);
                     for (u64 i = 0; i < nlen; ++i) {
                         if (!StrPushBackR(pool, src[i]))
                             return false;
@@ -603,12 +603,12 @@ bool DwarfFunctionsBuildFromSlices(
     if (ok) {
         // Resolve name_offset_in_pool into char* now that string_pool
         // has stopped growing.
-        for (size i = 0; i < pending.length; ++i) {
-            const PendingFn *pf = &pending.data[i];
+        for (size i = 0; i < VecLen(&pending); ++i) {
+            const PendingFn *pf = VecPtrAt(&pending, i);
             DwarfFunction    f  = {
                     .low_pc  = pf->low_pc,
                     .high_pc = pf->high_pc,
-                    .name    = out->string_pool.data + pf->name_offset_in_pool,
+                    .name    = StrBegin(&out->string_pool) + pf->name_offset_in_pool,
             };
             if (!VecPushBackR(&out->entries, f)) {
                 ok = false;
@@ -616,7 +616,7 @@ bool DwarfFunctionsBuildFromSlices(
             }
         }
         // Sort by low_pc to enable binary-search lookup.
-        if (ok && out->entries.length > 1) {
+        if (ok && VecLen(&out->entries) > 1) {
             VecSort(&out->entries, cmp_dwarf_function);
         }
     } else {
@@ -653,20 +653,20 @@ bool dwarf_functions_build_from_elf(DwarfFunctions *out, const Elf *elf, Allocat
 }
 
 const DwarfFunction *DwarfFunctionsResolve(const DwarfFunctions *self, u64 vaddr) {
-    if (!self || self->entries.length == 0)
+    if (!self || VecLen(&self->entries) == 0)
         return NULL;
     // Binary-search for the largest low_pc <= vaddr.
-    size lo = 0, hi = self->entries.length;
+    size lo = 0, hi = VecLen(&self->entries);
     while (lo < hi) {
         size mid = lo + (hi - lo) / 2;
-        if (self->entries.data[mid].low_pc <= vaddr)
+        if (VecPtrAt(&self->entries, mid)->low_pc <= vaddr)
             lo = mid + 1;
         else
             hi = mid;
     }
     if (lo == 0)
         return NULL;
-    const DwarfFunction *e = &self->entries.data[lo - 1];
+    const DwarfFunction *e = VecPtrAt(&self->entries, lo - 1);
     if (vaddr >= e->low_pc && vaddr < e->high_pc)
         return e;
     return NULL;
@@ -675,9 +675,9 @@ const DwarfFunction *DwarfFunctionsResolve(const DwarfFunctions *self, u64 vaddr
 void DwarfFunctionsDeinit(DwarfFunctions *self) {
     if (!self)
         return;
-    if (self->entries.allocator)
+    if (VecAllocator(&self->entries))
         VecDeinit(&self->entries);
-    if (self->string_pool.allocator)
+    if (StrAllocator(&self->string_pool))
         StrDeinit(&self->string_pool);
     MemSet(self, 0, sizeof(*self));
 }

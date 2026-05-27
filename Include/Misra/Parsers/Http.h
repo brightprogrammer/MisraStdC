@@ -33,6 +33,8 @@ typedef enum HttpRequestMethod {
 /// callbacks installed via `HttpHeaderInit` handle duplication and
 /// cleanup automatically.
 ///
+/// TAGS: Http, Type, Header
+///
 typedef struct HttpHeader {
     Str key;
     Str value;
@@ -41,6 +43,8 @@ typedef struct HttpHeader {
 ///
 /// Initialize an empty `HttpHeader`. Inside a `Scope` the allocator
 /// argument may be omitted (uses `MisraScope`).
+///
+/// TAGS: Http, Header, Init
 ///
 #define HttpHeaderInit(...)         MISRA_OVERLOAD(HttpHeaderInit, __VA_ARGS__)
 #define HttpHeaderInit_0()          HttpHeaderInit_1(MisraScope)
@@ -55,6 +59,8 @@ typedef Vec(HttpHeader) HttpHeaders;
 /// SUCCESS : Returns to the caller. `*header` is zeroed.
 /// FAILURE : Function cannot fail. NULL `header` is a no-op.
 ///
+/// TAGS: Http, Deinit, Header, Init
+///
 void HttpHeaderDeinit(HttpHeader *header);
 
 ///
@@ -64,6 +70,8 @@ void HttpHeaderDeinit(HttpHeader *header);
 ///
 /// SUCCESS : Returns to the caller. `*(HttpHeader *)header` is zeroed.
 /// FAILURE : Function cannot fail. NULL `header` is a no-op.
+///
+/// TAGS: Http, Deinit, Header, Init
 ///
 void http_header_deinit(void *header, const Allocator *alloc);
 
@@ -75,6 +83,8 @@ void http_header_deinit(void *header, const Allocator *alloc);
 ///           `*(const HttpHeader *)src` allocated through `alloc`.
 /// FAILURE : Returns `false` on allocator OOM. `*(HttpHeader *)dst` is
 ///           left zeroed.
+///
+/// TAGS: Http, Init, Copy, Header
 ///
 bool http_header_init_copy(void *dst, const void *src, const Allocator *alloc);
 
@@ -89,6 +99,8 @@ bool http_header_init_copy(void *dst, const void *src, const Allocator *alloc);
 ///           or deinitialized.
 /// FAILURE : Returns `NULL` if no header matches; `*headers` is
 ///           unchanged.
+///
+/// TAGS: Http, Find, Header
 ///
 HttpHeader *http_headers_find_zstr(HttpHeaders *headers, Zstr key);
 HttpHeader *http_headers_find_str(HttpHeaders *headers, const Str *key);
@@ -217,6 +229,8 @@ typedef enum HttpContentType {
 /// Parsed HTTP request. Carries the allocator that owns `url` and
 /// `headers`; all sub-allocations route through the same handle.
 ///
+/// TAGS: Http, Type, Request
+///
 typedef struct HttpRequest {
     Allocator        *allocator;
     HttpRequestMethod method;
@@ -227,6 +241,8 @@ typedef struct HttpRequest {
 ///
 /// Initialize an empty `HttpRequest`. Inside a `Scope` the allocator
 /// argument may be omitted (uses `MisraScope`).
+///
+/// TAGS: Http, Request, Init
 ///
 #define HttpRequestInit(...) MISRA_OVERLOAD(HttpRequestInit, __VA_ARGS__)
 #define HttpRequestInit_0()  HttpRequestInit_1(MisraScope)
@@ -245,6 +261,8 @@ typedef struct HttpRequest {
 ///           (start of the body).
 /// FAILURE : Returns `in` unchanged when the input is malformed.
 ///
+/// TAGS: Http, Parse, Request
+///
 Zstr http_request_parse_zstr(HttpRequest *req, Zstr in);
 Zstr http_request_parse_str(HttpRequest *req, const Str *in);
 #define HttpRequestParse(req, in)                                                                                                                               \
@@ -260,11 +278,15 @@ Zstr http_request_parse_str(HttpRequest *req, const Str *in);
 /// SUCCESS : Returns to the caller. `*req` is zeroed.
 /// FAILURE : Function cannot fail. NULL `req` is a no-op.
 ///
+/// TAGS: Http, Request, Deinit, Init
+///
 void HttpRequestDeinit(HttpRequest *req);
 
 ///
 /// HTTP response under construction. Same allocator-ownership story as
 /// `HttpRequest`.
+///
+/// TAGS: Http, Type, Response
 ///
 typedef struct HttpResponse {
     Allocator       *allocator;
@@ -292,6 +314,8 @@ typedef struct HttpResponse {
 /// FAILURE : Returns `"Unknown"` for codes / content types outside the
 ///           recognised enum range. Cannot fail.
 ///
+/// TAGS: Http, ResponseCode, Response, Convert, Zstr
+///
 Zstr HttpResponseCodeToZstr(HttpResponseCode code);
 Zstr HttpContentTypeToZstr(HttpContentType content_type);
 
@@ -303,6 +327,8 @@ Zstr HttpContentTypeToZstr(HttpContentType content_type);
 ///           `body` updated.
 /// FAILURE : Does not return - aborts on NULL arguments.
 ///
+/// TAGS: Http, Respond, Html
+///
 HttpResponse *HttpRespondWithHtml(HttpResponse *response, HttpResponseCode status, const Str *html);
 
 #if FEATURE_FILE
@@ -313,6 +339,8 @@ HttpResponse *HttpRespondWithHtml(HttpResponse *response, HttpResponseCode statu
 ///
 /// SUCCESS : Returns `response` with body filled.
 /// FAILURE : Returns NULL on I/O or allocation failure.
+///
+/// TAGS: Http, Respond, File
 ///
 HttpResponse *
     HttpRespondWithFile(HttpResponse *response, HttpResponseCode status, HttpContentType content_type, Zstr filepath);
@@ -328,6 +356,8 @@ HttpResponse *
 /// FAILURE : Returns an empty `Str` and logs the failing condition
 ///           (unknown response code, unknown content type, etc.).
 ///
+/// TAGS: Http, Serialize, Response
+///
 Str http_response_serialize(const HttpResponse *response, Allocator *alloc);
 #define HttpResponseSerialize(...)               MISRA_OVERLOAD(HttpResponseSerialize, __VA_ARGS__)
 #define HttpResponseSerialize_1(response)        http_response_serialize((response), MisraScope)
@@ -338,6 +368,8 @@ Str http_response_serialize(const HttpResponse *response, Allocator *alloc);
 ///
 /// SUCCESS : Returns to the caller. `*response` is zeroed.
 /// FAILURE : Function cannot fail. NULL `response` is a no-op.
+///
+/// TAGS: Http, Response, Deinit, Init
 ///
 void HttpResponseDeinit(HttpResponse *response);
 

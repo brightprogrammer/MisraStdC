@@ -22,7 +22,7 @@
 ///
 /// TAGS: Graph, Node, Count, Query
 ///
-#define GraphNodeCount(g) ((g)->live_count)
+#define GraphNodeCount(g) ((void)0, (g)->live_count)
 
 ///
 /// Number of directed edges currently stored in graph. Includes edges
@@ -35,7 +35,46 @@
 ///
 /// TAGS: Graph, Edge, Count, Query
 ///
-#define GraphEdgeCount(g) ((g)->edge_count)
+#define GraphEdgeCount(g) ((void)0, (g)->edge_count)
+
+///
+/// Structural-mutation counter. Bumped by node/edge insertions, deletions,
+/// and commits; traversal helpers snapshot it to detect concurrent mutation.
+///
+/// g[in] : Graph to query.
+///
+/// TAGS: Graph, Access, Epoch, Mutation
+///
+#define GraphMutationEpoch(g) ((void)0, (g)->mutation_epoch)
+
+///
+/// Allocator backing the graph's slots, adjacency vectors, and node payloads.
+///
+/// g[in] : Graph to query.
+///
+/// TAGS: Graph, Access, Allocator
+///
+#define GraphAllocator(g) ((void)0, (g)->allocator)
+
+///
+/// Deep-copy `init` callback wired into the graph for node payloads, or
+/// `NULL` if the graph was initialised without deep-copy semantics.
+///
+/// g[in] : Graph to query.
+///
+/// TAGS: Graph, Access, DeepCopy
+///
+#define GraphCopyInit(g) ((void)0, (g)->copy_init)
+
+///
+/// Deep-copy `deinit` callback wired into the graph for node payloads, or
+/// `NULL` if the graph was initialised without deep-copy semantics.
+///
+/// g[in] : Graph to query.
+///
+/// TAGS: Graph, Access, DeepCopy
+///
+#define GraphCopyDeinit(g) ((void)0, (g)->copy_deinit)
 
 ///
 /// Check whether graph contains no live nodes.
@@ -96,7 +135,7 @@
 ///
 /// TAGS: Graph, Node, Id, Handle
 ///
-#define GraphNodeGetId(node) ((node).__id)
+#define GraphNodeGetId(node) ((void)0, (node).__id)
 
 ///
 /// Get the slot index encoded in a traversal handle.

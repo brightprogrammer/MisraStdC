@@ -5,7 +5,7 @@
 #include "../Util/TestRunner.h"
 
 static bool list_matches(GenericList *list, const int *expected, size count) {
-    if (list->length != count) {
+    if (ListLen(list) != count) {
         return false;
     }
 

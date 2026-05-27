@@ -88,12 +88,15 @@ bool test_float_clone_inherits_allocator_config(void) {
 
     bool result = clone.negative == original.negative && clone.exponent == original.exponent &&
                   BitVecLen(&clone.significand.bits) == BitVecLen(&original.significand.bits) &&
-                  clone.significand.bits.allocator == original.significand.bits.allocator &&
-                  clone.significand.bits.allocator->allocate == original.significand.bits.allocator->allocate &&
-                  clone.significand.bits.allocator->remap == original.significand.bits.allocator->remap &&
-                  clone.significand.bits.allocator->deallocate == original.significand.bits.allocator->deallocate &&
-                  clone.significand.bits.allocator->effort == original.significand.bits.allocator->effort &&
-                  clone.significand.bits.allocator->retry_limit == original.significand.bits.allocator->retry_limit &&
+                  VecAllocator(&clone.significand.bits) == VecAllocator(&original.significand.bits) &&
+                  VecAllocator(&clone.significand.bits)->allocate ==
+                      VecAllocator(&original.significand.bits)->allocate &&
+                  VecAllocator(&clone.significand.bits)->remap == VecAllocator(&original.significand.bits)->remap &&
+                  VecAllocator(&clone.significand.bits)->deallocate ==
+                      VecAllocator(&original.significand.bits)->deallocate &&
+                  VecAllocator(&clone.significand.bits)->effort == VecAllocator(&original.significand.bits)->effort &&
+                  VecAllocator(&clone.significand.bits)->retry_limit ==
+                      VecAllocator(&original.significand.bits)->retry_limit &&
                   BitVecGet(&clone.significand.bits, 0) == true && BitVecGet(&clone.significand.bits, 1) == false &&
                   BitVecGet(&clone.significand.bits, 2) == true;
 

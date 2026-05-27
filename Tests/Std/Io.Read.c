@@ -654,7 +654,7 @@ bool test_string_case_conversion_reading(void) {
 
         WriteFmt("Test 1 - :a (lowercase)\n");
         WriteFmt("Input: '{}', Output: '", in);
-        for (size_t i = 0; i < StrLen(&result); i++) {
+        for (size i = 0; i < StrLen(&result); i++) {
             WriteFmt("{c}", StrBegin(&result)[i]);
         }
         WriteFmt("'\n");
@@ -679,7 +679,7 @@ bool test_string_case_conversion_reading(void) {
 
         WriteFmt("Test 1.1 - :as (lowercase string single word)\n");
         WriteFmt("Input: '{}', Output: '", in);
-        for (size_t i = 0; i < StrLen(&result); i++) {
+        for (size i = 0; i < StrLen(&result); i++) {
             WriteFmt("{c}", StrBegin(&result)[i]);
         }
         WriteFmt("'\n");
@@ -704,7 +704,7 @@ bool test_string_case_conversion_reading(void) {
 
         WriteFmt("Test 2 - :A (uppercase)\n");
         WriteFmt("Input: '{}', Output: '", in);
-        for (size_t i = 0; i < StrLen(&result); i++) {
+        for (size i = 0; i < StrLen(&result); i++) {
             WriteFmt("{c}", StrBegin(&result)[i]);
         }
         WriteFmt("'\n");
@@ -773,7 +773,7 @@ bool test_string_case_conversion_reading(void) {
 
         WriteFmt("Test 3 - :a with quoted string\n");
         WriteFmt("Input: '{}', Output: '", in);
-        for (size_t i = 0; i < StrLen(&result); i++) {
+        for (size i = 0; i < StrLen(&result); i++) {
             WriteFmt("{c}", StrBegin(&result)[i]);
         }
         WriteFmt("'\n");
@@ -798,7 +798,7 @@ bool test_string_case_conversion_reading(void) {
 
         WriteFmt("Test 4 - :A with mixed alphanumeric\n");
         WriteFmt("Input: '{}', Output: '", in);
-        for (size_t i = 0; i < StrLen(&result); i++) {
+        for (size i = 0; i < StrLen(&result); i++) {
             WriteFmt("{c}", StrBegin(&result)[i]);
         }
         WriteFmt("'\n");
@@ -823,7 +823,7 @@ bool test_string_case_conversion_reading(void) {
 
         WriteFmt("Test 5 - :c (no case conversion)\n");
         WriteFmt("Input: '{}', Output: '", in);
-        for (size_t i = 0; i < StrLen(&result); i++) {
+        for (size i = 0; i < StrLen(&result); i++) {
             WriteFmt("{c}", StrBegin(&result)[i]);
         }
         WriteFmt("'\n");

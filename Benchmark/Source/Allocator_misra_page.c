@@ -17,7 +17,7 @@
 static PageAllocator g_page;
 static bool          g_page_live = false;
 
-const char *bench_backend_name(void) {
+Zstr bench_backend_name(void) {
 #ifdef BENCH_MISRA_VARIANT_NAME
     return BENCH_MISRA_VARIANT_NAME;
 #else

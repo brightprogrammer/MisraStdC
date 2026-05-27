@@ -37,7 +37,14 @@ extern "C" {
     ///
     /// value[in] : Integer to clone
     ///
-    /// RETURNS: Independent copy of `value`.
+    /// SUCCESS : Returns an independent deep copy of `value`'s
+    ///           bit-vector, normalised, and bound to `value`'s
+    ///           allocator. `value` is not modified.
+    /// FAILURE : Returns a freshly initialised empty `Int` bound to
+    ///           `value`'s allocator on allocation failure during the
+    ///           bit-vector copy. The caller cannot distinguish that
+    ///           from a true zero result; use `IntTryClone` directly
+    ///           when explicit failure propagation is required.
     ///
     /// USAGE:
     ///   Int copy = IntClone(&value);

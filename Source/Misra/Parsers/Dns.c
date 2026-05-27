@@ -8,6 +8,7 @@
 #include <Misra/Std/Container/Buf.h>
 #include <Misra/Std/Log.h>
 #include <Misra/Std/Memory.h>
+#include <Misra/Std/Utility/StrIter.h>
 #include <Misra/Types.h>
 
 // ---------------------------------------------------------------------------
@@ -22,19 +23,20 @@ static bool encode_qname(DnsWireBuf *out, Zstr name) {
     if (!name) {
         return false;
     }
-    Zstr p           = name;
-    u64         total_bytes = 0;
-    while (*p) {
+    StrIter si          = StrIterFromZstr(name);
+    u64     total_bytes = 0;
+    char    c;
+    while (StrIterPeek(&si, &c)) {
         // Find next dot or end-of-string.
-        Zstr seg = p;
-        while (*p && *p != '.') {
-            ++p;
+        size seg_start = si.pos;
+        while (StrIterPeek(&si, &c) && c != '.') {
+            StrIterMustNext(&si);
         }
-        u64 seg_len = (u64)(p - seg);
+        u64 seg_len = (u64)(si.pos - seg_start);
         if (seg_len == 0) {
             // Trailing dot at the end is valid (means root); leading or
             // middle empty labels are not.
-            if (*p == '\0') {
+            if (StrIterRemainingLength(&si) == 0) {
                 break;
             }
             return false;
@@ -49,11 +51,11 @@ static bool encode_qname(DnsWireBuf *out, Zstr name) {
         if (!BufWriteU8(out, (u8)seg_len)) {
             return false;
         }
-        if (!BufPushBytes(out, (const u8 *)seg, seg_len)) {
+        if (!BufPushBytes(out, (const u8 *)(si.data + seg_start), seg_len)) {
             return false;
         }
-        if (*p == '.') {
-            ++p;
+        if (StrIterPeek(&si, &c) && c == '.') {
+            StrIterMustNext(&si);
         }
     }
     // Root label terminator.
@@ -313,7 +315,7 @@ void DnsRecordDeinit(DnsRecord *self) {
 }
 
 static void deinit_record_list(DnsRecords *list) {
-    if (!list || !list->data) {
+    if (!list || !VecBegin(list)) {
         return;
     }
     VecForeachPtr(list, r) {

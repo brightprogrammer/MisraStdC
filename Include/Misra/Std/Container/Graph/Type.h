@@ -80,6 +80,8 @@ typedef Vec(GraphNodeId) GraphNeighbors;
 /// `GraphSlot(T)` below is the typed variant; both have identical layout
 /// (the `data` field is a pointer, and `void *` / `T *` share representation).
 ///
+/// TAGS: Graph, Type, API
+///
 typedef struct {
     GraphNeighbors out_neighbors;
     GraphNeighbors in_neighbors;
@@ -97,6 +99,8 @@ typedef Vec(u32) GraphFreeIndices;
 /// as `GenericGraphSlot`, but `data` is typed `T *` instead of `void *`. This
 /// lets `GRAPH_NODE_TYPE(g)` recover `T` from the slot itself without needing
 /// a separate sentinel field on the graph.
+///
+/// TAGS: Graph, Slot, API
 ///
 #define GraphSlot(T)                                                                                                   \
     struct {                                                                                                           \
@@ -187,6 +191,8 @@ typedef struct {
 /// `GraphSlot(T)` definition above, which carries `T *data` rather than
 /// `void *data`.
 ///
+/// TAGS: Graph, Type, TypeOf
+///
 #define GRAPH_NODE_TYPE(g) TYPE_OF((g)->slots.data[0].data[0])
 
 #define GRAPH_MAGIC MAKE_NEW_MAGIC_VALUE("digrph01")
@@ -199,6 +205,8 @@ typedef struct {
 ///
 /// SUCCESS: Continue execution, meaning given graph is most probably valid.
 /// FAILURE: `abort`
+///
+/// TAGS: Graph, Validate, API
 ///
 #define ValidateGraph(g) validate_graph((const GenericGraph *)GENERIC_GRAPH(g))
 

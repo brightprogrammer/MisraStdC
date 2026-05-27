@@ -231,7 +231,7 @@ void swap_list(GenericList *list, u64 item_size, u64 idx1, u64 idx2) {
         LOG_FATAL("failed to get node at specified index");
     }
 
-    unsigned char *a, *b, tmp;
+    u8 *a, *b, tmp;
     a = n1->data;
     b = n2->data;
     while (item_size--) {

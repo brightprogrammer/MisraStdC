@@ -33,10 +33,10 @@ static inline size vec_aligned_offset_at(GenericVec *v, size idx, size item_size
     return idx * vec_aligned_size(v, item_size);
 }
 
-static inline char *vec_ptr_at(GenericVec *v, size idx, size item_size) {
+static inline u8 *vec_ptr_at(GenericVec *v, size idx, size item_size) {
     ValidateVec(v);
 
-    return v->data + vec_aligned_offset_at(v, idx, item_size);
+    return (u8 *)v->data + vec_aligned_offset_at(v, idx, item_size);
 }
 
 static inline const u8 *vec_const_ptr_at(const GenericVec *v, size idx, size item_size) {
@@ -109,15 +109,15 @@ bool reserve_vec(GenericVec *vec, size item_size, size n) {
         if (!vec->allocator) {
             LOG_FATAL("vector not growable, no allocator assigned, probably stack inited");
         }
-        size  old_capacity = (size)vec->capacity;
-        char *ptr          = (char *)AllocatorRealloc(vec->allocator, vec->data, aligned_size * (n + 1));
+        size old_capacity = (size)vec->capacity;
+        u8  *ptr          = (u8 *)AllocatorRealloc(vec->allocator, vec->data, aligned_size * (n + 1));
 
         if (!ptr) {
             // Not LOG_SYS_ERROR: allocator failures don't set errno.
             LOG_ERROR("allocator reallocate failed");
             return false;
         }
-        vec->data = ptr;
+        vec->data = (char *)ptr;
         MemSet(ptr + old_capacity * aligned_size, 0, aligned_size * (n + 1 - old_capacity));
         vec->capacity = n;
     }
@@ -165,14 +165,14 @@ bool reduce_space_vec(GenericVec *vec, size item_size) {
         vec->length   = 0;
         return true;
     } else {
-        char *ptr = (char *)AllocatorRealloc(vec->allocator, vec->data, aligned_size * (vec->length + 1));
+        u8 *ptr = (u8 *)AllocatorRealloc(vec->allocator, vec->data, aligned_size * (vec->length + 1));
         if (!ptr) {
             // Not LOG_SYS_ERROR: allocator failures don't set errno.
             LOG_ERROR("allocator reallocate failed");
             return false;
         }
         vec->capacity = vec->length;
-        vec->data     = ptr;
+        vec->data     = (char *)ptr;
     }
 
     return true;
@@ -349,7 +349,7 @@ void remove_range_vec(GenericVec *vec, void *removed_data, size item_size, size 
     } else {
         // if no space provided to copy data over to, just destroy or memset it
         if (vec->copy_deinit) {
-            char *vec_data = vec_ptr_at(vec, start, item_size);
+            u8 *vec_data = vec_ptr_at(vec, start, item_size);
             for (size s = 0; s < count; s++) {
                 vec->copy_deinit(vec_data, vec->allocator);
                 vec_data += vec_aligned_size(vec, item_size);
@@ -389,7 +389,7 @@ void fast_remove_range_vec(GenericVec *vec, void *removed_data, size item_size, 
     } else {
         // Otherwise, properly clean up the memory
         if (vec->copy_deinit) {
-            char *vec_data = vec_ptr_at(vec, start, item_size);
+            u8 *vec_data = vec_ptr_at(vec, start, item_size);
             for (size s = 0; s < count; s++) {
                 vec->copy_deinit(vec_data, vec->allocator);
                 vec_data += vec_aligned_size(vec, item_size);
@@ -455,7 +455,7 @@ void swap_vec(GenericVec *vec, size item_size, size idx1, size idx2) {
         return;
     }
 
-    char *a, *b, tmp;
+    u8 *a, *b, tmp;
     a = vec_ptr_at(vec, idx1, item_size);
     b = vec_ptr_at(vec, idx2, item_size);
     // Swap the user bytes only; alignment padding is never read.

@@ -332,22 +332,29 @@ static bool format_ipv4(const u8 octets[4], char *dst, size dst_size) {
         return false;
     size pos = 0;
     for (i32 i = 0; i < 4; ++i) {
-        u32  v = octets[i];
-        char tmp[4];
-        i32  n = 0;
-        if (v == 0) {
-            tmp[n++] = '0';
-        } else {
-            while (v) {
-                tmp[n++]  = (char)('0' + (v % 10));
-                v        /= 10;
+        u32  v       = octets[i];
+        bool iter_ok = true;
+        StrInitStack(tmp, 4) {
+            char *data = StrBegin(&tmp);
+            i32   n    = 0;
+            if (v == 0) {
+                data[n++] = '0';
+            } else {
+                while (v) {
+                    data[n++]  = (char)('0' + (v % 10));
+                    v         /= 10;
+                }
+            }
+            while (n--) {
+                if (pos + 1 >= dst_size) {
+                    iter_ok = false;
+                    break;
+                }
+                dst[pos++] = data[n];
             }
         }
-        while (n--) {
-            if (pos + 1 >= dst_size)
-                return false;
-            dst[pos++] = tmp[n];
-        }
+        if (!iter_ok)
+            return false;
         if (i < 3) {
             if (pos + 1 >= dst_size)
                 return false;
@@ -359,23 +366,28 @@ static bool format_ipv4(const u8 octets[4], char *dst, size dst_size) {
 }
 
 static bool append_hextet(char *dst, size dst_size, size *pos, u16 v) {
-    char tmp[4];
-    i32  n = 0;
-    if (v == 0) {
-        tmp[n++] = '0';
-    } else {
-        while (v) {
-            u8 nib     = v & 0xF;
-            tmp[n++]   = nib < 10 ? (char)('0' + nib) : (char)('a' + nib - 10);
-            v        >>= 4;
+    bool ok = true;
+    StrInitStack(tmp, 4) {
+        char *data = StrBegin(&tmp);
+        i32   n    = 0;
+        if (v == 0) {
+            data[n++] = '0';
+        } else {
+            while (v) {
+                u8 nib      = v & 0xF;
+                data[n++]   = nib < 10 ? (char)('0' + nib) : (char)('a' + nib - 10);
+                v         >>= 4;
+            }
+        }
+        while (n--) {
+            if (*pos + 1 >= dst_size) {
+                ok = false;
+                break;
+            }
+            dst[(*pos)++] = data[n];
         }
     }
-    while (n--) {
-        if (*pos + 1 >= dst_size)
-            return false;
-        dst[(*pos)++] = tmp[n];
-    }
-    return true;
+    return ok;
 }
 
 static bool format_ipv6(const u8 bytes[16], char *dst, size dst_size) {
@@ -562,43 +574,51 @@ bool socket_addr_parse_zstr(SocketAddr *out, Zstr spec, SocketKind kind) {
 
     (void)kind;
 
-    char        host[256];
-    Zstr port_str = NULL;
-    if (!split_host_port(spec, host, sizeof(host), &port_str)) {
-        return false;
+    bool ok = false;
+    StrInitStack(host, 256) {
+        char *host_data = StrBegin(&host);
+        Zstr  port_str  = NULL;
+        if (!split_host_port(spec, host_data, 256, &port_str)) {
+            break;
+        }
+        // split_host_port NUL-terminates; record the textual length so the
+        // Str is internally consistent before any read via StrBegin.
+        StrResize(&host, ZstrLen(host_data));
+
+        u16 port = 0;
+        if (!parse_port(port_str, &port)) {
+            break;
+        }
+
+        u8 v4[4];
+        u8 v6[16];
+        if (parse_ipv4(host_data, v4)) {
+            struct sockaddr_in *sa = (struct sockaddr_in *)out->raw;
+            MemSet(out, 0, sizeof(*out));
+            sa->sin_family = AF_INET;
+            sa->sin_port   = FROM_BIG_ENDIAN2(port);
+            MemCopy(&sa->sin_addr.s_addr, v4, 4);
+            out->length = (u32)sizeof(struct sockaddr_in);
+            out->family = SOCKET_FAMILY_INET;
+            ok          = true;
+            break;
+        }
+        if (parse_ipv6(host_data, v6)) {
+            struct sockaddr_in6 *sa = (struct sockaddr_in6 *)out->raw;
+            MemSet(out, 0, sizeof(*out));
+            sa->sin6_family = AF_INET6;
+            sa->sin6_port   = FROM_BIG_ENDIAN2(port);
+            // Windows' IN6_ADDR defines `#define s6_addr u.Byte`, so this
+            // works the same on both platforms.
+            MemCopy(sa->sin6_addr.s6_addr, v6, 16);
+            out->length = (u32)sizeof(struct sockaddr_in6);
+            out->family = SOCKET_FAMILY_INET6;
+            ok          = true;
+            break;
+        }
     }
 
-    u16 port = 0;
-    if (!parse_port(port_str, &port)) {
-        return false;
-    }
-
-    u8 v4[4];
-    u8 v6[16];
-    if (parse_ipv4(host, v4)) {
-        struct sockaddr_in *sa = (struct sockaddr_in *)out->raw;
-        MemSet(out, 0, sizeof(*out));
-        sa->sin_family = AF_INET;
-        sa->sin_port   = FROM_BIG_ENDIAN2(port);
-        MemCopy(&sa->sin_addr.s_addr, v4, 4);
-        out->length = (u32)sizeof(struct sockaddr_in);
-        out->family = SOCKET_FAMILY_INET;
-        return true;
-    }
-    if (parse_ipv6(host, v6)) {
-        struct sockaddr_in6 *sa = (struct sockaddr_in6 *)out->raw;
-        MemSet(out, 0, sizeof(*out));
-        sa->sin6_family = AF_INET6;
-        sa->sin6_port   = FROM_BIG_ENDIAN2(port);
-        // Windows' IN6_ADDR defines `#define s6_addr u.Byte`, so this
-        // works the same on both platforms.
-        MemCopy(sa->sin6_addr.s6_addr, v6, 16);
-        out->length = (u32)sizeof(struct sockaddr_in6);
-        out->family = SOCKET_FAMILY_INET6;
-        return true;
-    }
-
-    return false;
+    return ok;
 }
 
 bool socket_addr_parse_str(SocketAddr *out, const Str *spec, SocketKind kind) {
@@ -616,7 +636,7 @@ bool socket_addr_parse_str(SocketAddr *out, const Str *spec, SocketKind kind) {
     // until ']' / ':' / '\0', so dispatching via .data preserves identical
     // semantics for non-degenerate input. The empty-spec edge case is
     // already handled by the zstr arm (returns false on no colon).
-    return socket_addr_parse_zstr(out, spec->data, kind);
+    return socket_addr_parse_zstr(out, StrBegin(spec), kind);
 }
 
 Str socket_addr_format(const SocketAddr *addr, Allocator *alloc) {
@@ -625,30 +645,32 @@ Str socket_addr_format(const SocketAddr *addr, Allocator *alloc) {
         return out;
     }
 
-    char host[48];
-    u16  port = 0;
-
-    Zstr host_p = host;
-    if (addr->family == SOCKET_FAMILY_INET) {
-        const struct sockaddr_in *sa = (const struct sockaddr_in *)addr->raw;
-        if (!format_ipv4((const u8 *)&sa->sin_addr.s_addr, host, sizeof(host))) {
-            LOG_ERROR("SocketAddrFormat: format_ipv4 failed");
-            return out;
+    StrInitStack(host, 48) {
+        char *host_data = StrBegin(&host);
+        u16   port      = 0;
+        if (addr->family == SOCKET_FAMILY_INET) {
+            const struct sockaddr_in *sa = (const struct sockaddr_in *)addr->raw;
+            if (!format_ipv4((const u8 *)&sa->sin_addr.s_addr, host_data, 48)) {
+                LOG_ERROR("SocketAddrFormat: format_ipv4 failed");
+                break;
+            }
+            StrResize(&host, ZstrLen(host_data));
+            port = FROM_BIG_ENDIAN2(sa->sin_port);
+            StrAppendFmt(&out, "{}:{}", (Zstr)host_data, (u32)port);
+        } else if (addr->family == SOCKET_FAMILY_INET6) {
+            const struct sockaddr_in6 *sa = (const struct sockaddr_in6 *)addr->raw;
+            // Windows' IN6_ADDR aliases `s6_addr` via macro.
+            const u8 *v6 = sa->sin6_addr.s6_addr;
+            if (!format_ipv6(v6, host_data, 48)) {
+                LOG_ERROR("SocketAddrFormat: format_ipv6 failed");
+                break;
+            }
+            StrResize(&host, ZstrLen(host_data));
+            port = FROM_BIG_ENDIAN2(sa->sin6_port);
+            StrAppendFmt(&out, "[{}]:{}", (Zstr)host_data, (u32)port);
+        } else {
+            LOG_ERROR("SocketAddrFormat: unknown family {}", (u32)addr->family);
         }
-        port = FROM_BIG_ENDIAN2(sa->sin_port);
-        StrAppendFmt(&out, "{}:{}", host_p, (u32)port);
-    } else if (addr->family == SOCKET_FAMILY_INET6) {
-        const struct sockaddr_in6 *sa = (const struct sockaddr_in6 *)addr->raw;
-        // Windows' IN6_ADDR aliases `s6_addr` via macro.
-        const u8 *v6 = sa->sin6_addr.s6_addr;
-        if (!format_ipv6(v6, host, sizeof(host))) {
-            LOG_ERROR("SocketAddrFormat: format_ipv6 failed");
-            return out;
-        }
-        port = FROM_BIG_ENDIAN2(sa->sin6_port);
-        StrAppendFmt(&out, "[{}]:{}", host_p, (u32)port);
-    } else {
-        LOG_ERROR("SocketAddrFormat: unknown family {}", (u32)addr->family);
     }
 
     return out;

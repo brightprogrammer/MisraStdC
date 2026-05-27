@@ -47,7 +47,7 @@ static bool compose_dsym_path(Zstr binary_path, Str *out) {
     Zstr base = basename_of(binary_path);
     if (base[0] == '\0')
         return false;
-    out->length = 0;
+    StrResize(out, 0);
     StrPushBackMany(out, binary_path);
     StrPushBackMany(out, ".dSYM/Contents/Resources/DWARF/");
     StrPushBackMany(out, base);
@@ -59,9 +59,9 @@ static bool compose_dsym_path(Zstr binary_path, Str *out) {
 // ---------------------------------------------------------------------------
 
 static MachoCacheEntry *cache_find_or_create(MachoCache *self, Zstr module_path) {
-    for (size i = 0; i < self->entries.length; ++i) {
-        MachoCacheEntry *e = &self->entries.data[i];
-        if (e->module_path.data && ZstrCompare(e->module_path.data, module_path) == 0) {
+    for (size i = 0; i < VecLen(&self->entries); ++i) {
+        MachoCacheEntry *e = VecPtrAt(&self->entries, i);
+        if (StrBegin(&e->module_path) && ZstrCompare(StrBegin(&e->module_path), module_path) == 0) {
             return e;
         }
     }
@@ -76,7 +76,7 @@ static MachoCacheEntry *cache_find_or_create(MachoCache *self, Zstr module_path)
         StrDeinit(&entry.module_path);
         return NULL;
     }
-    return &self->entries.data[self->entries.length - 1];
+    return VecPtrAt(&self->entries, VecLen(&self->entries) - 1);
 }
 
 // Open the main Mach-O if not yet open. Returns false on persistent
@@ -103,7 +103,7 @@ static bool entry_open_dsym(MachoCacheEntry *e, Allocator *alloc) {
     }
 
     Str path = StrInit(alloc);
-    if (!compose_dsym_path(e->module_path.data, &path)) {
+    if (!compose_dsym_path(StrBegin(&e->module_path), &path)) {
         StrDeinit(&path);
         return false;
     }
@@ -134,11 +134,11 @@ static bool entry_build_dwarf(MachoCacheEntry *e, Allocator *alloc) {
     const MachoSection *abbrev_sec = MachoFindSection(&e->dsym, "__DWARF", "__debug_abbrev");
     const MachoSection *str_sec    = MachoFindSection(&e->dsym, "__DWARF", "__debug_str");
 
-    const u8 *info_b   = info_sec ? e->dsym.data.data + info_sec->offset : NULL;
+    const u8 *info_b   = info_sec ? BufData(&e->dsym.data) + info_sec->offset : NULL;
     u64       info_n   = info_sec ? info_sec->size : 0;
-    const u8 *abbrev_b = abbrev_sec ? e->dsym.data.data + abbrev_sec->offset : NULL;
+    const u8 *abbrev_b = abbrev_sec ? BufData(&e->dsym.data) + abbrev_sec->offset : NULL;
     u64       abbrev_n = abbrev_sec ? abbrev_sec->size : 0;
-    const u8 *str_b    = str_sec ? e->dsym.data.data + str_sec->offset : NULL;
+    const u8 *str_b    = str_sec ? BufData(&e->dsym.data) + str_sec->offset : NULL;
     u64       str_n    = str_sec ? str_sec->size : 0;
 
     e->fns_ok = DwarfFunctionsBuildFromSlices(&e->fns, info_b, info_n, abbrev_b, abbrev_n, str_b, str_n, alloc);
@@ -161,8 +161,8 @@ bool macho_cache_init(MachoCache *out, Allocator *alloc) {
 void MachoCacheDeinit(MachoCache *self) {
     if (!self)
         return;
-    for (size i = 0; i < self->entries.length; ++i) {
-        MachoCacheEntry *e = &self->entries.data[i];
+    for (size i = 0; i < VecLen(&self->entries); ++i) {
+        MachoCacheEntry *e = VecPtrAt(&self->entries, i);
         if (e->fns_built && e->fns_ok)
             DwarfFunctionsDeinit(&e->fns);
         if (e->dsym_open)
@@ -177,7 +177,7 @@ void MachoCacheDeinit(MachoCache *self) {
 
 bool macho_cache_resolve_zstr(
     MachoCache  *self,
-    const char  *module_path,
+    Zstr         module_path,
     u64          slide,
     u64          runtime_ip,
     Zstr *out_name,
@@ -243,5 +243,5 @@ bool macho_cache_resolve_str(
     if (!module_path) {
         return false;
     }
-    return macho_cache_resolve_zstr(self, module_path->data, slide, runtime_ip, out_name, out_offset);
+    return macho_cache_resolve_zstr(self, StrBegin(module_path), slide, runtime_ip, out_name, out_offset);
 }

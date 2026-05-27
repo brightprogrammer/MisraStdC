@@ -13,12 +13,26 @@
 extern "C" {
 #endif
 
+    ///
+    /// Internal forward-iteration cursor for `GraphForeachNode`. The `expected_mutation_epoch`
+    /// snapshot lets the iterator detect structural changes (node/edge add, clear, commit) and
+    /// abort the traversal instead of silently walking a stale slot table.
+    ///
+    /// TAGS: Graph, Iter, Internal, Node
+    ///
     typedef struct {
         GenericGraph *graph;
         u64           slot_index;
         u64           expected_mutation_epoch;
     } GenericGraphNodeIter;
 
+    ///
+    /// Internal forward-iteration cursor for `GraphNodeForeachNeighbor`. Tracks the source
+    /// node, the next outgoing-neighbor slot to visit, and a mutation-epoch snapshot used to
+    /// invalidate the traversal on structural change.
+    ///
+    /// TAGS: Graph, Iter, Internal, Neighbor
+    ///
     typedef struct {
         GenericGraph *graph;
         GraphNodeId   source_id;
@@ -26,6 +40,13 @@ extern "C" {
         u64           expected_mutation_epoch;
     } GenericGraphNeighborIter;
 
+    ///
+    /// Internal forward-iteration cursor for `GraphNodeForeachPredecessor`. Tracks the target
+    /// node, the next incoming-edge slot to visit, and a mutation-epoch snapshot used to
+    /// invalidate the traversal on structural change.
+    ///
+    /// TAGS: Graph, Iter, Internal, Predecessor
+    ///
     typedef struct {
         GenericGraph *graph;
         GraphNodeId   target_id;
@@ -33,6 +54,14 @@ extern "C" {
         u64           expected_mutation_epoch;
     } GenericGraphPredecessorIter;
 
+    ///
+    /// Snake_case runtime bodies behind the public `Graph*` PascalCase macros. Direct callers
+    /// are the macros in `Init.h`, `Insert.h`, `Access.h`, `Ops.h`, `Memory.h`, `Foreach.h`;
+    /// end-user code should not name these. The public surface holds the SUCCESS/FAILURE
+    /// contracts.
+    ///
+    /// TAGS: Graph, Internal, Runtime
+    ///
     void                    validate_graph(const GenericGraph *graph);
     void                    deinit_graph(GenericGraph *graph, size item_size);
     void                    clear_graph(GenericGraph *graph, size item_size);

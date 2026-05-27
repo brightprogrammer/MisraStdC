@@ -58,6 +58,45 @@ size ZstrLen(Zstr str);
 i32 ZstrCompare(Zstr s1, Zstr s2);
 
 ///
+/// Hash a `Zstr` for use as a generic map key. FNV-1a over the bytes
+/// from `*key` up to (not including) the NUL terminator.
+///
+/// Typed signature; cast to `GenericHash` at the Map callback site.
+///
+/// key[in]  : Pointer to a `Zstr`.
+/// size[in] : Ignored. Included for `GenericHash` callback compatibility
+///            (the canvas-size of the key slot inside the Map).
+///
+/// SUCCESS : Returns a stable hash of the C-string's bytes. The string
+///           and the pointer cell are not modified.
+/// FAILURE : Function cannot fail when `key` and `*key` are valid.
+///
+/// TAGS: Zstr, Hash, Ops
+///
+u64 zstr_hash(const Zstr *key, u32 size);
+
+///
+/// Three-way lexicographic comparison of two `Zstr` values. Wraps
+/// `ZstrCompare` and normalises the result to `-1` / `0` / `1`.
+///
+/// Typed signature; cast to `GenericCompare` at the Map callback site.
+///
+/// a[in]    : Pointer to the left `Zstr`.
+/// b[in]    : Pointer to the right `Zstr`.
+/// size[in] : Ignored. Included for `GenericCompare` callback
+///            compatibility (the canvas-size of the key slot inside
+///            the Map).
+///
+/// SUCCESS : Returns `0` when equal, `-1` when `*a < *b`, `1` when
+///           `*a > *b`. Neither string is modified.
+/// FAILURE : Function cannot fail when `a` / `b` and the strings they
+///           point to are valid.
+///
+/// TAGS: Zstr, Compare, Ops
+///
+i32 zstr_compare(const Zstr *a, const Zstr *b, u32 size);
+
+///
 /// Compare two strings lexicographically up to n characters
 /// (case-sensitive).
 ///

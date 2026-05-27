@@ -181,6 +181,8 @@ bool pe_open_from_memory_copy(Pe *out, const u8 *data, size data_size, Allocator
 /// SUCCESS : Returns to the caller. `*self` is zeroed.
 /// FAILURE : Function cannot fail. NULL `self` is a no-op.
 ///
+/// TAGS: Parser, PE, Deinit, Lifecycle
+///
 void PeDeinit(Pe *self);
 
 ///

@@ -53,6 +53,8 @@ extern "C" {
     /// SUCCESS : Returns `str`
     /// FAILURE : Returns `NULL` when `config` is invalid; the destination string is untouched
     ///
+    /// TAGS: Str, Convert, U64
+    ///
     Str *StrFromU64(Str *str, u64 value, const StrIntFormat *config);
 
     ///
@@ -64,6 +66,8 @@ extern "C" {
     ///
     /// SUCCESS : Returns `str`
     /// FAILURE : Returns `NULL` when `config` is invalid; the destination string is untouched
+    ///
+    /// TAGS: Str, Convert, I64
     ///
     Str *StrFromI64(Str *str, i64 value, const StrIntFormat *config);
 
@@ -77,6 +81,8 @@ extern "C" {
     /// SUCCESS : Returns `str`
     /// FAILURE : Returns `NULL` when `config` is invalid; the destination string is untouched
     ///
+    /// TAGS: Str, Convert, F64
+    ///
     Str *StrFromF64(Str *str, f64 value, const StrFloatFormat *config);
 
     ///
@@ -88,6 +94,8 @@ extern "C" {
     ///
     /// SUCCESS : Returns `true` and writes the parsed value into `*value`
     /// FAILURE : Returns `false` when the input cannot be parsed; `*value` is left unchanged
+    ///
+    /// TAGS: Str, Convert, U64
     ///
     bool StrToU64(const Str *str, u64 *value, const StrParseConfig *config);
 
@@ -101,6 +109,8 @@ extern "C" {
     /// SUCCESS : Returns `true` and writes the parsed value into `*value`
     /// FAILURE : Returns `false` when the input cannot be parsed; `*value` is left unchanged
     ///
+    /// TAGS: Str, Convert, I64
+    ///
     bool StrToI64(const Str *str, i64 *value, const StrParseConfig *config);
 
     ///
@@ -112,6 +122,8 @@ extern "C" {
     ///
     /// SUCCESS : Returns `true` and writes the parsed value into `*value`
     /// FAILURE : Returns `false` when the input cannot be parsed; `*value` is left unchanged
+    ///
+    /// TAGS: Str, Convert, F64
     ///
     bool StrToF64(const Str *str, f64 *value, const StrParseConfig *config);
 

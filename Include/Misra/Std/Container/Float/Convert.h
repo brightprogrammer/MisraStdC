@@ -42,6 +42,13 @@ extern "C" {
 /// allocator_ptr : Allocator that owns the returned Float's storage.
 ///
 /// SUCCESS : Returns Float representing the same numeric value.
+/// FAILURE : Returns an empty (zero) `Float` bound to the given
+///           allocator when the underlying conversion cannot complete
+///           (allocation failure on the significand, or an unsupported
+///           non-finite native-float input). The caller cannot
+///           distinguish that from a true-zero source without a prior
+///           `IntTry*` / `FloatIsZero` check; use the `*Try*` form when
+///           detection matters.
 ///
 /// USAGE:
 ///   DefaultAllocator a = DefaultAllocatorInit();
@@ -100,6 +107,12 @@ extern "C" {
     /// Compatibility wrapper for `FloatTryFromStr(...)`.
     ///
     /// SUCCESS : Returns Parsed floating-point value, or zero on failure.
+    /// FAILURE : Returns a zero-initialised `Float` on a malformed
+    ///           string, an exponent overflow, or an allocation failure.
+    ///           Use `FloatTryFromStr(...)` when explicit failure
+    ///           propagation is required.
+    ///
+    /// TAGS: Float, Convert, String
     ///
     Float float_from_str_zstr(Zstr text, Allocator *alloc);
     Float float_from_str_str(const Str *text, Allocator *alloc);

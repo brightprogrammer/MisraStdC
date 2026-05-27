@@ -12,6 +12,19 @@
 ///
 /// Iterate over all stored key/value pairs with pointers.
 ///
+/// m[in,out]     : Map to iterate over.
+/// key_ptr[in]   : Name of pointer variable bound to the key of each pair.
+/// value_ptr[in] : Name of pointer variable bound to the value of each pair.
+///
+/// SUCCESS : The loop body runs once per occupied slot with `key_ptr`
+///           bound to the in-slot key address and `value_ptr` bound to
+///           the in-slot value address. The body is skipped when `m`
+///           is empty. Use this form when the body needs to mutate the
+///           value (or read the key) through the pointer. The map is
+///           not modified by the macro itself.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateMap(m)` when `m` is uninitialised or corrupted.
+///
 /// TAGS: Map, Foreach, Pair, Pointer
 ///
 #define MapForeachPairPtr(m, key_ptr, value_ptr)                                                                                   \
@@ -29,6 +42,17 @@
 ///
 /// Iterate over all stored key/value pairs by value.
 ///
+/// m[in,out]     : Map to iterate over.
+/// key_var[in]   : Name of variable bound to a copy of each pair's key.
+/// value_var[in] : Name of variable bound to a copy of each pair's value.
+///
+/// SUCCESS : The loop body runs once per occupied slot with `key_var`
+///           and `value_var` bound to copies of the stored key and
+///           value. The body is skipped when `m` is empty. Mutating
+///           the locals does not write back into the map.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateMap(m)` when `m` is uninitialised or corrupted.
+///
 /// TAGS: Map, Foreach, Pair
 ///
 #define MapForeachPair(m, key_var, value_var)                                                                                     \
@@ -45,6 +69,16 @@
 
 ///
 /// Iterate once per unique key stored in the multimap.
+///
+/// m[in,out]   : Map to iterate over.
+/// key_var[in] : Name of variable bound to a copy of each unique key.
+///
+/// SUCCESS : The loop body runs once for each distinct key (duplicates
+///           in the multimap are visited only at their canonical
+///           probe-anchor slot) with `key_var` bound to a copy of that
+///           key. The body is skipped when `m` is empty.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateMap(m)` when `m` is uninitialised or corrupted.
 ///
 /// TAGS: Map, Foreach, Key
 ///
@@ -67,6 +101,16 @@
 ///
 /// Iterate over all stored values by value.
 ///
+/// m[in,out]     : Map to iterate over.
+/// value_var[in] : Name of variable bound to a copy of each stored value.
+///
+/// SUCCESS : The loop body runs once per occupied slot with `value_var`
+///           bound to a copy of the stored value. The body is skipped
+///           when `m` is empty. Mutating the local does not write back
+///           into the map.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateMap(m)` when `m` is uninitialised or corrupted.
+///
 /// TAGS: Map, Foreach, Value
 ///
 #define MapForeachValue(m, value_var)                                                                                  \
@@ -82,6 +126,16 @@
 ///
 /// Iterate over all stored values with pointers.
 ///
+/// m[in,out]     : Map to iterate over.
+/// value_ptr[in] : Name of pointer variable bound to each stored value.
+///
+/// SUCCESS : The loop body runs once per occupied slot with `value_ptr`
+///           bound to the in-slot value address. Use this form when
+///           the body mutates the stored value in place. The body is
+///           skipped when `m` is empty.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateMap(m)` when `m` is uninitialised or corrupted.
+///
 /// TAGS: Map, Foreach, Value, Pointer
 ///
 #define MapForeachValuePtr(m, value_ptr)                                                                               \
@@ -96,6 +150,19 @@
 
 ///
 /// Iterate over all values stored for a specific key.
+///
+/// m[in,out]      : Map to iterate over.
+/// lookup_key[in] : Key value to match against (compared via the map's
+///                  `key_compare` callback).
+/// value_var[in]  : Name of variable bound to a copy of each matching
+///                  stored value.
+///
+/// SUCCESS : The loop body runs once for each value stored under
+///           `lookup_key`, with `value_var` bound to a copy of that
+///           value. The body is skipped when `m` is empty or when the
+///           key is not present.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateMap(m)` when `m` is uninitialised or corrupted.
 ///
 /// TAGS: Map, Foreach, Value, Lookup
 ///
@@ -114,6 +181,20 @@
 
 ///
 /// Iterate over all values stored for a specific key with pointers.
+///
+/// m[in,out]      : Map to iterate over.
+/// lookup_key[in] : Key value to match against (compared via the map's
+///                  `key_compare` callback).
+/// value_ptr[in]  : Name of pointer variable bound to each matching
+///                  in-slot value.
+///
+/// SUCCESS : The loop body runs once for each value stored under
+///           `lookup_key`, with `value_ptr` bound to the in-slot value
+///           address. Use this form when the body mutates the stored
+///           value in place. The body is skipped when `m` is empty or
+///           when the key is not present.
+/// FAILURE : The macro itself does not fail. `LOG_FATAL` via
+///           `ValidateMap(m)` when `m` is uninitialised or corrupted.
 ///
 /// TAGS: Map, Foreach, Value, Lookup, Pointer
 ///

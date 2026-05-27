@@ -5,13 +5,17 @@
 /// Pseudo-random number generator. Process-lifetime internal state,
 /// reseeded from the kernel CSPRNG periodically.
 ///
-/// **Design note (utmost importance).** PRNG is the **one and only**
-/// place in MisraStdC where a function-local `static` variable lives
-/// for the lifetime of the program. The state is wholly encapsulated
-/// inside `prng_internal` (in `Prng.c`) and is not accessible by any
-/// other TU or by any other identifier. Every other part of the
-/// library is required to be init-by-value, no globals, no TLS-as-
-/// globals -- PRNG is the deliberate, documented exception.
+/// **Design note (utmost importance).** MisraStdC is init-by-value
+/// throughout -- no globals, no TLS-as-globals, no hidden defaults.
+/// A small, deliberate set of process-lifetime singletons exists for
+/// one-time platform init or signal-context state that genuinely has
+/// no caller to thread an allocator through (the Abort callback slot
+/// in `Sys.c`, the Windows-only `dbghelp` init flag and Winsock
+/// once-init state under `Sys/`). PRNG is one of these: its state is
+/// wholly encapsulated inside `prng_internal` (in `Prng.c`) and not
+/// accessible by any other TU or identifier. Each such singleton is
+/// documented where it lives; outside this small set, the rule is
+/// still init-by-value.
 ///
 /// First call seeds from the OS entropy source (Linux `getrandom`,
 /// Darwin `getentropy`, Windows `BCryptGenRandom`). After that each

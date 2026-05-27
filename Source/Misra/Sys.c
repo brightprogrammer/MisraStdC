@@ -253,7 +253,7 @@ Str *StrError(i32 eno, Str *err_str) {
 // Global callback for Abort - NULL means use default abort()
 static AbortCallback g_abort_callback = NULL;
 
-void SetAbortCallback(AbortCallback callback) {
+void OnAbort(AbortCallback callback) {
     g_abort_callback = callback;
 }
 

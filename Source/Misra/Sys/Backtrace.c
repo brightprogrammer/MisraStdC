@@ -191,11 +191,13 @@ static void format_walk_win(Str *out, const StackFrame *frames, size count, Allo
 
 #    if FEATURE_PARSER_PDB
         if (pdb_cache_ok) {
-            char module_path[MAX_PATH];
-            u64  module_base = 0;
-            if (win_module_for_ip(frames[i].ip, module_path, sizeof(module_path), &module_base)) {
-                if (PdbCacheResolve(&pdb_cache, module_path, module_base, (u64)ip, &sym_name, &sym_off)) {
-                    named = true;
+            StrInitStack(module_path, MAX_PATH) {
+                char *data        = StrBegin(&module_path);
+                u64   module_base = 0;
+                if (win_module_for_ip(frames[i].ip, data, MAX_PATH, &module_base)) {
+                    if (PdbCacheResolve(&pdb_cache, data, module_base, (u64)ip, &sym_name, &sym_off)) {
+                        named = true;
+                    }
                 }
             }
         }
@@ -239,7 +241,7 @@ void format_stack_trace_raw(Str *out, const StackFrame *frames, size count, Allo
 void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *alloc) {
     if (!out || !frames)
         return;
-    format_walk_win(out, frames->data, frames->length, alloc);
+    format_walk_win(out, VecBegin(frames), VecLen(frames), alloc);
 }
 
 // ---------------------------------------------------------------------------
@@ -435,7 +437,7 @@ void format_stack_trace_raw(Str *out, const StackFrame *frames, size count, Allo
 void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *alloc) {
     if (!out || !frames || !alloc)
         return;
-    format_walk_mac(out, frames->data, frames->length, alloc);
+    format_walk_mac(out, VecBegin(frames), VecLen(frames), alloc);
 }
 
 // ---------------------------------------------------------------------------
@@ -547,7 +549,7 @@ void format_stack_trace_with_raw(Str *out, const StackFrame *frames, size count,
 void format_stack_trace_with_vec(Str *out, const StackFrames *frames, SymbolResolver *resolver) {
     if (!out || !frames || !resolver)
         return;
-    format_walk_with(out, frames->data, frames->length, resolver);
+    format_walk_with(out, VecBegin(frames), VecLen(frames), resolver);
 }
 
 void format_stack_trace_raw(Str *out, const StackFrame *frames, size count, Allocator *alloc) {
@@ -559,7 +561,7 @@ void format_stack_trace_raw(Str *out, const StackFrame *frames, size count, Allo
 void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *alloc) {
     if (!out || !frames || !alloc)
         return;
-    format_walk_alloc(out, frames->data, frames->length, alloc);
+    format_walk_alloc(out, VecBegin(frames), VecLen(frames), alloc);
 }
 
 // ---------------------------------------------------------------------------

@@ -27,7 +27,7 @@ static void reset_counters(void) {
 }
 
 static bool list_matches(GenericList *list, const int *expected, size count) {
-    if (list->length != count) {
+    if (ListLen(list) != count) {
         return false;
     }
 
@@ -66,8 +66,8 @@ static bool test_list_remove_and_pop(void) {
     ListPopBack(&list, &removed);
     result = result && (removed == 40);
     result = result && list_matches(GENERIC_LIST(&list), (const int[]) {30}, 1);
-    result = result && ListHead(&list) && ListHead(&list)->data && (*ListHead(&list)->data == 30);
-    result = result && ListTail(&list) && ListTail(&list)->data && (*ListTail(&list)->data == 30);
+    result = result && ListHead(&list) && ListNodeData(ListHead(&list)) && (*ListNodeData(ListHead(&list)) == 30);
+    result = result && ListTail(&list) && ListNodeData(ListTail(&list)) && (*ListNodeData(ListTail(&list)) == 30);
 
     ListDeinit(&list);
     DefaultAllocatorDeinit(&alloc);
@@ -132,8 +132,8 @@ static bool test_list_remove_range_prefix_suffix_edges(void) {
     ListRemoveRange(&list, suffix, 2, 2);
     result = result && (suffix[0] == 5) && (suffix[1] == 6);
     result = result && list_matches(GENERIC_LIST(&list), (const int[]) {3, 4}, 2);
-    result = result && ListHead(&list) && ListHead(&list)->data && (*ListHead(&list)->data == 3);
-    result = result && ListTail(&list) && ListTail(&list)->data && (*ListTail(&list)->data == 4);
+    result = result && ListHead(&list) && ListNodeData(ListHead(&list)) && (*ListNodeData(ListHead(&list)) == 3);
+    result = result && ListTail(&list) && ListNodeData(ListTail(&list)) && (*ListNodeData(ListTail(&list)) == 4);
 
     ListDeinit(&list);
     DefaultAllocatorDeinit(&alloc);

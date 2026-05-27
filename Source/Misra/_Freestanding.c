@@ -166,7 +166,7 @@ __attribute__((weak, used, noreturn)) void __stack_chk_fail(void) {
     );
     Abort();
     // Abort() is not declared noreturn in Misra/Std/Log.h (it's a
-    // function pointer indirection through SetAbortCallback in some
+    // function pointer indirection through OnAbort in some
     // builds, so the compiler can't prove termination). Give the
     // compiler the noreturn guarantee explicitly so this whole
     // function compiles clean as noreturn.

@@ -8,6 +8,7 @@
 #define MISRA_STD_CONTAINER_STR_ACCESS_H
 
 #include "Type.h"
+#include <Misra/Std/Container/Vec/Access.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -117,9 +118,11 @@ extern "C" {
 #define StrCharPtrAt(str, idx) VecPtrAt(str, idx)
 
 ///
-/// Aligned byte offset of character `idx` from the start of the string's
-/// storage buffer. Same contract as VecAlignedOffsetAt, specialised for the
-/// char element.
+/// Byte offset of the character at `idx` from the start of the string's
+/// storage buffer, with the per-character alignment padding applied. For a
+/// `char` string this is simply `idx`, but it stays correct under any future
+/// over-aligned char typedef. See `VecAlignedOffsetAt` for the full
+/// SUCCESS/FAILURE contract.
 ///
 /// str[in] : String to query.
 /// idx[in] : Character index.
@@ -129,8 +132,10 @@ extern "C" {
 #define StrAlignedOffsetAt(str, idx) VecAlignedOffsetAt(str, idx)
 
 ///
-/// Total used storage in bytes for the string. Same contract as VecSize,
-/// specialised for the char element.
+/// Total used storage of the string in bytes, i.e. the number of characters
+/// currently held times the per-character stride. Distinct from `StrLen`,
+/// which counts characters rather than bytes. See `VecSize` for the full
+/// SUCCESS/FAILURE contract.
 ///
 /// str[in] : String to query.
 ///
@@ -139,15 +144,18 @@ extern "C" {
 #define StrSize(str) VecSize(str)
 
 ///
-/// Check whether the string contains a matching character. Same contract as
-/// VecContains, specialised for the char element.
+/// Linear scan over the characters of `str` for one that compares equal to
+/// `*chr_ptr` under `compare`. Useful for "does this string contain digit
+/// X / delimiter Y" predicates without committing to a position.
 ///
 /// str[in]      : String to search.
 /// chr_ptr[in]  : Pointer to the character value to search for.
 /// compare[in]  : Comparator returning `0` for equality.
 ///
-/// SUCCESS : Returns `true` when at least one matching character exists.
+/// SUCCESS : Returns `true` when at least one character in `str` matches.
 /// FAILURE : Returns `false` when no character matches.
+///
+/// See `VecContains` for the full SUCCESS/FAILURE contract.
 ///
 /// TAGS: Str, Contains, Search, Compare
 ///

@@ -115,7 +115,11 @@ extern "C" {
     /// bytes[out] : Byte array to write to (must be large enough)
     /// max_len[in]: Maximum bytes to write
     ///
-    /// SUCCESS : Number of bytes written
+    /// SUCCESS : Returns the number of bytes written into `bytes`,
+    ///           which is `min(ceil(length / 8), max_len)`. The
+    ///           bitvector is not modified.
+    /// FAILURE : Returns `0` for an empty bitvector. `LOG_FATAL` when
+    ///           `bytes` is `NULL` or `max_len` is `0`.
     ///
     /// USAGE:
     ///   u8 buffer[16];
@@ -167,7 +171,11 @@ extern "C" {
     ///
     /// bv[in] : Bitvector to convert (must be <= 64 bits)
     ///
-    /// SUCCESS : Integer value, or 0 if bitvector is too large or empty
+    /// SUCCESS : Returns the LSB-first unsigned integer value packed
+    ///           into the bitvector. Bits beyond position 63 are
+    ///           silently dropped. The bitvector is not modified.
+    /// FAILURE : Returns `0` for an empty bitvector. The caller cannot
+    ///           distinguish that from a true zero result.
     ///
     /// USAGE:
     ///   u64 value = BitVecToInteger(&flags);

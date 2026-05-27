@@ -15,7 +15,9 @@
 ///
 /// m[in] : Map.
 ///
-#define MapPairCount(m) ((m)->length)
+/// TAGS: Map, Length, Count, Pair
+///
+#define MapPairCount(m) ((void)0, (m)->length)
 
 ///
 /// Probe-table slot count: the size of the underlying open-addressed
@@ -26,7 +28,7 @@
 ///
 /// TAGS: Map, Access, Capacity
 ///
-#define MapCapacity(m) ((m)->capacity)
+#define MapCapacity(m) ((void)0, (m)->capacity)
 
 ///
 /// Tombstone count: slots that previously held a key but are now
@@ -36,7 +38,7 @@
 ///
 /// TAGS: Map, Access, Tombstones
 ///
-#define MapTombstones(m) ((m)->tombstones)
+#define MapTombstones(m) ((void)0, (m)->tombstones)
 
 ///
 /// Allocator backing the map's storage.
@@ -45,7 +47,47 @@
 ///
 /// TAGS: Map, Access, Allocator
 ///
-#define MapAllocator(m) ((m)->allocator)
+#define MapAllocator(m) ((void)0, (m)->allocator)
+
+///
+/// Deep-copy `init` callback wired for map keys, or `NULL` if the map
+/// was initialised without key deep-copy semantics.
+///
+/// m[in] : Map.
+///
+/// TAGS: Map, Access, DeepCopy, Key
+///
+#define MapKeyCopyInit(m) ((void)0, (m)->key_copy_init)
+
+///
+/// Deep-copy `deinit` callback wired for map keys, or `NULL` if the map
+/// was initialised without key deep-copy semantics.
+///
+/// m[in] : Map.
+///
+/// TAGS: Map, Access, DeepCopy, Key
+///
+#define MapKeyCopyDeinit(m) ((void)0, (m)->key_copy_deinit)
+
+///
+/// Deep-copy `init` callback wired for map values, or `NULL` if the map
+/// was initialised without value deep-copy semantics.
+///
+/// m[in] : Map.
+///
+/// TAGS: Map, Access, DeepCopy, Value
+///
+#define MapValueCopyInit(m) ((void)0, (m)->value_copy_init)
+
+///
+/// Deep-copy `deinit` callback wired for map values, or `NULL` if the map
+/// was initialised without value deep-copy semantics.
+///
+/// m[in] : Map.
+///
+/// TAGS: Map, Access, DeepCopy, Value
+///
+#define MapValueCopyDeinit(m) ((void)0, (m)->value_copy_deinit)
 
 ///
 /// Raw pointer to the entries array. For diagnostic inspection only -
@@ -57,7 +99,7 @@
 ///
 /// TAGS: Map, Access, Internal
 ///
-#define MapEntries(m) ((m)->entries)
+#define MapEntries(m) ((void)0, (m)->entries)
 
 ///
 /// Per-slot state array (occupied / empty / tombstone). One byte per
@@ -67,12 +109,21 @@
 ///
 /// TAGS: Map, Access, Internal
 ///
-#define MapStates(m) ((m)->states)
+#define MapStates(m) ((void)0, (m)->states)
 
 ///
-/// Number of distinct keys stored in the multimap.
+/// Number of distinct keys stored in the multimap. Walks the slot
+/// table once to count canonical probe-anchor slots, so this is `O(capacity)`
+/// -- prefer `MapPairCount` when total pair count is enough.
 ///
 /// m[in] : Map.
+///
+/// SUCCESS : Returns the count of distinct keys present. The map is
+///           not modified.
+/// FAILURE : Cannot fail. `LOG_FATAL` via `ValidateMap(m)` when `m`
+///           is uninitialised or corrupted.
+///
+/// TAGS: Map, Count, Key, Access
 ///
 #define MapUniqueKeyCount(m)                                                                                           \
     map_unique_key_count(                                                                                              \
@@ -93,6 +144,8 @@
 ///           The map is not modified.
 /// FAILURE : Returns `false` when no entry exists for the key. The map is
 ///           not modified.
+///
+/// TAGS: Map, Contains, Key, Access
 ///
 #define MapContainsKey(m, lookup_key)                                                                                  \
     map_contains(                                                                                                      \
@@ -117,6 +170,8 @@
 ///           modified. A NULL `value_compare` is a caller bug and aborts
 ///           via `LOG_FATAL`.
 ///
+/// TAGS: Map, Contains, Pair, Access
+///
 #define MapContainsPair(m, lookup_key, lookup_value)                                                                   \
     map_contains_pair(                                                                                                 \
         GENERIC_MAP(m),                                                                                                \
@@ -140,6 +195,8 @@
 /// FAILURE : Returns `0` when no entry exists for the key. The map is not
 ///           modified.
 ///
+/// TAGS: Map, Count, Value, Key
+///
 #define MapValueCountForKey(m, lookup_key)                                                                             \
     map_value_count(                                                                                                   \
         GENERIC_MAP(m),                                                                                                \
@@ -161,6 +218,8 @@
 ///           The pointer is valid until the next rehash.
 /// FAILURE : Returns `NULL` when no entry exists for the key. The map is
 ///           not modified.
+///
+/// TAGS: Map, Get, First, Access
 ///
 #define MapGetFirstPtr(m, lookup_key)                                                                                  \
     ((MAP_VALUE_TYPE(m) *)map_get_value_ptr(                                                                           \
@@ -185,6 +244,8 @@
 ///           slot of the first matching entry. The map is not modified.
 /// FAILURE : Returns `NULL` when no entry exists for the key.
 ///
+/// TAGS: Map, Get, Try, Access
+///
 #define MapTryGetPtr(m, lookup_key) MapGetFirstPtr((m), (lookup_key))
 
 ///
@@ -204,6 +265,8 @@
 /// FAILURE : Does not return on invalid arguments (caller bug); aborts via
 ///           `LOG_FATAL`.
 ///
+/// TAGS: Map, Get, Default, Access
+///
 #define MapGetOrDefault(m, lookup_key, default_value)                                                                  \
     (*(MAP_VALUE_TYPE(m) *)map_get_value_or_default(                                                                   \
         GENERIC_MAP(m),                                                                                                \
@@ -219,14 +282,34 @@
     ))
 
 ///
-/// Invalid cursor returned when a per-key query has no more values.
+/// Sentinel cursor representing past-the-end / iteration exhausted.
+/// Returned by `MapFindFirstForKey` and `MapFindNextForKey` when no
+/// (further) entries match the queried key.
+///
+/// SUCCESS : Returns a `MapValueCursor` value that compares unequal to
+///           every cursor that points to an occupied entry. Suitable
+///           as the loop terminator for per-key cursor iteration. No
+///           map is touched.
+/// FAILURE : Macro cannot fail. Has no map argument and no observable
+///           failure mode.
+///
+/// TAGS: Map, Cursor, Value, Access
 ///
 #define MapValueCursorInvalid() ((MapValueCursor) {.__index = (size) - 1})
 
 ///
-/// Check whether a cursor currently points to a value.
+/// Check whether a cursor still points to a value for its key (i.e. the
+/// per-key iteration has not yet been exhausted).
 ///
 /// cursor[in] : Cursor returned by `MapFindFirstForKey` or `MapFindNextForKey`.
+///
+/// SUCCESS : Returns `true` when `cursor` refers to an in-range entry
+///           (i.e. it is not the past-the-end sentinel). No map is
+///           touched.
+/// FAILURE : Returns `false` when `cursor` equals `MapValueCursorInvalid()`,
+///           meaning the per-key iteration is done. No map is touched.
+///
+/// TAGS: Map, Cursor, Value, Access
 ///
 #define MapValueCursorIsValid(cursor) ((cursor).__index != (size) - 1)
 
@@ -241,6 +324,8 @@
 ///           value pointer. The map is not modified.
 /// FAILURE : Returns `MapValueCursorInvalid()` when no entry exists for
 ///           the key. The map is not modified.
+///
+/// TAGS: Map, Find, First, Key
 ///
 #define MapFindFirstForKey(m, lookup_key)                                                                              \
     map_find_first_cursor(                                                                                             \
@@ -265,6 +350,8 @@
 /// FAILURE : Returns `MapValueCursorInvalid()` when no more entries match.
 ///           The map is not modified.
 ///
+/// TAGS: Map, Find, Next, Key
+///
 #define MapFindNextForKey(m, lookup_key, cursor)                                                                       \
     map_find_next_cursor(                                                                                              \
         GENERIC_MAP(m),                                                                                                \
@@ -288,6 +375,8 @@
 /// FAILURE : Returns `NULL` if the cursor is invalid or no longer points to
 ///           an occupied entry (e.g. after a rehash). The map is not
 ///           modified.
+///
+/// TAGS: Map, Cursor, Value, Access
 ///
 #define MapValuePtrFromCursor(m, cursor)                                                                               \
     ((MAP_VALUE_TYPE(m) *)map_value_ptr_from_cursor(                                                                   \

@@ -37,7 +37,14 @@ extern "C" {
     ///
     /// value[in] : Float to clone
     ///
-    /// RETURNS: Independent copy of `value`.
+    /// SUCCESS : Returns an independent deep copy of `value` (sign,
+    ///           significand bits, exponent) bound to `value`'s
+    ///           allocator. `value` is not modified.
+    /// FAILURE : Returns a freshly initialised empty `Float` bound to
+    ///           `value`'s allocator on allocation failure during the
+    ///           significand copy. The caller cannot distinguish that
+    ///           from a true zero result; use `FloatTryClone` directly
+    ///           when explicit failure propagation is required.
     ///
     /// USAGE:
     ///   Float copy = FloatClone(&value);

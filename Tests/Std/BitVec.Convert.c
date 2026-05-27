@@ -270,12 +270,12 @@ bool test_bitvec_try_conversion_allocators(void) {
     BitVec bv;
     Str    str;
     bool   ok = BitVecTryFromStr(&bv, "101001", ALLOCATOR_OF(&alloc));
-    bool   result =
-        ok && (bv.allocator->effort == alloc.base.effort) && (bv.allocator->retry_limit == alloc.base.retry_limit);
+    bool   result = ok && (VecAllocator(&bv)->effort == alloc.base.effort) &&
+                  (VecAllocator(&bv)->retry_limit == alloc.base.retry_limit);
 
     ok     = BitVecTryToStr(&str, &bv);
-    result = result && ok && (str.allocator->effort == alloc.base.effort) &&
-             (str.allocator->retry_limit == alloc.base.retry_limit) && (ZstrCompare(StrBegin(&str), "101001") == 0);
+    result = result && ok && (StrAllocator(&str)->effort == alloc.base.effort) &&
+             (StrAllocator(&str)->retry_limit == alloc.base.retry_limit) && (ZstrCompare(StrBegin(&str), "101001") == 0);
 
     StrDeinit(&str);
     BitVecDeinit(&bv);
@@ -422,7 +422,7 @@ bool test_bitvec_round_trip_conversions(void) {
     // Test string round-trip
     Zstr patterns[] = {"101", "1111000011110000", "1", "0", "10101010", "01010101"};
 
-    for (size_t i = 0; i < sizeof(patterns) / sizeof(patterns[0]); i++) {
+    for (size i = 0; i < sizeof(patterns) / sizeof(patterns[0]); i++) {
         BitVec bv  = BitVecFromStr(patterns[i], ALLOCATOR_OF(&alloc));
         Str    str = BitVecToStr(&bv);
 
@@ -437,8 +437,8 @@ bool test_bitvec_round_trip_conversions(void) {
     u64 values[]    = {0, 1, 15, 255, 65535, 0xFFFFFFFF, 0x123456789ABCDEF};
     u64 bit_sizes[] = {1, 4, 8, 16, 32, 64};
 
-    for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); i++) {
-        for (size_t j = 0; j < sizeof(bit_sizes) / sizeof(bit_sizes[0]); j++) {
+    for (size i = 0; i < sizeof(values) / sizeof(values[0]); i++) {
+        for (size j = 0; j < sizeof(bit_sizes) / sizeof(bit_sizes[0]); j++) {
             u64 bits  = bit_sizes[j];
             u64 value = values[i];
 
@@ -458,7 +458,7 @@ bool test_bitvec_round_trip_conversions(void) {
     // Test byte round-trip
     u8 test_bytes[] = {0x00, 0xFF, 0xAA, 0x55, 0x01, 0x80, 0x7F, 0xFE};
 
-    for (size_t i = 0; i < sizeof(test_bytes); i++) {
+    for (size i = 0; i < sizeof(test_bytes); i++) {
         BitVec bv             = BitVecFromBytes(&test_bytes[i], 8, ALLOCATOR_OF(&alloc));
         u8     recovered_byte = 0;
         u64    written        = BitVecToBytes(&bv, &recovered_byte, 1);
@@ -536,7 +536,7 @@ bool test_bitvec_conversion_comprehensive(void) {
         Zstr pattern;
         u64    expected_value;
         u8     expected_bytes[8];
-        size_t byte_count;
+        size byte_count;
     } test_cases[] = {
         {        "10000000",   0x01,       {0x01}, 1}, // MSB set
         {        "00000001",   0x80,       {0x80}, 1}, // LSB set
@@ -546,7 +546,7 @@ bool test_bitvec_conversion_comprehensive(void) {
         {"0101010101010101", 0xAAAA, {0xAA, 0xAA}, 2}, // Inverse alternating
     };
 
-    for (size_t i = 0; i < sizeof(test_cases) / sizeof(test_cases[0]); i++) {
+    for (size i = 0; i < sizeof(test_cases) / sizeof(test_cases[0]); i++) {
         BitVec bv = BitVecFromStr(test_cases[i].pattern, ALLOCATOR_OF(&alloc));
 
         // Test string conversion consistency

@@ -170,7 +170,7 @@ static bool test_reject_foreign_pointer(void) {
 static bool test_reject_misaligned_pointer(void) {
     SlabAllocator slab  = SlabAllocatorInit(sizeof(Node));
     Allocator    *alloc = ALLOCATOR_OF(&slab);
-    char         *p     = (char *)AllocatorAlloc(alloc, sizeof(Node), false);
+    u8           *p     = (u8 *)AllocatorAlloc(alloc, sizeof(Node), false);
     AllocatorFree(alloc, p + 1); // mis-aligned -> LOG_FATAL
     return false;
 }

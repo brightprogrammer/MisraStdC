@@ -21,32 +21,12 @@ static i32 i32_compare(const void *lhs, const void *rhs) {
     return (a > b) - (a < b);
 }
 
-static u64 zstr_hash(const void *data, u32 size) {
-    const char          *str  = *(Zstr const *)data;
-    const unsigned char *ptr  = (const unsigned char *)str;
-    u64                  hash = 1469598103934665603ULL;
-    (void)size;
-
-    while (*ptr) {
-        hash ^= (u64)(*ptr++);
-        hash *= 1099511628211ULL;
-    }
-
-    return hash;
-}
-
-static i32 zstr_compare_ptr(const void *lhs, const void *rhs) {
-    Zstr a = *(Zstr const *)lhs;
-    Zstr b = *(Zstr const *)rhs;
-    return ZstrCompare(a, b);
-}
-
 static bool test_map_deep_copy_zstrs(void) {
     typedef Map(Zstr , Zstr) ZstrMap;
     DefaultAllocator alloc = DefaultAllocatorInit();
     ZstrMap          map   = MapInitWithDeepCopy(
         zstr_hash,
-        zstr_compare_ptr,
+        zstr_compare,
         zstr_init_clone,
         zstr_deinit,
         zstr_init_clone,
@@ -92,7 +72,7 @@ static bool test_map_policy_switch_preserves_entries(void) {
     DefaultAllocator alloc = DefaultAllocatorInit();
     ZstrMap          map   = MapInitWithDeepCopy(
         zstr_hash,
-        zstr_compare_ptr,
+        zstr_compare,
         zstr_init_clone,
         zstr_deinit,
         zstr_init_clone,

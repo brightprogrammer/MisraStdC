@@ -27,7 +27,7 @@ static void reset_counters(void) {
 }
 
 static bool list_matches(GenericList *list, const int *expected, size count) {
-    if (list->length != count) {
+    if (ListLen(list) != count) {
         return false;
     }
 
@@ -159,7 +159,7 @@ static bool test_list_merge_l_preserves_source_hooks_for_reuse(void) {
     bool result = (g_copy_init_count == 2);
     result      = result && list_matches(GENERIC_LIST(&dest), (const int[]) {1003, 1004}, 2);
     result      = result && (ListLen(&src) == 0) && (ListHead(&src) == NULL) && (ListTail(&src) == NULL);
-    result      = result && (src.copy_init == tracked_copy_init) && (src.copy_deinit == tracked_copy_deinit);
+    result      = result && (ListCopyInit(&src) == tracked_copy_init) && (ListCopyDeinit(&src) == tracked_copy_deinit);
 
     ListPushBackR(&src, 5);
     result = result && (g_copy_init_count == 3);

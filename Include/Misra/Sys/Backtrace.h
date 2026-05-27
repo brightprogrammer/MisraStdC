@@ -57,6 +57,8 @@ typedef struct SymbolResolver SymbolResolver;
 /// A single captured stack frame. Just the IP -- symbol resolution
 /// happens later in `FormatStackTrace`.
 ///
+/// TAGS: Backtrace, Type, Frame
+///
 typedef struct StackFrame {
     void *ip;
 } StackFrame;
@@ -64,6 +66,8 @@ typedef struct StackFrame {
 ///
 /// Vec-flavoured handle for stack frames. The Vec form of every
 /// public capture / format function consumes this.
+///
+/// TAGS: Backtrace, Type, Frame
 ///
 typedef Vec(StackFrame) StackFrames;
 
@@ -85,6 +89,8 @@ typedef Vec(StackFrame) StackFrames;
 /// FAILURE : Returns 0 if FPs are unavailable (e.g. `-fomit-frame-pointer`
 ///           builds on the FP-walking backends) or the stack is invalid.
 ///
+/// TAGS: Backtrace, Capture, Trace, Stack
+///
 size capture_stack_trace_raw(StackFrame *out, size max_frames, size skip_frames);
 
 ///
@@ -93,6 +99,8 @@ size capture_stack_trace_raw(StackFrame *out, size max_frames, size skip_frames)
 ///
 /// SUCCESS : Returns true; `out` contains the captured frames.
 /// FAILURE : Returns false on allocator OOM during the walk.
+///
+/// TAGS: Backtrace, Capture, Trace, Stack
 ///
 bool capture_stack_trace_vec(StackFrames *out, size skip_frames);
 
@@ -108,6 +116,8 @@ bool capture_stack_trace_vec(StackFrames *out, size skip_frames);
 ///           unwind step that the CFI rules can't resolve or an OOM
 ///           inside `_vec`.
 ///
+/// TAGS: Backtrace, Capture, Trace, CFI, Stack
+///
 size capture_stack_trace_cfi_raw(StackFrame *out, size max_frames, size skip_frames, SymbolResolver *resolver);
 bool capture_stack_trace_cfi_vec(StackFrames *out, size skip_frames, SymbolResolver *resolver);
 #endif
@@ -122,6 +132,8 @@ bool capture_stack_trace_cfi_vec(StackFrames *out, size skip_frames, SymbolResol
 ///           the underlying StrAppendFmt and silently truncates; the
 ///           formatter never reports failure to the caller.
 ///
+/// TAGS: Backtrace, Format, Trace, Stack
+///
 void format_stack_trace_raw(Str *out, const StackFrame *frames, size count, Allocator *alloc);
 
 ///
@@ -130,6 +142,8 @@ void format_stack_trace_raw(Str *out, const StackFrame *frames, size count, Allo
 /// SUCCESS : Returns to the caller; `out` is appended to.
 /// FAILURE : Cannot fail. See `format_stack_trace_raw` for the OOM
 ///           behaviour.
+///
+/// TAGS: Backtrace, Format, Trace, Stack
 ///
 void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *alloc);
 
@@ -142,6 +156,8 @@ void format_stack_trace_vec(Str *out, const StackFrames *frames, Allocator *allo
 ///           `resolver`'s already-built symbol tables.
 /// FAILURE : Cannot fail. OOM during append is logged + silently
 ///           truncates; the formatter never reports failure.
+///
+/// TAGS: Backtrace, Format, Trace, Symbol, Stack
 ///
 void format_stack_trace_with_raw(Str *out, const StackFrame *frames, size count, SymbolResolver *resolver);
 void format_stack_trace_with_vec(Str *out, const StackFrames *frames, SymbolResolver *resolver);
@@ -165,6 +181,15 @@ void format_stack_trace_with_vec(Str *out, const StackFrames *frames, SymbolReso
 /// `CaptureStackTrace`'s own frame is *always* skipped on top of
 /// whatever `skip` discards.
 ///
+/// SUCCESS : Raw form returns the number of frames written into `out`
+///           (`0..max`). Vec form returns `true`; `*out_vec` is grown
+///           and populated with the captured frames.
+/// FAILURE : Raw form returns `0` when no frame can be captured (e.g.
+///           unwind library refuses, or `max == 0`). Vec form returns
+///           `false` on allocator failure while growing `*out_vec`;
+///           the vec is left in whatever partial state the failed
+///           growth produced.
+///
 /// TAGS: Sys, Backtrace, Unwind
 ///
 #define CaptureStackTrace(...)              MISRA_OVERLOAD(CaptureStackTrace, __VA_ARGS__)
@@ -177,6 +202,15 @@ void format_stack_trace_with_vec(Str *out, const StackFrames *frames, SymbolReso
 ///
 ///   `CaptureStackTraceCfi(out, max, skip, resolver)` -- raw, returns `size`
 ///   `CaptureStackTraceCfi(out_vec, skip, resolver)`  -- vec, returns `bool`
+///
+/// SUCCESS : Raw form returns the number of CFI-walked frames written
+///           into `out` (`0..max`); `resolver` is reused for symbol
+///           lookup. Vec form returns `true`; `*out_vec` is grown and
+///           populated with the captured frames.
+/// FAILURE : Raw form returns `0` when the CFI walker cannot make
+///           progress (missing `.eh_frame` / `.debug_frame`, corrupt
+///           tables, or `max == 0`). Vec form returns `false` on
+///           allocator failure while growing `*out_vec`.
 ///
 /// TAGS: Sys, Backtrace, CFI, Unwind
 ///
@@ -194,6 +228,13 @@ void format_stack_trace_with_vec(Str *out, const StackFrames *frames, SymbolReso
 /// Output is appended; never fails -- unresolved frames emit as
 /// `#N 0x<ip>`.
 ///
+/// SUCCESS : Returns to the caller; `*out_str` has been appended with
+///           one line per frame, resolved where the symbol resolver
+///           could, and as `#N 0x<ip>` otherwise.
+/// FAILURE : Function cannot fail. Allocator OOM while growing
+///           `*out_str` aborts via `LOG_FATAL` (Str's standard
+///           must-succeed contract).
+///
 /// TAGS: Sys, Backtrace, Format
 ///
 #define FormatStackTrace(...)                         MISRA_OVERLOAD(FormatStackTrace, __VA_ARGS__)
@@ -207,6 +248,13 @@ void format_stack_trace_with_vec(Str *out, const StackFrames *frames, SymbolReso
 ///
 ///   `FormatStackTraceWith(out_str, frames, count, resolver)` -- raw
 ///   `FormatStackTraceWith(out_str, frames_vec, resolver)`    -- vec
+///
+/// SUCCESS : Returns to the caller; `*out_str` has been appended with
+///           one line per frame using `resolver` for symbol lookup,
+///           falling back to `#N 0x<ip>` when the resolver cannot
+///           name the frame.
+/// FAILURE : Function cannot fail. Allocator OOM while growing
+///           `*out_str` aborts via `LOG_FATAL`.
 ///
 /// TAGS: Sys, Backtrace, Format
 ///

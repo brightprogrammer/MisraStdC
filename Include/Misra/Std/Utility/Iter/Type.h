@@ -53,6 +53,8 @@ typedef struct GenericIter {
 /// SUCCESS : Continue execution, meaning given `Iter` object is most probably a valid `Iter`.
 /// FAILURE : `abort`
 ///
+/// TAGS: Iter, Validate, API
+///
 #define ValidateIter(mi) validate_iter((GenericIter *)mi)
 
 ///

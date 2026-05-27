@@ -863,7 +863,24 @@ struct check_type_eq<true> {
 #define CONCAT_(a, b) a##b
 #define CONCAT(a, b)  CONCAT_(a, b)
 
-///  Unique name per line
+///
+/// Build an identifier unique to the source line by concatenating
+/// `base` with `__LINE__`. Used by `Scope` / `ScopeWith` and other
+/// multi-temp expansion macros to introduce macro-local temporaries
+/// that cannot collide with each other across nested or sibling
+/// expansions on different lines.
+///
+/// USAGE:
+///   for (int UNPL(idx) = 0; ...)   // expands to `idx<N>` where N = __LINE__
+///
+/// SUCCESS : Resolves to the identifier `<base><LINE>`.
+/// FAILURE : Macro cannot fail. Two expansions on the same source
+///           line produce the same identifier -- callers needing
+///           multiple temps on one line must pass distinct `base`
+///           prefixes.
+///
+/// TAGS: Macro, Identifier, Unique, Line, Helper
+///
 #define UNPL(base) CONCAT(base, __LINE__)
 
 ///
